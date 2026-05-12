@@ -1,0 +1,123 @@
+// Masrafy design tokens (Constitution Principle XXIV).
+// Deep-navy primary brand color is #06152D — applied to app bars, primary
+// buttons, brand mark, and focus accents. NO raw hex anywhere outside this
+// file. Light theme only for v1; dark-theme additions will land in a later spec.
+//
+// promax v1.0 system: refined banking, swiss-inspired density, zero saturation
+// outside semantic chips, no gradients on brand surfaces.
+
+:root {
+  // --- Brand (LOCKED — confirmed primary) ----------------------------------
+  --color-brand-primary: #06152D;
+  --color-brand-primary-hover: #0B2247;
+  --color-brand-primary-active: #050F22;
+  --color-brand-primary-contrast: #FFFFFF;
+
+  // --- Tonal accent (secondary brand, used for links, secondary chips,
+  //     hover-state on tonal buttons; never on the top-bar) ----------------
+  --color-tonal-accent: #1C4290;
+  --color-tonal-accent-hover: #2A57AE;
+  --color-tonal-accent-bg: #E8EDF7;
+
+  // --- Surfaces -----------------------------------------------------------
+  --color-surface-default: #FFFFFF;
+  --color-surface-elevated: #F7F8FA;
+  --color-surface-muted: #EEF0F4;
+  --color-surface-row-hover: #F2F4F8;
+  --color-surface-inverse: #06152D;
+  --color-overlay-backdrop: rgba(6, 21, 45, 0.50);
+
+  // --- Text ---------------------------------------------------------------
+  --color-text-primary: #06152D;
+  --color-text-secondary: #4A5468;
+  --color-text-tertiary: #7A8194;
+  --color-text-disabled: #B3B9C5;
+  --color-text-on-brand: #FFFFFF;
+  --color-text-link: #1C4290;
+  --color-text-link-hover: #2A57AE;
+
+  // --- Borders ------------------------------------------------------------
+  --color-border-default: #D5D9E1;
+  --color-border-strong: #A8B0BD;
+  --color-border-focus: #06152D;
+  --color-border-locked-step: #06152D; // forced-change card inline-start bar
+
+  // --- Semantic -----------------------------------------------------------
+  --color-success: #1B7F47;
+  --color-success-bg: #E5F3EC;
+  --color-success-dot: #1B7F47;
+  --color-warning: #B97300;
+  --color-warning-bg: #FFF4E0;
+  --color-warning-dot: #B97300;
+  --color-error: #C0292E;
+  --color-error-bg: #FBE7E8;
+  --color-error-dot: #C0292E;
+  --color-info: #1A5FAE;
+  --color-info-bg: #E6F0FA;
+  --color-info-dot: #1A5FAE;
+
+  // --- Spacing (4px base) -------------------------------------------------
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --space-10: 128px;
+
+  // --- Type scale ---------------------------------------------------------
+  --font-family-base: 'Cairo', 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
+  --font-family-numeric: 'Cairo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --font-feature-tabular: 'tnum' 1, 'lnum' 1;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.2;
+  --line-height-base: 1.5;
+  --line-height-loose: 1.7;
+
+  // --- Radius (banking restraint: 4 / 8 / 12; drop 16) --------------------
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  // --- Shadow (softer, brand-tinted, lower spread) ------------------------
+  --shadow-sm: 0 1px 2px rgba(6, 21, 45, 0.06);
+  --shadow-md: 0 2px 8px rgba(6, 21, 45, 0.07);
+  --shadow-lg: 0 12px 28px rgba(6, 21, 45, 0.10);
+  --shadow-focus-ring: 0 0 0 3px rgba(6, 21, 45, 0.16);
+
+  // --- Motion -------------------------------------------------------------
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 180ms;
+  --motion-duration-slow: 280ms;
+  --motion-easing-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+  --motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+
+  // --- Focus ring (WCAG 2.2 AA) -------------------------------------------
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color: var(--color-brand-primary);
+
+  // --- Layout primitives --------------------------------------------------
+  --topbar-height: 64px;
+  --sidebar-width: 248px;
+  --sidebar-width-collapsed: 56px;
+  --content-max-width: 1280px;
+  --card-max-width-auth: 420px;
+}

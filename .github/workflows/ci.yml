@@ -1,0 +1,94 @@
+# Lint + type-check + build. No test stages per Constitution v1.2.0
+# (Principles XVI + XXVII placeholders).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  backend:
+    name: backend — lint + type-check + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install
+        working-directory: backend
+        run: npm ci
+
+      - name: Prisma generate
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Lint
+        working-directory: backend
+        run: npm run lint
+
+      - name: Type-check
+        working-directory: backend
+        run: npx tsc --noEmit
+
+      - name: Error-code parity (backend ↔ admin i18n JSON)
+        working-directory: backend
+        run: npm run check:codes
+
+      - name: Build
+        working-directory: backend
+        run: npm run build
+
+  admin:
+    name: admin — lint + type-check + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install
+        working-directory: admin
+        run: npm ci
+
+      - name: Regenerate OpenAPI types
+        working-directory: admin
+        run: npm run gen:api
+
+      - name: Lint
+        working-directory: admin
+        run: npm run lint
+
+      - name: Build (localized — ar-EG + en-US)
+        working-directory: admin
+        run: npm run build -- --configuration production
+
+  contracts:
+    name: openapi contract sanity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate OpenAPI YAML
+        run: |
+          npx --yes @redocly/cli@latest lint specs/001-admin-auth-users/contracts/admin-api.openapi.yaml

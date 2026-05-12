@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.angular/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+src/app/core/auth/auth.types.ts
+src/i18n/messages.*.xlf

@@ -1,0 +1,44 @@
+@use '@angular/material' as mat;
+@use './tokens';
+
+// Material 3 theme. `mat.define-theme` requires a palette built by Material's
+// own helpers (tone scale 0–100 + secondary/neutral/error sub-palettes). We
+// use the stock $azure-palette (closest to Masrafy's deep-navy brand) and then
+// re-key the system tokens to our brand color via CSS custom properties.
+
+$masrafy-theme: mat.define-theme(
+  (
+    color: (
+      theme-type: light,
+      primary: mat.$azure-palette,
+      tertiary: mat.$violet-palette,
+    ),
+    typography: (
+      brand-family: 'Cairo, "IBM Plex Sans Arabic", system-ui, sans-serif',
+      plain-family: 'Cairo, "IBM Plex Sans Arabic", system-ui, sans-serif',
+    ),
+    density: (
+      scale: 0,
+    ),
+  )
+);
+
+html {
+  @include mat.all-component-themes($masrafy-theme);
+}
+
+// Override Material system tokens so brand color sources from _tokens.scss
+// exclusively. No raw hex in components (Principle XXIV).
+:root {
+  --mat-sys-primary: var(--color-brand-primary);
+  --mat-sys-on-primary: var(--color-brand-primary-contrast);
+  --mat-sys-primary-container: var(--color-brand-primary-hover);
+  --mat-sys-on-primary-container: var(--color-brand-primary-contrast);
+  --mat-sys-surface: var(--color-surface-default);
+  --mat-sys-on-surface: var(--color-text-primary);
+  --mat-sys-surface-variant: var(--color-surface-muted);
+  --mat-sys-outline: var(--color-border-default);
+  --mat-sys-outline-variant: var(--color-border-default);
+  --mat-sys-error: var(--color-error);
+  --mat-sys-error-container: var(--color-error-bg);
+}

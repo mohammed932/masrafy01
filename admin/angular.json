@@ -1,0 +1,90 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "admin": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "standalone": true,
+          "style": "scss",
+          "changeDetection": "OnPush"
+        }
+      },
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "app",
+      "i18n": {
+        "sourceLocale": "en-US",
+        "locales": {
+          "ar-EG": {
+            "translation": "src/i18n/messages.ar-EG.xlf"
+          }
+        }
+      },
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:application",
+          "options": {
+            "outputPath": "dist/admin",
+            "index": "src/index.html",
+            "browser": "src/main.ts",
+            "polyfills": ["zone.js", "@angular/localize/init"],
+            "tsConfig": "tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*.json",
+                "input": "src/i18n",
+                "output": "/assets/i18n"
+              }
+            ],
+            "styles": ["src/styles/styles.scss"],
+            "scripts": [],
+            "localize": ["en-US", "ar-EG"]
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                { "type": "initial", "maximumWarning": "500kB", "maximumError": "1MB" },
+                { "type": "anyComponentStyle", "maximumWarning": "4kB", "maximumError": "8kB" }
+              ],
+              "outputHashing": "all",
+              "optimization": true,
+              "sourceMap": false,
+              "namedChunks": false,
+              "extractLicenses": true
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true,
+              "namedChunks": true,
+              "localize": ["en-US"]
+            },
+            "development-ar": {
+              "optimization": false,
+              "sourceMap": true,
+              "namedChunks": true,
+              "localize": ["ar-EG"]
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "configurations": {
+            "production": { "buildTarget": "admin:build:production" },
+            "development": { "buildTarget": "admin:build:development" },
+            "development-ar": { "buildTarget": "admin:build:development-ar" }
+          },
+          "defaultConfiguration": "development"
+        },
+        "extract-i18n": {
+          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "options": { "buildTarget": "admin:build" }
+        }
+      }
+    }
+  }
+}

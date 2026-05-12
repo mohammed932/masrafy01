@@ -1,0 +1,137 @@
+// Masrafy admin auth + user management.
+// Constitution v1.0.0 Principles X, XI, XII apply.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Enums
+// -----------------------------------------------------------------------------
+
+enum StaffRole {
+  SUPER_ADMIN
+  ADMIN
+  VIEWER
+}
+
+enum AttemptOutcome {
+  SUCCESS
+  WRONG_CREDENTIALS
+  ACCOUNT_INACTIVE
+  LOCKED_OUT
+}
+
+enum AuditEventType {
+  AUTH_LOGIN_SUCCESS
+  AUTH_LOGIN_FAILURE
+  AUTH_LOGOUT
+  AUTH_TOKEN_REFRESHED
+  AUTH_PASSWORD_CHANGED
+  AUTH_PASSWORD_FORCED_CHANGE_COMPLETED
+  ADMIN_USER_CREATED
+  ADMIN_USER_UPDATED
+  ADMIN_USER_DEACTIVATED
+  ADMIN_USER_ROLE_CHANGED
+  ADMIN_USER_PASSWORD_RESET
+}
+
+// -----------------------------------------------------------------------------
+// StaffAccount
+// -----------------------------------------------------------------------------
+
+model StaffAccount {
+  id                  String    @id @default(cuid())
+  email               String    @unique @db.VarChar(320)
+  emailDisplay        String    @db.VarChar(320)
+  name                String    @db.VarChar(120)
+  passwordHash        String    @db.VarChar(72)
+  role                StaffRole
+  isActive            Boolean   @default(true)
+  mustChangePassword  Boolean   @default(true)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+  lastLoginAt         DateTime? @db.Timestamptz(6)
+
+  refreshTokens       RefreshToken[]
+  signInAttempts      SignInAttempt[]
+  auditEventsAsActor  AuditEvent[]   @relation("AuditEventActor")
+  auditEventsAsTarget AuditEvent[]   @relation("AuditEventTarget")
+
+  @@index([isActive, role], name: "idx_staff_account_active_role")
+  @@map("staff_account")
+}
+
+// -----------------------------------------------------------------------------
+// RefreshToken
+// -----------------------------------------------------------------------------
+
+model RefreshToken {
+  id            String    @id @default(cuid())
+  userId        String
+  tokenHash     String    @unique @db.Char(64)
+  issuedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt     DateTime  @db.Timestamptz(6)
+  revokedAt     DateTime? @db.Timestamptz(6)
+  rotatedFromId String?
+  userAgent     String?   @db.VarChar(500)
+  sourceIp      String?   @db.Inet
+
+  user          StaffAccount  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotatedFrom   RefreshToken? @relation("RefreshTokenRotation", fields: [rotatedFromId], references: [id], onDelete: SetNull)
+  rotatedTo     RefreshToken[] @relation("RefreshTokenRotation")
+
+  @@index([userId, revokedAt, expiresAt], name: "idx_refresh_token_user_active")
+  @@map("refresh_token")
+}
+
+// -----------------------------------------------------------------------------
+// SignInAttempt
+// -----------------------------------------------------------------------------
+
+model SignInAttempt {
+  id              String         @id @default(cuid())
+  userId          String?
+  emailAttempted  String         @db.VarChar(320)
+  attemptedAt     DateTime       @default(now()) @db.Timestamptz(6)
+  outcome         AttemptOutcome
+  sourceIp        String         @db.Inet
+  userAgent       String?        @db.VarChar(500)
+  correlationId   String         @db.VarChar(36)
+
+  user            StaffAccount?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([emailAttempted, attemptedAt(sort: Desc)], name: "idx_sign_in_attempt_email_time")
+  @@index([sourceIp, attemptedAt(sort: Desc)], name: "idx_sign_in_attempt_ip_time")
+  @@index([userId, attemptedAt(sort: Desc)], name: "idx_sign_in_attempt_user_time")
+  @@map("sign_in_attempt")
+}
+
+// -----------------------------------------------------------------------------
+// AuditEvent
+// -----------------------------------------------------------------------------
+
+model AuditEvent {
+  id            String         @id @default(cuid())
+  occurredAt    DateTime       @default(now()) @db.Timestamptz(6)
+  actorId       String?
+  targetId      String?
+  eventType     AuditEventType
+  sourceIp      String?        @db.Inet
+  correlationId String         @db.VarChar(36)
+  payload       Json           @default("{}")
+
+  actor         StaffAccount?  @relation("AuditEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  target        StaffAccount?  @relation("AuditEventTarget", fields: [targetId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, occurredAt(sort: Desc)], name: "idx_audit_event_actor_time")
+  @@index([targetId, occurredAt(sort: Desc)], name: "idx_audit_event_target_time")
+  @@index([eventType, occurredAt(sort: Desc)], name: "idx_audit_event_type_time")
+  @@map("audit_event")
+}

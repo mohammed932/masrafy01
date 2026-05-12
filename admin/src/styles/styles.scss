@@ -1,0 +1,66 @@
+@use './tokens';
+@use './material-theme';
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-family-base);
+  font-size: var(--text-md);
+  line-height: var(--line-height-base);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Tabular numerals everywhere numbers carry meaning (counts, money — future).
+.numeric,
+[data-numeric] {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: var(--font-feature-tabular);
+}
+
+// Focus ring (WCAG 2.2 AA — promax pre-delivery checklist).
+*:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+// Direction-aware utility.
+[dir='rtl'] {
+  text-align: start;
+}
+
+// Inline-start accent bar — applied to "locked" step cards (forced-change).
+.locked-step {
+  border-inline-start: 4px solid var(--color-border-locked-step);
+}
+
+// Default link styling sourced from the tonal accent, never the primary
+// brand (banking restraint — primary stays reserved for top-bar + primary CTAs).
+a {
+  color: var(--color-text-link);
+  text-decoration: none;
+  transition: color var(--motion-duration-fast) var(--motion-easing-standard);
+}
+a:hover {
+  color: var(--color-text-link-hover);
+  text-decoration: underline;
+}
+
+// Respect prefers-reduced-motion (promax checklist).
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,29 @@
+services:
+  postgres_test:
+    image: postgres:16-alpine
+    container_name: masrafy_postgres_test
+    environment:
+      POSTGRES_USER: masrafy
+      POSTGRES_PASSWORD: masrafy
+      POSTGRES_DB: masrafy_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U masrafy -d masrafy_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  redis_test:
+    image: redis:7-alpine
+    container_name: masrafy_redis_test
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 2s
+      timeout: 2s
+      retries: 30

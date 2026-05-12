@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.angular/
+coverage/
+playwright-report/
+test-results/
+src/app/core/auth/auth.types.ts

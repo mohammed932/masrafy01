@@ -1,0 +1,838 @@
+openapi: 3.0.3
+info:
+  title: Masrafy Admin API — Authentication & User Management
+  version: 1.0.0
+  description: |
+    Authentication, session management, and admin-user CRUD for the Masrafy admin dashboard.
+    All endpoints under `/api/admin/*`. Bearer-token authentication via short-lived JWT
+    (access token); refresh token transported as `httpOnly` `Secure` `SameSite=Lax` cookie
+    on `Path=/api/admin/auth/`.
+
+    Response envelope (success):
+      `{ "success": true, "data": <T> }`
+      or
+      `{ "success": true, "data": <T[]>, "pagination": { "page", "pageSize", "total" } }`
+
+    Response envelope (error):
+      `{ "success": false, "code": "<ERROR_CODE>", "meta": <object?> }`
+
+    Error codes carry NO English text to the client (Principle III). The dashboard maps
+    `code` → localized message via `ErrorCodeService.toLocalizedMessage(code, meta)`.
+
+servers:
+  - url: https://api.masrafy.local/api/admin
+    description: Local development
+  - url: https://api.masrafy.example.com/api/admin
+    description: Production (placeholder)
+
+tags:
+  - name: auth
+    description: Sign-in, refresh, sign-out, current user, self password change
+  - name: admin-users
+    description: Super_admin-only management of staff accounts
+
+# ---------------------------------------------------------------------------
+# Components
+# ---------------------------------------------------------------------------
+
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Short-lived access token (15 min). Obtain via `POST /auth/login` or
+        `POST /auth/refresh`. Attach as `Authorization: Bearer <accessToken>`.
+
+  parameters:
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      description: Optional client-supplied correlation ID; server generates one if absent.
+      schema:
+        type: string
+        format: uuid
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSizeParam:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+
+    # -------------------- Envelopes --------------------
+
+    SuccessEnvelope:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+
+    SuccessListEnvelope:
+      type: object
+      required: [success, data, pagination]
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: array
+          items: {}
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Pagination:
+      type: object
+      required: [page, pageSize, total]
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        total:
+          type: integer
+
+    ErrorEnvelope:
+      type: object
+      required: [success, code]
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+        meta:
+          type: object
+          additionalProperties: true
+          nullable: true
+
+    ErrorCode:
+      type: string
+      enum:
+        - AUTH_INVALID_CREDENTIALS
+        - AUTH_ACCOUNT_INACTIVE
+        - AUTH_TOKEN_MISSING
+        - AUTH_TOKEN_EXPIRED
+        - AUTH_TOKEN_INVALID
+        - AUTH_REFRESH_INVALID
+        - FORBIDDEN
+        - MUST_CHANGE_PASSWORD
+        - INVALID_CURRENT_PASSWORD
+        - PASSWORD_TOO_SHORT
+        - PASSWORD_TOO_LONG
+        - PASSWORD_BREACHED
+        - PASSWORD_ON_COMMON_LIST
+        - PASSWORD_BREACH_CHECK_UNAVAILABLE
+        - PASSWORD_REUSES_RESET_VALUE
+        - DUPLICATE_ENTRY
+        - NOT_FOUND
+        - VALIDATION_FAILED
+        - CANNOT_SELF_MODIFY
+        - SUPER_ADMIN_FLOOR_VIOLATED
+        - RATE_LIMITED
+        - INTERNAL_ERROR
+
+    # -------------------- Domain --------------------
+
+    StaffRole:
+      type: string
+      enum: [SUPER_ADMIN, ADMIN, VIEWER]
+
+    AuthenticatedUser:
+      type: object
+      required: [id, name, email, role, mustChangePassword]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          description: Display form (original casing); for UI presentation only.
+        role:
+          $ref: '#/components/schemas/StaffRole'
+        mustChangePassword:
+          type: boolean
+          description: True when the user must complete a forced password change before doing anything else.
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    StaffAccountSummary:
+      type: object
+      required: [id, name, email, role, isActive, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: '#/components/schemas/StaffRole'
+        isActive:
+          type: boolean
+        mustChangePassword:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # -------------------- Requests --------------------
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          maxLength: 320
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    LoginResponseData:
+      type: object
+      required: [accessToken, accessTokenExpiresIn, user]
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresIn:
+          type: integer
+          description: Seconds until access-token expiry. 900 (15 min) at issue time.
+        user:
+          $ref: '#/components/schemas/AuthenticatedUser'
+
+    RefreshResponseData:
+      type: object
+      required: [accessToken, accessTokenExpiresIn]
+      properties:
+        accessToken:
+          type: string
+        accessTokenExpiresIn:
+          type: integer
+
+    PasswordChangeRequest:
+      description: |
+        Self password change. When the authenticated user's JWT carries `mcp=true` (forced
+        change), the `currentPassword` field is OPTIONAL and ignored if supplied. Otherwise
+        it is REQUIRED. The forced-change flag is read from the JWT, never from the body.
+      type: object
+      required: [newPassword]
+      properties:
+        currentPassword:
+          type: string
+          maxLength: 128
+        newPassword:
+          type: string
+          minLength: 12
+          maxLength: 128
+
+    CreateStaffAccountRequest:
+      type: object
+      required: [name, email, role, initialPassword]
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        email:
+          type: string
+          format: email
+          maxLength: 320
+        role:
+          type: string
+          enum: [ADMIN, VIEWER]
+          description: |
+            `SUPER_ADMIN` is NOT accepted on create — that role only via FR-021/023a edit
+            flow from another super_admin OR via initial seed.
+        initialPassword:
+          type: string
+          minLength: 12
+          maxLength: 128
+          description: |
+            Subject to full password policy: ≥12 chars, ≤128 chars, not breached (HIBP
+            k-anonymity), not on common-password deny list.
+
+    UpdateStaffAccountRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 120
+        role:
+          $ref: '#/components/schemas/StaffRole'
+        isActive:
+          type: boolean
+      description: |
+        At least one field MUST be present. A super_admin CANNOT update their own
+        `role` or `isActive`. A demotion from `SUPER_ADMIN` is rejected if it would drop
+        the active super_admin count below 1.
+
+    ResetPasswordRequest:
+      type: object
+      required: [newPassword]
+      properties:
+        newPassword:
+          type: string
+          minLength: 12
+          maxLength: 128
+          description: Subject to full password policy.
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+paths:
+
+  # -------------------- /auth --------------------
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Sign in
+      description: |
+        Verify credentials. On success, return an access token and set the refresh-token
+        cookie. Failed sign-ins increment the sliding-window counter; the sixth failure
+        within 15 min locks the account.
+      operationId: login
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sign-in successful
+          headers:
+            Set-Cookie:
+              description: |
+                Refresh-token cookie: `refreshToken=<opaque>; HttpOnly; Secure;
+                SameSite=Lax; Path=/api/admin/auth/; Max-Age=604800`.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponseData'
+        '401':
+          description: Wrong email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid:
+                  value:
+                    success: false
+                    code: AUTH_INVALID_CREDENTIALS
+        '403':
+          description: Account deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                inactive:
+                  value:
+                    success: false
+                    code: AUTH_ACCOUNT_INACTIVE
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                validation:
+                  value:
+                    success: false
+                    code: VALIDATION_FAILED
+                    meta:
+                      fields:
+                        email: ['IsEmail']
+        '429':
+          description: Rate-limited (per-IP or per-account lockout)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                ratelimited:
+                  value:
+                    success: false
+                    code: RATE_LIMITED
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Rotate refresh token, issue new access token
+      description: |
+        Reads the `refreshToken` cookie. If valid, rotates it (issues a new refresh-token
+        cookie, revokes the old row server-side) and returns a fresh access token. On any
+        failure (missing, expired, revoked, malformed), returns `AUTH_REFRESH_INVALID` and
+        clears the cookie.
+      operationId: refresh
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Token rotated
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RefreshResponseData'
+        '401':
+          description: Refresh token invalid or absent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalid:
+                  value:
+                    success: false
+                    code: AUTH_REFRESH_INVALID
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Sign out
+      description: |
+        Revoke the current refresh token server-side and clear the cookie. Idempotent.
+        Does NOT require Bearer auth — clients call this with the cookie alone.
+      operationId: logout
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '204':
+          description: Signed out (or no active session — still 204)
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: 'refreshToken=; Max-Age=0; Path=/api/admin/auth/'
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Current user
+      operationId: me
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthenticatedUser'
+        '401':
+          description: Missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /auth/password:
+    patch:
+      tags: [auth]
+      summary: Change own password (also satisfies forced change)
+      description: |
+        If the access token carries `mcp=true`, `currentPassword` is not required (server
+        does NOT verify it). Otherwise, `currentPassword` is required. On success, all of
+        the user's refresh tokens are revoked, then a fresh access token (without `mcp`)
+        and a fresh refresh-token cookie are issued.
+      operationId: changeOwnPassword
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        '200':
+          description: Password changed; new access token + refresh cookie issued
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponseData'
+        '401':
+          description: Missing/invalid access token, or invalid current password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                wrongCurrent:
+                  value:
+                    success: false
+                    code: INVALID_CURRENT_PASSWORD
+        '422':
+          description: New password fails policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                tooShort:
+                  value: { success: false, code: PASSWORD_TOO_SHORT }
+                tooLong:
+                  value: { success: false, code: PASSWORD_TOO_LONG }
+                breached:
+                  value: { success: false, code: PASSWORD_BREACHED }
+                common:
+                  value: { success: false, code: PASSWORD_ON_COMMON_LIST }
+                reuse:
+                  value: { success: false, code: PASSWORD_REUSES_RESET_VALUE }
+        '503':
+          description: Breach-check service unavailable; fail closed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                unavailable:
+                  value:
+                    success: false
+                    code: PASSWORD_BREACH_CHECK_UNAVAILABLE
+
+  # -------------------- /users (super_admin only) --------------------
+
+  /users:
+    get:
+      tags: [admin-users]
+      summary: List staff accounts (super_admin)
+      operationId: listStaff
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PageSizeParam'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessListEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/StaffAccountSummary'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                forbidden:
+                  value:
+                    success: false
+                    code: FORBIDDEN
+
+    post:
+      tags: [admin-users]
+      summary: Create staff account (super_admin)
+      operationId: createStaff
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStaffAccountRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/StaffAccountSummary'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                duplicate:
+                  value:
+                    success: false
+                    code: DUPLICATE_ENTRY
+                    meta:
+                      field: email
+        '422':
+          description: Validation or password policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+      - $ref: '#/components/parameters/CorrelationId'
+
+    get:
+      tags: [admin-users]
+      summary: Get one staff account (super_admin)
+      operationId: getStaffById
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/StaffAccountSummary'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Insufficient role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                notFound:
+                  value: { success: false, code: NOT_FOUND }
+
+    patch:
+      tags: [admin-users]
+      summary: Update staff account (super_admin)
+      description: |
+        Update `name`, `role`, and/or `isActive`. Self-update of `role` or `isActive` is
+        rejected with `CANNOT_SELF_MODIFY`. A role/active change that would leave zero
+        active super_admins is rejected with `SUPER_ADMIN_FLOOR_VIOLATED` (enforced via
+        SERIALIZABLE transaction). Setting `isActive=false` revokes all of the target's
+        refresh tokens in the same transaction.
+      operationId: updateStaff
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStaffAccountRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/StaffAccountSummary'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Insufficient role, self-modify, or floor violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                forbidden:
+                  value: { success: false, code: FORBIDDEN }
+                selfModify:
+                  value: { success: false, code: CANNOT_SELF_MODIFY }
+                floor:
+                  value: { success: false, code: SUPER_ADMIN_FLOOR_VIOLATED }
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+  /users/{id}/password:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+      - $ref: '#/components/parameters/CorrelationId'
+
+    patch:
+      tags: [admin-users]
+      summary: Reset another user's password (super_admin)
+      description: |
+        Hashes the new password (bcrypt cost 12), sets the target's `passwordHash`, sets
+        `mustChangePassword=true`, and revokes all of the target's refresh tokens — all in
+        a single transaction. Resetting one's OWN password via this endpoint is forbidden;
+        users self-change via `PATCH /auth/password`.
+      operationId: resetStaffPassword
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: Password reset; target is forced to change on next login
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Insufficient role, or attempt to reset own via this endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                forbidden:
+                  value: { success: false, code: FORBIDDEN }
+                self:
+                  value: { success: false, code: CANNOT_SELF_MODIFY }
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Password policy failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '503':
+          description: Breach-check unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'

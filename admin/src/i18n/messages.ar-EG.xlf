@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en-US" target-language="ar-EG" datatype="plaintext" original="ng2.template">
+    <body>
+      <trans-unit id="login.title" datatype="html"><source>Masrafy</source><target>مصرفي</target></trans-unit>
+      <trans-unit id="login.subtitle" datatype="html"><source>Sign in to the admin dashboard.</source><target>سجّل الدخول إلى لوحة الإدارة.</target></trans-unit>
+      <trans-unit id="login.email" datatype="html"><source>Email</source><target>البريد الإلكتروني</target></trans-unit>
+      <trans-unit id="login.email.required" datatype="html"><source>Email is required.</source><target>البريد الإلكتروني مطلوب.</target></trans-unit>
+      <trans-unit id="login.email.invalid" datatype="html"><source>Email format is invalid.</source><target>صيغة البريد الإلكتروني غير صحيحة.</target></trans-unit>
+      <trans-unit id="login.password" datatype="html"><source>Password</source><target>كلمة المرور</target></trans-unit>
+      <trans-unit id="login.password.required" datatype="html"><source>Password is required.</source><target>كلمة المرور مطلوبة.</target></trans-unit>
+      <trans-unit id="login.submit" datatype="html"><source>Sign in</source><target>تسجيل الدخول</target></trans-unit>
+      <trans-unit id="login.helper" datatype="html"><source>Forgot your password? Contact a super-admin.</source><target>هل نسيت كلمة المرور؟ تواصل مع المشرف الرئيسي.</target></trans-unit>
+
+      <trans-unit id="forcedChange.title" datatype="html"><source>Change your password</source><target>غيّر كلمة المرور</target></trans-unit>
+      <trans-unit id="forcedChange.subtitle" datatype="html"><source>For your security, set a new password before continuing.</source><target>لحماية حسابك، عيّن كلمة مرور جديدة قبل المتابعة.</target></trans-unit>
+      <trans-unit id="forcedChange.newPassword" datatype="html"><source>New password</source><target>كلمة المرور الجديدة</target></trans-unit>
+      <trans-unit id="forcedChange.show" datatype="html"><source>Show password</source><target>إظهار كلمة المرور</target></trans-unit>
+      <trans-unit id="forcedChange.hide" datatype="html"><source>Hide password</source><target>إخفاء كلمة المرور</target></trans-unit>
+      <trans-unit id="forcedChange.hint.length" datatype="html"><source>Length 12–128</source><target>الطول من 12 إلى 128</target></trans-unit>
+      <trans-unit id="forcedChange.hint.common" datatype="html"><source>Not a common password</source><target>ليست كلمة مرور شائعة</target></trans-unit>
+      <trans-unit id="forcedChange.hint.breach" datatype="html"><source>Not in any known breach</source><target>غير موجودة في أي تسريب معروف</target></trans-unit>
+      <trans-unit id="forcedChange.submit" datatype="html"><source>Save and continue</source><target>حفظ ومتابعة</target></trans-unit>
+
+      <trans-unit id="selfChange.title" datatype="html"><source>Change password</source><target>تغيير كلمة المرور</target></trans-unit>
+      <trans-unit id="selfChange.currentPassword" datatype="html"><source>Current password</source><target>كلمة المرور الحالية</target></trans-unit>
+      <trans-unit id="selfChange.newPassword" datatype="html"><source>New password</source><target>كلمة المرور الجديدة</target></trans-unit>
+      <trans-unit id="selfChange.tooShort" datatype="html"><source>At least 12 characters.</source><target>12 حرفاً على الأقل.</target></trans-unit>
+      <trans-unit id="selfChange.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="selfChange.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
+      <trans-unit id="selfChange.success" datatype="html"><source>Password updated. Other devices have been signed out.</source><target>تم تحديث كلمة المرور. تم تسجيل الخروج من الأجهزة الأخرى.</target></trans-unit>
+
+      <trans-unit id="topBar.brand" datatype="html"><source>Masrafy</source><target>مصرفي</target></trans-unit>
+      <trans-unit id="topBar.userMenu" datatype="html"><source>User menu for {$INTERPOLATION}, role {$INTERPOLATION_1}</source><target>قائمة المستخدم لـ {$INTERPOLATION}، الدور {$INTERPOLATION_1}</target></trans-unit>
+      <trans-unit id="topBar.changePassword" datatype="html"><source>Change password</source><target>تغيير كلمة المرور</target></trans-unit>
+      <trans-unit id="topBar.signOut" datatype="html"><source>Sign out</source><target>تسجيل الخروج</target></trans-unit>
+
+      <trans-unit id="sidebar.dashboard" datatype="html"><source>Dashboard</source><target>لوحة التحكم</target></trans-unit>
+      <trans-unit id="sidebar.users" datatype="html"><source>Users</source><target>المستخدمون</target></trans-unit>
+
+      <trans-unit id="users.title" datatype="html"><source>Users</source><target>المستخدمون</target></trans-unit>
+      <trans-unit id="users.create" datatype="html"><source>Create user</source><target>إنشاء مستخدم</target></trans-unit>
+      <trans-unit id="users.col.name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
+      <trans-unit id="users.col.email" datatype="html"><source>Email</source><target>البريد الإلكتروني</target></trans-unit>
+      <trans-unit id="users.col.role" datatype="html"><source>Role</source><target>الدور</target></trans-unit>
+      <trans-unit id="users.col.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
+      <trans-unit id="users.col.lastLogin" datatype="html"><source>Last sign-in</source><target>آخر دخول</target></trans-unit>
+      <trans-unit id="users.status.active" datatype="html"><source>Active</source><target>نشط</target></trans-unit>
+      <trans-unit id="users.status.inactive" datatype="html"><source>Inactive</source><target>موقوف</target></trans-unit>
+      <trans-unit id="users.action.edit" datatype="html"><source>Edit</source><target>تعديل</target></trans-unit>
+      <trans-unit id="users.action.reset" datatype="html"><source>Reset password</source><target>إعادة تعيين كلمة المرور</target></trans-unit>
+      <trans-unit id="users.action.deactivate" datatype="html"><source>Deactivate</source><target>إيقاف</target></trans-unit>
+      <trans-unit id="users.action.activate" datatype="html"><source>Activate</source><target>تفعيل</target></trans-unit>
+      <trans-unit id="users.actions.menu" datatype="html"><source>Actions for {$INTERPOLATION}</source><target>إجراءات لـ {$INTERPOLATION}</target></trans-unit>
+      <trans-unit id="users.created" datatype="html"><source>User created.</source><target>تم إنشاء المستخدم.</target></trans-unit>
+      <trans-unit id="users.updated" datatype="html"><source>User updated.</source><target>تم تحديث المستخدم.</target></trans-unit>
+      <trans-unit id="users.passwordReset" datatype="html"><source>Password reset. The user must change it on next sign-in.</source><target>تمت إعادة تعيين كلمة المرور. سيُطلب من المستخدم تغييرها عند الدخول التالي.</target></trans-unit>
+
+      <trans-unit id="userForm.titleCreate" datatype="html"><source>Create user</source><target>إنشاء مستخدم</target></trans-unit>
+      <trans-unit id="userForm.titleEdit" datatype="html"><source>Edit user</source><target>تعديل المستخدم</target></trans-unit>
+      <trans-unit id="userForm.name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
+      <trans-unit id="userForm.email" datatype="html"><source>Email</source><target>البريد الإلكتروني</target></trans-unit>
+      <trans-unit id="userForm.role" datatype="html"><source>Role</source><target>الدور</target></trans-unit>
+      <trans-unit id="userForm.initialPassword" datatype="html"><source>Initial password</source><target>كلمة المرور الأولية</target></trans-unit>
+      <trans-unit id="userForm.active" datatype="html"><source>Active</source><target>نشط</target></trans-unit>
+      <trans-unit id="userForm.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="userForm.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
+
+      <trans-unit id="resetPw.title" datatype="html"><source>Reset password for</source><target>إعادة تعيين كلمة المرور لـ</target></trans-unit>
+      <trans-unit id="resetPw.hint" datatype="html"><source>The user must change this password on next sign-in.</source><target>سيتعيّن على المستخدم تغيير كلمة المرور عند الدخول التالي.</target></trans-unit>
+      <trans-unit id="resetPw.new" datatype="html"><source>New password</source><target>كلمة المرور الجديدة</target></trans-unit>
+      <trans-unit id="resetPw.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="resetPw.confirm" datatype="html"><source>Reset password</source><target>إعادة تعيين</target></trans-unit>
+    </body>
+  </file>
+</xliff>

@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: masrafy_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: masrafy
+      POSTGRES_PASSWORD: masrafy
+      POSTGRES_DB: masrafy_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - masrafy_pg_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U masrafy -d masrafy_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: masrafy_redis_dev
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  masrafy_pg_dev:
