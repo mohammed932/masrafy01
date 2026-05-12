@@ -5,6 +5,7 @@ import { PrismaService } from '@/infra/prisma/prisma.service';
 export interface CreateAuditInput {
   actorId: string | null;
   targetId: string | null;
+  bankProgramId?: string | null;
   eventType: AuditEventType;
   sourceIp: string | null;
   correlationId: string;
@@ -24,6 +25,7 @@ export class AuditEventRepository {
       data: {
         actorId: input.actorId,
         targetId: input.targetId,
+        bankProgramId: input.bankProgramId ?? undefined,
         eventType: input.eventType,
         sourceIp: input.sourceIp ?? undefined,
         correlationId: input.correlationId,

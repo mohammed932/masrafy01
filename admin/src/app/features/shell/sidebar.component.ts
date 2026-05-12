@@ -29,6 +29,11 @@ import { CanDirective } from '../../shared/can.directive';
           <mat-icon class="item-icon" aria-hidden="true">group</mat-icon>
           <span class="item-label" i18n="@@sidebar.users">Users</span>
         </a>
+
+        <a routerLink="/bank-programs" routerLinkActive="active" class="item">
+          <mat-icon class="item-icon" aria-hidden="true">account_balance</mat-icon>
+          <span class="item-label" i18n="@@sidebar.bank_programs">Bank programs</span>
+        </a>
       </nav>
 
       <div class="footer">

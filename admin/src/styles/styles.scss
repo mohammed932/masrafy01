@@ -1,6 +1,10 @@
 @use './tokens';
 @use './material-theme';
 
+// CDK overlay structural CSS is bundled separately via angular.json `styles[]`
+// (`node_modules/@angular/cdk/overlay-prebuilt.css`). A plain @import here would
+// be interpreted by Sass as a partial lookup and never reach the browser.
+
 html,
 body {
   height: 100%;
@@ -53,71 +57,45 @@ a:hover {
   text-decoration: underline;
 }
 
-// Side drawer (Material MatDialog opened as right-edge panel for forms).
-// CDK's global overlay wrapper defaults to center-center alignment. Override
-// it to flex-end + stretch so the pane sits flush against the inline-end edge,
-// full viewport height.
-.cdk-overlay-container:has(.side-drawer) .cdk-global-overlay-wrapper {
-  justify-content: flex-end !important;
-  align-items: stretch !important;
-}
-[dir='rtl'] .cdk-overlay-container:has(.side-drawer) .cdk-global-overlay-wrapper {
-  justify-content: flex-start !important;
-}
-.cdk-overlay-pane.side-drawer {
-  position: static !important;
-  max-height: 100vh !important;
-  height: 100vh !important;
-  border-radius: 0 !important;
-  margin: 0 !important;
-}
-.cdk-overlay-pane.side-drawer .mat-mdc-dialog-container {
-  border-radius: 0 !important;
-  height: 100vh;
-  max-height: 100vh;
-}
-.cdk-overlay-pane.side-drawer .mat-mdc-dialog-surface {
-  border-radius: 0 !important;
-  border-inline-start: 1px solid var(--color-border-default);
-  box-shadow: -8px 0 32px rgba(6, 21, 45, 0.12);
-  animation: drawer-slide-in 220ms cubic-bezier(0.2, 0, 0, 1);
-}
-[dir='rtl'] .cdk-overlay-pane.side-drawer .mat-mdc-dialog-surface {
-  border-inline-start: none;
-  border-inline-end: 1px solid var(--color-border-default);
-  box-shadow: 8px 0 32px rgba(6, 21, 45, 0.12);
-  animation: drawer-slide-in-rtl 220ms cubic-bezier(0.2, 0, 0, 1);
-}
-@keyframes drawer-slide-in {
-  from {
-    transform: translateX(12px);
-    opacity: 0;
+// (Side-drawer rules removed — feature 002 now uses route-level form pages instead of drawer dialogs.)
+
+// =====================================================================
+// Mat-select panel — MINIMAL token alignment only.
+// CDK structural CSS owns positioning + z-index (loaded via angular.json).
+// We touch only color/typography on the OPTIONS, never the pane/panel
+// container — touching those breaks FlexibleConnectedPositionStrategy.
+// =====================================================================
+
+// Option row — brand-tinted hover + selected (touches text/bg only, not layout)
+.mat-mdc-option {
+  font-family: var(--font-family-base);
+  font-size: var(--text-sm);
+
+  &:hover:not(.mdc-list-item--disabled):not(.mdc-list-item--selected) {
+    background: color-mix(in srgb, var(--color-tonal-accent) 6%, transparent) !important;
   }
-  to {
-    transform: translateX(0);
-    opacity: 1;
+
+  &.mdc-list-item--selected {
+    background: color-mix(in srgb, var(--color-tonal-accent) 10%, transparent) !important;
+    .mdc-list-item__primary-text {
+      color: var(--color-brand-primary);
+      font-weight: var(--font-weight-semibold);
+    }
   }
 }
-@keyframes drawer-slide-in-rtl {
-  from {
-    transform: translateX(-12px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+
+// Multi-select pseudo-checkbox — brand-tinted
+.mat-mdc-option .mat-pseudo-checkbox-checked {
+  --mat-minimal-pseudo-checkbox-selected-checkmark-color: var(--color-tonal-accent);
 }
-.cdk-overlay-backdrop.side-drawer-backdrop {
-  background: rgba(6, 21, 45, 0.32);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+
+// Trigger dropdown caret — tonal accent, rotates on open
+.mat-mdc-select-arrow {
+  color: var(--color-tonal-accent) !important;
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
 }
-@media (prefers-reduced-motion: reduce) {
-  .cdk-overlay-pane.side-drawer .mat-mdc-dialog-surface,
-  [dir='rtl'] .cdk-overlay-pane.side-drawer .mat-mdc-dialog-surface {
-    animation: none;
-  }
+.mat-mdc-select[aria-expanded='true'] .mat-mdc-select-arrow {
+  transform: rotate(180deg);
 }
 
 // Material form-field polish — refined hint typography, brand-tinted focus ring,

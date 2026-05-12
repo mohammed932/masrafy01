@@ -40,6 +40,18 @@ enum AuditEventType {
   ADMIN_USER_DEACTIVATED
   ADMIN_USER_ROLE_CHANGED
   ADMIN_USER_PASSWORD_RESET
+  BANK_PROGRAM_CREATED
+  BANK_PROGRAM_UPDATED
+  BANK_PROGRAM_TOGGLED
+  BANK_PROGRAM_CLONED
+  BANK_PROGRAM_DELETED
+  BANK_PROGRAM_RATE_UPDATED
+  BANK_PROGRAM_QUALITATIVE_REVIEW_DECIDED
+}
+
+enum BankProgramType {
+  income_proof
+  income_surrogate
 }
 
 // -----------------------------------------------------------------------------
@@ -47,7 +59,7 @@ enum AuditEventType {
 // -----------------------------------------------------------------------------
 
 model StaffAccount {
-  id                  String    @id @default(cuid())
+  id                  String    @id @default(cuid()) @db.VarChar(30)
   email               String    @unique @db.VarChar(320)
   emailDisplay        String    @db.VarChar(320)
   name                String    @db.VarChar(120)
@@ -63,6 +75,8 @@ model StaffAccount {
   signInAttempts      SignInAttempt[]
   auditEventsAsActor  AuditEvent[]   @relation("AuditEventActor")
   auditEventsAsTarget AuditEvent[]   @relation("AuditEventTarget")
+  bankProgramsCreated BankProgram[]  @relation("BankProgramCreatedBy")
+  bankProgramsUpdated BankProgram[]  @relation("BankProgramUpdatedBy")
 
   @@index([isActive, role], name: "idx_staff_account_active_role")
   @@map("staff_account")
@@ -73,13 +87,13 @@ model StaffAccount {
 // -----------------------------------------------------------------------------
 
 model RefreshToken {
-  id            String    @id @default(cuid())
-  userId        String
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  userId        String    @db.VarChar(30)
   tokenHash     String    @unique @db.Char(64)
   issuedAt      DateTime  @default(now()) @db.Timestamptz(6)
   expiresAt     DateTime  @db.Timestamptz(6)
   revokedAt     DateTime? @db.Timestamptz(6)
-  rotatedFromId String?
+  rotatedFromId String?   @db.VarChar(30)
   userAgent     String?   @db.VarChar(500)
   sourceIp      String?   @db.Inet
 
@@ -96,8 +110,8 @@ model RefreshToken {
 // -----------------------------------------------------------------------------
 
 model SignInAttempt {
-  id              String         @id @default(cuid())
-  userId          String?
+  id              String         @id @default(cuid()) @db.VarChar(30)
+  userId          String?        @db.VarChar(30)
   emailAttempted  String         @db.VarChar(320)
   attemptedAt     DateTime       @default(now()) @db.Timestamptz(6)
   outcome         AttemptOutcome
@@ -118,10 +132,11 @@ model SignInAttempt {
 // -----------------------------------------------------------------------------
 
 model AuditEvent {
-  id            String         @id @default(cuid())
+  id            String         @id @default(cuid()) @db.VarChar(30)
   occurredAt    DateTime       @default(now()) @db.Timestamptz(6)
-  actorId       String?
-  targetId      String?
+  actorId       String?        @db.VarChar(30)
+  targetId      String?        @db.VarChar(30)
+  bankProgramId String?        @db.VarChar(30)
   eventType     AuditEventType
   sourceIp      String?        @db.Inet
   correlationId String         @db.VarChar(36)
@@ -129,9 +144,54 @@ model AuditEvent {
 
   actor         StaffAccount?  @relation("AuditEventActor", fields: [actorId], references: [id], onDelete: SetNull)
   target        StaffAccount?  @relation("AuditEventTarget", fields: [targetId], references: [id], onDelete: SetNull)
+  bankProgram   BankProgram?   @relation("BankProgramAuditEvents", fields: [bankProgramId], references: [id], onDelete: SetNull)
 
   @@index([actorId, occurredAt(sort: Desc)], name: "idx_audit_event_actor_time")
   @@index([targetId, occurredAt(sort: Desc)], name: "idx_audit_event_target_time")
+  @@index([bankProgramId, occurredAt(sort: Desc)], name: "idx_audit_event_bank_program_time")
   @@index([eventType, occurredAt(sort: Desc)], name: "idx_audit_event_type_time")
   @@map("audit_event")
+}
+
+// -----------------------------------------------------------------------------
+// BankProgram (feature 002)
+// -----------------------------------------------------------------------------
+
+model BankProgram {
+  id                  String          @id @default(cuid()) @db.VarChar(30)
+  programCode         String          @unique @db.VarChar(32)
+  bankName            String          @db.VarChar(80)
+  friendlyName        String          @db.VarChar(120)
+  friendlyNameAr      String?         @db.VarChar(120)
+  programType         BankProgramType
+  productCategory     String          @db.VarChar(64)
+  currencies          String[]        @db.VarChar(3)
+  active              Boolean         @default(true)
+  version             Int             @default(1)
+  operatorNotes       String?         @db.VarChar(4000)
+  operatorTips        String[]        @db.VarChar(500)
+  requiredDocuments   String[]        @db.VarChar(80)
+
+  // JSONB sub-configurations (research.md R1). Hydrated to typed values in repo layer.
+  tenor               Json
+  loanLimits          Json
+  pricing             Json
+  eligibility         Json
+  performanceCriteria Json?
+  incomeAssumption    Json
+  fees                Json
+
+  createdAt           DateTime        @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime        @updatedAt @db.Timestamptz(6)
+  createdBy           String          @db.VarChar(30)
+  updatedBy           String          @db.VarChar(30)
+
+  createdByStaff      StaffAccount    @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
+  updatedByStaff      StaffAccount    @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
+  auditEvents         AuditEvent[]    @relation("BankProgramAuditEvents")
+
+  @@index([active], name: "idx_bank_program_active")
+  @@index([bankName], name: "idx_bank_program_bank_name")
+  @@index([productCategory], name: "idx_bank_program_product_category")
+  @@map("bank_program")
 }

@@ -9,6 +9,8 @@ Auto-generated from feature plans + constitution. Last updated: 2026-05-12
 Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v1.0.0
 
 ## Active Technologies
+- Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin. (002-bank-programs)
+- PostgreSQL 16 (Prisma migrations only; `db push` forbidden in production); Redis 7 (rate-limit + future audit-event buffer; NOT used as primary store for bank programs). (002-bank-programs)
 
 ### Backend (`backend/`) — feature 001-admin-auth-users
 
@@ -162,11 +164,10 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A24** Approval probability without documented weights
 
 ## Recent Changes
+- 002-bank-programs: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin.
 
 - **2026-05-12** — Constitution v1.3.0: Principle XXIII expanded to require BOTH `ui-ux-pro-max` (pre-design) AND `impec` (post-implementation polish) on every new admin screen. Either skill alone = review block. Anti-pattern A17 updated.
 - **2026-05-12** — Constitution v1.2.0: all testing requirements removed from Principles XVI + XXVII. No constitutional testing gates (unit, integration, or E2E). Features choose their own strategy.
-- **2026-05-12** — Constitution v1.1.0 (superseded): dropped unit + integration testing requirements; kept E2E + a11y.
-- **2026-05-12** — Feature 001-admin-auth-users: spec, plan, research, data model, OpenAPI contract, error-code contract, quickstart all generated. Stack pinned: NestJS 10 + Prisma 5 + Postgres 16 + Redis 7 backend; Angular 18 + Material 18 + Playwright + axe-core admin. JWT (15 min) + refresh-token cookie (7 days, SHA-256 hashed at rest); bcrypt 12; NIST-style password policy (HIBP k-anonymity + top-10k deny list, fail-closed); sliding-window lockout in Redis; SERIALIZABLE super_admin floor guard; WCAG 2.2 AA gate.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

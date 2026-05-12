@@ -1,0 +1,905 @@
+openapi: 3.1.0
+info:
+  title: Masrafy — BankProgram Management API
+  version: 0.1.0
+  description: |
+    Admin + mobile read-only endpoints for the BankProgram Management feature
+    (spec 002-bank-programs). Envelope shapes follow Constitution Principle XIV.
+
+    Admin endpoints: JWT auth + role checks (admin / super_admin / viewer).
+    Mobile endpoints: HMAC request-signing (Constitution Principle XIII).
+
+servers:
+  - url: https://api.masrafy.example/api
+    description: Production
+  - url: http://localhost:3000/api
+    description: Local development
+
+security:
+  - jwtAuth: []
+
+tags:
+  - name: bank-programs-admin
+    description: Internal-staff bank-program management (JWT-authenticated)
+  - name: bank-programs-mobile
+    description: Read-only catalog surface for the mobile client (HMAC-signed)
+  - name: bank-programs-seeds
+    description: Super-admin opt-in catalog seed routines
+
+paths:
+
+  /admin/bank-programs:
+    get:
+      tags: [bank-programs-admin]
+      summary: List bank programs (paginated, filterable, searchable)
+      operationId: listBankPrograms
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 25, minimum: 1, maximum: 100 }
+        - in: query
+          name: search
+          description: Case-insensitive match against programCode + friendlyName (Arabic + English).
+          schema: { type: string, maxLength: 80 }
+        - in: query
+          name: bankName
+          schema: { type: string }
+        - in: query
+          name: active
+          schema: { type: boolean }
+        - in: query
+          name: productCategory
+          schema: { type: string }
+        - in: query
+          name: employmentType
+          description: Filter by an employment type member of EligibilityConfig.acceptedEmploymentTypes
+          schema: { type: string }
+      responses:
+        '200':
+          description: Page of bank programs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankProgramListEnvelope'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+    post:
+      tags: [bank-programs-admin]
+      summary: Create a new bank program (admin or super_admin)
+      operationId: createBankProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateBankProgramRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BankProgramResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/ProgramCodeConflict' }
+        '422': { $ref: '#/components/responses/ValidationFailure' }
+        '503': { $ref: '#/components/responses/EnumerationRegistryUnavailable' }
+
+  /admin/bank-programs/{programCode}:
+    parameters:
+      - in: path
+        name: programCode
+        required: true
+        schema: { type: string, pattern: '^[A-Z0-9_-]{3,32}$' }
+
+    get:
+      tags: [bank-programs-admin]
+      summary: Fetch a single bank program's full configuration
+      operationId: getBankProgram
+      responses:
+        '200':
+          description: Bank program detail
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BankProgramResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/BankProgramNotFound' }
+
+    patch:
+      tags: [bank-programs-admin]
+      summary: Update a bank program (admin or super_admin) — program code is immutable
+      operationId: updateBankProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateBankProgramRequest' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BankProgramResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/BankProgramNotFound' }
+        '409':
+          description: Stale-data conflict (optimistic concurrency)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+                  - type: object
+                    properties:
+                      code: { enum: ['CONFLICT_STALE_DATA'] }
+                      meta:
+                        type: object
+                        properties:
+                          submittedVersion: { type: integer }
+                          currentVersion: { type: integer }
+        '422': { $ref: '#/components/responses/ValidationFailure' }
+
+    delete:
+      tags: [bank-programs-admin]
+      summary: Delete a bank program (super_admin only; refused when offers reference it)
+      operationId: deleteBankProgram
+      parameters:
+        - in: header
+          name: X-Confirm-Program-Code
+          required: true
+          schema: { type: string }
+          description: Must equal the path `programCode` (double-confirmation per FR-028)
+      responses:
+        '204':
+          description: Deleted
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/BankProgramNotFound' }
+        '409':
+          description: Program has referencing offers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+                  - type: object
+                    properties:
+                      code: { enum: ['BANK_PROGRAM_HAS_OFFERS'] }
+                      meta:
+                        type: object
+                        properties:
+                          programCode: { type: string }
+                          offerCount: { type: integer }
+
+  /admin/bank-programs/{programCode}/toggle:
+    parameters:
+      - in: path
+        name: programCode
+        required: true
+        schema: { type: string }
+    post:
+      tags: [bank-programs-admin]
+      summary: Toggle a program between active and inactive (admin or super_admin)
+      operationId: toggleBankProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [active, version]
+              properties:
+                active: { type: boolean }
+                version: { type: integer }
+      responses:
+        '200':
+          description: Toggled
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BankProgramResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/BankProgramNotFound' }
+        '409':
+          description: Stale-data conflict
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /admin/bank-programs/{programCode}/clone:
+    parameters:
+      - in: path
+        name: programCode
+        required: true
+        schema: { type: string }
+    post:
+      tags: [bank-programs-admin]
+      summary: Clone an existing program into a new program code (admin or super_admin)
+      operationId: cloneBankProgram
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newProgramCode]
+              properties:
+                newProgramCode:
+                  type: string
+                  pattern: '^[A-Z0-9_-]{3,32}$'
+      responses:
+        '201':
+          description: Cloned
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/BankProgramResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/BankProgramNotFound' }
+        '409': { $ref: '#/components/responses/ProgramCodeConflict' }
+
+  /admin/bank-programs/seeds/abk:
+    post:
+      tags: [bank-programs-seeds]
+      summary: Seed the ABK Egypt 20-program catalog (super_admin only; idempotent)
+      operationId: seedAbkCatalog
+      responses:
+        '200':
+          description: Seed completed (each entry created or skipped)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SeedResultEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: Rate verification failed (seed rolled back)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorEnvelope'
+                  - type: object
+                    properties:
+                      code: { enum: ['SEED_RATE_VERIFICATION_FAILED'] }
+
+  /admin/bank-programs/seeds/competitor/{catalogName}:
+    parameters:
+      - in: path
+        name: catalogName
+        required: true
+        schema:
+          type: string
+          enum: [bank-nxt-2026, salesfloor-egp-2026]
+    post:
+      tags: [bank-programs-seeds]
+      summary: Seed a competitor catalog (super_admin only; idempotent; OFF by default)
+      operationId: seedCompetitorCatalog
+      responses:
+        '200':
+          description: Seed completed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SeedResultEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Unknown catalog name
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /mobile/v1/bank-programs:
+    get:
+      tags: [bank-programs-mobile]
+      summary: Read-only list of currently active bank programs (HMAC-signed)
+      operationId: listMobileBankPrograms
+      security:
+        - hmacAuth: []
+      responses:
+        '200':
+          description: Active programs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/MobileBankProgramResponse' }
+
+  /mobile/v1/bank-programs/{programCode}:
+    parameters:
+      - in: path
+        name: programCode
+        required: true
+        schema: { type: string }
+    get:
+      tags: [bank-programs-mobile]
+      summary: Read-only detail for one active program (HMAC-signed)
+      operationId: getMobileBankProgram
+      security:
+        - hmacAuth: []
+      responses:
+        '200':
+          description: Program detail
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/MobileBankProgramResponse' }
+        '404':
+          description: Not found (inactive programs return 404 with no leakage)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+components:
+
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Admin JWT from feature 001. 15-minute access + httpOnly refresh cookie.
+    hmacAuth:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: |
+        HMAC-SHA256 over `{method}\n{path}\n{timestamp}\n{nonce}\n{body-sha256}` with
+        the mobile client's shared secret. Timestamp window ±5 min; nonce single-use
+        (Redis TTL). See Constitution Principle XIII.
+
+  responses:
+    Unauthenticated:
+      description: Missing or invalid auth
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorEnvelope'
+              - type: object
+                properties:
+                  code: { enum: ['UNAUTHENTICATED'] }
+    Forbidden:
+      description: Role check failed
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorEnvelope'
+              - type: object
+                properties:
+                  code: { enum: ['FORBIDDEN'] }
+    BankProgramNotFound:
+      description: Program code does not exist
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorEnvelope'
+              - type: object
+                properties:
+                  code: { enum: ['BANK_PROGRAM_NOT_FOUND'] }
+    ProgramCodeConflict:
+      description: Program code already in use
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorEnvelope'
+              - type: object
+                properties:
+                  code: { enum: ['PROGRAM_CODE_ALREADY_IN_USE'] }
+    ValidationFailure:
+      description: DTO validation failed
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorEnvelope'
+              - type: object
+                properties:
+                  code:
+                    enum:
+                      - VALIDATION_FAILED
+                      - INVALID_VARIABLE_RATE_CONFIGURATION
+                      - INVALID_QUALITATIVE_REVIEW_CEILING
+                      - QUALITATIVE_REVIEW_CEILING_BELOW_BASE
+                      - DERIVATION_ARITHMETIC_MISMATCH
+                      - UNKNOWN_ENUMERATION_KEY
+                      - DEPRECATED_ENUMERATION_KEY
+    EnumerationRegistryUnavailable:
+      description: PlatformEnumeration registry unavailable (fail-closed)
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ErrorEnvelope'
+              - type: object
+                properties:
+                  code: { enum: ['ENUMERATION_REGISTRY_UNAVAILABLE'] }
+
+  schemas:
+
+    Envelope:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: {}
+        pagination: { $ref: '#/components/schemas/Pagination' }
+
+    ErrorEnvelope:
+      type: object
+      required: [success, code]
+      properties:
+        success: { type: boolean, enum: [false] }
+        code: { type: string }
+        meta: { type: object, additionalProperties: true }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalCount: { type: integer }
+
+    BankProgramListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/BankProgramListRow' }
+
+    BankProgramListRow:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        programCode: { type: string }
+        friendlyName: { type: string }
+        bankName: { type: string }
+        productCategory: { type: string }
+        active: { type: boolean }
+        currencies:
+          type: array
+          items: { type: string }
+        baseRatePercent: { type: string, description: 'Decimal as string; null for variable-rate programs' }
+        currentEffectiveRatePercent: { type: string, description: 'Decimal as string; null for fixed-rate programs' }
+        deprecatedKeyCount: { type: integer, description: 'Count of tier keys deprecated since last save (FR-010c)' }
+        version: { type: integer }
+        updatedAt: { type: string, format: date-time }
+
+    BankProgramResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        programCode: { type: string }
+        friendlyName: { type: string }
+        friendlyNameAr: { type: string, nullable: true }
+        bankName: { type: string }
+        programType: { type: string, enum: [income_proof, income_surrogate] }
+        productCategory: { type: string }
+        currencies:
+          type: array
+          items: { type: string }
+        active: { type: boolean }
+        version: { type: integer }
+        operatorNotes: { type: string, nullable: true }
+        operatorTips:
+          type: array
+          items: { type: string }
+        requiredDocuments:
+          type: array
+          items: { type: string }
+        tenor: { $ref: '#/components/schemas/TenorConfig' }
+        loanLimits: { $ref: '#/components/schemas/LoanLimitsConfig' }
+        pricing: { $ref: '#/components/schemas/PricingConfig' }
+        eligibility: { $ref: '#/components/schemas/EligibilityConfig' }
+        performanceCriteria:
+          oneOf:
+            - $ref: '#/components/schemas/PerformanceCriteriaConfig'
+            - type: 'null'
+        incomeAssumption: { $ref: '#/components/schemas/IncomeAssumptionConfig' }
+        fees: { $ref: '#/components/schemas/FeesConfig' }
+        deprecatedKeys:
+          type: array
+          description: List of tier keys in this program that have since been deprecated in the registry (FR-010c)
+          items:
+            type: object
+            properties:
+              fieldPath: { type: string }
+              key: { type: string }
+              enumerationType: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreateBankProgramRequest:
+      type: object
+      required:
+        - programCode
+        - bankName
+        - friendlyName
+        - programType
+        - productCategory
+        - currencies
+        - tenor
+        - loanLimits
+        - pricing
+        - eligibility
+        - incomeAssumption
+        - fees
+      properties:
+        programCode: { type: string, pattern: '^[A-Z0-9_-]{3,32}$' }
+        bankName: { type: string, maxLength: 80 }
+        friendlyName: { type: string, maxLength: 120 }
+        friendlyNameAr: { type: string, maxLength: 120 }
+        programType: { type: string, enum: [income_proof, income_surrogate] }
+        productCategory: { type: string }
+        currencies:
+          type: array
+          items: { type: string }
+          minItems: 1
+        operatorNotes: { type: string, maxLength: 4000 }
+        operatorTips:
+          type: array
+          items: { type: string, maxLength: 500 }
+          maxItems: 20
+        requiredDocuments:
+          type: array
+          items: { type: string }
+        tenor: { $ref: '#/components/schemas/TenorConfig' }
+        loanLimits: { $ref: '#/components/schemas/LoanLimitsConfig' }
+        pricing: { $ref: '#/components/schemas/PricingConfig' }
+        eligibility: { $ref: '#/components/schemas/EligibilityConfig' }
+        performanceCriteria:
+          oneOf:
+            - $ref: '#/components/schemas/PerformanceCriteriaConfig'
+            - type: 'null'
+        incomeAssumption: { $ref: '#/components/schemas/IncomeAssumptionConfig' }
+        fees: { $ref: '#/components/schemas/FeesConfig' }
+
+    UpdateBankProgramRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateBankProgramRequest'
+        - type: object
+          required: [version]
+          properties:
+            version: { type: integer, description: 'Optimistic concurrency token (FR-021)' }
+      description: |
+        Identical to CreateBankProgramRequest plus a required `version` field.
+        `programCode` is sent for clarity but server-side it is IGNORED on update
+        (immutable post-create per FR-019).
+
+    MobileBankProgramResponse:
+      type: object
+      description: |
+        Reduced mobile-facing shape. Excludes internal IDs, audit fields, operator notes,
+        operator tips, raw tier maps, version, derivation chains, wealth gates, and
+        qualitativeReviewMaxEGP (R5).
+      properties:
+        programCode: { type: string }
+        friendlyName: { type: string }
+        bankName: { type: string }
+        productCategory: { type: string }
+        currencies:
+          type: array
+          items: { type: string }
+        displayRateRange:
+          type: object
+          properties:
+            minPercent: { type: string }
+            maxPercent: { type: string }
+        displayMinEGP: { type: string }
+        displayMaxEGP: { type: string }
+        displayMinMonths: { type: integer }
+        displayMaxMonths: { type: integer }
+        requiredDocuments:
+          type: array
+          items: { type: string }
+        adminFeeDisplay: { type: string }
+        lifeInsuranceMandatory: { type: boolean }
+        stampDutyDisplay: { type: string }
+        acceptedEmploymentTypes:
+          type: array
+          items: { type: string }
+        acceptedLoanPurposes:
+          type: array
+          items: { type: string }
+        ageRangeDisplay: { type: string }
+
+    SeedResultEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                catalogName: { type: string }
+                entries:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      programCode: { type: string }
+                      status: { type: string, enum: [created, skipped] }
+                      ratePercent: { type: string }
+
+    TenorConfig:
+      type: object
+      required: [minMonths, maxMonths]
+      properties:
+        minMonths: { type: integer, minimum: 1, maximum: 480 }
+        maxMonths: { type: integer, minimum: 1, maximum: 480 }
+        maxMonthsBySalaryCategory:
+          type: object
+          additionalProperties: { type: integer, minimum: 1, maximum: 480 }
+        maxMonthsByEmploymentType:
+          type: object
+          additionalProperties: { type: integer, minimum: 1, maximum: 480 }
+
+    LoanLimitsConfig:
+      type: object
+      required: [perCurrency]
+      properties:
+        perCurrency:
+          type: object
+          additionalProperties:
+            type: object
+            required: [minAmount, maxAmount]
+            properties:
+              minAmount: { type: string, description: 'DECIMAL(13,2) as string' }
+              maxAmount: { type: string }
+        maxByCDTier:
+          type: array
+          items:
+            type: object
+            properties:
+              minCDValueEGP: { type: string }
+              maxAmountEGP: { type: string }
+        maxByPropertyType: { type: object, additionalProperties: { type: string } }
+        maxByCityTier: { type: object, additionalProperties: { type: string } }
+        maxByTransferType: { type: object, additionalProperties: { type: string } }
+        maxBySalaryCategory: { type: object, additionalProperties: { type: string } }
+        maxByEmploymentType: { type: object, additionalProperties: { type: string } }
+        maxByPerformanceTier: { type: object, additionalProperties: { type: string } }
+        maxTopUpEGP: { type: string }
+        ltvCeilingPercent: { type: string }
+        qualitativeReviewMaxEGP: { type: string }
+        otherCitiesMaxEGP: { type: string }
+
+    PricingConfig:
+      type: object
+      required: [isVariableRate]
+      properties:
+        isVariableRate: { type: boolean }
+        baseRatePercent: { type: string }
+        currentEffectiveRatePercent: { type: string }
+        variableRateNote: { type: string }
+        spreadMinPercent: { type: string }
+        spreadMaxPercent: { type: string }
+        rateByEmploymentType: { $ref: '#/components/schemas/RateBandMap' }
+        rateBySeniority: { $ref: '#/components/schemas/RateBandMap' }
+        rateByTransferType: { $ref: '#/components/schemas/RateBandMap' }
+        rateByTenor: { $ref: '#/components/schemas/RateBandMap' }
+        rateByTenorAndCustomerType: { $ref: '#/components/schemas/RateBandMap' }
+        rateByDownPaymentPercent: { $ref: '#/components/schemas/RateBandMap' }
+        rateByCustomerProgramTier: { $ref: '#/components/schemas/RateBandMap' }
+        rateByAssetValueBand: { $ref: '#/components/schemas/RateBandMap' }
+        rateByLoanAmountBand: { $ref: '#/components/schemas/RateBandMap' }
+        buyoutRateDeltaPercent: { type: string }
+        buyoutRateMinFloorPercent: { type: string }
+        feeWaiverEnabledAtRatePercent: { type: string }
+        feeWaiverMinTenorMonths: { type: integer }
+        feeWaiverPenaltyRatePercent: { type: string }
+        feeWaiverPenaltyMinTenorMonths: { type: integer }
+        insuranceWaiverPenaltyRatePercent: { type: string }
+        insuranceWaiverPenaltyMinTenorMonths: { type: integer }
+
+    RateBandMap:
+      type: object
+      additionalProperties: { $ref: '#/components/schemas/RateBandValue' }
+
+    RateBandValue:
+      type: object
+      required: [value]
+      properties:
+        value: { type: string, description: 'DECIMAL(7,4) as string' }
+        derivation:
+          type: object
+          properties:
+            sourceRatePercent: { type: string }
+            deltaPercent: { type: string }
+            reason: { type: string }
+
+    EligibilityConfig:
+      type: object
+      required:
+        - acceptedEmploymentTypes
+        - ageMin
+        - ageMax
+        - minMonthlyIncomeEGP
+        - minMonthsInJob
+        - acceptedLoanPurposes
+        - dbrCapPercent
+        - skipDbrCheck
+        - acceptedTransferTypes
+        - requiresCD
+        - requiresAutoLoanAtABK
+        - requiresAutoLoanAtOtherBank
+        - requiresCreditCardAtOtherBank
+        - requiresCompoundProperty
+        - requiresCollateral
+        - requiresClubMembership
+        - requiresExistingLoan
+        - requiresFRMUVerification
+        - requiresQualitativeReview
+        - requiresNoDocuments
+      properties:
+        acceptedEmploymentTypes: { type: array, items: { type: string } }
+        ageMin: { type: integer, minimum: 18, maximum: 80 }
+        ageMax: { type: integer, minimum: 18, maximum: 80 }
+        ageMinSelfEmployed: { type: integer }
+        ageMaxSelfEmployed: { type: integer }
+        minMonthlyIncomeEGP: { type: string }
+        minMonthlyIncomeSelfEmployedEGP: { type: string }
+        minMonthsInJob: { type: integer, minimum: 0 }
+        minMonthsInJobBySalaryCategory:
+          type: object
+          additionalProperties: { type: integer }
+        acceptedLoanPurposes: { type: array, items: { type: string } }
+        dbrCapPercent: { type: string }
+        skipDbrCheck: { type: boolean }
+        acceptedTransferTypes: { type: array, items: { type: string } }
+        requiresCD: { type: boolean }
+        requiresAutoLoanAtABK: { type: boolean }
+        requiresAutoLoanAtOtherBank: { type: boolean }
+        requiresCreditCardAtOtherBank: { type: boolean }
+        requiresCompoundProperty: { type: boolean }
+        requiresCollateral: { type: boolean }
+        requiresClubMembership: { type: boolean }
+        requiresExistingLoan: { type: boolean }
+        requiresFRMUVerification: { type: boolean }
+        requiresQualitativeReview: { type: boolean }
+        requiresNoDocuments: { type: boolean }
+        minimumCreditCardHoldingMonths: { type: integer }
+        competitorCardMustBeUnsecured: { type: boolean }
+        eligibleCarPriceMinEGP: { type: string }
+        eligibleDownPaymentPercent: { type: string }
+        clubClass: { type: string }
+        compoundClass: { type: string }
+        companyType: { type: array, items: { type: string } }
+        commercialBankIncomePercent: { type: string }
+        publicBankIncomePercent: { type: string }
+        minBankStatementBalanceEGP: { type: string }
+        minAssetsValueEGP: { type: string }
+
+    PerformanceCriteriaConfig:
+      type: object
+      required: [requiredMOBMonths, iScoreMOBPerformanceCheck, requireCurrentLoanStatus]
+      properties:
+        requiredMOBMonths: { type: integer, minimum: 0 }
+        iScoreMOBPerformanceCheck: { type: boolean }
+        bkt1NoHitWithinMonths: { type: integer }
+        bkt2NoHitWithinMonths: { type: integer }
+        requireCurrentLoanStatus: { type: boolean }
+
+    IncomeAssumptionConfig:
+      oneOf:
+        - type: object
+          required: [strategy]
+          properties:
+            strategy: { type: string, enum: [declared] }
+        - type: object
+          required: [strategy, incomeTable]
+          properties:
+            strategy: { type: string, enum: [byYearsInJob, byYearsInPractice] }
+            incomeTable:
+              type: array
+              items:
+                type: object
+                properties:
+                  minYears: { type: integer }
+                  maxYears: { type: integer }
+                  incomeEGP: { type: string }
+        - type: object
+          required: [strategy, rankIncomeMap]
+          properties:
+            strategy: { type: string, enum: [byProfessorRank] }
+            rankIncomeMap: { type: object, additionalProperties: { type: string } }
+        - type: object
+          required: [strategy, gradeIncomeMap]
+          properties:
+            strategy: { type: string, enum: [byMilitaryGrade] }
+            gradeIncomeMap: { type: object, additionalProperties: { type: string } }
+        - type: object
+          required: [strategy]
+          properties:
+            strategy: { type: string, enum: [byCDValue] }
+            incomeTable: { type: array }
+            cdIncomePercent: { type: string }
+            cdIncomeMinEGP: { type: string }
+            cdIncomePercentOfDeposits: { type: string }
+            combinationRule: { type: string, enum: [lesser_of, greater_of] }
+        - type: object
+          required: [strategy, carInstallmentMultiplier]
+          properties:
+            strategy: { type: string, enum: [byCarInstallment] }
+            carInstallmentMultiplier: { type: string }
+        - type: object
+          required: [strategy, carLoanAmountPercent]
+          properties:
+            strategy: { type: string, enum: [byCarLoanAmount] }
+            carLoanAmountPercent: { type: string }
+        - type: object
+          required: [strategy, creditCardLimitMultiplier]
+          properties:
+            strategy: { type: string, enum: [byCreditCardLimit] }
+            creditCardLimitMultiplier: { type: string }
+        - type: object
+          required: [strategy, bankStatementPercent]
+          properties:
+            strategy: { type: string, enum: [byBankStatementPercent] }
+            bankStatementPercent: { type: string }
+
+    FeesConfig:
+      type: object
+      required:
+        - adminFeePercent
+        - stampDutyPercent
+        - lifeInsurancePercent
+        - lifeInsuranceMandatory
+        - latePaymentFeePercent
+        - payoffCashPercent
+        - payoffBuyoutPercent
+      properties:
+        adminFeePercent: { type: string }
+        adminFeeDisplay: { type: string }
+        adminFeeRangeMin: { type: string }
+        adminFeeRangeMax: { type: string }
+        stampDutyPercent: { type: string }
+        lifeInsurancePercent: { type: string }
+        lifeInsuranceMandatory: { type: boolean }
+        lifeInsuranceMinLoanEGP: { type: string }
+        latePaymentFeePercent: { type: string }
+        payoffCashPercent: { type: string }
+        payoffBuyoutPercent: { type: string }
+        collateralReplacementFeeEGP: { type: string }
+        collateralDecreaseFeeEGP: { type: string }

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, LOCALE_ID } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
+import { CdkScrollable } from '@angular/cdk/scrolling';
 import { TopBarComponent } from './features/shell/top-bar.component';
 import { SidebarComponent } from './features/shell/sidebar.component';
 import { AuthService } from './core/auth/auth.service';
@@ -8,14 +9,14 @@ import { AuthService } from './core/auth/auth.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, TopBarComponent, SidebarComponent],
+  imports: [CommonModule, RouterOutlet, CdkScrollable, TopBarComponent, SidebarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (auth.isAuthenticated() && !auth.mustChangePassword()) {
       <app-top-bar />
       <div class="layout">
         <app-sidebar />
-        <main class="content">
+        <main class="content" cdkScrollable>
           <router-outlet />
         </main>
       </div>

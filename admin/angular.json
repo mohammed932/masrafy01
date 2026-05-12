@@ -40,7 +40,10 @@
                 "output": "/assets/i18n"
               }
             ],
-            "styles": ["src/styles/styles.scss"],
+            "styles": [
+              "node_modules/@angular/cdk/overlay-prebuilt.css",
+              "src/styles/styles.scss"
+            ],
             "scripts": [],
             "localize": ["en-US", "ar-EG"]
           },

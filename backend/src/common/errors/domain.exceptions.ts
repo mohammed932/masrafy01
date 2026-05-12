@@ -123,3 +123,91 @@ export class RateLimitedException extends DomainException {
     super(ERROR_CODES.RATE_LIMITED);
   }
 }
+
+// --- Bank programs (feature 002) -------------------------------------------
+
+export class BankProgramNotFoundException extends DomainException {
+  constructor(meta?: { programCode?: string; id?: string }) {
+    super(ERROR_CODES.BANK_PROGRAM_NOT_FOUND, meta);
+  }
+}
+
+export class ProgramCodeAlreadyInUseException extends DomainException {
+  constructor(programCode: string) {
+    super(ERROR_CODES.PROGRAM_CODE_ALREADY_IN_USE, { programCode });
+  }
+}
+
+export class InvalidVariableRateConfigurationException extends DomainException {
+  constructor(field: 'currentEffectiveRate' | 'baseRate', reason: string) {
+    super(ERROR_CODES.INVALID_VARIABLE_RATE_CONFIGURATION, { field, reason });
+  }
+}
+
+export class InvalidQualitativeReviewCeilingException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.INVALID_QUALITATIVE_REVIEW_CEILING, { field: 'qualitativeReviewMaxEGP' });
+  }
+}
+
+export class QualitativeReviewCeilingBelowBaseException extends DomainException {
+  constructor(meta: { qualitativeReviewMaxEGP: string; maxEGP: string }) {
+    super(ERROR_CODES.QUALITATIVE_REVIEW_CEILING_BELOW_BASE, meta);
+  }
+}
+
+export class DerivationArithmeticMismatchException extends DomainException {
+  constructor(meta: {
+    fieldPath: string;
+    value: string;
+    sourceRatePercent: string;
+    deltaPercent: string;
+  }) {
+    super(ERROR_CODES.DERIVATION_ARITHMETIC_MISMATCH, meta);
+  }
+}
+
+export class ConflictStaleDataException extends DomainException {
+  constructor(meta: { submittedVersion: number; currentVersion: number }) {
+    super(ERROR_CODES.CONFLICT_STALE_DATA, meta);
+  }
+}
+
+export class BankProgramHasOffersException extends DomainException {
+  constructor(meta: { programCode: string; offerCount: number }) {
+    super(ERROR_CODES.BANK_PROGRAM_HAS_OFFERS, meta);
+  }
+}
+
+export class UnknownEnumerationKeyException extends DomainException {
+  constructor(meta: { enumerationType: string; offendingKey: string; activeMembers: string[] }) {
+    super(ERROR_CODES.UNKNOWN_ENUMERATION_KEY, meta);
+  }
+}
+
+export class DeprecatedEnumerationKeyException extends DomainException {
+  constructor(meta: { enumerationType: string; deprecatedKey: string }) {
+    super(ERROR_CODES.DEPRECATED_ENUMERATION_KEY, meta);
+  }
+}
+
+export class EnumerationRegistryUnavailableException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.ENUMERATION_REGISTRY_UNAVAILABLE);
+  }
+}
+
+export class SeedRateVerificationFailedException extends DomainException {
+  constructor(meta: {
+    catalogName: string;
+    mismatches: Array<{ programCode: string; expected: string; actual: string }>;
+  }) {
+    super(ERROR_CODES.SEED_RATE_VERIFICATION_FAILED, meta);
+  }
+}
+
+export class SeedRequiresSuperAdminException extends DomainException {
+  constructor(endpoint: string) {
+    super(ERROR_CODES.SEED_REQUIRES_SUPER_ADMIN, { endpoint });
+  }
+}

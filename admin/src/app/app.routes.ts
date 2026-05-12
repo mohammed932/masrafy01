@@ -42,6 +42,15 @@ export const APP_ROUTES: Routes = [
       import('./features/users/users.routes').then((m) => m.USERS_ROUTES),
   },
   {
+    path: 'bank-programs',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['SUPER_ADMIN', 'ADMIN', 'VIEWER'])],
+    loadChildren: () =>
+      import('./features/bank-programs/bank-programs.routes').then(
+        (m) => m.BANK_PROGRAMS_ROUTES,
+      ),
+  },
+  {
     path: '**',
     redirectTo: 'dashboard',
   },
