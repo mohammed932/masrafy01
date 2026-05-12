@@ -10,6 +10,7 @@ import { HealthModule } from '@/health/health.module';
 import { AuthModule } from '@/auth/auth.module';
 import { UsersModule } from '@/users/users.module';
 import { BankProgramsModule } from '@/bank-programs/bank-programs.module';
+import { ApplicationsModule } from '@/applications/applications.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 import { loadEnv } from '@/infra/env/env.schema';
 import { pinoOptions } from '@/common/pino/pino.config';
@@ -36,6 +37,7 @@ import { pinoOptions } from '@/common/pino/pino.config';
     UsersModule,
     PlatformEnumerationsModule,
     BankProgramsModule,
+    ApplicationsModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

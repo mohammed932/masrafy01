@@ -1,0 +1,21 @@
+/**
+ * Applications module — mobile apply endpoint + admin read endpoints.
+ */
+
+import { Module } from '@nestjs/common';
+import { ApplicationsController } from './applications.controller';
+import { AdminApplicationsController } from './admin-applications.controller';
+import { ApplicationsService } from './applications.service';
+import { ApplicationRepository } from './application.repository';
+import { MatchingModule } from '../matching/matching.module';
+import { BankProgramsModule } from '../bank-programs/bank-programs.module';
+import { AuditModule } from '../audit/audit.module';
+import { MobileHmacGuard } from './guards/mobile-hmac.guard';
+import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
+
+@Module({
+  imports: [MatchingModule, BankProgramsModule, AuditModule],
+  controllers: [ApplicationsController, AdminApplicationsController],
+  providers: [ApplicationsService, ApplicationRepository, MobileHmacGuard, MobileRateLimitGuard],
+})
+export class ApplicationsModule {}

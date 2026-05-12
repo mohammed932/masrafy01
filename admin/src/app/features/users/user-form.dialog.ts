@@ -1,6 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  FormGroupDirective,
+  NgForm,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
 import {
@@ -28,6 +37,17 @@ import type {
 export interface UserFormDialogData {
   mode: 'create' | 'edit';
   row?: StaffAccountSummary;
+}
+
+/**
+ * Defer Material's red-error styling until the user attempts submit. Default matcher
+ * trips the error state on blur of an empty required field, which paints a fresh
+ * dialog all-red before the user has done anything wrong. Far calmer to wait.
+ */
+class SubmitOnlyErrorStateMatcher implements ErrorStateMatcher {
+  isErrorState(control: AbstractControl | null, form: FormGroupDirective | NgForm | null): boolean {
+    return !!(control && control.invalid && (control.dirty || form?.submitted));
+  }
 }
 
 interface CreateFormControls {
@@ -98,7 +118,7 @@ interface EditFormControls {
           <div class="field-row">
             <mat-form-field appearance="outline" class="field">
               <mat-label i18n="@@userForm.name">Full name</mat-label>
-              <input matInput formControlName="name" autocomplete="name" />
+              <input matInput formControlName="name" autocomplete="name" [errorStateMatcher]="errorMatcher" />
               <mat-hint i18n="@@userForm.nameHint">As it should appear in the dashboard.</mat-hint>
             </mat-form-field>
           </div>
@@ -106,7 +126,7 @@ interface EditFormControls {
           <div class="field-row">
             <mat-form-field appearance="outline" class="field">
               <mat-label i18n="@@userForm.email">Work email</mat-label>
-              <input matInput type="email" autocomplete="email" formControlName="email" />
+              <input matInput type="email" autocomplete="email" formControlName="email" [errorStateMatcher]="errorMatcher" />
               <mat-icon matPrefix aria-hidden="true">mail</mat-icon>
               <mat-hint i18n="@@userForm.emailHint">Used to sign in. Must be unique.</mat-hint>
               @if (emailError(); as msg) {
@@ -142,7 +162,7 @@ interface EditFormControls {
           <div class="field-row">
             <mat-form-field appearance="outline" class="field">
               <mat-label i18n="@@userForm.initialPassword">Initial password</mat-label>
-              <input matInput [type]="revealPw() ? 'text' : 'password'" autocomplete="new-password" formControlName="initialPassword" />
+              <input matInput [type]="revealPw() ? 'text' : 'password'" autocomplete="new-password" formControlName="initialPassword" [errorStateMatcher]="errorMatcher" />
               <button mat-icon-button matSuffix type="button" (click)="revealPw.set(!revealPw())" [attr.aria-pressed]="revealPw()">
                 <mat-icon>{{ revealPw() ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
@@ -227,17 +247,33 @@ interface EditFormControls {
         display: flex;
         flex-direction: column;
         width: 100%;
-        height: 100%;
+        max-height: 88vh;
         overflow: hidden;
         background: var(--color-surface-default);
         font-family: var(--font-family-base);
+        animation: dialog-in 200ms cubic-bezier(0.2, 0, 0, 1);
       }
-      // Header — sticky, hairline shadow on scroll, NO illustration. Title carries the weight.
+      @keyframes dialog-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px) scale(0.98);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        :host {
+          animation: none;
+        }
+      }
+      // Header — restrained, hairline separator. Title carries the weight; subtitle whispers.
       .header {
         display: flex;
         align-items: flex-start;
         gap: var(--space-3);
-        padding: var(--space-6) var(--space-6) var(--space-4);
+        padding: var(--space-6) var(--space-6) var(--space-5);
         flex-shrink: 0;
         position: relative;
       }
@@ -247,24 +283,29 @@ interface EditFormControls {
         inset-inline: var(--space-6);
         inset-block-end: 0;
         height: 1px;
-        background: var(--color-border-default);
+        background: linear-gradient(
+          90deg,
+          transparent 0%,
+          var(--color-border-default) 20%,
+          var(--color-border-default) 80%,
+          transparent 100%
+        );
       }
       .header-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius-md);
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
         background: var(--color-tonal-accent-bg);
         color: var(--color-brand-primary);
         flex-shrink: 0;
-        box-shadow: inset 0 0 0 1px rgba(28, 66, 144, 0.12);
       }
       .header-icon mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
       }
       .header-text {
         flex: 1;
@@ -272,24 +313,25 @@ interface EditFormControls {
       }
       .title {
         margin: 0 0 4px;
-        font-size: 20px;
-        font-weight: var(--font-weight-bold);
-        letter-spacing: -0.01em;
+        font-size: 18px;
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: -0.015em;
         color: var(--color-text-primary);
-        line-height: 1.2;
+        line-height: 1.25;
       }
       .subtitle {
         margin: 0;
         font-size: 13px;
         color: var(--color-text-secondary);
-        line-height: 1.5;
+        line-height: 1.55;
+        max-width: 52ch;
       }
-      // Body — paper-form-style sections, generous vertical rhythm, hint typography refined
+      // Body — paper-form-style sections, generous vertical rhythm
       .body {
         padding: var(--space-5) var(--space-6) var(--space-6);
         display: flex;
         flex-direction: column;
-        gap: var(--space-5);
+        gap: var(--space-6);
         flex: 1;
         overflow-y: auto;
         scrollbar-gutter: stable;
@@ -316,25 +358,25 @@ interface EditFormControls {
       .section {
         display: flex;
         flex-direction: column;
-        gap: var(--space-3);
+        gap: var(--space-4);
       }
       .section-head {
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        padding-block-end: var(--space-1);
+        gap: 3px;
       }
       .section-label {
-        font-size: 11px;
-        font-weight: var(--font-weight-bold);
-        letter-spacing: 0.10em;
+        font-size: 10px;
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.14em;
         text-transform: uppercase;
-        color: var(--color-brand-primary);
+        color: var(--color-text-secondary);
       }
       .section-desc {
-        font-size: 12px;
-        color: var(--color-text-tertiary);
-        line-height: 1.5;
+        font-size: 13px;
+        color: var(--color-text-primary);
+        font-weight: var(--font-weight-medium);
+        line-height: 1.4;
       }
       // Toggle row — flat, hairline border, not a card (avoid card-in-card)
       .toggle-row {
@@ -392,22 +434,46 @@ interface EditFormControls {
         align-items: center;
         justify-content: flex-end;
         padding: var(--space-4) var(--space-6);
-        gap: var(--space-2);
-        border-block-start: 1px solid var(--color-border-default);
+        gap: var(--space-3);
         background: var(--color-surface-default);
+        box-shadow: inset 0 1px 0 var(--color-border-default);
         flex-shrink: 0;
       }
       .primary-cta {
         min-height: 44px;
-        padding-inline: var(--space-4);
+        padding-inline: var(--space-5);
+        border-radius: var(--radius-pill, 999px);
         font-weight: var(--font-weight-semibold);
         letter-spacing: -0.005em;
+        box-shadow:
+          0 2px 6px -2px rgba(6, 21, 45, 0.18),
+          0 1px 2px rgba(6, 21, 45, 0.08);
+        transition:
+          box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
+          transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .primary-cta:not(:disabled):hover {
+        box-shadow:
+          0 4px 12px -4px rgba(6, 21, 45, 0.28),
+          0 2px 4px rgba(6, 21, 45, 0.1);
+        transform: translateY(-1px);
+      }
+      .primary-cta:not(:disabled):active {
+        transform: translateY(0);
       }
       .primary-cta mat-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
         margin-inline-end: 6px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .primary-cta {
+          transition: none;
+        }
+        .primary-cta:not(:disabled):hover {
+          transform: none;
+        }
       }
     `,
   ],
@@ -452,6 +518,7 @@ export class UserFormDialog {
   protected readonly emailError = signal<string | null>(null);
   protected readonly passwordError = signal<string | null>(null);
   protected readonly revealPw = signal<boolean>(false);
+  protected readonly errorMatcher = new SubmitOnlyErrorStateMatcher();
 
   protected roleLabel(role: string | null | undefined): string {
     switch (role) {

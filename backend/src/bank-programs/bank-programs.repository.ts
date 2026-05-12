@@ -30,7 +30,14 @@ export type BankProgramCreate = Omit<
 
 export type BankProgramUpdate = Omit<
   Prisma.BankProgramUpdateInput,
-  'programCode' | 'createdByStaff' | 'updatedByStaff' | 'auditEvents' | 'version' | 'createdAt' | 'updatedAt' | 'createdBy'
+  | 'programCode'
+  | 'createdByStaff'
+  | 'updatedByStaff'
+  | 'auditEvents'
+  | 'version'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'createdBy'
 >;
 
 export interface ListFilters {
@@ -64,7 +71,9 @@ export class BankProgramRepository {
 
   async findManyPaged(filters: ListFilters): Promise<PagedBankPrograms> {
     const where: Prisma.BankProgramWhereInput = {
-      ...(filters.bankName ? { bankName: { contains: filters.bankName, mode: 'insensitive' } } : {}),
+      ...(filters.bankName
+        ? { bankName: { contains: filters.bankName, mode: 'insensitive' } }
+        : {}),
       ...(filters.active !== undefined ? { active: filters.active } : {}),
       ...(filters.productCategory ? { productCategory: filters.productCategory } : {}),
       ...(filters.acceptedEmploymentType
@@ -79,7 +88,12 @@ export class BankProgramRepository {
 
     if (filters.search && filters.search.trim().length > 0) {
       // tsvector @@ to_tsquery with prefix matching via :*
-      const term = filters.search.trim().replace(/[:&|!()]/g, ' ').split(/\s+/).filter(Boolean).join(' & ');
+      const term = filters.search
+        .trim()
+        .replace(/[:&|!()]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean)
+        .join(' & ');
       if (term.length > 0) {
         const matches: Array<{ id: string }> = await this.prisma.$queryRaw(
           Prisma.sql`SELECT id FROM "bank_program" WHERE "searchVector" @@ to_tsquery('simple', ${term + ':*'})`,
@@ -100,6 +114,17 @@ export class BankProgramRepository {
     return { rows, totalCount };
   }
 
+  /**
+   * Return all active programs (used by matching engine).
+   * No pagination — the engine needs the full set.
+   */
+  async findAllActive(): Promise<BankProgram[]> {
+    return this.prisma.bankProgram.findMany({
+      where: { active: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
   // --- Writes --------------------------------------------------------------
 
   async create(input: BankProgramCreate, tx?: Prisma.TransactionClient): Promise<BankProgram> {
@@ -116,12 +141,14 @@ export class BankProgramRepository {
         active: input.active ?? true,
         operatorNotes: input.operatorNotes ?? null,
         operatorTips: (input.operatorTips ?? []) as Prisma.BankProgramCreateInput['operatorTips'],
-        requiredDocuments: (input.requiredDocuments ?? []) as Prisma.BankProgramCreateInput['requiredDocuments'],
+        requiredDocuments: (input.requiredDocuments ??
+          []) as Prisma.BankProgramCreateInput['requiredDocuments'],
         tenor: input.tenor as Prisma.InputJsonValue,
         loanLimits: input.loanLimits as Prisma.InputJsonValue,
         pricing: input.pricing as Prisma.InputJsonValue,
         eligibility: input.eligibility as Prisma.InputJsonValue,
-        performanceCriteria: (input.performanceCriteria ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        performanceCriteria: (input.performanceCriteria ??
+          Prisma.JsonNull) as Prisma.InputJsonValue,
         incomeAssumption: input.incomeAssumption as Prisma.InputJsonValue,
         fees: input.fees as Prisma.InputJsonValue,
         createdBy: input.createdBy,

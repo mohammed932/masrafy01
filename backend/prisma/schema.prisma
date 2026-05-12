@@ -47,11 +47,32 @@ enum AuditEventType {
   BANK_PROGRAM_DELETED
   BANK_PROGRAM_RATE_UPDATED
   BANK_PROGRAM_QUALITATIVE_REVIEW_DECIDED
+  APPLICATION_CREATED
+  APPLICATION_MATCHED
+  APPLICATION_NO_MATCH
+  APPLICATION_RATE_LIMITED
+  MATCHING_ENGINE_RUN
+  DATA_ERASURE_COMPLETED
 }
 
 enum BankProgramType {
   income_proof
   income_surrogate
+}
+
+enum ApplicationStatus {
+  draft
+  matched
+  no_match
+  archived
+  erased
+}
+
+enum ApplicationPriority {
+  lowest_installment
+  lowest_interest
+  fastest_approval
+  least_paperwork
 }
 
 // -----------------------------------------------------------------------------
@@ -194,4 +215,78 @@ model BankProgram {
   @@index([bankName], name: "idx_bank_program_bank_name")
   @@index([productCategory], name: "idx_bank_program_product_category")
   @@map("bank_program")
+}
+
+// -----------------------------------------------------------------------------
+// Application (feature 003 — matching engine)
+// -----------------------------------------------------------------------------
+
+model Application {
+  id                      String              @id @default(cuid()) @db.VarChar(30)
+  applicantUserId         String?             @db.VarChar(30)
+  mobileClientId          String              @db.VarChar(64)
+  submissionCorrelationId String              @db.VarChar(36)
+  idempotencyKey          String?             @db.VarChar(128)
+  payloadHash             String?             @db.Char(64)
+  status                  ApplicationStatus   @default(draft)
+  priority                ApplicationPriority
+  requestedAmountEGP      Decimal             @db.Decimal(13, 2)
+  requestedCurrency       String              @default("EGP") @db.VarChar(3)
+  preferredTenorMonths    Int
+  loanPurpose             String              @db.VarChar(64)
+  age                     Int
+  isGuest                 Boolean             @default(true)
+  applicantProfile        Json
+  summary                 Json
+  noMatchSummary          Json?
+  createdAt               DateTime            @default(now()) @db.Timestamptz(6)
+  archivedAt              DateTime?           @db.Timestamptz(6)
+  erasedAt                DateTime?           @db.Timestamptz(6)
+  coldTierKey             String?             @db.VarChar(256)
+  engineDurationMs        Int?
+  programsCheckedCount    Int                 @default(0)
+  eligibleProgramsCount   Int                 @default(0)
+
+  bankOffers              BankOffer[]         @relation("ApplicationBankOffers")
+
+  @@index([loanPurpose], name: "idx_application_purpose")
+  @@unique([mobileClientId, idempotencyKey], name: "idx_application_idempotency")
+  @@map("application")
+}
+
+// -----------------------------------------------------------------------------
+// BankOffer (feature 003 — immutable snapshot)
+// -----------------------------------------------------------------------------
+
+model BankOffer {
+  id                        String      @id @default(cuid()) @db.VarChar(30)
+  applicationId             String      @db.VarChar(30)
+  programCode               String      @db.VarChar(32)
+  programVersion            Int
+  bankName                  String      @db.VarChar(80)
+  programFriendlyName       String      @db.VarChar(120)
+  currency                  String      @db.VarChar(3)
+  effectiveRatePercent      Decimal     @db.Decimal(7, 4)
+  monthlyInstallmentEGP     Decimal     @db.Decimal(13, 2)
+  requestedLoanAmountEGP    Decimal     @db.Decimal(13, 2)
+  effectiveLoanAmountEGP    Decimal     @db.Decimal(13, 2)
+  requestedTenorMonths      Int
+  effectiveTenorMonths      Int
+  feesBreakdown             Json
+  approvalProbabilityPercent Decimal    @db.Decimal(5, 2)
+  requiredDocuments         String[]    @db.VarChar(80)
+  matchReasons              String[]    @db.VarChar(80)
+  cascadeTrace              Json
+  qualitativeReviewBadge    Boolean     @default(false)
+  selfDeclared              Boolean     @default(false)
+  maxLoanAvailableEGP       Decimal?    @db.Decimal(13, 2)
+  createdAt                 DateTime    @default(now()) @db.Timestamptz(6)
+  erasedAt                  DateTime?   @db.Timestamptz(6)
+
+  application               Application @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId], name: "idx_bank_offer_application")
+  @@index([programCode, createdAt(sort: Desc)], name: "idx_bank_offer_program_created")
+  @@index([currency], name: "idx_bank_offer_currency")
+  @@map("bank_offer")
 }

@@ -7,7 +7,7 @@ import { AppModule } from './app.module';
 import { setupSwagger } from './common/swagger/swagger.config';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   app.useLogger(app.get(Logger));
 
   app.setGlobalPrefix('api');
@@ -22,7 +22,17 @@ async function bootstrap(): Promise<void> {
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Content-Type', 'X-Correlation-Id'],
+    allowedHeaders: [
+      'Authorization',
+      'Content-Type',
+      'X-Correlation-Id',
+      'X-Client-Id',
+      'X-Timestamp',
+      'X-Nonce',
+      'X-Signature',
+      'X-Body-SHA256',
+      'Idempotency-Key',
+    ],
     exposedHeaders: ['X-Correlation-Id'],
     maxAge: 600,
   });

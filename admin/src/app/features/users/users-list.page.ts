@@ -396,12 +396,14 @@ export class UsersListPage implements OnInit {
       UserFormDialog,
       {
         data: { mode: 'create' },
-        panelClass: 'side-drawer',
-        backdropClass: 'side-drawer-backdrop',
-        height: '100vh',
+        panelClass: 'app-modal-panel',
+        backdropClass: 'app-modal-backdrop',
         width: '480px',
         maxWidth: '92vw',
+        maxHeight: '92vh',
         autoFocus: 'first-tabbable',
+        restoreFocus: true,
+        disableClose: false,
       },
     );
     const created = await ref.afterClosed().toPromise();
@@ -416,12 +418,13 @@ export class UsersListPage implements OnInit {
       UserFormDialog,
       {
         data: { mode: 'edit', row },
-        panelClass: 'side-drawer',
-        backdropClass: 'side-drawer-backdrop',
-        height: '100vh',
+        panelClass: 'app-modal-panel',
+        backdropClass: 'app-modal-backdrop',
         width: '480px',
         maxWidth: '92vw',
+        maxHeight: '92vh',
         autoFocus: 'first-tabbable',
+        restoreFocus: true,
       },
     );
     const updated = await ref.afterClosed().toPromise();
@@ -434,9 +437,9 @@ export class UsersListPage implements OnInit {
   async openReset(row: StaffAccountSummary): Promise<void> {
     const ref = this.dialog.open(ResetPasswordDialog, {
       data: { row },
-      panelClass: 'side-drawer',
-      backdropClass: 'side-drawer-backdrop',
-      height: '100vh',
+      panelClass: 'app-modal-panel',
+      backdropClass: 'app-modal-backdrop',
+      maxHeight: '92vh',
       width: '420px',
       maxWidth: '92vw',
       autoFocus: 'first-tabbable',

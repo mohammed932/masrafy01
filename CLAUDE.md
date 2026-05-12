@@ -11,6 +11,7 @@ Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 ## Active Technologies
 - Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin. (002-bank-programs)
 - PostgreSQL 16 (Prisma migrations only; `db push` forbidden in production); Redis 7 (rate-limit + future audit-event buffer; NOT used as primary store for bank programs). (002-bank-programs)
+- Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ on admin. (003-matching-engine-post)
 
 ### Backend (`backend/`) — feature 001-admin-auth-users
 
@@ -164,10 +165,10 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A24** Approval probability without documented weights
 
 ## Recent Changes
+- 003-matching-engine-post: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ on admin.
 - 002-bank-programs: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin.
 
 - **2026-05-12** — Constitution v1.3.0: Principle XXIII expanded to require BOTH `ui-ux-pro-max` (pre-design) AND `impec` (post-implementation polish) on every new admin screen. Either skill alone = review block. Anti-pattern A17 updated.
-- **2026-05-12** — Constitution v1.2.0: all testing requirements removed from Principles XVI + XXVII. No constitutional testing gates (unit, integration, or E2E). Features choose their own strategy.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

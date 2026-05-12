@@ -1,0 +1,483 @@
+openapi: 3.1.0
+info:
+  title: Masrafy — Matching Engine API
+  version: 0.1.0
+  description: |
+    Public mobile-facing apply endpoint (HMAC-signed) + internal staff
+    applications list / detail (JWT). Envelope shapes follow Constitution
+    Principle XIV. Spec 003-matching-engine-post.
+
+servers:
+  - url: https://api.masrafy.example/api
+    description: Production
+  - url: http://localhost:3000/api
+    description: Local development
+
+tags:
+  - name: applications-mobile
+    description: HMAC-signed mobile endpoint for submitting applications
+  - name: applications-admin
+    description: Internal-staff list + detail (JWT-authenticated)
+
+paths:
+
+  /v1/apply:
+    post:
+      tags: [applications-mobile]
+      summary: Submit a loan application and receive ranked offers
+      operationId: submitApplication
+      security:
+        - hmacAuth: []
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: false
+          schema: { type: string, maxLength: 128 }
+          description: Optional. Same key + same body within 1 hour returns cached response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ApplicantProfile' }
+      responses:
+        '200':
+          description: Successful match OR structured no-match response
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MatchSuccessEnvelope'
+                  - $ref: '#/components/schemas/NoMatchEnvelope'
+        '401':
+          description: UNAUTHENTICATED (HMAC verification failed or nonce replay)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '409':
+          description: IDEMPOTENCY_KEY_MISMATCH
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '422':
+          description: Validation failed OR computational failure (DBR_EXCEEDED, AMOUNT_OUT_OF_RANGE, etc.)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '429':
+          description: RATE_LIMITED (HMAC client bucket or applicant-fingerprint bucket)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '500':
+          description: MATCHING_ENGINE_ERROR (internal failure with correlation ID)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  /admin/applications:
+    get:
+      tags: [applications-admin]
+      summary: List applications (admin / super_admin / viewer)
+      operationId: listApplications
+      security:
+        - jwtAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, default: 1, minimum: 1 }
+        - in: query
+          name: pageSize
+          schema: { type: integer, default: 25, minimum: 1, maximum: 100 }
+        - in: query
+          name: status
+          schema: { type: string, enum: [matched, no_match] }
+        - in: query
+          name: loanPurpose
+          schema: { type: string }
+        - in: query
+          name: createdAfter
+          schema: { type: string, format: date-time }
+        - in: query
+          name: createdBefore
+          schema: { type: string, format: date-time }
+        - in: query
+          name: applicationId
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated applications list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApplicationListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /admin/applications/{applicationId}:
+    parameters:
+      - in: path
+        name: applicationId
+        required: true
+        schema: { type: string }
+    get:
+      tags: [applications-admin]
+      summary: Application detail with masked profile + offers + failed-checks + audit timeline
+      operationId: getApplication
+      security:
+        - jwtAuth: []
+      responses:
+        '200':
+          description: Full detail payload
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/ApplicationDetail' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Application not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+components:
+
+  securitySchemes:
+    hmacAuth:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: |
+        Composite auth. Required headers:
+        - X-Client-Id: opaque mobile-client identifier
+        - X-Timestamp: unix seconds, ±5 min tolerance
+        - X-Nonce: client uuid v4 (single-use, 5 min Redis TTL)
+        - X-Signature: hex HMAC-SHA256 of "{method}\n{path}\n{timestamp}\n{nonce}\n{sha256(body)}" with the client's shared secret.
+        Replay protection via Redis nonce store. Clock-skew tolerance ±5 min.
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Admin JWT from feature 001 (15-min access + httpOnly refresh cookie).
+
+  responses:
+    Unauthenticated:
+      description: Missing or invalid auth
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: Role check failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+
+  schemas:
+
+    Envelope:
+      type: object
+      required: [success]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: {}
+        summary: { type: object }
+        pagination: { $ref: '#/components/schemas/Pagination' }
+
+    ErrorEnvelope:
+      type: object
+      required: [success, code]
+      properties:
+        success: { type: boolean, enum: [false] }
+        code: { type: string }
+        meta: { type: object, additionalProperties: true }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalCount: { type: integer }
+
+    # --- Request DTO ---
+
+    ApplicantProfile:
+      type: object
+      required: [age, loanPurpose, requestedAmountEGP, preferredTenorMonths, priority, isGuest, employment, obligations, assets]
+      properties:
+        age: { type: integer, minimum: 18, maximum: 75 }
+        loanPurpose:
+          type: string
+          enum: [personal, car, mortgage, education, pension, secured, buyout]
+        requestedAmountEGP:
+          type: string
+          description: 'Decimal as canonical string; minimum 5000'
+        requestedCurrency:
+          type: string
+          default: EGP
+          enum: [EGP, USD, EUR]
+        preferredTenorMonths: { type: integer, minimum: 6, maximum: 360 }
+        priority:
+          type: string
+          enum: [lowest_installment, lowest_interest, fastest_approval, least_paperwork]
+        isGuest: { type: boolean }
+        employment: { $ref: '#/components/schemas/Employment' }
+        obligations: { $ref: '#/components/schemas/Obligations' }
+        assets: { $ref: '#/components/schemas/Assets' }
+        mortgageDetails:
+          oneOf:
+            - $ref: '#/components/schemas/MortgageDetails'
+            - type: 'null'
+        carDetails:
+          oneOf:
+            - $ref: '#/components/schemas/CarDetails'
+            - type: 'null'
+
+    Employment:
+      type: object
+      required: [employmentType, monthsInJob, salaryTransferType]
+      properties:
+        employmentType: { type: string, enum: [salaried, self_employed, retired, military, professor, doctor_clinic, doctor_practice, banker] }
+        monthlyNetSalaryEGP: { type: string, description: 'Decimal as string; optional when income strategy is not declared' }
+        monthsInJob: { type: integer, minimum: 0 }
+        yearsInPractice: { type: integer, minimum: 0 }
+        professorRank: { type: string }
+        militaryGrade: { type: string }
+        salaryTransferType:
+          type: string
+          enum: [payroll, payroll_cat_a, payroll_cat_b, payroll_cat_c, salary_transfer_letter, income_transfer_letter, none]
+        companyName: { type: string }
+        companyType: { type: string, enum: [cat_a, cat_b, cat_c, commercial_bank, public_bank, government, ngo, other] }
+        previousBankRejection: { type: boolean, default: false }
+
+    Obligations:
+      type: object
+      required: [existingMonthlyObligationsEGP, hasCurrentLoan]
+      properties:
+        existingMonthlyObligationsEGP: { type: string, description: 'Decimal as string' }
+        hasCurrentLoan: { type: boolean }
+        currentLoanRatePercent: { type: string, description: 'Decimal as string; required for buyout programs' }
+        monthsOnBookCurrentLoan: { type: integer }
+        bkt1HitWithinMonths: { type: integer, description: 'Months since last BKT-1 hit; null = no hit' }
+        bkt2HitWithinMonths: { type: integer }
+
+    Assets:
+      type: object
+      properties:
+        cdAtABKValueEGP: { type: string }
+        totalDepositsAtABKValueEGP: { type: string }
+        bankStatementBalanceEGP: { type: string }
+        declaredAssetsValueEGP: { type: string }
+        creditCardLimitEGP: { type: string }
+        autoLoanAtOtherBankEGP: { type: string }
+        autoLoanAtABKEGP: { type: string }
+        ownsCompoundProperty: { type: boolean }
+        clubMembership: { type: string, description: 'Club identifier or class' }
+
+    MortgageDetails:
+      type: object
+      properties:
+        propertyType: { type: string }
+        cityTier: { type: string, enum: [main_cities, other_cities] }
+        propertyValueEGP: { type: string }
+        downPaymentEGP: { type: string }
+
+    CarDetails:
+      type: object
+      properties:
+        carPriceEGP: { type: string }
+        downPaymentPercent: { type: string }
+        carAgeYears: { type: integer }
+
+    # --- Response: success ---
+
+    MatchSuccessEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: object
+              required: [applicationId, matchedOffers]
+              properties:
+                applicationId: { type: string }
+                matchedOffers:
+                  type: array
+                  items: { $ref: '#/components/schemas/BankOffer' }
+                summary: { $ref: '#/components/schemas/MatchSummary' }
+
+    BankOffer:
+      type: object
+      properties:
+        bankName: { type: string }
+        programCode: { type: string }
+        programFriendlyName: { type: string }
+        currency: { type: string }
+        effectiveRatePercent: { type: string, description: 'Decimal as string' }
+        monthlyInstallmentEGP: { type: string }
+        requestedLoanAmountEGP: { type: string }
+        effectiveLoanAmountEGP: { type: string }
+        requestedTenorMonths: { type: integer }
+        effectiveTenorMonths: { type: integer }
+        feesBreakdown:
+          type: object
+          properties:
+            adminFeePercent: { type: string }
+            adminFeeAmountEGP: { type: string }
+            adminFeeWaived: { type: boolean }
+            stampDutyAmountEGP: { type: string }
+            lifeInsuranceAmountEGP: { type: string }
+            lifeInsuranceMandatory: { type: boolean }
+            collateralFeesEGP: { type: string }
+            feeWaiverPenaltyApplied: { type: boolean }
+            insuranceWaiverPenaltyApplied: { type: boolean }
+        approvalProbabilityPercent: { type: string }
+        requiredDocuments:
+          type: array
+          items: { type: string }
+        matchReasons:
+          type: array
+          items: { type: string }
+        cascadeTrace:
+          type: object
+          properties:
+            matchedLevel: { type: string }
+            trace:
+              type: array
+              items:
+                type: object
+                properties:
+                  level: { type: string }
+                  matched: { type: boolean }
+                  value: { type: string }
+                  reason: { type: string }
+            derivation:
+              oneOf:
+                - type: object
+                  properties:
+                    sourceRatePercent: { type: string }
+                    deltaPercent: { type: string }
+                    reason: { type: string }
+                - type: 'null'
+        qualitativeReviewBadge: { type: boolean }
+        selfDeclared: { type: boolean }
+        maxLoanAvailableEGP: { type: string, description: 'Populated when DBR-bound' }
+
+    MatchSummary:
+      type: object
+      properties:
+        totalProgramsChecked: { type: integer }
+        eligiblePrograms: { type: integer }
+        bestInstallmentEGP: { type: string }
+        bestRatePercent: { type: string }
+
+    # --- Response: no-match ---
+
+    NoMatchEnvelope:
+      type: object
+      required: [success, code, meta]
+      properties:
+        success: { type: boolean, enum: [false] }
+        code: { type: string, enum: [NO_MATCHING_PROGRAMS] }
+        meta:
+          type: object
+          properties:
+            primaryReason: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  programCode: { type: string }
+                  failedChecks:
+                    type: array
+                    items: { type: string }
+            suggestions:
+              type: array
+              items: { $ref: '#/components/schemas/Suggestion' }
+
+    Suggestion:
+      type: object
+      required: [code, magnitude, programsUnlocked]
+      properties:
+        code: { type: string }
+        magnitude: { type: string }
+        programsUnlocked: { type: integer }
+        displayMeta:
+          type: object
+          additionalProperties: true
+
+    # --- Admin list + detail ---
+
+    ApplicationListEnvelope:
+      allOf:
+        - $ref: '#/components/schemas/Envelope'
+        - type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/ApplicationListRow' }
+
+    ApplicationListRow:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [matched, no_match] }
+        loanPurpose: { type: string }
+        requestedAmountEGP: { type: string }
+        requestedCurrency: { type: string }
+        priority: { type: string }
+        eligibleProgramsCount: { type: integer }
+        primaryFailureReason: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        applicantMaskedName: { type: string, description: 'PII-masked per FR-051' }
+
+    ApplicationDetail:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string }
+        priority: { type: string }
+        createdAt: { type: string, format: date-time }
+        engineDurationMs: { type: integer }
+        programsCheckedCount: { type: integer }
+        eligibleProgramsCount: { type: integer }
+        primaryFailureReason: { type: string, nullable: true }
+        applicantProfileMasked:
+          type: object
+          description: |
+            Applicant profile with PII masked per FR-051. National-ID last 4 chars,
+            phone last 2 digits, email first-char + domain. Names initial-letter-masked.
+        offers:
+          type: array
+          items: { $ref: '#/components/schemas/BankOffer' }
+        failedChecksByProgram:
+          type: array
+          items:
+            type: object
+            properties:
+              programCode: { type: string }
+              programFriendlyName: { type: string }
+              failedChecks:
+                type: array
+                items: { type: string }
+        noMatchSummary:
+          oneOf:
+            - type: object
+              properties:
+                primaryReason: { type: string }
+                suggestions:
+                  type: array
+                  items: { $ref: '#/components/schemas/Suggestion' }
+            - type: 'null'
+        auditTimeline:
+          type: array
+          items:
+            type: object
+            properties:
+              eventType: { type: string }
+              occurredAt: { type: string, format: date-time }
+              correlationId: { type: string }
+              payload: { type: object }

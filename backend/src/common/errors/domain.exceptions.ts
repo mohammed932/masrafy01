@@ -211,3 +211,73 @@ export class SeedRequiresSuperAdminException extends DomainException {
     super(ERROR_CODES.SEED_REQUIRES_SUPER_ADMIN, { endpoint });
   }
 }
+
+// --- Matching engine (feature 003) -----------------------------------------
+
+export class NoMatchingProgramsException extends DomainException {
+  constructor(meta: { primaryReason: string; details: unknown[]; suggestions: unknown[] }) {
+    super(ERROR_CODES.NO_MATCHING_PROGRAMS, meta);
+  }
+}
+
+export class MatchingEngineErrorException extends DomainException {
+  constructor(meta: { correlationId: string }) {
+    super(ERROR_CODES.MATCHING_ENGINE_ERROR, meta);
+  }
+}
+
+export class IdempotencyKeyMismatchException extends DomainException {
+  constructor(meta: { idempotencyKey: string }) {
+    super(ERROR_CODES.IDEMPOTENCY_KEY_MISMATCH, meta);
+  }
+}
+
+export class UnauthenticatedException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.UNAUTHENTICATED);
+  }
+}
+
+// --- Mobile HMAC (feature 003) ---------------------------------------------
+
+export class HmacHeaderMissingException extends DomainException {
+  constructor(header: string) {
+    super(ERROR_CODES.HMAC_HEADER_MISSING, { header });
+  }
+}
+
+export class HmacClientUnknownException extends DomainException {
+  constructor(clientId: string) {
+    super(ERROR_CODES.HMAC_CLIENT_UNKNOWN, { clientId });
+  }
+}
+
+export class HmacSignatureInvalidException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.HMAC_SIGNATURE_INVALID);
+  }
+}
+
+export class HmacTimestampSkewException extends DomainException {
+  constructor(meta: { toleranceSeconds: number }) {
+    super(ERROR_CODES.HMAC_TIMESTAMP_SKEW, meta);
+  }
+}
+
+export class HmacNonceReplayException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.HMAC_NONCE_REPLAY);
+  }
+}
+
+export class HmacBodyHashMismatchException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.HMAC_BODY_HASH_MISMATCH);
+  }
+}
+
+export class RateLimitedBucketException extends DomainException {
+  constructor(bucket: 'hmac_client' | 'applicant_fingerprint', retryAfterSeconds: number) {
+    super(ERROR_CODES.RATE_LIMITED, { bucket, retryAfterSeconds });
+  }
+}
