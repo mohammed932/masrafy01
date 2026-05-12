@@ -2,11 +2,11 @@
 
 Egyptian fintech loan-comparison marketplace. Three platforms governed by ONE constitution.
 
-| Package | Stack | Status |
-|---|---|---|
-| [`backend/`](backend/) | NestJS 10 + Prisma 5 + PostgreSQL 16 + Redis 7 | 🟢 Active |
-| [`admin/`](admin/) | Angular 18 + Material 18 + Vitest + Playwright | 🟢 Active |
-| `mobile/` | Flutter + Clean Architecture | 🟡 Deferred — awaiting Figma |
+| Package                | Stack                                          | Status                       |
+| ---------------------- | ---------------------------------------------- | ---------------------------- |
+| [`backend/`](backend/) | NestJS 10 + Prisma 5 + PostgreSQL 16 + Redis 7 | 🟢 Active                    |
+| [`admin/`](admin/)     | Angular 18 + Material 18 + Vitest + Playwright | 🟢 Active                    |
+| `mobile/`              | Flutter + Clean Architecture                   | 🟡 Deferred — awaiting Figma |
 
 ## Documents
 
@@ -43,7 +43,7 @@ npm run start:dev      # → http://localhost:3000  | docs at /api/docs
 
 cd ../admin
 npm run gen:api        # regenerate auth.types.ts from OpenAPI
-npm start              # → http://localhost:4200
+npm start              # → http://localhost:5173
 ```
 
 Sign in with the seeded super_admin. Forced-change flow runs on first login.

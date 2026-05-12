@@ -53,6 +53,136 @@ a:hover {
   text-decoration: underline;
 }
 
+// Side drawer (Material MatDialog opened as right-edge panel for forms).
+// CDK's global overlay wrapper defaults to center-center alignment. Override
+// it to flex-end + stretch so the pane sits flush against the inline-end edge,
+// full viewport height.
+.cdk-overlay-container:has(.side-drawer) .cdk-global-overlay-wrapper {
+  justify-content: flex-end !important;
+  align-items: stretch !important;
+}
+[dir='rtl'] .cdk-overlay-container:has(.side-drawer) .cdk-global-overlay-wrapper {
+  justify-content: flex-start !important;
+}
+.cdk-overlay-pane.side-drawer {
+  position: static !important;
+  max-height: 100vh !important;
+  height: 100vh !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+}
+.cdk-overlay-pane.side-drawer .mat-mdc-dialog-container {
+  border-radius: 0 !important;
+  height: 100vh;
+  max-height: 100vh;
+}
+.cdk-overlay-pane.side-drawer .mat-mdc-dialog-surface {
+  border-radius: 0 !important;
+  border-inline-start: 1px solid var(--color-border-default);
+  box-shadow: -8px 0 32px rgba(6, 21, 45, 0.12);
+  animation: drawer-slide-in 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+[dir='rtl'] .cdk-overlay-pane.side-drawer .mat-mdc-dialog-surface {
+  border-inline-start: none;
+  border-inline-end: 1px solid var(--color-border-default);
+  box-shadow: 8px 0 32px rgba(6, 21, 45, 0.12);
+  animation: drawer-slide-in-rtl 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes drawer-slide-in {
+  from {
+    transform: translateX(12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes drawer-slide-in-rtl {
+  from {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+.cdk-overlay-backdrop.side-drawer-backdrop {
+  background: rgba(6, 21, 45, 0.32);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cdk-overlay-pane.side-drawer .mat-mdc-dialog-surface,
+  [dir='rtl'] .cdk-overlay-pane.side-drawer .mat-mdc-dialog-surface {
+    animation: none;
+  }
+}
+
+// Material form-field polish — refined hint typography, brand-tinted focus ring,
+// tighter vertical rhythm. Global because Material renders some bits outside Angular
+// view encapsulation.
+.mat-mdc-form-field {
+  --mdc-outlined-text-field-outline-color: var(--color-border-default);
+  --mdc-outlined-text-field-hover-outline-color: var(--color-border-strong);
+  --mdc-outlined-text-field-focus-outline-color: var(--color-brand-primary);
+  --mdc-outlined-text-field-label-text-color: var(--color-text-secondary);
+  --mdc-outlined-text-field-focus-label-text-color: var(--color-brand-primary);
+  --mdc-outlined-text-field-input-text-color: var(--color-text-primary);
+  --mdc-outlined-text-field-caret-color: var(--color-brand-primary);
+}
+// Hint typography — smaller, tertiary color, breathing space
+.mat-mdc-form-field-hint {
+  font-size: 12px !important;
+  color: var(--color-text-tertiary) !important;
+  letter-spacing: 0 !important;
+}
+.mat-mdc-form-field-subscript-wrapper {
+  padding-block-start: 4px;
+}
+// Focus ring micro-animation: outline thickens smoothly from 1 → 2px
+.mat-mdc-form-field .mdc-notched-outline > * {
+  transition: border-color var(--motion-duration-fast) var(--motion-easing-standard) !important;
+}
+// Reduced-motion guard
+@media (prefers-reduced-motion: reduce) {
+  .mat-mdc-form-field .mdc-notched-outline > * {
+    transition: none !important;
+  }
+}
+
+// Material `mat-option` rich content — title + description on two lines.
+// Material renders the dropdown panel outside Angular component encapsulation,
+// so these rules live globally.
+.mat-mdc-option.role-option {
+  height: auto !important;
+  min-height: 60px;
+  padding-block: var(--space-2);
+  align-items: flex-start;
+}
+.mat-mdc-option.role-option .mdc-list-item__primary-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  white-space: normal;
+}
+.role-option .opt-title {
+  display: block;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  line-height: 1.2;
+}
+.role-option .opt-desc {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  line-height: var(--line-height-base);
+  white-space: normal;
+}
+
 // Respect prefers-reduced-motion (promax checklist).
 @media (prefers-reduced-motion: reduce) {
   *,

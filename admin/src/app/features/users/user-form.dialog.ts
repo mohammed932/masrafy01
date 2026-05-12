@@ -89,56 +89,70 @@ interface EditFormControls {
       class="body"
     >
       @if (data.mode === 'create') {
-        <div class="field-row">
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@userForm.name">Name</mat-label>
-            <input matInput formControlName="name" autocomplete="name" />
-            <mat-hint i18n="@@userForm.nameHint">Full name as it should appear in the dashboard.</mat-hint>
-          </mat-form-field>
-        </div>
+        <section class="section">
+          <header class="section-head">
+            <span class="section-label" i18n="@@userForm.section.identity">Identity</span>
+            <span class="section-desc" i18n="@@userForm.section.identityDesc">Who is this user?</span>
+          </header>
 
-        <div class="field-row">
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@userForm.email">Email</mat-label>
-            <input matInput type="email" autocomplete="email" formControlName="email" />
-            <mat-icon matPrefix aria-hidden="true">mail</mat-icon>
-            <mat-hint i18n="@@userForm.emailHint">Used to sign in. Must be unique.</mat-hint>
-            @if (emailError(); as msg) {
-              <mat-error>{{ msg }}</mat-error>
-            }
-          </mat-form-field>
-        </div>
+          <div class="field-row">
+            <mat-form-field appearance="outline" class="field">
+              <mat-label i18n="@@userForm.name">Full name</mat-label>
+              <input matInput formControlName="name" autocomplete="name" />
+              <mat-hint i18n="@@userForm.nameHint">As it should appear in the dashboard.</mat-hint>
+            </mat-form-field>
+          </div>
 
-        <div class="field-row">
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@userForm.role">Role</mat-label>
-            <mat-select formControlName="role">
-              <mat-select-trigger>{{ roleLabel(createForm.controls.role.value) }}</mat-select-trigger>
-              <mat-option value="ADMIN" class="role-option">
-                <span class="opt-title">Admin</span>
-                <span class="opt-desc" i18n="@@userForm.role.adminDesc">Can read and write across the platform, except user management.</span>
-              </mat-option>
-              <mat-option value="VIEWER" class="role-option">
-                <span class="opt-title">Viewer</span>
-                <span class="opt-desc" i18n="@@userForm.role.viewerDesc">Read-only access. No write actions.</span>
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
+          <div class="field-row">
+            <mat-form-field appearance="outline" class="field">
+              <mat-label i18n="@@userForm.email">Work email</mat-label>
+              <input matInput type="email" autocomplete="email" formControlName="email" />
+              <mat-icon matPrefix aria-hidden="true">mail</mat-icon>
+              <mat-hint i18n="@@userForm.emailHint">Used to sign in. Must be unique.</mat-hint>
+              @if (emailError(); as msg) {
+                <mat-error>{{ msg }}</mat-error>
+              }
+            </mat-form-field>
+          </div>
+        </section>
 
-        <div class="field-row">
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@userForm.initialPassword">Initial password</mat-label>
-            <input matInput [type]="revealPw() ? 'text' : 'password'" autocomplete="new-password" formControlName="initialPassword" />
-            <button mat-icon-button matSuffix type="button" (click)="revealPw.set(!revealPw())" [attr.aria-pressed]="revealPw()">
-              <mat-icon>{{ revealPw() ? 'visibility_off' : 'visibility' }}</mat-icon>
-            </button>
-            <mat-hint i18n="@@userForm.passwordHint">12–128 chars. User must change on first sign-in.</mat-hint>
-            @if (passwordError(); as msg) {
-              <mat-error>{{ msg }}</mat-error>
-            }
-          </mat-form-field>
-        </div>
+        <section class="section">
+          <header class="section-head">
+            <span class="section-label" i18n="@@userForm.section.access">Access</span>
+            <span class="section-desc" i18n="@@userForm.section.accessDesc">Role and initial credentials.</span>
+          </header>
+
+          <div class="field-row">
+            <mat-form-field appearance="outline" class="field">
+              <mat-label i18n="@@userForm.role">Role</mat-label>
+              <mat-select formControlName="role">
+                <mat-select-trigger>{{ roleLabel(createForm.controls.role.value) }}</mat-select-trigger>
+                <mat-option value="ADMIN" class="role-option">
+                  <span class="opt-title">Admin</span>
+                  <span class="opt-desc" i18n="@@userForm.role.adminDesc">Can read and write across the platform, except user management.</span>
+                </mat-option>
+                <mat-option value="VIEWER" class="role-option">
+                  <span class="opt-title">Viewer</span>
+                  <span class="opt-desc" i18n="@@userForm.role.viewerDesc">Read-only access. No write actions.</span>
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+
+          <div class="field-row">
+            <mat-form-field appearance="outline" class="field">
+              <mat-label i18n="@@userForm.initialPassword">Initial password</mat-label>
+              <input matInput [type]="revealPw() ? 'text' : 'password'" autocomplete="new-password" formControlName="initialPassword" />
+              <button mat-icon-button matSuffix type="button" (click)="revealPw.set(!revealPw())" [attr.aria-pressed]="revealPw()">
+                <mat-icon>{{ revealPw() ? 'visibility_off' : 'visibility' }}</mat-icon>
+              </button>
+              <mat-hint i18n="@@userForm.passwordHint">12–128 chars. User must change on first sign-in.</mat-hint>
+              @if (passwordError(); as msg) {
+                <mat-error>{{ msg }}</mat-error>
+              }
+            </mat-form-field>
+          </div>
+        </section>
       } @else if (data.row) {
         <div class="field-row">
           <mat-form-field appearance="outline" class="field">
@@ -212,33 +226,45 @@ interface EditFormControls {
       :host {
         display: flex;
         flex-direction: column;
-        width: min(520px, 92vw);
-        max-height: 85vh;
+        width: 100%;
+        height: 100%;
         overflow: hidden;
+        background: var(--color-surface-default);
+        font-family: var(--font-family-base);
       }
+      // Header — sticky, hairline shadow on scroll, NO illustration. Title carries the weight.
       .header {
         display: flex;
         align-items: flex-start;
         gap: var(--space-3);
-        padding: var(--space-5) var(--space-5) var(--space-3);
-        border-block-end: 1px solid var(--color-border-default);
+        padding: var(--space-6) var(--space-6) var(--space-4);
         flex-shrink: 0;
+        position: relative;
+      }
+      .header::after {
+        content: '';
+        position: absolute;
+        inset-inline: var(--space-6);
+        inset-block-end: 0;
+        height: 1px;
+        background: var(--color-border-default);
       }
       .header-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 44px;
-        height: 44px;
+        width: 40px;
+        height: 40px;
         border-radius: var(--radius-md);
         background: var(--color-tonal-accent-bg);
         color: var(--color-brand-primary);
         flex-shrink: 0;
+        box-shadow: inset 0 0 0 1px rgba(28, 66, 144, 0.12);
       }
       .header-icon mat-icon {
-        font-size: 22px;
-        width: 22px;
-        height: 22px;
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
       }
       .header-text {
         flex: 1;
@@ -246,22 +272,38 @@ interface EditFormControls {
       }
       .title {
         margin: 0 0 4px;
-        font-size: var(--text-xl);
-        font-weight: var(--font-weight-semibold);
+        font-size: 20px;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: -0.01em;
         color: var(--color-text-primary);
-        line-height: var(--line-height-tight);
+        line-height: 1.2;
       }
       .subtitle {
         margin: 0;
-        font-size: var(--text-sm);
+        font-size: 13px;
         color: var(--color-text-secondary);
-        line-height: var(--line-height-base);
+        line-height: 1.5;
       }
+      // Body — paper-form-style sections, generous vertical rhythm, hint typography refined
       .body {
-        padding: var(--space-4) var(--space-5) 0;
+        padding: var(--space-5) var(--space-6) var(--space-6);
         display: flex;
         flex-direction: column;
-        gap: var(--space-2);
+        gap: var(--space-5);
+        flex: 1;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+      }
+      .body::-webkit-scrollbar {
+        width: 8px;
+      }
+      .body::-webkit-scrollbar-thumb {
+        background: var(--color-border-default);
+        border-radius: var(--radius-pill);
+        border: 2px solid var(--color-surface-default);
+      }
+      .body::-webkit-scrollbar-thumb:hover {
+        background: var(--color-border-strong);
       }
       .field-row {
         width: 100%;
@@ -270,19 +312,31 @@ interface EditFormControls {
         display: block;
         width: 100%;
       }
-      .opt-title {
-        display: block;
-        font-weight: var(--font-weight-semibold);
-        line-height: 1.2;
+      // Sections — typographic structure inside the form, no card chrome
+      .section {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
       }
-      .opt-desc {
-        display: block;
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-        white-space: normal;
-        line-height: var(--line-height-base);
+      .section-head {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding-block-end: var(--space-1);
       }
-      // Toggle row with title + description on the left, switch on the right
+      .section-label {
+        font-size: 11px;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.10em;
+        text-transform: uppercase;
+        color: var(--color-brand-primary);
+      }
+      .section-desc {
+        font-size: 12px;
+        color: var(--color-text-tertiary);
+        line-height: 1.5;
+      }
+      // Toggle row — flat, hairline border, not a card (avoid card-in-card)
       .toggle-row {
         display: flex;
         align-items: center;
@@ -291,7 +345,11 @@ interface EditFormControls {
         padding: var(--space-3) var(--space-4);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-md);
-        background: var(--color-surface-elevated);
+        background: transparent;
+        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .toggle-row:hover {
+        border-color: var(--color-border-strong);
       }
       .toggle-text {
         display: flex;
@@ -301,40 +359,49 @@ interface EditFormControls {
       .toggle-title {
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
+        font-size: 14px;
       }
       .toggle-desc {
-        font-size: var(--text-sm);
+        font-size: 12px;
         color: var(--color-text-secondary);
+        line-height: 1.5;
       }
-      // Alert with leading icon
+      // Alert — tighter, leading icon, no full border (less visual weight in normal flow)
       .alert {
         display: flex;
         align-items: flex-start;
         gap: var(--space-2);
-        margin-block-start: var(--space-2);
         padding: var(--space-3);
         background: var(--color-error-bg);
         color: var(--color-error);
         border-radius: var(--radius-md);
-        border: 1px solid var(--color-error);
+        border-inline-start: 3px solid var(--color-error);
+        font-size: 13px;
+        line-height: 1.5;
       }
       .alert-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
         flex-shrink: 0;
-        margin-block-start: 2px;
+        margin-block-start: 1px;
       }
-      // Actions row
+      // Actions footer — clean band, primary CTA carries the weight, NO background tint
       .actions {
-        padding: var(--space-4) var(--space-5) var(--space-5);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: var(--space-4) var(--space-6);
         gap: var(--space-2);
         border-block-start: 1px solid var(--color-border-default);
-        background: var(--color-surface-elevated);
+        background: var(--color-surface-default);
+        flex-shrink: 0;
       }
       .primary-cta {
         min-height: 44px;
         padding-inline: var(--space-4);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: -0.005em;
       }
       .primary-cta mat-icon {
         font-size: 18px;

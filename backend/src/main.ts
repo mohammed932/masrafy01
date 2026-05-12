@@ -14,7 +14,7 @@ async function bootstrap(): Promise<void> {
 
   // CORS for the admin dashboard dev origin. credentials:true required
   // because the refresh cookie crosses origins. Strict allow-list — no wildcards.
-  const corsOrigins = (process.env['CORS_ORIGINS'] ?? 'http://localhost:4200')
+  const corsOrigins = (process.env['CORS_ORIGINS'] ?? 'http://localhost:5173')
     .split(',')
     .map((o) => o.trim())
     .filter(Boolean);

@@ -394,7 +394,15 @@ export class UsersListPage implements OnInit {
   async openCreate(): Promise<void> {
     const ref = this.dialog.open<UserFormDialog, UserFormDialogData, StaffAccountSummary>(
       UserFormDialog,
-      { data: { mode: 'create' }, width: '480px' },
+      {
+        data: { mode: 'create' },
+        panelClass: 'side-drawer',
+        backdropClass: 'side-drawer-backdrop',
+        height: '100vh',
+        width: '480px',
+        maxWidth: '92vw',
+        autoFocus: 'first-tabbable',
+      },
     );
     const created = await ref.afterClosed().toPromise();
     if (created) {
@@ -406,7 +414,15 @@ export class UsersListPage implements OnInit {
   async openEdit(row: StaffAccountSummary): Promise<void> {
     const ref = this.dialog.open<UserFormDialog, UserFormDialogData, StaffAccountSummary>(
       UserFormDialog,
-      { data: { mode: 'edit', row }, width: '480px' },
+      {
+        data: { mode: 'edit', row },
+        panelClass: 'side-drawer',
+        backdropClass: 'side-drawer-backdrop',
+        height: '100vh',
+        width: '480px',
+        maxWidth: '92vw',
+        autoFocus: 'first-tabbable',
+      },
     );
     const updated = await ref.afterClosed().toPromise();
     if (updated) {
@@ -418,7 +434,12 @@ export class UsersListPage implements OnInit {
   async openReset(row: StaffAccountSummary): Promise<void> {
     const ref = this.dialog.open(ResetPasswordDialog, {
       data: { row },
+      panelClass: 'side-drawer',
+      backdropClass: 'side-drawer-backdrop',
+      height: '100vh',
       width: '420px',
+      maxWidth: '92vw',
+      autoFocus: 'first-tabbable',
     });
     const ok = await ref.afterClosed().toPromise();
     if (ok) {

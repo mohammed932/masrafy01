@@ -124,6 +124,7 @@ npx prisma db seed
 ```
 
 Seed log:
+
 ```
 [seed] checking for existing super_admin (ops@masrafy.local)…
 [seed] not found — creating super_admin with mustChangePassword=true.
@@ -131,6 +132,7 @@ Seed log:
 ```
 
 Re-running `prisma db seed` is idempotent (FR-040):
+
 ```
 [seed] checking for existing super_admin (ops@masrafy.local)…
 [seed] already present — no action.
@@ -148,11 +150,11 @@ cd admin && npm start
 
 - Backend on `http://localhost:3000`
 - OpenAPI docs at `http://localhost:3000/api/docs`
-- Admin dashboard on `http://localhost:4200`
+- Admin dashboard on `http://localhost:5173`
 
 ## 6. First sign-in — bootstrap path
 
-Visit `http://localhost:4200/login` (RTL Arabic by default).
+Visit `http://localhost:5173/login` (RTL Arabic by default).
 
 1. Email: `ops@masrafy.local`
 2. Password: (whatever you set in `SEED_ADMIN_PASSWORD`)
@@ -163,6 +165,7 @@ Expected: dashboard recognises `mustChangePassword=true` from the JWT `mcp` clai
 4. Set a new password (≥12 chars, not on common-password list, not breached). Submit.
 
 Expected:
+
 - `passwordHash` rewritten, `mustChangePassword=false`, all refresh tokens revoked, new access token (no `mcp` claim) issued, new refresh-token cookie set.
 - Dashboard navigates to the default landing page; top bar shows `Operations` (super_admin).
 - Audit events recorded: `AUTH_LOGIN_SUCCESS`, `AUTH_PASSWORD_FORCED_CHANGE_COMPLETED`.
@@ -181,11 +184,14 @@ Sign out (top bar → logout). Sign in as `mariam@masrafy.local`. The forced-cha
 ## 8. Verify role enforcement at API boundary
 
 As `Mariam`, attempt the user-management endpoint directly:
+
 ```bash
 curl -i -H "Authorization: Bearer <mariam access token>" \
      http://localhost:3000/api/admin/users
 ```
+
 Expected:
+
 ```
 HTTP/1.1 403 Forbidden
 {"success":false,"code":"FORBIDDEN"}
@@ -224,10 +230,10 @@ choose their own testing strategy.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Resolution |
-|---|---|---|
-| Login form returns `AUTH_INVALID_CREDENTIALS` for the seeded user | Wrong `SEED_ADMIN_PASSWORD` in env | Re-set, re-seed (idempotent) |
-| `PASSWORD_BREACH_CHECK_UNAVAILABLE` blocking seed | HIBP unreachable | Whitelist `api.pwnedpasswords.com` egress, or temporarily set `HIBP_DISABLED=true` (DEV ONLY — never in prod) |
-| Forced-change loop (after submit, returns to forced-change) | New password matched the just-set bootstrap password | Choose a different value (FR-026c) |
-| `Set-Cookie` not received in browser | `COOKIE_SECURE=true` with `http://` origin | Set `COOKIE_SECURE=false` for local HTTP dev |
-| Multiple browsers all logged out after one logout | Expected: only the device whose refresh token was used is logged out; if other devices are out too, you probably triggered a password change (which revokes ALL refresh tokens) |
+| Symptom                                                           | Likely cause                                                                                                                                                                    | Resolution                                                                                                    |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Login form returns `AUTH_INVALID_CREDENTIALS` for the seeded user | Wrong `SEED_ADMIN_PASSWORD` in env                                                                                                                                              | Re-set, re-seed (idempotent)                                                                                  |
+| `PASSWORD_BREACH_CHECK_UNAVAILABLE` blocking seed                 | HIBP unreachable                                                                                                                                                                | Whitelist `api.pwnedpasswords.com` egress, or temporarily set `HIBP_DISABLED=true` (DEV ONLY — never in prod) |
+| Forced-change loop (after submit, returns to forced-change)       | New password matched the just-set bootstrap password                                                                                                                            | Choose a different value (FR-026c)                                                                            |
+| `Set-Cookie` not received in browser                              | `COOKIE_SECURE=true` with `http://` origin                                                                                                                                      | Set `COOKIE_SECURE=false` for local HTTP dev                                                                  |
+| Multiple browsers all logged out after one logout                 | Expected: only the device whose refresh token was used is logged out; if other devices are out too, you probably triggered a password change (which revokes ALL refresh tokens) |

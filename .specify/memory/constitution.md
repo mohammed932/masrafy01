@@ -1,9 +1,21 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0
+Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0
 Ratification: 2026-05-12 (initial ratification)
-Last Amended: 2026-05-12 (v1.2.0)
+Last Amended: 2026-05-12 (v1.3.0)
+
+v1.3.0 amendment (2026-05-12):
+  Principle XXIII expanded to require BOTH design skills on every new
+  admin dashboard surface:
+    - `ui-ux-pro-max` (promax): invoked BEFORE designing — picks pattern,
+      palette, typography, effects, anti-patterns.
+    - `impec` (impeccable): invoked AFTER first implementation — surgical
+      polish/audit pass to catch AI-default drift (Inter-as-display,
+      AI-purple gradients, cards-in-cards, gray-on-color, bounce easing,
+      etc).
+  Anti-pattern A17 extended to cover both. Constitution still v1.x
+  (MINOR — scope expansion of existing principle, not redefinition).
 
 v1.2.0 amendment (2026-05-12):
   Further scope reduction. Principles XVI (Backend Testing Requirements)
@@ -416,18 +428,36 @@ types). Form validation messages flow through i18n. Custom validators are
 pure functions, unit tested. Submit button disabled until form valid AND
 dirty AND not currently submitting.
 
-## XXIII. UI UX Pro Max Skill is the Design Authority
-The `ui-ux-pro-max` skill installed globally is the AUTHORITATIVE design
-system reference for the admin dashboard. Before designing any new screen,
-component, or visual pattern, invoke the skill to obtain layout guidance,
-component composition, spacing scale, and interaction patterns. Designs
+## XXIII. UI UX Skills are the Design Authority
+The admin dashboard uses TWO globally-installed design skills in a fixed
+pipeline. Both are mandatory on every new screen, component, or visual
+pattern.
+
+**Phase 1 — `ui-ux-pro-max` (promax): design the system first.**
+Invoked BEFORE writing any UI code. Produces the design-system block
+(pattern, palette, typography, effects, anti-patterns, pre-delivery
+checklist) tailored to the surface. Combine its output with brand color
+#06152D and the Masrafy domain (bank program management, application
+review, offer matching, document review, commission tracking). Designs
 that contradict skill output require written justification in PR
-description. The skill governs: dashboard layouts (sidebars, top bars,
-cards), data table presentation, form layouts, modal patterns, empty
-states, loading states, chart styling, navigation patterns, and admin UI
-conventions. Combine skill guidance with brand color #06152D and the
-Masrafy domain (bank program management, application review, offer
-matching, document review, commission tracking).
+description.
+
+**Phase 2 — `impec` (impeccable): polish after first implementation.**
+Invoked AFTER the screen renders. Surgical pass to catch AI-default drift
+— Inter-as-display, AI-purple gradients, gray-on-color, cards-in-cards,
+bounce easing, emoji-as-icons, drop-shadows-without-thought, `outline:
+none` without replacement, body text under 16px, untouchable tap
+targets. Default invocation: `impec audit normalize polish <surface>`.
+Output is a punch list + surgical SCSS edits; reviewer applies before
+merge.
+
+The two skills cover different jobs and do NOT replace each other. Skip
+either and the PR is blocked.
+
+The pipeline governs: dashboard layouts (sidebars, top bars, cards),
+data table presentation, form layouts, modal/drawer patterns, empty
+states, loading states, chart styling, navigation patterns, and admin
+UI conventions.
 
 ## XXIV. Design Tokens — #06152D Base
 Define full theme in CSS custom properties under `:root`:
@@ -602,8 +632,8 @@ Any use of `any` (explicit or implicit) in Angular = review block. Use `unknown`
 ## A16. Template-Driven Forms (Principle XXII)
 `ngModel` for new forms = review block. Use Reactive Forms with typed controls.
 
-## A17. Ignoring UI UX Pro Max Output (Principle XXIII)
-Building a new dashboard screen without invoking the `ui-ux-pro-max` skill, or deviating without written justification = review block.
+## A17. Skipping the UI UX Skill Pipeline (Principle XXIII)
+Building a new dashboard screen without invoking BOTH `ui-ux-pro-max` (pre-design) AND `impec` (post-implementation polish), or deviating from their output without written justification in the PR description = review block. Either skill alone is insufficient.
 
 ## A18. Raw Hex Colors Outside Theme (Principle XXIV)
 `color: #ffffff` or `background: #06152D` in any component stylesheet = review block. Use `var(--color-*)`.
@@ -637,4 +667,4 @@ Changing approval probability scoring without recording weight changes in the PR
 
 ---
 
-**Version**: 1.2.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-12
+**Version**: 1.3.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-12

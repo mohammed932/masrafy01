@@ -11,6 +11,7 @@ Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 ## Active Technologies
 
 ### Backend (`backend/`) — feature 001-admin-auth-users
+
 - Node.js 22 LTS, TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`)
 - NestJS 10, Prisma 5, PostgreSQL 16
 - `@nestjs/jwt`, `@nestjs/passport`, `passport-jwt`, `bcrypt` (cost 12)
@@ -22,6 +23,7 @@ Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 - No constitutional testing requirements (Principle XVI placeholder post-v1.2.0).
 
 ### Frontend (`admin/`) — feature 001-admin-auth-users
+
 - Angular 18, TypeScript 5.4+ (same strictness profile)
 - Standalone components only — no NgModules in new code
 - Signals over RxJS for state
@@ -33,6 +35,7 @@ Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 - No constitutional testing requirements (Principle XXVII placeholder post-v1.2.0).
 
 ### Infrastructure
+
 - PostgreSQL 16 (Prisma migrations only — `db push` forbidden in prod)
 - Redis 7 (rate limit, lockout sliding-window counters, future HMAC nonces)
 - S3-compatible object storage (future feature)
@@ -84,7 +87,7 @@ npm run start:dev                   # http://localhost:3000
 # Admin
 cd admin
 npm install
-npm start                           # http://localhost:4200
+npm start                           # http://localhost:5173
 ```
 
 ## Constitution Principles — Daily Rules
@@ -92,6 +95,7 @@ npm start                           # http://localhost:4200
 Tags map to constitution sections. Cite principle # to block PRs.
 
 ### Cross-Platform (NON-NEGOTIABLE)
+
 - **I — Money is Decimal**: `Decimal` types only; floats forbidden. `BankOffer` immutable post-creation.
 - **II — Banks Are Data**: no `if (programId === ...)` branches; tier resolution generic.
 - **III — Typed Errors**: API returns `{ success: false, code: "CODE", meta? }`; no English to clients. Same-PR rule: backend `error-codes.ts` + Angular `error-codes.{ar-EG,en-US}.json` + Flutter ARB.
@@ -102,6 +106,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **VIII — Brand**: `#06152D` deep navy primary. Use tokens, never raw hex.
 
 ### Backend
+
 - **IX — Feature Modules**: organize by domain (`auth/`, `users/`, etc.). `common/` MUST NOT import from features.
 - **X — Repository Pattern**: services NEVER touch Prisma directly. Use `*.repository.ts`.
 - **XI — Prisma Migrate Only**: `db push` forbidden in prod. Named migrations; indexes on FKs + hot WHERE/ORDER BY.
@@ -112,19 +117,21 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **XVI — Placeholder**: no constitutional testing requirements (v1.2.0).
 
 ### Angular
+
 - **XVII — Standalone Only**: no `NgModule` in new code.
 - **XVIII — Signals**: `BehaviorSubject` for component state = review block.
 - **XIX — New Control Flow**: `@if`/`@for ... track`/`@switch`/`@defer`; old `*ng*` directives = review block.
 - **XX — `inject()`**: constructor DI = review block.
 - **XXI — No `any`**: use `unknown` + narrowing.
 - **XXII — Typed Reactive Forms**: template-driven forms = review block.
-- **XXIII — UI UX Pro Max Skill**: invoke `ui-ux-pro-max` skill before every new dashboard screen.
+- **XXIII — UI UX Skill Pipeline**: invoke `ui-ux-pro-max` (promax) BEFORE designing every new dashboard screen + invoke `impec` AFTER first implementation for polish/audit. Both mandatory.
 - **XXIV — Design Tokens**: theme in CSS custom props; raw hex / raw pixel values outside `_tokens.scss` = review block.
 - **XXV — Lazy + Functional Guards**: `canActivateFn`/`canMatchFn` only.
 - **XXVI — HTTP Discipline**: `HttpClient` only (no `fetch()`); interceptors for auth / error / correlation / toast.
 - **XXVII — Placeholder**: no constitutional testing requirements (v1.2.0).
 
 ### Flutter (Phase 2, skeleton binding now)
+
 - **XXVIII — Clean Architecture + Cubit/Freezed**: data/domain/presentation per feature; HMAC secret only in `flutter_secure_storage`; `auto_route` v9+; design tokens in `MasrafyColorTheme` (`#06152D`).
 
 ## Anti-Patterns (Binding — see constitution Appendix)
@@ -145,7 +152,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A14** Constructor DI in Angular
 - **A15** `any` type
 - **A16** Template-driven forms
-- **A17** Ignoring `ui-ux-pro-max` output
+- **A17** Skipping the UI UX skill pipeline (`ui-ux-pro-max` + `impec`)
 - **A18** Raw hex outside theme
 - **A19** `margin-left`/`-right` in stylesheets
 - **A20** Hardcoded user-visible strings
@@ -156,6 +163,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 
 ## Recent Changes
 
+- **2026-05-12** — Constitution v1.3.0: Principle XXIII expanded to require BOTH `ui-ux-pro-max` (pre-design) AND `impec` (post-implementation polish) on every new admin screen. Either skill alone = review block. Anti-pattern A17 updated.
 - **2026-05-12** — Constitution v1.2.0: all testing requirements removed from Principles XVI + XXVII. No constitutional testing gates (unit, integration, or E2E). Features choose their own strategy.
 - **2026-05-12** — Constitution v1.1.0 (superseded): dropped unit + integration testing requirements; kept E2E + a11y.
 - **2026-05-12** — Feature 001-admin-auth-users: spec, plan, research, data model, OpenAPI contract, error-code contract, quickstart all generated. Stack pinned: NestJS 10 + Prisma 5 + Postgres 16 + Redis 7 backend; Angular 18 + Material 18 + Playwright + axe-core admin. JWT (15 min) + refresh-token cookie (7 days, SHA-256 hashed at rest); bcrypt 12; NIST-style password policy (HIBP k-anonymity + top-10k deny list, fail-closed); sliding-window lockout in Redis; SERIALIZABLE super_admin floor guard; WCAG 2.2 AA gate.
