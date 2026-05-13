@@ -91,28 +91,30 @@ const OUTCOME_FLAG_OPTIONS = [
     <h2 mat-dialog-title i18n="@@activity.add.title">Add Activity</h2>
     <mat-dialog-content>
       <form [formGroup]="form" class="form">
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@activity.add.type">Activity type</mat-label>
-          <mat-select formControlName="activityType">
-            @for (t of activityTypes; track t) {
-              <mat-option [value]="t">{{ labelFor(t) }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        <div class="row-2">
+          <mat-form-field appearance="outline">
+            <mat-label i18n="@@activity.add.type">Activity type</mat-label>
+            <mat-select formControlName="activityType">
+              @for (t of activityTypes; track t) {
+                <mat-option [value]="t">{{ labelFor(t) }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@activity.add.reason">Reason</mat-label>
-          <mat-select formControlName="reason">
-            @for (r of reasonsForType(); track r) {
-              <mat-option [value]="r">{{ labelFor(r) }}</mat-option>
+          <mat-form-field appearance="outline">
+            <mat-label i18n="@@activity.add.reason">Reason</mat-label>
+            <mat-select formControlName="reason">
+              @for (r of reasonsForType(); track r) {
+                <mat-option [value]="r">{{ labelFor(r) }}</mat-option>
+              }
+            </mat-select>
+            @if (reasonsForType().length === 0) {
+              <mat-hint i18n="@@activity.add.noReasons"
+                >No static reasons for this type yet.</mat-hint
+              >
             }
-          </mat-select>
-          @if (reasonsForType().length === 0) {
-            <mat-hint i18n="@@activity.add.noReasons"
-              >No static reasons for this type yet.</mat-hint
-            >
-          }
-        </mat-form-field>
+          </mat-form-field>
+        </div>
 
         @if (showDuration()) {
           <mat-form-field appearance="outline">
@@ -121,10 +123,17 @@ const OUTCOME_FLAG_OPTIONS = [
           </mat-form-field>
         }
 
+        @if (showAttachments()) {
+          <section class="attachments-section">
+            <p class="section-label" i18n="@@activity.add.attachLabel">Attachments</p>
+            <app-activity-attachments-uploader #uploader />
+          </section>
+        }
+
         <mat-form-field appearance="outline">
           <mat-label i18n="@@activity.add.note">Note</mat-label>
-          <textarea matInput formControlName="note" rows="4" maxlength="2000"></textarea>
-          <mat-hint align="end"> {{ form.controls.note.value.length }} / 2000 </mat-hint>
+          <textarea matInput formControlName="note" rows="3" maxlength="2000"></textarea>
+          <mat-hint align="end">{{ form.controls.note.value.length }} / 2000</mat-hint>
         </mat-form-field>
 
         <fieldset class="outcome-fieldset">
@@ -142,10 +151,6 @@ const OUTCOME_FLAG_OPTIONS = [
           <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
           <mat-datepicker #picker></mat-datepicker>
         </mat-form-field>
-
-        @if (showAttachments()) {
-          <app-activity-attachments-uploader #uploader />
-        }
 
         @if (errorCode()) {
           <p class="error" role="alert">
@@ -183,24 +188,45 @@ const OUTCOME_FLAG_OPTIONS = [
   `,
   styles: [
     `
+      :host {
+        display: block;
+        inline-size: min(720px, calc(100vw - var(--space-6) * 2));
+      }
       .form {
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
-        min-inline-size: 480px;
-        max-inline-size: 720px;
+        inline-size: 100%;
+        padding-block-end: var(--space-2);
       }
-      .outcome-fieldset {
-        border: 0;
-        padding: 0;
-        margin: 0;
+      .row-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-3);
       }
+      @media (max-width: 600px) {
+        .row-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .attachments-section {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .section-label,
       .outcome-fieldset legend {
         font-size: var(--text-xs);
         color: var(--color-text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        margin-block-end: var(--space-2);
+        margin: 0 0 var(--space-2);
+        padding: 0;
+      }
+      .outcome-fieldset {
+        border: 0;
+        padding: 0;
+        margin: 0;
       }
       .error {
         background: var(--color-error-bg);
@@ -233,7 +259,10 @@ export class AddActivityDialog {
       nonNullable: true,
       validators: [Validators.required],
     }),
-    reason: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
+    reason: new FormControl<string>(
+      this.data.reasonsByType[this.data.defaultActivityType ?? ALL_ACTIVITY_TYPES[0]]?.[0] ?? '',
+      { nonNullable: true, validators: [Validators.required] },
+    ),
     note: new FormControl<string>('', { nonNullable: true }),
     durationMinutes: new FormControl<number | null>(null),
     outcomeFlags: new FormControl<string[]>([], { nonNullable: true }),
@@ -264,7 +293,8 @@ export class AddActivityDialog {
     this.form.controls.activityType.valueChanges.subscribe((t) => {
       if (!t) return;
       this.currentType.set(t);
-      this.form.controls.reason.setValue('');
+      const reasons = this.data.reasonsByType[t] ?? [];
+      this.form.controls.reason.setValue(reasons[0] ?? '');
       if (!(TYPES_REQUIRING_DURATION as readonly string[]).includes(t)) {
         this.form.controls.durationMinutes.setValue(null);
       }
