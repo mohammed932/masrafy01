@@ -204,7 +204,7 @@ export class StaffAccountRepository {
         }
 
         const activeSuperAdmins = await tx.staffAccount.count({
-          where: { role: StaffRole.SUPER_ADMIN, isActive: true },
+          where: { role: StaffRole.super_admin, isActive: true },
         });
         if (activeSuperAdmins < 1) {
           throw new SuperAdminFloorViolatedException();

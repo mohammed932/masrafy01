@@ -59,7 +59,7 @@ export class BankProgramsController {
   }
 
   @Post()
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('super_admin', 'sales_manager')
   @HttpCode(201)
   @ApiOperation({ summary: 'Create a new bank program (admin or super_admin)' })
   @ApiResponse({ status: 201, description: 'Program created.' })
@@ -77,7 +77,7 @@ export class BankProgramsController {
   }
 
   @Post(':programCode')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('super_admin', 'sales_manager')
   async update(
     @Param('programCode') programCode: string,
     @Body() body: UpdateBankProgramDto,
@@ -90,7 +90,7 @@ export class BankProgramsController {
   }
 
   @Post(':programCode/toggle')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('super_admin', 'sales_manager')
   @ApiOperation({ summary: 'Toggle a program active/inactive' })
   @ApiResponse({ status: 200, description: 'Toggled.' })
   @ApiResponse({ status: 409, description: 'CONFLICT_STALE_DATA' })
@@ -111,7 +111,7 @@ export class BankProgramsController {
   }
 
   @Post(':programCode/clone')
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('super_admin', 'sales_manager')
   @HttpCode(201)
   @ApiOperation({ summary: 'Clone an existing program' })
   @ApiResponse({ status: 201, description: 'Cloned.' })
@@ -132,7 +132,7 @@ export class BankProgramsController {
   }
 
   @Delete(':programCode')
-  @Roles('SUPER_ADMIN')
+  @Roles('super_admin')
   @HttpCode(204)
   @ApiOperation({ summary: 'Delete a bank program (super_admin only)' })
   @ApiResponse({ status: 204, description: 'Deleted.' })

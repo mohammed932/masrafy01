@@ -37,14 +37,14 @@ export const APP_ROUTES: Routes = [
   {
     path: 'users',
     canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['SUPER_ADMIN'])],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
     loadChildren: () =>
       import('./features/users/users.routes').then((m) => m.USERS_ROUTES),
   },
   {
     path: 'bank-programs',
     canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['SUPER_ADMIN', 'ADMIN', 'VIEWER'])],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'sales_agent', 'analyst'])],
     loadChildren: () =>
       import('./features/bank-programs/bank-programs.routes').then(
         (m) => m.BANK_PROGRAMS_ROUTES,

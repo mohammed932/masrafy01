@@ -179,7 +179,7 @@ Expected:
 
 Expected: row appears in the list with `Status: Active`. Audit event: `ADMIN_USER_CREATED`.
 
-Sign out (top bar → logout). Sign in as `mariam@masrafy.local`. The forced-change screen blocks until the password is changed. After change, `Mariam` lands on the dashboard — but the user-management section is absent from her sidebar (role: ADMIN, not SUPER_ADMIN — FR-012/013).
+Sign out (top bar → logout). Sign in as `mariam@masrafy.local`. The forced-change screen blocks until the password is changed. After change, `Mariam` lands on the dashboard — but the user-management section is absent from her sidebar (role: `sales_manager`, not `super_admin` — FR-012/013).
 
 ## 8. Verify role enforcement at API boundary
 
@@ -208,7 +208,7 @@ Five wrong-password attempts within 15 min on the same email. The sixth attempt 
 
 ## 11. Verify super_admin floor
 
-Promote `Mariam` to `SUPER_ADMIN`. Try to demote `ops@masrafy.local` to `ADMIN` from Mariam's session, then try to demote Mariam back from `ops`'s session — concurrently from two browsers. Exactly one demotion succeeds; the other returns `SUPER_ADMIN_FLOOR_VIOLATED` (SC-020).
+Promote `Mariam` to `super_admin` (via direct DB intervention, since the API rejects API-driven elevation to `super_admin`). Try to demote `ops@masrafy.local` to `sales_manager` from Mariam's session, then try to demote Mariam back from `ops`'s session — concurrently from two browsers. Exactly one demotion succeeds; the other returns `SUPER_ADMIN_FLOOR_VIOLATED` (SC-020).
 
 ---
 

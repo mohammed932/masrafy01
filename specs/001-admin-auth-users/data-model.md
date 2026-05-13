@@ -32,7 +32,7 @@ Represents an internal Masrafy team member with access to the admin dashboard. M
 | `emailDisplay` | `VARCHAR(320)` | NOT NULL | Original casing as typed by the super_admin; for UI display only — never used for lookup. |
 | `name` | `VARCHAR(120)` | NOT NULL | 2–120 chars after trim; Unicode allowed (Arabic names). |
 | `passwordHash` | `VARCHAR(72)` | NOT NULL, `select: false` in Prisma | bcrypt 12-cost output. NEVER returned by any repository method except `findForLogin`. |
-| `role` | `STAFF_ROLE` enum | NOT NULL | One of `SUPER_ADMIN`, `ADMIN`, `VIEWER`. |
+| `role` | `STAFF_ROLE` enum | NOT NULL | One of `super_admin`, `sales_manager`, `sales_agent`, `analyst`. |
 | `isActive` | `BOOLEAN` | NOT NULL, default `true` | False = deactivated; can never sign in. |
 | `mustChangePassword` | `BOOLEAN` | NOT NULL, default `true` | True on create + on super_admin reset; cleared by user via forced-change flow (FR-026a–d). |
 | `createdAt` | `TIMESTAMPTZ` | NOT NULL, default `now()` | |
@@ -42,7 +42,7 @@ Represents an internal Masrafy team member with access to the admin dashboard. M
 ### Indexes
 
 - `UNIQUE INDEX idx_staff_account_email (email)` — uniqueness + lookup on every login.
-- `INDEX idx_staff_account_active_role (isActive, role)` — drives the FR-023 floor check (`COUNT(*) WHERE role='SUPER_ADMIN' AND isActive=true`).
+- `INDEX idx_staff_account_active_role (isActive, role)` — drives the FR-023 floor check (`COUNT(*) WHERE role='super_admin' AND isActive=true`).
 
 ### Validation (enforced at DTO + repository boundary)
 
@@ -50,7 +50,7 @@ Represents an internal Masrafy team member with access to the admin dashboard. M
 - `emailDisplay`: NOT validated separately — derived from the raw inbound email (trimmed only).
 - `name`: trim → length 2–120.
 - `passwordHash`: NEVER accepted from the API; always computed server-side.
-- `role`: must be one of the enum values; further: a user CANNOT set role = `SUPER_ADMIN` via the create endpoint (initial super_admin is seed-only); ROLE-CHANGE flow (FR-021/023a) is the only path to assign `SUPER_ADMIN` post-seed.
+- `role`: must be one of the enum values; further: a user CANNOT set role = `super_admin` via the create endpoint (initial super_admin is seed-only). The PATCH role flow (FR-021/023a) also REJECTS targeting `super_admin` — the only path to grant `super_admin` post-seed is direct DB intervention by an operator.
 
 ### State Transitions
 
@@ -65,12 +65,12 @@ Represents an internal Masrafy team member with access to the admin dashboard. M
 
 Invariants:
 - `isActive=false` MUST NEVER coexist with a usable refresh token (revoke all on deactivate).
-- The set of `(role=SUPER_ADMIN, isActive=true)` rows MUST have cardinality ≥ 1 at all times (FR-023). Enforced via SERIALIZABLE transaction in role/active mutations (R-007).
+- The set of `(role=super_admin, isActive=true)` rows MUST have cardinality ≥ 1 at all times (FR-023). Enforced via SERIALIZABLE transaction in role/active mutations (R-007).
 
 ### Constraints in code (NOT in DB)
 
 - A user CANNOT modify their OWN `role` or `isActive` (FR-022) — enforced in the service layer before the repository write.
-- Role transitions FROM `SUPER_ADMIN` require the post-mutation floor check (R-007).
+- Role transitions FROM `super_admin` require the post-mutation floor check (R-007).
 
 ---
 
@@ -214,9 +214,10 @@ Append-only record of every security-relevant action. Maps to spec entity **Audi
 
 ```prisma
 enum StaffRole {
-  SUPER_ADMIN
-  ADMIN
-  VIEWER
+  super_admin
+  sales_manager
+  sales_agent
+  analyst
 }
 
 enum AttemptOutcome {
@@ -259,7 +260,7 @@ RefreshToken    1 ── 0..1 RefreshToken       (rotatedFromId, self-referentia
 
 ## Cross-Entity Invariants (enforced in services, not DB)
 
-1. **Floor invariant**: `COUNT(staff_account WHERE role='SUPER_ADMIN' AND isActive=true) ≥ 1` (FR-023). Enforced via SERIALIZABLE transaction in the role/active mutation path.
+1. **Floor invariant**: `COUNT(staff_account WHERE role='super_admin' AND isActive=true) ≥ 1` (FR-023). Enforced via SERIALIZABLE transaction in the role/active mutation path.
 2. **Deactivation cascade**: Setting `isActive=false` MUST be accompanied by `UPDATE refresh_token SET revokedAt=NOW() WHERE userId=? AND revokedAt IS NULL` in the same transaction (FR-007 / "Device A signed-out from Device B" edge case).
 3. **Password change cascade**: Any change to `passwordHash` (self-change OR super_admin reset) MUST revoke all of the affected user's refresh tokens in the same transaction. This is what makes "sign me out everywhere" implicit in a password reset.
 4. **MCP precedence**: A user with `mustChangePassword=true` MAY sign in (gets an access token) but the access token carries `mcp=true` and every endpoint OTHER than `PATCH /api/admin/auth/password` MUST reject with `MUST_CHANGE_PASSWORD` (HTTP 403, distinct code so the client can route to the forced-change screen).

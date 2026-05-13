@@ -12,7 +12,7 @@ import { AuthService } from '@core/auth/auth.service';
 import type { StaffRole } from '@core/auth/auth.types';
 
 /**
- * Structural directive `*can="['SUPER_ADMIN']"` — renders the content only when
+ * Structural directive `*can="['super_admin']"` — renders the content only when
  * the current user's role is in the allowed set. Drives FR-013 hide/disable of
  * write controls across the dashboard. Use on buttons, links, or any wrapper
  * element; do NOT use to gate ACTUAL permission checks — RolesGuard on the

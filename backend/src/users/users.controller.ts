@@ -31,7 +31,7 @@ import { toStaffSummaryDto } from './dto/staff-account.response.dto';
 @ApiBearerAuth('BearerAuth')
 @Controller('admin/users')
 @UseGuards(JwtAuthGuard, RolesGuard, McpGuard)
-@Roles('SUPER_ADMIN')
+@Roles('super_admin')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 

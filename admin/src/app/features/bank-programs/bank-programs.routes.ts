@@ -3,8 +3,8 @@ import type { Routes } from '@angular/router';
 /**
  * Lazy-loaded feature routes for the BankProgram Management surface (feature 002).
  * Role gating via `roleGuardFn` is applied at the parent `/bank-programs` mount in app.routes.ts
- * — all three roles (SUPER_ADMIN, ADMIN, VIEWER) may read; write actions are gated per-row
- * inside the list component via `*can="['ADMIN', 'SUPER_ADMIN']"`.
+ * — all four roles (super_admin, sales_manager, sales_agent, analyst) may read; write
+ * actions are gated per-row inside the list component via `*can="['super_admin', 'sales_manager']"`.
  */
 export const BANK_PROGRAMS_ROUTES: Routes = [
   {

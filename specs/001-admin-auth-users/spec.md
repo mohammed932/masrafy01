@@ -3,9 +3,16 @@
 **Feature Branch**: `001-admin-auth-users`
 **Created**: 2026-05-12
 **Status**: Draft
-**Input**: User description: "Foundational authentication system for the Masrafy admin dashboard. Internal staff (super_admin, admin, viewer) log in via the Angular dashboard, receive a JWT access token, and access protected admin APIs. Includes admin user CRUD restricted to super_admin role. Prerequisite for every other admin-facing feature."
+**Input**: User description: "Foundational authentication system for the Masrafy admin dashboard. Internal staff (super_admin, sales_manager, sales_agent, analyst) log in via the Angular dashboard, receive a JWT access token, and access protected admin APIs. Includes admin user CRUD restricted to super_admin role. Prerequisite for every other admin-facing feature."
 
 ## Clarifications
+
+### Session 2026-05-13 (Role expansion)
+
+- Q: How many distinct internal roles does the dashboard support? → A: **Four** — `super_admin`, `sales_manager`, `sales_agent`, `analyst`. Replaces the original three-role model (super_admin / admin / viewer).
+- Q: What does each role do? → A: **super_admin** = full access including user-management. **sales_manager** = manages bank programs + applications and oversees the sales team. **sales_agent** = handles their own applications; read-only on bank programs. **analyst** = read-only across applications, programs, and audit logs. User-management is super_admin-only.
+- Q: Migration of any pre-existing staff rows? → A: Map old → new: `SUPER_ADMIN → super_admin`, `ADMIN → sales_manager`, `VIEWER → analyst`. Applied via SQL migration `20260512234911_admin_role_expansion`.
+- Q: Can a super_admin be created via the API? → A: No. `super_admin` is bootstrap-only via the seed script. The Create User dialog and PATCH role endpoint only accept `sales_manager`, `sales_agent`, `analyst`.
 
 ### Session 2026-05-12
 
@@ -13,7 +20,7 @@
 - Q: How does an account-lockout window clear? → A: Sliding 15-minute window — lockout auto-clears 15 minutes after the most recent failed sign-in attempt. No manual super_admin unlock UI in this slice.
 - Q: Must a user change their password on first login after account creation by a super_admin, and after a super_admin password reset? → A: Yes in BOTH cases. Staff Account carries a `mustChangePassword` flag set true on creation and on super_admin reset; first successful sign-in in that state routes the user to a blocking change-password screen.
 - Q: What accessibility conformance level must the admin dashboard meet for this feature? → A: WCAG 2.2 Level AA. Measurable contrast ratios, keyboard navigation, visible focus indicators, programmatic labels, automated axe-core check in CI.
-- Q: Can a super_admin demote another super_admin via the dashboard, and what guard applies? → A: Yes — a super_admin MAY demote another super_admin to admin or viewer, subject to FR-023 (the system never falls below one active super_admin). The dashboard blocks any demotion that would violate FR-023 with the "at least one super_admin must remain" message.
+- Q: Can a super_admin demote another super_admin via the dashboard, and what guard applies? → A: Yes — a super_admin MAY demote another super_admin to one of the non-super roles (sales_manager / sales_agent / analyst), subject to FR-023 (the system never falls below one active super_admin). The dashboard blocks any demotion that would violate FR-023 with the "at least one super_admin must remain" message.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -39,28 +46,29 @@ A member of internal staff opens the Masrafy admin dashboard, enters their work 
 
 ### User Story 2 - Role-Based Access Inside the Dashboard (Priority: P1)
 
-The platform supports three internal roles — super_admin, admin, viewer — each with a different set of permitted actions. A user only sees the sections and controls their role grants, and the backend independently enforces those same permissions so that a user cannot bypass restrictions by typing URLs or replaying requests.
+The platform supports four internal roles — `super_admin`, `sales_manager`, `sales_agent`, `analyst` — each with a different set of permitted actions. A user only sees the sections and controls their role grants, and the backend independently enforces those same permissions so that a user cannot bypass restrictions by typing URLs or replaying requests.
 
 **Why this priority**: Role separation is what makes the platform safe to operate for a small team. Without it, every signed-in user effectively has total control, which is unacceptable for a financial product. It must ship with login.
 
-**Independent Test**: Seed one user per role. Sign in as each in turn. Confirm: super_admin sees user management; admin does not; viewer sees no create/edit/delete controls. Then call write endpoints directly as the viewer/admin accounts — the backend returns "forbidden" with a stable error code.
+**Independent Test**: Seed one user per role. Sign in as each in turn. Confirm: super_admin sees user management; sales_manager / sales_agent / analyst do not; analyst sees no create/edit/delete controls anywhere; sales_agent's program/audit reads are read-only. Then call write endpoints directly as a non-super account — the backend returns "forbidden" with a stable error code.
 
 **Acceptance Scenarios**:
 
 1. **Given** a signed-in super_admin, **When** they open the dashboard, **Then** the navigation includes user management alongside all other sections.
-2. **Given** a signed-in admin, **When** they open the dashboard, **Then** the navigation does NOT include user management, and attempting to visit it directly redirects to a "not authorized" state.
-3. **Given** a signed-in viewer, **When** they open any section, **Then** create/edit/delete controls are hidden or disabled across the dashboard.
-4. **Given** a signed-in viewer who attempts a write action via a direct API call, **When** the request reaches the backend, **Then** the backend rejects it with the standard "forbidden" code regardless of what the dashboard shows.
+2. **Given** a signed-in sales_manager, **When** they open the dashboard, **Then** the navigation does NOT include user management, and attempting to visit it directly redirects to a "not authorized" state.
+3. **Given** a signed-in sales_agent, **When** they open any section, **Then** the navigation does NOT include user management, and bank-program controls render read-only.
+4. **Given** a signed-in analyst, **When** they open any section, **Then** create/edit/delete controls are hidden or disabled across the dashboard.
+5. **Given** a signed-in analyst (or sales_agent on a program) who attempts a write action via a direct API call, **When** the request reaches the backend, **Then** the backend rejects it with the standard "forbidden" code regardless of what the dashboard shows.
 
 ---
 
 ### User Story 3 - Super-Admin Manages Other Admin Users (Priority: P2)
 
-A super_admin can create new admin or viewer accounts, edit names and roles, deactivate accounts without deleting historical data, and reset another user's password. They cannot accidentally lock themselves out by deactivating their own account or changing their own role.
+A super_admin can create new `sales_manager`, `sales_agent`, or `analyst` accounts, edit names and roles, deactivate accounts without deleting historical data, and reset another user's password. They cannot accidentally lock themselves out by deactivating their own account or changing their own role. The `super_admin` role itself is not creatable through the dashboard — it is bootstrapped via the seed script.
 
 **Why this priority**: After the first super_admin is seeded, the team needs a way to grow without re-running database seeds. This is the second deliverable slice — it makes the platform operable beyond the founding account, but is not strictly required for the first staff member to begin work.
 
-**Independent Test**: Sign in as the seeded super_admin. Create one new admin and one new viewer through the dashboard. Sign in as each of the newly created accounts to confirm activation. Return as super_admin, deactivate the admin, then verify that the deactivated account can no longer sign in. Reset their password, share the new password, and confirm sign-in works again.
+**Independent Test**: Sign in as the seeded super_admin. Create one new sales_manager, one sales_agent, and one analyst through the dashboard. Sign in as each of the newly created accounts to confirm activation. Return as super_admin, deactivate the sales_manager, then verify that the deactivated account can no longer sign in. Reset their password, share the new password, and confirm sign-in works again.
 
 **Acceptance Scenarios**:
 
@@ -94,7 +102,7 @@ A super_admin can create new admin or viewer accounts, edit names and roles, dea
 - A user in the forced-change flow attempts to set their new password equal to the password the super_admin just gave them: the system rejects with a localized "new password must differ from current password" message.
 - A user is in the forced-change state and the super_admin deactivates them mid-flow: the user's next attempt to submit the new password is rejected with the localized "account inactive" message and the session is terminated.
 - Two super_admins, each editing the only other super_admin concurrently, both attempt to demote in the same instant: the backend's atomic FR-023 check ensures at most one of the two requests succeeds; the second receives the localized "at least one super_admin must remain" response.
-- A super_admin demotes another super_admin to viewer: the demoted user's next backend call after the role change observes the lower role; if they were viewing user-management at the moment, the dashboard renders an "unauthorized" state and routes them away. Their existing session remains valid (no forced sign-out) but is now scoped to viewer permissions.
+- A super_admin demotes another super_admin to analyst (or any non-super role): the demoted user's next backend call after the role change observes the lower role; if they were viewing user-management at the moment, the dashboard renders an "unauthorized" state and routes them away. Their existing session remains valid (no forced sign-out) but is now scoped to the new role's permissions.
 
 ## Requirements *(mandatory)*
 
@@ -115,15 +123,19 @@ A super_admin can create new admin or viewer accounts, edit names and roles, dea
 
 **Roles & Authorization**
 
-- **FR-011**: System MUST support three roles for internal staff: super_admin, admin, viewer.
-- **FR-012**: System MUST restrict user-management functionality (creating, editing, deactivating, resetting passwords of other staff) to super_admin role only.
+- **FR-011**: System MUST support four roles for internal staff: `super_admin`, `sales_manager`, `sales_agent`, `analyst`. Default permission matrix:
+  - **super_admin** — full access including user-management.
+  - **sales_manager** — manages bank programs + applications; oversees the sales team; no user-management.
+  - **sales_agent** — handles their own applications; read-only on bank programs; no user-management.
+  - **analyst** — read-only across applications, bank programs, and audit logs.
+- **FR-012**: System MUST restrict user-management functionality (creating, editing, deactivating, resetting passwords of other staff) to `super_admin` role only.
 - **FR-013**: System MUST hide or disable create/edit/delete controls in the dashboard for users whose role does not permit those actions.
 - **FR-014**: System MUST enforce role permissions on the backend independently of the dashboard, rejecting unauthorized write actions with a stable, localized "forbidden" response even if the client sends the request directly.
 - **FR-015**: System MUST reject every request to protected backend endpoints that does not carry a valid active session credential, with stable, distinct codes for missing, malformed, expired, and revoked credentials.
 
 **User Management**
 
-- **FR-016**: Super_admins MUST be able to create a new staff account by supplying name, email, role (admin or viewer), and initial password.
+- **FR-016**: Super_admins MUST be able to create a new staff account by supplying name, email, role (one of `sales_manager`, `sales_agent`, `analyst` — `super_admin` is NOT creatable through the API; bootstrap-only via seed), and initial password.
 - **FR-017**: System MUST reject account creation when the supplied email matches any existing account (including matches that differ only by casing or whitespace), with a localized "duplicate email" response.
 - **FR-018**: Super_admins MUST be able to list staff accounts in the dashboard, including name, email, role, active/inactive status, and last sign-in time.
 - **FR-019**: System MUST support pagination of the staff-account list to handle teams growing beyond a single page of results.
@@ -131,7 +143,7 @@ A super_admin can create new admin or viewer accounts, edit names and roles, dea
 - **FR-021**: Super_admins MUST be able to edit a staff account's name, role, and active/inactive status.
 - **FR-022**: System MUST prevent a super_admin from changing their OWN role or deactivating their OWN account, blocking the action with a localized "cannot self-modify" response.
 - **FR-023**: System MUST prevent any action that would leave the platform with zero active super_admins. This guard MUST be evaluated atomically on the backend at the time of the mutating request (not pre-validated client-side only), to avoid race conditions where two concurrent operations could each pass an independent check yet jointly violate the invariant.
-- **FR-023a**: A super_admin MAY demote another super_admin to admin or viewer via the edit-user flow, provided FR-023 still holds AFTER the demotion (i.e., at least one active super_admin remains). Backend MUST reject any demotion request that would violate FR-023 with the localized "at least one super_admin must remain" response.
+- **FR-023a**: A super_admin MAY demote another super_admin to one of the non-super roles (`sales_manager`, `sales_agent`, `analyst`) via the edit-user flow, provided FR-023 still holds AFTER the demotion (i.e., at least one active super_admin remains). Backend MUST reject any demotion request that would violate FR-023 with the localized "at least one super_admin must remain" response.
 - **FR-023b**: System MUST emit a distinct audit event `admin.user.role_changed` (carrying actor, target, from_role, to_role) whenever a super_admin changes another staff account's role. Role transitions to and from super_admin MUST be captured in the audit stream and are independently noteworthy in any future audit-log viewer.
 - **FR-024**: Super_admins MUST be able to reset another staff account's password by supplying a new password.
 - **FR-025**: Any signed-in user MUST be able to change their own password by supplying their current password plus a new password.
@@ -186,7 +198,7 @@ A super_admin can create new admin or viewer accounts, edit names and roles, dea
 
 ### Key Entities *(include if feature involves data)*
 
-- **Staff Account**: Represents an internal Masrafy team member with access to the admin dashboard. Holds the user's display name, login email (unique, normalized), securely stored password, role (one of super_admin / admin / viewer), active/inactive status, must-change-password flag (true after creation or super_admin reset, false after the user completes a forced change), creation timestamp, last update timestamp, and last successful sign-in timestamp. Historical records (applications reviewed, audit entries, etc.) reference the account by stable identifier so that deactivation does not orphan history.
+- **Staff Account**: Represents an internal Masrafy team member with access to the admin dashboard. Holds the user's display name, login email (unique, normalized), securely stored password, role (one of `super_admin` / `sales_manager` / `sales_agent` / `analyst`), active/inactive status, must-change-password flag (true after creation or super_admin reset, false after the user completes a forced change), creation timestamp, last update timestamp, and last successful sign-in timestamp. Historical records (applications reviewed, audit entries, etc.) reference the account by stable identifier so that deactivation does not orphan history.
 - **Session Renewal Credential**: Represents the long-lived right to silently renew a user's signed-in session. Belongs to one Staff Account, has an expiry, may be revoked (server-side invalidation), and is stored in a non-reversible form. Each successful renewal issues a new credential and invalidates the prior one so a leaked credential has a single use window.
 - **Sign-In Attempt Record**: Represents an audit-grade record of each sign-in attempt. Captures account targeted (by identifier when known), source network address, outcome (success / wrong-credentials / inactive / locked-out), timestamp, and correlation identifier. Used both for lockout enforcement and for after-the-fact review.
 - **Audit Event**: Represents a discrete, append-only record of a security-relevant action (login success/failure, logout, renewal, password change, password reset, account create, account deactivate). Captures actor identifier, target identifier (when distinct), action type, timestamp, source network address, and correlation identifier. Never contains passwords, hashes, or session credentials.
@@ -197,7 +209,7 @@ A super_admin can create new admin or viewer accounts, edit names and roles, dea
 
 - **SC-001**: A new internal team member can complete first sign-in (from arriving at the login URL to landing on the dashboard) in under 30 seconds when their credentials are valid.
 - **SC-002**: 100% of protected admin areas are unreachable to unauthenticated visitors — every direct-URL attempt redirects to the login page with the intended destination preserved.
-- **SC-003**: 100% of write actions attempted by viewer-role users — whether via the dashboard or via direct backend calls — are rejected with the platform's standard "forbidden" response.
+- **SC-003**: 100% of write actions attempted by `analyst`-role users (and `sales_agent` write attempts on bank programs) — whether via the dashboard or via direct backend calls — are rejected with the platform's standard "forbidden" response.
 - **SC-004**: 100% of write actions attempted by admin-role users against user-management functionality are rejected.
 - **SC-005**: Across an end-to-end sign-in test, 0% of password values, password hashes, or session credentials appear anywhere in server logs, client-side logs, audit events, or API responses.
 - **SC-006**: After a user's short-lived session credential expires mid-task, at least 99% of subsequent in-flight user actions complete successfully without the user seeing a sign-in prompt, provided their long-lived renewal credential remains valid.

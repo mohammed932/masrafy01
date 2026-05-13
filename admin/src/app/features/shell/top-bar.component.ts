@@ -219,8 +219,17 @@ import { AuthService } from '@core/auth/auth.service';
         white-space: nowrap;
         flex-shrink: 0;
       }
-      .role-chip[data-role='SUPER_ADMIN'] {
-        background: rgba(255, 255, 255, 0.22);
+      .role-chip[data-role='super_admin'] {
+        background: rgba(255, 255, 255, 0.24);
+      }
+      .role-chip[data-role='sales_manager'] {
+        background: rgba(255, 255, 255, 0.18);
+      }
+      .role-chip[data-role='sales_agent'] {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      .role-chip[data-role='analyst'] {
+        background: rgba(255, 255, 255, 0.1);
       }
       .chevron {
         font-size: 16px;
@@ -267,12 +276,14 @@ export class TopBarComponent {
 
   protected roleLabel(role: string): string {
     switch (role) {
-      case 'SUPER_ADMIN':
-        return $localize`:@@role.SUPER_ADMIN:Super-admin`;
-      case 'ADMIN':
-        return $localize`:@@role.ADMIN:Admin`;
-      case 'VIEWER':
-        return $localize`:@@role.VIEWER:Viewer`;
+      case 'super_admin':
+        return $localize`:@@role.super_admin:Super-admin`;
+      case 'sales_manager':
+        return $localize`:@@role.sales_manager:Sales manager`;
+      case 'sales_agent':
+        return $localize`:@@role.sales_agent:Sales agent`;
+      case 'analyst':
+        return $localize`:@@role.analyst:Analyst`;
       default:
         return role;
     }
