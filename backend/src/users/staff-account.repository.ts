@@ -135,10 +135,7 @@ export class StaffAccountRepository {
       });
       return stripPassword(row);
     } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2002'
-      ) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         throw new DuplicateEntryException('email');
       }
       throw err;
@@ -159,10 +156,7 @@ export class StaffAccountRepository {
       });
       return stripPassword(row);
     } catch (err) {
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === 'P2025'
-      ) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
         throw new NotFoundException();
       }
       throw err;
@@ -179,10 +173,7 @@ export class StaffAccountRepository {
    * On deactivation, also revokes all of the target's refresh tokens in the
    * same tx (data-model invariant #2).
    */
-  async updateRoleAndActiveTx(
-    id: string,
-    patch: RoleAndActivePatch,
-  ): Promise<StaffAccountSummary> {
+  async updateRoleAndActiveTx(id: string, patch: RoleAndActivePatch): Promise<StaffAccountSummary> {
     const run = async (): Promise<StaffAccountSummary> =>
       this.prisma.runSerializable(async (tx) => {
         const current = await tx.staffAccount.findUnique({ where: { id } });
@@ -221,10 +212,7 @@ export class StaffAccountRepository {
    * revoke all of the target's refresh tokens. Single transaction
    * (data-model invariant #3).
    */
-  async resetPasswordTx(args: {
-    targetId: string;
-    newPasswordHash: string;
-  }): Promise<void> {
+  async resetPasswordTx(args: { targetId: string; newPasswordHash: string }): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
       const found = await tx.staffAccount.findUnique({ where: { id: args.targetId } });
       if (!found) throw new NotFoundException();

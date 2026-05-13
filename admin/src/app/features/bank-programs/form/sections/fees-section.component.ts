@@ -44,7 +44,9 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
           <input matInput formControlName="lifeInsurancePercent" inputmode="decimal" />
         </mat-form-field>
         <div class="row">
-          <span class="row-label" i18n="@@bank_programs.field.life_insurance_mandatory">Life insurance mandatory</span>
+          <span class="row-label" i18n="@@bank_programs.field.life_insurance_mandatory"
+            >Life insurance mandatory</span
+          >
           <mat-slide-toggle formControlName="lifeInsuranceMandatory"></mat-slide-toggle>
         </div>
         <mat-form-field appearance="outline" class="numeric">

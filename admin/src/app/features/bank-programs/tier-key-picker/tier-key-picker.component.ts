@@ -23,7 +23,11 @@ import type { EnumerationType } from '../../../core/platform-enumerations/platfo
     @if (!enums.unavailable()) {
       <mat-form-field appearance="outline">
         <mat-label>{{ label() }}</mat-label>
-        <mat-select [value]="value()" (selectionChange)="emit($event.value)" [multiple]="multiple()">
+        <mat-select
+          [value]="value()"
+          (selectionChange)="emit($event.value)"
+          [multiple]="multiple()"
+        >
           @for (m of members(); track m.key) {
             <mat-option [value]="m.key">{{ m.labelEn }}</mat-option>
           }
@@ -32,7 +36,9 @@ import type { EnumerationType } from '../../../core/platform-enumerations/platfo
     } @else {
       <div class="unavailable">
         <mat-icon aria-hidden="true">cloud_off</mat-icon>
-        <span i18n="@@bank_programs.form.enums_unavailable">Enumerations unavailable, retry shortly.</span>
+        <span i18n="@@bank_programs.form.enums_unavailable"
+          >Enumerations unavailable, retry shortly.</span
+        >
       </div>
     }
   `,

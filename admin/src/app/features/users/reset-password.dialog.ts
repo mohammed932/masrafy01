@@ -3,21 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogModule,
-  MatDialogRef,
-} from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { UsersService } from './users.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
-import type {
-  ErrorCode,
-  ErrorEnvelope,
-  StaffAccountSummary,
-} from '@core/auth/auth.types';
+import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/auth.types';
 
 interface Data {
   row: StaffAccountSummary;
@@ -45,9 +37,7 @@ interface Controls {
       <span i18n="@@resetPw.title">Reset password for</span> {{ data.row.name }}
     </h2>
     <form mat-dialog-content [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <p class="hint" i18n="@@resetPw.hint">
-        The user must change this password on next sign-in.
-      </p>
+      <p class="hint" i18n="@@resetPw.hint">The user must change this password on next sign-in.</p>
       <mat-form-field appearance="outline" class="field">
         <mat-label i18n="@@resetPw.new">New password</mat-label>
         <input

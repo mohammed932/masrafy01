@@ -12,8 +12,27 @@ import {
   type ApplicationPriority,
   type ApplicationStatus,
   type ApprovalTier,
+  type LeadStatus,
 } from '@prisma/client';
 import { PrismaService } from '../infra/prisma/prisma.service';
+
+export type LeadListFilter =
+  | 'needs_first_contact'
+  | 'stale'
+  | 'recent'
+  | 'followup_today'
+  | 'docs_in_progress'
+  | 'ready_for_submission'
+  | 'submitted_to_bank';
+
+export interface ApplicationListItemAggregates {
+  lastActivityType: string | null;
+  lastActivityOccurredAt: string | null;
+  activityCount: number;
+  isStale: boolean;
+  hasOverdueFollowUp: boolean;
+  pendingFollowUpCount: number;
+}
 
 export interface CreateApplicationInput {
   mobileClientId: string;
@@ -105,14 +124,16 @@ export class ApplicationRepository {
     status?: ApplicationStatus[];
     loanPurpose?: string;
     tier?: 'high' | 'medium' | 'needs_coaching';
+    leadFilter?: LeadListFilter;
+    assignedAgentStaffId?: string;
     cursor?: string;
     limit?: number;
   }) {
     const where: Prisma.ApplicationWhereInput = {};
     if (params.status?.length) where.status = { in: params.status };
     if (params.loanPurpose) where.loanPurpose = params.loanPurpose;
+    if (params.assignedAgentStaffId) where.assignedAgentStaffId = params.assignedAgentStaffId;
 
-    // Tier-bucket filter (feature 004 FR-017). Acts on the best-offer tier.
     if (params.tier === 'high') {
       where.bankOffers = { some: { approvalTier: 'excellent', erasedAt: null } };
     } else if (params.tier === 'medium') {
@@ -138,12 +159,91 @@ export class ApplicationRepository {
       ];
     }
 
+    const stale48hCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const last24hCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    if (params.leadFilter === 'needs_first_contact') {
+      where.leadStatus = 'needs_first_contact';
+    } else if (params.leadFilter === 'docs_in_progress') {
+      where.leadStatus = 'document_collection';
+    } else if (params.leadFilter === 'ready_for_submission') {
+      where.leadStatus = 'ready_for_submission';
+    } else if (params.leadFilter === 'submitted_to_bank') {
+      where.leadStatus = 'submitted_to_bank';
+    } else if (params.leadFilter === 'recent') {
+      where.activities = { some: { occurredAt: { gte: last24hCutoff } } };
+    } else if (params.leadFilter === 'stale') {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        { leadStatus: { in: ['needs_first_contact', 'document_collection'] } },
+        {
+          OR: [
+            { activities: { none: {} } },
+            { activities: { every: { occurredAt: { lt: stale48hCutoff } } } },
+          ],
+        },
+      ];
+    } else if (params.leadFilter === 'followup_today') {
+      where.activities = {
+        some: {
+          followUpAt: { gte: todayStart, lte: todayEnd },
+        },
+      };
+    }
+
     return this.prisma.application.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: params.limit ?? 25,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
-      include: { bankOffers: { where: { erasedAt: null } } },
+      include: {
+        bankOffers: { where: { erasedAt: null } },
+        activities: {
+          orderBy: { occurredAt: 'desc' },
+          take: 1,
+          select: { activityType: true, occurredAt: true },
+        },
+        _count: { select: { activities: true } },
+        assignedAgent: { select: { id: true, name: true } },
+      },
     });
+  }
+
+  async countActivitiesPendingFollowupForApplications(
+    applicationIds: readonly string[],
+  ): Promise<Map<string, number>> {
+    if (applicationIds.length === 0) return new Map();
+    const now = new Date();
+    const rows = await this.prisma.activity.groupBy({
+      by: ['applicationId'],
+      where: {
+        applicationId: { in: [...applicationIds] },
+        followUpAt: { not: null, lte: now },
+      },
+      _count: { _all: true },
+    });
+    return new Map(rows.map((r) => [r.applicationId, r._count._all]));
+  }
+
+  async assignAgent(input: {
+    applicationId: string;
+    toAgentStaffId: string;
+    tx?: Prisma.TransactionClient;
+  }): Promise<{ previousAgentId: string | null }> {
+    const client = input.tx ?? this.prisma;
+    const existing = await client.application.findUnique({
+      where: { id: input.applicationId },
+      select: { assignedAgentStaffId: true },
+    });
+    if (!existing) throw new Error(`Application not found: ${input.applicationId}`);
+    await client.application.update({
+      where: { id: input.applicationId },
+      data: { assignedAgentStaffId: input.toAgentStaffId, assignedAt: new Date() },
+    });
+    return { previousAgentId: existing.assignedAgentStaffId };
   }
 }

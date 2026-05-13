@@ -14,7 +14,12 @@
  */
 
 import assert from 'node:assert/strict';
-import { evaluateLoanLimit, evaluatePricing, evaluateWealthGate, type BankProgramConfig } from './cascade.evaluator';
+import {
+  evaluateLoanLimit,
+  evaluatePricing,
+  evaluateWealthGate,
+  type BankProgramConfig,
+} from './cascade.evaluator';
 import type { ApplicantContext } from './cascade.types';
 
 const skeleton: BankProgramConfig = {

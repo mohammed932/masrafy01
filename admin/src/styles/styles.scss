@@ -96,6 +96,9 @@
 }
 
 .app-modal-panel {
+  max-inline-size: min(720px, calc(100vw - var(--space-6) * 2));
+  inline-size: 100%;
+
   .mat-mdc-dialog-container,
   .mat-mdc-dialog-surface,
   .mdc-dialog__surface {
@@ -106,6 +109,12 @@
       0 4px 12px -4px rgba(6, 21, 45, 0.12);
     overflow: hidden;
     padding: 0;
+  }
+  // Let the dialog content grow up to ~75vh and scroll if larger.
+  .mat-mdc-dialog-content {
+    max-block-size: 70vh;
+    padding-block: var(--space-3);
+    padding-inline: var(--space-4);
   }
 }
 

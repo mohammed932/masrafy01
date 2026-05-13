@@ -116,30 +116,28 @@ import { AuthService } from '@core/auth/auth.service';
         padding-block: 0;
         padding-inline: 4px 14px;
         border-radius: var(--radius-pill);
-        background:
-          linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.10) 0%,
-            rgba(255, 255, 255, 0.04) 100%
-          );
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.1) 0%,
+          rgba(255, 255, 255, 0.04) 100%
+        );
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
         box-shadow:
           inset 0 0 0 1px rgba(255, 255, 255, 0.14),
           inset 0 1px 0 rgba(255, 255, 255, 0.08),
-          0 1px 2px rgba(0, 0, 0, 0.20);
+          0 1px 2px rgba(0, 0, 0, 0.2);
         transition:
           background var(--motion-duration-fast) var(--motion-easing-standard),
           box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
           transform var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .user-trigger:hover {
-        background:
-          linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.16) 0%,
-            rgba(255, 255, 255, 0.08) 100%
-          );
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.16) 0%,
+          rgba(255, 255, 255, 0.08) 100%
+        );
         box-shadow:
           inset 0 0 0 1px rgba(255, 255, 255, 0.24),
           inset 0 1px 0 rgba(255, 255, 255, 0.14),
@@ -151,7 +149,7 @@ import { AuthService } from '@core/auth/auth.service';
       .user-trigger:focus-visible {
         outline: none;
         box-shadow:
-          inset 0 0 0 1px rgba(255, 255, 255, 0.30),
+          inset 0 0 0 1px rgba(255, 255, 255, 0.3),
           0 0 0 3px rgba(255, 255, 255, 0.24);
       }
       // Hairline divider between name and role chip
@@ -172,10 +170,10 @@ import { AuthService } from '@core/auth/auth.service';
         background: linear-gradient(
           135deg,
           rgba(255, 255, 255, 0.26) 0%,
-          rgba(255, 255, 255, 0.10) 100%
+          rgba(255, 255, 255, 0.1) 100%
         );
         box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.20),
+          inset 0 1px 0 rgba(255, 255, 255, 0.2),
           inset 0 0 0 1px rgba(255, 255, 255, 0.14);
         color: var(--color-text-on-brand);
         font-size: 13px;

@@ -95,11 +95,7 @@ export class AuthService {
   async logout(): Promise<void> {
     try {
       await firstValueFrom(
-        this.http.post(
-          `${this.base()}/auth/logout`,
-          {},
-          { withCredentials: true },
-        ),
+        this.http.post(`${this.base()}/auth/logout`, {}, { withCredentials: true }),
       );
     } finally {
       this.clear();
@@ -117,11 +113,9 @@ export class AuthService {
 
   async changePassword(req: PasswordChangeRequest): Promise<void> {
     const res = await firstValueFrom(
-      this.http.patch<SuccessEnvelope<LoginResponseData>>(
-        `${this.base()}/auth/password`,
-        req,
-        { withCredentials: true },
-      ),
+      this.http.patch<SuccessEnvelope<LoginResponseData>>(`${this.base()}/auth/password`, req, {
+        withCredentials: true,
+      }),
     );
     this._accessToken.set(res.data.accessToken);
     this._currentUser.set(res.data.user);

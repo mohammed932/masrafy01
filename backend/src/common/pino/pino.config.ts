@@ -18,6 +18,19 @@ export const REDACT_PATHS: readonly string[] = [
   '*.tokenHash',
   '*.accessToken',
   '*.refreshToken',
+  // Feature 005 — agent activity logging
+  'req.body.note',
+  'req.body.attachedDocumentIds',
+  'req.body.originalFilename',
+  'res.body.data.activity.note',
+  'res.body.data.activity.attachedDocuments',
+  'res.body.data.applicantProfile.firstName',
+  'res.body.data.applicantProfile.lastName',
+  'res.body.data.applicantProfile.email',
+  'res.body.data.applicantProfile.phone',
+  'res.body.data.applicantProfile.nationalId',
+  '*.note',
+  '*.originalFilename',
 ];
 
 export function pinoOptions(

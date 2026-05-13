@@ -12,14 +12,16 @@ import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ApplicationsApiService, type AdminApplicationRow } from '../api/applications.api.service';
-import {
-  ApprovalPillComponent,
-  type ApprovalTier,
-} from './components/approval-pill.component';
+import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
   TierFilterChipsComponent,
   type TierFilter,
 } from './components/tier-filter-chips.component';
+import {
+  LeadFilterChipsComponent,
+  type LeadFilter,
+  type LeadFilterCounts,
+} from './components/lead-filter-chips.component';
 
 /**
  * Applications list — daily-driver triage view for sales_manager / sales_agent / analyst.
@@ -36,6 +38,7 @@ import {
     MatProgressBarModule,
     ApprovalPillComponent,
     TierFilterChipsComponent,
+    LeadFilterChipsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -53,6 +56,12 @@ import {
         [selected]="selectedTier()"
         [counts]="counts()"
         (filterChange)="onFilterChange($event)"
+      />
+
+      <app-lead-filter-chips
+        [selected]="selectedLeadFilter()"
+        [counts]="leadCounts()"
+        (filterChange)="onLeadFilterChange($event)"
       />
 
       @if (loading()) {
@@ -118,7 +127,17 @@ import {
             </ng-container>
 
             <tr mat-header-row *matHeaderRowDef="displayed"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayed" class="applications-row"></tr>
+            <tr
+              mat-row
+              *matRowDef="let row; columns: displayed"
+              class="applications-row"
+              tabindex="0"
+              role="link"
+              [attr.aria-label]="detailAriaLabel(row.id)"
+              (click)="openDetail(row.id)"
+              (keydown.enter)="openDetail(row.id)"
+              (keydown.space)="openDetail(row.id, $event)"
+            ></tr>
           </table>
         </div>
       }
@@ -184,8 +203,16 @@ import {
       .empty .muted {
         font-size: 13px;
       }
+      .applications-row {
+        cursor: pointer;
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
       .applications-row:hover {
-        background: var(--color-surface-elevated);
+        background: var(--color-surface-row-hover);
+      }
+      .applications-row:focus-visible {
+        outline: 2px solid var(--color-brand-primary);
+        outline-offset: -2px;
       }
     `,
   ],
@@ -195,10 +222,33 @@ export class ApplicationsListPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  protected readonly displayed = ['probability', 'purpose', 'amount', 'status', 'created', 'actions'];
+  protected readonly displayed = [
+    'probability',
+    'purpose',
+    'amount',
+    'status',
+    'created',
+    'actions',
+  ];
   protected readonly rows = signal<readonly AdminApplicationRow[]>([]);
   protected readonly loading = signal(false);
   protected readonly selectedTier = signal<TierFilter>(null);
+  protected readonly selectedLeadFilter = signal<LeadFilter>(null);
+  protected readonly leadCounts = computed<LeadFilterCounts>(() => {
+    const r = this.rows();
+    return {
+      needs_first_contact: r.filter((x) => x.leadStatus === 'needs_first_contact').length,
+      stale: r.filter((x) => x.isStale === true).length,
+      recent: r.filter((x) => {
+        if (!x.lastActivity) return false;
+        return Date.now() - new Date(x.lastActivity.occurredAt).getTime() < 24 * 60 * 60 * 1000;
+      }).length,
+      followup_today: r.filter((x) => x.hasOverdueFollowUp === true).length,
+      docs_in_progress: r.filter((x) => x.leadStatus === 'document_collection').length,
+      ready_for_submission: r.filter((x) => x.leadStatus === 'ready_for_submission').length,
+      submitted_to_bank: r.filter((x) => x.leadStatus === 'submitted_to_bank').length,
+    };
+  });
   protected readonly counts = computed(() => {
     const r = this.rows();
     return {
@@ -207,7 +257,8 @@ export class ApplicationsListPage implements OnInit {
       needs_coaching: r.filter(
         (x) =>
           x.status === 'no_match' ||
-          (x.bestOffer && (['moderate', 'low', 'very_low'] as ApprovalTier[]).includes(x.bestOffer.tier)),
+          (x.bestOffer &&
+            (['moderate', 'low', 'very_low'] as ApprovalTier[]).includes(x.bestOffer.tier)),
       ).length,
     };
   });
@@ -216,6 +267,18 @@ export class ApplicationsListPage implements OnInit {
     const initial = this.route.snapshot.queryParamMap.get('tier');
     if (initial === 'high' || initial === 'medium' || initial === 'needs_coaching') {
       this.selectedTier.set(initial);
+    }
+    const leadInit = this.route.snapshot.queryParamMap.get('filter');
+    if (
+      leadInit === 'needs_first_contact' ||
+      leadInit === 'stale' ||
+      leadInit === 'recent' ||
+      leadInit === 'followup_today' ||
+      leadInit === 'docs_in_progress' ||
+      leadInit === 'ready_for_submission' ||
+      leadInit === 'submitted_to_bank'
+    ) {
+      this.selectedLeadFilter.set(leadInit);
     }
     await this.reload();
   }
@@ -230,14 +293,33 @@ export class ApplicationsListPage implements OnInit {
     void this.reload();
   }
 
+  protected onLeadFilterChange(next: LeadFilter): void {
+    this.selectedLeadFilter.set(next);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { filter: next ?? null },
+      queryParamsHandling: 'merge',
+    });
+    void this.reload();
+  }
+
   protected detailAriaLabel(id: string): string {
     return $localize`:@@applications.action.detail:Open application ${id}`;
+  }
+
+  protected openDetail(id: string, ev?: Event): void {
+    if (ev) ev.preventDefault();
+    void this.router.navigate(['/applications', id]);
   }
 
   private async reload(): Promise<void> {
     this.loading.set(true);
     try {
-      const { rows } = await this.api.list({ tier: this.selectedTier(), limit: 50 });
+      const { rows } = await this.api.list({
+        tier: this.selectedTier(),
+        leadFilter: this.selectedLeadFilter(),
+        limit: 50,
+      });
       this.rows.set(rows);
     } finally {
       this.loading.set(false);

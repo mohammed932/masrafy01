@@ -26,7 +26,11 @@ export class SeedService {
     private readonly enums: PlatformEnumerationsRepository,
   ) {}
 
-  async seedAbk(actor: { id: string; sourceIp: string | null; correlationId: string }): Promise<SeedRunResult> {
+  async seedAbk(actor: {
+    id: string;
+    sourceIp: string | null;
+    correlationId: string;
+  }): Promise<SeedRunResult> {
     return this.runCatalog(abkEgypt2026, actor);
   }
 
@@ -58,7 +62,11 @@ export class SeedService {
         const existing = await this.repo.findByProgramCode(dto.programCode);
         if (existing) {
           const actual = ratePercentOf(existing.pricing);
-          entries.push({ programCode: dto.programCode, status: 'skipped', ratePercent: actual ?? '?' });
+          entries.push({
+            programCode: dto.programCode,
+            status: 'skipped',
+            ratePercent: actual ?? '?',
+          });
           continue;
         }
         const created = await this.repo.create(
@@ -78,7 +86,8 @@ export class SeedService {
             loanLimits: dto.loanLimits as unknown as Prisma.InputJsonValue,
             pricing: dto.pricing as unknown as Prisma.InputJsonValue,
             eligibility: dto.eligibility as unknown as Prisma.InputJsonValue,
-            performanceCriteria: (dto.performanceCriteria ?? null) as unknown as Prisma.InputJsonValue,
+            performanceCriteria: (dto.performanceCriteria ??
+              null) as unknown as Prisma.InputJsonValue,
             incomeAssumption: dto.incomeAssumption as unknown as Prisma.InputJsonValue,
             fees: dto.fees as unknown as Prisma.InputJsonValue,
             createdBy: actor.id,
@@ -113,8 +122,14 @@ export class SeedService {
         if (expected && actual && expected !== actual) {
           mismatches.push({ programCode: dto.programCode, expected, actual });
         }
-        this.logger.log(`Seeded ${dto.programCode} at ${actual ?? '?'}% (expected ${expected ?? '?'})`);
-        entries.push({ programCode: dto.programCode, status: 'created', ratePercent: actual ?? '?' });
+        this.logger.log(
+          `Seeded ${dto.programCode} at ${actual ?? '?'}% (expected ${expected ?? '?'})`,
+        );
+        entries.push({
+          programCode: dto.programCode,
+          status: 'created',
+          ratePercent: actual ?? '?',
+        });
       }
 
       if (mismatches.length > 0) {
@@ -127,7 +142,11 @@ export class SeedService {
 }
 
 function ratePercentOf(pricing: unknown): string | undefined {
-  const p = pricing as { isVariableRate?: boolean; baseRatePercent?: string; currentEffectiveRatePercent?: string } | null;
+  const p = pricing as {
+    isVariableRate?: boolean;
+    baseRatePercent?: string;
+    currentEffectiveRatePercent?: string;
+  } | null;
   if (!p) return undefined;
   return p.isVariableRate ? p.currentEffectiveRatePercent : p.baseRatePercent;
 }

@@ -37,8 +37,8 @@ export interface DeleteProgramDialogData {
     </h2>
     <mat-dialog-content>
       <p i18n="@@bank_programs.delete.body">
-        This action cannot be undone. Existing bank offers referencing this program will block deletion;
-        in that case, deactivate the program instead.
+        This action cannot be undone. Existing bank offers referencing this program will block
+        deletion; in that case, deactivate the program instead.
       </p>
       <p class="row">
         <strong>{{ data.programCode }}</strong>
@@ -47,7 +47,9 @@ export interface DeleteProgramDialogData {
 
       <ng-container *ngIf="offerCount() === null">
         <mat-form-field appearance="outline" class="full">
-          <mat-label i18n="@@bank_programs.delete.confirm_label">Type the program code to confirm</mat-label>
+          <mat-label i18n="@@bank_programs.delete.confirm_label"
+            >Type the program code to confirm</mat-label
+          >
           <input matInput [formControl]="confirmCtrl" />
           <mat-hint i18n="@@bank_programs.delete.confirm_hint">Must match exactly.</mat-hint>
         </mat-form-field>
@@ -63,7 +65,15 @@ export interface DeleteProgramDialogData {
       </ng-container>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-stroked-button type="button" (click)="cancel()" [disabled]="busy()" i18n="@@bank_programs.form.cancel">Cancel</button>
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="cancel()"
+        [disabled]="busy()"
+        i18n="@@bank_programs.form.cancel"
+      >
+        Cancel
+      </button>
       <button
         *ngIf="offerCount() === null"
         mat-flat-button
@@ -80,11 +90,26 @@ export interface DeleteProgramDialogData {
   `,
   styles: [
     `
-      .warn-icon { color: #b45309; margin-inline-end: var(--space-2); vertical-align: middle; }
-      .row { display: flex; gap: var(--space-2); align-items: baseline; }
-      .row strong { font-family: var(--font-family-mono, monospace); color: var(--color-text-primary); }
-      .row em { color: var(--color-text-secondary); }
-      .full { width: 100%; }
+      .warn-icon {
+        color: #b45309;
+        margin-inline-end: var(--space-2);
+        vertical-align: middle;
+      }
+      .row {
+        display: flex;
+        gap: var(--space-2);
+        align-items: baseline;
+      }
+      .row strong {
+        font-family: var(--font-family-mono, monospace);
+        color: var(--color-text-primary);
+      }
+      .row em {
+        color: var(--color-text-secondary);
+      }
+      .full {
+        width: 100%;
+      }
       .has-offers {
         display: flex;
         align-items: center;
@@ -104,7 +129,10 @@ export class DeleteProgramDialog {
   private readonly errors = inject(ErrorCodeService);
   readonly data = inject<DeleteProgramDialogData>(MAT_DIALOG_DATA);
 
-  readonly confirmCtrl = new FormControl('', { nonNullable: true, validators: [Validators.required] });
+  readonly confirmCtrl = new FormControl('', {
+    nonNullable: true,
+    validators: [Validators.required],
+  });
   readonly busy = signal(false);
   readonly offerCount = signal<number | null>(null);
 
@@ -126,11 +154,17 @@ export class DeleteProgramDialog {
       this.dialogRef.close(true);
     } catch (err: unknown) {
       const envelope = (err as { error?: { code?: string; meta?: { offerCount?: number } } }).error;
-      if (envelope?.code === 'BANK_PROGRAM_HAS_OFFERS' && typeof envelope.meta?.offerCount === 'number') {
+      if (
+        envelope?.code === 'BANK_PROGRAM_HAS_OFFERS' &&
+        typeof envelope.meta?.offerCount === 'number'
+      ) {
         this.offerCount.set(envelope.meta.offerCount);
       } else {
         this.snack.open(
-          this.errors.toLocalizedMessage((envelope?.code ?? 'INTERNAL_ERROR') as never, envelope?.meta),
+          this.errors.toLocalizedMessage(
+            (envelope?.code ?? 'INTERNAL_ERROR') as never,
+            envelope?.meta,
+          ),
           $localize`:@@bank_programs.form.dismiss:Dismiss`,
           { duration: 6000 },
         );

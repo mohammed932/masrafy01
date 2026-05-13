@@ -68,9 +68,7 @@ export function calculateApprovalProbability(
   apply(program.productCategory === 'pensions', 'PENSIONS_PROGRAM');
 
   const rawSum =
-    base +
-    positive.reduce((s, f) => s + f.impact, 0) +
-    negative.reduce((s, f) => s + f.impact, 0);
+    base + positive.reduce((s, f) => s + f.impact, 0) + negative.reduce((s, f) => s + f.impact, 0);
 
   let score = rawSum;
   if (rawSum < clampMin) {

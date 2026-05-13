@@ -42,11 +42,14 @@ export class BankProgramsController {
   @Get()
   @ApiOperation({ summary: 'List bank programs (paginated, filterable, searchable)' })
   @ApiResponse({ status: 200, description: 'Paginated list of bank programs.' })
-  async list(
-    @Query() query: ListBankProgramsQuery,
-  ) {
+  async list(@Query() query: ListBankProgramsQuery) {
     const result = await this.service.list(query);
-    return okPaginated(result.rows, result.pagination.page, result.pagination.pageSize, result.pagination.totalCount);
+    return okPaginated(
+      result.rows,
+      result.pagination.page,
+      result.pagination.pageSize,
+      result.pagination.totalCount,
+    );
   }
 
   @Get(':programCode')
@@ -64,7 +67,11 @@ export class BankProgramsController {
   @ApiOperation({ summary: 'Create a new bank program (admin or super_admin)' })
   @ApiResponse({ status: 201, description: 'Program created.' })
   @ApiResponse({ status: 409, description: 'PROGRAM_CODE_ALREADY_IN_USE' })
-  @ApiResponse({ status: 422, description: 'INVALID_VARIABLE_RATE_CONFIGURATION | INVALID_QUALITATIVE_REVIEW_CEILING | QUALITATIVE_REVIEW_CEILING_BELOW_BASE | DERIVATION_ARITHMETIC_MISMATCH | UNKNOWN_ENUMERATION_KEY | DEPRECATED_ENUMERATION_KEY | VALIDATION_FAILED' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'INVALID_VARIABLE_RATE_CONFIGURATION | INVALID_QUALITATIVE_REVIEW_CEILING | QUALITATIVE_REVIEW_CEILING_BELOW_BASE | DERIVATION_ARITHMETIC_MISMATCH | UNKNOWN_ENUMERATION_KEY | DEPRECATED_ENUMERATION_KEY | VALIDATION_FAILED',
+  })
   @ApiResponse({ status: 503, description: 'ENUMERATION_REGISTRY_UNAVAILABLE' })
   async create(
     @Body() body: CreateBankProgramDto,
@@ -85,7 +92,11 @@ export class BankProgramsController {
     @Req() req: Request,
     @CorrelationId() correlationId: string,
   ) {
-    const program = await this.service.update(programCode, body, this.actor(user, req, correlationId));
+    const program = await this.service.update(
+      programCode,
+      body,
+      this.actor(user, req, correlationId),
+    );
     return ok(program);
   }
 

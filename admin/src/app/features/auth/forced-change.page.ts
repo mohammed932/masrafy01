@@ -32,9 +32,7 @@ interface ForcedChangeControls {
   template: `
     <main class="shell" role="main">
       <section class="card locked-step" [attr.aria-labelledby]="titleId">
-        <h1 [id]="titleId" class="title" i18n="@@forcedChange.title">
-          Set your password
-        </h1>
+        <h1 [id]="titleId" class="title" i18n="@@forcedChange.title">Set your password</h1>
         <p class="subtitle" i18n="@@forcedChange.subtitle">
           For your security, set a new password before continuing.
         </p>
@@ -63,7 +61,9 @@ interface ForcedChangeControls {
 
           <ul [id]="hintsId" class="hints" aria-live="polite">
             <li [class.ok]="lengthOk()">
-              <mat-icon class="hint-icon">{{ lengthOk() ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+              <mat-icon class="hint-icon">{{
+                lengthOk() ? 'check_circle' : 'radio_button_unchecked'
+              }}</mat-icon>
               <span i18n="@@forcedChange.hint.length">Length 12–128</span>
             </li>
             <li>

@@ -2,7 +2,14 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const DEFAULT_ASSET_PATH = resolve(__dirname, '..', '..', '..', 'assets', 'top-10000-passwords.txt');
+const DEFAULT_ASSET_PATH = resolve(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'assets',
+  'top-10000-passwords.txt',
+);
 
 @Injectable()
 export class CommonPasswordsService implements OnModuleInit {

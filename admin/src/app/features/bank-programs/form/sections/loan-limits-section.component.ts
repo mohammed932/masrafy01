@@ -17,7 +17,8 @@ import { MatIconModule } from '@angular/material/icon';
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h3>
           <p class="section-sub" i18n="@@bank_programs.section.loan_limits_sub">
-            Min / max loan amount in EGP. Multi-currency editing and tier overrides land in the next increment.
+            Min / max loan amount in EGP. Multi-currency editing and tier overrides land in the next
+            increment.
           </p>
         </div>
       </header>
@@ -34,10 +35,13 @@ import { MatIconModule } from '@angular/material/icon';
 
         @if (requiresQualitativeReview) {
           <mat-form-field appearance="outline" class="numeric span-2">
-            <mat-label i18n="@@bank_programs.field.qr_max_egp">Qualitative-review uplift ceiling (EGP)</mat-label>
+            <mat-label i18n="@@bank_programs.field.qr_max_egp"
+              >Qualitative-review uplift ceiling (EGP)</mat-label
+            >
             <input matInput formControlName="qualitativeReviewMaxEGP" inputmode="decimal" />
             <mat-hint i18n="@@bank_programs.hint.qr_max">
-              Unlocked per-offer only after an operator approves the qualitative-review badge. Must be strictly greater than the base maximum.
+              Unlocked per-offer only after an operator approves the qualitative-review badge. Must
+              be strictly greater than the base maximum.
             </mat-hint>
           </mat-form-field>
         }

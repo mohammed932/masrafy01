@@ -34,12 +34,32 @@ export class BankProgramsMobileService {
   ): MobileBankProgramResponseDto {
     if (!program) throw new Error('unreachable');
 
-    const pricing = program.pricing as { isVariableRate?: boolean; baseRatePercent?: string; currentEffectiveRatePercent?: string; spreadMinPercent?: string; spreadMaxPercent?: string };
-    const loanLimits = program.loanLimits as { perCurrency: Record<string, { minAmount: string; maxAmount: string }> };
-    const eligibility = program.eligibility as { acceptedEmploymentTypes: string[]; acceptedLoanPurposes: string[]; ageMin: number; ageMax: number };
-    const fees = program.fees as { adminFeeDisplay?: string; adminFeePercent: string; lifeInsuranceMandatory: boolean; stampDutyPercent: string };
+    const pricing = program.pricing as {
+      isVariableRate?: boolean;
+      baseRatePercent?: string;
+      currentEffectiveRatePercent?: string;
+      spreadMinPercent?: string;
+      spreadMaxPercent?: string;
+    };
+    const loanLimits = program.loanLimits as {
+      perCurrency: Record<string, { minAmount: string; maxAmount: string }>;
+    };
+    const eligibility = program.eligibility as {
+      acceptedEmploymentTypes: string[];
+      acceptedLoanPurposes: string[];
+      ageMin: number;
+      ageMax: number;
+    };
+    const fees = program.fees as {
+      adminFeeDisplay?: string;
+      adminFeePercent: string;
+      lifeInsuranceMandatory: boolean;
+      stampDutyPercent: string;
+    };
 
-    const baseRate = pricing?.isVariableRate ? pricing?.currentEffectiveRatePercent : pricing?.baseRatePercent;
+    const baseRate = pricing?.isVariableRate
+      ? pricing?.currentEffectiveRatePercent
+      : pricing?.baseRatePercent;
     const minRate = pricing?.spreadMinPercent ?? baseRate ?? '0';
     const maxRate = pricing?.spreadMaxPercent ?? baseRate ?? '0';
 
@@ -60,7 +80,8 @@ export class BankProgramsMobileService {
       displayMinMonths: (program.tenor as { minMonths: number }).minMonths,
       displayMaxMonths: (program.tenor as { maxMonths: number }).maxMonths,
       requiredDocuments: program.requiredDocuments,
-      adminFeeDisplay: fees.adminFeeDisplay ?? `${new Prisma.Decimal(fees.adminFeePercent).toString()}%`,
+      adminFeeDisplay:
+        fees.adminFeeDisplay ?? `${new Prisma.Decimal(fees.adminFeePercent).toString()}%`,
       lifeInsuranceMandatory: fees.lifeInsuranceMandatory,
       stampDutyDisplay: `${new Prisma.Decimal(fees.stampDutyPercent).toString()}%`,
       acceptedEmploymentTypes: eligibility.acceptedEmploymentTypes,

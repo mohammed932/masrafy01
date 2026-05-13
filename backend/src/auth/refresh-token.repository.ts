@@ -15,10 +15,7 @@ export interface IssueRefreshTokenInput {
 export class RefreshTokenRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async issue(
-    input: IssueRefreshTokenInput,
-    tx?: Prisma.TransactionClient,
-  ): Promise<RefreshToken> {
+  async issue(input: IssueRefreshTokenInput, tx?: Prisma.TransactionClient): Promise<RefreshToken> {
     const client = tx ?? this.prisma;
     return client.refreshToken.create({
       data: {
@@ -41,10 +38,7 @@ export class RefreshTokenRepository {
    * so a concurrent rotation of the same token fails one of the two requests
    * (UNIQUE on tokenHash + the revokedAt guard combine to enforce this).
    */
-  async rotate(args: {
-    oldId: string;
-    next: IssueRefreshTokenInput;
-  }): Promise<RefreshToken> {
+  async rotate(args: { oldId: string; next: IssueRefreshTokenInput }): Promise<RefreshToken> {
     return this.prisma.$transaction(async (tx) => {
       const inserted = await tx.refreshToken.create({
         data: {

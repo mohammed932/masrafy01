@@ -7,7 +7,6 @@ import type { Routes } from '@angular/router';
 export const SCORING_ANALYTICS_ROUTES: Routes = [
   {
     path: '',
-    loadComponent: () =>
-      import('./scoring-analytics.page').then((m) => m.ScoringAnalyticsPage),
+    loadComponent: () => import('./scoring-analytics.page').then((m) => m.ScoringAnalyticsPage),
   },
 ];

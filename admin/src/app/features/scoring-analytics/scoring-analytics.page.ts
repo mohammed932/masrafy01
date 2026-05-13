@@ -11,7 +11,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ErrorCodeService } from '@core/errors/error-code.service';
-import { ScoringAnalyticsApiService, type ScoringAnalyticsData } from './scoring-analytics.api.service';
+import {
+  ScoringAnalyticsApiService,
+  type ScoringAnalyticsData,
+} from './scoring-analytics.api.service';
 import { ScoreDistributionHistogramComponent } from './components/score-distribution-histogram.component';
 import { TierAccuracyTableComponent } from './components/tier-accuracy-table.component';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -34,8 +37,8 @@ const WINDOW_PRESETS = [7, 30, 90, 180] as const;
       <header class="page-header">
         <h1 class="title" i18n="@@analytics.title">Scoring analytics</h1>
         <p class="subtitle" i18n="@@analytics.subtitle">
-          Distribution of approval scores over a chosen window plus per-tier accuracy
-          against recorded bank decisions.
+          Distribution of approval scores over a chosen window plus per-tier accuracy against
+          recorded bank decisions.
         </p>
       </header>
 
@@ -63,7 +66,8 @@ const WINDOW_PRESETS = [7, 30, 90, 180] as const;
           <h3 i18n="@@analytics.error.title">Out of OLTP range</h3>
           <p>{{ msg }}</p>
         </div>
-      } @else if (data(); as d) {
+      } @else if (data()) {
+        @let d = data()!;
         <section class="block">
           <h2 i18n="@@analytics.dist.title">Distribution</h2>
           <app-score-distribution-histogram [buckets]="d.distribution" />
@@ -184,7 +188,9 @@ export class ScoringAnalyticsPage implements OnInit {
       if (err instanceof HttpErrorResponse && err.status === 400) {
         const code = (err.error as { code?: string } | undefined)?.code;
         if (code === 'ANALYTICS_WINDOW_TOO_LARGE') {
-          this.errorMessage.set(this.errorCodes.toLocalizedMessage('ANALYTICS_WINDOW_TOO_LARGE', { maxDays: 180 }));
+          this.errorMessage.set(
+            this.errorCodes.toLocalizedMessage('ANALYTICS_WINDOW_TOO_LARGE', { maxDays: 180 }),
+          );
           this.data.set(null);
           return;
         }

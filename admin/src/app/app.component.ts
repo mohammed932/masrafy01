@@ -44,11 +44,7 @@ import { AuthService } from './core/auth/auth.service';
         padding-block: var(--space-6);
         padding-inline: var(--space-6);
         background:
-          radial-gradient(
-            circle at 0% 0%,
-            rgba(6, 21, 45, 0.03) 0%,
-            transparent 40%
-          ),
+          radial-gradient(circle at 0% 0%, rgba(6, 21, 45, 0.03) 0%, transparent 40%),
           var(--color-surface-elevated);
       }
       .content::-webkit-scrollbar {

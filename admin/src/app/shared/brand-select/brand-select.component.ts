@@ -66,7 +66,13 @@ export interface BrandSelectOption {
           aria-hidden="true"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          <path
+            d="M1 1l4 4 4-4"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
         </svg>
       </button>
 
@@ -84,10 +90,21 @@ export interface BrandSelectOption {
               (mouseenter)="activeIndex.set(i)"
             >
               @if (multiple) {
-                <span class="bs-checkbox" [class.bs-checkbox-on]="isSelected(opt.value)" aria-hidden="true">
+                <span
+                  class="bs-checkbox"
+                  [class.bs-checkbox-on]="isSelected(opt.value)"
+                  aria-hidden="true"
+                >
                   @if (isSelected(opt.value)) {
                     <svg width="12" height="12" viewBox="0 0 14 14">
-                      <path d="M2 7l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                      <path
+                        d="M2 7l3 3 7-7"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
                     </svg>
                   }
                 </span>
@@ -98,7 +115,14 @@ export interface BrandSelectOption {
               }
               @if (!multiple && isSelected(opt.value)) {
                 <svg class="bs-check" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-                  <path d="M2 7l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                  <path
+                    d="M2 7l3 3 7-7"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
                 </svg>
               }
             </li>
@@ -146,7 +170,9 @@ export interface BrandSelectOption {
         text-align: start;
         cursor: pointer;
         position: relative;
-        transition: border-color 120ms cubic-bezier(0.2, 0, 0, 1), box-shadow 120ms cubic-bezier(0.2, 0, 0, 1);
+        transition:
+          border-color 120ms cubic-bezier(0.2, 0, 0, 1),
+          box-shadow 120ms cubic-bezier(0.2, 0, 0, 1);
       }
       [dir='rtl'] .bs-trigger {
         padding-inline: 36px 14px;
@@ -198,7 +224,8 @@ export interface BrandSelectOption {
         padding: 6px;
         list-style: none;
         background: var(--color-surface-default);
-        border: 1px solid color-mix(in srgb, var(--color-tonal-accent) 20%, var(--color-border-default));
+        border: 1px solid
+          color-mix(in srgb, var(--color-tonal-accent) 20%, var(--color-border-default));
         border-radius: 10px;
         box-shadow:
           0 1px 0 rgba(6, 21, 45, 0.02),
@@ -276,7 +303,9 @@ export interface BrandSelectOption {
         border: 1.5px solid var(--color-border-strong);
         background: var(--color-surface-default);
         color: transparent;
-        transition: background 80ms cubic-bezier(0.2, 0, 0, 1), border-color 80ms cubic-bezier(0.2, 0, 0, 1);
+        transition:
+          background 80ms cubic-bezier(0.2, 0, 0, 1),
+          border-color 80ms cubic-bezier(0.2, 0, 0, 1);
       }
       .bs-checkbox-on {
         background: var(--color-tonal-accent);

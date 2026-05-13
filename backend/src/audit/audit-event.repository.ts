@@ -16,10 +16,7 @@ export interface CreateAuditInput {
 export class AuditEventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    input: CreateAuditInput,
-    tx?: Prisma.TransactionClient,
-  ): Promise<AuditEvent> {
+  async create(input: CreateAuditInput, tx?: Prisma.TransactionClient): Promise<AuditEvent> {
     const client = tx ?? this.prisma;
     return client.auditEvent.create({
       data: {

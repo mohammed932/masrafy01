@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { CorrelationIdMiddleware } from '@/common/middleware/correlation-id.middleware';
 import { HttpExceptionFilter } from '@/common/errors/http-exception.filter';
@@ -14,6 +15,9 @@ import { ApplicationsModule } from '@/applications/applications.module';
 import { ScoringVersionsModule } from '@/scoring-versions/scoring-versions.module';
 import { ScoringAnalyticsModule } from '@/scoring-analytics/scoring-analytics.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
+import { ActivitiesModule } from '@/activities/activities.module';
+import { DocumentsModule } from '@/documents/documents.module';
+import { LeadAnalyticsModule } from '@/lead-analytics/lead-analytics.module';
 import { loadEnv } from '@/infra/env/env.schema';
 import { pinoOptions } from '@/common/pino/pino.config';
 
@@ -24,6 +28,7 @@ import { pinoOptions } from '@/common/pino/pino.config';
       cache: true,
       validate: (raw) => loadEnv(raw as NodeJS.ProcessEnv),
     }),
+    ScheduleModule.forRoot(),
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) =>
@@ -42,6 +47,9 @@ import { pinoOptions } from '@/common/pino/pino.config';
     ScoringVersionsModule,
     ScoringAnalyticsModule,
     ApplicationsModule,
+    ActivitiesModule,
+    DocumentsModule,
+    LeadAnalyticsModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

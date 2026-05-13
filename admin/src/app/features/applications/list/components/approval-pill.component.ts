@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 export type ApprovalTier = 'excellent' | 'good' | 'moderate' | 'low' | 'very_low';
@@ -94,10 +94,9 @@ export interface BestOfferSummary {
 export class ApprovalPillComponent {
   readonly bestOffer = input<BestOfferSummary | null>(null);
 
-  protected readonly ariaLabel = computed(
-    () => (score: number, tier: ApprovalTier) =>
-      $localize`:@@approval.pill.aria:Approval probability ${score}% — ${this.tierLabel(tier)}`,
-  );
+  protected ariaLabel(score: number, tier: ApprovalTier): string {
+    return `${$localize`:@@approval.pill.score:Approval probability`} ${score}% — ${this.tierLabel(tier)}`;
+  }
 
   protected tierLabel(tier: ApprovalTier): string {
     switch (tier) {

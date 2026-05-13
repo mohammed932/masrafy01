@@ -7,11 +7,7 @@
  * precision through HTTP → DTO → Prisma.Decimal without floating-point coercion.
  */
 import { Prisma } from '@prisma/client';
-import {
-  ValidationOptions,
-  registerDecorator,
-  ValidationArguments,
-} from 'class-validator';
+import { ValidationOptions, registerDecorator, ValidationArguments } from 'class-validator';
 
 export interface IsDecimalStringOptions {
   min?: number | string;

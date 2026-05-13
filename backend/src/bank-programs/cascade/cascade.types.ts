@@ -38,7 +38,9 @@ export const PRICING_CASCADE_ORDER = [
   'rateByEmploymentType',
 ] as const;
 
-export type PricingCascadeLevel = (typeof PRICING_CASCADE_ORDER)[number] | 'baseOrCurrentEffectiveRate';
+export type PricingCascadeLevel =
+  | (typeof PRICING_CASCADE_ORDER)[number]
+  | 'baseOrCurrentEffectiveRate';
 
 export const LOAN_LIMIT_CASCADE_ORDER = [
   'maxByCDTier',

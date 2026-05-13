@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  input,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ScoringVersionsApiService,
@@ -60,7 +53,9 @@ interface RenderedFactor {
                       <span class="factor-label">{{ f.label }}</span>
                       @if (f.deprecated) {
                         <span class="deprecated-badge" [attr.title]="deprecatedTitle()">
-                          <ng-container i18n="@@applications.detail.deprecatedBadge">Deprecated</ng-container>
+                          <ng-container i18n="@@applications.detail.deprecatedBadge"
+                            >Deprecated</ng-container
+                          >
                         </span>
                       }
                       <span class="impact">+{{ f.impact }}</span>
@@ -79,7 +74,9 @@ interface RenderedFactor {
                       <span class="factor-label">{{ f.label }}</span>
                       @if (f.deprecated) {
                         <span class="deprecated-badge" [attr.title]="deprecatedTitle()">
-                          <ng-container i18n="@@applications.detail.deprecatedBadge">Deprecated</ng-container>
+                          <ng-container i18n="@@applications.detail.deprecatedBadge"
+                            >Deprecated</ng-container
+                          >
                         </span>
                       }
                       <span class="impact">{{ f.impact }}</span>
@@ -267,10 +264,7 @@ export class WhyThisScorePanelComponent {
     this.negative.set(p.factors.negative.map(renderRow));
   }
 
-  private resolveLabel(
-    code: string,
-    catalog: Record<string, FactorCatalogEntry>,
-  ): string {
+  private resolveLabel(code: string, catalog: Record<string, FactorCatalogEntry>): string {
     const entry = catalog[code];
     if (!entry) return code;
     // Trust the document `dir` attribute (set by @angular/localize at boot per locale).

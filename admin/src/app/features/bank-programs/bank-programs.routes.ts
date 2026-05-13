@@ -14,13 +14,11 @@ export const BANK_PROGRAMS_ROUTES: Routes = [
   },
   {
     path: 'new',
-    loadComponent: () =>
-      import('./form/bank-program-form.page').then((m) => m.BankProgramFormPage),
+    loadComponent: () => import('./form/bank-program-form.page').then((m) => m.BankProgramFormPage),
   },
   {
     path: ':programCode/edit',
-    loadComponent: () =>
-      import('./form/bank-program-form.page').then((m) => m.BankProgramFormPage),
+    loadComponent: () => import('./form/bank-program-form.page').then((m) => m.BankProgramFormPage),
   },
   {
     path: ':programCode',

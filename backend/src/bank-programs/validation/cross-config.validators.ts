@@ -145,7 +145,15 @@ export function validateDerivationArithmetic(
   pricing: PricingConfigDto,
 ): DerivationMismatch | undefined {
   for (const mapKey of DERIVATION_BEARING_TIER_MAPS) {
-    const map = pricing[mapKey] as Record<string, { value: string; derivation?: { sourceRatePercent: string; deltaPercent: string; reason: string } }> | undefined;
+    const map = pricing[mapKey] as
+      | Record<
+          string,
+          {
+            value: string;
+            derivation?: { sourceRatePercent: string; deltaPercent: string; reason: string };
+          }
+        >
+      | undefined;
     if (!map) {
       continue;
     }

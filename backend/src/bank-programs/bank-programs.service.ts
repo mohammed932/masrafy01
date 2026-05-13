@@ -94,7 +94,8 @@ export class BankProgramsService {
           loanLimits: dto.loanLimits as unknown as PrismaNs.InputJsonValue,
           pricing: dto.pricing as unknown as PrismaNs.InputJsonValue,
           eligibility: dto.eligibility as unknown as PrismaNs.InputJsonValue,
-          performanceCriteria: (dto.performanceCriteria ?? null) as unknown as PrismaNs.InputJsonValue,
+          performanceCriteria: (dto.performanceCriteria ??
+            null) as unknown as PrismaNs.InputJsonValue,
           incomeAssumption: dto.incomeAssumption as unknown as PrismaNs.InputJsonValue,
           fees: dto.fees as unknown as PrismaNs.InputJsonValue,
           createdBy: actor.id,
@@ -130,7 +131,9 @@ export class BankProgramsService {
 
   // --- Cross-config + registry validation ---------------------------------
 
-  private async runCrossConfigChecks(dto: CreateBankProgramDto | UpdateBankProgramDto): Promise<void> {
+  private async runCrossConfigChecks(
+    dto: CreateBankProgramDto | UpdateBankProgramDto,
+  ): Promise<void> {
     // FR-011a — variable-rate consistency.
     const { isVariableRate, baseRatePercent, currentEffectiveRatePercent } = dto.pricing;
     if (isVariableRate) {
@@ -267,7 +270,11 @@ export class BankProgramsService {
     const enriched = await Promise.all(
       rows.map(async (r) => {
         const deprecatedKeyCount = await this.countDeprecatedKeys(r);
-        const pricing = r.pricing as { isVariableRate?: boolean; baseRatePercent?: string; currentEffectiveRatePercent?: string };
+        const pricing = r.pricing as {
+          isVariableRate?: boolean;
+          baseRatePercent?: string;
+          currentEffectiveRatePercent?: string;
+        };
         return {
           id: r.id,
           programCode: r.programCode,
@@ -334,12 +341,14 @@ export class BankProgramsService {
           currencies: dto.currencies as Prisma.BankProgramUpdateInput['currencies'],
           operatorNotes: dto.operatorNotes ?? null,
           operatorTips: (dto.operatorTips ?? []) as Prisma.BankProgramUpdateInput['operatorTips'],
-          requiredDocuments: (dto.requiredDocuments ?? []) as Prisma.BankProgramUpdateInput['requiredDocuments'],
+          requiredDocuments: (dto.requiredDocuments ??
+            []) as Prisma.BankProgramUpdateInput['requiredDocuments'],
           tenor: dto.tenor as unknown as PrismaNs.InputJsonValue,
           loanLimits: dto.loanLimits as unknown as PrismaNs.InputJsonValue,
           pricing: dto.pricing as unknown as PrismaNs.InputJsonValue,
           eligibility: dto.eligibility as unknown as PrismaNs.InputJsonValue,
-          performanceCriteria: (dto.performanceCriteria ?? null) as unknown as PrismaNs.InputJsonValue,
+          performanceCriteria: (dto.performanceCriteria ??
+            null) as unknown as PrismaNs.InputJsonValue,
           incomeAssumption: dto.incomeAssumption as unknown as PrismaNs.InputJsonValue,
           fees: dto.fees as unknown as PrismaNs.InputJsonValue,
         },
@@ -362,14 +371,25 @@ export class BankProgramsService {
           eventType: 'BANK_PROGRAM_UPDATED',
           sourceIp: actor.sourceIp,
           correlationId: actor.correlationId,
-          payload: { programCode: next.programCode, diff: diff as unknown as Prisma.JsonArray } as unknown as Prisma.JsonObject,
+          payload: {
+            programCode: next.programCode,
+            diff: diff as unknown as Prisma.JsonArray,
+          } as unknown as Prisma.JsonObject,
         },
         tx,
       );
 
       // Rate-update sister event (FR-031).
-      const beforePricing = before.pricing as { baseRatePercent?: string; currentEffectiveRatePercent?: string; isVariableRate?: boolean } | null;
-      const afterPricing = next.pricing as { baseRatePercent?: string; currentEffectiveRatePercent?: string; isVariableRate?: boolean };
+      const beforePricing = before.pricing as {
+        baseRatePercent?: string;
+        currentEffectiveRatePercent?: string;
+        isVariableRate?: boolean;
+      } | null;
+      const afterPricing = next.pricing as {
+        baseRatePercent?: string;
+        currentEffectiveRatePercent?: string;
+        isVariableRate?: boolean;
+      };
       const beforeRate = beforePricing?.isVariableRate
         ? beforePricing?.currentEffectiveRatePercent
         : beforePricing?.baseRatePercent;
@@ -481,7 +501,8 @@ export class BankProgramsService {
           loanLimits: source.loanLimits as PrismaNs.InputJsonValue,
           pricing: source.pricing as PrismaNs.InputJsonValue,
           eligibility: source.eligibility as PrismaNs.InputJsonValue,
-          performanceCriteria: (source.performanceCriteria ?? PrismaNs.JsonNull) as PrismaNs.InputJsonValue,
+          performanceCriteria: (source.performanceCriteria ??
+            PrismaNs.JsonNull) as PrismaNs.InputJsonValue,
           incomeAssumption: source.incomeAssumption as PrismaNs.InputJsonValue,
           fees: source.fees as PrismaNs.InputJsonValue,
           createdBy: actor.id,
@@ -558,32 +579,55 @@ export class BankProgramsService {
     program: Awaited<ReturnType<BankProgramRepository['create']>>,
   ): Promise<DeprecatedKeyDescriptor[]> {
     const found: DeprecatedKeyDescriptor[] = [];
-    const checks: Array<{ fieldPath: string; key: string; type: Parameters<PlatformEnumerationsRepository['isDeprecatedMember']>[0] }> = [];
+    const checks: Array<{
+      fieldPath: string;
+      key: string;
+      type: Parameters<PlatformEnumerationsRepository['isDeprecatedMember']>[0];
+    }> = [];
 
-    const tenor = program.tenor as { maxMonthsBySalaryCategory?: Record<string, number>; maxMonthsByEmploymentType?: Record<string, number> } | null;
+    const tenor = program.tenor as {
+      maxMonthsBySalaryCategory?: Record<string, number>;
+      maxMonthsByEmploymentType?: Record<string, number>;
+    } | null;
     if (tenor?.maxMonthsBySalaryCategory) {
       for (const k of Object.keys(tenor.maxMonthsBySalaryCategory)) {
-        checks.push({ fieldPath: `tenor.maxMonthsBySalaryCategory.${k}`, key: k, type: 'salary_category' });
+        checks.push({
+          fieldPath: `tenor.maxMonthsBySalaryCategory.${k}`,
+          key: k,
+          type: 'salary_category',
+        });
       }
     }
     if (tenor?.maxMonthsByEmploymentType) {
       for (const k of Object.keys(tenor.maxMonthsByEmploymentType)) {
-        checks.push({ fieldPath: `tenor.maxMonthsByEmploymentType.${k}`, key: k, type: 'employment_type' });
+        checks.push({
+          fieldPath: `tenor.maxMonthsByEmploymentType.${k}`,
+          key: k,
+          type: 'employment_type',
+        });
       }
     }
 
     const ll = program.loanLimits as Record<string, unknown> | null;
     if (ll && typeof ll === 'object') {
-      for (const dim of ['maxByPropertyType', 'maxByCityTier', 'maxByTransferType', 'maxBySalaryCategory', 'maxByEmploymentType'] as const) {
+      for (const dim of [
+        'maxByPropertyType',
+        'maxByCityTier',
+        'maxByTransferType',
+        'maxBySalaryCategory',
+        'maxByEmploymentType',
+      ] as const) {
         const map = ll[dim] as Record<string, string> | undefined;
         if (!map) continue;
-        const type = ({
-          maxByPropertyType: 'property_type',
-          maxByCityTier: 'city_tier',
-          maxByTransferType: 'transfer_type',
-          maxBySalaryCategory: 'salary_category',
-          maxByEmploymentType: 'employment_type',
-        } as const)[dim];
+        const type = (
+          {
+            maxByPropertyType: 'property_type',
+            maxByCityTier: 'city_tier',
+            maxByTransferType: 'transfer_type',
+            maxBySalaryCategory: 'salary_category',
+            maxByEmploymentType: 'employment_type',
+          } as const
+        )[dim];
         for (const k of Object.keys(map)) {
           checks.push({ fieldPath: `loanLimits.${dim}.${k}`, key: k, type });
         }

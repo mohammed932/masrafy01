@@ -50,15 +50,24 @@ import type { BankProgramResponse } from '../bank-programs.types';
         </a>
         <div class="title-row">
           <h1 class="page-title">{{ program()!.programCode }}</h1>
-          <span class="status-chip" [class.active]="program()!.active" [class.inactive]="!program()!.active">
+          <span
+            class="status-chip"
+            [class.active]="program()!.active"
+            [class.inactive]="!program()!.active"
+          >
             {{ program()!.active ? activeLabel() : inactiveLabel() }}
           </span>
         </div>
         <p class="page-subtitle">
-          {{ program()!.friendlyName }} · {{ program()!.bankName }} · {{ program()!.productCategory }} · v{{ program()!.version }}
+          {{ program()!.friendlyName }} · {{ program()!.bankName }} ·
+          {{ program()!.productCategory }} · v{{ program()!.version }}
         </p>
         <div class="actions">
-          <a *can="['super_admin', 'sales_manager']" mat-stroked-button [routerLink]="['/bank-programs', program()!.programCode, 'edit']">
+          <a
+            *can="['super_admin', 'sales_manager']"
+            mat-stroked-button
+            [routerLink]="['/bank-programs', program()!.programCode, 'edit']"
+          >
             <mat-icon>edit</mat-icon> <span i18n="@@bank_programs.action.edit">Edit</span>
           </a>
           <button *can="['super_admin', 'sales_manager']" mat-stroked-button (click)="openClone()">
@@ -73,7 +82,8 @@ import type { BankProgramResponse } from '../bank-programs.types';
       <div *ngIf="program()!.deprecatedKeys.length > 0" class="deprecated-banner">
         <mat-icon aria-hidden="true">warning</mat-icon>
         <span i18n="@@bank_programs.detail.deprecated_banner">
-          {{ program()!.deprecatedKeys.length }} tier key(s) have been deprecated in the registry — review.
+          {{ program()!.deprecatedKeys.length }} tier key(s) have been deprecated in the registry —
+          review.
         </span>
       </div>
 
@@ -82,28 +92,38 @@ import type { BankProgramResponse } from '../bank-programs.types';
           <section class="card">
             <h3 class="card-title" i18n="@@bank_programs.section.identity">Identity</h3>
             <dl class="kv">
-              <dt i18n="@@bank_programs.field.bank_name">Bank</dt><dd>{{ program()!.bankName }}</dd>
-              <dt i18n="@@bank_programs.field.friendly_name">Friendly name</dt><dd>{{ program()!.friendlyName }}</dd>
-              <dt i18n="@@bank_programs.field.friendly_name_ar">Arabic name</dt><dd dir="rtl">{{ program()!.friendlyNameAr ?? '—' }}</dd>
-              <dt i18n="@@bank_programs.field.program_type">Type</dt><dd>{{ program()!.programType }}</dd>
-              <dt i18n="@@bank_programs.field.product_category">Category</dt><dd>{{ program()!.productCategory }}</dd>
-              <dt i18n="@@bank_programs.field.currencies">Currencies</dt><dd>{{ program()!.currencies.join(', ') }}</dd>
+              <dt i18n="@@bank_programs.field.bank_name">Bank</dt>
+              <dd>{{ program()!.bankName }}</dd>
+              <dt i18n="@@bank_programs.field.friendly_name">Friendly name</dt>
+              <dd>{{ program()!.friendlyName }}</dd>
+              <dt i18n="@@bank_programs.field.friendly_name_ar">Arabic name</dt>
+              <dd dir="rtl">{{ program()!.friendlyNameAr ?? '—' }}</dd>
+              <dt i18n="@@bank_programs.field.program_type">Type</dt>
+              <dd>{{ program()!.programType }}</dd>
+              <dt i18n="@@bank_programs.field.product_category">Category</dt>
+              <dd>{{ program()!.productCategory }}</dd>
+              <dt i18n="@@bank_programs.field.currencies">Currencies</dt>
+              <dd>{{ program()!.currencies.join(', ') }}</dd>
             </dl>
           </section>
 
           <section class="card">
             <h3 class="card-title" i18n="@@bank_programs.section.tenor">Tenor</h3>
             <dl class="kv">
-              <dt i18n="@@bank_programs.field.min_months">Min months</dt><dd class="numeric">{{ program()!.tenor.minMonths }}</dd>
-              <dt i18n="@@bank_programs.field.max_months">Max months</dt><dd class="numeric">{{ program()!.tenor.maxMonths }}</dd>
+              <dt i18n="@@bank_programs.field.min_months">Min months</dt>
+              <dd class="numeric">{{ program()!.tenor.minMonths }}</dd>
+              <dt i18n="@@bank_programs.field.max_months">Max months</dt>
+              <dd class="numeric">{{ program()!.tenor.maxMonths }}</dd>
             </dl>
           </section>
 
           <section class="card">
             <h3 class="card-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h3>
             <dl class="kv">
-              <dt>EGP min</dt><dd class="numeric">{{ program()!.loanLimits.perCurrency['EGP']?.minAmount }}</dd>
-              <dt>EGP max</dt><dd class="numeric">{{ program()!.loanLimits.perCurrency['EGP']?.maxAmount }}</dd>
+              <dt>EGP min</dt>
+              <dd class="numeric">{{ program()!.loanLimits.perCurrency['EGP']?.minAmount }}</dd>
+              <dt>EGP max</dt>
+              <dd class="numeric">{{ program()!.loanLimits.perCurrency['EGP']?.maxAmount }}</dd>
               <ng-container *ngIf="program()!.loanLimits.qualitativeReviewMaxEGP as qr">
                 <dt i18n="@@bank_programs.detail.qr_max">Uplift ceiling (qualitative review)</dt>
                 <dd class="numeric">{{ qr }}</dd>
@@ -116,10 +136,21 @@ import type { BankProgramResponse } from '../bank-programs.types';
             <dl class="kv">
               <dt i18n="@@bank_programs.field.is_variable_rate">Variable rate</dt>
               <dd>{{ program()!.pricing.isVariableRate ? 'Yes' : 'No' }}</dd>
-              <dt *ngIf="!program()!.pricing.isVariableRate" i18n="@@bank_programs.field.base_rate">Base rate</dt>
-              <dd *ngIf="!program()!.pricing.isVariableRate" class="numeric">{{ program()!.pricing.baseRatePercent }}%</dd>
-              <dt *ngIf="program()!.pricing.isVariableRate" i18n="@@bank_programs.field.current_effective_rate">Current effective rate</dt>
-              <dd *ngIf="program()!.pricing.isVariableRate" class="numeric">{{ program()!.pricing.currentEffectiveRatePercent }}%</dd>
+              <dt *ngIf="!program()!.pricing.isVariableRate" i18n="@@bank_programs.field.base_rate">
+                Base rate
+              </dt>
+              <dd *ngIf="!program()!.pricing.isVariableRate" class="numeric">
+                {{ program()!.pricing.baseRatePercent }}%
+              </dd>
+              <dt
+                *ngIf="program()!.pricing.isVariableRate"
+                i18n="@@bank_programs.field.current_effective_rate"
+              >
+                Current effective rate
+              </dt>
+              <dd *ngIf="program()!.pricing.isVariableRate" class="numeric">
+                {{ program()!.pricing.currentEffectiveRatePercent }}%
+              </dd>
               <ng-container *ngIf="program()!.pricing.variableRateNote">
                 <dt i18n="@@bank_programs.field.variable_rate_note">Disclosure note</dt>
                 <dd>{{ program()!.pricing.variableRateNote }}</dd>
@@ -135,17 +166,31 @@ import type { BankProgramResponse } from '../bank-programs.types';
               <dt i18n="@@bank_programs.field.accepted_loan_purposes">Purposes</dt>
               <dd>{{ program()!.eligibility.acceptedLoanPurposes.join(', ') }}</dd>
               <dt i18n="@@bank_programs.field.age_min">Age</dt>
-              <dd class="numeric">{{ program()!.eligibility.ageMin }}–{{ program()!.eligibility.ageMax }}</dd>
+              <dd class="numeric">
+                {{ program()!.eligibility.ageMin }}–{{ program()!.eligibility.ageMax }}
+              </dd>
               <dt i18n="@@bank_programs.field.min_monthly_income_egp">Min income (EGP)</dt>
               <dd class="numeric">{{ program()!.eligibility.minMonthlyIncomeEGP }}</dd>
               <dt i18n="@@bank_programs.field.dbr_cap">DBR cap</dt>
               <dd class="numeric">{{ program()!.eligibility.dbrCapPercent }}%</dd>
-              <dt *ngIf="program()!.eligibility.requiresNoDocuments" i18n="@@bank_programs.flag.requires_no_docs">No-documents lending tier</dt>
+              <dt
+                *ngIf="program()!.eligibility.requiresNoDocuments"
+                i18n="@@bank_programs.flag.requires_no_docs"
+              >
+                No-documents lending tier
+              </dt>
               <dd *ngIf="program()!.eligibility.requiresNoDocuments">Yes</dd>
-              <dt *ngIf="program()!.eligibility.requiresQualitativeReview" i18n="@@bank_programs.flag.requires_qr">Qualitative review</dt>
+              <dt
+                *ngIf="program()!.eligibility.requiresQualitativeReview"
+                i18n="@@bank_programs.flag.requires_qr"
+              >
+                Qualitative review
+              </dt>
               <dd *ngIf="program()!.eligibility.requiresQualitativeReview">Yes</dd>
               <ng-container *ngIf="program()!.eligibility.minBankStatementBalanceEGP">
-                <dt i18n="@@bank_programs.field.min_bank_statement_balance">Wealth gate · bank balance</dt>
+                <dt i18n="@@bank_programs.field.min_bank_statement_balance">
+                  Wealth gate · bank balance
+                </dt>
                 <dd class="numeric">{{ program()!.eligibility.minBankStatementBalanceEGP }}</dd>
               </ng-container>
               <ng-container *ngIf="program()!.eligibility.minAssetsValueEGP">
@@ -158,16 +203,25 @@ import type { BankProgramResponse } from '../bank-programs.types';
           <section class="card">
             <h3 class="card-title" i18n="@@bank_programs.section.fees">Fees</h3>
             <dl class="kv">
-              <dt i18n="@@bank_programs.field.admin_fee">Admin fee</dt><dd class="numeric">{{ program()!.fees.adminFeePercent }}%</dd>
-              <dt i18n="@@bank_programs.field.stamp_duty">Stamp duty</dt><dd class="numeric">{{ program()!.fees.stampDutyPercent }}%</dd>
+              <dt i18n="@@bank_programs.field.admin_fee">Admin fee</dt>
+              <dd class="numeric">{{ program()!.fees.adminFeePercent }}%</dd>
+              <dt i18n="@@bank_programs.field.stamp_duty">Stamp duty</dt>
+              <dd class="numeric">{{ program()!.fees.stampDutyPercent }}%</dd>
               <dt i18n="@@bank_programs.field.life_insurance_pct">Life insurance</dt>
-              <dd class="numeric">{{ program()!.fees.lifeInsurancePercent }}%{{ program()!.fees.lifeInsuranceMandatory ? ' (mandatory)' : '' }}</dd>
+              <dd class="numeric">
+                {{ program()!.fees.lifeInsurancePercent }}%{{
+                  program()!.fees.lifeInsuranceMandatory ? ' (mandatory)' : ''
+                }}
+              </dd>
             </dl>
           </section>
         </div>
 
         <aside class="rail">
-          <app-cascade-preview [program]="program()!" [context]="whatIfContext()"></app-cascade-preview>
+          <app-cascade-preview
+            [program]="program()!"
+            [context]="whatIfContext()"
+          ></app-cascade-preview>
 
           <section class="card whatif">
             <h3 class="card-title" i18n="@@bank_programs.detail.whatif">Try a sample applicant</h3>
@@ -196,11 +250,21 @@ import type { BankProgramResponse } from '../bank-programs.types';
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label i18n="@@bank_programs.detail.down_payment_pct">Down payment %</mat-label>
-              <input matInput type="number" [(ngModel)]="ctxDownPayment" (ngModelChange)="recompute()" />
+              <input
+                matInput
+                type="number"
+                [(ngModel)]="ctxDownPayment"
+                (ngModelChange)="recompute()"
+              />
             </mat-form-field>
             <mat-form-field appearance="outline">
               <mat-label i18n="@@bank_programs.detail.asset_value">Asset value (EGP)</mat-label>
-              <input matInput type="number" [(ngModel)]="ctxAssetValue" (ngModelChange)="recompute()" />
+              <input
+                matInput
+                type="number"
+                [(ngModel)]="ctxAssetValue"
+                (ngModelChange)="recompute()"
+              />
             </mat-form-field>
           </section>
         </aside>
@@ -219,15 +283,53 @@ import type { BankProgramResponse } from '../bank-programs.types';
         max-width: var(--content-max-width);
         margin-inline: auto;
       }
-      .back-link { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-text-secondary); text-decoration: none; font-size: var(--text-sm); margin-block-end: var(--space-2); }
-      .back-link:hover { color: var(--color-text-link); }
-      .title-row { display: flex; align-items: center; gap: var(--space-3); }
-      .page-title { font-size: var(--text-2xl); font-weight: var(--font-weight-semibold); margin: 0; color: var(--color-text-primary); font-feature-settings: 'tnum'; }
-      .page-subtitle { color: var(--color-text-secondary); margin: var(--space-1) 0 var(--space-3); }
-      .actions { display: flex; gap: var(--space-2); margin-block-end: var(--space-4); }
-      .status-chip { display: inline-block; padding: 2px 8px; border-radius: var(--radius-sm); font-size: var(--text-xs); }
-      .status-chip.active { background: #ecfdf5; color: #047857; }
-      .status-chip.inactive { background: #f1f5f9; color: var(--color-text-tertiary); }
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        color: var(--color-text-secondary);
+        text-decoration: none;
+        font-size: var(--text-sm);
+        margin-block-end: var(--space-2);
+      }
+      .back-link:hover {
+        color: var(--color-text-link);
+      }
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .page-title {
+        font-size: var(--text-2xl);
+        font-weight: var(--font-weight-semibold);
+        margin: 0;
+        color: var(--color-text-primary);
+        font-feature-settings: 'tnum';
+      }
+      .page-subtitle {
+        color: var(--color-text-secondary);
+        margin: var(--space-1) 0 var(--space-3);
+      }
+      .actions {
+        display: flex;
+        gap: var(--space-2);
+        margin-block-end: var(--space-4);
+      }
+      .status-chip {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: var(--radius-sm);
+        font-size: var(--text-xs);
+      }
+      .status-chip.active {
+        background: #ecfdf5;
+        color: #047857;
+      }
+      .status-chip.inactive {
+        background: #f1f5f9;
+        color: var(--color-text-tertiary);
+      }
       .deprecated-banner {
         display: flex;
         align-items: center;
@@ -245,27 +347,54 @@ import type { BankProgramResponse } from '../bank-programs.types';
         gap: var(--space-5);
       }
       @media (max-width: 980px) {
-        .layout { grid-template-columns: minmax(0, 1fr); }
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
       }
-      .main, .rail { display: flex; flex-direction: column; gap: var(--space-4); }
+      .main,
+      .rail {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
       .card {
         background: var(--color-surface);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
         padding: var(--space-4);
       }
-      .card-title { font-size: var(--text-md); font-weight: var(--font-weight-semibold); margin: 0 0 var(--space-2); color: var(--color-text-primary); }
+      .card-title {
+        font-size: var(--text-md);
+        font-weight: var(--font-weight-semibold);
+        margin: 0 0 var(--space-2);
+        color: var(--color-text-primary);
+      }
       .kv {
         display: grid;
         grid-template-columns: max-content 1fr;
         gap: var(--space-1) var(--space-3);
         margin: 0;
       }
-      .kv dt { color: var(--color-text-secondary); font-size: var(--text-sm); }
-      .kv dd { margin: 0; color: var(--color-text-primary); font-size: var(--text-sm); }
-      .numeric { font-variant-numeric: tabular-nums lining-nums; }
-      .rail mat-form-field { width: 100%; }
-      .loading { display: flex; justify-content: center; padding: var(--space-8); }
+      .kv dt {
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+      }
+      .kv dd {
+        margin: 0;
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
+      }
+      .numeric {
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .rail mat-form-field {
+        width: 100%;
+      }
+      .loading {
+        display: flex;
+        justify-content: center;
+        padding: var(--space-8);
+      }
     `,
   ],
 })
@@ -275,7 +404,10 @@ export class BankProgramDetailPage {
   private readonly api = inject(BankProgramsApiService);
   private readonly dialog = inject(MatDialog);
 
-  readonly programCode = toSignal(this.route.paramMap.pipe(map((p) => p.get('programCode') ?? '')), { initialValue: '' });
+  readonly programCode = toSignal(
+    this.route.paramMap.pipe(map((p) => p.get('programCode') ?? '')),
+    { initialValue: '' },
+  );
   readonly program = signal<BankProgramResponse | null>(null);
 
   ctxEmployment = 'salaried';

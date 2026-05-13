@@ -1,7 +1,4 @@
-import {
-  HttpInterceptorFn,
-  type HttpRequest,
-} from '@angular/common/http';
+import { HttpInterceptorFn, type HttpRequest } from '@angular/common/http';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

@@ -7,7 +7,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { PlatformEnumerationsService } from '../../../../core/platform-enumerations/platform-enumerations.service';
-import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared/brand-select/brand-select.component';
+import {
+  BrandSelectComponent,
+  type BrandSelectOption,
+} from '../../../../shared/brand-select/brand-select.component';
 
 @Component({
   selector: 'app-eligibility-section',
@@ -76,11 +79,15 @@ import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared
         </mat-form-field>
 
         <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.min_monthly_income_egp">Minimum monthly income (EGP)</mat-label>
+          <mat-label i18n="@@bank_programs.field.min_monthly_income_egp"
+            >Minimum monthly income (EGP)</mat-label
+          >
           <input matInput formControlName="minMonthlyIncomeEGP" inputmode="decimal" />
         </mat-form-field>
         <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.min_months_in_job">Minimum months in job</mat-label>
+          <mat-label i18n="@@bank_programs.field.min_months_in_job"
+            >Minimum months in job</mat-label
+          >
           <input matInput type="number" formControlName="minMonthsInJob" min="0" />
         </mat-form-field>
 
@@ -89,31 +96,81 @@ import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared
           <input matInput formControlName="dbrCapPercent" inputmode="decimal" />
         </mat-form-field>
         <div class="row">
-          <span class="row-label" i18n="@@bank_programs.field.skip_dbr">Skip DBR check (secured loans only)</span>
+          <span class="row-label" i18n="@@bank_programs.field.skip_dbr"
+            >Skip DBR check (secured loans only)</span
+          >
           <mat-slide-toggle formControlName="skipDbrCheck"></mat-slide-toggle>
         </div>
 
         <div class="span-2 flag-grid">
-          <mat-checkbox formControlName="requiresCD" i18n="@@bank_programs.flag.requires_cd">Requires CD</mat-checkbox>
-          <mat-checkbox formControlName="requiresAutoLoanAtABK" i18n="@@bank_programs.flag.requires_auto_abk">Requires auto loan at ABK</mat-checkbox>
-          <mat-checkbox formControlName="requiresAutoLoanAtOtherBank" i18n="@@bank_programs.flag.requires_auto_other">Requires auto loan at another bank</mat-checkbox>
-          <mat-checkbox formControlName="requiresCreditCardAtOtherBank" i18n="@@bank_programs.flag.requires_cc_other">Requires credit card at another bank</mat-checkbox>
-          <mat-checkbox formControlName="requiresCompoundProperty" i18n="@@bank_programs.flag.requires_compound">Requires compound property</mat-checkbox>
-          <mat-checkbox formControlName="requiresCollateral" i18n="@@bank_programs.flag.requires_collateral">Requires collateral</mat-checkbox>
-          <mat-checkbox formControlName="requiresClubMembership" i18n="@@bank_programs.flag.requires_club">Requires club membership</mat-checkbox>
-          <mat-checkbox formControlName="requiresExistingLoan" i18n="@@bank_programs.flag.requires_existing_loan">Requires existing loan (buyout)</mat-checkbox>
-          <mat-checkbox formControlName="requiresFRMUVerification" i18n="@@bank_programs.flag.requires_frmu">Requires FRMU verification</mat-checkbox>
-          <mat-checkbox formControlName="requiresQualitativeReview" i18n="@@bank_programs.flag.requires_qr">Requires qualitative review (unlocks uplift)</mat-checkbox>
-          <mat-checkbox formControlName="requiresNoDocuments" i18n="@@bank_programs.flag.requires_no_docs">No-documents lending tier</mat-checkbox>
+          <mat-checkbox formControlName="requiresCD" i18n="@@bank_programs.flag.requires_cd"
+            >Requires CD</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresAutoLoanAtABK"
+            i18n="@@bank_programs.flag.requires_auto_abk"
+            >Requires auto loan at ABK</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresAutoLoanAtOtherBank"
+            i18n="@@bank_programs.flag.requires_auto_other"
+            >Requires auto loan at another bank</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresCreditCardAtOtherBank"
+            i18n="@@bank_programs.flag.requires_cc_other"
+            >Requires credit card at another bank</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresCompoundProperty"
+            i18n="@@bank_programs.flag.requires_compound"
+            >Requires compound property</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresCollateral"
+            i18n="@@bank_programs.flag.requires_collateral"
+            >Requires collateral</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresClubMembership"
+            i18n="@@bank_programs.flag.requires_club"
+            >Requires club membership</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresExistingLoan"
+            i18n="@@bank_programs.flag.requires_existing_loan"
+            >Requires existing loan (buyout)</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresFRMUVerification"
+            i18n="@@bank_programs.flag.requires_frmu"
+            >Requires FRMU verification</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresQualitativeReview"
+            i18n="@@bank_programs.flag.requires_qr"
+            >Requires qualitative review (unlocks uplift)</mat-checkbox
+          >
+          <mat-checkbox
+            formControlName="requiresNoDocuments"
+            i18n="@@bank_programs.flag.requires_no_docs"
+            >No-documents lending tier</mat-checkbox
+          >
         </div>
 
         <mat-form-field appearance="outline" class="numeric span-2">
-          <mat-label i18n="@@bank_programs.field.min_bank_statement_balance">Wealth gate — minimum bank-statement balance (EGP)</mat-label>
+          <mat-label i18n="@@bank_programs.field.min_bank_statement_balance"
+            >Wealth gate — minimum bank-statement balance (EGP)</mat-label
+          >
           <input matInput formControlName="minBankStatementBalanceEGP" inputmode="decimal" />
-          <mat-hint i18n="@@bank_programs.hint.wealth_and">Combined with the minimum assets gate via AND when both are set.</mat-hint>
+          <mat-hint i18n="@@bank_programs.hint.wealth_and"
+            >Combined with the minimum assets gate via AND when both are set.</mat-hint
+          >
         </mat-form-field>
         <mat-form-field appearance="outline" class="numeric span-2">
-          <mat-label i18n="@@bank_programs.field.min_assets_value">Wealth gate — minimum assets value (EGP)</mat-label>
+          <mat-label i18n="@@bank_programs.field.min_assets_value"
+            >Wealth gate — minimum assets value (EGP)</mat-label
+          >
           <input matInput formControlName="minAssetsValueEGP" inputmode="decimal" />
         </mat-form-field>
       </div>
@@ -154,9 +211,15 @@ export class EligibilitySectionComponent {
     this.transferTypes().map((m) => ({ value: m.key, label: m.labelEn })),
   );
 
-  get currentAcceptedEmployment(): string[] { return this.readArr('acceptedEmploymentTypes'); }
-  get currentLoanPurposes(): string[] { return this.readArr('acceptedLoanPurposes'); }
-  get currentTransferTypes(): string[] { return this.readArr('acceptedTransferTypes'); }
+  get currentAcceptedEmployment(): string[] {
+    return this.readArr('acceptedEmploymentTypes');
+  }
+  get currentLoanPurposes(): string[] {
+    return this.readArr('acceptedLoanPurposes');
+  }
+  get currentTransferTypes(): string[] {
+    return this.readArr('acceptedTransferTypes');
+  }
 
   private readArr(name: string): string[] {
     const arr = this.group?.get(name) as FormArray | null;

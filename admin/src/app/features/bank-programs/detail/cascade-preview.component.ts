@@ -69,7 +69,11 @@ const PRICING_ORDER = [
         <code>{{ result().matchedLevel }}</code>
       </p>
 
-      <div *ngIf="result().derivation as d" class="derivation-chip" [matTooltip]="derivationTooltip(d)">
+      <div
+        *ngIf="result().derivation as d"
+        class="derivation-chip"
+        [matTooltip]="derivationTooltip(d)"
+      >
         <mat-icon aria-hidden="true">info</mat-icon>
         <span>{{ d.sourceRatePercent }}% + {{ d.deltaPercent }}% — {{ d.reason }}</span>
       </div>
@@ -88,16 +92,30 @@ const PRICING_ORDER = [
   `,
   styles: [
     `
-      :host { display: block; }
+      :host {
+        display: block;
+      }
       .cascade {
         background: var(--color-surface);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
         padding: var(--space-4);
       }
-      header { display: flex; align-items: center; gap: var(--space-2); margin-block-end: var(--space-2); }
-      header h3 { font-size: var(--text-md); font-weight: var(--font-weight-semibold); margin: 0; color: var(--color-text-primary); }
-      .header-icon { color: var(--color-tonal-accent); }
+      header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-block-end: var(--space-2);
+      }
+      header h3 {
+        font-size: var(--text-md);
+        font-weight: var(--font-weight-semibold);
+        margin: 0;
+        color: var(--color-text-primary);
+      }
+      .header-icon {
+        color: var(--color-tonal-accent);
+      }
       .effective {
         display: flex;
         align-items: baseline;
@@ -108,7 +126,11 @@ const PRICING_ORDER = [
         font-size: var(--text-xl);
         color: var(--color-brand-primary);
       }
-      .matched-level { color: var(--color-text-tertiary); font-size: var(--text-xs); margin: 0 0 var(--space-3); }
+      .matched-level {
+        color: var(--color-text-tertiary);
+        font-size: var(--text-xs);
+        margin: 0 0 var(--space-3);
+      }
       .matched-level code {
         background: var(--color-surface-elevated);
         padding: 2px 6px;
@@ -145,13 +167,31 @@ const PRICING_ORDER = [
         font-size: var(--text-xs);
         color: var(--color-text-tertiary);
       }
-      .trace li.matched { color: var(--color-text-primary); }
-      .trace-icon { font-size: 14px; width: 14px; height: 14px; }
-      .trace li.matched .trace-icon { color: var(--color-tonal-accent); }
-      .trace-level { font-family: var(--font-family-mono, monospace); }
-      .trace-value { color: var(--color-brand-primary); justify-self: end; }
-      .trace-reason { color: var(--color-text-tertiary); font-style: italic; }
-      .numeric { font-variant-numeric: tabular-nums lining-nums; }
+      .trace li.matched {
+        color: var(--color-text-primary);
+      }
+      .trace-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+      }
+      .trace li.matched .trace-icon {
+        color: var(--color-tonal-accent);
+      }
+      .trace-level {
+        font-family: var(--font-family-mono, monospace);
+      }
+      .trace-value {
+        color: var(--color-brand-primary);
+        justify-self: end;
+      }
+      .trace-reason {
+        color: var(--color-text-tertiary);
+        font-style: italic;
+      }
+      .numeric {
+        font-variant-numeric: tabular-nums lining-nums;
+      }
     `,
   ],
 })
@@ -171,7 +211,9 @@ function evaluate(program: BankProgramResponse, ctx: CascadeApplicantContext): C
   const trace: TraceStep[] = [];
 
   for (const level of PRICING_ORDER) {
-    const map = (pricing as unknown as Record<string, Record<string, RateBandValue> | undefined>)[level];
+    const map = (pricing as unknown as Record<string, Record<string, RateBandValue> | undefined>)[
+      level
+    ];
     if (!map || Object.keys(map).length === 0) {
       trace.push({ level, matched: false, reason: 'not configured' });
       continue;
@@ -189,8 +231,15 @@ function evaluate(program: BankProgramResponse, ctx: CascadeApplicantContext): C
     trace.push({ level, matched: false, reason: 'no key matched' });
   }
 
-  const final = pricing.isVariableRate ? pricing.currentEffectiveRatePercent : pricing.baseRatePercent;
-  trace.push({ level: 'baseOrCurrentEffectiveRate', matched: true, value: final ?? '0', reason: 'fallback' });
+  const final = pricing.isVariableRate
+    ? pricing.currentEffectiveRatePercent
+    : pricing.baseRatePercent;
+  trace.push({
+    level: 'baseOrCurrentEffectiveRate',
+    matched: true,
+    value: final ?? '0',
+    reason: 'fallback',
+  });
   return {
     effectiveRatePercent: final ?? '0',
     matchedLevel: 'baseOrCurrentEffectiveRate',
