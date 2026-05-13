@@ -77,7 +77,7 @@ interface LeadAssignDialogData {
         <mat-form-field appearance="outline">
           <mat-label i18n="@@lead.assign.notes">Notes (optional)</mat-label>
           <textarea matInput formControlName="notes" rows="3" maxlength="500"></textarea>
-          <mat-hint align="end">{{ form.controls.notes.value?.length ?? 0 }} / 500</mat-hint>
+          <mat-hint align="end">{{ form.controls.notes.value.length }} / 500</mat-hint>
         </mat-form-field>
 
         @if (errorCode()) {

@@ -107,7 +107,7 @@ export class ScoreDistributionHistogramComponent {
         width: barWidth,
         height,
         label: `${bucket * 10}–${bucket * 10 + 9}`,
-        tooltip: $localize`:@@analytics.dist.tooltip:Score ${bucket * 10}–${bucket * 10 + 9}: ${count} offers`,
+        tooltip: $localize`:@@analytics.dist.tooltip:Score ${bucket * 10}–${bucket * 10 + 9} — ${count} offers`,
       };
     });
   });

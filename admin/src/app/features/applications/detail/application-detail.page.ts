@@ -55,7 +55,8 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
 
       @if (loading()) {
         <mat-progress-bar mode="indeterminate" />
-      } @else if (detail(); as d) {
+      } @else if (detail()) {
+        @let d = detail()!;
         <header class="page-header">
           <div class="header-row">
             <h1 class="title">

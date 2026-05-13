@@ -66,7 +66,8 @@ const WINDOW_PRESETS = [7, 30, 90, 180] as const;
           <h3 i18n="@@analytics.error.title">Out of OLTP range</h3>
           <p>{{ msg }}</p>
         </div>
-      } @else if (data(); as d) {
+      } @else if (data()) {
+        @let d = data()!;
         <section class="block">
           <h2 i18n="@@analytics.dist.title">Distribution</h2>
           <app-score-distribution-histogram [buckets]="d.distribution" />

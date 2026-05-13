@@ -124,7 +124,7 @@ const OUTCOME_FLAG_OPTIONS = [
         <mat-form-field appearance="outline">
           <mat-label i18n="@@activity.add.note">Note</mat-label>
           <textarea matInput formControlName="note" rows="4" maxlength="2000"></textarea>
-          <mat-hint align="end"> {{ form.controls.note.value?.length ?? 0 }} / 2000 </mat-hint>
+          <mat-hint align="end"> {{ form.controls.note.value.length }} / 2000 </mat-hint>
         </mat-form-field>
 
         <fieldset class="outcome-fieldset">

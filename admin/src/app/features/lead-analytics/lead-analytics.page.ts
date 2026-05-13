@@ -51,7 +51,8 @@ const WINDOWS: readonly number[] = [7, 30, 90, 180];
           <mat-icon>error</mat-icon>
           <span>{{ errorCode() }}</span>
         </div>
-      } @else if (summary(); as s) {
+      } @else if (summary()) {
+        @let s = summary()!;
         <app-agent-activity-table [rows]="s.rows" />
         <p class="footnote">
           <span i18n="@@leadAnalytics.window.label">Window:</span> {{ s.windowDays }}d ·
