@@ -4,13 +4,14 @@ import { Router } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@core/auth/auth.service';
+import type { StaffRole } from '@core/auth/auth.types';
 
 interface QuickAction {
   icon: string;
   title: string;
   description: string;
   action: () => void;
-  roles?: ReadonlyArray<'SUPER_ADMIN' | 'ADMIN' | 'VIEWER'>;
+  roles?: ReadonlyArray<StaffRole>;
 }
 
 /**
@@ -203,9 +204,10 @@ export class DashboardPlaceholderComponent {
 
   protected readonly kicker = computed(() => {
     const role = this.auth.role();
-    if (role === 'SUPER_ADMIN') return $localize`:@@dash.kicker.super:Super-admin console`;
-    if (role === 'ADMIN') return $localize`:@@dash.kicker.admin:Admin console`;
-    return $localize`:@@dash.kicker.viewer:Read-only console`;
+    if (role === 'super_admin') return $localize`:@@dash.kicker.super:Super-admin console`;
+    if (role === 'sales_manager') return $localize`:@@dash.kicker.manager:Sales manager console`;
+    if (role === 'sales_agent') return $localize`:@@dash.kicker.agent:Sales agent console`;
+    return $localize`:@@dash.kicker.analyst:Analyst console`;
   });
 
   protected readonly greeting = computed(() => {
@@ -224,9 +226,9 @@ export class DashboardPlaceholderComponent {
     {
       icon: 'group',
       title: $localize`:@@dash.action.manageUsers:Manage staff`,
-      description: $localize`:@@dash.action.manageUsersDesc:Create, edit, or deactivate admin and viewer accounts.`,
+      description: $localize`:@@dash.action.manageUsersDesc:Create, edit, or deactivate sales managers, sales agents, and analysts.`,
       action: () => this.router.navigateByUrl('/users'),
-      roles: ['SUPER_ADMIN'],
+      roles: ['super_admin'],
     },
     {
       icon: 'lock_reset',

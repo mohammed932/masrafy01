@@ -80,8 +80,14 @@ import type {
         <ng-container matColumnDef="role">
           <th mat-header-cell *matHeaderCellDef i18n="@@users.col.role">Role</th>
           <td mat-cell *matCellDef="let row">
-            <mat-chip class="role-chip" [class.role-super]="row.role === 'SUPER_ADMIN'" [class.role-admin]="row.role === 'ADMIN'" [class.role-viewer]="row.role === 'VIEWER'">
-              {{ row.role }}
+            <mat-chip
+              class="role-chip"
+              [class.role-super]="row.role === 'super_admin'"
+              [class.role-manager]="row.role === 'sales_manager'"
+              [class.role-agent]="row.role === 'sales_agent'"
+              [class.role-analyst]="row.role === 'analyst'"
+            >
+              {{ roleLabel(row.role) }}
             </mat-chip>
           </td>
         </ng-container>
@@ -298,12 +304,22 @@ import type {
         box-shadow: inset 0 0 0 1px var(--color-border-default);
       }
       // Super-admin avatar inverted to signal authority
-      .avatar[data-role='SUPER_ADMIN'] {
+      .avatar[data-role='super_admin'] {
         background: var(--color-brand-primary);
         color: var(--color-text-on-brand);
         box-shadow: inset 0 0 0 1px var(--color-brand-primary-hover);
       }
-      .avatar[data-role='VIEWER'] {
+      .avatar[data-role='sales_manager'] {
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent);
+        box-shadow: inset 0 0 0 1px var(--color-tonal-accent);
+      }
+      .avatar[data-role='sales_agent'] {
+        background: color-mix(in srgb, var(--color-tonal-accent) 10%, var(--color-surface-default));
+        color: var(--color-tonal-accent);
+        box-shadow: inset 0 0 0 1px var(--color-border-default);
+      }
+      .avatar[data-role='analyst'] {
         background: var(--color-surface-muted);
         color: var(--color-text-secondary);
         box-shadow: inset 0 0 0 1px var(--color-border-default);
@@ -320,11 +336,15 @@ import type {
         color: var(--color-brand-primary);
         box-shadow: inset 0 0 0 1px var(--color-brand-primary);
       }
-      mat-chip.role-admin {
+      mat-chip.role-manager {
         background: var(--color-tonal-accent-bg);
         color: var(--color-tonal-accent);
       }
-      mat-chip.role-viewer {
+      mat-chip.role-agent {
+        background: color-mix(in srgb, var(--color-tonal-accent) 10%, var(--color-surface-default));
+        color: var(--color-tonal-accent);
+      }
+      mat-chip.role-analyst {
         background: var(--color-surface-muted);
         color: var(--color-text-secondary);
       }
@@ -381,6 +401,21 @@ export class UsersListPage implements OnInit {
     return $localize`:@@users.actions.menu:Actions for ${name}`;
   }
 
+  protected roleLabel(role: string): string {
+    switch (role) {
+      case 'super_admin':
+        return $localize`:@@role.super_admin:Super-admin`;
+      case 'sales_manager':
+        return $localize`:@@role.sales_manager:Sales manager`;
+      case 'sales_agent':
+        return $localize`:@@role.sales_agent:Sales agent`;
+      case 'analyst':
+        return $localize`:@@role.analyst:Analyst`;
+      default:
+        return role;
+    }
+  }
+
   protected initials(name: string): string {
     const trimmed = (name ?? '').trim();
     if (!trimmed) return '?';
@@ -394,15 +429,7 @@ export class UsersListPage implements OnInit {
   async openCreate(): Promise<void> {
     const ref = this.dialog.open<UserFormDialog, UserFormDialogData, StaffAccountSummary>(
       UserFormDialog,
-      {
-        data: { mode: 'create' },
-        panelClass: 'side-drawer',
-        backdropClass: 'side-drawer-backdrop',
-        height: '100vh',
-        width: '480px',
-        maxWidth: '92vw',
-        autoFocus: 'first-tabbable',
-      },
+      { data: { mode: 'create' } },
     );
     const created = await ref.afterClosed().toPromise();
     if (created) {
@@ -414,15 +441,7 @@ export class UsersListPage implements OnInit {
   async openEdit(row: StaffAccountSummary): Promise<void> {
     const ref = this.dialog.open<UserFormDialog, UserFormDialogData, StaffAccountSummary>(
       UserFormDialog,
-      {
-        data: { mode: 'edit', row },
-        panelClass: 'side-drawer',
-        backdropClass: 'side-drawer-backdrop',
-        height: '100vh',
-        width: '480px',
-        maxWidth: '92vw',
-        autoFocus: 'first-tabbable',
-      },
+      { data: { mode: 'edit', row } },
     );
     const updated = await ref.afterClosed().toPromise();
     if (updated) {
@@ -432,15 +451,7 @@ export class UsersListPage implements OnInit {
   }
 
   async openReset(row: StaffAccountSummary): Promise<void> {
-    const ref = this.dialog.open(ResetPasswordDialog, {
-      data: { row },
-      panelClass: 'side-drawer',
-      backdropClass: 'side-drawer-backdrop',
-      height: '100vh',
-      width: '420px',
-      maxWidth: '92vw',
-      autoFocus: 'first-tabbable',
-    });
+    const ref = this.dialog.open(ResetPasswordDialog, { data: { row }, width: '420px' });
     const ok = await ref.afterClosed().toPromise();
     if (ok) {
       this.snack.open(

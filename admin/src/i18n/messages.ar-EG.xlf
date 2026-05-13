@@ -71,6 +71,17 @@
       <trans-unit id="resetPw.new" datatype="html"><source>New password</source><target>كلمة المرور الجديدة</target></trans-unit>
       <trans-unit id="resetPw.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
       <trans-unit id="resetPw.confirm" datatype="html"><source>Reset password</source><target>إعادة تعيين</target></trans-unit>
+      <trans-unit id="role.super_admin" datatype="html"><source>Super-admin</source><target>مشرف رئيسي</target></trans-unit>
+      <trans-unit id="role.sales_manager" datatype="html"><source>Sales manager</source><target>مدير مبيعات</target></trans-unit>
+      <trans-unit id="role.sales_agent" datatype="html"><source>Sales agent</source><target>مندوب مبيعات</target></trans-unit>
+      <trans-unit id="role.analyst" datatype="html"><source>Analyst</source><target>محلل</target></trans-unit>
+      <trans-unit id="userForm.role.managerDesc" datatype="html"><source>Manages bank programs + applications and oversees the sales team.</source><target>يدير برامج البنوك والطلبات ويشرف على فريق المبيعات.</target></trans-unit>
+      <trans-unit id="userForm.role.agentDesc" datatype="html"><source>Handles their own applications; read-only on bank programs.</source><target>يعالج طلباته الخاصة فقط؛ صلاحية قراءة على برامج البنوك.</target></trans-unit>
+      <trans-unit id="userForm.role.analystDesc" datatype="html"><source>Read-only across applications, programs, and audit logs.</source><target>صلاحية قراءة فقط للطلبات والبرامج وسجلات التدقيق.</target></trans-unit>
+      <trans-unit id="dash.kicker.super" datatype="html"><source>Super-admin console</source><target>وحدة المشرف الرئيسي</target></trans-unit>
+      <trans-unit id="dash.kicker.manager" datatype="html"><source>Sales manager console</source><target>وحدة مدير المبيعات</target></trans-unit>
+      <trans-unit id="dash.kicker.agent" datatype="html"><source>Sales agent console</source><target>وحدة مندوب المبيعات</target></trans-unit>
+      <trans-unit id="dash.kicker.analyst" datatype="html"><source>Analyst console</source><target>وحدة المحلل</target></trans-unit>
     </body>
   </file>
 </xliff>

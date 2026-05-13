@@ -3,7 +3,10 @@
 // rest of the codebase imports with raw `components['schemas'][...]` lookups. If you want
 // codegen, regenerate to a separate file (e.g. `auth.openapi.types.ts`) and re-export from here.
 
-export type StaffRole = 'SUPER_ADMIN' | 'ADMIN' | 'VIEWER';
+export type StaffRole = 'super_admin' | 'sales_manager' | 'sales_agent' | 'analyst';
+
+/** Roles creatable/updatable via the admin API (super_admin is bootstrap-only). */
+export type CreatableRole = Exclude<StaffRole, 'super_admin'>;
 
 export type ErrorCode =
   | 'AUTH_INVALID_CREDENTIALS'
@@ -94,7 +97,7 @@ export interface StaffAccountSummary {
 export interface CreateStaffRequest {
   name: string;
   email: string;
-  role: 'ADMIN' | 'VIEWER';
+  role: CreatableRole;
   initialPassword: string;
 }
 

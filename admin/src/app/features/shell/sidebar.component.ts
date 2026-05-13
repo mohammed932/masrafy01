@@ -25,7 +25,7 @@ import { CanDirective } from '../../shared/can.directive';
           <span class="item-label" i18n="@@sidebar.dashboard">Dashboard</span>
         </a>
 
-        <a *can="['SUPER_ADMIN']" routerLink="/users" routerLinkActive="active" class="item">
+        <a *can="['super_admin']" routerLink="/users" routerLinkActive="active" class="item">
           <mat-icon class="item-icon" aria-hidden="true">group</mat-icon>
           <span class="item-label" i18n="@@sidebar.users">Users</span>
         </a>

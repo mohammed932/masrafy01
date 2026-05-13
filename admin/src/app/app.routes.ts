@@ -37,7 +37,7 @@ export const APP_ROUTES: Routes = [
   {
     path: 'users',
     canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['SUPER_ADMIN'])],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
     loadChildren: () =>
       import('./features/users/users.routes').then((m) => m.USERS_ROUTES),
   },

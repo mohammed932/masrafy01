@@ -16,9 +16,10 @@ datasource db {
 // -----------------------------------------------------------------------------
 
 enum StaffRole {
-  SUPER_ADMIN
-  ADMIN
-  VIEWER
+  super_admin
+  sales_manager
+  sales_agent
+  analyst
 }
 
 enum AttemptOutcome {
