@@ -155,7 +155,13 @@ components:
 
     StaffRole:
       type: string
-      enum: [SUPER_ADMIN, ADMIN, VIEWER]
+      enum: [super_admin, sales_manager, sales_agent, analyst]
+      description: |
+        Internal staff role.
+          - super_admin: full access (incl. user-management). Bootstrap-only via seed; not creatable via API.
+          - sales_manager: bank programs + applications + team analytics. No user-management.
+          - sales_agent: own applications only; read-only on bank programs.
+          - analyst: read-only across applications, programs, and audit logs.
 
     AuthenticatedUser:
       type: object
@@ -267,10 +273,11 @@ components:
           maxLength: 320
         role:
           type: string
-          enum: [ADMIN, VIEWER]
+          enum: [sales_manager, sales_agent, analyst]
           description: |
-            `SUPER_ADMIN` is NOT accepted on create — that role only via FR-021/023a edit
-            flow from another super_admin OR via initial seed.
+            `super_admin` is NOT accepted on create — that role is bootstrap-only via the
+            seed script. The PATCH role flow (FR-021/023a) also rejects targeting
+            `super_admin`; grant of `super_admin` post-seed requires direct DB intervention.
         initialPassword:
           type: string
           minLength: 12
@@ -287,12 +294,16 @@ components:
           minLength: 2
           maxLength: 120
         role:
-          $ref: '#/components/schemas/StaffRole'
+          type: string
+          enum: [sales_manager, sales_agent, analyst]
+          description: |
+            PATCH cannot target `super_admin`. To grant `super_admin` post-seed an operator
+            must update the DB directly.
         isActive:
           type: boolean
       description: |
         At least one field MUST be present. A super_admin CANNOT update their own
-        `role` or `isActive`. A demotion from `SUPER_ADMIN` is rejected if it would drop
+        `role` or `isActive`. A demotion from `super_admin` is rejected if it would drop
         the active super_admin count below 1.
 
     ResetPasswordRequest:

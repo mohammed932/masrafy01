@@ -2,11 +2,11 @@
 @use './material-theme';
 
 // --- CDK Overlay structural CSS (Angular CDK 18) ---------------------------
-// Inlined verbatim from `@angular/cdk/overlay-prebuilt.css` so we do not depend
-// on angular.json `styles[]` bundling — at runtime that include was not
-// taking effect, leaving MatDialog overlays as inline-flow elements at the
-// bottom-left of <body>. These rules MUST stay at the top of the stylesheet
-// to win the cascade against any later utility class.
+// Inlined verbatim from `@angular/cdk/overlay-prebuilt.css` because the
+// angular.json `styles[]` include does not always take effect at runtime,
+// leaving MatDialog overlays as inline-flow elements at the bottom-left of
+// <body>. Keep these rules at the top of the cascade so nothing overrides
+// `.cdk-overlay-container { position: fixed }` (the centering anchor).
 .cdk-overlay-container,
 .cdk-global-overlay-wrapper {
   pointer-events: none;
@@ -83,6 +83,30 @@
   position: fixed;
   width: 100%;
   overflow-y: scroll;
+}
+
+// --- Global modal surface --------------------------------------------------
+// Applied to every MatDialog through MAT_DIALOG_DEFAULT_OPTIONS in app.config.ts.
+// All dialogs get a centered, branded panel + tinted blurred backdrop without
+// per-call-site configuration.
+.app-modal-backdrop {
+  background: rgba(6, 21, 45, 0.48);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.app-modal-panel {
+  .mat-mdc-dialog-container,
+  .mat-mdc-dialog-surface,
+  .mdc-dialog__surface {
+    border-radius: var(--radius-lg, 12px);
+    background: var(--color-surface-default);
+    box-shadow:
+      0 24px 64px -16px rgba(6, 21, 45, 0.32),
+      0 4px 12px -4px rgba(6, 21, 45, 0.12);
+    overflow: hidden;
+    padding: 0;
+  }
 }
 
 html,

@@ -26,6 +26,7 @@ import { AuthService } from '@core/auth/auth.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { UsersService } from './users.service';
 import type {
+  CreatableRole,
   CreateStaffRequest,
   ErrorCode,
   ErrorEnvelope,
@@ -53,7 +54,7 @@ class SubmitOnlyErrorStateMatcher implements ErrorStateMatcher {
 interface CreateFormControls {
   name: FormControl<string>;
   email: FormControl<string>;
-  role: FormControl<'ADMIN' | 'VIEWER'>;
+  role: FormControl<CreatableRole>;
   initialPassword: FormControl<string>;
 }
 
@@ -147,13 +148,17 @@ interface EditFormControls {
               <mat-label i18n="@@userForm.role">Role</mat-label>
               <mat-select formControlName="role">
                 <mat-select-trigger>{{ roleLabel(createForm.controls.role.value) }}</mat-select-trigger>
-                <mat-option value="ADMIN" class="role-option">
-                  <span class="opt-title">Admin</span>
-                  <span class="opt-desc" i18n="@@userForm.role.adminDesc">Can read and write across the platform, except user management.</span>
+                <mat-option value="sales_manager" class="role-option">
+                  <span class="opt-title" i18n="@@role.sales_manager">Sales manager</span>
+                  <span class="opt-desc" i18n="@@userForm.role.managerDesc">Manages bank programs + applications and oversees the sales team.</span>
                 </mat-option>
-                <mat-option value="VIEWER" class="role-option">
-                  <span class="opt-title">Viewer</span>
-                  <span class="opt-desc" i18n="@@userForm.role.viewerDesc">Read-only access. No write actions.</span>
+                <mat-option value="sales_agent" class="role-option">
+                  <span class="opt-title" i18n="@@role.sales_agent">Sales agent</span>
+                  <span class="opt-desc" i18n="@@userForm.role.agentDesc">Handles their own applications; read-only on bank programs.</span>
+                </mat-option>
+                <mat-option value="analyst" class="role-option">
+                  <span class="opt-title" i18n="@@role.analyst">Analyst</span>
+                  <span class="opt-desc" i18n="@@userForm.role.analystDesc">Read-only across applications, programs, and audit logs.</span>
                 </mat-option>
               </mat-select>
             </mat-form-field>
@@ -194,9 +199,9 @@ interface EditFormControls {
           <mat-form-field appearance="outline" class="field">
             <mat-label i18n="@@userForm.role">Role</mat-label>
             <mat-select formControlName="role" [disabled]="isSelf">
-              <mat-option value="SUPER_ADMIN">Super-admin</mat-option>
-              <mat-option value="ADMIN">Admin</mat-option>
-              <mat-option value="VIEWER">Viewer</mat-option>
+              <mat-option value="sales_manager" i18n="@@role.sales_manager">Sales manager</mat-option>
+              <mat-option value="sales_agent" i18n="@@role.sales_agent">Sales agent</mat-option>
+              <mat-option value="analyst" i18n="@@role.analyst">Analyst</mat-option>
             </mat-select>
             @if (isSelf) {
               <mat-hint i18n="@@userForm.selfRoleHint">You can't change your own role.</mat-hint>
@@ -497,7 +502,7 @@ export class UserFormDialog {
       nonNullable: true,
       validators: [Validators.required, Validators.email, Validators.maxLength(320)],
     }),
-    role: new FormControl<'ADMIN' | 'VIEWER'>('VIEWER', { nonNullable: true }),
+    role: new FormControl<CreatableRole>('analyst', { nonNullable: true }),
     initialPassword: new FormControl<string>('', {
       nonNullable: true,
       validators: [Validators.required, Validators.minLength(12), Validators.maxLength(128)],
@@ -509,7 +514,7 @@ export class UserFormDialog {
       nonNullable: true,
       validators: [Validators.required, Validators.minLength(2), Validators.maxLength(120)],
     }),
-    role: new FormControl<StaffRole>(this.data.row?.role ?? 'VIEWER', { nonNullable: true }),
+    role: new FormControl<StaffRole>(this.data.row?.role ?? 'analyst', { nonNullable: true }),
     isActive: new FormControl<boolean>(this.data.row?.isActive ?? true, { nonNullable: true }),
   });
 
@@ -522,12 +527,14 @@ export class UserFormDialog {
 
   protected roleLabel(role: string | null | undefined): string {
     switch (role) {
-      case 'SUPER_ADMIN':
-        return $localize`:@@role.SUPER_ADMIN:Super-admin`;
-      case 'ADMIN':
-        return $localize`:@@role.ADMIN:Admin`;
-      case 'VIEWER':
-        return $localize`:@@role.VIEWER:Viewer`;
+      case 'super_admin':
+        return $localize`:@@role.super_admin:Super-admin`;
+      case 'sales_manager':
+        return $localize`:@@role.sales_manager:Sales manager`;
+      case 'sales_agent':
+        return $localize`:@@role.sales_agent:Sales agent`;
+      case 'analyst':
+        return $localize`:@@role.analyst:Analyst`;
       default:
         return '';
     }

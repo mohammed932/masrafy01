@@ -16,7 +16,7 @@ export class SeedAbkController {
   constructor(private readonly seeds: SeedService) {}
 
   @Post()
-  @Roles('SUPER_ADMIN')
+  @Roles('super_admin')
   @HttpCode(200)
   @ApiOperation({ summary: 'Seed the ABK Egypt 20-program catalog (super_admin only)' })
   async seed(

@@ -133,7 +133,7 @@ On successful sign-in (FR-031a): `DEL signin:fail:<email>`.
 BEGIN ISOLATION LEVEL SERIALIZABLE;
 UPDATE staff_account SET role = $1, is_active = $2, updated_at = NOW() WHERE id = $3;
 -- FR-023 floor check:
-SELECT COUNT(*) FROM staff_account WHERE role = 'SUPER_ADMIN' AND is_active = TRUE;
+SELECT COUNT(*) FROM staff_account WHERE role = 'super_admin' AND is_active = TRUE;
 -- if count < 1: ROLLBACK and return SUPER_ADMIN_FLOOR_VIOLATED;
 COMMIT;
 ```
@@ -237,7 +237,7 @@ The forced-change variant is gated server-side by the `mcp` claim — the client
 
 ## R-015 — Bootstrap Seed Idempotency
 
-**Decision**: `prisma/seed.ts` reads `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` from env. Checks for an existing StaffAccount with the canonical email. If present: no-op (logs "seed admin already present, skipping"). If absent: insert with role `SUPER_ADMIN`, `isActive = true`, `mustChangePassword = true` (so the seeded operator changes the bootstrap password on first login).
+**Decision**: `prisma/seed.ts` reads `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_NAME` from env. Checks for an existing StaffAccount with the canonical email. If present: no-op (logs "seed admin already present, skipping"). If absent: insert with role `super_admin`, `isActive = true`, `mustChangePassword = true` (so the seeded operator changes the bootstrap password on first login).
 
 **Rationale**:
 - Idempotent per spec FR-040.
@@ -302,6 +302,51 @@ The forced-change variant is gated server-side by the `mcp` claim — the client
 - **Principle VI** — no PII (passwords, hashes, raw refresh tokens, full emails) crosses any log boundary. Pino redact paths configured: `req.body.password`, `req.body.newPassword`, `req.body.currentPassword`, `res.headers["set-cookie"]`, `req.headers.authorization`, `req.headers.cookie`.
 - **Principle VIII** — login + top-bar styling consumes `--color-brand-primary: #06152D` via the design-token file, never hex-literal in components.
 - **Principle XXIII** — UI UX Pro Max skill MUST be invoked at the start of every UI task in this feature (login page, forced-change modal, top bar, user list, user edit modal).
+
+---
+
+## R-016 — Four-Role Model (Role Expansion, 2026-05-13)
+
+**Decision**: Replace the three-role model (`SUPER_ADMIN` / `ADMIN` / `VIEWER`) with a four-role model (`super_admin` / `sales_manager` / `sales_agent` / `analyst`). Enum value casing changes from `SCREAMING_SNAKE` to `snake_case` to match the conventional Prisma enum convention used by the rest of the schema (`income_proof`, `payroll_cat_a`, etc.).
+
+**Permission matrix** (default):
+
+| Role | User mgmt | Bank programs | Applications | Audit |
+|---|---|---|---|---|
+| `super_admin` | full | full | full | full |
+| `sales_manager` | — | full | full | read |
+| `sales_agent` | — | read | own only | — |
+| `analyst` | — | read | read | read |
+
+**Rationale**:
+
+- Two-bucket "admin / viewer" model collapsed all non-super roles into a single read-vs-write distinction, which doesn't match how a sales-driven loan marketplace actually operates. Sales managers run the team; agents process individual applications; analysts watch the numbers without touching them.
+- `super_admin` stays a single bootstrap-only role for compliance reasons: full access including the privilege-elevation path (creating other admins) is reserved for an explicit operator action via the seed script, never an API call.
+- Permission scope for sales_agent (own-applications-only) requires per-row ownership in feature 003. That ownership column lands with the matching engine — this feature only ships the role enum + role-gated user-management UI; agent ownership is enforced downstream.
+
+**Migration**: `20260512234911_admin_role_expansion/migration.sql` performs an atomic enum swap:
+
+```sql
+BEGIN;
+CREATE TYPE "StaffRole_new" AS ENUM ('super_admin', 'sales_manager', 'sales_agent', 'analyst');
+ALTER TABLE "staff_account"
+  ALTER COLUMN "role" DROP DEFAULT,
+  ALTER COLUMN "role" TYPE "StaffRole_new" USING (
+    CASE "role"::text
+      WHEN 'SUPER_ADMIN' THEN 'super_admin'::"StaffRole_new"
+      WHEN 'ADMIN'       THEN 'sales_manager'::"StaffRole_new"
+      WHEN 'VIEWER'      THEN 'analyst'::"StaffRole_new"
+    END
+  );
+DROP TYPE "StaffRole";
+ALTER TYPE "StaffRole_new" RENAME TO "StaffRole";
+COMMIT;
+```
+
+**Alternatives considered**:
+
+- *Add new values alongside old + soft-deprecate*: rejected — would force backend code to handle 7 enum values while the team migrates. Simpler to swap atomically.
+- *Permission table per role*: rejected for v1 — `@Roles(...)` decorator with the role-list literal is sufficient and keeps the authorization decision adjacent to the route. If permission matrices grow more complex later, fold them into a dedicated module without breaking the decorator API.
 
 ---
 

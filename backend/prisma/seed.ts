@@ -41,7 +41,7 @@ async function main(): Promise<void> {
       emailDisplay: display,
       name: name.trim(),
       passwordHash,
-      role: StaffRole.SUPER_ADMIN,
+      role: StaffRole.super_admin,
       isActive: true,
       mustChangePassword: true,
     },

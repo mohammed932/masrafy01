@@ -56,7 +56,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           </p>
         </div>
         <div class="header-actions">
-          <a *can="['ADMIN', 'SUPER_ADMIN']" mat-flat-button color="primary" routerLink="/bank-programs/new">
+          <a *can="['super_admin', 'sales_manager']" mat-flat-button color="primary" routerLink="/bank-programs/new">
             <mat-icon aria-hidden="true">add</mat-icon>
             <span i18n="@@bank_programs.list.add">Add bank program</span>
           </a>
@@ -134,11 +134,11 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
             <th mat-header-cell *matHeaderCellDef i18n="@@bank_programs.col.status">Status</th>
             <td mat-cell *matCellDef="let row">
               <mat-slide-toggle
-                *can="['ADMIN', 'SUPER_ADMIN']"
+                *can="['super_admin', 'sales_manager']"
                 [checked]="row.active"
                 (change)="onToggle(row, $event.checked)"
               ></mat-slide-toggle>
-              <span *can="['VIEWER']" class="status-chip" [class.active]="row.active" [class.inactive]="!row.active">
+              <span *can="['sales_agent', 'analyst']" class="status-chip" [class.active]="row.active" [class.inactive]="!row.active">
                 {{ row.active ? activeLabel() : inactiveLabel() }}
               </span>
             </td>
@@ -146,7 +146,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let row">
-              <button *can="['ADMIN', 'SUPER_ADMIN']" mat-icon-button [matMenuTriggerFor]="menu" type="button" aria-label="Row actions" i18n-aria-label="@@bank_programs.col.actions_label">
+              <button *can="['super_admin', 'sales_manager']" mat-icon-button [matMenuTriggerFor]="menu" type="button" aria-label="Row actions" i18n-aria-label="@@bank_programs.col.actions_label">
                 <mat-icon>more_vert</mat-icon>
               </button>
               <mat-menu #menu="matMenu">
@@ -158,7 +158,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
                   <mat-icon>content_copy</mat-icon>
                   <span i18n="@@bank_programs.action.clone">Clone</span>
                 </button>
-                <button *can="['SUPER_ADMIN']" mat-menu-item (click)="openDelete(row)">
+                <button *can="['super_admin']" mat-menu-item (click)="openDelete(row)">
                   <mat-icon>delete</mat-icon>
                   <span i18n="@@bank_programs.action.delete">Delete</span>
                 </button>
@@ -189,7 +189,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           <button mat-stroked-button type="button" (click)="clearFilters()" *ngIf="hasFilters()">
             <span i18n="@@bank_programs.filter.clear">Clear filters</span>
           </button>
-          <a mat-flat-button color="primary" *can="['ADMIN', 'SUPER_ADMIN']" routerLink="/bank-programs/new">
+          <a mat-flat-button color="primary" *can="['super_admin', 'sales_manager']" routerLink="/bank-programs/new">
             <span i18n="@@bank_programs.list.add">Add bank program</span>
           </a>
         </div>

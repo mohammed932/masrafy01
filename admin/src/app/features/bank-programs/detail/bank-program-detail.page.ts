@@ -58,13 +58,13 @@ import type { BankProgramResponse } from '../bank-programs.types';
           {{ program()!.friendlyName }} · {{ program()!.bankName }} · {{ program()!.productCategory }} · v{{ program()!.version }}
         </p>
         <div class="actions">
-          <a *can="['ADMIN', 'SUPER_ADMIN']" mat-stroked-button [routerLink]="['/bank-programs', program()!.programCode, 'edit']">
+          <a *can="['super_admin', 'sales_manager']" mat-stroked-button [routerLink]="['/bank-programs', program()!.programCode, 'edit']">
             <mat-icon>edit</mat-icon> <span i18n="@@bank_programs.action.edit">Edit</span>
           </a>
-          <button *can="['ADMIN', 'SUPER_ADMIN']" mat-stroked-button (click)="openClone()">
+          <button *can="['super_admin', 'sales_manager']" mat-stroked-button (click)="openClone()">
             <mat-icon>content_copy</mat-icon> <span i18n="@@bank_programs.action.clone">Clone</span>
           </button>
-          <button *can="['SUPER_ADMIN']" mat-stroked-button color="warn" (click)="openDelete()">
+          <button *can="['super_admin']" mat-stroked-button color="warn" (click)="openDelete()">
             <mat-icon>delete</mat-icon> <span i18n="@@bank_programs.action.delete">Delete</span>
           </button>
         </div>

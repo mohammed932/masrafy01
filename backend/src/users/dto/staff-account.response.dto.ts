@@ -8,7 +8,7 @@ export class StaffAccountSummaryDto {
   name!: string;
   @ApiProperty({ description: 'Display form (original casing).' })
   email!: string;
-  @ApiProperty({ enum: ['SUPER_ADMIN', 'ADMIN', 'VIEWER'] })
+  @ApiProperty({ enum: ['super_admin', 'sales_manager', 'sales_agent', 'analyst'] })
   role!: string;
   @ApiProperty()
   isActive!: boolean;

@@ -201,10 +201,10 @@ Two top-level packages: `backend/` (NestJS) and `admin/` (Angular 18). Compose f
 ### Implementation for User Story 2
 
 - [X] T107 [US2] Roles decorator + guard (backend): `backend/src/common/decorators/roles.decorator.ts` (`@Roles(...roles)` setting metadata) and `backend/src/common/guards/roles.guard.ts` (reads metadata via Reflector; throws `ForbiddenException` carrying code `FORBIDDEN`); registered alongside `JwtAuthGuard` in `app.module.ts`
-- [X] T108 [US2] `/users/*` placeholder controller: `backend/src/users/users.controller.ts` defined with `@UseGuards(JwtAuthGuard, RolesGuard)` and `@Roles('SUPER_ADMIN')` at class level; methods return `{ success: true, data: [] }` stubs so US2 E2E tests (T099–T101) pass against real HTTP — US3 fills in real bodies
+- [X] T108 [US2] `/users/*` placeholder controller: `backend/src/users/users.controller.ts` defined with `@UseGuards(JwtAuthGuard, RolesGuard)` and `@Roles('super_admin')` at class level; methods return `{ success: true, data: [] }` stubs so US2 E2E tests (T099–T101) pass against real HTTP — US3 fills in real bodies
 - [X] T109 [US2] Role guard (frontend): `admin/src/app/core/guards/role.guard.fn.ts` — `roleGuardFn(allowed: StaffRole[])` returns a `canMatchFn` reading `currentUser.role` signal
-- [X] T110 [US2] Sidebar nav role-aware in `admin/src/app/features/shell/sidebar.component.ts` — `@if (auth.currentUser()?.role === 'SUPER_ADMIN') { <usersNavEntry/> }` and route `/users` carries `canMatch: [roleGuardFn(['SUPER_ADMIN'])]`
-- [X] T111 [US2] `can` directive for role-gated controls (frontend): `admin/src/app/shared/can.directive.ts` standalone directive `*can="['SUPER_ADMIN']"` that consumes the auth signal and conditionally renders content — used to wrap all current and future write controls (Principle XXII / FR-013)
+- [X] T110 [US2] Sidebar nav role-aware in `admin/src/app/features/shell/sidebar.component.ts` — `@if (auth.currentUser()?.role === 'super_admin') { <usersNavEntry/> }` and route `/users` carries `canMatch: [roleGuardFn(['super_admin'])]`
+- [X] T111 [US2] `can` directive for role-gated controls (frontend): `admin/src/app/shared/can.directive.ts` standalone directive `*can="['super_admin']"` that consumes the auth signal and conditionally renders content — used to wrap all current and future write controls (Principle XXII / FR-013)
 - [X] T112 [US2] i18n strings for forbidden + role-aware empty states; extend `admin/src/i18n/messages.{ar-EG,en-US}.xlf` and `admin/src/i18n/error-codes.{ar-EG,en-US}.json` ensuring `FORBIDDEN` and `CANNOT_SELF_MODIFY` and `SUPER_ADMIN_FLOOR_VIOLATED` are present (the last two ship copy now, used in US3)
 
 **Checkpoint**: US1 + US2 work together. Login + role enforcement are end-to-end verifiable. The `/users/*` endpoints respond correctly at the role layer even though the service bodies are stubs.
@@ -213,7 +213,7 @@ Two top-level packages: `backend/` (NestJS) and `admin/` (Angular 18). Compose f
 
 ## Phase 5: User Story 3 — Super-Admin Manages Other Admin Users (Priority: P2)
 
-**Goal**: A super_admin can create admin and viewer accounts, edit name/role/status, deactivate without deletion, reset another user's password, and never accidentally lock the platform out of super_admins.
+**Goal**: A super_admin can create `sales_manager`, `sales_agent`, and `analyst` accounts, edit name/role/status, deactivate without deletion, reset another user's password, and never accidentally lock the platform out of super_admins.
 
 **Independent Test**: Per [quickstart.md](./quickstart.md) §7–§11. Create admin via dashboard; sign in as them; deactivate; verify cannot sign in; reset password; verify new password works. Then attempt the concurrent demotion race with two browser sessions — the floor invariant holds.
 
@@ -256,7 +256,7 @@ Two top-level packages: `backend/` (NestJS) and `admin/` (Angular 18). Compose f
 
 **Controller (backend)**
 
-- [X] T136 [US3] UsersController real bodies: replace stubs from T108 in `backend/src/users/users.controller.ts` — wire all 6 routes from [contracts/admin-api.openapi.yaml](./contracts/admin-api.openapi.yaml) to UsersService methods; preserve `@Roles('SUPER_ADMIN')` from US2; attach Swagger decorators per DTO
+- [X] T136 [US3] UsersController real bodies: replace stubs from T108 in `backend/src/users/users.controller.ts` — wire all 6 routes from [contracts/admin-api.openapi.yaml](./contracts/admin-api.openapi.yaml) to UsersService methods; preserve `@Roles('super_admin')` from US2; attach Swagger decorators per DTO
 
 **Design (frontend) — `ui-ux-pro-max` invocation**
 
@@ -267,10 +267,10 @@ Two top-level packages: `backend/` (NestJS) and `admin/` (Angular 18). Compose f
 **Frontend implementation (US3)**
 
 - [X] T140 [US3] Admin UsersService: `admin/src/app/features/users/users.service.ts` — wraps HttpClient calls to `GET/POST/PATCH /api/admin/users` and `PATCH /api/admin/users/:id/password`; returns typed responses from generated `auth.types.ts`
-- [X] T141 [US3] UsersListPage: `admin/src/app/features/users/users-list.page.ts` — standalone, `MatTable` driven by signal-backed datasource, paginator, `*can="['SUPER_ADMIN']"` on create button (US2 directive), row action buttons (edit, deactivate/activate, reset password); reads design from T137
+- [X] T141 [US3] UsersListPage: `admin/src/app/features/users/users-list.page.ts` — standalone, `MatTable` driven by signal-backed datasource, paginator, `*can="['super_admin']"` on create button (US2 directive), row action buttons (edit, deactivate/activate, reset password); reads design from T137
 - [X] T142 [US3] UserFormDialog: `admin/src/app/features/users/user-form.dialog.ts` — single component for create + edit; typed `FormGroup<{name, email?, role, isActive?, initialPassword?}>` (email + initialPassword only on create); validation messages from i18n; rejects close without save when dirty; reads design from T138
 - [X] T143 [US3] ResetPasswordDialog: `admin/src/app/features/users/reset-password.dialog.ts` — typed `FormGroup<{newPassword}>`; reads design from T139
-- [X] T144 [US3] Users feature routes: `admin/src/app/features/users/users.routes.ts` — root route `''` (UsersListPage) gated by `canMatch:[authGuardFn, roleGuardFn(['SUPER_ADMIN']), mcpGuardFn]`; lazy-loaded from app.routes
+- [X] T144 [US3] Users feature routes: `admin/src/app/features/users/users.routes.ts` — root route `''` (UsersListPage) gated by `canMatch:[authGuardFn, roleGuardFn(['super_admin']), mcpGuardFn]`; lazy-loaded from app.routes
 - [X] T145 [US3] Sidebar nav "Users" entry (super_admin only — already gated in T110); confirm icon + label resolved from i18n
 - [X] T146 [US3] i18n + error-code copy for US3: extend `admin/src/i18n/messages.{ar-EG,en-US}.xlf` (user-list headers, action labels, dialog titles, confirmation copy) and finalize `admin/src/i18n/error-codes.{ar-EG,en-US}.json` entries for `DUPLICATE_ENTRY`, `NOT_FOUND`, `CANNOT_SELF_MODIFY`, `SUPER_ADMIN_FLOOR_VIOLATED`, `VALIDATION_FAILED`
 - [X] T147 [US3] Audit verification — backend file `backend/src/users/users.service.ts` is the source of truth; T125 concurrency test asserts each event type's presence/absence; no separate frontend audit work in this slice (audit-log viewer is out of scope per spec Assumptions)
@@ -373,7 +373,7 @@ Task: "Invoke ui-ux-pro-max skill for top-bar → admin/docs/design/top-bar.md" 
 
 1. Setup + Foundational → foundation ready.
 2. US1 → Test → Deploy / Demo (MVP).
-3. US2 → Test → Deploy / Demo (RBAC layered on; admin/viewer users can sign in even without management UI — admin just sees no Users link).
+3. US2 → Test → Deploy / Demo (RBAC layered on; sales_manager / sales_agent / analyst users can sign in even without management UI — they just see no Users link).
 4. US3 → Test → Deploy / Demo (super_admin can now grow the team without re-running seed).
 5. Polish → ship-grade.
 
@@ -384,6 +384,24 @@ After Phase 2 completes:
 - Developer B: US2 (T107–T112) — minimal scope; finishes early; rolls into helping with US3
 - Developer C: US3 backend (T133–T136) then US3 frontend (T140–T146) once US2 has wired RolesGuard
 - Test work (T049–T070, T099–T106, T113–T132) parallelized across all three or owned by a fourth.
+
+---
+
+---
+
+## Phase 9 — Role Expansion Retrofit (2026-05-13)
+
+Replace 3-role model (`SUPER_ADMIN`/`ADMIN`/`VIEWER`) with 4-role model (`super_admin`/`sales_manager`/`sales_agent`/`analyst`). See research §R-016.
+
+- [X] T200 Update Prisma `StaffRole` enum in `backend/prisma/schema.prisma`
+- [X] T201 Write atomic enum-swap migration: `backend/prisma/migrations/20260512234911_admin_role_expansion/migration.sql` mapping `SUPER_ADMIN→super_admin`, `ADMIN→sales_manager`, `VIEWER→analyst`
+- [X] T202 Backend role references: `users.controller.ts`, `staff-account.repository.ts`, `create-staff.request.dto.ts`, `update-staff.request.dto.ts`, `login.response.dto.ts`, `staff-account.response.dto.ts`, `roles.decorator.ts` doc, `prisma/seed.ts`
+- [X] T203 Admin types: `admin/src/app/core/auth/auth.types.ts` (`StaffRole` union + `CreatableRole` export)
+- [X] T204 Admin guards + routes: `app.routes.ts:roleGuardFn(['super_admin'])`; `sidebar.component.ts:*can="['super_admin']"`
+- [X] T205 Admin UI: `top-bar.component.ts` (4 chip variants + `roleLabel`), `users-list.page.ts` (4 chip classes + 4 avatar `[data-role]` + `roleLabel`), `user-form.dialog.ts` (3 selectable roles with descriptions, defaults to `analyst`), `dashboard-placeholder.component.ts` (4 kicker variants)
+- [X] T206 i18n role labels in `admin/src/i18n/messages.ar-EG.xlf`: `role.super_admin`, `role.sales_manager`, `role.sales_agent`, `role.analyst`, plus form descriptions and dashboard kickers
+- [X] T207 Boot-time silent refresh fix: `app.config.ts` `APP_INITIALIZER` calls `auth.refresh()` + `auth.loadCurrentUser()` so page reload preserves session (previously forced re-login)
+- [X] T208 Spec retrofit: `spec.md`, `data-model.md`, `plan.md`, `research.md`, `quickstart.md`, `contracts/admin-api.openapi.yaml`, `tasks.md` updated to reflect 4-role model
 
 ---
 

@@ -24,7 +24,7 @@ import { maskApplicantProfile, type RawApplicantProfileJson } from './pii-masker
 @ApiBearerAuth()
 @Controller('admin/applications')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('SUPER_ADMIN', 'ADMIN', 'VIEWER')
+@Roles('super_admin', 'sales_manager', 'sales_agent', 'analyst')
 export class AdminApplicationsController {
   constructor(private readonly repo: ApplicationRepository) {}
 

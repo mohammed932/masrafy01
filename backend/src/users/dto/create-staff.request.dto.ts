@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsIn, IsString, Length, MaxLength } from 'class-validator';
 
-const CREATABLE_ROLES = ['ADMIN', 'VIEWER'] as const;
+const CREATABLE_ROLES = ['sales_manager', 'sales_agent', 'analyst'] as const;
 export type CreatableRole = (typeof CREATABLE_ROLES)[number];
 
 export class CreateStaffRequestDto {
@@ -15,7 +15,10 @@ export class CreateStaffRequestDto {
   @MaxLength(320)
   email!: string;
 
-  @ApiProperty({ enum: CREATABLE_ROLES, description: 'SUPER_ADMIN not creatable via API.' })
+  @ApiProperty({
+    enum: CREATABLE_ROLES,
+    description: 'super_admin cannot be created via API; bootstrap one via the seed script.',
+  })
   @IsIn(CREATABLE_ROLES as unknown as string[])
   role!: CreatableRole;
 

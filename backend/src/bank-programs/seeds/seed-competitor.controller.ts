@@ -20,7 +20,7 @@ export class SeedCompetitorController {
   constructor(private readonly seeds: SeedService) {}
 
   @Post(':catalogName')
-  @Roles('SUPER_ADMIN')
+  @Roles('super_admin')
   @HttpCode(200)
   @ApiOperation({ summary: 'Seed a competitor catalog (super_admin only; OFF by default)' })
   async seed(
