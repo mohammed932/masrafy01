@@ -1,0 +1,10 @@
+{
+  "workflow": "speckit",
+  "specName": "005-lead-management-application",
+  "branch": "005-lead-management-application",
+  "selectedAt": "2026-05-13T10:41:10.588Z",
+  "currentStep": "specify",
+  "status": "draft",
+  "stepHistory": {},
+  "transitions": []
+}

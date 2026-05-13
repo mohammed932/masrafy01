@@ -1,0 +1,481 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Lead Management API
+  version: 0.5.0
+  description: |
+    Feature 005 contracts. Activity-tracking surface (admin) + customer-facing milestone timeline endpoint.
+
+servers:
+  - url: http://localhost:3000
+    description: dev
+
+security: []
+
+paths:
+  /api/admin/applications/{applicationId}/activities:
+    post:
+      tags: [Admin · Activities]
+      summary: Append a new activity to an application timeline
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: applicationId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateActivityRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivityCreatedResponse' }
+        '403':
+          description: Not assigned (sales_agent only)
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '422':
+          description: Validation error (typed code)
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    get:
+      tags: [Admin · Activities]
+      summary: List activities (cursor-paginated, newest-first)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: applicationId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: before
+          description: Cursor — pass the `occurredAt` of the last visible row
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Timeline page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivityListResponse' }
+
+  /api/admin/applications/{applicationId}/assign:
+    post:
+      tags: [Admin · Applications]
+      summary: Assign or reassign an application (super_admin / sales_manager only)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: applicationId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AssignLeadRequest' }
+      responses:
+        '200':
+          description: Reassigned
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AssignLeadResponse' }
+
+  /api/admin/documents/upload-url:
+    post:
+      tags: [Admin · Documents]
+      summary: Request a presigned PUT URL for an S3-compatible upload
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequestUploadUrlRequest' }
+      responses:
+        '200':
+          description: Presigned URL issued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequestUploadUrlResponse' }
+        '413':
+          description: File too large (> 10 MB)
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+        '415':
+          description: File type not allowed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+
+  /api/admin/documents/{documentId}/download:
+    get:
+      tags: [Admin · Documents]
+      summary: Get a presigned GET URL for download (15-minute TTL)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Presigned GET URL
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DownloadUrlResponse' }
+
+  /api/admin/lead-analytics/activity-summary:
+    get:
+      tags: [Admin · Lead Analytics]
+      summary: Per-(agent alias, activityType) aggregate over a windowed look-back
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: query
+          name: windowDays
+          schema: { type: integer, minimum: 1, maximum: 180, default: 30 }
+      responses:
+        '200':
+          description: Aggregate report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActivitySummaryResponse' }
+
+  /api/admin/staff/me/reminders:
+    get:
+      tags: [Admin · Staff]
+      summary: Current staff's follow-up reminders within the next 24 h
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - in: query
+          name: windowHours
+          schema: { type: integer, minimum: 1, maximum: 48, default: 24 }
+      responses:
+        '200':
+          description: Reminder list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RemindersResponse' }
+
+  /api/v1/applications/{applicationId}/timeline:
+    get:
+      tags: [Mobile]
+      summary: Customer-facing milestone timeline (HMAC-protected)
+      security: [{ HmacSignature: [] }]
+      parameters:
+        - in: path
+          name: applicationId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Milestone-only timeline
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerTimelineResponse' }
+        '401':
+          description: HMAC client mismatch (different applicant)
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    HmacSignature:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: HMAC-SHA256. See feature 003 §HMAC for the canonical signing surface.
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [success, code]
+      properties:
+        success: { type: boolean, enum: [false] }
+        code: { type: string }
+        meta:
+          type: object
+          additionalProperties: true
+
+    ActivityType:
+      type: string
+      enum:
+        - CALLED_USER
+        - SENT_WHATSAPP
+        - SENT_EMAIL
+        - RECEIVED_DOCUMENTS
+        - REVIEWED_DOCUMENTS
+        - REQUESTED_MORE_DOCS
+        - UPDATED_APPLICANT_INFO
+        - MARKED_AS_REVIEWED
+        - INTERNAL_NOTE
+        - STATUS_CHANGE
+        - SUBMITTED_TO_BANK
+        - BANK_RESPONDED
+        - LEAD_REASSIGNED
+        - STALE_LEAD_FLAGGED
+
+    LeadStatus:
+      type: string
+      enum: [needs_first_contact, document_collection, ready_for_submission, submitted_to_bank, bank_decided]
+
+    CreateActivityRequest:
+      type: object
+      required: [activityType, reason]
+      properties:
+        activityType: { $ref: '#/components/schemas/ActivityType' }
+        reason: { type: string }
+        note:
+          type: string
+          maxLength: 2000
+        durationMinutes:
+          type: integer
+          minimum: 0
+        outcomeFlags:
+          type: array
+          items: { type: string }
+          maxItems: 3
+        followUpAt:
+          type: string
+          format: date-time
+          description: Must be in the future. Hard cap 2 years.
+        attachedDocumentIds:
+          type: array
+          items: { type: string }
+          description: Only allowed for RECEIVED_DOCUMENTS / REVIEWED_DOCUMENTS / REQUESTED_MORE_DOCS types.
+
+    ActivityCreatedResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: '#/components/schemas/Activity' }
+
+    Activity:
+      type: object
+      required: [id, applicationId, activityType, reason, occurredAt, actorRole]
+      properties:
+        id: { type: string }
+        applicationId: { type: string }
+        activityType: { $ref: '#/components/schemas/ActivityType' }
+        reason: { type: string }
+        note:
+          type: string
+          nullable: true
+          description: Hidden from analyst projection. Empty for analyst reads.
+        durationMinutes:
+          type: integer
+          nullable: true
+        outcomeFlags:
+          type: array
+          items: { type: string }
+        followUpAt:
+          type: string
+          format: date-time
+          nullable: true
+        attachedDocuments:
+          type: array
+          items: { $ref: '#/components/schemas/Document' }
+          description: Hidden from analyst projection.
+        occurredAt:
+          type: string
+          format: date-time
+        actorStaffId:
+          type: string
+          nullable: true
+          description: Replaced with `Agent A/B/...` aliases for analyst.
+        actorAlias:
+          type: string
+          description: Present for analyst projection; absent otherwise.
+        actorRole:
+          type: string
+          enum: [super_admin, sales_manager, sales_agent, analyst, system]
+        correlationId: { type: string }
+
+    Document:
+      type: object
+      required: [id, applicationId, documentType, status, mimeType, sizeBytes, createdAt]
+      properties:
+        id: { type: string }
+        applicationId: { type: string }
+        documentType: { type: string }
+        status: { type: string, enum: [uploaded, verified, rejected, erased] }
+        uploadedBySource: { type: string, enum: [whatsapp, email, in_person, mobile_app, courier, other] }
+        uploadedByContext: { type: string, enum: [agent_on_behalf, user] }
+        mimeType: { type: string }
+        sizeBytes: { type: integer }
+        createdAt: { type: string, format: date-time }
+        downloadUrl:
+          type: string
+          format: uri
+          description: Optional. Server-side decision whether to inline a presigned GET URL or omit.
+
+    ActivityListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/Activity' }
+        pagination:
+          type: object
+          properties:
+            nextCursor:
+              type: string
+              format: date-time
+              nullable: true
+
+    AssignLeadRequest:
+      type: object
+      required: [toAgentStaffId, reason]
+      properties:
+        toAgentStaffId:
+          type: string
+          nullable: true
+          description: null = unassign
+        reason:
+          type: string
+          enum: [INITIAL_ASSIGNMENT, WORKLOAD_REBALANCE, SKILL_MATCH, AGENT_DEACTIVATED, MANAGER_OVERRIDE, OTHER]
+        notes:
+          type: string
+          maxLength: 500
+
+    AssignLeadResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [applicationId, fromAgentStaffId, toAgentStaffId, assignedAt]
+          properties:
+            applicationId: { type: string }
+            fromAgentStaffId: { type: string, nullable: true }
+            toAgentStaffId: { type: string, nullable: true }
+            assignedAt: { type: string, format: date-time }
+
+    RequestUploadUrlRequest:
+      type: object
+      required: [applicationId, documentType, mimeType, sizeBytes]
+      properties:
+        applicationId: { type: string }
+        documentType: { type: string }
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, image/heic, application/pdf]
+        sizeBytes:
+          type: integer
+          maximum: 10485760
+
+    RequestUploadUrlResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [documentId, uploadUrl, expiresAt]
+          properties:
+            documentId: { type: string }
+            uploadUrl:
+              type: string
+              format: uri
+            expiresAt:
+              type: string
+              format: date-time
+
+    DownloadUrlResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [downloadUrl, expiresAt]
+          properties:
+            downloadUrl:
+              type: string
+              format: uri
+            expiresAt:
+              type: string
+              format: date-time
+
+    ActivitySummaryResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [windowDays, rows]
+          properties:
+            windowDays: { type: integer }
+            rows:
+              type: array
+              items:
+                type: object
+                required: [agentAlias, activityType, count]
+                properties:
+                  agentAlias: { type: string }
+                  activityType: { $ref: '#/components/schemas/ActivityType' }
+                  count: { type: integer }
+                  totalDurationMinutes:
+                    type: integer
+                    description: Present only for CALLED_USER aggregates.
+
+    RemindersResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: array
+          items:
+            type: object
+            required: [activityId, applicationId, followUpAt]
+            properties:
+              activityId: { type: string }
+              applicationId: { type: string }
+              followUpAt: { type: string, format: date-time }
+              applicationSummary:
+                type: object
+                properties:
+                  requestedAmountEGP: { type: string }
+                  loanPurpose: { type: string }
+
+    CustomerTimelineResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [applicationId, milestones]
+          properties:
+            applicationId: { type: string }
+            milestones:
+              type: array
+              items:
+                type: object
+                required: [code, occurredAt, localizedLabelCode]
+                properties:
+                  code:
+                    type: string
+                    enum:
+                      - MILESTONE_NEEDS_FIRST_CONTACT
+                      - MILESTONE_DOCUMENT_COLLECTION
+                      - MILESTONE_READY_FOR_SUBMISSION
+                      - MILESTONE_SUBMITTED_TO_BANK
+                      - MILESTONE_BANK_DECIDED
+                  occurredAt: { type: string, format: date-time }
+                  localizedLabelCode: { type: string }
+                  outcome:
+                    type: string
+                    nullable: true
+                    description: Present for MILESTONE_BANK_DECIDED only.
+                  nextStepHint:
+                    type: string
+                    nullable: true
