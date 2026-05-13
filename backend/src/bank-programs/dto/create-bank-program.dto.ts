@@ -65,6 +65,8 @@ export class CreateBankProgramDto {
   @Type(() => PerformanceCriteriaConfigDto)
   performanceCriteria?: PerformanceCriteriaConfigDto;
 
-  @ValidateNested() @Type(() => IncomeAssumptionConfigDto) incomeAssumption!: IncomeAssumptionConfigDto;
+  @ValidateNested()
+  @Type(() => IncomeAssumptionConfigDto)
+  incomeAssumption!: IncomeAssumptionConfigDto;
   @ValidateNested() @Type(() => FeesConfigDto) fees!: FeesConfigDto;
 }

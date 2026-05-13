@@ -11,8 +11,7 @@ import { StaleLeadScanner } from './stale-lead-scanner';
 import { StaleLeadCronController } from './stale-lead-cron.controller';
 import { RemindersController } from './reminders.controller';
 
-const cronControllers =
-  process.env.NODE_ENV !== 'production' ? [StaleLeadCronController] : [];
+const cronControllers = process.env.NODE_ENV !== 'production' ? [StaleLeadCronController] : [];
 
 @Module({
   imports: [AuthModule, ApplicationsModule, BankProgramsModule, AuditModule, DocumentsModule],

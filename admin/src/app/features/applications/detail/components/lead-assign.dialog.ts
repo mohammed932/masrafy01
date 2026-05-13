@@ -130,8 +130,7 @@ interface LeadAssignDialogData {
 export class LeadAssignDialog implements OnInit {
   private readonly api = inject(ApplicationsApiService);
   private readonly users = inject(UsersService);
-  private readonly dialogRef =
-    inject<MatDialogRef<LeadAssignDialog, boolean>>(MatDialogRef);
+  private readonly dialogRef = inject<MatDialogRef<LeadAssignDialog, boolean>>(MatDialogRef);
   protected readonly data = inject<LeadAssignDialogData>(MAT_DIALOG_DATA);
 
   protected readonly reasons = [...ASSIGN_REASONS];
@@ -155,9 +154,7 @@ export class LeadAssignDialog implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       const page = await this.users.list(1, 100);
-      this.eligibleAgents.set(
-        page.rows.filter((u) => u.isActive && u.role !== 'analyst'),
-      );
+      this.eligibleAgents.set(page.rows.filter((u) => u.isActive && u.role !== 'analyst'));
     } finally {
       this.loadingAgents.set(false);
     }

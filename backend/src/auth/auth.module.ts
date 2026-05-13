@@ -30,9 +30,7 @@ import { StaffAccountRepository } from '@/users/staff-account.repository';
         signOptions: { algorithm: 'HS256' },
       }),
     }),
-    ThrottlerModule.forRoot([
-      { name: 'default', limit: 100, ttl: 15 * 60 * 1000 },
-    ]),
+    ThrottlerModule.forRoot([{ name: 'default', limit: 100, ttl: 15 * 60 * 1000 }]),
   ],
   controllers: [AuthController],
   providers: [

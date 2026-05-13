@@ -5,7 +5,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { PlatformEnumerationsService } from '../../../../core/platform-enumerations/platform-enumerations.service';
-import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared/brand-select/brand-select.component';
+import {
+  BrandSelectComponent,
+  type BrandSelectOption,
+} from '../../../../shared/brand-select/brand-select.component';
 
 @Component({
   selector: 'app-documents-section',
@@ -26,7 +29,8 @@ import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.documents">Documents & notes</h3>
           <p class="section-sub" i18n="@@bank_programs.section.documents_sub">
-            Required document set + internal operator notes. Operator tips lands in the next increment.
+            Required document set + internal operator notes. Operator tips lands in the next
+            increment.
           </p>
         </div>
       </header>
@@ -44,7 +48,13 @@ import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared
 
         <mat-form-field appearance="outline" class="span-2">
           <mat-label i18n="@@bank_programs.field.operator_notes">Operator notes</mat-label>
-          <textarea matInput formControlName="operatorNotes" rows="3" maxlength="4000" placeholder="Internal — visible to staff only"></textarea>
+          <textarea
+            matInput
+            formControlName="operatorNotes"
+            rows="3"
+            maxlength="4000"
+            placeholder="Internal — visible to staff only"
+          ></textarea>
         </mat-form-field>
       </div>
     </section>

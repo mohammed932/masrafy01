@@ -37,9 +37,7 @@ import type { AgentActivitySummaryRow } from '../lead-analytics.api.service';
         <tr mat-row *matRowDef="let row; columns: displayed"></tr>
       </table>
       @if (rows().length === 0) {
-        <p class="empty" i18n="@@leadAnalytics.empty">
-          No activity recorded in this window.
-        </p>
+        <p class="empty" i18n="@@leadAnalytics.empty">No activity recorded in this window.</p>
       }
     </div>
   `,

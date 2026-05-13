@@ -1,5 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  OnInit,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -56,7 +63,12 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           </p>
         </div>
         <div class="header-actions">
-          <a *can="['super_admin', 'sales_manager']" mat-flat-button color="primary" routerLink="/bank-programs/new">
+          <a
+            *can="['super_admin', 'sales_manager']"
+            mat-flat-button
+            color="primary"
+            routerLink="/bank-programs/new"
+          >
             <mat-icon aria-hidden="true">add</mat-icon>
             <span i18n="@@bank_programs.list.add">Add bank program</span>
           </a>
@@ -103,17 +115,22 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           <ng-container matColumnDef="programCode">
             <th mat-header-cell *matHeaderCellDef i18n="@@bank_programs.col.program_code">Code</th>
             <td mat-cell *matCellDef="let row">
-              <a [routerLink]="['/bank-programs', row.programCode]" class="row-link">{{ row.programCode }}</a>
+              <a [routerLink]="['/bank-programs', row.programCode]" class="row-link">{{
+                row.programCode
+              }}</a>
               <mat-icon
                 *ngIf="row.deprecatedKeyCount > 0"
                 class="deprecated-badge"
                 matTooltip="One or more tier keys have been deprecated"
                 i18n-matTooltip="@@bank_programs.col.deprecated_tip"
-              >warning</mat-icon>
+                >warning</mat-icon
+              >
             </td>
           </ng-container>
           <ng-container matColumnDef="friendlyName">
-            <th mat-header-cell *matHeaderCellDef i18n="@@bank_programs.col.friendly_name">Friendly name</th>
+            <th mat-header-cell *matHeaderCellDef i18n="@@bank_programs.col.friendly_name">
+              Friendly name
+            </th>
             <td mat-cell *matCellDef="let row">{{ row.friendlyName }}</td>
           </ng-container>
           <ng-container matColumnDef="bankName">
@@ -138,7 +155,12 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
                 [checked]="row.active"
                 (change)="onToggle(row, $event.checked)"
               ></mat-slide-toggle>
-              <span *can="['sales_agent', 'analyst']" class="status-chip" [class.active]="row.active" [class.inactive]="!row.active">
+              <span
+                *can="['sales_agent', 'analyst']"
+                class="status-chip"
+                [class.active]="row.active"
+                [class.inactive]="!row.active"
+              >
                 {{ row.active ? activeLabel() : inactiveLabel() }}
               </span>
             </td>
@@ -146,7 +168,14 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef></th>
             <td mat-cell *matCellDef="let row">
-              <button *can="['super_admin', 'sales_manager']" mat-icon-button [matMenuTriggerFor]="menu" type="button" aria-label="Row actions" i18n-aria-label="@@bank_programs.col.actions_label">
+              <button
+                *can="['super_admin', 'sales_manager']"
+                mat-icon-button
+                [matMenuTriggerFor]="menu"
+                type="button"
+                aria-label="Row actions"
+                i18n-aria-label="@@bank_programs.col.actions_label"
+              >
                 <mat-icon>more_vert</mat-icon>
               </button>
               <mat-menu #menu="matMenu">
@@ -185,11 +214,18 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
       <ng-template #emptyTpl>
         <div class="empty-state">
           <mat-icon class="empty-icon" aria-hidden="true">account_balance</mat-icon>
-          <p class="empty-text" i18n="@@bank_programs.list.empty">No programs match these filters.</p>
+          <p class="empty-text" i18n="@@bank_programs.list.empty">
+            No programs match these filters.
+          </p>
           <button mat-stroked-button type="button" (click)="clearFilters()" *ngIf="hasFilters()">
             <span i18n="@@bank_programs.filter.clear">Clear filters</span>
           </button>
-          <a mat-flat-button color="primary" *can="['super_admin', 'sales_manager']" routerLink="/bank-programs/new">
+          <a
+            mat-flat-button
+            color="primary"
+            *can="['super_admin', 'sales_manager']"
+            routerLink="/bank-programs/new"
+          >
             <span i18n="@@bank_programs.list.add">Add bank program</span>
           </a>
         </div>
@@ -211,7 +247,11 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         gap: var(--space-4);
         margin-block-end: var(--space-5);
       }
-      .header-text { display: flex; flex-direction: column; gap: var(--space-1); }
+      .header-text {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
       .page-title {
         font-size: var(--text-2xl);
         font-weight: var(--font-weight-semibold);
@@ -219,7 +259,11 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         color: var(--color-text-primary);
         letter-spacing: -0.01em;
       }
-      .page-subtitle { margin: 0; color: var(--color-text-secondary); font-size: var(--text-md); }
+      .page-subtitle {
+        margin: 0;
+        color: var(--color-text-secondary);
+        font-size: var(--text-md);
+      }
       .filters {
         display: flex;
         flex-wrap: wrap;
@@ -227,15 +271,21 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         align-items: flex-end;
         margin-block-end: var(--space-4);
       }
-      .filters .search { flex: 1 1 280px; min-width: 240px; }
+      .filters .search {
+        flex: 1 1 280px;
+        min-width: 240px;
+      }
       .table-wrap {
         background: var(--color-surface);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
         overflow: hidden;
       }
-      table { width: 100%; }
-      th.mat-mdc-header-cell, td.mat-mdc-cell {
+      table {
+        width: 100%;
+      }
+      th.mat-mdc-header-cell,
+      td.mat-mdc-cell {
         font-size: var(--text-sm);
       }
       .row-link {
@@ -244,7 +294,9 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         text-decoration: none;
         font-variant-numeric: tabular-nums lining-nums;
       }
-      .row-link:hover { color: var(--color-text-link); }
+      .row-link:hover {
+        color: var(--color-text-link);
+      }
       .deprecated-badge {
         color: #b45309;
         font-size: 18px;
@@ -253,16 +305,28 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         margin-inline-start: var(--space-1);
         vertical-align: middle;
       }
-      .numeric { font-variant-numeric: tabular-nums lining-nums; }
+      .numeric {
+        font-variant-numeric: tabular-nums lining-nums;
+      }
       .status-chip {
         display: inline-block;
         padding: 2px 8px;
         border-radius: var(--radius-sm);
         font-size: var(--text-xs);
       }
-      .status-chip.active { background: #ecfdf5; color: #047857; }
-      .status-chip.inactive { background: #f1f5f9; color: var(--color-text-tertiary); }
-      .loading { display: flex; justify-content: center; padding: var(--space-8); }
+      .status-chip.active {
+        background: #ecfdf5;
+        color: #047857;
+      }
+      .status-chip.inactive {
+        background: #f1f5f9;
+        color: var(--color-text-tertiary);
+      }
+      .loading {
+        display: flex;
+        justify-content: center;
+        padding: var(--space-8);
+      }
       .empty-state {
         display: flex;
         flex-direction: column;
@@ -275,8 +339,17 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
       }
-      .empty-icon { font-size: 56px; width: 56px; height: 56px; color: var(--color-text-tertiary); }
-      .empty-text { margin: 0; color: var(--color-text-primary); font-size: var(--text-md); }
+      .empty-icon {
+        font-size: 56px;
+        width: 56px;
+        height: 56px;
+        color: var(--color-text-tertiary);
+      }
+      .empty-text {
+        margin: 0;
+        color: var(--color-text-primary);
+        font-size: var(--text-md);
+      }
     `,
   ],
 })
@@ -287,7 +360,15 @@ export class BankProgramsListPage implements OnInit {
   private readonly router = inject(Router);
   private readonly errors = inject(ErrorCodeService);
 
-  readonly cols = ['programCode', 'friendlyName', 'bankName', 'productCategory', 'rate', 'active', 'actions'];
+  readonly cols = [
+    'programCode',
+    'friendlyName',
+    'bankName',
+    'productCategory',
+    'rate',
+    'active',
+    'actions',
+  ];
 
   readonly rows = signal<BankProgramListRow[]>([]);
   readonly total = signal(0);
@@ -305,7 +386,9 @@ export class BankProgramsListPage implements OnInit {
   readonly inactiveLabel = signal($localize`:@@bank_programs.col.inactive:Inactive`);
 
   readonly hasFilters = computed(() =>
-    Boolean(this.searchInput || this.bankFilter || this.activeFilter !== undefined || this.categoryFilter),
+    Boolean(
+      this.searchInput || this.bankFilter || this.activeFilter !== undefined || this.categoryFilter,
+    ),
   );
 
   ngOnInit(): void {

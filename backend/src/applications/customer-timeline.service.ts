@@ -1,10 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { AuditEvent, LeadStatus } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
-import {
-  HmacClientUnknownException,
-  NotFoundException,
-} from '@/common/errors/domain.exceptions';
+import { HmacClientUnknownException, NotFoundException } from '@/common/errors/domain.exceptions';
 
 export interface CustomerTimelineMilestone {
   code: string;

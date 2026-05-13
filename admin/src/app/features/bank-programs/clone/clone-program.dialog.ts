@@ -54,8 +54,22 @@ export interface CloneProgramDialogResult {
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-stroked-button type="button" (click)="cancel()" [disabled]="busy()" i18n="@@bank_programs.form.cancel">Cancel</button>
-      <button mat-flat-button color="primary" type="button" (click)="submit()" [disabled]="codeCtrl.invalid || busy()">
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="cancel()"
+        [disabled]="busy()"
+        i18n="@@bank_programs.form.cancel"
+      >
+        Cancel
+      </button>
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        (click)="submit()"
+        [disabled]="codeCtrl.invalid || busy()"
+      >
         <mat-spinner *ngIf="busy()" diameter="16"></mat-spinner>
         <span *ngIf="!busy()" i18n="@@bank_programs.clone.cta">Clone program</span>
         <span *ngIf="busy()" i18n="@@bank_programs.clone.cloning">Cloning…</span>
@@ -72,9 +86,16 @@ export interface CloneProgramDialogResult {
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
       }
-      .source mat-icon { color: var(--color-tonal-accent); }
-      .source strong { color: var(--color-text-primary); font-family: var(--font-family-mono, monospace); }
-      .full { width: 100%; }
+      .source mat-icon {
+        color: var(--color-tonal-accent);
+      }
+      .source strong {
+        color: var(--color-text-primary);
+        font-family: var(--font-family-mono, monospace);
+      }
+      .full {
+        width: 100%;
+      }
     `,
   ],
 })

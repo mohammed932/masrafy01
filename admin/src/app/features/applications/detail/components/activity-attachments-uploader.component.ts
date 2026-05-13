@@ -179,7 +179,8 @@ const SOURCE_OPTIONS = [
         flex-direction: column;
         align-items: center;
         gap: var(--space-2);
-        transition: background var(--motion-duration-fast) var(--motion-easing-standard),
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
           border-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .dropzone.is-active {

@@ -16,10 +16,7 @@ import {
 } from '@/users/staff-account.repository';
 import { LockoutService } from './lockout.service';
 import { JwtTokenService } from './jwt-token.service';
-import {
-  RefreshTokenService,
-  type IssueResult,
-} from './refresh-token.service';
+import { RefreshTokenService, type IssueResult } from './refresh-token.service';
 import { SignInAttemptRepository } from './sign-in-attempt.repository';
 import type { AuthenticatedUserDto } from './dto/login.response.dto';
 import type { JwtPayload } from '@/common/decorators/current-user.decorator';

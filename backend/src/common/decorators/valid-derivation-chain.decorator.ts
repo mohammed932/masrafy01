@@ -43,9 +43,7 @@ export function ValidDerivationChain(validationOptions?: ValidationOptions): Pro
           const v = carrier.value;
           const s = carrier.derivation.sourceRatePercent;
           const d = carrier.derivation.deltaPercent;
-          if (
-            typeof v !== 'string' && typeof v !== 'number'
-          ) {
+          if (typeof v !== 'string' && typeof v !== 'number') {
             return false;
           }
           if (

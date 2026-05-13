@@ -12,10 +12,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ApplicationsApiService, type AdminApplicationRow } from '../api/applications.api.service';
-import {
-  ApprovalPillComponent,
-  type ApprovalTier,
-} from './components/approval-pill.component';
+import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
   TierFilterChipsComponent,
   type TierFilter,
@@ -225,7 +222,14 @@ export class ApplicationsListPage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
-  protected readonly displayed = ['probability', 'purpose', 'amount', 'status', 'created', 'actions'];
+  protected readonly displayed = [
+    'probability',
+    'purpose',
+    'amount',
+    'status',
+    'created',
+    'actions',
+  ];
   protected readonly rows = signal<readonly AdminApplicationRow[]>([]);
   protected readonly loading = signal(false);
   protected readonly selectedTier = signal<TierFilter>(null);
@@ -253,7 +257,8 @@ export class ApplicationsListPage implements OnInit {
       needs_coaching: r.filter(
         (x) =>
           x.status === 'no_match' ||
-          (x.bestOffer && (['moderate', 'low', 'very_low'] as ApprovalTier[]).includes(x.bestOffer.tier)),
+          (x.bestOffer &&
+            (['moderate', 'low', 'very_low'] as ApprovalTier[]).includes(x.bestOffer.tier)),
       ).length,
     };
   });

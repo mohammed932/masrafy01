@@ -75,10 +75,7 @@ export interface BankProgramConfig {
 
 // --- Pricing cascade ------------------------------------------------------
 
-export function evaluatePricing(
-  config: BankProgramConfig,
-  ctx: ApplicantContext,
-): PricingResult {
+export function evaluatePricing(config: BankProgramConfig, ctx: ApplicantContext): PricingResult {
   const pricing = config.pricing;
   const trace: CascadeTraceStep[] = [];
 
@@ -106,7 +103,12 @@ export function evaluatePricing(
   const finalValue = pricing.isVariableRate
     ? pricing.currentEffectiveRatePercent
     : pricing.baseRatePercent;
-  trace.push({ level: finalLevel, matched: true, value: finalValue ?? '0', reason: 'fallback base/variable' });
+  trace.push({
+    level: finalLevel,
+    matched: true,
+    value: finalValue ?? '0',
+    reason: 'fallback base/variable',
+  });
   return {
     effectiveRatePercent: finalValue ?? '0',
     matchedLevel: finalLevel,
@@ -136,9 +138,7 @@ function selectFromTierMap(
     case 'rateByCustomerProgramTier':
       return ctx.customerProgramTier ? exactKey(map, ctx.customerProgramTier) : null;
     case 'rateByDownPaymentPercent':
-      return ctx.downPaymentPercent !== undefined
-        ? floorBand(map, ctx.downPaymentPercent)
-        : null;
+      return ctx.downPaymentPercent !== undefined ? floorBand(map, ctx.downPaymentPercent) : null;
     case 'rateByAssetValueBand':
       return ctx.assetValueEGP !== undefined ? floorBand(map, ctx.assetValueEGP) : null;
     case 'rateByLoanAmountBand':
@@ -182,7 +182,11 @@ export function evaluateLoanLimit(
   const ll = config.loanLimits;
   const trace: CascadeTraceStep[] = [];
 
-  const checks: Array<{ level: LoanLimitCascadeLevel; key: string | undefined; map?: Record<string, string> | Array<{ minCDValueEGP: string; maxAmountEGP: string }> }> = [
+  const checks: Array<{
+    level: LoanLimitCascadeLevel;
+    key: string | undefined;
+    map?: Record<string, string> | Array<{ minCDValueEGP: string; maxAmountEGP: string }>;
+  }> = [
     { level: 'maxByCDTier', key: undefined, map: ll.maxByCDTier },
     { level: 'maxByPropertyType', key: ctx.propertyType, map: ll.maxByPropertyType },
     { level: 'maxByCityTier', key: ctx.cityTier, map: ll.maxByCityTier },
@@ -208,7 +212,8 @@ export function evaluateLoanLimit(
         return {
           maxAmount: applyUpliftIfApproved(value, ll, ctx, config.eligibility, trace),
           matchedLevel: c.level,
-          upliftApplied: ctx.qualitativeReviewApproved === true && Boolean(ll.qualitativeReviewMaxEGP),
+          upliftApplied:
+            ctx.qualitativeReviewApproved === true && Boolean(ll.qualitativeReviewMaxEGP),
           trace,
         };
       }
@@ -287,7 +292,12 @@ export function evaluateTenor(config: BankProgramConfig, ctx: ApplicantContext):
     trace.push({ level, matched: false, reason: 'no key matched' });
   }
 
-  trace.push({ level: 'maxMonths', matched: true, value: String(t.maxMonths), reason: 'fallback base' });
+  trace.push({
+    level: 'maxMonths',
+    matched: true,
+    value: String(t.maxMonths),
+    reason: 'fallback base',
+  });
   return {
     maxMonths: t.maxMonths,
     matchedLevel: 'maxMonths',

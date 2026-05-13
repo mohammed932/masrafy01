@@ -8,12 +8,10 @@ export const AUTH_ROUTES: Routes = [
   },
   {
     path: 'change-password',
-    loadComponent: () =>
-      import('./forced-change.page').then((m) => m.ForcedChangePage),
+    loadComponent: () => import('./forced-change.page').then((m) => m.ForcedChangePage),
   },
   {
     path: 'self-password',
-    loadComponent: () =>
-      import('./self-change.page').then((m) => m.SelfChangePage),
+    loadComponent: () => import('./self-change.page').then((m) => m.SelfChangePage),
   },
 ];

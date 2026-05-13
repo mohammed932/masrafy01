@@ -23,8 +23,7 @@ export class BankProgramsMobileController {
   @Get(':programCode')
   @ApiOperation({
     summary: 'Get an active bank program by code (mobile read-only)',
-    description:
-      'Returns 404 for inactive or missing programs — no metadata leakage (FR-030).',
+    description: 'Returns 404 for inactive or missing programs — no metadata leakage (FR-030).',
   })
   async getOne(@Param('programCode') programCode: string) {
     const program = await this.service.getActiveByCode(programCode);

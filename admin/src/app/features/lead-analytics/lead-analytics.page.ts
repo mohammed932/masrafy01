@@ -3,10 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
-import {
-  AgentActivitySummary,
-  LeadAnalyticsApiService,
-} from './lead-analytics.api.service';
+import { AgentActivitySummary, LeadAnalyticsApiService } from './lead-analytics.api.service';
 import { AgentActivityTableComponent } from './components/agent-activity-table.component';
 
 const WINDOWS: readonly number[] = [7, 30, 90, 180];

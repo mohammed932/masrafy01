@@ -7,12 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   MAT_DIALOG_DATA,
   MatDialogActions,
@@ -129,9 +124,7 @@ const OUTCOME_FLAG_OPTIONS = [
         <mat-form-field appearance="outline">
           <mat-label i18n="@@activity.add.note">Note</mat-label>
           <textarea matInput formControlName="note" rows="4" maxlength="2000"></textarea>
-          <mat-hint align="end">
-            {{ form.controls.note.value?.length ?? 0 }} / 2000
-          </mat-hint>
+          <mat-hint align="end"> {{ form.controls.note.value?.length ?? 0 }} / 2000 </mat-hint>
         </mat-form-field>
 
         <fieldset class="outcome-fieldset">
@@ -236,10 +229,10 @@ export class AddActivityDialog {
   protected readonly outcomeFlags = [...OUTCOME_FLAG_OPTIONS];
 
   protected readonly form = new FormGroup({
-    activityType: new FormControl<string>(
-      this.data.defaultActivityType ?? ALL_ACTIVITY_TYPES[0],
-      { nonNullable: true, validators: [Validators.required] },
-    ),
+    activityType: new FormControl<string>(this.data.defaultActivityType ?? ALL_ACTIVITY_TYPES[0], {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
     reason: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
     note: new FormControl<string>('', { nonNullable: true }),
     durationMinutes: new FormControl<number | null>(null),

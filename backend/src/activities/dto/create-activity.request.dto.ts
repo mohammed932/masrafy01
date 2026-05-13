@@ -13,10 +13,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import {
-  ACTIVITY_NOTE_MAX_CHARS,
-  ACTIVITY_OUTCOME_FLAGS_MAX,
-} from '../activities.types';
+import { ACTIVITY_NOTE_MAX_CHARS, ACTIVITY_OUTCOME_FLAGS_MAX } from '../activities.types';
 
 export class AttachedDocumentPayloadDto {
   @ApiProperty({ minLength: 1, maxLength: 30 })

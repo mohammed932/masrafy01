@@ -1,9 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AuditEventType, StaffRole, type Prisma } from '@prisma/client';
-import {
-  CannotSelfModifyException,
-  NotFoundException,
-} from '@/common/errors/domain.exceptions';
+import { CannotSelfModifyException, NotFoundException } from '@/common/errors/domain.exceptions';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { PasswordService } from '@/auth/password.service';
 import {
@@ -139,11 +136,7 @@ export class UsersService {
 
   // ---- Reset password -----------------------------------------------------
 
-  async resetPassword(
-    targetId: string,
-    newPassword: string,
-    ctx: ActionContext,
-  ): Promise<void> {
+  async resetPassword(targetId: string, newPassword: string, ctx: ActionContext): Promise<void> {
     if (targetId === ctx.actorId) {
       // Users self-change via /auth/password — never via /users/:id/password.
       throw new CannotSelfModifyException();

@@ -37,8 +37,15 @@ export class IncomeAssumptionConfigDto {
   @IsIn(STRATEGIES)
   strategy!: IncomeAssumptionStrategy;
 
-  @IsOptional() @IsArray()
-  incomeTable?: Array<{ minYears?: number; maxYears?: number; minCDValueEGP?: string; assumedIncomeEGP?: string; incomeEGP?: string }>;
+  @IsOptional()
+  @IsArray()
+  incomeTable?: Array<{
+    minYears?: number;
+    maxYears?: number;
+    minCDValueEGP?: string;
+    assumedIncomeEGP?: string;
+    incomeEGP?: string;
+  }>;
 
   @IsOptional() @IsObject() rankIncomeMap?: Record<string, string>;
   @IsOptional() @IsObject() gradeIncomeMap?: Record<string, string>;

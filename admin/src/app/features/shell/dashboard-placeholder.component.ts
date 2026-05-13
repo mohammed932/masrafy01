@@ -223,8 +223,9 @@ export class DashboardPlaceholderComponent {
       : $localize`:@@dash.greetingAnon:Welcome to Masrafy.`;
   });
 
-  protected readonly subtitle = computed(() =>
-    $localize`:@@dash.subtitle:Operational overview lands here as features ship. Use the quick actions below to start.`,
+  protected readonly subtitle = computed(
+    () =>
+      $localize`:@@dash.subtitle:Operational overview lands here as features ship. Use the quick actions below to start.`,
   );
 
   protected readonly showReminders = computed(() => {

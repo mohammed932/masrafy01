@@ -41,7 +41,10 @@ export class ApplicationsController {
   @Get('applications/:applicationId/timeline')
   @ApiOperation({ summary: 'Customer milestone timeline (HMAC, milestone-only)' })
   @ApiResponse({ status: 200, description: 'Milestone list (no agent identities, no notes)' })
-  @ApiResponse({ status: 401, description: 'HMAC client identity does not match application owner' })
+  @ApiResponse({
+    status: 401,
+    description: 'HMAC client identity does not match application owner',
+  })
   async timeline(
     @Param('applicationId') applicationId: string,
     @Req() req: HmacRequest,

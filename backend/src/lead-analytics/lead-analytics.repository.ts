@@ -26,7 +26,7 @@ export class LeadAnalyticsRepository {
       activityType: g.activityType,
       count: g._count._all,
       totalDurationMinutes:
-        g.activityType === 'CALLED_USER' ? g._sum.durationMinutes ?? null : null,
+        g.activityType === 'CALLED_USER' ? (g._sum.durationMinutes ?? null) : null,
     }));
   }
 }

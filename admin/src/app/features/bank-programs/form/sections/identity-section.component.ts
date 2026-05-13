@@ -6,7 +6,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIconModule } from '@angular/material/icon';
 import { PlatformEnumerationsService } from '../../../../core/platform-enumerations/platform-enumerations.service';
-import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared/brand-select/brand-select.component';
+import {
+  BrandSelectComponent,
+  type BrandSelectOption,
+} from '../../../../shared/brand-select/brand-select.component';
 
 @Component({
   selector: 'app-identity-section',
@@ -37,7 +40,9 @@ import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared
         <mat-form-field appearance="outline">
           <mat-label i18n="@@bank_programs.field.program_code">Program code</mat-label>
           <input matInput formControlName="programCode" placeholder="ABK-AUTO-V1" />
-          <mat-hint i18n="@@bank_programs.hint.program_code">A–Z, 0–9, _, − (3–32 chars). Immutable.</mat-hint>
+          <mat-hint i18n="@@bank_programs.hint.program_code"
+            >A–Z, 0–9, _, − (3–32 chars). Immutable.</mat-hint
+          >
         </mat-form-field>
 
         <mat-form-field appearance="outline">
@@ -51,7 +56,9 @@ import { BrandSelectComponent, type BrandSelectOption } from '../../../../shared
         </mat-form-field>
 
         <mat-form-field appearance="outline">
-          <mat-label i18n="@@bank_programs.field.friendly_name_ar">Friendly name (Arabic)</mat-label>
+          <mat-label i18n="@@bank_programs.field.friendly_name_ar"
+            >Friendly name (Arabic)</mat-label
+          >
           <input matInput formControlName="friendlyNameAr" dir="rtl" />
         </mat-form-field>
 

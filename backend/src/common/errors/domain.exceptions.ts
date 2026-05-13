@@ -11,10 +11,7 @@ export class DomainException extends HttpException {
   public readonly meta?: Record<string, unknown>;
 
   constructor(code: ErrorCode, meta?: Record<string, unknown>) {
-    super(
-      { success: false, code, ...(meta ? { meta } : {}) },
-      ERROR_HTTP_STATUS[code],
-    );
+    super({ success: false, code, ...(meta ? { meta } : {}) }, ERROR_HTTP_STATUS[code]);
     this.code = code;
     this.meta = meta;
   }

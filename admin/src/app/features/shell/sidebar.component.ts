@@ -62,7 +62,12 @@ import { CanDirective } from '../../shared/can.directive';
       </nav>
 
       <div class="footer">
-        <a class="meta-link" href="https://github.com/anthropics/masrafy01" target="_blank" rel="noopener">
+        <a
+          class="meta-link"
+          href="https://github.com/anthropics/masrafy01"
+          target="_blank"
+          rel="noopener"
+        >
           <mat-icon class="meta-icon" aria-hidden="true">menu_book</mat-icon>
           <span i18n="@@sidebar.runbook">Runbook</span>
         </a>
@@ -95,7 +100,7 @@ import { CanDirective } from '../../shared/can.directive';
         padding-inline: var(--space-2);
         font-size: 11px;
         font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.10em;
+        letter-spacing: 0.1em;
         text-transform: uppercase;
         color: var(--color-text-tertiary);
       }

@@ -38,9 +38,8 @@ export class ActivitiesController {
     @Headers('x-correlation-id') correlationIdHeader: string | undefined,
     @Ip() ip: string,
   ) {
-    const correlationId = correlationIdHeader && correlationIdHeader.length > 0
-      ? correlationIdHeader
-      : randomUUID();
+    const correlationId =
+      correlationIdHeader && correlationIdHeader.length > 0 ? correlationIdHeader : randomUUID();
     const out = await this.service.createActivity({
       applicationId,
       request: body,

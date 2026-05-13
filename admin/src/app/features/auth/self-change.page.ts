@@ -75,7 +75,9 @@ interface SelfChangeControls {
             >
               <mat-icon>{{ revealNew() ? 'visibility_off' : 'visibility' }}</mat-icon>
             </button>
-            @if (form.controls.newPassword.touched && form.controls.newPassword.errors?.['minlength']) {
+            @if (
+              form.controls.newPassword.touched && form.controls.newPassword.errors?.['minlength']
+            ) {
               <mat-error i18n="@@selfChange.tooShort">At least 12 characters.</mat-error>
             }
           </mat-form-field>

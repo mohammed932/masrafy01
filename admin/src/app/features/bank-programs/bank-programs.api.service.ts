@@ -38,12 +38,16 @@ export class BankProgramsApiService {
       }
       params = params.set(k, String(v));
     }
-    return firstValueFrom(this.http.get<PaginatedEnvelope<BankProgramListRow>>(this.base, { params }));
+    return firstValueFrom(
+      this.http.get<PaginatedEnvelope<BankProgramListRow>>(this.base, { params }),
+    );
   }
 
   async getByCode(programCode: string): Promise<SuccessEnvelope<BankProgramResponse>> {
     return firstValueFrom(
-      this.http.get<SuccessEnvelope<BankProgramResponse>>(`${this.base}/${encodeURIComponent(programCode)}`),
+      this.http.get<SuccessEnvelope<BankProgramResponse>>(
+        `${this.base}/${encodeURIComponent(programCode)}`,
+      ),
     );
   }
 
@@ -63,7 +67,10 @@ export class BankProgramsApiService {
     );
   }
 
-  async toggle(programCode: string, body: { active: boolean; version: number }): Promise<SuccessEnvelope<BankProgramResponse>> {
+  async toggle(
+    programCode: string,
+    body: { active: boolean; version: number },
+  ): Promise<SuccessEnvelope<BankProgramResponse>> {
     return firstValueFrom(
       this.http.post<SuccessEnvelope<BankProgramResponse>>(
         `${this.base}/${encodeURIComponent(programCode)}/toggle`,
@@ -72,7 +79,10 @@ export class BankProgramsApiService {
     );
   }
 
-  async clone(sourceProgramCode: string, newProgramCode: string): Promise<SuccessEnvelope<BankProgramResponse>> {
+  async clone(
+    sourceProgramCode: string,
+    newProgramCode: string,
+  ): Promise<SuccessEnvelope<BankProgramResponse>> {
     return firstValueFrom(
       this.http.post<SuccessEnvelope<BankProgramResponse>>(
         `${this.base}/${encodeURIComponent(sourceProgramCode)}/clone`,

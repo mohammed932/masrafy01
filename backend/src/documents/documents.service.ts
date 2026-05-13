@@ -59,7 +59,10 @@ export class DocumentsService {
     if (!(ALLOWED_DOCUMENT_MIME_TYPES as readonly string[]).includes(input.mimeType)) {
       throw new FileTypeNotAllowedException(input.mimeType);
     }
-    const isActive = await this.enumerations.isActiveMember('required_document', input.documentType);
+    const isActive = await this.enumerations.isActiveMember(
+      'required_document',
+      input.documentType,
+    );
     if (!isActive) {
       const isDeprecated = await this.enumerations.isDeprecatedMember(
         'required_document',

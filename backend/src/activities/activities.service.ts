@@ -17,10 +17,7 @@ import {
 import { DocumentsService } from '@/documents/documents.service';
 import { stripPiiFromFilename } from '@/documents/filename-pii';
 import { ActivitiesRepository } from './activities.repository';
-import {
-  ACTIVITY_REASONS,
-  validateActivityReason,
-} from './activity-reasons';
+import { ACTIVITY_REASONS, validateActivityReason } from './activity-reasons';
 import type {
   AttachedDocumentPayloadDto,
   CreateActivityRequestDto,

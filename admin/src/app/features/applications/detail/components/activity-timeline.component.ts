@@ -4,10 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import {
-  ApplicationsApiService,
-  type ActivityRow,
-} from '../../api/applications.api.service';
+import { ApplicationsApiService, type ActivityRow } from '../../api/applications.api.service';
 
 type FilterKey = 'all' | 'calls' | 'messages' | 'documents' | 'system';
 
@@ -129,7 +126,9 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
                 }
                 <p class="row-meta">
                   @if (row.durationMinutes !== null) {
-                    <span i18n="@@activity.timeline.duration">Duration {{ row.durationMinutes }} min</span>
+                    <span i18n="@@activity.timeline.duration"
+                      >Duration {{ row.durationMinutes }} min</span
+                    >
                   }
                   @if (row.outcomeFlags.length > 0) {
                     <span class="meta-sep" aria-hidden="true">·</span>

@@ -45,7 +45,9 @@ export class S3StorageClient implements OnModuleInit {
     };
     if (endpoint) s3Config.endpoint = endpoint;
     this.client = new S3Client(s3Config);
-    this.logger.log(`S3 client ready (bucket=${this.bucket}, endpoint=${endpoint || 'AWS default'})`);
+    this.logger.log(
+      `S3 client ready (bucket=${this.bucket}, endpoint=${endpoint || 'AWS default'})`,
+    );
   }
 
   async getPresignedPutUrl(
@@ -66,7 +68,9 @@ export class S3StorageClient implements OnModuleInit {
     return { downloadUrl, expiresAt: new Date(Date.now() + ttl * 1000) };
   }
 
-  async headObject(key: string): Promise<{ exists: boolean; sizeBytes?: number; mimeType?: string }> {
+  async headObject(
+    key: string,
+  ): Promise<{ exists: boolean; sizeBytes?: number; mimeType?: string }> {
     try {
       const out = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
       return { exists: true, sizeBytes: out.ContentLength, mimeType: out.ContentType };

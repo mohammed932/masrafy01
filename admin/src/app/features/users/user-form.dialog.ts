@@ -12,11 +12,7 @@ import {
 import { ErrorStateMatcher } from '@angular/material/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogModule,
-  MatDialogRef,
-} from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -94,7 +90,10 @@ interface EditFormControls {
         </h2>
         <p class="subtitle">
           @if (data.mode === 'create') {
-            <span i18n="@@userForm.descCreate">Add a new internal staff account. The user will be required to change the initial password on first sign-in.</span>
+            <span i18n="@@userForm.descCreate"
+              >Add a new internal staff account. The user will be required to change the initial
+              password on first sign-in.</span
+            >
           } @else {
             <span i18n="@@userForm.descEdit">Update name, role, or active status.</span>
           }
@@ -113,13 +112,20 @@ interface EditFormControls {
         <section class="section">
           <header class="section-head">
             <span class="section-label" i18n="@@userForm.section.identity">Identity</span>
-            <span class="section-desc" i18n="@@userForm.section.identityDesc">Who is this user?</span>
+            <span class="section-desc" i18n="@@userForm.section.identityDesc"
+              >Who is this user?</span
+            >
           </header>
 
           <div class="field-row">
             <mat-form-field appearance="outline" class="field">
               <mat-label i18n="@@userForm.name">Full name</mat-label>
-              <input matInput formControlName="name" autocomplete="name" [errorStateMatcher]="errorMatcher" />
+              <input
+                matInput
+                formControlName="name"
+                autocomplete="name"
+                [errorStateMatcher]="errorMatcher"
+              />
               <mat-hint i18n="@@userForm.nameHint">As it should appear in the dashboard.</mat-hint>
             </mat-form-field>
           </div>
@@ -127,7 +133,13 @@ interface EditFormControls {
           <div class="field-row">
             <mat-form-field appearance="outline" class="field">
               <mat-label i18n="@@userForm.email">Work email</mat-label>
-              <input matInput type="email" autocomplete="email" formControlName="email" [errorStateMatcher]="errorMatcher" />
+              <input
+                matInput
+                type="email"
+                autocomplete="email"
+                formControlName="email"
+                [errorStateMatcher]="errorMatcher"
+              />
               <mat-icon matPrefix aria-hidden="true">mail</mat-icon>
               <mat-hint i18n="@@userForm.emailHint">Used to sign in. Must be unique.</mat-hint>
               @if (emailError(); as msg) {
@@ -140,25 +152,35 @@ interface EditFormControls {
         <section class="section">
           <header class="section-head">
             <span class="section-label" i18n="@@userForm.section.access">Access</span>
-            <span class="section-desc" i18n="@@userForm.section.accessDesc">Role and initial credentials.</span>
+            <span class="section-desc" i18n="@@userForm.section.accessDesc"
+              >Role and initial credentials.</span
+            >
           </header>
 
           <div class="field-row">
             <mat-form-field appearance="outline" class="field">
               <mat-label i18n="@@userForm.role">Role</mat-label>
               <mat-select formControlName="role">
-                <mat-select-trigger>{{ roleLabel(createForm.controls.role.value) }}</mat-select-trigger>
+                <mat-select-trigger>{{
+                  roleLabel(createForm.controls.role.value)
+                }}</mat-select-trigger>
                 <mat-option value="sales_manager" class="role-option">
                   <span class="opt-title" i18n="@@role.sales_manager">Sales manager</span>
-                  <span class="opt-desc" i18n="@@userForm.role.managerDesc">Manages bank programs + applications and oversees the sales team.</span>
+                  <span class="opt-desc" i18n="@@userForm.role.managerDesc"
+                    >Manages bank programs + applications and oversees the sales team.</span
+                  >
                 </mat-option>
                 <mat-option value="sales_agent" class="role-option">
                   <span class="opt-title" i18n="@@role.sales_agent">Sales agent</span>
-                  <span class="opt-desc" i18n="@@userForm.role.agentDesc">Handles their own applications; read-only on bank programs.</span>
+                  <span class="opt-desc" i18n="@@userForm.role.agentDesc"
+                    >Handles their own applications; read-only on bank programs.</span
+                  >
                 </mat-option>
                 <mat-option value="analyst" class="role-option">
                   <span class="opt-title" i18n="@@role.analyst">Analyst</span>
-                  <span class="opt-desc" i18n="@@userForm.role.analystDesc">Read-only across applications, programs, and audit logs.</span>
+                  <span class="opt-desc" i18n="@@userForm.role.analystDesc"
+                    >Read-only across applications, programs, and audit logs.</span
+                  >
                 </mat-option>
               </mat-select>
             </mat-form-field>
@@ -167,11 +189,25 @@ interface EditFormControls {
           <div class="field-row">
             <mat-form-field appearance="outline" class="field">
               <mat-label i18n="@@userForm.initialPassword">Initial password</mat-label>
-              <input matInput [type]="revealPw() ? 'text' : 'password'" autocomplete="new-password" formControlName="initialPassword" [errorStateMatcher]="errorMatcher" />
-              <button mat-icon-button matSuffix type="button" (click)="revealPw.set(!revealPw())" [attr.aria-pressed]="revealPw()">
+              <input
+                matInput
+                [type]="revealPw() ? 'text' : 'password'"
+                autocomplete="new-password"
+                formControlName="initialPassword"
+                [errorStateMatcher]="errorMatcher"
+              />
+              <button
+                mat-icon-button
+                matSuffix
+                type="button"
+                (click)="revealPw.set(!revealPw())"
+                [attr.aria-pressed]="revealPw()"
+              >
                 <mat-icon>{{ revealPw() ? 'visibility_off' : 'visibility' }}</mat-icon>
               </button>
-              <mat-hint i18n="@@userForm.passwordHint">12–128 chars. User must change on first sign-in.</mat-hint>
+              <mat-hint i18n="@@userForm.passwordHint"
+                >12–128 chars. User must change on first sign-in.</mat-hint
+              >
               @if (passwordError(); as msg) {
                 <mat-error>{{ msg }}</mat-error>
               }
@@ -191,7 +227,9 @@ interface EditFormControls {
             <mat-label i18n="@@userForm.email">Email</mat-label>
             <input matInput [value]="data.row.email" readonly />
             <mat-icon matSuffix aria-hidden="true">lock</mat-icon>
-            <mat-hint i18n="@@userForm.emailReadonly">Email cannot be changed after account creation.</mat-hint>
+            <mat-hint i18n="@@userForm.emailReadonly"
+              >Email cannot be changed after account creation.</mat-hint
+            >
           </mat-form-field>
         </div>
 
@@ -199,7 +237,9 @@ interface EditFormControls {
           <mat-form-field appearance="outline" class="field">
             <mat-label i18n="@@userForm.role">Role</mat-label>
             <mat-select formControlName="role" [disabled]="isSelf">
-              <mat-option value="sales_manager" i18n="@@role.sales_manager">Sales manager</mat-option>
+              <mat-option value="sales_manager" i18n="@@role.sales_manager"
+                >Sales manager</mat-option
+              >
               <mat-option value="sales_agent" i18n="@@role.sales_agent">Sales agent</mat-option>
               <mat-option value="analyst" i18n="@@role.analyst">Analyst</mat-option>
             </mat-select>
@@ -212,7 +252,9 @@ interface EditFormControls {
         <div class="field-row toggle-row">
           <div class="toggle-text">
             <span class="toggle-title" i18n="@@userForm.active">Active</span>
-            <span class="toggle-desc" i18n="@@userForm.activeDesc">Inactive users cannot sign in. Historical records are kept.</span>
+            <span class="toggle-desc" i18n="@@userForm.activeDesc"
+              >Inactive users cannot sign in. Historical records are kept.</span
+            >
           </div>
           <mat-slide-toggle formControlName="isActive" [disabled]="isSelf"></mat-slide-toggle>
         </div>

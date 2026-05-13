@@ -163,7 +163,9 @@ export class StaleLeadScanner {
           await this.redis.raw.del(LOCK_KEY);
         }
       } catch (err) {
-        this.logger.warn(`[StaleLeadScanner] lock release best-effort failure: ${(err as Error).message}`);
+        this.logger.warn(
+          `[StaleLeadScanner] lock release best-effort failure: ${(err as Error).message}`,
+        );
       }
     }
   }

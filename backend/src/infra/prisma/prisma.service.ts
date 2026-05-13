@@ -28,9 +28,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
    * Postgres serialization failure (40001). Used by the super_admin floor guard
    * per research R-007.
    */
-  async runSerializable<T>(
-    fn: (tx: Prisma.TransactionClient) => Promise<T>,
-  ): Promise<T> {
+  async runSerializable<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     const attempt = async (): Promise<T> =>
       this.$transaction(fn, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 

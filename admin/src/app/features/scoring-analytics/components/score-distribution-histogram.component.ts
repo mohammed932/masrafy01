@@ -112,7 +112,8 @@ export class ScoreDistributionHistogramComponent {
     });
   });
 
-  protected readonly ariaLabel = computed(() =>
-    $localize`:@@analytics.dist.aria:Approval score distribution histogram with 10 ten-point buckets`,
+  protected readonly ariaLabel = computed(
+    () =>
+      $localize`:@@analytics.dist.aria:Approval score distribution histogram with 10 ten-point buckets`,
   );
 }

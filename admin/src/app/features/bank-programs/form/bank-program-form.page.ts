@@ -7,7 +7,14 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormArray,
+  FormBuilder,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -76,8 +83,8 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
             {{ isEditMode() ? editTitle() : createTitle() }}
           </h1>
           <p class="page-subtitle" i18n="@@bank_programs.form.subtitle">
-            Configure every section below. All fields validate on blur; submit unlocks when the
-            form is structurally valid.
+            Configure every section below. All fields validate on blur; submit unlocks when the form
+            is structurally valid.
           </p>
         </div>
       </header>
@@ -97,7 +104,10 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
 
       <ng-template #readyTpl>
         <form [formGroup]="form" (ngSubmit)="submit()" class="form-body">
-          <app-identity-section [group]="identityGroup" [editMode]="isEditMode()"></app-identity-section>
+          <app-identity-section
+            [group]="identityGroup"
+            [editMode]="isEditMode()"
+          ></app-identity-section>
           <app-tenor-section [group]="tenorGroup"></app-tenor-section>
           <app-loan-limits-section
             [group]="loanLimitsGroup"
@@ -106,8 +116,12 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
           ></app-loan-limits-section>
           <app-pricing-section [group]="pricingGroup"></app-pricing-section>
           <app-eligibility-section [group]="eligibilityGroup"></app-eligibility-section>
-          <app-performance-criteria-section [group]="performanceGroup"></app-performance-criteria-section>
-          <app-income-assumption-section [group]="incomeAssumptionGroup"></app-income-assumption-section>
+          <app-performance-criteria-section
+            [group]="performanceGroup"
+          ></app-performance-criteria-section>
+          <app-income-assumption-section
+            [group]="incomeAssumptionGroup"
+          ></app-income-assumption-section>
           <app-fees-section [group]="feesGroup"></app-fees-section>
           <app-documents-section [group]="documentsGroup"></app-documents-section>
 
@@ -123,7 +137,9 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
               [disabled]="form.invalid || busy() || enums.unavailable()"
             >
               <mat-spinner *ngIf="busy()" diameter="16" mode="indeterminate"></mat-spinner>
-              <mat-icon *ngIf="!busy()" aria-hidden="true">{{ isEditMode() ? 'save' : 'add' }}</mat-icon>
+              <mat-icon *ngIf="!busy()" aria-hidden="true">{{
+                isEditMode() ? 'save' : 'add'
+              }}</mat-icon>
               <span *ngIf="!busy()">
                 {{ isEditMode() ? saveLabel() : createLabel() }}
               </span>
@@ -157,8 +173,14 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
         font-size: var(--text-sm);
         width: max-content;
       }
-      .back-link:hover { color: var(--color-text-link); }
-      .title-block { display: flex; flex-direction: column; gap: var(--space-1); }
+      .back-link:hover {
+        color: var(--color-text-link);
+      }
+      .title-block {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
       .page-title {
         font-size: var(--text-2xl);
         font-weight: var(--font-weight-semibold);
@@ -188,7 +210,10 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
         border-radius: var(--radius-lg);
         margin-block-start: var(--space-2);
       }
-      .form-footer button mat-spinner { display: inline-block; margin-inline-end: var(--space-2); }
+      .form-footer button mat-spinner {
+        display: inline-block;
+        margin-inline-end: var(--space-2);
+      }
       .unavailable {
         display: flex;
         flex-direction: column;
@@ -201,8 +226,17 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
       }
-      .unavailable-icon { font-size: 56px; width: 56px; height: 56px; color: var(--color-text-tertiary); }
-      .unavailable-text { margin: 0; color: var(--color-text-primary); font-size: var(--text-md); }
+      .unavailable-icon {
+        font-size: 56px;
+        width: 56px;
+        height: 56px;
+        color: var(--color-text-tertiary);
+      }
+      .unavailable-text {
+        margin: 0;
+        color: var(--color-text-primary);
+        font-size: var(--text-md);
+      }
     `,
   ],
 })
@@ -236,21 +270,50 @@ export class BankProgramFormPage implements OnInit {
 
   readonly form = this.fb.nonNullable.group({
     identity: this.fb.nonNullable.group({
-      programCode: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.pattern(/^[A-Z0-9_-]{3,32}$/)] }),
-      bankName: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(80)] }),
-      friendlyName: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.maxLength(120)] }),
-      friendlyNameAr: new FormControl<string | null>(null, { validators: [Validators.maxLength(120)] }),
-      programType: new FormControl<ProgramType>('income_proof', { nonNullable: true, validators: [Validators.required] }),
-      productCategory: new FormControl('personal', { nonNullable: true, validators: [Validators.required] }),
+      programCode: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.pattern(/^[A-Z0-9_-]{3,32}$/)],
+      }),
+      bankName: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.maxLength(80)],
+      }),
+      friendlyName: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.maxLength(120)],
+      }),
+      friendlyNameAr: new FormControl<string | null>(null, {
+        validators: [Validators.maxLength(120)],
+      }),
+      programType: new FormControl<ProgramType>('income_proof', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      productCategory: new FormControl('personal', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
       currencies: this.fb.nonNullable.array<string>(['EGP'], { validators: [Validators.required] }),
     }),
     tenor: this.fb.nonNullable.group({
-      minMonths: new FormControl(12, { nonNullable: true, validators: [Validators.required, Validators.min(1), Validators.max(480)] }),
-      maxMonths: new FormControl(60, { nonNullable: true, validators: [Validators.required, Validators.min(1), Validators.max(480)] }),
+      minMonths: new FormControl(12, {
+        nonNullable: true,
+        validators: [Validators.required, Validators.min(1), Validators.max(480)],
+      }),
+      maxMonths: new FormControl(60, {
+        nonNullable: true,
+        validators: [Validators.required, Validators.min(1), Validators.max(480)],
+      }),
     }),
     loanLimits: this.fb.nonNullable.group({
-      minAmountEGP: new FormControl('50000', { nonNullable: true, validators: [Validators.required] }),
-      maxAmountEGP: new FormControl('1500000', { nonNullable: true, validators: [Validators.required] }),
+      minAmountEGP: new FormControl('50000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      maxAmountEGP: new FormControl('1500000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
       qualitativeReviewMaxEGP: new FormControl<string | null>(null),
     }),
     pricing: this.fb.nonNullable.group({
@@ -260,14 +323,35 @@ export class BankProgramFormPage implements OnInit {
       variableRateNote: new FormControl<string | null>(null),
     }),
     eligibility: this.fb.nonNullable.group({
-      acceptedEmploymentTypes: this.fb.nonNullable.array<string>(['salaried'], { validators: [Validators.required] }),
-      acceptedLoanPurposes: this.fb.nonNullable.array<string>(['personal'], { validators: [Validators.required] }),
-      acceptedTransferTypes: this.fb.nonNullable.array<string>(['payroll'], { validators: [Validators.required] }),
-      ageMin: new FormControl(21, { nonNullable: true, validators: [Validators.required, Validators.min(18), Validators.max(80)] }),
-      ageMax: new FormControl(60, { nonNullable: true, validators: [Validators.required, Validators.min(18), Validators.max(80)] }),
-      minMonthlyIncomeEGP: new FormControl('5000', { nonNullable: true, validators: [Validators.required] }),
-      minMonthsInJob: new FormControl(6, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-      dbrCapPercent: new FormControl('50.0000', { nonNullable: true, validators: [Validators.required] }),
+      acceptedEmploymentTypes: this.fb.nonNullable.array<string>(['salaried'], {
+        validators: [Validators.required],
+      }),
+      acceptedLoanPurposes: this.fb.nonNullable.array<string>(['personal'], {
+        validators: [Validators.required],
+      }),
+      acceptedTransferTypes: this.fb.nonNullable.array<string>(['payroll'], {
+        validators: [Validators.required],
+      }),
+      ageMin: new FormControl(21, {
+        nonNullable: true,
+        validators: [Validators.required, Validators.min(18), Validators.max(80)],
+      }),
+      ageMax: new FormControl(60, {
+        nonNullable: true,
+        validators: [Validators.required, Validators.min(18), Validators.max(80)],
+      }),
+      minMonthlyIncomeEGP: new FormControl('5000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      minMonthsInJob: new FormControl(6, {
+        nonNullable: true,
+        validators: [Validators.required, Validators.min(0)],
+      }),
+      dbrCapPercent: new FormControl('50.0000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
       skipDbrCheck: new FormControl(false, { nonNullable: true }),
       requiresCD: new FormControl(false, { nonNullable: true }),
       requiresAutoLoanAtABK: new FormControl(false, { nonNullable: true }),
@@ -292,20 +376,41 @@ export class BankProgramFormPage implements OnInit {
       requireCurrentLoanStatus: new FormControl(false, { nonNullable: true }),
     }),
     incomeAssumption: this.fb.nonNullable.group({
-      strategy: new FormControl<IncomeAssumptionStrategy>('declared', { nonNullable: true, validators: [Validators.required] }),
+      strategy: new FormControl<IncomeAssumptionStrategy>('declared', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
       carInstallmentMultiplier: new FormControl<string | null>(null),
       carLoanAmountPercent: new FormControl<string | null>(null),
       creditCardLimitMultiplier: new FormControl<string | null>(null),
       bankStatementPercent: new FormControl<string | null>(null),
     }),
     fees: this.fb.nonNullable.group({
-      adminFeePercent: new FormControl('1.0000', { nonNullable: true, validators: [Validators.required] }),
-      stampDutyPercent: new FormControl('0.5000', { nonNullable: true, validators: [Validators.required] }),
-      lifeInsurancePercent: new FormControl('0.5000', { nonNullable: true, validators: [Validators.required] }),
+      adminFeePercent: new FormControl('1.0000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      stampDutyPercent: new FormControl('0.5000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      lifeInsurancePercent: new FormControl('0.5000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
       lifeInsuranceMandatory: new FormControl(false, { nonNullable: true }),
-      latePaymentFeePercent: new FormControl('4.0000', { nonNullable: true, validators: [Validators.required] }),
-      payoffCashPercent: new FormControl('12.0000', { nonNullable: true, validators: [Validators.required] }),
-      payoffBuyoutPercent: new FormControl('15.0000', { nonNullable: true, validators: [Validators.required] }),
+      latePaymentFeePercent: new FormControl('4.0000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      payoffCashPercent: new FormControl('12.0000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      payoffBuyoutPercent: new FormControl('15.0000', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
     }),
     documents: this.fb.nonNullable.group({
       requiredDocuments: this.fb.nonNullable.array<string>([]),
@@ -314,15 +419,33 @@ export class BankProgramFormPage implements OnInit {
     }),
   });
 
-  get identityGroup(): FormGroup { return this.form.controls.identity as FormGroup; }
-  get tenorGroup(): FormGroup { return this.form.controls.tenor as FormGroup; }
-  get loanLimitsGroup(): FormGroup { return this.form.controls.loanLimits as FormGroup; }
-  get pricingGroup(): FormGroup { return this.form.controls.pricing as FormGroup; }
-  get eligibilityGroup(): FormGroup { return this.form.controls.eligibility as FormGroup; }
-  get performanceGroup(): FormGroup { return this.form.controls.performance as FormGroup; }
-  get incomeAssumptionGroup(): FormGroup { return this.form.controls.incomeAssumption as FormGroup; }
-  get feesGroup(): FormGroup { return this.form.controls.fees as FormGroup; }
-  get documentsGroup(): FormGroup { return this.form.controls.documents as FormGroup; }
+  get identityGroup(): FormGroup {
+    return this.form.controls.identity as FormGroup;
+  }
+  get tenorGroup(): FormGroup {
+    return this.form.controls.tenor as FormGroup;
+  }
+  get loanLimitsGroup(): FormGroup {
+    return this.form.controls.loanLimits as FormGroup;
+  }
+  get pricingGroup(): FormGroup {
+    return this.form.controls.pricing as FormGroup;
+  }
+  get eligibilityGroup(): FormGroup {
+    return this.form.controls.eligibility as FormGroup;
+  }
+  get performanceGroup(): FormGroup {
+    return this.form.controls.performance as FormGroup;
+  }
+  get incomeAssumptionGroup(): FormGroup {
+    return this.form.controls.incomeAssumption as FormGroup;
+  }
+  get feesGroup(): FormGroup {
+    return this.form.controls.fees as FormGroup;
+  }
+  get documentsGroup(): FormGroup {
+    return this.form.controls.documents as FormGroup;
+  }
 
   readonly currenciesSignal = signal<string[]>(['EGP']);
   readonly requiresQualitativeReviewSignal = signal<boolean>(false);
@@ -358,7 +481,16 @@ export class BankProgramFormPage implements OnInit {
 
   retryEnums(): void {
     this.enums.clear();
-    this.enums.preload(['salary_category', 'transfer_type', 'employment_type', 'loan_purpose', 'product_category', 'currency', 'required_document', 'customer_program_tier']);
+    this.enums.preload([
+      'salary_category',
+      'transfer_type',
+      'employment_type',
+      'loan_purpose',
+      'product_category',
+      'currency',
+      'required_document',
+      'customer_program_tier',
+    ]);
   }
 
   cancel(): void {
@@ -449,8 +581,10 @@ export class BankProgramFormPage implements OnInit {
       },
       pricing: {
         isVariableRate: pr.isVariableRate,
-        baseRatePercent: pr.isVariableRate ? undefined : pr.baseRatePercent ?? undefined,
-        currentEffectiveRatePercent: pr.isVariableRate ? pr.currentEffectiveRatePercent ?? undefined : undefined,
+        baseRatePercent: pr.isVariableRate ? undefined : (pr.baseRatePercent ?? undefined),
+        currentEffectiveRatePercent: pr.isVariableRate
+          ? (pr.currentEffectiveRatePercent ?? undefined)
+          : undefined,
         variableRateNote: pr.variableRateNote ?? undefined,
       },
       eligibility: {
@@ -488,10 +622,20 @@ export class BankProgramFormPage implements OnInit {
         : undefined,
       incomeAssumption: {
         strategy: ia.strategy,
-        carInstallmentMultiplier: ia.strategy === 'byCarInstallment' ? ia.carInstallmentMultiplier ?? undefined : undefined,
-        carLoanAmountPercent: ia.strategy === 'byCarLoanAmount' ? ia.carLoanAmountPercent ?? undefined : undefined,
-        creditCardLimitMultiplier: ia.strategy === 'byCreditCardLimit' ? ia.creditCardLimitMultiplier ?? undefined : undefined,
-        bankStatementPercent: ia.strategy === 'byBankStatementPercent' ? ia.bankStatementPercent ?? undefined : undefined,
+        carInstallmentMultiplier:
+          ia.strategy === 'byCarInstallment'
+            ? (ia.carInstallmentMultiplier ?? undefined)
+            : undefined,
+        carLoanAmountPercent:
+          ia.strategy === 'byCarLoanAmount' ? (ia.carLoanAmountPercent ?? undefined) : undefined,
+        creditCardLimitMultiplier:
+          ia.strategy === 'byCreditCardLimit'
+            ? (ia.creditCardLimitMultiplier ?? undefined)
+            : undefined,
+        bankStatementPercent:
+          ia.strategy === 'byBankStatementPercent'
+            ? (ia.bankStatementPercent ?? undefined)
+            : undefined,
       },
       fees: {
         adminFeePercent: fe.adminFeePercent,
@@ -521,12 +665,17 @@ export class BankProgramFormPage implements OnInit {
       currenciesArr.push(new FormControl(c, { nonNullable: true }));
     }
 
-    this.tenorGroup.patchValue({ minMonths: initial.tenor.minMonths, maxMonths: initial.tenor.maxMonths });
+    this.tenorGroup.patchValue({
+      minMonths: initial.tenor.minMonths,
+      maxMonths: initial.tenor.maxMonths,
+    });
     const egp = initial.loanLimits.perCurrency['EGP'];
     if (egp) {
       this.loanLimitsGroup.patchValue({ minAmountEGP: egp.minAmount, maxAmountEGP: egp.maxAmount });
     }
-    this.loanLimitsGroup.patchValue({ qualitativeReviewMaxEGP: initial.loanLimits.qualitativeReviewMaxEGP ?? null });
+    this.loanLimitsGroup.patchValue({
+      qualitativeReviewMaxEGP: initial.loanLimits.qualitativeReviewMaxEGP ?? null,
+    });
 
     this.pricingGroup.patchValue({
       isVariableRate: initial.pricing.isVariableRate,
@@ -593,7 +742,10 @@ export class BankProgramFormPage implements OnInit {
       this.pricingGroup.get('currentEffectiveRatePercent')?.setErrors({ variableRate: true });
       this.pricingGroup.get('baseRatePercent')?.setErrors({ variableRate: true });
     }
-    if (code === 'INVALID_QUALITATIVE_REVIEW_CEILING' || code === 'QUALITATIVE_REVIEW_CEILING_BELOW_BASE') {
+    if (
+      code === 'INVALID_QUALITATIVE_REVIEW_CEILING' ||
+      code === 'QUALITATIVE_REVIEW_CEILING_BELOW_BASE'
+    ) {
       this.loanLimitsGroup.get('qualitativeReviewMaxEGP')?.setErrors({ qrCeiling: true });
     }
     if (code === 'CONFLICT_STALE_DATA' && this.isEditMode()) {

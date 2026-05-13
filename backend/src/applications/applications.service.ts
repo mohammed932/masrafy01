@@ -25,7 +25,12 @@ import {
 } from '../common/errors/domain.exceptions';
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
-import type { ApplicantProfile, BankProgramSnapshot, Offer, ScoringConfig } from '../matching/types';
+import type {
+  ApplicantProfile,
+  BankProgramSnapshot,
+  Offer,
+  ScoringConfig,
+} from '../matching/types';
 import type { ApplyRequestDto } from './dto/apply.dto';
 import type {
   ApplyResponse,

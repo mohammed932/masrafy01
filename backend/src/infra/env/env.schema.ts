@@ -11,9 +11,7 @@ const truthy = z
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
-  LOG_LEVEL: z
-    .enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'])
-    .default('info'),
+  LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent']).default('info'),
 
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
@@ -22,7 +20,11 @@ export const envSchema = z.object({
     .string()
     .min(32, 'JWT_ACCESS_SECRET must be at least 32 characters (256 bits)'),
   JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
-  REFRESH_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 7),
+  REFRESH_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60 * 24 * 7),
 
   BCRYPT_COST: z.coerce.number().int().min(10).max(15).default(12),
 

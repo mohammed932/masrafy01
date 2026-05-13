@@ -12,7 +12,11 @@ import type { StaffRole } from '@prisma/client';
 
 // super_admin intentionally omitted — role cannot be elevated to super_admin via API;
 // bootstrap one via the seed script.
-const UPDATABLE_ROLES = ['sales_manager', 'sales_agent', 'analyst'] as const satisfies ReadonlyArray<StaffRole>;
+const UPDATABLE_ROLES = [
+  'sales_manager',
+  'sales_agent',
+  'analyst',
+] as const satisfies ReadonlyArray<StaffRole>;
 
 function AtLeastOneField(fields: ReadonlyArray<string>, options?: ValidationOptions) {
   return function (object: object, propertyName: string): void {

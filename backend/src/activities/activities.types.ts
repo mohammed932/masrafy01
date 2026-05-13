@@ -110,7 +110,12 @@ export const REASON_CODES = [
 
 export type ReasonCode = (typeof REASON_CODES)[number] | string;
 
-export const ACTIVITY_ACTOR_ROLES = ['super_admin', 'sales_manager', 'sales_agent', 'system'] as const;
+export const ACTIVITY_ACTOR_ROLES = [
+  'super_admin',
+  'sales_manager',
+  'sales_agent',
+  'system',
+] as const;
 export type ActivityActorRole = (typeof ACTIVITY_ACTOR_ROLES)[number];
 
 export const ALLOWED_DOCUMENT_MIME_TYPES = [

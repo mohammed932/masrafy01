@@ -23,10 +23,7 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { ApplicationRepository, type LeadListFilter } from './application.repository';
-import {
-  ForbiddenException,
-  NotFoundException,
-} from '@/common/errors/domain.exceptions';
+import { ForbiddenException, NotFoundException } from '@/common/errors/domain.exceptions';
 import { AssignLeadDto } from './dto/assign-lead.dto';
 import { ApplicationsService } from './applications.service';
 import { maskApplicantProfile, type RawApplicantProfileJson } from './pii-masker';
@@ -70,8 +67,7 @@ export class AdminApplicationsController {
     )
       ? (leadFilter as LeadListFilter)
       : undefined;
-    const assignedAgentStaffId =
-      user.role === 'sales_agent' ? user.sub : undefined;
+    const assignedAgentStaffId = user.role === 'sales_agent' ? user.sub : undefined;
     const rows = await this.repo.findManyAdmin({
       status: status?.split(',') as ApplicationStatus[] | undefined,
       loanPurpose,

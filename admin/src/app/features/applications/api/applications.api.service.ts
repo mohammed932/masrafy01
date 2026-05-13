@@ -208,8 +208,9 @@ export class ApplicationsApiService {
     );
     return {
       rows: res.data,
-      nextCursor: (res as unknown as { pagination?: { nextCursor: string | null } }).pagination
-        ?.nextCursor ?? null,
+      nextCursor:
+        (res as unknown as { pagination?: { nextCursor: string | null } }).pagination?.nextCursor ??
+        null,
     };
   }
 

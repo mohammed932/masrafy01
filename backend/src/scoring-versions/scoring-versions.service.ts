@@ -73,30 +73,34 @@ export class ScoringEngineVersionService implements OnModuleInit {
     }
 
     try {
-      const { previous, next } = await this.repo.activate(targetVersion, actor.id, async (tx, prev, nxt) => {
-        const diff = prev ? this.diffWeights(prev, nxt) : [];
-        const bumpKind = prev ? this.classifyBump(prev, nxt) : 'major';
-        await this.audit.write(
-          {
-            actorId: actor.id,
-            targetId: null,
-            eventType: AuditEventType.SCORING_ENGINE_VERSION_PROMOTED,
-            sourceIp: actor.sourceIp,
-            correlationId: actor.correlationId,
-            payload: {
-              previousVersion: prev?.version ?? null,
-              newVersion: nxt.version,
-              weightsDiff: diff.slice(0, 5),
-              thresholdChange: prev
-                ? JSON.stringify(prev.weightsConfig.thresholds) !==
-                  JSON.stringify(nxt.weightsConfig.thresholds)
-                : true,
-              bumpKind,
+      const { previous, next } = await this.repo.activate(
+        targetVersion,
+        actor.id,
+        async (tx, prev, nxt) => {
+          const diff = prev ? this.diffWeights(prev, nxt) : [];
+          const bumpKind = prev ? this.classifyBump(prev, nxt) : 'major';
+          await this.audit.write(
+            {
+              actorId: actor.id,
+              targetId: null,
+              eventType: AuditEventType.SCORING_ENGINE_VERSION_PROMOTED,
+              sourceIp: actor.sourceIp,
+              correlationId: actor.correlationId,
+              payload: {
+                previousVersion: prev?.version ?? null,
+                newVersion: nxt.version,
+                weightsDiff: diff.slice(0, 5),
+                thresholdChange: prev
+                  ? JSON.stringify(prev.weightsConfig.thresholds) !==
+                    JSON.stringify(nxt.weightsConfig.thresholds)
+                  : true,
+                bumpKind,
+              },
             },
-          },
-          tx,
-        );
-      });
+            tx,
+          );
+        },
+      );
 
       return {
         previousVersion: previous?.version ?? null,
@@ -130,7 +134,10 @@ export class ScoringEngineVersionService implements OnModuleInit {
     };
   }
 
-  private diffWeights(prev: ScoringEngineVersionRow, next: ScoringEngineVersionRow): WeightsDiffEntry[] {
+  private diffWeights(
+    prev: ScoringEngineVersionRow,
+    next: ScoringEngineVersionRow,
+  ): WeightsDiffEntry[] {
     const prevW = prev.weightsConfig.weights;
     const nextW = next.weightsConfig.weights;
     const codes = new Set<string>([...Object.keys(prevW), ...Object.keys(nextW)]);

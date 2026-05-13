@@ -67,7 +67,13 @@ export const abkEgypt2026: SeedCatalog = {
       friendlyName: 'Doctors — In Practice',
       pricing: { isVariableRate: false, baseRatePercent: '30.0000' },
       eligibility: skeletonEligibility('self_employed'),
-      incomeAssumption: { strategy: 'byYearsInPractice', incomeTable: [{ minYears: 0, maxYears: 5, incomeEGP: '15000' }, { minYears: 5, maxYears: 50, incomeEGP: '40000' }] },
+      incomeAssumption: {
+        strategy: 'byYearsInPractice',
+        incomeTable: [
+          { minYears: 0, maxYears: 5, incomeEGP: '15000' },
+          { minYears: 5, maxYears: 50, incomeEGP: '40000' },
+        ],
+      },
     }),
     skeletonProgram({
       programCode: 'ABK-BANKERS',
@@ -85,20 +91,29 @@ export const abkEgypt2026: SeedCatalog = {
       friendlyName: 'University Professors',
       pricing: { isVariableRate: false, baseRatePercent: '25.5000' },
       eligibility: skeletonEligibility('salaried'),
-      incomeAssumption: { strategy: 'byProfessorRank', rankIncomeMap: { lecturer: '12000', assistant_professor: '18000', professor: '25000' } },
+      incomeAssumption: {
+        strategy: 'byProfessorRank',
+        rankIncomeMap: { lecturer: '12000', assistant_professor: '18000', professor: '25000' },
+      },
     }),
     skeletonProgram({
       programCode: 'ABK-MILITARY',
       friendlyName: 'Egyptian Armed Forces',
       pricing: { isVariableRate: false, baseRatePercent: '25.0000' },
       eligibility: skeletonEligibility('salaried'),
-      incomeAssumption: { strategy: 'byMilitaryGrade', gradeIncomeMap: { officer: '15000', senior_officer: '25000', general: '40000' } },
+      incomeAssumption: {
+        strategy: 'byMilitaryGrade',
+        gradeIncomeMap: { officer: '15000', senior_officer: '25000', general: '40000' },
+      },
     }),
     skeletonProgram({
       programCode: 'ABK-SALARIED-NO-XFER',
       friendlyName: 'Salaried Without Salary Transfer',
       pricing: { isVariableRate: false, baseRatePercent: '27.0000' },
-      eligibility: { ...skeletonEligibility('salaried'), acceptedTransferTypes: ['salary_transfer_letter', 'income_transfer_letter'] },
+      eligibility: {
+        ...skeletonEligibility('salaried'),
+        acceptedTransferTypes: ['salary_transfer_letter', 'income_transfer_letter'],
+      },
     }),
     skeletonProgram({
       programCode: 'ABK-WEALTH',
@@ -135,13 +150,19 @@ export const abkEgypt2026: SeedCatalog = {
       programCode: 'ABK-STL',
       friendlyName: 'Salary Transfer Letter',
       pricing: { isVariableRate: false, baseRatePercent: '24.0000' },
-      eligibility: { ...skeletonEligibility('salaried'), acceptedTransferTypes: ['salary_transfer_letter'] },
+      eligibility: {
+        ...skeletonEligibility('salaried'),
+        acceptedTransferTypes: ['salary_transfer_letter'],
+      },
     }),
     skeletonProgram({
       programCode: 'ABK-ITL',
       friendlyName: 'Income Transfer Letter',
       pricing: { isVariableRate: false, baseRatePercent: '25.0000' },
-      eligibility: { ...skeletonEligibility('salaried'), acceptedTransferTypes: ['income_transfer_letter'] },
+      eligibility: {
+        ...skeletonEligibility('salaried'),
+        acceptedTransferTypes: ['income_transfer_letter'],
+      },
     }),
     skeletonProgram({
       programCode: 'ABK-CLUBS',
@@ -156,13 +177,21 @@ export const abkEgypt2026: SeedCatalog = {
           '84': { value: '29.0000' },
         },
       },
-      eligibility: { ...skeletonEligibility('salaried'), requiresClubMembership: true, clubClass: 'Class 1' },
+      eligibility: {
+        ...skeletonEligibility('salaried'),
+        requiresClubMembership: true,
+        clubClass: 'Class 1',
+      },
     }),
     skeletonProgram({
       programCode: 'ABK-FOOTBALL',
       friendlyName: 'Football Player',
       pricing: { isVariableRate: false, baseRatePercent: '31.0000' },
-      eligibility: { ...skeletonEligibility('self_employed'), requiresFRMUVerification: true, clubClass: 'Class 1' },
+      eligibility: {
+        ...skeletonEligibility('self_employed'),
+        requiresFRMUVerification: true,
+        clubClass: 'Class 1',
+      },
     }),
   ],
   expectedRates: {

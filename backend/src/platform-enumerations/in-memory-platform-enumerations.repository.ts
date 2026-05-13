@@ -86,7 +86,12 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('transfer_type', 'payroll_cat_a', 'تحويل راتب — الفئة أ', 'Payroll · Cat-A');
     this.add('transfer_type', 'payroll_cat_b', 'تحويل راتب — الفئة ب', 'Payroll · Cat-B');
     this.add('transfer_type', 'payroll_cat_c', 'تحويل راتب — الفئة ج', 'Payroll · Cat-C');
-    this.add('transfer_type', 'salary_transfer_letter', 'خطاب تحويل راتب', 'Salary Transfer Letter');
+    this.add(
+      'transfer_type',
+      'salary_transfer_letter',
+      'خطاب تحويل راتب',
+      'Salary Transfer Letter',
+    );
     this.add('transfer_type', 'income_transfer_letter', 'خطاب تحويل دخل', 'Income Transfer Letter');
     this.add('transfer_type', 'none', 'بدون تحويل', 'None');
 
@@ -130,7 +135,12 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('product_category', 'pension', 'قرض معاش', 'Pension');
     this.add('product_category', 'secured', 'قرض بضمانات', 'Secured');
     this.add('product_category', 'buyout', 'سداد قروض', 'Buyout');
-    this.add('product_category', 'credit_card_cross_sell', 'بطاقة ائتمان — بيع متقاطع', 'Credit Card Cross-Sell');
+    this.add(
+      'product_category',
+      'credit_card_cross_sell',
+      'بطاقة ائتمان — بيع متقاطع',
+      'Credit Card Cross-Sell',
+    );
     this.add('product_category', 'auto_cross_sell', 'سيارة — بيع متقاطع', 'Auto Cross-Sell');
     this.add('product_category', 'wealth', 'برنامج الثروات', 'Wealth');
     this.add('product_category', 'clubs', 'عضوية النوادي', 'Clubs');

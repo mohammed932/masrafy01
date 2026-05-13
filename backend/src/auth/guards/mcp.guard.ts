@@ -1,9 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  SetMetadata,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, SetMetadata } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ERROR_CODES } from '@/common/errors/error-codes';
@@ -19,8 +14,7 @@ export const MCP_BYPASS_KEY = 'mcp_bypass';
  * with MUST_CHANGE_PASSWORD so the client knows to route to the forced-change
  * screen.
  */
-export const McpBypass = (): MethodDecorator & ClassDecorator =>
-  SetMetadata(MCP_BYPASS_KEY, true);
+export const McpBypass = (): MethodDecorator & ClassDecorator => SetMetadata(MCP_BYPASS_KEY, true);
 
 @Injectable()
 export class McpGuard implements CanActivate {

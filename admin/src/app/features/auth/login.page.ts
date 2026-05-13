@@ -42,9 +42,7 @@ interface LoginControls {
               type="email"
               autocomplete="email"
               formControlName="email"
-              [attr.aria-invalid]="
-                form.controls.email.touched && form.controls.email.invalid
-              "
+              [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
             />
             @if (form.controls.email.touched && form.controls.email.errors?.['required']) {
               <mat-error i18n="@@login.email.required">Email is required.</mat-error>
@@ -87,9 +85,7 @@ interface LoginControls {
           </button>
         </form>
 
-        <p class="helper" i18n="@@login.helper">
-          Forgot your password? Contact a super-admin.
-        </p>
+        <p class="helper" i18n="@@login.helper">Forgot your password? Contact a super-admin.</p>
       </section>
     </main>
   `,

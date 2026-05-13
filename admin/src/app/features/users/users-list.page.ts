@@ -16,11 +16,7 @@ import { ResetPasswordDialog } from './reset-password.dialog';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { EmptyStateComponent } from '@shared/empty-state.component';
 import { RelativeTimePipe } from '@shared/relative-time.pipe';
-import type {
-  ErrorCode,
-  ErrorEnvelope,
-  StaffAccountSummary,
-} from '@core/auth/auth.types';
+import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/auth.types';
 
 @Component({
   selector: 'app-users-list-page',
@@ -64,103 +60,110 @@ import type {
         }
 
         <table mat-table [dataSource]="rows()" class="users-table" aria-label="Staff accounts">
-        <ng-container matColumnDef="identity">
-          <th mat-header-cell *matHeaderCellDef i18n="@@users.col.name">Name</th>
-          <td mat-cell *matCellDef="let row">
-            <div class="identity">
-              <span class="avatar" [attr.data-role]="row.role" aria-hidden="true">{{ initials(row.name) }}</span>
-              <div class="identity-text">
-                <span class="identity-name">{{ row.name }}</span>
-                <span class="identity-email">{{ row.email }}</span>
+          <ng-container matColumnDef="identity">
+            <th mat-header-cell *matHeaderCellDef i18n="@@users.col.name">Name</th>
+            <td mat-cell *matCellDef="let row">
+              <div class="identity">
+                <span class="avatar" [attr.data-role]="row.role" aria-hidden="true">{{
+                  initials(row.name)
+                }}</span>
+                <div class="identity-text">
+                  <span class="identity-name">{{ row.name }}</span>
+                  <span class="identity-email">{{ row.email }}</span>
+                </div>
               </div>
-            </div>
-          </td>
-        </ng-container>
+            </td>
+          </ng-container>
 
-        <ng-container matColumnDef="role">
-          <th mat-header-cell *matHeaderCellDef i18n="@@users.col.role">Role</th>
-          <td mat-cell *matCellDef="let row">
-            <mat-chip
-              class="role-chip"
-              [class.role-super]="row.role === 'super_admin'"
-              [class.role-manager]="row.role === 'sales_manager'"
-              [class.role-agent]="row.role === 'sales_agent'"
-              [class.role-analyst]="row.role === 'analyst'"
-            >
-              {{ roleLabel(row.role) }}
-            </mat-chip>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef i18n="@@users.col.status">Status</th>
-          <td mat-cell *matCellDef="let row">
-            <mat-chip class="status-chip" [class.active]="row.isActive" [class.inactive]="!row.isActive">
-              <span class="status-dot" aria-hidden="true"></span>
-              @if (row.isActive) {
-                <span i18n="@@users.status.active">Active</span>
-              } @else {
-                <span i18n="@@users.status.inactive">Inactive</span>
-              }
-            </mat-chip>
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="lastLogin">
-          <th mat-header-cell *matHeaderCellDef i18n="@@users.col.lastLogin">Last sign-in</th>
-          <td mat-cell *matCellDef="let row" class="muted" [title]="row.lastLoginAt ?? ''">
-            {{ row.lastLoginAt | relativeTime }}
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let row">
-            <button
-              mat-icon-button
-              [matMenuTriggerFor]="rowMenu"
-              [attr.aria-label]="actionsLabel(row.name)"
-            >
-              <mat-icon>more_vert</mat-icon>
-            </button>
-            <mat-menu #rowMenu="matMenu">
-              <button mat-menu-item type="button" (click)="openEdit(row)" i18n="@@users.action.edit">
-                Edit
-              </button>
-              <button
-                mat-menu-item
-                type="button"
-                (click)="openReset(row)"
-                i18n="@@users.action.reset"
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef i18n="@@users.col.role">Role</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-chip
+                class="role-chip"
+                [class.role-super]="row.role === 'super_admin'"
+                [class.role-manager]="row.role === 'sales_manager'"
+                [class.role-agent]="row.role === 'sales_agent'"
+                [class.role-analyst]="row.role === 'analyst'"
               >
-                Reset password
-              </button>
-              <button mat-menu-item type="button" (click)="toggleActive(row)">
+                {{ roleLabel(row.role) }}
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef i18n="@@users.col.status">Status</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-chip
+                class="status-chip"
+                [class.active]="row.isActive"
+                [class.inactive]="!row.isActive"
+              >
+                <span class="status-dot" aria-hidden="true"></span>
                 @if (row.isActive) {
-                  <span i18n="@@users.action.deactivate">Deactivate</span>
+                  <span i18n="@@users.status.active">Active</span>
                 } @else {
-                  <span i18n="@@users.action.activate">Activate</span>
+                  <span i18n="@@users.status.inactive">Inactive</span>
                 }
+              </mat-chip>
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="lastLogin">
+            <th mat-header-cell *matHeaderCellDef i18n="@@users.col.lastLogin">Last sign-in</th>
+            <td mat-cell *matCellDef="let row" class="muted" [title]="row.lastLoginAt ?? ''">
+              {{ row.lastLoginAt | relativeTime }}
+            </td>
+          </ng-container>
+
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef></th>
+            <td mat-cell *matCellDef="let row">
+              <button
+                mat-icon-button
+                [matMenuTriggerFor]="rowMenu"
+                [attr.aria-label]="actionsLabel(row.name)"
+              >
+                <mat-icon>more_vert</mat-icon>
               </button>
-            </mat-menu>
-          </td>
-        </ng-container>
+              <mat-menu #rowMenu="matMenu">
+                <button
+                  mat-menu-item
+                  type="button"
+                  (click)="openEdit(row)"
+                  i18n="@@users.action.edit"
+                >
+                  Edit
+                </button>
+                <button
+                  mat-menu-item
+                  type="button"
+                  (click)="openReset(row)"
+                  i18n="@@users.action.reset"
+                >
+                  Reset password
+                </button>
+                <button mat-menu-item type="button" (click)="toggleActive(row)">
+                  @if (row.isActive) {
+                    <span i18n="@@users.action.deactivate">Deactivate</span>
+                  } @else {
+                    <span i18n="@@users.action.activate">Activate</span>
+                  }
+                </button>
+              </mat-menu>
+            </td>
+          </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="displayed"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayed" class="users-row"></tr>
-      </table>
+          <tr mat-header-row *matHeaderRowDef="displayed"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayed" class="users-row"></tr>
+        </table>
 
-      @if (!loading() && total() === 0) {
-        <app-empty-state
-          icon="group"
-          [title]="emptyTitle"
-          [subtitle]="emptySubtitle"
-        >
-          <button mat-flat-button color="primary" (click)="openCreate()" i18n="@@users.create">
-            Create user
-          </button>
-        </app-empty-state>
-      }
+        @if (!loading() && total() === 0) {
+          <app-empty-state icon="group" [title]="emptyTitle" [subtitle]="emptySubtitle">
+            <button mat-flat-button color="primary" (click)="openCreate()" i18n="@@users.create">
+              Create user
+            </button>
+          </app-empty-state>
+        }
 
         <mat-paginator
           [hidden]="total() === 0"

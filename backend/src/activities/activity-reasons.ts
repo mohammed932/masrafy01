@@ -132,5 +132,8 @@ export function validateActivityReason(
     return { valid: allowed.includes(reason), allowedReasons: allowed };
   }
   const staticAllowed = ACTIVITY_REASONS[activityType];
-  return { valid: (staticAllowed as readonly string[]).includes(reason), allowedReasons: staticAllowed };
+  return {
+    valid: (staticAllowed as readonly string[]).includes(reason),
+    allowedReasons: staticAllowed,
+  };
 }
