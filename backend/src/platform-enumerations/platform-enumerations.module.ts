@@ -1,22 +1,27 @@
 import { Module } from '@nestjs/common';
-import { InMemoryPlatformEnumerationsRepository } from './in-memory-platform-enumerations.repository';
+import { AuthModule } from '@/auth/auth.module';
+import { AuditModule } from '@/audit/audit.module';
+import { PostgresPlatformEnumerationsRepository } from './postgres-platform-enumerations.repository';
 import { PlatformEnumerationsController } from './platform-enumerations.controller';
+import { AdminPlatformEnumerationsController } from './admin-platform-enumerations.controller';
 import { PlatformEnumerationsRepository } from './platform-enumerations.repository';
+import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.service';
 
 /**
- * Read-only enumeration registry consumer.
- * Today: bound to the in-memory stub (research.md R4).
- * Tomorrow (feature 003): swap the provider to a Postgres-backed implementation
- *   that implements the same `PlatformEnumerationsRepository` interface — zero
- *   call-site changes.
+ * Operator-managed enumeration registry (feature 006).
+ * Postgres-backed implementation behind the same abstract class as the
+ * legacy in-memory stub — zero call-site changes for consumers.
  */
 @Module({
-  controllers: [PlatformEnumerationsController],
+  imports: [AuthModule, AuditModule],
+  controllers: [PlatformEnumerationsController, AdminPlatformEnumerationsController],
   providers: [
+    PostgresPlatformEnumerationsRepository,
     {
       provide: PlatformEnumerationsRepository,
-      useClass: InMemoryPlatformEnumerationsRepository,
+      useExisting: PostgresPlatformEnumerationsRepository,
     },
+    PlatformEnumerationsAdminService,
   ],
   exports: [PlatformEnumerationsRepository],
 })

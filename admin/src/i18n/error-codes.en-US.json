@@ -63,6 +63,8 @@
   "FOLLOWUP_IN_PAST": "The follow-up reminder must be set in the future.",
   "FILE_TOO_LARGE": "File exceeds the 10 MB limit.",
   "FILE_TYPE_NOT_ALLOWED": "Unsupported file type. Allowed: JPG, PNG, HEIC, PDF.",
+  "ENUMERATION_KEY_DUPLICATE": "This key is already in use for this category.",
+  "ENUMERATION_SYSTEM_ONLY": "System-managed entry — only labels can be edited.",
   "RATE_LIMITED": "Too many attempts. Please wait a few minutes and try again.",
   "INTERNAL_ERROR": "Something went wrong on our side. Please try again."
 }

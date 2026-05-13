@@ -71,6 +71,13 @@ export const APP_ROUTES: Routes = [
       ),
   },
   {
+    path: 'lookups',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
+    loadChildren: () =>
+      import('./features/lookups/lookups.routes').then((m) => m.LOOKUPS_ROUTES),
+  },
+  {
     path: '**',
     redirectTo: 'dashboard',
   },

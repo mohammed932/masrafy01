@@ -61,6 +61,16 @@ import { CanDirective } from '../../shared/can.directive';
         </a>
       </nav>
 
+      @if (canSeeLookups()) {
+        <p class="section-label" i18n="@@sidebar.section.lookups">Lookups</p>
+        <nav class="nav" aria-label="Lookups">
+          <a routerLink="/lookups" routerLinkActive="active" class="item">
+            <mat-icon class="item-icon" aria-hidden="true">tune</mat-icon>
+            <span class="item-label" i18n="@@sidebar.lookups">Manage values</span>
+          </a>
+        </nav>
+      }
+
       <div class="footer">
         <a
           class="meta-link"
@@ -223,4 +233,8 @@ import { CanDirective } from '../../shared/can.directive';
 })
 export class SidebarComponent {
   protected readonly auth = inject(AuthService);
+
+  protected canSeeLookups(): boolean {
+    return this.auth.currentUser()?.role === 'super_admin';
+  }
 }
