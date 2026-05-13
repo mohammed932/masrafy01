@@ -12,11 +12,17 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, AuditEventType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { randomUUID } from 'crypto';
+import cuid from 'cuid';
+import { PrismaService } from '../infra/prisma/prisma.service';
 import { ApplicationRepository, type CreateBankOfferInput } from './application.repository';
 import { EngineService } from '../matching/engine.service';
 import { BankProgramRepository } from '../bank-programs/bank-programs.repository';
 import { AuditEventWriter } from '../audit/audit-event.writer';
-import { IdempotencyKeyMismatchException } from '../common/errors/domain.exceptions';
+import {
+  IdempotencyKeyMismatchException,
+  NotFoundException,
+  ForbiddenException,
+} from '../common/errors/domain.exceptions';
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
 import type { ApplicantProfile, BankProgramSnapshot, Offer, ScoringConfig } from '../matching/types';
@@ -37,12 +43,105 @@ export interface ApplyContext {
 @Injectable()
 export class ApplicationsService {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly repo: ApplicationRepository,
     private readonly engine: EngineService,
     private readonly programsRepo: BankProgramRepository,
     private readonly audit: AuditEventWriter,
     private readonly scoringVersions: ScoringEngineVersionService,
   ) {}
+
+  async assignAgent(input: {
+    applicationId: string;
+    toAgentStaffId: string;
+    reason: string;
+    notes: string | null;
+    actor: { staffId: string; role: 'super_admin' | 'sales_manager' | 'sales_agent' | 'analyst' };
+    correlationId: string;
+    sourceIp: string | null;
+  }): Promise<{
+    applicationId: string;
+    activityId: string;
+    fromAgentId: string | null;
+    toAgentId: string;
+    correlationId: string;
+  }> {
+    const target = await this.prisma.staffAccount.findUnique({
+      where: { id: input.toAgentStaffId },
+      select: { id: true, role: true, isActive: true },
+    });
+    if (!target || !target.isActive) throw new NotFoundException();
+    if (target.role === 'analyst') throw new ForbiddenException();
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.application.findUnique({
+          where: { id: input.applicationId },
+          select: { id: true, assignedAgentStaffId: true },
+        });
+        if (!existing) throw new NotFoundException();
+
+        const fromAgentId = existing.assignedAgentStaffId;
+        await tx.application.update({
+          where: { id: input.applicationId },
+          data: {
+            assignedAgentStaffId: input.toAgentStaffId,
+            assignedAt: new Date(),
+          },
+        });
+
+        const activityId = cuid();
+        await tx.activity.create({
+          data: {
+            id: activityId,
+            applicationId: input.applicationId,
+            actorStaffId: input.actor.staffId,
+            actorRole: input.actor.role,
+            activityType: 'LEAD_REASSIGNED',
+            reason: input.reason,
+            note: input.notes,
+            durationMinutes: null,
+            outcomeFlags: [],
+            followUpAt: null,
+            attachedDocumentIds: [],
+            meta: {
+              fromAgentId: fromAgentId ?? null,
+              toAgentId: input.toAgentStaffId,
+              reassignReason: input.reason,
+            },
+            correlationId: input.correlationId,
+          },
+        });
+
+        await this.audit.write(
+          {
+            actorId: input.actor.staffId,
+            targetId: input.toAgentStaffId,
+            eventType: 'APPLICATION_REASSIGNED',
+            sourceIp: input.sourceIp,
+            correlationId: input.correlationId,
+            payload: {
+              applicationId: input.applicationId,
+              activityId,
+              fromAgentId: fromAgentId ?? null,
+              toAgentId: input.toAgentStaffId,
+              reassignReason: input.reason,
+            },
+          },
+          tx,
+        );
+
+        return {
+          applicationId: input.applicationId,
+          activityId,
+          fromAgentId,
+          toAgentId: input.toAgentStaffId,
+          correlationId: input.correlationId,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
 
   async apply(dto: ApplyRequestDto, ctx: ApplyContext): Promise<ApplyResponse> {
     const correlationId = randomUUID();

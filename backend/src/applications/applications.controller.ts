@@ -5,11 +5,13 @@
 
 import {
   Controller,
+  Get,
   Post,
   Body,
   Headers,
   HttpCode,
   HttpStatus,
+  Param,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -19,6 +21,8 @@ import { ApplicationsService } from './applications.service';
 import { ApplyRequestDto } from './dto/apply.dto';
 import { MobileHmacGuard } from './guards/mobile-hmac.guard';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
+import { CustomerTimelineService } from './customer-timeline.service';
+import { HmacClientUnknownException } from '@/common/errors/domain.exceptions';
 
 interface HmacRequest extends Request {
   mobileClientId?: string;
@@ -29,7 +33,26 @@ interface HmacRequest extends Request {
 @Controller('v1')
 @UseGuards(MobileHmacGuard, MobileRateLimitGuard)
 export class ApplicationsController {
-  constructor(private readonly service: ApplicationsService) {}
+  constructor(
+    private readonly service: ApplicationsService,
+    private readonly timelineService: CustomerTimelineService,
+  ) {}
+
+  @Get('applications/:applicationId/timeline')
+  @ApiOperation({ summary: 'Customer milestone timeline (HMAC, milestone-only)' })
+  @ApiResponse({ status: 200, description: 'Milestone list (no agent identities, no notes)' })
+  @ApiResponse({ status: 401, description: 'HMAC client identity does not match application owner' })
+  async timeline(
+    @Param('applicationId') applicationId: string,
+    @Req() req: HmacRequest,
+  ): Promise<unknown> {
+    const mobileClientId = req.mobileClientId;
+    if (!mobileClientId) {
+      throw new HmacClientUnknownException('unknown');
+    }
+    const data = await this.timelineService.buildTimeline(applicationId, mobileClientId);
+    return { success: true, data };
+  }
 
   @Post('apply')
   @HttpCode(HttpStatus.OK)

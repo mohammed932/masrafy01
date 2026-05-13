@@ -14,10 +14,18 @@ import { ScoringVersionsModule } from '../scoring-versions/scoring-versions.modu
 import { MobileHmacGuard } from './guards/mobile-hmac.guard';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 
+import { CustomerTimelineService } from './customer-timeline.service';
+
 @Module({
   imports: [MatchingModule, BankProgramsModule, AuditModule, ScoringVersionsModule],
   controllers: [ApplicationsController, AdminApplicationsController],
-  providers: [ApplicationsService, ApplicationRepository, MobileHmacGuard, MobileRateLimitGuard],
+  providers: [
+    ApplicationsService,
+    ApplicationRepository,
+    CustomerTimelineService,
+    MobileHmacGuard,
+    MobileRateLimitGuard,
+  ],
   exports: [ApplicationRepository],
 })
 export class ApplicationsModule {}

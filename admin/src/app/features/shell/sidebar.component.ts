@@ -49,6 +49,16 @@ import { CanDirective } from '../../shared/can.directive';
           <mat-icon class="item-icon" aria-hidden="true">analytics</mat-icon>
           <span class="item-label" i18n="@@sidebar.scoring_analytics">Scoring analytics</span>
         </a>
+
+        <a
+          *can="['super_admin', 'sales_manager', 'analyst']"
+          routerLink="/lead-analytics"
+          routerLinkActive="active"
+          class="item"
+        >
+          <mat-icon class="item-icon" aria-hidden="true">insights</mat-icon>
+          <span class="item-label" i18n="@@sidebar.lead_analytics">Lead analytics</span>
+        </a>
       </nav>
 
       <div class="footer">

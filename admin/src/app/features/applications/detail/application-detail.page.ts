@@ -23,6 +23,7 @@ import { ApprovalPillComponent } from '../list/components/approval-pill.componen
 import { WhyThisScorePanelComponent } from './components/why-this-score-panel.component';
 import { ActivityTimelineComponent } from './components/activity-timeline.component';
 import { AddActivityDialog } from './components/add-activity.dialog';
+import { LeadAssignDialog } from './components/lead-assign.dialog';
 import { ACTIVITY_REASONS } from '../activity-reasons';
 
 /**
@@ -421,7 +422,17 @@ export class ApplicationDetailPage implements OnInit {
   }
 
   openAssign(): void {
-    // Lead-assign dialog ships with Phase 4 (US2).
+    const d = this.detail();
+    if (!d) return;
+    const ref = this.dialog.open(LeadAssignDialog, {
+      data: { applicationId: d.id, currentAgentId: d.assignedAgentStaffId ?? null },
+      panelClass: 'app-modal-panel',
+      backdropClass: 'app-modal-backdrop',
+      autoFocus: 'first-tabbable',
+    });
+    ref.afterClosed().subscribe((saved) => {
+      if (saved) void this.refreshDetail();
+    });
   }
 
   private openDialog(defaultActivityType?: string): void {

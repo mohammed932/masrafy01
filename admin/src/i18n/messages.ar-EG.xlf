@@ -193,6 +193,46 @@
       <trans-unit id="milestone.ready_for_submission" datatype="html"><source>Ready for bank submission</source><target>جاهز للإرسال للبنك</target></trans-unit>
       <trans-unit id="milestone.submitted_to_bank" datatype="html"><source>Submitted to bank</source><target>أُرسل إلى البنك</target></trans-unit>
       <trans-unit id="milestone.bank_decided" datatype="html"><source>Bank decided</source><target>صدر قرار البنك</target></trans-unit>
+
+      <!-- ===== Feature 005 — US2 Lead filter chips + assign dialog ===== -->
+      <trans-unit id="apps.lead.filter.aria" datatype="html"><source>Filter leads by workflow stage</source><target>فلترة العملاء حسب مرحلة الإجراء</target></trans-unit>
+      <trans-unit id="apps.lead.filter.needsFirstContact" datatype="html"><source>Needs first contact</source><target>بحاجة لأول تواصل</target></trans-unit>
+      <trans-unit id="apps.lead.filter.stale" datatype="html"><source>Stale</source><target>متوقف</target></trans-unit>
+      <trans-unit id="apps.lead.filter.recent" datatype="html"><source>Recently contacted</source><target>تواصل حديث</target></trans-unit>
+      <trans-unit id="apps.lead.filter.followupToday" datatype="html"><source>Follow-up today</source><target>متابعة اليوم</target></trans-unit>
+      <trans-unit id="apps.lead.filter.docsInProgress" datatype="html"><source>Document collection</source><target>تجميع المستندات</target></trans-unit>
+      <trans-unit id="apps.lead.filter.readyForBank" datatype="html"><source>Ready for bank</source><target>جاهز للبنك</target></trans-unit>
+      <trans-unit id="apps.lead.filter.submittedToBank" datatype="html"><source>Submitted to bank</source><target>أُرسل إلى البنك</target></trans-unit>
+
+      <trans-unit id="lead.assign.title" datatype="html"><source>Assign / Reassign Lead</source><target>تعيين / إعادة تعيين العميل</target></trans-unit>
+      <trans-unit id="lead.assign.agent" datatype="html"><source>Assign to agent</source><target>تعيين للمندوب</target></trans-unit>
+      <trans-unit id="lead.assign.loading" datatype="html"><source>Loading…</source><target>جارٍ التحميل…</target></trans-unit>
+      <trans-unit id="lead.assign.reason" datatype="html"><source>Reason</source><target>السبب</target></trans-unit>
+      <trans-unit id="lead.assign.notes" datatype="html"><source>Notes (optional)</source><target>ملاحظات (اختياري)</target></trans-unit>
+      <trans-unit id="lead.assign.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="lead.assign.submit" datatype="html"><source>Assign</source><target>تأكيد التعيين</target></trans-unit>
+
+      <!-- Sidebar + lead analytics -->
+      <trans-unit id="sidebar.lead_analytics" datatype="html"><source>Lead analytics</source><target>تحليلات العملاء</target></trans-unit>
+      <trans-unit id="leadAnalytics.title" datatype="html"><source>Lead analytics</source><target>تحليلات العملاء</target></trans-unit>
+      <trans-unit id="leadAnalytics.subtitle" datatype="html"><source>Per-agent aggregates with session-local anonymization.</source><target>إحصائيات لكل مندوب مع إخفاء الهوية الخاص بالجلسة.</target></trans-unit>
+      <trans-unit id="leadAnalytics.window.aria" datatype="html"><source>Analytics window</source><target>النطاق الزمني</target></trans-unit>
+      <trans-unit id="leadAnalytics.window.label" datatype="html"><source>Window:</source><target>النطاق:</target></trans-unit>
+      <trans-unit id="leadAnalytics.generated.label" datatype="html"><source>generated</source><target>تم التحديث</target></trans-unit>
+      <trans-unit id="leadAnalytics.col.agent" datatype="html"><source>Agent</source><target>المندوب</target></trans-unit>
+      <trans-unit id="leadAnalytics.col.type" datatype="html"><source>Activity type</source><target>نوع النشاط</target></trans-unit>
+      <trans-unit id="leadAnalytics.col.count" datatype="html"><source>Count</source><target>العدد</target></trans-unit>
+      <trans-unit id="leadAnalytics.col.duration" datatype="html"><source>Total duration (min)</source><target>إجمالي المدة (د)</target></trans-unit>
+      <trans-unit id="leadAnalytics.empty" datatype="html"><source>No activity recorded in this window.</source><target>لا يوجد نشاط مسجل في هذا النطاق.</target></trans-unit>
+
+      <!-- Reminders widget -->
+      <trans-unit id="reminders.heading" datatype="html"><source>Reminders due today</source><target>تذكيرات اليوم</target></trans-unit>
+      <trans-unit id="reminders.empty" datatype="html"><source>No pending follow-ups in the next 24 hours.</source><target>لا توجد متابعات معلقة خلال الـ 24 ساعة القادمة.</target></trans-unit>
+      <trans-unit id="reminders.markCompleted" datatype="html"><source>Completed</source><target>تم</target></trans-unit>
+      <trans-unit id="reminders.snooze" datatype="html"><source>Snooze</source><target>تأجيل</target></trans-unit>
+      <trans-unit id="reminders.markCompleted.aria" datatype="html"><source>Mark reminder completed</source><target>تأشير التذكير كمنجَز</target></trans-unit>
+      <trans-unit id="reminders.snooze.aria" datatype="html"><source>Snooze reminder for 24 hours</source><target>تأجيل التذكير لمدة 24 ساعة</target></trans-unit>
+      <trans-unit id="reminders.open.aria" datatype="html"><source>Open application <x id="INTERPOLATION"/></source><target>فتح الطلب <x id="INTERPOLATION"/></target></trans-unit>
     </body>
   </file>
 </xliff>

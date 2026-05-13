@@ -5,6 +5,7 @@ import { environment } from '../../../../environments/environment';
 import type { SuccessEnvelope, PaginatedEnvelope } from '@core/auth/auth.types';
 import type { ApprovalTier, BestOfferSummary } from '../list/components/approval-pill.component';
 import type { TierFilter } from '../list/components/tier-filter-chips.component';
+import type { LeadFilter } from '../list/components/lead-filter-chips.component';
 
 export interface FactorImpact {
   code: string;
@@ -32,6 +33,26 @@ export interface AdminApplicationRow {
   programsCheckedCount: number;
   maskedApplicant: Record<string, unknown>;
   bestOffer: BestOfferSummary | null;
+  leadStatus?: LeadStatus;
+  assignedAgent?: { id: string; name: string } | null;
+  lastActivity?: { activityType: string; occurredAt: string } | null;
+  activityCount?: number;
+  isStale?: boolean;
+  hasOverdueFollowUp?: boolean;
+}
+
+export interface AssignLeadRequest {
+  toAgentStaffId: string;
+  reason: string;
+  notes?: string;
+}
+
+export interface AssignLeadResponse {
+  applicationId: string;
+  activityId: string;
+  fromAgentId: string | null;
+  toAgentId: string;
+  correlationId: string;
 }
 
 export interface AdminApplicationOffer {
@@ -164,12 +185,20 @@ export class ApplicationsApiService {
     return environment.apiBaseUrl;
   }
 
-  async list(opts: { tier?: TierFilter; cursor?: string; limit?: number } = {}): Promise<{
+  async list(
+    opts: {
+      tier?: TierFilter;
+      leadFilter?: LeadFilter;
+      cursor?: string;
+      limit?: number;
+    } = {},
+  ): Promise<{
     rows: readonly AdminApplicationRow[];
     nextCursor: string | null;
   }> {
     let params = new HttpParams();
     if (opts.tier) params = params.set('tier', opts.tier);
+    if (opts.leadFilter) params = params.set('filter', opts.leadFilter);
     if (opts.cursor) params = params.set('cursor', opts.cursor);
     if (opts.limit) params = params.set('limit', String(opts.limit));
     const res = await firstValueFrom(
@@ -182,6 +211,16 @@ export class ApplicationsApiService {
       nextCursor: (res as unknown as { pagination?: { nextCursor: string | null } }).pagination
         ?.nextCursor ?? null,
     };
+  }
+
+  async assignLead(applicationId: string, body: AssignLeadRequest): Promise<AssignLeadResponse> {
+    const res = await firstValueFrom(
+      this.http.post<SuccessEnvelope<AssignLeadResponse>>(
+        `${this.base()}/applications/${applicationId}/assign`,
+        body,
+      ),
+    );
+    return res.data;
   }
 
   async getById(id: string): Promise<AdminApplicationDetail> {

@@ -104,16 +104,16 @@ Story labels: [US1] agent activity logging (P1) · [US2] manager triage + reassi
 
 **Independent test**: [quickstart.md §8](./quickstart.md#8--list-filter-triage-operator-sales_manager). Seed 30 applications across the filter buckets; exercise each chip; reassign one lead; confirm both agents' timelines reflect the action.
 
-- [ ] T052 [US2] Extend `backend/src/applications/application.repository.ts` `findManyAdmin` with the LATERAL aggregate from [research.md R-009](./research.md#r-009--activity-list-query-optimization): last-activity (type + occurredAt), activity count, stale flag, overdue-follow-up flag. Indexes from Phase 2 cover the LATERAL.
-- [ ] T053 [US2] Extend the `?tier=...` filter map in `admin-applications.controller.ts` with 7 new chips: `needs_first_contact`, `stale`, `recent`, `followup_today`, `docs_in_progress`, `ready_for_submission`, `submitted_to_bank`. Each translates to a Prisma where-predicate per FR-021.
-- [ ] T054 [US2] Add `POST /api/admin/applications/:id/assign` to `admin-applications.controller.ts` (super_admin / sales_manager only). Accepts `{ toAgentStaffId, reason, notes? }`. Inside a single transaction: validates target staff exists + role in `{sales_agent, sales_manager, super_admin}`; UPDATEs `application.assignedAgentStaffId` + `assignedAt`; creates `LEAD_REASSIGNED` activity (with `meta = { fromAgentId, toAgentId, reassignReason }`); emits `APPLICATION_REASSIGNED` audit event sharing the activity's correlationId.
-- [ ] T055 [US2] [P] **promax** pre-design for the list filter chip row + last-activity column + stale/overdue indicators. Write to `specs/005-lead-management-application/design/promax-list-triage.md`.
-- [ ] T056 [US2] Update `admin/src/app/features/applications/list/applications-list.page.ts` to render 7 new filter chips + last-activity column + stale indicator (red dot) + overdue-follow-up indicator (clock icon). Filter selection serializes to `?filter=`.
-- [ ] T057 [US2] Create `admin/src/app/features/applications/detail/components/lead-assign.dialog.ts` — standalone OnPush. Typed reactive form. Loads active staff list filtered to non-analyst roles via `UsersApiService.list({ excludeRole: ['analyst'] })`. Reason dropdown maps to `AssignLeadRequest.reason` enum. Notes textarea ≤ 500 chars.
-- [ ] T058 [US2] Update `applications.api.service.ts` with `assignLead(applicationId, body)`. Application-detail header **Assign / Reassign** CTA opens the dialog (visible only to super_admin / sales_manager).
-- [ ] T059 [US2] [P] Add i18n entries for the 7 filter chips + assign-dialog strings + last-activity column header + stale + overdue indicators.
-- [ ] T060 [US2] [P] **impec** post-implementation polish pass on list filter row + assign dialog. Write to `specs/005-lead-management-application/design/impec-us2.md`.
-- [ ] T061 [US2] Run quickstart §8 end-to-end; record divergence.
+- [X] T052 [US2] Extend `backend/src/applications/application.repository.ts` `findManyAdmin` with the LATERAL aggregate from [research.md R-009](./research.md#r-009--activity-list-query-optimization): last-activity (type + occurredAt), activity count, stale flag, overdue-follow-up flag. Indexes from Phase 2 cover the LATERAL.
+- [X] T053 [US2] Extend the `?tier=...` filter map in `admin-applications.controller.ts` with 7 new chips: `needs_first_contact`, `stale`, `recent`, `followup_today`, `docs_in_progress`, `ready_for_submission`, `submitted_to_bank`. Each translates to a Prisma where-predicate per FR-021.
+- [X] T054 [US2] Add `POST /api/admin/applications/:id/assign` to `admin-applications.controller.ts` (super_admin / sales_manager only). Accepts `{ toAgentStaffId, reason, notes? }`. Inside a single transaction: validates target staff exists + role in `{sales_agent, sales_manager, super_admin}`; UPDATEs `application.assignedAgentStaffId` + `assignedAt`; creates `LEAD_REASSIGNED` activity (with `meta = { fromAgentId, toAgentId, reassignReason }`); emits `APPLICATION_REASSIGNED` audit event sharing the activity's correlationId.
+- [X] T055 [US2] [P] **promax** pre-design for the list filter chip row + last-activity column + stale/overdue indicators. Write to `specs/005-lead-management-application/design/promax-list-triage.md`.
+- [X] T056 [US2] Update `admin/src/app/features/applications/list/applications-list.page.ts` to render 7 new filter chips + last-activity column + stale indicator (red dot) + overdue-follow-up indicator (clock icon). Filter selection serializes to `?filter=`.
+- [X] T057 [US2] Create `admin/src/app/features/applications/detail/components/lead-assign.dialog.ts` — standalone OnPush. Typed reactive form. Loads active staff list filtered to non-analyst roles via `UsersApiService.list({ excludeRole: ['analyst'] })`. Reason dropdown maps to `AssignLeadRequest.reason` enum. Notes textarea ≤ 500 chars.
+- [X] T058 [US2] Update `applications.api.service.ts` with `assignLead(applicationId, body)`. Application-detail header **Assign / Reassign** CTA opens the dialog (visible only to super_admin / sales_manager).
+- [X] T059 [US2] [P] Add i18n entries for the 7 filter chips + assign-dialog strings + last-activity column header + stale + overdue indicators.
+- [X] T060 [US2] [P] **impec** post-implementation polish pass on list filter row + assign dialog. Write to `specs/005-lead-management-application/design/impec-us2.md`.
+- [X] T061 [US2] Run quickstart §8 end-to-end; record divergence.
 
 **Phase 4 checkpoint**: manager triage workflow shippable.
 
@@ -125,21 +125,21 @@ Story labels: [US1] agent activity logging (P1) · [US2] manager triage + reassi
 
 **Independent test**: [quickstart.md §11](./quickstart.md#11--analyst-aggregate-operator-analyst). Seed 100 applications with 500 activities across 4 agents; sign in as analyst; verify aggregate counts match a direct SQL aggregate; confirm aliasing is session-consistent.
 
-- [ ] T062 [US3] Create `backend/src/lead-analytics/alias-resolver.service.ts` — `getAliasMap(analystSub): Promise<Record<string, string>>`. Reads from Redis key `alias:${analystSub}` (TTL 15 min). Cache miss: queries distinct `actorStaffId` from `activity`, deterministically maps via `sha256(jwtSub + 'masrafy-alias-salt')` to ordered aliases `Agent A / Agent B / ...`. Writes back to Redis.
-- [ ] T063 [US3] Create `backend/src/lead-analytics/lead-analytics.repository.ts` — `aggregateActivityByAgent(windowDays, options)` runs the per-(staffId, activityType) `GROUP BY` SQL with COUNT + SUM(durationMinutes) for `CALLED_USER`. Returns raw `staffId` rows (aliasing happens in the service).
-- [ ] T064 [US3] Create `backend/src/lead-analytics/lead-analytics.service.ts` — `getActivitySummary(analystSub, windowDays)`. Validates `windowDays ≤ 180` (else `AnalyticsWindowTooLargeException`). Queries repo, then maps `staffId` → alias via `AliasResolverService`.
-- [ ] T065 [US3] Create `backend/src/lead-analytics/lead-analytics.controller.ts` — `@Controller('admin/lead-analytics')` + JWT + RolesGuard + `@Roles('super_admin', 'sales_manager', 'analyst')`. `GET activity-summary?windowDays=N`. Returns `{ windowDays, rows: [{ agentAlias, activityType, count, totalDurationMinutes? }] }`. Register controller + service + repository + alias-resolver in `lead-analytics.module.ts`.
-- [ ] T066 [US3] Create `backend/src/lead-analytics/dto/activity-summary.response.dto.ts` Swagger schema.
-- [ ] T067 [US3] [P] **promax** pre-design for the Lead Analytics page (table layout, window-preset chips, alias chips, count formatting, empty-state copy). Write to `specs/005-lead-management-application/design/promax-lead-analytics.md`.
-- [ ] T068 [US3] Create `admin/src/app/features/lead-analytics/lead-analytics.routes.ts` lazy route gated by `roleGuardFn(['super_admin', 'sales_manager', 'analyst'])`; register in `app.routes.ts`.
-- [ ] T069 [US3] Create `admin/src/app/features/lead-analytics/lead-analytics.api.service.ts` — typed `getActivitySummary(windowDays)`.
-- [ ] T070 [US3] Create `admin/src/app/features/lead-analytics/components/agent-activity-table.component.ts` — standalone OnPush Material table. Columns: agent alias, activity type, count, total duration (CALLED_USER only — render `—` for others).
-- [ ] T071 [US3] Create `admin/src/app/features/lead-analytics/lead-analytics.page.ts` — page composes the window-picker chips (reuse pattern from feature 004 scoring-analytics) + table.
-- [ ] T072 [US3] Add a sidebar nav entry "Lead analytics" gated by `*can="['super_admin', 'sales_manager', 'analyst']"` in `admin/src/app/features/shell/sidebar.component.ts`.
-- [ ] T073 [US3] Update `admin-applications.controller.ts` analyst projection: strip `note` + `attachedDocuments` from activities; replace `actorStaffId` with `actorAlias` resolved via `AliasResolverService` shared via `ScoringAnalyticsModule` or duplicated in `lead-analytics.module.ts` (cleanly importable).
-- [ ] T074 [US3] [P] Add i18n entries for the analytics page title + table columns + alias display.
-- [ ] T075 [US3] [P] **impec** post-implementation polish pass on the Lead Analytics page. Write to `specs/005-lead-management-application/design/impec-us3.md`.
-- [ ] T076 [US3] Run quickstart §11 end-to-end; record divergence.
+- [X] T062 [US3] Create `backend/src/lead-analytics/alias-resolver.service.ts` — `getAliasMap(analystSub): Promise<Record<string, string>>`. Reads from Redis key `alias:${analystSub}` (TTL 15 min). Cache miss: queries distinct `actorStaffId` from `activity`, deterministically maps via `sha256(jwtSub + 'masrafy-alias-salt')` to ordered aliases `Agent A / Agent B / ...`. Writes back to Redis.
+- [X] T063 [US3] Create `backend/src/lead-analytics/lead-analytics.repository.ts` — `aggregateActivityByAgent(windowDays, options)` runs the per-(staffId, activityType) `GROUP BY` SQL with COUNT + SUM(durationMinutes) for `CALLED_USER`. Returns raw `staffId` rows (aliasing happens in the service).
+- [X] T064 [US3] Create `backend/src/lead-analytics/lead-analytics.service.ts` — `getActivitySummary(analystSub, windowDays)`. Validates `windowDays ≤ 180` (else `AnalyticsWindowTooLargeException`). Queries repo, then maps `staffId` → alias via `AliasResolverService`.
+- [X] T065 [US3] Create `backend/src/lead-analytics/lead-analytics.controller.ts` — `@Controller('admin/lead-analytics')` + JWT + RolesGuard + `@Roles('super_admin', 'sales_manager', 'analyst')`. `GET activity-summary?windowDays=N`. Returns `{ windowDays, rows: [{ agentAlias, activityType, count, totalDurationMinutes? }] }`. Register controller + service + repository + alias-resolver in `lead-analytics.module.ts`.
+- [X] T066 [US3] Create `backend/src/lead-analytics/dto/activity-summary.response.dto.ts` Swagger schema.
+- [X] T067 [US3] [P] **promax** pre-design for the Lead Analytics page (table layout, window-preset chips, alias chips, count formatting, empty-state copy). Write to `specs/005-lead-management-application/design/promax-lead-analytics.md`.
+- [X] T068 [US3] Create `admin/src/app/features/lead-analytics/lead-analytics.routes.ts` lazy route gated by `roleGuardFn(['super_admin', 'sales_manager', 'analyst'])`; register in `app.routes.ts`.
+- [X] T069 [US3] Create `admin/src/app/features/lead-analytics/lead-analytics.api.service.ts` — typed `getActivitySummary(windowDays)`.
+- [X] T070 [US3] Create `admin/src/app/features/lead-analytics/components/agent-activity-table.component.ts` — standalone OnPush Material table. Columns: agent alias, activity type, count, total duration (CALLED_USER only — render `—` for others).
+- [X] T071 [US3] Create `admin/src/app/features/lead-analytics/lead-analytics.page.ts` — page composes the window-picker chips (reuse pattern from feature 004 scoring-analytics) + table.
+- [X] T072 [US3] Add a sidebar nav entry "Lead analytics" gated by `*can="['super_admin', 'sales_manager', 'analyst']"` in `admin/src/app/features/shell/sidebar.component.ts`.
+- [X] T073 [US3] Update `admin-applications.controller.ts` analyst projection: strip `note` + `attachedDocuments` from activities; replace `actorStaffId` with `actorAlias` resolved via `AliasResolverService` shared via `ScoringAnalyticsModule` or duplicated in `lead-analytics.module.ts` (cleanly importable).
+- [X] T074 [US3] [P] Add i18n entries for the analytics page title + table columns + alias display.
+- [X] T075 [US3] [P] **impec** post-implementation polish pass on the Lead Analytics page. Write to `specs/005-lead-management-application/design/impec-us3.md`.
+- [X] T076 [US3] Run quickstart §11 end-to-end; record divergence.
 
 **Phase 5 checkpoint**: analyst report renders aggregates with session-consistent anonymization.
 
@@ -151,10 +151,10 @@ Story labels: [US1] agent activity logging (P1) · [US2] manager triage + reassi
 
 **Independent test**: [quickstart.md §10](./quickstart.md#10--stale-lead-cron-manual-trigger-super_admin). Seed 5 applications with activity 49 h old; trigger manually; verify each gets a `STALE_LEAD_FLAGGED` activity (system actor) + `MANAGER_ATTENTION_REQUESTED` audit event. Re-run within 1 h → no new flags.
 
-- [ ] T077 [US5] Create `backend/src/activities/stale-lead-scanner.ts` — `@Injectable()` class with `@Cron(CronExpression.EVERY_HOUR)` decorator on `scan()`. Implements the Redis `SETNX EX 3300` lock from [research.md R-005](./research.md#r-005--stale-lead-cron-with-distributed-lock). Service body: query applications matching FR-023 predicate, create `STALE_LEAD_FLAGGED` activity (authored by the system actor `clsysactor00000000000000000000`), emit `MANAGER_ATTENTION_REQUESTED` audit per row, log `STALE_LEAD_SCAN_COMPLETED` with metrics.
-- [ ] T078 [US5] Add a dev-only manual-trigger endpoint `POST /api/admin/cron/stale-leads` in `activities.controller.ts` (gated by `@Roles('super_admin')`); body invokes `StaleLeadScanner.scan()` synchronously. Wire under `if (process.env.NODE_ENV !== 'production')` guard so it's absent in prod.
-- [ ] T079 [US5] [P] Type-check backend: `cd backend && npx tsc --noEmit` exit 0.
-- [ ] T080 [US5] Run quickstart §10 end-to-end (manual trigger → verify activity + audit + idempotency).
+- [X] T077 [US5] Create `backend/src/activities/stale-lead-scanner.ts` — `@Injectable()` class with `@Cron(CronExpression.EVERY_HOUR)` decorator on `scan()`. Implements the Redis `SETNX EX 3300` lock from [research.md R-005](./research.md#r-005--stale-lead-cron-with-distributed-lock). Service body: query applications matching FR-023 predicate, create `STALE_LEAD_FLAGGED` activity (authored by the system actor `clsysactor00000000000000000000`), emit `MANAGER_ATTENTION_REQUESTED` audit per row, log `STALE_LEAD_SCAN_COMPLETED` with metrics.
+- [X] T078 [US5] Add a dev-only manual-trigger endpoint `POST /api/admin/cron/stale-leads` in `activities.controller.ts` (gated by `@Roles('super_admin')`); body invokes `StaleLeadScanner.scan()` synchronously. Wire under `if (process.env.NODE_ENV !== 'production')` guard so it's absent in prod.
+- [X] T079 [US5] [P] Type-check backend: `cd backend && npx tsc --noEmit` exit 0.
+- [X] T080 [US5] Run quickstart §10 end-to-end (manual trigger → verify activity + audit + idempotency).
 
 **Phase 6 checkpoint**: stale-lead detection live + multi-instance-safe.
 
@@ -166,10 +166,10 @@ Story labels: [US1] agent activity logging (P1) · [US2] manager triage + reassi
 
 **Independent test**: [quickstart.md §7](./quickstart.md#7--customer-timeline-endpoint-hmac-curl). HMAC-sign + curl the endpoint; verify 5 milestone entries; verify no PII leak.
 
-- [ ] T081 [US4] Add `GET /api/v1/applications/:applicationId/timeline` endpoint to `backend/src/applications/applications.controller.ts` (HMAC-guarded via the existing `MobileHmacGuard` from feature 003). Validates that `req.mobileClientId` matches `application.mobileClientId` else `HMAC_CLIENT_UNKNOWN`.
-- [ ] T082 [US4] Create `backend/src/applications/customer-timeline.service.ts` — `buildTimeline(applicationId)`. Queries `AuditEvent` rows of type `APPLICATION_LEAD_STATUS_CHANGED` for the application (single indexed query). Maps each to a `MILESTONE_*` entry. Adds the `MILESTONE_NEEDS_FIRST_CONTACT` entry from `application.createdAt` as the synthetic first entry (no audit event fires for the initial state). For `MILESTONE_BANK_DECIDED`, looks up the latest `BANK_RESPONDED` activity to extract the outcome.
-- [ ] T083 [US4] Create response DTO `backend/src/applications/dto/customer-timeline.response.dto.ts` matching `CustomerTimelineResponse` from openapi.yaml.
-- [ ] T084 [US4] Run quickstart §7 end-to-end (HMAC-sign + curl + verify response shape).
+- [X] T081 [US4] Add `GET /api/v1/applications/:applicationId/timeline` endpoint to `backend/src/applications/applications.controller.ts` (HMAC-guarded via the existing `MobileHmacGuard` from feature 003). Validates that `req.mobileClientId` matches `application.mobileClientId` else `HMAC_CLIENT_UNKNOWN`.
+- [X] T082 [US4] Create `backend/src/applications/customer-timeline.service.ts` — `buildTimeline(applicationId)`. Queries `AuditEvent` rows of type `APPLICATION_LEAD_STATUS_CHANGED` for the application (single indexed query). Maps each to a `MILESTONE_*` entry. Adds the `MILESTONE_NEEDS_FIRST_CONTACT` entry from `application.createdAt` as the synthetic first entry (no audit event fires for the initial state). For `MILESTONE_BANK_DECIDED`, looks up the latest `BANK_RESPONDED` activity to extract the outcome.
+- [X] T083 [US4] Create response DTO `backend/src/applications/dto/customer-timeline.response.dto.ts` matching `CustomerTimelineResponse` from openapi.yaml.
+- [X] T084 [US4] Run quickstart §7 end-to-end (HMAC-sign + curl + verify response shape).
 
 **Phase 7 checkpoint**: customer-facing endpoint shipped; Flutter client integration unblocked.
 
@@ -177,14 +177,14 @@ Story labels: [US1] agent activity logging (P1) · [US2] manager triage + reassi
 
 ## Phase 8 — Polish & Cross-Cutting
 
-- [ ] T085 Reminders widget — backend: add `GET /api/admin/staff/me/reminders?windowHours=N` to `users.controller.ts` (or new staff-self controller). Query per [research.md R-012](./research.md#r-012--frontend-reminder-widget-read-strategy). Returns `{ activityId, applicationId, followUpAt, applicationSummary: { requestedAmountEGP, loanPurpose } }`.
-- [ ] T086 Reminders widget — frontend: create `admin/src/app/features/shell/reminders-widget.component.ts` standalone OnPush. Renders on dashboard home. Each row links to `/applications/:id`. Mark Completed / Snoozed / Cancelled buttons call `createActivity` with `INTERNAL_NOTE` + appropriate reason + `meta.sourceActivityId`.
-- [ ] T087 [P] **promax** + **impec** for reminders widget — combined doc in `specs/005-lead-management-application/design/promax-impec-reminders-widget.md`.
-- [ ] T088 Run quickstart §9 (reminders widget) + §13 (perf check) end-to-end.
-- [ ] T089 Final lint pass: `cd backend && npx eslint src --max-warnings 0` + `cd admin && npx eslint src --max-warnings 0` both exit 0.
-- [ ] T090 Final type-check pass: `cd backend && npx tsc --noEmit` + `cd admin && npx tsc --noEmit -p tsconfig.app.json` both exit 0.
-- [ ] T091 Run full quickstart §1–§13; log any failures to `specs/005-lead-management-application/quickstart-failures.md`.
-- [ ] T092 Commit + push the branch: `git add -A && git commit -m "feat(005-lead-management): …" && git push -u origin 005-lead-management-application`.
+- [X] T085 Reminders widget — backend: add `GET /api/admin/staff/me/reminders?windowHours=N` to `users.controller.ts` (or new staff-self controller). Query per [research.md R-012](./research.md#r-012--frontend-reminder-widget-read-strategy). Returns `{ activityId, applicationId, followUpAt, applicationSummary: { requestedAmountEGP, loanPurpose } }`.
+- [X] T086 Reminders widget — frontend: create `admin/src/app/features/shell/reminders-widget.component.ts` standalone OnPush. Renders on dashboard home. Each row links to `/applications/:id`. Mark Completed / Snoozed / Cancelled buttons call `createActivity` with `INTERNAL_NOTE` + appropriate reason + `meta.sourceActivityId`.
+- [X] T087 [P] **promax** + **impec** for reminders widget — combined doc in `specs/005-lead-management-application/design/promax-impec-reminders-widget.md`.
+- [X] T088 Run quickstart §9 (reminders widget) + §13 (perf check) end-to-end.
+- [X] T089 Final lint pass: `cd backend && npx eslint src --max-warnings 0` + `cd admin && npx eslint src --max-warnings 0` both exit 0.
+- [X] T090 Final type-check pass: `cd backend && npx tsc --noEmit` + `cd admin && npx tsc --noEmit -p tsconfig.app.json` both exit 0.
+- [X] T091 Run full quickstart §1–§13; log any failures to `specs/005-lead-management-application/quickstart-failures.md`.
+- [X] T092 Commit + push the branch: `git add -A && git commit -m "feat(005-lead-management): …" && git push -u origin 005-lead-management-application`.
 
 ---
 

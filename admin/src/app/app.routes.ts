@@ -67,6 +67,15 @@ export const APP_ROUTES: Routes = [
       ),
   },
   {
+    path: 'lead-analytics',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
+    loadChildren: () =>
+      import('./features/lead-analytics/lead-analytics.routes').then(
+        (m) => m.LEAD_ANALYTICS_ROUTES,
+      ),
+  },
+  {
     path: '**',
     redirectTo: 'dashboard',
   },

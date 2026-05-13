@@ -7,11 +7,17 @@ import { DocumentsModule } from '@/documents/documents.module';
 import { ActivitiesController } from './activities.controller';
 import { ActivitiesRepository } from './activities.repository';
 import { ActivitiesService } from './activities.service';
+import { StaleLeadScanner } from './stale-lead-scanner';
+import { StaleLeadCronController } from './stale-lead-cron.controller';
+import { RemindersController } from './reminders.controller';
+
+const cronControllers =
+  process.env.NODE_ENV !== 'production' ? [StaleLeadCronController] : [];
 
 @Module({
   imports: [AuthModule, ApplicationsModule, BankProgramsModule, AuditModule, DocumentsModule],
-  controllers: [ActivitiesController],
-  providers: [ActivitiesRepository, ActivitiesService],
-  exports: [ActivitiesRepository, ActivitiesService],
+  controllers: [ActivitiesController, RemindersController, ...cronControllers],
+  providers: [ActivitiesRepository, ActivitiesService, StaleLeadScanner],
+  exports: [ActivitiesRepository, ActivitiesService, StaleLeadScanner],
 })
 export class ActivitiesModule {}
