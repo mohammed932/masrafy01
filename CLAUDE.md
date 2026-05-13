@@ -1,6 +1,6 @@
 # masrafy01 Development Guidelines
 
-Auto-generated from feature plans + constitution. Last updated: 2026-05-12
+Auto-generated from feature plans + constitution. Last updated: 2026-05-13
 
 ## Project Identity
 
@@ -168,7 +168,6 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - 003-matching-engine-post: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ on admin.
 - 002-bank-programs: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin.
 
-- **2026-05-12** — Constitution v1.3.0: Principle XXIII expanded to require BOTH `ui-ux-pro-max` (pre-design) AND `impec` (post-implementation polish) on every new admin screen. Either skill alone = review block. Anti-pattern A17 updated.
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

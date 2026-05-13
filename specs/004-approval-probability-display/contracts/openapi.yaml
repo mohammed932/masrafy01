@@ -1,0 +1,453 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Approval Probability Display API
+  version: 0.4.0
+  description: |
+    Feature 004 contracts. Three additions on top of feature 003:
+      1. Per-offer `approvalProbability` object replaces the flat `approvalProbabilityPercent` field in the
+         `POST /api/v1/apply` response and inside every admin application read.
+      2. `POST /api/admin/scoring-versions/:version/activate` — super_admin-only engine-version promotion.
+      3. `GET /api/admin/scoring-analytics` — analyst distribution + per-tier accuracy view.
+servers:
+  - url: http://localhost:3000
+    description: dev
+security: []
+
+paths:
+  # -----------------------------------------------------------------------
+  # /api/v1/apply — request shape unchanged; response shape extended.
+  # -----------------------------------------------------------------------
+  /api/v1/apply:
+    post:
+      tags: [Mobile]
+      summary: Submit loan-match application (HMAC-protected; payload delta only)
+      security:
+        - HmacSignature: []
+      responses:
+        '200':
+          description: Match result with structured approval probability
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ApplyMatchedResponse'
+                  - $ref: '#/components/schemas/ApplyNoMatchResponse'
+
+  # -----------------------------------------------------------------------
+  # Admin endpoints (JWT)
+  # -----------------------------------------------------------------------
+  /api/admin/applications:
+    get:
+      tags: [Admin · Applications]
+      summary: List applications with bestOffer pill + tier filter
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: tier
+          schema:
+            type: string
+            enum: [high, medium, needs_coaching]
+          description: |
+            Filter bucket aligned to the tier table:
+              high            = bestOffer.tier === 'excellent'
+              medium          = bestOffer.tier === 'good'
+              needs_coaching  = bestOffer.tier in {moderate, low, very_low} OR status='no_match'
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: loanPurpose
+          schema: { type: string }
+        - in: query
+          name: cursor
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        '200':
+          description: Paginated application rows with bestOffer summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminApplicationListResponse'
+
+  /api/admin/applications/{id}:
+    get:
+      tags: [Admin · Applications]
+      summary: Application detail (offers carry full ApprovalProbability)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Application detail with masked profile + offers (each carries ApprovalProbability)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminApplicationDetailResponse'
+
+  /api/admin/scoring-versions/{version}/activate:
+    post:
+      tags: [Admin · Scoring]
+      summary: Activate a registered scoring-engine version (super_admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: version
+          required: true
+          schema: { type: string, pattern: '^\d+\.\d+\.\d+(-[a-z0-9\-]+)?$' }
+      responses:
+        '200':
+          description: Activation succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivateScoringVersionResponse'
+        '404':
+          description: Version not found in registry
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              examples:
+                notFound:
+                  value: { success: false, code: SCORING_VERSION_NOT_FOUND, meta: { version: "9.9.9" } }
+        '409':
+          description: Concurrent promotion lost the race
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              examples:
+                race:
+                  value: { success: false, code: SCORING_VERSION_CONCURRENT_PROMOTION }
+
+  /api/admin/scoring-analytics:
+    get:
+      tags: [Admin · Scoring]
+      summary: Score distribution + per-tier accuracy (windowed)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: windowDays
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 180, default: 30 }
+          description: Days of look-back. Values > 180 are rejected with ANALYTICS_WINDOW_TOO_LARGE.
+      responses:
+        '200':
+          description: Distribution histogram + per-tier accuracy table
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScoringAnalyticsResponse'
+        '400':
+          description: Window exceeds the hard cap
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+              examples:
+                tooLarge:
+                  value: { success: false, code: ANALYTICS_WINDOW_TOO_LARGE, meta: { maxDays: 180 } }
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    HmacSignature:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: |
+        HMAC-SHA256. See feature 003 §HMAC for the canonical signing surface
+        (X-Client-Id, X-Timestamp, X-Nonce, X-Signature, X-Body-SHA256).
+
+  schemas:
+    # --- Shared envelope -----------------------------------------------
+    ErrorEnvelope:
+      type: object
+      required: [success, code]
+      properties:
+        success: { type: boolean, enum: [false] }
+        code: { type: string }
+        meta:
+          type: object
+          additionalProperties: true
+
+    # --- Approval probability ------------------------------------------
+    ApprovalTier:
+      type: string
+      enum: [excellent, good, moderate, low, very_low]
+      description: |
+        Tier classification per the active engine version's threshold table.
+        Defaults (1.1.0-init): excellent >= 80, good 60-79, moderate 40-59, low 20-39, very_low < 20.
+        Inclusive on the upper-tier side: score === 80 -> excellent.
+
+    FactorImpact:
+      type: object
+      required: [code, impact]
+      properties:
+        code:
+          type: string
+          description: |
+            Stable factor code from the offer's `engineVersion.weightsConfig.factorCatalog`.
+            Examples: PAYROLL_TRANSFER, HAS_CD_AT_ABK, PREVIOUS_REJECTION, CLAMPED_TO_FLOOR.
+        impact:
+          type: integer
+          description: Signed; positive entries strictly > 0, negative entries strictly < 0.
+
+    ApprovalProbability:
+      type: object
+      required: [score, tier, tierLabelCode, factors, engineVersion]
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        tier: { $ref: '#/components/schemas/ApprovalTier' }
+        tierLabelCode:
+          type: string
+          description: Stable i18n key, pattern `approval.tier.<tier>`. Client localizes.
+          example: approval.tier.excellent
+        factors:
+          type: object
+          required: [positive, negative]
+          properties:
+            positive:
+              type: array
+              items: { $ref: '#/components/schemas/FactorImpact' }
+              description: Entries sorted by |impact| desc. May contain CLAMPED_TO_FLOOR.
+            negative:
+              type: array
+              items: { $ref: '#/components/schemas/FactorImpact' }
+              description: Entries sorted by |impact| desc. Each impact < 0.
+            legacy:
+              type: boolean
+              description: Present (and `true`) only on backfilled offers (engineVersion='1.0.0-legacy').
+        engineVersion:
+          type: string
+          pattern: '^\d+\.\d+\.\d+(-[a-z0-9\-]+)?$'
+          example: 1.1.0
+
+    # --- BestOffer summary (admin list) --------------------------------
+    BestOfferSummary:
+      type: object
+      nullable: true
+      description: |
+        Null when application has zero matched offers (status='no_match').
+        Otherwise the highest-scoring matched offer's pill data.
+      required: [score, tier, tierLabelCode]
+      properties:
+        score: { type: integer, minimum: 0, maximum: 100 }
+        tier: { $ref: '#/components/schemas/ApprovalTier' }
+        tierLabelCode: { type: string }
+
+    # --- /apply success ------------------------------------------------
+    ApplyMatchedResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [applicationId, correlationId, summary, matchedOffers]
+          properties:
+            applicationId: { type: string }
+            correlationId: { type: string }
+            summary:
+              type: object
+              properties:
+                totalProgramsChecked: { type: integer }
+                eligiblePrograms: { type: integer }
+                bestInstallmentEGP: { type: string }
+                bestRatePercent: { type: string }
+            matchedOffers:
+              type: array
+              items:
+                type: object
+                required:
+                  - programCode
+                  - programVersion
+                  - bankName
+                  - programFriendlyName
+                  - currency
+                  - effectiveRatePercent
+                  - monthlyInstallmentEGP
+                  - requestedTenorMonths
+                  - effectiveTenorMonths
+                  - approvalProbability
+                  - requiredDocuments
+                  - matchReasons
+                properties:
+                  programCode: { type: string }
+                  programVersion: { type: integer }
+                  bankName: { type: string }
+                  programFriendlyName: { type: string }
+                  currency: { type: string }
+                  effectiveRatePercent: { type: string }
+                  monthlyInstallmentEGP: { type: string }
+                  requestedLoanAmountEGP: { type: string }
+                  effectiveLoanAmountEGP: { type: string }
+                  requestedTenorMonths: { type: integer }
+                  effectiveTenorMonths: { type: integer }
+                  approvalProbability: { $ref: '#/components/schemas/ApprovalProbability' }
+                  requiredDocuments:
+                    type: array
+                    items: { type: string }
+                  matchReasons:
+                    type: array
+                    items: { type: string }
+                  feesBreakdown: { type: object }
+                  cascadeTrace: { type: object }
+                  qualitativeReviewBadge: { type: boolean }
+                  selfDeclared: { type: boolean }
+                  maxLoanAvailableEGP: { type: string }
+
+    ApplyNoMatchResponse:
+      type: object
+      required: [success, code, meta]
+      properties:
+        success: { type: boolean, enum: [false] }
+        code: { type: string, enum: [NO_MATCHING_PROGRAMS] }
+        meta:
+          type: object
+          properties:
+            applicationId: { type: string }
+            correlationId: { type: string }
+            primaryReason: { type: string }
+            details:
+              type: array
+              items: { type: object }
+            suggestions:
+              type: array
+              items: { type: object }
+
+    # --- Admin list ----------------------------------------------------
+    AdminApplicationListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              status: { type: string }
+              priority: { type: string }
+              requestedAmountEGP: { type: string }
+              requestedCurrency: { type: string }
+              loanPurpose: { type: string }
+              age: { type: integer }
+              createdAt: { type: string, format: date-time }
+              eligibleProgramsCount: { type: integer }
+              programsCheckedCount: { type: integer }
+              maskedApplicant: { type: object }
+              bestOffer: { $ref: '#/components/schemas/BestOfferSummary' }
+        pagination:
+          type: object
+          properties:
+            nextCursor: { type: string, nullable: true }
+
+    # --- Admin detail --------------------------------------------------
+    AdminApplicationDetailResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            id: { type: string }
+            status: { type: string }
+            priority: { type: string }
+            createdAt: { type: string, format: date-time }
+            submissionCorrelationId: { type: string }
+            engineDurationMs: { type: integer, nullable: true }
+            programsCheckedCount: { type: integer }
+            eligibleProgramsCount: { type: integer }
+            summary: { type: object }
+            noMatchSummary: { type: object, nullable: true }
+            applicantProfile:
+              type: object
+              description: PII-masked per feature 003 FR-051
+            offers:
+              type: array
+              items:
+                type: object
+                properties:
+                  programCode: { type: string }
+                  programVersion: { type: integer }
+                  bankName: { type: string }
+                  programFriendlyName: { type: string }
+                  currency: { type: string }
+                  effectiveRatePercent: { type: string }
+                  monthlyInstallmentEGP: { type: string }
+                  effectiveTenorMonths: { type: integer }
+                  approvalProbability: { $ref: '#/components/schemas/ApprovalProbability' }
+                  requiredDocuments:
+                    type: array
+                    items: { type: string }
+                  matchReasons:
+                    type: array
+                    items: { type: string }
+                  cascadeTrace: { type: object }
+                  qualitativeReviewBadge: { type: boolean }
+                  selfDeclared: { type: boolean }
+
+    # --- Activation ----------------------------------------------------
+    ActivateScoringVersionResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [previousVersion, newVersion, activatedAt]
+          properties:
+            previousVersion: { type: string }
+            newVersion: { type: string }
+            activatedAt: { type: string, format: date-time }
+
+    # --- Analytics -----------------------------------------------------
+    ScoringAnalyticsResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [windowDays, distribution, tierAccuracy]
+          properties:
+            windowDays: { type: integer }
+            distribution:
+              type: array
+              description: 10-point buckets, [0,9]..[90,100]. Missing buckets implicit count=0.
+              items:
+                type: object
+                required: [bucket, count]
+                properties:
+                  bucket: { type: integer, minimum: 0, maximum: 10 }
+                  count: { type: integer }
+            tierAccuracy:
+              type: array
+              description: One entry per tier; rate is null when decisionCount=0 (UI renders dash).
+              items:
+                type: object
+                required: [tier, offerCount, decisionCount, approvalRate]
+                properties:
+                  tier: { $ref: '#/components/schemas/ApprovalTier' }
+                  offerCount: { type: integer }
+                  decisionCount: { type: integer }
+                  approvalRate:
+                    type: number
+                    nullable: true
+                    description: 0.0–1.0; null when decisionCount=0.
