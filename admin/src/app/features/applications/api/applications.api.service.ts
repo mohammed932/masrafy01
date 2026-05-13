@@ -51,6 +51,13 @@ export interface AdminApplicationOffer {
   selfDeclared: boolean;
 }
 
+export type LeadStatus =
+  | 'needs_first_contact'
+  | 'document_collection'
+  | 'ready_for_submission'
+  | 'submitted_to_bank'
+  | 'bank_decided';
+
 export interface AdminApplicationDetail {
   id: string;
   status: string;
@@ -69,6 +76,84 @@ export interface AdminApplicationDetail {
   noMatchSummary: unknown;
   applicantProfile: Record<string, unknown>;
   offers: AdminApplicationOffer[];
+  leadStatus?: LeadStatus;
+  assignedAgentStaffId?: string | null;
+  assignedAt?: string | null;
+}
+
+export interface AttachedDocumentSummary {
+  id: string;
+  documentType: string;
+  status: 'uploaded' | 'verified' | 'rejected' | 'erased';
+  uploadedBySource: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export interface ActivityRow {
+  id: string;
+  applicationId: string;
+  actorStaffId: string | null;
+  actorRole: string;
+  activityType: string;
+  reason: string;
+  note: string | null;
+  durationMinutes: number | null;
+  outcomeFlags: string[];
+  followUpAt: string | null;
+  attachedDocumentIds: string[];
+  attachedDocuments?: AttachedDocumentSummary[];
+  meta: Record<string, unknown> | null;
+  correlationId: string;
+  occurredAt: string;
+}
+
+export interface ActivityListResponse {
+  activities: ActivityRow[];
+}
+
+export interface CreateActivityRequest {
+  activityType: string;
+  reason: string;
+  note?: string;
+  durationMinutes?: number;
+  outcomeFlags?: string[];
+  followUpAt?: string;
+  attachedDocuments?: Array<{
+    documentId: string;
+    documentType: string;
+    s3Key: string;
+    mimeType: string;
+    sizeBytes: number;
+    originalFilename: string;
+    uploadedBySource: string;
+  }>;
+  meta?: Record<string, unknown>;
+}
+
+export interface CreateActivityResponse {
+  activityId: string;
+  correlationId: string;
+  newLeadStatus: LeadStatus | null;
+  previousLeadStatus: LeadStatus | null;
+}
+
+export interface PresignedUploadResponse {
+  documentId: string;
+  uploadUrl: string;
+  s3Key: string;
+  expiresAt: string;
+  maxSizeBytes: number;
+}
+
+export interface RequestUploadUrlBody {
+  applicationId: string;
+  documentType: string;
+  mimeType: string;
+  sizeBytes: number;
+  originalFilename: string;
+  uploadedBySource: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -104,5 +189,65 @@ export class ApplicationsApiService {
       this.http.get<SuccessEnvelope<AdminApplicationDetail>>(`${this.base()}/applications/${id}`),
     );
     return res.data;
+  }
+
+  async listActivities(
+    applicationId: string,
+    opts: { cursor?: string; limit?: number } = {},
+  ): Promise<{ rows: ActivityRow[]; nextCursor: string | null }> {
+    let params = new HttpParams();
+    if (opts.cursor) params = params.set('cursor', opts.cursor);
+    if (opts.limit) params = params.set('limit', String(opts.limit));
+    const res = await firstValueFrom(
+      this.http.get<{
+        success: true;
+        data: ActivityListResponse;
+        pagination?: { nextCursor: string | null };
+      }>(`${this.base()}/applications/${applicationId}/activities`, { params }),
+    );
+    return {
+      rows: res.data.activities,
+      nextCursor: res.pagination?.nextCursor ?? null,
+    };
+  }
+
+  async createActivity(
+    applicationId: string,
+    body: CreateActivityRequest,
+  ): Promise<CreateActivityResponse> {
+    const res = await firstValueFrom(
+      this.http.post<SuccessEnvelope<CreateActivityResponse>>(
+        `${this.base()}/applications/${applicationId}/activities`,
+        body,
+      ),
+    );
+    return res.data;
+  }
+
+  async requestUploadUrl(body: RequestUploadUrlBody): Promise<PresignedUploadResponse> {
+    const res = await firstValueFrom(
+      this.http.post<SuccessEnvelope<PresignedUploadResponse>>(
+        `${this.base()}/documents/upload-url`,
+        body,
+      ),
+    );
+    return res.data;
+  }
+
+  async getDownloadUrl(documentId: string): Promise<{ downloadUrl: string; expiresAt: string }> {
+    const res = await firstValueFrom(
+      this.http.get<SuccessEnvelope<{ downloadUrl: string; expiresAt: string }>>(
+        `${this.base()}/documents/${documentId}/download`,
+      ),
+    );
+    return res.data;
+  }
+
+  async putToS3(uploadUrl: string, file: File): Promise<void> {
+    await firstValueFrom(
+      this.http.put(uploadUrl, file, {
+        headers: { 'Content-Type': file.type },
+      }),
+    );
   }
 }

@@ -43,6 +43,15 @@ export const envSchema = z.object({
   MOBILE_HMAC_TIMESTAMP_TOLERANCE_SECONDS: z.coerce.number().int().positive().default(300),
   MOBILE_RATE_LIMIT_PER_CLIENT_PER_HOUR: z.coerce.number().int().positive().default(30),
   MOBILE_RATE_LIMIT_PER_APPLICANT_PER_HOUR: z.coerce.number().int().positive().default(5),
+
+  // S3-compatible object storage (feature 005). MinIO in dev, AWS S3 in prod.
+  S3_ENDPOINT_URL: z.string().url(),
+  S3_REGION: z.string().min(1).default('us-east-1'),
+  S3_ACCESS_KEY_ID: z.string().min(1),
+  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_BUCKET: z.string().min(1),
+  S3_FORCE_PATH_STYLE: truthy.default('true'),
+  S3_PRESIGN_TTL_SECONDS: z.coerce.number().int().positive().default(300),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

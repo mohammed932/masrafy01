@@ -136,6 +136,63 @@
       <trans-unit id="analytics.tier.rate.empty" datatype="html"><source>—</source><target>—</target></trans-unit>
       <trans-unit id="analytics.tier.rate.empty.tooltip" datatype="html"><source>Insufficient data for this tier in the selected window</source><target>لا توجد بيانات كافية لهذه الفئة في النطاق المحدد</target></trans-unit>
       <trans-unit id="analytics.error.title" datatype="html"><source>Out of OLTP range</source><target>النطاق خارج حدود قاعدة البيانات التشغيلية</target></trans-unit>
+
+      <!-- ===== Feature 005 — Lead Management ===== -->
+      <trans-unit id="app.detail.addActivity" datatype="html"><source>Add Activity</source><target>إضافة نشاط</target></trans-unit>
+      <trans-unit id="app.detail.attach" datatype="html"><source>Attach Documents</source><target>إرفاق مستندات</target></trans-unit>
+      <trans-unit id="app.detail.assign" datatype="html"><source>Assign / Reassign</source><target>تعيين / إعادة تعيين</target></trans-unit>
+      <trans-unit id="app.detail.markReady" datatype="html"><source>Mark Ready</source><target>تجهيز للإرسال</target></trans-unit>
+      <trans-unit id="app.detail.menu.internalNote" datatype="html"><source>Add Internal Note</source><target>إضافة ملاحظة داخلية</target></trans-unit>
+      <trans-unit id="app.detail.menu.requestMore" datatype="html"><source>Request More Documents</source><target>طلب مستندات إضافية</target></trans-unit>
+      <trans-unit id="app.detail.menu.markReviewed" datatype="html"><source>Mark as Reviewed</source><target>وضع علامة كمراجَع</target></trans-unit>
+      <trans-unit id="app.detail.menu.submitBank" datatype="html"><source>Submitted to Bank</source><target>أُرسل إلى البنك</target></trans-unit>
+      <trans-unit id="app.detail.menu.bankResponded" datatype="html"><source>Bank Responded</source><target>رد البنك</target></trans-unit>
+      <trans-unit id="app.detail.menu.updateInfo" datatype="html"><source>Update Applicant Info</source><target>تحديث بيانات المتقدم</target></trans-unit>
+      <trans-unit id="app.detail.timeline.heading" datatype="html"><source>Activity timeline</source><target>سجل النشاط</target></trans-unit>
+
+      <trans-unit id="activity.add.title" datatype="html"><source>Add Activity</source><target>إضافة نشاط</target></trans-unit>
+      <trans-unit id="activity.add.type" datatype="html"><source>Activity type</source><target>نوع النشاط</target></trans-unit>
+      <trans-unit id="activity.add.reason" datatype="html"><source>Reason</source><target>السبب</target></trans-unit>
+      <trans-unit id="activity.add.noReasons" datatype="html"><source>No static reasons for this type yet.</source><target>لا توجد أسباب ثابتة لهذا النوع بعد.</target></trans-unit>
+      <trans-unit id="activity.add.note" datatype="html"><source>Note</source><target>ملاحظة</target></trans-unit>
+      <trans-unit id="activity.add.duration" datatype="html"><source>Duration (minutes)</source><target>المدة (بالدقائق)</target></trans-unit>
+      <trans-unit id="activity.add.outcomeFlags" datatype="html"><source>Outcome flags (max 3)</source><target>نتائج (حدّ أقصى 3)</target></trans-unit>
+      <trans-unit id="activity.add.followUp" datatype="html"><source>Follow-up</source><target>موعد المتابعة</target></trans-unit>
+      <trans-unit id="activity.add.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="activity.add.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
+      <trans-unit id="activity.add.saveAdd" datatype="html"><source>Save &amp; Add Another</source><target>حفظ وإضافة آخر</target></trans-unit>
+
+      <trans-unit id="activity.timeline.filterLabel" datatype="html"><source>Activity filter</source><target>فلتر النشاط</target></trans-unit>
+      <trans-unit id="activity.timeline.filter.all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="activity.timeline.filter.calls" datatype="html"><source>Calls</source><target>المكالمات</target></trans-unit>
+      <trans-unit id="activity.timeline.filter.messages" datatype="html"><source>Messages</source><target>الرسائل</target></trans-unit>
+      <trans-unit id="activity.timeline.filter.documents" datatype="html"><source>Documents</source><target>المستندات</target></trans-unit>
+      <trans-unit id="activity.timeline.filter.system" datatype="html"><source>System</source><target>النظام</target></trans-unit>
+      <trans-unit id="activity.timeline.empty" datatype="html"><source>No activity yet.</source><target>لا يوجد نشاط بعد.</target></trans-unit>
+      <trans-unit id="activity.timeline.duration" datatype="html"><source>Duration <x id="INTERPOLATION"/> min</source><target>المدة <x id="INTERPOLATION"/> د</target></trans-unit>
+      <trans-unit id="activity.timeline.followUp" datatype="html"><source>Follow-up <x id="INTERPOLATION"/></source><target>المتابعة <x id="INTERPOLATION"/></target></trans-unit>
+      <trans-unit id="activity.timeline.attachments" datatype="html"><source><x id="INTERPOLATION"/> attachment(s)</source><target><x id="INTERPOLATION"/> مرفق</target></trans-unit>
+      <trans-unit id="activity.timeline.loadMore" datatype="html"><source>Load older activity</source><target>تحميل نشاط أقدم</target></trans-unit>
+
+      <trans-unit id="activity.upload.browse" datatype="html"><source>Browse files</source><target>اختيار الملفات</target></trans-unit>
+      <trans-unit id="activity.upload.hint" datatype="html"><source>Drop JPG / PNG / HEIC / PDF here · max 10 MB each</source><target>اسحب JPG / PNG / HEIC / PDF هنا · 10 ميغابايت لكل ملف كحد أقصى</target></trans-unit>
+      <trans-unit id="activity.upload.docType" datatype="html"><source>Document type</source><target>نوع المستند</target></trans-unit>
+      <trans-unit id="activity.upload.source" datatype="html"><source>Source</source><target>المصدر</target></trans-unit>
+      <trans-unit id="activity.upload.pending" datatype="html"><source>Pending</source><target>في الانتظار</target></trans-unit>
+      <trans-unit id="activity.upload.uploading" datatype="html"><source>Uploading…</source><target>جارٍ الرفع…</target></trans-unit>
+      <trans-unit id="activity.upload.remove" datatype="html"><source>Remove file</source><target>إزالة الملف</target></trans-unit>
+
+      <trans-unit id="leadStatus.needs_first_contact" datatype="html"><source>Needs first contact</source><target>بحاجة لأول تواصل</target></trans-unit>
+      <trans-unit id="leadStatus.document_collection" datatype="html"><source>Document collection</source><target>تجميع المستندات</target></trans-unit>
+      <trans-unit id="leadStatus.ready_for_submission" datatype="html"><source>Ready for submission</source><target>جاهز للإرسال</target></trans-unit>
+      <trans-unit id="leadStatus.submitted_to_bank" datatype="html"><source>Submitted to bank</source><target>أُرسل إلى البنك</target></trans-unit>
+      <trans-unit id="leadStatus.bank_decided" datatype="html"><source>Bank decided</source><target>صدر قرار البنك</target></trans-unit>
+
+      <trans-unit id="milestone.needs_first_contact" datatype="html"><source>Application submitted</source><target>تم تقديم الطلب</target></trans-unit>
+      <trans-unit id="milestone.document_collection" datatype="html"><source>Document collection in progress</source><target>جارٍ تجميع المستندات</target></trans-unit>
+      <trans-unit id="milestone.ready_for_submission" datatype="html"><source>Ready for bank submission</source><target>جاهز للإرسال للبنك</target></trans-unit>
+      <trans-unit id="milestone.submitted_to_bank" datatype="html"><source>Submitted to bank</source><target>أُرسل إلى البنك</target></trans-unit>
+      <trans-unit id="milestone.bank_decided" datatype="html"><source>Bank decided</source><target>صدر قرار البنك</target></trans-unit>
     </body>
   </file>
 </xliff>

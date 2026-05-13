@@ -55,6 +55,19 @@ enum AuditEventType {
   MATCHING_ENGINE_RUN
   DATA_ERASURE_COMPLETED
   SCORING_ENGINE_VERSION_PROMOTED
+  APPLICATION_ACTIVITY_LOGGED
+  DOCUMENT_UPLOADED
+  APPLICATION_REASSIGNED
+  MANAGER_ATTENTION_REQUESTED
+  APPLICATION_LEAD_STATUS_CHANGED
+}
+
+enum LeadStatus {
+  needs_first_contact
+  document_collection
+  ready_for_submission
+  submitted_to_bank
+  bank_decided
 }
 
 enum ApprovalTier {
@@ -115,6 +128,10 @@ model StaffAccount {
   bankProgramsCreated BankProgram[]  @relation("BankProgramCreatedBy")
   bankProgramsUpdated BankProgram[]  @relation("BankProgramUpdatedBy")
   scoringVersionActivations ScoringEngineVersion[] @relation("ScoringVersionActivator")
+  assignedLeads       Application[]  @relation("AssignedLeads")
+  activitiesAuthored  Activity[]     @relation("ActivityActor")
+  documentsUploaded   Document[]     @relation("DocumentUploader")
+  documentsVerified   Document[]     @relation("DocumentVerifier")
 
   @@index([isActive, role], name: "idx_staff_account_active_role")
   @@map("staff_account")
@@ -264,9 +281,19 @@ model Application {
   programsCheckedCount    Int                 @default(0)
   eligibleProgramsCount   Int                 @default(0)
 
+  // Feature 005 — agent workflow lifecycle.
+  assignedAgentStaffId    String?             @db.VarChar(30)
+  assignedAt              DateTime?           @db.Timestamptz(6)
+  leadStatus              LeadStatus          @default(needs_first_contact)
+
   bankOffers              BankOffer[]         @relation("ApplicationBankOffers")
+  assignedAgent           StaffAccount?       @relation("AssignedLeads", fields: [assignedAgentStaffId], references: [id], onDelete: SetNull)
+  activities              Activity[]          @relation("ApplicationActivities")
+  documents               Document[]          @relation("ApplicationDocuments")
 
   @@index([loanPurpose], name: "idx_application_purpose")
+  @@index([assignedAgentStaffId, leadStatus], name: "idx_application_agent_lead_status")
+  @@index([leadStatus, createdAt(sort: Desc)], name: "idx_application_lead_status_created")
   @@unique([mobileClientId, idempotencyKey], name: "idx_application_idempotency")
   @@map("application")
 }
@@ -351,4 +378,65 @@ model BankOfferDecision {
   @@index([recordedAt(sort: Desc)], name: "idx_bank_offer_decision_recorded")
   @@index([outcome], name: "idx_bank_offer_decision_outcome")
   @@map("bank_offer_decision")
+}
+
+// -----------------------------------------------------------------------------
+// Activity (feature 005) — append-only agent / system action log
+// Append-only enforced at the DB layer by `activity_append_only_guard` trigger.
+// -----------------------------------------------------------------------------
+
+model Activity {
+  id                   String          @id @default(cuid()) @db.VarChar(30)
+  applicationId        String          @db.VarChar(30)
+  actorStaffId         String          @db.VarChar(30)
+  actorRole            String          @db.VarChar(32)
+  activityType         String          @db.VarChar(48)
+  reason               String          @db.VarChar(64)
+  note                 String?         @db.VarChar(2000)
+  durationMinutes      Int?
+  outcomeFlags         String[]        @db.VarChar(48)
+  followUpAt           DateTime?       @db.Timestamptz(6)
+  attachedDocumentIds  String[]        @db.VarChar(30)
+  meta                 Json?
+  correlationId        String          @db.VarChar(36)
+  occurredAt           DateTime        @default(now()) @db.Timestamptz(6)
+
+  application          Application     @relation("ApplicationActivities", fields: [applicationId], references: [id], onDelete: Cascade)
+  actorStaff           StaffAccount    @relation("ActivityActor", fields: [actorStaffId], references: [id], onDelete: Restrict)
+
+  @@index([applicationId, occurredAt(sort: Desc)], name: "idx_activity_application_occurred")
+  @@index([actorStaffId, occurredAt(sort: Desc)], name: "idx_activity_actor_occurred")
+  @@index([followUpAt], name: "idx_activity_followup")
+  @@index([activityType, reason], name: "idx_activity_type_reason")
+  @@map("activity")
+}
+
+// -----------------------------------------------------------------------------
+// Document (feature 005) — file attachment metadata. Binary lives in S3.
+// -----------------------------------------------------------------------------
+
+model Document {
+  id                   String          @id @default(cuid()) @db.VarChar(30)
+  applicationId        String          @db.VarChar(30)
+  documentType         String          @db.VarChar(64)
+  s3Key                String          @unique @db.VarChar(256)
+  status               String          @db.VarChar(24)
+  uploadedByContext    String          @db.VarChar(24)
+  uploadedBySource     String          @db.VarChar(24)
+  uploadedByStaffId    String?         @db.VarChar(30)
+  originalFilename     String          @db.VarChar(255)
+  mimeType             String          @db.VarChar(48)
+  sizeBytes            Int
+  createdAt            DateTime        @default(now()) @db.Timestamptz(6)
+  verifiedAt           DateTime?       @db.Timestamptz(6)
+  verifiedByStaffId    String?         @db.VarChar(30)
+  erasedAt             DateTime?       @db.Timestamptz(6)
+
+  application          Application     @relation("ApplicationDocuments", fields: [applicationId], references: [id], onDelete: Cascade)
+  uploadedByStaff      StaffAccount?   @relation("DocumentUploader", fields: [uploadedByStaffId], references: [id], onDelete: SetNull)
+  verifiedByStaff      StaffAccount?   @relation("DocumentVerifier", fields: [verifiedByStaffId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, documentType, status], name: "idx_document_application_type_status")
+  @@index([uploadedByStaffId, createdAt(sort: Desc)], name: "idx_document_uploader_created")
+  @@map("document")
 }

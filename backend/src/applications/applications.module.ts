@@ -18,5 +18,6 @@ import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
   imports: [MatchingModule, BankProgramsModule, AuditModule, ScoringVersionsModule],
   controllers: [ApplicationsController, AdminApplicationsController],
   providers: [ApplicationsService, ApplicationRepository, MobileHmacGuard, MobileRateLimitGuard],
+  exports: [ApplicationRepository],
 })
 export class ApplicationsModule {}

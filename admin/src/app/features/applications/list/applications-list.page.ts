@@ -118,7 +118,17 @@ import {
             </ng-container>
 
             <tr mat-header-row *matHeaderRowDef="displayed"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayed" class="applications-row"></tr>
+            <tr
+              mat-row
+              *matRowDef="let row; columns: displayed"
+              class="applications-row"
+              tabindex="0"
+              role="link"
+              [attr.aria-label]="detailAriaLabel(row.id)"
+              (click)="openDetail(row.id)"
+              (keydown.enter)="openDetail(row.id)"
+              (keydown.space)="openDetail(row.id, $event)"
+            ></tr>
           </table>
         </div>
       }
@@ -184,8 +194,16 @@ import {
       .empty .muted {
         font-size: 13px;
       }
+      .applications-row {
+        cursor: pointer;
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
       .applications-row:hover {
-        background: var(--color-surface-elevated);
+        background: var(--color-surface-row-hover);
+      }
+      .applications-row:focus-visible {
+        outline: 2px solid var(--color-brand-primary);
+        outline-offset: -2px;
       }
     `,
   ],
@@ -232,6 +250,11 @@ export class ApplicationsListPage implements OnInit {
 
   protected detailAriaLabel(id: string): string {
     return $localize`:@@applications.action.detail:Open application ${id}`;
+  }
+
+  protected openDetail(id: string, ev?: Event): void {
+    if (ev) ev.preventDefault();
+    void this.router.navigate(['/applications', id]);
   }
 
   private async reload(): Promise<void> {

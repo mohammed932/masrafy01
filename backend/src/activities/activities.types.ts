@@ -1,0 +1,133 @@
+// Activity type + reason-code unions for feature 005.
+// Canonical source: specs/005-lead-management-application/contracts/reason-codes.md.
+// Same-PR rule: any literal added here must also appear in the i18n bundle
+// (admin/src/i18n/messages.{ar-EG,en-US}.xlf @@activity.type.* / @@activity.reason.*)
+// and the ACTIVITY_REASONS const in ./activity-reasons.ts.
+
+export const ACTIVITY_TYPES = [
+  'CALLED_USER',
+  'SENT_WHATSAPP',
+  'SENT_EMAIL',
+  'RECEIVED_DOCUMENTS',
+  'REVIEWED_DOCUMENTS',
+  'REQUESTED_MORE_DOCS',
+  'UPDATED_APPLICANT_INFO',
+  'MARKED_AS_REVIEWED',
+  'INTERNAL_NOTE',
+  'STATUS_CHANGE',
+  'SUBMITTED_TO_BANK',
+  'BANK_RESPONDED',
+  'LEAD_REASSIGNED',
+  'STALE_LEAD_FLAGGED',
+] as const;
+
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
+
+export const SYSTEM_ONLY_ACTIVITY_TYPES = ['STATUS_CHANGE', 'STALE_LEAD_FLAGGED'] as const;
+export type SystemOnlyActivityType = (typeof SYSTEM_ONLY_ACTIVITY_TYPES)[number];
+
+export const REASON_CODES = [
+  // CALLED_USER
+  'INITIAL_CONTACT',
+  'FOLLOWUP',
+  'DOCUMENT_REMINDER',
+  'STATUS_UPDATE',
+  'VERIFICATION_CALL',
+  'COMPLAINT_RESOLUTION',
+  'RESCHEDULE',
+  // SENT_WHATSAPP / SENT_EMAIL
+  'DOCUMENT_REQUEST',
+  'REMINDER',
+  'WELCOME_MESSAGE',
+  'BANK_SUBMISSION_NOTICE',
+  'APPROVAL_NOTICE',
+  'REJECTION_NOTICE',
+  'APPROVAL_LETTER',
+  'REJECTION_LETTER',
+  'BANK_SUBMISSION',
+  'COMPLIANCE_NOTICE',
+  // RECEIVED_DOCUMENTS
+  'VIA_WHATSAPP',
+  'VIA_EMAIL',
+  'IN_PERSON',
+  'VIA_MOBILE_APP_UPLOAD',
+  'VIA_COURIER',
+  // REVIEWED_DOCUMENTS
+  'ALL_COMPLETE',
+  'MISSING_ITEMS',
+  'QUALITY_ISSUES',
+  'MISMATCH_WITH_PROFILE',
+  'VERIFIED_READY',
+  'NEEDS_CLARIFICATION',
+  // REQUESTED_MORE_DOCS
+  'MISSING_ITEM',
+  'DOCUMENT_BLURRY',
+  'DOCUMENT_EXPIRED',
+  'WRONG_DOCUMENT_TYPE',
+  'NAME_MISMATCH',
+  'QUALITY_ISSUE',
+  'ADDITIONAL_VERIFICATION',
+  // UPDATED_APPLICANT_INFO
+  'CORRECTED_PHONE',
+  'CORRECTED_INCOME',
+  'UPDATED_EMPLOYMENT',
+  'CORRECTED_ADDRESS',
+  'OTHER_CORRECTION',
+  // MARKED_AS_REVIEWED
+  'READY_FOR_SUBMISSION',
+  'NEEDS_MANAGER_APPROVAL',
+  'HOLD_FOR_FOLLOWUP',
+  'INTERNAL_REVIEW_ONLY',
+  // INTERNAL_NOTE
+  'GENERAL_OBSERVATION',
+  'CUSTOMER_FEEDBACK',
+  'SALES_TIP',
+  'WARNING_FLAG',
+  'REMINDER_FOR_SELF',
+  'REMINDER_FOR_MANAGER',
+  'FOLLOWUP_COMPLETED',
+  'FOLLOWUP_SNOOZED',
+  'FOLLOWUP_CANCELLED',
+  // STATUS_CHANGE
+  'SYSTEM_GENERATED',
+  // BANK_RESPONDED
+  'APPROVED',
+  'REJECTED',
+  'NEEDS_MORE_INFO',
+  'CONDITIONAL_APPROVAL',
+  'COUNTER_OFFER',
+  // LEAD_REASSIGNED
+  'INITIAL_ASSIGNMENT',
+  'WORKLOAD_REBALANCE',
+  'SKILL_MATCH',
+  'AGENT_DEACTIVATED',
+  'MANAGER_OVERRIDE',
+  // STALE_LEAD_FLAGGED
+  'NO_ACTIVITY_48H',
+  // universal
+  'OTHER',
+] as const;
+
+export type ReasonCode = (typeof REASON_CODES)[number] | string;
+
+export const ACTIVITY_ACTOR_ROLES = ['super_admin', 'sales_manager', 'sales_agent', 'system'] as const;
+export type ActivityActorRole = (typeof ACTIVITY_ACTOR_ROLES)[number];
+
+export const ALLOWED_DOCUMENT_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/heic',
+  'application/pdf',
+] as const;
+export type AllowedDocumentMimeType = (typeof ALLOWED_DOCUMENT_MIME_TYPES)[number];
+
+export const MAX_DOCUMENT_SIZE_BYTES = 10 * 1024 * 1024;
+export const ACTIVITY_NOTE_MAX_CHARS = 2000;
+export const ACTIVITY_OUTCOME_FLAGS_MAX = 3;
+export const FOLLOWUP_MAX_DAYS_AHEAD = 365 * 2;
+
+export const ACTIVITY_TYPES_ALLOWING_ATTACHMENTS: readonly ActivityType[] = [
+  'RECEIVED_DOCUMENTS',
+  'REVIEWED_DOCUMENTS',
+  'REQUESTED_MORE_DOCS',
+];
