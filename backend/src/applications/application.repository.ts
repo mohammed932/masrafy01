@@ -7,7 +7,12 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { Prisma, type ApplicationPriority, type ApplicationStatus } from '@prisma/client';
+import {
+  Prisma,
+  type ApplicationPriority,
+  type ApplicationStatus,
+  type ApprovalTier,
+} from '@prisma/client';
 import { PrismaService } from '../infra/prisma/prisma.service';
 
 export interface CreateApplicationInput {
@@ -45,6 +50,10 @@ export interface CreateBankOfferInput {
   effectiveTenorMonths: number;
   feesBreakdown: Prisma.InputJsonValue;
   approvalProbabilityPercent: Prisma.Decimal;
+  approvalScore: number;
+  approvalTier: ApprovalTier;
+  approvalFactors: Prisma.InputJsonValue;
+  engineVersion: string;
   requiredDocuments: string[];
   matchReasons: string[];
   cascadeTrace: Prisma.InputJsonValue;
@@ -95,12 +104,39 @@ export class ApplicationRepository {
   async findManyAdmin(params: {
     status?: ApplicationStatus[];
     loanPurpose?: string;
+    tier?: 'high' | 'medium' | 'needs_coaching';
     cursor?: string;
     limit?: number;
   }) {
     const where: Prisma.ApplicationWhereInput = {};
     if (params.status?.length) where.status = { in: params.status };
     if (params.loanPurpose) where.loanPurpose = params.loanPurpose;
+
+    // Tier-bucket filter (feature 004 FR-017). Acts on the best-offer tier.
+    if (params.tier === 'high') {
+      where.bankOffers = { some: { approvalTier: 'excellent', erasedAt: null } };
+    } else if (params.tier === 'medium') {
+      where.AND = [
+        { bankOffers: { some: { approvalTier: 'good', erasedAt: null } } },
+        { bankOffers: { none: { approvalTier: 'excellent', erasedAt: null } } },
+      ];
+    } else if (params.tier === 'needs_coaching') {
+      where.OR = [
+        { status: 'no_match' },
+        {
+          AND: [
+            {
+              bankOffers: {
+                some: { approvalTier: { in: ['moderate', 'low', 'very_low'] }, erasedAt: null },
+              },
+            },
+            {
+              bankOffers: { none: { approvalTier: { in: ['excellent', 'good'] }, erasedAt: null } },
+            },
+          ],
+        },
+      ];
+    }
 
     return this.prisma.application.findMany({
       where,

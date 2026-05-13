@@ -34,6 +34,21 @@ import { CanDirective } from '../../shared/can.directive';
           <mat-icon class="item-icon" aria-hidden="true">account_balance</mat-icon>
           <span class="item-label" i18n="@@sidebar.bank_programs">Bank programs</span>
         </a>
+
+        <a routerLink="/applications" routerLinkActive="active" class="item">
+          <mat-icon class="item-icon" aria-hidden="true">assignment</mat-icon>
+          <span class="item-label" i18n="@@sidebar.applications">Applications</span>
+        </a>
+
+        <a
+          *can="['super_admin', 'sales_manager', 'analyst']"
+          routerLink="/scoring-analytics"
+          routerLinkActive="active"
+          class="item"
+        >
+          <mat-icon class="item-icon" aria-hidden="true">analytics</mat-icon>
+          <span class="item-label" i18n="@@sidebar.scoring_analytics">Scoring analytics</span>
+        </a>
       </nav>
 
       <div class="footer">

@@ -7,12 +7,14 @@ import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
 import type {
   ApplicantProfile,
+  ApprovalProbabilityResult,
   BankProgramSnapshot,
-  MatchResult,
-  Offer,
-  NoMatchDetail,
-  Suggestion,
   CascadeTrace,
+  MatchResult,
+  NoMatchDetail,
+  Offer,
+  ScoringConfig,
+  Suggestion,
 } from './types';
 import { checkEligibility } from './pipeline/eligibility-checker';
 import { resolveAssumedIncome } from './pipeline/income-resolver';
@@ -26,6 +28,7 @@ import { runCascade } from './pipeline/cascade-adapter';
 export interface EngineInput {
   profile: ApplicantProfile;
   programs: BankProgramSnapshot[];
+  scoringConfig: ScoringConfig;
   correlationId: string;
 }
 
@@ -44,13 +47,13 @@ export interface EngineOutput {
 export class EngineService {
   run(input: EngineInput): EngineOutput {
     const t0 = Date.now();
-    const { profile, programs } = input;
+    const { profile, programs, scoringConfig } = input;
     const results: MatchResult[] = [];
     const noMatchDetails: NoMatchDetail[] = [];
 
     for (const program of programs) {
       if (!program.active) continue;
-      const result = this.evaluateProgram(profile, program);
+      const result = this.evaluateProgram(profile, program, scoringConfig);
       results.push(result);
       if (!result.eligible) {
         noMatchDetails.push({
@@ -87,7 +90,11 @@ export class EngineService {
     };
   }
 
-  private evaluateProgram(profile: ApplicantProfile, program: BankProgramSnapshot): MatchResult {
+  private evaluateProgram(
+    profile: ApplicantProfile,
+    program: BankProgramSnapshot,
+    scoringConfig: ScoringConfig,
+  ): MatchResult {
     const assumedIncome = resolveAssumedIncome(
       profile,
       program.incomeAssumption,
@@ -192,6 +199,7 @@ export class EngineService {
       const offer = this.buildOffer({
         profile,
         program,
+        scoringConfig,
         ratePercent: feesAdjusted.effectiveRateAfterPenaltiesPercent,
         monthlyInstallment: adjustedEmi,
         requestedAmount: maxLoan,
@@ -217,6 +225,7 @@ export class EngineService {
     const offer = this.buildOffer({
       profile,
       program,
+      scoringConfig,
       ratePercent: ratePostPenalties,
       monthlyInstallment,
       requestedAmount: requested,
@@ -251,6 +260,7 @@ export class EngineService {
   private buildOffer(args: {
     profile: ApplicantProfile;
     program: BankProgramSnapshot;
+    scoringConfig: ScoringConfig;
     ratePercent: Decimal;
     monthlyInstallment: Decimal;
     requestedAmount: Decimal;
@@ -262,11 +272,12 @@ export class EngineService {
     cascadeTrace: CascadeTrace;
     maxLoanAvailableEGP?: Decimal;
   }): Offer {
-    const approvalProbability = calculateApprovalProbability({
+    const approvalProbability: ApprovalProbabilityResult = calculateApprovalProbability({
       profile: args.profile,
       program: args.program,
       assumedMonthlyIncomeEGP: args.assumedIncome,
       dbrPercent: args.dbrPercent,
+      scoringConfig: args.scoringConfig,
     });
 
     return {
@@ -281,7 +292,8 @@ export class EngineService {
       requestedTenorMonths: args.profile.preferredTenorMonths,
       effectiveTenorMonths: args.effectiveTenor,
       feesBreakdown: args.feesBreakdown,
-      approvalProbabilityPercent: approvalProbability,
+      approvalProbabilityPercent: approvalProbability.score,
+      approvalProbability,
       requiredDocuments: args.program.requiredDocuments,
       matchReasons: buildMatchReasons(args.profile, args.program),
       cascadeTrace: args.cascadeTrace,

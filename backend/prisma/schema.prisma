@@ -54,6 +54,21 @@ enum AuditEventType {
   APPLICATION_RATE_LIMITED
   MATCHING_ENGINE_RUN
   DATA_ERASURE_COMPLETED
+  SCORING_ENGINE_VERSION_PROMOTED
+}
+
+enum ApprovalTier {
+  excellent
+  good
+  moderate
+  low
+  very_low
+}
+
+enum DecisionOutcome {
+  approved
+  rejected
+  withdrawn
 }
 
 enum BankProgramType {
@@ -99,6 +114,7 @@ model StaffAccount {
   auditEventsAsTarget AuditEvent[]   @relation("AuditEventTarget")
   bankProgramsCreated BankProgram[]  @relation("BankProgramCreatedBy")
   bankProgramsUpdated BankProgram[]  @relation("BankProgramUpdatedBy")
+  scoringVersionActivations ScoringEngineVersion[] @relation("ScoringVersionActivator")
 
   @@index([isActive, role], name: "idx_staff_account_active_role")
   @@map("staff_account")
@@ -275,6 +291,10 @@ model BankOffer {
   effectiveTenorMonths      Int
   feesBreakdown             Json
   approvalProbabilityPercent Decimal    @db.Decimal(5, 2)
+  approvalScore             Int
+  approvalTier              ApprovalTier
+  approvalFactors           Json
+  engineVersion             String      @db.VarChar(32)
   requiredDocuments         String[]    @db.VarChar(80)
   matchReasons              String[]    @db.VarChar(80)
   cascadeTrace              Json
@@ -284,10 +304,51 @@ model BankOffer {
   createdAt                 DateTime    @default(now()) @db.Timestamptz(6)
   erasedAt                  DateTime?   @db.Timestamptz(6)
 
-  application               Application @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
+  application               Application      @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
+  decision                  BankOfferDecision? @relation("BankOfferDecisionFor")
 
   @@index([applicationId], name: "idx_bank_offer_application")
   @@index([programCode, createdAt(sort: Desc)], name: "idx_bank_offer_program_created")
   @@index([currency], name: "idx_bank_offer_currency")
+  @@index([approvalScore], name: "idx_bank_offer_approval_score")
+  @@index([engineVersion], name: "idx_bank_offer_engine_version")
   @@map("bank_offer")
+}
+
+// -----------------------------------------------------------------------------
+// ScoringEngineVersion (feature 004) — registry of past + active engine versions
+// -----------------------------------------------------------------------------
+
+model ScoringEngineVersion {
+  id                  String        @id @default(cuid()) @db.VarChar(30)
+  version             String        @unique @db.VarChar(32)
+  description         String?       @db.VarChar(1000)
+  weightsConfig       Json
+  activatedAt         DateTime      @default(now()) @db.Timestamptz(6)
+  deactivatedAt       DateTime?     @db.Timestamptz(6)
+  activatedByStaffId  String?       @db.VarChar(30)
+  createdAt           DateTime      @default(now()) @db.Timestamptz(6)
+
+  activatedByStaff    StaffAccount? @relation("ScoringVersionActivator", fields: [activatedByStaffId], references: [id], onDelete: SetNull)
+
+  @@index([activatedAt(sort: Desc)], name: "idx_scoring_engine_version_activated")
+  @@map("scoring_engine_version")
+}
+
+// -----------------------------------------------------------------------------
+// BankOfferDecision (feature 004 placeholder — populated by future feed)
+// -----------------------------------------------------------------------------
+
+model BankOfferDecision {
+  id                  String          @id @default(cuid()) @db.VarChar(30)
+  bankOfferId         String          @unique @db.VarChar(30)
+  outcome             DecisionOutcome
+  recordedAt          DateTime        @default(now()) @db.Timestamptz(6)
+  decisionLatencyMs   Int?
+
+  bankOffer           BankOffer       @relation("BankOfferDecisionFor", fields: [bankOfferId], references: [id], onDelete: Cascade)
+
+  @@index([recordedAt(sort: Desc)], name: "idx_bank_offer_decision_recorded")
+  @@index([outcome], name: "idx_bank_offer_decision_outcome")
+  @@map("bank_offer_decision")
 }

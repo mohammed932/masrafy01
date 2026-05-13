@@ -1,0 +1,10 @@
+{
+  "workflow": "speckit",
+  "specName": "004-approval-probability-display",
+  "branch": "004-approval-probability-display",
+  "selectedAt": "2026-05-13T08:28:19.589Z",
+  "currentStep": "specify",
+  "status": "draft",
+  "stepHistory": {},
+  "transitions": []
+}
