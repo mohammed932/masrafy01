@@ -29,16 +29,20 @@ export class AdminApplicationsController {
   constructor(private readonly repo: ApplicationRepository) {}
 
   @Get()
-  @ApiOperation({ summary: 'List applications (paginated)' })
+  @ApiOperation({ summary: 'List applications (paginated, with bestOffer + tier filter)' })
   async findMany(
     @Query('status') status?: string,
     @Query('loanPurpose') loanPurpose?: string,
+    @Query('tier') tier?: string,
     @Query('cursor') cursor?: string,
     @Query('limit', new DefaultValuePipe(25), ParseIntPipe) limit?: number,
   ): Promise<unknown> {
+    const tierBucket =
+      tier === 'high' || tier === 'medium' || tier === 'needs_coaching' ? tier : undefined;
     const rows = await this.repo.findManyAdmin({
       status: status?.split(',') as ApplicationStatus[] | undefined,
       loanPurpose,
+      tier: tierBucket,
       cursor,
       limit,
     });
@@ -63,6 +67,16 @@ export class AdminApplicationsController {
     row: NonNullable<Awaited<ReturnType<ApplicationRepository['findById']>>>,
   ) {
     const profile = row.applicantProfile as RawApplicantProfileJson;
+    // Best offer = highest approvalScore among the application's non-erased offers.
+    // null when status='no_match' or no offers persisted.
+    const best = [...row.bankOffers].sort((a, b) => b.approvalScore - a.approvalScore)[0];
+    const bestOffer = best
+      ? {
+          score: best.approvalScore,
+          tier: best.approvalTier,
+          tierLabelCode: `approval.tier.${best.approvalTier}`,
+        }
+      : null;
     return {
       id: row.id,
       status: row.status,
@@ -75,6 +89,7 @@ export class AdminApplicationsController {
       eligibleProgramsCount: row.eligibleProgramsCount,
       programsCheckedCount: row.programsCheckedCount,
       maskedApplicant: maskApplicantProfile(profile),
+      bestOffer,
     };
   }
 
@@ -109,7 +124,7 @@ export class AdminApplicationsController {
         requestedTenorMonths: o.requestedTenorMonths,
         effectiveTenorMonths: o.effectiveTenorMonths,
         feesBreakdown: o.feesBreakdown,
-        approvalProbabilityPercent: o.approvalProbabilityPercent.toNumber(),
+        approvalProbability: this.projectApprovalProbability(o),
         requiredDocuments: o.requiredDocuments,
         matchReasons: o.matchReasons,
         cascadeTrace: o.cascadeTrace,
@@ -117,6 +132,30 @@ export class AdminApplicationsController {
         selfDeclared: o.selfDeclared,
         maxLoanAvailableEGP: o.maxLoanAvailableEGP?.toFixed(2),
       })),
+    };
+  }
+
+  private projectApprovalProbability(o: {
+    approvalScore: number;
+    approvalTier: string;
+    approvalFactors: unknown;
+    engineVersion: string;
+  }) {
+    const raw = (o.approvalFactors ?? {}) as {
+      positive?: Array<{ code: string; impact: number }>;
+      negative?: Array<{ code: string; impact: number }>;
+      legacy?: boolean;
+    };
+    return {
+      score: o.approvalScore,
+      tier: o.approvalTier,
+      tierLabelCode: `approval.tier.${o.approvalTier}`,
+      factors: {
+        positive: raw.positive ?? [],
+        negative: raw.negative ?? [],
+        ...(raw.legacy === true ? { legacy: true } : {}),
+      },
+      engineVersion: o.engineVersion,
     };
   }
 }

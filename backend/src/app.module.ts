@@ -11,6 +11,8 @@ import { AuthModule } from '@/auth/auth.module';
 import { UsersModule } from '@/users/users.module';
 import { BankProgramsModule } from '@/bank-programs/bank-programs.module';
 import { ApplicationsModule } from '@/applications/applications.module';
+import { ScoringVersionsModule } from '@/scoring-versions/scoring-versions.module';
+import { ScoringAnalyticsModule } from '@/scoring-analytics/scoring-analytics.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 import { loadEnv } from '@/infra/env/env.schema';
 import { pinoOptions } from '@/common/pino/pino.config';
@@ -37,6 +39,8 @@ import { pinoOptions } from '@/common/pino/pino.config';
     UsersModule,
     PlatformEnumerationsModule,
     BankProgramsModule,
+    ScoringVersionsModule,
+    ScoringAnalyticsModule,
     ApplicationsModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],

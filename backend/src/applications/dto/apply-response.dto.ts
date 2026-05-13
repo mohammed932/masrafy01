@@ -1,7 +1,29 @@
 /**
  * Mobile apply-endpoint response envelope (Constitution Principle XIV).
- * Mirrors the OpenAPI contract under specs/003-matching-engine-post/contracts/openapi.yaml.
+ * Mirrors the OpenAPI contract under specs/004-approval-probability-display/contracts/openapi.yaml.
+ *
+ * Feature 004: per-offer `approvalProbabilityPercent: number` is replaced by the structured
+ * `approvalProbability: ApprovalProbabilityResponseDto`. Mobile + admin both read this shape.
  */
+
+export type ApprovalTierLiteral = 'excellent' | 'good' | 'moderate' | 'low' | 'very_low';
+
+export interface FactorImpactDto {
+  code: string;
+  impact: number;
+}
+
+export interface ApprovalProbabilityResponseDto {
+  score: number;
+  tier: ApprovalTierLiteral;
+  tierLabelCode: string;
+  factors: {
+    positive: FactorImpactDto[];
+    negative: FactorImpactDto[];
+    legacy?: boolean;
+  };
+  engineVersion: string;
+}
 
 export interface ApplyMatchedResponse {
   success: true;
@@ -26,7 +48,7 @@ export interface ApplyMatchedResponse {
       effectiveLoanAmountEGP: string;
       requestedTenorMonths: number;
       effectiveTenorMonths: number;
-      approvalProbabilityPercent: number;
+      approvalProbability: ApprovalProbabilityResponseDto;
       requiredDocuments: string[];
       matchReasons: string[];
       feesBreakdown: unknown;

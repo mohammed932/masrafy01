@@ -17,9 +17,15 @@ import { EngineService } from '../matching/engine.service';
 import { BankProgramRepository } from '../bank-programs/bank-programs.repository';
 import { AuditEventWriter } from '../audit/audit-event.writer';
 import { IdempotencyKeyMismatchException } from '../common/errors/domain.exceptions';
-import type { ApplicantProfile, BankProgramSnapshot, Offer } from '../matching/types';
+import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
+import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
+import type { ApplicantProfile, BankProgramSnapshot, Offer, ScoringConfig } from '../matching/types';
 import type { ApplyRequestDto } from './dto/apply.dto';
-import type { ApplyResponse } from './dto/apply-response.dto';
+import type {
+  ApplyResponse,
+  ApprovalProbabilityResponseDto,
+  ApprovalTierLiteral,
+} from './dto/apply-response.dto';
 
 export interface ApplyContext {
   mobileClientId: string;
@@ -35,6 +41,7 @@ export class ApplicationsService {
     private readonly engine: EngineService,
     private readonly programsRepo: BankProgramRepository,
     private readonly audit: AuditEventWriter,
+    private readonly scoringVersions: ScoringEngineVersionService,
   ) {}
 
   async apply(dto: ApplyRequestDto, ctx: ApplyContext): Promise<ApplyResponse> {
@@ -53,10 +60,13 @@ export class ApplicationsService {
     const activePrograms = await this.programsRepo.findAllActive();
     const snapshots: BankProgramSnapshot[] = activePrograms.map((p) => this.toSnapshot(p));
 
+    const scoringConfig: ScoringConfig = await loadActiveScoringConfig(this.scoringVersions);
     const profile = this.buildProfile(dto);
-    const result = this.engine.run({ profile, programs: snapshots, correlationId });
+    const result = this.engine.run({ profile, programs: snapshots, scoringConfig, correlationId });
 
-    const offerInputs: CreateBankOfferInput[] = result.offers.map((o) => this.toOfferInput(o));
+    const offerInputs: CreateBankOfferInput[] = result.offers.map((o) =>
+      this.toOfferInput(o, scoringConfig.version),
+    );
 
     const summaryJson: Prisma.InputJsonValue = {
       programsCheckedCount: result.programsChecked,
@@ -118,11 +128,12 @@ export class ApplicationsService {
           },
           tx,
         );
+        const bestOffer = result.offers[0];
         await this.audit.write(
           {
             actorId: null,
             targetId: null,
-            eventType: 'MATCHING_ENGINE_RUN',
+            eventType: AuditEventType.MATCHING_ENGINE_RUN,
             sourceIp: ctx.sourceIp ?? null,
             correlationId,
             payload: {
@@ -130,6 +141,9 @@ export class ApplicationsService {
               programsCheckedCount: result.programsChecked,
               eligibleProgramsCount: result.eligibleCount,
               durationMs: result.engineDurationMs,
+              engineVersion: scoringConfig.version,
+              bestOfferScore: bestOffer?.approvalProbability.score ?? null,
+              bestOfferTier: bestOffer?.approvalProbability.tier ?? null,
             },
           },
           tx,
@@ -191,7 +205,7 @@ export class ApplicationsService {
             effectiveLoanAmountEGP: o.effectiveLoanAmountEGP.toFixed(2),
             requestedTenorMonths: o.requestedTenorMonths,
             effectiveTenorMonths: o.effectiveTenorMonths,
-            approvalProbabilityPercent: o.approvalProbabilityPercent.toNumber(),
+            approvalProbability: this.projectApprovalProbability(o),
             requiredDocuments: o.requiredDocuments,
             matchReasons: o.matchReasons,
             feesBreakdown: o.feesBreakdown,
@@ -227,7 +241,7 @@ export class ApplicationsService {
     };
   }
 
-  private toOfferInput(offer: Offer): CreateBankOfferInput {
+  private toOfferInput(offer: Offer, engineVersion: string): CreateBankOfferInput {
     return {
       programCode: offer.programCode,
       programVersion: offer.programVersion,
@@ -242,6 +256,10 @@ export class ApplicationsService {
       effectiveTenorMonths: offer.effectiveTenorMonths,
       feesBreakdown: offer.feesBreakdown as unknown as Prisma.InputJsonValue,
       approvalProbabilityPercent: new Prisma.Decimal(offer.approvalProbabilityPercent),
+      approvalScore: offer.approvalProbability.score,
+      approvalTier: offer.approvalProbability.tier,
+      approvalFactors: offer.approvalProbability.factors as unknown as Prisma.InputJsonValue,
+      engineVersion,
       requiredDocuments: offer.requiredDocuments,
       matchReasons: offer.matchReasons,
       cascadeTrace: offer.cascadeTrace as unknown as Prisma.InputJsonValue,
@@ -250,6 +268,37 @@ export class ApplicationsService {
       maxLoanAvailableEGP: offer.maxLoanAvailableEGP
         ? new Prisma.Decimal(offer.maxLoanAvailableEGP.toString())
         : null,
+    };
+  }
+
+  /**
+   * Project a persisted BankOffer row into the response-side approvalProbability shape
+   * defined in feature 004. The factor catalog is NOT looked up here — the API stays
+   * locale-agnostic and returns stable codes only. Clients localize via tierLabelCode
+   * and the per-offer engine version's factorCatalog (admin only).
+   */
+  private projectApprovalProbability(row: {
+    approvalScore: number;
+    approvalTier: string;
+    approvalFactors: Prisma.JsonValue;
+    engineVersion: string;
+  }): ApprovalProbabilityResponseDto {
+    const tier = row.approvalTier as ApprovalTierLiteral;
+    const raw = (row.approvalFactors ?? {}) as {
+      positive?: Array<{ code: string; impact: number }>;
+      negative?: Array<{ code: string; impact: number }>;
+      legacy?: boolean;
+    };
+    return {
+      score: row.approvalScore,
+      tier,
+      tierLabelCode: `approval.tier.${tier}`,
+      factors: {
+        positive: raw.positive ?? [],
+        negative: raw.negative ?? [],
+        ...(raw.legacy === true ? { legacy: true as const } : {}),
+      },
+      engineVersion: row.engineVersion,
     };
   }
 

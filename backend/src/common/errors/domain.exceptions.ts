@@ -281,3 +281,29 @@ export class RateLimitedBucketException extends DomainException {
     super(ERROR_CODES.RATE_LIMITED, { bucket, retryAfterSeconds });
   }
 }
+
+// --- Scoring versions / analytics (feature 004) ----------------------------
+
+export class ScoringVersionConcurrentPromotionException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.SCORING_VERSION_CONCURRENT_PROMOTION);
+  }
+}
+
+export class ScoringVersionNotFoundException extends DomainException {
+  constructor(version: string) {
+    super(ERROR_CODES.SCORING_VERSION_NOT_FOUND, { version });
+  }
+}
+
+export class ScoringVersionNoActiveException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.SCORING_VERSION_NO_ACTIVE);
+  }
+}
+
+export class AnalyticsWindowTooLargeException extends DomainException {
+  constructor(maxDays: number) {
+    super(ERROR_CODES.ANALYTICS_WINDOW_TOO_LARGE, { maxDays });
+  }
+}

@@ -82,6 +82,60 @@
       <trans-unit id="dash.kicker.manager" datatype="html"><source>Sales manager console</source><target>وحدة مدير المبيعات</target></trans-unit>
       <trans-unit id="dash.kicker.agent" datatype="html"><source>Sales agent console</source><target>وحدة مندوب المبيعات</target></trans-unit>
       <trans-unit id="dash.kicker.analyst" datatype="html"><source>Analyst console</source><target>وحدة المحلل</target></trans-unit>
+      <trans-unit id="sidebar.applications" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
+      <trans-unit id="applications.title" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
+      <trans-unit id="applications.subtitle" datatype="html"><source>Loan-match results triaged by approval probability.</source><target>نتائج مطابقة القروض مُرتَّبة حسب احتمالية الموافقة.</target></trans-unit>
+      <trans-unit id="applications.empty.title" datatype="html"><source>No leads in this bucket yet</source><target>لا توجد طلبات في هذه الفئة بعد</target></trans-unit>
+      <trans-unit id="applications.empty.subtitle" datatype="html"><source>Try a different filter or wait for new applications.</source><target>جرّب فلتراً آخر أو انتظر طلبات جديدة.</target></trans-unit>
+      <trans-unit id="applications.col.probability" datatype="html"><source>Probability</source><target>الاحتمالية</target></trans-unit>
+      <trans-unit id="applications.col.purpose" datatype="html"><source>Loan purpose</source><target>الغرض من القرض</target></trans-unit>
+      <trans-unit id="applications.col.amount" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
+      <trans-unit id="applications.col.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
+      <trans-unit id="applications.col.created" datatype="html"><source>Created</source><target>تاريخ الإنشاء</target></trans-unit>
+      <trans-unit id="applications.action.detail" datatype="html"><source>Open application <x id="INTERPOLATION"/></source><target>افتح الطلب <x id="INTERPOLATION"/></target></trans-unit>
+      <trans-unit id="applications.detail.back" datatype="html"><source>Back to applications</source><target>العودة إلى الطلبات</target></trans-unit>
+      <trans-unit id="applications.detail.offers" datatype="html"><source>Matched offers</source><target>العروض المطابقة</target></trans-unit>
+      <trans-unit id="applications.detail.noOffers" datatype="html"><source>No matched offers.</source><target>لا توجد عروض مطابقة.</target></trans-unit>
+      <trans-unit id="applications.detail.rate" datatype="html"><source>Effective rate</source><target>المعدل الفعلي</target></trans-unit>
+      <trans-unit id="applications.detail.installment" datatype="html"><source>Monthly installment</source><target>القسط الشهري</target></trans-unit>
+      <trans-unit id="applications.detail.tenor" datatype="html"><source>Effective tenor</source><target>المدة الفعلية</target></trans-unit>
+      <trans-unit id="applications.detail.whyTitle" datatype="html"><source>Why this score?</source><target>لماذا هذه النتيجة؟</target></trans-unit>
+      <trans-unit id="applications.detail.positive" datatype="html"><source>What helped</source><target>ما ساهم في رفع النتيجة</target></trans-unit>
+      <trans-unit id="applications.detail.negative" datatype="html"><source>What hurt</source><target>ما خفّض النتيجة</target></trans-unit>
+      <trans-unit id="applications.detail.legacyNotice" datatype="html"><source>Detailed factors unavailable for offers produced before engine version 1.1.0.</source><target>التفاصيل غير متاحة للعروض الصادرة قبل الإصدار 1.1.0 من المحرك.</target></trans-unit>
+      <trans-unit id="applications.detail.loadingFactors" datatype="html"><source>Loading factor labels…</source><target>جارٍ تحميل تسميات العوامل…</target></trans-unit>
+      <trans-unit id="applications.detail.noFactors" datatype="html"><source>Score reflects the base model only — no profile-specific adjustments applied.</source><target>النتيجة تعتمد على النموذج الأساسي فقط — لم تُطبَّق أي تعديلات خاصة بالملف الشخصي.</target></trans-unit>
+      <trans-unit id="applications.detail.deprecatedBadge" datatype="html"><source>Deprecated</source><target>متوقف</target></trans-unit>
+      <trans-unit id="applications.detail.deprecatedTooltip" datatype="html"><source>Deprecated in v<x id="INTERPOLATION"/></source><target>متوقف في الإصدار <x id="INTERPOLATION"/></target></trans-unit>
+      <trans-unit id="applications.detail.deprecatedGeneric" datatype="html"><source>Deprecated in the active engine</source><target>متوقف في الإصدار النشط للمحرك</target></trans-unit>
+      <trans-unit id="applications.detail.scoredUnder" datatype="html"><source>Scored under engine v<x id="INTERPOLATION"/></source><target>تم التقييم بإصدار المحرك v<x id="INTERPOLATION"/></target></trans-unit>
+      <trans-unit id="applications.filter.tier.aria" datatype="html"><source>Filter applications by approval probability</source><target>تصفية الطلبات حسب احتمالية الموافقة</target></trans-unit>
+      <trans-unit id="applications.filter.tier.high" datatype="html"><source>High probability leads</source><target>طلبات عالية الاحتمالية</target></trans-unit>
+      <trans-unit id="applications.filter.tier.medium" datatype="html"><source>Medium probability</source><target>احتمالية متوسطة</target></trans-unit>
+      <trans-unit id="applications.filter.tier.needs_coaching" datatype="html"><source>Needs coaching</source><target>يحتاج إلى متابعة</target></trans-unit>
+      <trans-unit id="approval.tier.excellent" datatype="html"><source>Excellent</source><target>ممتاز</target></trans-unit>
+      <trans-unit id="approval.tier.good" datatype="html"><source>Good</source><target>جيد</target></trans-unit>
+      <trans-unit id="approval.tier.moderate" datatype="html"><source>Moderate</source><target>متوسط</target></trans-unit>
+      <trans-unit id="approval.tier.low" datatype="html"><source>Low</source><target>منخفض</target></trans-unit>
+      <trans-unit id="approval.tier.very_low" datatype="html"><source>Very low</source><target>منخفض جداً</target></trans-unit>
+      <trans-unit id="approval.tier.no_match" datatype="html"><source>No matches yet</source><target>لا توجد مطابقات بعد</target></trans-unit>
+      <trans-unit id="approval.pill.aria" datatype="html"><source>Approval probability <x id="INTERPOLATION"/>% — <x id="INTERPOLATION_1"/></source><target>احتمالية الموافقة <x id="INTERPOLATION"/>٪ — <x id="INTERPOLATION_1"/></target></trans-unit>
+      <trans-unit id="sidebar.scoring_analytics" datatype="html"><source>Scoring analytics</source><target>تحليلات التقييم</target></trans-unit>
+      <trans-unit id="analytics.title" datatype="html"><source>Scoring analytics</source><target>تحليلات التقييم</target></trans-unit>
+      <trans-unit id="analytics.subtitle" datatype="html"><source>Distribution of approval scores over a chosen window plus per-tier accuracy against recorded bank decisions.</source><target>توزيع نتائج الاحتمالية ضمن نطاق زمني محدد بالإضافة إلى دقة كل فئة مقارنةً بقرارات البنوك المسجلة.</target></trans-unit>
+      <trans-unit id="analytics.window.aria" datatype="html"><source>Select look-back window in days</source><target>اختر النطاق الزمني بالأيام</target></trans-unit>
+      <trans-unit id="analytics.dist.title" datatype="html"><source>Distribution</source><target>التوزيع</target></trans-unit>
+      <trans-unit id="analytics.dist.empty" datatype="html"><source>No matched offers in this window.</source><target>لا توجد عروض مطابقة في هذا النطاق.</target></trans-unit>
+      <trans-unit id="analytics.dist.aria" datatype="html"><source>Approval score distribution histogram with 10 ten-point buckets</source><target>رسم بياني لتوزيع نتائج الاحتمالية مكوّن من 10 شرائح كل منها 10 نقاط</target></trans-unit>
+      <trans-unit id="analytics.dist.tooltip" datatype="html"><source>Score <x id="INTERPOLATION"/>–<x id="INTERPOLATION_1"/>: <x id="INTERPOLATION_2"/> offers</source><target>نتيجة <x id="INTERPOLATION"/>–<x id="INTERPOLATION_1"/>: <x id="INTERPOLATION_2"/> عرض</target></trans-unit>
+      <trans-unit id="analytics.tier.title" datatype="html"><source>Per-tier accuracy</source><target>الدقة لكل فئة</target></trans-unit>
+      <trans-unit id="analytics.tier.col.tier" datatype="html"><source>Tier</source><target>الفئة</target></trans-unit>
+      <trans-unit id="analytics.tier.col.offers" datatype="html"><source>Offers</source><target>عدد العروض</target></trans-unit>
+      <trans-unit id="analytics.tier.col.decisions" datatype="html"><source>Decisions</source><target>عدد القرارات</target></trans-unit>
+      <trans-unit id="analytics.tier.col.rate" datatype="html"><source>Approval rate</source><target>نسبة الموافقة</target></trans-unit>
+      <trans-unit id="analytics.tier.rate.empty" datatype="html"><source>—</source><target>—</target></trans-unit>
+      <trans-unit id="analytics.tier.rate.empty.tooltip" datatype="html"><source>Insufficient data for this tier in the selected window</source><target>لا توجد بيانات كافية لهذه الفئة في النطاق المحدد</target></trans-unit>
+      <trans-unit id="analytics.error.title" datatype="html"><source>Out of OLTP range</source><target>النطاق خارج حدود قاعدة البيانات التشغيلية</target></trans-unit>
     </body>
   </file>
 </xliff>

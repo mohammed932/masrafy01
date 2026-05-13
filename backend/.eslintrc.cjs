@@ -48,6 +48,25 @@ module.exports = {
                 group: ['@/infra', '@/infra/*', '../infra', '../infra/*'],
                 message: 'Engine must not touch infra (Prisma/Redis/HIBP).',
               },
+              {
+                group: [
+                  '@/scoring-versions',
+                  '@/scoring-versions/*',
+                  '../scoring-versions',
+                  '../scoring-versions/*',
+                ],
+                message:
+                  'Engine cannot depend on the version registry. Use the ScoringConfig value object from src/matching/types.ts; the adapter in src/applications/adapters/ is the only bridge (Principle V).',
+              },
+              {
+                group: [
+                  '@/scoring-analytics',
+                  '@/scoring-analytics/*',
+                  '../scoring-analytics',
+                  '../scoring-analytics/*',
+                ],
+                message: 'Engine cannot depend on analytics modules.',
+              },
             ],
             paths: [
               {
@@ -79,6 +98,20 @@ module.exports = {
               {
                 group: ['@/infra', '@/infra/*', '../infra', '../infra/*'],
                 message: 'Engine must not touch infra.',
+              },
+              {
+                group: [
+                  '@/scoring-versions',
+                  '@/scoring-versions/*',
+                  '../scoring-versions',
+                  '../scoring-versions/*',
+                  '@/scoring-analytics',
+                  '@/scoring-analytics/*',
+                  '../scoring-analytics',
+                  '../scoring-analytics/*',
+                ],
+                message:
+                  'Engine cannot depend on the version registry or analytics modules. Receive ScoringConfig as a parameter; the orchestrator owns the bridge.',
               },
             ],
             paths: [

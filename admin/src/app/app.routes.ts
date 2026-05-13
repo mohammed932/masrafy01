@@ -51,6 +51,22 @@ export const APP_ROUTES: Routes = [
       ),
   },
   {
+    path: 'applications',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'sales_agent', 'analyst'])],
+    loadChildren: () =>
+      import('./features/applications/applications.routes').then((m) => m.APPLICATIONS_ROUTES),
+  },
+  {
+    path: 'scoring-analytics',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
+    loadChildren: () =>
+      import('./features/scoring-analytics/scoring-analytics.routes').then(
+        (m) => m.SCORING_ANALYTICS_ROUTES,
+      ),
+  },
+  {
     path: '**',
     redirectTo: 'dashboard',
   },

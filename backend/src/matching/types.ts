@@ -275,7 +275,10 @@ export interface Offer {
   requestedTenorMonths: number;
   effectiveTenorMonths: number;
   feesBreakdown: FeesBreakdown;
+  /** Legacy flat percentage kept in sync with `approvalProbability.score` for feature-003 readers. */
   approvalProbabilityPercent: number;
+  /** Structured probability (feature 004). Engine version stamp added by the orchestrator. */
+  approvalProbability: ApprovalProbabilityResult;
   requiredDocuments: string[];
   matchReasons: string[];
   cascadeTrace: CascadeTrace;
@@ -314,3 +317,57 @@ export const APPLICATION_PRIORITIES = [
 ] as const;
 
 export type ApplicationPriority = (typeof APPLICATION_PRIORITIES)[number];
+
+// ---------------------------------------------------------------------------
+// Feature 004 — Structured approval probability + scoring config
+// ---------------------------------------------------------------------------
+
+export const APPROVAL_TIERS = ['excellent', 'good', 'moderate', 'low', 'very_low'] as const;
+export type ApprovalTier = (typeof APPROVAL_TIERS)[number];
+
+export interface FactorImpact {
+  /** Stable factor code resolved against the offer's `engineVersion.weightsConfig.factorCatalog`. */
+  code: string;
+  /** Signed integer. Positive entries strictly > 0; negative entries strictly < 0. */
+  impact: number;
+}
+
+export interface ApprovalFactors {
+  positive: FactorImpact[];
+  negative: FactorImpact[];
+  /** Set true only on backfilled offers (engineVersion='1.0.0-legacy'). */
+  legacy?: boolean;
+}
+
+export interface ApprovalProbabilityResult {
+  score: number;
+  tier: ApprovalTier;
+  factors: ApprovalFactors;
+}
+
+export interface ScoringThresholds {
+  excellent: number;
+  good: number;
+  moderate: number;
+  low: number;
+}
+
+export interface FactorCatalogEntry {
+  labelAr: string;
+  labelEn: string;
+}
+
+export type FactorCatalog = Record<string, FactorCatalogEntry>;
+
+/**
+ * Pure value object passed into the engine by the orchestrator. The engine
+ * MUST NOT import from `src/scoring-versions/` — the adapter in
+ * `src/applications/adapters/` is the single bridge (Constitution Principle V).
+ */
+export interface ScoringConfig {
+  version: string;
+  weights: Record<string, number>;
+  thresholds: ScoringThresholds;
+  factorCatalog: FactorCatalog;
+  legacy: boolean;
+}

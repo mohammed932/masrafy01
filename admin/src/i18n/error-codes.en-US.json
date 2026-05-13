@@ -52,6 +52,10 @@
   "HMAC_TIMESTAMP_SKEW": "Device clock is out of sync. Adjust the time and retry.",
   "HMAC_NONCE_REPLAY": "This request was already submitted. Create a new one.",
   "HMAC_BODY_HASH_MISMATCH": "Request body does not match the signed hash.",
+  "SCORING_VERSION_CONCURRENT_PROMOTION": "Another promotion is in progress. Please retry in a moment.",
+  "SCORING_VERSION_NOT_FOUND": "Requested scoring engine version is not registered.",
+  "SCORING_VERSION_NO_ACTIVE": "No active scoring engine version. Contact a super-admin.",
+  "ANALYTICS_WINDOW_TOO_LARGE": "Requested window exceeds the 180-day cap. Use the data warehouse for larger ranges.",
   "RATE_LIMITED": "Too many attempts. Please wait a few minutes and try again.",
   "INTERNAL_ERROR": "Something went wrong on our side. Please try again."
 }
