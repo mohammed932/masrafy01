@@ -11,6 +11,14 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import {
+  PageHeaderComponent,
+  SkeletonRowsComponent,
+  StatStripComponent,
+  StatusPillComponent,
+  type StatStripItem,
+  type StatusTone,
+} from '@shared/ui';
 import { ApplicationsApiService, type AdminApplicationRow } from '../api/applications.api.service';
 import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
@@ -39,18 +47,17 @@ import {
     ApprovalPillComponent,
     TierFilterChipsComponent,
     LeadFilterChipsComponent,
+    PageHeaderComponent,
+    StatStripComponent,
+    StatusPillComponent,
+    SkeletonRowsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <header class="page-header">
-        <div class="page-titles">
-          <h1 class="title" i18n="@@applications.title">Applications</h1>
-          <p class="subtitle" i18n="@@applications.subtitle">
-            Loan-match results triaged by approval probability.
-          </p>
-        </div>
-      </header>
+      <app-page-header [title]="titleText" [subtitle]="subtitleText" />
+
+      <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
 
       <app-tier-filter-chips
         [selected]="selectedTier()"
@@ -65,7 +72,7 @@ import {
       />
 
       @if (loading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <app-skeleton-rows [rows]="6" [cols]="[1, 2, 1, 1, 1]" />
       }
 
       @if (!loading() && rows().length === 0) {
@@ -103,7 +110,12 @@ import {
 
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef i18n="@@applications.col.status">Status</th>
-              <td mat-cell *matCellDef="let row">{{ row.status }}</td>
+              <td mat-cell *matCellDef="let row">
+                <app-status-pill
+                  [label]="statusLabel(row.status)"
+                  [tone]="statusTone(row.status)"
+                />
+              </td>
             </ng-container>
 
             <ng-container matColumnDef="created">
@@ -152,25 +164,6 @@ import {
         max-width: var(--content-max-width);
         margin-inline: auto;
         padding: var(--space-5) var(--space-6);
-      }
-      .page-header {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: var(--space-4);
-        flex-wrap: wrap;
-      }
-      .title {
-        margin: 0 0 4px;
-        font-size: 22px;
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-        letter-spacing: -0.015em;
-      }
-      .subtitle {
-        margin: 0;
-        font-size: 14px;
-        color: var(--color-text-secondary);
       }
       .table-wrap {
         background: var(--color-surface-default);
@@ -221,6 +214,44 @@ export class ApplicationsListPage implements OnInit {
   private readonly api = inject(ApplicationsApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  protected readonly titleText = $localize`:@@applications.title:Applications`;
+  protected readonly subtitleText = $localize`:@@applications.subtitle:Loan-match results triaged by approval probability.`;
+  protected readonly statAriaLabel = $localize`:@@applications.stat.aria:Application totals`;
+
+  protected statusLabel(status: string): string {
+    return status
+      .split('_')
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(' ');
+  }
+
+  protected statusTone(status: string): StatusTone {
+    switch (status) {
+      case 'matched':
+        return 'success';
+      case 'no_match':
+        return 'warning';
+      case 'erased':
+        return 'error';
+      case 'archived':
+        return 'neutral';
+      case 'draft':
+        return 'info';
+      default:
+        return 'neutral';
+    }
+  }
+  protected readonly statItems = computed<StatStripItem[]>(() => {
+    const lc = this.leadCounts();
+    const total = this.rows().length;
+    return [
+      { label: $localize`:@@applications.stat.visible:Visible`, value: total },
+      { label: $localize`:@@applications.stat.stale:Stale leads`, value: lc.stale, tone: lc.stale > 0 ? 'warning' : 'muted' },
+      { label: $localize`:@@applications.stat.followupToday:Follow-up today`, value: lc.followup_today, tone: lc.followup_today > 0 ? 'success' : 'muted' },
+      { label: $localize`:@@applications.stat.ready:Ready for bank`, value: lc.ready_for_submission },
+    ];
+  });
 
   protected readonly displayed = [
     'probability',

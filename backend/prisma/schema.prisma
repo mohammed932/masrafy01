@@ -60,6 +60,10 @@ enum AuditEventType {
   APPLICATION_REASSIGNED
   MANAGER_ATTENTION_REQUESTED
   APPLICATION_LEAD_STATUS_CHANGED
+  PLATFORM_ENUMERATION_CREATED
+  PLATFORM_ENUMERATION_UPDATED
+  PLATFORM_ENUMERATION_DEACTIVATED
+  PLATFORM_ENUMERATION_DEPRECATED
 }
 
 enum LeadStatus {
@@ -439,4 +443,34 @@ model Document {
   @@index([applicationId, documentType, status], name: "idx_document_application_type_status")
   @@index([uploadedByStaffId, createdAt(sort: Desc)], name: "idx_document_uploader_created")
   @@map("document")
+}
+
+// -----------------------------------------------------------------------------
+// PlatformEnumeration (feature 006) — operator-managed dropdown registry.
+// Replaces the in-memory stub from feature 002 (research R4).
+// Lifecycle: active=true is the only state shown in pickers; deprecatedAt
+// flags a key that historical rows may still reference but new writes
+// should reject. systemOnly=true blocks all CRUD except label edits.
+// -----------------------------------------------------------------------------
+
+model PlatformEnumeration {
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  type          String    @db.VarChar(48)
+  key           String    @db.VarChar(64)
+  labelAr       String    @db.VarChar(160)
+  labelEn       String    @db.VarChar(160)
+  active        Boolean   @default(true)
+  deprecatedAt  DateTime? @db.Timestamptz(6)
+  systemOnly    Boolean   @default(false)
+  parentKey     String?   @db.VarChar(64)
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+  createdBy     String?   @db.VarChar(30)
+  updatedBy     String?   @db.VarChar(30)
+
+  @@unique([type, key], name: "idx_platform_enumeration_type_key")
+  @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
+  @@index([type, parentKey], name: "idx_platform_enumeration_type_parent")
+  @@map("platform_enumeration")
 }

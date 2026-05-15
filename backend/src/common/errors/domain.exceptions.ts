@@ -351,3 +351,17 @@ export class FileTypeNotAllowedException extends DomainException {
     });
   }
 }
+
+// --- Platform enumerations (feature 006) -----------------------------------
+
+export class EnumerationKeyDuplicateException extends DomainException {
+  constructor(meta: { type: string; key: string }) {
+    super(ERROR_CODES.ENUMERATION_KEY_DUPLICATE, meta);
+  }
+}
+
+export class EnumerationSystemOnlyException extends DomainException {
+  constructor(meta: { type: string; key: string }) {
+    super(ERROR_CODES.ENUMERATION_SYSTEM_ONLY, meta);
+  }
+}

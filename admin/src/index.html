@@ -16,6 +16,20 @@
     href="https://fonts.googleapis.com/icon?family=Material+Icons"
     rel="stylesheet"
   />
+  <script>
+    // Apply theme before Angular bootstraps to avoid a light→dark flash.
+    (function () {
+      try {
+        var t = localStorage.getItem('masrafy.theme');
+        if (t !== 'dark' && t !== 'light') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+        }
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body class="mat-typography">
   <app-root></app-root>

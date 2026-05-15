@@ -233,6 +233,45 @@
       <trans-unit id="reminders.markCompleted.aria" datatype="html"><source>Mark reminder completed</source><target>تأشير التذكير كمنجَز</target></trans-unit>
       <trans-unit id="reminders.snooze.aria" datatype="html"><source>Snooze reminder for 24 hours</source><target>تأجيل التذكير لمدة 24 ساعة</target></trans-unit>
       <trans-unit id="reminders.open.aria" datatype="html"><source>Open application <x id="INTERPOLATION"/></source><target>فتح الطلب <x id="INTERPOLATION"/></target></trans-unit>
+
+      <!-- ===== Feature 006 — Platform Enumerations (Lookups) ===== -->
+      <trans-unit id="sidebar.section.lookups" datatype="html"><source>Lookups</source><target>القوائم</target></trans-unit>
+      <trans-unit id="sidebar.lookups" datatype="html"><source>Manage values</source><target>إدارة القيم</target></trans-unit>
+
+      <trans-unit id="lookups.eyebrow" datatype="html"><source>Platform configuration</source><target>إعدادات المنصة</target></trans-unit>
+      <trans-unit id="lookups.stat.types" datatype="html"><source>Categories</source><target>الفئات</target></trans-unit>
+      <trans-unit id="lookups.stat.values" datatype="html"><source>Active values</source><target>القيم النشطة</target></trans-unit>
+      <trans-unit id="lookups.stat.deprecated" datatype="html"><source>Deprecated</source><target>الملغاة</target></trans-unit>
+      <trans-unit id="lookups.categoriesLabel" datatype="html"><source>Categories</source><target>الفئات</target></trans-unit>
+      <trans-unit id="lookups.title" datatype="html"><source>Lookups</source><target>القوائم</target></trans-unit>
+      <trans-unit id="lookups.subtitle" datatype="html"><source>Manage every operator-curated dropdown the platform exposes — values are picked up instantly across the admin and mobile wizard. Add, rename, retire — no deploy needed.</source><target>إدارة كل القوائم المنسدلة التي يديرها المشغل عبر المنصة — تظهر القيم فوراً في لوحة الإدارة وتطبيق العميل. أضف، عدّل التسمية، أو أوقف الاستخدام دون الحاجة لنشر تحديث.</target></trans-unit>
+      <trans-unit id="lookups.addValue" datatype="html"><source>Add value</source><target>إضافة قيمة</target></trans-unit>
+      <trans-unit id="lookups.col.key" datatype="html"><source>Key</source><target>المفتاح</target></trans-unit>
+      <trans-unit id="lookups.col.en" datatype="html"><source>English</source><target>الإنجليزية</target></trans-unit>
+      <trans-unit id="lookups.col.ar" datatype="html"><source>Arabic</source><target>العربية</target></trans-unit>
+      <trans-unit id="lookups.col.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
+      <trans-unit id="lookups.statusActive" datatype="html"><source>Active</source><target>نشط</target></trans-unit>
+      <trans-unit id="lookups.statusInactive" datatype="html"><source>Inactive</source><target>موقوف</target></trans-unit>
+      <trans-unit id="lookups.statusDeprecated" datatype="html"><source>Deprecated</source><target>ملغى</target></trans-unit>
+      <trans-unit id="lookups.systemTooltip" datatype="html"><source>System-managed — labels editable, key locked</source><target>تحت إدارة النظام — التسميات قابلة للتعديل، المفتاح مقفول</target></trans-unit>
+      <trans-unit id="lookups.editAria" datatype="html"><source>Edit</source><target>تعديل</target></trans-unit>
+      <trans-unit id="lookups.deprecateAria" datatype="html"><source>Deprecate</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="lookups.empty" datatype="html"><source>No values yet. Click <x id="START_TAG_STRONG"/>Add value<x id="CLOSE_TAG_STRONG"/> to seed the first one.</source><target>لا توجد قيم بعد. اضغط <x id="START_TAG_STRONG"/>إضافة قيمة<x id="CLOSE_TAG_STRONG"/> لإنشاء أول قيمة.</target></trans-unit>
+
+      <trans-unit id="lookups.dialog.titleCreate" datatype="html"><source>Add new value</source><target>إضافة قيمة جديدة</target></trans-unit>
+      <trans-unit id="lookups.dialog.titleEdit" datatype="html"><source>Edit value</source><target>تعديل القيمة</target></trans-unit>
+      <trans-unit id="lookups.dialog.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="lookups.dialog.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
+      <trans-unit id="lookups.field.key" datatype="html"><source>Key (machine-readable)</source><target>المفتاح (للنظام)</target></trans-unit>
+      <trans-unit id="lookups.field.keyHint" datatype="html"><source>letters, digits, underscore or hyphen only — used in API + database</source><target>الأحرف والأرقام والشرطة السفلية والشرطة فقط — يُستخدم في الـ API وقاعدة البيانات</target></trans-unit>
+      <trans-unit id="lookups.field.labelEn" datatype="html"><source>Label (English)</source><target>التسمية (الإنجليزية)</target></trans-unit>
+      <trans-unit id="lookups.field.labelAr" datatype="html"><source>Label (Arabic)</source><target>التسمية (العربية)</target></trans-unit>
+      <trans-unit id="lookups.field.sortOrder" datatype="html"><source>Sort order</source><target>الترتيب</target></trans-unit>
+      <trans-unit id="lookups.field.sortOrderHint" datatype="html"><source>controls the order in dropdowns</source><target>يتحكم في ترتيب العناصر في القوائم المنسدلة</target></trans-unit>
+
+      <!-- Theme toggle -->
+      <trans-unit id="topBar.theme.switchLight" datatype="html"><source>Switch to light theme</source><target>التبديل إلى الوضع الفاتح</target></trans-unit>
+      <trans-unit id="topBar.theme.switchDark" datatype="html"><source>Switch to dark theme</source><target>التبديل إلى الوضع الداكن</target></trans-unit>
     </body>
   </file>
 </xliff>

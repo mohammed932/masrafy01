@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,6 +23,13 @@ import { ResetPasswordDialog } from './reset-password.dialog';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { EmptyStateComponent } from '@shared/empty-state.component';
 import { RelativeTimePipe } from '@shared/relative-time.pipe';
+import {
+  PageHeaderComponent,
+  SkeletonRowsComponent,
+  StatStripComponent,
+  StatusPillComponent,
+  type StatStripItem,
+} from '@shared/ui';
 import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/auth.types';
 
 @Component({
@@ -33,30 +47,26 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
     MatTableModule,
     EmptyStateComponent,
     RelativeTimePipe,
+    PageHeaderComponent,
+    StatStripComponent,
+    StatusPillComponent,
+    SkeletonRowsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <header class="page-header">
-        <div class="page-titles">
-          <h1 class="title" i18n="@@users.title">Users</h1>
-          <p class="subtitle">
-            <span i18n="@@users.subtitle">Internal staff accounts</span>
-            @if (total() > 0) {
-              <span class="dot-sep" aria-hidden="true">·</span>
-              <span class="count">{{ total() }} <span i18n="@@users.total">total</span></span>
-            }
-          </p>
-        </div>
+      <app-page-header [title]="titleText" [subtitle]="subtitleText()">
         <button mat-flat-button color="primary" (click)="openCreate()">
           <mat-icon>person_add</mat-icon>
           <span i18n="@@users.create">Create user</span>
         </button>
-      </header>
+      </app-page-header>
+
+      <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
 
       <div class="table-panel">
         @if (loading()) {
-          <mat-progress-bar mode="indeterminate" />
+          <app-skeleton-rows [rows]="5" [cols]="[2, 1, 1, 1, 1]" />
         }
 
         <table mat-table [dataSource]="rows()" class="users-table" aria-label="Staff accounts">
@@ -93,18 +103,10 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef i18n="@@users.col.status">Status</th>
             <td mat-cell *matCellDef="let row">
-              <mat-chip
-                class="status-chip"
-                [class.active]="row.isActive"
-                [class.inactive]="!row.isActive"
-              >
-                <span class="status-dot" aria-hidden="true"></span>
-                @if (row.isActive) {
-                  <span i18n="@@users.status.active">Active</span>
-                } @else {
-                  <span i18n="@@users.status.inactive">Inactive</span>
-                }
-              </mat-chip>
+              <app-status-pill
+                [label]="row.isActive ? activeLabel : inactiveLabel"
+                [tone]="row.isActive ? 'success' : 'neutral'"
+              />
             </td>
           </ng-container>
 
@@ -200,38 +202,6 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
         .page {
           animation: none;
         }
-      }
-      .page-header {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: var(--space-4);
-        flex-wrap: wrap;
-      }
-      .page-titles {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-      }
-      .title {
-        margin: 0;
-        font-size: var(--text-2xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--color-text-primary);
-      }
-      .subtitle {
-        margin: 0;
-        color: var(--color-text-secondary);
-        font-size: var(--text-sm);
-      }
-      .dot-sep {
-        margin-inline: var(--space-2);
-        color: var(--color-text-tertiary);
-      }
-      .count {
-        font-weight: var(--font-weight-medium);
-        color: var(--color-text-primary);
-        font-variant-numeric: tabular-nums;
       }
       .table-panel {
         background: var(--color-surface-default);
@@ -390,8 +360,33 @@ export class UsersListPage implements OnInit {
   protected readonly displayed = ['identity', 'role', 'status', 'lastLogin', 'actions'];
   protected readonly emptyTitle = $localize`:@@users.empty.title:No staff accounts yet.`;
   protected readonly emptySubtitle = $localize`:@@users.empty.subtitle:Create the first one to start operating the dashboard.`;
+  protected readonly titleText = $localize`:@@users.title:Users`;
   protected readonly rows = signal<readonly StaffAccountSummary[]>([]);
   protected readonly total = signal<number>(0);
+
+  protected readonly subtitleText = (): string => {
+    const base = $localize`:@@users.subtitle:Internal staff accounts`;
+    const t = this.total();
+    return t > 0 ? `${base} · ${t}` : base;
+  };
+
+  protected readonly statAriaLabel = $localize`:@@users.stat.aria:Staff account totals`;
+  protected readonly activeLabel = $localize`:@@users.status.active:Active`;
+  protected readonly inactiveLabel = $localize`:@@users.status.inactive:Inactive`;
+  protected readonly statItems = computed<StatStripItem[]>(() => {
+    const r = this.rows();
+    const active = r.filter((u) => u.isActive).length;
+    const admins = r.filter((u) => u.role === 'super_admin').length;
+    const managers = r.filter((u) => u.role === 'sales_manager').length;
+    const agents = r.filter((u) => u.role === 'sales_agent').length;
+    return [
+      { label: $localize`:@@users.stat.total:Total`, value: this.total() },
+      { label: $localize`:@@users.stat.active:Active`, value: active, tone: 'success' },
+      { label: $localize`:@@users.stat.admins:Super-admins`, value: admins, tone: 'muted' },
+      { label: $localize`:@@users.stat.managers:Managers`, value: managers },
+      { label: $localize`:@@users.stat.agents:Sales agents`, value: agents },
+    ];
+  });
   protected readonly page = signal<number>(1);
   protected readonly pageSize = signal<number>(20);
   protected readonly loading = signal<boolean>(false);
