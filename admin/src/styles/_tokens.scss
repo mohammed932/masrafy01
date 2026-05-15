@@ -121,3 +121,59 @@
   --content-max-width: 1280px;
   --card-max-width-auth: 420px;
 }
+
+// ============================================================================
+// Dark theme — v2 scaffold (per .impec/context.md teach decision).
+// Activate by setting `data-theme="dark"` on <html>. No toggle UI yet; a
+// future feature will add operator preference + system-pref auto-detect.
+// Hand-tuned contrast (NOT inverted) — raised surfaces, lifted shadows,
+// reduced semantic saturation per WCAG 2.2 AA on body text.
+// ============================================================================
+[data-theme='dark'] {
+  --color-brand-primary: #4F7CE0;
+  --color-brand-primary-hover: #6F95EA;
+  --color-brand-primary-active: #3C68CC;
+  --color-brand-primary-contrast: #06152D;
+
+  --color-tonal-accent: #93B3F4;
+  --color-tonal-accent-hover: #B0C7F7;
+  --color-tonal-accent-bg: rgba(147, 179, 244, 0.12);
+
+  --color-surface-default: #1A2236;
+  --color-surface-elevated: #232C42;
+  --color-surface-muted: #2A334B;
+  --color-surface-row-hover: #2F3955;
+  --color-surface-inverse: #F7F8FA;
+  --color-overlay-backdrop: rgba(0, 0, 0, 0.60);
+
+  --color-text-primary: #E8EDF7;
+  --color-text-secondary: #B0B9CC;
+  --color-text-tertiary: #7A8194;
+  --color-text-disabled: #4A5468;
+  --color-text-on-brand: #06152D;
+  --color-text-link: #93B3F4;
+  --color-text-link-hover: #B0C7F7;
+
+  --color-border-default: #3A4565;
+  --color-border-strong: #525E7E;
+  --color-border-focus: #93B3F4;
+  --color-border-locked-step: #93B3F4;
+
+  --color-success: #4CAF6E;
+  --color-success-bg: rgba(76, 175, 110, 0.14);
+  --color-success-dot: #4CAF6E;
+  --color-warning: #E59A2C;
+  --color-warning-bg: rgba(229, 154, 44, 0.14);
+  --color-warning-dot: #E59A2C;
+  --color-error: #E66168;
+  --color-error-bg: rgba(230, 97, 104, 0.14);
+  --color-error-dot: #E66168;
+  --color-info: #5FA0DD;
+  --color-info-bg: rgba(95, 160, 221, 0.14);
+  --color-info-dot: #5FA0DD;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.40);
+  --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.48);
+  --shadow-focus-ring: 0 0 0 3px rgba(147, 179, 244, 0.32);
+}

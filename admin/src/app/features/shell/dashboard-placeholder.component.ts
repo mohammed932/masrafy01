@@ -128,7 +128,7 @@ interface QuickAction {
       }
       .card {
         appearance: none;
-        display: inline-flex;
+        display: flex;
         align-items: center;
         gap: var(--space-4);
         padding: var(--space-5);
@@ -148,6 +148,9 @@ interface QuickAction {
         box-shadow: var(--shadow-md);
         transform: translateY(-1px);
       }
+      .card:active {
+        transform: translateY(0);
+      }
       .card:focus-visible {
         outline: var(--focus-ring-width) solid var(--focus-ring-color);
         outline-offset: var(--focus-ring-offset);
@@ -156,8 +159,8 @@ interface QuickAction {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 44px;
-        height: 44px;
+        inline-size: 44px;
+        block-size: 44px;
         border-radius: var(--radius-md);
         background: var(--color-tonal-accent-bg);
         color: var(--color-brand-primary);
@@ -165,23 +168,25 @@ interface QuickAction {
       }
       .card-icon mat-icon {
         font-size: 22px;
-        width: 22px;
-        height: 22px;
+        inline-size: 22px;
+        block-size: 22px;
       }
       .card-body {
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        flex: 1;
-        min-width: 0;
+        gap: var(--space-1);
+        flex: 1 1 auto;
+        min-inline-size: 0;
       }
       .card-title {
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
+        font-size: var(--text-md);
       }
       .card-desc {
         font-size: var(--text-sm);
         color: var(--color-text-secondary);
+        line-height: var(--line-height-base);
       }
       .card-chevron {
         color: var(--color-text-tertiary);
@@ -199,6 +204,15 @@ interface QuickAction {
       }
       [dir='rtl'] .card:hover .card-chevron {
         transform: translateX(-2px) scaleX(-1);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .card,
+        .card-chevron {
+          transition: none;
+        }
+        .card:hover {
+          transform: none;
+        }
       }
     `,
   ],

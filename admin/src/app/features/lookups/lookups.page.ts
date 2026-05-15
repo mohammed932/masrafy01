@@ -17,6 +17,14 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialog } from '@angular/material/dialog';
 import {
+  KeyChipComponent,
+  PageHeaderComponent,
+  StatStripComponent,
+  StatusPillComponent,
+  type StatStripItem,
+  type StatusTone,
+} from '@shared/ui';
+import {
   LookupsApiService,
   type EnumerationRow,
   type EnumerationTypeSummary,
@@ -132,36 +140,23 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
     MatSlideToggleModule,
     MatTableModule,
     MatTooltipModule,
+    PageHeaderComponent,
+    StatStripComponent,
+    StatusPillComponent,
+    KeyChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <header class="page-header">
-        <div class="hero">
-          <p class="eyebrow" i18n="@@lookups.eyebrow">Platform configuration</p>
-          <h1 class="title" i18n="@@lookups.title">Lookups</h1>
-          <p class="subtitle" i18n="@@lookups.subtitle">
-            Manage every operator-curated dropdown the platform exposes — values are picked up
-            instantly across the admin and mobile wizard. Add, rename, retire — no deploy needed.
-          </p>
-        </div>
+      <app-page-header
+        [eyebrow]="eyebrowText"
+        [title]="titleText"
+        [subtitle]="subtitleText"
+      >
         @if (!loadingTypes()) {
-          <dl class="stat-strip" aria-label="Registry totals">
-            <div class="stat">
-              <dt i18n="@@lookups.stat.types">Categories</dt>
-              <dd class="numeric">{{ heroStats().types }}</dd>
-            </div>
-            <div class="stat">
-              <dt i18n="@@lookups.stat.values">Active values</dt>
-              <dd class="numeric">{{ heroStats().active }}</dd>
-            </div>
-            <div class="stat">
-              <dt i18n="@@lookups.stat.deprecated">Deprecated</dt>
-              <dd class="numeric muted">{{ heroStats().deprecated }}</dd>
-            </div>
-          </dl>
+          <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
         }
-      </header>
+      </app-page-header>
 
       @if (loadingTypes()) {
         <mat-progress-bar mode="indeterminate" />
@@ -217,7 +212,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                   <ng-container matColumnDef="key">
                     <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.key">Key</th>
                     <td mat-cell *matCellDef="let r">
-                      <code class="key">{{ r.key }}</code>
+                      <app-key-chip [value]="r.key" />
                       @if (r.systemOnly) {
                         <mat-icon
                           class="system-icon"
@@ -239,19 +234,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                   <ng-container matColumnDef="status">
                     <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.status">Status</th>
                     <td mat-cell *matCellDef="let r">
-                      @if (r.deprecatedAt) {
-                        <span class="status status-deprecated" i18n="@@lookups.statusDeprecated"
-                          >Deprecated</span
-                        >
-                      } @else if (r.active) {
-                        <span class="status status-active" i18n="@@lookups.statusActive"
-                          >Active</span
-                        >
-                      } @else {
-                        <span class="status status-inactive" i18n="@@lookups.statusInactive"
-                          >Inactive</span
-                        >
-                      }
+                      <app-status-pill [label]="labelForStatus(r)" [tone]="toneForStatus(r)" />
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="actions">
@@ -306,82 +289,16 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       .page {
         display: flex;
         flex-direction: column;
-        gap: var(--space-5);
+        gap: var(--space-6);
         max-width: var(--content-max-width);
         margin-inline: auto;
-        padding: var(--space-5) var(--space-6);
+        padding: var(--space-6) var(--space-6);
       }
-      .page-header {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: var(--space-5);
-        align-items: end;
-        padding-block-end: var(--space-3);
-        border-block-end: 1px solid var(--color-border-default);
-      }
-      @media (max-width: 720px) {
-        .page-header {
-          grid-template-columns: 1fr;
+      @media (max-width: 768px) {
+        .page {
+          padding: var(--space-4);
+          gap: var(--space-5);
         }
-      }
-      .hero {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .eyebrow {
-        margin: 0;
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.10em;
-        text-transform: uppercase;
-        color: var(--color-tonal-accent);
-      }
-      .title {
-        margin: 0;
-        font-size: var(--text-3xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--color-text-primary);
-        letter-spacing: -0.015em;
-        line-height: 1.1;
-      }
-      .subtitle {
-        margin: var(--space-2) 0 0;
-        max-inline-size: 56ch;
-        color: var(--color-text-secondary);
-        font-size: var(--text-md);
-        line-height: var(--line-height-base);
-      }
-      .stat-strip {
-        display: inline-grid;
-        grid-auto-flow: column;
-        gap: var(--space-5);
-        margin: 0;
-      }
-      .stat {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        min-inline-size: 96px;
-      }
-      .stat dt {
-        margin: 0;
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--color-text-tertiary);
-      }
-      .stat dd {
-        margin: 0;
-        font-size: var(--text-2xl);
-        font-weight: var(--font-weight-bold);
-        color: var(--color-text-primary);
-        line-height: 1;
-        font-variant-numeric: tabular-nums lining-nums;
-      }
-      .stat dd.muted {
-        color: var(--color-text-tertiary);
       }
       .section-label {
         margin: 0;
@@ -393,7 +310,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       .type-rail {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: var(--space-3);
       }
       .type-button {
@@ -405,9 +322,10 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-md);
         display: grid;
-        grid-template-columns: 36px 1fr auto;
+        grid-template-columns: 36px minmax(0, 1fr) auto;
         gap: var(--space-3);
         align-items: center;
+        min-block-size: 76px;
         position: relative;
         transition:
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
@@ -508,26 +426,37 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       .detail {
         display: flex;
         flex-direction: column;
-        gap: var(--space-3);
+        gap: var(--space-4);
+        min-block-size: 360px;
       }
       .detail-head {
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
-        gap: var(--space-3);
+        gap: var(--space-4);
         flex-wrap: wrap;
       }
+      .detail-head > div {
+        flex: 1 1 auto;
+        min-inline-size: 0;
+      }
+      .detail-head > button {
+        flex: 0 0 auto;
+        align-self: end;
+      }
       .detail-head h2 {
-        margin: 0 0 4px;
+        margin: 0 0 var(--space-1);
         font-size: var(--text-xl);
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
+        line-height: 1.2;
       }
       .muted {
         margin: 0;
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
         max-inline-size: 60ch;
+        line-height: var(--line-height-base);
       }
       .table-wrap {
         background: var(--color-surface-default);
@@ -537,16 +466,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       .lookups-table {
         inline-size: 100%;
-      }
-      .key {
-        font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
-        font-size: var(--text-xs);
-        background: var(--color-surface-elevated);
-        padding: 3px 10px;
-        border-radius: var(--radius-sm);
-        color: var(--color-text-primary);
-        border: 1px solid var(--color-border-default);
-        font-feature-settings: 'liga' 0;
       }
       .system-icon {
         font-size: 16px;
@@ -559,38 +478,14 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       .ar {
         font-size: var(--text-sm);
       }
-      .status {
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        padding: 3px 10px;
-        border-radius: var(--radius-pill);
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .status::before {
-        content: '';
-        inline-size: 6px;
-        block-size: 6px;
-        border-radius: var(--radius-pill);
-        background: currentColor;
-      }
-      .status-active {
-        background: var(--color-success-bg);
-        color: var(--color-success);
-      }
-      .status-inactive {
-        background: var(--color-surface-muted);
-        color: var(--color-text-secondary);
-      }
-      .status-deprecated {
-        background: var(--color-warning-bg);
-        color: var(--color-warning);
-      }
       tr.mat-mdc-row:hover {
         background: var(--color-surface-row-hover);
+      }
+      tr.mat-mdc-header-row {
+        block-size: 48px;
+      }
+      tr.mat-mdc-row {
+        block-size: 56px;
       }
       th.mat-mdc-header-cell {
         font-size: var(--text-xs);
@@ -598,6 +493,20 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         text-transform: uppercase;
         color: var(--color-text-tertiary);
         font-weight: var(--font-weight-semibold);
+      }
+      td.mat-mdc-cell,
+      th.mat-mdc-header-cell {
+        padding-inline: var(--space-4);
+      }
+      .lookups-table .mat-column-key {
+        inline-size: 30%;
+      }
+      .lookups-table .mat-column-status {
+        inline-size: 120px;
+      }
+      .lookups-table .mat-column-actions {
+        inline-size: 168px;
+        text-align: end;
       }
       @media (prefers-reduced-motion: reduce) {
         .type-button,
@@ -609,14 +518,16 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       .actions {
         display: inline-flex;
         align-items: center;
-        gap: var(--space-2);
+        gap: var(--space-1);
         justify-content: flex-end;
+        inline-size: 100%;
       }
       .empty {
-        padding: var(--space-6);
+        padding: var(--space-7) var(--space-6);
         text-align: center;
         color: var(--color-text-tertiary);
         font-size: var(--text-sm);
+        line-height: var(--line-height-base);
       }
     `,
   ],
@@ -642,6 +553,32 @@ export class LookupsPage implements OnInit {
       deprecated: t.reduce((acc, x) => acc + x.deprecated, 0),
     };
   });
+
+  protected readonly eyebrowText = $localize`:@@lookups.eyebrow:Platform configuration`;
+  protected readonly titleText = $localize`:@@lookups.title:Lookups`;
+  protected readonly subtitleText = $localize`:@@lookups.subtitle:Manage every operator-curated dropdown the platform exposes — values are picked up instantly across the admin and mobile wizard. Add, rename, retire — no deploy needed.`;
+  protected readonly statAriaLabel = $localize`:@@lookups.stat.aria:Registry totals`;
+
+  protected readonly statItems = computed<StatStripItem[]>(() => {
+    const s = this.heroStats();
+    return [
+      { label: $localize`:@@lookups.stat.types:Categories`, value: s.types },
+      { label: $localize`:@@lookups.stat.values:Active values`, value: s.active, tone: 'success' },
+      { label: $localize`:@@lookups.stat.deprecated:Deprecated`, value: s.deprecated, tone: 'muted' },
+    ];
+  });
+
+  protected toneForStatus(row: EnumerationRow): StatusTone {
+    if (row.deprecatedAt) return 'warning';
+    if (row.active) return 'success';
+    return 'neutral';
+  }
+
+  protected labelForStatus(row: EnumerationRow): string {
+    if (row.deprecatedAt) return $localize`:@@lookups.statusDeprecated:Deprecated`;
+    if (row.active) return $localize`:@@lookups.statusActive:Active`;
+    return $localize`:@@lookups.statusInactive:Inactive`;
+  }
 
   async ngOnInit(): Promise<void> {
     await this.reloadTypes();
