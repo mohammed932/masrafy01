@@ -36,9 +36,56 @@ html {
   --mat-sys-on-primary-container: var(--color-brand-primary-contrast);
   --mat-sys-surface: var(--color-surface-default);
   --mat-sys-on-surface: var(--color-text-primary);
+  --mat-sys-on-surface-variant: var(--color-text-secondary);
   --mat-sys-surface-variant: var(--color-surface-muted);
+  --mat-sys-surface-container: var(--color-surface-elevated);
+  --mat-sys-surface-container-high: var(--color-surface-elevated);
+  --mat-sys-surface-container-highest: var(--color-surface-muted);
   --mat-sys-outline: var(--color-border-default);
   --mat-sys-outline-variant: var(--color-border-default);
   --mat-sys-error: var(--color-error);
   --mat-sys-error-container: var(--color-error-bg);
+  --mat-sys-background: var(--color-surface-elevated);
+  --mat-sys-on-background: var(--color-text-primary);
+
+  // --- MDC table component bridges (Material 18 MDC uses its own tokens) ---
+  --mdc-data-table-container-background-color: var(--color-surface-default);
+  --mdc-data-table-row-item-label-text-color: var(--color-text-primary);
+  --mdc-data-table-row-hover-state-layer-color: var(--color-surface-row-hover);
+  --mdc-data-table-row-item-outline-color: var(--color-border-default);
+  --mdc-data-table-header-headline-color: var(--color-text-tertiary);
+  --mdc-data-table-header-container-color: var(--color-surface-default);
+  --mat-table-background-color: var(--color-surface-default);
+  --mat-table-header-headline-color: var(--color-text-tertiary);
+  --mat-table-row-item-label-text-color: var(--color-text-primary);
+  --mat-table-row-item-outline-color: var(--color-border-default);
+
+  // --- MDC outlined text field bridges (form inputs) ---
+  --mdc-outlined-text-field-input-text-color: var(--color-text-primary);
+  --mdc-outlined-text-field-label-text-color: var(--color-text-secondary);
+  --mdc-outlined-text-field-disabled-input-text-color: var(--color-text-disabled);
+
+  // --- MDC select bridges ---
+  --mat-select-enabled-trigger-text-color: var(--color-text-primary);
+  --mat-select-panel-background-color: var(--color-surface-default);
+
+  // --- MDC dialog bridges ---
+  --mdc-dialog-container-color: var(--color-surface-default);
+  --mdc-dialog-subhead-color: var(--color-text-primary);
+  --mdc-dialog-supporting-text-color: var(--color-text-secondary);
+
+  // --- MDC menu / option bridges ---
+  --mat-menu-container-color: var(--color-surface-default);
+  --mat-menu-item-label-text-color: var(--color-text-primary);
+  --mat-option-label-text-color: var(--color-text-primary);
+  --mat-option-selected-state-label-text-color: var(--color-brand-primary);
+
+  // --- MDC slide-toggle bridges ---
+  --mdc-switch-unselected-handle-color: var(--color-surface-default);
+  --mdc-switch-unselected-track-color: var(--color-border-strong);
+
+  // --- MDC chip / paginator bridges ---
+  --mdc-chip-label-text-color: var(--color-text-primary);
+  --mat-paginator-container-text-color: var(--color-text-secondary);
+  --mat-paginator-container-background-color: var(--color-surface-default);
 }
