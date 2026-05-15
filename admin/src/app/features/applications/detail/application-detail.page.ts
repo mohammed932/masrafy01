@@ -12,7 +12,6 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatMenuModule } from '@angular/material/menu';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
 import { AuthService } from '@core/auth/auth.service';
 import {
@@ -40,7 +39,6 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
     MatIconModule,
     MatButtonModule,
     MatMenuModule,
-    MatChipsModule,
     ApprovalPillComponent,
     WhyThisScorePanelComponent,
     ActivityTimelineComponent,
@@ -49,7 +47,7 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
   template: `
     <section class="page">
       <a routerLink="/applications" class="back-link">
-        <mat-icon>arrow_back</mat-icon>
+        <mat-icon aria-hidden="true">arrow_back</mat-icon>
         <span i18n="@@applications.detail.back">Back to applications</span>
       </a>
 
@@ -57,59 +55,94 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
         <mat-progress-bar mode="indeterminate" />
       } @else if (detail()) {
         @let d = detail()!;
-        <header class="page-header">
-          <div class="header-row">
-            <h1 class="title">
-              {{ d.loanPurpose }} · {{ d.requestedAmountEGP }} {{ d.requestedCurrency }}
-            </h1>
+        <header class="hero-card">
+          <span class="hero-stripe" aria-hidden="true"></span>
+
+          <div class="hero-eyebrow">
+            <span class="eyebrow-id">#{{ shortId(d.id) }}</span>
+            <span class="eyebrow-sep" aria-hidden="true">·</span>
+            <span class="eyebrow-purpose">{{ labelForPurpose(d.loanPurpose) }}</span>
+          </div>
+
+          <div class="hero-grid">
+            <div class="hero-amount">
+              <span class="amount-value">{{ formatAmount(d.requestedAmountEGP) }}</span>
+              <span class="amount-currency">{{ d.requestedCurrency }}</span>
+            </div>
             @if (d.leadStatus) {
-              <mat-chip-set>
-                <mat-chip class="lead-status-chip" [attr.data-status]="d.leadStatus">{{
-                  labelForLeadStatus(d.leadStatus)
-                }}</mat-chip>
-              </mat-chip-set>
+              <span class="lead-status-pill" [attr.data-status]="d.leadStatus">
+                <span class="dot" aria-hidden="true"></span>
+                <span class="label">{{ labelForLeadStatus(d.leadStatus) }}</span>
+              </span>
             }
           </div>
-          <p class="subtitle">
-            <span>{{ d.status }}</span>
-            <span aria-hidden="true">·</span>
-            <span>{{ d.createdAt | date: 'medium' }}</span>
-          </p>
+
+          <dl class="hero-meta">
+            <div class="meta-item">
+              <dt i18n="@@app.detail.meta.status">Status</dt>
+              <dd>{{ labelForLeadStatus(d.status) }}</dd>
+            </div>
+            <div class="meta-item">
+              <dt i18n="@@app.detail.meta.created">Created</dt>
+              <dd>{{ d.createdAt | date: 'mediumDate' }}</dd>
+            </div>
+            <div class="meta-item">
+              <dt i18n="@@app.detail.meta.time">Submitted at</dt>
+              <dd>{{ d.createdAt | date: 'shortTime' }}</dd>
+            </div>
+          </dl>
 
           <div class="action-bar" role="toolbar" aria-label="Application actions">
             @if (canWrite()) {
               <button
                 mat-flat-button
                 color="primary"
+                class="action-primary"
                 (click)="openAddActivity()"
                 aria-label="Add Activity"
               >
-                <mat-icon>add</mat-icon>
+                <mat-icon aria-hidden="true">add</mat-icon>
                 <span i18n="@@app.detail.addActivity">Add Activity</span>
               </button>
               <button
-                mat-stroked-button
+                type="button"
+                class="action-tonal"
                 (click)="openAttachDocuments()"
                 aria-label="Attach Documents"
               >
-                <mat-icon>attach_file</mat-icon>
+                <mat-icon aria-hidden="true">attach_file</mat-icon>
                 <span i18n="@@app.detail.attach">Attach Documents</span>
               </button>
             }
             @if (canAssign()) {
-              <button mat-stroked-button (click)="openAssign()" aria-label="Assign or reassign">
-                <mat-icon>switch_account</mat-icon>
+              <button
+                type="button"
+                class="action-tonal"
+                (click)="openAssign()"
+                aria-label="Assign or reassign"
+              >
+                <mat-icon aria-hidden="true">switch_account</mat-icon>
                 <span i18n="@@app.detail.assign">Assign / Reassign</span>
               </button>
             }
             @if (canMarkReady()) {
-              <button mat-stroked-button (click)="markReady()" aria-label="Mark ready for bank">
-                <mat-icon>check_circle</mat-icon>
+              <button
+                type="button"
+                class="action-tonal"
+                (click)="markReady()"
+                aria-label="Mark ready for bank"
+              >
+                <mat-icon aria-hidden="true">check_circle</mat-icon>
                 <span i18n="@@app.detail.markReady">Mark Ready</span>
               </button>
             }
             @if (canWrite()) {
-              <button mat-icon-button [matMenuTriggerFor]="moreMenu" aria-label="More actions">
+              <button
+                mat-icon-button
+                class="action-kebab"
+                [matMenuTriggerFor]="moreMenu"
+                aria-label="More actions"
+              >
                 <mat-icon>more_vert</mat-icon>
               </button>
               <mat-menu #moreMenu="matMenu">
@@ -209,25 +242,209 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
         gap: 6px;
         color: var(--color-text-secondary);
         text-decoration: none;
-        font-size: 13px;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-medium);
+        letter-spacing: 0.02em;
+        align-self: flex-start;
+        padding-block: var(--space-1);
+        transition: color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .back-link:hover {
+        color: var(--color-text-primary);
+      }
+      .back-link mat-icon {
+        font-size: 16px;
+        inline-size: 16px;
+        block-size: 16px;
+      }
+
+      /* Hero card */
+      .hero-card {
+        position: relative;
+        background: var(--color-surface-default);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-lg);
+        padding: var(--space-5) var(--space-5) var(--space-4);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        overflow: hidden;
+      }
+      .hero-stripe {
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        inline-size: 4px;
+        block-size: 100%;
+        background: linear-gradient(
+          180deg,
+          var(--color-brand-primary) 0%,
+          var(--color-tonal-accent) 100%
+        );
+      }
+      .hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--color-text-tertiary);
+      }
+      .eyebrow-id {
+        font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        padding-inline: var(--space-2);
+        padding-block: 2px;
+        border-radius: var(--radius-sm);
+        letter-spacing: 0.02em;
+      }
+      .eyebrow-sep {
+        opacity: 0.5;
+      }
+      .hero-grid {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: var(--space-4);
+        flex-wrap: wrap;
+      }
+      .hero-amount {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-2);
+      }
+      .amount-value {
+        font-size: var(--text-3xl);
+        font-weight: var(--font-weight-bold);
+        font-variant-numeric: tabular-nums lining-nums;
+        color: var(--color-text-primary);
+        letter-spacing: -0.025em;
+        line-height: 1;
+      }
+      .amount-currency {
+        font-size: var(--text-md);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-tertiary);
+        letter-spacing: 0.04em;
+      }
+      .lead-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding-inline: var(--space-3);
+        border-radius: var(--radius-pill);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.04em;
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        white-space: nowrap;
+      }
+      .lead-status-pill .dot {
+        inline-size: 6px;
+        block-size: 6px;
+        border-radius: var(--radius-pill);
+        background: currentColor;
+      }
+      .lead-status-pill[data-status='needs_first_contact'] {
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+      }
+      .lead-status-pill[data-status='document_collection'] {
+        background: var(--color-info-bg);
+        color: var(--color-info);
+      }
+      .lead-status-pill[data-status='ready_for_submission'] {
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent);
+      }
+      .lead-status-pill[data-status='submitted_to_bank'] {
+        background: var(--color-tonal-accent-bg);
         color: var(--color-brand-primary);
       }
-      .title {
-        margin: 0 0 4px;
-        font-size: 22px;
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-        letter-spacing: -0.015em;
+      .lead-status-pill[data-status='bank_decided'],
+      .lead-status-pill[data-status='matched'] {
+        background: var(--color-success-bg);
+        color: var(--color-success);
       }
-      .subtitle {
+
+      .hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-5);
         margin: 0;
-        font-size: 13px;
-        color: var(--color-text-secondary);
+        padding-block-start: var(--space-3);
+        border-block-start: 1px dashed var(--color-border-default);
+      }
+      .meta-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .meta-item dt {
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-text-tertiary);
+        margin: 0;
+      }
+      .meta-item dd {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Buttons */
+      .action-primary {
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.01em;
+      }
+      .action-tonal {
+        appearance: none;
         display: inline-flex;
-        gap: 8px;
         align-items: center;
+        gap: 6px;
+        height: 36px;
+        padding-inline: var(--space-3);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-border-default);
+        background: var(--color-surface-elevated);
+        color: var(--color-text-primary);
+        font-family: inherit;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .action-tonal mat-icon {
+        font-size: 18px;
+        inline-size: 18px;
+        block-size: 18px;
+        color: var(--color-text-secondary);
+      }
+      .action-tonal:hover {
+        background: var(--color-surface-row-hover);
+        border-color: var(--color-border-strong);
+      }
+      .action-tonal:hover mat-icon {
+        color: var(--color-text-primary);
+      }
+      .action-tonal:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .action-kebab {
+        margin-inline-start: auto;
       }
       .offers h2 {
         margin: 0 0 var(--space-3);
@@ -324,14 +541,12 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
         color: var(--color-success);
       }
       .action-bar {
-        display: inline-flex;
+        display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: var(--space-2);
-        margin-block-start: var(--space-3);
-        position: sticky;
-        inset-block-start: var(--topbar-height, 64px);
-        z-index: 5;
-        padding-block: var(--space-2);
+        padding-block-start: var(--space-3);
+        border-block-start: 1px solid var(--color-border-default);
       }
       .timeline-section h2 {
         margin: 0 0 var(--space-3);
@@ -377,6 +592,24 @@ export class ApplicationDetailPage implements OnInit {
       .split('_')
       .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
       .join(' ');
+  }
+
+  labelForPurpose(p: string): string {
+    const normalized = p.replace(/_/g, ' ');
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1) + ' loan';
+  }
+
+  shortId(id: string): string {
+    return id.length > 8 ? id.slice(0, 8) : id;
+  }
+
+  formatAmount(raw: string | number): string {
+    const value = typeof raw === 'string' ? Number(raw) : raw;
+    if (!Number.isFinite(value)) return String(raw);
+    return new Intl.NumberFormat('en-US', {
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+    }).format(value);
   }
 
   canWrite(): boolean {

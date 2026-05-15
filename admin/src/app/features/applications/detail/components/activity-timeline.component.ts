@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ApplicationsApiService, type ActivityRow } from '../../api/applications.api.service';
@@ -45,53 +44,71 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
 @Component({
   selector: 'app-activity-timeline',
   standalone: true,
-  imports: [
-    CommonModule,
-    DatePipe,
-    MatIconModule,
-    MatChipsModule,
-    MatButtonModule,
-    MatProgressBarModule,
-  ],
+  imports: [CommonModule, DatePipe, MatIconModule, MatButtonModule, MatProgressBarModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="timeline-root">
-      <header class="filter-row">
-        <mat-chip-listbox
-          aria-label="Activity filter"
-          i18n-aria-label="@@activity.timeline.filterLabel"
+      <header class="filter-row" role="tablist" aria-label="Activity filter">
+        <button
+          type="button"
+          role="tab"
+          class="filter-tab"
+          [class.is-active]="filter() === 'all'"
+          [attr.aria-selected]="filter() === 'all'"
+          (click)="setFilter('all')"
         >
-          <mat-chip-option
-            [selected]="filter() === 'all'"
-            (click)="setFilter('all')"
-            i18n="@@activity.timeline.filter.all"
-            >All</mat-chip-option
-          >
-          <mat-chip-option
-            [selected]="filter() === 'calls'"
-            (click)="setFilter('calls')"
-            i18n="@@activity.timeline.filter.calls"
-            >Calls</mat-chip-option
-          >
-          <mat-chip-option
-            [selected]="filter() === 'messages'"
-            (click)="setFilter('messages')"
-            i18n="@@activity.timeline.filter.messages"
-            >Messages</mat-chip-option
-          >
-          <mat-chip-option
-            [selected]="filter() === 'documents'"
-            (click)="setFilter('documents')"
-            i18n="@@activity.timeline.filter.documents"
-            >Documents</mat-chip-option
-          >
-          <mat-chip-option
-            [selected]="filter() === 'system'"
-            (click)="setFilter('system')"
-            i18n="@@activity.timeline.filter.system"
-            >System</mat-chip-option
-          >
-        </mat-chip-listbox>
+          <mat-icon class="filter-icon" aria-hidden="true">apps</mat-icon>
+          <span i18n="@@activity.timeline.filter.all">All</span>
+          <span class="filter-count">{{ countFor('all') }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="filter-tab"
+          [class.is-active]="filter() === 'calls'"
+          [attr.aria-selected]="filter() === 'calls'"
+          (click)="setFilter('calls')"
+        >
+          <mat-icon class="filter-icon" aria-hidden="true">call</mat-icon>
+          <span i18n="@@activity.timeline.filter.calls">Calls</span>
+          <span class="filter-count">{{ countFor('calls') }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="filter-tab"
+          [class.is-active]="filter() === 'messages'"
+          [attr.aria-selected]="filter() === 'messages'"
+          (click)="setFilter('messages')"
+        >
+          <mat-icon class="filter-icon" aria-hidden="true">chat</mat-icon>
+          <span i18n="@@activity.timeline.filter.messages">Messages</span>
+          <span class="filter-count">{{ countFor('messages') }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="filter-tab"
+          [class.is-active]="filter() === 'documents'"
+          [attr.aria-selected]="filter() === 'documents'"
+          (click)="setFilter('documents')"
+        >
+          <mat-icon class="filter-icon" aria-hidden="true">attach_file</mat-icon>
+          <span i18n="@@activity.timeline.filter.documents">Documents</span>
+          <span class="filter-count">{{ countFor('documents') }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="filter-tab"
+          [class.is-active]="filter() === 'system'"
+          [attr.aria-selected]="filter() === 'system'"
+          (click)="setFilter('system')"
+        >
+          <mat-icon class="filter-icon" aria-hidden="true">settings</mat-icon>
+          <span i18n="@@activity.timeline.filter.system">System</span>
+          <span class="filter-count">{{ countFor('system') }}</span>
+        </button>
       </header>
 
       @if (loading()) {
@@ -171,9 +188,73 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
         gap: var(--space-4);
       }
       .filter-row {
-        display: flex;
+        display: inline-flex;
         flex-wrap: wrap;
-        gap: var(--space-2);
+        gap: 4px;
+        padding: 4px;
+        background: var(--color-surface-elevated);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-pill);
+        align-self: flex-start;
+      }
+      .filter-tab {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding-inline: var(--space-3);
+        border: 0;
+        border-radius: var(--radius-pill);
+        background: transparent;
+        color: var(--color-text-secondary);
+        font-family: inherit;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .filter-tab .filter-icon {
+        font-size: 16px;
+        inline-size: 16px;
+        block-size: 16px;
+        opacity: 0.85;
+      }
+      .filter-tab:hover {
+        color: var(--color-text-primary);
+        background: var(--color-surface-row-hover);
+      }
+      .filter-tab.is-active {
+        background: var(--color-surface-default);
+        color: var(--color-text-primary);
+        box-shadow:
+          0 1px 2px rgba(6, 21, 45, 0.08),
+          inset 0 0 0 1px var(--color-border-default);
+      }
+      .filter-tab:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .filter-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-inline-size: 20px;
+        block-size: 18px;
+        padding-inline: 6px;
+        border-radius: var(--radius-pill);
+        background: var(--color-surface-muted);
+        color: var(--color-text-tertiary);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-bold);
+        font-variant-numeric: tabular-nums;
+      }
+      .filter-tab.is-active .filter-count {
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent);
       }
       .empty {
         color: var(--color-text-tertiary);
@@ -208,8 +289,8 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
         inline-size: 32px;
         block-size: 32px;
         border-radius: var(--radius-pill);
-        background: var(--color-surface-default);
-        border: 2px solid var(--color-border-default);
+        background: var(--color-surface-muted);
+        border: 1px solid var(--color-border-default);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -217,20 +298,24 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
         color: var(--color-text-secondary);
       }
       .dot[data-category='calls'] {
-        border-color: var(--color-info);
+        background: var(--color-info-bg);
+        border-color: var(--color-info-bg);
         color: var(--color-info);
       }
       .dot[data-category='messages'] {
-        border-color: var(--color-tonal-accent);
+        background: var(--color-tonal-accent-bg);
+        border-color: var(--color-tonal-accent-bg);
         color: var(--color-tonal-accent);
       }
       .dot[data-category='documents'] {
-        border-color: var(--color-success);
+        background: var(--color-success-bg);
+        border-color: var(--color-success-bg);
         color: var(--color-success);
       }
       .dot[data-category='system'] {
-        border-color: var(--color-text-tertiary);
-        color: var(--color-text-tertiary);
+        background: var(--color-surface-muted);
+        border-color: var(--color-border-default);
+        color: var(--color-text-secondary);
       }
       .dot mat-icon {
         font-size: 18px;
@@ -371,6 +456,12 @@ export class ActivityTimelineComponent implements OnInit {
 
   iconFor(activityType: string): string {
     return ICON_BY_TYPE[activityType] ?? 'event';
+  }
+
+  countFor(key: FilterKey): number {
+    const all = this.rows();
+    if (key === 'all') return all.length;
+    return all.filter((r) => CATEGORY_BY_TYPE[r.activityType] === key).length;
   }
 
   categoryOf(row: ActivityRow): FilterKey {
