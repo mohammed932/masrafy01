@@ -137,61 +137,65 @@
 // reduced semantic saturation per WCAG 2.2 AA on body text.
 // ============================================================================
 [data-theme='dark'] {
+  // GitHub-Dark eye-comfort family. Mid-gray-blacks with a micro-hint of
+  // navy. Eye-tested for sustained viewing — far less fatigue than
+  // pure-black surfaces, clearer card lift so hierarchy reads at a glance.
+
   // Brand accent for buttons + focus rings (decoupled from top-bar).
   --color-brand-primary: #6A8FE5;
   --color-brand-primary-hover: #8AA7EE;
   --color-brand-primary-active: #4F7AD5;
-  --color-brand-primary-contrast: #0A0D14;
+  --color-brand-primary-contrast: #0E1117;
 
   --color-tonal-accent: #93B3F4;
   --color-tonal-accent-hover: #B0C7F7;
-  --color-tonal-accent-bg: rgba(147, 179, 244, 0.10);
+  --color-tonal-accent-bg: rgba(147, 179, 244, 0.12);
 
-  // SURFACE HIERARCHY — true near-black (Vercel/Linear family) with a
-  // micro-hint of navy so brand DNA survives. Page bg almost pure black;
-  // cards lift just enough to read as raised; elevated/hover lift again.
-  --color-surface-page: #05070B; // body + shell — practically black
-  --color-surface-default: #0D1018; // cards — micro-lift
-  --color-surface-elevated: #141822; // inputs + hover rows
-  --color-surface-muted: #1C2230;
-  --color-surface-row-hover: #10141C;
+  // Surface hierarchy — clear 3% luminance step at each level.
+  --color-surface-page: #0E1117; // body + shell (GitHub-Dark)
+  --color-surface-default: #161B22; // cards (+3% lift, visible)
+  --color-surface-elevated: #1F252E; // inputs + hover rows
+  --color-surface-muted: #262C36;
+  --color-surface-row-hover: #1A1F26;
   --color-surface-inverse: #F7F8FA;
-  --color-overlay-backdrop: rgba(0, 0, 0, 0.75);
+  --color-overlay-backdrop: rgba(1, 4, 9, 0.78);
 
-  --color-text-primary: #E5E9F2;
-  --color-text-secondary: #9AA3B8;
-  --color-text-tertiary: #5E6678;
-  --color-text-disabled: #3A4054;
-  --color-text-on-brand: #0A0D14;
+  // Text — GitHub-Dark family. Slight off-white reduces contrast strain
+  // against the warmer surfaces; AAA on body, AA on secondary.
+  --color-text-primary: #E6EDF3;
+  --color-text-secondary: #8B949E;
+  --color-text-tertiary: #6E7681;
+  --color-text-disabled: #484F58;
+  --color-text-on-brand: #0E1117;
   --color-text-link: #93B3F4;
   --color-text-link-hover: #B0C7F7;
 
-  --color-border-default: #1C2230;
-  --color-border-strong: #2E3548;
+  --color-border-default: #2A2F3A;
+  --color-border-strong: #3D424F;
   --color-border-focus: #93B3F4;
   --color-border-locked-step: #93B3F4;
 
   // Semantic tones — desaturated for low fatigue on dark.
   --color-success: #4FBE7C;
-  --color-success-bg: rgba(79, 190, 124, 0.10);
+  --color-success-bg: rgba(79, 190, 124, 0.12);
   --color-success-dot: #4FBE7C;
   --color-warning: #E7A340;
-  --color-warning-bg: rgba(231, 163, 64, 0.10);
+  --color-warning-bg: rgba(231, 163, 64, 0.12);
   --color-warning-dot: #E7A340;
   --color-error: #E66E76;
-  --color-error-bg: rgba(230, 110, 118, 0.10);
+  --color-error-bg: rgba(230, 110, 118, 0.12);
   --color-error-dot: #E66E76;
   --color-info: #6CABE0;
-  --color-info-bg: rgba(108, 171, 224, 0.10);
+  --color-info-bg: rgba(108, 171, 224, 0.12);
   --color-info-dot: #6CABE0;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.42);
   --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.64);
   --shadow-focus-ring: 0 0 0 3px rgba(147, 179, 244, 0.36);
 
-  // Top-bar — pure-black chrome band; reads as the darkest layer.
-  --color-topbar-bg: #000000;
-  --color-topbar-text: #FFFFFF;
+  // Top-bar — slightly darker than page so it reads as anchor chrome.
+  --color-topbar-bg: #0A0D12;
+  --color-topbar-text: #F0F3F8;
 }
 
