@@ -24,7 +24,13 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CanDirective } from '../../../shared/can.directive';
-import { PageHeaderComponent } from '@shared/ui';
+import {
+  KeyChipComponent,
+  PageHeaderComponent,
+  StatStripComponent,
+  StatusPillComponent,
+  type StatStripItem,
+} from '@shared/ui';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { CloneProgramDialog } from '../clone/clone-program.dialog';
@@ -53,6 +59,9 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
     MatTooltipModule,
     CanDirective,
     PageHeaderComponent,
+    StatStripComponent,
+    StatusPillComponent,
+    KeyChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -68,6 +77,8 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           <span i18n="@@bank_programs.list.add">Add bank program</span>
         </a>
       </app-page-header>
+
+      <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
 
       <div class="filters" role="search">
         <mat-form-field appearance="outline" class="search">
@@ -109,9 +120,9 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           <ng-container matColumnDef="programCode">
             <th mat-header-cell *matHeaderCellDef i18n="@@bank_programs.col.program_code">Code</th>
             <td mat-cell *matCellDef="let row">
-              <a [routerLink]="['/bank-programs', row.programCode]" class="row-link">{{
-                row.programCode
-              }}</a>
+              <a [routerLink]="['/bank-programs', row.programCode]" class="row-link">
+                <app-key-chip [value]="row.programCode" />
+              </a>
               <mat-icon
                 *ngIf="row.deprecatedKeyCount > 0"
                 class="deprecated-badge"
@@ -149,14 +160,11 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
                 [checked]="row.active"
                 (change)="onToggle(row, $event.checked)"
               ></mat-slide-toggle>
-              <span
+              <app-status-pill
                 *can="['sales_agent', 'analyst']"
-                class="status-chip"
-                [class.active]="row.active"
-                [class.inactive]="!row.active"
-              >
-                {{ row.active ? activeLabel() : inactiveLabel() }}
-              </span>
+                [label]="row.active ? activeLabel() : inactiveLabel()"
+                [tone]="row.active ? 'success' : 'neutral'"
+              />
             </td>
           </ng-container>
           <ng-container matColumnDef="actions">
@@ -332,6 +340,19 @@ export class BankProgramsListPage implements OnInit {
 
   protected readonly titleText = $localize`:@@bank_programs.list.title:Bank programs`;
   protected readonly subtitleText = $localize`:@@bank_programs.list.subtitle:Configure and manage all loan programs the matching engine consumes.`;
+  protected readonly statAriaLabel = $localize`:@@bank_programs.stat.aria:Program totals`;
+  protected readonly statItems = computed<StatStripItem[]>(() => {
+    const r = this.rows();
+    const active = r.filter((p) => p.active).length;
+    const inactive = r.filter((p) => !p.active).length;
+    const banks = new Set(r.map((p) => p.bankName)).size;
+    return [
+      { label: $localize`:@@bank_programs.stat.total:Total programs`, value: this.total() },
+      { label: $localize`:@@bank_programs.stat.active:Active`, value: active, tone: 'success' },
+      { label: $localize`:@@bank_programs.stat.inactive:Inactive`, value: inactive, tone: 'muted' },
+      { label: $localize`:@@bank_programs.stat.banks:Banks`, value: banks },
+    ];
+  });
 
   readonly cols = [
     'programCode',

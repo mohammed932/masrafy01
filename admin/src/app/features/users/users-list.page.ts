@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MatButtonModule } from '@angular/material/button';
@@ -16,7 +23,13 @@ import { ResetPasswordDialog } from './reset-password.dialog';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { EmptyStateComponent } from '@shared/empty-state.component';
 import { RelativeTimePipe } from '@shared/relative-time.pipe';
-import { PageHeaderComponent } from '@shared/ui';
+import {
+  PageHeaderComponent,
+  SkeletonRowsComponent,
+  StatStripComponent,
+  StatusPillComponent,
+  type StatStripItem,
+} from '@shared/ui';
 import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/auth.types';
 
 @Component({
@@ -35,6 +48,9 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
     EmptyStateComponent,
     RelativeTimePipe,
     PageHeaderComponent,
+    StatStripComponent,
+    StatusPillComponent,
+    SkeletonRowsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -46,9 +62,11 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
         </button>
       </app-page-header>
 
+      <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
+
       <div class="table-panel">
         @if (loading()) {
-          <mat-progress-bar mode="indeterminate" />
+          <app-skeleton-rows [rows]="5" [cols]="[2, 1, 1, 1, 1]" />
         }
 
         <table mat-table [dataSource]="rows()" class="users-table" aria-label="Staff accounts">
@@ -85,18 +103,10 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
           <ng-container matColumnDef="status">
             <th mat-header-cell *matHeaderCellDef i18n="@@users.col.status">Status</th>
             <td mat-cell *matCellDef="let row">
-              <mat-chip
-                class="status-chip"
-                [class.active]="row.isActive"
-                [class.inactive]="!row.isActive"
-              >
-                <span class="status-dot" aria-hidden="true"></span>
-                @if (row.isActive) {
-                  <span i18n="@@users.status.active">Active</span>
-                } @else {
-                  <span i18n="@@users.status.inactive">Inactive</span>
-                }
-              </mat-chip>
+              <app-status-pill
+                [label]="row.isActive ? activeLabel : inactiveLabel"
+                [tone]="row.isActive ? 'success' : 'neutral'"
+              />
             </td>
           </ng-container>
 
@@ -359,6 +369,24 @@ export class UsersListPage implements OnInit {
     const t = this.total();
     return t > 0 ? `${base} · ${t}` : base;
   };
+
+  protected readonly statAriaLabel = $localize`:@@users.stat.aria:Staff account totals`;
+  protected readonly activeLabel = $localize`:@@users.status.active:Active`;
+  protected readonly inactiveLabel = $localize`:@@users.status.inactive:Inactive`;
+  protected readonly statItems = computed<StatStripItem[]>(() => {
+    const r = this.rows();
+    const active = r.filter((u) => u.isActive).length;
+    const admins = r.filter((u) => u.role === 'super_admin').length;
+    const managers = r.filter((u) => u.role === 'sales_manager').length;
+    const agents = r.filter((u) => u.role === 'sales_agent').length;
+    return [
+      { label: $localize`:@@users.stat.total:Total`, value: this.total() },
+      { label: $localize`:@@users.stat.active:Active`, value: active, tone: 'success' },
+      { label: $localize`:@@users.stat.admins:Super-admins`, value: admins, tone: 'muted' },
+      { label: $localize`:@@users.stat.managers:Managers`, value: managers },
+      { label: $localize`:@@users.stat.agents:Sales agents`, value: agents },
+    ];
+  });
   protected readonly page = signal<number>(1);
   protected readonly pageSize = signal<number>(20);
   protected readonly loading = signal<boolean>(false);

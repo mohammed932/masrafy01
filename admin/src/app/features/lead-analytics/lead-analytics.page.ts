@@ -1,9 +1,16 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
-import { PageHeaderComponent } from '@shared/ui';
+import { PageHeaderComponent, StatStripComponent, type StatStripItem } from '@shared/ui';
 import { AgentActivitySummary, LeadAnalyticsApiService } from './lead-analytics.api.service';
 import { AgentActivityTableComponent } from './components/agent-activity-table.component';
 
@@ -19,11 +26,16 @@ const WINDOWS: readonly number[] = [7, 30, 90, 180];
     MatIconModule,
     AgentActivityTableComponent,
     PageHeaderComponent,
+    StatStripComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
       <app-page-header [title]="titleText" [subtitle]="subtitleText" />
+
+      @if (summary()) {
+        <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
+      }
 
       <nav class="window-picker" [attr.aria-label]="windowAriaLabel">
         <mat-chip-set>
@@ -100,6 +112,26 @@ export class LeadAnalyticsPage implements OnInit {
   protected readonly windowAriaLabel = $localize`:@@leadAnalytics.window.aria:Analytics window`;
   protected readonly titleText = $localize`:@@leadAnalytics.title:Lead analytics`;
   protected readonly subtitleText = $localize`:@@leadAnalytics.subtitle:Per-agent aggregates with session-local anonymization.`;
+  protected readonly statAriaLabel = $localize`:@@leadAnalytics.stat.aria:Lead activity totals`;
+  protected readonly statItems = computed<StatStripItem[]>(() => {
+    const s = this.summary();
+    if (!s) return [];
+    const agents = new Set(s.rows.map((r) => r.agentAlias)).size;
+    const total = s.rows.reduce((acc, r) => acc + r.count, 0);
+    const calls = s.rows
+      .filter((r) => r.activityType === 'CALLED_USER')
+      .reduce((acc, r) => acc + r.count, 0);
+    const totalDuration = s.rows.reduce(
+      (acc, r) => acc + (r.totalDurationMinutes ?? 0),
+      0,
+    );
+    return [
+      { label: $localize`:@@leadAnalytics.stat.window:Window`, value: `${s.windowDays}d` },
+      { label: $localize`:@@leadAnalytics.stat.agents:Active agents`, value: agents },
+      { label: $localize`:@@leadAnalytics.stat.activities:Activities`, value: total },
+      { label: $localize`:@@leadAnalytics.stat.callMin:Call minutes`, value: totalDuration, tone: calls > 0 ? 'success' : 'muted' },
+    ];
+  });
   protected readonly window = signal<number>(30);
   protected readonly summary = signal<AgentActivitySummary | null>(null);
   protected readonly loading = signal(false);

@@ -19,6 +19,7 @@ import { MatDialog } from '@angular/material/dialog';
 import {
   KeyChipComponent,
   PageHeaderComponent,
+  SkeletonRowsComponent,
   StatStripComponent,
   StatusPillComponent,
   type StatStripItem,
@@ -144,6 +145,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
     StatStripComponent,
     StatusPillComponent,
     KeyChipComponent,
+    SkeletonRowsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -205,7 +207,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
             </header>
 
             @if (loadingRows()) {
-              <mat-progress-bar mode="indeterminate" />
+              <app-skeleton-rows [rows]="4" [cols]="[1, 2, 2, 1, 1]" />
             } @else {
               <div class="table-wrap">
                 <table mat-table [dataSource]="rows()" class="lookups-table">

@@ -296,6 +296,73 @@ a:hover {
   }
 }
 
+// ============================================================================
+// Wave 4 — Page entrance + micro-motion. Cascades to every routed page that
+// uses the `<section class="page">` convention. Single calm rise from 8px →
+// 0 in 180ms; reduced-motion users get a no-op.
+// ============================================================================
+@keyframes app-page-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+section.page,
+section.dashboard {
+  animation: app-page-rise var(--motion-duration-base) var(--motion-easing-standard) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  section.page,
+  section.dashboard {
+    animation: none;
+  }
+}
+
+// ============================================================================
+// Wave 3 — Uniform table treatments (cascades to every <table mat-table>).
+// Banking density + tabular-friendly rhythm. Override per-page only when a
+// table needs specific column widths.
+// ============================================================================
+table.mat-mdc-table {
+  background: var(--color-surface-default);
+  inline-size: 100%;
+}
+tr.mat-mdc-header-row {
+  block-size: 48px;
+}
+tr.mat-mdc-row {
+  block-size: 56px;
+  transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+}
+tr.mat-mdc-row:hover {
+  background: var(--color-surface-row-hover);
+}
+tr.mat-mdc-row:focus-within {
+  background: var(--color-surface-row-hover);
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+th.mat-mdc-header-cell {
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-semibold);
+}
+td.mat-mdc-cell,
+th.mat-mdc-header-cell {
+  padding-inline: var(--space-4);
+  border-block-end-color: var(--color-border-default);
+}
+td.mat-mdc-cell:last-of-type,
+th.mat-mdc-header-cell:last-of-type {
+  text-align: end;
+}
+
 // Respect prefers-reduced-motion (promax checklist).
 @media (prefers-reduced-motion: reduce) {
   *,

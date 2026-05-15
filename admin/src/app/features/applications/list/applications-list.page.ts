@@ -11,7 +11,14 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { PageHeaderComponent } from '@shared/ui';
+import {
+  PageHeaderComponent,
+  SkeletonRowsComponent,
+  StatStripComponent,
+  StatusPillComponent,
+  type StatStripItem,
+  type StatusTone,
+} from '@shared/ui';
 import { ApplicationsApiService, type AdminApplicationRow } from '../api/applications.api.service';
 import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
@@ -41,11 +48,16 @@ import {
     TierFilterChipsComponent,
     LeadFilterChipsComponent,
     PageHeaderComponent,
+    StatStripComponent,
+    StatusPillComponent,
+    SkeletonRowsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
       <app-page-header [title]="titleText" [subtitle]="subtitleText" />
+
+      <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
 
       <app-tier-filter-chips
         [selected]="selectedTier()"
@@ -60,7 +72,7 @@ import {
       />
 
       @if (loading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <app-skeleton-rows [rows]="6" [cols]="[1, 2, 1, 1, 1]" />
       }
 
       @if (!loading() && rows().length === 0) {
@@ -98,7 +110,12 @@ import {
 
             <ng-container matColumnDef="status">
               <th mat-header-cell *matHeaderCellDef i18n="@@applications.col.status">Status</th>
-              <td mat-cell *matCellDef="let row">{{ row.status }}</td>
+              <td mat-cell *matCellDef="let row">
+                <app-status-pill
+                  [label]="statusLabel(row.status)"
+                  [tone]="statusTone(row.status)"
+                />
+              </td>
             </ng-container>
 
             <ng-container matColumnDef="created">
@@ -200,6 +217,41 @@ export class ApplicationsListPage implements OnInit {
 
   protected readonly titleText = $localize`:@@applications.title:Applications`;
   protected readonly subtitleText = $localize`:@@applications.subtitle:Loan-match results triaged by approval probability.`;
+  protected readonly statAriaLabel = $localize`:@@applications.stat.aria:Application totals`;
+
+  protected statusLabel(status: string): string {
+    return status
+      .split('_')
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(' ');
+  }
+
+  protected statusTone(status: string): StatusTone {
+    switch (status) {
+      case 'matched':
+        return 'success';
+      case 'no_match':
+        return 'warning';
+      case 'erased':
+        return 'error';
+      case 'archived':
+        return 'neutral';
+      case 'draft':
+        return 'info';
+      default:
+        return 'neutral';
+    }
+  }
+  protected readonly statItems = computed<StatStripItem[]>(() => {
+    const lc = this.leadCounts();
+    const total = this.rows().length;
+    return [
+      { label: $localize`:@@applications.stat.visible:Visible`, value: total },
+      { label: $localize`:@@applications.stat.stale:Stale leads`, value: lc.stale, tone: lc.stale > 0 ? 'warning' : 'muted' },
+      { label: $localize`:@@applications.stat.followupToday:Follow-up today`, value: lc.followup_today, tone: lc.followup_today > 0 ? 'success' : 'muted' },
+      { label: $localize`:@@applications.stat.ready:Ready for bank`, value: lc.ready_for_submission },
+    ];
+  });
 
   protected readonly displayed = [
     'probability',
