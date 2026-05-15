@@ -73,8 +73,8 @@ import { ThemeService } from '@core/theme/theme.service';
         justify-content: space-between;
         padding-block: var(--space-2);
         padding-inline: var(--space-5);
-        background: var(--color-brand-primary);
-        color: var(--color-text-on-brand);
+        background: var(--color-topbar-bg);
+        color: var(--color-topbar-text);
         box-shadow: var(--shadow-sm);
         min-height: var(--topbar-height);
         position: sticky;
@@ -85,7 +85,7 @@ import { ThemeService } from '@core/theme/theme.service';
         display: inline-flex;
         align-items: center;
         gap: var(--space-3);
-        color: var(--color-text-on-brand);
+        color: var(--color-topbar-text);
         text-decoration: none;
         font-weight: var(--font-weight-bold);
         font-size: var(--text-lg);
@@ -103,7 +103,7 @@ import { ThemeService } from '@core/theme/theme.service';
         display: inline-flex;
         width: 32px;
         height: 32px;
-        color: var(--color-text-on-brand);
+        color: var(--color-topbar-text);
       }
       .brand-mark svg {
         width: 100%;
@@ -121,7 +121,7 @@ import { ThemeService } from '@core/theme/theme.service';
         appearance: none;
         border: 1px solid rgba(255, 255, 255, 0.16);
         background: rgba(255, 255, 255, 0.06);
-        color: var(--color-text-on-brand);
+        color: var(--color-topbar-text);
         inline-size: 36px;
         block-size: 36px;
         border-radius: var(--radius-pill);
@@ -150,7 +150,7 @@ import { ThemeService } from '@core/theme/theme.service';
       .user-trigger {
         appearance: none;
         border: 0;
-        color: var(--color-text-on-brand);
+        color: var(--color-topbar-text);
         font-family: inherit;
         cursor: pointer;
         display: inline-flex;
@@ -221,7 +221,7 @@ import { ThemeService } from '@core/theme/theme.service';
         box-shadow:
           inset 0 1px 0 rgba(255, 255, 255, 0.2),
           inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-        color: var(--color-text-on-brand);
+        color: var(--color-topbar-text);
         font-size: 13px;
         font-weight: var(--font-weight-bold);
         letter-spacing: 0.04em;
@@ -243,7 +243,7 @@ import { ThemeService } from '@core/theme/theme.service';
       .user-name {
         font-weight: var(--font-weight-semibold);
         font-size: var(--text-sm);
-        color: var(--color-text-on-brand);
+        color: var(--color-topbar-text);
         line-height: 1;
         white-space: nowrap;
       }
@@ -254,7 +254,7 @@ import { ThemeService } from '@core/theme/theme.service';
         padding-inline: 8px;
         border-radius: var(--radius-pill);
         background: rgba(255, 255, 255, 0.14);
-        color: var(--color-text-on-brand);
+        color: var(--color-topbar-text);
         font-size: 10px;
         font-weight: var(--font-weight-semibold);
         text-transform: uppercase;
