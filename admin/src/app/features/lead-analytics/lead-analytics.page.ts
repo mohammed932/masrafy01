@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
+import { PageHeaderComponent } from '@shared/ui';
 import { AgentActivitySummary, LeadAnalyticsApiService } from './lead-analytics.api.service';
 import { AgentActivityTableComponent } from './components/agent-activity-table.component';
 
@@ -17,16 +18,12 @@ const WINDOWS: readonly number[] = [7, 30, 90, 180];
     MatChipsModule,
     MatIconModule,
     AgentActivityTableComponent,
+    PageHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <header class="page-header">
-        <h1 class="title" i18n="@@leadAnalytics.title">Lead analytics</h1>
-        <p class="subtitle" i18n="@@leadAnalytics.subtitle">
-          Per-agent aggregates with session-local anonymization.
-        </p>
-      </header>
+      <app-page-header [title]="titleText" [subtitle]="subtitleText" />
 
       <nav class="window-picker" [attr.aria-label]="windowAriaLabel">
         <mat-chip-set>
@@ -72,17 +69,6 @@ const WINDOWS: readonly number[] = [7, 30, 90, 180];
         margin-inline: auto;
         padding: var(--space-5) var(--space-6);
       }
-      .title {
-        margin: 0 0 4px;
-        font-size: 22px;
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .subtitle {
-        margin: 0;
-        color: var(--color-text-secondary);
-        font-size: var(--text-sm);
-      }
       mat-chip {
         cursor: pointer;
         transition: background-color 120ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -112,6 +98,8 @@ export class LeadAnalyticsPage implements OnInit {
   private readonly api = inject(LeadAnalyticsApiService);
   protected readonly windows = [...WINDOWS];
   protected readonly windowAriaLabel = $localize`:@@leadAnalytics.window.aria:Analytics window`;
+  protected readonly titleText = $localize`:@@leadAnalytics.title:Lead analytics`;
+  protected readonly subtitleText = $localize`:@@leadAnalytics.subtitle:Per-agent aggregates with session-local anonymization.`;
   protected readonly window = signal<number>(30);
   protected readonly summary = signal<AgentActivitySummary | null>(null);
   protected readonly loading = signal(false);

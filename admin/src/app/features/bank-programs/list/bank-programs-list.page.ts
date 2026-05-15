@@ -24,6 +24,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CanDirective } from '../../../shared/can.directive';
+import { PageHeaderComponent } from '@shared/ui';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { CloneProgramDialog } from '../clone/clone-program.dialog';
@@ -51,29 +52,22 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
     MatTableModule,
     MatTooltipModule,
     CanDirective,
+    PageHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <header class="page-header">
-        <div class="header-text">
-          <h1 class="page-title" i18n="@@bank_programs.list.title">Bank programs</h1>
-          <p class="page-subtitle" i18n="@@bank_programs.list.subtitle">
-            Configure and manage all loan programs the matching engine consumes.
-          </p>
-        </div>
-        <div class="header-actions">
-          <a
-            *can="['super_admin', 'sales_manager']"
-            mat-flat-button
-            color="primary"
-            routerLink="/bank-programs/new"
-          >
-            <mat-icon aria-hidden="true">add</mat-icon>
-            <span i18n="@@bank_programs.list.add">Add bank program</span>
-          </a>
-        </div>
-      </header>
+      <app-page-header [title]="titleText" [subtitle]="subtitleText">
+        <a
+          *can="['super_admin', 'sales_manager']"
+          mat-flat-button
+          color="primary"
+          routerLink="/bank-programs/new"
+        >
+          <mat-icon aria-hidden="true">add</mat-icon>
+          <span i18n="@@bank_programs.list.add">Add bank program</span>
+        </a>
+      </app-page-header>
 
       <div class="filters" role="search">
         <mat-form-field appearance="outline" class="search">
@@ -240,30 +234,6 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         max-width: var(--content-max-width);
         margin-inline: auto;
       }
-      .page-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: var(--space-4);
-        margin-block-end: var(--space-5);
-      }
-      .header-text {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-      }
-      .page-title {
-        font-size: var(--text-2xl);
-        font-weight: var(--font-weight-semibold);
-        margin: 0;
-        color: var(--color-text-primary);
-        letter-spacing: -0.01em;
-      }
-      .page-subtitle {
-        margin: 0;
-        color: var(--color-text-secondary);
-        font-size: var(--text-md);
-      }
       .filters {
         display: flex;
         flex-wrap: wrap;
@@ -359,6 +329,9 @@ export class BankProgramsListPage implements OnInit {
   private readonly snack = inject(MatSnackBar);
   private readonly router = inject(Router);
   private readonly errors = inject(ErrorCodeService);
+
+  protected readonly titleText = $localize`:@@bank_programs.list.title:Bank programs`;
+  protected readonly subtitleText = $localize`:@@bank_programs.list.subtitle:Configure and manage all loan programs the matching engine consumes.`;
 
   readonly cols = [
     'programCode',

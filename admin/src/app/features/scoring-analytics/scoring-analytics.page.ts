@@ -11,6 +11,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ErrorCodeService } from '@core/errors/error-code.service';
+import { PageHeaderComponent } from '@shared/ui';
 import {
   ScoringAnalyticsApiService,
   type ScoringAnalyticsData,
@@ -30,17 +31,12 @@ const WINDOW_PRESETS = [7, 30, 90, 180] as const;
     MatProgressBarModule,
     ScoreDistributionHistogramComponent,
     TierAccuracyTableComponent,
+    PageHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <header class="page-header">
-        <h1 class="title" i18n="@@analytics.title">Scoring analytics</h1>
-        <p class="subtitle" i18n="@@analytics.subtitle">
-          Distribution of approval scores over a chosen window plus per-tier accuracy against
-          recorded bank decisions.
-        </p>
-      </header>
+      <app-page-header [title]="titleText" [subtitle]="subtitleText" />
 
       <mat-chip-set class="window-picker" role="listbox" [attr.aria-label]="pickerAria">
         @for (preset of presets; track preset) {
@@ -88,19 +84,6 @@ const WINDOW_PRESETS = [7, 30, 90, 180] as const;
         max-width: var(--content-max-width);
         margin-inline: auto;
         padding: var(--space-5) var(--space-6);
-      }
-      .title {
-        margin: 0 0 4px;
-        font-size: 22px;
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-        letter-spacing: -0.015em;
-      }
-      .subtitle {
-        margin: 0;
-        font-size: 14px;
-        color: var(--color-text-secondary);
-        max-width: 64ch;
       }
       .window-picker {
         margin-block: var(--space-3);
@@ -155,6 +138,8 @@ export class ScoringAnalyticsPage implements OnInit {
 
   protected readonly presets = WINDOW_PRESETS;
   protected readonly pickerAria = $localize`:@@analytics.window.aria:Select look-back window in days`;
+  protected readonly titleText = $localize`:@@analytics.title:Scoring analytics`;
+  protected readonly subtitleText = $localize`:@@analytics.subtitle:Distribution of approval scores over a chosen window plus per-tier accuracy against recorded bank decisions.`;
   protected readonly windowDays = signal<number>(30);
   protected readonly data = signal<ScoringAnalyticsData | null>(null);
   protected readonly loading = signal(false);

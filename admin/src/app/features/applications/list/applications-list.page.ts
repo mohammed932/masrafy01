@@ -11,6 +11,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { PageHeaderComponent } from '@shared/ui';
 import { ApplicationsApiService, type AdminApplicationRow } from '../api/applications.api.service';
 import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
@@ -39,18 +40,12 @@ import {
     ApprovalPillComponent,
     TierFilterChipsComponent,
     LeadFilterChipsComponent,
+    PageHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <header class="page-header">
-        <div class="page-titles">
-          <h1 class="title" i18n="@@applications.title">Applications</h1>
-          <p class="subtitle" i18n="@@applications.subtitle">
-            Loan-match results triaged by approval probability.
-          </p>
-        </div>
-      </header>
+      <app-page-header [title]="titleText" [subtitle]="subtitleText" />
 
       <app-tier-filter-chips
         [selected]="selectedTier()"
@@ -153,25 +148,6 @@ import {
         margin-inline: auto;
         padding: var(--space-5) var(--space-6);
       }
-      .page-header {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: var(--space-4);
-        flex-wrap: wrap;
-      }
-      .title {
-        margin: 0 0 4px;
-        font-size: 22px;
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-        letter-spacing: -0.015em;
-      }
-      .subtitle {
-        margin: 0;
-        font-size: 14px;
-        color: var(--color-text-secondary);
-      }
       .table-wrap {
         background: var(--color-surface-default);
         border-radius: var(--radius-lg, 12px);
@@ -221,6 +197,9 @@ export class ApplicationsListPage implements OnInit {
   private readonly api = inject(ApplicationsApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+
+  protected readonly titleText = $localize`:@@applications.title:Applications`;
+  protected readonly subtitleText = $localize`:@@applications.subtitle:Loan-match results triaged by approval probability.`;
 
   protected readonly displayed = [
     'probability',
