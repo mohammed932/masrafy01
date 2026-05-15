@@ -147,16 +147,16 @@
   --color-tonal-accent-hover: #B0C7F7;
   --color-tonal-accent-bg: rgba(147, 179, 244, 0.10);
 
-  // SURFACE HIERARCHY — near-black with subtle navy hint (Stripe/Linear/Vercel
-  // dark family). Page bg is darkest; cards lift one step; row-hover lifts
-  // again. Banking dark UI: information-dense, low fatigue, true black-feeling.
-  --color-surface-page: #0A0D14; // body + shell
-  --color-surface-default: #13171F; // cards
-  --color-surface-elevated: #1B202C; // inputs, hover rows
-  --color-surface-muted: #252B3A;
-  --color-surface-row-hover: #181D27;
+  // SURFACE HIERARCHY — true near-black (Vercel/Linear family) with a
+  // micro-hint of navy so brand DNA survives. Page bg almost pure black;
+  // cards lift just enough to read as raised; elevated/hover lift again.
+  --color-surface-page: #05070B; // body + shell — practically black
+  --color-surface-default: #0D1018; // cards — micro-lift
+  --color-surface-elevated: #141822; // inputs + hover rows
+  --color-surface-muted: #1C2230;
+  --color-surface-row-hover: #10141C;
   --color-surface-inverse: #F7F8FA;
-  --color-overlay-backdrop: rgba(0, 0, 0, 0.68);
+  --color-overlay-backdrop: rgba(0, 0, 0, 0.75);
 
   --color-text-primary: #E5E9F2;
   --color-text-secondary: #9AA3B8;
@@ -166,8 +166,8 @@
   --color-text-link: #93B3F4;
   --color-text-link-hover: #B0C7F7;
 
-  --color-border-default: #252B3A;
-  --color-border-strong: #3A4054;
+  --color-border-default: #1C2230;
+  --color-border-strong: #2E3548;
   --color-border-focus: #93B3F4;
   --color-border-locked-step: #93B3F4;
 
@@ -190,9 +190,8 @@
   --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.65);
   --shadow-focus-ring: 0 0 0 3px rgba(147, 179, 244, 0.36);
 
-  // Top-bar — slightly darker than the page background so it reads as a chrome
-  // band rather than a colored shelf. Sticks with the deep-navy hue family.
-  --color-topbar-bg: #08090E;
+  // Top-bar — pure-black chrome band; reads as the darkest layer.
+  --color-topbar-bg: #000000;
   --color-topbar-text: #FFFFFF;
 }
 
