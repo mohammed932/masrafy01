@@ -57,18 +57,18 @@ import { CommonModule } from '@angular/common';
       }
       .title {
         margin: 0;
-        font-size: var(--text-3xl);
+        font-size: var(--text-2xl);
         font-weight: var(--font-weight-bold);
         color: var(--color-text-primary);
         letter-spacing: -0.015em;
-        line-height: 1.1;
+        line-height: var(--line-height-tight);
       }
       .subtitle {
         margin: var(--space-2) 0 0;
         max-inline-size: 56ch;
         color: var(--color-text-secondary);
-        font-size: var(--text-md);
-        line-height: var(--line-height-base);
+        font-size: var(--text-sm);
+        line-height: var(--line-height-loose);
       }
       .aside:empty {
         display: none;

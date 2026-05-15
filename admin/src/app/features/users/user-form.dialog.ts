@@ -350,28 +350,28 @@ interface EditFormControls {
         flex-shrink: 0;
       }
       .header-icon mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+        font-size: var(--text-lg);
+        inline-size: 18px;
+        block-size: 18px;
       }
       .header-text {
         flex: 1;
-        min-width: 0;
+        min-inline-size: 0;
       }
       .title {
-        margin: 0 0 4px;
-        font-size: 18px;
+        margin: 0 0 var(--space-1);
+        font-size: var(--text-lg);
         font-weight: var(--font-weight-semibold);
         letter-spacing: -0.015em;
         color: var(--color-text-primary);
-        line-height: 1.25;
+        line-height: var(--line-height-tight);
       }
       .subtitle {
         margin: 0;
-        font-size: 13px;
+        font-size: var(--text-sm);
         color: var(--color-text-secondary);
-        line-height: 1.55;
-        max-width: 52ch;
+        line-height: var(--line-height-base);
+        max-inline-size: 52ch;
       }
       // Body — paper-form-style sections, generous vertical rhythm
       .body {
@@ -413,17 +413,17 @@ interface EditFormControls {
         gap: 3px;
       }
       .section-label {
-        font-size: 10px;
+        font-size: var(--text-xxs);
         font-weight: var(--font-weight-semibold);
         letter-spacing: 0.14em;
         text-transform: uppercase;
         color: var(--color-text-secondary);
       }
       .section-desc {
-        font-size: 13px;
+        font-size: var(--text-sm);
         color: var(--color-text-primary);
         font-weight: var(--font-weight-medium);
-        line-height: 1.4;
+        line-height: var(--line-height-base);
       }
       // Toggle row — flat, hairline border, not a card (avoid card-in-card)
       .toggle-row {
@@ -448,12 +448,12 @@ interface EditFormControls {
       .toggle-title {
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
-        font-size: 14px;
+        font-size: var(--text-sm);
       }
       .toggle-desc {
-        font-size: 12px;
+        font-size: var(--text-xs);
         color: var(--color-text-secondary);
-        line-height: 1.5;
+        line-height: var(--line-height-base);
       }
       // Alert — tighter, leading icon, no full border (less visual weight in normal flow)
       .alert {
@@ -465,13 +465,13 @@ interface EditFormControls {
         color: var(--color-error);
         border-radius: var(--radius-md);
         border-inline-start: 3px solid var(--color-error);
-        font-size: 13px;
-        line-height: 1.5;
+        font-size: var(--text-sm);
+        line-height: var(--line-height-base);
       }
       .alert-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+        font-size: var(--text-lg);
+        inline-size: 18px;
+        block-size: 18px;
         flex-shrink: 0;
         margin-block-start: 1px;
       }
@@ -509,9 +509,9 @@ interface EditFormControls {
         transform: translateY(0);
       }
       .primary-cta mat-icon {
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+        font-size: var(--text-lg);
+        inline-size: 18px;
+        block-size: 18px;
         margin-inline-end: 6px;
       }
       @media (prefers-reduced-motion: reduce) {

@@ -108,7 +108,7 @@ import { CanDirective } from '../../shared/can.directive';
       .section-label {
         margin: 0 0 var(--space-2);
         padding-inline: var(--space-2);
-        font-size: 11px;
+        font-size: var(--text-xxs);
         font-weight: var(--font-weight-semibold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -125,7 +125,7 @@ import { CanDirective } from '../../shared/can.directive';
         display: inline-flex;
         align-items: center;
         gap: var(--space-3);
-        padding-block: 10px;
+        padding-block: var(--space-2-5);
         padding-inline: var(--space-3);
         border-radius: var(--radius-md);
         color: var(--color-text-secondary);
@@ -201,7 +201,7 @@ import { CanDirective } from '../../shared/can.directive';
       }
       .version {
         padding-inline: var(--space-3);
-        font-size: 11px;
+        font-size: var(--text-xxs);
         color: var(--color-text-tertiary);
         letter-spacing: 0.04em;
       }

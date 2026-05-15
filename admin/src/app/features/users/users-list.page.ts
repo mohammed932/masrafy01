@@ -258,8 +258,12 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
         color: var(--color-text-primary);
       }
       .identity-email {
-        font-size: var(--text-xs);
+        font-size: var(--text-sm);
         color: var(--color-text-secondary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-inline-size: 28ch;
       }
       .avatar {
         display: inline-flex;
