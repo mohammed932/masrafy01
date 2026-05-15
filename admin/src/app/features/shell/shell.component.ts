@@ -18,8 +18,8 @@ import { TopBarComponent } from './top-bar.component';
       :host {
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
-        background: var(--color-surface-elevated);
+        min-block-size: 100vh;
+        background: var(--color-surface-page);
       }
       .shell-main {
         flex: 1;

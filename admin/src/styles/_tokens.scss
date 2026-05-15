@@ -20,6 +20,7 @@
   --color-tonal-accent-bg: #E8EDF7;
 
   // --- Surfaces -----------------------------------------------------------
+  --color-surface-page: #F7F8FA;
   --color-surface-default: #FFFFFF;
   --color-surface-elevated: #F7F8FA;
   --color-surface-muted: #EEF0F4;
@@ -149,6 +150,7 @@
   // SURFACE HIERARCHY — near-black with subtle navy hint (Stripe/Linear/Vercel
   // dark family). Page bg is darkest; cards lift one step; row-hover lifts
   // again. Banking dark UI: information-dense, low fatigue, true black-feeling.
+  --color-surface-page: #0A0D14; // body + shell
   --color-surface-default: #13171F; // cards
   --color-surface-elevated: #1B202C; // inputs, hover rows
   --color-surface-muted: #252B3A;
@@ -194,8 +196,3 @@
   --color-topbar-text: #FFFFFF;
 }
 
-// Page background — near-black with a hint of navy. Page bg is DARKER than
-// the card surface so cards read as raised, not sunken.
-[data-theme='dark'] body {
-  background: #0A0D14;
-}
