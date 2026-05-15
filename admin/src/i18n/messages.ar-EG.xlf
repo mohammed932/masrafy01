@@ -268,6 +268,10 @@
       <trans-unit id="lookups.field.labelAr" datatype="html"><source>Label (Arabic)</source><target>التسمية (العربية)</target></trans-unit>
       <trans-unit id="lookups.field.sortOrder" datatype="html"><source>Sort order</source><target>الترتيب</target></trans-unit>
       <trans-unit id="lookups.field.sortOrderHint" datatype="html"><source>controls the order in dropdowns</source><target>يتحكم في ترتيب العناصر في القوائم المنسدلة</target></trans-unit>
+
+      <!-- Theme toggle -->
+      <trans-unit id="topBar.theme.switchLight" datatype="html"><source>Switch to light theme</source><target>التبديل إلى الوضع الفاتح</target></trans-unit>
+      <trans-unit id="topBar.theme.switchDark" datatype="html"><source>Switch to dark theme</source><target>التبديل إلى الوضع الداكن</target></trans-unit>
     </body>
   </file>
 </xliff>

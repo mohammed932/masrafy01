@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { AuthService } from '@core/auth/auth.service';
+import { ThemeService } from '@core/theme/theme.service';
 
 @Component({
   selector: 'app-top-bar',
@@ -27,6 +28,16 @@ import { AuthService } from '@core/auth/auth.service';
       </a>
 
       @if (auth.currentUser(); as user) {
+        <div class="right-cluster">
+          <button
+            type="button"
+            class="theme-toggle"
+            (click)="theme.toggle()"
+            [attr.aria-label]="themeAriaLabel(theme.current())"
+            [attr.aria-pressed]="theme.current() === 'dark'"
+          >
+            <mat-icon aria-hidden="true">{{ theme.current() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+          </button>
         <button
           type="button"
           [matMenuTriggerFor]="userMenu"
@@ -42,6 +53,7 @@ import { AuthService } from '@core/auth/auth.service';
           <span class="role-chip" [attr.data-role]="user.role">{{ roleLabel(user.role) }}</span>
           <mat-icon class="chevron" aria-hidden="true">expand_more</mat-icon>
         </button>
+        </div>
         <mat-menu #userMenu="matMenu">
           <a mat-menu-item routerLink="/auth/self-password" i18n="@@topBar.changePassword">
             Change password
@@ -99,6 +111,40 @@ import { AuthService } from '@core/auth/auth.service';
       }
       .brand-text {
         line-height: 1;
+      }
+      .right-cluster {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .theme-toggle {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--color-text-on-brand);
+        inline-size: 36px;
+        block-size: 36px;
+        border-radius: var(--radius-pill);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          border-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .theme-toggle:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.28);
+      }
+      .theme-toggle:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.6);
+        outline-offset: 2px;
+      }
+      .theme-toggle mat-icon {
+        font-size: 20px;
+        inline-size: 20px;
+        block-size: 20px;
       }
       // Premium glass pill — backdrop blur, gradient stroke, smooth states
       .user-trigger {
@@ -259,10 +305,17 @@ import { AuthService } from '@core/auth/auth.service';
 })
 export class TopBarComponent {
   protected readonly auth = inject(AuthService);
+  protected readonly theme = inject(ThemeService);
   private readonly router = inject(Router);
 
   protected userAriaLabel(name: string, role: string): string {
     return $localize`:@@topBar.userMenu:User menu for ${name}, role ${role}`;
+  }
+
+  protected themeAriaLabel(current: 'light' | 'dark'): string {
+    return current === 'dark'
+      ? $localize`:@@topBar.theme.switchLight:Switch to light theme`
+      : $localize`:@@topBar.theme.switchDark:Switch to dark theme`;
   }
 
   protected firstName(name: string): string {
