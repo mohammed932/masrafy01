@@ -356,7 +356,10 @@ th.mat-mdc-header-cell {
 td.mat-mdc-cell,
 th.mat-mdc-header-cell {
   padding-inline: var(--space-4);
-  border-block-end-color: var(--color-border-default);
+  border-block-end: 1px solid var(--color-border-default) !important;
+}
+tr.mat-mdc-row:last-of-type td.mat-mdc-cell {
+  border-block-end: 0 !important;
 }
 td.mat-mdc-cell:last-of-type,
 th.mat-mdc-header-cell:last-of-type {
