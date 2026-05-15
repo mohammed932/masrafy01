@@ -247,6 +247,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         flex-wrap: wrap;
         gap: var(--space-3);
         align-items: flex-end;
+        margin-block-start: var(--space-5);
         margin-block-end: var(--space-4);
       }
       .filters .search {
