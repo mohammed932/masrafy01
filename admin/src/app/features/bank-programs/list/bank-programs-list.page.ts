@@ -276,10 +276,10 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         color: var(--color-text-link);
       }
       .deprecated-badge {
-        color: #b45309;
-        font-size: 18px;
-        width: 18px;
-        height: 18px;
+        color: var(--color-warning);
+        font-size: var(--text-lg);
+        inline-size: 18px;
+        block-size: 18px;
         margin-inline-start: var(--space-1);
         vertical-align: middle;
       }
@@ -293,11 +293,11 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         font-size: var(--text-xs);
       }
       .status-chip.active {
-        background: #ecfdf5;
-        color: #047857;
+        background: var(--color-success-bg);
+        color: var(--color-success);
       }
       .status-chip.inactive {
-        background: #f1f5f9;
+        background: var(--color-surface-muted);
         color: var(--color-text-tertiary);
       }
       .loading {

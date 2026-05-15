@@ -91,7 +91,7 @@ export interface DeleteProgramDialogData {
   styles: [
     `
       .warn-icon {
-        color: #b45309;
+        color: var(--color-warning);
         margin-inline-end: var(--space-2);
         vertical-align: middle;
       }
@@ -115,8 +115,8 @@ export interface DeleteProgramDialogData {
         align-items: center;
         gap: var(--space-2);
         padding: var(--space-3);
-        background: #fef2f2;
-        color: #991b1b;
+        background: var(--color-error-bg);
+        color: var(--color-error);
         border-radius: var(--radius-sm);
       }
     `,

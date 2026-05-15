@@ -88,4 +88,89 @@ html {
   --mdc-chip-label-text-color: var(--color-text-primary);
   --mat-paginator-container-text-color: var(--color-text-secondary);
   --mat-paginator-container-background-color: var(--color-surface-default);
+
+  // --- MDC checkbox bridges ---
+  --mdc-checkbox-unselected-icon-color: var(--color-border-strong);
+  --mdc-checkbox-unselected-hover-icon-color: var(--color-text-secondary);
+  --mdc-checkbox-unselected-focus-icon-color: var(--color-text-secondary);
+  --mdc-checkbox-selected-icon-color: var(--color-brand-primary);
+  --mdc-checkbox-selected-hover-icon-color: var(--color-brand-primary-hover);
+  --mdc-checkbox-selected-focus-icon-color: var(--color-brand-primary);
+  --mdc-checkbox-selected-checkmark-color: var(--color-brand-primary-contrast);
+  --mat-checkbox-label-text-color: var(--color-text-primary);
+  --mat-checkbox-disabled-label-color: var(--color-text-disabled);
+
+  // --- MDC radio bridges ---
+  --mdc-radio-unselected-icon-color: var(--color-border-strong);
+  --mdc-radio-unselected-hover-icon-color: var(--color-text-secondary);
+  --mdc-radio-unselected-focus-icon-color: var(--color-text-secondary);
+  --mdc-radio-selected-icon-color: var(--color-brand-primary);
+  --mdc-radio-selected-hover-icon-color: var(--color-brand-primary-hover);
+  --mdc-radio-selected-focus-icon-color: var(--color-brand-primary);
+  --mat-radio-label-text-color: var(--color-text-primary);
+  --mat-radio-disabled-label-color: var(--color-text-disabled);
+
+  // --- MDC list bridges ---
+  --mdc-list-list-item-label-text-color: var(--color-text-primary);
+  --mdc-list-list-item-supporting-text-color: var(--color-text-secondary);
+  --mdc-list-list-item-leading-icon-color: var(--color-text-tertiary);
+  --mdc-list-list-item-trailing-supporting-text-color: var(--color-text-tertiary);
+  --mdc-list-list-item-hover-state-layer-color: var(--color-surface-row-hover);
+
+  // --- MDC tab bridges ---
+  --mat-tab-header-inactive-label-text-color: var(--color-text-secondary);
+  --mat-tab-header-active-label-text-color: var(--color-brand-primary);
+  --mat-tab-header-active-ripple-color: var(--color-brand-primary);
+  --mat-tab-header-inactive-ripple-color: var(--color-text-tertiary);
+  --mat-tab-header-active-focus-label-text-color: var(--color-brand-primary);
+  --mat-tab-header-active-hover-label-text-color: var(--color-brand-primary-hover);
+  --mat-tab-header-active-focus-indicator-color: var(--color-brand-primary);
+  --mat-tab-header-active-hover-indicator-color: var(--color-brand-primary);
+  --mat-tab-header-divider-color: var(--color-border-default);
+
+  // --- MDC tooltip bridges ---
+  --mdc-plain-tooltip-container-color: var(--color-surface-inverse);
+  --mdc-plain-tooltip-supporting-text-color: var(--color-surface-default);
+
+  // --- MDC snack-bar bridges ---
+  --mdc-snackbar-container-color: var(--color-surface-inverse);
+  --mdc-snackbar-supporting-text-color: var(--color-surface-default);
+  --mat-snack-bar-button-color: var(--color-brand-primary);
+
+  // --- MDC card bridges (for any future mat-card use) ---
+  --mdc-elevated-card-container-color: var(--color-surface-default);
+  --mdc-outlined-card-container-color: var(--color-surface-default);
+  --mdc-outlined-card-outline-color: var(--color-border-default);
+
+  // --- MDC expansion panel bridges ---
+  --mat-expansion-container-background-color: var(--color-surface-default);
+  --mat-expansion-container-text-color: var(--color-text-primary);
+  --mat-expansion-header-text-color: var(--color-text-primary);
+  --mat-expansion-header-description-color: var(--color-text-secondary);
+  --mat-expansion-actions-divider-color: var(--color-border-default);
+
+  // --- MDC datepicker bridges ---
+  --mat-datepicker-calendar-container-background-color: var(--color-surface-default);
+  --mat-datepicker-calendar-container-text-color: var(--color-text-primary);
+  --mat-datepicker-calendar-date-text-color: var(--color-text-primary);
+  --mat-datepicker-calendar-date-outline-color: transparent;
+  --mat-datepicker-calendar-date-selected-state-background-color: var(--color-brand-primary);
+  --mat-datepicker-calendar-date-selected-state-text-color: var(--color-brand-primary-contrast);
+  --mat-datepicker-calendar-date-hover-state-background-color: var(--color-surface-row-hover);
+  --mat-datepicker-calendar-body-label-text-color: var(--color-text-secondary);
+  --mat-datepicker-calendar-header-text-color: var(--color-text-primary);
+  --mat-datepicker-toggle-icon-color: var(--color-text-secondary);
+
+  // --- MDC progress-bar / spinner bridges ---
+  --mdc-linear-progress-active-indicator-color: var(--color-brand-primary);
+  --mdc-linear-progress-track-color: var(--color-surface-muted);
+  --mdc-circular-progress-active-indicator-color: var(--color-brand-primary);
+
+  // --- MDC button bridges ---
+  --mdc-text-button-label-text-color: var(--color-brand-primary);
+  --mdc-outlined-button-label-text-color: var(--color-brand-primary);
+  --mdc-outlined-button-outline-color: var(--color-border-default);
+  --mdc-filled-button-container-color: var(--color-brand-primary);
+  --mdc-filled-button-label-text-color: var(--color-brand-primary-contrast);
+  --mat-icon-button-state-layer-color: var(--color-text-primary);
 }

@@ -323,20 +323,20 @@ import type { BankProgramResponse } from '../bank-programs.types';
         font-size: var(--text-xs);
       }
       .status-chip.active {
-        background: #ecfdf5;
-        color: #047857;
+        background: var(--color-success-bg);
+        color: var(--color-success);
       }
       .status-chip.inactive {
-        background: #f1f5f9;
+        background: var(--color-surface-muted);
         color: var(--color-text-tertiary);
       }
       .deprecated-banner {
         display: flex;
         align-items: center;
         gap: var(--space-2);
-        background: #fffbeb;
-        color: #92400e;
-        border: 1px solid #fde68a;
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+        border: 1px solid var(--color-border-default);
         border-radius: var(--radius-sm);
         padding: var(--space-3);
         margin-block-end: var(--space-4);
