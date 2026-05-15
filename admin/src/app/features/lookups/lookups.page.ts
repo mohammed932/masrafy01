@@ -501,14 +501,16 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         padding-inline: var(--space-4);
       }
       .lookups-table .mat-column-key {
-        inline-size: 30%;
+        inline-size: 24%;
       }
       .lookups-table .mat-column-status {
-        inline-size: 120px;
+        inline-size: 130px;
       }
       .lookups-table .mat-column-actions {
         inline-size: 168px;
-        text-align: end;
+      }
+      .lookups-table td.mat-mdc-cell.mat-column-actions {
+        text-align: start;
       }
       @media (prefers-reduced-motion: reduce) {
         .type-button,
@@ -521,8 +523,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         display: inline-flex;
         align-items: center;
         gap: var(--space-1);
-        justify-content: flex-end;
-        inline-size: 100%;
+        justify-content: flex-start;
       }
       .empty {
         padding: var(--space-7) var(--space-6);
