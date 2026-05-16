@@ -59,17 +59,10 @@ export interface EnumerationEditDialogData {
           >
         </mat-form-field>
 
-        <div class="row-2">
-          <mat-form-field appearance="outline">
-            <mat-label i18n="@@lookups.field.labelEn">Label (English)</mat-label>
-            <input matInput formControlName="labelEn" maxlength="160" />
-          </mat-form-field>
-
-          <mat-form-field appearance="outline" class="rtl-field">
-            <mat-label i18n="@@lookups.field.labelAr">Label (Arabic)</mat-label>
-            <input matInput formControlName="labelAr" maxlength="160" dir="rtl" />
-          </mat-form-field>
-        </div>
+        <mat-form-field appearance="outline">
+          <mat-label i18n="@@lookups.field.labelEn">Label</mat-label>
+          <input matInput formControlName="labelEn" maxlength="160" />
+        </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label i18n="@@lookups.field.sortOrder">Sort order</mat-label>
@@ -176,10 +169,6 @@ export class EnumerationEditDialogComponent {
       nonNullable: true,
       validators: [Validators.required, Validators.maxLength(160)],
     }),
-    labelAr: new FormControl<string>(this.data.row?.labelAr ?? '', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(160)],
-    }),
     sortOrder: new FormControl<number>(this.data.row?.sortOrder ?? 0, {
       nonNullable: true,
       validators: [Validators.min(0)],
@@ -195,18 +184,19 @@ export class EnumerationEditDialogComponent {
     this.submitting.set(true);
     try {
       const v = this.form.value;
+      const labelMirror = v.labelEn ?? '';
       if (this.data.mode === 'create') {
         await this.api.create({
           type: this.data.type,
           key: v.key!,
           labelEn: v.labelEn!,
-          labelAr: v.labelAr!,
+          labelAr: labelMirror,
           sortOrder: v.sortOrder,
         });
       } else if (this.data.row) {
         await this.api.update(this.data.row.id, {
           labelEn: v.labelEn,
-          labelAr: v.labelAr,
+          labelAr: labelMirror,
           sortOrder: v.sortOrder,
         });
       }

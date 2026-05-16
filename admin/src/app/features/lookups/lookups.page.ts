@@ -177,7 +177,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
               </span>
               <span class="type-body">
                 <span class="type-name">{{ labelFor(t.type).en }}</span>
-                <span class="type-name-ar">{{ labelFor(t.type).ar }}</span>
               </span>
               <span class="type-counts">
                 <span class="count-active">{{ t.active }}</span>
@@ -228,10 +227,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                   <ng-container matColumnDef="labelEn">
                     <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.en">English</th>
                     <td mat-cell *matCellDef="let r" class="label-en">{{ r.labelEn }}</td>
-                  </ng-container>
-                  <ng-container matColumnDef="labelAr">
-                    <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.ar">Arabic</th>
-                    <td mat-cell *matCellDef="let r" dir="rtl" class="label-ar">{{ r.labelAr }}</td>
                   </ng-container>
                   <ng-container matColumnDef="status">
                     <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.status">Status</th>
@@ -396,10 +391,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      .type-name-ar {
-        font-size: var(--text-xs);
-        color: var(--color-text-tertiary);
-      }
       .type-counts {
         display: inline-flex;
         flex-direction: column;
@@ -485,12 +476,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         color: var(--color-text-primary);
         letter-spacing: -0.005em;
       }
-      .label-ar {
-        font-size: var(--text-md);
-        font-weight: var(--font-weight-medium);
-        color: var(--color-text-primary);
-        line-height: 1.4;
-      }
       tr.mat-mdc-row {
         position: relative;
         block-size: 60px;
@@ -526,16 +511,16 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         padding-inline: var(--space-4);
       }
       .lookups-table .mat-column-key {
-        inline-size: 18%;
-      }
-      .lookups-table .mat-column-labelEn {
         inline-size: 22%;
       }
+      .lookups-table .mat-column-labelEn {
+        inline-size: 48%;
+      }
       .lookups-table .mat-column-status {
-        inline-size: 120px;
+        inline-size: 130px;
       }
       .lookups-table .mat-column-actions {
-        inline-size: 200px;
+        inline-size: 220px;
       }
       .lookups-table td.mat-mdc-cell.mat-column-actions {
         text-align: start;
@@ -630,7 +615,7 @@ export class LookupsPage implements OnInit {
   protected readonly loadingTypes = signal(true);
   protected readonly loadingRows = signal(false);
   protected readonly selectedType = signal<string | null>(null);
-  protected readonly displayedColumns = ['key', 'labelEn', 'labelAr', 'status', 'actions'];
+  protected readonly displayedColumns = ['key', 'labelEn', 'status', 'actions'];
 
   protected readonly heroStats = computed(() => {
     const t = this.types();

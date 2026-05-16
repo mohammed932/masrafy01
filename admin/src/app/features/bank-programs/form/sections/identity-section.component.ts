@@ -55,13 +55,6 @@ import {
           <input matInput formControlName="friendlyName" />
         </mat-form-field>
 
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@bank_programs.field.friendly_name_ar"
-            >Friendly name (Arabic)</mat-label
-          >
-          <input matInput formControlName="friendlyNameAr" dir="rtl" />
-        </mat-form-field>
-
         <app-brand-select
           formControlName="programType"
           [options]="programTypeOptions"

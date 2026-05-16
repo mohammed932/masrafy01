@@ -96,8 +96,6 @@ import type { BankProgramResponse } from '../bank-programs.types';
               <dd>{{ program()!.bankName }}</dd>
               <dt i18n="@@bank_programs.field.friendly_name">Friendly name</dt>
               <dd>{{ program()!.friendlyName }}</dd>
-              <dt i18n="@@bank_programs.field.friendly_name_ar">Arabic name</dt>
-              <dd dir="rtl">{{ program()!.friendlyNameAr ?? '—' }}</dd>
               <dt i18n="@@bank_programs.field.program_type">Type</dt>
               <dd>{{ program()!.programType }}</dd>
               <dt i18n="@@bank_programs.field.product_category">Category</dt>
