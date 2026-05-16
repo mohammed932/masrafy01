@@ -212,38 +212,49 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
               <app-skeleton-rows [rows]="4" [cols]="[3, 1, 1]" />
             } @else {
               <div class="table-wrap">
-                <p-table [value]="rows()" styleClass="lookups-table" [tableStyle]="{ 'table-layout': 'fixed' }">
+                <p-table
+                  [value]="rows()"
+                  styleClass="lookups-table"
+                  [tableStyle]="{ 'table-layout': 'fixed', 'inline-size': '100%' }"
+                >
+                  <ng-template pTemplate="colgroup">
+                    <colgroup>
+                      <col />
+                      <col style="width: 240px" />
+                    </colgroup>
+                  </ng-template>
                   <ng-template pTemplate="header">
                     <tr>
                       <th class="col-value" i18n="@@lookups.col.value">Value</th>
-                      <th class="col-status" i18n="@@lookups.col.status">Status</th>
                       <th class="col-manage" i18n="@@lookups.col.manage">Manage</th>
                     </tr>
                   </ng-template>
                   <ng-template pTemplate="body" let-r>
                     <tr class="lookup-row">
                       <td class="cell-value">
-                        <span class="value-label">
-                          {{ r.labelEn }}
-                          @if (r.systemOnly) {
-                            <mat-icon
-                              class="system-icon"
-                              pTooltip="System-managed — labels editable, key locked"
-                              i18n-pTooltip="@@lookups.systemTooltip"
-                              tooltipPosition="top"
-                              >lock</mat-icon
-                            >
-                          }
-                        </span>
-                        <app-key-chip class="value-key" [value]="r.key" />
+                        <div class="value-stack">
+                          <div class="value-head">
+                            <span class="value-label">
+                              {{ r.labelEn }}
+                              @if (r.systemOnly) {
+                                <mat-icon
+                                  class="system-icon"
+                                  pTooltip="System-managed — labels editable, key locked"
+                                  i18n-pTooltip="@@lookups.systemTooltip"
+                                  tooltipPosition="top"
+                                  >lock</mat-icon
+                                >
+                              }
+                            </span>
+                            <app-status-pill
+                              [label]="labelForStatus(r)"
+                              [tone]="toneForStatus(r)"
+                            />
+                          </div>
+                          <app-key-chip class="value-key" [value]="r.key" />
+                        </div>
                       </td>
-                      <td>
-                        <app-status-pill
-                          [label]="labelForStatus(r)"
-                          [tone]="toneForStatus(r)"
-                        />
-                      </td>
-                      <td class="actions">
+                      <td class="actions col-manage">
                         <p-toggleswitch
                           class="row-toggle"
                           [ngModel]="r.active && !r.deprecatedAt"
@@ -276,7 +287,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                   </ng-template>
                   <ng-template pTemplate="emptymessage">
                     <tr>
-                      <td colspan="3">
+                      <td colspan="2">
                         <p class="empty" i18n="@@lookups.empty">
                           No values yet. Click <strong>Add value</strong> to seed the first one.
                         </p>
@@ -467,10 +478,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         border-radius: var(--radius-lg);
         overflow: hidden;
       }
-      .lookups-table {
-        inline-size: 100%;
-        table-layout: fixed;
-      }
       .system-icon {
         font-size: 16px;
         inline-size: 16px;
@@ -483,8 +490,19 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         padding-block: var(--space-2);
         vertical-align: middle;
       }
-      .value-label {
+      .value-stack {
         display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .value-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+      .value-label {
+        display: inline-flex;
         align-items: center;
         gap: var(--space-2);
         font-size: var(--text-sm);
@@ -495,15 +513,18 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       .value-key {
         display: block;
-        margin-block-start: 4px;
       }
-      :host ::ng-deep .lookups-table {
+      :host ::ng-deep p-table.lookups-table .p-datatable {
         inline-size: 100%;
       }
-      :host ::ng-deep .lookups-table .p-datatable-thead > tr {
+      :host ::ng-deep p-table.lookups-table table {
+        inline-size: 100%;
+        border-collapse: collapse;
+      }
+      :host ::ng-deep p-table.lookups-table thead tr {
         block-size: 44px;
       }
-      :host ::ng-deep .lookups-table .p-datatable-thead > tr > th {
+      :host ::ng-deep p-table.lookups-table thead th {
         background: transparent;
         color: var(--color-text-tertiary);
         font-size: var(--text-xxs);
@@ -515,13 +536,18 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         border-block-end: 1px solid var(--color-border-default);
         text-align: start;
       }
-      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row {
+      :host ::ng-deep p-table.lookups-table thead th.col-manage,
+      :host ::ng-deep p-table.lookups-table tbody td.col-manage {
+        inline-size: 240px;
+        min-inline-size: 240px;
+      }
+      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row {
         position: relative;
         block-size: 68px;
         background: transparent;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row::before {
+      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row::before {
         content: '';
         position: absolute;
         inset-block: 0;
@@ -530,44 +556,29 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         background: transparent;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row:hover {
+      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row:hover {
         background: var(--color-surface-row-hover);
       }
-      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row:hover::before {
+      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row:hover::before {
         background: var(--color-tonal-accent);
       }
-      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row > td {
+      :host ::ng-deep p-table.lookups-table tbody td {
         padding-inline: var(--space-4);
-        padding-block: var(--space-2);
+        padding-block: var(--space-3);
         border-block-end: 1px solid var(--color-border-default);
         color: var(--color-text-primary);
         font-size: var(--text-sm);
         vertical-align: middle;
       }
-      :host
-        ::ng-deep
-        .lookups-table
-        .p-datatable-tbody
-        > tr.lookup-row:last-child
-        > td {
+      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row:last-child td {
         border-block-end: 0;
-      }
-      :host ::ng-deep .lookups-table th.col-status,
-      :host ::ng-deep .lookups-table td.col-status {
-        inline-size: 140px;
-      }
-      :host ::ng-deep .lookups-table th.col-manage {
-        inline-size: 220px;
-      }
-      :host ::ng-deep .lookups-table td.actions {
-        inline-size: 220px;
       }
       @media (prefers-reduced-motion: reduce) {
         .type-button,
         .type-button::before,
         .type-icon,
-        :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row,
-        :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row::before {
+        :host ::ng-deep p-table.lookups-table tbody tr.lookup-row,
+        :host ::ng-deep p-table.lookups-table tbody tr.lookup-row::before {
           transition: none;
         }
       }

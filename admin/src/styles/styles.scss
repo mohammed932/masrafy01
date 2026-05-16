@@ -366,6 +366,35 @@ th.mat-mdc-header-cell:last-of-type {
   text-align: end;
 }
 
+// ============================================================================
+// PrimeNG p-table base overrides — fight Aura defaults that center content
+// and round corners we don't want. Scoped to .lookups-table styleClass so
+// other p-tables (when added) opt in deliberately.
+// ============================================================================
+p-table.lookups-table .p-datatable,
+p-table.lookups-table .p-datatable-table-container,
+p-table.lookups-table table {
+  inline-size: 100%;
+  background: transparent;
+}
+p-table.lookups-table table {
+  border-collapse: collapse;
+}
+p-table.lookups-table thead,
+p-table.lookups-table tbody {
+  background: transparent;
+}
+p-table.lookups-table thead tr,
+p-table.lookups-table tbody tr {
+  background: transparent;
+}
+p-table.lookups-table thead th,
+p-table.lookups-table tbody td {
+  text-align: start !important;
+  background: transparent !important;
+  border: 0;
+}
+
 // Respect prefers-reduced-motion (promax checklist).
 @media (prefers-reduced-motion: reduce) {
   *,
