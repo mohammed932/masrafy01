@@ -206,27 +206,26 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
             </header>
 
             @if (loadingRows()) {
-              <app-skeleton-rows [rows]="4" [cols]="[1, 2, 2, 1, 1]" />
+              <app-skeleton-rows [rows]="4" [cols]="[3, 1, 1]" />
             } @else {
               <div class="table-wrap">
                 <table mat-table [dataSource]="rows()" class="lookups-table">
-                  <ng-container matColumnDef="key">
-                    <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.key">Key</th>
-                    <td mat-cell *matCellDef="let r">
-                      <app-key-chip [value]="r.key" />
-                      @if (r.systemOnly) {
-                        <mat-icon
-                          class="system-icon"
-                          matTooltip="System-managed — labels editable, key locked"
-                          i18n-matTooltip="@@lookups.systemTooltip"
-                          >lock</mat-icon
-                        >
-                      }
+                  <ng-container matColumnDef="value">
+                    <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.value">Value</th>
+                    <td mat-cell *matCellDef="let r" class="cell-value">
+                      <span class="value-label">
+                        {{ r.labelEn }}
+                        @if (r.systemOnly) {
+                          <mat-icon
+                            class="system-icon"
+                            matTooltip="System-managed — labels editable, key locked"
+                            i18n-matTooltip="@@lookups.systemTooltip"
+                            >lock</mat-icon
+                          >
+                        }
+                      </span>
+                      <app-key-chip class="value-key" [value]="r.key" />
                     </td>
-                  </ng-container>
-                  <ng-container matColumnDef="labelEn">
-                    <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.en">English</th>
-                    <td mat-cell *matCellDef="let r" class="label-en">{{ r.labelEn }}</td>
                   </ng-container>
                   <ng-container matColumnDef="status">
                     <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.status">Status</th>
@@ -470,15 +469,26 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         margin-inline-start: var(--space-2);
         vertical-align: middle;
       }
-      .label-en {
+      .cell-value {
+        padding-block: var(--space-2);
+      }
+      .value-label {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
         font-size: var(--text-sm);
-        font-weight: var(--font-weight-medium);
+        font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
         letter-spacing: -0.005em;
+        line-height: 1.3;
+      }
+      .value-key {
+        display: block;
+        margin-block-start: 4px;
       }
       tr.mat-mdc-row {
         position: relative;
-        block-size: 60px;
+        block-size: 72px;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
       tr.mat-mdc-row::before {
@@ -510,14 +520,11 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       th.mat-mdc-header-cell {
         padding-inline: var(--space-4);
       }
-      .lookups-table .mat-column-key {
-        inline-size: 22%;
-      }
-      .lookups-table .mat-column-labelEn {
-        inline-size: 48%;
+      .lookups-table .mat-column-value {
+        inline-size: auto;
       }
       .lookups-table .mat-column-status {
-        inline-size: 130px;
+        inline-size: 140px;
       }
       .lookups-table .mat-column-actions {
         inline-size: 220px;
@@ -615,7 +622,7 @@ export class LookupsPage implements OnInit {
   protected readonly loadingTypes = signal(true);
   protected readonly loadingRows = signal(false);
   protected readonly selectedType = signal<string | null>(null);
-  protected readonly displayedColumns = ['key', 'labelEn', 'status', 'actions'];
+  protected readonly displayedColumns = ['value', 'status', 'actions'];
 
   protected readonly heroStats = computed(() => {
     const t = this.types();
