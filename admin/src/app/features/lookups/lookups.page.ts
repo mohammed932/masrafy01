@@ -7,15 +7,15 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
-import { MatTableModule } from '@angular/material/table';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDialog } from '@angular/material/dialog';
+import { DialogService } from 'primeng/dynamicdialog';
+import { ButtonModule } from 'primeng/button';
+import { TableModule } from 'primeng/table';
+import { ToggleSwitchModule } from 'primeng/toggleswitch';
+import { TooltipModule } from 'primeng/tooltip';
 import {
   KeyChipComponent,
   PageHeaderComponent,
@@ -134,13 +134,13 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
   standalone: true,
   imports: [
     CommonModule,
-    MatButtonModule,
-    MatChipsModule,
+    FormsModule,
     MatIconModule,
     MatProgressBarModule,
-    MatSlideToggleModule,
-    MatTableModule,
-    MatTooltipModule,
+    ButtonModule,
+    TableModule,
+    ToggleSwitchModule,
+    TooltipModule,
     PageHeaderComponent,
     StatStripComponent,
     StatusPillComponent,
@@ -148,6 +148,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
     SkeletonRowsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [DialogService],
   template: `
     <section class="page">
       <app-page-header
@@ -199,82 +200,90 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                 <h2>{{ labelFor(t).en }}</h2>
                 <p class="muted">{{ labelFor(t).description }}</p>
               </div>
-              <button mat-flat-button color="primary" (click)="openCreate()">
-                <mat-icon>add</mat-icon>
-                <span i18n="@@lookups.addValue">Add value</span>
-              </button>
+              <p-button
+                i18n-label="@@lookups.addValue"
+                label="Add value"
+                icon="pi pi-plus"
+                (onClick)="openCreate()"
+              />
             </header>
 
             @if (loadingRows()) {
               <app-skeleton-rows [rows]="4" [cols]="[3, 1, 1]" />
             } @else {
               <div class="table-wrap">
-                <table mat-table [dataSource]="rows()" class="lookups-table">
-                  <ng-container matColumnDef="value">
-                    <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.value">Value</th>
-                    <td mat-cell *matCellDef="let r" class="cell-value">
-                      <span class="value-label">
-                        {{ r.labelEn }}
-                        @if (r.systemOnly) {
-                          <mat-icon
-                            class="system-icon"
-                            matTooltip="System-managed — labels editable, key locked"
-                            i18n-matTooltip="@@lookups.systemTooltip"
-                            >lock</mat-icon
-                          >
-                        }
-                      </span>
-                      <app-key-chip class="value-key" [value]="r.key" />
-                    </td>
-                  </ng-container>
-                  <ng-container matColumnDef="status">
-                    <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.status">Status</th>
-                    <td mat-cell *matCellDef="let r">
-                      <app-status-pill [label]="labelForStatus(r)" [tone]="toneForStatus(r)" />
-                    </td>
-                  </ng-container>
-                  <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.manage">Manage</th>
-                    <td mat-cell *matCellDef="let r" class="actions">
-                      <mat-slide-toggle
-                        class="row-toggle"
-                        [checked]="r.active && !r.deprecatedAt"
-                        [disabled]="!!r.deprecatedAt || r.systemOnly"
-                        (change)="toggleActive(r, $event.checked)"
-                        aria-label="Active toggle"
-                      />
-                      <span class="actions-divider" aria-hidden="true"></span>
-                      <button
-                        class="icon-action"
-                        type="button"
-                        (click)="openEdit(r)"
-                        aria-label="Edit"
-                        i18n-aria-label="@@lookups.editAria"
-                      >
-                        <mat-icon>edit</mat-icon>
-                      </button>
-                      <button
-                        class="icon-action danger"
-                        type="button"
-                        (click)="deprecate(r)"
-                        [disabled]="!!r.deprecatedAt || r.systemOnly"
-                        aria-label="Deprecate"
-                        i18n-aria-label="@@lookups.deprecateAria"
-                      >
-                        <mat-icon>do_not_disturb_on</mat-icon>
-                      </button>
-                    </td>
-                  </ng-container>
-
-                  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-                  <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-                </table>
-
-                @if (rows().length === 0) {
-                  <p class="empty" i18n="@@lookups.empty">
-                    No values yet. Click <strong>Add value</strong> to seed the first one.
-                  </p>
-                }
+                <p-table [value]="rows()" styleClass="lookups-table" [tableStyle]="{ 'table-layout': 'fixed' }">
+                  <ng-template pTemplate="header">
+                    <tr>
+                      <th class="col-value" i18n="@@lookups.col.value">Value</th>
+                      <th class="col-status" i18n="@@lookups.col.status">Status</th>
+                      <th class="col-manage" i18n="@@lookups.col.manage">Manage</th>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="body" let-r>
+                    <tr class="lookup-row">
+                      <td class="cell-value">
+                        <span class="value-label">
+                          {{ r.labelEn }}
+                          @if (r.systemOnly) {
+                            <mat-icon
+                              class="system-icon"
+                              pTooltip="System-managed — labels editable, key locked"
+                              i18n-pTooltip="@@lookups.systemTooltip"
+                              tooltipPosition="top"
+                              >lock</mat-icon
+                            >
+                          }
+                        </span>
+                        <app-key-chip class="value-key" [value]="r.key" />
+                      </td>
+                      <td>
+                        <app-status-pill
+                          [label]="labelForStatus(r)"
+                          [tone]="toneForStatus(r)"
+                        />
+                      </td>
+                      <td class="actions">
+                        <p-toggleswitch
+                          class="row-toggle"
+                          [ngModel]="r.active && !r.deprecatedAt"
+                          [disabled]="!!r.deprecatedAt || r.systemOnly"
+                          (onChange)="toggleActive(r, $event.checked)"
+                          ariaLabel="Active toggle"
+                        />
+                        <span class="actions-divider" aria-hidden="true"></span>
+                        <button
+                          class="icon-action"
+                          type="button"
+                          (click)="openEdit(r)"
+                          aria-label="Edit"
+                          i18n-aria-label="@@lookups.editAria"
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          class="icon-action danger"
+                          type="button"
+                          (click)="deprecate(r)"
+                          [disabled]="!!r.deprecatedAt || r.systemOnly"
+                          aria-label="Deprecate"
+                          i18n-aria-label="@@lookups.deprecateAria"
+                        >
+                          <mat-icon>do_not_disturb_on</mat-icon>
+                        </button>
+                      </td>
+                    </tr>
+                  </ng-template>
+                  <ng-template pTemplate="emptymessage">
+                    <tr>
+                      <td colspan="3">
+                        <p class="empty" i18n="@@lookups.empty">
+                          No values yet. Click <strong>Add value</strong> to seed the first one.
+                        </p>
+                      </td>
+                    </tr>
+                  </ng-template>
+                </p-table>
               </div>
             }
           </section>
@@ -488,12 +497,31 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         display: block;
         margin-block-start: 4px;
       }
-      tr.mat-mdc-row {
+      :host ::ng-deep .lookups-table {
+        inline-size: 100%;
+      }
+      :host ::ng-deep .lookups-table .p-datatable-thead > tr {
+        block-size: 44px;
+      }
+      :host ::ng-deep .lookups-table .p-datatable-thead > tr > th {
+        background: transparent;
+        color: var(--color-text-tertiary);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding-inline: var(--space-4);
+        padding-block: var(--space-2);
+        border-block-end: 1px solid var(--color-border-default);
+        text-align: start;
+      }
+      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row {
         position: relative;
         block-size: 68px;
+        background: transparent;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      tr.mat-mdc-row::before {
+      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row::before {
         content: '';
         position: absolute;
         inset-block: 0;
@@ -502,41 +530,44 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         background: transparent;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      tr.mat-mdc-row:hover {
+      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row:hover {
         background: var(--color-surface-row-hover);
       }
-      tr.mat-mdc-row:hover::before {
+      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row:hover::before {
         background: var(--color-tonal-accent);
       }
-      tr.mat-mdc-header-row {
-        block-size: 44px;
-      }
-      th.mat-mdc-header-cell {
-        font-size: var(--text-xxs);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--color-text-tertiary);
-        font-weight: var(--font-weight-bold);
-      }
-      td.mat-mdc-cell,
-      th.mat-mdc-header-cell {
+      :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row > td {
         padding-inline: var(--space-4);
+        padding-block: var(--space-2);
+        border-block-end: 1px solid var(--color-border-default);
+        color: var(--color-text-primary);
+        font-size: var(--text-sm);
+        vertical-align: middle;
       }
-      .lookups-table .mat-column-status {
+      :host
+        ::ng-deep
+        .lookups-table
+        .p-datatable-tbody
+        > tr.lookup-row:last-child
+        > td {
+        border-block-end: 0;
+      }
+      :host ::ng-deep .lookups-table th.col-status,
+      :host ::ng-deep .lookups-table td.col-status {
         inline-size: 140px;
       }
-      .lookups-table .mat-column-actions {
+      :host ::ng-deep .lookups-table th.col-manage {
         inline-size: 220px;
       }
-      .lookups-table td.mat-mdc-cell.mat-column-actions {
-        text-align: start;
+      :host ::ng-deep .lookups-table td.actions {
+        inline-size: 220px;
       }
       @media (prefers-reduced-motion: reduce) {
         .type-button,
         .type-button::before,
         .type-icon,
-        tr.mat-mdc-row,
-        tr.mat-mdc-row::before {
+        :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row,
+        :host ::ng-deep .lookups-table .p-datatable-tbody > tr.lookup-row::before {
           transition: none;
         }
       }
@@ -612,7 +643,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
 })
 export class LookupsPage implements OnInit {
   private readonly api = inject(LookupsApiService);
-  private readonly dialog = inject(MatDialog);
+  private readonly dialog = inject(DialogService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -621,7 +652,6 @@ export class LookupsPage implements OnInit {
   protected readonly loadingTypes = signal(true);
   protected readonly loadingRows = signal(false);
   protected readonly selectedType = signal<string | null>(null);
-  protected readonly displayedColumns = ['value', 'status', 'actions'];
 
   protected readonly heroStats = computed(() => {
     const t = this.types();
@@ -719,11 +749,15 @@ export class LookupsPage implements OnInit {
   private openDialog(data: EnumerationEditDialogData): void {
     const ref = this.dialog.open(EnumerationEditDialogComponent, {
       data,
-      panelClass: 'app-modal-panel',
-      backdropClass: 'app-modal-backdrop',
-      autoFocus: 'first-tabbable',
+      header: data.mode === 'create' ? 'Add value' : 'Edit value',
+      width: 'min(640px, calc(100vw - 48px))',
+      modal: true,
+      closable: true,
+      dismissableMask: true,
+      styleClass: 'app-modal-panel',
+      maskStyleClass: 'app-modal-backdrop',
     });
-    ref.afterClosed().subscribe((saved) => {
+    ref.onClose.subscribe((saved: boolean | undefined) => {
       if (saved) void this.reloadAfterMutation();
     });
   }

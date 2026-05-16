@@ -1,22 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogActions,
-  MatDialogContent,
-  MatDialogModule,
-  MatDialogRef,
-  MatDialogTitle,
-} from '@angular/material/dialog';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
-import {
-  LookupsApiService,
-  type EnumerationRow,
-} from '../lookups.api.service';
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { DynamicDialogConfig, DynamicDialogRef } from 'primeng/dynamicdialog';
+import { LookupsApiService, type EnumerationRow } from '../lookups.api.service';
 
 export interface EnumerationEditDialogData {
   mode: 'create' | 'edit';
@@ -30,47 +19,64 @@ export interface EnumerationEditDialogData {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatDialogModule,
-    MatDialogActions,
-    MatDialogContent,
-    MatDialogTitle,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
     MatIconModule,
+    ButtonModule,
+    InputTextModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>
-      @if (data.mode === 'create') {
-        <span i18n="@@lookups.dialog.titleCreate">Add new value</span>
-      } @else {
-        <span i18n="@@lookups.dialog.titleEdit">Edit value</span>
-      }
-      <span class="type-chip">{{ data.type }}</span>
-    </h2>
-    <mat-dialog-content>
+    <div class="dialog-body">
+      <h2 class="dialog-title">
+        @if (data.mode === 'create') {
+          <span i18n="@@lookups.dialog.titleCreate">Add new value</span>
+        } @else {
+          <span i18n="@@lookups.dialog.titleEdit">Edit value</span>
+        }
+        <span class="type-chip">{{ data.type }}</span>
+      </h2>
+
       <form [formGroup]="form" class="form">
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@lookups.field.key">Key (machine-readable)</mat-label>
-          <input matInput formControlName="key" [readonly]="data.mode === 'edit'" />
-          <mat-hint i18n="@@lookups.field.keyHint"
-            >letters, digits, underscore or hyphen only — used in API + database</mat-hint
+        <div class="field">
+          <label for="lk-key" class="field-label" i18n="@@lookups.field.key"
+            >Key (machine-readable)</label
           >
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@lookups.field.labelEn">Label</mat-label>
-          <input matInput formControlName="labelEn" maxlength="160" />
-        </mat-form-field>
-
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@lookups.field.sortOrder">Sort order</mat-label>
-          <input matInput type="number" formControlName="sortOrder" min="0" />
-          <mat-hint i18n="@@lookups.field.sortOrderHint"
-            >controls the order in dropdowns</mat-hint
+          <input
+            pInputText
+            id="lk-key"
+            formControlName="key"
+            [readonly]="data.mode === 'edit'"
+            class="w-full"
+          />
+          <small class="field-hint" i18n="@@lookups.field.keyHint"
+            >letters, digits, underscore or hyphen only — used in API + database</small
           >
-        </mat-form-field>
+        </div>
+
+        <div class="field">
+          <label for="lk-label" class="field-label" i18n="@@lookups.field.labelEn">Label</label>
+          <input
+            pInputText
+            id="lk-label"
+            formControlName="labelEn"
+            maxlength="160"
+            class="w-full"
+          />
+        </div>
+
+        <div class="field">
+          <label for="lk-sort" class="field-label" i18n="@@lookups.field.sortOrder">Sort order</label>
+          <input
+            pInputText
+            id="lk-sort"
+            type="number"
+            formControlName="sortOrder"
+            min="0"
+            class="w-full"
+          />
+          <small class="field-hint" i18n="@@lookups.field.sortOrderHint"
+            >controls the order in dropdowns</small
+          >
+        </div>
 
         @if (errorCode()) {
           <p class="error" role="alert">
@@ -79,34 +85,43 @@ export interface EnumerationEditDialogData {
           </p>
         }
       </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" (click)="cancel()" i18n="@@lookups.dialog.cancel">
-        Cancel
-      </button>
-      <button
-        mat-flat-button
-        color="primary"
-        type="button"
-        (click)="save()"
-        [disabled]="!form.valid || submitting()"
-        [attr.aria-busy]="submitting()"
-        i18n="@@lookups.dialog.save"
-      >
-        Save
-      </button>
-    </mat-dialog-actions>
+
+      <div class="dialog-actions">
+        <p-button
+          severity="secondary"
+          [text]="true"
+          (onClick)="cancel()"
+          i18n-label="@@lookups.dialog.cancel"
+          label="Cancel"
+        />
+        <p-button
+          (onClick)="save()"
+          [disabled]="!form.valid || submitting()"
+          [loading]="submitting()"
+          i18n-label="@@lookups.dialog.save"
+          label="Save"
+        />
+      </div>
+    </div>
   `,
   styles: [
     `
       :host {
         display: block;
-        inline-size: min(640px, calc(100vw - var(--space-6) * 2));
       }
-      h2 {
+      .dialog-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+      .dialog-title {
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
       }
       .type-chip {
         font-size: var(--text-xs);
@@ -121,21 +136,27 @@ export interface EnumerationEditDialogData {
       .form {
         display: flex;
         flex-direction: column;
-        gap: var(--space-3);
-        padding-block-end: var(--space-2);
+        gap: var(--space-4);
+        margin: 0;
       }
-      .row-2 {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--space-3);
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
       }
-      @media (max-width: 600px) {
-        .row-2 {
-          grid-template-columns: 1fr;
-        }
+      .field-label {
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-secondary);
+        letter-spacing: 0.02em;
       }
-      .rtl-field input {
-        text-align: end;
+      .field-hint {
+        font-size: var(--text-xxs);
+        color: var(--color-text-tertiary);
+        line-height: var(--line-height-base);
+      }
+      .w-full {
+        inline-size: 100%;
       }
       .error {
         background: var(--color-error-bg);
@@ -148,14 +169,21 @@ export interface EnumerationEditDialogData {
         align-items: center;
         font-size: var(--text-sm);
       }
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+        padding-block-start: var(--space-2);
+        border-block-start: 1px solid var(--color-border-default);
+      }
     `,
   ],
 })
 export class EnumerationEditDialogComponent {
   private readonly api = inject(LookupsApiService);
-  private readonly dialogRef =
-    inject<MatDialogRef<EnumerationEditDialogComponent, boolean>>(MatDialogRef);
-  protected readonly data = inject<EnumerationEditDialogData>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject(DynamicDialogRef);
+  private readonly dialogConfig = inject(DynamicDialogConfig);
+  protected readonly data: EnumerationEditDialogData = this.dialogConfig.data;
 
   protected readonly submitting = signal(false);
   protected readonly errorCode = signal<string | null>(null);

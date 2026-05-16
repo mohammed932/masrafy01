@@ -5,6 +5,8 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { Overlay } from '@angular/cdk/overlay';
 import { MAT_SELECT_SCROLL_STRATEGY } from '@angular/material/select';
 import { MAT_DIALOG_DEFAULT_OPTIONS, type MatDialogConfig } from '@angular/material/dialog';
+import { providePrimeNG } from 'primeng/config';
+import Aura from '@primeng/themes/aura';
 
 import { APP_ROUTES } from './app.routes';
 import { correlationIdInterceptor } from './core/interceptors/correlation-id.interceptor';
@@ -52,6 +54,18 @@ export const appConfig: ApplicationConfig = {
       ]),
     ),
     provideAnimationsAsync(),
+    providePrimeNG({
+      theme: {
+        preset: Aura,
+        options: {
+          darkModeSelector: '[data-theme="dark"]',
+          cssLayer: {
+            name: 'primeng',
+            order: 'tailwind-base, primeng, tailwind-utilities',
+          },
+        },
+      },
+    }),
     {
       provide: APP_INITIALIZER,
       useFactory: bootstrapAuth,
