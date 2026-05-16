@@ -227,11 +227,11 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                   </ng-container>
                   <ng-container matColumnDef="labelEn">
                     <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.en">English</th>
-                    <td mat-cell *matCellDef="let r">{{ r.labelEn }}</td>
+                    <td mat-cell *matCellDef="let r" class="label-en">{{ r.labelEn }}</td>
                   </ng-container>
                   <ng-container matColumnDef="labelAr">
                     <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.ar">Arabic</th>
-                    <td mat-cell *matCellDef="let r" dir="rtl" class="ar">{{ r.labelAr }}</td>
+                    <td mat-cell *matCellDef="let r" dir="rtl" class="label-ar">{{ r.labelAr }}</td>
                   </ng-container>
                   <ng-container matColumnDef="status">
                     <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.status">Status</th>
@@ -240,16 +240,18 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="actions">
-                    <th mat-header-cell *matHeaderCellDef></th>
+                    <th mat-header-cell *matHeaderCellDef i18n="@@lookups.col.manage">Manage</th>
                     <td mat-cell *matCellDef="let r" class="actions">
                       <mat-slide-toggle
+                        class="row-toggle"
                         [checked]="r.active && !r.deprecatedAt"
                         [disabled]="!!r.deprecatedAt || r.systemOnly"
                         (change)="toggleActive(r, $event.checked)"
                         aria-label="Active toggle"
                       />
+                      <span class="actions-divider" aria-hidden="true"></span>
                       <button
-                        mat-icon-button
+                        class="icon-action"
                         type="button"
                         (click)="openEdit(r)"
                         aria-label="Edit"
@@ -258,7 +260,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                         <mat-icon>edit</mat-icon>
                       </button>
                       <button
-                        mat-icon-button
+                        class="icon-action danger"
                         type="button"
                         (click)="deprecate(r)"
                         [disabled]="!!r.deprecatedAt || r.systemOnly"
@@ -477,37 +479,63 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         margin-inline-start: var(--space-2);
         vertical-align: middle;
       }
-      .ar {
+      .label-en {
         font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+        letter-spacing: -0.005em;
+      }
+      .label-ar {
+        font-size: var(--text-md);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-text-primary);
+        line-height: 1.4;
+      }
+      tr.mat-mdc-row {
+        position: relative;
+        block-size: 60px;
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      tr.mat-mdc-row::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        inline-size: 3px;
+        background: transparent;
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
       tr.mat-mdc-row:hover {
         background: var(--color-surface-row-hover);
       }
-      tr.mat-mdc-header-row {
-        block-size: 48px;
+      tr.mat-mdc-row:hover::before {
+        background: var(--color-tonal-accent);
       }
-      tr.mat-mdc-row {
-        block-size: 56px;
+      tr.mat-mdc-header-row {
+        block-size: 44px;
       }
       th.mat-mdc-header-cell {
-        font-size: var(--text-xs);
-        letter-spacing: 0.06em;
+        font-size: var(--text-xxs);
+        letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--color-text-tertiary);
-        font-weight: var(--font-weight-semibold);
+        font-weight: var(--font-weight-bold);
       }
       td.mat-mdc-cell,
       th.mat-mdc-header-cell {
         padding-inline: var(--space-4);
       }
       .lookups-table .mat-column-key {
-        inline-size: 24%;
+        inline-size: 18%;
+      }
+      .lookups-table .mat-column-labelEn {
+        inline-size: 22%;
       }
       .lookups-table .mat-column-status {
-        inline-size: 130px;
+        inline-size: 120px;
       }
       .lookups-table .mat-column-actions {
-        inline-size: 168px;
+        inline-size: 200px;
       }
       .lookups-table td.mat-mdc-cell.mat-column-actions {
         text-align: start;
@@ -515,15 +543,71 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       @media (prefers-reduced-motion: reduce) {
         .type-button,
         .type-button::before,
-        .type-icon {
+        .type-icon,
+        tr.mat-mdc-row,
+        tr.mat-mdc-row::before {
           transition: none;
         }
       }
       .actions {
         display: inline-flex;
         align-items: center;
-        gap: var(--space-1);
+        gap: var(--space-2);
         justify-content: flex-start;
+      }
+      .row-toggle {
+        flex-shrink: 0;
+      }
+      .actions-divider {
+        inline-size: 1px;
+        block-size: 20px;
+        background: var(--color-border-default);
+        margin-inline: 2px;
+      }
+      .icon-action {
+        appearance: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        inline-size: 32px;
+        block-size: 32px;
+        border-radius: var(--radius-md);
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--color-text-secondary);
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .icon-action mat-icon {
+        font-size: 18px;
+        inline-size: 18px;
+        block-size: 18px;
+      }
+      .icon-action:hover {
+        background: var(--color-surface-row-hover);
+        border-color: var(--color-border-default);
+        color: var(--color-text-primary);
+      }
+      .icon-action.danger:hover {
+        background: var(--color-error-bg);
+        border-color: var(--color-error-bg);
+        color: var(--color-error);
+      }
+      .icon-action:disabled {
+        color: var(--color-text-disabled);
+        cursor: not-allowed;
+      }
+      .icon-action:disabled:hover {
+        background: transparent;
+        border-color: transparent;
+        color: var(--color-text-disabled);
+      }
+      .icon-action:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
       .empty {
         padding: var(--space-7) var(--space-6);
