@@ -460,6 +460,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       .lookups-table {
         inline-size: 100%;
+        table-layout: fixed;
       }
       .system-icon {
         font-size: 16px;
@@ -471,16 +472,17 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       .cell-value {
         padding-block: var(--space-2);
+        vertical-align: middle;
       }
       .value-label {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         gap: var(--space-2);
         font-size: var(--text-sm);
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
         letter-spacing: -0.005em;
-        line-height: 1.3;
+        line-height: 1.2;
       }
       .value-key {
         display: block;
@@ -488,7 +490,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       tr.mat-mdc-row {
         position: relative;
-        block-size: 72px;
+        block-size: 68px;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
       tr.mat-mdc-row::before {
@@ -519,9 +521,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       td.mat-mdc-cell,
       th.mat-mdc-header-cell {
         padding-inline: var(--space-4);
-      }
-      .lookups-table .mat-column-value {
-        inline-size: auto;
       }
       .lookups-table .mat-column-status {
         inline-size: 140px;
