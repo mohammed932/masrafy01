@@ -17,13 +17,10 @@ import { TableModule } from 'primeng/table';
 import { ToggleSwitchModule } from 'primeng/toggleswitch';
 import { TooltipModule } from 'primeng/tooltip';
 import {
-  KeyChipComponent,
   PageHeaderComponent,
   SkeletonRowsComponent,
   StatStripComponent,
-  StatusPillComponent,
   type StatStripItem,
-  type StatusTone,
 } from '@shared/ui';
 import {
   LookupsApiService,
@@ -143,8 +140,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
     TooltipModule,
     PageHeaderComponent,
     StatStripComponent,
-    StatusPillComponent,
-    KeyChipComponent,
     SkeletonRowsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -232,27 +227,18 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                   <ng-template pTemplate="body" let-r>
                     <tr class="lookup-row">
                       <td class="cell-value">
-                        <div class="value-stack">
-                          <div class="value-head">
-                            <span class="value-label">
-                              {{ r.labelEn }}
-                              @if (r.systemOnly) {
-                                <mat-icon
-                                  class="system-icon"
-                                  pTooltip="System-managed — labels editable, key locked"
-                                  i18n-pTooltip="@@lookups.systemTooltip"
-                                  tooltipPosition="top"
-                                  >lock</mat-icon
-                                >
-                              }
-                            </span>
-                            <app-status-pill
-                              [label]="labelForStatus(r)"
-                              [tone]="toneForStatus(r)"
-                            />
-                          </div>
-                          <app-key-chip class="value-key" [value]="r.key" />
-                        </div>
+                        <span class="value-label">
+                          {{ r.labelEn }}
+                          @if (r.systemOnly) {
+                            <mat-icon
+                              class="system-icon"
+                              pTooltip="System-managed — labels editable, key locked"
+                              i18n-pTooltip="@@lookups.systemTooltip"
+                              tooltipPosition="top"
+                              >lock</mat-icon
+                            >
+                          }
+                        </span>
                       </td>
                       <td class="actions col-manage">
                         <p-toggleswitch
@@ -490,17 +476,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         padding-block: var(--space-2);
         vertical-align: middle;
       }
-      .value-stack {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-      }
-      .value-head {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        flex-wrap: wrap;
-      }
       .value-label {
         display: inline-flex;
         align-items: center;
@@ -510,9 +485,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         color: var(--color-text-primary);
         letter-spacing: -0.005em;
         line-height: 1.2;
-      }
-      .value-key {
-        display: block;
       }
       :host ::ng-deep p-table.lookups-table .p-datatable {
         inline-size: 100%;
@@ -543,7 +515,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       :host ::ng-deep p-table.lookups-table tbody tr.lookup-row {
         position: relative;
-        block-size: 68px;
+        block-size: 56px;
         background: transparent;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
@@ -686,18 +658,6 @@ export class LookupsPage implements OnInit {
       { label: $localize`:@@lookups.stat.deprecated:Deprecated`, value: s.deprecated, tone: 'muted' },
     ];
   });
-
-  protected toneForStatus(row: EnumerationRow): StatusTone {
-    if (row.deprecatedAt) return 'warning';
-    if (row.active) return 'success';
-    return 'neutral';
-  }
-
-  protected labelForStatus(row: EnumerationRow): string {
-    if (row.deprecatedAt) return $localize`:@@lookups.statusDeprecated:Deprecated`;
-    if (row.active) return $localize`:@@lookups.statusActive:Active`;
-    return $localize`:@@lookups.statusInactive:Inactive`;
-  }
 
   async ngOnInit(): Promise<void> {
     await this.reloadTypes();
