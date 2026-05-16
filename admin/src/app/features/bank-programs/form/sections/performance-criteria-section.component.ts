@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
+import { HistoryOutline } from '@ant-design/icons-angular/icons';
 
 @Component({
   selector: 'app-performance-criteria-section',
@@ -13,17 +14,18 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatCheckboxModule,
-    MatSlideToggleModule,
-    MatIconModule,
+    NzFormModule,
+    NzInputModule,
+    NzCheckboxModule,
+    NzSwitchModule,
+    NzIconModule,
   ],
+  providers: [provideNzIconsPatch([HistoryOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="section" [formGroup]="group" id="performance">
       <header class="section-header">
-        <mat-icon class="section-icon" aria-hidden="true">history</mat-icon>
+        <span class="section-icon" nz-icon nzType="history" nzTheme="outline" aria-hidden="true"></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.performance">
             Performance criteria
@@ -39,35 +41,67 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
         <span class="row-label" i18n="@@bank_programs.field.performance_include"
           >Include performance criteria for this program</span
         >
-        <mat-slide-toggle formControlName="include"></mat-slide-toggle>
+        <nz-switch formControlName="include"></nz-switch>
       </div>
 
       @if (includeOn) {
         <div class="grid">
-          <mat-form-field appearance="outline" class="numeric">
-            <mat-label i18n="@@bank_programs.field.required_mob_months"
-              >Required months-on-book</mat-label
+          <nz-form-item class="numeric">
+            <nz-form-label
+              [nzFor]="'requiredMOBMonths'"
+              i18n="@@bank_programs.field.required_mob_months"
+              >Required months-on-book</nz-form-label
             >
-            <input matInput type="number" formControlName="requiredMOBMonths" min="0" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="numeric">
-            <mat-label i18n="@@bank_programs.field.bkt1">BKT-1 no-hit window (months)</mat-label>
-            <input matInput type="number" formControlName="bkt1NoHitWithinMonths" min="0" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" class="numeric">
-            <mat-label i18n="@@bank_programs.field.bkt2">BKT-2 no-hit window (months)</mat-label>
-            <input matInput type="number" formControlName="bkt2NoHitWithinMonths" min="0" />
-          </mat-form-field>
+            <nz-form-control>
+              <input
+                nz-input
+                id="requiredMOBMonths"
+                type="number"
+                formControlName="requiredMOBMonths"
+                min="0"
+              />
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item class="numeric">
+            <nz-form-label [nzFor]="'bkt1NoHitWithinMonths'" i18n="@@bank_programs.field.bkt1"
+              >BKT-1 no-hit window (months)</nz-form-label
+            >
+            <nz-form-control>
+              <input
+                nz-input
+                id="bkt1NoHitWithinMonths"
+                type="number"
+                formControlName="bkt1NoHitWithinMonths"
+                min="0"
+              />
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item class="numeric">
+            <nz-form-label [nzFor]="'bkt2NoHitWithinMonths'" i18n="@@bank_programs.field.bkt2"
+              >BKT-2 no-hit window (months)</nz-form-label
+            >
+            <nz-form-control>
+              <input
+                nz-input
+                id="bkt2NoHitWithinMonths"
+                type="number"
+                formControlName="bkt2NoHitWithinMonths"
+                min="0"
+              />
+            </nz-form-control>
+          </nz-form-item>
           <div class="full-row">
-            <mat-checkbox
+            <label
+              nz-checkbox
               formControlName="iScoreMOBPerformanceCheck"
               i18n="@@bank_programs.field.iscore_check"
-              >Gate on I-Score MOB</mat-checkbox
+              >Gate on I-Score MOB</label
             >
-            <mat-checkbox
+            <label
+              nz-checkbox
               formControlName="requireCurrentLoanStatus"
               i18n="@@bank_programs.field.require_current_loan"
-              >Require currently-active loan</mat-checkbox
+              >Require currently-active loan</label
             >
           </div>
         </div>

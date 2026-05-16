@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, Input } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { FileTextOutline } from '@ant-design/icons-angular/icons';
 import { PlatformEnumerationsService } from '../../../../core/platform-enumerations/platform-enumerations.service';
 import {
   BrandSelectComponent,
@@ -16,16 +17,17 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
+    NzFormModule,
+    NzInputModule,
+    NzIconModule,
     BrandSelectComponent,
   ],
+  providers: [provideNzIconsPatch([FileTextOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="section" [formGroup]="group" id="documents">
       <header class="section-header">
-        <mat-icon class="section-icon" aria-hidden="true">description</mat-icon>
+        <span class="section-icon" nz-icon nzType="file-text" nzTheme="outline" aria-hidden="true"></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.documents">Documents & notes</h3>
           <p class="section-sub" i18n="@@bank_programs.section.documents_sub">
@@ -46,16 +48,21 @@ import {
           label="Required documents"
         ></app-brand-select>
 
-        <mat-form-field appearance="outline" class="span-2">
-          <mat-label i18n="@@bank_programs.field.operator_notes">Operator notes</mat-label>
-          <textarea
-            matInput
-            formControlName="operatorNotes"
-            rows="3"
-            maxlength="4000"
-            placeholder="Internal — visible to staff only"
-          ></textarea>
-        </mat-form-field>
+        <nz-form-item class="span-2">
+          <nz-form-label [nzFor]="'operatorNotes'" i18n="@@bank_programs.field.operator_notes"
+            >Operator notes</nz-form-label
+          >
+          <nz-form-control>
+            <textarea
+              nz-input
+              id="operatorNotes"
+              formControlName="operatorNotes"
+              rows="3"
+              maxlength="4000"
+              placeholder="Internal — visible to staff only"
+            ></textarea>
+          </nz-form-control>
+        </nz-form-item>
       </div>
     </section>
   `,

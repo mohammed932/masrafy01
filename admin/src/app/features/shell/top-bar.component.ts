@@ -1,16 +1,18 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { SunOutline, MoonOutline, DownOutline } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { ThemeService } from '@core/theme/theme.service';
 
 @Component({
   selector: 'app-top-bar',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatButtonModule, MatIconModule, MatMenuModule],
+  imports: [CommonModule, RouterLink, NzButtonModule, NzIconModule, NzDropDownModule],
+  providers: [provideNzIconsPatch([SunOutline, MoonOutline, DownOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="top-bar" role="banner">
@@ -36,11 +38,17 @@ import { ThemeService } from '@core/theme/theme.service';
             [attr.aria-label]="themeAriaLabel(theme.current())"
             [attr.aria-pressed]="theme.current() === 'dark'"
           >
-            <mat-icon aria-hidden="true">{{ theme.current() === 'dark' ? 'light_mode' : 'dark_mode' }}</mat-icon>
+            <span
+              nz-icon
+              [nzType]="theme.current() === 'dark' ? 'sun' : 'moon'"
+              nzTheme="outline"
+              aria-hidden="true"
+            ></span>
           </button>
         <button
           type="button"
-          [matMenuTriggerFor]="userMenu"
+          nz-dropdown
+          [nzDropdownMenu]="userMenu"
           class="user-trigger"
           [attr.aria-label]="userAriaLabel(user.name, user.role)"
         >
@@ -51,17 +59,21 @@ import { ThemeService } from '@core/theme/theme.service';
           <span class="user-name" [attr.title]="user.name">{{ firstName(user.name) }}</span>
           <span class="user-divider" aria-hidden="true"></span>
           <span class="role-chip" [attr.data-role]="user.role">{{ roleLabel(user.role) }}</span>
-          <mat-icon class="chevron" aria-hidden="true">expand_more</mat-icon>
+          <span nz-icon nzType="down" nzTheme="outline" class="chevron" aria-hidden="true"></span>
         </button>
         </div>
-        <mat-menu #userMenu="matMenu">
-          <a mat-menu-item routerLink="/auth/self-password" i18n="@@topBar.changePassword">
-            Change password
-          </a>
-          <button mat-menu-item type="button" (click)="logout()" i18n="@@topBar.signOut">
-            Sign out
-          </button>
-        </mat-menu>
+        <nz-dropdown-menu #userMenu="nzDropdownMenu">
+          <ul nz-menu>
+            <li nz-menu-item>
+              <a routerLink="/auth/self-password" i18n="@@topBar.changePassword">
+                Change password
+              </a>
+            </li>
+            <li nz-menu-item (click)="logout()" i18n="@@topBar.signOut">
+              Sign out
+            </li>
+          </ul>
+        </nz-dropdown-menu>
       }
     </header>
   `,
@@ -141,10 +153,8 @@ import { ThemeService } from '@core/theme/theme.service';
         outline: 2px solid rgba(255, 255, 255, 0.6);
         outline-offset: 2px;
       }
-      .theme-toggle mat-icon {
+      .theme-toggle [nz-icon] {
         font-size: 20px;
-        inline-size: 20px;
-        block-size: 20px;
       }
       // Premium glass pill — backdrop blur, gradient stroke, smooth states
       .user-trigger {
@@ -277,8 +287,6 @@ import { ThemeService } from '@core/theme/theme.service';
       }
       .chevron {
         font-size: 16px;
-        width: 16px;
-        height: 16px;
         opacity: 0.55;
         flex-shrink: 0;
         transition: opacity var(--motion-duration-fast) var(--motion-easing-standard);

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatChipsModule } from '@angular/material/chips';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 
 export type LeadFilter =
   | 'needs_first_contact'
@@ -25,115 +25,119 @@ export interface LeadFilterCounts {
 @Component({
   selector: 'app-lead-filter-chips',
   standalone: true,
-  imports: [CommonModule, MatChipsModule],
+  imports: [CommonModule, NzTagModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <mat-chip-set role="listbox" [attr.aria-label]="ariaLabel">
-      <mat-chip
-        [class.selected]="selected() === 'needs_first_contact'"
-        (click)="toggle('needs_first_contact')"
-        (keyup.enter)="toggle('needs_first_contact')"
+    <div role="listbox" class="chip-set" [attr.aria-label]="ariaLabel">
+      <nz-tag
+        nzMode="checkable"
+        [nzChecked]="selected() === 'needs_first_contact'"
+        (nzCheckedChange)="toggle('needs_first_contact')"
         role="option"
         [attr.aria-selected]="selected() === 'needs_first_contact'"
         tabindex="0"
+        (keyup.enter)="toggle('needs_first_contact')"
       >
         <span i18n="@@apps.lead.filter.needsFirstContact">Needs first contact</span>
         <span class="count">· {{ counts()?.needs_first_contact ?? 0 }}</span>
-      </mat-chip>
-      <mat-chip
-        [class.selected]="selected() === 'stale'"
-        (click)="toggle('stale')"
-        (keyup.enter)="toggle('stale')"
+      </nz-tag>
+      <nz-tag
+        nzMode="checkable"
+        [nzChecked]="selected() === 'stale'"
+        (nzCheckedChange)="toggle('stale')"
         role="option"
         [attr.aria-selected]="selected() === 'stale'"
         tabindex="0"
+        (keyup.enter)="toggle('stale')"
       >
         <span i18n="@@apps.lead.filter.stale">Stale</span>
         <span class="count">· {{ counts()?.stale ?? 0 }}</span>
-      </mat-chip>
-      <mat-chip
-        [class.selected]="selected() === 'recent'"
-        (click)="toggle('recent')"
-        (keyup.enter)="toggle('recent')"
+      </nz-tag>
+      <nz-tag
+        nzMode="checkable"
+        [nzChecked]="selected() === 'recent'"
+        (nzCheckedChange)="toggle('recent')"
         role="option"
         [attr.aria-selected]="selected() === 'recent'"
         tabindex="0"
+        (keyup.enter)="toggle('recent')"
       >
         <span i18n="@@apps.lead.filter.recent">Recently contacted</span>
         <span class="count">· {{ counts()?.recent ?? 0 }}</span>
-      </mat-chip>
-      <mat-chip
-        [class.selected]="selected() === 'followup_today'"
-        (click)="toggle('followup_today')"
-        (keyup.enter)="toggle('followup_today')"
+      </nz-tag>
+      <nz-tag
+        nzMode="checkable"
+        [nzChecked]="selected() === 'followup_today'"
+        (nzCheckedChange)="toggle('followup_today')"
         role="option"
         [attr.aria-selected]="selected() === 'followup_today'"
         tabindex="0"
+        (keyup.enter)="toggle('followup_today')"
       >
         <span i18n="@@apps.lead.filter.followupToday">Follow-up today</span>
         <span class="count">· {{ counts()?.followup_today ?? 0 }}</span>
-      </mat-chip>
-      <mat-chip
-        [class.selected]="selected() === 'docs_in_progress'"
-        (click)="toggle('docs_in_progress')"
-        (keyup.enter)="toggle('docs_in_progress')"
+      </nz-tag>
+      <nz-tag
+        nzMode="checkable"
+        [nzChecked]="selected() === 'docs_in_progress'"
+        (nzCheckedChange)="toggle('docs_in_progress')"
         role="option"
         [attr.aria-selected]="selected() === 'docs_in_progress'"
         tabindex="0"
+        (keyup.enter)="toggle('docs_in_progress')"
       >
         <span i18n="@@apps.lead.filter.docsInProgress">Document collection</span>
         <span class="count">· {{ counts()?.docs_in_progress ?? 0 }}</span>
-      </mat-chip>
-      <mat-chip
-        [class.selected]="selected() === 'ready_for_submission'"
-        (click)="toggle('ready_for_submission')"
-        (keyup.enter)="toggle('ready_for_submission')"
+      </nz-tag>
+      <nz-tag
+        nzMode="checkable"
+        [nzChecked]="selected() === 'ready_for_submission'"
+        (nzCheckedChange)="toggle('ready_for_submission')"
         role="option"
         [attr.aria-selected]="selected() === 'ready_for_submission'"
         tabindex="0"
+        (keyup.enter)="toggle('ready_for_submission')"
       >
         <span i18n="@@apps.lead.filter.readyForBank">Ready for bank</span>
         <span class="count">· {{ counts()?.ready_for_submission ?? 0 }}</span>
-      </mat-chip>
-      <mat-chip
-        [class.selected]="selected() === 'submitted_to_bank'"
-        (click)="toggle('submitted_to_bank')"
-        (keyup.enter)="toggle('submitted_to_bank')"
+      </nz-tag>
+      <nz-tag
+        nzMode="checkable"
+        [nzChecked]="selected() === 'submitted_to_bank'"
+        (nzCheckedChange)="toggle('submitted_to_bank')"
         role="option"
         [attr.aria-selected]="selected() === 'submitted_to_bank'"
         tabindex="0"
+        (keyup.enter)="toggle('submitted_to_bank')"
       >
         <span i18n="@@apps.lead.filter.submittedToBank">Submitted to bank</span>
         <span class="count">· {{ counts()?.submitted_to_bank ?? 0 }}</span>
-      </mat-chip>
-    </mat-chip-set>
+      </nz-tag>
+    </div>
   `,
   styles: [
     `
       :host {
         display: block;
       }
-      mat-chip {
+      .chip-set {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+      nz-tag {
         cursor: pointer;
         transition:
           background-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
           color 120ms cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      mat-chip.selected {
-        background: var(--color-tonal-accent-bg);
-        color: var(--color-tonal-accent);
-        font-weight: var(--font-weight-semibold);
       }
       .count {
         margin-inline-start: 4px;
         font-variant-numeric: tabular-nums lining-nums;
         color: var(--color-text-tertiary);
       }
-      mat-chip.selected .count {
-        color: inherit;
-      }
       @media (prefers-reduced-motion: reduce) {
-        mat-chip {
+        nz-tag {
           transition: none;
         }
       }

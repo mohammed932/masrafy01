@@ -2,9 +2,10 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { ClockCircleOutline } from '@ant-design/icons-angular/icons';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApplicationsApiService } from '../applications/api/applications.api.service';
@@ -20,16 +21,17 @@ interface ReminderRow {
 @Component({
   selector: 'app-reminders-widget',
   standalone: true,
-  imports: [CommonModule, DatePipe, MatButtonModule, MatIconModule, MatProgressBarModule],
+  imports: [CommonModule, DatePipe, NzButtonModule, NzIconModule, NzSpinModule],
+  providers: [provideNzIconsPatch([ClockCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="widget">
       <header class="header">
-        <mat-icon aria-hidden="true">alarm</mat-icon>
+        <span nz-icon nzType="clock-circle" nzTheme="outline" aria-hidden="true"></span>
         <h2 i18n="@@reminders.heading">Reminders due today</h2>
       </header>
       @if (loading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <nz-spin nzSimple />
       } @else if (rows().length === 0) {
         <p class="empty" i18n="@@reminders.empty">No pending follow-ups in the next 24 hours.</p>
       } @else {
@@ -50,7 +52,7 @@ interface ReminderRow {
               </button>
               <div class="row-actions">
                 <button
-                  mat-stroked-button
+                  nz-button
                   type="button"
                   (click)="markCompleted(r)"
                   [attr.aria-label]="completeLabel"
@@ -59,7 +61,7 @@ interface ReminderRow {
                   Completed
                 </button>
                 <button
-                  mat-stroked-button
+                  nz-button
                   type="button"
                   (click)="snooze(r)"
                   [attr.aria-label]="snoozeLabel"

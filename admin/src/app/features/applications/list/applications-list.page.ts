@@ -8,9 +8,10 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MatTableModule } from '@angular/material/table';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { RightOutline } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
   SkeletonRowsComponent,
@@ -41,9 +42,9 @@ import {
   imports: [
     CommonModule,
     RouterLink,
-    MatTableModule,
-    MatIconModule,
-    MatProgressBarModule,
+    NzTableModule,
+    NzIconModule,
+    NzButtonModule,
     ApprovalPillComponent,
     TierFilterChipsComponent,
     LeadFilterChipsComponent,
@@ -52,6 +53,7 @@ import {
     StatusPillComponent,
     SkeletonRowsComponent,
   ],
+  providers: [provideNzIconsPatch([RightOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
@@ -84,73 +86,63 @@ import {
         </div>
       } @else {
         <div class="table-wrap">
-          <table mat-table [dataSource]="rows()" class="applications-table">
-            <ng-container matColumnDef="probability">
-              <th mat-header-cell *matHeaderCellDef i18n="@@applications.col.probability">
-                Probability
-              </th>
-              <td mat-cell *matCellDef="let row">
-                <app-approval-pill [bestOffer]="row.bestOffer" />
-              </td>
-            </ng-container>
-
-            <ng-container matColumnDef="purpose">
-              <th mat-header-cell *matHeaderCellDef i18n="@@applications.col.purpose">
-                Loan purpose
-              </th>
-              <td mat-cell *matCellDef="let row">{{ row.loanPurpose }}</td>
-            </ng-container>
-
-            <ng-container matColumnDef="amount">
-              <th mat-header-cell *matHeaderCellDef i18n="@@applications.col.amount">Amount</th>
-              <td mat-cell *matCellDef="let row" class="numeric">
-                {{ row.requestedAmountEGP }} {{ row.requestedCurrency }}
-              </td>
-            </ng-container>
-
-            <ng-container matColumnDef="status">
-              <th mat-header-cell *matHeaderCellDef i18n="@@applications.col.status">Status</th>
-              <td mat-cell *matCellDef="let row">
-                <app-status-pill
-                  [label]="statusLabel(row.status)"
-                  [tone]="statusTone(row.status)"
-                />
-              </td>
-            </ng-container>
-
-            <ng-container matColumnDef="created">
-              <th mat-header-cell *matHeaderCellDef i18n="@@applications.col.created">Created</th>
-              <td mat-cell *matCellDef="let row" class="muted">
-                {{ row.createdAt | date: 'short' }}
-              </td>
-            </ng-container>
-
-            <ng-container matColumnDef="actions">
-              <th mat-header-cell *matHeaderCellDef></th>
-              <td mat-cell *matCellDef="let row">
-                <a
-                  mat-icon-button
-                  [routerLink]="['/applications', row.id]"
+          <nz-table
+            #t
+            [nzData]="rowsArray()"
+            [nzShowPagination]="false"
+            [nzFrontPagination]="false"
+            class="applications-table"
+            nzSize="middle"
+          >
+            <thead>
+              <tr>
+                <th i18n="@@applications.col.probability">Probability</th>
+                <th i18n="@@applications.col.purpose">Loan purpose</th>
+                <th i18n="@@applications.col.amount">Amount</th>
+                <th i18n="@@applications.col.status">Status</th>
+                <th i18n="@@applications.col.created">Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of t.data; track row.id) {
+                <tr
+                  class="applications-row"
+                  tabindex="0"
+                  role="link"
                   [attr.aria-label]="detailAriaLabel(row.id)"
+                  (click)="openDetail(row.id)"
+                  (keydown.enter)="openDetail(row.id)"
+                  (keydown.space)="openDetail(row.id, $event)"
                 >
-                  <mat-icon>chevron_right</mat-icon>
-                </a>
-              </td>
-            </ng-container>
-
-            <tr mat-header-row *matHeaderRowDef="displayed"></tr>
-            <tr
-              mat-row
-              *matRowDef="let row; columns: displayed"
-              class="applications-row"
-              tabindex="0"
-              role="link"
-              [attr.aria-label]="detailAriaLabel(row.id)"
-              (click)="openDetail(row.id)"
-              (keydown.enter)="openDetail(row.id)"
-              (keydown.space)="openDetail(row.id, $event)"
-            ></tr>
-          </table>
+                  <td>
+                    <app-approval-pill [bestOffer]="row.bestOffer" />
+                  </td>
+                  <td>{{ row.loanPurpose }}</td>
+                  <td class="numeric">{{ row.requestedAmountEGP }} {{ row.requestedCurrency }}</td>
+                  <td>
+                    <app-status-pill
+                      [label]="statusLabel(row.status)"
+                      [tone]="statusTone(row.status)"
+                    />
+                  </td>
+                  <td class="muted">{{ row.createdAt | date: 'short' }}</td>
+                  <td>
+                    <a
+                      nz-button
+                      nzType="text"
+                      nzShape="circle"
+                      [routerLink]="['/applications', row.id]"
+                      [attr.aria-label]="detailAriaLabel(row.id)"
+                      (click)="$event.stopPropagation()"
+                    >
+                      <span nz-icon nzType="right" nzTheme="outline"></span>
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </nz-table>
         </div>
       }
     </section>
@@ -253,18 +245,15 @@ export class ApplicationsListPage implements OnInit {
     ];
   });
 
-  protected readonly displayed = [
-    'probability',
-    'purpose',
-    'amount',
-    'status',
-    'created',
-    'actions',
-  ];
   protected readonly rows = signal<readonly AdminApplicationRow[]>([]);
   protected readonly loading = signal(false);
   protected readonly selectedTier = signal<TierFilter>(null);
   protected readonly selectedLeadFilter = signal<LeadFilter>(null);
+
+  protected rowsArray(): AdminApplicationRow[] {
+    return [...this.rows()];
+  }
+
   protected readonly leadCounts = computed<LeadFilterCounts>(() => {
     const r = this.rows();
     return {

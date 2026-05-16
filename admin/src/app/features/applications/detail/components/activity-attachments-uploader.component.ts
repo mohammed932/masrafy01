@@ -7,11 +7,17 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import {
+  PaperClipOutline,
+  CheckCircleOutline,
+  CloseCircleOutline,
+  CloseOutline,
+} from '@ant-design/icons-angular/icons';
 import {
   ApplicationsApiService,
   type PresignedUploadResponse,
@@ -64,10 +70,13 @@ const SOURCE_OPTIONS = [
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatSelectModule,
+    NzButtonModule,
+    NzFormModule,
+    NzIconModule,
+    NzSelectModule,
+  ],
+  providers: [
+    provideNzIconsPatch([PaperClipOutline, CheckCircleOutline, CloseCircleOutline, CloseOutline]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -88,7 +97,8 @@ const SOURCE_OPTIONS = [
           class="visually-hidden"
         />
         <button
-          mat-stroked-button
+          nz-button
+          nzType="default"
           type="button"
           (click)="fileInput.click()"
           i18n="@@activity.upload.browse"
@@ -104,33 +114,31 @@ const SOURCE_OPTIONS = [
         <ul class="file-list">
           @for (entry of files(); track entry.file.name + entry.file.size) {
             <li class="file-row">
-              <mat-icon class="file-icon">attach_file</mat-icon>
+              <span nz-icon nzType="paper-clip" nzTheme="outline" class="file-icon"></span>
               <div class="file-info">
                 <span class="file-name">{{ entry.file.name }}</span>
                 <span class="file-size">{{ formatSize(entry.file.size) }}</span>
               </div>
-              <mat-form-field appearance="outline" class="field-type">
-                <mat-label i18n="@@activity.upload.docType">Document type</mat-label>
-                <mat-select
-                  [value]="entry.documentType"
-                  (selectionChange)="setDocType(entry, $event.value)"
-                >
-                  @for (t of docTypes; track t) {
-                    <mat-option [value]="t">{{ t }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-              <mat-form-field appearance="outline" class="field-source">
-                <mat-label i18n="@@activity.upload.source">Source</mat-label>
-                <mat-select
-                  [value]="entry.uploadedBySource"
-                  (selectionChange)="setSource(entry, $event.value)"
-                >
-                  @for (s of sources; track s) {
-                    <mat-option [value]="s">{{ s }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
+              <nz-select
+                class="field-type"
+                [ngModel]="entry.documentType"
+                (ngModelChange)="setDocType(entry, $event)"
+                [nzPlaceHolder]="docTypeLabel"
+              >
+                @for (t of docTypes; track t) {
+                  <nz-option [nzValue]="t" [nzLabel]="t"></nz-option>
+                }
+              </nz-select>
+              <nz-select
+                class="field-source"
+                [ngModel]="entry.uploadedBySource"
+                (ngModelChange)="setSource(entry, $event)"
+                [nzPlaceHolder]="sourceLabel"
+              >
+                @for (s of sources; track s) {
+                  <nz-option [nzValue]="s" [nzLabel]="s"></nz-option>
+                }
+              </nz-select>
               <span class="status" [attr.data-status]="entry.status">
                 @switch (entry.status) {
                   @case ('pending') {
@@ -140,20 +148,22 @@ const SOURCE_OPTIONS = [
                     <span i18n="@@activity.upload.uploading">Uploading…</span>
                   }
                   @case ('done') {
-                    <mat-icon class="ok">check_circle</mat-icon>
+                    <span nz-icon nzType="check-circle" nzTheme="outline" class="ok"></span>
                   }
                   @case ('error') {
-                    <mat-icon class="err">error</mat-icon>
+                    <span nz-icon nzType="close-circle" nzTheme="outline" class="err"></span>
                   }
                 }
               </span>
               <button
-                mat-icon-button
+                nz-button
+                nzType="text"
+                nzShape="circle"
                 type="button"
                 (click)="remove(entry)"
                 [attr.aria-label]="removeLabel"
               >
-                <mat-icon>close</mat-icon>
+                <span nz-icon nzType="close" nzTheme="outline"></span>
               </button>
             </li>
           }
@@ -242,10 +252,10 @@ const SOURCE_OPTIONS = [
         display: inline-flex;
         align-items: center;
       }
-      .status mat-icon.ok {
+      .status .ok {
         color: var(--color-success);
       }
-      .status mat-icon.err {
+      .status .err {
         color: var(--color-error);
       }
     `,
@@ -265,6 +275,8 @@ export class ActivityAttachmentsUploaderComponent {
   protected readonly sources = [...SOURCE_OPTIONS];
   protected readonly acceptList = 'image/jpeg,image/png,image/heic,application/pdf';
   protected readonly removeLabel = $localize`:@@activity.upload.remove:Remove file`;
+  protected readonly docTypeLabel = $localize`:@@activity.upload.docType:Document type`;
+  protected readonly sourceLabel = $localize`:@@activity.upload.source:Source`;
 
   setApplicationId(id: string): void {
     this.applicationId = id;

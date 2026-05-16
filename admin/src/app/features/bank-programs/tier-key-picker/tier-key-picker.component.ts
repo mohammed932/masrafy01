@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatSelectModule } from '@angular/material/select';
-import { MatIconModule } from '@angular/material/icon';
+import { FormsModule } from '@angular/forms';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { DisconnectOutline } from '@ant-design/icons-angular/icons';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
 import type { EnumerationType } from '../../../core/platform-enumerations/platform-enumerations.types';
 
@@ -17,25 +19,29 @@ import type { EnumerationType } from '../../../core/platform-enumerations/platfo
 @Component({
   selector: 'app-tier-key-picker',
   standalone: true,
-  imports: [CommonModule, MatFormFieldModule, MatSelectModule, MatIconModule],
+  imports: [CommonModule, FormsModule, NzFormModule, NzSelectModule, NzIconModule],
+  providers: [provideNzIconsPatch([DisconnectOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (!enums.unavailable()) {
-      <mat-form-field appearance="outline">
-        <mat-label>{{ label() }}</mat-label>
-        <mat-select
-          [value]="value()"
-          (selectionChange)="emit($event.value)"
-          [multiple]="multiple()"
-        >
-          @for (m of members(); track m.key) {
-            <mat-option [value]="m.key">{{ m.labelEn }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      <nz-form-item>
+        <nz-form-label>{{ label() }}</nz-form-label>
+        <nz-form-control>
+          <nz-select
+            [nzMode]="multiple() ? 'multiple' : 'default'"
+            [ngModel]="value()"
+            (ngModelChange)="emit($event)"
+            name="tierKey"
+          >
+            @for (m of members(); track m.key) {
+              <nz-option [nzValue]="m.key" [nzLabel]="m.labelEn"></nz-option>
+            }
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
     } @else {
       <div class="unavailable">
-        <mat-icon aria-hidden="true">cloud_off</mat-icon>
+        <span nz-icon nzType="disconnect" nzTheme="outline" aria-hidden="true"></span>
         <span i18n="@@bank_programs.form.enums_unavailable"
           >Enumerations unavailable, retry shortly.</span
         >

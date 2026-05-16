@@ -1,13 +1,18 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import {
+  WarningOutline,
+  CloseCircleOutline,
+} from '@ant-design/icons-angular/icons';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 
@@ -22,20 +27,22 @@ export interface DeleteProgramDialogData {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
+    NzFormModule,
+    NzInputModule,
+    NzButtonModule,
+    NzIconModule,
+    NzSpinModule,
   ],
+  providers: [provideNzIconsPatch([WarningOutline, CloseCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>
-      <mat-icon class="warn-icon" aria-hidden="true">warning_amber</mat-icon>
-      <span i18n="@@bank_programs.delete.title">Permanently delete this program?</span>
-    </h2>
-    <mat-dialog-content>
+    <header class="dialog-header">
+      <h2 class="dialog-title">
+        <span class="warn-icon" nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+        <span i18n="@@bank_programs.delete.title">Permanently delete this program?</span>
+      </h2>
+    </header>
+    <div class="dialog-body">
       <p i18n="@@bank_programs.delete.body">
         This action cannot be undone. Existing bank offers referencing this program will block
         deletion; in that case, deactivate the program instead.
@@ -46,27 +53,31 @@ export interface DeleteProgramDialogData {
       </p>
 
       <ng-container *ngIf="offerCount() === null">
-        <mat-form-field appearance="outline" class="full">
-          <mat-label i18n="@@bank_programs.delete.confirm_label"
-            >Type the program code to confirm</mat-label
+        <nz-form-item class="full">
+          <nz-form-label [nzFor]="'confirmCode'" i18n="@@bank_programs.delete.confirm_label"
+            >Type the program code to confirm</nz-form-label
           >
-          <input matInput [formControl]="confirmCtrl" />
-          <mat-hint i18n="@@bank_programs.delete.confirm_hint">Must match exactly.</mat-hint>
-        </mat-form-field>
+          <nz-form-control [nzExtra]="confirmHint">
+            <input nz-input id="confirmCode" [formControl]="confirmCtrl" />
+            <ng-template #confirmHint>
+              <span i18n="@@bank_programs.delete.confirm_hint">Must match exactly.</span>
+            </ng-template>
+          </nz-form-control>
+        </nz-form-item>
       </ng-container>
 
       <ng-container *ngIf="offerCount() !== null">
         <p class="has-offers">
-          <mat-icon aria-hidden="true">block</mat-icon>
+          <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.delete.has_offers">
             This program has {{ offerCount() }} referencing offers. Deactivate it instead.
           </span>
         </p>
       </ng-container>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
+    </div>
+    <footer class="dialog-footer">
       <button
-        mat-stroked-button
+        nz-button
         type="button"
         (click)="cancel()"
         [disabled]="busy()"
@@ -76,20 +87,40 @@ export interface DeleteProgramDialogData {
       </button>
       <button
         *ngIf="offerCount() === null"
-        mat-flat-button
-        color="warn"
+        nz-button
+        nzType="primary"
+        nzDanger
         type="button"
         (click)="submit()"
         [disabled]="confirmCtrl.value !== data.programCode || busy()"
+        [nzLoading]="busy()"
       >
-        <mat-spinner *ngIf="busy()" diameter="16"></mat-spinner>
         <span *ngIf="!busy()" i18n="@@bank_programs.delete.cta">Delete program</span>
         <span *ngIf="busy()" i18n="@@bank_programs.delete.deleting">Deleting…</span>
       </button>
-    </mat-dialog-actions>
+    </footer>
   `,
   styles: [
     `
+      .dialog-header {
+        padding: var(--space-4) var(--space-4) 0;
+      }
+      .dialog-title {
+        font-size: var(--text-lg);
+        font-weight: var(--font-weight-semibold);
+        margin: 0;
+        color: var(--color-text-primary);
+      }
+      .dialog-body {
+        padding: var(--space-3) var(--space-4) var(--space-4);
+      }
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        border-top: 1px solid var(--color-border-default);
+      }
       .warn-icon {
         color: var(--color-warning);
         margin-inline-end: var(--space-2);
@@ -123,11 +154,12 @@ export interface DeleteProgramDialogData {
   ],
 })
 export class DeleteProgramDialog {
-  private readonly dialogRef = inject(MatDialogRef<DeleteProgramDialog, boolean>);
+  private readonly dialogRef = inject(NzModalRef<DeleteProgramDialog, boolean>);
   private readonly api = inject(BankProgramsApiService);
-  private readonly snack = inject(MatSnackBar);
+  private readonly message = inject(NzMessageService);
+  private readonly notification = inject(NzNotificationService);
   private readonly errors = inject(ErrorCodeService);
-  readonly data = inject<DeleteProgramDialogData>(MAT_DIALOG_DATA);
+  readonly data = inject<DeleteProgramDialogData>(NZ_MODAL_DATA);
 
   readonly confirmCtrl = new FormControl('', {
     nonNullable: true,
@@ -146,11 +178,9 @@ export class DeleteProgramDialog {
     this.busy.set(true);
     try {
       await this.api.delete(this.data.programCode, this.data.programCode);
-      this.snack.open(
-        $localize`:@@bank_programs.delete.success:Program deleted.`,
-        $localize`:@@bank_programs.form.dismiss:Dismiss`,
-        { duration: 4000 },
-      );
+      this.message.success($localize`:@@bank_programs.delete.success:Program deleted.`, {
+        nzDuration: 4000,
+      });
       this.dialogRef.close(true);
     } catch (err: unknown) {
       const envelope = (err as { error?: { code?: string; meta?: { offerCount?: number } } }).error;
@@ -160,13 +190,12 @@ export class DeleteProgramDialog {
       ) {
         this.offerCount.set(envelope.meta.offerCount);
       } else {
-        this.snack.open(
+        this.notification.error(
+          $localize`:@@bank_programs.form.dismiss:Dismiss`,
           this.errors.toLocalizedMessage(
             (envelope?.code ?? 'INTERNAL_ERROR') as never,
             envelope?.meta,
           ),
-          $localize`:@@bank_programs.form.dismiss:Dismiss`,
-          { duration: 6000 },
         );
       }
     } finally {

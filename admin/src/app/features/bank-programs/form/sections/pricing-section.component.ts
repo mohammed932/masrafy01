@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, Input, OnInit } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
+import { RiseOutline } from '@ant-design/icons-angular/icons';
 
 @Component({
   selector: 'app-pricing-section',
@@ -12,16 +13,17 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatIconModule,
-    MatSlideToggleModule,
+    NzFormModule,
+    NzInputModule,
+    NzIconModule,
+    NzSwitchModule,
   ],
+  providers: [provideNzIconsPatch([RiseOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="section" [formGroup]="group" id="pricing">
       <header class="section-header">
-        <mat-icon class="section-icon" aria-hidden="true">trending_up</mat-icon>
+        <span class="section-icon" nz-icon nzType="rise" nzTheme="outline" aria-hidden="true"></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.pricing">Pricing</h3>
           <p class="section-sub" i18n="@@bank_programs.section.pricing_sub">
@@ -33,54 +35,73 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
       <div class="grid">
         <div class="full-row">
-          <mat-slide-toggle
-            formControlName="isVariableRate"
-            i18n="@@bank_programs.field.is_variable_rate"
-          >
-            Variable rate (CBE-linked, quarterly reset)
-          </mat-slide-toggle>
+          <label>
+            <nz-switch formControlName="isVariableRate"></nz-switch>
+            <span i18n="@@bank_programs.field.is_variable_rate">
+              Variable rate (CBE-linked, quarterly reset)
+            </span>
+          </label>
         </div>
 
         @if (!isVariable) {
-          <mat-form-field appearance="outline" class="numeric">
-            <mat-label i18n="@@bank_programs.field.base_rate">Base rate %</mat-label>
-            <input
-              matInput
-              formControlName="baseRatePercent"
-              inputmode="decimal"
-              placeholder="24.0000"
-            />
-            <mat-hint i18n="@@bank_programs.hint.precision_7_4"
-              >Up to 4 decimals (e.g., 26.5500).</mat-hint
+          <nz-form-item class="numeric">
+            <nz-form-label [nzFor]="'baseRatePercent'" i18n="@@bank_programs.field.base_rate"
+              >Base rate %</nz-form-label
             >
-          </mat-form-field>
+            <nz-form-control [nzExtra]="baseRateHint">
+              <input
+                nz-input
+                id="baseRatePercent"
+                formControlName="baseRatePercent"
+                inputmode="decimal"
+                placeholder="24.0000"
+              />
+              <ng-template #baseRateHint>
+                <span i18n="@@bank_programs.hint.precision_7_4"
+                  >Up to 4 decimals (e.g., 26.5500).</span
+                >
+              </ng-template>
+            </nz-form-control>
+          </nz-form-item>
         } @else {
-          <mat-form-field appearance="outline" class="numeric">
-            <mat-label i18n="@@bank_programs.field.current_effective_rate"
-              >Current effective rate %</mat-label
+          <nz-form-item class="numeric">
+            <nz-form-label
+              [nzFor]="'currentEffectiveRatePercent'"
+              i18n="@@bank_programs.field.current_effective_rate"
+              >Current effective rate %</nz-form-label
             >
-            <input
-              matInput
-              formControlName="currentEffectiveRatePercent"
-              inputmode="decimal"
-              placeholder="26.5500"
-            />
-            <mat-hint i18n="@@bank_programs.hint.var_rate_required">
-              Required when "Variable rate" is on. Snapshots onto each offer at match time.
-            </mat-hint>
-          </mat-form-field>
+            <nz-form-control [nzExtra]="effectiveHint">
+              <input
+                nz-input
+                id="currentEffectiveRatePercent"
+                formControlName="currentEffectiveRatePercent"
+                inputmode="decimal"
+                placeholder="26.5500"
+              />
+              <ng-template #effectiveHint>
+                <span i18n="@@bank_programs.hint.var_rate_required">
+                  Required when "Variable rate" is on. Snapshots onto each offer at match time.
+                </span>
+              </ng-template>
+            </nz-form-control>
+          </nz-form-item>
 
-          <mat-form-field appearance="outline" class="span-2">
-            <mat-label i18n="@@bank_programs.field.variable_rate_note"
-              >Variable-rate disclosure note</mat-label
+          <nz-form-item class="span-2">
+            <nz-form-label
+              [nzFor]="'variableRateNote'"
+              i18n="@@bank_programs.field.variable_rate_note"
+              >Variable-rate disclosure note</nz-form-label
             >
-            <textarea
-              matInput
-              formControlName="variableRateNote"
-              rows="2"
-              placeholder="CBE policy rate + 3%, reviewed quarterly"
-            ></textarea>
-          </mat-form-field>
+            <nz-form-control>
+              <textarea
+                nz-input
+                id="variableRateNote"
+                formControlName="variableRateNote"
+                rows="2"
+                placeholder="CBE policy rate + 3%, reviewed quarterly"
+              ></textarea>
+            </nz-form-control>
+          </nz-form-item>
         }
       </div>
     </section>

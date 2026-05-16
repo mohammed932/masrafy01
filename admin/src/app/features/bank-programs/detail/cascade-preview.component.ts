@@ -1,7 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import {
+  RiseOutline,
+  InfoCircleOutline,
+  CheckCircleOutline,
+  MinusOutline,
+} from '@ant-design/icons-angular/icons';
 import type { BankProgramResponse, DerivationChain, RateBandValue } from '../bank-programs.types';
 
 /**
@@ -51,12 +57,15 @@ const PRICING_ORDER = [
 @Component({
   selector: 'app-cascade-preview',
   standalone: true,
-  imports: [CommonModule, MatIconModule, MatTooltipModule],
+  imports: [CommonModule, NzIconModule, NzToolTipModule],
+  providers: [
+    provideNzIconsPatch([RiseOutline, InfoCircleOutline, CheckCircleOutline, MinusOutline]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="cascade">
       <header>
-        <mat-icon class="header-icon" aria-hidden="true">trending_up</mat-icon>
+        <span nz-icon nzType="rise" nzTheme="outline" class="header-icon" aria-hidden="true"></span>
         <h3 i18n="@@bank_programs.cascade.title">Rate cascade</h3>
       </header>
 
@@ -72,17 +81,22 @@ const PRICING_ORDER = [
       <div
         *ngIf="result().derivation as d"
         class="derivation-chip"
-        [matTooltip]="derivationTooltip(d)"
+        nz-tooltip
+        [nzTooltipTitle]="derivationTooltip(d)"
       >
-        <mat-icon aria-hidden="true">info</mat-icon>
+        <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
         <span>{{ d.sourceRatePercent }}% + {{ d.deltaPercent }}% — {{ d.reason }}</span>
       </div>
 
       <ol class="trace">
         <li *ngFor="let step of result().trace" [class.matched]="step.matched">
-          <mat-icon class="trace-icon" aria-hidden="true">
-            {{ step.matched ? 'check_circle' : 'remove' }}
-          </mat-icon>
+          <span
+            nz-icon
+            [nzType]="step.matched ? 'check-circle' : 'minus'"
+            nzTheme="outline"
+            class="trace-icon"
+            aria-hidden="true"
+          ></span>
           <span class="trace-level">{{ step.level }}</span>
           <span class="trace-value numeric" *ngIf="step.value">{{ step.value }}%</span>
           <span class="trace-reason" *ngIf="step.reason">{{ step.reason }}</span>
@@ -172,8 +186,6 @@ const PRICING_ORDER = [
       }
       .trace-icon {
         font-size: 14px;
-        width: 14px;
-        height: 14px;
       }
       .trace li.matched .trace-icon {
         color: var(--color-tonal-accent);

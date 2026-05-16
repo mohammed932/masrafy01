@@ -3,10 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { AuthService } from '@core/auth/auth.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode, ErrorEnvelope } from '@core/auth/auth.types';
@@ -22,10 +22,10 @@ interface LoginControls {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
+    NzButtonModule,
+    NzFormModule,
+    NzInputModule,
+    NzSpinModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -34,51 +34,60 @@ interface LoginControls {
         <h1 [id]="titleId" class="brand-mark" i18n="@@login.title">Masrafy</h1>
         <p class="subtitle" i18n="@@login.subtitle">Sign in to the admin dashboard.</p>
 
-        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@login.email">Email</mat-label>
-            <input
-              matInput
-              type="email"
-              autocomplete="email"
-              formControlName="email"
-              [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
-            />
-            @if (form.controls.email.touched && form.controls.email.errors?.['required']) {
-              <mat-error i18n="@@login.email.required">Email is required.</mat-error>
-            }
-            @if (form.controls.email.touched && form.controls.email.errors?.['email']) {
-              <mat-error i18n="@@login.email.invalid">Email format is invalid.</mat-error>
-            }
-          </mat-form-field>
+        <form nz-form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <nz-form-item class="field">
+            <nz-form-label [nzFor]="'email'" nzRequired i18n="@@login.email">Email</nz-form-label>
+            <nz-form-control [nzErrorTip]="emailErrTpl">
+              <input
+                nz-input
+                id="email"
+                type="email"
+                autocomplete="email"
+                formControlName="email"
+                [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
+              />
+              <ng-template #emailErrTpl let-control>
+                @if (control.errors?.['required']) {
+                  <span i18n="@@login.email.required">Email is required.</span>
+                } @else if (control.errors?.['email']) {
+                  <span i18n="@@login.email.invalid">Email format is invalid.</span>
+                }
+              </ng-template>
+            </nz-form-control>
+          </nz-form-item>
 
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@login.password">Password</mat-label>
-            <input
-              matInput
-              type="password"
-              autocomplete="current-password"
-              formControlName="password"
-            />
-            @if (form.controls.password.touched && form.controls.password.errors?.['required']) {
-              <mat-error i18n="@@login.password.required">Password is required.</mat-error>
-            }
-          </mat-form-field>
+          <nz-form-item class="field">
+            <nz-form-label [nzFor]="'password'" nzRequired i18n="@@login.password">Password</nz-form-label>
+            <nz-form-control [nzErrorTip]="passwordErrTpl">
+              <input
+                nz-input
+                id="password"
+                type="password"
+                autocomplete="current-password"
+                formControlName="password"
+              />
+              <ng-template #passwordErrTpl let-control>
+                @if (control.errors?.['required']) {
+                  <span i18n="@@login.password.required">Password is required.</span>
+                }
+              </ng-template>
+            </nz-form-control>
+          </nz-form-item>
 
           @if (errorMessage(); as msg) {
             <div role="alert" aria-live="polite" class="alert">{{ msg }}</div>
           }
 
           <button
-            mat-flat-button
-            color="primary"
+            nz-button
+            nzType="primary"
             type="submit"
             [disabled]="form.invalid || submitting()"
             [attr.aria-busy]="submitting()"
             class="submit"
           >
             @if (submitting()) {
-              <mat-progress-spinner mode="indeterminate" diameter="20" />
+              <nz-spin nzSimple [nzSize]="'small'" />
             } @else {
               <span i18n="@@login.submit">Sign in</span>
             }

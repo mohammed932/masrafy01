@@ -1,41 +1,43 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTableModule } from '@angular/material/table';
+import { NzTableModule } from 'ng-zorro-antd/table';
 import type { AgentActivitySummaryRow } from '../lead-analytics.api.service';
 
 @Component({
   selector: 'app-agent-activity-table',
   standalone: true,
-  imports: [CommonModule, MatTableModule],
+  imports: [CommonModule, NzTableModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="table-wrap">
-      <table mat-table [dataSource]="rows()">
-        <ng-container matColumnDef="agent">
-          <th mat-header-cell *matHeaderCellDef i18n="@@leadAnalytics.col.agent">Agent</th>
-          <td mat-cell *matCellDef="let row">{{ row.agentAlias }}</td>
-        </ng-container>
-        <ng-container matColumnDef="type">
-          <th mat-header-cell *matHeaderCellDef i18n="@@leadAnalytics.col.type">Activity type</th>
-          <td mat-cell *matCellDef="let row">{{ formatType(row.activityType) }}</td>
-        </ng-container>
-        <ng-container matColumnDef="count">
-          <th mat-header-cell *matHeaderCellDef class="numeric" i18n="@@leadAnalytics.col.count">
-            Count
-          </th>
-          <td mat-cell *matCellDef="let row" class="numeric">{{ row.count }}</td>
-        </ng-container>
-        <ng-container matColumnDef="duration">
-          <th mat-header-cell *matHeaderCellDef class="numeric" i18n="@@leadAnalytics.col.duration">
-            Total duration (min)
-          </th>
-          <td mat-cell *matCellDef="let row" class="numeric">
-            {{ row.totalDurationMinutes !== null ? row.totalDurationMinutes : '—' }}
-          </td>
-        </ng-container>
-        <tr mat-header-row *matHeaderRowDef="displayed"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayed"></tr>
-      </table>
+      <nz-table
+        #t
+        [nzData]="rowsArray()"
+        [nzShowPagination]="false"
+        [nzFrontPagination]="false"
+        nzSize="middle"
+      >
+        <thead>
+          <tr>
+            <th i18n="@@leadAnalytics.col.agent">Agent</th>
+            <th i18n="@@leadAnalytics.col.type">Activity type</th>
+            <th class="numeric" i18n="@@leadAnalytics.col.count">Count</th>
+            <th class="numeric" i18n="@@leadAnalytics.col.duration">Total duration (min)</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of t.data; track row.agentAlias + '|' + row.activityType) {
+            <tr>
+              <td>{{ row.agentAlias }}</td>
+              <td>{{ formatType(row.activityType) }}</td>
+              <td class="numeric">{{ row.count }}</td>
+              <td class="numeric">
+                {{ row.totalDurationMinutes !== null ? row.totalDurationMinutes : '—' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </nz-table>
       @if (rows().length === 0) {
         <p class="empty" i18n="@@leadAnalytics.empty">No activity recorded in this window.</p>
       }
@@ -52,9 +54,6 @@ import type { AgentActivitySummaryRow } from '../lead-analytics.api.service';
         border-radius: var(--radius-lg);
         overflow: hidden;
       }
-      table {
-        inline-size: 100%;
-      }
       .numeric {
         font-variant-numeric: tabular-nums lining-nums;
         text-align: end;
@@ -70,7 +69,10 @@ import type { AgentActivitySummaryRow } from '../lead-analytics.api.service';
 })
 export class AgentActivityTableComponent {
   readonly rows = input.required<readonly AgentActivitySummaryRow[]>();
-  protected readonly displayed = ['agent', 'type', 'count', 'duration'];
+
+  protected rowsArray(): AgentActivitySummaryRow[] {
+    return [...this.rows()];
+  }
 
   formatType(t: string): string {
     return t

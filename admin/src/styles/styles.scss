@@ -1,122 +1,8 @@
 @use './tokens';
-@use './material-theme';
 
-// --- CDK Overlay structural CSS (Angular CDK 18) ---------------------------
-// Inlined verbatim from `@angular/cdk/overlay-prebuilt.css` because the
-// angular.json `styles[]` include does not always take effect at runtime,
-// leaving MatDialog overlays as inline-flow elements at the bottom-left of
-// <body>. Keep these rules at the top of the cascade so nothing overrides
-// `.cdk-overlay-container { position: fixed }` (the centering anchor).
-.cdk-overlay-container,
-.cdk-global-overlay-wrapper {
-  pointer-events: none;
-  top: 0;
-  left: 0;
-  height: 100%;
-  width: 100%;
-}
-.cdk-overlay-container {
-  position: fixed;
-  z-index: 1000;
-}
-.cdk-overlay-container:empty {
-  display: none;
-}
-.cdk-global-overlay-wrapper {
-  display: flex;
-  position: absolute;
-  z-index: 1000;
-}
-.cdk-overlay-pane {
-  position: absolute;
-  pointer-events: auto;
-  box-sizing: border-box;
-  z-index: 1000;
-  display: flex;
-  max-width: 100%;
-  max-height: 100%;
-}
-.cdk-overlay-backdrop {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  pointer-events: auto;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-  transition: opacity 400ms cubic-bezier(0.25, 0.8, 0.25, 1);
-  opacity: 0;
-}
-.cdk-overlay-backdrop.cdk-overlay-backdrop-showing {
-  opacity: 1;
-}
-.cdk-high-contrast-active .cdk-overlay-backdrop.cdk-overlay-backdrop-showing {
-  opacity: 0.6;
-}
-.cdk-overlay-dark-backdrop {
-  background: rgba(0, 0, 0, 0.32);
-}
-.cdk-overlay-transparent-backdrop {
-  transition:
-    visibility 1ms linear,
-    opacity 1ms linear;
-  visibility: hidden;
-  opacity: 1;
-}
-.cdk-overlay-transparent-backdrop.cdk-overlay-backdrop-showing {
-  opacity: 0;
-  visibility: visible;
-}
-.cdk-overlay-backdrop-noop-animation {
-  transition: none;
-}
-.cdk-overlay-connected-position-bounding-box {
-  position: absolute;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  min-width: 1px;
-  min-height: 1px;
-}
-.cdk-global-scrollblock {
-  position: fixed;
-  width: 100%;
-  overflow-y: scroll;
-}
-
-// --- Global modal surface --------------------------------------------------
-// Applied to every MatDialog through MAT_DIALOG_DEFAULT_OPTIONS in app.config.ts.
-// All dialogs get a centered, branded panel + tinted blurred backdrop without
-// per-call-site configuration.
-.app-modal-backdrop {
-  background: rgba(6, 21, 45, 0.48);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-}
-
-.app-modal-panel {
-  max-inline-size: min(720px, calc(100vw - var(--space-6) * 2));
-  inline-size: 100%;
-
-  .mat-mdc-dialog-container,
-  .mat-mdc-dialog-surface,
-  .mdc-dialog__surface {
-    border-radius: var(--radius-lg, 12px);
-    background: var(--color-surface-default);
-    box-shadow:
-      0 24px 64px -16px rgba(6, 21, 45, 0.32),
-      0 4px 12px -4px rgba(6, 21, 45, 0.12);
-    overflow: hidden;
-    padding: 0;
-  }
-  // Let the dialog content grow up to ~75vh and scroll if larger.
-  .mat-mdc-dialog-content {
-    max-block-size: 70vh;
-    padding-block: var(--space-3);
-    padding-inline: var(--space-4);
-  }
-}
+// ============================================================================
+// Global body + base
+// ============================================================================
 
 html,
 body {
@@ -134,32 +20,26 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-// Tabular numerals everywhere numbers carry meaning (counts, money — future).
 .numeric,
 [data-numeric] {
   font-variant-numeric: tabular-nums lining-nums;
   font-feature-settings: var(--font-feature-tabular);
 }
 
-// Focus ring (WCAG 2.2 AA — promax pre-delivery checklist).
 *:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--radius-sm);
 }
 
-// Direction-aware utility.
 [dir='rtl'] {
   text-align: start;
 }
 
-// Inline-start accent bar — applied to "locked" step cards (forced-change).
 .locked-step {
   border-inline-start: 4px solid var(--color-border-locked-step);
 }
 
-// Default link styling sourced from the tonal accent, never the primary
-// brand (banking restraint — primary stays reserved for top-bar + primary CTAs).
 a {
   color: var(--color-text-link);
   text-decoration: none;
@@ -170,137 +50,45 @@ a:hover {
   text-decoration: underline;
 }
 
-// (Side-drawer rules removed — feature 002 now uses route-level form pages instead of drawer dialogs.)
+// ============================================================================
+// NG-ZORRO global polish
+// ============================================================================
 
-// =====================================================================
-// Mat-select panel — MINIMAL token alignment only.
-// CDK structural CSS owns positioning + z-index (loaded via angular.json).
-// We touch only color/typography on the OPTIONS, never the pane/panel
-// container — touching those breaks FlexibleConnectedPositionStrategy.
-// =====================================================================
-
-// Option row — brand-tinted hover + selected (touches text/bg only, not layout)
-.mat-mdc-option {
-  font-family: var(--font-family-base);
-  font-size: var(--text-sm);
-
-  &:hover:not(.mdc-list-item--disabled):not(.mdc-list-item--selected) {
-    background: color-mix(in srgb, var(--color-tonal-accent) 6%, transparent) !important;
-  }
-
-  &.mdc-list-item--selected {
-    background: color-mix(in srgb, var(--color-tonal-accent) 10%, transparent) !important;
-    .mdc-list-item__primary-text {
-      color: var(--color-brand-primary);
-      font-weight: var(--font-weight-semibold);
-    }
-  }
-}
-
-// Multi-select pseudo-checkbox — brand-tinted
-.mat-mdc-option .mat-pseudo-checkbox-checked {
-  --mat-minimal-pseudo-checkbox-selected-checkmark-color: var(--color-tonal-accent);
-}
-
-// Trigger dropdown caret — tonal accent, rotates on open
-.mat-mdc-select-arrow {
-  color: var(--color-tonal-accent) !important;
-  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
-}
-.mat-mdc-select[aria-expanded='true'] .mat-mdc-select-arrow {
-  transform: rotate(180deg);
-}
-
-// Material form-field polish — refined hint typography, brand-tinted focus ring,
-// tighter vertical rhythm. Global because Material renders some bits outside Angular
-// view encapsulation.
-.mat-mdc-form-field {
-  --mdc-outlined-text-field-outline-color: var(--color-border-default);
-  --mdc-outlined-text-field-hover-outline-color: var(--color-border-strong);
-  --mdc-outlined-text-field-focus-outline-color: var(--color-brand-primary);
-  --mdc-outlined-text-field-label-text-color: var(--color-text-secondary);
-  --mdc-outlined-text-field-focus-label-text-color: var(--color-brand-primary);
-  --mdc-outlined-text-field-input-text-color: var(--color-text-primary);
-  --mdc-outlined-text-field-caret-color: var(--color-brand-primary);
-}
-// Hint typography — smaller, tertiary color, breathing space
-.mat-mdc-form-field-hint {
-  font-size: 12px !important;
-  color: var(--color-text-tertiary) !important;
-  letter-spacing: 0 !important;
-}
-.mat-mdc-form-field-subscript-wrapper {
-  padding-block-start: 4px;
-}
-// Focus ring micro-animation: outline thickens smoothly from 1 → 2px
-.mat-mdc-form-field .mdc-notched-outline > * {
-  transition: border-color var(--motion-duration-fast) var(--motion-easing-standard) !important;
-}
-// Reduced-motion guard
-@media (prefers-reduced-motion: reduce) {
-  .mat-mdc-form-field .mdc-notched-outline > * {
-    transition: none !important;
-  }
-}
-
-// Material `mat-option` rich content — title + description on two lines.
-// Material renders the dropdown panel outside Angular component encapsulation,
-// so these rules live globally.
-.mat-mdc-option.role-option {
-  height: auto !important;
-  min-height: 60px;
-  padding-block: var(--space-2);
-  align-items: flex-start;
-}
-.mat-mdc-option.role-option .mdc-list-item__primary-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 100%;
-  white-space: normal;
-}
-.role-option .opt-title {
-  display: block;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  font-size: var(--text-sm);
-  line-height: 1.2;
-}
-.role-option .opt-desc {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-  line-height: var(--line-height-base);
-  white-space: normal;
-}
-
-// --- App modal (MatDialog) — centered, branded surface ---------------------
-// Applied via dialog.open({ panelClass: 'app-modal-panel', backdropClass: 'app-modal-backdrop' })
-.app-modal-backdrop {
-  background: rgba(6, 21, 45, 0.48);
+.ant-modal-mask {
+  background: rgba(6, 21, 45, 0.48) !important;
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
 }
 
-.app-modal-panel {
-  .mat-mdc-dialog-container,
-  .mat-mdc-dialog-surface,
-  .mdc-dialog__surface {
-    border-radius: var(--radius-lg, 12px);
-    background: var(--color-surface-default);
-    box-shadow:
-      0 24px 64px -16px rgba(6, 21, 45, 0.32),
-      0 4px 12px -4px rgba(6, 21, 45, 0.12);
-    overflow: hidden;
-    padding: 0;
-  }
+.ant-modal-content {
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 24px 64px -16px rgba(6, 21, 45, 0.32),
+    0 4px 12px -4px rgba(6, 21, 45, 0.12);
+  overflow: hidden;
+}
+
+.ant-table-thead > tr > th {
+  background: var(--color-surface-default) !important;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ant-table-tbody > tr > td {
+  border-block-end: 1px solid var(--color-border-default);
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: var(--color-surface-row-hover) !important;
 }
 
 // ============================================================================
-// Wave 4 — Page entrance + micro-motion. Cascades to every routed page that
-// uses the `<section class="page">` convention. Single calm rise from 8px →
-// 0 in 180ms; reduced-motion users get a no-op.
+// Page entrance — calm rise from 8px → 0 in 180ms.
 // ============================================================================
+
 @keyframes app-page-rise {
   from {
     opacity: 0;
@@ -311,92 +99,17 @@ a:hover {
     transform: translateY(0);
   }
 }
+
 section.page,
 section.dashboard {
   animation: app-page-rise var(--motion-duration-base) var(--motion-easing-standard) both;
 }
+
 @media (prefers-reduced-motion: reduce) {
   section.page,
   section.dashboard {
     animation: none;
   }
-}
-
-// ============================================================================
-// Wave 3 — Uniform table treatments (cascades to every <table mat-table>).
-// Banking density + tabular-friendly rhythm. Override per-page only when a
-// table needs specific column widths.
-// ============================================================================
-table.mat-mdc-table {
-  background: var(--color-surface-default);
-  inline-size: 100%;
-}
-tr.mat-mdc-header-row {
-  block-size: 48px;
-}
-tr.mat-mdc-row {
-  block-size: 56px;
-  transition: background var(--motion-duration-fast) var(--motion-easing-standard);
-}
-tr.mat-mdc-row:hover {
-  background: var(--color-surface-row-hover);
-}
-tr.mat-mdc-row:focus-within {
-  background: var(--color-surface-row-hover);
-  outline: 2px solid var(--color-brand-primary);
-  outline-offset: -2px;
-}
-th.mat-mdc-header-cell {
-  font-size: var(--text-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-tertiary);
-  font-weight: var(--font-weight-semibold);
-}
-td.mat-mdc-cell,
-th.mat-mdc-header-cell {
-  padding-inline: var(--space-4);
-  border-block-end: 1px solid var(--color-border-default) !important;
-}
-tr.mat-mdc-row:last-of-type td.mat-mdc-cell {
-  border-block-end: 0 !important;
-}
-td.mat-mdc-cell:last-of-type,
-th.mat-mdc-header-cell:last-of-type {
-  text-align: end;
-}
-
-// ============================================================================
-// PrimeNG p-table base overrides — fight Aura defaults that center content
-// and round corners we don't want. Scoped to .lookups-table styleClass so
-// other p-tables (when added) opt in deliberately.
-// ============================================================================
-p-table.lookups-table .p-datatable,
-p-table.lookups-table .p-datatable-table-container,
-p-table.lookups-table table {
-  inline-size: 100%;
-  background: transparent;
-}
-p-table.lookups-table table {
-  border-collapse: collapse;
-}
-p-table.lookups-table thead,
-p-table.lookups-table tbody {
-  background: transparent;
-}
-p-table.lookups-table thead tr,
-p-table.lookups-table tbody tr {
-  background: transparent;
-}
-p-table.lookups-table thead th,
-p-table.lookups-table tbody td {
-  text-align: start !important;
-  background: transparent !important;
-  border: 0;
-}
-
-// Respect prefers-reduced-motion (promax checklist).
-@media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {

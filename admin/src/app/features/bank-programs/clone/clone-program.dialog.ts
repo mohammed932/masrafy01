@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { CopyOutline } from '@ant-design/icons-angular/icons';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 
@@ -26,36 +27,55 @@ export interface CloneProgramDialogResult {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
+    NzFormModule,
+    NzInputModule,
+    NzButtonModule,
+    NzIconModule,
+    NzSpinModule,
   ],
+  providers: [provideNzIconsPatch([CopyOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title i18n="@@bank_programs.clone.title">Clone bank program</h2>
-    <mat-dialog-content>
+    <header class="dialog-header">
+      <h2 class="dialog-title" i18n="@@bank_programs.clone.title">Clone bank program</h2>
+    </header>
+    <div class="dialog-body">
       <p class="source">
-        <mat-icon aria-hidden="true">content_copy</mat-icon>
+        <span class="source-icon" nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
         <span i18n="@@bank_programs.clone.source">Cloning from</span>
         <strong>{{ data.sourceProgramCode }}</strong>
         <em>· {{ data.sourceFriendlyName }}</em>
       </p>
 
-      <mat-form-field appearance="outline" class="full">
-        <mat-label i18n="@@bank_programs.clone.new_code">New program code</mat-label>
-        <input matInput [formControl]="codeCtrl" placeholder="ABK-AUTO-V2" />
-        <mat-hint i18n="@@bank_programs.hint.program_code">A–Z, 0–9, _, − (3–32 chars).</mat-hint>
-        <mat-error *ngIf="codeCtrl.hasError('duplicate')" i18n="@@bank_programs.clone.duplicate">
-          This program code is already in use.
-        </mat-error>
-      </mat-form-field>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
+      <nz-form-item class="full">
+        <nz-form-label [nzFor]="'newCode'" i18n="@@bank_programs.clone.new_code"
+          >New program code</nz-form-label
+        >
+        <nz-form-control [nzErrorTip]="codeErrTpl" [nzExtra]="codeHint">
+          <input
+            nz-input
+            id="newCode"
+            [formControl]="codeCtrl"
+            placeholder="ABK-AUTO-V2"
+          />
+          <ng-template #codeHint>
+            <span i18n="@@bank_programs.hint.program_code"
+              >A–Z, 0–9, _, − (3–32 chars).</span
+            >
+          </ng-template>
+          <ng-template #codeErrTpl let-control>
+            @if (control.errors?.['duplicate']) {
+              <span i18n="@@bank_programs.clone.duplicate"
+                >This program code is already in use.</span
+              >
+            }
+          </ng-template>
+        </nz-form-control>
+      </nz-form-item>
+    </div>
+    <footer class="dialog-footer">
       <button
-        mat-stroked-button
+        nz-button
         type="button"
         (click)="cancel()"
         [disabled]="busy()"
@@ -64,20 +84,39 @@ export interface CloneProgramDialogResult {
         Cancel
       </button>
       <button
-        mat-flat-button
-        color="primary"
+        nz-button
+        nzType="primary"
         type="button"
         (click)="submit()"
         [disabled]="codeCtrl.invalid || busy()"
+        [nzLoading]="busy()"
       >
-        <mat-spinner *ngIf="busy()" diameter="16"></mat-spinner>
         <span *ngIf="!busy()" i18n="@@bank_programs.clone.cta">Clone program</span>
         <span *ngIf="busy()" i18n="@@bank_programs.clone.cloning">Cloning…</span>
       </button>
-    </mat-dialog-actions>
+    </footer>
   `,
   styles: [
     `
+      .dialog-header {
+        padding: var(--space-4) var(--space-4) 0;
+      }
+      .dialog-title {
+        font-size: var(--text-lg);
+        font-weight: var(--font-weight-semibold);
+        margin: 0;
+        color: var(--color-text-primary);
+      }
+      .dialog-body {
+        padding: var(--space-3) var(--space-4) var(--space-4);
+      }
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        border-top: 1px solid var(--color-border-default);
+      }
       .source {
         display: flex;
         align-items: center;
@@ -86,7 +125,7 @@ export interface CloneProgramDialogResult {
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
       }
-      .source mat-icon {
+      .source .source-icon {
         color: var(--color-tonal-accent);
       }
       .source strong {
@@ -100,11 +139,11 @@ export interface CloneProgramDialogResult {
   ],
 })
 export class CloneProgramDialog {
-  private readonly dialogRef = inject(MatDialogRef<CloneProgramDialog, CloneProgramDialogResult>);
+  private readonly dialogRef = inject(NzModalRef<CloneProgramDialog, CloneProgramDialogResult>);
   private readonly api = inject(BankProgramsApiService);
-  private readonly snack = inject(MatSnackBar);
+  private readonly notification = inject(NzNotificationService);
   private readonly errors = inject(ErrorCodeService);
-  readonly data = inject<CloneProgramDialogData>(MAT_DIALOG_DATA);
+  readonly data = inject<CloneProgramDialogData>(NZ_MODAL_DATA);
 
   readonly codeCtrl = new FormControl('', {
     nonNullable: true,
@@ -128,10 +167,9 @@ export class CloneProgramDialog {
       if (envelope?.code === 'PROGRAM_CODE_ALREADY_IN_USE') {
         this.codeCtrl.setErrors({ duplicate: true });
       } else {
-        this.snack.open(
-          this.errors.toLocalizedMessage((envelope?.code ?? 'INTERNAL_ERROR') as never),
+        this.notification.error(
           $localize`:@@bank_programs.form.dismiss:Dismiss`,
-          { duration: 6000 },
+          this.errors.toLocalizedMessage((envelope?.code ?? 'INTERNAL_ERROR') as never),
         );
       }
     } finally {

@@ -8,29 +8,22 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogActions,
-  MatDialogContent,
-  MatDialogModule,
-  MatDialogRef,
-  MatDialogTitle,
-} from '@angular/material/dialog';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatIconModule } from '@angular/material/icon';
-import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatChipsModule } from '@angular/material/chips';
-import { provideNativeDateAdapter } from '@angular/material/core';
+import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
+import { NzTagModule } from 'ng-zorro-antd/tag';
+import { CloseCircleOutline } from '@ant-design/icons-angular/icons';
 import { ApplicationsApiService } from '../../api/applications.api.service';
 import {
   ActivityAttachmentsUploaderComponent,
   type UploadedAttachmentPayload,
 } from './activity-attachments-uploader.component';
 
-interface AddActivityDialogData {
+export interface AddActivityDialogData {
   applicationId: string;
   defaultActivityType?: string;
   defaultUploadedBySource?: string;
@@ -72,55 +65,71 @@ const OUTCOME_FLAG_OPTIONS = [
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatDialogModule,
-    MatDialogActions,
-    MatDialogContent,
-    MatDialogTitle,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
-    MatDatepickerModule,
-    MatChipsModule,
+    NzButtonModule,
+    NzFormModule,
+    NzInputModule,
+    NzSelectModule,
+    NzIconModule,
+    NzDatePickerModule,
+    NzTagModule,
     ActivityAttachmentsUploaderComponent,
   ],
-  providers: [provideNativeDateAdapter()],
+  providers: [provideNzIconsPatch([CloseCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title i18n="@@activity.add.title">Add Activity</h2>
-    <mat-dialog-content>
+    <header class="dialog-header">
+      <h2 i18n="@@activity.add.title">Add Activity</h2>
+    </header>
+    <div class="dialog-body">
       <form [formGroup]="form" class="form">
         <div class="row-2">
-          <mat-form-field appearance="outline">
-            <mat-label i18n="@@activity.add.type">Activity type</mat-label>
-            <mat-select formControlName="activityType">
-              @for (t of activityTypes; track t) {
-                <mat-option [value]="t">{{ labelFor(t) }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
+          <nz-form-item>
+            <nz-form-label [nzFor]="'activityType'" nzRequired i18n="@@activity.add.type"
+              >Activity type</nz-form-label
+            >
+            <nz-form-control>
+              <nz-select id="activityType" formControlName="activityType">
+                @for (t of activityTypes; track t) {
+                  <nz-option [nzValue]="t" [nzLabel]="labelFor(t)"></nz-option>
+                }
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
 
-          <mat-form-field appearance="outline">
-            <mat-label i18n="@@activity.add.reason">Reason</mat-label>
-            <mat-select formControlName="reason">
-              @for (r of reasonsForType(); track r) {
-                <mat-option [value]="r">{{ labelFor(r) }}</mat-option>
+          <nz-form-item>
+            <nz-form-label [nzFor]="'reason'" nzRequired i18n="@@activity.add.reason"
+              >Reason</nz-form-label
+            >
+            <nz-form-control>
+              <nz-select id="reason" formControlName="reason">
+                @for (r of reasonsForType(); track r) {
+                  <nz-option [nzValue]="r" [nzLabel]="labelFor(r)"></nz-option>
+                }
+              </nz-select>
+              @if (reasonsForType().length === 0) {
+                <p class="hint" i18n="@@activity.add.noReasons">
+                  No static reasons for this type yet.
+                </p>
               }
-            </mat-select>
-            @if (reasonsForType().length === 0) {
-              <mat-hint i18n="@@activity.add.noReasons"
-                >No static reasons for this type yet.</mat-hint
-              >
-            }
-          </mat-form-field>
+            </nz-form-control>
+          </nz-form-item>
         </div>
 
         @if (showDuration()) {
-          <mat-form-field appearance="outline">
-            <mat-label i18n="@@activity.add.duration">Duration (minutes)</mat-label>
-            <input matInput type="number" formControlName="durationMinutes" min="1" />
-          </mat-form-field>
+          <nz-form-item>
+            <nz-form-label [nzFor]="'durationMinutes'" i18n="@@activity.add.duration"
+              >Duration (minutes)</nz-form-label
+            >
+            <nz-form-control>
+              <input
+                nz-input
+                id="durationMinutes"
+                type="number"
+                formControlName="durationMinutes"
+                min="1"
+              />
+            </nz-form-control>
+          </nz-form-item>
         }
 
         @if (showAttachments()) {
@@ -130,42 +139,64 @@ const OUTCOME_FLAG_OPTIONS = [
           </section>
         }
 
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@activity.add.note">Note</mat-label>
-          <textarea matInput formControlName="note" rows="3" maxlength="2000"></textarea>
-          <mat-hint align="end">{{ form.controls.note.value.length }} / 2000</mat-hint>
-        </mat-form-field>
+        <nz-form-item>
+          <nz-form-label [nzFor]="'note'" i18n="@@activity.add.note">Note</nz-form-label>
+          <nz-form-control>
+            <textarea
+              nz-input
+              id="note"
+              formControlName="note"
+              rows="3"
+              maxlength="2000"
+            ></textarea>
+            <p class="hint align-end">{{ form.controls.note.value.length }} / 2000</p>
+          </nz-form-control>
+        </nz-form-item>
 
         <fieldset class="outcome-fieldset">
           <legend i18n="@@activity.add.outcomeFlags">Outcome flags (max 3)</legend>
-          <mat-chip-listbox formControlName="outcomeFlags" multiple>
+          <div class="chip-row">
             @for (flag of outcomeFlags; track flag) {
-              <mat-chip-option [value]="flag">{{ labelFor(flag) }}</mat-chip-option>
+              <nz-tag
+                class="chip"
+                nzMode="checkable"
+                [nzChecked]="isFlagChecked(flag)"
+                (nzCheckedChange)="toggleFlag(flag, $event)"
+              >
+                {{ labelFor(flag) }}
+              </nz-tag>
             }
-          </mat-chip-listbox>
+          </div>
         </fieldset>
 
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@activity.add.followUp">Follow-up</mat-label>
-          <input matInput [matDatepicker]="picker" formControlName="followUpAt" />
-          <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-          <mat-datepicker #picker></mat-datepicker>
-        </mat-form-field>
+        <nz-form-item>
+          <nz-form-label [nzFor]="'followUpAt'" i18n="@@activity.add.followUp"
+            >Follow-up</nz-form-label
+          >
+          <nz-form-control>
+            <nz-date-picker
+              id="followUpAt"
+              formControlName="followUpAt"
+              nzFormat="yyyy-MM-dd"
+            ></nz-date-picker>
+          </nz-form-control>
+        </nz-form-item>
 
         @if (errorCode()) {
           <p class="error" role="alert">
-            <mat-icon>error</mat-icon>
+            <span nz-icon nzType="close-circle" nzTheme="outline"></span>
             <span>{{ errorCode() }}</span>
           </p>
         }
       </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end" class="actions">
-      <button mat-button type="button" (click)="cancel()" i18n="@@activity.add.cancel">
+    </div>
+    <footer class="dialog-footer actions">
+      <button nz-button nzType="default" type="button" (click)="cancel()" i18n="@@activity.add.cancel">
         Cancel
       </button>
       <button
-        mat-stroked-button
+        nz-button
+        nzType="default"
         type="button"
         (click)="save(true)"
         [disabled]="!form.valid || submitting()"
@@ -174,8 +205,8 @@ const OUTCOME_FLAG_OPTIONS = [
         Save & Add Another
       </button>
       <button
-        mat-flat-button
-        color="primary"
+        nz-button
+        nzType="primary"
         type="button"
         (click)="save(false)"
         [disabled]="!form.valid || submitting()"
@@ -184,13 +215,28 @@ const OUTCOME_FLAG_OPTIONS = [
       >
         Save
       </button>
-    </mat-dialog-actions>
+    </footer>
   `,
   styles: [
     `
       :host {
         display: block;
-        inline-size: min(720px, calc(100vw - var(--space-6) * 2));
+        inline-size: 100%;
+      }
+      .dialog-header {
+        padding: var(--space-4) var(--space-5);
+        border-block-end: 1px solid var(--color-border-default);
+      }
+      .dialog-header h2 {
+        margin: 0;
+        font-size: var(--text-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .dialog-body {
+        padding: var(--space-4) var(--space-5);
+        max-height: 70vh;
+        overflow-y: auto;
       }
       .form {
         display: flex;
@@ -228,6 +274,22 @@ const OUTCOME_FLAG_OPTIONS = [
         padding: 0;
         margin: 0;
       }
+      .chip-row {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+      .chip {
+        cursor: pointer;
+      }
+      .hint {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--color-text-tertiary);
+      }
+      .align-end {
+        text-align: end;
+      }
       .error {
         background: var(--color-error-bg);
         color: var(--color-error);
@@ -239,17 +301,20 @@ const OUTCOME_FLAG_OPTIONS = [
         align-items: center;
         font-size: var(--text-sm);
       }
-      .actions {
-        padding: var(--space-3) var(--space-4);
+      .dialog-footer.actions {
+        display: flex;
+        justify-content: flex-end;
         gap: var(--space-2);
+        padding: var(--space-3) var(--space-5);
+        border-block-start: 1px solid var(--color-border-default);
       }
     `,
   ],
 })
 export class AddActivityDialog {
   private readonly api = inject(ApplicationsApiService);
-  private readonly dialogRef = inject<MatDialogRef<AddActivityDialog, boolean>>(MatDialogRef);
-  protected readonly data = inject<AddActivityDialogData>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject<NzModalRef<AddActivityDialog, boolean>>(NzModalRef);
+  protected readonly data = inject<AddActivityDialogData>(NZ_MODAL_DATA);
 
   protected readonly activityTypes = [...ALL_ACTIVITY_TYPES];
   protected readonly outcomeFlags = [...OUTCOME_FLAG_OPTIONS];
@@ -284,6 +349,20 @@ export class AddActivityDialog {
 
   protected reasonsForType(): readonly string[] {
     return this.data.reasonsByType[this.currentType()] ?? [];
+  }
+
+  protected isFlagChecked(flag: string): boolean {
+    return (this.form.controls.outcomeFlags.value ?? []).includes(flag);
+  }
+
+  protected toggleFlag(flag: string, checked: boolean): void {
+    const current = this.form.controls.outcomeFlags.value ?? [];
+    if (checked) {
+      if (current.includes(flag)) return;
+      this.form.controls.outcomeFlags.setValue([...current, flag]);
+    } else {
+      this.form.controls.outcomeFlags.setValue(current.filter((f) => f !== flag));
+    }
   }
 
   @ViewChild('uploader')

@@ -1,8 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import {
+  TeamOutline,
+  LockOutline,
+  QuestionCircleOutline,
+  RightOutline,
+} from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import type { StaffRole } from '@core/auth/auth.types';
 import { RemindersWidgetComponent } from './reminders-widget.component';
@@ -23,7 +29,10 @@ interface QuickAction {
 @Component({
   selector: 'app-dashboard-placeholder',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule, RemindersWidgetComponent],
+  imports: [CommonModule, NzButtonModule, NzIconModule, RemindersWidgetComponent],
+  providers: [
+    provideNzIconsPatch([TeamOutline, LockOutline, QuestionCircleOutline, RightOutline]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="dashboard">
@@ -43,13 +52,13 @@ interface QuickAction {
         @for (a of availableActions(); track a.title) {
           <button type="button" class="card" (click)="a.action()">
             <span class="card-icon" aria-hidden="true">
-              <mat-icon>{{ a.icon }}</mat-icon>
+              <span nz-icon [nzType]="a.icon" nzTheme="outline"></span>
             </span>
             <span class="card-body">
               <span class="card-title">{{ a.title }}</span>
               <span class="card-desc">{{ a.description }}</span>
             </span>
-            <mat-icon class="card-chevron" aria-hidden="true">chevron_right</mat-icon>
+            <span nz-icon nzType="right" nzTheme="outline" class="card-chevron" aria-hidden="true"></span>
           </button>
         }
       </section>
@@ -166,10 +175,8 @@ interface QuickAction {
         color: var(--color-brand-primary);
         flex-shrink: 0;
       }
-      .card-icon mat-icon {
+      .card-icon [nz-icon] {
         font-size: 22px;
-        inline-size: 22px;
-        block-size: 22px;
       }
       .card-body {
         display: flex;
@@ -249,20 +256,20 @@ export class DashboardPlaceholderComponent {
 
   private readonly allActions: ReadonlyArray<QuickAction> = [
     {
-      icon: 'group',
+      icon: 'team',
       title: $localize`:@@dash.action.manageUsers:Manage staff`,
       description: $localize`:@@dash.action.manageUsersDesc:Create, edit, or deactivate sales managers, sales agents, and analysts.`,
       action: () => this.router.navigateByUrl('/users'),
       roles: ['super_admin'],
     },
     {
-      icon: 'lock_reset',
+      icon: 'lock',
       title: $localize`:@@dash.action.changePassword:Change my password`,
       description: $localize`:@@dash.action.changePasswordDesc:Rotate your password without leaving the dashboard.`,
       action: () => this.router.navigateByUrl('/auth/self-password'),
     },
     {
-      icon: 'help_outline',
+      icon: 'question-circle',
       title: $localize`:@@dash.action.docs:Read the runbook`,
       description: $localize`:@@dash.action.docsDesc:Onboarding, role permissions, and operational procedures.`,
       action: () => window.open('https://github.com/anthropics/masrafy01', '_blank'),

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatTableModule } from '@angular/material/table';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import type { TierAccuracyRow } from '../scoring-analytics.api.service';
 import type { ApprovalTier } from '../../applications/list/components/approval-pill.component';
 
@@ -16,40 +16,48 @@ interface Row {
 @Component({
   selector: 'app-tier-accuracy-table',
   standalone: true,
-  imports: [CommonModule, MatTableModule, MatTooltipModule],
+  imports: [CommonModule, NzTableModule, NzToolTipModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <table mat-table [dataSource]="rows()" class="accuracy-table">
-      <ng-container matColumnDef="tier">
-        <th mat-header-cell *matHeaderCellDef i18n="@@analytics.tier.col.tier">Tier</th>
-        <td mat-cell *matCellDef="let row">{{ row.tierLabel }}</td>
-      </ng-container>
-      <ng-container matColumnDef="offers">
-        <th mat-header-cell *matHeaderCellDef i18n="@@analytics.tier.col.offers">Offers</th>
-        <td mat-cell *matCellDef="let row" class="numeric">{{ row.offerCount }}</td>
-      </ng-container>
-      <ng-container matColumnDef="decisions">
-        <th mat-header-cell *matHeaderCellDef i18n="@@analytics.tier.col.decisions">Decisions</th>
-        <td mat-cell *matCellDef="let row" class="numeric">{{ row.decisionCount }}</td>
-      </ng-container>
-      <ng-container matColumnDef="rate">
-        <th mat-header-cell *matHeaderCellDef i18n="@@analytics.tier.col.rate">Approval rate</th>
-        <td mat-cell *matCellDef="let row" class="numeric">
-          @if (row.approvalRate === null) {
-            <span
-              class="muted"
-              [matTooltip]="insufficientLabel()"
-              i18n="@@analytics.tier.rate.empty"
-              >—</span
-            >
-          } @else {
-            {{ (row.approvalRate * 100).toFixed(1) }}%
-          }
-        </td>
-      </ng-container>
-      <tr mat-header-row *matHeaderRowDef="cols"></tr>
-      <tr mat-row *matRowDef="let row; columns: cols"></tr>
-    </table>
+    <nz-table
+      #t
+      [nzData]="rows()"
+      [nzShowPagination]="false"
+      [nzFrontPagination]="false"
+      class="accuracy-table"
+      nzSize="middle"
+    >
+      <thead>
+        <tr>
+          <th i18n="@@analytics.tier.col.tier">Tier</th>
+          <th class="numeric" i18n="@@analytics.tier.col.offers">Offers</th>
+          <th class="numeric" i18n="@@analytics.tier.col.decisions">Decisions</th>
+          <th class="numeric" i18n="@@analytics.tier.col.rate">Approval rate</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of t.data; track row.tier) {
+          <tr>
+            <td>{{ row.tierLabel }}</td>
+            <td class="numeric">{{ row.offerCount }}</td>
+            <td class="numeric">{{ row.decisionCount }}</td>
+            <td class="numeric">
+              @if (row.approvalRate === null) {
+                <span
+                  class="muted"
+                  nz-tooltip
+                  [nzTooltipTitle]="insufficientLabel()"
+                  i18n="@@analytics.tier.rate.empty"
+                  >—</span
+                >
+              } @else {
+                {{ (row.approvalRate * 100).toFixed(1) }}%
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </nz-table>
   `,
   styles: [
     `
@@ -72,7 +80,6 @@ interface Row {
 })
 export class TierAccuracyTableComponent {
   readonly data = input<TierAccuracyRow[]>([]);
-  protected readonly cols = ['tier', 'offers', 'decisions', 'rate'];
 
   protected readonly rows = computed<Row[]>(() => {
     const ordered: ApprovalTier[] = ['excellent', 'good', 'moderate', 'low', 'very_low'];

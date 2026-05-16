@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Output, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatChipsModule } from '@angular/material/chips';
+import { NzTagModule } from 'ng-zorro-antd/tag';
 
 export type TierFilter = 'high' | 'medium' | 'needs_coaching' | null;
 
@@ -17,14 +17,16 @@ export interface TierFilterCounts {
 @Component({
   selector: 'app-tier-filter-chips',
   standalone: true,
-  imports: [CommonModule, MatChipsModule],
+  imports: [CommonModule, NzTagModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <mat-chip-set role="listbox" [attr.aria-label]="ariaLabel">
-      <mat-chip
+    <div class="chip-set" role="listbox" [attr.aria-label]="ariaLabel">
+      <nz-tag
+        class="chip"
         [class.selected]="selected() === 'high'"
-        (click)="toggle('high')"
-        (keyup.enter)="toggle('high')"
+        nzMode="checkable"
+        [nzChecked]="selected() === 'high'"
+        (nzCheckedChange)="toggle('high')"
         role="option"
         [attr.aria-selected]="selected() === 'high'"
         tabindex="0"
@@ -34,11 +36,13 @@ export interface TierFilterCounts {
         }
         <span i18n="@@applications.filter.tier.high">High probability leads</span>
         <span class="count">· {{ counts()?.high ?? 0 }}</span>
-      </mat-chip>
-      <mat-chip
+      </nz-tag>
+      <nz-tag
+        class="chip"
         [class.selected]="selected() === 'medium'"
-        (click)="toggle('medium')"
-        (keyup.enter)="toggle('medium')"
+        nzMode="checkable"
+        [nzChecked]="selected() === 'medium'"
+        (nzCheckedChange)="toggle('medium')"
         role="option"
         [attr.aria-selected]="selected() === 'medium'"
         tabindex="0"
@@ -48,11 +52,13 @@ export interface TierFilterCounts {
         }
         <span i18n="@@applications.filter.tier.medium">Medium probability</span>
         <span class="count">· {{ counts()?.medium ?? 0 }}</span>
-      </mat-chip>
-      <mat-chip
+      </nz-tag>
+      <nz-tag
+        class="chip"
         [class.selected]="selected() === 'needs_coaching'"
-        (click)="toggle('needs_coaching')"
-        (keyup.enter)="toggle('needs_coaching')"
+        nzMode="checkable"
+        [nzChecked]="selected() === 'needs_coaching'"
+        (nzCheckedChange)="toggle('needs_coaching')"
         role="option"
         [attr.aria-selected]="selected() === 'needs_coaching'"
         tabindex="0"
@@ -62,21 +68,26 @@ export interface TierFilterCounts {
         }
         <span i18n="@@applications.filter.tier.needs_coaching">Needs coaching</span>
         <span class="count">· {{ counts()?.needs_coaching ?? 0 }}</span>
-      </mat-chip>
-    </mat-chip-set>
+      </nz-tag>
+    </div>
   `,
   styles: [
     `
       :host {
         display: block;
       }
-      mat-chip {
+      .chip-set {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+      .chip {
         cursor: pointer;
         transition:
           background-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
           color 120ms cubic-bezier(0.4, 0, 0.2, 1);
       }
-      mat-chip.selected {
+      .chip.selected {
         background: var(--color-tonal-accent-bg);
         color: var(--color-tonal-accent);
         font-weight: var(--font-weight-semibold);
@@ -89,11 +100,11 @@ export interface TierFilterCounts {
         font-variant-numeric: tabular-nums lining-nums;
         color: var(--color-text-tertiary);
       }
-      mat-chip.selected .count {
+      .chip.selected .count {
         color: inherit;
       }
       @media (prefers-reduced-motion: reduce) {
-        mat-chip {
+        .chip {
           transition: none;
         }
       }

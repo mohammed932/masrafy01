@@ -1,23 +1,29 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
-  AbstractControl,
   FormControl,
   FormGroup,
-  FormGroupDirective,
-  NgForm,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { ErrorStateMatcher } from '@angular/material/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import {
+  UserAddOutline,
+  EditOutline,
+  MailOutline,
+  LockOutline,
+  EyeOutline,
+  EyeInvisibleOutline,
+  CheckOutline,
+  CloseCircleOutline,
+} from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { UsersService } from './users.service';
@@ -34,17 +40,6 @@ import type {
 export interface UserFormDialogData {
   mode: 'create' | 'edit';
   row?: StaffAccountSummary;
-}
-
-/**
- * Defer Material's red-error styling until the user attempts submit. Default matcher
- * trips the error state on blur of an empty required field, which paints a fresh
- * dialog all-red before the user has done anything wrong. Far calmer to wait.
- */
-class SubmitOnlyErrorStateMatcher implements ErrorStateMatcher {
-  isErrorState(control: AbstractControl | null, form: FormGroupDirective | NgForm | null): boolean {
-    return !!(control && control.invalid && (control.dirty || form?.submitted));
-  }
 }
 
 interface CreateFormControls {
@@ -66,22 +61,37 @@ interface EditFormControls {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-    MatSlideToggleModule,
+    NzButtonModule,
+    NzFormModule,
+    NzInputModule,
+    NzSelectModule,
+    NzSwitchModule,
+    NzIconModule,
+  ],
+  providers: [
+    provideNzIconsPatch([
+      UserAddOutline,
+      EditOutline,
+      MailOutline,
+      LockOutline,
+      EyeOutline,
+      EyeInvisibleOutline,
+      CheckOutline,
+      CloseCircleOutline,
+    ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="header">
       <span class="header-icon" aria-hidden="true">
-        <mat-icon>{{ data.mode === 'create' ? 'person_add' : 'edit' }}</mat-icon>
+        <span
+          nz-icon
+          [nzType]="data.mode === 'create' ? 'user-add' : 'edit'"
+          nzTheme="outline"
+        ></span>
       </span>
       <div class="header-text">
-        <h2 mat-dialog-title class="title">
+        <h2 class="title">
           @if (data.mode === 'create') {
             <span i18n="@@userForm.titleCreate">Create user</span>
           } @else {
@@ -102,7 +112,6 @@ interface EditFormControls {
     </header>
 
     <form
-      mat-dialog-content
       [formGroup]="data.mode === 'create' ? createForm : editForm"
       (ngSubmit)="submit()"
       novalidate
@@ -117,36 +126,58 @@ interface EditFormControls {
             >
           </header>
 
-          <div class="field-row">
-            <mat-form-field appearance="outline" class="field">
-              <mat-label i18n="@@userForm.name">Full name</mat-label>
-              <input
-                matInput
-                formControlName="name"
-                autocomplete="name"
-                [errorStateMatcher]="errorMatcher"
-              />
-              <mat-hint i18n="@@userForm.nameHint">As it should appear in the dashboard.</mat-hint>
-            </mat-form-field>
-          </div>
-
-          <div class="field-row">
-            <mat-form-field appearance="outline" class="field">
-              <mat-label i18n="@@userForm.email">Work email</mat-label>
-              <input
-                matInput
-                type="email"
-                autocomplete="email"
-                formControlName="email"
-                [errorStateMatcher]="errorMatcher"
-              />
-              <mat-icon matPrefix aria-hidden="true">mail</mat-icon>
-              <mat-hint i18n="@@userForm.emailHint">Used to sign in. Must be unique.</mat-hint>
-              @if (emailError(); as msg) {
-                <mat-error>{{ msg }}</mat-error>
+          <nz-form-item>
+            <nz-form-label [nzFor]="'name'" nzRequired i18n="@@userForm.name"
+              >Full name</nz-form-label
+            >
+            <nz-form-control [nzErrorTip]="nameErrTpl" [nzExtra]="nameHint">
+              <input nz-input id="name" formControlName="name" autocomplete="name" />
+            </nz-form-control>
+            <ng-template #nameHint>
+              <span i18n="@@userForm.nameHint">As it should appear in the dashboard.</span>
+            </ng-template>
+            <ng-template #nameErrTpl let-control>
+              @if (control.errors?.['required']) {
+                <span i18n="@@userForm.err.nameRequired">Name is required.</span>
+              } @else if (control.errors?.['minlength']) {
+                <span i18n="@@userForm.err.nameMin">Must be at least 2 characters.</span>
+              } @else if (control.errors?.['maxlength']) {
+                <span i18n="@@userForm.err.nameMax">Must be at most 120 characters.</span>
               }
-            </mat-form-field>
-          </div>
+            </ng-template>
+          </nz-form-item>
+
+          <nz-form-item>
+            <nz-form-label [nzFor]="'email'" nzRequired i18n="@@userForm.email"
+              >Work email</nz-form-label
+            >
+            <nz-form-control [nzErrorTip]="emailErrTpl" [nzExtra]="emailHint">
+              <nz-input-group [nzPrefix]="mailPrefix">
+                <input
+                  nz-input
+                  id="email"
+                  type="email"
+                  autocomplete="email"
+                  formControlName="email"
+                />
+              </nz-input-group>
+            </nz-form-control>
+            <ng-template #mailPrefix>
+              <span nz-icon nzType="mail" nzTheme="outline" aria-hidden="true"></span>
+            </ng-template>
+            <ng-template #emailHint>
+              <span i18n="@@userForm.emailHint">Used to sign in. Must be unique.</span>
+            </ng-template>
+            <ng-template #emailErrTpl let-control>
+              @if (emailError(); as msg) {
+                {{ msg }}
+              } @else if (control.errors?.['required']) {
+                <span i18n="@@userForm.err.emailRequired">Email is required.</span>
+              } @else if (control.errors?.['email']) {
+                <span i18n="@@userForm.err.emailInvalid">Invalid email address.</span>
+              }
+            </ng-template>
+          </nz-form-item>
         </section>
 
         <section class="section">
@@ -157,97 +188,116 @@ interface EditFormControls {
             >
           </header>
 
-          <div class="field-row">
-            <mat-form-field appearance="outline" class="field">
-              <mat-label i18n="@@userForm.role">Role</mat-label>
-              <mat-select formControlName="role">
-                <mat-select-trigger>{{
-                  roleLabel(createForm.controls.role.value)
-                }}</mat-select-trigger>
-                <mat-option value="sales_manager" class="role-option">
-                  <span class="opt-title" i18n="@@role.sales_manager">Sales manager</span>
-                  <span class="opt-desc" i18n="@@userForm.role.managerDesc"
-                    >Manages bank programs + applications and oversees the sales team.</span
-                  >
-                </mat-option>
-                <mat-option value="sales_agent" class="role-option">
-                  <span class="opt-title" i18n="@@role.sales_agent">Sales agent</span>
-                  <span class="opt-desc" i18n="@@userForm.role.agentDesc"
-                    >Handles their own applications; read-only on bank programs.</span
-                  >
-                </mat-option>
-                <mat-option value="analyst" class="role-option">
-                  <span class="opt-title" i18n="@@role.analyst">Analyst</span>
-                  <span class="opt-desc" i18n="@@userForm.role.analystDesc"
-                    >Read-only across applications, programs, and audit logs.</span
-                  >
-                </mat-option>
-              </mat-select>
-            </mat-form-field>
-          </div>
+          <nz-form-item>
+            <nz-form-label [nzFor]="'role'" i18n="@@userForm.role">Role</nz-form-label>
+            <nz-form-control>
+              <nz-select id="role" formControlName="role">
+                <nz-option
+                  nzValue="sales_manager"
+                  [nzLabel]="managerLabel"
+                ></nz-option>
+                <nz-option nzValue="sales_agent" [nzLabel]="agentLabel"></nz-option>
+                <nz-option nzValue="analyst" [nzLabel]="analystLabel"></nz-option>
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
 
-          <div class="field-row">
-            <mat-form-field appearance="outline" class="field">
-              <mat-label i18n="@@userForm.initialPassword">Initial password</mat-label>
-              <input
-                matInput
-                [type]="revealPw() ? 'text' : 'password'"
-                autocomplete="new-password"
-                formControlName="initialPassword"
-                [errorStateMatcher]="errorMatcher"
-              />
+          <nz-form-item>
+            <nz-form-label [nzFor]="'initialPassword'" nzRequired i18n="@@userForm.initialPassword"
+              >Initial password</nz-form-label
+            >
+            <nz-form-control [nzErrorTip]="pwErrTpl" [nzExtra]="pwHint">
+              <nz-input-group [nzSuffix]="pwSuffix">
+                <input
+                  nz-input
+                  id="initialPassword"
+                  [type]="revealPw() ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  formControlName="initialPassword"
+                />
+              </nz-input-group>
+            </nz-form-control>
+            <ng-template #pwSuffix>
               <button
-                mat-icon-button
-                matSuffix
+                nz-button
+                nzType="text"
+                nzShape="circle"
                 type="button"
                 (click)="revealPw.set(!revealPw())"
                 [attr.aria-pressed]="revealPw()"
               >
-                <mat-icon>{{ revealPw() ? 'visibility_off' : 'visibility' }}</mat-icon>
+                <span
+                  nz-icon
+                  [nzType]="revealPw() ? 'eye-invisible' : 'eye'"
+                  nzTheme="outline"
+                ></span>
               </button>
-              <mat-hint i18n="@@userForm.passwordHint"
-                >12–128 chars. User must change on first sign-in.</mat-hint
+            </ng-template>
+            <ng-template #pwHint>
+              <span i18n="@@userForm.passwordHint"
+                >12–128 chars. User must change on first sign-in.</span
               >
+            </ng-template>
+            <ng-template #pwErrTpl let-control>
               @if (passwordError(); as msg) {
-                <mat-error>{{ msg }}</mat-error>
+                {{ msg }}
+              } @else if (control.errors?.['required']) {
+                <span i18n="@@userForm.err.pwRequired">Password is required.</span>
+              } @else if (control.errors?.['minlength']) {
+                <span i18n="@@userForm.err.pwMin">Must be at least 12 characters.</span>
+              } @else if (control.errors?.['maxlength']) {
+                <span i18n="@@userForm.err.pwMax">Must be at most 128 characters.</span>
               }
-            </mat-form-field>
-          </div>
+            </ng-template>
+          </nz-form-item>
         </section>
       } @else if (data.row) {
-        <div class="field-row">
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@userForm.name">Name</mat-label>
-            <input matInput formControlName="name" />
-          </mat-form-field>
-        </div>
-
-        <div class="field-row">
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@userForm.email">Email</mat-label>
-            <input matInput [value]="data.row.email" readonly />
-            <mat-icon matSuffix aria-hidden="true">lock</mat-icon>
-            <mat-hint i18n="@@userForm.emailReadonly"
-              >Email cannot be changed after account creation.</mat-hint
-            >
-          </mat-form-field>
-        </div>
-
-        <div class="field-row">
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@userForm.role">Role</mat-label>
-            <mat-select formControlName="role" [disabled]="isSelf">
-              <mat-option value="sales_manager" i18n="@@role.sales_manager"
-                >Sales manager</mat-option
-              >
-              <mat-option value="sales_agent" i18n="@@role.sales_agent">Sales agent</mat-option>
-              <mat-option value="analyst" i18n="@@role.analyst">Analyst</mat-option>
-            </mat-select>
-            @if (isSelf) {
-              <mat-hint i18n="@@userForm.selfRoleHint">You can't change your own role.</mat-hint>
+        <nz-form-item>
+          <nz-form-label [nzFor]="'name'" nzRequired i18n="@@userForm.name">Name</nz-form-label>
+          <nz-form-control [nzErrorTip]="editNameErrTpl">
+            <input nz-input id="name" formControlName="name" />
+          </nz-form-control>
+          <ng-template #editNameErrTpl let-control>
+            @if (control.errors?.['required']) {
+              <span i18n="@@userForm.err.nameRequired">Name is required.</span>
+            } @else if (control.errors?.['minlength']) {
+              <span i18n="@@userForm.err.nameMin">Must be at least 2 characters.</span>
+            } @else if (control.errors?.['maxlength']) {
+              <span i18n="@@userForm.err.nameMax">Must be at most 120 characters.</span>
             }
-          </mat-form-field>
-        </div>
+          </ng-template>
+        </nz-form-item>
+
+        <nz-form-item>
+          <nz-form-label [nzFor]="'editEmail'" i18n="@@userForm.email">Email</nz-form-label>
+          <nz-form-control [nzExtra]="emailReadonlyHint">
+            <nz-input-group [nzSuffix]="lockSuffix">
+              <input nz-input id="editEmail" [value]="data.row.email" readonly />
+            </nz-input-group>
+          </nz-form-control>
+          <ng-template #lockSuffix>
+            <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+          </ng-template>
+          <ng-template #emailReadonlyHint>
+            <span i18n="@@userForm.emailReadonly"
+              >Email cannot be changed after account creation.</span
+            >
+          </ng-template>
+        </nz-form-item>
+
+        <nz-form-item>
+          <nz-form-label [nzFor]="'editRole'" i18n="@@userForm.role">Role</nz-form-label>
+          <nz-form-control [nzExtra]="isSelf ? selfRoleHint : ''">
+            <nz-select id="editRole" formControlName="role" [nzDisabled]="isSelf">
+              <nz-option nzValue="sales_manager" [nzLabel]="managerLabel"></nz-option>
+              <nz-option nzValue="sales_agent" [nzLabel]="agentLabel"></nz-option>
+              <nz-option nzValue="analyst" [nzLabel]="analystLabel"></nz-option>
+            </nz-select>
+          </nz-form-control>
+          <ng-template #selfRoleHint>
+            <span i18n="@@userForm.selfRoleHint">You can't change your own role.</span>
+          </ng-template>
+        </nz-form-item>
 
         <div class="field-row toggle-row">
           <div class="toggle-text">
@@ -256,37 +306,42 @@ interface EditFormControls {
               >Inactive users cannot sign in. Historical records are kept.</span
             >
           </div>
-          <mat-slide-toggle formControlName="isActive" [disabled]="isSelf"></mat-slide-toggle>
+          <nz-switch formControlName="isActive" [nzDisabled]="isSelf"></nz-switch>
         </div>
       }
 
       @if (formError(); as msg) {
         <div role="alert" aria-live="polite" class="alert">
-          <mat-icon class="alert-icon" aria-hidden="true">error_outline</mat-icon>
+          <span nz-icon nzType="close-circle" nzTheme="outline" class="alert-icon" aria-hidden="true"></span>
           <span>{{ msg }}</span>
         </div>
       }
     </form>
 
-    <div mat-dialog-actions align="end" class="actions">
-      <button mat-button type="button" (click)="cancel()" i18n="@@userForm.cancel">Cancel</button>
+    <footer class="actions">
+      <button nz-button type="button" (click)="cancel()" i18n="@@userForm.cancel">Cancel</button>
       <button
-        mat-flat-button
-        color="primary"
+        nz-button
+        nzType="primary"
         type="button"
         (click)="submit()"
         [disabled]="submitting() || invalid()"
+        [nzLoading]="submitting()"
         [attr.aria-busy]="submitting()"
         class="primary-cta"
       >
-        <mat-icon>{{ data.mode === 'create' ? 'person_add' : 'check' }}</mat-icon>
+        <span
+          nz-icon
+          [nzType]="data.mode === 'create' ? 'user-add' : 'check'"
+          nzTheme="outline"
+        ></span>
         @if (data.mode === 'create') {
           <span i18n="@@userForm.saveCreate">Create user</span>
         } @else {
           <span i18n="@@userForm.saveEdit">Save changes</span>
         }
       </button>
-    </div>
+    </footer>
   `,
   styles: [
     `
@@ -315,7 +370,6 @@ interface EditFormControls {
           animation: none;
         }
       }
-      // Header — restrained, hairline separator. Title carries the weight; subtitle whispers.
       .header {
         display: flex;
         align-items: flex-start;
@@ -349,10 +403,8 @@ interface EditFormControls {
         color: var(--color-brand-primary);
         flex-shrink: 0;
       }
-      .header-icon mat-icon {
+      .header-icon [nz-icon] {
         font-size: var(--text-lg);
-        inline-size: 18px;
-        block-size: 18px;
       }
       .header-text {
         flex: 1;
@@ -373,7 +425,6 @@ interface EditFormControls {
         line-height: var(--line-height-base);
         max-inline-size: 52ch;
       }
-      // Body — paper-form-style sections, generous vertical rhythm
       .body {
         padding: var(--space-5) var(--space-6) var(--space-6);
         display: flex;
@@ -397,11 +448,6 @@ interface EditFormControls {
       .field-row {
         width: 100%;
       }
-      .field {
-        display: block;
-        width: 100%;
-      }
-      // Sections — typographic structure inside the form, no card chrome
       .section {
         display: flex;
         flex-direction: column;
@@ -425,7 +471,6 @@ interface EditFormControls {
         font-weight: var(--font-weight-medium);
         line-height: var(--line-height-base);
       }
-      // Toggle row — flat, hairline border, not a card (avoid card-in-card)
       .toggle-row {
         display: flex;
         align-items: center;
@@ -455,7 +500,6 @@ interface EditFormControls {
         color: var(--color-text-secondary);
         line-height: var(--line-height-base);
       }
-      // Alert — tighter, leading icon, no full border (less visual weight in normal flow)
       .alert {
         display: flex;
         align-items: flex-start;
@@ -470,12 +514,9 @@ interface EditFormControls {
       }
       .alert-icon {
         font-size: var(--text-lg);
-        inline-size: 18px;
-        block-size: 18px;
         flex-shrink: 0;
         margin-block-start: 1px;
       }
-      // Actions footer — clean band, primary CTA carries the weight, NO background tint
       .actions {
         display: flex;
         align-items: center;
@@ -508,10 +549,8 @@ interface EditFormControls {
       .primary-cta:not(:disabled):active {
         transform: translateY(0);
       }
-      .primary-cta mat-icon {
+      .primary-cta [nz-icon] {
         font-size: var(--text-lg);
-        inline-size: 18px;
-        block-size: 18px;
         margin-inline-end: 6px;
       }
       @media (prefers-reduced-motion: reduce) {
@@ -526,14 +565,18 @@ interface EditFormControls {
   ],
 })
 export class UserFormDialog {
-  protected readonly data = inject<UserFormDialogData>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<UserFormDialog, StaffAccountSummary>>(MatDialogRef);
+  protected readonly data = inject<UserFormDialogData>(NZ_MODAL_DATA);
+  private readonly ref = inject<NzModalRef<UserFormDialog, StaffAccountSummary>>(NzModalRef);
   private readonly api = inject(UsersService);
   private readonly auth = inject(AuthService);
   private readonly errorCodes = inject(ErrorCodeService);
 
   protected readonly isSelf =
     this.data.mode === 'edit' && this.data.row?.id === this.auth.currentUser()?.id;
+
+  protected readonly managerLabel = $localize`:@@role.sales_manager:Sales manager`;
+  protected readonly agentLabel = $localize`:@@role.sales_agent:Sales agent`;
+  protected readonly analystLabel = $localize`:@@role.analyst:Analyst`;
 
   protected readonly createForm = new FormGroup<CreateFormControls>({
     name: new FormControl<string>('', {
@@ -565,22 +608,6 @@ export class UserFormDialog {
   protected readonly emailError = signal<string | null>(null);
   protected readonly passwordError = signal<string | null>(null);
   protected readonly revealPw = signal<boolean>(false);
-  protected readonly errorMatcher = new SubmitOnlyErrorStateMatcher();
-
-  protected roleLabel(role: string | null | undefined): string {
-    switch (role) {
-      case 'super_admin':
-        return $localize`:@@role.super_admin:Super-admin`;
-      case 'sales_manager':
-        return $localize`:@@role.sales_manager:Sales manager`;
-      case 'sales_agent':
-        return $localize`:@@role.sales_agent:Sales agent`;
-      case 'analyst':
-        return $localize`:@@role.analyst:Analyst`;
-      default:
-        return '';
-    }
-  }
 
   protected invalid(): boolean {
     return this.data.mode === 'create'

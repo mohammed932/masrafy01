@@ -9,13 +9,35 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { DialogService } from 'primeng/dynamicdialog';
-import { ButtonModule } from 'primeng/button';
-import { TableModule } from 'primeng/table';
-import { ToggleSwitchModule } from 'primeng/toggleswitch';
-import { TooltipModule } from 'primeng/tooltip';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzModalService } from 'ng-zorro-antd/modal';
+import {
+  IdcardOutline,
+  SwapOutline,
+  SolutionOutline,
+  FlagOutline,
+  HomeOutline,
+  ClusterOutline,
+  ReadOutline,
+  SafetyOutline,
+  AppstoreOutline,
+  CrownOutline,
+  LineChartOutline,
+  ShopOutline,
+  FileTextOutline,
+  CreditCardOutline,
+  UnorderedListOutline,
+  HistoryOutline,
+  LockOutline,
+  EditOutline,
+  MinusCircleOutline,
+  PlusOutline,
+} from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
   SkeletonRowsComponent,
@@ -44,19 +66,19 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
     en: 'Salary categories',
     ar: 'فئات الرواتب',
     description: 'Salary-band keys used by bank programs to gate eligibility and tenor.',
-    icon: 'badge',
+    icon: 'idcard',
   },
   transfer_type: {
     en: 'Salary transfer types',
     ar: 'أنواع تحويل الراتب',
     description: "How the applicant's income reaches the bank account.",
-    icon: 'swap_horiz',
+    icon: 'swap',
   },
   employment_type: {
     en: 'Employment types',
     ar: 'أنواع التوظيف',
     description: 'Top-level employment buckets shown on the mobile wizard.',
-    icon: 'work',
+    icon: 'solution',
   },
   loan_purpose: {
     en: 'Loan purposes',
@@ -74,55 +96,55 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
     en: 'City tiers',
     ar: 'فئات المدن',
     description: 'Main-cities vs. other-cities discount tiers.',
-    icon: 'location_city',
+    icon: 'cluster',
   },
   professor_rank: {
     en: 'Professor ranks',
     ar: 'رتب الأساتذة',
     description: 'Academic ranks for income-assumption strategies.',
-    icon: 'school',
+    icon: 'read',
   },
   military_grade: {
     en: 'Military grades',
     ar: 'رتب عسكرية',
     description: 'Military / police grades for income-assumption strategies.',
-    icon: 'military_tech',
+    icon: 'safety',
   },
   product_category: {
     en: 'Product categories',
     ar: 'فئات المنتج',
     description: 'Top-level product taxonomy on the bank-programs catalog.',
-    icon: 'category',
+    icon: 'appstore',
   },
   customer_program_tier: {
     en: 'Customer program tiers',
     ar: 'فئات برنامج العميل',
     description: 'Blue / Plus / Wealth customer-tier flags from the bank registry.',
-    icon: 'workspace_premium',
+    icon: 'crown',
   },
   performance_tier: {
     en: 'Performance tiers (MOB)',
     ar: 'فئات أداء العميل',
     description: 'Months-on-book bands used by buyout + cross-sell programs.',
-    icon: 'timeline',
+    icon: 'line-chart',
   },
   company_type: {
     en: 'Company types',
     ar: 'أنواع الشركات',
     description: 'Employer categories — Bankers program eligibility.',
-    icon: 'business',
+    icon: 'shop',
   },
   required_document: {
     en: 'Required documents',
     ar: 'المستندات المطلوبة',
     description: 'Document-type keys referenced by programs + the upload pipeline.',
-    icon: 'description',
+    icon: 'file-text',
   },
   currency: {
     en: 'Currencies',
     ar: 'العملات',
     description: 'ISO 4217 codes the platform accepts on applications + programs.',
-    icon: 'payments',
+    icon: 'credit-card',
   },
 };
 
@@ -132,32 +154,51 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
   imports: [
     CommonModule,
     FormsModule,
-    MatIconModule,
-    MatProgressBarModule,
-    ButtonModule,
-    TableModule,
-    ToggleSwitchModule,
-    TooltipModule,
+    NzIconModule,
+    NzButtonModule,
+    NzTableModule,
+    NzSwitchModule,
+    NzToolTipModule,
+    NzSpinModule,
     PageHeaderComponent,
     StatStripComponent,
     SkeletonRowsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [DialogService],
+  providers: [
+    provideNzIconsPatch([
+      IdcardOutline,
+      SwapOutline,
+      SolutionOutline,
+      FlagOutline,
+      HomeOutline,
+      ClusterOutline,
+      ReadOutline,
+      SafetyOutline,
+      AppstoreOutline,
+      CrownOutline,
+      LineChartOutline,
+      ShopOutline,
+      FileTextOutline,
+      CreditCardOutline,
+      UnorderedListOutline,
+      HistoryOutline,
+      LockOutline,
+      EditOutline,
+      MinusCircleOutline,
+      PlusOutline,
+    ]),
+  ],
   template: `
     <section class="page">
-      <app-page-header
-        [eyebrow]="eyebrowText"
-        [title]="titleText"
-        [subtitle]="subtitleText"
-      >
+      <app-page-header [eyebrow]="eyebrowText" [title]="titleText" [subtitle]="subtitleText">
         @if (!loadingTypes()) {
           <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
         }
       </app-page-header>
 
       @if (loadingTypes()) {
-        <mat-progress-bar mode="indeterminate" />
+        <div class="loading-row"><nz-spin nzSimple /></div>
       } @else {
         <p class="section-label" i18n="@@lookups.categoriesLabel">Categories</p>
         <nav class="type-rail" aria-label="Lookup categories">
@@ -169,7 +210,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
               (click)="selectType(t.type)"
             >
               <span class="type-icon" aria-hidden="true">
-                <mat-icon>{{ labelFor(t.type).icon }}</mat-icon>
+                <span nz-icon [nzType]="labelFor(t.type).icon" nzTheme="outline"></span>
               </span>
               <span class="type-body">
                 <span class="type-name">{{ labelFor(t.type).en }}</span>
@@ -177,10 +218,9 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
               <span class="type-counts">
                 <span class="count-active">{{ t.active }}</span>
                 @if (t.deprecated > 0) {
-                  <span class="count-deprecated"
-                    ><mat-icon class="dep-dot" aria-hidden="true">history</mat-icon>{{
-                      t.deprecated
-                    }}</span
+                  <span class="count-deprecated">
+                    <span nz-icon nzType="history" nzTheme="outline" class="dep-dot" aria-hidden="true"></span
+                    >{{ t.deprecated }}</span
                   >
                 }
               </span>
@@ -195,92 +235,94 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                 <h2>{{ labelFor(t).en }}</h2>
                 <p class="muted">{{ labelFor(t).description }}</p>
               </div>
-              <p-button
-                i18n-label="@@lookups.addValue"
-                label="Add value"
-                icon="pi pi-plus"
-                (onClick)="openCreate()"
-              />
+              <button nz-button nzType="primary" (click)="openCreate()">
+                <span nz-icon nzType="plus" nzTheme="outline"></span>
+                <span i18n="@@lookups.addValue">Add value</span>
+              </button>
             </header>
 
             @if (loadingRows()) {
               <app-skeleton-rows [rows]="4" [cols]="[3, 1, 1]" />
             } @else {
               <div class="table-wrap">
-                <p-table
-                  [value]="rows()"
-                  styleClass="lookups-table"
-                  [tableStyle]="{ 'table-layout': 'fixed', 'inline-size': '100%' }"
+                <nz-table
+                  #lkTable
+                  class="lookups-table"
+                  [nzData]="rows()"
+                  [nzShowPagination]="false"
+                  [nzFrontPagination]="false"
+                  [nzTableLayout]="'fixed'"
                 >
-                  <ng-template pTemplate="colgroup">
-                    <colgroup>
-                      <col />
-                      <col style="width: 240px" />
-                    </colgroup>
-                  </ng-template>
-                  <ng-template pTemplate="header">
+                  <colgroup>
+                    <col />
+                    <col style="inline-size: 240px" />
+                  </colgroup>
+                  <thead>
                     <tr>
                       <th class="col-value" i18n="@@lookups.col.value">Value</th>
                       <th class="col-manage" i18n="@@lookups.col.manage">Manage</th>
                     </tr>
-                  </ng-template>
-                  <ng-template pTemplate="body" let-r>
-                    <tr class="lookup-row">
-                      <td class="cell-value">
-                        <span class="value-label">
-                          {{ r.labelEn }}
-                          @if (r.systemOnly) {
-                            <mat-icon
-                              class="system-icon"
-                              pTooltip="System-managed — labels editable, key locked"
-                              i18n-pTooltip="@@lookups.systemTooltip"
-                              tooltipPosition="top"
-                              >lock</mat-icon
-                            >
-                          }
-                        </span>
-                      </td>
-                      <td class="actions col-manage">
-                        <p-toggleswitch
-                          class="row-toggle"
-                          [ngModel]="r.active && !r.deprecatedAt"
-                          [disabled]="!!r.deprecatedAt || r.systemOnly"
-                          (onChange)="toggleActive(r, $event.checked)"
-                          ariaLabel="Active toggle"
-                        />
-                        <span class="actions-divider" aria-hidden="true"></span>
-                        <button
-                          class="icon-action"
-                          type="button"
-                          (click)="openEdit(r)"
-                          aria-label="Edit"
-                          i18n-aria-label="@@lookups.editAria"
-                        >
-                          <mat-icon>edit</mat-icon>
-                        </button>
-                        <button
-                          class="icon-action danger"
-                          type="button"
-                          (click)="deprecate(r)"
-                          [disabled]="!!r.deprecatedAt || r.systemOnly"
-                          aria-label="Deprecate"
-                          i18n-aria-label="@@lookups.deprecateAria"
-                        >
-                          <mat-icon>do_not_disturb_on</mat-icon>
-                        </button>
-                      </td>
-                    </tr>
-                  </ng-template>
-                  <ng-template pTemplate="emptymessage">
-                    <tr>
-                      <td colspan="2">
-                        <p class="empty" i18n="@@lookups.empty">
-                          No values yet. Click <strong>Add value</strong> to seed the first one.
-                        </p>
-                      </td>
-                    </tr>
-                  </ng-template>
-                </p-table>
+                  </thead>
+                  <tbody>
+                    @for (r of lkTable.data; track r.id) {
+                      <tr class="lookup-row">
+                        <td class="cell-value">
+                          <span class="value-label">
+                            {{ r.labelEn }}
+                            @if (r.systemOnly) {
+                              <span
+                                nz-icon
+                                nzType="lock"
+                                nzTheme="outline"
+                                class="system-icon"
+                                nz-tooltip
+                                nzTooltipTitle="System-managed — labels editable, key locked"
+                                i18n-nzTooltipTitle="@@lookups.systemTooltip"
+                                nzTooltipPlacement="top"
+                              ></span>
+                            }
+                          </span>
+                        </td>
+                        <td class="actions col-manage">
+                          <nz-switch
+                            class="row-toggle"
+                            [ngModel]="r.active && !r.deprecatedAt"
+                            [nzDisabled]="!!r.deprecatedAt || r.systemOnly"
+                            (ngModelChange)="toggleActive(r, $event)"
+                          ></nz-switch>
+                          <span class="actions-divider" aria-hidden="true"></span>
+                          <button
+                            class="icon-action"
+                            type="button"
+                            (click)="openEdit(r)"
+                            aria-label="Edit"
+                            i18n-aria-label="@@lookups.editAria"
+                          >
+                            <span nz-icon nzType="edit" nzTheme="outline"></span>
+                          </button>
+                          <button
+                            class="icon-action danger"
+                            type="button"
+                            (click)="deprecate(r)"
+                            [disabled]="!!r.deprecatedAt || r.systemOnly"
+                            aria-label="Deprecate"
+                            i18n-aria-label="@@lookups.deprecateAria"
+                          >
+                            <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
+                          </button>
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="2">
+                          <p class="empty" i18n="@@lookups.empty">
+                            No values yet. Click <strong>Add value</strong> to seed the first one.
+                          </p>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </nz-table>
               </div>
             }
           </section>
@@ -303,6 +345,11 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
           padding: var(--space-4);
           gap: var(--space-5);
         }
+      }
+      .loading-row {
+        display: flex;
+        justify-content: center;
+        padding-block: var(--space-4);
       }
       .section-label {
         margin: 0;
@@ -372,15 +419,11 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         align-items: center;
         justify-content: center;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+        font-size: 20px;
       }
       .type-button.selected .type-icon {
         background: var(--color-surface-default);
         color: var(--color-brand-primary);
-      }
-      .type-icon mat-icon {
-        font-size: 20px;
-        inline-size: 20px;
-        block-size: 20px;
       }
       .type-body {
         display: flex;
@@ -420,8 +463,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       .dep-dot {
         font-size: 12px;
-        inline-size: 12px;
-        block-size: 12px;
       }
       .detail {
         display: flex;
@@ -466,8 +507,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       .system-icon {
         font-size: 16px;
-        inline-size: 16px;
-        block-size: 16px;
         color: var(--color-text-tertiary);
         margin-inline-start: var(--space-2);
         vertical-align: middle;
@@ -486,17 +525,11 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         letter-spacing: -0.005em;
         line-height: 1.2;
       }
-      :host ::ng-deep p-table.lookups-table .p-datatable {
-        inline-size: 100%;
+      :host ::ng-deep .lookups-table .ant-table-cell {
+        background: transparent;
+        border-block-end: 1px solid var(--color-border-default);
       }
-      :host ::ng-deep p-table.lookups-table table {
-        inline-size: 100%;
-        border-collapse: collapse;
-      }
-      :host ::ng-deep p-table.lookups-table thead tr {
-        block-size: 44px;
-      }
-      :host ::ng-deep p-table.lookups-table thead th {
+      :host ::ng-deep .lookups-table .ant-table-thead > tr > th {
         background: transparent;
         color: var(--color-text-tertiary);
         font-size: var(--text-xxs);
@@ -505,52 +538,32 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         text-transform: uppercase;
         padding-inline: var(--space-4);
         padding-block: var(--space-2);
-        border-block-end: 1px solid var(--color-border-default);
         text-align: start;
       }
-      :host ::ng-deep p-table.lookups-table thead th.col-manage,
-      :host ::ng-deep p-table.lookups-table tbody td.col-manage {
-        inline-size: 240px;
-        min-inline-size: 240px;
-      }
-      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row {
+      :host ::ng-deep .lookups-table .ant-table-tbody > tr.lookup-row {
         position: relative;
         block-size: 56px;
         background: transparent;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row::before {
-        content: '';
-        position: absolute;
-        inset-block: 0;
-        inset-inline-start: 0;
-        inline-size: 3px;
-        background: transparent;
-        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row:hover {
+      :host ::ng-deep .lookups-table .ant-table-tbody > tr.lookup-row:hover > td {
         background: var(--color-surface-row-hover);
       }
-      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row:hover::before {
-        background: var(--color-tonal-accent);
-      }
-      :host ::ng-deep p-table.lookups-table tbody td {
+      :host ::ng-deep .lookups-table .ant-table-tbody > tr.lookup-row > td {
         padding-inline: var(--space-4);
         padding-block: var(--space-3);
-        border-block-end: 1px solid var(--color-border-default);
         color: var(--color-text-primary);
         font-size: var(--text-sm);
         vertical-align: middle;
       }
-      :host ::ng-deep p-table.lookups-table tbody tr.lookup-row:last-child td {
+      :host ::ng-deep .lookups-table .ant-table-tbody > tr.lookup-row:last-child > td {
         border-block-end: 0;
       }
       @media (prefers-reduced-motion: reduce) {
         .type-button,
         .type-button::before,
         .type-icon,
-        :host ::ng-deep p-table.lookups-table tbody tr.lookup-row,
-        :host ::ng-deep p-table.lookups-table tbody tr.lookup-row::before {
+        :host ::ng-deep .lookups-table .ant-table-tbody > tr.lookup-row {
           transition: none;
         }
       }
@@ -581,15 +594,11 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         background: transparent;
         color: var(--color-text-secondary);
         cursor: pointer;
+        font-size: 18px;
         transition:
           background var(--motion-duration-fast) var(--motion-easing-standard),
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
           color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .icon-action mat-icon {
-        font-size: 18px;
-        inline-size: 18px;
-        block-size: 18px;
       }
       .icon-action:hover {
         background: var(--color-surface-row-hover);
@@ -626,7 +635,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
 })
 export class LookupsPage implements OnInit {
   private readonly api = inject(LookupsApiService);
-  private readonly dialog = inject(DialogService);
+  private readonly modal = inject(NzModalService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -655,16 +664,21 @@ export class LookupsPage implements OnInit {
     return [
       { label: $localize`:@@lookups.stat.types:Categories`, value: s.types },
       { label: $localize`:@@lookups.stat.values:Active values`, value: s.active, tone: 'success' },
-      { label: $localize`:@@lookups.stat.deprecated:Deprecated`, value: s.deprecated, tone: 'muted' },
+      {
+        label: $localize`:@@lookups.stat.deprecated:Deprecated`,
+        value: s.deprecated,
+        tone: 'muted',
+      },
     ];
   });
 
   async ngOnInit(): Promise<void> {
     await this.reloadTypes();
     const initial = this.route.snapshot.queryParamMap.get('type');
-    const target = initial && this.types().some((t) => t.type === initial)
-      ? initial
-      : this.types()[0]?.type ?? null;
+    const target =
+      initial && this.types().some((t) => t.type === initial)
+        ? initial
+        : this.types()[0]?.type ?? null;
     if (target) await this.selectType(target);
   }
 
@@ -674,7 +688,7 @@ export class LookupsPage implements OnInit {
         en: type,
         ar: type,
         description: '',
-        icon: 'list',
+        icon: 'unordered-list',
       }
     );
   }
@@ -718,17 +732,15 @@ export class LookupsPage implements OnInit {
   }
 
   private openDialog(data: EnumerationEditDialogData): void {
-    const ref = this.dialog.open(EnumerationEditDialogComponent, {
-      data,
-      header: data.mode === 'create' ? 'Add value' : 'Edit value',
-      width: 'min(640px, calc(100vw - 48px))',
-      modal: true,
-      closable: true,
-      dismissableMask: true,
-      styleClass: 'app-modal-panel',
-      maskStyleClass: 'app-modal-backdrop',
+    const ref = this.modal.create<EnumerationEditDialogComponent, boolean, EnumerationEditDialogData>({
+      nzContent: EnumerationEditDialogComponent,
+      nzData: data,
+      nzTitle: data.mode === 'create' ? 'Add value' : 'Edit value',
+      nzWidth: 'min(640px, calc(100vw - 48px))',
+      nzFooter: null,
+      nzMaskClosable: true,
     });
-    ref.onClose.subscribe((saved: boolean | undefined) => {
+    ref.afterClose.subscribe((saved: boolean | undefined) => {
       if (saved) void this.reloadAfterMutation();
     });
   }

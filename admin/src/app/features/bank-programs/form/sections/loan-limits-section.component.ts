@@ -1,19 +1,21 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatIconModule } from '@angular/material/icon';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { CreditCardOutline } from '@ant-design/icons-angular/icons';
 
 @Component({
   selector: 'app-loan-limits-section',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatIconModule],
+  imports: [CommonModule, ReactiveFormsModule, NzFormModule, NzInputModule, NzIconModule],
+  providers: [provideNzIconsPatch([CreditCardOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="section" [formGroup]="group" id="loan-limits">
       <header class="section-header">
-        <mat-icon class="section-icon" aria-hidden="true">payments</mat-icon>
+        <span class="section-icon" nz-icon nzType="credit-card" nzTheme="outline" aria-hidden="true"></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h3>
           <p class="section-sub" i18n="@@bank_programs.section.loan_limits_sub">
@@ -24,26 +26,57 @@ import { MatIconModule } from '@angular/material/icon';
       </header>
 
       <div class="grid">
-        <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.min_amount_egp">Minimum amount (EGP)</mat-label>
-          <input matInput formControlName="minAmountEGP" inputmode="decimal" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.max_amount_egp">Maximum amount (EGP)</mat-label>
-          <input matInput formControlName="maxAmountEGP" inputmode="decimal" />
-        </mat-form-field>
+        <nz-form-item class="numeric">
+          <nz-form-label [nzFor]="'minAmountEGP'" i18n="@@bank_programs.field.min_amount_egp"
+            >Minimum amount (EGP)</nz-form-label
+          >
+          <nz-form-control>
+            <input
+              nz-input
+              id="minAmountEGP"
+              formControlName="minAmountEGP"
+              inputmode="decimal"
+            />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="numeric">
+          <nz-form-label [nzFor]="'maxAmountEGP'" i18n="@@bank_programs.field.max_amount_egp"
+            >Maximum amount (EGP)</nz-form-label
+          >
+          <nz-form-control>
+            <input
+              nz-input
+              id="maxAmountEGP"
+              formControlName="maxAmountEGP"
+              inputmode="decimal"
+            />
+          </nz-form-control>
+        </nz-form-item>
 
         @if (requiresQualitativeReview) {
-          <mat-form-field appearance="outline" class="numeric span-2">
-            <mat-label i18n="@@bank_programs.field.qr_max_egp"
-              >Qualitative-review uplift ceiling (EGP)</mat-label
+          <nz-form-item class="numeric span-2">
+            <nz-form-label
+              [nzFor]="'qualitativeReviewMaxEGP'"
+              i18n="@@bank_programs.field.qr_max_egp"
+              >Qualitative-review uplift ceiling (EGP)</nz-form-label
             >
-            <input matInput formControlName="qualitativeReviewMaxEGP" inputmode="decimal" />
-            <mat-hint i18n="@@bank_programs.hint.qr_max">
-              Unlocked per-offer only after an operator approves the qualitative-review badge. Must
-              be strictly greater than the base maximum.
-            </mat-hint>
-          </mat-form-field>
+            <nz-form-control
+              [nzExtra]="qrHint"
+            >
+              <input
+                nz-input
+                id="qualitativeReviewMaxEGP"
+                formControlName="qualitativeReviewMaxEGP"
+                inputmode="decimal"
+              />
+              <ng-template #qrHint>
+                <span i18n="@@bank_programs.hint.qr_max">
+                  Unlocked per-offer only after an operator approves the qualitative-review badge.
+                  Must be strictly greater than the base maximum.
+                </span>
+              </ng-template>
+            </nz-form-control>
+          </nz-form-item>
         }
       </div>
     </section>
@@ -55,7 +88,7 @@ export class LoanLimitsSectionComponent implements OnChanges {
   @Input() currencies: string[] = ['EGP'];
   @Input() requiresQualitativeReview = false;
 
-  ngOnChanges(changes: SimpleChanges): void {
+  ngOnChanges(_changes: SimpleChanges): void {
     if (!this.group) return;
     const ctl = this.group.get('qualitativeReviewMaxEGP');
     if (!ctl) return;

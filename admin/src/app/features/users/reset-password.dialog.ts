@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
-import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { EyeOutline, EyeInvisibleOutline } from '@ant-design/icons-angular/icons';
 import { UsersService } from './users.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/auth.types';
@@ -25,59 +26,84 @@ interface Controls {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
+    NzButtonModule,
+    NzFormModule,
+    NzInputModule,
+    NzIconModule,
   ],
+  providers: [provideNzIconsPatch([EyeOutline, EyeInvisibleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title>
-      <span i18n="@@resetPw.title">Reset password for</span> {{ data.row.name }}
-    </h2>
-    <form mat-dialog-content [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <header class="dialog-header">
+      <h2 class="dialog-title">
+        <span i18n="@@resetPw.title">Reset password for</span> {{ data.row.name }}
+      </h2>
+    </header>
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="dialog-body">
       <p class="hint" i18n="@@resetPw.hint">The user must change this password on next sign-in.</p>
-      <mat-form-field appearance="outline" class="field">
-        <mat-label i18n="@@resetPw.new">New password</mat-label>
-        <input
-          matInput
-          [type]="reveal() ? 'text' : 'password'"
-          autocomplete="new-password"
-          formControlName="newPassword"
-        />
-        <button
-          mat-icon-button
-          matSuffix
-          type="button"
-          (click)="reveal.set(!reveal())"
-          [attr.aria-pressed]="reveal()"
+      <nz-form-item>
+        <nz-form-label [nzFor]="'newPassword'" nzRequired i18n="@@resetPw.new"
+          >New password</nz-form-label
         >
-          <mat-icon>{{ reveal() ? 'visibility_off' : 'visibility' }}</mat-icon>
-        </button>
-        @if (fieldError(); as msg) {
-          <mat-error>{{ msg }}</mat-error>
-        }
-      </mat-form-field>
+        <nz-form-control [nzErrorTip]="pwErrTpl">
+          <nz-input-group [nzSuffix]="suffixTpl">
+            <input
+              nz-input
+              id="newPassword"
+              [type]="reveal() ? 'text' : 'password'"
+              autocomplete="new-password"
+              formControlName="newPassword"
+            />
+          </nz-input-group>
+          <ng-template #suffixTpl>
+            <button
+              nz-button
+              nzType="text"
+              nzShape="circle"
+              type="button"
+              (click)="reveal.set(!reveal())"
+              [attr.aria-pressed]="reveal()"
+            >
+              <span
+                nz-icon
+                [nzType]="reveal() ? 'eye-invisible' : 'eye'"
+                nzTheme="outline"
+              ></span>
+            </button>
+          </ng-template>
+          <ng-template #pwErrTpl let-control>
+            @if (fieldError(); as msg) {
+              {{ msg }}
+            } @else if (control.errors?.['required']) {
+              <span i18n="@@resetPw.err.required">Password is required.</span>
+            } @else if (control.errors?.['minlength']) {
+              <span i18n="@@resetPw.err.min">Must be at least 12 characters.</span>
+            } @else if (control.errors?.['maxlength']) {
+              <span i18n="@@resetPw.err.max">Must be at most 128 characters.</span>
+            }
+          </ng-template>
+        </nz-form-control>
+      </nz-form-item>
 
       @if (formError(); as msg) {
         <div role="alert" aria-live="polite" class="alert">{{ msg }}</div>
       }
     </form>
 
-    <div mat-dialog-actions align="end">
-      <button mat-button type="button" (click)="cancel()" i18n="@@resetPw.cancel">Cancel</button>
+    <footer class="dialog-footer">
+      <button nz-button type="button" (click)="cancel()" i18n="@@resetPw.cancel">Cancel</button>
       <button
-        mat-flat-button
-        color="primary"
+        nz-button
+        nzType="primary"
         type="button"
         (click)="submit()"
         [disabled]="form.invalid || submitting()"
+        [nzLoading]="submitting()"
         [attr.aria-busy]="submitting()"
       >
         <span i18n="@@resetPw.confirm">Reset password</span>
       </button>
-    </div>
+    </footer>
   `,
   styles: [
     `
@@ -89,11 +115,23 @@ interface Controls {
         overflow: hidden;
         background: var(--color-surface-default);
       }
-      .field {
-        width: 100%;
+      .dialog-header {
+        padding: var(--space-4) var(--space-5) var(--space-2);
+      }
+      .dialog-title {
+        margin: 0;
+        font-size: var(--text-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .dialog-body {
+        padding: var(--space-3) var(--space-5);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
       }
       .hint {
-        margin: 0 0 var(--space-3);
+        margin: 0;
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
       }
@@ -104,12 +142,19 @@ interface Controls {
         color: var(--color-error);
         border-radius: var(--radius-md);
       }
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-5) var(--space-4);
+        border-block-start: 1px solid var(--color-border-default);
+      }
     `,
   ],
 })
 export class ResetPasswordDialog {
-  protected readonly data = inject<Data>(MAT_DIALOG_DATA);
-  private readonly ref = inject<MatDialogRef<ResetPasswordDialog, boolean>>(MatDialogRef);
+  protected readonly data = inject<Data>(NZ_MODAL_DATA);
+  private readonly ref = inject<NzModalRef<ResetPasswordDialog, boolean>>(NzModalRef);
   private readonly api = inject(UsersService);
   private readonly errorCodes = inject(ErrorCodeService);
 

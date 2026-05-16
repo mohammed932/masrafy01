@@ -1,6 +1,6 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { catchError, throwError } from 'rxjs';
 import { ErrorCodeService } from '../errors/error-code.service';
 import type { ErrorCode, ErrorEnvelope } from '../auth/auth.types';
@@ -28,7 +28,7 @@ const SILENT_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
 ]);
 
 export const toastInterceptor: HttpInterceptorFn = (req, next) => {
-  const snack = inject(MatSnackBar);
+  const notification = inject(NzNotificationService);
   const errorCodes = inject(ErrorCodeService);
 
   return next(req).pipe(
@@ -38,8 +38,8 @@ export const toastInterceptor: HttpInterceptorFn = (req, next) => {
         if (body && body.success === false && typeof body.code === 'string') {
           const code = body.code as ErrorCode;
           if (!SILENT_CODES.has(code)) {
-            snack.open(errorCodes.toLocalizedMessage(code, body.meta), undefined, {
-              duration: 6000,
+            notification.error(errorCodes.toLocalizedMessage(code, body.meta), '', {
+              nzDuration: 6000,
             });
           }
         }

@@ -3,11 +3,17 @@ import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import {
+  EyeOutline,
+  EyeInvisibleOutline,
+  CheckCircleOutline,
+  BorderOuterOutline,
+} from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode, ErrorEnvelope } from '@core/auth/auth.types';
@@ -22,11 +28,14 @@ interface ForcedChangeControls {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
+    NzButtonModule,
+    NzFormModule,
+    NzIconModule,
+    NzInputModule,
+    NzSpinModule,
+  ],
+  providers: [
+    provideNzIconsPatch([EyeOutline, EyeInvisibleOutline, CheckCircleOutline, BorderOuterOutline]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -37,41 +46,55 @@ interface ForcedChangeControls {
           For your security, set a new password before continuing.
         </p>
 
-        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@forcedChange.newPassword">New password</mat-label>
-            <input
-              matInput
-              [type]="reveal() ? 'text' : 'password'"
-              autocomplete="new-password"
-              formControlName="newPassword"
-              [attr.aria-describedby]="hintsId"
-            />
-            <button
-              mat-icon-button
-              matSuffix
-              type="button"
-              (click)="reveal.set(!reveal())"
-              [attr.aria-pressed]="reveal()"
-              [attr.aria-label]="reveal() ? hideLabel() : showLabel()"
-            >
-              <mat-icon>{{ reveal() ? 'visibility_off' : 'visibility' }}</mat-icon>
-            </button>
-          </mat-form-field>
+        <form nz-form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <nz-form-item class="field">
+            <nz-form-label [nzFor]="'newPassword'" nzRequired i18n="@@forcedChange.newPassword">New password</nz-form-label>
+            <nz-form-control>
+              <nz-input-group [nzSuffix]="suffixTpl">
+                <input
+                  nz-input
+                  id="newPassword"
+                  [type]="reveal() ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  formControlName="newPassword"
+                  [attr.aria-describedby]="hintsId"
+                />
+              </nz-input-group>
+              <ng-template #suffixTpl>
+                <button
+                  nz-button
+                  nzType="text"
+                  type="button"
+                  (click)="reveal.set(!reveal())"
+                  [attr.aria-pressed]="reveal()"
+                  [attr.aria-label]="reveal() ? hideLabel() : showLabel()"
+                >
+                  <span
+                    nz-icon
+                    [nzType]="reveal() ? 'eye-invisible' : 'eye'"
+                    nzTheme="outline"
+                  ></span>
+                </button>
+              </ng-template>
+            </nz-form-control>
+          </nz-form-item>
 
           <ul [id]="hintsId" class="hints" aria-live="polite">
             <li [class.ok]="lengthOk()">
-              <mat-icon class="hint-icon">{{
-                lengthOk() ? 'check_circle' : 'radio_button_unchecked'
-              }}</mat-icon>
+              <span
+                nz-icon
+                [nzType]="lengthOk() ? 'check-circle' : 'border-outer'"
+                nzTheme="outline"
+                class="hint-icon"
+              ></span>
               <span i18n="@@forcedChange.hint.length">Length 12–128</span>
             </li>
             <li>
-              <mat-icon class="hint-icon">radio_button_unchecked</mat-icon>
+              <span nz-icon nzType="border-outer" nzTheme="outline" class="hint-icon"></span>
               <span i18n="@@forcedChange.hint.common">Not a common password</span>
             </li>
             <li>
-              <mat-icon class="hint-icon">radio_button_unchecked</mat-icon>
+              <span nz-icon nzType="border-outer" nzTheme="outline" class="hint-icon"></span>
               <span i18n="@@forcedChange.hint.breach">Not in any known breach</span>
             </li>
           </ul>
@@ -81,15 +104,15 @@ interface ForcedChangeControls {
           }
 
           <button
-            mat-flat-button
-            color="primary"
+            nz-button
+            nzType="primary"
             type="submit"
             [disabled]="form.invalid || submitting()"
             [attr.aria-busy]="submitting()"
             class="submit"
           >
             @if (submitting()) {
-              <mat-progress-spinner mode="indeterminate" diameter="20" />
+              <nz-spin nzSimple [nzSize]="'small'" />
             } @else {
               <span i18n="@@forcedChange.submit">Save and continue</span>
             }
@@ -146,8 +169,6 @@ interface ForcedChangeControls {
       }
       .hint-icon {
         font-size: 16px;
-        width: 16px;
-        height: 16px;
         color: var(--color-text-tertiary);
         transition: color var(--motion-duration-fast) var(--motion-easing-standard);
       }

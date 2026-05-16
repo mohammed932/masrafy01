@@ -1,19 +1,13 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import {
-  MAT_DIALOG_DATA,
-  MatDialogActions,
-  MatDialogContent,
-  MatDialogModule,
-  MatDialogRef,
-  MatDialogTitle,
-} from '@angular/material/dialog';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatSelectModule } from '@angular/material/select';
-import { MatIconModule } from '@angular/material/icon';
+import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { CloseCircleOutline } from '@ant-design/icons-angular/icons';
 import { ApplicationsApiService } from '../../api/applications.api.service';
 import { UsersService } from '../../../users/users.service';
 import type { StaffAccountSummary } from '@core/auth/auth.types';
@@ -27,7 +21,7 @@ const ASSIGN_REASONS = [
   'OTHER',
 ] as const;
 
-interface LeadAssignDialogData {
+export interface LeadAssignDialogData {
   applicationId: string;
   currentAgentId?: string | null;
 }
@@ -38,63 +32,80 @@ interface LeadAssignDialogData {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatDialogModule,
-    MatDialogActions,
-    MatDialogContent,
-    MatDialogTitle,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSelectModule,
-    MatIconModule,
+    NzButtonModule,
+    NzFormModule,
+    NzInputModule,
+    NzSelectModule,
+    NzIconModule,
   ],
+  providers: [provideNzIconsPatch([CloseCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <h2 mat-dialog-title i18n="@@lead.assign.title">Assign / Reassign Lead</h2>
-    <mat-dialog-content>
+    <header class="dialog-header">
+      <h2 i18n="@@lead.assign.title">Assign / Reassign Lead</h2>
+    </header>
+    <div class="dialog-body">
       <form [formGroup]="form" class="form">
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@lead.assign.agent">Assign to agent</mat-label>
-          <mat-select formControlName="toAgentStaffId">
-            @for (a of eligibleAgents(); track a.id) {
-              <mat-option [value]="a.id">{{ a.name }} ({{ a.role }})</mat-option>
+        <nz-form-item>
+          <nz-form-label [nzFor]="'toAgentStaffId'" nzRequired i18n="@@lead.assign.agent"
+            >Assign to agent</nz-form-label
+          >
+          <nz-form-control>
+            <nz-select id="toAgentStaffId" formControlName="toAgentStaffId">
+              @for (a of eligibleAgents(); track a.id) {
+                <nz-option [nzValue]="a.id" [nzLabel]="a.name + ' (' + a.role + ')'"></nz-option>
+              }
+            </nz-select>
+            @if (loadingAgents()) {
+              <p class="hint" i18n="@@lead.assign.loading">Loading…</p>
             }
-          </mat-select>
-          @if (loadingAgents()) {
-            <mat-hint i18n="@@lead.assign.loading">Loading…</mat-hint>
-          }
-        </mat-form-field>
+          </nz-form-control>
+        </nz-form-item>
 
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@lead.assign.reason">Reason</mat-label>
-          <mat-select formControlName="reason">
-            @for (r of reasons; track r) {
-              <mat-option [value]="r">{{ labelFor(r) }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
+        <nz-form-item>
+          <nz-form-label [nzFor]="'reason'" nzRequired i18n="@@lead.assign.reason"
+            >Reason</nz-form-label
+          >
+          <nz-form-control>
+            <nz-select id="reason" formControlName="reason">
+              @for (r of reasons; track r) {
+                <nz-option [nzValue]="r" [nzLabel]="labelFor(r)"></nz-option>
+              }
+            </nz-select>
+          </nz-form-control>
+        </nz-form-item>
 
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@lead.assign.notes">Notes (optional)</mat-label>
-          <textarea matInput formControlName="notes" rows="3" maxlength="500"></textarea>
-          <mat-hint align="end">{{ form.controls.notes.value.length }} / 500</mat-hint>
-        </mat-form-field>
+        <nz-form-item>
+          <nz-form-label [nzFor]="'notes'" i18n="@@lead.assign.notes"
+            >Notes (optional)</nz-form-label
+          >
+          <nz-form-control>
+            <textarea
+              nz-input
+              id="notes"
+              formControlName="notes"
+              rows="3"
+              maxlength="500"
+            ></textarea>
+            <p class="hint align-end">{{ form.controls.notes.value.length }} / 500</p>
+          </nz-form-control>
+        </nz-form-item>
 
         @if (errorCode()) {
           <p class="error" role="alert">
-            <mat-icon>error</mat-icon>
+            <span nz-icon nzType="close-circle" nzTheme="outline"></span>
             <span>{{ errorCode() }}</span>
           </p>
         }
       </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button type="button" (click)="cancel()" i18n="@@lead.assign.cancel">
+    </div>
+    <footer class="dialog-footer">
+      <button nz-button nzType="default" type="button" (click)="cancel()" i18n="@@lead.assign.cancel">
         Cancel
       </button>
       <button
-        mat-flat-button
-        color="primary"
+        nz-button
+        nzType="primary"
         type="button"
         (click)="submit()"
         [disabled]="!form.valid || submitting()"
@@ -103,15 +114,40 @@ interface LeadAssignDialogData {
       >
         Assign
       </button>
-    </mat-dialog-actions>
+    </footer>
   `,
   styles: [
     `
+      :host {
+        display: block;
+        inline-size: 100%;
+      }
+      .dialog-header {
+        padding: var(--space-4) var(--space-5);
+        border-block-end: 1px solid var(--color-border-default);
+      }
+      .dialog-header h2 {
+        margin: 0;
+        font-size: var(--text-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .dialog-body {
+        padding: var(--space-4) var(--space-5);
+      }
       .form {
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
         min-inline-size: 420px;
+      }
+      .hint {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--color-text-tertiary);
+      }
+      .align-end {
+        text-align: end;
       }
       .error {
         background: var(--color-error-bg);
@@ -124,14 +160,21 @@ interface LeadAssignDialogData {
         align-items: center;
         font-size: var(--text-sm);
       }
+      .dialog-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-5);
+        border-block-start: 1px solid var(--color-border-default);
+      }
     `,
   ],
 })
 export class LeadAssignDialog implements OnInit {
   private readonly api = inject(ApplicationsApiService);
   private readonly users = inject(UsersService);
-  private readonly dialogRef = inject<MatDialogRef<LeadAssignDialog, boolean>>(MatDialogRef);
-  protected readonly data = inject<LeadAssignDialogData>(MAT_DIALOG_DATA);
+  private readonly dialogRef = inject<NzModalRef<LeadAssignDialog, boolean>>(NzModalRef);
+  protected readonly data = inject<LeadAssignDialogData>(NZ_MODAL_DATA);
 
   protected readonly reasons = [...ASSIGN_REASONS];
   protected readonly eligibleAgents = signal<StaffAccountSummary[]>([]);

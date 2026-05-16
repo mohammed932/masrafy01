@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { SnippetsOutline } from '@ant-design/icons-angular/icons';
 
 @Component({
   selector: 'app-fees-section',
@@ -12,16 +13,17 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatSlideToggleModule,
-    MatIconModule,
+    NzFormModule,
+    NzInputModule,
+    NzSwitchModule,
+    NzIconModule,
   ],
+  providers: [provideNzIconsPatch([SnippetsOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="section" [formGroup]="group" id="fees">
       <header class="section-header">
-        <mat-icon class="section-icon" aria-hidden="true">request_quote</mat-icon>
+        <span class="section-icon" nz-icon nzType="snippets" nzTheme="outline" aria-hidden="true"></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.fees">Fees</h3>
           <p class="section-sub" i18n="@@bank_programs.section.fees_sub">
@@ -31,36 +33,90 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
       </header>
 
       <div class="grid">
-        <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.admin_fee">Admin fee %</mat-label>
-          <input matInput formControlName="adminFeePercent" inputmode="decimal" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.stamp_duty">Stamp duty %</mat-label>
-          <input matInput formControlName="stampDutyPercent" inputmode="decimal" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.life_insurance_pct">Life insurance %</mat-label>
-          <input matInput formControlName="lifeInsurancePercent" inputmode="decimal" />
-        </mat-form-field>
+        <nz-form-item class="numeric">
+          <nz-form-label [nzFor]="'adminFeePercent'" i18n="@@bank_programs.field.admin_fee"
+            >Admin fee %</nz-form-label
+          >
+          <nz-form-control>
+            <input
+              nz-input
+              id="adminFeePercent"
+              formControlName="adminFeePercent"
+              inputmode="decimal"
+            />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="numeric">
+          <nz-form-label [nzFor]="'stampDutyPercent'" i18n="@@bank_programs.field.stamp_duty"
+            >Stamp duty %</nz-form-label
+          >
+          <nz-form-control>
+            <input
+              nz-input
+              id="stampDutyPercent"
+              formControlName="stampDutyPercent"
+              inputmode="decimal"
+            />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="numeric">
+          <nz-form-label [nzFor]="'lifeInsurancePercent'" i18n="@@bank_programs.field.life_insurance_pct"
+            >Life insurance %</nz-form-label
+          >
+          <nz-form-control>
+            <input
+              nz-input
+              id="lifeInsurancePercent"
+              formControlName="lifeInsurancePercent"
+              inputmode="decimal"
+            />
+          </nz-form-control>
+        </nz-form-item>
         <div class="row">
           <span class="row-label" i18n="@@bank_programs.field.life_insurance_mandatory"
             >Life insurance mandatory</span
           >
-          <mat-slide-toggle formControlName="lifeInsuranceMandatory"></mat-slide-toggle>
+          <nz-switch formControlName="lifeInsuranceMandatory"></nz-switch>
         </div>
-        <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.late_payment">Late payment %</mat-label>
-          <input matInput formControlName="latePaymentFeePercent" inputmode="decimal" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.payoff_cash">Payoff (cash) %</mat-label>
-          <input matInput formControlName="payoffCashPercent" inputmode="decimal" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="numeric">
-          <mat-label i18n="@@bank_programs.field.payoff_buyout">Payoff (buyout) %</mat-label>
-          <input matInput formControlName="payoffBuyoutPercent" inputmode="decimal" />
-        </mat-form-field>
+        <nz-form-item class="numeric">
+          <nz-form-label [nzFor]="'latePaymentFeePercent'" i18n="@@bank_programs.field.late_payment"
+            >Late payment %</nz-form-label
+          >
+          <nz-form-control>
+            <input
+              nz-input
+              id="latePaymentFeePercent"
+              formControlName="latePaymentFeePercent"
+              inputmode="decimal"
+            />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="numeric">
+          <nz-form-label [nzFor]="'payoffCashPercent'" i18n="@@bank_programs.field.payoff_cash"
+            >Payoff (cash) %</nz-form-label
+          >
+          <nz-form-control>
+            <input
+              nz-input
+              id="payoffCashPercent"
+              formControlName="payoffCashPercent"
+              inputmode="decimal"
+            />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item class="numeric">
+          <nz-form-label [nzFor]="'payoffBuyoutPercent'" i18n="@@bank_programs.field.payoff_buyout"
+            >Payoff (buyout) %</nz-form-label
+          >
+          <nz-form-control>
+            <input
+              nz-input
+              id="payoffBuyoutPercent"
+              formControlName="payoffBuyoutPercent"
+              inputmode="decimal"
+            />
+          </nz-form-control>
+        </nz-form-item>
       </div>
     </section>
   `,

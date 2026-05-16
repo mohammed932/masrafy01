@@ -1,7 +1,17 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { MatIconModule } from '@angular/material/icon';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import {
+  DashboardOutline,
+  TeamOutline,
+  BankOutline,
+  FileTextOutline,
+  BarChartOutline,
+  FundOutline,
+  ControlOutline,
+  ReadOutline,
+} from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { CanDirective } from '../../shared/can.directive';
 
@@ -13,7 +23,19 @@ import { CanDirective } from '../../shared/can.directive';
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, MatIconModule, CanDirective],
+  imports: [CommonModule, RouterLink, RouterLinkActive, NzIconModule, CanDirective],
+  providers: [
+    provideNzIconsPatch([
+      DashboardOutline,
+      TeamOutline,
+      BankOutline,
+      FileTextOutline,
+      BarChartOutline,
+      FundOutline,
+      ControlOutline,
+      ReadOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <aside class="sidebar" aria-label="Primary">
@@ -21,22 +43,22 @@ import { CanDirective } from '../../shared/can.directive';
 
       <nav class="nav">
         <a routerLink="/dashboard" routerLinkActive="active" class="item">
-          <mat-icon class="item-icon" aria-hidden="true">dashboard</mat-icon>
+          <span nz-icon nzType="dashboard" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.dashboard">Dashboard</span>
         </a>
 
         <a *can="['super_admin']" routerLink="/users" routerLinkActive="active" class="item">
-          <mat-icon class="item-icon" aria-hidden="true">group</mat-icon>
+          <span nz-icon nzType="team" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.users">Users</span>
         </a>
 
         <a routerLink="/bank-programs" routerLinkActive="active" class="item">
-          <mat-icon class="item-icon" aria-hidden="true">account_balance</mat-icon>
+          <span nz-icon nzType="bank" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.bank_programs">Bank programs</span>
         </a>
 
         <a routerLink="/applications" routerLinkActive="active" class="item">
-          <mat-icon class="item-icon" aria-hidden="true">assignment</mat-icon>
+          <span nz-icon nzType="file-text" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.applications">Applications</span>
         </a>
 
@@ -46,7 +68,7 @@ import { CanDirective } from '../../shared/can.directive';
           routerLinkActive="active"
           class="item"
         >
-          <mat-icon class="item-icon" aria-hidden="true">analytics</mat-icon>
+          <span nz-icon nzType="bar-chart" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.scoring_analytics">Scoring analytics</span>
         </a>
 
@@ -56,7 +78,7 @@ import { CanDirective } from '../../shared/can.directive';
           routerLinkActive="active"
           class="item"
         >
-          <mat-icon class="item-icon" aria-hidden="true">insights</mat-icon>
+          <span nz-icon nzType="fund" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.lead_analytics">Lead analytics</span>
         </a>
       </nav>
@@ -65,7 +87,7 @@ import { CanDirective } from '../../shared/can.directive';
         <p class="section-label" i18n="@@sidebar.section.lookups">Lookups</p>
         <nav class="nav" aria-label="Lookups">
           <a routerLink="/lookups" routerLinkActive="active" class="item">
-            <mat-icon class="item-icon" aria-hidden="true">tune</mat-icon>
+            <span nz-icon nzType="control" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
             <span class="item-label" i18n="@@sidebar.lookups">Manage values</span>
           </a>
         </nav>
@@ -78,7 +100,7 @@ import { CanDirective } from '../../shared/can.directive';
           target="_blank"
           rel="noopener"
         >
-          <mat-icon class="meta-icon" aria-hidden="true">menu_book</mat-icon>
+          <span nz-icon nzType="read" nzTheme="outline" class="meta-icon" aria-hidden="true"></span>
           <span i18n="@@sidebar.runbook">Runbook</span>
         </a>
         <span class="version" aria-label="Version">v0.1.0</span>
@@ -139,8 +161,6 @@ import { CanDirective } from '../../shared/can.directive';
       }
       .item-icon {
         font-size: 20px;
-        width: 20px;
-        height: 20px;
         color: currentColor;
         opacity: 0.85;
         flex-shrink: 0;
@@ -195,8 +215,6 @@ import { CanDirective } from '../../shared/can.directive';
       }
       .meta-icon {
         font-size: 18px;
-        width: 18px;
-        height: 18px;
         opacity: 0.8;
       }
       .version {

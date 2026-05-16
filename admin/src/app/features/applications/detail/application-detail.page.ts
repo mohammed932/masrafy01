@@ -8,11 +8,24 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatDialog } from '@angular/material/dialog';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzModalService } from 'ng-zorro-antd/modal';
+import {
+  ArrowLeftOutline,
+  PlusOutline,
+  PaperClipOutline,
+  UserSwitchOutline,
+  CheckCircleOutline,
+  EllipsisOutline,
+  FileTextOutline,
+  SnippetsOutline,
+  SendOutline,
+  InboxOutline,
+  EditOutline,
+} from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import {
   ApplicationsApiService,
@@ -21,8 +34,8 @@ import {
 import { ApprovalPillComponent } from '../list/components/approval-pill.component';
 import { WhyThisScorePanelComponent } from './components/why-this-score-panel.component';
 import { ActivityTimelineComponent } from './components/activity-timeline.component';
-import { AddActivityDialog } from './components/add-activity.dialog';
-import { LeadAssignDialog } from './components/lead-assign.dialog';
+import { AddActivityDialog, type AddActivityDialogData } from './components/add-activity.dialog';
+import { LeadAssignDialog, type LeadAssignDialogData } from './components/lead-assign.dialog';
 import { ACTIVITY_REASONS } from '../activity-reasons';
 
 /**
@@ -35,24 +48,39 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
   imports: [
     CommonModule,
     RouterLink,
-    MatProgressBarModule,
-    MatIconModule,
-    MatButtonModule,
-    MatMenuModule,
+    NzSpinModule,
+    NzIconModule,
+    NzButtonModule,
+    NzDropDownModule,
     ApprovalPillComponent,
     WhyThisScorePanelComponent,
     ActivityTimelineComponent,
+  ],
+  providers: [
+    provideNzIconsPatch([
+      ArrowLeftOutline,
+      PlusOutline,
+      PaperClipOutline,
+      UserSwitchOutline,
+      CheckCircleOutline,
+      EllipsisOutline,
+      FileTextOutline,
+      SnippetsOutline,
+      SendOutline,
+      InboxOutline,
+      EditOutline,
+    ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
       <a routerLink="/applications" class="back-link">
-        <mat-icon aria-hidden="true">arrow_back</mat-icon>
+        <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
         <span i18n="@@applications.detail.back">Back to applications</span>
       </a>
 
       @if (loading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <nz-spin nzSimple [nzSize]="'small'"></nz-spin>
       } @else if (detail()) {
         @let d = detail()!;
         <header class="hero-card">
@@ -95,13 +123,13 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
           <div class="action-bar" role="toolbar" aria-label="Application actions">
             @if (canWrite()) {
               <button
-                mat-flat-button
-                color="primary"
+                nz-button
+                nzType="primary"
                 class="action-primary"
                 (click)="openAddActivity()"
                 aria-label="Add Activity"
               >
-                <mat-icon aria-hidden="true">add</mat-icon>
+                <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
                 <span i18n="@@app.detail.addActivity">Add Activity</span>
               </button>
               <button
@@ -110,7 +138,7 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
                 (click)="openAttachDocuments()"
                 aria-label="Attach Documents"
               >
-                <mat-icon aria-hidden="true">attach_file</mat-icon>
+                <span nz-icon nzType="paper-clip" nzTheme="outline" aria-hidden="true"></span>
                 <span i18n="@@app.detail.attach">Attach Documents</span>
               </button>
             }
@@ -121,7 +149,7 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
                 (click)="openAssign()"
                 aria-label="Assign or reassign"
               >
-                <mat-icon aria-hidden="true">switch_account</mat-icon>
+                <span nz-icon nzType="user-switch" nzTheme="outline" aria-hidden="true"></span>
                 <span i18n="@@app.detail.assign">Assign / Reassign</span>
               </button>
             }
@@ -132,45 +160,52 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
                 (click)="markReady()"
                 aria-label="Mark ready for bank"
               >
-                <mat-icon aria-hidden="true">check_circle</mat-icon>
+                <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
                 <span i18n="@@app.detail.markReady">Mark Ready</span>
               </button>
             }
             @if (canWrite()) {
               <button
-                mat-icon-button
+                nz-button
+                nzType="text"
+                nzShape="circle"
                 class="action-kebab"
-                [matMenuTriggerFor]="moreMenu"
+                nz-dropdown
+                [nzDropdownMenu]="moreMenu"
+                nzTrigger="click"
+                nzPlacement="bottomRight"
                 aria-label="More actions"
               >
-                <mat-icon>more_vert</mat-icon>
+                <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
               </button>
-              <mat-menu #moreMenu="matMenu">
-                <button mat-menu-item (click)="openTypedActivity('INTERNAL_NOTE')">
-                  <mat-icon>sticky_note_2</mat-icon>
-                  <span i18n="@@app.detail.menu.internalNote">Add Internal Note</span>
-                </button>
-                <button mat-menu-item (click)="openTypedActivity('REQUESTED_MORE_DOCS')">
-                  <mat-icon>request_quote</mat-icon>
-                  <span i18n="@@app.detail.menu.requestMore">Request More Documents</span>
-                </button>
-                <button mat-menu-item (click)="openTypedActivity('MARKED_AS_REVIEWED')">
-                  <mat-icon>check_circle</mat-icon>
-                  <span i18n="@@app.detail.menu.markReviewed">Mark as Reviewed</span>
-                </button>
-                <button mat-menu-item (click)="openTypedActivity('SUBMITTED_TO_BANK')">
-                  <mat-icon>send</mat-icon>
-                  <span i18n="@@app.detail.menu.submitBank">Submitted to Bank</span>
-                </button>
-                <button mat-menu-item (click)="openTypedActivity('BANK_RESPONDED')">
-                  <mat-icon>inbox</mat-icon>
-                  <span i18n="@@app.detail.menu.bankResponded">Bank Responded</span>
-                </button>
-                <button mat-menu-item (click)="openTypedActivity('UPDATED_APPLICANT_INFO')">
-                  <mat-icon>edit</mat-icon>
-                  <span i18n="@@app.detail.menu.updateInfo">Update Applicant Info</span>
-                </button>
-              </mat-menu>
+              <nz-dropdown-menu #moreMenu="nzDropdownMenu">
+                <ul nz-menu>
+                  <li nz-menu-item (click)="openTypedActivity('INTERNAL_NOTE')">
+                    <span nz-icon nzType="file-text" nzTheme="outline"></span>
+                    <span i18n="@@app.detail.menu.internalNote">Add Internal Note</span>
+                  </li>
+                  <li nz-menu-item (click)="openTypedActivity('REQUESTED_MORE_DOCS')">
+                    <span nz-icon nzType="snippets" nzTheme="outline"></span>
+                    <span i18n="@@app.detail.menu.requestMore">Request More Documents</span>
+                  </li>
+                  <li nz-menu-item (click)="openTypedActivity('MARKED_AS_REVIEWED')">
+                    <span nz-icon nzType="check-circle" nzTheme="outline"></span>
+                    <span i18n="@@app.detail.menu.markReviewed">Mark as Reviewed</span>
+                  </li>
+                  <li nz-menu-item (click)="openTypedActivity('SUBMITTED_TO_BANK')">
+                    <span nz-icon nzType="send" nzTheme="outline"></span>
+                    <span i18n="@@app.detail.menu.submitBank">Submitted to Bank</span>
+                  </li>
+                  <li nz-menu-item (click)="openTypedActivity('BANK_RESPONDED')">
+                    <span nz-icon nzType="inbox" nzTheme="outline"></span>
+                    <span i18n="@@app.detail.menu.bankResponded">Bank Responded</span>
+                  </li>
+                  <li nz-menu-item (click)="openTypedActivity('UPDATED_APPLICANT_INFO')">
+                    <span nz-icon nzType="edit" nzTheme="outline"></span>
+                    <span i18n="@@app.detail.menu.updateInfo">Update Applicant Info</span>
+                  </li>
+                </ul>
+              </nz-dropdown-menu>
             }
           </div>
         </header>
@@ -252,10 +287,8 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
       .back-link:hover {
         color: var(--color-text-primary);
       }
-      .back-link mat-icon {
+      .back-link [nz-icon] {
         font-size: 16px;
-        inline-size: 16px;
-        block-size: 16px;
       }
 
       /* Hero card */
@@ -426,17 +459,15 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
           color var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .action-tonal mat-icon {
+      .action-tonal [nz-icon] {
         font-size: 18px;
-        inline-size: 18px;
-        block-size: 18px;
         color: var(--color-text-secondary);
       }
       .action-tonal:hover {
         background: var(--color-surface-row-hover);
         border-color: var(--color-border-strong);
       }
-      .action-tonal:hover mat-icon {
+      .action-tonal:hover [nz-icon] {
         color: var(--color-text-primary);
       }
       .action-tonal:focus-visible {
@@ -562,7 +593,7 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
 export class ApplicationDetailPage implements OnInit {
   private readonly api = inject(ApplicationsApiService);
   private readonly route = inject(ActivatedRoute);
-  private readonly dialog = inject(MatDialog);
+  private readonly modal = inject(NzModalService);
   private readonly auth = inject(AuthService);
 
   protected readonly detail = signal<AdminApplicationDetail | null>(null);
@@ -658,13 +689,14 @@ export class ApplicationDetailPage implements OnInit {
   openAssign(): void {
     const d = this.detail();
     if (!d) return;
-    const ref = this.dialog.open(LeadAssignDialog, {
-      data: { applicationId: d.id, currentAgentId: d.assignedAgentStaffId ?? null },
-      panelClass: 'app-modal-panel',
-      backdropClass: 'app-modal-backdrop',
-      autoFocus: 'first-tabbable',
+    const ref = this.modal.create<LeadAssignDialog, boolean, LeadAssignDialogData>({
+      nzContent: LeadAssignDialog,
+      nzData: { applicationId: d.id, currentAgentId: d.assignedAgentStaffId ?? null },
+      nzFooter: null,
+      nzWidth: 480,
+      nzAutofocus: null,
     });
-    ref.afterClosed().subscribe((saved) => {
+    ref.afterClose.subscribe((saved) => {
       if (saved) void this.refreshDetail();
     });
   }
@@ -672,17 +704,18 @@ export class ApplicationDetailPage implements OnInit {
   private openDialog(defaultActivityType?: string): void {
     const d = this.detail();
     if (!d) return;
-    const ref = this.dialog.open(AddActivityDialog, {
-      data: {
+    const ref = this.modal.create<AddActivityDialog, boolean, AddActivityDialogData>({
+      nzContent: AddActivityDialog,
+      nzData: {
         applicationId: d.id,
         defaultActivityType,
         reasonsByType: ACTIVITY_REASONS,
       },
-      panelClass: 'app-modal-panel',
-      backdropClass: 'app-modal-backdrop',
-      autoFocus: 'first-tabbable',
+      nzFooter: null,
+      nzWidth: 720,
+      nzAutofocus: null,
     });
-    ref.afterClosed().subscribe((saved) => {
+    ref.afterClose.subscribe((saved) => {
       if (saved) void this.refreshDetail();
     });
   }

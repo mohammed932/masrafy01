@@ -1,12 +1,15 @@
-import { APP_INITIALIZER, type ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import {
+  APP_INITIALIZER,
+  type ApplicationConfig,
+  LOCALE_ID,
+  inject,
+  provideZoneChangeDetection,
+} from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
-import { Overlay } from '@angular/cdk/overlay';
-import { MAT_SELECT_SCROLL_STRATEGY } from '@angular/material/select';
-import { MAT_DIALOG_DEFAULT_OPTIONS, type MatDialogConfig } from '@angular/material/dialog';
-import { providePrimeNG } from 'primeng/config';
-import Aura from '@primeng/themes/aura';
+import { NZ_I18N, ar_EG, en_US } from 'ng-zorro-antd/i18n';
+import { provideNzIcons } from 'ng-zorro-antd/icon';
 
 import { APP_ROUTES } from './app.routes';
 import { correlationIdInterceptor } from './core/interceptors/correlation-id.interceptor';
@@ -54,48 +57,20 @@ export const appConfig: ApplicationConfig = {
       ]),
     ),
     provideAnimationsAsync(),
-    providePrimeNG({
-      theme: {
-        preset: Aura,
-        options: {
-          darkModeSelector: '[data-theme="dark"]',
-          cssLayer: {
-            name: 'primeng',
-            order: 'tailwind-base, primeng, tailwind-utilities',
-          },
-        },
-      },
-    }),
+    // NG-ZORRO locale — resolved at runtime from the build-time --localize bundle
+    // (en-US default, ar-EG for the Arabic build).
+    {
+      provide: NZ_I18N,
+      useFactory: () => (inject(LOCALE_ID).toString().startsWith('ar') ? ar_EG : en_US),
+    },
+    // Empty global icon registry — features register their own icons via
+    // `provideNzIconsPatch([...])` in route providers (tree-shaking).
+    provideNzIcons([]),
     {
       provide: APP_INITIALIZER,
       useFactory: bootstrapAuth,
       deps: [AuthService],
       multi: true,
-    },
-    // Mat-select scroll strategy: REPOSITION so the panel follows its trigger
-    // as the user scrolls. Required for the bank-program form (feat 002) where
-    // selects live inside a scrollable content container.
-    {
-      provide: MAT_SELECT_SCROLL_STRATEGY,
-      useFactory: (overlay: Overlay) => () => overlay.scrollStrategies.reposition(),
-      deps: [Overlay],
-    },
-    // Global modal defaults. Every dialog.open(...) call inherits these so we
-    // never have to remember panelClass / backdropClass / sizing at the call
-    // site — the dashboard's modal surface is uniform by construction.
-    {
-      provide: MAT_DIALOG_DEFAULT_OPTIONS,
-      useValue: {
-        panelClass: 'app-modal-panel',
-        backdropClass: 'app-modal-backdrop',
-        width: '480px',
-        maxWidth: '92vw',
-        maxHeight: '92vh',
-        autoFocus: 'first-tabbable',
-        restoreFocus: true,
-        hasBackdrop: true,
-        disableClose: false,
-      } satisfies MatDialogConfig,
     },
   ],
 };

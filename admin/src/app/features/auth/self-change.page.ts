@@ -3,12 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzMessageService } from 'ng-zorro-antd/message';
+import { EyeOutline, EyeInvisibleOutline } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode, ErrorEnvelope } from '@core/auth/auth.types';
@@ -24,81 +25,104 @@ interface SelfChangeControls {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatButtonModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatProgressSpinnerModule,
+    NzButtonModule,
+    NzFormModule,
+    NzIconModule,
+    NzInputModule,
+    NzSpinModule,
   ],
+  providers: [provideNzIconsPatch([EyeOutline, EyeInvisibleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="shell" role="main">
       <section class="card" [attr.aria-labelledby]="titleId">
         <h1 [id]="titleId" class="title" i18n="@@selfChange.title">Change password</h1>
 
-        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@selfChange.currentPassword">Current password</mat-label>
-            <input
-              matInput
-              [type]="revealCurrent() ? 'text' : 'password'"
-              autocomplete="current-password"
-              formControlName="currentPassword"
-            />
-            <button
-              mat-icon-button
-              matSuffix
-              type="button"
-              (click)="revealCurrent.set(!revealCurrent())"
-              [attr.aria-pressed]="revealCurrent()"
-              [attr.aria-label]="revealCurrent() ? hideLabel() : showLabel()"
-            >
-              <mat-icon>{{ revealCurrent() ? 'visibility_off' : 'visibility' }}</mat-icon>
-            </button>
-          </mat-form-field>
+        <form nz-form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <nz-form-item class="field">
+            <nz-form-label [nzFor]="'currentPassword'" nzRequired i18n="@@selfChange.currentPassword">Current password</nz-form-label>
+            <nz-form-control>
+              <nz-input-group [nzSuffix]="suffixCurrentTpl">
+                <input
+                  nz-input
+                  id="currentPassword"
+                  [type]="revealCurrent() ? 'text' : 'password'"
+                  autocomplete="current-password"
+                  formControlName="currentPassword"
+                />
+              </nz-input-group>
+              <ng-template #suffixCurrentTpl>
+                <button
+                  nz-button
+                  nzType="text"
+                  type="button"
+                  (click)="revealCurrent.set(!revealCurrent())"
+                  [attr.aria-pressed]="revealCurrent()"
+                  [attr.aria-label]="revealCurrent() ? hideLabel() : showLabel()"
+                >
+                  <span
+                    nz-icon
+                    [nzType]="revealCurrent() ? 'eye-invisible' : 'eye'"
+                    nzTheme="outline"
+                  ></span>
+                </button>
+              </ng-template>
+            </nz-form-control>
+          </nz-form-item>
 
-          <mat-form-field appearance="outline" class="field">
-            <mat-label i18n="@@selfChange.newPassword">New password</mat-label>
-            <input
-              matInput
-              [type]="revealNew() ? 'text' : 'password'"
-              autocomplete="new-password"
-              formControlName="newPassword"
-            />
-            <button
-              mat-icon-button
-              matSuffix
-              type="button"
-              (click)="revealNew.set(!revealNew())"
-              [attr.aria-pressed]="revealNew()"
-              [attr.aria-label]="revealNew() ? hideLabel() : showLabel()"
-            >
-              <mat-icon>{{ revealNew() ? 'visibility_off' : 'visibility' }}</mat-icon>
-            </button>
-            @if (
-              form.controls.newPassword.touched && form.controls.newPassword.errors?.['minlength']
-            ) {
-              <mat-error i18n="@@selfChange.tooShort">At least 12 characters.</mat-error>
-            }
-          </mat-form-field>
+          <nz-form-item class="field">
+            <nz-form-label [nzFor]="'newPassword'" nzRequired i18n="@@selfChange.newPassword">New password</nz-form-label>
+            <nz-form-control [nzErrorTip]="newPwErrTpl">
+              <nz-input-group [nzSuffix]="suffixNewTpl">
+                <input
+                  nz-input
+                  id="newPassword"
+                  [type]="revealNew() ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  formControlName="newPassword"
+                />
+              </nz-input-group>
+              <ng-template #suffixNewTpl>
+                <button
+                  nz-button
+                  nzType="text"
+                  type="button"
+                  (click)="revealNew.set(!revealNew())"
+                  [attr.aria-pressed]="revealNew()"
+                  [attr.aria-label]="revealNew() ? hideLabel() : showLabel()"
+                >
+                  <span
+                    nz-icon
+                    [nzType]="revealNew() ? 'eye-invisible' : 'eye'"
+                    nzTheme="outline"
+                  ></span>
+                </button>
+              </ng-template>
+              <ng-template #newPwErrTpl let-control>
+                @if (control.errors?.['minlength']) {
+                  <span i18n="@@selfChange.tooShort">At least 12 characters.</span>
+                }
+              </ng-template>
+            </nz-form-control>
+          </nz-form-item>
 
           @if (errorMessage(); as msg) {
             <div role="alert" aria-live="polite" class="alert">{{ msg }}</div>
           }
 
           <div class="actions">
-            <button mat-button type="button" (click)="cancel()" i18n="@@selfChange.cancel">
+            <button nz-button type="button" (click)="cancel()" i18n="@@selfChange.cancel">
               Cancel
             </button>
             <button
-              mat-flat-button
-              color="primary"
+              nz-button
+              nzType="primary"
               type="submit"
               [disabled]="form.invalid || submitting()"
               [attr.aria-busy]="submitting()"
             >
               @if (submitting()) {
-                <mat-progress-spinner mode="indeterminate" diameter="20" />
+                <nz-spin nzSimple [nzSize]="'small'" />
               } @else {
                 <span i18n="@@selfChange.save">Save</span>
               }
@@ -153,7 +177,7 @@ interface SelfChangeControls {
 export class SelfChangePage {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly snack = inject(MatSnackBar);
+  private readonly message = inject(NzMessageService);
   private readonly errorCodes = inject(ErrorCodeService);
 
   protected readonly titleId = 'self-change-title';
@@ -183,10 +207,9 @@ export class SelfChangePage {
     this.errorMessage.set(null);
     try {
       await this.auth.changePassword(this.form.getRawValue());
-      this.snack.open(
+      this.message.success(
         $localize`:@@selfChange.success:Password updated. Other devices have been signed out.`,
-        undefined,
-        { duration: 5000 },
+        { nzDuration: 5000 },
       );
       await this.router.navigateByUrl('/dashboard');
     } catch (err) {

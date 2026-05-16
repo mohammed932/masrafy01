@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, Input } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatIconModule } from '@angular/material/icon';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { IdcardOutline } from '@ant-design/icons-angular/icons';
 import { PlatformEnumerationsService } from '../../../../core/platform-enumerations/platform-enumerations.service';
 import {
   BrandSelectComponent,
@@ -17,17 +18,18 @@ import {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatCheckboxModule,
-    MatIconModule,
+    NzFormModule,
+    NzInputModule,
+    NzCheckboxModule,
+    NzIconModule,
     BrandSelectComponent,
   ],
+  providers: [provideNzIconsPatch([IdcardOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="section" [formGroup]="group" id="identity">
       <header class="section-header">
-        <mat-icon class="section-icon" aria-hidden="true">badge</mat-icon>
+        <span class="section-icon" nz-icon nzType="idcard" nzTheme="outline" aria-hidden="true"></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.identity">Identity</h3>
           <p class="section-sub" i18n="@@bank_programs.section.identity_sub">
@@ -37,23 +39,42 @@ import {
       </header>
 
       <div class="grid">
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@bank_programs.field.program_code">Program code</mat-label>
-          <input matInput formControlName="programCode" placeholder="ABK-AUTO-V1" />
-          <mat-hint i18n="@@bank_programs.hint.program_code"
-            >A–Z, 0–9, _, − (3–32 chars). Immutable.</mat-hint
+        <nz-form-item>
+          <nz-form-label [nzFor]="'programCode'" i18n="@@bank_programs.field.program_code"
+            >Program code</nz-form-label
           >
-        </mat-form-field>
+          <nz-form-control [nzExtra]="programCodeHint">
+            <input
+              nz-input
+              id="programCode"
+              formControlName="programCode"
+              placeholder="ABK-AUTO-V1"
+            />
+            <ng-template #programCodeHint>
+              <span i18n="@@bank_programs.hint.program_code"
+                >A–Z, 0–9, _, − (3–32 chars). Immutable.</span
+              >
+            </ng-template>
+          </nz-form-control>
+        </nz-form-item>
 
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@bank_programs.field.bank_name">Bank name</mat-label>
-          <input matInput formControlName="bankName" />
-        </mat-form-field>
+        <nz-form-item>
+          <nz-form-label [nzFor]="'bankName'" i18n="@@bank_programs.field.bank_name"
+            >Bank name</nz-form-label
+          >
+          <nz-form-control>
+            <input nz-input id="bankName" formControlName="bankName" />
+          </nz-form-control>
+        </nz-form-item>
 
-        <mat-form-field appearance="outline">
-          <mat-label i18n="@@bank_programs.field.friendly_name">Friendly name</mat-label>
-          <input matInput formControlName="friendlyName" />
-        </mat-form-field>
+        <nz-form-item>
+          <nz-form-label [nzFor]="'friendlyName'" i18n="@@bank_programs.field.friendly_name"
+            >Friendly name</nz-form-label
+          >
+          <nz-form-control>
+            <input nz-input id="friendlyName" formControlName="friendlyName" />
+          </nz-form-control>
+        </nz-form-item>
 
         <app-brand-select
           formControlName="programType"

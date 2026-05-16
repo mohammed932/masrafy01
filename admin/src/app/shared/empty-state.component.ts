@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { InboxOutline } from '@ant-design/icons-angular/icons';
 
 /**
  * Type-driven empty state. No illustrations (banking restraint).
@@ -9,11 +10,12 @@ import { MatIconModule } from '@angular/material/icon';
 @Component({
   selector: 'app-empty-state',
   standalone: true,
-  imports: [CommonModule, MatIconModule],
+  imports: [CommonModule, NzIconModule],
+  providers: [provideNzIconsPatch([InboxOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="empty" role="status" aria-live="polite">
-      <mat-icon class="empty-icon" aria-hidden="true">{{ icon }}</mat-icon>
+      <span nz-icon [nzType]="icon" nzTheme="outline" class="empty-icon" aria-hidden="true"></span>
       <h2 class="empty-title">{{ title }}</h2>
       @if (subtitle) {
         <p class="empty-subtitle">{{ subtitle }}</p>
@@ -37,8 +39,6 @@ import { MatIconModule } from '@angular/material/icon';
       }
       .empty-icon {
         font-size: 40px;
-        width: 40px;
-        height: 40px;
         color: var(--color-text-tertiary);
       }
       .empty-title {

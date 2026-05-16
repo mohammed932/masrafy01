@@ -15,10 +15,18 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
+import {
+  ArrowLeftOutline,
+  PlusOutline,
+  SaveOutline,
+  ReloadOutline,
+  CloudOutline,
+} from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -57,9 +65,9 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
     CommonModule,
     ReactiveFormsModule,
     RouterLink,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
+    NzButtonModule,
+    NzIconModule,
+    NzSpinModule,
     IdentitySectionComponent,
     TenorSectionComponent,
     LoanLimitsSectionComponent,
@@ -70,12 +78,21 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
     FeesSectionComponent,
     DocumentsSectionComponent,
   ],
+  providers: [
+    provideNzIconsPatch([
+      ArrowLeftOutline,
+      PlusOutline,
+      SaveOutline,
+      ReloadOutline,
+      CloudOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
       <header class="page-header">
         <a routerLink="/bank-programs" class="back-link">
-          <mat-icon aria-hidden="true">arrow_back</mat-icon>
+          <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.form.back">Back to list</span>
         </a>
         <div class="title-block">
@@ -91,12 +108,12 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
 
       <ng-container *ngIf="enums.unavailable(); else readyTpl">
         <div class="unavailable">
-          <mat-icon class="unavailable-icon" aria-hidden="true">cloud_off</mat-icon>
+          <span class="unavailable-icon" nz-icon nzType="cloud" nzTheme="outline" aria-hidden="true"></span>
           <p class="unavailable-text" i18n="@@bank_programs.form.enums_unavailable">
             Enumerations unavailable, retry shortly.
           </p>
-          <button mat-stroked-button type="button" (click)="retryEnums()">
-            <mat-icon aria-hidden="true">refresh</mat-icon>
+          <button nz-button type="button" (click)="retryEnums()">
+            <span nz-icon nzType="reload" nzTheme="outline" aria-hidden="true"></span>
             <span i18n="@@bank_programs.form.retry">Retry</span>
           </button>
         </div>
@@ -126,20 +143,18 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
           <app-documents-section [group]="documentsGroup"></app-documents-section>
 
           <footer class="form-footer">
-            <button mat-stroked-button type="button" (click)="cancel()" [disabled]="busy()">
+            <button nz-button type="button" (click)="cancel()" [disabled]="busy()">
               <span i18n="@@bank_programs.form.cancel">Cancel</span>
             </button>
             <button
-              mat-flat-button
-              color="primary"
+              nz-button
+              nzType="primary"
               type="button"
               (click)="submit()"
               [disabled]="form.invalid || busy() || enums.unavailable()"
+              [nzLoading]="busy()"
             >
-              <mat-spinner *ngIf="busy()" diameter="16" mode="indeterminate"></mat-spinner>
-              <mat-icon *ngIf="!busy()" aria-hidden="true">{{
-                isEditMode() ? 'save' : 'add'
-              }}</mat-icon>
+              <span *ngIf="!busy()" nz-icon [nzType]="isEditMode() ? 'save' : 'plus'" nzTheme="outline" aria-hidden="true"></span>
               <span *ngIf="!busy()">
                 {{ isEditMode() ? saveLabel() : createLabel() }}
               </span>
@@ -210,10 +225,6 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
         border-radius: var(--radius-lg);
         margin-block-start: var(--space-2);
       }
-      .form-footer button mat-spinner {
-        display: inline-block;
-        margin-inline-end: var(--space-2);
-      }
       .unavailable {
         display: flex;
         flex-direction: column;
@@ -245,7 +256,8 @@ export class BankProgramFormPage implements OnInit {
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(BankProgramsApiService);
-  private readonly snack = inject(MatSnackBar);
+  private readonly message = inject(NzMessageService);
+  private readonly notification = inject(NzNotificationService);
   private readonly errorsService = inject(ErrorCodeService);
   readonly enums = inject(PlatformEnumerationsService);
 
@@ -508,20 +520,16 @@ export class BankProgramFormPage implements OnInit {
       if (this.isEditMode()) {
         const payload = this.buildUpdatePayload();
         const res = await this.api.update(this.currentProgramCode, payload);
-        this.snack.open(
-          $localize`:@@bank_programs.form.updated:Bank program updated.`,
-          $localize`:@@bank_programs.form.dismiss:Dismiss`,
-          { duration: 4000 },
-        );
+        this.message.success($localize`:@@bank_programs.form.updated:Bank program updated.`, {
+          nzDuration: 4000,
+        });
         void this.router.navigate(['/bank-programs', res.data.programCode]);
       } else {
         const payload = this.buildCreatePayload();
         const res = await this.api.create(payload);
-        this.snack.open(
-          $localize`:@@bank_programs.form.created:Bank program created.`,
-          $localize`:@@bank_programs.form.dismiss:Dismiss`,
-          { duration: 4000 },
-        );
+        this.message.success($localize`:@@bank_programs.form.created:Bank program created.`, {
+          nzDuration: 4000,
+        });
         void this.router.navigate(['/bank-programs', res.data.programCode]);
       }
     } catch (err: unknown) {
@@ -733,7 +741,7 @@ export class BankProgramFormPage implements OnInit {
     const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } }).error;
     const code = envelope?.code ?? 'INTERNAL_ERROR';
     const msg = this.errorsService.toLocalizedMessage(code as never, envelope?.meta);
-    this.snack.open(msg, $localize`:@@bank_programs.form.dismiss:Dismiss`, { duration: 6000 });
+    this.notification.error($localize`:@@bank_programs.form.dismiss:Dismiss`, msg);
 
     if (code === 'PROGRAM_CODE_ALREADY_IN_USE') {
       this.identityGroup.get('programCode')?.setErrors({ duplicate: true });

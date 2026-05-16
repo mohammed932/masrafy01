@@ -78,6 +78,11 @@ export const APP_ROUTES: Routes = [
       import('./features/lookups/lookups.routes').then((m) => m.LOOKUPS_ROUTES),
   },
   {
+    // Throwaway: NG-ZORRO install verification. Removed in PR 2 (shell migration).
+    path: 'nz-demo',
+    loadComponent: () => import('./features/nz-demo/nz-demo.page').then((m) => m.NzDemoPage),
+  },
+  {
     path: '**',
     redirectTo: 'dashboard',
   },

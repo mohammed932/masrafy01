@@ -1,26 +1,45 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import {
+  AppstoreOutline,
+  PhoneOutline,
+  MessageOutline,
+  PaperClipOutline,
+  SettingOutline,
+  MailOutline,
+  CheckCircleOutline,
+  EditOutline,
+  SendOutline,
+  InboxOutline,
+  SnippetsOutline,
+  FileDoneOutline,
+  FileTextOutline,
+  WarningOutline,
+  SyncOutline,
+  UserSwitchOutline,
+  CalendarOutline,
+} from '@ant-design/icons-angular/icons';
 import { ApplicationsApiService, type ActivityRow } from '../../api/applications.api.service';
 
 type FilterKey = 'all' | 'calls' | 'messages' | 'documents' | 'system';
 
 const ICON_BY_TYPE: Record<string, string> = {
-  CALLED_USER: 'call',
-  SENT_WHATSAPP: 'chat',
+  CALLED_USER: 'phone',
+  SENT_WHATSAPP: 'message',
   SENT_EMAIL: 'mail',
-  RECEIVED_DOCUMENTS: 'attach_file',
-  REVIEWED_DOCUMENTS: 'verified',
-  REQUESTED_MORE_DOCS: 'request_quote',
+  RECEIVED_DOCUMENTS: 'paper-clip',
+  REVIEWED_DOCUMENTS: 'file-done',
+  REQUESTED_MORE_DOCS: 'snippets',
   UPDATED_APPLICANT_INFO: 'edit',
-  MARKED_AS_REVIEWED: 'check_circle',
-  INTERNAL_NOTE: 'sticky_note_2',
-  STATUS_CHANGE: 'autorenew',
+  MARKED_AS_REVIEWED: 'check-circle',
+  INTERNAL_NOTE: 'file-text',
+  STATUS_CHANGE: 'sync',
   SUBMITTED_TO_BANK: 'send',
   BANK_RESPONDED: 'inbox',
-  LEAD_REASSIGNED: 'switch_account',
+  LEAD_REASSIGNED: 'user-switch',
   STALE_LEAD_FLAGGED: 'warning',
 };
 
@@ -44,7 +63,28 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
 @Component({
   selector: 'app-activity-timeline',
   standalone: true,
-  imports: [CommonModule, DatePipe, MatIconModule, MatButtonModule, MatProgressBarModule],
+  imports: [CommonModule, DatePipe, NzIconModule, NzButtonModule, NzSpinModule],
+  providers: [
+    provideNzIconsPatch([
+      AppstoreOutline,
+      PhoneOutline,
+      MessageOutline,
+      PaperClipOutline,
+      SettingOutline,
+      MailOutline,
+      CheckCircleOutline,
+      EditOutline,
+      SendOutline,
+      InboxOutline,
+      SnippetsOutline,
+      FileDoneOutline,
+      FileTextOutline,
+      WarningOutline,
+      SyncOutline,
+      UserSwitchOutline,
+      CalendarOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="timeline-root">
@@ -57,7 +97,7 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
           [attr.aria-selected]="filter() === 'all'"
           (click)="setFilter('all')"
         >
-          <mat-icon class="filter-icon" aria-hidden="true">apps</mat-icon>
+          <span nz-icon nzType="appstore" nzTheme="outline" class="filter-icon" aria-hidden="true"></span>
           <span i18n="@@activity.timeline.filter.all">All</span>
           <span class="filter-count">{{ countFor('all') }}</span>
         </button>
@@ -69,7 +109,7 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
           [attr.aria-selected]="filter() === 'calls'"
           (click)="setFilter('calls')"
         >
-          <mat-icon class="filter-icon" aria-hidden="true">call</mat-icon>
+          <span nz-icon nzType="phone" nzTheme="outline" class="filter-icon" aria-hidden="true"></span>
           <span i18n="@@activity.timeline.filter.calls">Calls</span>
           <span class="filter-count">{{ countFor('calls') }}</span>
         </button>
@@ -81,7 +121,7 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
           [attr.aria-selected]="filter() === 'messages'"
           (click)="setFilter('messages')"
         >
-          <mat-icon class="filter-icon" aria-hidden="true">chat</mat-icon>
+          <span nz-icon nzType="message" nzTheme="outline" class="filter-icon" aria-hidden="true"></span>
           <span i18n="@@activity.timeline.filter.messages">Messages</span>
           <span class="filter-count">{{ countFor('messages') }}</span>
         </button>
@@ -93,7 +133,7 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
           [attr.aria-selected]="filter() === 'documents'"
           (click)="setFilter('documents')"
         >
-          <mat-icon class="filter-icon" aria-hidden="true">attach_file</mat-icon>
+          <span nz-icon nzType="paper-clip" nzTheme="outline" class="filter-icon" aria-hidden="true"></span>
           <span i18n="@@activity.timeline.filter.documents">Documents</span>
           <span class="filter-count">{{ countFor('documents') }}</span>
         </button>
@@ -105,14 +145,14 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
           [attr.aria-selected]="filter() === 'system'"
           (click)="setFilter('system')"
         >
-          <mat-icon class="filter-icon" aria-hidden="true">settings</mat-icon>
+          <span nz-icon nzType="setting" nzTheme="outline" class="filter-icon" aria-hidden="true"></span>
           <span i18n="@@activity.timeline.filter.system">System</span>
           <span class="filter-count">{{ countFor('system') }}</span>
         </button>
       </header>
 
       @if (loading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <nz-spin nzSimple [nzSize]="'small'"></nz-spin>
       } @else if (visibleRows().length === 0) {
         <p class="empty" i18n="@@activity.timeline.empty">No activity yet.</p>
       } @else {
@@ -120,7 +160,7 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
           @for (row of visibleRows(); track row.id) {
             <li class="row" [class.expanded]="expandedId() === row.id">
               <span class="dot" aria-hidden="true" [attr.data-category]="categoryOf(row)">
-                <mat-icon>{{ iconFor(row.activityType) }}</mat-icon>
+                <span nz-icon [nzType]="iconFor(row.activityType)" nzTheme="outline"></span>
               </span>
               <button
                 type="button"
@@ -170,7 +210,7 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
         </ol>
 
         @if (nextCursor()) {
-          <button mat-stroked-button (click)="loadMore()" class="load-more">
+          <button nz-button nzType="default" (click)="loadMore()" class="load-more">
             <span i18n="@@activity.timeline.loadMore">Load older activity</span>
           </button>
         }
@@ -219,8 +259,6 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
       }
       .filter-tab .filter-icon {
         font-size: 16px;
-        inline-size: 16px;
-        block-size: 16px;
         opacity: 0.85;
       }
       .filter-tab:hover {
@@ -317,10 +355,8 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
         border-color: var(--color-border-default);
         color: var(--color-text-secondary);
       }
-      .dot mat-icon {
+      .dot [nz-icon] {
         font-size: 18px;
-        inline-size: 18px;
-        block-size: 18px;
       }
       .row-body {
         appearance: none;
@@ -455,7 +491,7 @@ export class ActivityTimelineComponent implements OnInit {
   }
 
   iconFor(activityType: string): string {
-    return ICON_BY_TYPE[activityType] ?? 'event';
+    return ICON_BY_TYPE[activityType] ?? 'calendar';
   }
 
   countFor(key: FilterKey): number {

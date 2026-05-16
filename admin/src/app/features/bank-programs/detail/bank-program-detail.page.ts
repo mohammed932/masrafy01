@@ -2,22 +2,26 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatDialog } from '@angular/material/dialog';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
-import { MatMenuModule } from '@angular/material/menu';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
-import { MatTooltipModule } from '@angular/material/tooltip';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzModalService } from 'ng-zorro-antd/modal';
+import {
+  ArrowLeftOutline,
+  EditOutline,
+  CopyOutline,
+  DeleteOutline,
+  WarningOutline,
+} from '@ant-design/icons-angular/icons';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { CanDirective } from '../../../shared/can.directive';
 import { BankProgramsApiService } from '../bank-programs.api.service';
-import { CloneProgramDialog } from '../clone/clone-program.dialog';
-import { DeleteProgramDialog } from '../delete/delete-program.dialog';
+import { CloneProgramDialog, type CloneProgramDialogData } from '../clone/clone-program.dialog';
+import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
 import { CascadePreviewComponent, type CascadeApplicantContext } from './cascade-preview.component';
 import type { BankProgramResponse } from '../bank-programs.types';
 
@@ -28,24 +32,30 @@ import type { BankProgramResponse } from '../bank-programs.types';
     CommonModule,
     FormsModule,
     RouterLink,
-    MatButtonModule,
-    MatChipsModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatMenuModule,
-    MatProgressSpinnerModule,
-    MatSelectModule,
-    MatTooltipModule,
+    NzButtonModule,
+    NzFormModule,
+    NzIconModule,
+    NzInputModule,
+    NzSelectModule,
+    NzSpinModule,
     CanDirective,
     CascadePreviewComponent,
+  ],
+  providers: [
+    provideNzIconsPatch([
+      ArrowLeftOutline,
+      EditOutline,
+      CopyOutline,
+      DeleteOutline,
+      WarningOutline,
+    ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page" *ngIf="program(); else loadingTpl">
       <header class="page-header">
         <a routerLink="/bank-programs" class="back-link">
-          <mat-icon aria-hidden="true">arrow_back</mat-icon>
+          <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.detail.back">Back to list</span>
         </a>
         <div class="title-row">
@@ -65,22 +75,25 @@ import type { BankProgramResponse } from '../bank-programs.types';
         <div class="actions">
           <a
             *can="['super_admin', 'sales_manager']"
-            mat-stroked-button
+            nz-button
             [routerLink]="['/bank-programs', program()!.programCode, 'edit']"
           >
-            <mat-icon>edit</mat-icon> <span i18n="@@bank_programs.action.edit">Edit</span>
+            <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.action.edit">Edit</span>
           </a>
-          <button *can="['super_admin', 'sales_manager']" mat-stroked-button (click)="openClone()">
-            <mat-icon>content_copy</mat-icon> <span i18n="@@bank_programs.action.clone">Clone</span>
+          <button *can="['super_admin', 'sales_manager']" nz-button (click)="openClone()">
+            <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.action.clone">Clone</span>
           </button>
-          <button *can="['super_admin']" mat-stroked-button color="warn" (click)="openDelete()">
-            <mat-icon>delete</mat-icon> <span i18n="@@bank_programs.action.delete">Delete</span>
+          <button *can="['super_admin']" nz-button nzDanger (click)="openDelete()">
+            <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.action.delete">Delete</span>
           </button>
         </div>
       </header>
 
       <div *ngIf="program()!.deprecatedKeys.length > 0" class="deprecated-banner">
-        <mat-icon aria-hidden="true">warning</mat-icon>
+        <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
         <span i18n="@@bank_programs.detail.deprecated_banner">
           {{ program()!.deprecatedKeys.length }} tier key(s) have been deprecated in the registry —
           review.
@@ -223,54 +236,88 @@ import type { BankProgramResponse } from '../bank-programs.types';
 
           <section class="card whatif">
             <h3 class="card-title" i18n="@@bank_programs.detail.whatif">Try a sample applicant</h3>
-            <mat-form-field appearance="outline">
-              <mat-label i18n="@@bank_programs.field.employment_type">Employment</mat-label>
-              <mat-select [(ngModel)]="ctxEmployment" (ngModelChange)="recompute()">
-                <mat-option value="salaried">Salaried</mat-option>
-                <mat-option value="self_employed">Self-employed</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label i18n="@@bank_programs.field.transfer_type">Transfer</mat-label>
-              <mat-select [(ngModel)]="ctxTransfer" (ngModelChange)="recompute()">
-                <mat-option value="payroll">Payroll</mat-option>
-                <mat-option value="payroll_cat_a">Payroll · Cat-A</mat-option>
-                <mat-option value="payroll_cat_b">Payroll · Cat-B</mat-option>
-                <mat-option value="payroll_cat_c">Payroll · Cat-C</mat-option>
-                <mat-option value="salary_transfer_letter">STL</mat-option>
-                <mat-option value="income_transfer_letter">ITL</mat-option>
-                <mat-option value="none">None</mat-option>
-              </mat-select>
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label i18n="@@bank_programs.detail.tenor_months">Tenor (months)</mat-label>
-              <input matInput type="number" [(ngModel)]="ctxTenor" (ngModelChange)="recompute()" />
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label i18n="@@bank_programs.detail.down_payment_pct">Down payment %</mat-label>
-              <input
-                matInput
-                type="number"
-                [(ngModel)]="ctxDownPayment"
-                (ngModelChange)="recompute()"
-              />
-            </mat-form-field>
-            <mat-form-field appearance="outline">
-              <mat-label i18n="@@bank_programs.detail.asset_value">Asset value (EGP)</mat-label>
-              <input
-                matInput
-                type="number"
-                [(ngModel)]="ctxAssetValue"
-                (ngModelChange)="recompute()"
-              />
-            </mat-form-field>
+            <nz-form-item>
+              <nz-form-label [nzFor]="'ctxEmployment'" i18n="@@bank_programs.field.employment_type"
+                >Employment</nz-form-label
+              >
+              <nz-form-control>
+                <nz-select
+                  id="ctxEmployment"
+                  [(ngModel)]="ctxEmployment"
+                  (ngModelChange)="recompute()"
+                >
+                  <nz-option nzValue="salaried" nzLabel="Salaried"></nz-option>
+                  <nz-option nzValue="self_employed" nzLabel="Self-employed"></nz-option>
+                </nz-select>
+              </nz-form-control>
+            </nz-form-item>
+            <nz-form-item>
+              <nz-form-label [nzFor]="'ctxTransfer'" i18n="@@bank_programs.field.transfer_type"
+                >Transfer</nz-form-label
+              >
+              <nz-form-control>
+                <nz-select id="ctxTransfer" [(ngModel)]="ctxTransfer" (ngModelChange)="recompute()">
+                  <nz-option nzValue="payroll" nzLabel="Payroll"></nz-option>
+                  <nz-option nzValue="payroll_cat_a" nzLabel="Payroll · Cat-A"></nz-option>
+                  <nz-option nzValue="payroll_cat_b" nzLabel="Payroll · Cat-B"></nz-option>
+                  <nz-option nzValue="payroll_cat_c" nzLabel="Payroll · Cat-C"></nz-option>
+                  <nz-option nzValue="salary_transfer_letter" nzLabel="STL"></nz-option>
+                  <nz-option nzValue="income_transfer_letter" nzLabel="ITL"></nz-option>
+                  <nz-option nzValue="none" nzLabel="None"></nz-option>
+                </nz-select>
+              </nz-form-control>
+            </nz-form-item>
+            <nz-form-item>
+              <nz-form-label [nzFor]="'ctxTenor'" i18n="@@bank_programs.detail.tenor_months"
+                >Tenor (months)</nz-form-label
+              >
+              <nz-form-control>
+                <input
+                  nz-input
+                  id="ctxTenor"
+                  type="number"
+                  [(ngModel)]="ctxTenor"
+                  (ngModelChange)="recompute()"
+                />
+              </nz-form-control>
+            </nz-form-item>
+            <nz-form-item>
+              <nz-form-label
+                [nzFor]="'ctxDownPayment'"
+                i18n="@@bank_programs.detail.down_payment_pct"
+                >Down payment %</nz-form-label
+              >
+              <nz-form-control>
+                <input
+                  nz-input
+                  id="ctxDownPayment"
+                  type="number"
+                  [(ngModel)]="ctxDownPayment"
+                  (ngModelChange)="recompute()"
+                />
+              </nz-form-control>
+            </nz-form-item>
+            <nz-form-item>
+              <nz-form-label [nzFor]="'ctxAssetValue'" i18n="@@bank_programs.detail.asset_value"
+                >Asset value (EGP)</nz-form-label
+              >
+              <nz-form-control>
+                <input
+                  nz-input
+                  id="ctxAssetValue"
+                  type="number"
+                  [(ngModel)]="ctxAssetValue"
+                  (ngModelChange)="recompute()"
+                />
+              </nz-form-control>
+            </nz-form-item>
           </section>
         </aside>
       </div>
     </section>
 
     <ng-template #loadingTpl>
-      <div class="loading"><mat-spinner diameter="32"></mat-spinner></div>
+      <div class="loading"><nz-spin nzSimple></nz-spin></div>
     </ng-template>
   `,
   styles: [
@@ -385,7 +432,8 @@ import type { BankProgramResponse } from '../bank-programs.types';
       .numeric {
         font-variant-numeric: tabular-nums lining-nums;
       }
-      .rail mat-form-field {
+      .rail nz-form-item,
+      .rail nz-select {
         width: 100%;
       }
       .loading {
@@ -400,7 +448,7 @@ export class BankProgramDetailPage {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly api = inject(BankProgramsApiService);
-  private readonly dialog = inject(MatDialog);
+  private readonly modal = inject(NzModalService);
 
   readonly programCode = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('programCode') ?? '')),
@@ -448,12 +496,17 @@ export class BankProgramDetailPage {
   openClone(): void {
     const p = this.program();
     if (!p) return;
-    const ref = this.dialog.open(CloneProgramDialog, {
-      data: { sourceProgramCode: p.programCode, sourceFriendlyName: p.friendlyName },
-      width: '440px',
-      maxWidth: '95vw',
+    const ref = this.modal.create<
+      CloneProgramDialog,
+      { newProgramCode?: string } | undefined,
+      CloneProgramDialogData
+    >({
+      nzContent: CloneProgramDialog,
+      nzData: { sourceProgramCode: p.programCode, sourceFriendlyName: p.friendlyName },
+      nzWidth: 440,
+      nzFooter: null,
     });
-    ref.afterClosed().subscribe((res) => {
+    ref.afterClose.subscribe((res) => {
       if (res?.newProgramCode) void this.router.navigate(['/bank-programs', res.newProgramCode]);
     });
   }
@@ -461,12 +514,13 @@ export class BankProgramDetailPage {
   openDelete(): void {
     const p = this.program();
     if (!p) return;
-    const ref = this.dialog.open(DeleteProgramDialog, {
-      data: { programCode: p.programCode, friendlyName: p.friendlyName },
-      width: '480px',
-      maxWidth: '95vw',
+    const ref = this.modal.create<DeleteProgramDialog, boolean | undefined, DeleteProgramDialogData>({
+      nzContent: DeleteProgramDialog,
+      nzData: { programCode: p.programCode, friendlyName: p.friendlyName },
+      nzWidth: 480,
+      nzFooter: null,
     });
-    ref.afterClosed().subscribe((deleted) => {
+    ref.afterClose.subscribe((deleted) => {
       if (deleted) void this.router.navigate(['/bank-programs']);
     });
   }

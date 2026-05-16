@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { MatIconModule } from '@angular/material/icon';
-import { ButtonModule } from 'primeng/button';
-import { InputTextModule } from 'primeng/inputtext';
-import { DynamicDialogConfig, DynamicDialogRef } from 'primeng/dynamicdialog';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
+import { CloseCircleOutline } from '@ant-design/icons-angular/icons';
 import { LookupsApiService, type EnumerationRow } from '../lookups.api.service';
 
 export interface EnumerationEditDialogData {
@@ -19,10 +21,12 @@ export interface EnumerationEditDialogData {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    MatIconModule,
-    ButtonModule,
-    InputTextModule,
+    NzButtonModule,
+    NzInputModule,
+    NzFormModule,
+    NzIconModule,
   ],
+  providers: [provideNzIconsPatch([CloseCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="dialog-body">
@@ -35,72 +39,89 @@ export interface EnumerationEditDialogData {
         <span class="type-chip">{{ data.type }}</span>
       </h2>
 
-      <form [formGroup]="form" class="form">
-        <div class="field">
-          <label for="lk-key" class="field-label" i18n="@@lookups.field.key"
-            >Key (machine-readable)</label
+      <form nz-form nzLayout="vertical" [formGroup]="form" class="form">
+        <nz-form-item>
+          <nz-form-label nzFor="lk-key" nzRequired i18n="@@lookups.field.key"
+            >Key (machine-readable)</nz-form-label
           >
-          <input
-            pInputText
-            id="lk-key"
-            formControlName="key"
-            [readonly]="data.mode === 'edit'"
-            class="w-full"
-          />
-          <small class="field-hint" i18n="@@lookups.field.keyHint"
-            >letters, digits, underscore or hyphen only — used in API + database</small
+          <nz-form-control
+            [nzErrorTip]="keyErrTpl"
+            [nzExtra]="keyHintTpl"
           >
-        </div>
+            <input
+              nz-input
+              id="lk-key"
+              formControlName="key"
+              [readOnly]="data.mode === 'edit'"
+            />
+            <ng-template #keyErrTpl let-control>
+              @if (control.errors?.['required']) {
+                <span i18n="@@lookups.field.key.required">Required</span>
+              } @else if (control.errors?.['pattern']) {
+                <span i18n="@@lookups.field.key.pattern">Invalid format</span>
+              }
+            </ng-template>
+            <ng-template #keyHintTpl>
+              <span i18n="@@lookups.field.keyHint"
+                >letters, digits, underscore or hyphen only — used in API + database</span
+              >
+            </ng-template>
+          </nz-form-control>
+        </nz-form-item>
 
-        <div class="field">
-          <label for="lk-label" class="field-label" i18n="@@lookups.field.labelEn">Label</label>
-          <input
-            pInputText
-            id="lk-label"
-            formControlName="labelEn"
-            maxlength="160"
-            class="w-full"
-          />
-        </div>
-
-        <div class="field">
-          <label for="lk-sort" class="field-label" i18n="@@lookups.field.sortOrder">Sort order</label>
-          <input
-            pInputText
-            id="lk-sort"
-            type="number"
-            formControlName="sortOrder"
-            min="0"
-            class="w-full"
-          />
-          <small class="field-hint" i18n="@@lookups.field.sortOrderHint"
-            >controls the order in dropdowns</small
+        <nz-form-item>
+          <nz-form-label nzFor="lk-label" nzRequired i18n="@@lookups.field.labelEn"
+            >Label</nz-form-label
           >
-        </div>
+          <nz-form-control [nzErrorTip]="labelErrTpl">
+            <input nz-input id="lk-label" formControlName="labelEn" maxlength="160" />
+            <ng-template #labelErrTpl let-control>
+              @if (control.errors?.['required']) {
+                <span i18n="@@lookups.field.label.required">Required</span>
+              }
+            </ng-template>
+          </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+          <nz-form-label nzFor="lk-sort" i18n="@@lookups.field.sortOrder">Sort order</nz-form-label>
+          <nz-form-control [nzExtra]="sortHintTpl">
+            <input nz-input id="lk-sort" type="number" formControlName="sortOrder" min="0" />
+            <ng-template #sortHintTpl>
+              <span i18n="@@lookups.field.sortOrderHint">controls the order in dropdowns</span>
+            </ng-template>
+          </nz-form-control>
+        </nz-form-item>
 
         @if (errorCode()) {
           <p class="error" role="alert">
-            <mat-icon>error</mat-icon>
+            <span nz-icon nzType="close-circle" nzTheme="outline"></span>
             <span>{{ errorCode() }}</span>
           </p>
         }
       </form>
 
       <div class="dialog-actions">
-        <p-button
-          severity="secondary"
-          [text]="true"
-          (onClick)="cancel()"
-          i18n-label="@@lookups.dialog.cancel"
-          label="Cancel"
-        />
-        <p-button
-          (onClick)="save()"
+        <button
+          nz-button
+          nzType="default"
+          type="button"
+          (click)="cancel()"
+          i18n="@@lookups.dialog.cancel"
+        >
+          Cancel
+        </button>
+        <button
+          nz-button
+          nzType="primary"
+          type="button"
+          (click)="save()"
           [disabled]="!form.valid || submitting()"
-          [loading]="submitting()"
-          i18n-label="@@lookups.dialog.save"
-          label="Save"
-        />
+          [nzLoading]="submitting()"
+          i18n="@@lookups.dialog.save"
+        >
+          Save
+        </button>
       </div>
     </div>
   `,
@@ -134,29 +155,7 @@ export interface EnumerationEditDialogData {
         border-radius: var(--radius-pill);
       }
       .form {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-4);
         margin: 0;
-      }
-      .field {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .field-label {
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-secondary);
-        letter-spacing: 0.02em;
-      }
-      .field-hint {
-        font-size: var(--text-xxs);
-        color: var(--color-text-tertiary);
-        line-height: var(--line-height-base);
-      }
-      .w-full {
-        inline-size: 100%;
       }
       .error {
         background: var(--color-error-bg);
@@ -181,9 +180,8 @@ export interface EnumerationEditDialogData {
 })
 export class EnumerationEditDialogComponent {
   private readonly api = inject(LookupsApiService);
-  private readonly dialogRef = inject(DynamicDialogRef);
-  private readonly dialogConfig = inject(DynamicDialogConfig);
-  protected readonly data: EnumerationEditDialogData = this.dialogConfig.data;
+  private readonly dialogRef = inject(NzModalRef<EnumerationEditDialogComponent, boolean>);
+  protected readonly data = inject<EnumerationEditDialogData>(NZ_MODAL_DATA);
 
   protected readonly submitting = signal(false);
   protected readonly errorCode = signal<string | null>(null);

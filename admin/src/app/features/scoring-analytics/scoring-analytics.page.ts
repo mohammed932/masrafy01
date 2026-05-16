@@ -8,8 +8,8 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { NzTagModule } from 'ng-zorro-antd/tag';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { PageHeaderComponent, StatStripComponent, type StatStripItem } from '@shared/ui';
 import {
@@ -27,8 +27,8 @@ const WINDOW_PRESETS = [7, 30, 90, 180] as const;
   standalone: true,
   imports: [
     CommonModule,
-    MatChipsModule,
-    MatProgressBarModule,
+    NzTagModule,
+    NzSpinModule,
     ScoreDistributionHistogramComponent,
     TierAccuracyTableComponent,
     PageHeaderComponent,
@@ -43,23 +43,25 @@ const WINDOW_PRESETS = [7, 30, 90, 180] as const;
         <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
       }
 
-      <mat-chip-set class="window-picker" role="listbox" [attr.aria-label]="pickerAria">
+      <div class="window-picker chip-set" role="listbox" [attr.aria-label]="pickerAria">
         @for (preset of presets; track preset) {
-          <mat-chip
+          <nz-tag
+            class="chip"
             [class.selected]="windowDays() === preset"
-            (click)="setWindow(preset)"
-            (keyup.enter)="setWindow(preset)"
+            nzMode="checkable"
+            [nzChecked]="windowDays() === preset"
+            (nzCheckedChange)="setWindow(preset)"
             role="option"
             [attr.aria-selected]="windowDays() === preset"
             tabindex="0"
           >
             {{ preset }}d
-          </mat-chip>
+          </nz-tag>
         }
-      </mat-chip-set>
+      </div>
 
       @if (loading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <nz-spin nzSimple [nzSize]="'small'"></nz-spin>
       }
 
       @if (errorMessage(); as msg) {
@@ -93,11 +95,16 @@ const WINDOW_PRESETS = [7, 30, 90, 180] as const;
       .window-picker {
         margin-block: var(--space-3);
       }
-      mat-chip {
+      .chip-set {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+      .chip {
         cursor: pointer;
         font-variant-numeric: tabular-nums lining-nums;
       }
-      mat-chip.selected {
+      .chip.selected {
         background: var(--color-tonal-accent-bg);
         color: var(--color-tonal-accent);
         font-weight: var(--font-weight-semibold);

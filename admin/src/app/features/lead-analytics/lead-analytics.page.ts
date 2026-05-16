@@ -7,9 +7,10 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatIconModule } from '@angular/material/icon';
+import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzTagModule } from 'ng-zorro-antd/tag';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { CloseCircleOutline } from '@ant-design/icons-angular/icons';
 import { PageHeaderComponent, StatStripComponent, type StatStripItem } from '@shared/ui';
 import { AgentActivitySummary, LeadAnalyticsApiService } from './lead-analytics.api.service';
 import { AgentActivityTableComponent } from './components/agent-activity-table.component';
@@ -21,13 +22,14 @@ const WINDOWS: readonly number[] = [7, 30, 90, 180];
   standalone: true,
   imports: [
     CommonModule,
-    MatProgressBarModule,
-    MatChipsModule,
-    MatIconModule,
+    NzSpinModule,
+    NzTagModule,
+    NzIconModule,
     AgentActivityTableComponent,
     PageHeaderComponent,
     StatStripComponent,
   ],
+  providers: [provideNzIconsPatch([CloseCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
@@ -38,26 +40,28 @@ const WINDOWS: readonly number[] = [7, 30, 90, 180];
       }
 
       <nav class="window-picker" [attr.aria-label]="windowAriaLabel">
-        <mat-chip-set>
+        <div class="chip-set">
           @for (w of windows; track w) {
-            <mat-chip
+            <nz-tag
+              class="chip"
               [class.selected]="window() === w"
+              nzMode="checkable"
+              [nzChecked]="window() === w"
+              (nzCheckedChange)="setWindow(w)"
               tabindex="0"
-              (click)="setWindow(w)"
-              (keyup.enter)="setWindow(w)"
               role="option"
               [attr.aria-selected]="window() === w"
-              >{{ w }}d</mat-chip
+              >{{ w }}d</nz-tag
             >
           }
-        </mat-chip-set>
+        </div>
       </nav>
 
       @if (loading()) {
-        <mat-progress-bar mode="indeterminate" />
+        <nz-spin nzSimple [nzSize]="'small'"></nz-spin>
       } @else if (errorCode()) {
         <div class="error" role="alert">
-          <mat-icon>error</mat-icon>
+          <span nz-icon nzType="close-circle" nzTheme="outline"></span>
           <span>{{ errorCode() }}</span>
         </div>
       } @else if (summary()) {
@@ -81,11 +85,16 @@ const WINDOWS: readonly number[] = [7, 30, 90, 180];
         margin-inline: auto;
         padding: var(--space-5) var(--space-6);
       }
-      mat-chip {
+      .chip-set {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+      .chip {
         cursor: pointer;
         transition: background-color 120ms cubic-bezier(0.4, 0, 0.2, 1);
       }
-      mat-chip.selected {
+      .chip.selected {
         background: var(--color-tonal-accent-bg);
         color: var(--color-tonal-accent);
         font-weight: var(--font-weight-semibold);
