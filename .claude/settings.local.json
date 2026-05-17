@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(kill -9 65688 94908)",
+      "Bash(tail -25 /tmp/admin-serve.log 2>&1)",
+      "Read(//private/tmp/**)"
+    ]
+  }
+}

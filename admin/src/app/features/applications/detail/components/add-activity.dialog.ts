@@ -434,5 +434,3 @@ export class AddActivityDialog {
       .join(' ');
   }
 }
-
-export { AddActivityDialogData };

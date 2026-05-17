@@ -46,7 +46,7 @@
               "src/styles/styles.scss"
             ],
             "scripts": [],
-            "localize": ["en-US", "ar-EG"]
+            "localize": false
           },
           "configurations": {
             "production": {
@@ -64,7 +64,7 @@
               "optimization": false,
               "sourceMap": true,
               "namedChunks": true,
-              "localize": ["en-US"]
+              "localize": false
             },
             "development-ar": {
               "optimization": false,

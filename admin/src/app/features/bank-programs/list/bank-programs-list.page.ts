@@ -494,8 +494,8 @@ export class BankProgramsListPage implements OnInit {
   openClone(row: BankProgramListRow): void {
     const ref = this.modal.create<
       CloneProgramDialog,
-      { newProgramCode?: string } | undefined,
-      CloneProgramDialogData
+      CloneProgramDialogData,
+      { newProgramCode?: string } | undefined
     >({
       nzContent: CloneProgramDialog,
       nzData: { sourceProgramCode: row.programCode, sourceFriendlyName: row.friendlyName },
@@ -513,7 +513,7 @@ export class BankProgramsListPage implements OnInit {
   }
 
   openDelete(row: BankProgramListRow): void {
-    const ref = this.modal.create<DeleteProgramDialog, boolean | undefined, DeleteProgramDialogData>({
+    const ref = this.modal.create<DeleteProgramDialog, DeleteProgramDialogData, boolean | undefined>({
       nzContent: DeleteProgramDialog,
       nzData: { programCode: row.programCode, friendlyName: row.friendlyName },
       nzWidth: 480,

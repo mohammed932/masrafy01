@@ -732,7 +732,7 @@ export class LookupsPage implements OnInit {
   }
 
   private openDialog(data: EnumerationEditDialogData): void {
-    const ref = this.modal.create<EnumerationEditDialogComponent, boolean, EnumerationEditDialogData>({
+    const ref = this.modal.create<EnumerationEditDialogComponent, EnumerationEditDialogData, boolean>({
       nzContent: EnumerationEditDialogComponent,
       nzData: data,
       nzTitle: data.mode === 'create' ? 'Add value' : 'Edit value',

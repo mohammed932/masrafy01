@@ -689,7 +689,7 @@ export class ApplicationDetailPage implements OnInit {
   openAssign(): void {
     const d = this.detail();
     if (!d) return;
-    const ref = this.modal.create<LeadAssignDialog, boolean, LeadAssignDialogData>({
+    const ref = this.modal.create<LeadAssignDialog, LeadAssignDialogData, boolean>({
       nzContent: LeadAssignDialog,
       nzData: { applicationId: d.id, currentAgentId: d.assignedAgentStaffId ?? null },
       nzFooter: null,
@@ -704,7 +704,7 @@ export class ApplicationDetailPage implements OnInit {
   private openDialog(defaultActivityType?: string): void {
     const d = this.detail();
     if (!d) return;
-    const ref = this.modal.create<AddActivityDialog, boolean, AddActivityDialogData>({
+    const ref = this.modal.create<AddActivityDialog, AddActivityDialogData, boolean>({
       nzContent: AddActivityDialog,
       nzData: {
         applicationId: d.id,

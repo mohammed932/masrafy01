@@ -498,8 +498,8 @@ export class BankProgramDetailPage {
     if (!p) return;
     const ref = this.modal.create<
       CloneProgramDialog,
-      { newProgramCode?: string } | undefined,
-      CloneProgramDialogData
+      CloneProgramDialogData,
+      { newProgramCode?: string } | undefined
     >({
       nzContent: CloneProgramDialog,
       nzData: { sourceProgramCode: p.programCode, sourceFriendlyName: p.friendlyName },
@@ -514,7 +514,7 @@ export class BankProgramDetailPage {
   openDelete(): void {
     const p = this.program();
     if (!p) return;
-    const ref = this.modal.create<DeleteProgramDialog, boolean | undefined, DeleteProgramDialogData>({
+    const ref = this.modal.create<DeleteProgramDialog, DeleteProgramDialogData, boolean | undefined>({
       nzContent: DeleteProgramDialog,
       nzData: { programCode: p.programCode, friendlyName: p.friendlyName },
       nzWidth: 480,

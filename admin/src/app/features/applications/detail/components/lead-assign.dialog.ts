@@ -234,5 +234,3 @@ export class LeadAssignDialog implements OnInit {
       .join(' ');
   }
 }
-
-export { LeadAssignDialogData };
