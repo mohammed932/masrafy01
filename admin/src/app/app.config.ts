@@ -11,6 +11,7 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { NZ_I18N, ar_EG, en_US } from 'ng-zorro-antd/i18n';
 import { provideNzIcons } from 'ng-zorro-antd/icon';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
 
 import { APP_ROUTES } from './app.routes';
 import { correlationIdInterceptor } from './core/interceptors/correlation-id.interceptor';
@@ -68,6 +69,7 @@ export const appConfig: ApplicationConfig = {
     // `provideNzIconsPatch([...])` in route providers (tree-shaking).
     provideNzIcons([]),
     NzModalService,
+    NzDrawerService,
     {
       provide: APP_INITIALIZER,
       useFactory: bootstrapAuth,

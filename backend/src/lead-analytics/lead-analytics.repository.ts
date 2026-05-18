@@ -30,7 +30,10 @@ export class LeadAnalyticsRepository {
     const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
     const grouped = await this.prisma.activity.groupBy({
       by: ['actorStaffId', 'activityType'],
-      where: { occurredAt: { gte: since } },
+      where: {
+        occurredAt: { gte: since },
+        actorRole: { not: 'system' },
+      },
       _count: { _all: true },
       _sum: { durationMinutes: true },
       orderBy: [{ actorStaffId: 'asc' }, { activityType: 'asc' }],
