@@ -10,6 +10,7 @@ import { AuditModule } from '@/audit/audit.module';
 import { HealthModule } from '@/health/health.module';
 import { AuthModule } from '@/auth/auth.module';
 import { UsersModule } from '@/users/users.module';
+import { BanksModule } from '@/banks/banks.module';
 import { BankProgramsModule } from '@/bank-programs/bank-programs.module';
 import { ApplicationsModule } from '@/applications/applications.module';
 import { ScoringVersionsModule } from '@/scoring-versions/scoring-versions.module';
@@ -43,6 +44,7 @@ import { pinoOptions } from '@/common/pino/pino.config';
     AuthModule,
     UsersModule,
     PlatformEnumerationsModule,
+    BanksModule,
     BankProgramsModule,
     ScoringVersionsModule,
     ScoringAnalyticsModule,

@@ -40,6 +40,9 @@ import {
   PlusOutline,
   BankOutline,
   ArrowRightOutline,
+  ArrowLeftOutline,
+  CloseCircleOutline,
+  SearchOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -193,6 +196,9 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       PlusOutline,
       BankOutline,
       ArrowRightOutline,
+      ArrowLeftOutline,
+      CloseCircleOutline,
+      SearchOutline,
     ]),
   ],
   template: `
@@ -202,68 +208,6 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
           <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
         }
       </app-page-header>
-
-      <section class="banks-hero" aria-labelledby="banks-hero-title">
-        <div class="banks-hero__accent" aria-hidden="true"></div>
-        <div class="banks-hero__body">
-          <div class="banks-hero__intro">
-            <span class="banks-hero__eyebrow" i18n="@@lookups.banks.eyebrow">Bank registry</span>
-            <h2 id="banks-hero-title" class="banks-hero__title" i18n="@@lookups.banks.title">
-              Banks
-            </h2>
-            <p class="banks-hero__desc" i18n="@@lookups.banks.desc">
-              Banks live alongside their loan programs. Add a new bank to seed its first program, or
-              jump into the bank atlas to drill down by issuer.
-            </p>
-          </div>
-
-          <div class="banks-hero__deck">
-            <div class="banks-hero__metric">
-              <span class="banks-hero__metric-icon" aria-hidden="true">
-                <span nz-icon nzType="bank" nzTheme="outline"></span>
-              </span>
-              <span class="banks-hero__metric-text">
-                <span class="banks-hero__metric-value tabular-nums">{{ banksCount() }}</span>
-                <span class="banks-hero__metric-label" i18n="@@lookups.banks.metric.banks">
-                  Banks
-                </span>
-              </span>
-            </div>
-            <div class="banks-hero__metric">
-              <span class="banks-hero__metric-icon banks-hero__metric-icon--bronze" aria-hidden="true">
-                <span nz-icon nzType="appstore" nzTheme="outline"></span>
-              </span>
-              <span class="banks-hero__metric-text">
-                <span class="banks-hero__metric-value tabular-nums">{{ bankProgramsCount() }}</span>
-                <span class="banks-hero__metric-label" i18n="@@lookups.banks.metric.programs">
-                  Programs
-                </span>
-              </span>
-            </div>
-          </div>
-
-          <div class="banks-hero__actions">
-            <a
-              class="banks-hero__cta banks-hero__cta--primary"
-              routerLink="/bank-programs/new"
-              i18n-aria-label="@@lookups.banks.cta.create.aria"
-              aria-label="Create a new bank by adding its first program"
-            >
-              <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-              <span i18n="@@lookups.banks.cta.create">Create new bank</span>
-            </a>
-            <a
-              class="banks-hero__cta banks-hero__cta--ghost"
-              routerLink="/bank-programs"
-              i18n-aria-label="@@lookups.banks.cta.browse.aria"
-              aria-label="Browse the bank atlas"
-            >
-              <span i18n="@@lookups.banks.cta.browse">Open bank atlas</span>
-              <span nz-icon nzType="arrow-right" nzTheme="outline" aria-hidden="true"></span>
-            </a>
-          </div>
-        </div>
-      </section>
 
       @if (loadingTypes()) {
         <div class="loading-row"><nz-spin nzSimple /></div>
@@ -312,86 +256,120 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
             @if (loadingRows()) {
               <app-skeleton-rows [rows]="4" [cols]="[3, 1, 1]" />
             } @else {
-              <div class="table-wrap">
-                <nz-table
-                  #lkTable
-                  class="lookups-table"
-                  [nzData]="rows()"
-                  [nzShowPagination]="false"
-                  [nzFrontPagination]="false"
-                  [nzTableLayout]="'fixed'"
-                >
-                  <colgroup>
-                    <col style="width: auto" />
-                    <col style="width: 240px" />
-                  </colgroup>
-                  <thead>
-                    <tr>
-                      <th class="col-value" i18n="@@lookups.col.value">Value</th>
-                      <th class="col-manage" i18n="@@lookups.col.manage">Manage</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (r of lkTable.data; track r.id) {
-                      <tr class="lookup-row">
-                        <td class="cell-value">
-                          <span class="value-label">
-                            {{ r.labelEn }}
-                            @if (r.systemOnly) {
-                              <span
-                                nz-icon
-                                nzType="lock"
-                                nzTheme="outline"
-                                class="system-icon"
-                                nz-tooltip
-                                nzTooltipTitle="System-managed — labels editable, key locked"
-                                i18n-nzTooltipTitle="@@lookups.systemTooltip"
-                                nzTooltipPlacement="top"
-                              ></span>
-                            }
+              <div class="values-toolbar">
+                <div class="values-search">
+                  <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
+                  <input
+                    type="text"
+                    placeholder="Filter values…"
+                    i18n-placeholder="@@lookups.search"
+                    [(ngModel)]="valueFilter"
+                    (ngModelChange)="onValueFilter($event)"
+                  />
+                  @if (valueFilter) {
+                    <button type="button" class="clear" (click)="clearFilter()" aria-label="Clear">
+                      <span nz-icon nzType="close-circle" nzTheme="outline"></span>
+                    </button>
+                  }
+                </div>
+                <span class="values-count">
+                  {{ filteredRows().activeCount }} active
+                  @if (filteredRows().inactiveCount > 0) {
+                    · {{ filteredRows().inactiveCount }} inactive
+                  }
+                  @if (filteredRows().deprecated.length > 0) {
+                    · {{ filteredRows().deprecated.length }} deprecated
+                  }
+                </span>
+              </div>
+
+              @if (filteredRows().live.length === 0 && filteredRows().deprecated.length === 0) {
+                <div class="empty-card">
+                  <span class="empty-icon" nz-icon nzType="flag" nzTheme="outline" aria-hidden="true"></span>
+                  <p class="empty-title" i18n="@@lookups.empty.title">No matching values</p>
+                  <p class="empty-text" i18n="@@lookups.empty">
+                    @if (valueFilter) { Try a different search term. } @else { Click <strong>Add value</strong> to seed the first one. }
+                  </p>
+                </div>
+              } @else {
+                <ul class="value-list" role="list">
+                  @for (r of filteredRows().live; track r.id) {
+                    <li class="value-card" [class.system]="r.systemOnly" [class.muted]="!r.active">
+                      <span class="value-main">
+                        <span class="value-text">{{ r.labelEn }}</span>
+                        @if (r.systemOnly) {
+                          <span
+                            class="badge system-badge"
+                            nz-tooltip
+                            nzTooltipTitle="System-managed — labels editable, key locked"
+                            i18n-nzTooltipTitle="@@lookups.systemTooltip"
+                          >
+                            <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+                            <span i18n="@@lookups.system">System</span>
                           </span>
-                        </td>
-                        <td class="actions col-manage">
-                          <nz-switch
-                            class="row-toggle"
-                            [ngModel]="r.active && !r.deprecatedAt"
-                            [nzDisabled]="!!r.deprecatedAt || r.systemOnly"
-                            (ngModelChange)="toggleActive(r, $event)"
-                          ></nz-switch>
-                          <span class="actions-divider" aria-hidden="true"></span>
+                        }
+                      </span>
+                      <span class="value-actions">
+                        <nz-switch
+                          class="row-toggle"
+                          [ngModel]="r.active && !r.deprecatedAt"
+                          [nzDisabled]="!!r.deprecatedAt || r.systemOnly"
+                          (ngModelChange)="toggleActive(r, $event)"
+                          nzSize="small"
+                        ></nz-switch>
+                        <button
+                          class="icon-action"
+                          type="button"
+                          (click)="openEdit(r)"
+                          aria-label="Edit"
+                          i18n-aria-label="@@lookups.editAria"
+                          nz-tooltip
+                          nzTooltipTitle="Edit"
+                        >
+                          <span nz-icon nzType="edit" nzTheme="outline"></span>
+                        </button>
+                        <button
+                          class="icon-action danger"
+                          type="button"
+                          (click)="deprecate(r)"
+                          [disabled]="!!r.deprecatedAt || r.systemOnly"
+                          aria-label="Deprecate"
+                          i18n-aria-label="@@lookups.deprecateAria"
+                          nz-tooltip
+                          nzTooltipTitle="Deprecate"
+                        >
+                          <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
+                        </button>
+                      </span>
+                    </li>
+                  }
+
+                  @if (filteredRows().deprecated.length > 0) {
+                    <li class="value-divider" aria-hidden="true">
+                      <span nz-icon nzType="history" nzTheme="outline"></span>
+                      <span i18n="@@lookups.deprecated">Deprecated</span>
+                    </li>
+                    @for (r of filteredRows().deprecated; track r.id) {
+                      <li class="value-card deprecated">
+                        <span class="value-main">
+                          <span class="value-text">{{ r.labelEn }}</span>
+                          <span class="badge dep-badge" i18n="@@lookups.dep">Deprecated</span>
+                        </span>
+                        <span class="value-actions">
                           <button
                             class="icon-action"
                             type="button"
                             (click)="openEdit(r)"
                             aria-label="Edit"
-                            i18n-aria-label="@@lookups.editAria"
                           >
                             <span nz-icon nzType="edit" nzTheme="outline"></span>
                           </button>
-                          <button
-                            class="icon-action danger"
-                            type="button"
-                            (click)="deprecate(r)"
-                            [disabled]="!!r.deprecatedAt || r.systemOnly"
-                            aria-label="Deprecate"
-                            i18n-aria-label="@@lookups.deprecateAria"
-                          >
-                            <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
-                          </button>
-                        </td>
-                      </tr>
-                    } @empty {
-                      <tr>
-                        <td colspan="2">
-                          <p class="empty" i18n="@@lookups.empty">
-                            No values yet. Click <strong>Add value</strong> to seed the first one.
-                          </p>
-                        </td>
-                      </tr>
+                        </span>
+                      </li>
                     }
-                  </tbody>
-                </nz-table>
-              </div>
+                  }
+                </ul>
+              }
             }
           </section>
         }
@@ -615,6 +593,299 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
           padding: var(--space-4);
           gap: var(--space-5);
         }
+      }
+      /* ── Innovated value list ─────────────────────────────────────── */
+      .values-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        padding: var(--space-4) 0 var(--space-6);
+      }
+      .values-search {
+        position: relative;
+        display: flex;
+        align-items: center;
+        flex: 1 1 320px;
+        max-inline-size: 480px;
+      }
+      .values-search [nz-icon]:first-child {
+        position: absolute;
+        inset-inline-start: var(--space-3);
+        color: var(--text-tertiary, var(--color-text-tertiary));
+        font-size: 14px;
+        pointer-events: none;
+      }
+      .values-search input {
+        inline-size: 100%;
+        padding: 8px var(--space-4);
+        padding-inline-start: calc(var(--space-3) + 22px);
+        padding-inline-end: var(--space-7);
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-pill);
+        background: var(--bg-surface, var(--color-surface-default));
+        font-size: var(--text-sm);
+        color: var(--text-primary, var(--color-text-primary));
+        transition: border-color 150ms ease, box-shadow 150ms ease;
+      }
+      .values-search input:focus {
+        outline: none;
+        border-color: var(--primary, var(--color-brand-primary));
+        box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
+      }
+      .values-search .clear {
+        position: absolute;
+        inset-inline-end: var(--space-2);
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+        font-size: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px;
+        border-radius: 50%;
+        transition: background 150ms ease, color 150ms ease;
+      }
+      .values-search .clear:hover {
+        background: var(--bg-muted, var(--color-surface-muted));
+        color: var(--text-primary, var(--color-text-primary));
+      }
+      .values-count {
+        font-size: var(--text-xs);
+        font-weight: 600;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        font-variant-numeric: tabular-nums;
+      }
+      .value-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .value-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        background: var(--bg-surface, var(--color-surface-default));
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-md);
+        transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+                    box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1),
+                    transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .value-card:hover {
+        border-color: var(--primary, var(--color-brand-primary));
+        box-shadow: var(--shadow-sm);
+      }
+      .value-card.deprecated {
+        opacity: 0.68;
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+      }
+      .value-card.muted .value-text { color: var(--text-tertiary, var(--color-text-tertiary)); }
+      .value-card.system {
+        background: linear-gradient(0deg, var(--bg-subtle, var(--color-surface-row-hover)), var(--bg-subtle, var(--color-surface-row-hover)));
+      }
+      .value-main {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-inline-size: 0;
+      }
+      .value-text {
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--text-primary, var(--color-text-primary));
+        letter-spacing: -0.005em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: var(--radius-pill);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+      .system-badge {
+        background: var(--bg-muted, var(--color-surface-muted));
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .system-badge [nz-icon] { font-size: 10px; }
+      .dep-badge {
+        background: rgba(185, 115, 0, 0.12);
+        color: var(--warning, var(--color-warning));
+      }
+      .value-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .value-divider {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin: var(--space-3) 0 var(--space-1);
+        padding: 0 var(--space-2);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .empty-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-9) var(--space-5);
+        background: var(--bg-surface, var(--color-surface-default));
+        border: 1px dashed var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-lg);
+        text-align: center;
+      }
+      .empty-icon {
+        font-size: 40px;
+        color: var(--border-strong, var(--color-border-strong));
+      }
+      .empty-title {
+        margin: 0;
+        font-size: var(--text-md);
+        font-weight: 700;
+        color: var(--text-primary, var(--color-text-primary));
+      }
+      .empty-text {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .icon-action {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        inline-size: 32px;
+        block-size: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        color: var(--text-secondary, var(--color-text-secondary));
+        transition: background 150ms ease, color 150ms ease;
+      }
+      .icon-action:hover:not(:disabled) {
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+        color: var(--primary, var(--color-brand-primary));
+      }
+      .icon-action.danger:hover:not(:disabled) {
+        color: var(--error, var(--color-error));
+        background: var(--error-50, rgba(192, 41, 46, 0.08));
+      }
+      .icon-action:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .value-card { transition: none; }
+      }
+
+      .back-link {
+        appearance: none;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: 6px 10px;
+        margin-block-end: var(--space-3);
+        border-radius: var(--radius-md);
+        color: var(--text-secondary, var(--color-text-secondary));
+        font-size: var(--text-sm);
+        font-weight: 600;
+        transition: color 150ms ease, background 150ms ease;
+      }
+      .back-link:hover {
+        color: var(--primary, var(--color-brand-primary));
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+      }
+      .back-link:focus-visible {
+        outline: 2px solid var(--primary, var(--color-brand-primary));
+        outline-offset: 2px;
+      }
+      .type-strip {
+        display: flex;
+        gap: var(--space-2);
+        padding: var(--space-2) 0 var(--space-4);
+        overflow-x: auto;
+        scrollbar-width: thin;
+      }
+      .type-strip::-webkit-scrollbar { block-size: 6px; }
+      .type-strip::-webkit-scrollbar-thumb {
+        background: var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-pill);
+      }
+      .type-pill {
+        appearance: none;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        background: var(--bg-surface, var(--color-surface-default));
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-pill);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary, var(--color-text-secondary));
+        cursor: pointer;
+        transition:
+          background 150ms cubic-bezier(0.4, 0, 0.2, 1),
+          border-color 150ms cubic-bezier(0.4, 0, 0.2, 1),
+          color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .type-pill [nz-icon] {
+        color: var(--accent, var(--color-tonal-accent));
+        font-size: 14px;
+      }
+      .type-pill:hover {
+        border-color: var(--primary, var(--color-brand-primary));
+        color: var(--text-primary, var(--color-text-primary));
+      }
+      .type-pill:focus-visible {
+        outline: 2px solid var(--primary, var(--color-brand-primary));
+        outline-offset: 2px;
+      }
+      .type-pill.selected {
+        background: var(--primary, var(--color-brand-primary));
+        border-color: var(--primary, var(--color-brand-primary));
+        color: var(--text-on-primary, var(--color-text-on-brand));
+      }
+      .type-pill.selected [nz-icon] {
+        color: var(--text-on-primary, var(--color-text-on-brand));
+      }
+      .type-pill-count {
+        padding: 0 6px;
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted, var(--color-surface-muted));
+        color: var(--text-tertiary, var(--color-text-tertiary));
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.6;
+      }
+      .type-pill.selected .type-pill-count {
+        background: rgba(255, 255, 255, 0.18);
+        color: var(--text-on-primary, var(--color-text-on-brand));
       }
       .loading-row {
         display: flex;
@@ -932,6 +1203,34 @@ export class LookupsPage implements OnInit {
   protected readonly banksCount = signal<number>(0);
   protected readonly bankProgramsCount = signal<number>(0);
 
+  protected valueFilter = '';
+  protected readonly valueFilterSignal = signal<string>('');
+  protected readonly filteredRows = computed(() => {
+    const q = this.valueFilterSignal().trim().toLowerCase();
+    const all = this.rows();
+    const match = (r: EnumerationRow): boolean =>
+      !q ||
+      r.labelEn.toLowerCase().includes(q) ||
+      r.labelAr.toLowerCase().includes(q) ||
+      r.key.toLowerCase().includes(q);
+    const nonDeprecated = all.filter((r) => !r.deprecatedAt && match(r));
+    return {
+      live: nonDeprecated,
+      activeCount: nonDeprecated.filter((r) => r.active).length,
+      inactiveCount: nonDeprecated.filter((r) => !r.active).length,
+      deprecated: all.filter((r) => !!r.deprecatedAt && match(r)),
+    };
+  });
+
+  onValueFilter(value: string): void {
+    this.valueFilterSignal.set(value);
+  }
+
+  clearFilter(): void {
+    this.valueFilter = '';
+    this.valueFilterSignal.set('');
+  }
+
   protected readonly heroStats = computed(() => {
     const t = this.types();
     return {
@@ -999,14 +1298,14 @@ export class LookupsPage implements OnInit {
     );
   }
 
-  async selectType(type: string): Promise<void> {
+  async selectType(type: string | null): Promise<void> {
     this.selectedType.set(type);
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { type },
+      queryParams: { type: type ?? null },
       queryParamsHandling: 'merge',
     });
-    await this.reloadRows(type);
+    if (type) await this.reloadRows(type);
   }
 
   openCreate(): void {
@@ -1020,20 +1319,25 @@ export class LookupsPage implements OnInit {
   }
 
   async toggleActive(row: EnumerationRow, checked: boolean): Promise<void> {
+    // Optimistic local flip — no page spinners.
+    this.rows.update((rs) => rs.map((r) => (r.id === row.id ? { ...r, active: checked } : r)));
     try {
       await this.api.update(row.id, { active: checked });
-      await this.reloadAfterMutation();
+      await this.reloadAfterMutation({ silent: true });
     } catch {
-      // toast surfaced via global error interceptor
+      // Revert on failure; toast surfaced via global error interceptor.
+      this.rows.update((rs) => rs.map((r) => (r.id === row.id ? { ...r, active: !checked } : r)));
     }
   }
 
   async deprecate(row: EnumerationRow): Promise<void> {
+    const now = new Date().toISOString();
+    this.rows.update((rs) => rs.map((r) => (r.id === row.id ? { ...r, deprecatedAt: now } : r)));
     try {
       await this.api.update(row.id, { deprecate: true });
-      await this.reloadAfterMutation();
+      await this.reloadAfterMutation({ silent: true });
     } catch {
-      // toast surfaced via global error interceptor
+      this.rows.update((rs) => rs.map((r) => (r.id === row.id ? { ...r, deprecatedAt: null } : r)));
     }
   }
 
@@ -1051,27 +1355,27 @@ export class LookupsPage implements OnInit {
     });
   }
 
-  private async reloadTypes(): Promise<void> {
-    this.loadingTypes.set(true);
+  private async reloadTypes(opts: { silent?: boolean } = {}): Promise<void> {
+    if (!opts.silent) this.loadingTypes.set(true);
     try {
       this.types.set(await this.api.listTypes());
     } finally {
-      this.loadingTypes.set(false);
+      if (!opts.silent) this.loadingTypes.set(false);
     }
   }
 
-  private async reloadRows(type: string): Promise<void> {
-    this.loadingRows.set(true);
+  private async reloadRows(type: string, opts: { silent?: boolean } = {}): Promise<void> {
+    if (!opts.silent) this.loadingRows.set(true);
     try {
       this.rows.set(await this.api.list(type));
     } finally {
-      this.loadingRows.set(false);
+      if (!opts.silent) this.loadingRows.set(false);
     }
   }
 
-  private async reloadAfterMutation(): Promise<void> {
+  private async reloadAfterMutation(opts: { silent?: boolean } = {}): Promise<void> {
     const type = this.selectedType();
-    await this.reloadTypes();
-    if (type) await this.reloadRows(type);
+    await this.reloadTypes(opts);
+    if (type) await this.reloadRows(type, opts);
   }
 }

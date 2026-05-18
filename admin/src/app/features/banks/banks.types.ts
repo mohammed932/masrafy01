@@ -1,0 +1,58 @@
+export interface Bank {
+  id: string;
+  code: string;
+  nameArabic: string;
+  nameEnglish: string;
+  logoS3Key?: string | null;
+  websiteUrl?: string | null;
+  isActive: boolean;
+  displayOrder: number;
+  notes?: string | null;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BankWithProgramCount extends Bank {
+  programCount: number;
+}
+
+export interface BankProgramSummary {
+  id: string;
+  programCode: string;
+  friendlyName: string;
+  productCategory: string;
+  active: boolean;
+  version: number;
+}
+
+export interface BankCreatePayload {
+  code: string;
+  nameArabic: string;
+  nameEnglish: string;
+  websiteUrl?: string;
+  notes?: string;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export interface BankUpdatePayload {
+  version: number;
+  nameArabic?: string;
+  nameEnglish?: string;
+  websiteUrl?: string | null;
+  notes?: string | null;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export interface BankToggle {
+  version: number;
+  isActive: boolean;
+}
+
+export interface BankPresignedLogo {
+  key: string;
+  uploadUrl: string;
+  expiresAt: string;
+}

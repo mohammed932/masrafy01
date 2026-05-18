@@ -53,6 +53,8 @@ import type {
 } from '../bank-programs.types';
 import { PerformanceCriteriaSectionComponent } from './sections/performance-criteria-section.component';
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
+import { BanksApiService } from '../../banks/banks.api.service';
+import type { BankWithProgramCount } from '../../banks/banks.types';
 
 type ToggleKey =
   | 'tieredRates'
@@ -63,20 +65,6 @@ type ToggleKey =
   | 'specialEligibility'
   | 'performance'
   | 'multiCurrency';
-
-type TemplateId =
-  | 'simple_personal'
-  | 'income_surrogate'
-  | 'auto_down_payment'
-  | 'variable_rate';
-
-interface TemplateDef {
-  id: TemplateId;
-  name: string;
-  desc: string;
-  productCategory: 'personal' | 'car' | 'mortgage';
-  toggles: Partial<Record<ToggleKey, boolean>>;
-}
 
 @Component({
   selector: 'app-bank-program-form-page',
@@ -142,33 +130,40 @@ interface TemplateDef {
       <ng-template #readyTpl>
         <form [formGroup]="form" (ngSubmit)="submit()" class="form-body">
 
-          @if (!isEditMode()) {
-            <section class="card template-card">
-              <header class="card-head">
-                <span class="card-icon" nz-icon nzType="thunderbolt" nzTheme="outline" aria-hidden="true"></span>
-                <div>
-                  <h2 class="card-title" i18n="@@bank_programs.form.tpl.title">Start from template</h2>
-                  <p class="card-sub" i18n="@@bank_programs.form.tpl.sub">
-                    Pick a starting point — adjust anything afterward.
-                  </p>
-                </div>
-              </header>
-              <div class="tpl-grid">
-                @for (t of templates; track t.id) {
-                  <button
-                    type="button"
-                    class="tpl"
-                    [class.selected]="activeTemplate() === t.id"
-                    (click)="applyTemplate(t)"
-                  >
-                    <span class="tpl-name">{{ t.name }}</span>
-                    <span class="tpl-desc">{{ t.desc }}</span>
-                  </button>
-                }
-              </div>
-            </section>
+          <!-- ═══ WIZARD STEP BAR ════════════════════════════════════════════ -->
+          <nav class="steps" aria-label="Form steps">
+            @for (s of steps; track s.id; let i = $index) {
+              <button
+                type="button"
+                class="step"
+                [class.active]="currentStep() === s.id"
+                [class.done]="currentStep() > s.id"
+                (click)="goTo(s.id)"
+                [attr.aria-current]="currentStep() === s.id ? 'step' : null"
+              >
+                <span class="step-num">{{ currentStep() > s.id ? '✓' : i + 1 }}</span>
+                <span class="step-label">{{ s.label }}</span>
+              </button>
+              @if (i < steps.length - 1) {
+                <span class="step-sep" aria-hidden="true"></span>
+              }
+            }
+          </nav>
+
+          @if (preselectedBank; as b) {
+            <div class="bank-chip">
+              <span class="bank-chip-avatar" aria-hidden="true">{{ initialsOf(b.nameEnglish) }}</span>
+              <span class="bank-chip-body">
+                <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.for_bank">For bank</span>
+                <span class="bank-chip-name">{{ b.nameEnglish }}</span>
+              </span>
+              <button type="button" class="bank-chip-change" (click)="clearBank()">
+                <span i18n="@@bank_programs.form.change_bank">Change</span>
+              </button>
+            </div>
           }
 
+          @if (currentStep() === 1) {
           <!-- ═══ CORE ════════════════════════════════════════════════════════ -->
           <section class="card" formGroupName="identity">
             <header class="card-head">
@@ -187,12 +182,27 @@ interface TemplateDef {
                   <input nz-input id="programCode" formControlName="programCode" placeholder="ABK-PAYROLL-CAT-A" />
                 </nz-form-control>
               </nz-form-item>
-              <nz-form-item>
-                <nz-form-label [nzFor]="'bankName'" nzRequired i18n="@@bank_programs.field.bank_name">Bank name</nz-form-label>
-                <nz-form-control>
-                  <input nz-input id="bankName" formControlName="bankName" />
-                </nz-form-control>
-              </nz-form-item>
+              @if (!preselectedBank) {
+                <nz-form-item>
+                  <nz-form-label [nzFor]="'bankId'" nzRequired i18n="@@bank_programs.field.bank">Bank</nz-form-label>
+                  <nz-form-control>
+                    <nz-select
+                      id="bankId"
+                      [ngModel]="selectedBankId()"
+                      [ngModelOptions]="{ standalone: true }"
+                      (ngModelChange)="onBankPicked($event)"
+                      [nzDropdownStyle]="dropdownStyle"
+                      nzShowSearch
+                      nzAllowClear
+                      nzPlaceHolder="Pick a bank"
+                    >
+                      @for (b of activeBanks(); track b.id) {
+                        <nz-option [nzValue]="b.id" [nzLabel]="b.nameEnglish + ' — ' + b.code"></nz-option>
+                      }
+                    </nz-select>
+                  </nz-form-control>
+                </nz-form-item>
+              }
               <nz-form-item class="span-2">
                 <nz-form-label [nzFor]="'friendlyName'" nzRequired i18n="@@bank_programs.field.friendly_name">Program name</nz-form-label>
                 <nz-form-control>
@@ -220,7 +230,9 @@ interface TemplateDef {
               </nz-form-item>
             </div>
           </section>
+          }
 
+          @if (currentStep() === 2) {
           <!-- Loan amounts -->
           <section class="card" formGroupName="loanLimits">
             <header class="card-head">
@@ -314,7 +326,9 @@ interface TemplateDef {
               </nz-form-item>
             </div>
           </section>
+          }
 
+          @if (currentStep() === 3) {
           <section class="card" formGroupName="eligibility">
             <header class="card-head">
               <div>
@@ -399,7 +413,9 @@ interface TemplateDef {
               </nz-form-item>
             </div>
           </section>
+          }
 
+          @if (currentStep() === 4) {
           <!-- ═══ ADVANCED FEES & LIMITS (collapsed) ═════════════════════════ -->
           <section class="card disclosure" [class.open]="advancedFeesOpen()">
             <button type="button" class="disclosure-head" (click)="advancedFeesOpen.set(!advancedFeesOpen())" [attr.aria-expanded]="advancedFeesOpen()">
@@ -626,23 +642,42 @@ interface TemplateDef {
               </header>
             </section>
           }
+          }
 
           <footer class="form-footer">
             <button nz-button type="button" (click)="cancel()" [disabled]="busy()">
               <span i18n="@@bank_programs.form.cancel">Cancel</span>
             </button>
-            <button
-              nz-button
-              nzType="primary"
-              type="button"
-              (click)="submit()"
-              [disabled]="form.invalid || busy() || enums.unavailable()"
-              [nzLoading]="busy()"
-            >
-              <span *ngIf="!busy()" nz-icon [nzType]="isEditMode() ? 'save' : 'plus'" nzTheme="outline" aria-hidden="true"></span>
-              <span *ngIf="!busy()">{{ isEditMode() ? saveLabel() : createLabel() }}</span>
-              <span *ngIf="busy()" i18n="@@bank_programs.form.saving">Saving…</span>
-            </button>
+            <span class="footer-spacer"></span>
+            @if (currentStep() > 1) {
+              <button nz-button type="button" (click)="back()" [disabled]="busy()">
+                <span i18n="@@bank_programs.form.back">Back</span>
+              </button>
+            }
+            @if (currentStep() < steps.length) {
+              <button
+                nz-button
+                nzType="primary"
+                type="button"
+                (click)="next()"
+                [disabled]="busy() || enums.unavailable()"
+              >
+                <span i18n="@@bank_programs.form.next">Next</span>
+              </button>
+            } @else {
+              <button
+                nz-button
+                nzType="primary"
+                type="button"
+                (click)="submit()"
+                [disabled]="form.invalid || busy() || enums.unavailable()"
+                [nzLoading]="busy()"
+              >
+                <span *ngIf="!busy()" nz-icon [nzType]="isEditMode() ? 'save' : 'plus'" nzTheme="outline" aria-hidden="true"></span>
+                <span *ngIf="!busy()">{{ isEditMode() ? saveLabel() : createLabel() }}</span>
+                <span *ngIf="busy()" i18n="@@bank_programs.form.saving">Saving…</span>
+              </button>
+            }
           </footer>
         </form>
       </ng-template>
@@ -673,6 +708,125 @@ interface TemplateDef {
         color: var(--text-secondary, var(--color-text-secondary));
       }
       .form-body { display: flex; flex-direction: column; gap: var(--space-4); }
+
+      /* ── Wizard step bar ───────────────────────────────────────── */
+      .steps {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: var(--space-3) var(--space-4);
+        background: var(--bg-surface, var(--color-surface-default));
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-lg);
+        overflow-x: auto;
+      }
+      .step {
+        appearance: none;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: var(--radius-pill);
+        flex: 0 0 auto;
+        transition: background 150ms ease, color 150ms ease;
+      }
+      .step:hover { background: var(--bg-subtle, var(--color-surface-row-hover)); }
+      .step:focus-visible {
+        outline: 2px solid var(--primary, var(--color-brand-primary));
+        outline-offset: 2px;
+      }
+      .step-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        inline-size: 22px;
+        block-size: 22px;
+        border-radius: 50%;
+        background: var(--bg-muted, var(--color-surface-muted));
+        color: var(--text-tertiary, var(--color-text-tertiary));
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+      }
+      .step.active .step-num {
+        background: var(--primary, var(--color-brand-primary));
+        color: var(--text-on-primary, var(--color-text-on-brand));
+      }
+      .step.done .step-num {
+        background: var(--success, var(--color-success));
+        color: var(--text-on-primary, var(--color-text-on-brand));
+      }
+      .step-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary, var(--color-text-secondary));
+        letter-spacing: -0.005em;
+      }
+      .step.active .step-label { color: var(--text-primary, var(--color-text-primary)); }
+      .step-sep {
+        flex: 1 1 auto;
+        min-inline-size: 16px;
+        block-size: 1px;
+        background: var(--border-default, var(--color-border-default));
+      }
+
+      /* ── Bank chip (pre-selected from atlas CTA) ───────────────── */
+      .bank-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: 8px 12px 8px 8px;
+        background: var(--accent-subtle, var(--color-tonal-accent-bg));
+        border: 1px solid color-mix(in srgb, var(--primary, var(--color-brand-primary)) 22%, transparent);
+        border-radius: var(--radius-pill);
+        align-self: flex-start;
+      }
+      .bank-chip-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        inline-size: 32px;
+        block-size: 32px;
+        border-radius: 50%;
+        background: var(--primary, var(--color-brand-primary));
+        color: var(--text-on-primary, var(--color-text-on-brand));
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .bank-chip-body { display: flex; flex-direction: column; gap: 1px; }
+      .bank-chip-eyebrow {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .bank-chip-name {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--primary, var(--color-brand-primary));
+      }
+      .bank-chip-change {
+        appearance: none;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 4px 8px;
+        color: var(--text-secondary, var(--color-text-secondary));
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: var(--radius-pill);
+        transition: background 150ms ease, color 150ms ease;
+      }
+      .bank-chip-change:hover {
+        background: rgba(255, 255, 255, 0.4);
+        color: var(--primary, var(--color-brand-primary));
+      }
+      .footer-spacer { flex: 1 1 auto; }
+
       .card {
         background: var(--bg-surface, var(--color-surface-default));
         border: 1px solid var(--border-default, var(--color-border-default));
@@ -788,11 +942,41 @@ export class BankProgramFormPage implements OnInit {
   private readonly notification = inject(NzNotificationService);
   private readonly errorsService = inject(ErrorCodeService);
   readonly enums = inject(PlatformEnumerationsService);
+  private readonly banksApi = inject(BanksApiService);
 
   readonly busy = signal(false);
   readonly advancedFeesOpen = signal(false);
-  readonly activeTemplate = signal<TemplateId | null>(null);
   readonly dropdownStyle: Record<string, string> = { 'max-height': '360px', 'min-height': '120px' };
+  readonly activeBanks = signal<BankWithProgramCount[]>([]);
+  readonly selectedBankId = signal<string | null>(null);
+
+  // Wizard state
+  readonly currentStep = signal<number>(1);
+  readonly steps: ReadonlyArray<{ id: number; label: string }> = [
+    { id: 1, label: 'Identity' },
+    { id: 2, label: 'Money' },
+    { id: 3, label: 'Eligibility' },
+    { id: 4, label: 'Features' },
+  ];
+
+  next(): void {
+    if (this.currentStep() < this.steps.length) this.currentStep.set(this.currentStep() + 1);
+  }
+  back(): void {
+    if (this.currentStep() > 1) this.currentStep.set(this.currentStep() - 1);
+  }
+  goTo(step: number): void {
+    if (step >= 1 && step <= this.steps.length) this.currentStep.set(step);
+  }
+  clearBank(): void {
+    this.selectedBankId.set(null);
+    this.identityGroup.patchValue({ bankName: '' });
+  }
+  initialsOf(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
+  }
 
   readonly toggles = {
     tieredRates: signal(false),
@@ -805,36 +989,6 @@ export class BankProgramFormPage implements OnInit {
     multiCurrency: signal(false),
   } as const;
 
-  readonly templates: TemplateDef[] = [
-    {
-      id: 'simple_personal',
-      name: 'Simple personal loan',
-      desc: 'Flat rate, payroll-transfer, document-backed.',
-      productCategory: 'personal',
-      toggles: {},
-    },
-    {
-      id: 'income_surrogate',
-      name: 'Income-surrogate program',
-      desc: 'Income inferred from rank / grade / years / CD.',
-      productCategory: 'personal',
-      toggles: { incomeSurrogate: true },
-    },
-    {
-      id: 'auto_down_payment',
-      name: 'Auto loan with down-payment tiers',
-      desc: 'Car loan, rate varies by down-payment %.',
-      productCategory: 'car',
-      toggles: { downPayment: true, tieredRates: true },
-    },
-    {
-      id: 'variable_rate',
-      name: 'Variable-rate program',
-      desc: 'CBE-linked, quarterly reset.',
-      productCategory: 'personal',
-      toggles: { variableRate: true },
-    },
-  ];
 
   readonly mode = toSignal(
     this.route.url.pipe(map((seg) => (seg[seg.length - 1]?.path === 'edit' ? 'edit' : 'create'))),
@@ -1119,9 +1273,40 @@ export class BankProgramFormPage implements OnInit {
     this.syncArr(this.eligibilityGroup.get('acceptedTransferTypes'), this.transferArr);
     this.syncArr(this.documentsGroup.get('requiredDocuments'), this.docsArr);
 
+    void this.loadActiveBanks();
+
     if (this.isEditMode() && this.editProgramCode()) {
       void this.loadForEdit(this.editProgramCode());
     }
+  }
+
+  private async loadActiveBanks(): Promise<void> {
+    try {
+      const res = await this.banksApi.list({ pageSize: 100, active: true });
+      this.activeBanks.set(res.data);
+      // Preselect bank from ?bank=<nameEnglish> query (passed from atlas "Add to {Bank}" CTA).
+      const preName = this.route.snapshot.queryParamMap.get('bank');
+      if (preName && !this.selectedBankId()) {
+        const match = res.data.find((b) => b.nameEnglish === preName);
+        if (match) this.onBankPicked(match.id);
+      }
+    } catch {
+      // dropdown stays empty; user can retry by reloading
+    }
+  }
+
+  protected get preselectedBank() {
+    const id = this.selectedBankId();
+    if (!id) return null;
+    return this.activeBanks().find((b) => b.id === id) ?? null;
+  }
+
+  onBankPicked(bankId: string | null): void {
+    this.selectedBankId.set(bankId ?? null);
+    const bank = this.activeBanks().find((b) => b.id === bankId);
+    this.identityGroup.patchValue({
+      bankName: bank?.nameEnglish ?? '',
+    });
   }
 
   retryEnums(): void {
@@ -1140,15 +1325,6 @@ export class BankProgramFormPage implements OnInit {
 
   setToggle(key: ToggleKey, value: boolean): void {
     this.toggles[key].set(value);
-    this.activeTemplate.set(null);
-  }
-
-  applyTemplate(t: TemplateDef): void {
-    this.activeTemplate.set(t.id);
-    this.identityGroup.patchValue({ productCategory: t.productCategory });
-    (Object.keys(this.toggles) as ToggleKey[]).forEach((k) => {
-      this.toggles[k].set(t.toggles[k] === true);
-    });
   }
 
   setArr(path: 'identity.currencies' | 'eligibility.acceptedEmploymentTypes' | 'eligibility.acceptedTransferTypes' | 'documents.requiredDocuments', values: readonly unknown[]): void {
@@ -1242,6 +1418,7 @@ export class BankProgramFormPage implements OnInit {
     return {
       programCode: id.programCode,
       bankName: id.bankName,
+      ...(this.selectedBankId() ? { bankId: this.selectedBankId()! } : {}),
       friendlyName: id.friendlyName,
       friendlyNameAr: id.friendlyNameAr ?? undefined,
       programType: id.programType,
@@ -1323,6 +1500,7 @@ export class BankProgramFormPage implements OnInit {
       productCategory: initial.productCategory,
     });
     this.identityGroup.get('programCode')?.disable();
+    if (initial.bankId) this.selectedBankId.set(initial.bankId);
     this.setArr('identity.currencies', initial.currencies);
 
     this.tenorGroup.patchValue({

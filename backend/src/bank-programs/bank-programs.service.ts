@@ -81,6 +81,7 @@ export class BankProgramsService {
         {
           programCode: dto.programCode,
           bankName: dto.bankName,
+          bankId: dto.bankId,
           friendlyName: dto.friendlyName,
           friendlyNameAr: dto.friendlyNameAr,
           programType: dto.programType,
@@ -334,6 +335,7 @@ export class BankProgramsService {
         dto.version,
         {
           bankName: dto.bankName,
+          ...((dto as { bankId?: string }).bankId !== undefined ? { bankId: (dto as { bankId?: string }).bankId ?? null } : {}),
           friendlyName: dto.friendlyName,
           friendlyNameAr: dto.friendlyNameAr ?? null,
           programType: dto.programType,

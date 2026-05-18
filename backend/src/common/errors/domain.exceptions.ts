@@ -176,6 +176,38 @@ export class BankProgramHasOffersException extends DomainException {
   }
 }
 
+// --- Banks (feature 007) ---------------------------------------------------
+
+export class BankNotFoundException extends DomainException {
+  constructor(meta?: { id?: string; code?: string }) {
+    super(ERROR_CODES.BANK_NOT_FOUND, meta);
+  }
+}
+
+export class BankCodeDuplicateException extends DomainException {
+  constructor(code: string) {
+    super(ERROR_CODES.BANK_CODE_DUPLICATE, { code });
+  }
+}
+
+export class BankCodeInvalidFormatException extends DomainException {
+  constructor(code: string) {
+    super(ERROR_CODES.BANK_CODE_INVALID_FORMAT, { code });
+  }
+}
+
+export class BankHasProgramsException extends DomainException {
+  constructor(meta: { bankId: string; programCount: number }) {
+    super(ERROR_CODES.BANK_HAS_PROGRAMS, meta);
+  }
+}
+
+export class BankConflictStaleDataException extends DomainException {
+  constructor(meta: { submittedVersion: number; currentVersion: number }) {
+    super(ERROR_CODES.BANK_CONFLICT_STALE_DATA, meta);
+  }
+}
+
 export class UnknownEnumerationKeyException extends DomainException {
   constructor(meta: { enumerationType: string; offendingKey: string; activeMembers: string[] }) {
     super(ERROR_CODES.UNKNOWN_ENUMERATION_KEY, meta);
