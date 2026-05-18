@@ -326,10 +326,14 @@ textarea.ant-input {
 .ant-select-item {
   color: var(--text-primary, var(--color-text-primary)) !important;
   border-radius: 8px !important;
-  padding: 10px 14px !important;
-  margin: 2px 0 !important;
+  padding: 6px 12px !important;
+  margin: 1px 0 !important;
   transition: background 150ms ease !important;
-  min-height: 40px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  line-height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
 }
 .ant-select-item-option-content {
   color: var(--text-primary, var(--color-text-primary)) !important;
@@ -364,11 +368,60 @@ textarea.ant-input {
   text-align: center !important;
   padding: 16px !important;
 }
+// Multi-select chip
 .ant-select-multiple .ant-select-selection-item {
-  background: var(--bg-muted, var(--color-surface-muted)) !important;
-  border: 1px solid var(--border-default, var(--color-border-default)) !important;
-  border-radius: 6px !important;
-  color: var(--text-primary, var(--color-text-primary)) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: 28px !important;
+  line-height: 26px !important;
+  padding: 0 8px 0 10px !important;
+  background: var(--accent-subtle, var(--color-tonal-accent-bg)) !important;
+  border: 1px solid color-mix(in srgb, var(--primary, var(--color-brand-primary)) 22%, transparent) !important;
+  border-radius: var(--radius-pill) !important;
+  color: var(--primary, var(--color-brand-primary)) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+}
+.ant-select-multiple .ant-select-selection-item-content {
+  margin-inline-end: 4px !important;
+}
+.ant-select-multiple .ant-select-selection-item-remove {
+  inline-size: 16px !important;
+  block-size: 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  color: var(--primary, var(--color-brand-primary)) !important;
+  opacity: 0.6 !important;
+  transition: background 150ms ease, opacity 150ms ease !important;
+}
+.ant-select-multiple .ant-select-selection-item-remove:hover {
+  background: color-mix(in srgb, var(--primary, var(--color-brand-primary)) 14%, transparent) !important;
+  opacity: 1 !important;
+}
+.ant-select-multiple .ant-select-selection-item-remove svg { font-size: 11px !important; }
+.ant-select-multiple .ant-select-selector {
+  padding: 4px 8px !important;
+  align-items: center !important;
+}
+
+// Dropdown panel sizing — show 5-6 options without clipping
+.ant-select-dropdown {
+  max-height: 360px !important;
+  min-height: 56px !important;
+}
+.ant-select-dropdown .cdk-virtual-scroll-viewport,
+.ant-select-dropdown nz-option-container,
+.ant-select-dropdown .ant-select-item-list,
+.ant-select-dropdown .rc-virtual-list-holder {
+  max-height: 320px !important;
+  min-height: 40px !important;
+}
+.ant-select-dropdown .cdk-virtual-scroll-content-wrapper {
+  contain: layout style;
 }
 
 // ============================================================================
