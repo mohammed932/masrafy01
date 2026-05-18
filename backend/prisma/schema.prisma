@@ -48,6 +48,11 @@ enum AuditEventType {
   BANK_PROGRAM_DELETED
   BANK_PROGRAM_RATE_UPDATED
   BANK_PROGRAM_QUALITATIVE_REVIEW_DECIDED
+  BANK_CREATED
+  BANK_UPDATED
+  BANK_TOGGLED
+  BANK_DELETED
+  BANK_LOGO_UPLOADED
   APPLICATION_CREATED
   APPLICATION_MATCHED
   APPLICATION_NO_MATCH
@@ -131,6 +136,8 @@ model StaffAccount {
   auditEventsAsTarget AuditEvent[]   @relation("AuditEventTarget")
   bankProgramsCreated BankProgram[]  @relation("BankProgramCreatedBy")
   bankProgramsUpdated BankProgram[]  @relation("BankProgramUpdatedBy")
+  banksCreated        Bank[]         @relation("BankCreatedBy")
+  banksUpdated        Bank[]         @relation("BankUpdatedBy")
   scoringVersionActivations ScoringEngineVersion[] @relation("ScoringVersionActivator")
   assignedLeads       Application[]  @relation("AssignedLeads")
   activitiesAuthored  Activity[]     @relation("ActivityActor")
@@ -219,7 +226,10 @@ model AuditEvent {
 model BankProgram {
   id                  String          @id @default(cuid()) @db.VarChar(30)
   programCode         String          @unique @db.VarChar(32)
+  /// @deprecated — backfilled from `bank` relation; drop after v0.2.x release.
   bankName            String          @db.VarChar(80)
+  bankId              String?         @db.VarChar(30)
+  bank                Bank?           @relation(fields: [bankId], references: [id], onDelete: Restrict)
   friendlyName        String          @db.VarChar(120)
   friendlyNameAr      String?         @db.VarChar(120)
   programType         BankProgramType
@@ -251,8 +261,37 @@ model BankProgram {
 
   @@index([active], name: "idx_bank_program_active")
   @@index([bankName], name: "idx_bank_program_bank_name")
+  @@index([bankId], name: "idx_bank_program_bank_id")
   @@index([productCategory], name: "idx_bank_program_product_category")
   @@map("bank_program")
+}
+
+// -----------------------------------------------------------------------------
+// Bank — issuer entity managed by super_admin. BankPrograms link to Bank via FK.
+// -----------------------------------------------------------------------------
+
+model Bank {
+  id            String        @id @default(cuid()) @db.VarChar(30)
+  code          String        @unique @db.VarChar(40)
+  nameArabic    String        @db.VarChar(120)
+  nameEnglish   String        @db.VarChar(120)
+  logoS3Key     String?       @db.VarChar(255)
+  websiteUrl    String?       @db.VarChar(500)
+  isActive      Boolean       @default(true)
+  displayOrder  Int           @default(0)
+  notes         String?       @db.VarChar(2000)
+  version       Int           @default(1)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
+  createdBy     String        @db.VarChar(30)
+  updatedBy     String        @db.VarChar(30)
+
+  createdByStaff StaffAccount @relation("BankCreatedBy", fields: [createdBy], references: [id])
+  updatedByStaff StaffAccount @relation("BankUpdatedBy", fields: [updatedBy], references: [id])
+  programs       BankProgram[]
+
+  @@index([isActive, displayOrder], name: "idx_bank_active_order")
+  @@map("bank")
 }
 
 // -----------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import {
   DashboardOutline,
   TeamOutline,
   BankOutline,
+  ClusterOutline,
   FileTextOutline,
   BarChartOutline,
   FundOutline,
@@ -29,6 +30,7 @@ import { CanDirective } from '../../shared/can.directive';
       DashboardOutline,
       TeamOutline,
       BankOutline,
+      ClusterOutline,
       FileTextOutline,
       BarChartOutline,
       FundOutline,
@@ -55,6 +57,11 @@ import { CanDirective } from '../../shared/can.directive';
         <a routerLink="/bank-programs" routerLinkActive="active" class="item">
           <span nz-icon nzType="bank" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.bank_programs">Bank programs</span>
+        </a>
+
+        <a routerLink="/banks" routerLinkActive="active" class="item">
+          <span nz-icon nzType="cluster" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span class="item-label" i18n="@@sidebar.banks">Banks</span>
         </a>
 
         <a routerLink="/applications" routerLinkActive="active" class="item">

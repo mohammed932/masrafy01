@@ -75,14 +75,11 @@ interface BankGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="atlas" role="region" aria-label="Bank atlas">
-      <!-- ─── Bank rail ──────────────────────────────────────────────── -->
-      <aside class="rail" aria-label="Banks">
-        <header class="rail-head">
-          <div class="rail-title">
-            <span class="rail-eyebrow">Banks</span>
-            <span class="rail-count">{{ banks().length }}</span>
-          </div>
-          <div class="rail-search">
+      <!-- ─── Horizontal bank strip ─────────────────────────────────── -->
+      <header class="strip">
+        <div class="strip-head">
+          <span class="strip-eyebrow">Banks · {{ banks().length }}</span>
+          <div class="strip-search">
             <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
             <input
               type="text"
@@ -92,44 +89,33 @@ interface BankGroup {
               aria-label="Filter banks"
             />
           </div>
-        </header>
-
+        </div>
         @if (filteredBanks().length === 0) {
           <p class="rail-empty">No banks match.</p>
         } @else {
-          <ul class="bank-list" role="listbox">
+          <ul class="bank-strip" role="tablist">
             @for (b of filteredBanks(); track b.bankName) {
               <li>
                 <button
                   type="button"
-                  class="bank-card"
+                  class="bank-tab"
                   [class.selected]="selected()?.bankName === b.bankName"
-                  role="option"
+                  role="tab"
                   [attr.aria-selected]="selected()?.bankName === b.bankName"
                   (click)="select(b)"
                 >
                   <span class="bank-avatar" aria-hidden="true">{{ b.initials }}</span>
                   <span class="bank-body">
                     <span class="bank-name">{{ b.bankName }}</span>
-                    <span class="bank-meta">
-                      {{ b.totalCount }} {{ b.totalCount === 1 ? 'program' : 'programs' }}
-                      @if (b.activeCount < b.totalCount) {
-                        · {{ b.activeCount }} active
-                      }
-                    </span>
-                    <span class="bank-bar" aria-hidden="true">
-                      <span class="bank-bar-fill" [style.inline-size.%]="b.activeRatio * 100"></span>
-                    </span>
                   </span>
-                  <span class="bank-chevron" nz-icon nzType="right" nzTheme="outline" aria-hidden="true"></span>
                 </button>
               </li>
             }
           </ul>
         }
-      </aside>
+      </header>
 
-      <!-- ─── Detail pane ────────────────────────────────────────────── -->
+      <!-- ─── Detail pane (full width) ──────────────────────────────── -->
       <section class="detail" aria-label="Selected bank programs">
         @if (selected(); as b) {
           <header class="detail-head">
@@ -193,12 +179,9 @@ interface BankGroup {
             <ul class="prog-list" role="list">
               @for (row of visiblePrograms(); track row.programCode) {
                 <li class="prog-row" [class.inactive]="!row.active">
-                  <a class="prog-code" [routerLink]="['/bank-programs', row.programCode]">
-                    <app-key-chip [value]="row.programCode" />
-                  </a>
                   <div class="prog-main">
                     <a class="prog-name" [routerLink]="['/bank-programs', row.programCode]">
-                      {{ row.friendlyName }}
+                      <span class="prog-name-text">{{ row.friendlyName }}</span>
                       @if (row.deprecatedKeyCount > 0) {
                         <span
                           class="prog-warn"
@@ -213,9 +196,11 @@ interface BankGroup {
                     </a>
                     <span class="prog-meta">
                       <span class="prog-cat">{{ row.productCategory }}</span>
-                      <span class="sep">·</span>
-                      <span class="prog-rate">{{ row.currentEffectiveRatePercent ?? row.baseRatePercent ?? '—' }}%</span>
                     </span>
+                  </div>
+                  <div class="prog-rate-col">
+                    <span class="prog-rate">{{ row.currentEffectiveRatePercent ?? row.baseRatePercent ?? '—' }}</span>
+                    <span class="prog-rate-unit">%</span>
                   </div>
                   <div class="prog-status">
                     <nz-switch
@@ -275,193 +260,147 @@ interface BankGroup {
       :host { display: block; }
 
       .atlas {
-        display: grid;
-        grid-template-columns: 320px 1fr;
-        gap: var(--space-5);
-        align-items: start;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
         min-block-size: 540px;
+        max-inline-size: 100%;
       }
 
-      /* ── Rail ─────────────────────────────────────────────────────── */
-      .rail {
+      /* ── Bank strip (horizontal) ──────────────────────────────────── */
+      .strip {
         background: var(--bg-surface, var(--color-surface-default));
         border: 1px solid var(--border-default, var(--color-border-default));
         border-radius: var(--radius-lg);
-        overflow: hidden;
-        position: sticky;
-        inset-block-start: var(--space-4);
-      }
-      .rail-head {
-        padding: var(--space-4);
-        border-block-end: 1px solid var(--border-subtle, var(--color-border-default));
-      }
-      .rail-title {
+        padding: var(--space-3) var(--space-4) var(--space-2);
         display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        margin-block-end: var(--space-3);
+        flex-direction: column;
+        gap: var(--space-3);
       }
-      .rail-eyebrow {
+      .strip-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+      }
+      .strip-eyebrow {
         font-size: var(--text-xs);
-        font-weight: var(--font-semibold, var(--font-weight-semibold));
+        font-weight: 700;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: var(--text-secondary, var(--color-text-secondary));
       }
-      .rail-count {
-        font-size: var(--text-sm);
-        font-weight: var(--font-semibold, var(--font-weight-semibold));
-        color: var(--text-tertiary, var(--color-text-tertiary));
-      }
-      .rail-search {
+      .strip-search {
         position: relative;
         display: flex;
         align-items: center;
+        inline-size: 280px;
+        max-inline-size: 50vw;
       }
-      .rail-search [nz-icon] {
+      .strip-search [nz-icon] {
         position: absolute;
         inset-inline-start: var(--space-3);
         color: var(--text-tertiary, var(--color-text-tertiary));
-        font-size: 16px;
+        font-size: 14px;
       }
-      .rail-search input {
+      .strip-search input {
         inline-size: 100%;
-        padding: var(--space-2) var(--space-3);
-        padding-inline-start: calc(var(--space-3) + 22px);
+        padding: 6px var(--space-3);
+        padding-inline-start: calc(var(--space-3) + 20px);
         border: 1px solid var(--border-default, var(--color-border-default));
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-pill);
         background: var(--bg-base, var(--color-surface-page));
-        font-size: var(--text-sm);
+        font-size: var(--text-xs);
         color: var(--text-primary, var(--color-text-primary));
-        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .rail-search input:focus {
+      .strip-search input:focus {
         outline: none;
         border-color: var(--primary, var(--color-brand-primary));
-        box-shadow: var(--shadow-focus-ring);
+        box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
       }
       .rail-empty {
-        padding: var(--space-5);
+        padding: var(--space-4);
+        margin: 0;
         color: var(--text-tertiary, var(--color-text-tertiary));
         font-size: var(--text-sm);
-        margin: 0;
         text-align: center;
       }
-      .bank-list {
+      .bank-strip {
         list-style: none;
         margin: 0;
-        padding: var(--space-2);
+        padding: 0 0 var(--space-1);
         display: flex;
-        flex-direction: column;
-        gap: 2px;
-        max-block-size: 64vh;
-        overflow-y: auto;
+        gap: var(--space-2);
+        overflow-x: auto;
+        scrollbar-width: thin;
       }
-      .bank-card {
-        position: relative;
-        display: grid;
-        grid-template-columns: 40px minmax(0, 1fr) 16px;
+      .bank-strip::-webkit-scrollbar { block-size: 6px; }
+      .bank-strip::-webkit-scrollbar-thumb {
+        background: var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-pill);
+      }
+      .bank-tab {
+        flex: 0 0 auto;
+        display: inline-flex;
         align-items: center;
-        gap: var(--space-3);
-        inline-size: 100%;
-        padding: var(--space-3);
-        background: transparent;
-        border: 1px solid transparent;
-        border-radius: var(--radius-md);
+        gap: var(--space-2);
+        padding: 6px 10px 6px 6px;
+        background: var(--bg-base, var(--color-surface-page));
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-pill);
         cursor: pointer;
-        text-align: start;
         transition:
           background var(--motion-duration-fast) cubic-bezier(0.4, 0, 0.2, 1),
           border-color var(--motion-duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .bank-card:hover {
+      .bank-tab:hover {
+        border-color: var(--primary, var(--color-brand-primary));
         background: var(--bg-subtle, var(--color-surface-row-hover));
       }
-      .bank-card:focus-visible {
+      .bank-tab:focus-visible {
         outline: 2px solid var(--primary, var(--color-brand-primary));
         outline-offset: 2px;
       }
-      .bank-card.selected {
+      .bank-tab.selected {
         background: var(--accent-subtle, var(--color-tonal-accent-bg));
         border-color: var(--primary, var(--color-brand-primary));
-      }
-      .bank-card.selected::before {
-        content: '';
-        position: absolute;
-        inset-inline-start: -1px;
-        inset-block: 10px;
-        inline-size: 3px;
-        background: var(--primary, var(--color-brand-primary));
-        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
       }
       .bank-avatar {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        inline-size: 40px;
-        block-size: 40px;
-        border-radius: var(--radius-md);
+        inline-size: 30px;
+        block-size: 30px;
+        border-radius: 50%;
         background: var(--accent-subtle, var(--color-tonal-accent-bg));
         color: var(--primary, var(--color-brand-primary));
-        font-weight: var(--font-bold, var(--font-weight-bold));
-        font-size: var(--text-sm);
+        font-weight: 700;
+        font-size: 11px;
         letter-spacing: 0.02em;
+        flex-shrink: 0;
       }
-      .bank-card.selected .bank-avatar {
+      .bank-tab.selected .bank-avatar {
         background: var(--primary, var(--color-brand-primary));
         color: var(--text-on-primary, var(--color-text-on-brand));
       }
       .bank-body {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 1px;
         min-inline-size: 0;
       }
       .bank-name {
-        font-size: var(--text-sm);
-        font-weight: var(--font-semibold, var(--font-weight-semibold));
+        font-size: 13px;
+        font-weight: 600;
         color: var(--text-primary, var(--color-text-primary));
         white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        line-height: 1.3;
+        line-height: 1.2;
       }
       .bank-meta {
-        font-size: var(--text-xs);
+        font-size: 10px;
         color: var(--text-tertiary, var(--color-text-tertiary));
-        line-height: 1.3;
-      }
-      .bank-bar {
-        position: relative;
-        display: block;
-        inline-size: 100%;
-        block-size: 3px;
-        background: var(--bg-muted, var(--color-surface-muted));
-        border-radius: var(--radius-pill);
-        overflow: hidden;
-        margin-block-start: 2px;
-      }
-      .bank-bar-fill {
-        position: absolute;
-        inset: 0;
-        inset-inline-end: auto;
-        background: var(--success, var(--color-success));
-        border-radius: inherit;
-        transition: inline-size var(--motion-duration-base) cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .bank-card.selected .bank-bar-fill {
-        background: var(--primary, var(--color-brand-primary));
-      }
-      .bank-chevron {
-        color: var(--text-tertiary, var(--color-text-tertiary));
-        font-size: 14px;
-        opacity: 0;
-        transition: opacity var(--motion-duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .bank-card:hover .bank-chevron,
-      .bank-card.selected .bank-chevron {
-        opacity: 1;
-        color: var(--primary, var(--color-brand-primary));
+        line-height: 1.2;
+        font-variant-numeric: tabular-nums;
       }
 
       /* ── Detail pane ──────────────────────────────────────────────── */
@@ -475,13 +414,16 @@ interface BankGroup {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: var(--space-4);
+        flex-wrap: wrap;
+        gap: var(--space-3) var(--space-4);
         padding: var(--space-5);
         border-block-end: 1px solid var(--border-default, var(--color-border-default));
         background:
           radial-gradient(circle at 0% 0%, rgba(92, 6, 50, 0.045) 0%, transparent 60%),
           var(--bg-surface, var(--color-surface-default));
       }
+      .detail-identity { flex: 1 1 240px; }
+      .detail-actions { flex: 0 0 auto; }
       .detail-identity {
         display: flex;
         align-items: center;
@@ -589,9 +531,9 @@ interface BankGroup {
       }
       .prog-row {
         display: grid;
-        grid-template-columns: 180px minmax(0, 1fr) auto 40px;
+        grid-template-columns: minmax(0, 1fr) 96px 56px 40px;
         align-items: center;
-        gap: var(--space-4);
+        column-gap: var(--space-4);
         padding: var(--space-3) var(--space-5);
         border-block-end: 1px solid var(--border-subtle, var(--color-border-default));
         transition: background var(--motion-duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
@@ -600,6 +542,12 @@ interface BankGroup {
       .prog-row:hover { background: var(--bg-subtle, var(--color-surface-row-hover)); }
       .prog-row.inactive { opacity: 0.72; }
       .prog-code { text-decoration: none; }
+      .prog-main {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        min-inline-size: 0;
+      }
       .prog-name {
         display: inline-flex;
         align-items: center;
@@ -609,20 +557,52 @@ interface BankGroup {
         color: var(--text-primary, var(--color-text-primary));
         text-decoration: none;
         line-height: 1.3;
+        min-inline-size: 0;
       }
-      .prog-name:hover { color: var(--primary, var(--color-brand-primary)); }
-      .prog-warn { color: var(--warning, var(--color-warning)); font-size: 14px; }
+      .prog-name-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-inline-size: 0;
+      }
+      .prog-name:hover .prog-name-text { color: var(--primary, var(--color-brand-primary)); }
+      .prog-warn { color: var(--warning, var(--color-warning)); font-size: 14px; flex-shrink: 0; }
       .prog-meta {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
         font-size: var(--text-xs);
-        color: var(--text-tertiary, var(--color-text-tertiary));
-        margin-block-start: 2px;
       }
-      .prog-cat { text-transform: capitalize; }
-      .prog-rate { font-variant-numeric: tabular-nums lining-nums; color: var(--text-secondary, var(--color-text-secondary)); font-weight: var(--font-medium, var(--font-weight-medium)); }
-      .prog-status { display: inline-flex; align-items: center; }
+      .prog-cat {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 8px;
+        background: var(--bg-muted, var(--color-surface-muted));
+        border-radius: var(--radius-pill);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--text-secondary, var(--color-text-secondary));
+        text-transform: capitalize;
+      }
+      .prog-rate-col {
+        display: inline-flex;
+        align-items: baseline;
+        justify-content: flex-end;
+        gap: 2px;
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .prog-rate {
+        font-size: var(--text-sm);
+        font-weight: 700;
+        color: var(--text-primary, var(--color-text-primary));
+        letter-spacing: -0.01em;
+      }
+      .prog-rate-unit {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .prog-status { display: inline-flex; align-items: center; justify-content: center; }
       .prog-actions { display: inline-flex; align-items: center; justify-content: end; }
 
       .placeholder {
@@ -645,26 +625,28 @@ interface BankGroup {
         max-inline-size: 32ch;
       }
 
-      @media (max-width: 960px) {
-        .atlas {
-          grid-template-columns: 1fr;
-        }
-        .rail { position: static; }
-        .bank-list { max-block-size: 320px; }
+      @media (max-width: 1100px) {
         .prog-row {
-          grid-template-columns: 1fr auto;
-          row-gap: 6px;
+          grid-template-columns: minmax(0, 1fr) 80px 44px 36px;
+          column-gap: var(--space-3);
+          padding-inline: var(--space-4);
         }
-        .prog-code { grid-column: 1 / -1; }
-        .prog-main { grid-column: 1 / 2; }
+      }
+      @media (max-width: 960px) {
+        .strip-search { inline-size: 200px; }
+        .prog-row {
+          grid-template-columns: minmax(0, 1fr) auto auto;
+          row-gap: 6px;
+          column-gap: var(--space-3);
+        }
+        .prog-main { grid-column: 1 / -1; }
+        .prog-rate-col { grid-column: 1 / 2; grid-row: 2; justify-content: flex-start; }
         .prog-status { grid-column: 2 / 3; grid-row: 2; }
-        .prog-actions { grid-column: 2 / 3; grid-row: 1; }
+        .prog-actions { grid-column: 3 / 4; grid-row: 2; }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .bank-card,
-        .bank-bar-fill,
-        .bank-chevron,
+        .bank-tab,
         .cat-chip,
         .prog-row { transition: none; }
       }
@@ -736,10 +718,9 @@ export class BankAtlasView {
     if (!b) return [];
     const cat = this.categoryFilter();
     const list = cat ? b.programs.filter((p) => p.productCategory === cat) : b.programs;
-    return [...list].sort((a, b2) => {
-      if (a.active !== b2.active) return a.active ? -1 : 1;
-      return a.friendlyName.localeCompare(b2.friendlyName);
-    });
+    // Stable sort by programCode — never reorder on active-toggle (prevents visual
+    // illusion that the toggle hit the wrong row when rows jump position).
+    return [...list].sort((a, b2) => a.programCode.localeCompare(b2.programCode));
   });
 
   protected select(b: BankGroup): void {

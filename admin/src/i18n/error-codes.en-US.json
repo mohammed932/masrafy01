@@ -66,5 +66,10 @@
   "ENUMERATION_KEY_DUPLICATE": "This key is already in use for this category.",
   "ENUMERATION_SYSTEM_ONLY": "System-managed entry — only labels can be edited.",
   "RATE_LIMITED": "Too many attempts. Please wait a few minutes and try again.",
-  "INTERNAL_ERROR": "Something went wrong on our side. Please try again."
+  "INTERNAL_ERROR": "Something went wrong on our side. Please try again.",
+  "BANK_NOT_FOUND": "Bank not found.",
+  "BANK_CODE_DUPLICATE": "Bank code \"{code}\" is already in use.",
+  "BANK_CODE_INVALID_FORMAT": "Bank code must be uppercase letters, digits, or underscore (A-Z, 0-9, _).",
+  "BANK_HAS_PROGRAMS": "This bank has {programCount} program(s). Deactivate or move the programs first.",
+  "BANK_CONFLICT_STALE_DATA": "Someone else updated this bank. Reload and try again."
 }

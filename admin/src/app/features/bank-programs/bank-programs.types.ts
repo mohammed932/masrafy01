@@ -169,6 +169,7 @@ export interface FeesConfig {
 export interface BankProgramCreatePayload {
   programCode: string;
   bankName: string;
+  bankId?: string;
   friendlyName: string;
   friendlyNameAr?: string;
   programType: ProgramType;
@@ -202,6 +203,7 @@ export interface BankProgramResponse {
   friendlyName: string;
   friendlyNameAr?: string | null;
   bankName: string;
+  bankId?: string | null;
   programType: ProgramType;
   productCategory: string;
   currencies: string[];

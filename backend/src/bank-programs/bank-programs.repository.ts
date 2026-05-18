@@ -22,17 +22,16 @@ import { PrismaService } from '../infra/prisma/prisma.service';
 
 export type BankProgramCreate = Omit<
   Prisma.BankProgramCreateInput,
-  'createdByStaff' | 'updatedByStaff' | 'auditEvents' | 'version'
+  'createdByStaff' | 'updatedByStaff' | 'auditEvents' | 'version' | 'bank'
 > & {
   createdBy: string;
   updatedBy: string;
+  bankId?: string | null;
 };
 
 export type BankProgramUpdate = Omit<
-  Prisma.BankProgramUpdateInput,
+  Prisma.BankProgramUncheckedUpdateInput,
   | 'programCode'
-  | 'createdByStaff'
-  | 'updatedByStaff'
   | 'auditEvents'
   | 'version'
   | 'createdAt'
@@ -133,6 +132,7 @@ export class BankProgramRepository {
       data: {
         programCode: input.programCode,
         bankName: input.bankName,
+        bankId: (input as { bankId?: string }).bankId ?? null,
         friendlyName: input.friendlyName,
         friendlyNameAr: input.friendlyNameAr ?? null,
         programType: input.programType as BankProgramType,

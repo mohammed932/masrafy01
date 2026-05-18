@@ -28,6 +28,7 @@ export class CreateBankProgramDto {
   programCode!: string;
 
   @IsString() @MinLength(1) @MaxLength(80) bankName!: string;
+  @IsOptional() @IsString() @MaxLength(30) bankId?: string;
   @IsString() @MinLength(1) @MaxLength(120) friendlyName!: string;
   @IsOptional() @IsString() @MaxLength(120) friendlyNameAr?: string;
 

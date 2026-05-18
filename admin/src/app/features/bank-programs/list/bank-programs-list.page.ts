@@ -116,19 +116,11 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
               <span>Table</span>
             </button>
           </div>
-          <a
-            *can="['super_admin', 'sales_manager']"
-            nz-button
-            nzType="primary"
-            routerLink="/bank-programs/new"
-          >
-            <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@bank_programs.list.add">Add bank program</span>
-          </a>
+         
         </div>
       </app-page-header>
 
-      <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
+      <app-stat-strip class="stat-spaced" [items]="statItems()" [ariaLabel]="statAriaLabel" />
 
       @if (viewMode() === 'atlas') {
         @if (loading() && rows().length === 0) {
@@ -367,6 +359,10 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         padding: var(--space-6);
         max-width: var(--content-max-width);
         margin-inline: auto;
+      }
+      .stat-spaced {
+        display: block;
+        margin-block-end: var(--space-6);
       }
       .header-actions {
         display: inline-flex;
