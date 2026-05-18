@@ -14,11 +14,18 @@
     rel="stylesheet"
   />
   <script>
-    // Light mode is locked until ng-zorro-antd.dark.min.css is wired.
-    // Strip stale theme attr + localStorage to prevent flash.
+    // Apply theme BEFORE Angular bootstraps to avoid a light→dark flash.
+    // Resolution order: localStorage → prefers-color-scheme → light.
     (function () {
-      document.documentElement.removeAttribute('data-theme');
-      try { localStorage.removeItem('masrafy.theme'); } catch (e) {}
+      try {
+        var t = localStorage.getItem('masrafy.theme');
+        if (t !== 'dark' && t !== 'light') {
+          t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+        }
+        if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch (e) {}
     })();
   </script>
 </head>

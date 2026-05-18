@@ -20,7 +20,7 @@ export class LeadAnalyticsController {
     @CurrentUser() user: JwtPayload,
     @Query('windowDays', new DefaultValuePipe(30), ParseIntPipe) windowDays: number,
   ) {
-    const data = await this.service.getActivitySummary(user.sub, windowDays);
+    const data = await this.service.getActivitySummary(user.sub, user.role, windowDays);
     return { success: true, data };
   }
 }

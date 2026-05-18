@@ -136,11 +136,61 @@ section.dashboard {
 .ant-input:focus,
 .ant-input-focused {
   border-color: var(--primary, var(--color-brand-primary)) !important;
-  box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15) !important;
+  box-shadow: var(--focus-halo) !important;
   outline: none !important;
 }
 .ant-input::placeholder {
   color: var(--text-muted, var(--color-text-disabled)) !important;
+}
+
+// ============================================================================
+// NG-ZORRO tag chip — design-system aligned (filter chips, status badges, etc.)
+// Light: subtle bg, primary text on hover/selected.
+// Dark: lifted bg, brighter foreground.
+// ============================================================================
+.ant-tag {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 4px 12px !important;
+  background: var(--bg-subtle, var(--color-surface-row-hover)) !important;
+  border: 1px solid var(--border-default, var(--color-border-default)) !important;
+  border-radius: var(--radius-pill) !important;
+  color: var(--text-secondary, var(--color-text-secondary)) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em !important;
+  line-height: 1.5 !important;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease !important;
+}
+.ant-tag:hover {
+  border-color: var(--primary, var(--color-brand-primary)) !important;
+  color: var(--text-primary, var(--color-text-primary)) !important;
+}
+.ant-tag-checkable-checked,
+.ant-tag-checkable.ant-tag-checkable-checked {
+  background: var(--primary, var(--color-brand-primary)) !important;
+  border-color: var(--primary, var(--color-brand-primary)) !important;
+  color: var(--text-on-primary, var(--color-text-on-brand)) !important;
+}
+.ant-tag-checkable-checked .count,
+.ant-tag-checkable-checked > * {
+  color: inherit !important;
+}
+
+// Kill browser autofill yellow/gray paint — keep masrafy bg + text colors
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--text-primary, var(--color-text-primary)) !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-subtle, var(--color-surface-row-hover)) inset !important;
+  box-shadow: 0 0 0 1000px var(--bg-subtle, var(--color-surface-row-hover)) inset !important;
+  caret-color: var(--text-primary, var(--color-text-primary)) !important;
+  border-radius: 10px !important;
+  transition: background-color 600000s ease-in-out 0s, color 600000s ease-in-out 0s !important;
 }
 
 .ant-input-affix-wrapper {
@@ -159,7 +209,7 @@ section.dashboard {
 .ant-input-affix-wrapper-focused,
 .ant-input-affix-wrapper:focus-within {
   border-color: var(--primary, var(--color-brand-primary)) !important;
-  box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15) !important;
+  box-shadow: var(--focus-halo) !important;
 }
 .ant-input-affix-wrapper .ant-input {
   background: transparent !important;
@@ -198,7 +248,7 @@ textarea.ant-input {
 .ant-input-number-focused,
 .ant-input-number:focus-within {
   border-color: var(--primary, var(--color-brand-primary)) !important;
-  box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15) !important;
+  box-shadow: var(--focus-halo) !important;
 }
 .ant-input-number-input {
   padding: 0 14px !important;
@@ -289,7 +339,7 @@ textarea.ant-input {
 }
 .ant-select-focused:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input) .ant-select-selector {
   border-color: var(--primary, var(--color-brand-primary)) !important;
-  box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15) !important;
+  box-shadow: var(--focus-halo) !important;
 }
 .ant-select-selection-item,
 .ant-select-selection-placeholder {
@@ -490,4 +540,106 @@ textarea.ant-input {
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+// ============================================================================
+// Dark-theme contrast fixes — surface elevation, accent-visible swaps
+// ============================================================================
+[data-theme='dark'] {
+  // Hero welcome card: vivid gradient + bright text
+  .dashboard .hero {
+    background:
+      radial-gradient(circle at 88% -20%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 55%),
+      linear-gradient(135deg, #8B1543 0%, #C75878 55%, #E0708F 120%) !important;
+    color: #FFF6FA !important;
+  }
+  .dashboard .hero .kicker { color: rgba(255, 246, 250, 0.90) !important; }
+  .dashboard .hero .title { color: #FFF6FA !important; }
+  .dashboard .hero .subtitle { color: rgba(255, 246, 250, 0.92) !important; }
+
+  // Action cards under hero
+  .dashboard .card {
+    background: var(--bg-surface) !important;
+    border-color: var(--border-default) !important;
+  }
+  .dashboard .card-icon {
+    background: var(--accent-subtle) !important;
+    color: var(--primary-visible, #C75878) !important;
+  }
+  .dashboard .card:hover {
+    border-color: var(--primary-visible, #C75878) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  // Sidebar selected item — use visible burgundy text on tonal-accent bg
+  .item.active,
+  app-sidebar .item.active {
+    color: var(--primary-visible, #C75878) !important;
+  }
+  .item.active::before,
+  app-sidebar .item.active::before {
+    background: var(--primary-visible, #C75878) !important;
+  }
+
+  // Page surface backgrounds (atlas, lookups, etc.)
+  .page,
+  section.page {
+    color: var(--text-primary) !important;
+  }
+
+  // Generic card / panel surfaces inside features
+  .table-wrap,
+  .card,
+  header.strip,
+  .detail,
+  .placeholder,
+  .empty-card,
+  .value-card,
+  .type-button,
+  .bank-tab,
+  .bank-card,
+  .form-body .form-footer {
+    background: var(--bg-surface) !important;
+    border-color: var(--border-default) !important;
+  }
+
+  // Bank atlas detail header gradient — visible accent
+  .detail-head {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(199, 88, 120, 0.10) 0%, transparent 55%),
+      var(--bg-surface) !important;
+  }
+
+  // Stat strip readability
+  app-stat-strip {
+    color: var(--text-primary);
+  }
+
+  // NG-ZORRO surfaces
+  .ant-modal-content { background: var(--bg-surface) !important; }
+  .ant-modal-header { background: var(--bg-subtle) !important; border-color: var(--border-default) !important; }
+  .ant-modal-title { color: var(--text-primary) !important; }
+  .ant-table-thead > tr > th { background: var(--bg-subtle) !important; }
+  .ant-table-tbody > tr > td { color: var(--text-primary); border-color: var(--border-default) !important; }
+  .ant-table { background: transparent !important; }
+
+  // Dropdown panel
+  .ant-select-dropdown,
+  .ant-dropdown-menu {
+    background: var(--bg-surface) !important;
+    border-color: var(--border-default) !important;
+  }
+  .ant-select-item { color: var(--text-primary) !important; }
+  .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+    background: var(--bg-muted) !important;
+  }
+  .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+    background: color-mix(in srgb, var(--primary-visible, #C75878) 18%, transparent) !important;
+  }
+  .ant-select-item-option-selected:not(.ant-select-item-option-disabled) .ant-select-item-option-content {
+    color: var(--primary-visible, #C75878) !important;
+  }
+
+  // Topbar user pill / select trigger
+  .ant-select-selector { background: var(--bg-subtle) !important; }
 }

@@ -11,10 +11,40 @@ export interface AgentActivitySummaryRow {
   totalDurationMinutes: number | null;
 }
 
+export interface AgentRollupRow {
+  actorStaffId: string | null;
+  agentAlias: string;
+  isSystem: boolean;
+  leadsAssigned: number;
+  submittedToBank: number;
+  approvedByBank: number;
+  submissionRate: number | null;
+  conversionRate: number | null;
+  callCount: number;
+  callMinutes: number;
+  avgCallMinutes: number | null;
+  shortCallCount: number;
+  stuckLeadsCount: number;
+  lastActivityAt: string | null;
+  isStale: boolean;
+  totalActivities: number;
+}
+
+export interface TeamRollup {
+  leadsAssigned: number;
+  submittedToBank: number;
+  approvedByBank: number;
+  conversionRate: number | null;
+  totalActivities: number;
+  totalCallMinutes: number;
+}
+
 export interface AgentActivitySummary {
   windowDays: number;
   generatedAt: string;
   rows: AgentActivitySummaryRow[];
+  agents: AgentRollupRow[];
+  team: TeamRollup;
 }
 
 @Injectable({ providedIn: 'root' })

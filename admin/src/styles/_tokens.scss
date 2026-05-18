@@ -62,6 +62,7 @@
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
   --focus-ring-color: var(--primary);
+  --focus-halo: 0 0 0 3px rgba(92, 6, 50, 0.15);
 
   // ===== Layout primitives ===================================================
   --topbar-height: 64px;
@@ -138,12 +139,27 @@
 }
 
 [data-theme='dark'] {
-  --ant-primary-color: #5C0632;
-  --ant-primary-color-hover: #7A0842;
-  --ant-primary-color-active: #4A0528;
-  --ant-primary-color-outline: rgba(199, 88, 120, 0.32);
+  // NG-ZORRO variable-theme overrides — bright accents over dark canvas
+  --ant-primary-color: #E0708F;
+  --ant-primary-color-hover: #EC8AA6;
+  --ant-primary-color-active: #C75878;
+  --ant-primary-color-outline: rgba(224, 112, 143, 0.40);
+  --ant-info-color: #6CABE0;
+  --ant-success-color: #4FBE7C;
+  --ant-success-color-hover: #6CD194;
+  --ant-success-color-active: #2D9659;
+  --ant-success-color-outline: rgba(79, 190, 124, 0.36);
+  --ant-warning-color: #E7A340;
+  --ant-warning-color-hover: #F4BC65;
+  --ant-warning-color-active: #C8893D;
+  --ant-warning-color-outline: rgba(231, 163, 64, 0.36);
+  --ant-error-color: #E66E76;
+  --ant-error-color-hover: #F08F95;
+  --ant-error-color-active: #C1666B;
+  --ant-error-color-outline: rgba(230, 110, 118, 0.36);
 
   --color-topbar-bg: #0A080C;
   --color-topbar-text: var(--text-primary);
-  --shadow-focus-ring: 0 0 0 3px rgba(199, 88, 120, 0.36);
+  --shadow-focus-ring: 0 0 0 3px rgba(224, 112, 143, 0.40);
+  --focus-halo: 0 0 0 3px rgba(224, 112, 143, 0.40);
 }
