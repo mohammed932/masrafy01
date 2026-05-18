@@ -1,16 +1,15 @@
 import type { AgentRollupRow } from './lead-analytics.api.service';
 
 export type AgentSortKey =
-  | 'rank'
   | 'agent'
-  | 'status'
   | 'conversion'
-  | 'assigned'
-  | 'submitted'
+  | 'valueFunded'
   | 'approved'
-  | 'activities'
-  | 'callAvg'
+  | 'speedToFirstContact'
+  | 'bankApprovalRate'
+  | 'cycleTime'
   | 'stuck'
+  | 'activities'
   | 'lastActivity';
 
 export type SortDir = 'asc' | 'desc';

@@ -11,32 +11,59 @@ export interface AgentActivitySummaryRow {
   totalDurationMinutes: number | null;
 }
 
-export interface AgentRollupRow {
-  actorStaffId: string | null;
-  agentAlias: string;
-  isSystem: boolean;
+export interface AgentResultsTier {
   leadsAssigned: number;
-  submittedToBank: number;
-  approvedByBank: number;
-  submissionRate: number | null;
+  loansApproved: number;
+  valueFundedEGP: string | null;
   conversionRate: number | null;
+}
+
+export interface AgentPipelineTier {
+  leadsSubmittedToBank: number;
+  submittedActivityCount: number;
+  bankApprovalRate: number | null;
+  avgSpeedToFirstContactMs: number | null;
+  avgCycleTimeMs: number | null;
+  stuckLeadsCount: number;
+  slowFirstContact: boolean;
+}
+
+export interface AgentActivityTier {
+  totalActivities: number;
   callCount: number;
   callMinutes: number;
   avgCallMinutes: number | null;
   shortCallCount: number;
-  stuckLeadsCount: number;
+  whatsappCount: number;
+  documentReviewedCount: number;
+  documentReceivedCount: number;
+}
+
+export interface AgentRollupRow {
+  actorStaffId: string | null;
+  agentAlias: string;
+  isSystem: boolean;
+  results: AgentResultsTier;
+  pipeline: AgentPipelineTier;
+  activity: AgentActivityTier;
   lastActivityAt: string | null;
   isStale: boolean;
-  totalActivities: number;
 }
 
 export interface TeamRollup {
   leadsAssigned: number;
-  submittedToBank: number;
-  approvedByBank: number;
+  leadsSubmittedToBank: number;
+  loansApproved: number;
+  valueFundedEGP: string | null;
   conversionRate: number | null;
+  bankApprovalRate: number | null;
   totalActivities: number;
   totalCallMinutes: number;
+}
+
+export interface AnalyticsThresholds {
+  slowFirstContactMs: number;
+  staleAgentDays: number;
 }
 
 export interface AgentActivitySummary {
@@ -45,6 +72,7 @@ export interface AgentActivitySummary {
   rows: AgentActivitySummaryRow[];
   agents: AgentRollupRow[];
   team: TeamRollup;
+  thresholds: AnalyticsThresholds;
 }
 
 @Injectable({ providedIn: 'root' })

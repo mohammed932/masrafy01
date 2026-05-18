@@ -11,12 +11,16 @@ export interface ActivitySummaryRow {
 export interface AgentOutcomeRow {
   actorStaffId: string;
   leadsAssigned: number;
+  leadsSubmittedToBank: number;
   submittedToBank: number;
   approvedByBank: number;
+  valueFundedEGP: string | null;
   callCount: number;
   callMinutes: number;
   shortCallCount: number;
   stuckLeadsCount: number;
+  speedToFirstContactMs: number | null;
+  cycleTimeMs: number | null;
   lastActivityAt: Date | null;
 }
 
@@ -52,17 +56,22 @@ export class LeadAnalyticsRepository {
       Array<{
         staff_id: string;
         leads_assigned: bigint;
+        leads_submitted: bigint;
         submitted: bigint;
         approved: bigint;
+        value_funded: string | null;
         call_count: bigint;
         call_minutes: bigint;
         short_calls: bigint;
         stuck_leads: bigint;
+        speed_first_contact_ms: number | null;
+        cycle_time_ms: number | null;
         last_activity_at: Date | null;
       }>
     >`
       WITH window_activity AS (
-        SELECT "actorStaffId", "activityType", "reason", "durationMinutes", "occurredAt"
+        SELECT "actorStaffId", "applicationId", "activityType", "reason",
+               "durationMinutes", "occurredAt"
           FROM activity
          WHERE "occurredAt" >= now() - (${windowDays} || ' days')::interval
            AND "actorRole" != 'system'
@@ -92,6 +101,76 @@ export class LeadAnalyticsRepository {
            AND "erasedAt" IS NULL
          GROUP BY "assignedAgentStaffId"
       ),
+      agent_leads_submitted AS (
+        SELECT a."assignedAgentStaffId" AS staff_id,
+               COUNT(DISTINCT a.id)::bigint AS leads_submitted
+          FROM application a
+          JOIN activity act ON act."applicationId" = a.id
+         WHERE a."assignedAgentStaffId" IS NOT NULL
+           AND a."erasedAt" IS NULL
+           AND act."activityType" = 'SUBMITTED_TO_BANK'
+           AND act."actorRole" != 'system'
+           AND act."occurredAt" >= now() - (${windowDays} || ' days')::interval
+         GROUP BY a."assignedAgentStaffId"
+      ),
+      agent_value_funded AS (
+        SELECT a."assignedAgentStaffId" AS staff_id,
+               SUM(bo."effectiveLoanAmountEGP")::text AS value_funded
+          FROM bank_offer_decision bod
+          JOIN bank_offer bo ON bo.id = bod."bankOfferId"
+          JOIN application a ON a.id = bo."applicationId"
+         WHERE bod."outcome" = 'approved'
+           AND bod."recordedAt" >= now() - (${windowDays} || ' days')::interval
+           AND a."assignedAgentStaffId" IS NOT NULL
+           AND a."erasedAt" IS NULL
+           AND bo."erasedAt" IS NULL
+         GROUP BY a."assignedAgentStaffId"
+      ),
+      first_contact_per_app AS (
+        SELECT a.id AS application_id,
+               a."assignedAgentStaffId" AS staff_id,
+               a."assignedAt" AS assigned_at,
+               MIN(act."occurredAt") AS first_contact_at
+          FROM application a
+          JOIN activity act ON act."applicationId" = a.id
+         WHERE a."assignedAgentStaffId" IS NOT NULL
+           AND a."assignedAt" IS NOT NULL
+           AND a."assignedAt" >= now() - (${windowDays} || ' days')::interval
+           AND a."erasedAt" IS NULL
+           AND act."actorStaffId" = a."assignedAgentStaffId"
+           AND act."actorRole" != 'system'
+           AND act."activityType" IN ('CALLED_USER', 'SENT_WHATSAPP', 'SENT_EMAIL')
+           AND act."occurredAt" >= a."assignedAt"
+         GROUP BY a.id, a."assignedAgentStaffId", a."assignedAt"
+      ),
+      agent_speed AS (
+        SELECT staff_id,
+               AVG(EXTRACT(EPOCH FROM (first_contact_at - assigned_at)) * 1000)::double precision AS speed_ms
+          FROM first_contact_per_app
+         GROUP BY staff_id
+      ),
+      first_submit_per_app AS (
+        SELECT a.id AS application_id,
+               a."assignedAgentStaffId" AS staff_id,
+               a."assignedAt" AS assigned_at,
+               MIN(act."occurredAt") AS submitted_at
+          FROM application a
+          JOIN activity act ON act."applicationId" = a.id
+         WHERE a."assignedAgentStaffId" IS NOT NULL
+           AND a."assignedAt" IS NOT NULL
+           AND a."assignedAt" >= now() - (${windowDays} || ' days')::interval
+           AND a."erasedAt" IS NULL
+           AND act."activityType" = 'SUBMITTED_TO_BANK'
+           AND act."actorRole" != 'system'
+           AND act."occurredAt" >= a."assignedAt"
+         GROUP BY a.id, a."assignedAgentStaffId", a."assignedAt"
+      ),
+      agent_cycle AS (
+        SELECT staff_id,
+               AVG(EXTRACT(EPOCH FROM (submitted_at - assigned_at)) * 1000)::double precision AS cycle_ms
+          FROM first_submit_per_app
+         GROUP BY staff_id
+      ),
       agent_stuck AS (
         SELECT a."assignedAgentStaffId" AS staff_id, COUNT(*)::bigint AS stuck
           FROM application a
@@ -112,35 +191,49 @@ export class LeadAnalyticsRepository {
       ),
       all_staff AS (
         SELECT staff_id FROM agent_outcomes
-        UNION
-        SELECT staff_id FROM agent_assigned
-        UNION
-        SELECT staff_id FROM agent_stuck
+        UNION SELECT staff_id FROM agent_assigned
+        UNION SELECT staff_id FROM agent_stuck
+        UNION SELECT staff_id FROM agent_leads_submitted
+        UNION SELECT staff_id FROM agent_value_funded
+        UNION SELECT staff_id FROM agent_speed
+        UNION SELECT staff_id FROM agent_cycle
       )
       SELECT
         s.staff_id,
         COALESCE(ass.leads, 0)::bigint AS leads_assigned,
+        COALESCE(ls.leads_submitted, 0)::bigint AS leads_submitted,
         COALESCE(o.submitted, 0)::bigint AS submitted,
         COALESCE(o.approved, 0)::bigint AS approved,
+        vf.value_funded,
         COALESCE(o.call_count, 0)::bigint AS call_count,
         COALESCE(o.call_minutes, 0)::bigint AS call_minutes,
         COALESCE(o.short_calls, 0)::bigint AS short_calls,
         COALESCE(st.stuck, 0)::bigint AS stuck_leads,
+        sp.speed_ms AS speed_first_contact_ms,
+        cy.cycle_ms AS cycle_time_ms,
         o.last_activity_at
       FROM all_staff s
       LEFT JOIN agent_outcomes o ON o.staff_id = s.staff_id
       LEFT JOIN agent_assigned ass ON ass.staff_id = s.staff_id
       LEFT JOIN agent_stuck st ON st.staff_id = s.staff_id
+      LEFT JOIN agent_leads_submitted ls ON ls.staff_id = s.staff_id
+      LEFT JOIN agent_value_funded vf ON vf.staff_id = s.staff_id
+      LEFT JOIN agent_speed sp ON sp.staff_id = s.staff_id
+      LEFT JOIN agent_cycle cy ON cy.staff_id = s.staff_id
     `;
     return rows.map((r) => ({
       actorStaffId: r.staff_id,
       leadsAssigned: Number(r.leads_assigned),
+      leadsSubmittedToBank: Number(r.leads_submitted),
       submittedToBank: Number(r.submitted),
       approvedByBank: Number(r.approved),
+      valueFundedEGP: r.value_funded ?? null,
       callCount: Number(r.call_count),
       callMinutes: Number(r.call_minutes),
       shortCallCount: Number(r.short_calls),
       stuckLeadsCount: Number(r.stuck_leads),
+      speedToFirstContactMs: r.speed_first_contact_ms ?? null,
+      cycleTimeMs: r.cycle_time_ms ?? null,
       lastActivityAt: r.last_activity_at,
     }));
   }

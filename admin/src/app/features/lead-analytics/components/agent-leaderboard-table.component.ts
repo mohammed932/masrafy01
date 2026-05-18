@@ -13,6 +13,8 @@ import {
   ArrowDownOutline,
   RightOutline,
   AlertOutline,
+  ThunderboltOutline,
+  ClockCircleOutline,
 } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import type {
@@ -34,7 +36,14 @@ interface ColDef {
   standalone: true,
   imports: [CommonModule, NzIconModule],
   providers: [
-    provideNzIconsPatch([ArrowUpOutline, ArrowDownOutline, RightOutline, AlertOutline]),
+    provideNzIconsPatch([
+      ArrowUpOutline,
+      ArrowDownOutline,
+      RightOutline,
+      AlertOutline,
+      ThunderboltOutline,
+      ClockCircleOutline,
+    ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -83,13 +92,13 @@ interface ColDef {
               [class.tone-stale]="a.badge === 'stale'"
               [class.tone-coach]="a.badge === 'needs_coaching'"
               [class.tone-top]="a.badge === 'top_performer'"
-              [class.platform]="a.isSystem"
-              [class.clickable]="canDrillIn() && a.actorStaffId && !a.isSystem"
+              [class.clickable]="canDrillIn() && a.actorStaffId"
               (click)="onRowClick(a)"
               (keydown.enter)="onRowClick(a)"
-              [attr.tabindex]="canDrillIn() && a.actorStaffId && !a.isSystem ? 0 : -1"
+              [attr.tabindex]="canDrillIn() && a.actorStaffId ? 0 : -1"
             >
-              <div class="cell agent-cell" [style.flex]="'1.6'">
+              <!-- AGENT CELL -->
+              <div class="cell agent-cell" [style.flex]="'1.4'">
                 <div class="avatar-wrap">
                   <span class="avatar" aria-hidden="true">{{ a.initials }}</span>
                   <span class="rank tabular" aria-hidden="true">#{{ i + 1 }}</span>
@@ -97,9 +106,7 @@ interface ColDef {
                 <div class="agent-id">
                   <div class="agent-line">
                     <span class="name">{{ a.agentAlias }}</span>
-                    @if (a.isSystem) {
-                      <span class="badge platform" i18n="@@leadAnalytics.platform">Platform</span>
-                    } @else if (a.badge === 'top_performer') {
+                    @if (a.badge === 'top_performer') {
                       <span class="badge top" i18n="@@leadAnalytics.badge.top">Top performer</span>
                     } @else if (a.badge === 'needs_coaching') {
                       <span class="badge coach" i18n="@@leadAnalytics.badge.coach">Needs coaching</span>
@@ -110,67 +117,90 @@ interface ColDef {
                       </span>
                     }
                   </div>
-                  @if (!a.isSystem) {
-                    <div class="agent-meta">
-                      <span class="meta-num tabular">{{ a.leadsAssigned }}</span>
-                      <span class="meta-label" i18n="@@leadAnalytics.metric.assigned.label">leads</span>
-                      @if (a.stuckLeadsCount > 0) {
-                        <span class="meta-sep">·</span>
-                        <span class="meta-warn tabular">{{ a.stuckLeadsCount }}</span>
-                        <span class="meta-warn-label" i18n="@@leadAnalytics.metric.stuck.label">stuck</span>
+                  <div class="agent-meta">
+                    <span class="meta-num tabular">{{ a.results.leadsAssigned }}</span>
+                    <span class="meta-label" i18n="@@leadAnalytics.metric.assigned.label">assigned</span>
+                    @if (a.pipeline.stuckLeadsCount > 0) {
+                      <span class="meta-sep">·</span>
+                      <span class="meta-warn tabular">{{ a.pipeline.stuckLeadsCount }}</span>
+                      <span class="meta-warn-label" i18n="@@leadAnalytics.metric.stuck.label">stuck</span>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <!-- RESULTS TIER -->
+              <div class="cell results-cell" [style.flex]="'2'" role="group" [attr.aria-label]="resultsAria">
+                <span class="tier-tag results-tag" i18n="@@leadAnalytics.tier.results">Results</span>
+                <div class="kpi-row">
+                  <div class="kpi kpi-hero">
+                    <span class="kpi-value tabular" [attr.data-tone]="convTone(a.results.conversionRate)">
+                      {{ formatPct(a.results.conversionRate) }}
+                    </span>
+                    <span class="kpi-label" i18n="@@leadAnalytics.kpi.conversion">conversion</span>
+                  </div>
+                  <div class="kpi">
+                    <span class="kpi-value tabular">{{ formatEgp(a.results.valueFundedEGP) }}</span>
+                    <span class="kpi-label" i18n="@@leadAnalytics.kpi.valueFunded">value funded</span>
+                  </div>
+                  <div class="kpi">
+                    <span class="kpi-value tabular">{{ a.results.loansApproved }}</span>
+                    <span class="kpi-label" i18n="@@leadAnalytics.kpi.approved">approved</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PIPELINE TIER -->
+              <div class="cell pipeline-cell" [style.flex]="'2'" role="group" [attr.aria-label]="pipelineAria">
+                <span class="tier-tag pipeline-tag" i18n="@@leadAnalytics.tier.pipeline">Pipeline</span>
+                <div class="kpi-row">
+                  <div class="kpi" [class.amber]="a.pipeline.slowFirstContact">
+                    <span class="kpi-value-with-icon">
+                      @if (a.pipeline.slowFirstContact) {
+                        <span nz-icon nzType="clock-circle" nzTheme="outline" class="warn-icon"></span>
+                      } @else if (a.pipeline.avgSpeedToFirstContactMs !== null) {
+                        <span nz-icon nzType="thunderbolt" nzTheme="outline" class="ok-icon"></span>
                       }
+                      <span class="kpi-value tabular">{{ formatDurationShort(a.pipeline.avgSpeedToFirstContactMs) }}</span>
+                    </span>
+                    <span class="kpi-label" i18n="@@leadAnalytics.kpi.speed">speed to contact</span>
+                  </div>
+                  <div class="kpi">
+                    <span class="kpi-value tabular">{{ formatPct(a.pipeline.bankApprovalRate) }}</span>
+                    <span class="kpi-label" i18n="@@leadAnalytics.kpi.bankApproval">bank approval</span>
+                  </div>
+                  <div class="kpi">
+                    <span class="kpi-value tabular">{{ formatCycle(a.pipeline.avgCycleTimeMs) }}</span>
+                    <span class="kpi-label" i18n="@@leadAnalytics.kpi.cycle">cycle time</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ACTIVITY TIER (greyed, context only) -->
+              <div class="cell activity-cell" [style.flex]="'1.2'" role="group" [attr.aria-label]="activityAria">
+                <span class="tier-tag activity-tag" i18n="@@leadAnalytics.tier.activity">Effort — context</span>
+                <div class="activity-row">
+                  <div class="act">
+                    <span class="act-value tabular">{{ a.activity.totalActivities }}</span>
+                    <span class="act-label" i18n="@@leadAnalytics.act.total">acts</span>
+                  </div>
+                  @if (a.activity.callCount > 0) {
+                    <div class="act">
+                      <span class="act-value tabular">{{ formatAvg(a.activity.avgCallMinutes) }}m</span>
+                      <span class="act-label" i18n="@@leadAnalytics.act.callAvg">call avg</span>
+                    </div>
+                  }
+                  @if (a.activity.whatsappCount > 0) {
+                    <div class="act">
+                      <span class="act-value tabular">{{ a.activity.whatsappCount }}</span>
+                      <span class="act-label" i18n="@@leadAnalytics.act.wa">whatsapp</span>
                     </div>
                   }
                 </div>
               </div>
 
-              <div class="cell perf-cell" [style.flex]="'1.6'">
-                @if (a.isSystem) {
-                  <span class="muted">—</span>
-                } @else {
-                  <div class="perf">
-                    <div class="conv-block">
-                      <span class="conv-pct tabular" [attr.data-tone]="convTone(a.conversionRate)">
-                        {{ formatPct(a.conversionRate) }}
-                      </span>
-                      <span class="conv-sub" i18n="@@leadAnalytics.metric.conversion.label">conversion</span>
-                    </div>
-                    <div class="funnel" [attr.aria-label]="funnelAria(a)">
-                      <span class="step assigned">
-                        <span class="step-num tabular">{{ a.leadsAssigned }}</span>
-                        <span class="step-label" i18n="@@leaderboard.funnel.a">Assigned</span>
-                      </span>
-                      <span class="connector"></span>
-                      <span class="step submitted">
-                        <span class="step-num tabular">{{ a.submittedToBank }}</span>
-                        <span class="step-label" i18n="@@leaderboard.funnel.s">Submitted</span>
-                      </span>
-                      <span class="connector"></span>
-                      <span class="step approved">
-                        <span class="step-num tabular">{{ a.approvedByBank }}</span>
-                        <span class="step-label" i18n="@@leaderboard.funnel.p">Approved</span>
-                      </span>
-                    </div>
-                  </div>
-                }
-              </div>
-
-              <div class="cell effort-cell" [style.flex]="'1'">
-                @if (a.totalActivities > 0) {
-                  <span class="eff-main tabular">{{ a.totalActivities }}</span>
-                  <span class="eff-label" i18n="@@leadAnalytics.metric.activities.label">activities</span>
-                  @if (a.avgCallMinutes !== null) {
-                    <span class="eff-sub">
-                      <span class="tabular">{{ formatAvg(a.avgCallMinutes) }}m</span>
-                      <span i18n="@@leadAnalytics.effort.avg.call">/ call</span>
-                    </span>
-                  }
-                } @else {
-                  <span class="muted">—</span>
-                }
-              </div>
-
-              <div class="cell last-cell" [style.flex]="'0.9'">
+              <!-- LAST -->
+              <div class="cell last-cell" [style.flex]="'0.7'">
                 @if (a.lastActivityAt) {
                   <span class="pulse" [attr.data-fresh]="freshness(a.lastActivityAt)" aria-hidden="true"></span>
                   <span class="last-rel" [attr.title]="a.lastActivityAt">{{ relativeTime(a.lastActivityAt) }}</span>
@@ -180,7 +210,7 @@ interface ColDef {
               </div>
 
               <span class="chevron" aria-hidden="true">
-                @if (canDrillIn() && a.actorStaffId && !a.isSystem) {
+                @if (canDrillIn() && a.actorStaffId) {
                   <span nz-icon nzType="right" nzTheme="outline"></span>
                 }
               </span>
@@ -211,20 +241,13 @@ interface ColDef {
       }
       .th {
         appearance: none;
-        background: none;
-        border: 0;
-        padding: 0;
-        font: inherit;
-        text-align: start;
+        background: none; border: 0; padding: 0;
+        font: inherit; text-align: start;
         color: var(--text-tertiary);
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
+        font-size: 10px; font-weight: 700;
+        letter-spacing: 0.1em; text-transform: uppercase;
         white-space: nowrap;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
+        display: inline-flex; align-items: center; gap: 4px;
         transition: color 150ms cubic-bezier(0.4, 0, 0.2, 1);
       }
       .th.sortable { cursor: pointer; }
@@ -233,18 +256,14 @@ interface ColDef {
       .sort-ind { font-size: 10px; color: var(--primary); }
       .th-spacer { flex: 0 0 36px; }
 
-      .rows {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-      }
+      .rows { list-style: none; margin: 0; padding: 0; }
       .row {
         position: relative;
         display: flex;
-        align-items: center;
+        align-items: stretch;
         gap: var(--space-3);
         padding: var(--space-4) var(--space-5);
-        min-block-size: 80px;
+        min-block-size: 96px;
         border-block-end: 1px solid var(--border-subtle, var(--border-default));
         transition: background 160ms cubic-bezier(0.4, 0, 0.2, 1);
       }
@@ -254,28 +273,21 @@ interface ColDef {
       .row.tone-top::before,
       .row.tone-coach::before,
       .row.tone-stale::before {
-        content: '';
-        position: absolute;
-        inset-block: 0;
-        inset-inline-start: 0;
-        inline-size: 3px;
+        content: ''; position: absolute; inset-block: 0;
+        inset-inline-start: 0; inline-size: 3px;
       }
       .row.tone-top::before { background: var(--success); }
       .row.tone-coach::before { background: var(--warning); }
       .row.tone-stale::before { background: var(--error); }
-      .row.tone-stale {
-        background: color-mix(in oklab, var(--error) 4%, transparent);
-      }
-      .row.tone-stale:hover {
-        background: color-mix(in oklab, var(--error) 9%, transparent);
-      }
-      .row.platform { background: var(--bg-subtle); opacity: 0.9; }
+      .row.tone-stale { background: color-mix(in oklab, var(--error) 4%, transparent); }
+      .row.tone-stale:hover { background: color-mix(in oklab, var(--error) 9%, transparent); }
       .row:focus-visible { outline: none; box-shadow: var(--focus-halo); z-index: 1; }
       .row:hover .chevron { opacity: 1; transform: translateX(2px); }
 
-      .cell { display: inline-flex; align-items: center; min-inline-size: 0; }
+      .cell { display: flex; flex-direction: column; gap: 6px; min-inline-size: 0; justify-content: center; }
 
-      .agent-cell { gap: var(--space-3); }
+      /* AGENT CELL */
+      .agent-cell { flex-direction: row; align-items: center; gap: var(--space-3); }
       .avatar-wrap { position: relative; flex-shrink: 0; }
       .avatar {
         display: inline-flex; align-items: center; justify-content: center;
@@ -285,10 +297,6 @@ interface ColDef {
         color: var(--primary);
         font-weight: 700; font-size: 13px; letter-spacing: 0.02em;
       }
-      .row.platform .avatar {
-        background: var(--bg-muted);
-        color: var(--text-secondary);
-      }
       .row.tone-top .avatar {
         background: linear-gradient(135deg, color-mix(in oklab, var(--success) 22%, transparent), var(--accent-subtle));
       }
@@ -297,42 +305,36 @@ interface ColDef {
       }
       .rank {
         position: absolute;
-        inset-block-start: -6px;
-        inset-inline-end: -8px;
-        font-size: 9px;
-        font-weight: 700;
-        padding: 1px 6px;
-        border-radius: var(--radius-pill);
+        inset-block-start: -6px; inset-inline-end: -8px;
+        font-size: 9px; font-weight: 700;
+        padding: 1px 6px; border-radius: var(--radius-pill);
         background: var(--bg-surface);
         border: 1px solid var(--border-default);
         color: var(--text-tertiary);
-        letter-spacing: 0.04em;
         line-height: 1.2;
       }
       .row.tone-top .rank { color: var(--success); border-color: color-mix(in oklab, var(--success) 30%, var(--border-default)); }
 
       .agent-id { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
-      .agent-line {
-        display: inline-flex; align-items: center; gap: var(--space-2);
-        flex-wrap: wrap;
-      }
+      .agent-line { display: inline-flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
       .name {
-        font-size: 15px;
-        font-weight: 700;
-        color: var(--text-primary);
-        letter-spacing: -0.01em;
-        line-height: 1.2;
+        font-size: 15px; font-weight: 700; color: var(--text-primary);
+        letter-spacing: -0.01em; line-height: 1.2;
       }
       .row.clickable .name { color: var(--primary); }
-      .row.clickable:hover .name { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+      .row.clickable:hover .name {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        text-decoration-thickness: 1px;
+      }
 
       .badge {
-        font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+        font-size: 10px; font-weight: 700;
+        letter-spacing: 0.06em; text-transform: uppercase;
         padding: 3px 9px; border-radius: var(--radius-pill);
         white-space: nowrap;
         display: inline-flex; align-items: center; gap: 4px;
       }
-      .badge.platform { background: var(--bg-muted); color: var(--text-tertiary); }
       .badge.top {
         background: color-mix(in oklab, var(--success) 14%, transparent);
         color: var(--success);
@@ -354,114 +356,62 @@ interface ColDef {
         font-size: 12px; color: var(--text-tertiary);
       }
       .meta-num { font-weight: 700; color: var(--text-secondary); }
-      .meta-label { color: var(--text-tertiary); }
       .meta-sep { color: var(--text-tertiary); opacity: 0.5; padding-inline: 2px; }
       .meta-warn { font-weight: 700; color: var(--warning); }
       .meta-warn-label { color: var(--warning); opacity: 0.85; }
 
-      .perf { display: flex; align-items: center; gap: var(--space-4); inline-size: 100%; }
-      .conv-block { display: flex; flex-direction: column; gap: 0; min-inline-size: 64px; }
-      .conv-pct {
-        font-size: 26px;
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: -0.03em;
-        color: var(--text-primary);
+      /* TIER TAGS */
+      .tier-tag {
+        font-size: 9px; font-weight: 700;
+        letter-spacing: 0.12em; text-transform: uppercase;
+        color: var(--text-tertiary);
+        padding-block-end: 4px;
+        align-self: flex-start;
       }
-      .conv-pct[data-tone='success'] { color: var(--success); }
-      .conv-pct[data-tone='warning'] { color: var(--warning); }
-      .conv-pct[data-tone='error'] { color: var(--error); }
-      .conv-pct[data-tone='muted'] { color: var(--text-tertiary); }
-      .conv-sub {
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
+      .results-tag { color: var(--primary); }
+      .pipeline-tag { color: var(--text-secondary); }
+      .activity-tag { color: var(--text-tertiary); }
+
+      /* KPI ROWS */
+      .kpi-row { display: flex; gap: var(--space-4); align-items: flex-end; }
+      .kpi { display: flex; flex-direction: column; gap: 1px; min-inline-size: 0; }
+      .kpi-value {
+        font-size: 18px; font-weight: 700; line-height: 1.1;
+        color: var(--text-primary); letter-spacing: -0.02em;
+      }
+      .kpi-hero .kpi-value { font-size: 24px; letter-spacing: -0.03em; }
+      .kpi-value[data-tone='success'] { color: var(--success); }
+      .kpi-value[data-tone='warning'] { color: var(--warning); }
+      .kpi-value[data-tone='error'] { color: var(--error); }
+      .kpi-value[data-tone='muted'] { color: var(--text-tertiary); }
+      .kpi-label {
+        font-size: 9px; font-weight: 700;
+        letter-spacing: 0.1em; text-transform: uppercase;
         color: var(--text-tertiary);
         margin-block-start: 2px;
+        white-space: nowrap;
       }
+      .kpi-value-with-icon { display: inline-flex; align-items: center; gap: 4px; }
+      .warn-icon { color: var(--warning); font-size: 12px; }
+      .ok-icon { color: var(--success); font-size: 12px; }
+      .kpi.amber .kpi-value { color: var(--warning); }
+      .kpi.amber .kpi-label { color: var(--warning); }
 
-      .funnel {
-        display: inline-flex;
-        align-items: center;
-        gap: 0;
-        flex: 1;
-        min-inline-size: 0;
-      }
-      .step {
-        display: inline-flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1px;
-        padding: 4px 8px;
-        border-radius: var(--radius-md);
-        background: var(--bg-subtle);
-        border: 1px solid var(--border-default);
-        min-inline-size: 44px;
-      }
-      .step.submitted {
-        background: color-mix(in oklab, var(--accent) 14%, var(--bg-subtle));
-        border-color: color-mix(in oklab, var(--accent) 30%, var(--border-default));
-      }
-      .step.approved {
-        background: color-mix(in oklab, var(--primary) 14%, var(--bg-subtle));
-        border-color: color-mix(in oklab, var(--primary) 36%, var(--border-default));
-      }
-      .step-num {
-        font-size: 14px;
-        font-weight: 700;
-        line-height: 1;
-        color: var(--text-primary);
-      }
-      .step.submitted .step-num { color: var(--accent); }
-      .step.approved .step-num { color: var(--primary); }
-      .step-label {
-        font-size: 8px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+      /* ACTIVITY TIER */
+      .activity-row { display: flex; gap: var(--space-3); flex-wrap: wrap; opacity: 0.78; }
+      .act { display: flex; flex-direction: column; gap: 1px; min-inline-size: 0; }
+      .act-value { font-size: 13px; font-weight: 600; color: var(--text-secondary); line-height: 1.1; }
+      .act-label {
+        font-size: 9px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
         color: var(--text-tertiary);
       }
-      .connector {
-        flex: 1;
-        block-size: 1px;
-        max-inline-size: 18px;
-        background: linear-gradient(
-          90deg,
-          var(--border-default),
-          color-mix(in oklab, var(--primary) 30%, var(--border-default))
-        );
-      }
 
-      .effort-cell { flex-direction: column; align-items: flex-start; gap: 0; }
-      .eff-main {
-        font-size: 22px;
-        font-weight: 700;
-        line-height: 1;
-        color: var(--text-primary);
-        letter-spacing: -0.02em;
-      }
-      .eff-label {
-        font-size: 9px;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: var(--text-tertiary);
-        margin-block-start: 3px;
-      }
-      .eff-sub {
-        font-size: 11px;
-        color: var(--text-secondary);
-        margin-block-start: 3px;
-        display: inline-flex; gap: 3px;
-      }
-
-      .last-cell { gap: 8px; align-items: center; }
+      /* LAST */
+      .last-cell { flex-direction: row; align-items: center; gap: 8px; justify-content: flex-start; }
       .pulse {
         display: inline-block;
         inline-size: 8px; block-size: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
+        border-radius: 50%; flex-shrink: 0;
       }
       .pulse[data-fresh='today'] {
         background: var(--success);
@@ -469,15 +419,13 @@ interface ColDef {
       }
       .pulse[data-fresh='recent'] { background: var(--warning); }
       .pulse[data-fresh='stale'] { background: var(--text-tertiary); opacity: 0.5; }
-      .last-rel {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-secondary);
-      }
+      .last-rel { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 
       .chevron {
         position: absolute;
         inset-inline-end: var(--space-5);
+        inset-block-start: 50%;
+        transform: translateY(-50%);
         font-size: 14px;
         color: var(--text-tertiary);
         opacity: 0;
@@ -500,8 +448,12 @@ interface ColDef {
       .empty-title { margin: 0; font-size: var(--text-md); font-weight: 700; color: var(--text-primary); }
       .empty-sub { margin: 0; font-size: var(--text-sm); color: var(--text-tertiary); max-inline-size: 56ch; align-self: center; }
 
+      @media (max-width: 1100px) {
+        .activity-cell { display: none; }
+      }
       @media (max-width: 900px) {
-        .funnel { display: none; }
+        .pipeline-cell { display: none; }
+        .results-cell .kpi-row { flex-wrap: wrap; }
       }
       @media (prefers-reduced-motion: reduce) {
         .row, .chevron { transition: none !important; }
@@ -516,16 +468,22 @@ export class AgentLeaderboardTableComponent {
   readonly agents = input.required<readonly AgentBucket[]>();
   readonly sortKey = input<AgentSortKey>('conversion');
   readonly sortDir = input<SortDir>('desc');
+  readonly slowFirstContactMs = input<number>(60 * 60 * 1000);
 
   readonly sortChange = output<{ key: AgentSortKey; dir: SortDir }>();
   readonly rowClick = output<AgentBucket>();
 
   protected readonly cols: readonly ColDef[] = [
-    { key: 'agent', label: $localize`:@@leaderboard.col.agent:Agent`, align: 'start', sortable: true, width: '1.6' },
-    { key: 'conversion', label: $localize`:@@leaderboard.col.performance:Performance`, align: 'start', sortable: true, width: '1.6' },
-    { key: 'activities', label: $localize`:@@leaderboard.col.effort:Effort`, align: 'start', sortable: true, width: '1' },
-    { key: 'lastActivity', label: $localize`:@@leaderboard.col.lastActive:Last active`, align: 'start', sortable: true, width: '0.9' },
+    { key: 'agent', label: $localize`:@@leaderboard.col.agent:Agent`, align: 'start', sortable: true, width: '1.4' },
+    { key: 'conversion', label: $localize`:@@leaderboard.col.results:Results`, align: 'start', sortable: true, width: '2' },
+    { key: 'speedToFirstContact', label: $localize`:@@leaderboard.col.pipeline:Pipeline`, align: 'start', sortable: true, width: '2' },
+    { key: 'activities', label: $localize`:@@leaderboard.col.activity:Effort`, align: 'start', sortable: true, width: '1.2' },
+    { key: 'lastActivity', label: $localize`:@@leaderboard.col.lastActive:Last active`, align: 'start', sortable: true, width: '0.7' },
   ];
+
+  protected readonly resultsAria = $localize`:@@leaderboard.aria.results:Results — conversion, value funded, loans approved`;
+  protected readonly pipelineAria = $localize`:@@leaderboard.aria.pipeline:Pipeline — speed to contact, bank approval rate, cycle time`;
+  protected readonly activityAria = $localize`:@@leaderboard.aria.activity:Effort — context only`;
 
   protected readonly canDrillIn = computed(() => {
     const r = this.auth.role();
@@ -541,7 +499,7 @@ export class AgentLeaderboardTableComponent {
   }
 
   protected onRowClick(a: AgentBucket): void {
-    if (!this.canDrillIn() || !a.actorStaffId || a.isSystem) return;
+    if (!this.canDrillIn() || !a.actorStaffId) return;
     this.rowClick.emit(a);
   }
 
@@ -550,16 +508,44 @@ export class AgentLeaderboardTableComponent {
     return this.sortDir() === 'asc' ? 'ascending' : 'descending';
   }
 
-  protected funnelAria(a: AgentBucket): string {
-    return $localize`:@@leaderboard.funnel.aria:Assigned ${a.leadsAssigned}, submitted ${a.submittedToBank}, approved ${a.approvedByBank}`;
-  }
-
   protected formatPct(v: number | null): string {
     return v === null ? '—' : `${Math.round(v * 100)}%`;
   }
 
-  protected formatAvg(v: number): string {
-    return v.toFixed(1).replace(/\.0$/, '');
+  protected formatAvg(v: number | null): string {
+    return v === null ? '0' : v.toFixed(1).replace(/\.0$/, '');
+  }
+
+  protected formatEgp(v: string | null): string {
+    if (v === null) return '—';
+    const n = Number(v);
+    if (!Number.isFinite(n) || n === 0) return '—';
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+    return `${Math.round(n)}`;
+  }
+
+  protected formatDurationShort(ms: number | null): string {
+    if (ms === null) return '—';
+    const sec = Math.max(0, Math.floor(ms / 1000));
+    if (sec < 60) return `${sec}s`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m`;
+    const hr = Math.floor(min / 60);
+    const remMin = min % 60;
+    if (hr < 24) return remMin > 0 ? `${hr}h ${remMin}m` : `${hr}h`;
+    const day = Math.floor(hr / 24);
+    return `${day}d`;
+  }
+
+  protected formatCycle(ms: number | null): string {
+    if (ms === null) return '—';
+    const days = ms / (1000 * 60 * 60 * 24);
+    if (days < 1) {
+      const hr = Math.round(ms / (1000 * 60 * 60));
+      return `${hr}h`;
+    }
+    return `${days.toFixed(1).replace(/\.0$/, '')}d`;
   }
 
   protected convTone(v: number | null): 'success' | 'warning' | 'error' | 'muted' | 'default' {

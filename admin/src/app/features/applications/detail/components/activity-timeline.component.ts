@@ -21,6 +21,7 @@ import {
   SyncOutline,
   UserSwitchOutline,
   CalendarOutline,
+  ClockCircleOutline,
 } from '@ant-design/icons-angular/icons';
 import { ApplicationsApiService, type ActivityRow } from '../../api/applications.api.service';
 
@@ -83,6 +84,7 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
       SyncOutline,
       UserSwitchOutline,
       CalendarOutline,
+      ClockCircleOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -181,27 +183,39 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
                 @if (row.note) {
                   <p class="row-note">{{ row.note }}</p>
                 }
+                @if (row.outcomeFlags.length > 0) {
+                  <ul class="flag-strip" role="list">
+                    @for (flag of row.outcomeFlags; track flag) {
+                      <li class="flag-pill">{{ labelForReason(flag) }}</li>
+                    }
+                  </ul>
+                }
                 <p class="row-meta">
                   @if (row.durationMinutes !== null) {
-                    <span i18n="@@activity.timeline.duration"
-                      >Duration {{ row.durationMinutes }} min</span
-                    >
-                  }
-                  @if (row.outcomeFlags.length > 0) {
-                    <span class="meta-sep" aria-hidden="true">·</span>
-                    <span>{{ row.outcomeFlags.join(', ') }}</span>
+                    <span class="meta-item">
+                      <span nz-icon nzType="clock-circle" nzTheme="outline" class="meta-icon"></span>
+                      <span i18n="@@activity.timeline.duration">{{ row.durationMinutes }} min</span>
+                    </span>
                   }
                   @if (row.followUpAt) {
-                    <span class="meta-sep" aria-hidden="true">·</span>
-                    <span i18n="@@activity.timeline.followUp"
-                      >Follow-up {{ row.followUpAt | date: 'short' }}</span
-                    >
+                    @if (row.durationMinutes !== null) {
+                      <span class="meta-sep" aria-hidden="true">·</span>
+                    }
+                    <span class="meta-item">
+                      <span nz-icon nzType="calendar" nzTheme="outline" class="meta-icon"></span>
+                      <span i18n="@@activity.timeline.followUp"
+                        >Follow-up {{ row.followUpAt | date: 'short' }}</span>
+                    </span>
                   }
                   @if (row.attachedDocuments?.length) {
-                    <span class="meta-sep" aria-hidden="true">·</span>
-                    <span i18n="@@activity.timeline.attachments"
-                      >{{ row.attachedDocuments?.length }} attachment(s)</span
-                    >
+                    @if (row.durationMinutes !== null || row.followUpAt) {
+                      <span class="meta-sep" aria-hidden="true">·</span>
+                    }
+                    <span class="meta-item">
+                      <span nz-icon nzType="paper-clip" nzTheme="outline" class="meta-icon"></span>
+                      <span i18n="@@activity.timeline.attachments"
+                        >{{ row.attachedDocuments?.length }} attachment(s)</span>
+                    </span>
                   }
                 </p>
               </button>
@@ -428,8 +442,31 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
         gap: 6px;
         align-items: center;
       }
-      .meta-sep {
-        opacity: 0.5;
+      .meta-sep { opacity: 0.5; }
+      .meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .meta-icon { font-size: 11px; opacity: 0.7; }
+      .flag-strip {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .flag-pill {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        padding: 2px 8px;
+        border-radius: var(--radius-pill);
+        background: color-mix(in oklab, var(--warning) 10%, var(--bg-subtle));
+        color: var(--warning);
+        border: 1px solid color-mix(in oklab, var(--warning) 25%, transparent);
+        white-space: nowrap;
       }
       .load-more {
         align-self: flex-start;

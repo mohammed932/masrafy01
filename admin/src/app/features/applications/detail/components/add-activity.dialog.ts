@@ -154,14 +154,21 @@ const OUTCOME_FLAG_OPTIONS = [
         </nz-form-item>
 
         <fieldset class="outcome-fieldset">
-          <legend i18n="@@activity.add.outcomeFlags">Outcome flags (max 3)</legend>
+          <legend>
+            <span i18n="@@activity.add.outcomeFlags">Outcome flags</span>
+            <span class="legend-counter" [class.full]="(form.controls.outcomeFlags.value?.length ?? 0) >= maxOutcomeFlags">
+              {{ form.controls.outcomeFlags.value?.length ?? 0 }} / {{ maxOutcomeFlags }}
+            </span>
+          </legend>
           <div class="chip-row">
             @for (flag of outcomeFlags; track flag) {
               <nz-tag
                 class="chip"
+                [class.is-disabled]="isFlagDisabled(flag)"
                 nzMode="checkable"
                 [nzChecked]="isFlagChecked(flag)"
                 (nzCheckedChange)="toggleFlag(flag, $event)"
+                [attr.aria-disabled]="isFlagDisabled(flag) ? 'true' : null"
               >
                 {{ labelFor(flag) }}
               </nz-tag>
@@ -268,6 +275,24 @@ const OUTCOME_FLAG_OPTIONS = [
         letter-spacing: 0.06em;
         margin: 0 0 var(--space-2);
         padding: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .legend-counter {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 2px 8px;
+        border-radius: var(--radius-pill);
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+        color: var(--color-text-tertiary);
+        text-transform: none;
+        font-variant-numeric: tabular-nums;
+      }
+      .legend-counter.full {
+        background: color-mix(in oklab, var(--warning) 16%, transparent);
+        color: var(--warning);
       }
       .outcome-fieldset {
         border: 0;
@@ -281,6 +306,11 @@ const OUTCOME_FLAG_OPTIONS = [
       }
       .chip {
         cursor: pointer;
+      }
+      .chip.is-disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+        pointer-events: none;
       }
       .hint {
         margin: 0;
@@ -355,10 +385,18 @@ export class AddActivityDialog {
     return (this.form.controls.outcomeFlags.value ?? []).includes(flag);
   }
 
+  protected readonly maxOutcomeFlags = 3;
+
+  protected isFlagDisabled(flag: string): boolean {
+    const current = this.form.controls.outcomeFlags.value ?? [];
+    return current.length >= this.maxOutcomeFlags && !current.includes(flag);
+  }
+
   protected toggleFlag(flag: string, checked: boolean): void {
     const current = this.form.controls.outcomeFlags.value ?? [];
     if (checked) {
       if (current.includes(flag)) return;
+      if (current.length >= this.maxOutcomeFlags) return;
       this.form.controls.outcomeFlags.setValue([...current, flag]);
     } else {
       this.form.controls.outcomeFlags.setValue(current.filter((f) => f !== flag));
