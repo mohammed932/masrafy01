@@ -16,6 +16,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzMessageService } from 'ng-zorro-antd/message';
@@ -66,6 +67,7 @@ import { DocumentsSectionComponent } from './sections/documents-section.componen
     ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
+    NzFormModule,
     NzIconModule,
     NzSpinModule,
     IdentitySectionComponent,

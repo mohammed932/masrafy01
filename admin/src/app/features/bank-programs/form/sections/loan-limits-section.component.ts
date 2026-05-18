@@ -28,28 +28,34 @@ import { CreditCardOutline } from '@ant-design/icons-angular/icons';
       <div class="grid">
         <nz-form-item class="numeric">
           <nz-form-label [nzFor]="'minAmountEGP'" i18n="@@bank_programs.field.min_amount_egp"
-            >Minimum amount (EGP)</nz-form-label
+            >Minimum amount</nz-form-label
           >
           <nz-form-control>
-            <input
-              nz-input
-              id="minAmountEGP"
-              formControlName="minAmountEGP"
-              inputmode="decimal"
-            />
+            <nz-input-group nzAddOnBefore="EGP" class="money-group">
+              <input
+                nz-input
+                id="minAmountEGP"
+                formControlName="minAmountEGP"
+                inputmode="decimal"
+                placeholder="50,000"
+              />
+            </nz-input-group>
           </nz-form-control>
         </nz-form-item>
         <nz-form-item class="numeric">
           <nz-form-label [nzFor]="'maxAmountEGP'" i18n="@@bank_programs.field.max_amount_egp"
-            >Maximum amount (EGP)</nz-form-label
+            >Maximum amount</nz-form-label
           >
           <nz-form-control>
-            <input
-              nz-input
-              id="maxAmountEGP"
-              formControlName="maxAmountEGP"
-              inputmode="decimal"
-            />
+            <nz-input-group nzAddOnBefore="EGP" class="money-group">
+              <input
+                nz-input
+                id="maxAmountEGP"
+                formControlName="maxAmountEGP"
+                inputmode="decimal"
+                placeholder="500,000"
+              />
+            </nz-input-group>
           </nz-form-control>
         </nz-form-item>
 
@@ -58,17 +64,17 @@ import { CreditCardOutline } from '@ant-design/icons-angular/icons';
             <nz-form-label
               [nzFor]="'qualitativeReviewMaxEGP'"
               i18n="@@bank_programs.field.qr_max_egp"
-              >Qualitative-review uplift ceiling (EGP)</nz-form-label
+              >Qualitative-review uplift ceiling</nz-form-label
             >
-            <nz-form-control
-              [nzExtra]="qrHint"
-            >
-              <input
-                nz-input
-                id="qualitativeReviewMaxEGP"
-                formControlName="qualitativeReviewMaxEGP"
-                inputmode="decimal"
-              />
+            <nz-form-control [nzExtra]="qrHint">
+              <nz-input-group nzAddOnBefore="EGP" class="money-group">
+                <input
+                  nz-input
+                  id="qualitativeReviewMaxEGP"
+                  formControlName="qualitativeReviewMaxEGP"
+                  inputmode="decimal"
+                />
+              </nz-input-group>
               <ng-template #qrHint>
                 <span i18n="@@bank_programs.hint.qr_max">
                   Unlocked per-offer only after an operator approves the qualitative-review badge.

@@ -46,16 +46,18 @@ import { RiseOutline } from '@ant-design/icons-angular/icons';
         @if (!isVariable) {
           <nz-form-item class="numeric">
             <nz-form-label [nzFor]="'baseRatePercent'" i18n="@@bank_programs.field.base_rate"
-              >Base rate %</nz-form-label
+              >Base rate</nz-form-label
             >
             <nz-form-control [nzExtra]="baseRateHint">
-              <input
-                nz-input
-                id="baseRatePercent"
-                formControlName="baseRatePercent"
-                inputmode="decimal"
-                placeholder="24.0000"
-              />
+              <nz-input-group nzAddOnAfter="%" class="rate-group">
+                <input
+                  nz-input
+                  id="baseRatePercent"
+                  formControlName="baseRatePercent"
+                  inputmode="decimal"
+                  placeholder="24.0000"
+                />
+              </nz-input-group>
               <ng-template #baseRateHint>
                 <span i18n="@@bank_programs.hint.precision_7_4"
                   >Up to 4 decimals (e.g., 26.5500).</span
@@ -68,16 +70,18 @@ import { RiseOutline } from '@ant-design/icons-angular/icons';
             <nz-form-label
               [nzFor]="'currentEffectiveRatePercent'"
               i18n="@@bank_programs.field.current_effective_rate"
-              >Current effective rate %</nz-form-label
+              >Current effective rate</nz-form-label
             >
             <nz-form-control [nzExtra]="effectiveHint">
-              <input
-                nz-input
-                id="currentEffectiveRatePercent"
-                formControlName="currentEffectiveRatePercent"
-                inputmode="decimal"
-                placeholder="26.5500"
-              />
+              <nz-input-group nzAddOnAfter="%" class="rate-group">
+                <input
+                  nz-input
+                  id="currentEffectiveRatePercent"
+                  formControlName="currentEffectiveRatePercent"
+                  inputmode="decimal"
+                  placeholder="26.5500"
+                />
+              </nz-input-group>
               <ng-template #effectiveHint>
                 <span i18n="@@bank_programs.hint.var_rate_required">
                   Required when "Variable rate" is on. Snapshots onto each offer at match time.

@@ -4,27 +4,29 @@ export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'masrafy.theme';
 
+// Dark mode is gated until ng-zorro-antd.dark.min.css is wired alongside
+// the variable theme. Custom CSS vars adapt via [data-theme='dark'], but
+// NG-ZORRO components stay on light defaults and clash visually. Lock light.
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
-  private readonly _current = signal<Theme>(this.resolveInitial());
+  private readonly _current = signal<Theme>('light');
   readonly current = this._current.asReadonly();
 
   constructor() {
-    this.apply(this._current());
-  }
-
-  toggle(): void {
-    this.set(this._current() === 'dark' ? 'light' : 'dark');
-  }
-
-  set(theme: Theme): void {
-    this._current.set(theme);
-    this.apply(theme);
+    this.apply('light');
     try {
-      localStorage.setItem(STORAGE_KEY, theme);
+      localStorage.removeItem(STORAGE_KEY);
     } catch {
       // localStorage unavailable (private mode) — best-effort.
     }
+  }
+
+  toggle(): void {
+    // no-op until ng-zorro dark CSS bundle is integrated.
+  }
+
+  set(_theme: Theme): void {
+    // no-op until ng-zorro dark CSS bundle is integrated.
   }
 
   private apply(theme: Theme): void {
@@ -34,18 +36,5 @@ export class ThemeService {
     } else {
       root.removeAttribute('data-theme');
     }
-  }
-
-  private resolveInitial(): Theme {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'dark' || stored === 'light') return stored;
-    } catch {
-      // ignore
-    }
-    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
   }
 }

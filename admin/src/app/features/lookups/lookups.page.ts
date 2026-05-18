@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzTableModule } from 'ng-zorro-antd/table';
@@ -16,6 +16,7 @@ import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { BankProgramsApiService } from '../bank-programs/bank-programs.api.service';
 import {
   IdcardOutline,
   SwapOutline,
@@ -37,6 +38,8 @@ import {
   EditOutline,
   MinusCircleOutline,
   PlusOutline,
+  BankOutline,
+  ArrowRightOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -154,6 +157,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     NzIconModule,
     NzButtonModule,
     NzTableModule,
@@ -187,6 +191,8 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       EditOutline,
       MinusCircleOutline,
       PlusOutline,
+      BankOutline,
+      ArrowRightOutline,
     ]),
   ],
   template: `
@@ -196,6 +202,68 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
           <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
         }
       </app-page-header>
+
+      <section class="banks-hero" aria-labelledby="banks-hero-title">
+        <div class="banks-hero__accent" aria-hidden="true"></div>
+        <div class="banks-hero__body">
+          <div class="banks-hero__intro">
+            <span class="banks-hero__eyebrow" i18n="@@lookups.banks.eyebrow">Bank registry</span>
+            <h2 id="banks-hero-title" class="banks-hero__title" i18n="@@lookups.banks.title">
+              Banks
+            </h2>
+            <p class="banks-hero__desc" i18n="@@lookups.banks.desc">
+              Banks live alongside their loan programs. Add a new bank to seed its first program, or
+              jump into the bank atlas to drill down by issuer.
+            </p>
+          </div>
+
+          <div class="banks-hero__deck">
+            <div class="banks-hero__metric">
+              <span class="banks-hero__metric-icon" aria-hidden="true">
+                <span nz-icon nzType="bank" nzTheme="outline"></span>
+              </span>
+              <span class="banks-hero__metric-text">
+                <span class="banks-hero__metric-value tabular-nums">{{ banksCount() }}</span>
+                <span class="banks-hero__metric-label" i18n="@@lookups.banks.metric.banks">
+                  Banks
+                </span>
+              </span>
+            </div>
+            <div class="banks-hero__metric">
+              <span class="banks-hero__metric-icon banks-hero__metric-icon--bronze" aria-hidden="true">
+                <span nz-icon nzType="appstore" nzTheme="outline"></span>
+              </span>
+              <span class="banks-hero__metric-text">
+                <span class="banks-hero__metric-value tabular-nums">{{ bankProgramsCount() }}</span>
+                <span class="banks-hero__metric-label" i18n="@@lookups.banks.metric.programs">
+                  Programs
+                </span>
+              </span>
+            </div>
+          </div>
+
+          <div class="banks-hero__actions">
+            <a
+              class="banks-hero__cta banks-hero__cta--primary"
+              routerLink="/bank-programs/new"
+              i18n-aria-label="@@lookups.banks.cta.create.aria"
+              aria-label="Create a new bank by adding its first program"
+            >
+              <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@lookups.banks.cta.create">Create new bank</span>
+            </a>
+            <a
+              class="banks-hero__cta banks-hero__cta--ghost"
+              routerLink="/bank-programs"
+              i18n-aria-label="@@lookups.banks.cta.browse.aria"
+              aria-label="Browse the bank atlas"
+            >
+              <span i18n="@@lookups.banks.cta.browse">Open bank atlas</span>
+              <span nz-icon nzType="arrow-right" nzTheme="outline" aria-hidden="true"></span>
+            </a>
+          </div>
+        </div>
+      </section>
 
       @if (loadingTypes()) {
         <div class="loading-row"><nz-spin nzSimple /></div>
@@ -254,8 +322,8 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                   [nzTableLayout]="'fixed'"
                 >
                   <colgroup>
-                    <col />
-                    <col style="inline-size: 240px" />
+                    <col style="width: auto" />
+                    <col style="width: 240px" />
                   </colgroup>
                   <thead>
                     <tr>
@@ -332,12 +400,214 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
   `,
   styles: [
     `
+      /* ───────────── Banks hero ───────────── */
+      .banks-hero {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        background:
+          radial-gradient(circle at 0% 0%, rgba(161, 124, 91, 0.10) 0%, transparent 55%),
+          var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow var(--motion-duration-base) var(--motion-easing-standard),
+                    transform var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .banks-hero:hover {
+        box-shadow: var(--shadow-md);
+      }
+      .banks-hero__accent {
+        height: 4px;
+        background: linear-gradient(
+          90deg,
+          var(--burgundy-600) 0%,
+          var(--burgundy-500) 38%,
+          var(--bronze-400) 100%
+        );
+      }
+      .banks-hero__body {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: var(--space-6);
+        align-items: center;
+        padding: var(--space-5) var(--space-6);
+      }
+      .banks-hero__intro {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        min-inline-size: 0;
+      }
+      .banks-hero__eyebrow {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--bronze-600);
+      }
+      .banks-hero__title {
+        margin: 0;
+        font-size: var(--text-2xl);
+        font-weight: var(--font-bold);
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+        line-height: var(--leading-tight);
+      }
+      .banks-hero__desc {
+        margin: var(--space-1) 0 0;
+        max-inline-size: 56ch;
+        font-size: var(--text-sm);
+        line-height: var(--leading-relaxed);
+        color: var(--text-secondary);
+      }
+      .banks-hero__deck {
+        display: flex;
+        gap: var(--space-3);
+        align-items: stretch;
+      }
+      .banks-hero__metric {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-3) var(--space-4);
+        background: var(--bg-base);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-md);
+        min-inline-size: 132px;
+      }
+      .banks-hero__metric-icon {
+        inline-size: 38px;
+        block-size: 38px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        background: rgba(92, 6, 50, 0.08);
+        color: var(--burgundy-600);
+        font-size: 18px;
+      }
+      .banks-hero__metric-icon--bronze {
+        background: rgba(161, 124, 91, 0.14);
+        color: var(--bronze-600);
+      }
+      .banks-hero__metric-text {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.1;
+      }
+      .banks-hero__metric-value {
+        font-size: var(--text-2xl);
+        font-weight: var(--font-bold);
+        color: var(--text-primary);
+        letter-spacing: -0.015em;
+      }
+      .banks-hero__metric-label {
+        font-size: var(--text-xs);
+        font-weight: var(--font-medium);
+        color: var(--text-tertiary);
+        text-transform: uppercase;
+        letter-spacing: 0.10em;
+        margin-block-start: 2px;
+      }
+      .banks-hero__actions {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        align-items: stretch;
+        min-inline-size: 220px;
+      }
+      .banks-hero__cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+        height: 44px;
+        padding-inline: var(--space-5);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        letter-spacing: 0.01em;
+        text-decoration: none;
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard),
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          transform var(--motion-duration-fast) var(--motion-easing-standard),
+          box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .banks-hero__cta--primary {
+        background: linear-gradient(135deg, var(--burgundy-600) 0%, var(--burgundy-500) 100%);
+        color: var(--text-on-primary);
+        border: 1px solid transparent;
+        box-shadow: 0 1px 2px rgba(92, 6, 50, 0.18);
+      }
+      .banks-hero__cta--primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px -6px rgba(92, 6, 50, 0.35);
+        color: var(--text-on-primary);
+        text-decoration: none;
+      }
+      .banks-hero__cta--primary:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba(92, 6, 50, 0.18);
+      }
+      .banks-hero__cta--primary:focus-visible {
+        outline: 2px solid var(--bronze-500);
+        outline-offset: 2px;
+      }
+      .banks-hero__cta--ghost {
+        background: transparent;
+        color: var(--burgundy-600);
+        border: 1px solid var(--border-default);
+      }
+      .banks-hero__cta--ghost:hover {
+        background: var(--bg-base);
+        border-color: var(--bronze-500);
+        color: var(--burgundy-700);
+        text-decoration: none;
+      }
+      .banks-hero__cta--ghost:focus-visible {
+        outline: 2px solid var(--burgundy-600);
+        outline-offset: 2px;
+      }
+      @media (max-width: 1024px) {
+        .banks-hero__body {
+          grid-template-columns: 1fr;
+          gap: var(--space-5);
+        }
+        .banks-hero__deck {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+        }
+        .banks-hero__actions {
+          flex-direction: row;
+          min-inline-size: 0;
+        }
+        .banks-hero__cta {
+          flex: 1 1 auto;
+        }
+      }
+      @media (max-width: 560px) {
+        .banks-hero__body {
+          padding: var(--space-4);
+        }
+        .banks-hero__deck {
+          grid-template-columns: 1fr;
+        }
+        .banks-hero__actions {
+          flex-direction: column;
+        }
+      }
+
       .page {
         display: flex;
         flex-direction: column;
         gap: var(--space-6);
-        max-width: var(--content-max-width);
-        margin-inline: auto;
+        inline-size: 100%;
+        max-inline-size: none;
         padding: var(--space-6) var(--space-6);
       }
       @media (max-width: 768px) {
@@ -500,10 +770,24 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         line-height: var(--line-height-base);
       }
       .table-wrap {
+        inline-size: 100%;
         background: var(--color-surface-default);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
         overflow: hidden;
+      }
+      :host ::ng-deep nz-table.lookups-table {
+        display: block;
+        inline-size: 100%;
+      }
+      :host ::ng-deep .lookups-table .ant-table-wrapper,
+      :host ::ng-deep .lookups-table .ant-table,
+      :host ::ng-deep .lookups-table .ant-table-container,
+      :host ::ng-deep .lookups-table .ant-table-content,
+      :host ::ng-deep .lookups-table table {
+        inline-size: 100% !important;
+        min-inline-size: 100%;
+        max-inline-size: none;
       }
       .system-icon {
         font-size: 16px;
@@ -635,6 +919,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
 })
 export class LookupsPage implements OnInit {
   private readonly api = inject(LookupsApiService);
+  private readonly bankApi = inject(BankProgramsApiService);
   private readonly modal = inject(NzModalService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -644,6 +929,8 @@ export class LookupsPage implements OnInit {
   protected readonly loadingTypes = signal(true);
   protected readonly loadingRows = signal(false);
   protected readonly selectedType = signal<string | null>(null);
+  protected readonly banksCount = signal<number>(0);
+  protected readonly bankProgramsCount = signal<number>(0);
 
   protected readonly heroStats = computed(() => {
     const t = this.types();
@@ -673,6 +960,7 @@ export class LookupsPage implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
+    void this.loadBankStats();
     await this.reloadTypes();
     const initial = this.route.snapshot.queryParamMap.get('type');
     const target =
@@ -680,6 +968,24 @@ export class LookupsPage implements OnInit {
         ? initial
         : this.types()[0]?.type ?? null;
     if (target) await this.selectType(target);
+  }
+
+  private async loadBankStats(): Promise<void> {
+    try {
+      const PAGE_SIZE = 100;
+      const first = await this.bankApi.list({ pageSize: PAGE_SIZE, page: 1 });
+      const collected = [...(first.data ?? [])];
+      const total = first.pagination?.total ?? collected.length;
+      const pages = Math.ceil(total / PAGE_SIZE);
+      for (let p = 2; p <= pages; p++) {
+        const next = await this.bankApi.list({ pageSize: PAGE_SIZE, page: p });
+        collected.push(...(next.data ?? []));
+      }
+      this.bankProgramsCount.set(total);
+      this.banksCount.set(new Set(collected.map((p) => p.bankName)).size);
+    } catch {
+      // Stats best-effort; leave at 0.
+    }
   }
 
   protected labelFor(type: string): TypeMeta {

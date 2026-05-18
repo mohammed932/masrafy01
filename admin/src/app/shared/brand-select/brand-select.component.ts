@@ -148,31 +148,40 @@ export interface BrandSelectOption {
         position: relative;
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        row-gap: 6px;
+        margin: 0;
       }
       .bs-label {
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-medium);
-        color: var(--color-text-secondary);
+        display: block;
+        box-sizing: content-box;
+        height: 18px;
+        line-height: 18px;
+        padding: 0 0 4px;
+        min-block-size: 22px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--text-secondary, var(--color-text-secondary));
         cursor: pointer;
       }
       .bs-trigger {
         appearance: none;
+        box-sizing: border-box;
         width: 100%;
-        height: 56px;
+        height: 44px;
         padding-inline: 14px 36px;
-        background: transparent;
-        border: 1px solid var(--color-border-default);
-        border-radius: 4px;
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: 10px;
         font-family: var(--font-family-base);
-        font-size: var(--text-md);
+        font-size: 14px;
         color: var(--color-text-primary);
         text-align: start;
         cursor: pointer;
         position: relative;
         transition:
-          border-color 120ms cubic-bezier(0.2, 0, 0, 1),
-          box-shadow 120ms cubic-bezier(0.2, 0, 0, 1);
+          border-color 200ms ease,
+          box-shadow 200ms ease;
       }
       [dir='rtl'] .bs-trigger {
         padding-inline: 36px 14px;
@@ -183,12 +192,15 @@ export interface BrandSelectOption {
       .bs-trigger:focus,
       .bs-trigger:focus-visible {
         outline: none;
-        border-color: var(--color-brand-primary);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-tonal-accent) 18%, transparent);
+        border-color: var(--primary, var(--color-brand-primary));
+        box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
       }
       .bs-open .bs-trigger {
-        border-color: var(--color-brand-primary);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-tonal-accent) 18%, transparent);
+        border-color: var(--primary, var(--color-brand-primary));
+        box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
+      }
+      .bs-trigger:hover:not(:disabled):not(:focus) {
+        border-color: var(--primary, var(--color-brand-primary));
       }
       .bs-trigger:disabled {
         background: var(--color-surface-elevated);

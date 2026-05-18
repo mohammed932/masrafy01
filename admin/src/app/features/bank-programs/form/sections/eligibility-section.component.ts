@@ -5,6 +5,7 @@ import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { CheckSquareOutline } from '@ant-design/icons-angular/icons';
 import { PlatformEnumerationsService } from '../../../../core/platform-enumerations/platform-enumerations.service';
@@ -21,6 +22,7 @@ import {
     ReactiveFormsModule,
     NzFormModule,
     NzInputModule,
+    NzInputNumberModule,
     NzCheckboxModule,
     NzSwitchModule,
     NzIconModule,
@@ -76,14 +78,15 @@ import {
             >Minimum age</nz-form-label
           >
           <nz-form-control>
-            <input
-              nz-input
+            <nz-input-number
               id="ageMin"
-              type="number"
+              class="num-field"
               formControlName="ageMin"
-              min="18"
-              max="80"
-            />
+              [nzMin]="18"
+              [nzMax]="80"
+              [nzStep]="1"
+              [nzPrecision]="0"
+            ></nz-input-number>
           </nz-form-control>
         </nz-form-item>
         <nz-form-item class="numeric">
@@ -91,14 +94,15 @@ import {
             >Maximum age</nz-form-label
           >
           <nz-form-control>
-            <input
-              nz-input
+            <nz-input-number
               id="ageMax"
-              type="number"
+              class="num-field"
               formControlName="ageMax"
-              min="18"
-              max="80"
-            />
+              [nzMin]="18"
+              [nzMax]="80"
+              [nzStep]="1"
+              [nzPrecision]="0"
+            ></nz-input-number>
           </nz-form-control>
         </nz-form-item>
 
@@ -109,12 +113,15 @@ import {
             >Minimum monthly income (EGP)</nz-form-label
           >
           <nz-form-control>
-            <input
-              nz-input
-              id="minMonthlyIncomeEGP"
-              formControlName="minMonthlyIncomeEGP"
-              inputmode="decimal"
-            />
+            <nz-input-group nzAddOnBefore="EGP" class="money-group">
+              <input
+                nz-input
+                id="minMonthlyIncomeEGP"
+                formControlName="minMonthlyIncomeEGP"
+                inputmode="decimal"
+                placeholder="5,000"
+              />
+            </nz-input-group>
           </nz-form-control>
         </nz-form-item>
         <nz-form-item class="numeric">
@@ -124,27 +131,31 @@ import {
             >Minimum months in job</nz-form-label
           >
           <nz-form-control>
-            <input
-              nz-input
+            <nz-input-number
               id="minMonthsInJob"
-              type="number"
+              class="num-field"
               formControlName="minMonthsInJob"
-              min="0"
-            />
+              [nzMin]="0"
+              [nzStep]="1"
+              [nzPrecision]="0"
+            ></nz-input-number>
           </nz-form-control>
         </nz-form-item>
 
         <nz-form-item class="numeric">
           <nz-form-label [nzFor]="'dbrCapPercent'" i18n="@@bank_programs.field.dbr_cap"
-            >DBR cap %</nz-form-label
+            >DBR cap</nz-form-label
           >
           <nz-form-control>
-            <input
-              nz-input
-              id="dbrCapPercent"
-              formControlName="dbrCapPercent"
-              inputmode="decimal"
-            />
+            <nz-input-group nzAddOnAfter="%" class="rate-group">
+              <input
+                nz-input
+                id="dbrCapPercent"
+                formControlName="dbrCapPercent"
+                inputmode="decimal"
+                placeholder="50.0000"
+              />
+            </nz-input-group>
           </nz-form-control>
         </nz-form-item>
         <div class="row">

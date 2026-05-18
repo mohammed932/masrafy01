@@ -48,6 +48,11 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3) var(--space-4);
+  align-items: start;
+}
+.grid > * {
+  align-self: start;
+  min-block-size: 0;
 }
 
 .grid .span-2 {
@@ -100,6 +105,46 @@
   font-feature-settings: var(--font-feature-tabular);
 }
 
+.num-field,
+nz-input-number.num-field {
+  display: block;
+  inline-size: 100%;
+}
+:host ::ng-deep .num-field .ant-input-number-input {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: var(--font-feature-tabular);
+}
+
+// ── Money + rate affix groups (design-system numeric inputs) ──────────
+.money-group,
+.rate-group,
+:host ::ng-deep nz-input-group.money-group,
+:host ::ng-deep nz-input-group.rate-group {
+  inline-size: 100%;
+}
+:host ::ng-deep .money-group input.ant-input,
+:host ::ng-deep .rate-group input.ant-input {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: var(--font-feature-tabular);
+  text-align: end;
+  letter-spacing: 0.01em;
+}
+:host ::ng-deep .money-group .ant-input-group-addon,
+:host ::ng-deep .rate-group .ant-input-group-addon {
+  background: var(--bg-muted, var(--color-surface-muted));
+  color: var(--text-secondary, var(--color-text-secondary));
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold, var(--font-weight-semibold));
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-color: var(--border-default, var(--color-border-default));
+  min-inline-size: 56px;
+  text-align: center;
+}
+:host ::ng-deep .rate-group .ant-input-group-addon {
+  min-inline-size: 44px;
+}
+
 // Native <select> — bypasses Material overlay system. Browser handles positioning.
 .native-field {
   display: flex;
@@ -118,30 +163,29 @@
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
+  box-sizing: border-box;
   width: 100%;
-  height: 56px;
+  height: 44px;
   padding-inline: 14px 36px;
   padding-block: 0;
-  border: 1px solid var(--color-border-default);
-  border-radius: 4px;
-  background-color: var(--color-surface);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%231C4290' stroke-width='1.5' stroke-linecap='round'/></svg>");
+  border: 1px solid var(--border-default, var(--color-border-default));
+  border-radius: 10px;
+  background-color: var(--bg-subtle, var(--color-surface-row-hover));
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%235C0632' stroke-width='1.5' stroke-linecap='round'/></svg>");
   background-repeat: no-repeat;
   background-position: right 14px center;
   background-size: 10px 6px;
   font-family: var(--font-family-base);
-  font-size: var(--text-md);
+  font-size: 14px;
   color: var(--color-text-primary);
   cursor: pointer;
-  transition:
-    border-color 120ms cubic-bezier(0.2, 0, 0, 1),
-    box-shadow 120ms cubic-bezier(0.2, 0, 0, 1);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
 
-  &:hover { border-color: var(--color-border-strong); }
+  &:hover { border-color: var(--primary, var(--color-brand-primary)); }
   &:focus, &:focus-visible {
     outline: none;
-    border-color: var(--color-brand-primary);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-tonal-accent) 18%, transparent);
+    border-color: var(--primary, var(--color-brand-primary));
+    box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
   }
   &:disabled {
     background-color: var(--color-surface-elevated);

@@ -1,84 +1,38 @@
-// Masrafy design tokens. Constitution Principle VIII: brand primary #06152D.
+// Masrafy design tokens.
+// Brand: pilot100 burgundy (#5C0632) + bronze accent (#A17C5B).
+// Typography: Plus Jakarta Sans + Playfair Display + JetBrains Mono.
 //
-// Two roles:
-//   1. App tokens (--color-*, --space-*, --text-*, --radius-*, --shadow-*, --motion-*)
-//      consumed via `var(--color-...)` etc. by every component.
-//   2. NG-ZORRO theme variables (--ant-*) override the defaults bundled in
-//      `ng-zorro-antd.variable.min.css` so brand color flows into all Ant
-//      components without Less recompilation.
+// Loads:
+//   1. Palette  → light + dark color tokens
+//   2. Typography → font families, sizes, weights, utility classes
+//   3. NG-ZORRO theme overrides (--ant-*) pointed at burgundy
+//   4. Masrafy-specific tokens (spacing, radius, motion, layout) preserved
+//   5. Legacy aliases (--color-*, --font-family-base, --space-*) bridge old code
+
+@use './palette';
+@use './typography';
 
 :root {
-  // ===== NG-ZORRO theme overrides (var-mode) ===============================
-  --ant-primary-color: #06152D;
-  --ant-primary-color-hover: #0B2247;
-  --ant-primary-color-active: #050F22;
-  --ant-primary-color-outline: rgba(6, 21, 45, 0.20);
-  --ant-info-color: #1A5FAE;
-  --ant-success-color: #1B7F47;
-  --ant-success-color-hover: #229A55;
-  --ant-success-color-active: #155F37;
-  --ant-success-color-outline: rgba(27, 127, 71, 0.20);
-  --ant-warning-color: #B97300;
-  --ant-warning-color-hover: #D08810;
-  --ant-warning-color-active: #985F00;
-  --ant-warning-color-outline: rgba(185, 115, 0, 0.20);
-  --ant-error-color: #C0292E;
-  --ant-error-color-hover: #D03B3F;
-  --ant-error-color-active: #A41E22;
-  --ant-error-color-outline: rgba(192, 41, 46, 0.20);
+  // ===== NG-ZORRO theme overrides (var-mode) =================================
+  --ant-primary-color: #5C0632;
+  --ant-primary-color-hover: #7A0842;
+  --ant-primary-color-active: #4A0528;
+  --ant-primary-color-outline: rgba(92, 6, 50, 0.20);
+  --ant-info-color: #3D5A80;
+  --ant-success-color: #2D5F3F;
+  --ant-success-color-hover: #3D7856;
+  --ant-success-color-active: #234A31;
+  --ant-success-color-outline: rgba(45, 95, 63, 0.20);
+  --ant-warning-color: #C8893D;
+  --ant-warning-color-hover: #D4A865;
+  --ant-warning-color-active: #B87738;
+  --ant-warning-color-outline: rgba(200, 137, 61, 0.20);
+  --ant-error-color: #C1666B;
+  --ant-error-color-hover: #D89BA0;
+  --ant-error-color-active: #A8484D;
+  --ant-error-color-outline: rgba(193, 102, 107, 0.20);
 
-  // ===== Brand =============================================================
-  --color-brand-primary: #06152D;
-  --color-brand-primary-hover: #0B2247;
-  --color-brand-primary-active: #050F22;
-  --color-brand-primary-contrast: #FFFFFF;
-
-  --color-tonal-accent: #1C4290;
-  --color-tonal-accent-hover: #2A57AE;
-  --color-tonal-accent-bg: #E8EDF7;
-
-  // ===== Surfaces ==========================================================
-  --color-surface-page: #F7F8FA;
-  --color-surface-default: #FFFFFF;
-  --color-surface-elevated: #F7F8FA;
-  --color-surface-muted: #EEF0F4;
-  --color-surface-row-hover: #F2F4F8;
-  --color-surface-inverse: #06152D;
-  --color-overlay-backdrop: rgba(6, 21, 45, 0.50);
-
-  // ===== Text ==============================================================
-  --color-text-primary: #06152D;
-  --color-text-secondary: #4A5468;
-  --color-text-tertiary: #7A8194;
-  --color-text-disabled: #B3B9C5;
-  --color-text-on-brand: #FFFFFF;
-  --color-text-link: #1C4290;
-  --color-text-link-hover: #2A57AE;
-
-  --color-topbar-bg: #06152D;
-  --color-topbar-text: #FFFFFF;
-
-  // ===== Borders ===========================================================
-  --color-border-default: #D5D9E1;
-  --color-border-strong: #A8B0BD;
-  --color-border-focus: #06152D;
-  --color-border-locked-step: #06152D;
-
-  // ===== Semantic ==========================================================
-  --color-success: #1B7F47;
-  --color-success-bg: #E5F3EC;
-  --color-success-dot: #1B7F47;
-  --color-warning: #B97300;
-  --color-warning-bg: #FFF4E0;
-  --color-warning-dot: #B97300;
-  --color-error: #C0292E;
-  --color-error-bg: #FBE7E8;
-  --color-error-dot: #C0292E;
-  --color-info: #1A5FAE;
-  --color-info-bg: #E6F0FA;
-  --color-info-dot: #1A5FAE;
-
-  // ===== Spacing (4px base) ================================================
+  // ===== Spacing (4px base) ==================================================
   --space-1: 4px;
   --space-2: 8px;
   --space-2-5: 10px;
@@ -91,115 +45,105 @@
   --space-9: 96px;
   --space-10: 128px;
 
-  // ===== Type scale ========================================================
-  --font-family-base: 'Cairo', 'IBM Plex Sans Arabic', 'Inter', system-ui, sans-serif;
-  --font-family-numeric: 'Cairo', 'IBM Plex Sans Arabic', system-ui, sans-serif;
-  --font-feature-tabular: 'tnum' 1, 'lnum' 1;
-
-  --text-xxs: 11px;
-  --text-xs: 12px;
-  --text-sm: 14px;
-  --text-md: 16px;
-  --text-lg: 18px;
-  --text-xl: 22px;
-  --text-2xl: 28px;
-  --text-3xl: 36px;
-
-  --font-weight-regular: 400;
-  --font-weight-medium: 500;
-  --font-weight-semibold: 600;
-  --font-weight-bold: 700;
-
-  --line-height-tight: 1.2;
-  --line-height-base: 1.5;
-  --line-height-loose: 1.7;
-
-  // ===== Radius ============================================================
+  // ===== Radius ==============================================================
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-pill: 999px;
 
-  // ===== Shadow ============================================================
-  --shadow-sm: 0 1px 2px rgba(6, 21, 45, 0.06);
-  --shadow-md: 0 2px 8px rgba(6, 21, 45, 0.07);
-  --shadow-lg: 0 12px 28px rgba(6, 21, 45, 0.10);
-  --shadow-focus-ring: 0 0 0 3px rgba(6, 21, 45, 0.16);
-
-  // ===== Motion ============================================================
+  // ===== Motion ==============================================================
   --motion-duration-fast: 120ms;
   --motion-duration-base: 180ms;
   --motion-duration-slow: 280ms;
   --motion-easing-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
   --motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0.0, 1.0);
 
-  // ===== Focus ring (WCAG 2.2 AA) ==========================================
+  // ===== Focus ring (WCAG 2.2 AA) ============================================
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
-  --focus-ring-color: var(--color-brand-primary);
+  --focus-ring-color: var(--primary);
 
-  // ===== Layout primitives =================================================
+  // ===== Layout primitives ===================================================
   --topbar-height: 64px;
   --sidebar-width: 248px;
   --sidebar-width-collapsed: 56px;
   --content-max-width: 1280px;
   --card-max-width-auth: 420px;
+
+  // ===== Legacy aliases (bridge to existing masrafy code) ====================
+  --color-brand-primary: var(--primary);
+  --color-brand-primary-hover: var(--primary-hover);
+  --color-brand-primary-active: var(--primary-active);
+  --color-brand-primary-contrast: var(--text-on-primary);
+
+  --color-tonal-accent: var(--accent);
+  --color-tonal-accent-hover: var(--accent-hover);
+  --color-tonal-accent-bg: var(--accent-subtle);
+
+  --color-surface-page: var(--bg-base);
+  --color-surface-default: var(--bg-surface);
+  --color-surface-elevated: var(--bg-subtle);
+  --color-surface-muted: var(--bg-muted);
+  --color-surface-row-hover: var(--bg-subtle);
+  --color-surface-inverse: var(--bg-inverse);
+  --color-overlay-backdrop: rgba(43, 35, 32, 0.50);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-disabled: var(--text-muted);
+  --color-text-on-brand: var(--text-on-primary);
+  --color-text-link: var(--primary);
+  --color-text-link-hover: var(--primary-hover);
+
+  --color-topbar-bg: var(--primary);
+  --color-topbar-text: var(--text-on-primary);
+
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-border-focus: var(--primary);
+  --color-border-locked-step: var(--primary);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-50);
+  --color-success-dot: var(--success);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-50);
+  --color-warning-dot: var(--warning);
+  --color-error: var(--error);
+  --color-error-bg: var(--error-50);
+  --color-error-dot: var(--error);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-50);
+  --color-info-dot: var(--info);
+
+  // Type-scale legacy mappings (px → rem equivalents kept for code that still
+  // reads `--text-md`, `--text-xxs`, `--font-family-base`).
+  --text-xxs: 0.6875rem;
+  --text-md: var(--text-base);
+  --font-family-base: var(--font-sans);
+  --font-family-numeric: var(--font-sans);
+  --font-feature-tabular: 'tnum' 1, 'lnum' 1;
+
+  --font-weight-regular: var(--font-normal);
+  --font-weight-medium: var(--font-medium);
+  --font-weight-semibold: var(--font-semibold);
+  --font-weight-bold: var(--font-bold);
+
+  --line-height-tight: var(--leading-tight);
+  --line-height-base: var(--leading-normal);
+  --line-height-loose: var(--leading-loose);
+
+  --shadow-focus-ring: 0 0 0 3px rgba(92, 6, 50, 0.16);
 }
 
-// Dark theme (v2 scaffold — activate via [data-theme="dark"] on <html>).
 [data-theme='dark'] {
-  --ant-primary-color: #6A8FE5;
-  --ant-primary-color-hover: #8AA7EE;
-  --ant-primary-color-active: #4F7AD5;
+  --ant-primary-color: #5C0632;
+  --ant-primary-color-hover: #7A0842;
+  --ant-primary-color-active: #4A0528;
+  --ant-primary-color-outline: rgba(199, 88, 120, 0.32);
 
-  --color-brand-primary: #6A8FE5;
-  --color-brand-primary-hover: #8AA7EE;
-  --color-brand-primary-active: #4F7AD5;
-  --color-brand-primary-contrast: #0E1117;
-
-  --color-tonal-accent: #93B3F4;
-  --color-tonal-accent-hover: #B0C7F7;
-  --color-tonal-accent-bg: rgba(147, 179, 244, 0.12);
-
-  --color-surface-page: #0E1117;
-  --color-surface-default: #161B22;
-  --color-surface-elevated: #1F252E;
-  --color-surface-muted: #262C36;
-  --color-surface-row-hover: #1A1F26;
-  --color-surface-inverse: #F7F8FA;
-  --color-overlay-backdrop: rgba(1, 4, 9, 0.78);
-
-  --color-text-primary: #E6EDF3;
-  --color-text-secondary: #8B949E;
-  --color-text-tertiary: #6E7681;
-  --color-text-disabled: #484F58;
-  --color-text-on-brand: #0E1117;
-  --color-text-link: #93B3F4;
-  --color-text-link-hover: #B0C7F7;
-
-  --color-border-default: #2A2F3A;
-  --color-border-strong: #3D424F;
-  --color-border-focus: #93B3F4;
-  --color-border-locked-step: #93B3F4;
-
-  --color-success: #4FBE7C;
-  --color-success-bg: rgba(79, 190, 124, 0.12);
-  --color-success-dot: #4FBE7C;
-  --color-warning: #E7A340;
-  --color-warning-bg: rgba(231, 163, 64, 0.12);
-  --color-warning-dot: #E7A340;
-  --color-error: #E66E76;
-  --color-error-bg: rgba(230, 110, 118, 0.12);
-  --color-error-dot: #E66E76;
-  --color-info: #6CABE0;
-  --color-info-bg: rgba(108, 171, 224, 0.12);
-  --color-info-dot: #6CABE0;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.42);
-  --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.64);
-  --shadow-focus-ring: 0 0 0 3px rgba(147, 179, 244, 0.36);
-
-  --color-topbar-bg: #0A0D12;
-  --color-topbar-text: #F0F3F8;
+  --color-topbar-bg: #0A080C;
+  --color-topbar-text: var(--text-primary);
+  --shadow-focus-ring: 0 0 0 3px rgba(199, 88, 120, 0.36);
 }

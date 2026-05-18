@@ -3,10 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzFormModule } from 'ng-zorro-antd/form';
-import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzIconModule } from 'ng-zorro-antd/icon';
 import { AuthService } from '@core/auth/auth.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode, ErrorEnvelope } from '@core/auth/auth.types';
@@ -19,131 +16,591 @@ interface LoginControls {
 @Component({
   selector: 'app-login-page',
   standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    NzButtonModule,
-    NzFormModule,
-    NzInputModule,
-    NzSpinModule,
-  ],
+  imports: [CommonModule, ReactiveFormsModule, NzIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <main class="login-shell" role="main">
-      <section class="login-card" [attr.aria-labelledby]="titleId">
-        <h1 [id]="titleId" class="brand-mark" i18n="@@login.title">Masrafy</h1>
-        <p class="subtitle" i18n="@@login.subtitle">Sign in to the admin dashboard.</p>
+    <main class="login-container" role="main">
+      <div class="bg-effects" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="grid-overlay"></div>
+      </div>
 
-        <form nz-form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-          <nz-form-item class="field">
-            <nz-form-label [nzFor]="'email'" nzRequired i18n="@@login.email">Email</nz-form-label>
-            <nz-form-control [nzErrorTip]="emailErrTpl">
-              <input
-                nz-input
-                id="email"
-                type="email"
-                autocomplete="email"
-                formControlName="email"
-                [attr.aria-invalid]="form.controls.email.touched && form.controls.email.invalid"
-              />
-              <ng-template #emailErrTpl let-control>
-                @if (control.errors?.['required']) {
-                  <span i18n="@@login.email.required">Email is required.</span>
-                } @else if (control.errors?.['email']) {
-                  <span i18n="@@login.email.invalid">Email format is invalid.</span>
-                }
-              </ng-template>
-            </nz-form-control>
-          </nz-form-item>
+      <div class="login-wrapper">
+        <aside class="brand-panel" aria-hidden="true">
+          <div class="brand-content">
+            <div class="logo-row">
+              <div class="logo-mark">
+                <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M24 4L42 14V34L24 44L6 34V14L24 4Z" stroke="currentColor" stroke-width="2" />
+                  <circle cx="24" cy="24" r="8" stroke="currentColor" stroke-width="2" />
+                  <circle cx="24" cy="24" r="3" fill="currentColor" />
+                </svg>
+              </div>
+              <div class="logo-text">
+                <span class="logo-main">Masrafy</span>
+                <span class="logo-sub">Admin Portal</span>
+              </div>
+            </div>
 
-          <nz-form-item class="field">
-            <nz-form-label [nzFor]="'password'" nzRequired i18n="@@login.password">Password</nz-form-label>
-            <nz-form-control [nzErrorTip]="passwordErrTpl">
-              <input
-                nz-input
-                id="password"
-                type="password"
-                autocomplete="current-password"
-                formControlName="password"
-              />
-              <ng-template #passwordErrTpl let-control>
-                @if (control.errors?.['required']) {
-                  <span i18n="@@login.password.required">Password is required.</span>
-                }
-              </ng-template>
-            </nz-form-control>
-          </nz-form-item>
+            <div class="tagline">
+              <h1>Credit Match Console</h1>
+              <p>Match Egyptian borrowers with the best bank loan programs — at scale.</p>
+            </div>
 
-          @if (errorMessage(); as msg) {
-            <div role="alert" aria-live="polite" class="alert">{{ msg }}</div>
-          }
+            <ul class="stats">
+              <li>
+                <span class="stat-icon"><i nz-icon nzType="bank" nzTheme="outline"></i></span>
+                <span class="stat-text"><strong>20+</strong><em>Bank Programs</em></span>
+              </li>
+              <li>
+                <span class="stat-icon"><i nz-icon nzType="team" nzTheme="outline"></i></span>
+                <span class="stat-text"><strong>Live</strong><em>Lead Marketplace</em></span>
+              </li>
+              <li>
+                <span class="stat-icon"><i nz-icon nzType="safety-certificate" nzTheme="outline"></i></span>
+                <span class="stat-text"><strong>99.9%</strong><em>Uptime SLA</em></span>
+              </li>
+            </ul>
 
-          <button
-            nz-button
-            nzType="primary"
-            type="submit"
-            [disabled]="form.invalid || submitting()"
-            [attr.aria-busy]="submitting()"
-            class="submit"
-          >
-            @if (submitting()) {
-              <nz-spin nzSimple [nzSize]="'small'" />
-            } @else {
-              <span i18n="@@login.submit">Sign in</span>
+            <div class="security-pill">
+              <i nz-icon nzType="lock" nzTheme="fill"></i>
+              <span>Enterprise-Grade Security</span>
+            </div>
+          </div>
+          <div class="deco-circle deco-1"></div>
+          <div class="deco-circle deco-2"></div>
+        </aside>
+
+        <section class="form-panel" [attr.aria-labelledby]="titleId">
+          <div class="form-container">
+            <div class="form-header">
+              <div class="header-badge">
+                <i nz-icon nzType="crown" nzTheme="fill"></i>
+                <span>Administrator Access</span>
+              </div>
+              <h2 [id]="titleId" i18n="@@login.title">Welcome back</h2>
+              <p i18n="@@login.subtitle">Sign in to the admin dashboard.</p>
+            </div>
+
+            @if (errorMessage(); as msg) {
+              <div role="alert" aria-live="polite" class="error-alert">
+                <span class="error-icon"><i nz-icon nzType="exclamation-circle" nzTheme="fill"></i></span>
+                <div class="error-body">
+                  <span class="error-title" i18n="@@login.error.title">Authentication failed</span>
+                  <span class="error-text">{{ msg }}</span>
+                </div>
+              </div>
             }
-          </button>
-        </form>
 
-        <p class="helper" i18n="@@login.helper">Forgot your password? Contact a super-admin.</p>
-      </section>
+            <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="login-form">
+              <div class="field" [class.has-error]="showError('email')">
+                <label for="email">
+                  <i nz-icon nzType="mail" nzTheme="outline"></i>
+                  <span i18n="@@login.email">Email</span>
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autocomplete="email"
+                  formControlName="email"
+                  placeholder="admin@masrafy.com"
+                  [attr.aria-invalid]="showError('email')"
+                />
+                @if (form.controls.email.touched && form.controls.email.errors?.['required']) {
+                  <span class="field-error" i18n="@@login.email.required">Email is required.</span>
+                } @else if (form.controls.email.touched && form.controls.email.errors?.['email']) {
+                  <span class="field-error" i18n="@@login.email.invalid">Email format is invalid.</span>
+                }
+              </div>
+
+              <div class="field" [class.has-error]="showError('password')">
+                <label for="password">
+                  <i nz-icon nzType="lock" nzTheme="outline"></i>
+                  <span i18n="@@login.password">Password</span>
+                </label>
+                <div class="input-with-toggle">
+                  <input
+                    id="password"
+                    [type]="showPassword() ? 'text' : 'password'"
+                    autocomplete="current-password"
+                    formControlName="password"
+                    placeholder="••••••••"
+                    [attr.aria-invalid]="showError('password')"
+                  />
+                  <button
+                    type="button"
+                    class="toggle-eye"
+                    (click)="togglePassword()"
+                    [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                  >
+                    <i nz-icon [nzType]="showPassword() ? 'eye-invisible' : 'eye'" nzTheme="outline"></i>
+                  </button>
+                </div>
+                @if (form.controls.password.touched && form.controls.password.errors?.['required']) {
+                  <span class="field-error" i18n="@@login.password.required">Password is required.</span>
+                }
+              </div>
+
+              <button
+                type="submit"
+                class="submit-btn"
+                [disabled]="form.invalid || submitting()"
+                [class.is-loading]="submitting()"
+                [attr.aria-busy]="submitting()"
+              >
+                <span class="btn-content">
+                  @if (submitting()) {
+                    <span class="spinner"></span>
+                    <span i18n="@@login.submitting">Authenticating…</span>
+                  } @else {
+                    <span i18n="@@login.submit">Sign in to dashboard</span>
+                    <i nz-icon nzType="arrow-right" nzTheme="outline" class="btn-arrow"></i>
+                  }
+                </span>
+                <span class="btn-shine" aria-hidden="true"></span>
+              </button>
+            </form>
+
+            <p class="form-footer" i18n="@@login.helper">
+              Forgot your password? Contact a super-admin.
+            </p>
+          </div>
+        </section>
+      </div>
     </main>
   `,
   styles: [
     `
-      .login-shell {
+      :host {
+        display: block;
+        width: 100%;
+        min-height: 100vh;
+      }
+
+      /* ─── Backdrop ─────────────────────────────────────────────────────── */
+      .login-container {
+        position: relative;
+        min-height: 100vh;
+        width: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 100vh;
-        padding: var(--space-5);
-        background: var(--color-surface-elevated);
+        padding: 24px;
+        background:
+          radial-gradient(ellipse at 20% 0%, rgba(92, 6, 50, 0.08) 0%, transparent 50%),
+          radial-gradient(ellipse at 80% 100%, rgba(161, 124, 91, 0.10) 0%, transparent 50%),
+          #F8F6F4;
+        overflow: hidden;
       }
-      .login-card {
-        width: min(var(--card-max-width-auth), 100% - var(--space-7));
-        padding: var(--space-7);
-        background: var(--color-surface-default);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-md);
+
+      .bg-effects {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
       }
-      .brand-mark {
-        margin: 0 0 var(--space-1);
-        color: var(--color-brand-primary);
-        font-size: var(--text-2xl);
-        font-weight: var(--font-weight-bold);
+
+      .orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(90px);
+        opacity: 0.55;
       }
-      .subtitle {
-        margin: 0 0 var(--space-5);
-        color: var(--color-text-secondary);
+      .orb-1 {
+        width: 520px; height: 520px;
+        background: radial-gradient(circle, rgba(92, 6, 50, 0.18), transparent 70%);
+        top: -180px; left: -160px;
       }
-      .field {
+      .orb-2 {
+        width: 460px; height: 460px;
+        background: radial-gradient(circle, rgba(161, 124, 91, 0.20), transparent 70%);
+        bottom: -160px; right: -140px;
+      }
+      .orb-3 {
+        width: 360px; height: 360px;
+        background: radial-gradient(circle, rgba(92, 6, 50, 0.10), transparent 70%);
+        top: 50%; left: 50%; transform: translate(-50%, -50%);
+      }
+
+      .grid-overlay {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(43, 35, 32, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(43, 35, 32, 0.04) 1px, transparent 1px);
+        background-size: 64px 64px;
+        mask-image: radial-gradient(ellipse at center, black 0%, transparent 70%);
+      }
+
+      /* ─── Wrapper card ────────────────────────────────────────────────── */
+      .login-wrapper {
+        position: relative;
+        z-index: 1;
+        display: flex;
         width: 100%;
+        max-width: 1120px;
+        min-height: 640px;
+        background: #FDFCFB;
+        border-radius: 24px;
+        border: 1px solid #EFEAE5;
+        overflow: hidden;
+        box-shadow:
+          0 24px 64px -16px rgba(43, 35, 32, 0.18),
+          0 4px 12px -4px rgba(43, 35, 32, 0.08);
+        animation: cardRise 0.6s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .submit {
+
+      @keyframes cardRise {
+        from { opacity: 0; transform: translateY(16px) scale(0.985); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      /* ─── Brand panel ─────────────────────────────────────────────────── */
+      .brand-panel {
+        flex: 1.05;
+        position: relative;
+        padding: 48px;
+        color: #FDFCFB;
+        background: linear-gradient(135deg, #5C0632 0%, #3D0421 60%, #2D0119 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        overflow: hidden;
+      }
+
+      .brand-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+      }
+
+      .logo-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .logo-mark {
+        width: 56px; height: 56px;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
+        color: #D4B89F;
+      }
+      .logo-mark svg { width: 32px; height: 32px; }
+      .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+      .logo-main { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+      .logo-sub  {
+        font-size: 11px; font-weight: 600; margin-top: 4px;
+        text-transform: uppercase; letter-spacing: 0.2em;
+        color: rgba(212, 184, 159, 0.85);
+      }
+
+      .tagline h1 {
+        margin: 0 0 12px;
+        font-size: 36px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+      }
+      .tagline p {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.6;
+        color: rgba(253, 252, 251, 0.78);
+        max-width: 360px;
+      }
+
+      .stats {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .stats li {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 14px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        transition: background 220ms cubic-bezier(0.2, 0, 0, 1),
+                    transform 220ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      .stats li:hover {
+        background: rgba(255, 255, 255, 0.08);
+        transform: translateX(4px);
+      }
+      .stat-icon {
+        width: 40px; height: 40px;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, #D4B89F, #8B7355);
+        color: #1A000F;
+        border-radius: 10px;
+        font-size: 18px;
+      }
+      .stat-text { display: flex; flex-direction: column; line-height: 1.2; }
+      .stat-text strong { font-size: 16px; font-weight: 700; }
+      .stat-text em {
+        font-style: normal; font-size: 12px;
+        color: rgba(253, 252, 251, 0.65);
+      }
+
+      .security-pill {
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #D4B89F;
+        background: rgba(212, 184, 159, 0.10);
+        border: 1px solid rgba(212, 184, 159, 0.22);
+        border-radius: 999px;
+      }
+
+      .deco-circle {
+        position: absolute;
+        border-radius: 50%;
+        border: 1px solid rgba(212, 184, 159, 0.16);
+        pointer-events: none;
+      }
+      .deco-1 { width: 320px; height: 320px; bottom: -160px; right: -120px; }
+      .deco-2 { width: 200px; height: 200px; top: -80px; right: 18%; }
+
+      /* ─── Form panel ──────────────────────────────────────────────────── */
+      .form-panel {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 48px;
+        background: #FDFCFB;
+      }
+      .form-container {
         width: 100%;
-        margin-block-start: var(--space-2);
-        min-height: 48px;
+        max-width: 400px;
       }
-      .alert {
-        margin-block: var(--space-2);
-        padding: var(--space-3);
-        background: var(--color-error-bg);
-        color: var(--color-error);
-        border-radius: var(--radius-md);
+
+      .form-header { text-align: center; margin-bottom: 28px; }
+      .header-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        margin-bottom: 18px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #5C0632;
+        background: linear-gradient(135deg, rgba(92, 6, 50, 0.10), rgba(92, 6, 50, 0.04));
+        border: 1px solid rgba(92, 6, 50, 0.18);
+        border-radius: 999px;
       }
-      .helper {
-        margin-block-start: var(--space-5);
-        color: var(--color-text-tertiary);
-        font-size: var(--text-sm);
+      .header-badge i { color: #A17C5B; font-size: 12px; }
+      .form-header h2 {
+        margin: 0 0 6px;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #2B2320;
+      }
+      .form-header p { margin: 0; font-size: 14px; color: #6B5D54; }
+
+      /* ─── Error ───────────────────────────────────────────────────────── */
+      .error-alert {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        background: linear-gradient(135deg, rgba(193, 102, 107, 0.12), rgba(193, 102, 107, 0.04));
+        border: 1px solid rgba(193, 102, 107, 0.30);
+        border-radius: 12px;
+        animation: alertSlide 240ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      @keyframes alertSlide {
+        from { opacity: 0; transform: translateY(-6px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .error-icon {
+        width: 32px; height: 32px;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(193, 102, 107, 0.18);
+        color: #A8484D;
+        border-radius: 8px;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+      .error-body { display: flex; flex-direction: column; gap: 2px; }
+      .error-title { font-size: 13px; font-weight: 600; color: #8B3338; }
+      .error-text  { font-size: 12px; color: rgba(139, 51, 56, 0.85); }
+
+      /* ─── Form fields ─────────────────────────────────────────────────── */
+      .login-form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .field { display: flex; flex-direction: column; gap: 8px; }
+      .field label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #4A413A;
+      }
+      .field label i { color: #8C7E75; font-size: 14px; }
+
+      .field input,
+      .input-with-toggle input {
+        width: 100%;
+        height: 48px;
+        padding: 0 16px;
+        font-size: 14px;
+        color: #2B2320;
+        background: #FDFCFB;
+        border: 1.5px solid #DDD8D3;
+        border-radius: 12px;
+        outline: none;
+        transition: border-color 180ms cubic-bezier(0.2, 0, 0, 1),
+                    box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
+                    background 180ms cubic-bezier(0.2, 0, 0, 1);
+        font-family: inherit;
+      }
+      .field input::placeholder,
+      .input-with-toggle input::placeholder { color: #B8ACA3; }
+
+      .field input:focus,
+      .input-with-toggle input:focus {
+        border-color: #A17C5B;
+        background: #FAF8F5;
+        box-shadow: 0 0 0 4px rgba(161, 124, 91, 0.16);
+      }
+
+      .field.has-error input { border-color: #C1666B; }
+      .field.has-error input:focus { box-shadow: 0 0 0 4px rgba(193, 102, 107, 0.16); }
+
+      .input-with-toggle { position: relative; }
+      .input-with-toggle input { padding-inline-end: 44px; }
+      .toggle-eye {
+        position: absolute;
+        inset-inline-end: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        padding: 4px;
+        color: #8C7E75;
+        cursor: pointer;
+        transition: color 180ms;
+      }
+      .toggle-eye:hover { color: #A17C5B; }
+
+      .field-error {
+        font-size: 12px;
+        color: #A8484D;
+      }
+
+      /* ─── Submit ──────────────────────────────────────────────────────── */
+      .submit-btn {
+        position: relative;
+        width: 100%;
+        height: 52px;
+        margin-top: 6px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #FDFCFB;
+        background: linear-gradient(135deg, #5C0632 0%, #7A0842 100%);
+        border: none;
+        border-radius: 14px;
+        cursor: pointer;
+        overflow: hidden;
+        transition: transform 220ms cubic-bezier(0.2, 0, 0, 1),
+                    box-shadow 220ms cubic-bezier(0.2, 0, 0, 1),
+                    opacity 180ms;
+      }
+      .submit-btn:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 28px -8px rgba(92, 6, 50, 0.45);
+      }
+      .submit-btn:active:not(:disabled) { transform: translateY(0); }
+      .submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+      .btn-content {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .btn-arrow { transition: transform 220ms cubic-bezier(0.2, 0, 0, 1); }
+      .submit-btn:hover:not(:disabled) .btn-arrow { transform: translateX(4px); }
+      [dir='rtl'] .submit-btn:hover:not(:disabled) .btn-arrow { transform: translateX(-4px); }
+
+      .btn-shine {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+        transform: translateX(-100%);
+        transition: transform 600ms cubic-bezier(0.2, 0, 0, 1);
+      }
+      .submit-btn:hover:not(:disabled) .btn-shine { transform: translateX(100%); }
+
+      .spinner {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(255, 255, 255, 0.32);
+        border-top-color: #FDFCFB;
+        border-radius: 50%;
+        animation: spin 700ms linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .form-footer {
+        margin: 24px 0 0;
+        padding-top: 18px;
+        border-top: 1px solid #EFEAE5;
+        text-align: center;
+        font-size: 12px;
+        color: #8C7E75;
+      }
+
+      /* ─── Responsive ──────────────────────────────────────────────────── */
+      @media (max-width: 960px) {
+        .login-wrapper { flex-direction: column; max-width: 480px; min-height: auto; }
+        .brand-panel { display: none; }
+        .form-panel { padding: 36px 28px; }
+      }
+      @media (max-width: 520px) {
+        .login-container { padding: 0; }
+        .login-wrapper {
+          margin: 0;
+          border-radius: 0;
+          border: none;
+          min-height: 100vh;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .login-wrapper,
+        .error-alert,
+        .submit-btn,
+        .btn-arrow,
+        .btn-shine,
+        .spinner { animation: none; transition: none; }
       }
     `,
   ],
@@ -169,6 +626,16 @@ export class LoginPage {
 
   protected readonly submitting = signal<boolean>(false);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly showPassword = signal<boolean>(false);
+
+  protected showError(field: keyof LoginControls): boolean {
+    const ctrl = this.form.controls[field];
+    return ctrl.touched && ctrl.invalid;
+  }
+
+  protected togglePassword(): void {
+    this.showPassword.update((v) => !v);
+  }
 
   async submit(): Promise<void> {
     if (this.form.invalid || this.submitting()) return;
@@ -181,7 +648,6 @@ export class LoginPage {
       await this.router.navigateByUrl(next && next.startsWith('/') ? next : '/dashboard');
     } catch (err) {
       this.errorMessage.set(this.toMessage(err));
-      // Clear password on failure; keep email.
       this.form.patchValue({ password: '' });
     } finally {
       this.submitting.set(false);

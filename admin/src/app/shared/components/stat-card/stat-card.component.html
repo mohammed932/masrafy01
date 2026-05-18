@@ -1,0 +1,33 @@
+<div class="stat-card">
+  <div class="stat-card__head">
+    <span class="stat-card__title">{{ title() }}</span>
+    <span
+      class="stat-card__trend"
+      [ngClass]="{
+        'is-up': trend() === 'up',
+        'is-down': trend() === 'down',
+        'is-neutral': trend() === 'neutral'
+      }"
+    >
+      <i
+        nz-icon
+        [nzType]="trend() === 'up' ? 'arrow-up' : trend() === 'down' ? 'arrow-down' : 'minus'"
+        nzTheme="outline"
+      ></i>
+    </span>
+  </div>
+
+  <div class="stat-card__body">
+    <span class="stat-card__value text-data tabular-nums">{{ value() }}</span>
+    <span
+      class="stat-card__subtext"
+      [ngClass]="{
+        'is-up': trend() === 'up',
+        'is-down': trend() === 'down',
+        'is-neutral': trend() === 'neutral'
+      }"
+    >
+      {{ subtext() }}
+    </span>
+  </div>
+</div>

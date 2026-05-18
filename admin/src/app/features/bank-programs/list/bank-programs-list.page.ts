@@ -32,7 +32,10 @@ import {
   CopyOutline,
   DeleteOutline,
   BankOutline,
+  AppstoreOutline,
+  UnorderedListOutline,
 } from '@ant-design/icons-angular/icons';
+import { BankAtlasView } from './bank-atlas.view';
 import { CanDirective } from '../../../shared/can.directive';
 import {
   KeyChipComponent,
@@ -69,6 +72,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
     StatStripComponent,
     StatusPillComponent,
     KeyChipComponent,
+    BankAtlasView,
   ],
   providers: [
     provideNzIconsPatch([
@@ -81,24 +85,65 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
       CopyOutline,
       DeleteOutline,
       BankOutline,
+      AppstoreOutline,
+      UnorderedListOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
       <app-page-header [title]="titleText" [subtitle]="subtitleText">
-        <a
-          *can="['super_admin', 'sales_manager']"
-          nz-button
-          nzType="primary"
-          routerLink="/bank-programs/new"
-        >
-          <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.list.add">Add bank program</span>
-        </a>
+        <div class="header-actions">
+          <div class="view-toggle" role="tablist" aria-label="View mode">
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="viewMode() === 'atlas'"
+              [class.active]="viewMode() === 'atlas'"
+              (click)="viewMode.set('atlas')"
+            >
+              <span nz-icon nzType="appstore" nzTheme="outline" aria-hidden="true"></span>
+              <span>Atlas</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="viewMode() === 'table'"
+              [class.active]="viewMode() === 'table'"
+              (click)="viewMode.set('table')"
+            >
+              <span nz-icon nzType="unordered-list" nzTheme="outline" aria-hidden="true"></span>
+              <span>Table</span>
+            </button>
+          </div>
+          <a
+            *can="['super_admin', 'sales_manager']"
+            nz-button
+            nzType="primary"
+            routerLink="/bank-programs/new"
+          >
+            <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.list.add">Add bank program</span>
+          </a>
+        </div>
       </app-page-header>
 
       <app-stat-strip [items]="statItems()" [ariaLabel]="statAriaLabel" />
+
+      @if (viewMode() === 'atlas') {
+        @if (loading() && rows().length === 0) {
+          <div class="atlas-loading" aria-busy="true">
+            <nz-spin nzSimple />
+          </div>
+        } @else {
+          <app-bank-atlas
+            [rows]="rows()"
+            (toggle)="onToggle($event.row, $event.active)"
+            (clone)="openClone($event)"
+            (remove)="openDelete($event)"
+          />
+        }
+      } @else {
 
       <div class="filters" role="search">
         <nz-form-item class="search">
@@ -312,6 +357,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           </nz-table>
         }
       </div>
+      }
     </section>
   `,
   styles: [
@@ -321,6 +367,52 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
         padding: var(--space-6);
         max-width: var(--content-max-width);
         margin-inline: auto;
+      }
+      .header-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .view-toggle {
+        display: inline-flex;
+        padding: 3px;
+        background: var(--bg-muted, var(--color-surface-muted));
+        border-radius: var(--radius-pill);
+        gap: 2px;
+      }
+      .view-toggle button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: var(--radius-pill);
+        background: transparent;
+        border: none;
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold, var(--font-weight-semibold));
+        color: var(--text-secondary, var(--color-text-secondary));
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) cubic-bezier(0.4, 0, 0.2, 1),
+          color var(--motion-duration-fast) cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .view-toggle button:hover {
+        color: var(--text-primary, var(--color-text-primary));
+      }
+      .view-toggle button.active {
+        background: var(--bg-surface, var(--color-surface-default));
+        color: var(--primary, var(--color-brand-primary));
+        box-shadow: var(--shadow-sm);
+      }
+      .view-toggle button:focus-visible {
+        outline: 2px solid var(--primary, var(--color-brand-primary));
+        outline-offset: 2px;
+      }
+      .atlas-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-9);
       }
       .filters {
         display: flex;
@@ -422,8 +514,9 @@ export class BankProgramsListPage implements OnInit {
   readonly rows = signal<BankProgramListRow[]>([]);
   readonly total = signal(0);
   readonly page = signal(1);
-  readonly pageSize = signal(25);
+  readonly pageSize = signal(100);
   readonly loading = signal(false);
+  readonly viewMode = signal<'atlas' | 'table'>('atlas');
 
   searchInput = '';
   private searchDebounce?: ReturnType<typeof setTimeout>;

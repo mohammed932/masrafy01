@@ -10,6 +10,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { NZ_I18N, ar_EG, en_US } from 'ng-zorro-antd/i18n';
 import { provideNzIcons } from 'ng-zorro-antd/icon';
+import { NzModalService } from 'ng-zorro-antd/modal';
 
 import { APP_ROUTES } from './app.routes';
 import { correlationIdInterceptor } from './core/interceptors/correlation-id.interceptor';
@@ -66,6 +67,7 @@ export const appConfig: ApplicationConfig = {
     // Empty global icon registry — features register their own icons via
     // `provideNzIconsPatch([...])` in route providers (tree-shaking).
     provideNzIcons([]),
+    NzModalService,
     {
       provide: APP_INITIALIZER,
       useFactory: bootstrapAuth,
