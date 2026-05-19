@@ -67,6 +67,20 @@ interface TypeMeta {
   icon: string;
 }
 
+/**
+ * Categories not yet wired into any active bank program. Still seeded, still
+ * editable (conditional consumers in cross-config validators), but parked
+ * behind a "Reserved" disclosure so operators don't waste time on them by default.
+ */
+const RESERVED_TYPES: ReadonlySet<string> = new Set([
+  'property_type',
+  'city_tier',
+  'professor_rank',
+  'military_grade',
+  'customer_program_tier',
+  'performance_tier',
+]);
+
 const TYPE_LABELS: Record<string, TypeMeta> = {
   salary_category: {
     en: 'Salary categories',
@@ -214,7 +228,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       } @else {
         <p class="section-label" i18n="@@lookups.categoriesLabel">Categories</p>
         <nav class="type-rail" aria-label="Lookup categories">
-          @for (t of types(); track t.type) {
+          @for (t of coreTypes(); track t.type) {
             <button
               type="button"
               class="type-button"
@@ -239,6 +253,47 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
             </button>
           }
         </nav>
+
+        @if (reservedTypes().length > 0) {
+          <details
+            class="reserved-disclosure"
+            [open]="reservedOpen()"
+            (toggle)="onReservedToggle($event)"
+          >
+            <summary class="reserved-summary">
+              <span class="reserved-label">
+                <span nz-icon nzType="lock" nzTheme="outline" class="reserved-lock"></span>
+                <span i18n="@@lookups.reserved.title">Reserved for future programs</span>
+              </span>
+              <span class="reserved-meta">
+                <span class="reserved-count">{{ reservedTypes().length }}</span>
+                <span class="reserved-hint" i18n="@@lookups.reserved.hint">
+                  Used only when a bank publishes a program that branches by these fields
+                </span>
+              </span>
+            </summary>
+            <nav class="type-rail reserved-rail" aria-label="Reserved lookup categories">
+              @for (t of reservedTypes(); track t.type) {
+                <button
+                  type="button"
+                  class="type-button reserved"
+                  [class.selected]="selectedType() === t.type"
+                  (click)="selectType(t.type)"
+                >
+                  <span class="type-icon" aria-hidden="true">
+                    <span nz-icon [nzType]="labelFor(t.type).icon" nzTheme="outline"></span>
+                  </span>
+                  <span class="type-body">
+                    <span class="type-name">{{ labelFor(t.type).en }}</span>
+                  </span>
+                  <span class="type-counts">
+                    <span class="count-active">{{ t.active }}</span>
+                  </span>
+                </button>
+              }
+            </nav>
+          </details>
+        }
 
         @if (selectedType(); as t) {
           <section class="detail">
@@ -905,6 +960,69 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
         gap: var(--space-3);
       }
+      .reserved-disclosure {
+        margin-block-start: var(--space-2);
+        border: 1px dashed var(--color-border-default);
+        border-radius: var(--radius-lg);
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+        padding: var(--space-3) var(--space-4);
+      }
+      .reserved-disclosure[open] {
+        background: var(--color-surface-default);
+      }
+      .reserved-summary {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        list-style: none;
+      }
+      .reserved-summary::-webkit-details-marker { display: none; }
+      .reserved-summary::marker { display: none; }
+      .reserved-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-secondary, var(--color-text-secondary));
+      }
+      .reserved-lock { color: var(--text-tertiary, var(--color-text-tertiary)); font-size: 14px; }
+      .reserved-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-inline-start: auto;
+      }
+      .reserved-count {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted, var(--color-surface-muted));
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .reserved-hint {
+        font-size: 11px;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+        max-inline-size: 44ch;
+      }
+      .reserved-rail {
+        margin-block-start: var(--space-3);
+      }
+      .type-button.reserved {
+        opacity: 0.85;
+        border-style: dashed;
+      }
+      .type-button.reserved.selected {
+        opacity: 1;
+        border-style: solid;
+      }
+      @media (max-width: 720px) {
+        .reserved-hint { display: none; }
+      }
       .type-button {
         appearance: none;
         text-align: start;
@@ -1200,6 +1318,14 @@ export class LookupsPage implements OnInit {
   protected readonly loadingTypes = signal(true);
   protected readonly loadingRows = signal(false);
   protected readonly selectedType = signal<string | null>(null);
+  protected readonly reservedOpen = signal<boolean>(false);
+
+  protected readonly coreTypes = computed(() =>
+    this.types().filter((t) => !RESERVED_TYPES.has(t.type)),
+  );
+  protected readonly reservedTypes = computed(() =>
+    this.types().filter((t) => RESERVED_TYPES.has(t.type)),
+  );
   protected readonly banksCount = signal<number>(0);
   protected readonly bankProgramsCount = signal<number>(0);
 
@@ -1265,7 +1391,7 @@ export class LookupsPage implements OnInit {
     const target =
       initial && this.types().some((t) => t.type === initial)
         ? initial
-        : this.types()[0]?.type ?? null;
+        : this.coreTypes()[0]?.type ?? this.types()[0]?.type ?? null;
     if (target) await this.selectType(target);
   }
 
@@ -1300,12 +1426,18 @@ export class LookupsPage implements OnInit {
 
   async selectType(type: string | null): Promise<void> {
     this.selectedType.set(type);
+    if (type && RESERVED_TYPES.has(type)) this.reservedOpen.set(true);
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { type: type ?? null },
       queryParamsHandling: 'merge',
     });
     if (type) await this.reloadRows(type);
+  }
+
+  protected onReservedToggle(ev: Event): void {
+    const t = ev.target as HTMLDetailsElement;
+    this.reservedOpen.set(t.open);
   }
 
   openCreate(): void {

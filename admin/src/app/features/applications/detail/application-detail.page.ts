@@ -217,11 +217,41 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
 
         <section class="offers">
           <h2 i18n="@@applications.detail.offers">Matched offers</h2>
+
+          @if (submittedProgramCode()) {
+            <div class="submission-banner" [attr.data-tone]="decisionTone()">
+              <span class="banner-label" i18n="@@applications.detail.submitted">SUBMITTED TO BANK</span>
+              <span class="banner-program">{{ submittedProgramCode() }}</span>
+              @if (submittedAt()) {
+                <span class="banner-time">· {{ submittedAt() | date: 'short' }}</span>
+              }
+              @if (bankDecisionReason()) {
+                <span class="banner-sep" aria-hidden="true">·</span>
+                <span class="banner-decision">{{ decisionLabel() }}</span>
+                @if (bankDecisionAt()) {
+                  <span class="banner-time">{{ bankDecisionAt() | date: 'short' }}</span>
+                }
+              } @else {
+                <span class="banner-sep" aria-hidden="true">·</span>
+                <span class="banner-pending" i18n="@@applications.detail.awaitingDecision">awaiting decision</span>
+              }
+            </div>
+          }
+
           @if (d.offers.length === 0) {
             <p class="muted" i18n="@@applications.detail.noOffers">No matched offers.</p>
           }
-          @for (offer of d.offers; track offer.programCode) {
-            <article class="offer-card">
+          @for (offer of sortedOffers(d); track offer.programCode) {
+            <article class="offer-card" [class.selected]="isSubmittedOffer(offer.programCode)">
+              @if (isSubmittedOffer(offer.programCode)) {
+                <span class="selected-ribbon" [attr.data-tone]="decisionTone()">
+                  @if (bankDecisionReason()) {
+                    {{ decisionLabel() }}
+                  } @else {
+                    <span i18n="@@applications.detail.submittedShort">Submitted</span>
+                  }
+                </span>
+              }
               <header class="offer-head">
                 <div class="offer-title">
                   <span class="program-code">{{ offer.programCode }}</span>
@@ -485,7 +515,56 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
         letter-spacing: 0.08em;
         color: var(--color-text-secondary);
       }
+      .submission-banner {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        padding: 8px 14px;
+        margin-block-end: var(--space-3);
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-md);
+        font-size: 13px;
+        color: var(--text-secondary, var(--color-text-secondary));
+      }
+      .submission-banner[data-tone='success'] {
+        background: color-mix(in oklab, var(--success) 6%, var(--bg-subtle));
+        border-color: color-mix(in oklab, var(--success) 30%, var(--border-default));
+      }
+      .submission-banner[data-tone='error'] {
+        background: color-mix(in oklab, var(--error) 6%, var(--bg-subtle));
+        border-color: color-mix(in oklab, var(--error) 30%, var(--border-default));
+      }
+      .submission-banner[data-tone='warning'] {
+        background: color-mix(in oklab, var(--warning) 6%, var(--bg-subtle));
+        border-color: color-mix(in oklab, var(--warning) 30%, var(--border-default));
+      }
+      .banner-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        color: var(--primary, var(--color-brand-primary));
+      }
+      .banner-program {
+        font-weight: 700;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: var(--radius-sm);
+        background: var(--bg-surface, var(--color-surface-default));
+        border: 1px solid var(--border-default);
+      }
+      .banner-decision { font-weight: 700; }
+      .submission-banner[data-tone='success'] .banner-decision { color: var(--success); }
+      .submission-banner[data-tone='error'] .banner-decision { color: var(--error); }
+      .submission-banner[data-tone='warning'] .banner-decision { color: var(--warning); }
+      .banner-pending { font-weight: 600; color: var(--warning); }
+      .banner-time { color: var(--text-tertiary, var(--color-text-tertiary)); font-variant-numeric: tabular-nums; }
+      .banner-sep { opacity: 0.5; }
+
       .offer-card {
+        position: relative;
         background: var(--color-surface-default);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg, 12px);
@@ -495,6 +574,27 @@ import { ACTIVITY_REASONS } from '../activity-reasons';
         gap: var(--space-4);
         margin-block-end: var(--space-3);
       }
+      .offer-card.selected {
+        border-color: var(--primary, var(--color-brand-primary));
+        box-shadow: 0 0 0 1px var(--primary, var(--color-brand-primary)) inset,
+          0 4px 16px color-mix(in oklab, var(--primary) 14%, transparent);
+      }
+      .selected-ribbon {
+        position: absolute;
+        inset-block-start: -10px;
+        inset-inline-start: var(--space-4);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 3px 10px;
+        border-radius: var(--radius-pill);
+        background: var(--primary);
+        color: var(--text-on-primary);
+      }
+      .selected-ribbon[data-tone='success'] { background: var(--success); }
+      .selected-ribbon[data-tone='error'] { background: var(--error); }
+      .selected-ribbon[data-tone='warning'] { background: var(--warning); }
       .offer-head {
         display: flex;
         justify-content: space-between;
@@ -599,6 +699,41 @@ export class ApplicationDetailPage implements OnInit {
   protected readonly detail = signal<AdminApplicationDetail | null>(null);
   protected readonly loading = signal(true);
   protected readonly activeEngineVersion = signal<string | null>(null);
+  protected readonly submittedProgramCode = signal<string | null>(null);
+  protected readonly submittedAt = signal<string | null>(null);
+  protected readonly bankDecisionReason = signal<string | null>(null);
+  protected readonly bankDecisionAt = signal<string | null>(null);
+
+  protected isSubmittedOffer(programCode: string): boolean {
+    return this.submittedProgramCode() === programCode;
+  }
+
+  protected sortedOffers(d: AdminApplicationDetail): AdminApplicationDetail['offers'] {
+    const submitted = this.submittedProgramCode();
+    return [...d.offers].sort((a, b) => {
+      if (submitted) {
+        if (a.programCode === submitted && b.programCode !== submitted) return -1;
+        if (b.programCode === submitted && a.programCode !== submitted) return 1;
+      }
+      return b.approvalProbability.score - a.approvalProbability.score;
+    });
+  }
+  protected decisionLabel(): string {
+    const r = this.bankDecisionReason();
+    if (!r) return '';
+    return r
+      .toLowerCase()
+      .split('_')
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(' ');
+  }
+  protected decisionTone(): 'success' | 'error' | 'warning' | 'muted' {
+    const r = this.bankDecisionReason();
+    if (!r) return 'muted';
+    if (r === 'APPROVED' || r === 'CONDITIONAL_APPROVAL') return 'success';
+    if (r === 'REJECTED') return 'error';
+    return 'warning';
+  }
 
   @ViewChild('timeline')
   private timeline?: ActivityTimelineComponent;
@@ -613,8 +748,26 @@ export class ApplicationDetailPage implements OnInit {
       const d = await this.api.getById(id);
       this.detail.set(d);
       this.activeEngineVersion.set(d.offers[0]?.approvalProbability.engineVersion ?? null);
+      await this.loadSubmissionState(id);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private async loadSubmissionState(applicationId: string): Promise<void> {
+    try {
+      const res = await this.api.listActivities(applicationId, { limit: 100 });
+      const sorted = [...res.rows].sort(
+        (a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt),
+      );
+      const submission = sorted.find((r) => r.activityType === 'SUBMITTED_TO_BANK');
+      const decision = sorted.find((r) => r.activityType === 'BANK_RESPONDED');
+      this.submittedProgramCode.set(submission?.reason ?? null);
+      this.submittedAt.set(submission?.occurredAt ?? null);
+      this.bankDecisionReason.set(decision?.reason ?? null);
+      this.bankDecisionAt.set(decision?.occurredAt ?? null);
+    } catch {
+      // silent — submission state is optional render
     }
   }
 
@@ -725,6 +878,7 @@ export class ApplicationDetailPage implements OnInit {
     if (!id) return;
     const d = await this.api.getById(id);
     this.detail.set(d);
+    await this.loadSubmissionState(id);
     await this.timeline?.refresh();
   }
 }

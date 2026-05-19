@@ -5,6 +5,7 @@ import {
   ApprovalTier,
   DecisionOutcome,
   LeadStatus,
+  Prisma,
   PrismaClient,
   StaffRole,
 } from '@prisma/client';
@@ -59,19 +60,139 @@ async function ensureAgents(): Promise<Agent[]> {
   return created;
 }
 
+const FACTOR_CATALOG = {
+  ISCORE_PREMIUM: { labelEn: 'i-Score 700+ (premium)', labelAr: 'تقييم ائتماني ممتاز (٧٠٠+)' },
+  ISCORE_GOOD: { labelEn: 'i-Score 620–699 (good)', labelAr: 'تقييم ائتماني جيد (٦٢٠–٦٩٩)' },
+  ISCORE_LOW: { labelEn: 'i-Score below 560', labelAr: 'تقييم ائتماني منخفض' },
+  DBR_LOW: { labelEn: 'Debt burden under 30%', labelAr: 'نسبة الدين منخفضة (أقل من ٣٠٪)' },
+  DBR_HIGH: { labelEn: 'Debt burden above 45%', labelAr: 'نسبة الدين مرتفعة (أعلى من ٤٥٪)' },
+  EMPLOYMENT_STABLE: { labelEn: 'Employed 3+ years at current employer', labelAr: 'مدة العمل أكثر من ٣ سنوات' },
+  EMPLOYMENT_NEW: { labelEn: 'New employer (< 12 months)', labelAr: 'وظيفة حديثة (أقل من ١٢ شهر)' },
+  SALARY_DOMICILED: { labelEn: 'Salary domiciled with the bank', labelAr: 'الراتب محول للبنك' },
+  SALARY_EXTERNAL: { labelEn: 'Salary not domiciled with the bank', labelAr: 'الراتب من بنك آخر' },
+  INCOME_HIGH: { labelEn: 'Income comfortably above installment', labelAr: 'الدخل أعلى بكثير من القسط' },
+  INCOME_TIGHT: { labelEn: 'Income tight relative to installment', labelAr: 'الدخل قريب من القسط المطلوب' },
+  EXISTING_LOANS_NONE: { labelEn: 'No active loans', labelAr: 'لا يوجد قروض نشطة' },
+  EXISTING_LOANS_HEAVY: { labelEn: '3+ active loans', labelAr: '٣ قروض نشطة أو أكثر' },
+  AGE_PRIME: { labelEn: 'Age in prime band (30–50)', labelAr: 'العمر في النطاق المفضل (٣٠–٥٠)' },
+  AGE_HIGH: { labelEn: 'Age above 55', labelAr: 'العمر فوق ٥٥' },
+  BANKING_LONG: { labelEn: '5+ year banking relationship', labelAr: 'علاقة بنكية أكثر من ٥ سنوات' },
+  PROPERTY_LTV_GOOD: { labelEn: 'Loan-to-value below 70%', labelAr: 'نسبة القرض للأصل أقل من ٧٠٪' },
+  COSIGNER_PRESENT: { labelEn: 'Co-signer available', labelAr: 'يوجد ضامن' },
+} as const;
+
+const FACTOR_WEIGHTS: Record<string, number> = {
+  ISCORE_PREMIUM: 18,
+  ISCORE_GOOD: 8,
+  ISCORE_LOW: -15,
+  DBR_LOW: 12,
+  DBR_HIGH: -12,
+  EMPLOYMENT_STABLE: 8,
+  EMPLOYMENT_NEW: -6,
+  SALARY_DOMICILED: 6,
+  SALARY_EXTERNAL: -4,
+  INCOME_HIGH: 5,
+  INCOME_TIGHT: -7,
+  EXISTING_LOANS_NONE: 4,
+  EXISTING_LOANS_HEAVY: -8,
+  AGE_PRIME: 3,
+  AGE_HIGH: -5,
+  BANKING_LONG: 4,
+  PROPERTY_LTV_GOOD: 5,
+  COSIGNER_PRESENT: 3,
+};
+
+const WEIGHTS_CONFIG = {
+  weights: FACTOR_WEIGHTS,
+  thresholds: { excellent: 90, good: 75, moderate: 55, low: 30 },
+  factorCatalog: FACTOR_CATALOG,
+  legacy: false,
+};
+
 async function ensureEngine() {
   let engine = await prisma.scoringEngineVersion.findFirst({ where: { deactivatedAt: null } });
-  if (!engine) {
-    engine = await prisma.scoringEngineVersion.create({
-      data: {
-        version: 'v1.0-seed',
-        description: 'Seed engine for analytics demo data',
-        weightsConfig: { tierThresholds: { excellent: 90, good: 75, moderate: 55, low: 30 } },
-      },
+  if (engine) {
+    engine = await prisma.scoringEngineVersion.update({
+      where: { id: engine.id },
+      data: { weightsConfig: WEIGHTS_CONFIG },
     });
-    console.log(`scoring-seed: created engine ${engine.version}`);
+    console.log(`scoring-seed: refreshed weightsConfig on engine ${engine.version}`);
+    return engine;
   }
+  engine = await prisma.scoringEngineVersion.create({
+    data: {
+      version: 'v1.0-seed',
+      description: 'Seed engine for analytics demo data',
+      weightsConfig: WEIGHTS_CONFIG,
+    },
+  });
+  console.log(`scoring-seed: created engine ${engine.version}`);
   return engine;
+}
+
+interface FactorImpact {
+  code: string;
+  impact: number;
+}
+
+interface OfferFactors {
+  positive: FactorImpact[];
+  negative: FactorImpact[];
+}
+
+function buildOfferFactors(tier: ApprovalTier, hasPropertyValue: boolean): OfferFactors {
+  const positivePool: string[] = [];
+  const negativePool: string[] = [];
+
+  switch (tier) {
+    case 'excellent':
+      positivePool.push('ISCORE_PREMIUM', 'DBR_LOW', 'EMPLOYMENT_STABLE', 'SALARY_DOMICILED', 'INCOME_HIGH', 'EXISTING_LOANS_NONE', 'BANKING_LONG', 'AGE_PRIME');
+      negativePool.push();
+      break;
+    case 'good':
+      positivePool.push('ISCORE_GOOD', 'DBR_LOW', 'EMPLOYMENT_STABLE', 'SALARY_DOMICILED', 'AGE_PRIME', 'BANKING_LONG');
+      negativePool.push('INCOME_TIGHT');
+      break;
+    case 'moderate':
+      positivePool.push('ISCORE_GOOD', 'EMPLOYMENT_STABLE', 'AGE_PRIME');
+      negativePool.push('DBR_HIGH', 'INCOME_TIGHT', 'SALARY_EXTERNAL');
+      break;
+    case 'low':
+      positivePool.push('SALARY_DOMICILED', 'COSIGNER_PRESENT');
+      negativePool.push('ISCORE_LOW', 'DBR_HIGH', 'EMPLOYMENT_NEW', 'EXISTING_LOANS_HEAVY', 'INCOME_TIGHT');
+      break;
+    case 'very_low':
+      positivePool.push('COSIGNER_PRESENT');
+      negativePool.push('ISCORE_LOW', 'DBR_HIGH', 'EMPLOYMENT_NEW', 'EXISTING_LOANS_HEAVY', 'AGE_HIGH', 'SALARY_EXTERNAL');
+      break;
+  }
+  if (hasPropertyValue) positivePool.push('PROPERTY_LTV_GOOD');
+
+  const positiveCount =
+    tier === 'excellent' || tier === 'good' ? rand(3, Math.min(5, positivePool.length + 1)) : rand(1, 3);
+  const negativeCount =
+    tier === 'low' || tier === 'very_low' ? rand(3, Math.min(5, negativePool.length + 1)) : rand(0, 2);
+
+  const sample = (pool: string[], count: number): string[] => {
+    const out: string[] = [];
+    const copy = [...pool];
+    for (let i = 0; i < count && copy.length > 0; i++) {
+      const idx = Math.floor(Math.random() * copy.length);
+      out.push(copy.splice(idx, 1)[0]!);
+    }
+    return out;
+  };
+
+  return {
+    positive: sample(positivePool, positiveCount).map((code) => ({
+      code,
+      impact: FACTOR_WEIGHTS[code] ?? 0,
+    })),
+    negative: sample(negativePool, negativeCount).map((code) => ({
+      code,
+      impact: FACTOR_WEIGHTS[code] ?? 0,
+    })),
+  };
 }
 
 async function wipePriorSeed(): Promise<void> {
@@ -245,6 +366,9 @@ async function main(): Promise<void> {
       const program = pick(programs);
       const offerAmount = requestedAmount * (0.85 + Math.random() * 0.3); // 85-115% of requested
       const offerCreatedAt = new Date(assignedAt.getTime() + rand(0, submitDays + 1) * DAY);
+      const isPropertyBackedPurpose = app.loanPurpose === 'home_renovation' || app.loanPurpose === 'car';
+      const factors = buildOfferFactors(plan.tier, isPropertyBackedPurpose);
+      const matchReasonCodes = factors.positive.map((f) => f.code);
 
       const offer = await prisma.bankOffer.create({
         data: {
@@ -264,10 +388,10 @@ async function main(): Promise<void> {
           approvalProbabilityPercent: plan.prob.toString(),
           approvalScore: plan.score,
           approvalTier: plan.tier,
-          approvalFactors: { incomeStability: 0.8, dbr: 0.4 },
+          approvalFactors: { positive: factors.positive, negative: factors.negative } as unknown as Prisma.InputJsonValue,
           engineVersion: engine.version,
           requiredDocuments: [],
-          matchReasons: ['seed'],
+          matchReasons: matchReasonCodes.length > 0 ? matchReasonCodes : ['seed'],
           cascadeTrace: { steps: [] },
           createdAt: offerCreatedAt,
         },

@@ -11,7 +11,15 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { RightOutline } from '@ant-design/icons-angular/icons';
+import { NzModalService } from 'ng-zorro-antd/modal';
+import {
+  RightOutline,
+  UnorderedListOutline,
+  AppstoreOutline,
+} from '@ant-design/icons-angular/icons';
+import { ApplicationsKanbanComponent, type KanbanTransition } from './components/applications-kanban.component';
+import { AddActivityDialog, type AddActivityDialogData } from '../detail/components/add-activity.dialog';
+import { ACTIVITY_REASONS } from '../activity-reasons';
 import {
   PageHeaderComponent,
   SkeletonRowsComponent,
@@ -52,8 +60,9 @@ import {
     StatStripComponent,
     StatusPillComponent,
     SkeletonRowsComponent,
+    ApplicationsKanbanComponent,
   ],
-  providers: [provideNzIconsPatch([RightOutline])],
+  providers: [provideNzIconsPatch([RightOutline, UnorderedListOutline, AppstoreOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
@@ -73,6 +82,31 @@ import {
         (filterChange)="onLeadFilterChange($event)"
       />
 
+      <div class="view-toggle" role="radiogroup" [attr.aria-label]="viewToggleAria">
+        <button
+          type="button"
+          class="view-seg"
+          role="radio"
+          [class.active]="view() === 'list'"
+          [attr.aria-checked]="view() === 'list'"
+          (click)="view.set('list')"
+        >
+          <span nz-icon nzType="unordered-list" nzTheme="outline"></span>
+          <span i18n="@@applications.view.list">List</span>
+        </button>
+        <button
+          type="button"
+          class="view-seg"
+          role="radio"
+          [class.active]="view() === 'kanban'"
+          [attr.aria-checked]="view() === 'kanban'"
+          (click)="view.set('kanban')"
+        >
+          <span nz-icon nzType="appstore" nzTheme="outline"></span>
+          <span i18n="@@applications.view.kanban">Kanban</span>
+        </button>
+      </div>
+
       @if (loading()) {
         <app-skeleton-rows [rows]="6" [cols]="[1, 2, 1, 1, 1]" />
       }
@@ -84,6 +118,11 @@ import {
             Try a different filter or wait for new applications.
           </p>
         </div>
+      } @else if (view() === 'kanban') {
+        <app-applications-kanban
+          [rows]="rows()"
+          (transitionRequested)="onTransition($event)"
+        />
       } @else {
         <div class="table-wrap">
           <nz-table
@@ -122,8 +161,8 @@ import {
                   <td class="numeric">{{ row.requestedAmountEGP }} {{ row.requestedCurrency }}</td>
                   <td>
                     <app-status-pill
-                      [label]="statusLabel(row.status)"
-                      [tone]="statusTone(row.status)"
+                      [label]="statusLabelFor(row)"
+                      [tone]="statusToneFor(row)"
                     />
                   </td>
                   <td class="muted">{{ row.createdAt | date: 'short' }}</td>
@@ -156,6 +195,42 @@ import {
         max-width: var(--content-max-width);
         margin-inline: auto;
         padding: var(--space-5) var(--space-6);
+      }
+      .view-toggle {
+        display: inline-flex;
+        align-self: flex-start;
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+        border: 1px solid var(--border-default, var(--color-border-default));
+        padding: 3px;
+        border-radius: var(--radius-pill);
+        gap: 2px;
+      }
+      .view-seg {
+        appearance: none;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary, var(--color-text-secondary));
+        border-radius: var(--radius-pill);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: background 160ms cubic-bezier(0.4, 0, 0.2, 1),
+          color 160ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .view-seg:hover:not(.active) {
+        color: var(--text-primary, var(--color-text-primary));
+      }
+      .view-seg.active {
+        background: var(--primary, var(--color-brand-primary));
+        color: var(--text-on-primary, var(--color-text-on-brand));
+      }
+      .view-seg:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-halo);
       }
       .table-wrap {
         background: var(--color-surface-default);
@@ -211,6 +286,26 @@ export class ApplicationsListPage implements OnInit {
   protected readonly subtitleText = $localize`:@@applications.subtitle:Loan-match results triaged by approval probability.`;
   protected readonly statAriaLabel = $localize`:@@applications.stat.aria:Application totals`;
 
+  protected statusLabelFor(row: AdminApplicationRow): string {
+    if (row.leadStatus === 'bank_decided') {
+      return $localize`:@@applications.status.bankDecided:Bank decided`;
+    }
+    if (row.leadStatus === 'submitted_to_bank') {
+      return $localize`:@@applications.status.submittedToBank:Submitted to bank`;
+    }
+    if (row.status === 'matched' && !row.bestOffer) {
+      return $localize`:@@applications.status.noQualifying:No qualifying offers`;
+    }
+    return this.statusLabel(row.status);
+  }
+
+  protected statusToneFor(row: AdminApplicationRow): StatusTone {
+    if (row.leadStatus === 'bank_decided') return 'success';
+    if (row.leadStatus === 'submitted_to_bank') return 'info';
+    if (row.status === 'matched' && !row.bestOffer) return 'warning';
+    return this.statusTone(row.status);
+  }
+
   protected statusLabel(status: string): string {
     return status
       .split('_')
@@ -249,6 +344,9 @@ export class ApplicationsListPage implements OnInit {
   protected readonly loading = signal(false);
   protected readonly selectedTier = signal<TierFilter>(null);
   protected readonly selectedLeadFilter = signal<LeadFilter>(null);
+  protected readonly view = signal<'list' | 'kanban'>('list');
+  protected readonly viewToggleAria = $localize`:@@applications.view.aria:Switch between list and Kanban view`;
+  private readonly modal = inject(NzModalService);
 
   protected rowsArray(): AdminApplicationRow[] {
     return [...this.rows()];
@@ -330,6 +428,40 @@ export class ApplicationsListPage implements OnInit {
   protected openDetail(id: string, ev?: Event): void {
     if (ev) ev.preventDefault();
     void this.router.navigate(['/applications', id]);
+  }
+
+  protected onTransition(t: KanbanTransition): void {
+    const seed = this.activityForTransition(t.to);
+    if (!seed) return;
+    const ref = this.modal.create<AddActivityDialog, AddActivityDialogData, boolean>({
+      nzContent: AddActivityDialog,
+      nzData: {
+        applicationId: t.application.id,
+        defaultActivityType: seed,
+        reasonsByType: ACTIVITY_REASONS,
+      },
+      nzFooter: null,
+      nzWidth: 720,
+      nzAutofocus: null,
+    });
+    ref.afterClose.subscribe((saved) => {
+      if (saved) void this.reload();
+    });
+  }
+
+  private activityForTransition(to: AdminApplicationRow['leadStatus']): string | null {
+    switch (to) {
+      case 'document_collection':
+        return 'CALLED_USER';
+      case 'ready_for_submission':
+        return 'MARKED_AS_REVIEWED';
+      case 'submitted_to_bank':
+        return 'SUBMITTED_TO_BANK';
+      case 'bank_decided':
+        return 'BANK_RESPONDED';
+      default:
+        return null;
+    }
   }
 
   private async reload(): Promise<void> {

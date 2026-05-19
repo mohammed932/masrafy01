@@ -1,9 +1,20 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0
+Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0 → 1.4.0
 Ratification: 2026-05-12 (initial ratification)
-Last Amended: 2026-05-12 (v1.3.0)
+Last Amended: 2026-05-19 (v1.4.0)
+
+v1.4.0 amendment (2026-05-19):
+  New Principle XXIX — "Dependency-Aware Changes — No Half Updates"
+  added (all platforms). Codifies the obligation that changing one place
+  with downstream readers requires updating EVERY reader in the same PR.
+  Triggered by repeated UI contradictions where list / detail / Kanban /
+  analytics surfaces showed inconsistent state for the same lead because
+  one consumer of a derivation was missed during refactor.
+  Anti-pattern A25 added. Flutter reservation shifted from XXIX–XXXVI
+  to XXX–XXXVII (no Flutter rule reordered — slot rename only).
+  MINOR bump — new principle, no redefinition.
 
 v1.3.0 amendment (2026-05-12):
   Principle XXIII expanded to require BOTH design skills on every new
@@ -44,7 +55,7 @@ Rationale:
   PII protection, observability, and brand identity (#06152D) as
   cross-platform NON-NEGOTIABLE foundations.
 
-Principles Added (I–XXVIII):
+Principles Added (I–XXIX):
   I.    Financial Data Integrity is Sacred (All Platforms)
   II.   Bank Programs Are Data, Not Code (Backend + Admin)
   III.  Typed Errors End-to-End (All Platforms)
@@ -73,9 +84,10 @@ Principles Added (I–XXVIII):
   XXVI. HTTP Layer Discipline (Angular)
   XXVII.Frontend Testing Requirements (Angular)
   XXVIII.Flutter Architectural Foundations (Binding Now)
+  XXIX. Dependency-Aware Changes — No Half Updates (All Platforms) [v1.4.0]
 
 Reserved (post-Figma, planned v2.0):
-  XXIX–XXXVI — Detailed Flutter UI principles (screen patterns, shimmer
+  XXX–XXXVII — Detailed Flutter UI principles (screen patterns, shimmer
   loading, widget reuse, cross-feature promotion, edit flow routing,
   package reuse, anti-patterns). Reserved today; ratified once Figma
   designs are delivered.
@@ -535,9 +547,79 @@ When the Flutter project starts, it MUST use:
 - **Figma is the visual source of truth**: Every screen traces to a Figma frame. Implementing screens not yet in Figma = review block.
 
 These commitments shape backend API design today. Reserved principle
-numbers XXIX–XXXVI for detailed Flutter rules in v2.0 (covering screen
+numbers XXX–XXXVII for detailed Flutter rules in v2.0 (covering screen
 patterns, shimmer loading, widget reuse, cross-feature promotion, edit
 flow routing, package reuse, anti-patterns).
+
+---
+
+## XXIX. Dependency-Aware Changes — No Half Updates (All Platforms)
+
+When a change to one place has downstream readers, EVERY reader MUST be
+updated in the same PR. A field rename, enum extension, status-derivation
+tweak, formula change, or visual contract update is incomplete until every
+dependent surface reflects it.
+
+This rule is non-negotiable because Masrafy reads the same underlying data
+through many lenses (list ⇄ detail ⇄ Kanban ⇄ drawer ⇄ analytics ⇄
+activity timeline ⇄ exports). One stale reader = a user-visible
+contradiction (e.g. list says "no qualifying offers" while detail says
+"submitted to bank approved"), and contradictions destroy trust faster
+than missing features.
+
+### Concrete obligations
+
+When you touch any of these, audit + update ALL listed dependents in the
+same PR:
+
+| Touch this | Audit these dependents |
+|---|---|
+| `Application.status` / `leadStatus` enum or derivation | applications list status pill · Kanban column membership · application detail header · lead-analytics conversion math · activity-timeline filter labels · any saved filter chip · CSV/PDF exports |
+| `BankOffer.approvalScore` / `approvalTier` thresholds | approval pill component · scoring-analytics histogram bins · agent-leaderboard tone thresholds · drawer KPI tone thresholds · ranking-by-conversion tone |
+| `Activity` outcomeFlags or reasons | add-activity dialog chip options · activity-timeline humanizer + flag pills · lead-analytics activity-type rollups · stuck-lead-flag cron filters |
+| `BankOfferDecision` outcome semantics | lead-analytics `valueFundedEGP` JOIN · drawer "loans approved" count · application-detail submission banner tone · ranking |
+| Currency / Decimal precision rules | every numeric formatter (`formatEgp`, `formatPct`, `formatAvg`) across all features · stat strip · CSV export · Flutter `MasrafyNumberTheme` |
+| Error code in `error-codes.ts` | Angular `error-codes.{ar-EG,en-US}.json` (same PR — already Principle III, A2/A22 reinforced) · Flutter ARB |
+| Token rename in `_tokens.scss` / palette | every consumer SCSS · every consumer Angular component · DESIGN_SYSTEM.md table · Flutter `MasrafyColorTheme` |
+| Renaming a UI label that doubles as a filter key (e.g. `system` → `workflow`) | filter chip labels · category-by-type map · CSS `data-category` selectors · URL query params · saved-view defaults |
+| Adding a new agent KPI (e.g. `valueFundedEGP`) | repository raw SQL · service DTO · API contract · Angular types · stat strip · leaderboard row · drawer line-list · sort dropdown · ranking comparator · CSV export |
+
+### How to comply
+
+1. **Trace before editing.** `grep` for every reader of the symbol/field
+   you're changing. List them in the PR description under "Dependents
+   touched".
+2. **Change the producer + every consumer in one commit.** Compile-time
+   coupling (TypeScript types) catches most renames; behavioral changes
+   (status semantics, threshold tweaks, label-doubling-as-filter) do not
+   — those need manual audit.
+3. **State the invariant tested.** After the change, the same business
+   fact MUST read identically across all surfaces. If a manager looks at
+   the list AND the detail page AND the Kanban AND the analytics
+   leaderboard for the same lead, they MUST see consistent state — never
+   "matched / submitted / no offers" simultaneously.
+4. **If a dependent can't be updated in the same PR** (e.g. external
+   consumer, Flutter not yet built), explicitly flag it in the PR
+   description, open a tracking ticket, and add a TODO comment with
+   ticket reference at the producer site.
+5. **Reviewer obligation.** Reviewers MUST scan for plausible dependents
+   not listed in the PR description. Missing dependent = block.
+
+### What this is NOT
+
+- Not a ban on refactors. Encouraged. Just complete them.
+- Not a demand for tests (testing is not a constitutional gate per v1.2.0
+  — Principles XVI/XXVII). The audit is manual; the obligation is to do
+  it.
+- Not retroactive. Pre-existing drift is technical debt; new PRs MUST
+  not extend it.
+
+### Enforcement
+
+- Citing this principle (Principle XXIX) is sufficient to block a PR.
+- A reviewer who spots a UI contradiction that traces to a half-update
+  files a ticket tagged `principle-xxix-debt` and assigns it back to
+  the introducing author.
 
 ---
 
@@ -655,6 +737,9 @@ HMAC secret in code, asset files, environment files, or `shared_preferences` = r
 
 ## A24. Approval Probability Without Documented Weights (Principle V)
 Changing approval probability scoring without recording weight changes in the PR description with historical-impact analysis = review block. (Test artifacts not mandated post-v1.2.0; PR description carries the rationale.)
+
+## A25. Half-Updated Dependents (Principle XXIX)
+Changing a field / enum / derivation / threshold / label-doubling-as-filter / numeric formatter / token / error code without updating every downstream reader in the same PR = review block. UI contradictions where the same business fact reads differently across list / detail / Kanban / drawer / analytics / timeline = automatic block. PR description MUST list "Dependents touched"; reviewers MUST scan for missing ones.
 
 ---
 

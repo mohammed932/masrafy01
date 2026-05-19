@@ -25,7 +25,7 @@ import {
 } from '@ant-design/icons-angular/icons';
 import { ApplicationsApiService, type ActivityRow } from '../../api/applications.api.service';
 
-type FilterKey = 'all' | 'calls' | 'messages' | 'documents' | 'system';
+type FilterKey = 'all' | 'calls' | 'messages' | 'documents' | 'workflow' | 'notes';
 
 const ICON_BY_TYPE: Record<string, string> = {
   CALLED_USER: 'phone',
@@ -51,14 +51,14 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
   RECEIVED_DOCUMENTS: 'documents',
   REVIEWED_DOCUMENTS: 'documents',
   REQUESTED_MORE_DOCS: 'documents',
-  UPDATED_APPLICANT_INFO: 'system',
-  MARKED_AS_REVIEWED: 'system',
-  INTERNAL_NOTE: 'system',
-  STATUS_CHANGE: 'system',
-  SUBMITTED_TO_BANK: 'system',
-  BANK_RESPONDED: 'system',
-  LEAD_REASSIGNED: 'system',
-  STALE_LEAD_FLAGGED: 'system',
+  UPDATED_APPLICANT_INFO: 'workflow',
+  MARKED_AS_REVIEWED: 'workflow',
+  STATUS_CHANGE: 'workflow',
+  SUBMITTED_TO_BANK: 'workflow',
+  BANK_RESPONDED: 'workflow',
+  LEAD_REASSIGNED: 'workflow',
+  STALE_LEAD_FLAGGED: 'workflow',
+  INTERNAL_NOTE: 'notes',
 };
 
 @Component({
@@ -143,13 +143,25 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
           type="button"
           role="tab"
           class="filter-tab"
-          [class.is-active]="filter() === 'system'"
-          [attr.aria-selected]="filter() === 'system'"
-          (click)="setFilter('system')"
+          [class.is-active]="filter() === 'workflow'"
+          [attr.aria-selected]="filter() === 'workflow'"
+          (click)="setFilter('workflow')"
         >
-          <span nz-icon nzType="setting" nzTheme="outline" class="filter-icon" aria-hidden="true"></span>
-          <span i18n="@@activity.timeline.filter.system">System</span>
-          <span class="filter-count">{{ countFor('system') }}</span>
+          <span nz-icon nzType="sync" nzTheme="outline" class="filter-icon" aria-hidden="true"></span>
+          <span i18n="@@activity.timeline.filter.workflow">Workflow</span>
+          <span class="filter-count">{{ countFor('workflow') }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="filter-tab"
+          [class.is-active]="filter() === 'notes'"
+          [attr.aria-selected]="filter() === 'notes'"
+          (click)="setFilter('notes')"
+        >
+          <span nz-icon nzType="file-text" nzTheme="outline" class="filter-icon" aria-hidden="true"></span>
+          <span i18n="@@activity.timeline.filter.notes">Notes</span>
+          <span class="filter-count">{{ countFor('notes') }}</span>
         </button>
       </header>
 
@@ -364,7 +376,8 @@ const CATEGORY_BY_TYPE: Record<string, FilterKey> = {
         border-color: var(--color-success-bg);
         color: var(--color-success);
       }
-      .dot[data-category='system'] {
+      .dot[data-category='workflow'],
+      .dot[data-category='notes'] {
         background: var(--color-surface-muted);
         border-color: var(--color-border-default);
         color: var(--color-text-secondary);
@@ -538,7 +551,7 @@ export class ActivityTimelineComponent implements OnInit {
   }
 
   categoryOf(row: ActivityRow): FilterKey {
-    return CATEGORY_BY_TYPE[row.activityType] ?? 'system';
+    return CATEGORY_BY_TYPE[row.activityType] ?? 'workflow';
   }
 
   labelForType(activityType: string): string {

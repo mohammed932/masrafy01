@@ -217,24 +217,29 @@ export class WhyThisScorePanelComponent {
   protected readonly negative = signal<RenderedFactor[]>([]);
 
   constructor() {
-    // Fetch the catalog lazily — only after the operator expands the panel.
-    effect(async () => {
+    effect((onCleanup) => {
       const p = this.probability();
       const isOpen = this.opened();
       if (!p || p.factors.legacy || !isOpen) return;
-      if (this.catalog()?.version === p.engineVersion) {
-        this.applyRenderedFactors(p, this.catalog()!);
+      const cached = this.catalog();
+      if (cached?.version === p.engineVersion) {
+        this.applyRenderedFactors(p, cached);
         return;
       }
+      let cancelled = false;
+      onCleanup(() => { cancelled = true; });
       this.loading.set(true);
-      try {
-        const cat = await this.versionsApi.getByVersion(p.engineVersion);
-        this.catalog.set(cat);
-        this.applyRenderedFactors(p, cat);
-      } finally {
-        this.loading.set(false);
-      }
-    });
+      this.versionsApi
+        .getByVersion(p.engineVersion)
+        .then((cat) => {
+          if (cancelled) return;
+          this.catalog.set(cat);
+          this.applyRenderedFactors(p, cat);
+        })
+        .finally(() => {
+          this.loading.set(false);
+        });
+    }, { allowSignalWrites: true });
   }
 
   protected onToggle(ev: Event): void {
