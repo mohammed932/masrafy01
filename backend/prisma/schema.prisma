@@ -65,6 +65,7 @@ enum AuditEventType {
   APPLICATION_REASSIGNED
   MANAGER_ATTENTION_REQUESTED
   APPLICATION_LEAD_STATUS_CHANGED
+  APPLICATION_USER_PROCEEDED
   PLATFORM_ENUMERATION_CREATED
   PLATFORM_ENUMERATION_UPDATED
   PLATFORM_ENUMERATION_DEACTIVATED
@@ -329,7 +330,13 @@ model Application {
   assignedAt              DateTime?           @db.Timestamptz(6)
   leadStatus              LeadStatus          @default(needs_first_contact)
 
+  // Feature 008 — user-intent gate: admin dashboard surfaces only applications
+  // where the applicant explicitly selected a matched offer and proceeded.
+  userSelectedBankOfferId String?             @db.VarChar(30)
+  userProceededAt         DateTime?           @db.Timestamptz(6)
+
   bankOffers              BankOffer[]         @relation("ApplicationBankOffers")
+  userSelectedBankOffer   BankOffer?          @relation("ApplicationUserSelectedOffer", fields: [userSelectedBankOfferId], references: [id], onDelete: SetNull)
   assignedAgent           StaffAccount?       @relation("AssignedLeads", fields: [assignedAgentStaffId], references: [id], onDelete: SetNull)
   activities              Activity[]          @relation("ApplicationActivities")
   documents               Document[]          @relation("ApplicationDocuments")
@@ -337,6 +344,7 @@ model Application {
   @@index([loanPurpose], name: "idx_application_purpose")
   @@index([assignedAgentStaffId, leadStatus], name: "idx_application_agent_lead_status")
   @@index([leadStatus, createdAt(sort: Desc)], name: "idx_application_lead_status_created")
+  @@index([userProceededAt(sort: Desc)], name: "idx_application_user_proceeded_at")
   @@unique([mobileClientId, idempotencyKey], name: "idx_application_idempotency")
   @@map("application")
 }
@@ -375,6 +383,7 @@ model BankOffer {
   erasedAt                  DateTime?   @db.Timestamptz(6)
 
   application               Application      @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
+  selectedByApplications    Application[]    @relation("ApplicationUserSelectedOffer")
   decision                  BankOfferDecision? @relation("BankOfferDecisionFor")
 
   @@index([applicationId], name: "idx_bank_offer_application")

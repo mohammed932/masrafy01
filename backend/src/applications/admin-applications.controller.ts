@@ -129,7 +129,14 @@ export class AdminApplicationsController {
     pendingFollowups: Map<string, number>,
   ) {
     const profile = row.applicantProfile as RawApplicantProfileJson;
-    const best = [...row.bankOffers].sort((a, b) => b.approvalScore - a.approvalScore)[0];
+    // Prefer the offer the applicant actually selected (feature 008).
+    // Fall back to the highest-scored offer for legacy rows where the
+    // user-proceed gate did not yet exist.
+    const selected = row.userSelectedBankOfferId
+      ? row.bankOffers.find((o) => o.id === row.userSelectedBankOfferId)
+      : undefined;
+    const best =
+      selected ?? [...row.bankOffers].sort((a, b) => b.approvalScore - a.approvalScore)[0];
     const bestOffer = best
       ? {
           score: best.approvalScore,
@@ -137,6 +144,7 @@ export class AdminApplicationsController {
           tierLabelCode: `approval.tier.${best.approvalTier}`,
         }
       : null;
+    const selectedOfferDecision = selected?.decision?.outcome ?? null;
     const last = row.activities[0];
     const activityCount = row._count.activities;
     const lastActivityAt = last?.occurredAt ?? null;
@@ -168,6 +176,9 @@ export class AdminApplicationsController {
       activityCount,
       isStale,
       hasOverdueFollowUp: pendingFollowupCount > 0,
+      userProceededAt: row.userProceededAt ? row.userProceededAt.toISOString() : null,
+      userSelectedBankOfferId: row.userSelectedBankOfferId ?? null,
+      selectedOfferDecision,
     };
   }
 

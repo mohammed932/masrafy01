@@ -71,5 +71,9 @@
   "BANK_CODE_DUPLICATE": "Bank code \"{code}\" is already in use.",
   "BANK_CODE_INVALID_FORMAT": "Bank code must be uppercase letters, digits, or underscore (A-Z, 0-9, _).",
   "BANK_HAS_PROGRAMS": "This bank has {programCount} program(s). Deactivate or move the programs first.",
-  "BANK_CONFLICT_STALE_DATA": "Someone else updated this bank. Reload and try again."
+  "BANK_CONFLICT_STALE_DATA": "Someone else updated this bank. Reload and try again.",
+  "BANK_OFFER_NOT_FOUND": "Selected offer not found.",
+  "OFFER_NOT_FOR_APPLICATION": "That offer does not belong to this application.",
+  "ALREADY_PROCEEDED": "You already selected an offer for this application.",
+  "APPLICATION_NOT_MATCHED": "This application is not in a matched state and cannot proceed."
 }

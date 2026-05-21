@@ -227,7 +227,7 @@ async function main(): Promise<void> {
   // Each run appends fresh seed apps; old ones remain unassigned and don't show in agent metrics.
   void wipePriorSeed;
 
-  const APP_COUNT = 18;
+  const APP_COUNT = 120;
   const APPLICANT_NAMES = ['Mohamed Saleh', 'Reem Ali', 'Hossam Fawzy', 'Nour El-Din', 'Yara Mahmoud', 'Omar Adel'];
   const LOAN_AMOUNTS = [250000, 500000, 750000, 1_000_000, 1_250_000, 1_500_000];
 
@@ -244,6 +244,23 @@ async function main(): Promise<void> {
       agentProfiles[a.id] = { speedMin: 30 * MIN, speedMax: 2 * HOUR, submitDays: [2, 5], approvalLikelihood: 0.35 };
     }
   });
+
+  const LEAD_STAGE_WEIGHTS: Array<{ stage: LeadStatus; w: number }> = [
+    { stage: LeadStatus.needs_first_contact,   w: 0.10 },
+    { stage: LeadStatus.document_collection,   w: 0.20 },
+    { stage: LeadStatus.ready_for_submission,  w: 0.15 },
+    { stage: LeadStatus.submitted_to_bank,     w: 0.35 },
+    { stage: LeadStatus.bank_decided,          w: 0.20 },
+  ];
+
+  function pickLeadStage(): LeadStatus {
+    let roll = Math.random();
+    for (const s of LEAD_STAGE_WEIGHTS) {
+      roll -= s.w;
+      if (roll <= 0) return s.stage;
+    }
+    return LeadStatus.submitted_to_bank;
+  }
 
   const tierPlan: { tier: ApprovalTier; prob: number; score: number; approvalLikelihood: number }[] = [
     { tier: ApprovalTier.excellent, prob: 92, score: 92, approvalLikelihood: 0.92 },
@@ -280,7 +297,7 @@ async function main(): Promise<void> {
         isGuest: false,
         applicantProfile: { seed: true, alias: pick(APPLICANT_NAMES) },
         summary: { matchedOfferCount: 3, topOfferTier: 'good' },
-        leadStatus: LeadStatus.submitted_to_bank,
+        leadStatus: pickLeadStage(),
         assignedAgentStaffId: agent.id,
         assignedAt,
         createdAt,
@@ -360,9 +377,23 @@ async function main(): Promise<void> {
     }
 
     // ---- OFFERS for this app ----
-    const offerCount = rand(2, 5);
-    for (let j = 0; j < offerCount; j++) {
-      const plan = tierPlan[j % tierPlan.length]!;
+    // One offer per tier so each tier accumulates enough decisions
+    // to clear the sample-size trustworthiness threshold (30) in analytics.
+    // Realistic distribution of which offer the applicant actually picks:
+    // most users grab the top probability but a meaningful tail goes lower.
+    const SELECT_WEIGHTS = [0.35, 0.30, 0.20, 0.10, 0.05]; // excellent..very_low
+    let selectionRoll = Math.random();
+    let selectedTierIndex = 0;
+    for (let k = 0; k < SELECT_WEIGHTS.length; k++) {
+      selectionRoll -= SELECT_WEIGHTS[k]!;
+      if (selectionRoll <= 0) {
+        selectedTierIndex = k;
+        break;
+      }
+    }
+    const offerIdsByTier: Array<string | null> = [null, null, null, null, null];
+    for (let j = 0; j < tierPlan.length; j++) {
+      const plan = tierPlan[j]!;
       const program = pick(programs);
       const offerAmount = requestedAmount * (0.85 + Math.random() * 0.3); // 85-115% of requested
       const offerCreatedAt = new Date(assignedAt.getTime() + rand(0, submitDays + 1) * DAY);
@@ -397,6 +428,7 @@ async function main(): Promise<void> {
         },
       });
       offersCreated++;
+      offerIdsByTier[j] = offer.id;
 
       // Decision: skewed by tier × agent's approval likelihood
       const decideChance = 0.7;
@@ -442,10 +474,95 @@ async function main(): Promise<void> {
         }
       }
     }
+
+    // Mark applicant as having selected one offer and proceeded. Selection is
+    // weighted across tiers so the admin triage view shows a realistic spread
+    // of probabilities — most applicants pick high-tier, some pick mid/low.
+    const selectedOfferId =
+      offerIdsByTier[selectedTierIndex] ?? offerIdsByTier.find((id) => id !== null) ?? null;
+    if (selectedOfferId) {
+      await prisma.application.update({
+        where: { id: app.id },
+        data: {
+          userSelectedBankOfferId: selectedOfferId,
+          userProceededAt: assignedAt,
+        },
+      });
+    }
+  }
+
+  // Re-roll selection on ALL seed-* apps (including ones from prior runs that
+  // received a "best-scored" assignment via the feature-008 migration backfill).
+  // Keeps the admin probability column visibly spread across tiers each run.
+  const SELECTION_WEIGHTS_BY_TIER: Record<ApprovalTier, number> = {
+    excellent: 0.35,
+    good: 0.30,
+    moderate: 0.20,
+    low: 0.10,
+    very_low: 0.05,
+  };
+  const seededApps = await prisma.application.findMany({
+    where: { mobileClientId: { startsWith: 'seed-' } },
+    select: {
+      id: true,
+      bankOffers: {
+        where: { erasedAt: null },
+        select: { id: true, approvalTier: true, decision: { select: { outcome: true } } },
+      },
+    },
+  });
+  let rerolled = 0;
+  for (const a of seededApps) {
+    if (a.bankOffers.length === 0) continue;
+    const tiers = a.bankOffers;
+    let roll = Math.random();
+    let pickTier: ApprovalTier = tiers[0]!.approvalTier;
+    for (const t of (['excellent', 'good', 'moderate', 'low', 'very_low'] as ApprovalTier[])) {
+      roll -= SELECTION_WEIGHTS_BY_TIER[t];
+      if (roll <= 0) {
+        pickTier = t;
+        break;
+      }
+    }
+    const pick = tiers.find((o) => o.approvalTier === pickTier) ?? tiers[0]!;
+    const stage = pickLeadStage();
+
+    // bank_decided requires a recorded outcome on the selected offer.
+    // If the selected offer has no decision yet, create one (weighted realistic mix).
+    if (stage === LeadStatus.bank_decided && !pick.decision) {
+      const outcomeRoll = Math.random();
+      const outcome =
+        outcomeRoll < 0.55
+          ? DecisionOutcome.approved
+          : outcomeRoll < 0.90
+          ? DecisionOutcome.rejected
+          : DecisionOutcome.withdrawn;
+      try {
+        await prisma.bankOfferDecision.create({
+          data: {
+            bankOfferId: pick.id,
+            outcome,
+            recordedAt: new Date(NOW - rand(1, 6) * HOUR),
+            decisionLatencyMs: rand(1 * DAY, 5 * DAY),
+          },
+        });
+      } catch {
+        // unique constraint — already exists from inner loop, ignore
+      }
+    }
+
+    await prisma.application.update({
+      where: { id: a.id },
+      data: {
+        userSelectedBankOfferId: pick.id,
+        leadStatus: stage,
+      },
+    });
+    rerolled++;
   }
 
   console.log(
-    `scoring-seed: ${APP_COUNT} apps · ${offersCreated} offers · ${decisionsCreated} decisions · ${activitiesCreated} activities · ${(approvedSum / 1_000_000).toFixed(2)}M EGP funded`,
+    `scoring-seed: ${APP_COUNT} apps · ${offersCreated} offers · ${decisionsCreated} decisions · ${activitiesCreated} activities · ${(approvedSum / 1_000_000).toFixed(2)}M EGP funded · ${rerolled} selections re-rolled`,
   );
 }
 

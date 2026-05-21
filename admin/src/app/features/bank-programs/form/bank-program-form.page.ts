@@ -863,8 +863,73 @@ type ToggleKey =
         gap: var(--space-2) var(--space-4);
       }
       .toggle-grid {
-        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-2) var(--space-4);
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-3);
+      }
+      @media (max-width: 720px) {
+        .toggle-grid { grid-template-columns: minmax(0, 1fr); }
+      }
+
+      /* Each ng-zorro checkbox wrapper becomes a clickable tile. */
+      .toggle-grid :where(.ant-checkbox-wrapper) {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        margin: 0;
+        padding: 14px 16px;
+        background: var(--bg-surface, var(--color-surface-default));
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-lg, 12px);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary, var(--color-text-primary));
+        transition:
+          background-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+          border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+          box-shadow 160ms cubic-bezier(0.4, 0, 0.2, 1),
+          transform 160ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .toggle-grid :where(.ant-checkbox-wrapper):hover {
+        border-color: color-mix(in oklab, var(--primary, var(--color-brand-primary)) 50%, var(--border-default));
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+        transform: translateY(-1px);
+        box-shadow: 0 1px 3px color-mix(in oklab, var(--primary, var(--color-brand-primary)) 10%, transparent);
+      }
+      .toggle-grid :where(.ant-checkbox-wrapper):focus-within {
+        border-color: var(--primary, var(--color-brand-primary));
+        box-shadow: var(--focus-halo);
+      }
+      .toggle-grid :where(.ant-checkbox-wrapper-checked) {
+        border-color: var(--primary, var(--color-brand-primary));
+        background: color-mix(in oklab, var(--primary, var(--color-brand-primary)) 7%, var(--bg-surface));
+        color: var(--primary, var(--color-brand-primary));
+        font-weight: 600;
+      }
+      .toggle-grid :where(.ant-checkbox-wrapper-checked):hover {
+        background: color-mix(in oklab, var(--primary, var(--color-brand-primary)) 11%, var(--bg-surface));
+      }
+      .toggle-grid :where(.ant-checkbox-wrapper) :where(.ant-checkbox) {
+        margin: 0;
+        flex-shrink: 0;
+        top: 0;
+      }
+      .toggle-grid :where(.ant-checkbox-wrapper) :where(.ant-checkbox + span) {
+        padding: 0;
+        line-height: 1.3;
+      }
+      .toggle-grid :where(.ant-checkbox-inner) {
+        inline-size: 18px;
+        block-size: 18px;
+        border-radius: 5px;
+        border-color: var(--border-strong, var(--border-default));
+        transition: background-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
+          border-color 140ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .toggle-grid :where(.ant-checkbox-wrapper) { transition: none !important; }
+        .toggle-grid :where(.ant-checkbox-wrapper):hover { transform: none !important; }
       }
       .disclosure { padding: 0; }
       .disclosure-head {

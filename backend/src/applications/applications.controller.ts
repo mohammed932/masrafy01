@@ -19,6 +19,7 @@ import type { Request } from 'express';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ApplicationsService } from './applications.service';
 import { ApplyRequestDto } from './dto/apply.dto';
+import { SelectOfferDto } from './dto/select-offer.dto';
 import { MobileHmacGuard } from './guards/mobile-hmac.guard';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerTimelineService } from './customer-timeline.service';
@@ -79,5 +80,30 @@ export class ApplicationsController {
       payloadHash,
       sourceIp,
     });
+  }
+
+  @Post('applications/:applicationId/select-offer')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Applicant selects one matched offer and proceeds' })
+  @ApiResponse({ status: 200, description: 'User-proceed gate recorded' })
+  @ApiResponse({ status: 400, description: 'Validation error (typed code)' })
+  @ApiResponse({ status: 401, description: 'HMAC signature invalid' })
+  @ApiResponse({ status: 403, description: 'HMAC client does not own this application' })
+  @ApiResponse({ status: 404, description: 'Application or bank offer not found' })
+  @ApiResponse({ status: 409, description: 'Already proceeded, status mismatch, or offer not for application' })
+  async selectOffer(
+    @Param('applicationId') applicationId: string,
+    @Body() dto: SelectOfferDto,
+    @Req() req: HmacRequest,
+  ): Promise<unknown> {
+    const mobileClientId = req.mobileClientId;
+    if (!mobileClientId) throw new HmacClientUnknownException('unknown');
+    const data = await this.service.selectOffer({
+      applicationId,
+      bankOfferId: dto.bankOfferId,
+      mobileClientId,
+      sourceIp: req.ip ?? null,
+    });
+    return { success: true, data };
   }
 }

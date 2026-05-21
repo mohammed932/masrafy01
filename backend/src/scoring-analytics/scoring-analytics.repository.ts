@@ -1,7 +1,8 @@
 /**
- * Read-only aggregate queries for the analyst page.
- * - Distribution histogram: 10-point buckets over `bank_offer.approvalScore`.
- * - Per-tier accuracy: LEFT JOIN against `bank_offer_decision` (empty at launch).
+ * Read-only aggregate queries for the scoring-engine evaluation view.
+ * - Distribution histogram: 10-point buckets over `bank_offer.approvalScore` (analyst drill-down).
+ * - Per-tier accuracy: predicted vs actual approval rate per tier (manager headline).
+ * - Drift trend: per-day approval rate per tier — catches policy shift over time.
  */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/infra/prisma/prisma.service';
@@ -16,7 +17,15 @@ export interface TierAccuracyRow {
   tier: ApprovalTier;
   offerCount: number;
   decisionCount: number;
-  approvalRate: number | null;
+  predictedApprovalRate: number | null;
+  actualApprovalRate: number | null;
+}
+
+export interface DriftPoint {
+  date: string; // ISO date (YYYY-MM-DD)
+  tier: ApprovalTier;
+  actualApprovalRate: number | null;
+  decisionCount: number;
 }
 
 @Injectable()
@@ -41,16 +50,18 @@ export class ScoringAnalyticsRepository {
         tier: ApprovalTier;
         offer_count: bigint;
         decision_count: bigint;
-        approval_rate: number | null;
+        predicted_rate: number | null;
+        actual_rate: number | null;
       }>
     >`
       SELECT bo."approvalTier" AS tier,
              COUNT(*)::bigint AS offer_count,
              COUNT(bod.id)::bigint AS decision_count,
+             AVG(bo."approvalProbabilityPercent") / 100.0 AS predicted_rate,
              CASE
                WHEN COUNT(bod.id) = 0 THEN NULL
                ELSE AVG(CASE WHEN bod."outcome" = 'approved' THEN 1.0 ELSE 0.0 END)
-             END AS approval_rate
+             END AS actual_rate
         FROM bank_offer bo
         LEFT JOIN bank_offer_decision bod ON bod."bankOfferId" = bo.id
        WHERE bo."createdAt" >= now() - (${windowDays} || ' days')::interval
@@ -61,7 +72,37 @@ export class ScoringAnalyticsRepository {
       tier: r.tier,
       offerCount: Number(r.offer_count),
       decisionCount: Number(r.decision_count),
-      approvalRate: r.approval_rate !== null ? Number(r.approval_rate) : null,
+      predictedApprovalRate: r.predicted_rate !== null ? Number(r.predicted_rate) : null,
+      actualApprovalRate: r.actual_rate !== null ? Number(r.actual_rate) : null,
+    }));
+  }
+
+  async aggregateDriftByDay(windowDays: number): Promise<DriftPoint[]> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{
+        bucket_date: Date;
+        tier: ApprovalTier;
+        actual_rate: number | null;
+        decision_count: bigint;
+      }>
+    >`
+      SELECT
+        DATE_TRUNC('day', bod."recordedAt") AS bucket_date,
+        bo."approvalTier" AS tier,
+        AVG(CASE WHEN bod."outcome" = 'approved' THEN 1.0 ELSE 0.0 END) AS actual_rate,
+        COUNT(*)::bigint AS decision_count
+      FROM bank_offer_decision bod
+      JOIN bank_offer bo ON bo.id = bod."bankOfferId"
+      WHERE bod."recordedAt" >= now() - (${windowDays} || ' days')::interval
+        AND bo."erasedAt" IS NULL
+      GROUP BY 1, 2
+      ORDER BY 1 ASC, 2 ASC
+    `;
+    return rows.map((r) => ({
+      date: r.bucket_date.toISOString().slice(0, 10),
+      tier: r.tier,
+      actualApprovalRate: r.actual_rate !== null ? Number(r.actual_rate) : null,
+      decisionCount: Number(r.decision_count),
     }));
   }
 }

@@ -128,8 +128,16 @@ export class ApplicationRepository {
     assignedAgentStaffId?: string;
     cursor?: string;
     limit?: number;
+    /**
+     * Feature 008 user-intent gate: defaults to true — admin triage only sees
+     * applications where the applicant explicitly selected an offer and
+     * proceeded. Set false to inspect pre-proceed funnel.
+     */
+    onlyProceeded?: boolean;
   }) {
     const where: Prisma.ApplicationWhereInput = {};
+    const onlyProceeded = params.onlyProceeded ?? true;
+    if (onlyProceeded) where.userProceededAt = { not: null };
     if (params.status?.length) where.status = { in: params.status };
     if (params.loanPurpose) where.loanPurpose = params.loanPurpose;
     if (params.assignedAgentStaffId) where.assignedAgentStaffId = params.assignedAgentStaffId;
@@ -201,7 +209,7 @@ export class ApplicationRepository {
       take: params.limit ?? 25,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
       include: {
-        bankOffers: { where: { erasedAt: null } },
+        bankOffers: { where: { erasedAt: null }, include: { decision: true } },
         activities: {
           orderBy: { occurredAt: 'desc' },
           take: 1,

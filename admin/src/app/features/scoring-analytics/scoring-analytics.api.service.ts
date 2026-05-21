@@ -14,13 +14,53 @@ export interface TierAccuracyRow {
   tier: ApprovalTier;
   offerCount: number;
   decisionCount: number;
-  approvalRate: number | null;
+  predictedApprovalRate: number | null;
+  actualApprovalRate: number | null;
+}
+
+export type HealthStatus = 'healthy' | 'drifting' | 'broken';
+
+export interface TierEvaluation {
+  tier: ApprovalTier;
+  offerCount: number;
+  decisionCount: number;
+  predictedApprovalRate: number | null;
+  actualApprovalRate: number | null;
+  gap: number | null;
+  sampleSizeTrustworthy: boolean;
+  status: 'aligned' | 'soft' | 'harsh' | 'unknown';
+}
+
+export interface TierDriftSeries {
+  tier: ApprovalTier;
+  series: Array<{ date: string; rate: number | null; decisions: number }>;
+  deltaFromOldest: number | null;
+}
+
+export interface ModelHealth {
+  status: HealthStatus;
+  headline: string;
+  bandSpread: number | null;
+  worstGap: number | null;
+  worstTier: ApprovalTier | null;
+  decisionsInWindow: number;
+}
+
+export interface AnalyticsThresholds {
+  sampleSizeTrustworthy: number;
+  healthyGap: number;
+  driftingGap: number;
 }
 
 export interface ScoringAnalyticsData {
   windowDays: number;
+  engineVersion: string | null;
+  health: ModelHealth;
+  tiers: TierEvaluation[];
+  drift: TierDriftSeries[];
   distribution: DistributionBucket[];
   tierAccuracy: TierAccuracyRow[];
+  thresholds: AnalyticsThresholds;
 }
 
 @Injectable({ providedIn: 'root' })

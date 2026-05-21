@@ -397,3 +397,29 @@ export class EnumerationSystemOnlyException extends DomainException {
     super(ERROR_CODES.ENUMERATION_SYSTEM_ONLY, meta);
   }
 }
+
+// --- User proceed (feature 008) --------------------------------------------
+
+export class BankOfferNotFoundException extends DomainException {
+  constructor(meta: { bankOfferId: string }) {
+    super(ERROR_CODES.BANK_OFFER_NOT_FOUND, meta);
+  }
+}
+
+export class OfferNotForApplicationException extends DomainException {
+  constructor(meta: { applicationId: string; bankOfferId: string }) {
+    super(ERROR_CODES.OFFER_NOT_FOR_APPLICATION, meta);
+  }
+}
+
+export class AlreadyProceededException extends DomainException {
+  constructor(meta: { applicationId: string; userProceededAt: string; userSelectedBankOfferId: string }) {
+    super(ERROR_CODES.ALREADY_PROCEEDED, meta);
+  }
+}
+
+export class ApplicationNotMatchedException extends DomainException {
+  constructor(meta: { applicationId: string; status: string }) {
+    super(ERROR_CODES.APPLICATION_NOT_MATCHED, meta);
+  }
+}

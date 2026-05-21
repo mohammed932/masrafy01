@@ -39,6 +39,9 @@ export interface AdminApplicationRow {
   activityCount?: number;
   isStale?: boolean;
   hasOverdueFollowUp?: boolean;
+  userProceededAt?: string | null;
+  userSelectedBankOfferId?: string | null;
+  selectedOfferDecision?: 'approved' | 'rejected' | 'withdrawn' | null;
 }
 
 export interface AssignLeadRequest {

@@ -22,6 +22,10 @@ import {
   IdempotencyKeyMismatchException,
   NotFoundException,
   ForbiddenException,
+  BankOfferNotFoundException,
+  OfferNotForApplicationException,
+  AlreadyProceededException,
+  ApplicationNotMatchedException,
 } from '../common/errors/domain.exceptions';
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
@@ -55,6 +59,102 @@ export class ApplicationsService {
     private readonly audit: AuditEventWriter,
     private readonly scoringVersions: ScoringEngineVersionService,
   ) {}
+
+  /**
+   * Mobile user picks one of the matched offers and proceeds. This is the
+   * user-intent gate: until it fires, an application is invisible in the
+   * admin triage dashboard. Idempotent for the same (application, offer):
+   * a repeat call surfaces ALREADY_PROCEEDED rather than overwriting.
+   */
+  async selectOffer(input: {
+    applicationId: string;
+    bankOfferId: string;
+    mobileClientId: string;
+    sourceIp: string | null;
+  }): Promise<{
+    applicationId: string;
+    bankOfferId: string;
+    userProceededAt: string;
+    correlationId: string;
+  }> {
+    const correlationId = randomUUID();
+    return this.prisma.$transaction(
+      async (tx) => {
+        const app = await tx.application.findUnique({
+          where: { id: input.applicationId },
+          select: {
+            id: true,
+            mobileClientId: true,
+            status: true,
+            userProceededAt: true,
+            userSelectedBankOfferId: true,
+          },
+        });
+        if (!app) throw new NotFoundException();
+        if (app.mobileClientId !== input.mobileClientId) throw new ForbiddenException();
+        if (app.status !== 'matched') {
+          throw new ApplicationNotMatchedException({
+            applicationId: app.id,
+            status: app.status,
+          });
+        }
+        if (app.userProceededAt && app.userSelectedBankOfferId) {
+          throw new AlreadyProceededException({
+            applicationId: app.id,
+            userProceededAt: app.userProceededAt.toISOString(),
+            userSelectedBankOfferId: app.userSelectedBankOfferId,
+          });
+        }
+
+        const offer = await tx.bankOffer.findUnique({
+          where: { id: input.bankOfferId },
+          select: { id: true, applicationId: true, erasedAt: true },
+        });
+        if (!offer || offer.erasedAt !== null) {
+          throw new BankOfferNotFoundException({ bankOfferId: input.bankOfferId });
+        }
+        if (offer.applicationId !== input.applicationId) {
+          throw new OfferNotForApplicationException({
+            applicationId: input.applicationId,
+            bankOfferId: input.bankOfferId,
+          });
+        }
+
+        const proceededAt = new Date();
+        await tx.application.update({
+          where: { id: app.id },
+          data: {
+            userSelectedBankOfferId: offer.id,
+            userProceededAt: proceededAt,
+          },
+        });
+
+        await this.audit.write(
+          {
+            actorId: null,
+            targetId: app.id,
+            eventType: AuditEventType.APPLICATION_USER_PROCEEDED,
+            sourceIp: input.sourceIp,
+            correlationId,
+            payload: {
+              applicationId: app.id,
+              bankOfferId: offer.id,
+              userProceededAt: proceededAt.toISOString(),
+            },
+          },
+          tx,
+        );
+
+        return {
+          applicationId: app.id,
+          bankOfferId: offer.id,
+          userProceededAt: proceededAt.toISOString(),
+          correlationId,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
 
   async assignAgent(input: {
     applicationId: string;
