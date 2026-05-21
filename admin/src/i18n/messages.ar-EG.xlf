@@ -272,6 +272,36 @@
       <!-- Theme toggle -->
       <trans-unit id="topBar.theme.switchLight" datatype="html"><source>Switch to light theme</source><target>التبديل إلى الوضع الفاتح</target></trans-unit>
       <trans-unit id="topBar.theme.switchDark" datatype="html"><source>Switch to dark theme</source><target>التبديل إلى الوضع الداكن</target></trans-unit>
+
+      <!-- Feature 008 — Sharia + functional toggles -->
+      <trans-unit id="bank_programs.toggle.variable_rate" datatype="html"><source>Variable-rate program</source><target>برنامج بسعر متغير</target></trans-unit>
+      <trans-unit id="bank_programs.toggle.income_surrogate" datatype="html"><source>Income-surrogate program</source><target>برنامج بدخل افتراضي</target></trans-unit>
+      <trans-unit id="bank_programs.toggle.tiered_rates" datatype="html"><source>Tiered interest rates (by loan amount)</source><target>أسعار فائدة متدرجة (حسب مبلغ القرض)</target></trans-unit>
+      <trans-unit id="bank_programs.toggle.buyout" datatype="html"><source>Buyout / refinance program</source><target>برنامج سداد / إعادة تمويل</target></trans-unit>
+      <trans-unit id="bank_programs.toggle.down_payment" datatype="html"><source>Requires down payment</source><target>يتطلب مقدم</target></trans-unit>
+      <trans-unit id="bank_programs.toggle.sharia" datatype="html"><source>Sharia-compliant (Islamic)</source><target>متوافق مع الشريعة (إسلامي)</target></trans-unit>
+
+      <trans-unit id="bank_programs.section.variable_rate" datatype="html"><source>Variable rate</source><target>السعر المتغير</target></trans-unit>
+      <trans-unit id="bank_programs.section.variable_rate_sub" datatype="html"><source>CBE-linked or quarterly-reset programs.</source><target>برامج مرتبطة بسعر البنك المركزي أو يُعاد تقييمها ربع سنوياً.</target></trans-unit>
+      <trans-unit id="bank_programs.section.tiered_rates" datatype="html"><source>Tiered interest rates</source><target>أسعار فائدة متدرجة</target></trans-unit>
+      <trans-unit id="bank_programs.section.tiered_rates_sub" datatype="html"><source>Rate by loan-amount band. Egyptian banks commonly discount above 1M EGP. Hint: seed via the catalog seed endpoint until the inline band editor ships.</source><target>سعر حسب شريحة مبلغ القرض. تخصم البنوك المصرية عادةً للقروض فوق مليون جنيه. ملاحظة: يُملأ عبر نقطة seed حتى يصبح المحرر داخل النموذج جاهزاً.</target></trans-unit>
+      <trans-unit id="bank_programs.section.tiered_rates_hint" datatype="html"><source>Existing program data preserved. The inline band editor is part of the next increment.</source><target>بيانات البرنامج محفوظة. محرر الشرائح داخل النموذج ضمن التحديث القادم.</target></trans-unit>
+      <trans-unit id="bank_programs.section.buyout" datatype="html"><source>Buyout / refinance</source><target>السداد / إعادة التمويل</target></trans-unit>
+      <trans-unit id="bank_programs.section.buyout_sub" datatype="html"><source>Closing out a loan at another bank. Applies a delta vs the base rate, bounded by a floor.</source><target>إغلاق قرض قائم في بنك آخر. يطبَّق فارق على السعر الأساسي ضمن حدّ أدنى.</target></trans-unit>
+      <trans-unit id="bank_programs.section.down_payment" datatype="html"><source>Down payment</source><target>المقدم</target></trans-unit>
+      <trans-unit id="bank_programs.section.down_payment_sub" datatype="html"><source>Mandatory for auto + mortgage programs. LTV ceiling caps the financed share of asset value.</source><target>إجباري في برامج السيارات والعقار. يحدّد سقف LTV نسبة التمويل من قيمة الأصل.</target></trans-unit>
+      <trans-unit id="bank_programs.section.sharia" datatype="html"><source>Sharia-compliant (Islamic)</source><target>متوافق مع الشريعة (إسلامي)</target></trans-unit>
+      <trans-unit id="bank_programs.section.sharia_sub" datatype="html"><source>Profit-rate pricing under an Islamic contract. Rate fields above are interpreted as profit rates, not interest.</source><target>تسعير بسعر ربح ضمن عقد إسلامي. حقول السعر أعلاه تُفسَّر كأسعار ربح وليس فوائد.</target></trans-unit>
+
+      <trans-unit id="bank_programs.field.buyout_delta" datatype="html"><source>Buyout rate delta</source><target>فارق سعر السداد</target></trans-unit>
+      <trans-unit id="bank_programs.field.buyout_floor" datatype="html"><source>Minimum floor rate</source><target>أدنى سعر مسموح</target></trans-unit>
+      <trans-unit id="bank_programs.field.min_down_payment" datatype="html"><source>Minimum down payment</source><target>الحد الأدنى للمقدم</target></trans-unit>
+      <trans-unit id="bank_programs.field.max_ltv" datatype="html"><source>Maximum LTV</source><target>الحد الأقصى لنسبة التمويل</target></trans-unit>
+      <trans-unit id="bank_programs.field.sharia_compliant" datatype="html"><source>Sharia-compliant</source><target>متوافق مع الشريعة</target></trans-unit>
+      <trans-unit id="bank_programs.field.sharia_contract_type" datatype="html"><source>Contract type</source><target>نوع العقد</target></trans-unit>
+      <trans-unit id="bank_programs.contract.murabaha" datatype="html"><source>Murabaha</source><target>مرابحة</target></trans-unit>
+      <trans-unit id="bank_programs.contract.ijara" datatype="html"><source>Ijara</source><target>إجارة</target></trans-unit>
+      <trans-unit id="bank_programs.contract.tawarruq" datatype="html"><source>Tawarruq</source><target>تورق</target></trans-unit>
     </body>
   </file>
 </xliff>

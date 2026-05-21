@@ -292,7 +292,7 @@ async function main(): Promise<void> {
         requestedAmountEGP: requestedAmount.toFixed(2),
         requestedCurrency: 'EGP',
         preferredTenorMonths: pick([36, 48, 60, 72]),
-        loanPurpose: pick(['personal', 'car', 'home_renovation']),
+        loanPurpose: pick(['personal', 'car', 'mortgage']),
         age: rand(26, 52),
         isGuest: false,
         applicantProfile: { seed: true, alias: pick(APPLICANT_NAMES) },
@@ -397,7 +397,7 @@ async function main(): Promise<void> {
       const program = pick(programs);
       const offerAmount = requestedAmount * (0.85 + Math.random() * 0.3); // 85-115% of requested
       const offerCreatedAt = new Date(assignedAt.getTime() + rand(0, submitDays + 1) * DAY);
-      const isPropertyBackedPurpose = app.loanPurpose === 'home_renovation' || app.loanPurpose === 'car';
+      const isPropertyBackedPurpose = app.loanPurpose === 'mortgage' || app.loanPurpose === 'car';
       const factors = buildOfferFactors(plan.tier, isPropertyBackedPurpose);
       const matchReasonCodes = factors.positive.map((f) => f.code);
 

@@ -41,6 +41,7 @@ export interface LoanLimitsConfig {
   maxByPerformanceTier?: Record<string, string>;
   maxTopUpEGP?: string;
   ltvCeilingPercent?: string;
+  minDownPaymentPercent?: string;
   qualitativeReviewMaxEGP?: string;
   otherCitiesMaxEGP?: string;
 }
@@ -69,7 +70,11 @@ export interface PricingConfig {
   feeWaiverPenaltyMinTenorMonths?: number;
   insuranceWaiverPenaltyRatePercent?: string;
   insuranceWaiverPenaltyMinTenorMonths?: number;
+  shariaContractType?: ShariaContractType;
 }
+
+export const SHARIA_CONTRACT_TYPES = ['murabaha', 'ijara', 'tawarruq'] as const;
+export type ShariaContractType = (typeof SHARIA_CONTRACT_TYPES)[number];
 
 export interface EligibilityConfig {
   acceptedEmploymentTypes: string[];
@@ -175,6 +180,7 @@ export interface BankProgramCreatePayload {
   programType: ProgramType;
   productCategory: string;
   currencies: string[];
+  isShariaCompliant?: boolean;
   operatorNotes?: string;
   operatorTips?: string[];
   requiredDocuments?: string[];
@@ -208,6 +214,7 @@ export interface BankProgramResponse {
   productCategory: string;
   currencies: string[];
   active: boolean;
+  isShariaCompliant: boolean;
   version: number;
   operatorNotes?: string | null;
   operatorTips: string[];
@@ -231,6 +238,7 @@ export interface BankProgramListRow {
   bankName: string;
   productCategory: string;
   active: boolean;
+  isShariaCompliant: boolean;
   currencies: string[];
   baseRatePercent?: string | null;
   currentEffectiveRatePercent?: string | null;

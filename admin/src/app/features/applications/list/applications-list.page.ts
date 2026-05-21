@@ -854,6 +854,7 @@ export class ApplicationsListPage implements OnInit {
   }
 
   protected purposeLabel(p: string): string {
+    // Constitution v1.6.0 / Principle II scope-lock: 3 categories only.
     switch (p) {
       case 'personal':
         return $localize`:@@apps.purpose.personal:Personal`;
@@ -861,12 +862,6 @@ export class ApplicationsListPage implements OnInit {
         return $localize`:@@apps.purpose.car:Car`;
       case 'mortgage':
         return $localize`:@@apps.purpose.mortgage:Mortgage`;
-      case 'home_renovation':
-        return $localize`:@@apps.purpose.home_renovation:Home renovation`;
-      case 'education':
-        return $localize`:@@apps.purpose.education:Education`;
-      case 'buyout':
-        return $localize`:@@apps.purpose.buyout:Buyout`;
       default:
         return p.replace(/_/g, ' ');
     }

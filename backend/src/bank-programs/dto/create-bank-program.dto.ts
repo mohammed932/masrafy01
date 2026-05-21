@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
@@ -41,6 +42,9 @@ export class CreateBankProgramDto {
   @ArrayMinSize(1)
   @IsString({ each: true })
   currencies!: string[];
+
+  /** Feature 008: Sharia / Islamic banking flag. Pricing semantics + UI labels shift. */
+  @IsOptional() @IsBoolean() isShariaCompliant?: boolean;
 
   @IsOptional() @IsString() @MaxLength(4000) operatorNotes?: string;
 

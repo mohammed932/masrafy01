@@ -39,7 +39,8 @@ const DEMO_STAFF: DemoStaff[] = [
   { email: 'analyst.a@masrafy.local', name: 'Analyst Ahmed', role: 'analyst' },
 ];
 
-const LOAN_PURPOSES = ['personal', 'car', 'mortgage', 'education', 'buyout'] as const;
+// Constitution v1.5.0 / Principle II scope-lock — only the 3 active categories.
+const LOAN_PURPOSES = ['personal', 'car', 'mortgage'] as const;
 const PRIORITIES = [
   'lowest_installment',
   'lowest_interest',
@@ -194,34 +195,6 @@ const DEMO_PROGRAMS: DemoProgram[] = [
     ageMax: 60,
     programType: 'income_proof',
   },
-  {
-    programCode: 'BANK-NXT-EDU',
-    bankName: 'Bank NXT',
-    friendlyName: 'Education Finance',
-    friendlyNameAr: 'تمويل تعليمي',
-    productCategory: 'education',
-    baseRatePercent: '23.5000',
-    minAmount: '20000',
-    maxAmount: '500000',
-    minMonthlyIncomeEGP: '7000',
-    ageMin: 25,
-    ageMax: 55,
-    programType: 'income_proof',
-  },
-  {
-    programCode: 'SALESFLOOR-BUYOUT-EGP',
-    bankName: 'Salesfloor Bank',
-    friendlyName: 'Loan Buy-out — Aggressive',
-    friendlyNameAr: 'سداد قروض — تنافسي',
-    productCategory: 'buyout',
-    baseRatePercent: '21.5000',
-    minAmount: '100000',
-    maxAmount: '2000000',
-    minMonthlyIncomeEGP: '12000',
-    ageMin: 25,
-    ageMax: 58,
-    programType: 'income_proof',
-  },
   // ─── New banks (added 2026-05-18) ─────────────────────────────────────────
   {
     programCode: 'CIB-PRIME-PERSONAL',
@@ -280,20 +253,6 @@ const DEMO_PROGRAMS: DemoProgram[] = [
     programType: 'income_proof',
   },
   {
-    programCode: 'ALEX-EDU-PREMIUM',
-    bankName: 'AlexBank',
-    friendlyName: 'Education Finance — Premium',
-    friendlyNameAr: 'تمويل التعليم — بريميوم',
-    productCategory: 'education',
-    baseRatePercent: '22.0000',
-    minAmount: '25000',
-    maxAmount: '750000',
-    minMonthlyIncomeEGP: '8000',
-    ageMin: 22,
-    ageMax: 58,
-    programType: 'income_proof',
-  },
-  {
     programCode: 'BDC-PERSONAL-FLEX',
     bankName: 'Banque du Caire',
     friendlyName: 'Personal Loan — Flex',
@@ -319,20 +278,6 @@ const DEMO_PROGRAMS: DemoProgram[] = [
     minMonthlyIncomeEGP: '15000',
     ageMin: 21,
     ageMax: 63,
-    programType: 'income_proof',
-  },
-  {
-    programCode: 'AAIB-BUYOUT-PRIME',
-    bankName: 'Arab African International Bank',
-    friendlyName: 'Buy-out Prime',
-    friendlyNameAr: 'سداد القروض المتميز',
-    productCategory: 'buyout',
-    baseRatePercent: '20.5000',
-    minAmount: '150000',
-    maxAmount: '3000000',
-    minMonthlyIncomeEGP: '15000',
-    ageMin: 25,
-    ageMax: 60,
     programType: 'income_proof',
   },
   {
@@ -385,6 +330,7 @@ async function seedBankPrograms(superAdminId: string): Promise<void> {
         productCategory: p.productCategory,
         currencies: ['EGP'],
         active: true,
+        isShariaCompliant: p.programCode === 'ADIB-AUTO-ISLAMIC',
         version: 1,
         operatorNotes: null,
         operatorTips: [],
@@ -405,7 +351,7 @@ async function seedBankPrograms(superAdminId: string): Promise<void> {
           acceptedLoanPurposes: [p.productCategory],
           dbrCapPercent: '50.0000',
           skipDbrCheck: false,
-          acceptedTransferTypes: ['payroll'],
+          acceptedTransferTypes: ['payroll_cat_a', 'payroll_cat_b', 'payroll_cat_c'],
           requiresCD: false,
           requiresAutoLoanAtABK: false,
           requiresAutoLoanAtOtherBank: false,

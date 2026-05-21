@@ -237,6 +237,7 @@ model BankProgram {
   productCategory     String          @db.VarChar(64)
   currencies          String[]        @db.VarChar(3)
   active              Boolean         @default(true)
+  isShariaCompliant   Boolean         @default(false)
   version             Int             @default(1)
   operatorNotes       String?         @db.VarChar(4000)
   operatorTips        String[]        @db.VarChar(500)
@@ -264,6 +265,7 @@ model BankProgram {
   @@index([bankName], name: "idx_bank_program_bank_name")
   @@index([bankId], name: "idx_bank_program_bank_id")
   @@index([productCategory], name: "idx_bank_program_product_category")
+  @@index([isShariaCompliant], name: "idx_bank_program_sharia")
   @@map("bank_program")
 }
 

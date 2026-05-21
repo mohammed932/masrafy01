@@ -1,5 +1,9 @@
-import { IsBoolean, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
 import { DecimalRange } from '../../../common/decorators/decimal-range.decorator';
+
+/** Sharia-compliant contract types (Islamic finance instruments). */
+export const SHARIA_CONTRACT_TYPES = ['murabaha', 'ijara', 'tawarruq'] as const;
+export type ShariaContractType = (typeof SHARIA_CONTRACT_TYPES)[number];
 
 /**
  * Spec anchors: FR-004, FR-008b (frozen cascade order), FR-008o + FR-008o.1 (down-payment band floor-≤),
@@ -82,6 +86,14 @@ export class PricingConfigDto {
   @IsInt()
   @Min(0)
   insuranceWaiverPenaltyMinTenorMonths?: number;
+
+  // Sharia / Islamic banking (feature 008). When the parent program's
+  // `isShariaCompliant=true`, the contract instrument is specified here.
+  // Pricing semantics shift from interest-rate → profit-rate, but the
+  // numeric fields stay identical so the matching engine remains generic.
+  @IsOptional()
+  @IsIn(SHARIA_CONTRACT_TYPES as unknown as string[])
+  shariaContractType?: ShariaContractType;
 }
 
 /** Loose shape — the service layer enforces RateBandValueDto + ValidDerivationChain. */

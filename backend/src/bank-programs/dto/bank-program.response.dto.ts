@@ -16,6 +16,7 @@ export class BankProgramResponseDto {
   productCategory!: string;
   currencies!: string[];
   active!: boolean;
+  isShariaCompliant!: boolean;
   version!: number;
   operatorNotes?: string | null;
   operatorTips!: string[];
@@ -43,6 +44,7 @@ export class BankProgramListRowDto {
   bankName!: string;
   productCategory!: string;
   active!: boolean;
+  isShariaCompliant!: boolean;
   currencies!: string[];
   baseRatePercent?: string | null;
   currentEffectiveRatePercent?: string | null;

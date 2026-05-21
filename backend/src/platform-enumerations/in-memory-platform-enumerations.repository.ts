@@ -93,20 +93,16 @@ export class InMemoryPlatformEnumerationsRepository
       'Salary Transfer Letter',
     );
     this.add('transfer_type', 'income_transfer_letter', 'خطاب تحويل دخل', 'Income Transfer Letter');
-    this.add('transfer_type', 'none', 'بدون تحويل', 'None');
+    this.add('transfer_type', 'none', 'بدون تحويل راتب', 'No salary transfer');
 
     // employment types
     this.add('employment_type', 'salaried', 'موظف', 'Salaried');
     this.add('employment_type', 'self_employed', 'صاحب عمل حر', 'Self-Employed');
 
-    // loan purposes
+    // loan purposes — Constitution v1.6.0 / Principle II scope-lock: only 3.
     this.add('loan_purpose', 'personal', 'قرض شخصي', 'Personal');
     this.add('loan_purpose', 'car', 'قرض سيارة', 'Car');
     this.add('loan_purpose', 'mortgage', 'قرض عقاري', 'Mortgage');
-    this.add('loan_purpose', 'education', 'تمويل تعليمي', 'Education');
-    this.add('loan_purpose', 'pension', 'قرض معاش', 'Pension');
-    this.add('loan_purpose', 'secured', 'قرض بضمانات', 'Secured');
-    this.add('loan_purpose', 'buyout', 'سداد قروض', 'Buyout');
 
     // property types (mortgage / compound)
     this.add('property_type', 'apartment', 'شقة', 'Apartment');
@@ -127,21 +123,10 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('military_grade', 'senior_officer', 'ضابط أقدم', 'Senior Officer');
     this.add('military_grade', 'general', 'لواء', 'General');
 
-    // product categories
+    // product categories — Constitution v1.6.0 / Principle II scope-lock: only 3.
     this.add('product_category', 'personal', 'قرض شخصي', 'Personal');
     this.add('product_category', 'mortgage', 'قرض عقاري', 'Mortgage');
     this.add('product_category', 'car', 'قرض سيارة', 'Car');
-    this.add('product_category', 'education', 'تمويل تعليمي', 'Education');
-    this.add('product_category', 'pension', 'قرض معاش', 'Pension');
-    this.add('product_category', 'secured', 'قرض بضمانات', 'Secured');
-    this.add('product_category', 'buyout', 'سداد قروض', 'Buyout');
-    this.add(
-      'product_category',
-      'credit_card_cross_sell',
-      'بطاقة ائتمان — بيع متقاطع',
-      'Credit Card Cross-Sell',
-    );
-    this.add('product_category', 'auto_cross_sell', 'سيارة — بيع متقاطع', 'Auto Cross-Sell');
     this.add('product_category', 'wealth', 'برنامج الثروات', 'Wealth');
     this.add('product_category', 'clubs', 'عضوية النوادي', 'Clubs');
 

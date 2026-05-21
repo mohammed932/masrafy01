@@ -423,3 +423,16 @@ export class ApplicationNotMatchedException extends DomainException {
     super(ERROR_CODES.APPLICATION_NOT_MATCHED, meta);
   }
 }
+
+// --- Transfer-type safety (feature 008 follow-up) ---------------------------
+
+/**
+ * Programs accepting 'none' as a transfer type carry higher default-risk.
+ * Block creation/update unless the operator either explicitly priced the
+ * 'none' band (pricing.rateByTransferType.none) OR required collateral.
+ */
+export class NoneTransferUnsafeException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.NONE_TRANSFER_UNSAFE);
+  }
+}

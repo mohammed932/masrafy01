@@ -12,6 +12,7 @@ import {
   EnumerationRegistryUnavailableException,
   InvalidQualitativeReviewCeilingException,
   InvalidVariableRateConfigurationException,
+  NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
   QualitativeReviewCeilingBelowBaseException,
   UnknownEnumerationKeyException,
@@ -194,6 +195,19 @@ export class BankProgramsService {
       throw new DerivationArithmeticMismatchException(mismatch);
     }
 
+    // Feature 008 — 'none' transfer-type safety: an applicant with no salary
+    // transfer is higher-risk. Allow only when explicitly priced (rate band
+    // for 'none' present) OR backed by collateral.
+    if (dto.eligibility.acceptedTransferTypes?.includes('none')) {
+      const hasNoneRate =
+        dto.pricing.rateByTransferType != null &&
+        Object.prototype.hasOwnProperty.call(dto.pricing.rateByTransferType, 'none');
+      const requiresCollateral = dto.eligibility.requiresCollateral === true;
+      if (!hasNoneRate && !requiresCollateral) {
+        throw new NoneTransferUnsafeException();
+      }
+    }
+
     // FR-010 / FR-010c — enumeration key validation.
     const ctx: ValidationContext = {
       isActiveMember: (type, key) => this.enums.isActiveMember(type, key),
@@ -232,6 +246,7 @@ export class BankProgramsService {
       productCategory: program.productCategory,
       currencies: program.currencies,
       active: program.active,
+      isShariaCompliant: program.isShariaCompliant,
       version: program.version,
       operatorNotes: program.operatorNotes ?? null,
       operatorTips: program.operatorTips,
@@ -283,6 +298,7 @@ export class BankProgramsService {
           bankName: r.bankName,
           productCategory: r.productCategory,
           active: r.active,
+          isShariaCompliant: r.isShariaCompliant,
           currencies: r.currencies,
           baseRatePercent: pricing?.baseRatePercent ?? null,
           currentEffectiveRatePercent: pricing?.currentEffectiveRatePercent ?? null,

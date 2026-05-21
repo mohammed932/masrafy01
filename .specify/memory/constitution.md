@@ -1,9 +1,39 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0 → 1.4.0
+Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0 → 1.4.0 → 1.5.0 → 1.6.0
 Ratification: 2026-05-12 (initial ratification)
-Last Amended: 2026-05-19 (v1.4.0)
+Last Amended: 2026-05-21 (v1.6.0)
+
+v1.6.0 amendment (2026-05-21):
+  Tightening of v1.5.0 scope-lock from "soft-deactivation preferred" to
+  "physical removal is the standard". Triggered by operator confusion
+  after the v1.5.0 wipe left deactivated rows visible in audit dashboards
+  and in the `platform_enumeration` registry. Principle II scope-lock
+  paragraph now requires destructive migrations to fully remove a
+  retired category — registry entry, bank programs, applications, offers,
+  decisions, activities, documents — in dependency order. Anti-pattern
+  A26 rewritten to enforce hard-wipe; ghost rows from a half-finished
+  scope reduction = review block. Soft-deactivation remains acceptable
+  only as a transitional step inside the same PR; subsequent migrations
+  in the PR must complete the wipe. MINOR bump — rule sharpening within
+  existing principle, no redefinition.
+
+v1.5.0 amendment (2026-05-21):
+  Product scope locked to exactly THREE loan categories: Personal,
+  Auto (car), and Mortgage. The `loanPurpose` platform-enumeration
+  registry MUST contain only these three active members. Any other
+  category (education, pension, secured, buyout-as-purpose, etc.)
+  is OUT OF SCOPE for v1.x and MUST be soft-deactivated
+  (`deprecatedAt`) rather than re-introduced. Principle II is
+  extended with a normative scope-lock clause; Project Context is
+  hardened from descriptive to binding. Anti-pattern A26 added:
+  any code path, schema migration, seed row, or UI control that
+  introduces a fourth retail loan category without a constitution
+  amendment = review block. Triggered by stakeholder direction
+  ("we only offer loan, mortgage, auto loan") combined with form
+  surfaces accidentally exposing seven purposes to operators.
+  MINOR bump — scope-lock clause, no principle redefinition.
 
 v1.4.0 amendment (2026-05-19):
   New Principle XXIX — "Dependency-Aware Changes — No Half Updates"
@@ -140,10 +170,16 @@ service is free for users; commissions are paid by banks per successful
 loan (1–2% personal, 0.5–1% mortgage, flat fees for cards). The platform
 NEVER charges users.
 
-**Three product lines:** Personal loans (no down payment, mass market),
-Car loans (20–30% down payment, premium tier above 4M EGP gets discounted
-rates), Mortgages (20%+ down payment, multiple property types and
-construction stages, highest revenue per deal).
+**Three product lines (NON-NEGOTIABLE — see Principle II scope-lock,
+v1.5.0):** Personal loans (no down payment, mass market), Car loans
+(20–30% down payment, premium tier above 4M EGP gets discounted rates),
+Mortgages (20%+ down payment, multiple property types and construction
+stages, highest revenue per deal). The platform supports EXACTLY these
+three retail loan categories. The `loanPurpose` platform-enumeration
+registry MUST contain only these three active members
+(`personal`, `car`, `mortgage`). Any other category is out of scope for
+v1.x and MUST be soft-deactivated rather than introduced. Adding a
+fourth category requires a constitution amendment.
 
 **Five-step wizard:**
 1. About You — employment type, age, monthly income, time in job, salary transfer status
@@ -220,6 +256,22 @@ a generic engine reading program configuration — NEVER hardcoded switch
 statements per bank. Activating/deactivating a program is a single
 boolean toggle. Hardcoded bank-specific logic anywhere in the codebase =
 review block.
+
+**Scope-lock (v1.5.0, sharpened v1.6.0):** Bank-program data is
+unconstrained per bank, but the *set of loan categories* the platform
+supports is fixed at exactly three: `personal`, `car`, `mortgage`. The
+`loanPurpose` platform-enumeration registry MUST contain only these
+three rows (no soft-deactivated ghosts). Migrations, seed data, DTO
+enums, UI multi-selects, and the matching engine MUST treat any other
+purpose as nonexistent. **Physical removal is the standard** — when a
+category leaves scope, ship a destructive migration that wipes the
+registry entry, all bank programs in that category, and all
+applications referencing it (with full FK cascade through offers,
+decisions, activities, documents). Soft-deactivation (`deprecatedAt`)
+is acceptable ONLY as a transitional step inside the same PR;
+subsequent migrations within the PR must complete the wipe. Adding a
+fourth retail category requires a constitution amendment — not a
+migration shipped solo. See Anti-pattern A26.
 
 ## III. Typed Errors End-to-End (All Platforms)
 Exceptions caught at the network/persistence boundary translate to typed
@@ -741,6 +793,9 @@ Changing approval probability scoring without recording weight changes in the PR
 ## A25. Half-Updated Dependents (Principle XXIX)
 Changing a field / enum / derivation / threshold / label-doubling-as-filter / numeric formatter / token / error code without updating every downstream reader in the same PR = review block. UI contradictions where the same business fact reads differently across list / detail / Kanban / drawer / analytics / timeline = automatic block. PR description MUST list "Dependents touched"; reviewers MUST scan for missing ones.
 
+## A26. Fourth Retail Loan Category Without Amendment / Ghost Rows After Removal (Principle II scope-lock, v1.5.0 → v1.6.0)
+Adding a fourth retail loan category (anything beyond `personal`, `car`, `mortgage`) via migration, seed row, DTO enum, UI multi-select, matching-engine branch, or analytics dimension — without first amending the constitution to widen the scope-lock — = review block. Removing a category requires a destructive migration that physically deletes the registry entry, all bank programs in that category, and all applications referencing it (cascade through bank offers, decisions, activities, documents). Append-only triggers must be temporarily disabled (`ALTER TABLE … DISABLE TRIGGER`) and re-enabled inside the same migration; a `DATA_ERASURE_COMPLETED` audit-event row records the wipe. Leaving deactivated rows behind = review block — operators see ghost categories in audit dashboards and registry pickers. Buyout pricing as a feature of an existing program (e.g. `pricing.buyoutRateDeltaPercent` on a `personal` program) is NOT a fourth category and is allowed.
+
 ---
 
 # Governance
@@ -752,4 +807,4 @@ Changing a field / enum / derivation / threshold / label-doubling-as-filter / nu
 
 ---
 
-**Version**: 1.3.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-12
+**Version**: 1.6.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-21

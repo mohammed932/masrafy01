@@ -300,8 +300,13 @@ export class EligibilitySectionComponent {
   readonly loanPurposeOptions = computed<BrandSelectOption[]>(() =>
     this.loanPurposes().map((m) => ({ value: m.key, label: m.labelEn })),
   );
+  // Filter out generic 'payroll' from program-config — it's an applicant-side
+  // choice; operator MUST declare specific cat(s). Backend resolves applicant's
+  // 'payroll' → cat via employer whitelist before matching against this list.
   readonly transferTypeOptions = computed<BrandSelectOption[]>(() =>
-    this.transferTypes().map((m) => ({ value: m.key, label: m.labelEn })),
+    this.transferTypes()
+      .filter((m) => m.key !== 'payroll')
+      .map((m) => ({ value: m.key, label: m.labelEn })),
   );
 
   get currentAcceptedEmployment(): string[] {

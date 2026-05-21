@@ -51,7 +51,6 @@ import type {
   IncomeAssumptionStrategy,
   ProgramType,
 } from '../bank-programs.types';
-import { PerformanceCriteriaSectionComponent } from './sections/performance-criteria-section.component';
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
@@ -62,9 +61,7 @@ type ToggleKey =
   | 'variableRate'
   | 'buyout'
   | 'downPayment'
-  | 'specialEligibility'
-  | 'performance'
-  | 'multiCurrency';
+  | 'shariaCompliant';
 
 @Component({
   selector: 'app-bank-program-form-page',
@@ -83,7 +80,6 @@ type ToggleKey =
     NzSelectModule,
     NzSpinModule,
     NzSwitchModule,
-    PerformanceCriteriaSectionComponent,
     IncomeAssumptionSectionComponent,
   ],
   providers: [
@@ -508,14 +504,14 @@ type ToggleKey =
               </div>
             </header>
             <div class="toggle-grid">
-              <label nz-checkbox [ngModel]="toggles.tieredRates()" (ngModelChange)="setToggle('tieredRates', $event)" [ngModelOptions]="{ standalone: true }">Tiered interest rates</label>
-              <label nz-checkbox [ngModel]="toggles.incomeSurrogate()" (ngModelChange)="setToggle('incomeSurrogate', $event)" [ngModelOptions]="{ standalone: true }">Income-surrogate program</label>
-              <label nz-checkbox [ngModel]="toggles.variableRate()" (ngModelChange)="setToggle('variableRate', $event)" [ngModelOptions]="{ standalone: true }">Variable-rate program</label>
-              <label nz-checkbox [ngModel]="toggles.buyout()" (ngModelChange)="setToggle('buyout', $event)" [ngModelOptions]="{ standalone: true }">Buyout program</label>
-              <label nz-checkbox [ngModel]="toggles.downPayment()" (ngModelChange)="setToggle('downPayment', $event)" [ngModelOptions]="{ standalone: true }">Requires down payment</label>
-              <label nz-checkbox [ngModel]="toggles.specialEligibility()" (ngModelChange)="setToggle('specialEligibility', $event)" [ngModelOptions]="{ standalone: true }">Special eligibility requirements</label>
-              <label nz-checkbox [ngModel]="toggles.performance()" (ngModelChange)="setToggle('performance', $event)" [ngModelOptions]="{ standalone: true }">Performance criteria</label>
-              <label nz-checkbox [ngModel]="toggles.multiCurrency()" (ngModelChange)="setToggle('multiCurrency', $event)" [ngModelOptions]="{ standalone: true }">Multi-currency</label>
+              <label nz-checkbox [ngModel]="toggles.variableRate()" (ngModelChange)="setToggle('variableRate', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.variable_rate">Variable-rate program</label>
+              <label nz-checkbox [ngModel]="toggles.incomeSurrogate()" (ngModelChange)="setToggle('incomeSurrogate', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.income_surrogate">Income-surrogate program</label>
+              <label nz-checkbox [ngModel]="toggles.tieredRates()" (ngModelChange)="setToggle('tieredRates', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.tiered_rates">Tiered interest rates (by loan amount)</label>
+              <label nz-checkbox [ngModel]="toggles.buyout()" (ngModelChange)="setToggle('buyout', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.buyout">Buyout / refinance program</label>
+              @if (downPaymentApplicable()) {
+                <label nz-checkbox [ngModel]="toggles.downPayment()" (ngModelChange)="setToggle('downPayment', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.down_payment">Requires down payment</label>
+              }
+              <label nz-checkbox [ngModel]="toggles.shariaCompliant()" (ngModelChange)="setToggle('shariaCompliant', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.sharia">Sharia-compliant (Islamic)</label>
             </div>
           </section>
 
@@ -524,8 +520,8 @@ type ToggleKey =
             <section class="card" formGroupName="pricing">
               <header class="card-head">
                 <div>
-                  <h2 class="card-title">Variable rate</h2>
-                  <p class="card-sub">CBE-linked or quarterly-reset programs.</p>
+                  <h2 class="card-title" i18n="@@bank_programs.section.variable_rate">Variable rate</h2>
+                  <p class="card-sub" i18n="@@bank_programs.section.variable_rate_sub">CBE-linked or quarterly-reset programs.</p>
                 </div>
               </header>
               <div class="grid">
@@ -555,46 +551,49 @@ type ToggleKey =
             <app-income-assumption-section [group]="incomeAssumptionGroup"></app-income-assumption-section>
           }
 
-          <!-- ═══ PERFORMANCE CRITERIA ═════════════════════════════════════ -->
-          @if (toggles.performance()) {
-            <app-performance-criteria-section [group]="performanceGroup"></app-performance-criteria-section>
-          }
-
-          <!-- ═══ SPECIAL ELIGIBILITY ══════════════════════════════════════ -->
-          @if (toggles.specialEligibility()) {
-            <section class="card" formGroupName="eligibility">
+          <!-- ═══ TIERED RATES (by loan amount band) ═══════════════════════ -->
+          @if (toggles.tieredRates()) {
+            <section class="card" formGroupName="pricing">
               <header class="card-head">
                 <div>
-                  <h2 class="card-title">Special eligibility</h2>
-                  <p class="card-sub">Per-program gates (CD-backed, club membership, wealth tier, etc.).</p>
+                  <h2 class="card-title" i18n="@@bank_programs.section.tiered_rates">Tiered interest rates</h2>
+                  <p class="card-sub" i18n="@@bank_programs.section.tiered_rates_sub">
+                    Rate by loan-amount band. Egyptian banks commonly discount above 1M EGP.
+                    Hint: seed via the catalog seed endpoint until the inline band editor ships.
+                  </p>
                 </div>
               </header>
-              <div class="flag-grid">
-                <label nz-checkbox formControlName="requiresCD">Requires CD</label>
-                <label nz-checkbox formControlName="requiresAutoLoanAtABK">Requires auto loan at ABK</label>
-                <label nz-checkbox formControlName="requiresAutoLoanAtOtherBank">Requires auto loan at other bank</label>
-                <label nz-checkbox formControlName="requiresCreditCardAtOtherBank">Requires credit card at other bank</label>
-                <label nz-checkbox formControlName="requiresCompoundProperty">Requires compound property</label>
-                <label nz-checkbox formControlName="requiresCollateral">Requires collateral</label>
-                <label nz-checkbox formControlName="requiresClubMembership">Requires club membership</label>
-                <label nz-checkbox formControlName="requiresFRMUVerification">Requires FRMU verification</label>
-                <label nz-checkbox formControlName="requiresQualitativeReview">Requires qualitative review</label>
-                <label nz-checkbox formControlName="requiresNoDocuments">No documents required</label>
+              <div class="grid">
+                <p class="muted-hint span-2" i18n="@@bank_programs.section.tiered_rates_hint">
+                  Existing program data preserved. The inline band editor is part of the next increment.
+                </p>
               </div>
+            </section>
+          }
+
+          <!-- ═══ BUYOUT / REFINANCE ═══════════════════════════════════════ -->
+          @if (toggles.buyout()) {
+            <section class="card" formGroupName="pricing">
+              <header class="card-head">
+                <div>
+                  <h2 class="card-title" i18n="@@bank_programs.section.buyout">Buyout / refinance</h2>
+                  <p class="card-sub" i18n="@@bank_programs.section.buyout_sub">Closing out a loan at another bank. Applies a delta vs the base rate, bounded by a floor.</p>
+                </div>
+              </header>
               <div class="grid">
                 <nz-form-item>
-                  <nz-form-label>Min bank-statement balance</nz-form-label>
+                  <nz-form-label i18n="@@bank_programs.field.buyout_delta">Buyout rate delta</nz-form-label>
                   <nz-form-control>
-                    <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                      <input nz-input formControlName="minBankStatementBalanceEGP" inputmode="decimal" />
+                    <nz-input-group nzAddOnAfter="%" class="rate-group">
+                      <input nz-input formControlName="buyoutRateDeltaPercent" inputmode="decimal" placeholder="-1.5000" />
                     </nz-input-group>
                   </nz-form-control>
                 </nz-form-item>
                 <nz-form-item>
-                  <nz-form-label>Min assets value</nz-form-label>
+                  <nz-form-label i18n="@@bank_programs.field.buyout_floor">Minimum floor rate</nz-form-label>
                   <nz-form-control>
-                    <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                      <input nz-input formControlName="minAssetsValueEGP" inputmode="decimal" />
+                    <nz-input-group nzAddOnAfter="%" class="rate-group">
+                      <input nz-input formControlName="buyoutRateMinFloorPercent" inputmode="decimal" placeholder="22.0000" />
                     </nz-input-group>
                   </nz-form-control>
                 </nz-form-item>
@@ -602,44 +601,57 @@ type ToggleKey =
             </section>
           }
 
-          <!-- ═══ MULTI-CURRENCY ═══════════════════════════════════════════ -->
-          @if (toggles.multiCurrency()) {
-            <section class="card">
+          <!-- ═══ DOWN PAYMENT ═════════════════════════════════════════════ -->
+          @if (toggles.downPayment() && downPaymentApplicable()) {
+            <section class="card" formGroupName="loanLimits">
               <header class="card-head">
                 <div>
-                  <h2 class="card-title">Currencies</h2>
-                  <p class="card-sub">Add USD / EUR for secured-loan programs.</p>
+                  <h2 class="card-title" i18n="@@bank_programs.section.down_payment">Down payment</h2>
+                  <p class="card-sub" i18n="@@bank_programs.section.down_payment_sub">Mandatory for auto + mortgage programs. LTV ceiling caps the financed share of asset value.</p>
                 </div>
               </header>
               <div class="grid">
-                <nz-form-item class="span-2">
-                  <nz-form-label>Accepted currencies</nz-form-label>
+                <nz-form-item>
+                  <nz-form-label i18n="@@bank_programs.field.min_down_payment">Minimum down payment</nz-form-label>
                   <nz-form-control>
-                    <nz-select [ngModel]="currenciesArrValue()" (ngModelChange)="setArr('identity.currencies', $event)" [ngModelOptions]="{ standalone: true }" nzMode="multiple" [nzDropdownStyle]="dropdownStyle">
-                      <nz-option nzValue="EGP" nzLabel="EGP"></nz-option>
-                      <nz-option nzValue="USD" nzLabel="USD"></nz-option>
-                      <nz-option nzValue="EUR" nzLabel="EUR"></nz-option>
+                    <nz-input-group nzAddOnAfter="%" class="rate-group">
+                      <input nz-input formControlName="minDownPaymentPercent" inputmode="decimal" placeholder="20.00" />
+                    </nz-input-group>
+                  </nz-form-control>
+                </nz-form-item>
+                <nz-form-item>
+                  <nz-form-label i18n="@@bank_programs.field.max_ltv">Maximum LTV</nz-form-label>
+                  <nz-form-control>
+                    <nz-input-group nzAddOnAfter="%" class="rate-group">
+                      <input nz-input formControlName="ltvCeilingPercent" inputmode="decimal" placeholder="80.0000" />
+                    </nz-input-group>
+                  </nz-form-control>
+                </nz-form-item>
+              </div>
+            </section>
+          }
+
+          <!-- ═══ SHARIA / ISLAMIC ═════════════════════════════════════════ -->
+          @if (toggles.shariaCompliant()) {
+            <section class="card" formGroupName="pricing">
+              <header class="card-head">
+                <div>
+                  <h2 class="card-title" i18n="@@bank_programs.section.sharia">Sharia-compliant (Islamic)</h2>
+                  <p class="card-sub" i18n="@@bank_programs.section.sharia_sub">Profit-rate pricing under an Islamic contract. Rate fields above are interpreted as profit rates, not interest.</p>
+                </div>
+              </header>
+              <div class="grid">
+                <nz-form-item>
+                  <nz-form-label i18n="@@bank_programs.field.sharia_contract_type">Contract type</nz-form-label>
+                  <nz-form-control>
+                    <nz-select formControlName="shariaContractType" [nzDropdownStyle]="dropdownStyle">
+                      <nz-option nzValue="murabaha" nzLabel="Murabaha" i18n-nzLabel="@@bank_programs.contract.murabaha"></nz-option>
+                      <nz-option nzValue="ijara" nzLabel="Ijara" i18n-nzLabel="@@bank_programs.contract.ijara"></nz-option>
+                      <nz-option nzValue="tawarruq" nzLabel="Tawarruq" i18n-nzLabel="@@bank_programs.contract.tawarruq"></nz-option>
                     </nz-select>
                   </nz-form-control>
                 </nz-form-item>
               </div>
-            </section>
-          }
-
-          <!-- ═══ FUTURE TOGGLES (placeholders for fields not yet in schema) ═ -->
-          @if (toggles.tieredRates() || toggles.buyout() || toggles.downPayment()) {
-            <section class="card placeholder">
-              <header class="card-head">
-                <div>
-                  <h2 class="card-title">Tier-map editor (next increment)</h2>
-                  <p class="card-sub">
-                    @if (toggles.tieredRates()) { Tiered interest rates · }
-                    @if (toggles.buyout()) { Buyout delta + floor · }
-                    @if (toggles.downPayment()) { Down-payment tiers · }
-                    UI editor lands in the next form increment. For now seed these via the catalog seed endpoint.
-                  </p>
-                </div>
-              </header>
             </section>
           }
           }
@@ -1049,9 +1061,7 @@ export class BankProgramFormPage implements OnInit {
     variableRate: signal(false),
     buyout: signal(false),
     downPayment: signal(false),
-    specialEligibility: signal(false),
-    performance: signal(false),
-    multiCurrency: signal(false),
+    shariaCompliant: signal(false),
   } as const;
 
 
@@ -1131,12 +1141,17 @@ export class BankProgramFormPage implements OnInit {
         validators: [Validators.required],
       }),
       qualitativeReviewMaxEGP: new FormControl<string | null>(null),
+      minDownPaymentPercent: new FormControl<string | null>(null),
+      ltvCeilingPercent: new FormControl<string | null>(null),
     }),
     pricing: this.fb.nonNullable.group({
       isVariableRate: new FormControl(false, { nonNullable: true }),
       baseRatePercent: new FormControl<string | null>('24.0000'),
       currentEffectiveRatePercent: new FormControl<string | null>(null),
       variableRateNote: new FormControl<string | null>(null),
+      buyoutRateDeltaPercent: new FormControl<string | null>(null),
+      buyoutRateMinFloorPercent: new FormControl<string | null>(null),
+      shariaContractType: new FormControl<string | null>(null),
     }),
     eligibility: this.fb.nonNullable.group({
       acceptedEmploymentTypes: this.fb.nonNullable.array<string>(['salaried'], {
@@ -1145,9 +1160,10 @@ export class BankProgramFormPage implements OnInit {
       acceptedLoanPurposes: this.fb.nonNullable.array<string>(['personal'], {
         validators: [Validators.required],
       }),
-      acceptedTransferTypes: this.fb.nonNullable.array<string>(['payroll'], {
-        validators: [Validators.required],
-      }),
+      acceptedTransferTypes: this.fb.nonNullable.array<string>(
+        ['payroll_cat_a', 'payroll_cat_b', 'payroll_cat_c'],
+        { validators: [Validators.required] },
+      ),
       ageMin: new FormControl(21, {
         nonNullable: true,
         validators: [Validators.required, Validators.min(18), Validators.max(80)],
@@ -1182,14 +1198,6 @@ export class BankProgramFormPage implements OnInit {
       requiresNoDocuments: new FormControl(false, { nonNullable: true }),
       minBankStatementBalanceEGP: new FormControl<string | null>(null),
       minAssetsValueEGP: new FormControl<string | null>(null),
-    }),
-    performance: this.fb.nonNullable.group({
-      include: new FormControl(false, { nonNullable: true }),
-      requiredMOBMonths: new FormControl(0, { nonNullable: true }),
-      iScoreMOBPerformanceCheck: new FormControl(false, { nonNullable: true }),
-      bkt1NoHitWithinMonths: new FormControl<number | null>(null),
-      bkt2NoHitWithinMonths: new FormControl<number | null>(null),
-      requireCurrentLoanStatus: new FormControl(false, { nonNullable: true }),
     }),
     incomeAssumption: this.fb.nonNullable.group({
       strategy: new FormControl<IncomeAssumptionStrategy>('declared', {
@@ -1240,16 +1248,26 @@ export class BankProgramFormPage implements OnInit {
   get loanLimitsGroup(): FormGroup { return this.form.controls.loanLimits as FormGroup; }
   get pricingGroup(): FormGroup { return this.form.controls.pricing as FormGroup; }
   get eligibilityGroup(): FormGroup { return this.form.controls.eligibility as FormGroup; }
-  get performanceGroup(): FormGroup { return this.form.controls.performance as FormGroup; }
   get incomeAssumptionGroup(): FormGroup { return this.form.controls.incomeAssumption as FormGroup; }
   get feesGroup(): FormGroup { return this.form.controls.fees as FormGroup; }
   get documentsGroup(): FormGroup { return this.form.controls.documents as FormGroup; }
 
   // Live array views for nz-select [ngModel] bindings
   readonly employmentArr = signal<string[]>(['salaried']);
-  readonly transferArr = signal<string[]>(['payroll']);
+  readonly transferArr = signal<string[]>(['payroll_cat_a', 'payroll_cat_b', 'payroll_cat_c']);
   readonly docsArr = signal<string[]>([]);
   readonly currenciesArrValue = signal<string[]>(['EGP']);
+
+  // Reactive view of identity.productCategory so the template + effects react.
+  readonly productCategorySignal = toSignal(
+    this.form.controls.identity.controls.productCategory.valueChanges,
+    { initialValue: this.form.controls.identity.controls.productCategory.value },
+  );
+  /** Down-payment toggle only applies to auto + mortgage. Personal loans never have one. */
+  readonly downPaymentApplicable = computed(() => {
+    const c = this.productCategorySignal();
+    return c === 'car' || c === 'mortgage';
+  });
 
   constructor() {
     // Reset hidden sections when toggle flips off — keeps payload clean per requirement
@@ -1276,44 +1294,42 @@ export class BankProgramFormPage implements OnInit {
       }
     });
     effect(() => {
-      if (!this.toggles.performance()) {
-        this.performanceGroup.patchValue(
-          {
-            include: false,
-            requiredMOBMonths: 0,
-            iScoreMOBPerformanceCheck: false,
-            bkt1NoHitWithinMonths: null,
-            bkt2NoHitWithinMonths: null,
-            requireCurrentLoanStatus: false,
-          },
+      if (!this.toggles.buyout()) {
+        this.pricingGroup.patchValue(
+          { buyoutRateDeltaPercent: null, buyoutRateMinFloorPercent: null },
           { emitEvent: false },
         );
       }
     });
     effect(() => {
-      if (!this.toggles.specialEligibility()) {
-        this.eligibilityGroup.patchValue(
-          {
-            requiresCD: false,
-            requiresAutoLoanAtABK: false,
-            requiresAutoLoanAtOtherBank: false,
-            requiresCreditCardAtOtherBank: false,
-            requiresCompoundProperty: false,
-            requiresCollateral: false,
-            requiresClubMembership: false,
-            requiresFRMUVerification: false,
-            requiresQualitativeReview: false,
-            requiresNoDocuments: false,
-            minBankStatementBalanceEGP: null,
-            minAssetsValueEGP: null,
-          },
+      if (!this.toggles.downPayment()) {
+        this.loanLimitsGroup.patchValue(
+          { minDownPaymentPercent: null, ltvCeilingPercent: null },
+          { emitEvent: false },
+        );
+      }
+    });
+    // Auto-disable down-payment toggle when productCategory switches to
+    // personal — personal loans never carry a down payment.
+    effect(() => {
+      if (!this.downPaymentApplicable() && this.toggles.downPayment()) {
+        this.toggles.downPayment.set(false);
+      }
+    });
+    effect(() => {
+      if (!this.toggles.tieredRates()) {
+        this.pricingGroup.patchValue(
+          { rateByLoanAmountBand: null },
           { emitEvent: false },
         );
       }
     });
     effect(() => {
-      if (!this.toggles.multiCurrency()) {
-        this.setArr('identity.currencies', ['EGP']);
+      if (!this.toggles.shariaCompliant()) {
+        this.pricingGroup.patchValue(
+          { shariaContractType: null },
+          { emitEvent: false },
+        );
       }
     });
   }
@@ -1450,15 +1466,17 @@ export class BankProgramFormPage implements OnInit {
   private autodetectToggles(d: BankProgramResponse): void {
     this.toggles.variableRate.set(d.pricing.isVariableRate);
     this.toggles.incomeSurrogate.set(d.incomeAssumption.strategy !== 'declared');
-    this.toggles.performance.set(Boolean(d.performanceCriteria));
-    this.toggles.multiCurrency.set(d.currencies.some((c) => c !== 'EGP'));
-    const e = d.eligibility;
-    const anyFlag =
-      e.requiresCD || e.requiresAutoLoanAtABK || e.requiresAutoLoanAtOtherBank ||
-      e.requiresCreditCardAtOtherBank || e.requiresCompoundProperty || e.requiresCollateral ||
-      e.requiresClubMembership || e.requiresFRMUVerification || e.requiresQualitativeReview ||
-      e.requiresNoDocuments || e.minBankStatementBalanceEGP != null || e.minAssetsValueEGP != null;
-    this.toggles.specialEligibility.set(anyFlag);
+    this.toggles.shariaCompliant.set(d.isShariaCompliant === true);
+    this.toggles.tieredRates.set(
+      d.pricing.rateByLoanAmountBand != null &&
+        Object.keys(d.pricing.rateByLoanAmountBand).length > 0,
+    );
+    this.toggles.buyout.set(
+      d.pricing.buyoutRateDeltaPercent != null || d.pricing.buyoutRateMinFloorPercent != null,
+    );
+    this.toggles.downPayment.set(
+      d.loanLimits.minDownPaymentPercent != null || d.loanLimits.ltvCeilingPercent != null,
+    );
   }
 
   private buildCreatePayload(): BankProgramCreatePayload {
@@ -1475,7 +1493,6 @@ export class BankProgramFormPage implements OnInit {
     const ll = v.loanLimits;
     const pr = v.pricing;
     const el = v.eligibility;
-    const pc = v.performance;
     const ia = v.incomeAssumption;
     const fe = v.fees;
     const dc = v.documents;
@@ -1489,6 +1506,7 @@ export class BankProgramFormPage implements OnInit {
       programType: id.programType,
       productCategory: id.productCategory,
       currencies: id.currencies,
+      isShariaCompliant: this.toggles.shariaCompliant(),
       operatorNotes: dc.operatorNotes ?? undefined,
       operatorTips: dc.operatorTips,
       requiredDocuments: dc.requiredDocuments,
@@ -1496,12 +1514,19 @@ export class BankProgramFormPage implements OnInit {
       loanLimits: {
         perCurrency: { EGP: { minAmount: ll.minAmountEGP, maxAmount: ll.maxAmountEGP } },
         qualitativeReviewMaxEGP: ll.qualitativeReviewMaxEGP ?? undefined,
+        minDownPaymentPercent: this.toggles.downPayment() ? (ll.minDownPaymentPercent ?? undefined) : undefined,
+        ltvCeilingPercent: this.toggles.downPayment() ? (ll.ltvCeilingPercent ?? undefined) : undefined,
       },
       pricing: {
         isVariableRate: pr.isVariableRate,
         baseRatePercent: pr.isVariableRate ? undefined : (pr.baseRatePercent ?? undefined),
         currentEffectiveRatePercent: pr.isVariableRate ? (pr.currentEffectiveRatePercent ?? undefined) : undefined,
         variableRateNote: pr.variableRateNote ?? undefined,
+        buyoutRateDeltaPercent: this.toggles.buyout() ? (pr.buyoutRateDeltaPercent ?? undefined) : undefined,
+        buyoutRateMinFloorPercent: this.toggles.buyout() ? (pr.buyoutRateMinFloorPercent ?? undefined) : undefined,
+        shariaContractType: this.toggles.shariaCompliant()
+          ? ((pr.shariaContractType as 'murabaha' | 'ijara' | 'tawarruq' | null) ?? undefined)
+          : undefined,
       },
       eligibility: {
         acceptedEmploymentTypes: el.acceptedEmploymentTypes,
@@ -1527,15 +1552,7 @@ export class BankProgramFormPage implements OnInit {
         minBankStatementBalanceEGP: el.minBankStatementBalanceEGP ?? undefined,
         minAssetsValueEGP: el.minAssetsValueEGP ?? undefined,
       },
-      performanceCriteria: pc.include
-        ? {
-            requiredMOBMonths: pc.requiredMOBMonths,
-            iScoreMOBPerformanceCheck: pc.iScoreMOBPerformanceCheck,
-            bkt1NoHitWithinMonths: pc.bkt1NoHitWithinMonths ?? undefined,
-            bkt2NoHitWithinMonths: pc.bkt2NoHitWithinMonths ?? undefined,
-            requireCurrentLoanStatus: pc.requireCurrentLoanStatus,
-          }
-        : undefined,
+      performanceCriteria: undefined,
       incomeAssumption: {
         strategy: ia.strategy,
         carInstallmentMultiplier: ia.strategy === 'byCarInstallment' ? (ia.carInstallmentMultiplier ?? undefined) : undefined,
@@ -1611,9 +1628,6 @@ export class BankProgramFormPage implements OnInit {
     this.setArr('eligibility.acceptedEmploymentTypes', initial.eligibility.acceptedEmploymentTypes);
     this.setArr('eligibility.acceptedTransferTypes', initial.eligibility.acceptedTransferTypes);
 
-    if (initial.performanceCriteria) {
-      this.performanceGroup.patchValue({ include: true, ...initial.performanceCriteria });
-    }
     this.incomeAssumptionGroup.patchValue({
       strategy: initial.incomeAssumption.strategy,
       carInstallmentMultiplier: initial.incomeAssumption.carInstallmentMultiplier ?? null,

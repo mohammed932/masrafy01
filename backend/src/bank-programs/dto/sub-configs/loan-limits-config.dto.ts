@@ -46,6 +46,11 @@ export class LoanLimitsConfigDto {
   @DecimalRange({ min: '0', max: '999.9999', precision: 7, scale: 4, nullable: true })
   ltvCeilingPercent?: string;
 
+  /** Minimum down-payment percent (feature 008). Auto + mortgage programs. */
+  @IsOptional()
+  @DecimalRange({ min: '0', max: '100', precision: 5, scale: 2, nullable: true })
+  minDownPaymentPercent?: string;
+
   /** Operator-uplift ceiling (FR-003a). Service enforces requiresQualitativeReview=true. */
   @IsOptional()
   @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2, nullable: true })

@@ -219,8 +219,6 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
               <nz-option nzValue="personal" nzLabel="Personal"></nz-option>
               <nz-option nzValue="car" nzLabel="Car"></nz-option>
               <nz-option nzValue="mortgage" nzLabel="Mortgage"></nz-option>
-              <nz-option nzValue="wealth" nzLabel="Wealth"></nz-option>
-              <nz-option nzValue="buyout" nzLabel="Buyout"></nz-option>
             </nz-select>
           </nz-form-control>
         </nz-form-item>

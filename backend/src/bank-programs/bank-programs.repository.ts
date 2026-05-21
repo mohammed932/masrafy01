@@ -139,6 +139,7 @@ export class BankProgramRepository {
         productCategory: input.productCategory,
         currencies: input.currencies as Prisma.BankProgramCreateInput['currencies'],
         active: input.active ?? true,
+        isShariaCompliant: (input as { isShariaCompliant?: boolean }).isShariaCompliant ?? false,
         operatorNotes: input.operatorNotes ?? null,
         operatorTips: (input.operatorTips ?? []) as Prisma.BankProgramCreateInput['operatorTips'],
         requiredDocuments: (input.requiredDocuments ??

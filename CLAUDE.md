@@ -6,7 +6,9 @@ Auto-generated from feature plans + constitution. Last updated: 2026-05-13
 
 **Masrafy** (internally "Credit Match") — Egyptian fintech loan comparison marketplace. Connects users with 20+ bank loan programs (ABK Egypt + partners) via 5-step wizard + matching engine. Three product lines: personal loans, car loans, mortgages. Free for users; commission revenue from banks. Three platforms governed by a single constitution: NestJS backend (active), Angular admin dashboard (active), Flutter mobile app (deferred until Figma).
 
-Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v1.0.0
+Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v1.6.0
+
+**Product scope-lock (v1.6.0 / Principle II):** Platform supports exactly three retail loan categories — `personal`, `car`, `mortgage`. Removing a category requires a destructive migration that physically wipes registry entry, bank programs, and all applications + cascade (offers / decisions / activities / documents). Ghost / soft-deactivated rows = review block. Adding a fourth requires a constitution amendment (A26).
 
 ## Active Technologies
 - Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin. (002-bank-programs)
