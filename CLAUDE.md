@@ -135,9 +135,15 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **XXVI — HTTP Discipline**: `HttpClient` only (no `fetch()`); interceptors for auth / error / correlation / toast.
 - **XXVII — Placeholder**: no constitutional testing requirements (v1.2.0).
 
-### Flutter (Phase 2, skeleton binding now)
+### Flutter (Mobile — v1.8.0 ratified)
 
-- **XXVIII — Clean Architecture + Cubit/Freezed**: data/domain/presentation per feature; HMAC secret only in `flutter_secure_storage`; `auto_route` v9+; design tokens in `MasrafyColorTheme` (`#06152D`).
+- **XXVIII — Clean Architecture + Cubit/Freezed (skeleton)**: data/domain/presentation per feature; HMAC secret only in `flutter_secure_storage`; `auto_route` v9+; design tokens in `MasrafyColorTheme` (`#06152D`).
+- **XXX — Three-Layer Feature Architecture**: `mobile/lib/features/<name>/{data,domain,presentation}`. Models stay in data; entities returned by repositories; `Either<Failure, T>` from every repo method.
+- **XXXI — Cubit + Freezed State Management**: one cubit per screen by default; multi-field forms use `updateField(FieldEnum, Object)` with exhaustive switch; cubits are orchestration-only (data logic on the Freezed state); cross-feature cubit sharing forbidden.
+- **XXXII — Per-Flow Page Library Pattern**: `presentation/pages/<flow>/<flow>.imports.dart` owns flow's imports; screen files are `part of` it; flow-local widgets under `<flow>/widgets/`; feature-shared widgets under `pages/widgets/`; one widget per file.
+- **XXXIII — Shared Widget Reuse**: `mobile/lib/core/widgets/<category>/` is the only home for cross-feature widgets; sheet/dialog/picker/app-bar surfaces extend their mandated base; naming `Masrafy[Action][ModalKind][Sheet|Dialog]`.
+- **XXXIV — Shape-Matched Shimmer**: every async screen renders a shimmer skeleton mirroring the layout; centered spinner on first-load of content-bearing screens = review block; shimmer re-fires on every reload, not only first load.
+- **XXXV — Cross-Feature Sub-Feature Reuse**: cubit + state + widgets shared across ≥2 features lives at `mobile/lib/core/features/<concern>/`; promote on second use; each consumer gets a fresh `getIt<>()` cubit.
 
 ## Anti-Patterns (Binding — see constitution Appendix)
 

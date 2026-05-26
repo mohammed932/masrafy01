@@ -726,6 +726,483 @@ same PR:
 
 ---
 
+# Flutter Code Structure & Shared Widgets (v1.8.0, mobile-only)
+
+Principles XXX–XXXV are mobile-only rules for the Flutter client. They
+refine the Principle XXVIII skeleton with the concrete folder shapes,
+state-management contracts, and shared-widget homes the mobile codebase
+must follow. They were lifted from a sibling Flutter project (pilot100)
+whose `lib/core/` was imported into masrafy as the structural reference;
+adapt naming (`Pilot…` → `Masrafy…`) as widgets graduate out of `core/`
+into production use.
+
+## XXX. Three-Layer Feature Architecture (Mobile, NON-NEGOTIABLE)
+
+Every mobile feature MUST mirror `mobile/lib/features/<name>/{data,domain,presentation}`.
+
+- **data/datasources/**: exactly one concrete `<Name>RemoteDatasource`,
+  registered with `get_it`. The datasource accepts a `Dio` (HMAC + customer
+  JWT interceptors are already wired by the shared `DioFactory`).
+- **data/models/**: wire-format DTOs with `fromJson` / `toJson`. Class
+  names end in `Model` (response DTOs) or `Request` (write-only payloads).
+  Models live ONLY in the data layer — `domain/` and `presentation/`
+  never import from `data/models/`.
+- **domain/entities/**: pure business objects (plain Dart, no JSON). Class
+  names end in `Entity`. These are what repositories return and what cubits
+  + UI consume.
+- **domain/enums/**: feature-scoped enums consumed by domain entities,
+  repositories, or cubits in the same feature — one file per enum. Enums
+  shared across features go in `mobile/lib/core/enums/`. Placing a
+  feature-scoped enum inside an entity file or a cubit = review block.
+- **domain/repositories/**: abstract `<Name>Repository` declaring
+  `Future<Either<Failure, T>>` methods where `T` is an **entity**
+  (not a model).
+- **data/repositories/**: concrete `<Name>RepositoryImpl implements
+  <Name>Repository` that calls the remote datasource, catches
+  `DioException` (and unknown errors), maps via `failureFromDio`, and
+  returns `Either<Failure, T>` with entities. Mappers (e.g.
+  `CustomerModel.toEntity()`) live at the bottom of the matching model file.
+- **domain/usecases/**: one `<Name>Usecase` per feature with one `call`
+  method per action. One-usecase-per-action is forbidden — group by feature.
+
+Divergence (skipping the repository, leaking `Model` types up into a cubit,
+splitting usecases per action) defeats the predictability that the customer-
+auth and document-upload features depend on. The model-vs-entity split
+prevents wire-format concerns (JSON field names, transitional DTO shapes)
+from leaking up into UI, and means a backend contract change is a data-
+layer-only edit.
+
+## XXXI. Cubit + Freezed State Management (Mobile, NON-NEGOTIABLE)
+
+Presentation state is managed with `flutter_bloc`'s `Cubit` and `freezed`
+state classes.
+
+**Structural rules (per cubit):**
+
+- Each cubit is `<Name>Cubit extends Cubit<<Name>State>`, registered via
+  `get_it` (`registerFactory` so each `BlocProvider.create` gets a fresh
+  instance).
+- **State serialization tool — cubit (NON-NEGOTIABLE)**: every cubit state
+  class MUST use `@freezed`. Plain Dart classes, `Equatable`, or hand-rolled
+  `copyWith` are forbidden for cubit state.
+- State is a single Freezed class (no event union), with matching
+  `part '<name>_state.dart'` + `part '<name>_cubit.freezed.dart'`. Mutate
+  via `copyWith`.
+- Cubits expose public methods per user intent (e.g., `submit(...)`,
+  `refresh()`) and call `emit(state.copyWith(...))` to update. No
+  `on<Event>(...)` handlers, no event files.
+- **Multi-field form cubits use a single `updateField(FieldEnum, Object)`
+  method with an exhaustive switch** — never one method per field. Define
+  a `<Name>Field` enum in the state file; dispatch in the cubit:
+
+  ```dart
+  enum SignupField { phone, name, password, email, locale }
+
+  void updateField(SignupField field, Object value) {
+    switch (field) {
+      case SignupField.phone:
+        emit(state.copyWith(phone: value as String, errorMessage: null));
+      case SignupField.password:
+        emit(state.copyWith(password: value as String, errorMessage: null));
+      // ...
+    }
+  }
+  ```
+
+  Separate `phoneChanged(String v)` / `passwordChanged(String v)` methods
+  on a form cubit with more than two fields = review block.
+
+- **Cubits are orchestration-only — pure data logic lives on the state
+  class.** Form validation returns `state.validated()`; request-body
+  construction returns `state.toRequest()`; boolean "can I submit?" checks
+  are getters like `state.canSubmit`. Long `if (phone == null || ...)`
+  chains and inline DTO constructors in the cubit = review block.
+- Dependencies (usecases, repositories) are injected via constructor; the
+  cubit is resolved via `getIt<FooCubit>()` in `BlocProvider.create`.
+
+**Cubit scope (NON-NEGOTIABLE):**
+
+- **Default: one cubit per screen.** Each screen owns its own
+  `<Screen>Cubit`, provided at the top of the screen via
+  `BlocProvider(create: (_) => getIt<<Screen>Cubit>()..load())`. Navigating
+  away tears down the cubit.
+- **Shared cubits across screens are the narrow exception** — permitted
+  only when ≥2 screens within the same feature genuinely need to emit to
+  the same state (multi-step wizard, master-detail flip-back, tab
+  projections of one dataset). Shared cubits MUST be provided at the
+  lowest common ancestor (a feature-shell route with `BlocProvider`
+  wrapping children), NEVER as a `getIt` singleton.
+- **Cubits are never shared across features.** Cross-feature coordination
+  goes through a `core/services/` service, a repository call, or a usecase.
+- Shared state MUST be only the genuinely-shared concern. Per-screen
+  local UI state (field focus, screen-level loading, screen-level error)
+  stays on a per-screen cubit or local `StatefulWidget` state.
+
+**Cubit performance hygiene (NON-NEGOTIABLE):**
+
+1. **No-op guards on setters.** Every public `setX(value)` MUST early-
+   return when the value is unchanged before calling `emit`:
+
+   ```dart
+   void setAmount(int amount) {
+     if (state.amount == amount) return;
+     emit(state.copyWith(amount: amount));
+   }
+   ```
+
+2. **`buildWhen` where it earns its keep — not everywhere.** Use it when:
+   state has >5 fields AND the widget reads <50% of them AND the widget
+   subtree is non-trivial (>20 children) OR sits in a list of many siblings.
+   Skip it when: the widget reads most fields, the widget is a leaf
+   (`Text`, `Icon`), the widget is keyed on a value that already tears it
+   down, or the state is narrow with infrequent emits.
+
+3. **Controller mutations live outside `build()`.** Mutating a
+   `TextEditingController.text` inside `BlocBuilder.builder` is a write-
+   during-layout anti-pattern. Move the sync into a `BlocConsumer.listener`
+   (gated by `listenWhen`), `initState`, or `didUpdateWidget`.
+
+4. **Dispose every controller / subscription.** `TextEditingController`,
+   `ScrollController`, `StreamSubscription`, `AnimationController`, and
+   any `Timer` created in `initState` MUST be disposed in `dispose()`.
+
+`Bloc` (with an event union) is permissible **only** when a feature has a
+genuinely complex state machine whose transitions are clarified by
+exhaustive event matching; such cases MUST be justified in the PR
+description. Default is `Cubit`.
+
+## XXXII. Per-Flow Page Library Pattern (Mobile Presentation, NON-NEGOTIABLE)
+
+Within `presentation/pages/`, every user-visible flow lives in its own
+subfolder with its own imports/part library. Cross-flow widgets live in a
+feature-level `widgets/` folder.
+
+**Folder shape (for feature `auth`):**
+
+```
+features/auth/presentation/pages/
+├── login/
+│   ├── login.imports.dart              ← library owning login's imports
+│   ├── login_screen.dart               ← part of 'login.imports.dart'
+│   ├── widgets/
+│   │   ├── login_widgets.imports.dart  ← library for login's flow-local widgets
+│   │   └── <widget>.dart               ← part of login_widgets.imports.dart
+│   └── sub_features/                   ← embedded UI units owned by this flow (never @RoutePage)
+│       └── <sub_feature_name>/
+│           ├── cubit/<sub_feature_name>/
+│           ├── widgets/
+│           ├── <sub_feature_name>.imports.dart
+│           └── <sub_feature_name>_screen.dart   ← NOT @RoutePage
+├── signup/                              (same shape)
+├── widgets/                             ← feature-shared (used by ≥2 flows)
+│   ├── auth_widgets.imports.dart
+│   └── <widget>.dart                    ← part of auth_widgets.imports.dart
+└── sub_features/                        ← feature-shared sub-features
+    └── <sub_feature_name>/              (same four-piece shape)
+```
+
+**Rules:**
+
+- **One flow = one folder.** A feature with a single flow still nests
+  that flow as a subfolder (e.g. `dashboard/pages/dashboard/`) for
+  structural consistency with multi-flow features.
+- **One flow = one library.** The flow folder contains
+  `<flow>.imports.dart` owning all imports for that flow. The screen file
+  starts with `part of '<flow>.imports.dart';` and carries no imports of
+  its own.
+- **Flow-local widgets** live under `<flow>/widgets/` and are `part of
+  '<flow>_widgets.imports.dart';`. A flow with no flow-local widgets omits
+  the `widgets/` subfolder.
+- **Feature-shared widgets** (used by ≥2 flows of the same feature) live
+  under `pages/widgets/` with a single `<feature>_widgets.imports.dart`
+  library that every flow's `<flow>.imports.dart` imports.
+- **Sub-features** (self-contained UI units embedded inside a flow — e.g.
+  an OTP panel, an offer-detail bottom sheet) live under
+  `pages/<flow>/sub_features/<sub_feature_name>/`. Each sub-feature has
+  exactly three concerns in their own subfolders: `cubit/` (one
+  `@injectable` cubit + Freezed state), `widgets/` (one library + one
+  widget per file), and the top-level `<sub_feature_name>.imports.dart`
+  + `<sub_feature_name>_screen.dart`. The screen file is **never**
+  `@RoutePage` — sub-features are rendered inline / as a
+  `showModalBottomSheet` builder / as a panel child.
+- **One widget per file (NON-NEGOTIABLE):** a `widgets/` file MUST NOT
+  contain more than one `Stateless`/`Stateful` widget class. Library-
+  private (`_`-prefixed) helpers each go in their own sibling file under
+  the same `widgets/` folder, all `part of` the same imports library.
+- **Cross-feature widgets** (could reasonably be used by ≥2 features) do
+  NOT live under any feature — they belong in
+  `mobile/lib/core/widgets/<category>/` per Principle XXXIII.
+
+**Widget-promotion ladder (applies in the same PR that introduces the
+second use — a trailing duplicate is a review block):**
+
+- Flow-local → feature-shared: the moment a second flow in the same
+  feature imports the widget, move it to `pages/widgets/` and rewire imports.
+- Feature-shared → `mobile/lib/core/widgets/<category>/`: the moment a
+  second feature would import it, promote per Principle XXXIII.
+
+The imports/part mechanism is preserved (part files have no imports,
+adding a new screen or widget is one file + one `part` line in the right
+library). The flow scoping ensures a flow with 7 screens and 30+ widgets
+is navigable by flow rather than buried in a single feature-wide library.
+
+## XXXIII. Shared Widget Reuse (Mobile, NON-NEGOTIABLE)
+
+Any widget that could be used by more than one feature lives in
+`mobile/lib/core/widgets/`, grouped by widget family into categorized
+subfolders.
+
+**Rules:**
+
+- **Before creating any widget, grep `mobile/lib/core/widgets/`** for an
+  existing implementation. If one exists, reuse it. If it exists but is
+  almost-but-not-quite right, extend it (new props, new variant) rather
+  than forking.
+- **New shared widgets MUST be placed under `mobile/lib/core/widgets/<category>/`**
+  where `<category>` groups by widget family. Current categories (imported
+  from the pilot100 reference and progressively rebranded to `Masrafy…`):
+  `answer_options/`, `app_bars/`, `bottom_sheets/`, `buttons/`, `cards/`,
+  `charts/`, `chips/`, `common/`, `date_pickers/`, `dialogs/`, `flip_card/`,
+  `icons/`, `images/`, `input_controls/`, `shimmers/`, `slivers/`,
+  `steppers/`, `success/`, `toasts/`. Add new categories when a family of
+  ≥2 related widgets emerges; folder names use the widget family, not the
+  feature consuming them.
+- **Duplicated widgets across features = review block.** Two
+  `EmailField` implementations across two features → promote to
+  `mobile/lib/core/widgets/input_controls/email_field.dart` in the same
+  PR that introduces the second use.
+- **Near-twin widget detection (NON-NEGOTIABLE):** before adding a row /
+  tile / option / chip / card-shape widget to any feature, grep
+  `mobile/lib/features/` for the same shape (search by visual role — "offer
+  card", "loan row", "doc-upload tile" — not by exact class name). If a
+  sibling feature already ships a widget that renders the same primitive
+  layout (even with different state / behaviour), the new feature MUST
+  NOT fork. Two visually-identical-but-textually-different tile
+  implementations across features = review block, even when each is
+  internally consistent and shapes diverge by 5–10%.
+- **Feature-local widgets** (single-use, tightly-coupled to one screen's
+  state) stay in `features/<name>/presentation/pages/<flow>/widgets/`
+  per Principle XXXII. Test: "could another feature ever reasonably use
+  this?" — if yes, it goes in `mobile/lib/core/widgets/`.
+- Shared widgets use normal per-file imports (they are standalone
+  libraries — Principle XXXII's imports/part pattern does NOT apply to
+  `lib/core/widgets/`).
+- Shared widgets MUST still obey Principles VIII + XXIV (design tokens,
+  no hardcoded colors/sizes) so they compose cleanly across features.
+
+**Abstract base + concrete variant pattern (REQUIRED for shared widgets
+with fixed layout but variable content):** when a shared widget always
+renders the same layout but each usage fills different content (icon,
+copy, callbacks), use an abstract `StatelessWidget` base that owns
+`build()` and declares abstract getters, plus named concrete subclasses
+for each standardised use-case (e.g. `MasrafyEmptyState` abstract +
+`MasrafyFetchErrorState` / `MasrafyNoItemsState` concrete). Never
+construct the abstract base directly; always use a named concrete variant.
+
+**Mandated surface bases (NON-NEGOTIABLE):** four widget families have
+established abstract bases. Every new instance MUST extend the
+corresponding base — rolling a sheet/dialog/picker/app-bar from a raw
+`showModalBottomSheet` / `showDialog` callback or hand-rolled `Container`
+chrome = review block.
+
+| Family | Base | When to extend vs compose |
+| --- | --- | --- |
+| App bars | abstract `MasrafyAppBar` (today: `PilotAppBar`) | Always extend; override `buildContent`, `showBack`, `trailingActions`. |
+| Bottom sheets | `MasrafyBottomSheetShell` + abstract `MasrafyBottomSheetBase` | Declarative → extend base. Stateful → return `…Shell(...)` from `State.build`. Present via `…BottomSheet.show<T>(...)`. |
+| Dialogs | `MasrafyDialogShell` + abstract `MasrafyDialogBase` | Same two-layer pattern as sheets. Present via `MasrafyDialogBase.show<T>(...)`. |
+| Date pickers | abstract `MasrafyDatePickerBase<W>` | Picker `State` extends the base. Hooks: `initialDisplayedMonth`, `buildPickerBody(context)`, `onSavePressed(context)`. |
+
+**Rules for sheets / dialogs:**
+
+- `dialogs/` is the only home for app-wide dialogs. Feature-local
+  `*Dialog` widgets = review block — promote in the same PR.
+- Stateful sheets and dialogs MUST compose with the `*Shell` widget,
+  not re-implement the shell's layout.
+- Presentation helpers (`MasrafyBottomSheet.show<T>(...)`,
+  `MasrafyDialogBase.show<T>(...)`) are the canonical entry points;
+  raw `showModalBottomSheet` / `showDialog` calls in feature code =
+  review block when a `*.show()` helper exists.
+- Sheets that collect user input return the value via
+  `Navigator.pop(context, userValue)` and let the caller persist.
+  Embedding `_isSaving` flags, `try / catch + ScaffoldMessenger…`
+  error reporting, or persistence calls inside the sheet's `State` =
+  review block — that's cubit territory.
+
+**Sheet & dialog naming convention (NON-NEGOTIABLE):** every concrete
+sheet under `bottom_sheets/` and every concrete dialog under `dialogs/`
+follows `Masrafy[Action][ModalKind][Sheet|Dialog]` — e.g.
+`MasrafyDeleteConfirmationSheet`, `MasrafyRenameInputSheet`,
+`MasrafyLogoutConfirmationDialog`. Generic single-word names
+(`MasrafyRenameSheet`, `MasrafyEditSheet`) = review block.
+
+Duplicated widgets are the #1 source of inconsistent UI — button A has
+4px radius, button B has 6px radius, both "copied from somewhere".
+Forcing a home for every reusable widget prevents drift, makes design-
+token changes trivial (edit once), and lets reviewers block duplication
+early.
+
+## XXXIV. Shape-Matched Shimmer Loading States (Mobile, NON-NEGOTIABLE)
+
+Every screen and widget that fetches async content MUST render its
+loading state as a **shimmer skeleton whose primitives mirror the design
+layout it replaces** — not a generic centered spinner, not a blank screen.
+
+**Shape-match rule:**
+
+The shimmer is a low-fidelity wireframe of the real layout. Each
+placeholder primitive matches the geometry of the widget it stands in for:
+
+- A **circular** widget (avatar, ring chart, badge) → circular shimmer
+  (`BoxShape.circle`) at the same diameter.
+- A **rectangular** widget (card, image, container, button) → rectangular
+  shimmer with the same width, height, and border radius.
+- A **text line** (title, subtitle, caption, body paragraph) → a thin
+  rounded bar at the same position; titles ~60–80% of available width,
+  subtitles ~40–50%, body paragraphs span multiple bars.
+- A **list of repeated rows** (offer cards, application list entries,
+  support requests) → render the row skeleton 3–5 times so the user
+  perceives the list shape.
+
+**Implementation rules:**
+
+- Use one canonical shimmer effect (the `shimmer` package). Wrapper lives
+  at `mobile/lib/core/widgets/shimmers/<masrafy>_shimmer.dart`. Do NOT
+  introduce a second shimmer package.
+- **Wrapper + plain-primitive pattern (NON-NEGOTIABLE):** the wrapper is
+  a non-abstract `StatelessWidget` that takes a `child` and owns the
+  single `Shimmer.fromColors` — animation, gradient, and base/highlight
+  colors come from the theme. Primitives (`*ShimmerBox`, `*ShimmerCircle`,
+  `*ShimmerLine`) are plain `StatelessWidget`s that render opaque colored
+  containers; they do NOT wrap themselves in `Shimmer.fromColors`.
+- **One shimmer wrapper per skeleton (NON-NEGOTIABLE):** nesting the
+  wrapper inside itself (directly or indirectly) is a review block — it
+  produces nested `Shimmer.fromColors` and breaks the sweep animation.
+- **Feature-specific composite skeletons** that mirror one feature's
+  layout (e.g. `OfferCardSkeleton`, `ApplicationsListItemSkeleton`) live
+  next to the real widget in `presentation/<flow>/widgets/` and are
+  `part of` the flow's widgets library. They wrap their layout in one
+  shimmer wrapper and compose the core primitives inside. Naming ends
+  in `…Skeleton`.
+- **Promotion rule (NON-NEGOTIABLE):** when introducing a new feature-
+  local skeleton, audit existing skeletons across features. If the new
+  skeleton's layout matches an existing one AND will appear in ≥2
+  features, promote the shared layout to `mobile/lib/core/widgets/shimmers/`
+  in the same PR.
+
+**When a generic spinner IS acceptable:**
+
+- Inside a button after the user taps it ("submit in progress") — the
+  button keeps its frame, the label is replaced with a small spinner.
+- One-shot modal confirmation dialogs that are themselves transient
+  overlays.
+- Inline operations on a row that does not change the row's geometry.
+
+**When a generic spinner is FORBIDDEN (review block):**
+
+- Any first-load of a content screen, tab, or bottom sheet with a known
+  layout. A `Center(child: CircularProgressIndicator())` as the screen-
+  level loading state for content-bearing screens = review block.
+- Any list, grid, or chart whose design is known. The loading state
+  mirrors the layout.
+
+**Shimmer triggers on every reload, not only on first load
+(NON-NEGOTIABLE):** a `BlocBuilder` rendering a content section MUST
+swap to its skeleton whenever the underlying state is loading — not only
+when the data slot is also empty:
+
+```dart
+// CORRECT — shimmer on every fetch (initial load + every filter change)
+if (state.requestState.isLoading) return const _OffersListSkeleton();
+if (state.offers.isEmpty) return const SizedBox.shrink();
+
+// WRONG — only shimmers on first load; later refreshes show stale data
+if (state.offers.isEmpty && state.requestState.isLoading) {
+  return const _OffersListSkeleton();
+}
+```
+
+A centered spinner conveys "something is happening" but nothing about
+what. A shape-matched shimmer conveys layout, hierarchy, and pacing —
+the user's eyes settle into the structure during the wait, so when the
+real content appears there is no perceptual jolt.
+
+## XXXV. Cross-Feature Sub-Feature Reuse (Mobile, NON-NEGOTIABLE)
+
+When the same behavioural unit — a cubit + its state + its widgets + the
+presentation glue that ties them together — needs to live inside ≥2
+features, it MUST be extracted to `mobile/lib/core/features/<concern>/`
+and consumed by composition. Duplicating the unit across features =
+review block. Importing a cubit / state / widget across feature folders
+(`features/foo/` reaching into `features/bar/`) = review block (already
+forbidden by Principle XXXI's "Never share a cubit across features").
+
+This extends Principle XXXIII from "shared widgets" to "shared sub-
+features" — a sub-feature is a cubit + its state + its widgets + (optionally)
+its presentation imports library, taken as one cohesive package. Pure
+widgets without a cubit still go to `mobile/lib/core/widgets/<category>/`
+per Principle XXXIII; pure data layers (datasource, repository, usecase,
+entities) are cross-feature-safe per Principle XXX and live in their
+owning feature. This principle covers the gap in between: behavior-
+with-state.
+
+**Folder layout under `mobile/lib/core/features/<concern>/`:**
+
+```
+mobile/lib/core/features/<concern>/
+├── cubit/
+│   ├── <concern>_cubit.dart            # registered factory in get_it
+│   ├── <concern>_state.dart            # part of the cubit; freezed
+│   └── <concern>_cubit.freezed.dart    # generated
+├── widgets/
+│   ├── <concern>_widgets.imports.dart  # one library owning imports + part files
+│   └── <widget>.dart                   # part of imports library
+└── <concern>.imports.dart              # optional top-level imports library
+```
+
+**Rules:**
+
+- **Promote on the second use, not the first.** A sub-feature that
+  today lives inside one feature stays there until a second consumer
+  surfaces. The PR that introduces the second consumer MUST move the
+  sub-feature to `mobile/lib/core/features/<concern>/` and update the
+  original feature's imports in the same PR. The old location is
+  deleted; no parallel implementation exists.
+- **Provider scope: lowest common ancestor of the consumers.** Each
+  consuming screen provides its own fresh
+  `BlocProvider(create: (_) => getIt<XCubit>())` — there is NO singleton
+  instance of a cross-feature cubit. `registerFactory` makes each
+  `getIt<>()` call return a fresh cubit.
+- **Cubit naming.** Inside `mobile/lib/core/features/comments/cubit/`,
+  the cubit class is `CommentsCubit` — no `Masrafy…` prefix (those are
+  reserved for shared widgets per Principle XXXIII) and no `Core…`
+  prefix. The folder path declares the scope; the class name stays plain.
+- **Routing.** A sub-feature that exposes a screen-shaped surface (a
+  full route) MAY register an `auto_route` page from inside
+  `mobile/lib/core/features/<concern>/`. The router config in
+  `mobile/lib/core/router/` is the canonical home for the route
+  registration entry; the page widget lives in `core/features/`.
+
+**Anti-patterns (review blocks):**
+
+- A `features/<x>/` folder importing from another `features/<y>/`
+  folder for a cubit / state / widget. Promote the shared unit to
+  `mobile/lib/core/features/<concern>/` in the same PR.
+- A `mobile/lib/core/features/<concern>/` folder that holds only widgets
+  without a cubit. Move the widgets to
+  `mobile/lib/core/widgets/<category>/` per Principle XXXIII —
+  `core/features/` is for cubit-bearing units.
+- A second copy of a cubit / state / widget that already lives in
+  another feature.
+
+Without this principle, teams either (a) duplicate ~hundreds of LOC
+across features (drift, double maintenance) or (b) reach across feature
+folders to import a cubit (Principle XXXI violation, brittle coupling).
+The `lib/core/features/<concern>/` location closes that gap, mirrors
+the existing `lib/core/widgets/` pattern, and makes the second-use
+trigger explicit so review can enforce promotion at the right moment.
+
+---
+
 # Technical Constraints
 
 ## Backend
