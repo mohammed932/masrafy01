@@ -1,0 +1,66 @@
+# This file configures the analyzer, which statically analyzes Dart code to
+# check for errors, warnings, and lints.
+#
+# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
+# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
+# invoked from the command line by running `flutter analyze`.
+
+# The following line activates a set of recommended lints for Flutter apps,
+# packages, and plugins designed to encourage good coding practices.
+include: package:flutter_lints/flutter.yaml
+
+# `lib/core/` was re-copied from pilot100-app as a structural reference.
+# Folders below depend on packages and DI tokens we have not graduated yet;
+# exclude them from analysis so the masrafy login + router compile cleanly.
+# Drop each entry from the list as you migrate that subtree to masrafy.
+analyzer:
+  exclude:
+    - lib/core/features/**
+    - lib/core/widgets/**
+    - lib/core/services/auth/**
+    - lib/core/services/deep_links/**
+    - lib/core/services/integrity/**
+    - lib/core/services/notifications/**
+    - lib/core/services/unread_count/**
+    - lib/core/services/firebase_auth_service.dart
+    - lib/core/services/user_service.dart
+    - lib/core/injection/**
+    - lib/core/network/interceptors/csrf_refresh_interceptor.dart
+    - lib/core/network/interceptors/decryption_interceptor.dart
+    - lib/core/network/interceptors/auth_error_interceptor.dart
+    - lib/core/network/interceptors/json_normalization_interceptor.dart
+    - lib/core/network/interceptors/http_interceptor.dart
+    - lib/core/network/dio_helper.dart
+    - lib/core/network/endpoint.dart
+    - lib/core/network/api_strings.dart
+    - lib/core/network/network_interface.dart
+    - lib/core/network/erros/**
+    - lib/core/utils/api_handler.dart
+    - lib/core/architecture/base_remote_data_source.dart
+    - lib/core/architecture/base_repository.dart
+    - lib/core/architecture/base_usecase.dart
+    - lib/core/cache/secure_storage.dart
+    - lib/core/models/**
+    - lib/core/entities/**
+    - lib/core/enums/storage_keys.dart
+    - lib/core/enums/test_mode.dart
+    - lib/core/utils/pilot_assets.dart
+    - lib/core/theme/theme_bloc/**
+
+linter:
+  # The lint rules applied to this project can be customized in the
+  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
+  # included above or to enable additional rules. A list of all available lints
+  # and their documentation is published at https://dart.dev/lints.
+  #
+  # Instead of disabling a lint rule for the entire project in the
+  # section below, it can also be suppressed for a single line of code
+  # or a specific dart file by using the `// ignore: name_of_lint` and
+  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
+  # producing the lint.
+  rules:
+    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
+    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options

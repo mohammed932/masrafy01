@@ -1,0 +1,58 @@
+import 'package:dio/dio.dart';
+import 'package:equatable/equatable.dart';
+
+/// Typed error surface (Constitution Principle III). Mobile UI maps `code`
+/// to a localized message — NEVER displays raw English strings.
+sealed class Failure extends Equatable {
+  const Failure({required this.code, this.meta, this.httpStatus});
+
+  final String code;
+  final Map<String, dynamic>? meta;
+  final int? httpStatus;
+
+  @override
+  List<Object?> get props => [code, meta, httpStatus];
+}
+
+class NetworkFailure extends Failure {
+  const NetworkFailure() : super(code: 'NETWORK_UNREACHABLE');
+}
+
+class ServerFailure extends Failure {
+  const ServerFailure({
+    required super.code,
+    super.meta,
+    super.httpStatus,
+  });
+}
+
+class UnknownFailure extends Failure {
+  const UnknownFailure() : super(code: 'INTERNAL_ERROR');
+}
+
+/// Translate a Dio error into a typed `Failure`. Maps the backend envelope
+/// `{ success: false, code: "...", meta?: {...} }` directly.
+Failure failureFromDio(DioException error) {
+  if (error.type == DioExceptionType.connectionError ||
+      error.type == DioExceptionType.connectionTimeout ||
+      error.type == DioExceptionType.sendTimeout ||
+      error.type == DioExceptionType.receiveTimeout) {
+    return const NetworkFailure();
+  }
+  final response = error.response;
+  if (response == null) return const UnknownFailure();
+  final data = response.data;
+  if (data is Map<String, dynamic> && data['code'] is String) {
+    return ServerFailure(
+      code: data['code'] as String,
+      meta: data['meta'] is Map<String, dynamic>
+          ? data['meta'] as Map<String, dynamic>
+          : null,
+      httpStatus: response.statusCode,
+    );
+  }
+  return ServerFailure(
+    code: 'INTERNAL_ERROR',
+    httpStatus: response.statusCode,
+  );
+}

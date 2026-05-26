@@ -1,0 +1,78 @@
+name: app
+description: "Masrafy Egyptian fintech loan marketplace mobile app."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Routing
+  auto_route: ^9.3.0
+
+  # State management
+  bloc: ^8.1.4
+  flutter_bloc: ^8.1.6
+
+  # Functional error handling
+  dartz: ^0.10.1
+
+  # UI spacing
+  gap: ^3.0.1
+
+  # Dependency injection
+  get_it: ^8.0.3
+  injectable: ^2.5.0
+
+  # Storage
+  shared_preferences: ^2.3.2
+  flutter_secure_storage: ^9.2.2
+
+  # Code generation / models
+  freezed_annotation: ^2.4.4
+  equatable: ^2.0.7
+
+  # Networking
+  dio: ^5.7.0
+  internet_connection_checker: ^1.0.0+1
+  connectivity_plus: ^6.0.5
+
+  # Responsive / UI utilities
+  flutter_screenutil: ^5.9.3
+  cached_network_image: ^3.4.1
+  flutter_svg: ^2.0.10+1
+  toastification: ^2.3.0
+  shimmer: ^3.0.0
+
+  # Formatting / localization
+  intl: ^0.19.0
+
+  # Utilities
+  url_launcher: ^6.3.1
+  flutter_dotenv: ^6.0.1
+
+  # Crypto (HMAC-SHA256 request signing — Constitution Principle XIII)
+  crypto: ^3.0.3
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Code generation
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  injectable_generator: ^2.6.2
+  auto_route_generator: ^9.0.0
+
+flutter:
+  uses-material-design: true
+  generate: true
