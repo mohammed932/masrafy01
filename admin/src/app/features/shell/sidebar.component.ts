@@ -8,7 +8,6 @@ import {
   BankOutline,
   ClusterOutline,
   FileTextOutline,
-  BarChartOutline,
   FundOutline,
   ControlOutline,
   ReadOutline,
@@ -32,7 +31,6 @@ import { CanDirective } from '../../shared/can.directive';
       BankOutline,
       ClusterOutline,
       FileTextOutline,
-      BarChartOutline,
       FundOutline,
       ControlOutline,
       ReadOutline,
@@ -67,16 +65,6 @@ import { CanDirective } from '../../shared/can.directive';
         <a routerLink="/applications" routerLinkActive="active" class="item">
           <span nz-icon nzType="file-text" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.applications">Applications</span>
-        </a>
-
-        <a
-          *can="['super_admin', 'sales_manager', 'analyst']"
-          routerLink="/scoring-analytics"
-          routerLinkActive="active"
-          class="item"
-        >
-          <span nz-icon nzType="bar-chart" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
-          <span class="item-label" i18n="@@sidebar.scoring_analytics">Scoring analytics</span>
         </a>
 
         <a

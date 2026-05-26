@@ -436,3 +436,115 @@ export class NoneTransferUnsafeException extends DomainException {
     super(ERROR_CODES.NONE_TRANSFER_UNSAFE);
   }
 }
+
+// --- Customer mobile auth (v1.7.0) -----------------------------------------
+
+export class CustomerPhoneAlreadyRegisteredException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.CUSTOMER_PHONE_ALREADY_REGISTERED);
+  }
+}
+
+export class CustomerEmailAlreadyRegisteredException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.CUSTOMER_EMAIL_ALREADY_REGISTERED);
+  }
+}
+
+export class CustomerInvalidCredentialsException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.CUSTOMER_INVALID_CREDENTIALS);
+  }
+}
+
+export class CustomerAccountInactiveException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.CUSTOMER_ACCOUNT_INACTIVE);
+  }
+}
+
+export class CustomerRefreshInvalidException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.CUSTOMER_REFRESH_INVALID);
+  }
+}
+
+export class CustomerNotFoundException extends DomainException {
+  constructor(meta?: { id?: string; phone?: string }) {
+    super(ERROR_CODES.CUSTOMER_NOT_FOUND, meta);
+  }
+}
+
+export class CustomerPhoneInvalidException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.CUSTOMER_PHONE_INVALID);
+  }
+}
+
+export class CustomerGuestLinkWindowExpiredException extends DomainException {
+  constructor(meta: { mobileClientId: string; windowHours: number }) {
+    super(ERROR_CODES.CUSTOMER_GUEST_LINK_WINDOW_EXPIRED, meta);
+  }
+}
+
+// --- Mobile document upload (v1.7.0) ---------------------------------------
+
+export class DocumentOwnershipMismatchException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.DOCUMENT_OWNERSHIP_MISMATCH);
+  }
+}
+
+export class DocumentNotPendingException extends DomainException {
+  constructor(meta: { documentId: string; status: string }) {
+    super(ERROR_CODES.DOCUMENT_NOT_PENDING, meta);
+  }
+}
+
+export class DocumentNotFoundException extends DomainException {
+  constructor(meta: { documentId: string }) {
+    super(ERROR_CODES.DOCUMENT_NOT_FOUND, meta);
+  }
+}
+
+// --- Support (v1.7.0) ------------------------------------------------------
+
+export class SupportRequestNotFoundException extends DomainException {
+  constructor(meta: { id: string }) {
+    super(ERROR_CODES.SUPPORT_REQUEST_NOT_FOUND, meta);
+  }
+}
+
+export class SupportRequestAlreadyResolvedException extends DomainException {
+  constructor(meta: { id: string }) {
+    super(ERROR_CODES.SUPPORT_REQUEST_ALREADY_RESOLVED, meta);
+  }
+}
+
+export class SupportConfigNotFoundException extends DomainException {
+  constructor() {
+    super(ERROR_CODES.SUPPORT_CONFIG_NOT_FOUND);
+  }
+}
+
+// --- Onboarding (v1.7.0) ---------------------------------------------------
+
+export class OnboardingScreenNotFoundException extends DomainException {
+  constructor(meta: { id: string }) {
+    super(ERROR_CODES.ONBOARDING_SCREEN_NOT_FOUND, meta);
+  }
+}
+
+export class OnboardingOrderDuplicateException extends DomainException {
+  constructor(order: number) {
+    super(ERROR_CODES.ONBOARDING_ORDER_DUPLICATE, { order });
+  }
+}
+
+// --- Telemetry (v1.7.0) ----------------------------------------------------
+
+export class TelemetryEventNotAllowedException extends DomainException {
+  constructor(meta: { eventCode: string; allowed: readonly string[] }) {
+    super(ERROR_CODES.TELEMETRY_EVENT_NOT_ALLOWED, meta);
+  }
+}

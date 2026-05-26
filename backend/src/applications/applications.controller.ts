@@ -16,23 +16,25 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ApplicationsService } from './applications.service';
 import { ApplyRequestDto } from './dto/apply.dto';
 import { SelectOfferDto } from './dto/select-offer.dto';
 import { MobileHmacGuard } from './guards/mobile-hmac.guard';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerTimelineService } from './customer-timeline.service';
+import { OptionalCustomerJwtGuard } from '@/customer-auth/guards/optional-customer-jwt.guard';
 import { HmacClientUnknownException } from '@/common/errors/domain.exceptions';
 
 interface HmacRequest extends Request {
   mobileClientId?: string;
   rawBodyHashHex?: string;
+  customerId?: string;
 }
 
 @ApiTags('Applications')
 @Controller('v1')
-@UseGuards(MobileHmacGuard, MobileRateLimitGuard)
+@UseGuards(MobileHmacGuard, OptionalCustomerJwtGuard, MobileRateLimitGuard)
 export class ApplicationsController {
   constructor(
     private readonly service: ApplicationsService,
@@ -79,6 +81,7 @@ export class ApplicationsController {
       idempotencyKey: idempotencyKey?.trim() || undefined,
       payloadHash,
       sourceIp,
+      customerId: req.customerId ?? null,
     });
   }
 

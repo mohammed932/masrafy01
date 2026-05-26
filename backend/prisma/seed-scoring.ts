@@ -292,7 +292,7 @@ async function main(): Promise<void> {
         requestedAmountEGP: requestedAmount.toFixed(2),
         requestedCurrency: 'EGP',
         preferredTenorMonths: pick([36, 48, 60, 72]),
-        loanPurpose: pick(['personal', 'car', 'mortgage']),
+        loanPurpose: pick(['personal', 'car', 'mortgage', 'business']),
         age: rand(26, 52),
         isGuest: false,
         applicantProfile: { seed: true, alias: pick(APPLICANT_NAMES) },

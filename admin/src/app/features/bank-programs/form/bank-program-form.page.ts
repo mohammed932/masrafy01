@@ -37,10 +37,12 @@ import {
   DownOutline,
   UpOutline,
   ThunderboltOutline,
+  DeleteOutline,
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
+import { MoneyInputDirective } from '../../../core/directives/money-input.directive';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
 import { BankProgramsApiService } from '../bank-programs.api.service';
@@ -50,6 +52,7 @@ import type {
   BankProgramUpdatePayload,
   IncomeAssumptionStrategy,
   ProgramType,
+  RateBandMap,
 } from '../bank-programs.types';
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
 import { BanksApiService } from '../../banks/banks.api.service';
@@ -81,6 +84,7 @@ type ToggleKey =
     NzSpinModule,
     NzSwitchModule,
     IncomeAssumptionSectionComponent,
+    MoneyInputDirective,
   ],
   providers: [
     provideNzIconsPatch([
@@ -92,6 +96,7 @@ type ToggleKey =
       DownOutline,
       UpOutline,
       ThunderboltOutline,
+      DeleteOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -124,6 +129,27 @@ type ToggleKey =
       </ng-container>
 
       <ng-template #readyTpl>
+        <!-- Shared validation-error template, applied via [nzErrorTip] to every
+             nz-form-control with typed validators. Declared inside readyTpl so
+             the reference is in scope for the form controls below. -->
+        <ng-template #fieldErrorTpl let-control>
+          @if (control.hasError('required')) {
+            <span i18n="@@bank_programs.err.required">This field is required.</span>
+          } @else if (control.hasError('min')) {
+            <span i18n="@@bank_programs.err.min">Value is below the minimum.</span>
+          } @else if (control.hasError('max')) {
+            <span i18n="@@bank_programs.err.max">Value is above the maximum.</span>
+          } @else if (control.hasError('minlength')) {
+            <span i18n="@@bank_programs.err.minlength">Too short.</span>
+          } @else if (control.hasError('maxlength')) {
+            <span i18n="@@bank_programs.err.maxlength">Too long.</span>
+          } @else if (control.hasError('pattern')) {
+            <span i18n="@@bank_programs.err.pattern">Format is invalid.</span>
+          } @else if (control.hasError('email')) {
+            <span i18n="@@bank_programs.err.email">Email format is invalid.</span>
+          }
+        </ng-template>
+
         <form [formGroup]="form" (ngSubmit)="submit()" class="form-body">
 
           <!-- ═══ WIZARD STEP BAR ════════════════════════════════════════════ -->
@@ -174,14 +200,21 @@ type ToggleKey =
             <div class="grid">
               <nz-form-item>
                 <nz-form-label [nzFor]="'programCode'" nzRequired i18n="@@bank_programs.field.program_code">Program code</nz-form-label>
-                <nz-form-control>
+                <nz-form-control [nzErrorTip]="programCodeErrorTpl">
                   <input nz-input id="programCode" formControlName="programCode" placeholder="ABK-PAYROLL-CAT-A" />
+                  <ng-template #programCodeErrorTpl let-control>
+                    @if (control.hasError('required')) {
+                      <span i18n="@@bank_programs.err.program_code_required">Program code is required.</span>
+                    } @else if (control.hasError('minlength') || control.hasError('maxlength')) {
+                      <span i18n="@@bank_programs.err.program_code_length">Must be 3–32 characters.</span>
+                    }
+                  </ng-template>
                 </nz-form-control>
               </nz-form-item>
               @if (!preselectedBank) {
                 <nz-form-item>
                   <nz-form-label [nzFor]="'bankId'" nzRequired i18n="@@bank_programs.field.bank">Bank</nz-form-label>
-                  <nz-form-control>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <nz-select
                       id="bankId"
                       [ngModel]="selectedBankId()"
@@ -196,32 +229,48 @@ type ToggleKey =
                         <nz-option [nzValue]="b.id" [nzLabel]="b.nameEnglish + ' — ' + b.code"></nz-option>
                       }
                     </nz-select>
+                    @if (identityGroup.controls['bankName']?.touched && !selectedBankId()) {
+                      <div class="manual-error" i18n="@@bank_programs.err.bank_required">Bank is required.</div>
+                    }
                   </nz-form-control>
                 </nz-form-item>
               }
               <nz-form-item class="span-2">
                 <nz-form-label [nzFor]="'friendlyName'" nzRequired i18n="@@bank_programs.field.friendly_name">Program name</nz-form-label>
-                <nz-form-control>
+                <nz-form-control [nzErrorTip]="friendlyNameErrorTpl">
                   <input nz-input id="friendlyName" formControlName="friendlyName" />
+                  <ng-template #friendlyNameErrorTpl let-control>
+                    @if (control.hasError('required')) {
+                      <span i18n="@@bank_programs.err.friendly_name_required">Program name is required.</span>
+                    } @else if (control.hasError('maxlength')) {
+                      <span i18n="@@bank_programs.err.friendly_name_length">Must be 120 characters or fewer.</span>
+                    }
+                  </ng-template>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
                 <nz-form-label [nzFor]="'productCategory'" nzRequired i18n="@@bank_programs.field.product_type">Product type</nz-form-label>
-                <nz-form-control>
+                <nz-form-control [nzErrorTip]="productCategoryErrorTpl">
                   <nz-select id="productCategory" formControlName="productCategory" [nzDropdownStyle]="dropdownStyle">
                     <nz-option nzValue="personal" nzLabel="Personal" i18n-nzLabel="@@product.personal"></nz-option>
                     <nz-option nzValue="car" nzLabel="Car" i18n-nzLabel="@@product.car"></nz-option>
                     <nz-option nzValue="mortgage" nzLabel="Mortgage" i18n-nzLabel="@@product.mortgage"></nz-option>
                   </nz-select>
+                  <ng-template #productCategoryErrorTpl>
+                    <span i18n="@@bank_programs.err.product_required">Product type is required.</span>
+                  </ng-template>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
-                <nz-form-label [nzFor]="'programType'" i18n="@@bank_programs.field.program_type">Program type</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'programType'" nzRequired i18n="@@bank_programs.field.program_type">Program type</nz-form-label>
+                <nz-form-control [nzErrorTip]="programTypeErrorTpl">
                   <nz-select id="programType" formControlName="programType" [nzDropdownStyle]="dropdownStyle">
                     <nz-option nzValue="income_proof" nzLabel="Income-proof" i18n-nzLabel="@@program_type.proof"></nz-option>
                     <nz-option nzValue="income_surrogate" nzLabel="Income-surrogate" i18n-nzLabel="@@program_type.surrogate"></nz-option>
                   </nz-select>
+                  <ng-template #programTypeErrorTpl>
+                    <span i18n="@@bank_programs.err.program_type_required">Program type is required.</span>
+                  </ng-template>
                 </nz-form-control>
               </nz-form-item>
             </div>
@@ -241,18 +290,18 @@ type ToggleKey =
             </header>
             <div class="grid">
               <nz-form-item>
-                <nz-form-label [nzFor]="'minAmountEGP'" i18n="@@bank_programs.field.min_amount">Minimum amount</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'minAmountEGP'" nzRequired i18n="@@bank_programs.field.min_amount">Minimum amount</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                    <input nz-input id="minAmountEGP" formControlName="minAmountEGP" inputmode="decimal" placeholder="50,000" />
+                    <input nz-input appMoneyInput id="minAmountEGP" formControlName="minAmountEGP" inputmode="numeric" placeholder="50,000" />
                   </nz-input-group>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
-                <nz-form-label [nzFor]="'maxAmountEGP'" i18n="@@bank_programs.field.max_amount">Maximum amount</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'maxAmountEGP'" nzRequired i18n="@@bank_programs.field.max_amount">Maximum amount</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                    <input nz-input id="maxAmountEGP" formControlName="maxAmountEGP" inputmode="decimal" placeholder="1,500,000" />
+                    <input nz-input appMoneyInput id="maxAmountEGP" formControlName="maxAmountEGP" inputmode="numeric" placeholder="1,500,000" />
                   </nz-input-group>
                 </nz-form-control>
               </nz-form-item>
@@ -269,14 +318,14 @@ type ToggleKey =
             </header>
             <div class="grid">
               <nz-form-item>
-                <nz-form-label [nzFor]="'minMonths'" i18n="@@bank_programs.field.min_months">Minimum months</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'minMonths'" nzRequired i18n="@@bank_programs.field.min_months">Minimum months</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-number id="minMonths" class="num-field" formControlName="minMonths" [nzMin]="1" [nzMax]="600" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
-                <nz-form-label [nzFor]="'maxMonths'" i18n="@@bank_programs.field.max_months">Maximum months</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'maxMonths'" nzRequired i18n="@@bank_programs.field.max_months">Maximum months</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-number id="maxMonths" class="num-field" formControlName="maxMonths" [nzMin]="1" [nzMax]="600" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
                 </nz-form-control>
               </nz-form-item>
@@ -293,8 +342,8 @@ type ToggleKey =
             </header>
             <div class="grid">
               <nz-form-item>
-                <nz-form-label [nzFor]="'baseRatePercent'" i18n="@@bank_programs.field.base_rate">Base rate</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'baseRatePercent'" nzRequired i18n="@@bank_programs.field.base_rate">Base rate</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-group nzAddOnAfter="%" class="rate-group">
                     <input nz-input id="baseRatePercent" formControlName="baseRatePercent" inputmode="decimal" placeholder="24.0000" />
                   </nz-input-group>
@@ -313,8 +362,8 @@ type ToggleKey =
             </header>
             <div class="grid">
               <nz-form-item>
-                <nz-form-label [nzFor]="'adminFeePercent2'" i18n="@@bank_programs.field.admin_fee">Admin fee</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'adminFeePercent2'" nzRequired i18n="@@bank_programs.field.admin_fee">Admin fee</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-group nzAddOnAfter="%" class="rate-group">
                     <input nz-input id="adminFeePercent2" formControlName="adminFeePercent" inputmode="decimal" placeholder="1.0000" />
                   </nz-input-group>
@@ -334,34 +383,34 @@ type ToggleKey =
             </header>
             <div class="grid">
               <nz-form-item>
-                <nz-form-label [nzFor]="'ageMin'" i18n="@@bank_programs.field.age_min">Minimum age</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'ageMin'" nzRequired i18n="@@bank_programs.field.age_min">Minimum age</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-number id="ageMin" class="num-field" formControlName="ageMin" [nzMin]="18" [nzMax]="80" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
-                <nz-form-label [nzFor]="'ageMax'" i18n="@@bank_programs.field.age_max">Maximum age</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'ageMax'" nzRequired i18n="@@bank_programs.field.age_max">Maximum age</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-number id="ageMax" class="num-field" formControlName="ageMax" [nzMin]="18" [nzMax]="80" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
-                <nz-form-label [nzFor]="'minMonthlyIncomeEGP'" i18n="@@bank_programs.field.min_income">Minimum monthly income</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'minMonthlyIncomeEGP'" nzRequired i18n="@@bank_programs.field.min_income">Minimum monthly income</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                    <input nz-input id="minMonthlyIncomeEGP" formControlName="minMonthlyIncomeEGP" inputmode="decimal" placeholder="5,000" />
+                    <input nz-input appMoneyInput id="minMonthlyIncomeEGP" formControlName="minMonthlyIncomeEGP" inputmode="numeric" placeholder="5,000" />
                   </nz-input-group>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
-                <nz-form-label [nzFor]="'minMonthsInJob'" i18n="@@bank_programs.field.min_months_job">Minimum months in job</nz-form-label>
-                <nz-form-control>
+                <nz-form-label [nzFor]="'minMonthsInJob'" nzRequired i18n="@@bank_programs.field.min_months_job">Minimum months in job</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-number id="minMonthsInJob" class="num-field" formControlName="minMonthsInJob" [nzMin]="0" [nzMax]="240" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item class="span-2">
-                <nz-form-label i18n="@@bank_programs.field.accepted_employment">Accepted employment types</nz-form-label>
-                <nz-form-control>
+                <nz-form-label nzRequired i18n="@@bank_programs.field.accepted_employment">Accepted employment types</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-select [ngModel]="employmentArr()" (ngModelChange)="setArr('eligibility.acceptedEmploymentTypes', $event)" [ngModelOptions]="{ standalone: true }" nzMode="multiple" nzPlaceHolder="Pick one or more" [nzDropdownStyle]="dropdownStyle">
                     @for (o of employmentOptions(); track o.value) {
                       <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
@@ -370,8 +419,8 @@ type ToggleKey =
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item class="span-2">
-                <nz-form-label i18n="@@bank_programs.field.accepted_transfer">Accepted transfer types</nz-form-label>
-                <nz-form-control>
+                <nz-form-label nzRequired i18n="@@bank_programs.field.accepted_transfer">Accepted transfer types</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-select [ngModel]="transferArr()" (ngModelChange)="setArr('eligibility.acceptedTransferTypes', $event)" [ngModelOptions]="{ standalone: true }" nzMode="multiple" nzPlaceHolder="Pick one or more" [nzDropdownStyle]="dropdownStyle">
                     @for (o of transferOptions(); track o.value) {
                       <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
@@ -393,7 +442,7 @@ type ToggleKey =
             <div class="grid">
               <nz-form-item class="span-2">
                 <nz-form-label i18n="@@bank_programs.field.required_documents">Required documents</nz-form-label>
-                <nz-form-control>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-select [ngModel]="docsArr()" (ngModelChange)="setArr('documents.requiredDocuments', $event)" [ngModelOptions]="{ standalone: true }" nzMode="multiple" nzPlaceHolder="Pick required documents">
                     @for (o of documentOptions(); track o.value) {
                       <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
@@ -403,7 +452,7 @@ type ToggleKey =
               </nz-form-item>
               <nz-form-item class="span-2">
                 <nz-form-label [nzFor]="'operatorNotes'" i18n="@@bank_programs.field.notes">Notes</nz-form-label>
-                <nz-form-control>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <textarea nz-input id="operatorNotes" formControlName="operatorNotes" rows="3" placeholder="Operator-facing notes (optional)"></textarea>
                 </nz-form-control>
               </nz-form-item>
@@ -425,16 +474,16 @@ type ToggleKey =
               <div class="disclosure-body">
                 <div class="grid" formGroupName="fees">
                   <nz-form-item>
-                    <nz-form-label i18n="@@bank_programs.field.stamp_duty">Stamp duty</nz-form-label>
-                    <nz-form-control>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.stamp_duty">Stamp duty</nz-form-label>
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
                       <nz-input-group nzAddOnAfter="%" class="rate-group">
                         <input nz-input formControlName="stampDutyPercent" inputmode="decimal" placeholder="0.5000" />
                       </nz-input-group>
                     </nz-form-control>
                   </nz-form-item>
                   <nz-form-item>
-                    <nz-form-label i18n="@@bank_programs.field.life_insurance">Life insurance</nz-form-label>
-                    <nz-form-control>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.life_insurance">Life insurance</nz-form-label>
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
                       <nz-input-group nzAddOnAfter="%" class="rate-group">
                         <input nz-input formControlName="lifeInsurancePercent" inputmode="decimal" placeholder="0.5000" />
                       </nz-input-group>
@@ -444,24 +493,24 @@ type ToggleKey =
                     <label nz-checkbox formControlName="lifeInsuranceMandatory" i18n="@@bank_programs.field.life_insurance_mandatory">Life insurance mandatory</label>
                   </nz-form-item>
                   <nz-form-item>
-                    <nz-form-label i18n="@@bank_programs.field.late_fee">Late payment fee</nz-form-label>
-                    <nz-form-control>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.late_fee">Late payment fee</nz-form-label>
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
                       <nz-input-group nzAddOnAfter="%" class="rate-group">
                         <input nz-input formControlName="latePaymentFeePercent" inputmode="decimal" placeholder="4.0000" />
                       </nz-input-group>
                     </nz-form-control>
                   </nz-form-item>
                   <nz-form-item>
-                    <nz-form-label i18n="@@bank_programs.field.payoff_cash">Payoff (cash)</nz-form-label>
-                    <nz-form-control>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_cash">Payoff (cash)</nz-form-label>
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
                       <nz-input-group nzAddOnAfter="%" class="rate-group">
                         <input nz-input formControlName="payoffCashPercent" inputmode="decimal" placeholder="12.0000" />
                       </nz-input-group>
                     </nz-form-control>
                   </nz-form-item>
                   <nz-form-item>
-                    <nz-form-label i18n="@@bank_programs.field.payoff_buyout">Payoff (buyout)</nz-form-label>
-                    <nz-form-control>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_buyout">Payoff (buyout)</nz-form-label>
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
                       <nz-input-group nzAddOnAfter="%" class="rate-group">
                         <input nz-input formControlName="payoffBuyoutPercent" inputmode="decimal" placeholder="15.0000" />
                       </nz-input-group>
@@ -470,8 +519,8 @@ type ToggleKey =
                 </div>
                 <div class="grid" formGroupName="eligibility">
                   <nz-form-item>
-                    <nz-form-label i18n="@@bank_programs.field.dbr_cap">DBR cap</nz-form-label>
-                    <nz-form-control>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.dbr_cap">DBR cap</nz-form-label>
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
                       <nz-input-group nzAddOnAfter="%" class="rate-group">
                         <input nz-input formControlName="dbrCapPercent" inputmode="decimal" placeholder="50.0000" />
                       </nz-input-group>
@@ -484,9 +533,9 @@ type ToggleKey =
                 <div class="grid" formGroupName="loanLimits">
                   <nz-form-item class="span-2">
                     <nz-form-label i18n="@@bank_programs.field.qr_max">Qualitative-review uplift ceiling</nz-form-label>
-                    <nz-form-control>
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
                       <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                        <input nz-input formControlName="qualitativeReviewMaxEGP" inputmode="decimal" placeholder="Only with Special Eligibility → requiresQualitativeReview" />
+                        <input nz-input appMoneyInput formControlName="qualitativeReviewMaxEGP" inputmode="numeric" placeholder="Only with Special Eligibility → requiresQualitativeReview" />
                       </nz-input-group>
                     </nz-form-control>
                   </nz-form-item>
@@ -530,7 +579,7 @@ type ToggleKey =
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-label i18n="@@bank_programs.field.current_effective_rate">Current effective rate</nz-form-label>
-                  <nz-form-control>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <nz-input-group nzAddOnAfter="%" class="rate-group">
                       <input nz-input formControlName="currentEffectiveRatePercent" inputmode="decimal" placeholder="26.5500" />
                     </nz-input-group>
@@ -538,7 +587,7 @@ type ToggleKey =
                 </nz-form-item>
                 <nz-form-item class="span-2">
                   <nz-form-label i18n="@@bank_programs.field.variable_rate_note">Disclosure note</nz-form-label>
-                  <nz-form-control>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <textarea nz-input formControlName="variableRateNote" rows="2" placeholder="CBE policy rate + 3%, reviewed quarterly"></textarea>
                   </nz-form-control>
                 </nz-form-item>
@@ -558,15 +607,53 @@ type ToggleKey =
                 <div>
                   <h2 class="card-title" i18n="@@bank_programs.section.tiered_rates">Tiered interest rates</h2>
                   <p class="card-sub" i18n="@@bank_programs.section.tiered_rates_sub">
-                    Rate by loan-amount band. Egyptian banks commonly discount above 1M EGP.
-                    Hint: seed via the catalog seed endpoint until the inline band editor ships.
+                    Rate by loan-amount band. Enter each band's lowest amount and its rate; the engine
+                    applies the highest band at or below the applicant's loan amount. Start the first band at 0.
                   </p>
                 </div>
               </header>
-              <div class="grid">
-                <p class="muted-hint span-2" i18n="@@bank_programs.section.tiered_rates_hint">
-                  Existing program data preserved. The inline band editor is part of the next increment.
-                </p>
+
+              <div class="bands" formArrayName="rateByLoanAmountBands">
+                @if (rateBandsArray.length === 0) {
+                  <p class="bands-empty" i18n="@@bank_programs.bands.empty">
+                    No bands yet. Add the first threshold to start.
+                  </p>
+                } @else {
+                  <div class="bands-head" aria-hidden="true">
+                    <span i18n="@@bank_programs.bands.col_min">Loan amount from (EGP)</span>
+                    <span i18n="@@bank_programs.bands.col_rate">Rate</span>
+                    <span></span>
+                  </div>
+                  @for (band of rateBandsArray.controls; track band; let i = $index) {
+                    <div class="band-row" [formGroupName]="i">
+                      <nz-form-item class="band-cell">
+                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                          <nz-input-group nzAddOnBefore="EGP" class="money-group">
+                            <input nz-input appMoneyInput formControlName="minAmountEGP" inputmode="numeric"
+                              [attr.aria-label]="bandAriaMin" placeholder="0" />
+                          </nz-input-group>
+                        </nz-form-control>
+                      </nz-form-item>
+                      <nz-form-item class="band-cell">
+                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                          <nz-input-group nzAddOnAfter="%" class="rate-group">
+                            <input nz-input formControlName="ratePercent" inputmode="decimal"
+                              [attr.aria-label]="bandAriaRate" placeholder="28.0000" />
+                          </nz-input-group>
+                        </nz-form-control>
+                      </nz-form-item>
+                      <button type="button" class="band-remove" (click)="removeRateBand(i)"
+                        [attr.aria-label]="bandAriaRemove">
+                        <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                  }
+                }
+
+                <button type="button" nz-button nzType="dashed" class="bands-add" (click)="addRateBand()">
+                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@bank_programs.bands.add">Add band</span>
+                </button>
               </div>
             </section>
           }
@@ -583,7 +670,7 @@ type ToggleKey =
               <div class="grid">
                 <nz-form-item>
                   <nz-form-label i18n="@@bank_programs.field.buyout_delta">Buyout rate delta</nz-form-label>
-                  <nz-form-control>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <nz-input-group nzAddOnAfter="%" class="rate-group">
                       <input nz-input formControlName="buyoutRateDeltaPercent" inputmode="decimal" placeholder="-1.5000" />
                     </nz-input-group>
@@ -591,7 +678,7 @@ type ToggleKey =
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-label i18n="@@bank_programs.field.buyout_floor">Minimum floor rate</nz-form-label>
-                  <nz-form-control>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <nz-input-group nzAddOnAfter="%" class="rate-group">
                       <input nz-input formControlName="buyoutRateMinFloorPercent" inputmode="decimal" placeholder="22.0000" />
                     </nz-input-group>
@@ -613,7 +700,7 @@ type ToggleKey =
               <div class="grid">
                 <nz-form-item>
                   <nz-form-label i18n="@@bank_programs.field.min_down_payment">Minimum down payment</nz-form-label>
-                  <nz-form-control>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <nz-input-group nzAddOnAfter="%" class="rate-group">
                       <input nz-input formControlName="minDownPaymentPercent" inputmode="decimal" placeholder="20.00" />
                     </nz-input-group>
@@ -621,7 +708,7 @@ type ToggleKey =
                 </nz-form-item>
                 <nz-form-item>
                   <nz-form-label i18n="@@bank_programs.field.max_ltv">Maximum LTV</nz-form-label>
-                  <nz-form-control>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <nz-input-group nzAddOnAfter="%" class="rate-group">
                       <input nz-input formControlName="ltvCeilingPercent" inputmode="decimal" placeholder="80.0000" />
                     </nz-input-group>
@@ -643,7 +730,7 @@ type ToggleKey =
               <div class="grid">
                 <nz-form-item>
                   <nz-form-label i18n="@@bank_programs.field.sharia_contract_type">Contract type</nz-form-label>
-                  <nz-form-control>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <nz-select formControlName="shariaContractType" [nzDropdownStyle]="dropdownStyle">
                       <nz-option nzValue="murabaha" nzLabel="Murabaha" i18n-nzLabel="@@bank_programs.contract.murabaha"></nz-option>
                       <nz-option nzValue="ijara" nzLabel="Ijara" i18n-nzLabel="@@bank_programs.contract.ijara"></nz-option>
@@ -996,7 +1083,12 @@ type ToggleKey =
         background: var(--bg-surface, var(--color-surface-default));
         border: 1px solid var(--border-default, var(--color-border-default));
         border-radius: var(--radius-lg);
-        position: sticky; bottom: var(--space-3);
+      }
+      .manual-error {
+        margin-block-start: 4px;
+        font-size: 12px;
+        color: var(--error, var(--color-error));
+        line-height: 1.4;
       }
       .unavailable {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1007,6 +1099,55 @@ type ToggleKey =
       }
       .unavailable-icon { font-size: 56px; width: 56px; height: 56px; color: var(--text-tertiary, var(--color-text-tertiary)); }
       .unavailable-text { margin: 0; font-size: var(--text-md); color: var(--text-primary, var(--color-text-primary)); }
+
+      /* Tiered-rate band editor */
+      .bands { display: flex; flex-direction: column; gap: var(--space-3); }
+      .bands-empty {
+        margin: 0; padding: var(--space-4); text-align: center;
+        font-size: var(--text-sm); color: var(--text-secondary, var(--color-text-secondary));
+        border: 1px dashed var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-lg);
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+      }
+      .bands-head {
+        display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+        gap: var(--space-3); padding-inline: var(--space-1);
+        font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .band-row {
+        display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+        gap: var(--space-3); align-items: start;
+      }
+      .band-cell { margin: 0; }
+      .band-remove {
+        inline-size: 44px; block-size: 44px;
+        display: inline-flex; align-items: center; justify-content: center;
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-md, 8px);
+        background: var(--bg-surface, var(--color-surface-default));
+        color: var(--text-tertiary, var(--color-text-tertiary));
+        cursor: pointer;
+        transition:
+          color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+          border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+          background-color 160ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .band-remove:hover {
+        color: var(--danger, #b42318);
+        border-color: color-mix(in oklab, var(--danger, #b42318) 50%, var(--border-default));
+        background: color-mix(in oklab, var(--danger, #b42318) 7%, var(--bg-surface));
+      }
+      .band-remove:focus-visible {
+        outline: none;
+        border-color: var(--danger, #b42318);
+        box-shadow: var(--focus-halo);
+      }
+      .bands-add { align-self: flex-start; }
+      @media (max-width: 720px) {
+        .bands-head { display: none; }
+      }
     `,
   ],
 })
@@ -1037,7 +1178,37 @@ export class BankProgramFormPage implements OnInit {
   ];
 
   next(): void {
-    if (this.currentStep() < this.steps.length) this.currentStep.set(this.currentStep() + 1);
+    if (this.currentStep() >= this.steps.length) return;
+    if (!this.isCurrentStepValid()) {
+      this.flushCurrentStepErrors();
+      return;
+    }
+    this.currentStep.set(this.currentStep() + 1);
+  }
+
+  /** Form groups that must be valid before leaving the current step. */
+  private currentStepGroups(): FormGroup[] {
+    const s = this.currentStep();
+    if (s === 1) return [this.identityGroup];
+    if (s === 2) return [this.loanLimitsGroup, this.tenorGroup, this.pricingGroup, this.feesGroup];
+    if (s === 3) return [this.eligibilityGroup];
+    return [];
+  }
+  private isCurrentStepValid(): boolean {
+    return this.currentStepGroups().every((g) => g.valid);
+  }
+  private flushCurrentStepErrors(): void {
+    for (const g of this.currentStepGroups()) {
+      g.markAllAsTouched();
+      // Walk each child control + force a status emission so nz-form-control
+      // re-renders its tip.
+      for (const ctrl of Object.values(g.controls)) {
+        ctrl.markAsTouched();
+        ctrl.markAsDirty();
+        ctrl.updateValueAndValidity({ onlySelf: true });
+      }
+      g.updateValueAndValidity();
+    }
   }
   back(): void {
     if (this.currentStep() > 1) this.currentStep.set(this.currentStep() - 1);
@@ -1152,6 +1323,7 @@ export class BankProgramFormPage implements OnInit {
       buyoutRateDeltaPercent: new FormControl<string | null>(null),
       buyoutRateMinFloorPercent: new FormControl<string | null>(null),
       shariaContractType: new FormControl<string | null>(null),
+      rateByLoanAmountBands: new FormArray<FormGroup>([]),
     }),
     eligibility: this.fb.nonNullable.group({
       acceptedEmploymentTypes: this.fb.nonNullable.array<string>(['salaried'], {
@@ -1318,10 +1490,7 @@ export class BankProgramFormPage implements OnInit {
     });
     effect(() => {
       if (!this.toggles.tieredRates()) {
-        this.pricingGroup.patchValue(
-          { rateByLoanAmountBand: null },
-          { emitEvent: false },
-        );
+        this.rateBandsArray.clear();
       }
     });
     effect(() => {
@@ -1406,6 +1575,51 @@ export class BankProgramFormPage implements OnInit {
 
   setToggle(key: ToggleKey, value: boolean): void {
     this.toggles[key].set(value);
+    if (key === 'tieredRates' && value && this.rateBandsArray.length === 0) {
+      this.addRateBand();
+    }
+  }
+
+  get rateBandsArray(): FormArray {
+    return this.pricingGroup.get('rateByLoanAmountBands') as FormArray;
+  }
+
+  readonly bandAriaMin = $localize`:@@bank_programs.bands.aria_min:Loan amount lower bound, EGP`;
+  readonly bandAriaRate = $localize`:@@bank_programs.bands.aria_rate:Band rate, percent`;
+  readonly bandAriaRemove = $localize`:@@bank_programs.bands.aria_remove:Remove band`;
+
+  /** One editable band: a lower-bound loan amount (the floor key) → a rate. */
+  private bandRow(minAmountEGP = '', ratePercent = ''): FormGroup {
+    return this.fb.group({
+      minAmountEGP: new FormControl<string>(minAmountEGP, {
+        nonNullable: true,
+        validators: [Validators.required, Validators.pattern(/^\d{1,12}$/)],
+      }),
+      ratePercent: new FormControl<string>(ratePercent, {
+        nonNullable: true,
+        validators: [Validators.required, Validators.pattern(/^\d{1,3}(\.\d{1,4})?$/)],
+      }),
+    });
+  }
+
+  addRateBand(): void {
+    this.rateBandsArray.push(this.bandRow());
+  }
+
+  removeRateBand(index: number): void {
+    this.rateBandsArray.removeAt(index);
+  }
+
+  /** Rows → wire map keyed by the integer floor amount (FR-008p floor-≤ resolver). */
+  private serializeRateBands(): RateBandMap {
+    const out: RateBandMap = {};
+    for (const row of this.rateBandsArray.controls) {
+      const min = String(row.get('minAmountEGP')?.value ?? '').trim();
+      const rate = String(row.get('ratePercent')?.value ?? '').trim();
+      if (min === '' || rate === '') continue;
+      out[String(Number(min))] = { value: rate };
+    }
+    return out;
   }
 
   setArr(path: 'identity.currencies' | 'eligibility.acceptedEmploymentTypes' | 'eligibility.acceptedTransferTypes' | 'documents.requiredDocuments', values: readonly unknown[]): void {
@@ -1527,6 +1741,9 @@ export class BankProgramFormPage implements OnInit {
         shariaContractType: this.toggles.shariaCompliant()
           ? ((pr.shariaContractType as 'murabaha' | 'ijara' | 'tawarruq' | null) ?? undefined)
           : undefined,
+        ...(this.toggles.tieredRates() && this.rateBandsArray.length > 0
+          ? { rateByLoanAmountBand: this.serializeRateBands() }
+          : {}),
       },
       eligibility: {
         acceptedEmploymentTypes: el.acceptedEmploymentTypes,
@@ -1603,6 +1820,14 @@ export class BankProgramFormPage implements OnInit {
       currentEffectiveRatePercent: initial.pricing.currentEffectiveRatePercent ?? null,
       variableRateNote: initial.pricing.variableRateNote ?? null,
     });
+
+    this.rateBandsArray.clear();
+    const bands = initial.pricing.rateByLoanAmountBand;
+    if (bands) {
+      Object.entries(bands)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .forEach(([key, band]) => this.rateBandsArray.push(this.bandRow(key, band.value)));
+    }
 
     this.eligibilityGroup.patchValue({
       ageMin: initial.eligibility.ageMin,

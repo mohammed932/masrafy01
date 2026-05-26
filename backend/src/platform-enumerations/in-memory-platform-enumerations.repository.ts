@@ -99,10 +99,11 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('employment_type', 'salaried', 'موظف', 'Salaried');
     this.add('employment_type', 'self_employed', 'صاحب عمل حر', 'Self-Employed');
 
-    // loan purposes — Constitution v1.6.0 / Principle II scope-lock: only 3.
+    // loan purposes — Constitution v1.7.0 / Principle II scope-lock: only 4.
     this.add('loan_purpose', 'personal', 'قرض شخصي', 'Personal');
     this.add('loan_purpose', 'car', 'قرض سيارة', 'Car');
     this.add('loan_purpose', 'mortgage', 'قرض عقاري', 'Mortgage');
+    this.add('loan_purpose', 'business', 'قرض الأعمال', 'Business');
 
     // property types (mortgage / compound)
     this.add('property_type', 'apartment', 'شقة', 'Apartment');
@@ -123,12 +124,15 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('military_grade', 'senior_officer', 'ضابط أقدم', 'Senior Officer');
     this.add('military_grade', 'general', 'لواء', 'General');
 
-    // product categories — Constitution v1.6.0 / Principle II scope-lock: only 3.
+    // product categories — Constitution v1.7.0 / Principle II strict scope-lock:
+    // ONLY the four constitution-allowed retail loan categories. Adjacent
+    // non-loan products (wealth, clubs) and cross-sell SKUs are intentionally
+    // excluded per operator decision (see migration
+    // 20260526110000_wipe_non_loan_product_categories).
     this.add('product_category', 'personal', 'قرض شخصي', 'Personal');
     this.add('product_category', 'mortgage', 'قرض عقاري', 'Mortgage');
     this.add('product_category', 'car', 'قرض سيارة', 'Car');
-    this.add('product_category', 'wealth', 'برنامج الثروات', 'Wealth');
-    this.add('product_category', 'clubs', 'عضوية النوادي', 'Clubs');
+    this.add('product_category', 'business', 'قرض الأعمال', 'Business');
 
     // customer program tiers (Blue / Plus / Wealth — FR-008q)
     this.add('customer_program_tier', 'blue', 'بلو', 'Blue');

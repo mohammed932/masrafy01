@@ -23,4 +23,18 @@ export class LeadAnalyticsController {
     const data = await this.service.getActivitySummary(user.sub, user.role, windowDays);
     return { success: true, data };
   }
+
+  @Get('funnel')
+  @Roles('super_admin', 'sales_manager', 'analyst')
+  @ApiOperation({
+    summary: 'Mobile Phase-1 conversion funnel within a window',
+    description:
+      'Counts: catalog-views → questionnaire-starts → applies → offers-viewed → docs-uploaded → offer-selected. Sourced from the `audit_event` table.',
+  })
+  async funnel(
+    @Query('windowDays', new DefaultValuePipe(30), ParseIntPipe) windowDays: number,
+  ) {
+    const data = await this.service.getFunnel(windowDays);
+    return { success: true, data };
+  }
 }

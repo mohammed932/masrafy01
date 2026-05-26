@@ -47,6 +47,9 @@ export interface ApplyContext {
   idempotencyKey?: string;
   payloadHash?: string | null;
   sourceIp?: string | null;
+  /** Constitution v1.7.0 — populated by `OptionalCustomerJwtGuard` when a
+   *  logged-in customer submits the wizard. Guest flows leave this undefined. */
+  customerId?: string | null;
 }
 
 @Injectable()
@@ -304,7 +307,10 @@ export class ApplicationsService {
         preferredTenorMonths: dto.preferredTenorMonths,
         loanPurpose: dto.loanPurpose,
         age: dto.age,
-        isGuest: dto.isGuest ?? false,
+        // Authenticated customer overrides DTO `isGuest`. A logged-in mobile
+        // user cannot accidentally submit as a guest.
+        isGuest: ctx.customerId ? false : (dto.isGuest ?? false),
+        applicantUserId: ctx.customerId ?? null,
         applicantProfile: this.profileToJson(profile),
         summary: summaryJson,
         noMatchSummary: noMatchJson,

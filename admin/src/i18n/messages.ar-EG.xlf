@@ -120,22 +120,6 @@
       <trans-unit id="approval.tier.very_low" datatype="html"><source>Very low</source><target>منخفض جداً</target></trans-unit>
       <trans-unit id="approval.tier.no_match" datatype="html"><source>No matches yet</source><target>لا توجد مطابقات بعد</target></trans-unit>
       <trans-unit id="approval.pill.aria" datatype="html"><source>Approval probability <x id="INTERPOLATION"/>% — <x id="INTERPOLATION_1"/></source><target>احتمالية الموافقة <x id="INTERPOLATION"/>٪ — <x id="INTERPOLATION_1"/></target></trans-unit>
-      <trans-unit id="sidebar.scoring_analytics" datatype="html"><source>Scoring analytics</source><target>تحليلات التقييم</target></trans-unit>
-      <trans-unit id="analytics.title" datatype="html"><source>Scoring analytics</source><target>تحليلات التقييم</target></trans-unit>
-      <trans-unit id="analytics.subtitle" datatype="html"><source>Distribution of approval scores over a chosen window plus per-tier accuracy against recorded bank decisions.</source><target>توزيع نتائج الاحتمالية ضمن نطاق زمني محدد بالإضافة إلى دقة كل فئة مقارنةً بقرارات البنوك المسجلة.</target></trans-unit>
-      <trans-unit id="analytics.window.aria" datatype="html"><source>Select look-back window in days</source><target>اختر النطاق الزمني بالأيام</target></trans-unit>
-      <trans-unit id="analytics.dist.title" datatype="html"><source>Distribution</source><target>التوزيع</target></trans-unit>
-      <trans-unit id="analytics.dist.empty" datatype="html"><source>No matched offers in this window.</source><target>لا توجد عروض مطابقة في هذا النطاق.</target></trans-unit>
-      <trans-unit id="analytics.dist.aria" datatype="html"><source>Approval score distribution histogram with 10 ten-point buckets</source><target>رسم بياني لتوزيع نتائج الاحتمالية مكوّن من 10 شرائح كل منها 10 نقاط</target></trans-unit>
-      <trans-unit id="analytics.dist.tooltip" datatype="html"><source>Score <x id="INTERPOLATION"/>–<x id="INTERPOLATION_1"/>: <x id="INTERPOLATION_2"/> offers</source><target>نتيجة <x id="INTERPOLATION"/>–<x id="INTERPOLATION_1"/>: <x id="INTERPOLATION_2"/> عرض</target></trans-unit>
-      <trans-unit id="analytics.tier.title" datatype="html"><source>Per-tier accuracy</source><target>الدقة لكل فئة</target></trans-unit>
-      <trans-unit id="analytics.tier.col.tier" datatype="html"><source>Tier</source><target>الفئة</target></trans-unit>
-      <trans-unit id="analytics.tier.col.offers" datatype="html"><source>Offers</source><target>عدد العروض</target></trans-unit>
-      <trans-unit id="analytics.tier.col.decisions" datatype="html"><source>Decisions</source><target>عدد القرارات</target></trans-unit>
-      <trans-unit id="analytics.tier.col.rate" datatype="html"><source>Approval rate</source><target>نسبة الموافقة</target></trans-unit>
-      <trans-unit id="analytics.tier.rate.empty" datatype="html"><source>—</source><target>—</target></trans-unit>
-      <trans-unit id="analytics.tier.rate.empty.tooltip" datatype="html"><source>Insufficient data for this tier in the selected window</source><target>لا توجد بيانات كافية لهذه الفئة في النطاق المحدد</target></trans-unit>
-      <trans-unit id="analytics.error.title" datatype="html"><source>Out of OLTP range</source><target>النطاق خارج حدود قاعدة البيانات التشغيلية</target></trans-unit>
 
       <!-- ===== Feature 005 — Lead Management ===== -->
       <trans-unit id="app.detail.addActivity" datatype="html"><source>Add Activity</source><target>إضافة نشاط</target></trans-unit>
@@ -284,8 +268,14 @@
       <trans-unit id="bank_programs.section.variable_rate" datatype="html"><source>Variable rate</source><target>السعر المتغير</target></trans-unit>
       <trans-unit id="bank_programs.section.variable_rate_sub" datatype="html"><source>CBE-linked or quarterly-reset programs.</source><target>برامج مرتبطة بسعر البنك المركزي أو يُعاد تقييمها ربع سنوياً.</target></trans-unit>
       <trans-unit id="bank_programs.section.tiered_rates" datatype="html"><source>Tiered interest rates</source><target>أسعار فائدة متدرجة</target></trans-unit>
-      <trans-unit id="bank_programs.section.tiered_rates_sub" datatype="html"><source>Rate by loan-amount band. Egyptian banks commonly discount above 1M EGP. Hint: seed via the catalog seed endpoint until the inline band editor ships.</source><target>سعر حسب شريحة مبلغ القرض. تخصم البنوك المصرية عادةً للقروض فوق مليون جنيه. ملاحظة: يُملأ عبر نقطة seed حتى يصبح المحرر داخل النموذج جاهزاً.</target></trans-unit>
-      <trans-unit id="bank_programs.section.tiered_rates_hint" datatype="html"><source>Existing program data preserved. The inline band editor is part of the next increment.</source><target>بيانات البرنامج محفوظة. محرر الشرائح داخل النموذج ضمن التحديث القادم.</target></trans-unit>
+      <trans-unit id="bank_programs.section.tiered_rates_sub" datatype="html"><source>Rate by loan-amount band. Enter each band's lowest amount and its rate; the engine applies the highest band at or below the applicant's loan amount. Start the first band at 0.</source><target>سعر حسب شريحة مبلغ القرض. أدخل أقل مبلغ لكل شريحة وسعرها؛ يطبّق النظام أعلى شريحة تساوي مبلغ قرض العميل أو تقل عنه. ابدأ الشريحة الأولى من 0.</target></trans-unit>
+      <trans-unit id="bank_programs.bands.empty" datatype="html"><source>No bands yet. Add the first threshold to start.</source><target>لا توجد شرائح بعد. أضف الحدّ الأول للبدء.</target></trans-unit>
+      <trans-unit id="bank_programs.bands.col_min" datatype="html"><source>Loan amount from (EGP)</source><target>مبلغ القرض من (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.bands.col_rate" datatype="html"><source>Rate</source><target>السعر</target></trans-unit>
+      <trans-unit id="bank_programs.bands.add" datatype="html"><source>Add band</source><target>إضافة شريحة</target></trans-unit>
+      <trans-unit id="bank_programs.bands.aria_min" datatype="html"><source>Loan amount lower bound, EGP</source><target>الحدّ الأدنى لمبلغ القرض، ج.م</target></trans-unit>
+      <trans-unit id="bank_programs.bands.aria_rate" datatype="html"><source>Band rate, percent</source><target>سعر الشريحة، نسبة مئوية</target></trans-unit>
+      <trans-unit id="bank_programs.bands.aria_remove" datatype="html"><source>Remove band</source><target>إزالة الشريحة</target></trans-unit>
       <trans-unit id="bank_programs.section.buyout" datatype="html"><source>Buyout / refinance</source><target>السداد / إعادة التمويل</target></trans-unit>
       <trans-unit id="bank_programs.section.buyout_sub" datatype="html"><source>Closing out a loan at another bank. Applies a delta vs the base rate, bounded by a floor.</source><target>إغلاق قرض قائم في بنك آخر. يطبَّق فارق على السعر الأساسي ضمن حدّ أدنى.</target></trans-unit>
       <trans-unit id="bank_programs.section.down_payment" datatype="html"><source>Down payment</source><target>المقدم</target></trans-unit>

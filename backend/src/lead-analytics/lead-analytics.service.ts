@@ -86,6 +86,16 @@ export class LeadAnalyticsService {
     private readonly aliases: AliasResolverService,
   ) {}
 
+  async getFunnel(
+    windowDays = DEFAULT_WINDOW_DAYS,
+  ): Promise<{ windowDays: number; stages: Array<{ stage: string; count: number }> }> {
+    if (windowDays > MAX_WINDOW_DAYS || windowDays <= 0) {
+      throw new AnalyticsWindowTooLargeException(MAX_WINDOW_DAYS);
+    }
+    const stages = await this.repo.aggregateFunnel(windowDays);
+    return { windowDays, stages };
+  }
+
   async getActivitySummary(
     analystSub: string,
     role: StaffRole,

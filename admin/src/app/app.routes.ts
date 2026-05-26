@@ -53,13 +53,11 @@ export const APP_ROUTES: Routes = [
       import('./features/applications/applications.routes').then((m) => m.APPLICATIONS_ROUTES),
   },
   {
-    path: 'scoring-analytics',
+    path: 'customers',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
     loadChildren: () =>
-      import('./features/scoring-analytics/scoring-analytics.routes').then(
-        (m) => m.SCORING_ANALYTICS_ROUTES,
-      ),
+      import('./features/customers/customers.routes').then((m) => m.CUSTOMERS_ROUTES),
   },
   {
     path: 'lead-analytics',

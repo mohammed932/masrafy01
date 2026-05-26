@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import cuid from 'cuid';
 import type { Prisma } from '@prisma/client';
+import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
+  DocumentNotFoundException,
+  DocumentNotPendingException,
+  DocumentOwnershipMismatchException,
   FileTooLargeException,
   FileTypeNotAllowedException,
   NotFoundException,
@@ -50,7 +54,130 @@ export class DocumentsService {
     private readonly s3: S3StorageClient,
     private readonly repo: DocumentsRepository,
     private readonly enumerations: PlatformEnumerationsRepository,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /**
+   * Mobile customer flow (PR #4): pre-create the Document row in
+   * `pending_upload` so the row exists before the PUT, then flip to
+   * `uploaded` once the customer reports the upload finished (the
+   * `confirmCustomerUpload` method below verifies via S3 HEAD).
+   */
+  async requestCustomerUploadUrl(input: {
+    applicationId: string;
+    documentType: string;
+    mimeType: string;
+    sizeBytes: number;
+    originalFilename: string;
+    customer: { id: string };
+    mobileClientId: string;
+  }): Promise<{
+    documentId: string;
+    uploadUrl: string;
+    s3Key: string;
+    expiresAt: Date;
+    maxSizeBytes: number;
+  }> {
+    if (input.sizeBytes > MAX_DOCUMENT_SIZE_BYTES) {
+      throw new FileTooLargeException(input.sizeBytes);
+    }
+    if (!(ALLOWED_DOCUMENT_MIME_TYPES as readonly string[]).includes(input.mimeType)) {
+      throw new FileTypeNotAllowedException(input.mimeType);
+    }
+    await this.assertDocumentTypeActive(input.documentType);
+    await this.assertCustomerOwnsApplication({
+      applicationId: input.applicationId,
+      customerId: input.customer.id,
+      mobileClientId: input.mobileClientId,
+    });
+
+    const documentId = cuid();
+    const ext = MIME_TO_EXT[input.mimeType as AllowedDocumentMimeType];
+    const s3Key = `applications/${input.applicationId}/customer/${documentId}.${ext}`;
+    const { uploadUrl, expiresAt } = await this.s3.getPresignedPutUrl(s3Key, input.mimeType);
+
+    const redactedFilename = stripPiiFromFilename(input.originalFilename, null);
+    await this.repo.create({
+      id: documentId,
+      applicationId: input.applicationId,
+      documentType: input.documentType,
+      s3Key,
+      status: 'pending_upload',
+      uploadedByContext: 'user',
+      uploadedBySource: 'mobile_app',
+      uploadedByStaffId: null,
+      uploadedByCustomerId: input.customer.id,
+      originalFilename: redactedFilename,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+    });
+
+    return { documentId, uploadUrl, s3Key, expiresAt, maxSizeBytes: MAX_DOCUMENT_SIZE_BYTES };
+  }
+
+  async confirmCustomerUpload(input: {
+    documentId: string;
+    applicationId: string;
+    customer: { id: string };
+    mobileClientId: string;
+  }): Promise<{ documentId: string; status: 'uploaded' }> {
+    const doc = await this.repo.findById(input.documentId);
+    if (!doc) throw new DocumentNotFoundException({ documentId: input.documentId });
+    if (doc.applicationId !== input.applicationId) {
+      throw new DocumentOwnershipMismatchException();
+    }
+    if (doc.uploadedByCustomerId !== input.customer.id) {
+      throw new DocumentOwnershipMismatchException();
+    }
+    if (doc.status !== 'pending_upload') {
+      throw new DocumentNotPendingException({ documentId: doc.id, status: doc.status });
+    }
+    await this.assertCustomerOwnsApplication({
+      applicationId: input.applicationId,
+      customerId: input.customer.id,
+      mobileClientId: input.mobileClientId,
+    });
+    const head = await this.s3.headObject(doc.s3Key);
+    if (!head.exists) throw new DocumentNotFoundException({ documentId: doc.id });
+    await this.repo.markUploaded(doc.id, head.sizeBytes ?? doc.sizeBytes);
+    return { documentId: doc.id, status: 'uploaded' };
+  }
+
+  private async assertDocumentTypeActive(documentType: string): Promise<void> {
+    const isActive = await this.enumerations.isActiveMember('required_document', documentType);
+    if (isActive) return;
+    const isDeprecated = await this.enumerations.isDeprecatedMember('required_document', documentType);
+    if (isDeprecated) {
+      throw new DeprecatedEnumerationKeyException({
+        enumerationType: 'required_document',
+        deprecatedKey: documentType,
+      });
+    }
+    const active = await this.enumerations.getActiveMembers('required_document');
+    throw new UnknownEnumerationKeyException({
+      enumerationType: 'required_document',
+      offendingKey: documentType,
+      activeMembers: active.map((m) => m.key),
+    });
+  }
+
+  private async assertCustomerOwnsApplication(args: {
+    applicationId: string;
+    customerId: string;
+    mobileClientId: string;
+  }): Promise<void> {
+    const app = await this.prisma.application.findUnique({
+      where: { id: args.applicationId },
+      select: { id: true, applicantUserId: true, mobileClientId: true },
+    });
+    if (!app) throw new NotFoundException();
+    // Allow either an explicit applicantUserId match (post-claim) OR a same-device guest application.
+    const customerOwns = app.applicantUserId === args.customerId;
+    const sameDevice = app.applicantUserId === null && app.mobileClientId === args.mobileClientId;
+    if (!customerOwns && !sameDevice) {
+      throw new DocumentOwnershipMismatchException();
+    }
+  }
 
   async requestUploadUrl(input: RequestUploadUrlInput): Promise<RequestUploadUrlOutput> {
     if (input.sizeBytes > MAX_DOCUMENT_SIZE_BYTES) {

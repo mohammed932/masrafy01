@@ -39,8 +39,8 @@ const DEMO_STAFF: DemoStaff[] = [
   { email: 'analyst.a@masrafy.local', name: 'Analyst Ahmed', role: 'analyst' },
 ];
 
-// Constitution v1.5.0 / Principle II scope-lock — only the 3 active categories.
-const LOAN_PURPOSES = ['personal', 'car', 'mortgage'] as const;
+// Constitution v1.7.0 / Principle II scope-lock — 4 active categories.
+const LOAN_PURPOSES = ['personal', 'car', 'mortgage', 'business'] as const;
 const PRIORITIES = [
   'lowest_installment',
   'lowest_interest',

@@ -237,4 +237,52 @@ export class LeadAnalyticsRepository {
       lastActivityAt: r.last_activity_at,
     }));
   }
+
+  /**
+   * Mobile Phase-1 funnel — pure audit_event counts so the analytics page
+   * can render conversion without any extra tables. Stages emit in the
+   * order a real user traverses them; clients render dropoff between
+   * adjacent stages.
+   */
+  async aggregateFunnel(windowDays: number): Promise<Array<{ stage: string; count: number }>> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{ stage: string; count: bigint }>
+    >`
+      WITH stages AS (
+        SELECT 'catalog' AS stage, COUNT(*) AS count
+          FROM "audit_event"
+         WHERE "eventType" = 'CATALOG_VIEWED'
+           AND "occurredAt" >= now() - (${windowDays}::int || ' days')::interval
+        UNION ALL
+        SELECT 'questionnaire', COUNT(*)
+          FROM "audit_event"
+         WHERE "eventType" = 'QUESTIONNAIRE_STARTED'
+           AND "occurredAt" >= now() - (${windowDays}::int || ' days')::interval
+        UNION ALL
+        SELECT 'apply', COUNT(*)
+          FROM "audit_event"
+         WHERE "eventType" = 'APPLICATION_CREATED'
+           AND "occurredAt" >= now() - (${windowDays}::int || ' days')::interval
+        UNION ALL
+        SELECT 'offers_viewed', COUNT(*)
+          FROM "audit_event"
+         WHERE "eventType" = 'OFFERS_VIEWED'
+           AND "occurredAt" >= now() - (${windowDays}::int || ' days')::interval
+        UNION ALL
+        SELECT 'docs_uploaded', COUNT(DISTINCT "targetId")
+          FROM "audit_event"
+         WHERE "eventType" = 'DOCUMENT_UPLOADED'
+           AND "occurredAt" >= now() - (${windowDays}::int || ' days')::interval
+        UNION ALL
+        SELECT 'offer_selected', COUNT(*)
+          FROM "audit_event"
+         WHERE "eventType" = 'APPLICATION_USER_PROCEEDED'
+           AND "occurredAt" >= now() - (${windowDays}::int || ' days')::interval
+      )
+      SELECT stage, count FROM stages
+    `;
+    const order = ['catalog', 'questionnaire', 'apply', 'offers_viewed', 'docs_uploaded', 'offer_selected'];
+    const map = new Map(rows.map((r) => [r.stage, Number(r.count)]));
+    return order.map((stage) => ({ stage, count: map.get(stage) ?? 0 }));
+  }
 }

@@ -1,14 +1,14 @@
 # masrafy01 Development Guidelines
 
-Auto-generated from feature plans + constitution. Last updated: 2026-05-13
+Auto-generated from feature plans + constitution. Last updated: 2026-05-25
 
 ## Project Identity
 
-**Masrafy** (internally "Credit Match") — Egyptian fintech loan comparison marketplace. Connects users with 20+ bank loan programs (ABK Egypt + partners) via 5-step wizard + matching engine. Three product lines: personal loans, car loans, mortgages. Free for users; commission revenue from banks. Three platforms governed by a single constitution: NestJS backend (active), Angular admin dashboard (active), Flutter mobile app (deferred until Figma).
+**Masrafy** (internally "Credit Match") — Egyptian fintech loan comparison marketplace. Connects users with 20+ bank loan programs (ABK Egypt + partners) via 5-step wizard + matching engine. Four product lines: personal loans, car loans, mortgages, business loans. Free for users; commission revenue from banks. Three platforms governed by a single constitution: NestJS backend (active), Angular admin dashboard (active), Flutter mobile app (deferred until Figma).
 
-Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v1.6.0
+Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v1.7.0
 
-**Product scope-lock (v1.6.0 / Principle II):** Platform supports exactly three retail loan categories — `personal`, `car`, `mortgage`. Removing a category requires a destructive migration that physically wipes registry entry, bank programs, and all applications + cascade (offers / decisions / activities / documents). Ghost / soft-deactivated rows = review block. Adding a fourth requires a constitution amendment (A26).
+**Product scope-lock (v1.7.0 / Principle II):** Platform supports exactly four retail loan categories — `personal`, `car`, `mortgage`, `business`. Removing a category requires a destructive migration that physically wipes registry entry, bank programs, and all applications + cascade (offers / decisions / activities / documents). Ghost / soft-deactivated rows = review block. Adding a fifth requires a constitution amendment (A26).
 
 ## Active Technologies
 - Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin. (002-bank-programs)
@@ -116,7 +116,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **X — Repository Pattern**: services NEVER touch Prisma directly. Use `*.repository.ts`.
 - **XI — Prisma Migrate Only**: `db push` forbidden in prod. Named migrations; indexes on FKs + hot WHERE/ORDER BY.
 - **XII — DTO vs Entity**: `class-validator` DTOs; Prisma types stay in repositories. Global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })`.
-- **XIII — Dual Auth**: Mobile API HMAC; Admin JWT (15 min access + 7-day refresh httpOnly cookie); bcrypt cost ≥ 12 with `select: false`.
+- **XIII — Dual Auth**: Mobile API HMAC (anonymous reads); Admin JWT (15 min access + 7-day refresh httpOnly cookie); **Customer JWT (v1.7.0)** layered on HMAC for `/api/v1/auth/*` and authenticated mobile writes (15 min access + 30-day refresh, response-body strings — not cookies; separate signing keys `CUSTOMER_JWT_ACCESS_SECRET` / `CUSTOMER_JWT_REFRESH_SECRET`). bcrypt cost ≥ 12 with `select: false`.
 - **XIV — API Contract**: envelope `{ success, data, pagination? }`; versioned (`/api/v1/`, `/api/admin/`); OpenAPI at `/api/docs`.
 - **XV — Rate Limiting**: `@nestjs/throttler` with Redis backing.
 - **XVI — Placeholder**: no constitutional testing requirements (v1.2.0).
@@ -165,8 +165,12 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A22** Per-component error message mapping
 - **A23** HMAC secret outside secure storage
 - **A24** Approval probability without documented weights
+- **A25** Half-updated dependents (cross-surface drift) — Principle XXIX
+- **A26** Fifth retail loan category without amendment / ghost rows after removal (Principle II scope-lock, v1.5.0 → v1.6.0 → v1.7.0)
+- **A27** Money / amount input without `MoneyInputDirective` (`appMoneyInput`)
 
 ## Recent Changes
+- 2026-05-25 (v1.7.0): Constitution scope-lock widened to FOUR retail loan categories — added `business` alongside `personal`/`car`/`mortgage`. Principle XIII extended with customer-facing mobile auth (`/api/v1/auth/*` — customer JWT layered on HMAC, 15 min access + 30-day refresh, separate signing keys). A26 rewritten to bound at a FIFTH category. Mobile user-journey Phase 1 backend + admin alignment begins here (PRs #0–#7 per plan `this-is-the-gourney-frolicking-papert.md`).
 - 003-matching-engine-post: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ on admin.
 - 002-bank-programs: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin.
 

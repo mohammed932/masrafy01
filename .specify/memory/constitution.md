@@ -1,9 +1,39 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0 → 1.4.0 → 1.5.0 → 1.6.0
+Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0 → 1.4.0 → 1.5.0 → 1.6.0 → 1.6.1 → 1.7.0
 Ratification: 2026-05-12 (initial ratification)
-Last Amended: 2026-05-21 (v1.6.0)
+Last Amended: 2026-05-25 (v1.7.0)
+
+v1.7.0 amendment (2026-05-25):
+  Scope-lock widened from THREE to FOUR retail loan categories.
+  Business loans (`business`) added alongside `personal`, `car`,
+  `mortgage` to align the platform with the mobile user-journey
+  product surface (SME / professional-use working-capital lending,
+  larger ticket sizes, separate underwriting expected at v2.x).
+  Principle II scope-lock paragraph and Project Context updated
+  in lockstep. Anti-pattern A26 rewritten to bound at a FIFTH
+  category instead of a fourth — adding anything beyond the four
+  enumerated categories still requires a constitution amendment.
+  Principle XIII extended with a customer-facing mobile auth
+  paragraph: `/api/v1/auth/*` endpoints add a customer JWT layer
+  on top of HMAC pinning (15-min access + 30-day refresh,
+  separate signing key from admin JWT) to support mobile signup /
+  login / guest→user upgrade flows. MINOR bump — scope widened
+  within an existing principle and a parallel auth surface added,
+  no principle redefinition.
+
+v1.6.1 amendment (2026-05-21):
+  New Anti-pattern A27 — every editable money / amount input MUST use the
+  shared `MoneyInputDirective` (`appMoneyInput`,
+  `admin/src/app/core/directives/money-input.directive.ts`). Introduced when
+  the bank-program tiered-rate band editor plus the loan-limit / income
+  amount inputs gained thousands-grouping display. Codifies a single
+  directive (grouped display "1,000,000", caret preservation, raw-string
+  contract so the FormControl / payload / backend DTO see digits only) in
+  place of per-input formatting handlers or comma-formatted control values.
+  Percent fields (rate, fee %) are excluded. PATCH bump — anti-pattern
+  addition, no principle change.
 
 v1.6.0 amendment (2026-05-21):
   Tightening of v1.5.0 scope-lock from "soft-deactivation preferred" to
@@ -170,16 +200,20 @@ service is free for users; commissions are paid by banks per successful
 loan (1–2% personal, 0.5–1% mortgage, flat fees for cards). The platform
 NEVER charges users.
 
-**Three product lines (NON-NEGOTIABLE — see Principle II scope-lock,
-v1.5.0):** Personal loans (no down payment, mass market), Car loans
-(20–30% down payment, premium tier above 4M EGP gets discounted rates),
-Mortgages (20%+ down payment, multiple property types and construction
-stages, highest revenue per deal). The platform supports EXACTLY these
-three retail loan categories. The `loanPurpose` platform-enumeration
-registry MUST contain only these three active members
-(`personal`, `car`, `mortgage`). Any other category is out of scope for
-v1.x and MUST be soft-deactivated rather than introduced. Adding a
-fourth category requires a constitution amendment.
+**Four product lines (NON-NEGOTIABLE — see Principle II scope-lock,
+v1.5.0 → v1.7.0):** Personal loans (no down payment, mass market), Car
+loans (20–30% down payment, premium tier above 4M EGP gets discounted
+rates), Mortgages (20%+ down payment, multiple property types and
+construction stages, highest revenue per deal), and Business loans
+(SME / professional-use working-capital lending — larger ticket sizes,
+separate underwriting, added in v1.7.0 to align the platform with the
+mobile user-journey product surface). The platform supports EXACTLY
+these four retail loan categories. The `loanPurpose`
+platform-enumeration registry MUST contain only these four active
+members (`personal`, `car`, `mortgage`, `business`). Any other
+category is out of scope for v1.x and MUST be soft-deactivated rather
+than introduced. Adding a fifth category requires a constitution
+amendment.
 
 **Five-step wizard:**
 1. About You — employment type, age, monthly income, time in job, salary transfer status
@@ -257,20 +291,21 @@ statements per bank. Activating/deactivating a program is a single
 boolean toggle. Hardcoded bank-specific logic anywhere in the codebase =
 review block.
 
-**Scope-lock (v1.5.0, sharpened v1.6.0):** Bank-program data is
-unconstrained per bank, but the *set of loan categories* the platform
-supports is fixed at exactly three: `personal`, `car`, `mortgage`. The
-`loanPurpose` platform-enumeration registry MUST contain only these
-three rows (no soft-deactivated ghosts). Migrations, seed data, DTO
-enums, UI multi-selects, and the matching engine MUST treat any other
-purpose as nonexistent. **Physical removal is the standard** — when a
+**Scope-lock (v1.5.0, sharpened v1.6.0, widened v1.7.0):**
+Bank-program data is unconstrained per bank, but the *set of loan
+categories* the platform supports is fixed at exactly four:
+`personal`, `car`, `mortgage`, `business`. The `loanPurpose`
+platform-enumeration registry MUST contain only these four rows (no
+soft-deactivated ghosts). Migrations, seed data, DTO enums, UI
+multi-selects, and the matching engine MUST treat any other purpose
+as nonexistent. **Physical removal is the standard** — when a
 category leaves scope, ship a destructive migration that wipes the
 registry entry, all bank programs in that category, and all
 applications referencing it (with full FK cascade through offers,
 decisions, activities, documents). Soft-deactivation (`deprecatedAt`)
 is acceptable ONLY as a transitional step inside the same PR;
 subsequent migrations within the PR must complete the wipe. Adding a
-fourth retail category requires a constitution amendment — not a
+fifth retail category requires a constitution amendment — not a
 migration shipped solo. See Anti-pattern A26.
 
 ## III. Typed Errors End-to-End (All Platforms)
@@ -412,6 +447,22 @@ comparison. Admin API (`/api/admin/*`) uses JWT: 15-minute access token +
 bcrypt cost ≥ 12, `select: false` in Prisma schema so they're never
 returned in queries. Skipping HMAC outside development = review block.
 Failed login attempts trigger progressive lockout.
+
+**Customer-facing mobile auth (v1.7.0):** `/api/v1/auth/*` endpoints
+(`signup`, `login`, `refresh`, `logout`, `me`) layer a customer JWT on
+top of HMAC pinning — 15-minute access token + 30-day refresh token
+(NOT a cookie; mobile clients receive both as response-body strings and
+store them in `flutter_secure_storage`). Customer JWT signing keys are
+separate from admin JWT signing keys (env: `CUSTOMER_JWT_ACCESS_SECRET`,
+`CUSTOMER_JWT_REFRESH_SECRET`). Customer passwords hashed with bcrypt
+cost ≥ 12 and `select: false` like admin. Authenticated mobile writes
+(`POST /api/v1/applications/:id/claim`, document upload endpoints, etc.)
+require BOTH layers — HMAC headers AND a valid customer Bearer JWT.
+Anonymous mobile reads (catalog, enumerations, onboarding screens,
+support contact) require HMAC only. Guest applications remain HMAC-only
+(no JWT) and are linkable to a customer account post-signup via the
+explicit claim endpoint within a 24-hour window of the same
+`mobileClientId`.
 
 ## XIV. API Contract Standards
 All HTTP endpoints use typed DTO classes. All responses follow envelope:
@@ -793,8 +844,11 @@ Changing approval probability scoring without recording weight changes in the PR
 ## A25. Half-Updated Dependents (Principle XXIX)
 Changing a field / enum / derivation / threshold / label-doubling-as-filter / numeric formatter / token / error code without updating every downstream reader in the same PR = review block. UI contradictions where the same business fact reads differently across list / detail / Kanban / drawer / analytics / timeline = automatic block. PR description MUST list "Dependents touched"; reviewers MUST scan for missing ones.
 
-## A26. Fourth Retail Loan Category Without Amendment / Ghost Rows After Removal (Principle II scope-lock, v1.5.0 → v1.6.0)
-Adding a fourth retail loan category (anything beyond `personal`, `car`, `mortgage`) via migration, seed row, DTO enum, UI multi-select, matching-engine branch, or analytics dimension — without first amending the constitution to widen the scope-lock — = review block. Removing a category requires a destructive migration that physically deletes the registry entry, all bank programs in that category, and all applications referencing it (cascade through bank offers, decisions, activities, documents). Append-only triggers must be temporarily disabled (`ALTER TABLE … DISABLE TRIGGER`) and re-enabled inside the same migration; a `DATA_ERASURE_COMPLETED` audit-event row records the wipe. Leaving deactivated rows behind = review block — operators see ghost categories in audit dashboards and registry pickers. Buyout pricing as a feature of an existing program (e.g. `pricing.buyoutRateDeltaPercent` on a `personal` program) is NOT a fourth category and is allowed.
+## A26. Fifth Retail Loan Category Without Amendment / Ghost Rows After Removal (Principle II scope-lock, v1.5.0 → v1.6.0 → v1.7.0)
+Adding a FIFTH retail loan category (anything beyond `personal`, `car`, `mortgage`, `business`) via migration, seed row, DTO enum, UI multi-select, matching-engine branch, or analytics dimension — without first amending the constitution to widen the scope-lock — = review block. Removing a category requires a destructive migration that physically deletes the registry entry, all bank programs in that category, and all applications referencing it (cascade through bank offers, decisions, activities, documents). Append-only triggers must be temporarily disabled (`ALTER TABLE … DISABLE TRIGGER`) and re-enabled inside the same migration; a `DATA_ERASURE_COMPLETED` audit-event row records the wipe. Leaving deactivated rows behind = review block — operators see ghost categories in audit dashboards and registry pickers. Buyout pricing as a feature of an existing program (e.g. `pricing.buyoutRateDeltaPercent` on a `personal` program) is NOT a fifth category and is allowed.
+
+## A27. Money / Amount Input Without the Grouping Directive (UI consistency, v1.6.1)
+Any editable money or amount input — EGP loan amounts, monthly income, balances, asset values, uplift ceilings, tier-band thresholds, prices — that does NOT use the shared `MoneyInputDirective` (`appMoneyInput`, `admin/src/app/core/directives/money-input.directive.ts`) = review block. The directive is the single owner of: thousands-grouping display (`1,000,000`), caret preservation across re-grouping, and the **raw-string contract** — the `FormControl` value, the request payload, and the backend DTO see digit-only strings (optionally one decimal point), never separators. The following are blocks: re-implementing a per-input `(input)` formatting handler, storing a comma-formatted string in a `FormControl`, or shipping an ungrouped raw money input. Percent fields (interest rate, fee %, spread, LTV %, down-payment %) are NOT money and MUST NOT use the directive.
 
 ---
 
@@ -807,4 +861,4 @@ Adding a fourth retail loan category (anything beyond `personal`, `car`, `mortga
 
 ---
 
-**Version**: 1.6.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-21
+**Version**: 1.7.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-25

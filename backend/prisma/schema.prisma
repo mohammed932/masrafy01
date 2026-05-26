@@ -70,6 +70,36 @@ enum AuditEventType {
   PLATFORM_ENUMERATION_UPDATED
   PLATFORM_ENUMERATION_DEACTIVATED
   PLATFORM_ENUMERATION_DEPRECATED
+  CUSTOMER_SIGNED_UP
+  CUSTOMER_LOGGED_IN
+  CUSTOMER_LOGGED_OUT
+  CUSTOMER_TOKEN_REFRESHED
+  CUSTOMER_PASSWORD_CHANGED
+  CUSTOMER_GUEST_APP_LINKED
+  SUPPORT_REQUEST_CREATED
+  SUPPORT_REQUEST_ASSIGNED
+  SUPPORT_REQUEST_RESOLVED
+  SUPPORT_CONFIG_UPDATED
+  ONBOARDING_SCREEN_CREATED
+  ONBOARDING_SCREEN_UPDATED
+  ONBOARDING_SCREEN_DELETED
+  ONBOARDING_SCREEN_REORDERED
+  CATALOG_VIEWED
+  QUESTIONNAIRE_STARTED
+  OFFERS_VIEWED
+}
+
+enum SupportChannel {
+  chat
+  call
+  whatsapp
+  email
+}
+
+enum SupportStatus {
+  open
+  in_progress
+  resolved
 }
 
 enum LeadStatus {
@@ -342,8 +372,10 @@ model Application {
   assignedAgent           StaffAccount?       @relation("AssignedLeads", fields: [assignedAgentStaffId], references: [id], onDelete: SetNull)
   activities              Activity[]          @relation("ApplicationActivities")
   documents               Document[]          @relation("ApplicationDocuments")
+  applicantCustomer       CustomerAccount?    @relation("CustomerApplications", fields: [applicantUserId], references: [id], onDelete: SetNull)
 
   @@index([loanPurpose], name: "idx_application_purpose")
+  @@index([applicantUserId, createdAt(sort: Desc)], name: "idx_application_customer_created")
   @@index([assignedAgentStaffId, leadStatus], name: "idx_application_agent_lead_status")
   @@index([leadStatus, createdAt(sort: Desc)], name: "idx_application_lead_status_created")
   @@index([userProceededAt(sort: Desc)], name: "idx_application_user_proceeded_at")
@@ -478,6 +510,7 @@ model Document {
   uploadedByContext    String          @db.VarChar(24)
   uploadedBySource     String          @db.VarChar(24)
   uploadedByStaffId    String?         @db.VarChar(30)
+  uploadedByCustomerId String?         @db.VarChar(30)
   originalFilename     String          @db.VarChar(255)
   mimeType             String          @db.VarChar(48)
   sizeBytes            Int
@@ -486,12 +519,14 @@ model Document {
   verifiedByStaffId    String?         @db.VarChar(30)
   erasedAt             DateTime?       @db.Timestamptz(6)
 
-  application          Application     @relation("ApplicationDocuments", fields: [applicationId], references: [id], onDelete: Cascade)
-  uploadedByStaff      StaffAccount?   @relation("DocumentUploader", fields: [uploadedByStaffId], references: [id], onDelete: SetNull)
-  verifiedByStaff      StaffAccount?   @relation("DocumentVerifier", fields: [verifiedByStaffId], references: [id], onDelete: SetNull)
+  application          Application      @relation("ApplicationDocuments", fields: [applicationId], references: [id], onDelete: Cascade)
+  uploadedByStaff      StaffAccount?    @relation("DocumentUploader", fields: [uploadedByStaffId], references: [id], onDelete: SetNull)
+  uploadedByCustomer   CustomerAccount? @relation("DocumentCustomerUploader", fields: [uploadedByCustomerId], references: [id], onDelete: SetNull)
+  verifiedByStaff      StaffAccount?    @relation("DocumentVerifier", fields: [verifiedByStaffId], references: [id], onDelete: SetNull)
 
   @@index([applicationId, documentType, status], name: "idx_document_application_type_status")
   @@index([uploadedByStaffId, createdAt(sort: Desc)], name: "idx_document_uploader_created")
+  @@index([uploadedByCustomerId, createdAt(sort: Desc)], name: "idx_document_customer_uploader_created")
   @@map("document")
 }
 
@@ -523,4 +558,112 @@ model PlatformEnumeration {
   @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
   @@index([type, parentKey], name: "idx_platform_enumeration_type_parent")
   @@map("platform_enumeration")
+}
+
+// -----------------------------------------------------------------------------
+// CustomerAccount (v1.7.0 / Principle XIII customer-facing mobile auth).
+// Distinct from StaffAccount — end-users of the Flutter app sign up with
+// phone (unique) + password and receive a customer JWT.
+// -----------------------------------------------------------------------------
+
+model CustomerAccount {
+  id              String    @id @default(cuid()) @db.VarChar(30)
+  phone           String    @unique @db.VarChar(20)
+  email           String?   @unique @db.VarChar(320)
+  name            String    @db.VarChar(120)
+  locale          String    @default("ar-EG") @db.VarChar(8)
+  passwordHash    String    @db.VarChar(72)
+  nationalIdHash  String?   @db.Char(64)
+  isVerified      Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+  lastLoginAt     DateTime? @db.Timestamptz(6)
+
+  refreshTokens   CustomerRefreshToken[]
+  applications    Application[]   @relation("CustomerApplications")
+  uploadedDocuments Document[]    @relation("DocumentCustomerUploader")
+  supportRequests SupportRequest[] @relation("SupportRequestCustomer")
+
+  @@index([isActive, createdAt(sort: Desc)], name: "idx_customer_account_active_created")
+  @@map("customer_account")
+}
+
+model CustomerRefreshToken {
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  customerId    String    @db.VarChar(30)
+  tokenHash     String    @unique @db.Char(64)
+  issuedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt     DateTime  @db.Timestamptz(6)
+  revokedAt     DateTime? @db.Timestamptz(6)
+  rotatedFromId String?   @db.VarChar(30)
+  userAgent     String?   @db.VarChar(500)
+  sourceIp      String?   @db.Inet
+  mobileClientId String?  @db.VarChar(64)
+
+  customer      CustomerAccount        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rotatedFrom   CustomerRefreshToken?  @relation("CustomerRefreshTokenRotation", fields: [rotatedFromId], references: [id], onDelete: SetNull)
+  rotatedTo     CustomerRefreshToken[] @relation("CustomerRefreshTokenRotation")
+
+  @@index([customerId, revokedAt, expiresAt], name: "idx_customer_refresh_token_active")
+  @@map("customer_refresh_token")
+}
+
+// -----------------------------------------------------------------------------
+// Support (PR #5) — singleton config + customer-initiated requests.
+// -----------------------------------------------------------------------------
+
+model SupportConfig {
+  id           String   @id @default("singleton") @db.VarChar(16)
+  phone        String   @db.VarChar(40)
+  email        String   @db.VarChar(320)
+  whatsappUrl  String   @db.VarChar(500)
+  hoursAr      String   @db.VarChar(200)
+  hoursEn      String   @db.VarChar(200)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  updatedBy    String?  @db.VarChar(30)
+
+  @@map("support_config")
+}
+
+model SupportRequest {
+  id              String         @id @default(cuid()) @db.VarChar(30)
+  applicationId   String?        @db.VarChar(30)
+  customerId      String?        @db.VarChar(30)
+  mobileClientId  String?        @db.VarChar(64)
+  channel         SupportChannel
+  note            String?        @db.VarChar(2000)
+  status          SupportStatus  @default(open)
+  assignedStaffId String?        @db.VarChar(30)
+  createdAt       DateTime       @default(now()) @db.Timestamptz(6)
+  resolvedAt      DateTime?      @db.Timestamptz(6)
+
+  customer        CustomerAccount? @relation("SupportRequestCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc)], name: "idx_support_request_status_created")
+  @@index([assignedStaffId, status], name: "idx_support_request_agent_status")
+  @@index([applicationId], name: "idx_support_request_application")
+  @@map("support_request")
+}
+
+// -----------------------------------------------------------------------------
+// OnboardingScreen (PR #6) — mobile first-launch screens (2-3 items).
+// Admin-editable; mobile reads via HMAC.
+// -----------------------------------------------------------------------------
+
+model OnboardingScreen {
+  id         String   @id @default(cuid()) @db.VarChar(30)
+  order      Int      @unique
+  titleAr    String   @db.VarChar(200)
+  titleEn    String   @db.VarChar(200)
+  bodyAr     String   @db.VarChar(2000)
+  bodyEn     String   @db.VarChar(2000)
+  imageS3Key String?  @db.VarChar(255)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+  updatedBy  String?  @db.VarChar(30)
+
+  @@index([active, order], name: "idx_onboarding_screen_active_order")
+  @@map("onboarding_screen")
 }

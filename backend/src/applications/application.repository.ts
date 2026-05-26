@@ -47,6 +47,7 @@ export interface CreateApplicationInput {
   loanPurpose: string;
   age: number;
   isGuest: boolean;
+  applicantUserId?: string | null;
   applicantProfile: Prisma.InputJsonValue;
   summary: Prisma.InputJsonValue;
   noMatchSummary?: Prisma.InputJsonValue;

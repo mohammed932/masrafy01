@@ -13,12 +13,15 @@ import { UsersModule } from '@/users/users.module';
 import { BanksModule } from '@/banks/banks.module';
 import { BankProgramsModule } from '@/bank-programs/bank-programs.module';
 import { ApplicationsModule } from '@/applications/applications.module';
+import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { ScoringVersionsModule } from '@/scoring-versions/scoring-versions.module';
-import { ScoringAnalyticsModule } from '@/scoring-analytics/scoring-analytics.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 import { ActivitiesModule } from '@/activities/activities.module';
 import { DocumentsModule } from '@/documents/documents.module';
 import { LeadAnalyticsModule } from '@/lead-analytics/lead-analytics.module';
+import { SupportModule } from '@/support/support.module';
+import { OnboardingModule } from '@/onboarding/onboarding.module';
+import { TelemetryModule } from '@/telemetry/telemetry.module';
 import { loadEnv } from '@/infra/env/env.schema';
 import { pinoOptions } from '@/common/pino/pino.config';
 
@@ -47,11 +50,14 @@ import { pinoOptions } from '@/common/pino/pino.config';
     BanksModule,
     BankProgramsModule,
     ScoringVersionsModule,
-    ScoringAnalyticsModule,
+    CustomerAuthModule,
     ApplicationsModule,
     ActivitiesModule,
     DocumentsModule,
     LeadAnalyticsModule,
+    SupportModule,
+    OnboardingModule,
+    TelemetryModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })

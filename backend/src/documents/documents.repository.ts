@@ -7,10 +7,11 @@ export interface CreateDocumentInput {
   applicationId: string;
   documentType: string;
   s3Key: string;
-  status: 'uploaded' | 'verified' | 'rejected' | 'erased';
+  status: 'pending_upload' | 'uploaded' | 'verified' | 'rejected' | 'erased';
   uploadedByContext: 'agent_on_behalf' | 'user';
   uploadedBySource: 'whatsapp' | 'email' | 'in_person' | 'mobile_app' | 'courier' | 'other';
   uploadedByStaffId: string | null;
+  uploadedByCustomerId?: string | null;
   originalFilename: string;
   mimeType: string;
   sizeBytes: number;
@@ -65,6 +66,13 @@ export class DocumentsRepository {
     return client.document.update({
       where: { id },
       data: { status: 'erased', erasedAt: new Date() },
+    });
+  }
+
+  async markUploaded(id: string, sizeBytes: number): Promise<Document> {
+    return this.prisma.document.update({
+      where: { id },
+      data: { status: 'uploaded', sizeBytes },
     });
   }
 }

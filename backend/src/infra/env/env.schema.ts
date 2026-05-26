@@ -26,6 +26,24 @@ export const envSchema = z.object({
     .positive()
     .default(60 * 60 * 24 * 7),
 
+  // Customer-facing mobile JWT (Constitution v1.7.0 / Principle XIII customer auth).
+  // Separate secrets from admin so an admin token can never authenticate a
+  // mobile customer flow and vice-versa. Mobile clients store the refresh
+  // token in `flutter_secure_storage` and pass it in the request body — NOT a
+  // cookie — so the longer TTL is fine.
+  CUSTOMER_JWT_ACCESS_SECRET: z
+    .string()
+    .min(32, 'CUSTOMER_JWT_ACCESS_SECRET must be at least 32 characters (256 bits)'),
+  CUSTOMER_JWT_REFRESH_SECRET: z
+    .string()
+    .min(32, 'CUSTOMER_JWT_REFRESH_SECRET must be at least 32 characters (256 bits)'),
+  CUSTOMER_JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  CUSTOMER_JWT_REFRESH_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 60 * 24 * 30),
+
   BCRYPT_COST: z.coerce.number().int().min(10).max(15).default(12),
 
   HIBP_BASE_URL: z.string().url().default('https://api.pwnedpasswords.com'),
