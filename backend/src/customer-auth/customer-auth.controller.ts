@@ -14,7 +14,9 @@ import type { Request } from 'express';
 import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
+import { SocialProvider, OtpPurpose } from '@prisma/client';
 import { CustomerAuthService, type CustomerRequestContext } from './customer-auth.service';
+import { CustomerAuthMobileService } from './customer-auth-mobile.service';
 import {
   CustomerAuthEnvelopeDto,
   CustomerLoginRequestDto,
@@ -23,6 +25,24 @@ import {
   CustomerRefreshRequestDto,
   CustomerSignupRequestDto,
 } from './dto/customer-auth.dto';
+import { OtpRequestDto, OtpVerifyDto } from './dto/customer-otp.dto';
+import {
+  CustomerSignupPhoneStartDto,
+  CustomerSignupPhoneCompleteDto,
+} from './dto/customer-signup-phone.dto';
+import {
+  SocialAppleSignInDto,
+  SocialGoogleSignInDto,
+  SocialLoginDto,
+} from './dto/customer-social.dto';
+import {
+  ProfileMobileRequestOtpDto,
+  ProfileMobileVerifyOtpDto,
+} from './dto/customer-profile-completion.dto';
+import {
+  PasswordChangeDto,
+  PasswordResetDto,
+} from './dto/customer-password.dto';
 import { CustomerHmacJwtGuard } from './guards/customer-hmac-jwt.guard';
 
 interface HmacRequest extends Request {
@@ -41,7 +61,10 @@ interface HmacRequest extends Request {
 @ApiTags('Mobile · Customer auth')
 @Controller('v1/auth')
 export class CustomerAuthController {
-  constructor(private readonly svc: CustomerAuthService) {}
+  constructor(
+    private readonly svc: CustomerAuthService,
+    private readonly mobile: CustomerAuthMobileService,
+  ) {}
 
   @Post('signup')
   @UseGuards(MobileHmacGuard)
@@ -68,13 +91,13 @@ export class CustomerAuthController {
   @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
-  @ApiOperation({ summary: 'Log in with phone + password' })
+  @ApiOperation({ summary: 'Log in with phone + password (feature 008: with lockout per FR-022)' })
   async login(
     @Body() body: CustomerLoginRequestDto,
     @Req() req: HmacRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
-    const result = await this.svc.login({
+    const result = await this.mobile.loginWithLockout({
       phone: body.phone,
       password: body.password,
       ctx: this.buildContext(req, correlationId),
@@ -129,33 +152,238 @@ export class CustomerAuthController {
     return ok(profile);
   }
 
-  @Post('claim-applications')
-  @UseGuards(CustomerHmacJwtGuard)
-  @ApiBearerAuth('CustomerBearerAuth')
+  // -------------------------------------------------------------------------
+  // Feature 008 — Two-Path Registration endpoints (Constitution v1.8.0).
+  // The legacy `POST /signup` and `claim-applications` (now removed) endpoint
+  // are replaced by the two-step phone-signup flow + social paths below.
+  // -------------------------------------------------------------------------
+
+  @Post('signup/phone/start')
+  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Link recent guest applications to the authenticated customer',
-    description:
-      'Bridges the "guest browses offers → signs up at apply gate" path. Finds guest applications for the caller\'s `mobileClientId` in the last 24h and sets `applicantUserId` + `isGuest=false`. Audits one CUSTOMER_GUEST_APP_LINKED per linked row.',
-  })
-  async claimApplications(
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'PHONE signup — step 1: request OTP for new phone' })
+  async signupPhoneStart(
+    @Body() body: CustomerSignupPhoneStartDto,
     @Req() req: HmacRequest,
     @CorrelationId() correlationId: string,
   ): Promise<unknown> {
-    const customerId = this.requireCustomer(req);
-    const mobileClientId = req.mobileClientId;
-    if (!mobileClientId) {
-      throw new Error('HMAC guard did not attach mobileClientId');
-    }
-    const result = await this.svc.claimRecentGuestApplications({
-      customerId,
-      mobileClientId,
+    const result = await this.mobile.signupPhoneStart({
+      phone: body.phone,
+      locale: body.locale,
       ctx: this.buildContext(req, correlationId),
     });
     return ok(result);
   }
 
+  @Post('signup/phone/complete')
+  @UseGuards(MobileHmacGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'PHONE signup — step 2: consume verifiedMobileToken + create customer' })
+  async signupPhoneComplete(
+    @Body() body: CustomerSignupPhoneCompleteDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
+    const result = await this.mobile.signupPhoneComplete({
+      verifiedMobileToken: body.verifiedMobileToken,
+      name: body.name,
+      email: body.email,
+      password: body.password,
+      age: body.age,
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(this.toEnvelope(result));
+  }
+
+  @Post('otp/request')
+  @UseGuards(MobileHmacGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Issue an OTP for SIGNUP / FORGOT_PASSWORD / MOBILE_CHANGE' })
+  async otpRequest(
+    @Body() body: OtpRequestDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<unknown> {
+    const result = await this.mobile.requestOtp({
+      phone: body.phone,
+      purpose: body.purpose as OtpPurpose,
+      locale: body.locale,
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(result);
+  }
+
+  @Post('otp/verify')
+  @UseGuards(MobileHmacGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Verify an OTP. Returns verifiedMobileToken OR passwordResetToken.' })
+  async otpVerify(
+    @Body() body: OtpVerifyDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<unknown> {
+    const result = await this.mobile.verifyOtp({
+      otpId: body.otpId,
+      code: body.code,
+      purpose: body.purpose as OtpPurpose,
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(result);
+  }
+
+  @Post('social/google')
+  @UseGuards(MobileHmacGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Verify a Google ID token + create lite SOCIAL customer (or session for returning)' })
+  async socialGoogle(
+    @Body() body: SocialGoogleSignInDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<unknown> {
+    const result = await this.mobile.socialSignIn({
+      provider: SocialProvider.GOOGLE,
+      idToken: body.idToken,
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(this.normalizeSocialResult(result));
+  }
+
+  @Post('social/apple')
+  @UseGuards(MobileHmacGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Verify an Apple ID token + create lite SOCIAL customer (or session)' })
+  async socialApple(
+    @Body() body: SocialAppleSignInDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<unknown> {
+    const result = await this.mobile.socialSignIn({
+      provider: SocialProvider.APPLE,
+      idToken: body.idToken,
+      userInfo: body.userInfo,
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(this.normalizeSocialResult(result));
+  }
+
+  @Post('social/login')
+  @UseGuards(MobileHmacGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Sign in a returning social customer (consume SocialSession)' })
+  async socialLogin(
+    @Body() body: SocialLoginDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
+    const result = await this.mobile.socialLogin({
+      socialSessionId: body.socialSessionId,
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(this.toEnvelope(result));
+  }
+
+  @Post('profile/mobile-request-otp')
+  @UseGuards(CustomerHmacJwtGuard)
+  @ApiBearerAuth('CustomerBearerAuth')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'SOCIAL Complete-Profile — issue OTP for mobile binding' })
+  async profileMobileRequestOtp(
+    @Body() body: ProfileMobileRequestOtpDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<unknown> {
+    const customerId = this.requireCustomer(req);
+    const result = await this.mobile.profileMobileRequestOtp({
+      customerId,
+      phone: body.phone,
+      locale: 'ar',
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(result);
+  }
+
+  @Post('profile/mobile-verify-otp')
+  @UseGuards(CustomerHmacJwtGuard)
+  @ApiBearerAuth('CustomerBearerAuth')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'SOCIAL Complete-Profile — verify OTP + persist mobile to customer' })
+  async profileMobileVerifyOtp(
+    @Body() body: ProfileMobileVerifyOtpDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<void> {
+    const customerId = this.requireCustomer(req);
+    await this.mobile.profileMobileVerifyOtp({
+      customerId,
+      otpId: body.otpId,
+      code: body.code,
+      ctx: this.buildContext(req, correlationId),
+    });
+  }
+
+  @Post('password/reset')
+  @UseGuards(MobileHmacGuard)
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Reset password using a passwordResetToken (PHONE customers only)' })
+  async passwordReset(
+    @Body() body: PasswordResetDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
+    const result = await this.mobile.resetPassword({
+      passwordResetToken: body.passwordResetToken,
+      newPassword: body.newPassword,
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(this.toEnvelope(result));
+  }
+
+  @Post('password/change')
+  @UseGuards(CustomerHmacJwtGuard)
+  @ApiBearerAuth('CustomerBearerAuth')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({ summary: 'Change password (authenticated, PHONE customers only)' })
+  async passwordChange(
+    @Body() body: PasswordChangeDto,
+    @Req() req: HmacRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<void> {
+    const customerId = this.requireCustomer(req);
+    await this.mobile.changePassword({
+      customerId,
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+      ctx: this.buildContext(req, correlationId),
+    });
+  }
+
   // ---- Internals ---------------------------------------------------------
+
+  private normalizeSocialResult(
+    result: Awaited<ReturnType<CustomerAuthMobileService['socialSignIn']>>,
+  ): unknown {
+    return {
+      socialSessionId: result.socialSessionId || null,
+      provider: result.provider.toLowerCase(),
+      profile: result.profile,
+      existingCustomer: result.existingCustomer,
+      newCustomer: result.newCustomer
+        ? { tokens: this.toEnvelope(result.newCustomer.tokens) }
+        : null,
+    };
+  }
+
 
   private toEnvelope(r: Awaited<ReturnType<CustomerAuthService['login']>>): CustomerAuthEnvelopeDto {
     return {

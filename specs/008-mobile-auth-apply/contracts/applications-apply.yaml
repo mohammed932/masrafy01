@@ -1,0 +1,102 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Loan Apply
+  version: 1.0.0
+paths:
+  /api/v1/applications/apply:
+    post:
+      summary: Atomic loan-application submission
+      description: |
+        Single-transaction submission. For PHONE customers, the customer is
+        already fully populated; the request carries only the offer
+        selection, questionnaire payload, and document IDs. For SOCIAL
+        customers, the request additionally carries email + age (the popup-
+        collected fields that the Complete-Profile flow held client-side per
+        FR-009d). The transaction writes those to the customer (only if
+        currently null) alongside the application/documents/questionnaire-
+        link writes.
+
+        Mobile + mobileVerifiedAt were already written earlier (PHONE: at
+        signup; SOCIAL: at the /auth/profile/mobile-verify-otp step) and are
+        NOT part of this transaction.
+      security: [{ CustomerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [offerSelection, questionnaire, documents]
+              properties:
+                profileCompletion:
+                  type: object
+                  description: |
+                    Required for SOCIAL customers whose email and/or age are
+                    still null. Forbidden when both fields are already set
+                    on the customer (server rejects mutation attempts).
+                  properties:
+                    email: { type: string, format: email, nullable: true }
+                    age: { type: integer, minimum: 18, maximum: 80, nullable: true }
+                offerSelection:
+                  type: object
+                  required: [bankProgramId, currency, tenorMonths]
+                  properties:
+                    bankProgramId: { type: string }
+                    currency: { type: string, enum: [EGP] }
+                    tenorMonths: { type: integer, minimum: 6, maximum: 360 }
+                questionnaire:
+                  type: object
+                  required: [loanType, amountRequested, monthlySalary, employmentType, priorityFactor]
+                  properties:
+                    loanType: { type: string, enum: [personal, car, mortgage, business] }
+                    amountRequested: { type: string, description: Decimal as string }
+                    monthlySalary: { type: string, description: Decimal as string }
+                    employmentType: { type: string }
+                    currentLoans: { type: string, description: Decimal as string }
+                    priorityFactor: { type: string, enum: [lowest_installment, lowest_rate, fastest_approval] }
+                documents:
+                  type: object
+                  required: [nationalIdFrontUploadId, nationalIdBackUploadId]
+                  properties:
+                    nationalIdFrontUploadId: { type: string }
+                    nationalIdBackUploadId: { type: string }
+      responses:
+        '200':
+          description: Application submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      customer:
+                        type: object
+                        description: Refreshed customer (now with email+age set if SOCIAL)
+                      application:
+                        type: object
+                        properties:
+                          id: { type: string }
+                          status: { type: string, const: submitted }
+                          bankProgramId: { type: string }
+                          submittedAt: { type: string, format: date-time }
+        '400':
+          description: |
+            AGE_INVALID, DOCUMENTS_MISSING, BANK_PROGRAM_INVALID,
+            PROFILE_INCOMPLETE (customer.mobile is null — must complete
+            Complete-Profile flow first)
+        '403':
+          description: DOCUMENTS_NOT_OWNED
+        '409':
+          description: |
+            Rare race conditions (e.g. the bank program became invalid
+            between matching and submit). meta carries the specific issue.
+
+components:
+  securitySchemes:
+    CustomerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

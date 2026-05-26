@@ -1,12 +1,12 @@
 # masrafy01 Development Guidelines
 
-Auto-generated from feature plans + constitution. Last updated: 2026-05-25
+Auto-generated from feature plans + constitution. Last updated: 2026-05-26
 
 ## Project Identity
 
 **Masrafy** (internally "Credit Match") — Egyptian fintech loan comparison marketplace. Connects users with 20+ bank loan programs (ABK Egypt + partners) via 5-step wizard + matching engine. Four product lines: personal loans, car loans, mortgages, business loans. Free for users; commission revenue from banks. Three platforms governed by a single constitution: NestJS backend (active), Angular admin dashboard (active), Flutter mobile app (deferred until Figma).
 
-Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v1.7.0
+Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v1.8.1
 
 **Product scope-lock (v1.7.0 / Principle II):** Platform supports exactly four retail loan categories — `personal`, `car`, `mortgage`, `business`. Removing a category requires a destructive migration that physically wipes registry entry, bank programs, and all applications + cascade (offers / decisions / activities / documents). Ghost / soft-deactivated rows = review block. Adding a fifth requires a constitution amendment (A26).
 
@@ -116,7 +116,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **X — Repository Pattern**: services NEVER touch Prisma directly. Use `*.repository.ts`.
 - **XI — Prisma Migrate Only**: `db push` forbidden in prod. Named migrations; indexes on FKs + hot WHERE/ORDER BY.
 - **XII — DTO vs Entity**: `class-validator` DTOs; Prisma types stay in repositories. Global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })`.
-- **XIII — Dual Auth**: Mobile API HMAC (anonymous reads); Admin JWT (15 min access + 7-day refresh httpOnly cookie); **Customer JWT (v1.7.0)** layered on HMAC for `/api/v1/auth/*` and authenticated mobile writes (15 min access + 30-day refresh, response-body strings — not cookies; separate signing keys `CUSTOMER_JWT_ACCESS_SECRET` / `CUSTOMER_JWT_REFRESH_SECRET`). bcrypt cost ≥ 12 with `select: false`.
+- **XIII — Dual Auth (v1.8.0)**: Mobile API HMAC on every request; Admin JWT (15 min access + 7-day refresh httpOnly cookie); **Customer JWT** layered on HMAC for `/api/v1/auth/*` + every reachable in-app feature (catalog, enumerations, questionnaire, matching, loan request, account screens) — 15 min access + 30-day refresh, response-body strings (not cookies); separate signing keys `CUSTOMER_JWT_ACCESS_SECRET` / `CUSTOMER_JWT_REFRESH_SECRET`; bcrypt cost ≥ 12 with `select: false`. Two registration paths: PHONE-signup (fully upfront) + SOCIAL sign-in (lite at sign-in, completed via mandatory loan-request popup). NO guest mode. The v1.7.0 24-hour `mobileClientId` claim endpoint is REMOVED and MUST NOT be implemented. Login lockout: 10 failures / 15 min → 30 min. Forgot-password PHONE-only.
 - **XIV — API Contract**: envelope `{ success, data, pagination? }`; versioned (`/api/v1/`, `/api/admin/`); OpenAPI at `/api/docs`.
 - **XV — Rate Limiting**: `@nestjs/throttler` with Redis backing.
 - **XVI — Placeholder**: no constitutional testing requirements (v1.2.0).
@@ -174,11 +174,13 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A25** Half-updated dependents (cross-surface drift) — Principle XXIX
 - **A26** Fifth retail loan category without amendment / ghost rows after removal (Principle II scope-lock, v1.5.0 → v1.6.0 → v1.7.0)
 - **A27** Money / amount input without `MoneyInputDirective` (`appMoneyInput`)
+- **A28** Mobile datasource/repository/usecase/cubit method with >2 params NOT promoted to a typed `<Name>Request` DTO (Principle XXX, v1.8.1)
 
 ## Recent Changes
+- 2026-05-27 (v1.8.1): Principle XXX extended with the **method-arity rule** — Flutter datasource / repository / usecase / cubit methods taking >2 params MUST accept a single typed `<Name>Request` DTO (not separate named/positional params). Anti-Pattern A28 enforces it. Pilot100-aligned. Two-or-fewer params remain named. PATCH bump.
+- 2026-05-26 (v1.8.0): Principle XIII rewritten. Guest mode REMOVED platform-wide; every reachable in-app feature now requires HMAC + customer JWT. v1.7.0 24-hour claim endpoint deleted. Two registration paths codified: PHONE-signup (fully upfront) + SOCIAL sign-in (lite + mandatory loan-request popup). Mobile + `mobileVerifiedAt` immutable on first OTP-verified write; email + age (SOCIAL) atomic with first loan submission. Login lockout 10/15min → 30min. Forgot-password PHONE-only. Feature 008-mobile-auth-apply ratifies this model.
 - 2026-05-25 (v1.7.0): Constitution scope-lock widened to FOUR retail loan categories — added `business` alongside `personal`/`car`/`mortgage`. Principle XIII extended with customer-facing mobile auth (`/api/v1/auth/*` — customer JWT layered on HMAC, 15 min access + 30-day refresh, separate signing keys). A26 rewritten to bound at a FIFTH category. Mobile user-journey Phase 1 backend + admin alignment begins here (PRs #0–#7 per plan `this-is-the-gourney-frolicking-papert.md`).
 - 003-matching-engine-post: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ on admin.
-- 002-bank-programs: Added Node.js 22 LTS + TypeScript 5.6+ (`strict`, `noImplicitAny`, `strictNullChecks`, `noUncheckedIndexedAccess`) on backend; Angular 18 + TypeScript 5.4+ (same strictness profile) on admin.
 
 
 <!-- MANUAL ADDITIONS START -->

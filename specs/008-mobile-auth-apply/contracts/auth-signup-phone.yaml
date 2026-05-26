@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Mobile Auth — Phone Signup
+  version: 1.0.0
+paths:
+  /api/v1/auth/signup/phone/start:
+    post:
+      summary: Start phone signup — accepts mobile, sends OTP, returns otpId
+      description: |
+        First call of the PHONE registration path. The customer record is NOT
+        yet created — a fresh OTP is issued. Subsequent /auth/otp/verify with
+        purpose=SIGNUP returns a verifiedMobileToken which the
+        /auth/signup/phone/complete endpoint consumes.
+      security: []   # HMAC headers only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile, locale]
+              properties:
+                mobile:
+                  type: string
+                  example: "+201234567890"
+                locale:
+                  type: string
+                  enum: [ar, en]
+      responses:
+        '200':
+          description: OTP dispatched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      otpId: { type: string, example: "otp_01H..." }
+                      maskedMobile: { type: string, example: "+20••••••7890" }
+                      expiresInSeconds: { type: integer, example: 300 }
+                      resendAvailableInSeconds: { type: integer, example: 60 }
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'   # MOBILE_INVALID_FORMAT
+        '409':
+          $ref: '#/components/responses/ErrorEnvelope'   # MOBILE_ALREADY_REGISTERED
+        '429':
+          $ref: '#/components/responses/ErrorEnvelope'   # OTP_RATE_LIMITED (carries meta.retryAfterSeconds)
+
+  /api/v1/auth/signup/phone/complete:
+    post:
+      summary: Finalize phone signup — creates Customer, issues tokens
+      description: |
+        Consumes a verifiedMobileToken (from /auth/otp/verify, purpose=SIGNUP),
+        creates a PHONE-tagged Customer with mobile, fullName, email, password,
+        age (all required), and issues access + refresh tokens.
+      security: []   # HMAC only — Customer JWT does not exist yet
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [verifiedMobileToken, fullName, email, password, age]
+              properties:
+                verifiedMobileToken: { type: string, example: "vmt_01H..." }
+                fullName: { type: string, minLength: 1, example: "محمد فتحي" }
+                email: { type: string, format: email }
+                password:
+                  type: string
+                  description: min 8 chars, ≥1 letter, ≥1 digit
+                age: { type: integer, minimum: 18, maximum: 80 }
+      responses:
+        '200':
+          description: Customer created, tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthEnvelope'
+        '400':
+          $ref: '#/components/responses/ErrorEnvelope'   # PASSWORD_WEAK, AGE_INVALID
+        '401':
+          $ref: '#/components/responses/ErrorEnvelope'   # VERIFIED_MOBILE_TOKEN_INVALID / _EXPIRED / _CONSUMED
+        '409':
+          $ref: '#/components/responses/ErrorEnvelope'   # MOBILE_ALREADY_REGISTERED (race condition)
+
+components:
+  schemas:
+    AuthEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            accessToken: { type: string }
+            refreshToken: { type: string }
+            accessTokenExpiresAt: { type: string, format: date-time }
+            refreshTokenExpiresAt: { type: string, format: date-time }
+            customer: { $ref: '#/components/schemas/CustomerEnvelope' }
+    CustomerEnvelope:
+      type: object
+      properties:
+        id: { type: string }
+        registrationPath: { type: string, enum: [PHONE, SOCIAL] }
+        mobile: { type: string, nullable: true }
+        mobileVerifiedAt: { type: string, format: date-time, nullable: true }
+        fullName: { type: string }
+        email: { type: string, format: email, nullable: true }
+        age: { type: integer, nullable: true }
+        hasPassword: { type: boolean }
+        linkedProviders:
+          type: array
+          items: { type: string, enum: [GOOGLE, APPLE] }
+  responses:
+    ErrorEnvelope:
+      description: Typed error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success: { type: boolean, const: false }
+              code: { type: string }
+              meta: { type: object, additionalProperties: true }

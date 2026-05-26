@@ -69,6 +69,18 @@ dependencies:
   # Collection utilities (firstWhereOrNull, etc.)
   collection: ^1.19.0
 
+  # Feature 008 — Two-Path Registration
+  # Camera + gallery picker for National ID upload (loan-request flow)
+  image_picker: ^1.1.2
+  # Google Sign-In (SOCIAL path, both platforms)
+  google_sign_in: ^6.2.1
+  # Apple Sign-In (SOCIAL path, iOS only — button hidden on Android per research R15)
+  sign_in_with_apple: ^6.1.2
+  # Android SMS Retriever API for OTP auto-fill (iOS has native autofill, no library)
+  sms_autofill: ^2.4.0
+  # JSON serialization annotations for request/response DTOs
+  json_annotation: ^4.9.0
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -81,6 +93,7 @@ dev_dependencies:
   freezed: ^2.5.7
   injectable_generator: ^2.6.2
   auto_route_generator: ^9.0.0
+  json_serializable: ^6.8.0
 
 flutter:
   uses-material-design: true

@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Document Upload
+  version: 1.0.0
+paths:
+  /api/v1/documents/upload-url:
+    post:
+      summary: Issue a presigned PUT URL for a National ID image
+      description: |
+        Auth: Customer JWT. The returned uploadId is bound to the caller's
+        customer record from this moment; another customer cannot reuse it
+        in their /applications/apply submission (FR-037).
+
+        TTL of presigned URL: 10 minutes.
+      security: [{ CustomerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentType, contentType]
+              properties:
+                documentType:
+                  type: string
+                  enum: [NATIONAL_ID_FRONT, NATIONAL_ID_BACK]
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png, application/pdf]
+      responses:
+        '200':
+          description: Presigned URL issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      uploadId: { type: string, example: "doc_01H..." }
+                      presignedUrl: { type: string, format: uri }
+                      expiresInSeconds: { type: integer, example: 600 }
+        '400':
+          description: Invalid documentType or contentType
+
+components:
+  securitySchemes:
+    CustomerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

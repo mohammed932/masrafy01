@@ -47,4 +47,17 @@ class ApiStrings {
 
   // --- Telemetry (funnel beacons) ---
   static const String telemetryEvent = '/api/v1/telemetry/event';
+
+  // --- Feature 008 — Two-Path Registration (Constitution v1.8.0) ---
+  static const String authSignupPhoneStart = '/api/v1/auth/signup/phone/start';
+  static const String authSignupPhoneComplete = '/api/v1/auth/signup/phone/complete';
+  static const String authOtpRequest = '/api/v1/auth/otp/request';
+  static const String authOtpVerify = '/api/v1/auth/otp/verify';
+  static const String authSocialGoogle = '/api/v1/auth/social/google';
+  static const String authSocialApple = '/api/v1/auth/social/apple';
+  static const String authSocialLogin = '/api/v1/auth/social/login';
+  static const String authProfileMobileRequestOtp = '/api/v1/auth/profile/mobile-request-otp';
+  static const String authProfileMobileVerifyOtp = '/api/v1/auth/profile/mobile-verify-otp';
+  static const String authPasswordReset = '/api/v1/auth/password/reset';
+  static const String authPasswordChange = '/api/v1/auth/password/change';
 }

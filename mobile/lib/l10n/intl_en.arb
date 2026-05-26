@@ -1,0 +1,35 @@
+{
+  "@@locale": "en",
+
+  "auth_otp_invalid": "Incorrect code. Please try again.",
+  "auth_otp_expired": "This code expired. Request a new one.",
+  "auth_otp_consumed": "This code has already been used.",
+  "auth_otp_attempts_exceeded": "Too many wrong attempts. Request a new code.",
+  "auth_otp_rate_limited": "Too many code requests. Please wait and try again.",
+  "auth_otp_purpose_login_forbidden": "Login does not require an SMS code. Use your password.",
+
+  "auth_verified_mobile_token_invalid": "Verification token is invalid. Restart the signup.",
+  "auth_verified_mobile_token_expired": "Verification token expired. Restart the signup.",
+  "auth_verified_mobile_token_consumed": "Verification token was already used.",
+
+  "auth_social_token_invalid": "Sign-in failed. Please try again.",
+  "auth_social_token_expired": "Sign-in session expired. Please try again.",
+  "auth_social_provider_unavailable": "The sign-in provider is temporarily unavailable.",
+  "auth_social_session_invalid": "Sign-in session is invalid.",
+  "auth_social_session_expired": "Sign-in session expired. Tap the provider button again.",
+  "auth_social_session_consumed": "Sign-in session was already used.",
+
+  "auth_account_locked": "Account temporarily locked after too many failed attempts. Try again later.",
+  "auth_password_not_set": "This account has no password. Sign in with Google or Apple.",
+  "auth_password_same_as_old": "Pick a new password different from the current one.",
+
+  "auth_profile_incomplete": "Complete your profile to continue.",
+  "auth_profile_field_immutable": "This field cannot be changed once set.",
+  "auth_phone_mutation_on_phone_customer_forbidden": "Mobile number is already set on this account.",
+  "auth_password_change_forbidden_for_social": "Password change is not available for accounts using Google or Apple sign-in.",
+
+  "auth_age_invalid": "Age must be between 18 and 80.",
+  "auth_documents_missing": "Both National ID front and back are required.",
+  "auth_documents_not_owned": "These documents are not associated with your account.",
+  "auth_bank_program_invalid": "This offer is no longer available for your profile."
+}

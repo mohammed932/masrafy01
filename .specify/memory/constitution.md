@@ -1,9 +1,36 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0 → 1.4.0 → 1.5.0 → 1.6.0 → 1.6.1 → 1.7.0
+Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0 → 1.4.0 → 1.5.0 → 1.6.0 → 1.6.1 → 1.7.0 → 1.8.0 → 1.8.1
 Ratification: 2026-05-12 (initial ratification)
-Last Amended: 2026-05-25 (v1.7.0)
+Last Amended: 2026-05-27 (v1.8.1)
+
+v1.8.1 amendment (2026-05-27):
+  New method-arity rule added to Principle XXX (Three-Layer Feature
+  Architecture, Mobile, NON-NEGOTIABLE): any datasource, repository,
+  usecase, or cubit method on the Flutter client that takes MORE THAN TWO
+  parameters MUST accept them as a single typed `<Name>Request` DTO from
+  `data/models/request/`, not as separate named or positional params. Two-
+  or-fewer params MAY remain named. Anti-Pattern A28 added to enforce the
+  rule. Pilot100-aligned. PATCH bump — sub-rule + anti-pattern addition,
+  no principle redefinition.
+
+v1.8.0 amendment (2026-05-26):
+  Customer-mobile auth model rewritten under Principle XIII to align with
+  feature 008-mobile-auth-apply. Guest mode is REMOVED: every reachable
+  in-app feature now requires HMAC + customer JWT. The 24-hour
+  `mobileClientId` claim endpoint (introduced in v1.7.0) is deleted from
+  the platform contract and MUST NOT be implemented. Two registration
+  paths are codified: PHONE-signup (mobile + OTP + name + email +
+  password + age upfront — fully-populated customer record) and SOCIAL
+  sign-in (Google / Apple — lite customer at sign-in; mobile + OTP +
+  email + age completed via a mandatory loan-request popup before any
+  loan submission). Mobile + `mobileVerifiedAt` immutable from the
+  moment of OTP-verified write; email + age (SOCIAL path) written
+  atomically with the first loan submission. Login lockout codified
+  (10 failures / 15 min → 30 min). Forgot-password remains PHONE-only.
+  MINOR bump — scope adjustment within Principle XIII, no other
+  principle redefined.
 
 v1.7.0 amendment (2026-05-25):
   Scope-lock widened from THREE to FOUR retail loan categories.
@@ -448,21 +475,29 @@ bcrypt cost ≥ 12, `select: false` in Prisma schema so they're never
 returned in queries. Skipping HMAC outside development = review block.
 Failed login attempts trigger progressive lockout.
 
-**Customer-facing mobile auth (v1.7.0):** `/api/v1/auth/*` endpoints
-(`signup`, `login`, `refresh`, `logout`, `me`) layer a customer JWT on
-top of HMAC pinning — 15-minute access token + 30-day refresh token
-(NOT a cookie; mobile clients receive both as response-body strings and
-store them in `flutter_secure_storage`). Customer JWT signing keys are
-separate from admin JWT signing keys (env: `CUSTOMER_JWT_ACCESS_SECRET`,
+**Customer-facing mobile auth (v1.8.0, supersedes v1.7.0 guest-mode language):**
+`/api/v1/auth/*` endpoints (`signup`, `login`, `refresh`, `logout`, `me`,
+plus the SOCIAL sign-in + Complete-Profile endpoints introduced by
+feature 008-mobile-auth-apply) layer a customer JWT on top of HMAC
+pinning — 15-minute access token + 30-day refresh token (NOT a cookie;
+mobile clients receive both as response-body strings and store them in
+`flutter_secure_storage`). Customer JWT signing keys are separate from
+admin JWT signing keys (env: `CUSTOMER_JWT_ACCESS_SECRET`,
 `CUSTOMER_JWT_REFRESH_SECRET`). Customer passwords hashed with bcrypt
-cost ≥ 12 and `select: false` like admin. Authenticated mobile writes
-(`POST /api/v1/applications/:id/claim`, document upload endpoints, etc.)
-require BOTH layers — HMAC headers AND a valid customer Bearer JWT.
-Anonymous mobile reads (catalog, enumerations, onboarding screens,
-support contact) require HMAC only. Guest applications remain HMAC-only
-(no JWT) and are linkable to a customer account post-signup via the
-explicit claim endpoint within a 24-hour window of the same
-`mobileClientId`.
+cost ≥ 12 and `select: false` like admin. There are two registration
+paths: PHONE-signup (mobile + OTP + name + email + password + age
+upfront — fully populated customer) and SOCIAL sign-in (Google / Apple
+— lite customer on first sign-in, with mobile + OTP + email + age
+completed via a mandatory loan-request popup before the customer can
+submit a loan application). Every reachable in-app feature
+(catalog, enumerations, questionnaire, matching, loan request, account
+screens) requires BOTH layers — HMAC headers AND a valid customer
+Bearer JWT. There is NO anonymous catalog access and NO guest
+application flow; consequently the previously-mentioned 24-hour
+`mobileClientId` claim endpoint is REMOVED from the platform and MUST
+NOT be implemented. Failed customer login attempts trigger 30-minute
+account lockout after 10 failures within a 15-minute window. Forgot-
+password is PHONE-only; SOCIAL customers recover via their provider.
 
 ## XIV. API Contract Standards
 All HTTP endpoints use typed DTO classes. All responses follow envelope:
@@ -764,6 +799,14 @@ Every mobile feature MUST mirror `mobile/lib/features/<name>/{data,domain,presen
   `CustomerModel.toEntity()`) live at the bottom of the matching model file.
 - **domain/usecases/**: one `<Name>Usecase` per feature with one `call`
   method per action. One-usecase-per-action is forbidden — group by feature.
+- **Method-arity rule (v1.8.1, NON-NEGOTIABLE)**: any datasource, repository,
+  usecase, or cubit method that takes MORE THAN TWO parameters MUST accept
+  them as a single typed `<Name>Request` DTO from `data/models/request/`,
+  not as separate named or positional params. Two-or-fewer params MAY use
+  named params for ergonomics. The DTO is the same one the datasource
+  serializes at the wire — single source of truth for the payload shape.
+  Adding a third param later WITHOUT promoting to a DTO = review block
+  (Anti-Pattern A28).
 
 Divergence (skipping the repository, leaking `Model` types up into a cubit,
 splitting usecases per action) defeats the predictability that the customer-
@@ -1326,6 +1369,9 @@ Adding a FIFTH retail loan category (anything beyond `personal`, `car`, `mortgag
 
 ## A27. Money / Amount Input Without the Grouping Directive (UI consistency, v1.6.1)
 Any editable money or amount input — EGP loan amounts, monthly income, balances, asset values, uplift ceilings, tier-band thresholds, prices — that does NOT use the shared `MoneyInputDirective` (`appMoneyInput`, `admin/src/app/core/directives/money-input.directive.ts`) = review block. The directive is the single owner of: thousands-grouping display (`1,000,000`), caret preservation across re-grouping, and the **raw-string contract** — the `FormControl` value, the request payload, and the backend DTO see digit-only strings (optionally one decimal point), never separators. The following are blocks: re-implementing a per-input `(input)` formatting handler, storing a comma-formatted string in a `FormControl`, or shipping an ungrouped raw money input. Percent fields (interest rate, fee %, spread, LTV %, down-payment %) are NOT money and MUST NOT use the directive.
+
+## A28. Mobile Method With More Than Two Params Not Promoted To a Request DTO (Principle XXX, v1.8.1)
+Any datasource, repository, usecase, or cubit method on the Flutter client that takes MORE THAN TWO parameters as separate named or positional params (instead of a single typed `<Name>Request` DTO from `data/models/request/`) = review block. The DTO MUST be the same one the datasource serializes at the wire boundary — one payload shape, one place to evolve. Two-or-fewer params MAY use named params. Promoting to a DTO retroactively when a third param is added is mandatory, not optional. Existing pre-v1.8.1 call sites with 3+ params get a one-PR grace period to migrate.
 
 ---
 

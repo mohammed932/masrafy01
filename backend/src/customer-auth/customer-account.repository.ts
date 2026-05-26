@@ -12,11 +12,21 @@ export interface CreateCustomerInput {
 
 export interface CustomerForLogin {
   id: string;
-  phone: string;
+  /**
+   * Feature 008 (Constitution v1.8.0): nullable for SOCIAL customers whose
+   * mobile is still pending the Complete-Profile flow. Existing PHONE login
+   * paths assume non-null and throw `PASSWORD_NOT_SET` / `CUSTOMER_NOT_FOUND`
+   * before dereferencing.
+   */
+  phone: string | null;
   email: string | null;
   name: string;
   locale: string;
-  passwordHash: string;
+  /**
+   * Feature 008 (Constitution v1.8.0): nullable for SOCIAL customers who
+   * authenticate via Google / Apple and have no password set.
+   */
+  passwordHash: string | null;
   isActive: boolean;
   isVerified: boolean;
   createdAt: Date;
@@ -31,7 +41,7 @@ export interface CustomerListQuery {
 
 export interface CustomerListRow {
   id: string;
-  phone: string;
+  phone: string | null;
   email: string | null;
   name: string;
   locale: string;

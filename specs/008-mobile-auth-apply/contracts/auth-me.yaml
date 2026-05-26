@@ -1,0 +1,45 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Mobile Auth — Me
+  version: 1.0.0
+paths:
+  /api/v1/auth/me:
+    get:
+      summary: Return the authenticated customer's profile
+      security: [{ CustomerJWT: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: string }
+                      registrationPath: { type: string, enum: [PHONE, SOCIAL] }
+                      mobile: { type: string, nullable: true }
+                      mobileVerifiedAt: { type: string, format: date-time, nullable: true }
+                      fullName: { type: string }
+                      email: { type: string, nullable: true }
+                      age: { type: integer, nullable: true }
+                      hasPassword: { type: boolean }
+                      linkedProviders:
+                        type: array
+                        items: { type: string, enum: [GOOGLE, APPLE] }
+                      requiresProfileCompletion:
+                        type: boolean
+                        description: |
+                          true if any of {mobile, email, age} is null AND
+                          the customer is SOCIAL. Mobile clients use this to
+                          decide whether to show the gate popup on Apply.
+
+components:
+  securitySchemes:
+    CustomerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

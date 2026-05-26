@@ -1,0 +1,182 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Mobile Auth — Social Sign-In
+  version: 1.0.0
+paths:
+  /api/v1/auth/social/google:
+    post:
+      summary: Verify Google ID token, create SocialSession (and lite Customer if new)
+      description: |
+        Verifies the Google idToken against Google's JWKs. If
+        (provider=GOOGLE, providerUserId=sub) matches an existing customer,
+        the SocialSession references that customer; the client can then call
+        /auth/social/login to sign in.
+
+        If no match exists, a LITE SOCIAL Customer record is created
+        IMMEDIATELY with the provider's name and (if released) email; tokens
+        are issued in the same response. The customer's mobile/email-if-not-
+        released/age remain null and must be collected at the first
+        loan-request via the Complete-Profile flow (FR-009).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken: { type: string }
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      socialSessionId: { type: string }
+                      provider: { type: string, const: google }
+                      profile:
+                        type: object
+                        properties:
+                          email: { type: string, nullable: true }
+                          fullName: { type: string }
+                          emailVerified: { type: boolean }
+                      existingCustomer:
+                        type: object
+                        nullable: true
+                        properties:
+                          id: { type: string }
+                          maskedMobile: { type: string, nullable: true }
+                      newCustomer:
+                        type: object
+                        nullable: true
+                        description: |
+                          Present when a LITE customer was just created.
+                          Includes the issued access/refresh tokens.
+                        properties:
+                          tokens: { $ref: '#/components/schemas/TokenPair' }
+                          customer: { $ref: '#/components/schemas/CustomerEnvelope' }
+        '400':
+          description: SOCIAL_TOKEN_INVALID / SOCIAL_TOKEN_EXPIRED
+        '503':
+          description: SOCIAL_PROVIDER_UNAVAILABLE
+
+  /api/v1/auth/social/apple:
+    post:
+      summary: Verify Apple ID token, create SocialSession (and lite Customer if new)
+      description: |
+        Same shape as /auth/social/google. Apple-specific behavior: email is
+        only present on the first sign-in; subsequent sign-ins resolve to the
+        same customer by appleUserId (sub) and we trust the email captured
+        on first contact.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken: { type: string }
+                userInfo:
+                  type: object
+                  description: |
+                    Apple's first-sign-in only payload (name + email).
+                    Server uses this only if missing from the idToken.
+                  properties:
+                    email: { type: string, nullable: true }
+                    fullName: { type: string, nullable: true }
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      socialSessionId: { type: string }
+                      provider: { type: string, const: apple }
+                      profile:
+                        type: object
+                        properties:
+                          email: { type: string, nullable: true }
+                          fullName: { type: string, nullable: true }
+                      existingCustomer:
+                        type: object
+                        nullable: true
+                      newCustomer:
+                        type: object
+                        nullable: true
+        '400':
+          description: SOCIAL_TOKEN_INVALID / SOCIAL_TOKEN_EXPIRED
+
+  /api/v1/auth/social/login:
+    post:
+      summary: Sign in a returning social customer (existing customer present)
+      description: |
+        Consumes a SocialSession that already resolves to an existing
+        customer. Returns access + refresh tokens. No SMS sent.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [socialSessionId]
+              properties:
+                socialSessionId: { type: string }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthEnvelope'
+        '400':
+          description: SOCIAL_SESSION_INVALID / _EXPIRED / _CONSUMED
+
+components:
+  schemas:
+    TokenPair:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        accessTokenExpiresAt: { type: string, format: date-time }
+        refreshTokenExpiresAt: { type: string, format: date-time }
+    AuthEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, const: true }
+        data:
+          allOf:
+            - $ref: '#/components/schemas/TokenPair'
+            - type: object
+              properties:
+                customer: { $ref: '#/components/schemas/CustomerEnvelope' }
+    CustomerEnvelope:
+      type: object
+      properties:
+        id: { type: string }
+        registrationPath: { type: string, enum: [PHONE, SOCIAL] }
+        mobile: { type: string, nullable: true }
+        mobileVerifiedAt: { type: string, format: date-time, nullable: true }
+        fullName: { type: string }
+        email: { type: string, format: email, nullable: true }
+        age: { type: integer, nullable: true }
+        hasPassword: { type: boolean }
+        linkedProviders:
+          type: array
+          items: { type: string, enum: [GOOGLE, APPLE] }

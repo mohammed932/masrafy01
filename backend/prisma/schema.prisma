@@ -87,6 +87,20 @@ enum AuditEventType {
   CATALOG_VIEWED
   QUESTIONNAIRE_STARTED
   OFFERS_VIEWED
+  // --- Feature 008 (Constitution v1.8.0 / Principle XIII two-path registration) ---
+  CUSTOMER_OTP_REQUESTED
+  CUSTOMER_OTP_VERIFIED
+  CUSTOMER_OTP_FAILED
+  CUSTOMER_SIGNUP_PHONE_COMPLETED
+  CUSTOMER_SIGNUP_SOCIAL_COMPLETED
+  CUSTOMER_PROFILE_MOBILE_BOUND
+  CUSTOMER_PROFILE_EMAIL_SET
+  CUSTOMER_PROFILE_AGE_SET
+  CUSTOMER_LOGIN_FAILED
+  CUSTOMER_LOGIN_LOCKED
+  CUSTOMER_TOKENS_REVOKED_OTHERS
+  CUSTOMER_PASSWORD_RESET
+  APPLICATION_SUBMITTED
 }
 
 enum SupportChannel {
@@ -149,31 +163,31 @@ enum ApplicationPriority {
 // -----------------------------------------------------------------------------
 
 model StaffAccount {
-  id                  String    @id @default(cuid()) @db.VarChar(30)
-  email               String    @unique @db.VarChar(320)
-  emailDisplay        String    @db.VarChar(320)
-  name                String    @db.VarChar(120)
-  passwordHash        String    @db.VarChar(72)
-  role                StaffRole
-  isActive            Boolean   @default(true)
-  mustChangePassword  Boolean   @default(true)
-  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
-  lastLoginAt         DateTime? @db.Timestamptz(6)
+  id                 String    @id @default(cuid()) @db.VarChar(30)
+  email              String    @unique @db.VarChar(320)
+  emailDisplay       String    @db.VarChar(320)
+  name               String    @db.VarChar(120)
+  passwordHash       String    @db.VarChar(72)
+  role               StaffRole
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @db.Timestamptz(6)
+  lastLoginAt        DateTime? @db.Timestamptz(6)
 
-  refreshTokens       RefreshToken[]
-  signInAttempts      SignInAttempt[]
-  auditEventsAsActor  AuditEvent[]   @relation("AuditEventActor")
-  auditEventsAsTarget AuditEvent[]   @relation("AuditEventTarget")
-  bankProgramsCreated BankProgram[]  @relation("BankProgramCreatedBy")
-  bankProgramsUpdated BankProgram[]  @relation("BankProgramUpdatedBy")
-  banksCreated        Bank[]         @relation("BankCreatedBy")
-  banksUpdated        Bank[]         @relation("BankUpdatedBy")
+  refreshTokens             RefreshToken[]
+  signInAttempts            SignInAttempt[]
+  auditEventsAsActor        AuditEvent[]           @relation("AuditEventActor")
+  auditEventsAsTarget       AuditEvent[]           @relation("AuditEventTarget")
+  bankProgramsCreated       BankProgram[]          @relation("BankProgramCreatedBy")
+  bankProgramsUpdated       BankProgram[]          @relation("BankProgramUpdatedBy")
+  banksCreated              Bank[]                 @relation("BankCreatedBy")
+  banksUpdated              Bank[]                 @relation("BankUpdatedBy")
   scoringVersionActivations ScoringEngineVersion[] @relation("ScoringVersionActivator")
-  assignedLeads       Application[]  @relation("AssignedLeads")
-  activitiesAuthored  Activity[]     @relation("ActivityActor")
-  documentsUploaded   Document[]     @relation("DocumentUploader")
-  documentsVerified   Document[]     @relation("DocumentVerifier")
+  assignedLeads             Application[]          @relation("AssignedLeads")
+  activitiesAuthored        Activity[]             @relation("ActivityActor")
+  documentsUploaded         Document[]             @relation("DocumentUploader")
+  documentsVerified         Document[]             @relation("DocumentVerifier")
 
   @@index([isActive, role], name: "idx_staff_account_active_role")
   @@map("staff_account")
@@ -194,9 +208,9 @@ model RefreshToken {
   userAgent     String?   @db.VarChar(500)
   sourceIp      String?   @db.Inet
 
-  user          StaffAccount  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rotatedFrom   RefreshToken? @relation("RefreshTokenRotation", fields: [rotatedFromId], references: [id], onDelete: SetNull)
-  rotatedTo     RefreshToken[] @relation("RefreshTokenRotation")
+  user        StaffAccount   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotatedFrom RefreshToken?  @relation("RefreshTokenRotation", fields: [rotatedFromId], references: [id], onDelete: SetNull)
+  rotatedTo   RefreshToken[] @relation("RefreshTokenRotation")
 
   @@index([userId, revokedAt, expiresAt], name: "idx_refresh_token_user_active")
   @@map("refresh_token")
@@ -207,16 +221,16 @@ model RefreshToken {
 // -----------------------------------------------------------------------------
 
 model SignInAttempt {
-  id              String         @id @default(cuid()) @db.VarChar(30)
-  userId          String?        @db.VarChar(30)
-  emailAttempted  String         @db.VarChar(320)
-  attemptedAt     DateTime       @default(now()) @db.Timestamptz(6)
-  outcome         AttemptOutcome
-  sourceIp        String         @db.Inet
-  userAgent       String?        @db.VarChar(500)
-  correlationId   String         @db.VarChar(36)
+  id             String         @id @default(cuid()) @db.VarChar(30)
+  userId         String?        @db.VarChar(30)
+  emailAttempted String         @db.VarChar(320)
+  attemptedAt    DateTime       @default(now()) @db.Timestamptz(6)
+  outcome        AttemptOutcome
+  sourceIp       String         @db.Inet
+  userAgent      String?        @db.VarChar(500)
+  correlationId  String         @db.VarChar(36)
 
-  user            StaffAccount?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user StaffAccount? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([emailAttempted, attemptedAt(sort: Desc)], name: "idx_sign_in_attempt_email_time")
   @@index([sourceIp, attemptedAt(sort: Desc)], name: "idx_sign_in_attempt_ip_time")
@@ -239,9 +253,9 @@ model AuditEvent {
   correlationId String         @db.VarChar(36)
   payload       Json           @default("{}")
 
-  actor         StaffAccount?  @relation("AuditEventActor", fields: [actorId], references: [id], onDelete: SetNull)
-  target        StaffAccount?  @relation("AuditEventTarget", fields: [targetId], references: [id], onDelete: SetNull)
-  bankProgram   BankProgram?   @relation("BankProgramAuditEvents", fields: [bankProgramId], references: [id], onDelete: SetNull)
+  actor       StaffAccount? @relation("AuditEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  target      StaffAccount? @relation("AuditEventTarget", fields: [targetId], references: [id], onDelete: SetNull)
+  bankProgram BankProgram?  @relation("BankProgramAuditEvents", fields: [bankProgramId], references: [id], onDelete: SetNull)
 
   @@index([actorId, occurredAt(sort: Desc)], name: "idx_audit_event_actor_time")
   @@index([targetId, occurredAt(sort: Desc)], name: "idx_audit_event_target_time")
@@ -255,23 +269,23 @@ model AuditEvent {
 // -----------------------------------------------------------------------------
 
 model BankProgram {
-  id                  String          @id @default(cuid()) @db.VarChar(30)
-  programCode         String          @unique @db.VarChar(32)
+  id                String          @id @default(cuid()) @db.VarChar(30)
+  programCode       String          @unique @db.VarChar(32)
   /// @deprecated — backfilled from `bank` relation; drop after v0.2.x release.
-  bankName            String          @db.VarChar(80)
-  bankId              String?         @db.VarChar(30)
-  bank                Bank?           @relation(fields: [bankId], references: [id], onDelete: Restrict)
-  friendlyName        String          @db.VarChar(120)
-  friendlyNameAr      String?         @db.VarChar(120)
-  programType         BankProgramType
-  productCategory     String          @db.VarChar(64)
-  currencies          String[]        @db.VarChar(3)
-  active              Boolean         @default(true)
-  isShariaCompliant   Boolean         @default(false)
-  version             Int             @default(1)
-  operatorNotes       String?         @db.VarChar(4000)
-  operatorTips        String[]        @db.VarChar(500)
-  requiredDocuments   String[]        @db.VarChar(80)
+  bankName          String          @db.VarChar(80)
+  bankId            String?         @db.VarChar(30)
+  bank              Bank?           @relation(fields: [bankId], references: [id], onDelete: Restrict)
+  friendlyName      String          @db.VarChar(120)
+  friendlyNameAr    String?         @db.VarChar(120)
+  programType       BankProgramType
+  productCategory   String          @db.VarChar(64)
+  currencies        String[]        @db.VarChar(3)
+  active            Boolean         @default(true)
+  isShariaCompliant Boolean         @default(false)
+  version           Int             @default(1)
+  operatorNotes     String?         @db.VarChar(4000)
+  operatorTips      String[]        @db.VarChar(500)
+  requiredDocuments String[]        @db.VarChar(80)
 
   // JSONB sub-configurations (research.md R1). Hydrated to typed values in repo layer.
   tenor               Json
@@ -282,14 +296,14 @@ model BankProgram {
   incomeAssumption    Json
   fees                Json
 
-  createdAt           DateTime        @default(now()) @db.Timestamptz(6)
-  updatedAt           DateTime        @updatedAt @db.Timestamptz(6)
-  createdBy           String          @db.VarChar(30)
-  updatedBy           String          @db.VarChar(30)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  createdBy String   @db.VarChar(30)
+  updatedBy String   @db.VarChar(30)
 
-  createdByStaff      StaffAccount    @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
-  updatedByStaff      StaffAccount    @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
-  auditEvents         AuditEvent[]    @relation("BankProgramAuditEvents")
+  createdByStaff StaffAccount @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
+  updatedByStaff StaffAccount @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
+  auditEvents    AuditEvent[] @relation("BankProgramAuditEvents")
 
   @@index([active], name: "idx_bank_program_active")
   @@index([bankName], name: "idx_bank_program_bank_name")
@@ -304,27 +318,27 @@ model BankProgram {
 // -----------------------------------------------------------------------------
 
 model Bank {
-  id            String        @id @default(cuid()) @db.VarChar(30)
-  code          String        @unique @db.VarChar(40)
-  nameArabic    String        @db.VarChar(120)
-  nameEnglish   String        @db.VarChar(120)
-  logoS3Key     String?       @db.VarChar(255)
-  websiteUrl    String?       @db.VarChar(500)
-  isActive      Boolean       @default(true)
+  id           String   @id @default(cuid()) @db.VarChar(30)
+  code         String   @unique @db.VarChar(40)
+  nameArabic   String   @db.VarChar(120)
+  nameEnglish  String   @db.VarChar(120)
+  logoS3Key    String?  @db.VarChar(255)
+  websiteUrl   String?  @db.VarChar(500)
+  isActive     Boolean  @default(true)
   /// Phase-1 partner-bank flag. When true, the matching engine's `rankOffers`
   /// uses this as the final tiebreaker — identical primary-sort-key offers
   /// from featured banks rank first. Does NOT change eligibility or pricing.
-  isFeatured    Boolean       @default(false)
-  displayOrder  Int           @default(0)
-  notes         String?       @db.VarChar(2000)
-  version       Int           @default(1)
-  createdAt     DateTime      @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime      @updatedAt @db.Timestamptz(6)
-  createdBy     String        @db.VarChar(30)
-  updatedBy     String        @db.VarChar(30)
+  isFeatured   Boolean  @default(false)
+  displayOrder Int      @default(0)
+  notes        String?  @db.VarChar(2000)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  createdBy    String   @db.VarChar(30)
+  updatedBy    String   @db.VarChar(30)
 
-  createdByStaff StaffAccount @relation("BankCreatedBy", fields: [createdBy], references: [id])
-  updatedByStaff StaffAccount @relation("BankUpdatedBy", fields: [updatedBy], references: [id])
+  createdByStaff StaffAccount  @relation("BankCreatedBy", fields: [createdBy], references: [id])
+  updatedByStaff StaffAccount  @relation("BankUpdatedBy", fields: [updatedBy], references: [id])
   programs       BankProgram[]
 
   @@index([isActive, displayOrder], name: "idx_bank_active_order")
@@ -363,28 +377,29 @@ model Application {
   eligibleProgramsCount   Int                 @default(0)
 
   // Feature 005 — agent workflow lifecycle.
-  assignedAgentStaffId    String?             @db.VarChar(30)
-  assignedAt              DateTime?           @db.Timestamptz(6)
-  leadStatus              LeadStatus          @default(needs_first_contact)
+  assignedAgentStaffId String?    @db.VarChar(30)
+  assignedAt           DateTime?  @db.Timestamptz(6)
+  leadStatus           LeadStatus @default(needs_first_contact)
 
   // Feature 008 — user-intent gate: admin dashboard surfaces only applications
   // where the applicant explicitly selected a matched offer and proceeded.
-  userSelectedBankOfferId String?             @db.VarChar(30)
-  userProceededAt         DateTime?           @db.Timestamptz(6)
+  userSelectedBankOfferId String?   @db.VarChar(30)
+  userProceededAt         DateTime? @db.Timestamptz(6)
 
-  bankOffers              BankOffer[]         @relation("ApplicationBankOffers")
-  userSelectedBankOffer   BankOffer?          @relation("ApplicationUserSelectedOffer", fields: [userSelectedBankOfferId], references: [id], onDelete: SetNull)
-  assignedAgent           StaffAccount?       @relation("AssignedLeads", fields: [assignedAgentStaffId], references: [id], onDelete: SetNull)
-  activities              Activity[]          @relation("ApplicationActivities")
-  documents               Document[]          @relation("ApplicationDocuments")
-  applicantCustomer       CustomerAccount?    @relation("CustomerApplications", fields: [applicantUserId], references: [id], onDelete: SetNull)
+  bankOffers            BankOffer[]           @relation("ApplicationBankOffers")
+  userSelectedBankOffer BankOffer?            @relation("ApplicationUserSelectedOffer", fields: [userSelectedBankOfferId], references: [id], onDelete: SetNull)
+  assignedAgent         StaffAccount?         @relation("AssignedLeads", fields: [assignedAgentStaffId], references: [id], onDelete: SetNull)
+  activities            Activity[]            @relation("ApplicationActivities")
+  documents             Document[]            @relation("ApplicationDocuments")
+  applicantCustomer     CustomerAccount?      @relation("CustomerApplications", fields: [applicantUserId], references: [id], onDelete: SetNull)
+  questionnaireAnswers  QuestionnaireAnswer[] @relation("QuestionnaireApplication")
 
+  @@unique([mobileClientId, idempotencyKey], name: "idx_application_idempotency")
   @@index([loanPurpose], name: "idx_application_purpose")
   @@index([applicantUserId, createdAt(sort: Desc)], name: "idx_application_customer_created")
   @@index([assignedAgentStaffId, leadStatus], name: "idx_application_agent_lead_status")
   @@index([leadStatus, createdAt(sort: Desc)], name: "idx_application_lead_status_created")
   @@index([userProceededAt(sort: Desc)], name: "idx_application_user_proceeded_at")
-  @@unique([mobileClientId, idempotencyKey], name: "idx_application_idempotency")
   @@map("application")
 }
 
@@ -393,42 +408,42 @@ model Application {
 // -----------------------------------------------------------------------------
 
 model BankOffer {
-  id                        String      @id @default(cuid()) @db.VarChar(30)
-  applicationId             String      @db.VarChar(30)
-  programCode               String      @db.VarChar(32)
-  programVersion            Int
-  bankName                  String      @db.VarChar(80)
-  programFriendlyName       String      @db.VarChar(120)
-  currency                  String      @db.VarChar(3)
+  id                         String       @id @default(cuid()) @db.VarChar(30)
+  applicationId              String       @db.VarChar(30)
+  programCode                String       @db.VarChar(32)
+  programVersion             Int
+  bankName                   String       @db.VarChar(80)
+  programFriendlyName        String       @db.VarChar(120)
+  currency                   String       @db.VarChar(3)
   /// Snapshot of the owning bank's `isFeatured` at match time (Constitution
   /// Principle I — BankOffer is immutable; the partner-bank flag is frozen
   /// here so a bank toggling its featured state later doesn't rewrite
   /// history). Surfaced to mobile so the FEATURED chip never goes stale.
-  bankIsFeatured            Boolean     @default(false)
-  effectiveRatePercent      Decimal     @db.Decimal(7, 4)
-  monthlyInstallmentEGP     Decimal     @db.Decimal(13, 2)
-  requestedLoanAmountEGP    Decimal     @db.Decimal(13, 2)
-  effectiveLoanAmountEGP    Decimal     @db.Decimal(13, 2)
-  requestedTenorMonths      Int
-  effectiveTenorMonths      Int
-  feesBreakdown             Json
-  approvalProbabilityPercent Decimal    @db.Decimal(5, 2)
-  approvalScore             Int
-  approvalTier              ApprovalTier
-  approvalFactors           Json
-  engineVersion             String      @db.VarChar(32)
-  requiredDocuments         String[]    @db.VarChar(80)
-  matchReasons              String[]    @db.VarChar(80)
-  cascadeTrace              Json
-  qualitativeReviewBadge    Boolean     @default(false)
-  selfDeclared              Boolean     @default(false)
-  maxLoanAvailableEGP       Decimal?    @db.Decimal(13, 2)
-  createdAt                 DateTime    @default(now()) @db.Timestamptz(6)
-  erasedAt                  DateTime?   @db.Timestamptz(6)
+  bankIsFeatured             Boolean      @default(false)
+  effectiveRatePercent       Decimal      @db.Decimal(7, 4)
+  monthlyInstallmentEGP      Decimal      @db.Decimal(13, 2)
+  requestedLoanAmountEGP     Decimal      @db.Decimal(13, 2)
+  effectiveLoanAmountEGP     Decimal      @db.Decimal(13, 2)
+  requestedTenorMonths       Int
+  effectiveTenorMonths       Int
+  feesBreakdown              Json
+  approvalProbabilityPercent Decimal      @db.Decimal(5, 2)
+  approvalScore              Int
+  approvalTier               ApprovalTier
+  approvalFactors            Json
+  engineVersion              String       @db.VarChar(32)
+  requiredDocuments          String[]     @db.VarChar(80)
+  matchReasons               String[]     @db.VarChar(80)
+  cascadeTrace               Json
+  qualitativeReviewBadge     Boolean      @default(false)
+  selfDeclared               Boolean      @default(false)
+  maxLoanAvailableEGP        Decimal?     @db.Decimal(13, 2)
+  createdAt                  DateTime     @default(now()) @db.Timestamptz(6)
+  erasedAt                   DateTime?    @db.Timestamptz(6)
 
-  application               Application      @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
-  selectedByApplications    Application[]    @relation("ApplicationUserSelectedOffer")
-  decision                  BankOfferDecision? @relation("BankOfferDecisionFor")
+  application            Application        @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
+  selectedByApplications Application[]      @relation("ApplicationUserSelectedOffer")
+  decision               BankOfferDecision? @relation("BankOfferDecisionFor")
 
   @@index([applicationId], name: "idx_bank_offer_application")
   @@index([programCode, createdAt(sort: Desc)], name: "idx_bank_offer_program_created")
@@ -443,16 +458,16 @@ model BankOffer {
 // -----------------------------------------------------------------------------
 
 model ScoringEngineVersion {
-  id                  String        @id @default(cuid()) @db.VarChar(30)
-  version             String        @unique @db.VarChar(32)
-  description         String?       @db.VarChar(1000)
-  weightsConfig       Json
-  activatedAt         DateTime      @default(now()) @db.Timestamptz(6)
-  deactivatedAt       DateTime?     @db.Timestamptz(6)
-  activatedByStaffId  String?       @db.VarChar(30)
-  createdAt           DateTime      @default(now()) @db.Timestamptz(6)
+  id                 String    @id @default(cuid()) @db.VarChar(30)
+  version            String    @unique @db.VarChar(32)
+  description        String?   @db.VarChar(1000)
+  weightsConfig      Json
+  activatedAt        DateTime  @default(now()) @db.Timestamptz(6)
+  deactivatedAt      DateTime? @db.Timestamptz(6)
+  activatedByStaffId String?   @db.VarChar(30)
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
 
-  activatedByStaff    StaffAccount? @relation("ScoringVersionActivator", fields: [activatedByStaffId], references: [id], onDelete: SetNull)
+  activatedByStaff StaffAccount? @relation("ScoringVersionActivator", fields: [activatedByStaffId], references: [id], onDelete: SetNull)
 
   @@index([activatedAt(sort: Desc)], name: "idx_scoring_engine_version_activated")
   @@map("scoring_engine_version")
@@ -463,13 +478,13 @@ model ScoringEngineVersion {
 // -----------------------------------------------------------------------------
 
 model BankOfferDecision {
-  id                  String          @id @default(cuid()) @db.VarChar(30)
-  bankOfferId         String          @unique @db.VarChar(30)
-  outcome             DecisionOutcome
-  recordedAt          DateTime        @default(now()) @db.Timestamptz(6)
-  decisionLatencyMs   Int?
+  id                String          @id @default(cuid()) @db.VarChar(30)
+  bankOfferId       String          @unique @db.VarChar(30)
+  outcome           DecisionOutcome
+  recordedAt        DateTime        @default(now()) @db.Timestamptz(6)
+  decisionLatencyMs Int?
 
-  bankOffer           BankOffer       @relation("BankOfferDecisionFor", fields: [bankOfferId], references: [id], onDelete: Cascade)
+  bankOffer BankOffer @relation("BankOfferDecisionFor", fields: [bankOfferId], references: [id], onDelete: Cascade)
 
   @@index([recordedAt(sort: Desc)], name: "idx_bank_offer_decision_recorded")
   @@index([outcome], name: "idx_bank_offer_decision_outcome")
@@ -482,23 +497,23 @@ model BankOfferDecision {
 // -----------------------------------------------------------------------------
 
 model Activity {
-  id                   String          @id @default(cuid()) @db.VarChar(30)
-  applicationId        String          @db.VarChar(30)
-  actorStaffId         String          @db.VarChar(30)
-  actorRole            String          @db.VarChar(32)
-  activityType         String          @db.VarChar(48)
-  reason               String          @db.VarChar(64)
-  note                 String?         @db.VarChar(2000)
-  durationMinutes      Int?
-  outcomeFlags         String[]        @db.VarChar(48)
-  followUpAt           DateTime?       @db.Timestamptz(6)
-  attachedDocumentIds  String[]        @db.VarChar(30)
-  meta                 Json?
-  correlationId        String          @db.VarChar(36)
-  occurredAt           DateTime        @default(now()) @db.Timestamptz(6)
+  id                  String    @id @default(cuid()) @db.VarChar(30)
+  applicationId       String    @db.VarChar(30)
+  actorStaffId        String    @db.VarChar(30)
+  actorRole           String    @db.VarChar(32)
+  activityType        String    @db.VarChar(48)
+  reason              String    @db.VarChar(64)
+  note                String?   @db.VarChar(2000)
+  durationMinutes     Int?
+  outcomeFlags        String[]  @db.VarChar(48)
+  followUpAt          DateTime? @db.Timestamptz(6)
+  attachedDocumentIds String[]  @db.VarChar(30)
+  meta                Json?
+  correlationId       String    @db.VarChar(36)
+  occurredAt          DateTime  @default(now()) @db.Timestamptz(6)
 
-  application          Application     @relation("ApplicationActivities", fields: [applicationId], references: [id], onDelete: Cascade)
-  actorStaff           StaffAccount    @relation("ActivityActor", fields: [actorStaffId], references: [id], onDelete: Restrict)
+  application Application  @relation("ApplicationActivities", fields: [applicationId], references: [id], onDelete: Cascade)
+  actorStaff  StaffAccount @relation("ActivityActor", fields: [actorStaffId], references: [id], onDelete: Restrict)
 
   @@index([applicationId, occurredAt(sort: Desc)], name: "idx_activity_application_occurred")
   @@index([actorStaffId, occurredAt(sort: Desc)], name: "idx_activity_actor_occurred")
@@ -512,27 +527,27 @@ model Activity {
 // -----------------------------------------------------------------------------
 
 model Document {
-  id                   String          @id @default(cuid()) @db.VarChar(30)
-  applicationId        String          @db.VarChar(30)
-  documentType         String          @db.VarChar(64)
-  s3Key                String          @unique @db.VarChar(256)
-  status               String          @db.VarChar(24)
-  uploadedByContext    String          @db.VarChar(24)
-  uploadedBySource     String          @db.VarChar(24)
-  uploadedByStaffId    String?         @db.VarChar(30)
-  uploadedByCustomerId String?         @db.VarChar(30)
-  originalFilename     String          @db.VarChar(255)
-  mimeType             String          @db.VarChar(48)
+  id                   String    @id @default(cuid()) @db.VarChar(30)
+  applicationId        String    @db.VarChar(30)
+  documentType         String    @db.VarChar(64)
+  s3Key                String    @unique @db.VarChar(256)
+  status               String    @db.VarChar(24)
+  uploadedByContext    String    @db.VarChar(24)
+  uploadedBySource     String    @db.VarChar(24)
+  uploadedByStaffId    String?   @db.VarChar(30)
+  uploadedByCustomerId String?   @db.VarChar(30)
+  originalFilename     String    @db.VarChar(255)
+  mimeType             String    @db.VarChar(48)
   sizeBytes            Int
-  createdAt            DateTime        @default(now()) @db.Timestamptz(6)
-  verifiedAt           DateTime?       @db.Timestamptz(6)
-  verifiedByStaffId    String?         @db.VarChar(30)
-  erasedAt             DateTime?       @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+  verifiedAt           DateTime? @db.Timestamptz(6)
+  verifiedByStaffId    String?   @db.VarChar(30)
+  erasedAt             DateTime? @db.Timestamptz(6)
 
-  application          Application      @relation("ApplicationDocuments", fields: [applicationId], references: [id], onDelete: Cascade)
-  uploadedByStaff      StaffAccount?    @relation("DocumentUploader", fields: [uploadedByStaffId], references: [id], onDelete: SetNull)
-  uploadedByCustomer   CustomerAccount? @relation("DocumentCustomerUploader", fields: [uploadedByCustomerId], references: [id], onDelete: SetNull)
-  verifiedByStaff      StaffAccount?    @relation("DocumentVerifier", fields: [verifiedByStaffId], references: [id], onDelete: SetNull)
+  application        Application      @relation("ApplicationDocuments", fields: [applicationId], references: [id], onDelete: Cascade)
+  uploadedByStaff    StaffAccount?    @relation("DocumentUploader", fields: [uploadedByStaffId], references: [id], onDelete: SetNull)
+  uploadedByCustomer CustomerAccount? @relation("DocumentCustomerUploader", fields: [uploadedByCustomerId], references: [id], onDelete: SetNull)
+  verifiedByStaff    StaffAccount?    @relation("DocumentVerifier", fields: [verifiedByStaffId], references: [id], onDelete: SetNull)
 
   @@index([applicationId, documentType, status], name: "idx_document_application_type_status")
   @@index([uploadedByStaffId, createdAt(sort: Desc)], name: "idx_document_uploader_created")
@@ -549,20 +564,20 @@ model Document {
 // -----------------------------------------------------------------------------
 
 model PlatformEnumeration {
-  id            String    @id @default(cuid()) @db.VarChar(30)
-  type          String    @db.VarChar(48)
-  key           String    @db.VarChar(64)
-  labelAr       String    @db.VarChar(160)
-  labelEn       String    @db.VarChar(160)
-  active        Boolean   @default(true)
-  deprecatedAt  DateTime? @db.Timestamptz(6)
-  systemOnly    Boolean   @default(false)
-  parentKey     String?   @db.VarChar(64)
-  sortOrder     Int       @default(0)
-  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
-  createdBy     String?   @db.VarChar(30)
-  updatedBy     String?   @db.VarChar(30)
+  id           String    @id @default(cuid()) @db.VarChar(30)
+  type         String    @db.VarChar(48)
+  key          String    @db.VarChar(64)
+  labelAr      String    @db.VarChar(160)
+  labelEn      String    @db.VarChar(160)
+  active       Boolean   @default(true)
+  deprecatedAt DateTime? @db.Timestamptz(6)
+  systemOnly   Boolean   @default(false)
+  parentKey    String?   @db.VarChar(64)
+  sortOrder    Int       @default(0)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
+  createdBy    String?   @db.VarChar(30)
+  updatedBy    String?   @db.VarChar(30)
 
   @@unique([type, key], name: "idx_platform_enumeration_type_key")
   @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
@@ -576,47 +591,194 @@ model PlatformEnumeration {
 // phone (unique) + password and receive a customer JWT.
 // -----------------------------------------------------------------------------
 
+// Feature 008 — Two-Path Registration (Constitution v1.8.0 / Principle XIII).
+// `registrationPath` distinguishes upfront-PHONE customers (fully populated at
+// signup) from lite-SOCIAL customers (provider sign-in; mobile + age completed
+// via the loan-request Complete-Profile flow). `passwordHash` is nullable so
+// SOCIAL customers (who authenticate via Google / Apple) need not carry one.
+// `mobileVerifiedAt` flips non-null IFF `phone` is OTP-verified — once set,
+// both fields are immutable (enforced by repository, not the DB). `age` is
+// nullable for in-flight SOCIAL customers; set immutably on first successful
+// loan submission.
+enum RegistrationPath {
+  PHONE
+  SOCIAL
+}
+
+enum SocialProvider {
+  GOOGLE
+  APPLE
+}
+
+enum OtpPurpose {
+  SIGNUP
+  PROFILE_MOBILE
+  FORGOT_PASSWORD
+  MOBILE_CHANGE
+}
+
 model CustomerAccount {
-  id              String    @id @default(cuid()) @db.VarChar(30)
-  phone           String    @unique @db.VarChar(20)
-  email           String?   @unique @db.VarChar(320)
-  name            String    @db.VarChar(120)
-  locale          String    @default("ar-EG") @db.VarChar(8)
-  passwordHash    String    @db.VarChar(72)
-  nationalIdHash  String?   @db.Char(64)
-  isVerified      Boolean   @default(false)
-  isActive        Boolean   @default(true)
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
-  lastLoginAt     DateTime? @db.Timestamptz(6)
+  id               String           @id @default(cuid()) @db.VarChar(30)
+  registrationPath RegistrationPath @default(PHONE)
+  phone            String?          @unique @db.VarChar(20)
+  mobileVerifiedAt DateTime?        @db.Timestamptz(6)
+  email            String?          @unique @db.VarChar(320)
+  name             String           @db.VarChar(120)
+  locale           String           @default("ar-EG") @db.VarChar(8)
+  passwordHash     String?          @db.VarChar(72)
+  age              Int?
+  nationalIdHash   String?          @db.Char(64)
+  isVerified       Boolean          @default(false)
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
+  lastLoginAt      DateTime?        @db.Timestamptz(6)
 
-  refreshTokens   CustomerRefreshToken[]
-  applications    Application[]   @relation("CustomerApplications")
-  uploadedDocuments Document[]    @relation("DocumentCustomerUploader")
-  supportRequests SupportRequest[] @relation("SupportRequestCustomer")
+  refreshTokens     CustomerRefreshToken[]
+  applications      Application[]          @relation("CustomerApplications")
+  uploadedDocuments Document[]             @relation("DocumentCustomerUploader")
+  supportRequests   SupportRequest[]       @relation("SupportRequestCustomer")
+  providers         CustomerProvider[]
+  passwordResets    PasswordResetToken[]
+  questionnaires    QuestionnaireAnswer[]
 
+  // Postgres UNIQUE allows multiple NULLs by default, so `phone @unique`
+  // works fine for SOCIAL customers whose phone is still null pending the
+  // Complete-Profile flow.
   @@index([isActive, createdAt(sort: Desc)], name: "idx_customer_account_active_created")
+  @@index([registrationPath], name: "idx_customer_account_registration_path")
   @@map("customer_account")
 }
 
 model CustomerRefreshToken {
-  id            String    @id @default(cuid()) @db.VarChar(30)
-  customerId    String    @db.VarChar(30)
-  tokenHash     String    @unique @db.Char(64)
-  issuedAt      DateTime  @default(now()) @db.Timestamptz(6)
-  expiresAt     DateTime  @db.Timestamptz(6)
-  revokedAt     DateTime? @db.Timestamptz(6)
-  rotatedFromId String?   @db.VarChar(30)
-  userAgent     String?   @db.VarChar(500)
-  sourceIp      String?   @db.Inet
-  mobileClientId String?  @db.VarChar(64)
+  id             String    @id @default(cuid()) @db.VarChar(30)
+  customerId     String    @db.VarChar(30)
+  tokenHash      String    @unique @db.Char(64)
+  issuedAt       DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt      DateTime  @db.Timestamptz(6)
+  revokedAt      DateTime? @db.Timestamptz(6)
+  rotatedFromId  String?   @db.VarChar(30)
+  userAgent      String?   @db.VarChar(500)
+  sourceIp       String?   @db.Inet
+  mobileClientId String?   @db.VarChar(64)
 
-  customer      CustomerAccount        @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  rotatedFrom   CustomerRefreshToken?  @relation("CustomerRefreshTokenRotation", fields: [rotatedFromId], references: [id], onDelete: SetNull)
-  rotatedTo     CustomerRefreshToken[] @relation("CustomerRefreshTokenRotation")
+  customer    CustomerAccount        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  rotatedFrom CustomerRefreshToken?  @relation("CustomerRefreshTokenRotation", fields: [rotatedFromId], references: [id], onDelete: SetNull)
+  rotatedTo   CustomerRefreshToken[] @relation("CustomerRefreshTokenRotation")
 
   @@index([customerId, revokedAt, expiresAt], name: "idx_customer_refresh_token_active")
   @@map("customer_refresh_token")
+}
+
+// -----------------------------------------------------------------------------
+// Feature 008 — Two-Path Registration tables (Constitution v1.8.0 / Principle XIII).
+// -----------------------------------------------------------------------------
+
+// One row per (customer, provider) link. Provider+providerUserId is the unique
+// natural key — Google or Apple subject IDs. Email is captured at link time
+// for Apple-email-withheld resilience.
+model CustomerProvider {
+  id             String         @id @default(cuid()) @db.VarChar(30)
+  customerId     String         @db.VarChar(30)
+  provider       SocialProvider
+  providerUserId String         @db.VarChar(255)
+  email          String?        @db.VarChar(320)
+  linkedAt       DateTime       @default(now()) @db.Timestamptz(6)
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([customerId], name: "idx_customer_provider_customer")
+  @@map("customer_provider")
+}
+
+// OTP challenges. `customerId` is null for SIGNUP / FORGOT_PASSWORD (pre-
+// customer-link) and set for PROFILE_MOBILE (SOCIAL Complete-Profile mobile
+// binding). codeHash is bcrypt cost 10. Never logged.
+model OtpChallenge {
+  id           String     @id @default(cuid()) @db.VarChar(30)
+  customerId   String?    @db.VarChar(30)
+  phone        String     @db.VarChar(20)
+  purpose      OtpPurpose
+  codeHash     String     @db.VarChar(72)
+  attemptsLeft Int        @default(5)
+  expiresAt    DateTime   @db.Timestamptz(6)
+  consumedAt   DateTime?  @db.Timestamptz(6)
+  createdAt    DateTime   @default(now()) @db.Timestamptz(6)
+
+  @@index([phone, purpose, expiresAt], name: "idx_otp_challenge_active")
+  @@index([customerId, expiresAt], name: "idx_otp_challenge_customer")
+  @@map("otp_challenge")
+}
+
+// Single-use, 15-min-TTL bearer proving an OTP-verified phone in the PHONE
+// signup flow. Consumed by /auth/signup/phone/complete. SOCIAL Complete-
+// Profile uses the customer's JWT instead (the customer record already exists).
+model VerifiedMobileToken {
+  id         String    @id @default(cuid()) @db.VarChar(30)
+  tokenHash  String    @unique @db.Char(64)
+  phone      String    @db.VarChar(20)
+  expiresAt  DateTime  @db.Timestamptz(6)
+  consumedAt DateTime? @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([phone, expiresAt], name: "idx_verified_mobile_token_phone")
+  @@map("verified_mobile_token")
+}
+
+// Short-lived (15 min) wrapper around a successful Google/Apple ID-token
+// verification. Consumed by /auth/social/login (returning customer) or the
+// social-signup transaction (new customer + CustomerProvider link).
+model SocialSession {
+  id                 String         @id @default(cuid()) @db.VarChar(30)
+  provider           SocialProvider
+  providerUserId     String         @db.VarChar(255)
+  email              String?        @db.VarChar(320)
+  fullName           String?        @db.VarChar(120)
+  resolvedCustomerId String?        @db.VarChar(30)
+  expiresAt          DateTime       @db.Timestamptz(6)
+  consumedAt         DateTime?      @db.Timestamptz(6)
+  createdAt          DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([provider, providerUserId], name: "idx_social_session_subject")
+  @@map("social_session")
+}
+
+// Single-use, 15-min-TTL token issued after a successful forgot-password OTP.
+// PHONE customers only. Consumed by /auth/password/reset.
+model PasswordResetToken {
+  id         String    @id @default(cuid()) @db.VarChar(30)
+  customerId String    @db.VarChar(30)
+  tokenHash  String    @unique @db.Char(64)
+  expiresAt  DateTime  @db.Timestamptz(6)
+  consumedAt DateTime? @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, expiresAt], name: "idx_password_reset_token_active")
+  @@map("password_reset_token")
+}
+
+// Server-side persisted questionnaire draft per customer. Survives across
+// devices (FR-007). One active "draft" row per customer; on loan-application
+// submit, `applicationId` is set to freeze the snapshot at submission time.
+// (Field set kept narrow here — additional questionnaire fields will be added
+// when the existing questionnaire feature is migrated server-side.)
+model QuestionnaireAnswer {
+  id            String   @id @default(cuid()) @db.VarChar(30)
+  customerId    String   @db.VarChar(30)
+  applicationId String?  @db.VarChar(30)
+  payloadJson   Json
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(6)
+
+  customer    CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  application Application?    @relation("QuestionnaireApplication", fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([customerId], name: "idx_questionnaire_answer_customer")
+  @@index([applicationId], name: "idx_questionnaire_answer_application")
+  @@map("questionnaire_answer")
 }
 
 // -----------------------------------------------------------------------------
@@ -624,14 +786,14 @@ model CustomerRefreshToken {
 // -----------------------------------------------------------------------------
 
 model SupportConfig {
-  id           String   @id @default("singleton") @db.VarChar(16)
-  phone        String   @db.VarChar(40)
-  email        String   @db.VarChar(320)
-  whatsappUrl  String   @db.VarChar(500)
-  hoursAr      String   @db.VarChar(200)
-  hoursEn      String   @db.VarChar(200)
-  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
-  updatedBy    String?  @db.VarChar(30)
+  id          String   @id @default("singleton") @db.VarChar(16)
+  phone       String   @db.VarChar(40)
+  email       String   @db.VarChar(320)
+  whatsappUrl String   @db.VarChar(500)
+  hoursAr     String   @db.VarChar(200)
+  hoursEn     String   @db.VarChar(200)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  updatedBy   String?  @db.VarChar(30)
 
   @@map("support_config")
 }
@@ -648,7 +810,7 @@ model SupportRequest {
   createdAt       DateTime       @default(now()) @db.Timestamptz(6)
   resolvedAt      DateTime?      @db.Timestamptz(6)
 
-  customer        CustomerAccount? @relation("SupportRequestCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  customer CustomerAccount? @relation("SupportRequestCustomer", fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt(sort: Desc)], name: "idx_support_request_status_created")
   @@index([assignedStaffId, status], name: "idx_support_request_agent_status")

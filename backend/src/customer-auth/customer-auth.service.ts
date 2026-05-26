@@ -125,6 +125,10 @@ export class CustomerAuthService {
     const row = await this.accounts.findByPhone(phone);
     if (!row) throw new CustomerInvalidCredentialsException();
 
+    // Feature 008 / FR-023: SOCIAL customers have no password — surface the
+    // same generic CUSTOMER_INVALID_CREDENTIALS to prevent enumeration.
+    if (row.passwordHash === null) throw new CustomerInvalidCredentialsException();
+
     const ok = await this.password.verify(args.password, row.passwordHash);
     if (!ok) throw new CustomerInvalidCredentialsException();
     if (!row.isActive) throw new CustomerAccountInactiveException();
@@ -276,7 +280,11 @@ export class CustomerAuthService {
 
   private toProfile(row: {
     id: string;
-    phone: string;
+    /**
+     * Feature 008: nullable for SOCIAL customers pending the Complete-Profile
+     * mobile-binding step. DTO surface keeps the field optional via `??`.
+     */
+    phone: string | null;
     email: string | null;
     name: string;
     locale: string;
@@ -286,7 +294,7 @@ export class CustomerAuthService {
   }): CustomerProfileResponseDto {
     return {
       id: row.id,
-      phone: row.phone,
+      phone: row.phone ?? '',
       email: row.email ?? undefined,
       name: row.name,
       locale: row.locale,

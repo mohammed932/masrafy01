@@ -4,9 +4,9 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/architecture/base_usecase.dart';
 import '../../../../core/result/failure.dart';
 import '../../../../core/storage/customer_session_storage.dart';
-import '../../data/models/request/login_request.dart';
-import '../../data/models/request/logout_request.dart';
-import '../../data/models/request/signup_request.dart';
+import '../../data/models/request/login/login_request.dart';
+import '../../data/models/request/login/logout_request.dart';
+import '../../data/models/request/signup/signup_request.dart';
 import '../entities/customer_entity.dart';
 import '../repositories/auth_repository.dart';
 

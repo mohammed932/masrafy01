@@ -1,0 +1,92 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Mobile Auth — Complete Profile (SOCIAL customers)
+  version: 1.0.0
+paths:
+  /api/v1/auth/profile/mobile-request-otp:
+    post:
+      summary: SOCIAL — issue OTP for mobile binding
+      description: |
+        Used by the Complete-Profile flow's mobile step. The authenticated
+        SOCIAL customer's id is read from the Customer JWT; the request
+        carries only the mobile number. An OtpChallenge row with
+        purpose=PROFILE_MOBILE is created, tagged with both mobile and
+        customerId. Subject to the OTP rate limits in spec §4.2.
+
+        Forbidden for PHONE customers (their mobile is already set + immutable).
+      security: [{ CustomerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile]
+              properties:
+                mobile: { type: string, example: "+201234567890" }
+      responses:
+        '200':
+          description: OTP dispatched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      otpId: { type: string }
+                      maskedMobile: { type: string }
+                      expiresInSeconds: { type: integer }
+                      resendAvailableInSeconds: { type: integer }
+        '400':
+          description: MOBILE_INVALID_FORMAT
+        '403':
+          description: Forbidden — caller is PHONE (mobile already set)
+        '409':
+          description: MOBILE_ALREADY_REGISTERED (collision detected before OTP send)
+        '429':
+          description: OTP_RATE_LIMITED
+
+  /api/v1/auth/profile/mobile-verify-otp:
+    post:
+      summary: SOCIAL — verify OTP and persist mobile to the customer
+      description: |
+        Marks the OtpChallenge consumed, writes mobile + mobileVerifiedAt
+        to the customer in a single transaction. From this moment, the
+        customer's mobile is immutable. If the mobile collides with another
+        customer (partial-unique-index violation), the transaction rolls
+        back and MOBILE_ALREADY_REGISTERED is returned — the customer's
+        mobile stays null.
+
+        Returns 204 — the caller's existing tokens remain valid. The mobile
+        client should call /auth/me to refresh the customer envelope and
+        observe the now-set mobile + mobileVerifiedAt.
+      security: [{ CustomerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otpId, code]
+              properties:
+                otpId: { type: string }
+                code: { type: string, pattern: '^\\d{6}$' }
+      responses:
+        '204':
+          description: Mobile persisted to customer
+        '400':
+          description: OTP_INVALID / OTP_EXPIRED / OTP_CONSUMED / OTP_ATTEMPTS_EXCEEDED
+        '403':
+          description: Forbidden — caller is PHONE
+        '409':
+          description: MOBILE_ALREADY_REGISTERED
+
+components:
+  securitySchemes:
+    CustomerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

@@ -72,6 +72,24 @@ export const envSchema = z.object({
   S3_BUCKET: z.string().min(1),
   S3_FORCE_PATH_STYLE: truthy.default('true'),
   S3_PRESIGN_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+
+  // Feature 008 — Mobile Authentication & Two-Path Registration (Constitution v1.8.0 / Principle XIII).
+  // Admin-facing presigned read URL for National-ID images (per spec clarification Q2).
+  ADMIN_DOCUMENT_PRESIGNED_READ_TTL_SECONDS: z.coerce.number().int().positive().default(3600),
+
+  // SMS gateway for customer OTP. Dev: 'mock' logs the OTP via Pino with the
+  // code masked. Production: Egyptian SMS gateway (vendor selection owned by
+  // ops, not this feature). Spec FR-016/017 enforce that OTP is sent ONLY for
+  // registration / forgot-password / mobile-change — never for login.
+  SMS_GATEWAY_PROVIDER: z.enum(['mock']).default('mock'),
+  SMS_GATEWAY_FROM: z.string().min(1).default('+201000000000'),
+
+  // Google Sign-In OAuth audiences (iOS + Android client IDs, comma-separated).
+  // verifyIdToken({ audience }) accepts the list to support both platforms.
+  GOOGLE_OAUTH_CLIENT_IDS: z.string().min(1).default('replace_me.apps.googleusercontent.com'),
+
+  // Apple Sign-In iOS bundle identifier (the `aud` claim on Apple ID tokens).
+  APPLE_BUNDLE_ID: z.string().min(1).default('com.example.masrafy'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

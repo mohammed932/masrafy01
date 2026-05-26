@@ -1,0 +1,101 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Mobile Auth — OTP
+  version: 1.0.0
+paths:
+  /api/v1/auth/otp/request:
+    post:
+      summary: Send an SMS OTP
+      description: |
+        Sends a 6-digit OTP to the given mobile. Valid purposes: SIGNUP,
+        FORGOT_PASSWORD, MOBILE_CHANGE. PROFILE_MOBILE uses the
+        /auth/profile/mobile-request-otp endpoint instead (which requires
+        Customer JWT). Any attempt to use LOGIN as the purpose MUST be
+        rejected with HTTP 400 (FR-017) and trigger the canary alarm.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile, purpose, locale]
+              properties:
+                mobile: { type: string, example: "+201234567890" }
+                purpose:
+                  type: string
+                  enum: [SIGNUP, FORGOT_PASSWORD, MOBILE_CHANGE]
+                  description: |
+                    LOGIN is NOT a valid purpose. Submitting it returns HTTP
+                    400 and triggers an alarm.
+                locale: { type: string, enum: [ar, en] }
+      responses:
+        '200':
+          description: OTP dispatched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      otpId: { type: string }
+                      maskedMobile: { type: string }
+                      expiresInSeconds: { type: integer }
+                      resendAvailableInSeconds: { type: integer }
+        '400':
+          description: Invalid mobile format OR purpose=LOGIN
+        '429':
+          description: OTP_RATE_LIMITED (meta.retryAfterSeconds)
+
+  /api/v1/auth/otp/verify:
+    post:
+      summary: Verify an SMS OTP
+      description: |
+        Verifies a 6-digit code. On success for SIGNUP / MOBILE_CHANGE,
+        returns a verifiedMobileToken. On success for FORGOT_PASSWORD,
+        returns a passwordResetToken. Does NOT create a customer record.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otpId, code, purpose]
+              properties:
+                otpId: { type: string }
+                code: { type: string, pattern: '^\\d{6}$' }
+                purpose:
+                  type: string
+                  enum: [SIGNUP, FORGOT_PASSWORD, MOBILE_CHANGE]
+      responses:
+        '200':
+          description: Verified
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      success: { type: boolean, const: true }
+                      data:
+                        type: object
+                        properties:
+                          verifiedMobileToken: { type: string }
+                          mobile: { type: string }
+                          expiresInSeconds: { type: integer, example: 900 }
+                  - type: object
+                    properties:
+                      success: { type: boolean, const: true }
+                      data:
+                        type: object
+                        properties:
+                          passwordResetToken: { type: string }
+                          expiresInSeconds: { type: integer, example: 900 }
+        '400':
+          description: OTP_INVALID / OTP_EXPIRED / OTP_CONSUMED / OTP_ATTEMPTS_EXCEEDED
+        '409':
+          description: MOBILE_ALREADY_REGISTERED (SIGNUP purpose only)

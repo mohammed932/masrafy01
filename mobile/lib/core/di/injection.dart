@@ -3,8 +3,15 @@ import 'package:get_it/get_it.dart';
 
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
+import '../../features/auth/data/services/social_signin_service.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
+import '../../features/auth/domain/repositories/customer_auth_repository.dart';
 import '../../features/auth/domain/usecases/auth_usecase.dart';
+import '../../features/auth/presentation/cubits/complete_profile_cubit.dart';
+import '../../features/auth/presentation/cubits/forgot_password_cubit.dart';
+import '../../features/auth/presentation/cubits/login_cubit.dart';
+import '../../features/auth/presentation/cubits/phone_signup_cubit.dart';
+import '../../features/auth/presentation/cubits/social_signin_cubit.dart';
 import '../../features/wizard/data/datasources/wizard_remote_datasource.dart';
 import '../../features/wizard/data/repositories/wizard_repository_impl.dart';
 import '../../features/wizard/domain/repositories/wizard_repository.dart';
@@ -47,10 +54,16 @@ Future<void> configureDependencies({required bool prod}) async {
       ));
   getIt.registerLazySingleton<BaseNetwork>(() => AppNetwork(getIt()));
 
-  // -- Auth feature (data + domain only) ---------------------------------
+  // -- Auth feature (legacy v1.7.0 + feature 008 — Constitution v1.8.0). --
+  //    Single datasource + single repository impl wired to BOTH the
+  //    AuthRepository and CustomerAuthRepository interfaces.
   getIt.registerLazySingleton(() => AuthRemoteDataSource(getIt<BaseNetwork>()));
-  getIt.registerLazySingleton<AuthRepository>(
+  getIt.registerLazySingleton(
     () => AuthRepositoryImpl(getIt<AuthRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton<AuthRepository>(() => getIt<AuthRepositoryImpl>());
+  getIt.registerLazySingleton<CustomerAuthRepository>(
+    () => getIt<AuthRepositoryImpl>(),
   );
   getIt.registerLazySingleton(
     () => AuthUseCase(getIt<AuthRepository>(), getIt<CustomerSessionStorage>()),
@@ -62,4 +75,17 @@ Future<void> configureDependencies({required bool prod}) async {
     () => WizardRepositoryImpl(getIt<WizardRemoteDataSource>()),
   );
   getIt.registerLazySingleton(() => WizardUseCase(getIt<WizardRepository>()));
+
+  // -- Feature 008 — native social SDK service + cubit factories ---------
+  getIt.registerLazySingleton(() => SocialSignInService());
+  getIt.registerFactory(() => PhoneSignupCubit(getIt<CustomerAuthRepository>()));
+  getIt.registerFactory(() => LoginCubit(getIt<AuthRepository>()));
+  getIt.registerFactory(
+    () => SocialSignInCubit(
+      getIt<CustomerAuthRepository>(),
+      getIt<SocialSignInService>(),
+    ),
+  );
+  getIt.registerFactory(() => ForgotPasswordCubit(getIt<CustomerAuthRepository>()));
+  getIt.registerFactory(() => CompleteProfileCubit(getIt<CustomerAuthRepository>()));
 }

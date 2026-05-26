@@ -1,0 +1,112 @@
+openapi: 3.1.0
+info:
+  title: Masrafy Mobile Auth — Login / Logout / Refresh
+  version: 1.0.0
+paths:
+  /api/v1/auth/login:
+    post:
+      summary: Phone + password login (PHONE customers only)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mobile, password]
+              properties:
+                mobile: { type: string, example: "+201234567890" }
+                password: { type: string }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthEnvelope'
+        '401':
+          description: CREDENTIALS_INVALID (also returned for unknown mobile and for SOCIAL customers using this endpoint — no enumeration leak)
+        '423':
+          description: ACCOUNT_LOCKED (10 failures in 15 min → 30 min lockout). meta.unlockAt timestamp.
+
+  /api/v1/auth/logout:
+    post:
+      summary: Revoke the caller's refresh token
+      description: |
+        Revokes the refresh token presented in the request body. If
+        allOtherDevices=true is set, revokes every other refresh token for
+        the customer (current device gets re-issued tokens).
+      security: [{ CustomerJWT: [] }]
+      parameters:
+        - name: allOtherDevices
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '204':
+          description: Refresh token revoked (and optionally others)
+
+  /api/v1/auth/refresh:
+    post:
+      summary: Rotate the refresh token and reissue access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: New token pair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthEnvelope'
+        '401':
+          description: Refresh token invalid, expired, or revoked
+
+components:
+  schemas:
+    AuthEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, const: true }
+        data:
+          type: object
+          properties:
+            accessToken: { type: string }
+            refreshToken: { type: string }
+            accessTokenExpiresAt: { type: string, format: date-time }
+            refreshTokenExpiresAt: { type: string, format: date-time }
+            customer:
+              type: object
+              properties:
+                id: { type: string }
+                registrationPath: { type: string, enum: [PHONE, SOCIAL] }
+                mobile: { type: string, nullable: true }
+                mobileVerifiedAt: { type: string, format: date-time, nullable: true }
+                fullName: { type: string }
+                email: { type: string, nullable: true }
+                age: { type: integer, nullable: true }
+                hasPassword: { type: boolean }
+                linkedProviders:
+                  type: array
+                  items: { type: string, enum: [GOOGLE, APPLE] }
+  securitySchemes:
+    CustomerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
