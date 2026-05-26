@@ -5,6 +5,23 @@
  * Enum strings are validated against the platform enumeration registry at application
  * time; here we keep them as @IsString and let the matching engine surface typed
  * NO_MATCHING_PROGRAMS reasons. Idempotency-Key arrives via HTTP header, not body.
+ *
+ * Spec-question → DTO mapping (Phase 1 stakeholder questionnaire):
+ *   Q: "Type of financing?"            → `loanPurpose`
+ *   Q: "Amount needed?"                → `requestedAmountEGP`
+ *   Q: "Repayment tenor bucket?"       → `preferredTenorMonths` (UI maps <5y → 48 / 5–7y → 72 / >7y → 96 by default)
+ *   Q: "Job type?"                     → `employment.employmentType` (government_employee | private_employee | business_owner | freelancer; legacy salaried/self_employed kept active)
+ *   Q: "Monthly salary?"               → `employment.monthlyNetSalaryEGP`
+ *   Q: "Salary transfer?"              → `employment.salaryTransferType`
+ *   Q: "Current loans?"                → `obligations.hasCurrentLoan` + `obligations.existingMonthlyObligationsEGP`
+ *   Q: "Credit card used amount?"      → `assets.creditCardUsedEGP` (see AssetsDto)
+ *   Q: "Rejected before?"              → `obligations.hasPreviousRejection`
+ *   Q: "Most important factor?"        → `priority` (lowest_installment | lowest_interest | fastest_approval | least_paperwork)
+ *
+ * Phase 2 (NOT in this DTO yet):
+ *   - "Company accredited by banks?" — resolved engine-side via salary_category.
+ *   - "Which bank receives your salary?" — not modeled.
+ *   - Credit-card product line — separate flow.
  */
 import {
   IsString,

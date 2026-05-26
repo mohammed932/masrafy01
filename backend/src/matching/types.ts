@@ -219,6 +219,9 @@ export interface BankProgramSnapshot {
   id: string;
   programCode: string;
   bankName: string;
+  /** Phase-1 spec: partner bank flag. Used by ranking as a final tiebreaker
+   *  so identical primary-sort-key offers from featured banks rank first. */
+  bankIsFeatured: boolean;
   friendlyName: string;
   programType: string;
   productCategory: string;
@@ -265,6 +268,9 @@ export interface FeesBreakdown {
 
 export interface Offer {
   bankName: string;
+  /** Mirror of the snapshot's `bankIsFeatured` — surfaced on the offer DTO so
+   *  the mobile app can render a "FEATURED" chip without a second lookup. */
+  bankIsFeatured: boolean;
   programFriendlyName: string;
   programCode: string;
   programVersion: number;

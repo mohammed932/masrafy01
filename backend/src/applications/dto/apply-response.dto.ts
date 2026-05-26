@@ -40,6 +40,8 @@ export interface ApplyMatchedResponse {
       programCode: string;
       programVersion: number;
       bankName: string;
+      /** Phase-1 partner-bank flag. Mobile renders a FEATURED chip when true. */
+      bankIsFeatured: boolean;
       programFriendlyName: string;
       currency: string;
       effectiveRatePercent: string;

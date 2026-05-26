@@ -1,7 +1,10 @@
-import '../../domain/entities/customer_entity.dart';
+import '../../../domain/entities/customer_entity.dart';
 
+/// Wire-format customer DTO. Lives in `data/models/response/` per
+/// Constitution Principle XXX — `Model` suffix marks a response DTO.
+/// Mappers stay at the bottom of the file.
 class CustomerModel {
-  CustomerModel({
+  const CustomerModel({
     required this.id,
     required this.phone,
     required this.name,
@@ -45,40 +48,5 @@ class CustomerModel {
         createdAt: createdAt,
         email: email,
         lastLoginAt: lastLoginAt,
-      );
-}
-
-class CustomerAuthEnvelopeModel {
-  CustomerAuthEnvelopeModel({
-    required this.accessToken,
-    required this.accessTokenExpiresIn,
-    required this.refreshToken,
-    required this.refreshTokenExpiresIn,
-    required this.customer,
-  });
-
-  factory CustomerAuthEnvelopeModel.fromJson(Map<String, dynamic> json) {
-    return CustomerAuthEnvelopeModel(
-      accessToken: json['accessToken'] as String,
-      accessTokenExpiresIn: json['accessTokenExpiresIn'] as int,
-      refreshToken: json['refreshToken'] as String,
-      refreshTokenExpiresIn: json['refreshTokenExpiresIn'] as int,
-      customer:
-          CustomerModel.fromJson(json['customer'] as Map<String, dynamic>),
-    );
-  }
-
-  final String accessToken;
-  final int accessTokenExpiresIn;
-  final String refreshToken;
-  final int refreshTokenExpiresIn;
-  final CustomerModel customer;
-
-  CustomerSessionEntity toEntity() => CustomerSessionEntity(
-        accessToken: accessToken,
-        accessTokenExpiresIn: accessTokenExpiresIn,
-        refreshToken: refreshToken,
-        refreshTokenExpiresIn: refreshTokenExpiresIn,
-        customer: customer.toEntity(),
       );
 }

@@ -15,22 +15,11 @@ import 'package:shared_preferences/shared_preferences.dart' as _i460;
 
 import '../cache/secure_storage.dart' as _i111;
 import '../cache/shared_prefs_service.dart' as _i459;
-import '../features/attachment_editor/cubit/attachment_editor_cubit.dart'
-    as _i974;
-import '../features/comments/cubit/comments_cubit.dart' as _i970;
-import '../features/comments/data/repositories/comments_repository_impl.dart'
-    as _i347;
-import '../features/comments/domain/repositories/comments_repository.dart'
-    as _i671;
-import '../features/comments/domain/usecases/comments_usecase.dart' as _i434;
-import '../features/exam_reports/cubit/exam_reports_cubit.dart' as _i562;
 import '../features/notes/cubit/notes_cubit.dart' as _i975;
 import '../features/notes/data/repositories/notes_repository_impl.dart'
     as _i131;
 import '../features/notes/domain/repositories/notes_repository.dart' as _i987;
 import '../features/notes/domain/usecases/notes_usecase.dart' as _i1025;
-import '../features/portal_auth/cubit/portal_auth_handshake_cubit.dart'
-    as _i696;
 import '../network/dio_helper.dart' as _i172;
 import '../network/network_interface.dart' as _i490;
 import '../router/router.dart' as _i285;
@@ -59,8 +48,6 @@ extension GetItInjectableX on _i174.GetIt {
       environment,
       environmentFilter,
     );
-    gh.factory<_i974.AttachmentEditorCubit>(
-        () => _i974.AttachmentEditorCubit());
     gh.factory<_i592.FirebaseAuthService>(() => _i592.FirebaseAuthService());
     gh.singleton<_i111.SecureStorage>(() => _i111.SecureStorage());
     gh.singleton<_i394.PendingNavigationService>(
@@ -81,20 +68,12 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i131.NotesRepositoryImpl(gh<InvalidType>()));
     gh.factory<_i1025.NotesUseCase>(
         () => _i1025.NotesUseCase(gh<_i987.NotesRepository>()));
-    gh.factory<_i696.PortalAuthHandshakeCubit>(
-        () => _i696.PortalAuthHandshakeCubit(gh<_i592.FirebaseAuthService>()));
     gh.lazySingleton<_i10.NotificationRouter>(() => _i10.NotificationRouter(
           gh<InvalidType>(),
           gh<InvalidType>(),
         ));
     gh.lazySingleton<_i74.UnreadCountService>(
         () => _i74.UnreadCountService(gh<InvalidType>()));
-    gh.factory<_i562.ExamReportsCubit>(
-        () => _i562.ExamReportsCubit(gh<InvalidType>()));
-    gh.factory<_i671.CommentsRepository>(
-        () => _i347.CommentsRepositoryImpl(gh<InvalidType>()));
-    gh.factory<_i434.CommentsUseCase>(
-        () => _i434.CommentsUseCase(gh<_i671.CommentsRepository>()));
     gh.factory<_i975.NotesCubit>(
         () => _i975.NotesCubit(gh<_i1025.NotesUseCase>()));
     gh.singleton<_i148.DeviceIdService>(
@@ -105,11 +84,6 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i42.LocalNotificationService>(),
               gh<_i10.NotificationRouter>(),
             ));
-    gh.factory<_i970.CommentsCubit>(() => _i970.CommentsCubit(
-          gh<_i434.CommentsUseCase>(),
-          gh<_i381.UserService>(),
-          gh<_i459.SharedPrefsService>(),
-        ));
     gh.lazySingleton<_i926.FcmTokenRegistrar>(() => _i926.FcmTokenRegistrar(
           gh<InvalidType>(),
           gh<InvalidType>(),

@@ -73,6 +73,7 @@ export class BanksService {
       notes: dto.notes ?? null,
       displayOrder: dto.displayOrder ?? 0,
       isActive: dto.isActive ?? true,
+      isFeatured: dto.isFeatured ?? false,
       createdBy: actor.id,
       updatedBy: actor.id,
     });
@@ -102,6 +103,7 @@ export class BanksService {
     if (dto.notes !== undefined) data.notes = dto.notes;
     if (dto.displayOrder !== undefined) data.displayOrder = dto.displayOrder;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.isFeatured !== undefined) data.isFeatured = dto.isFeatured;
 
     const updated = await this.repo.update(id, dto.version, data);
     if (!updated) {

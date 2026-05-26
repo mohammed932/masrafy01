@@ -1,23 +1,29 @@
-import 'package:app/core/environments/app_env.dart';
-import 'package:app/core/injection/injection.dart';
+import '../di/injection.dart';
+import '../environments/app_env.dart';
 
-class PilotEndpoint {
-  final String? domain;
-  final String endpoint;
-
-  /// When `true`, request bodies sent to this endpoint MUST NOT be printed by
-  /// the talker logger. Used for password-bearing endpoints to satisfy FR-033.
-  final bool noLogBody;
-
-  PilotEndpoint({
-    this.domain,
+/// Typed endpoint descriptor consumed by [BaseNetwork] implementations.
+/// Combines a per-request path with an optional override domain.
+class MasrafyEndpoint {
+  MasrafyEndpoint({
     required this.endpoint,
-    this.noLogBody = false,
+    this.domain,
   });
 
-  /// Constructs the full URL by combining the base domain with the endpoint.
+  /// Path relative to the base URL — must start with `/`.
+  final String endpoint;
+
+  /// Optional absolute host override. Default: `AppEnv.environment.baseUrl`.
+  final String? domain;
+
+  /// Full URL combining base host with the per-call path.
   String get fullUrl {
     final baseUrl = domain ?? getIt<AppEnv>().environment.baseUrl;
-    return '$baseUrl/$endpoint';
+    final cleanPath = endpoint.startsWith('/') ? endpoint : '/$endpoint';
+    return '$baseUrl$cleanPath';
   }
+
+  /// The path portion only — what Dio's `BaseOptions.baseUrl` concatenates
+  /// against. Datasources pass this to Dio so HMAC interceptor's canonical
+  /// path computation stays aligned with what the server sees.
+  String get path => endpoint.startsWith('/') ? endpoint : '/$endpoint';
 }

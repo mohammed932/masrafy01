@@ -95,9 +95,16 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('transfer_type', 'income_transfer_letter', 'خطاب تحويل دخل', 'Income Transfer Letter');
     this.add('transfer_type', 'none', 'بدون تحويل راتب', 'No salary transfer');
 
-    // employment types
+    // employment types — Phase 1 spec asks for four distinct keys.
+    // Legacy `salaried` / `self_employed` stay active so bank programs that
+    // listed them in their `eligibility.acceptedEmploymentTypes` keep
+    // resolving until operators migrate program configs.
     this.add('employment_type', 'salaried', 'موظف', 'Salaried');
     this.add('employment_type', 'self_employed', 'صاحب عمل حر', 'Self-Employed');
+    this.add('employment_type', 'government_employee', 'موظف حكومي', 'Government employee');
+    this.add('employment_type', 'private_employee', 'موظف قطاع خاص', 'Private-sector employee');
+    this.add('employment_type', 'business_owner', 'صاحب عمل', 'Business owner');
+    this.add('employment_type', 'freelancer', 'مستقل', 'Freelancer');
 
     // loan purposes — Constitution v1.7.0 / Principle II scope-lock: only 4.
     this.add('loan_purpose', 'personal', 'قرض شخصي', 'Personal');

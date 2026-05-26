@@ -1,5 +1,5 @@
-import 'package:app/main.dart';
 import 'package:app/core/di/injection.dart';
+import 'package:app/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -7,13 +7,11 @@ void main() {
     await configureDependencies(prod: false);
   });
 
-  testWidgets('Login screen renders brand + sign-in button', (tester) async {
+  testWidgets('Placeholder screen renders brand', (tester) async {
     await tester.pumpWidget(const MasrafyApp());
     await tester.pump();
 
     expect(find.text('Masrafy'), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget);
-    expect(find.text('Phone number'), findsOneWidget);
-    expect(find.text('Password'), findsOneWidget);
+    expect(find.textContaining('Data + domain'), findsOneWidget);
   });
 }

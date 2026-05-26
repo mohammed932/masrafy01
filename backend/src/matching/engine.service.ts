@@ -282,6 +282,7 @@ export class EngineService {
 
     return {
       bankName: args.program.bankName,
+      bankIsFeatured: args.program.bankIsFeatured,
       programFriendlyName: args.program.friendlyName,
       programCode: args.program.programCode,
       programVersion: args.program.version,

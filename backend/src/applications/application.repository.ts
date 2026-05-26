@@ -60,6 +60,7 @@ export interface CreateBankOfferInput {
   programCode: string;
   programVersion: number;
   bankName: string;
+  bankIsFeatured: boolean;
   programFriendlyName: string;
   currency: string;
   effectiveRatePercent: Prisma.Decimal;

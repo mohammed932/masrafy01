@@ -91,6 +91,15 @@ export interface BankFormDialogResult {
             <label nz-checkbox formControlName="isActive" i18n="@@banks.field.active">Active</label>
           </nz-form-control>
         </nz-form-item>
+        <nz-form-item>
+          <nz-form-label i18n="@@banks.field.featured">Featured partner</nz-form-label>
+          <nz-form-control
+            i18n-nzExtra="@@banks.field.featured.help"
+            nzExtra="Boost this bank's offers in mobile ranking when ties exist"
+          >
+            <label nz-checkbox formControlName="isFeatured" i18n="@@banks.field.featured">Featured partner</label>
+          </nz-form-control>
+        </nz-form-item>
       </div>
 
       @if (data.mode === 'edit') {
@@ -153,6 +162,7 @@ export class BankFormDialog {
     notes: new FormControl<string>(this.data.bank?.notes ?? '', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
     displayOrder: new FormControl<number>(this.data.bank?.displayOrder ?? 0, { nonNullable: true, validators: [Validators.min(0)] }),
     isActive: new FormControl<boolean>(this.data.bank?.isActive ?? true, { nonNullable: true }),
+    isFeatured: new FormControl<boolean>(this.data.bank?.isFeatured ?? false, { nonNullable: true }),
   });
 
   constructor() {
@@ -178,6 +188,7 @@ export class BankFormDialog {
           notes: v.notes || undefined,
           displayOrder: v.displayOrder,
           isActive: v.isActive,
+          isFeatured: v.isFeatured,
         });
         this.message.success($localize`:@@banks.create.success:Bank created.`);
         this.ref.close({ saved: true });
@@ -191,6 +202,7 @@ export class BankFormDialog {
           notes: v.notes || null,
           displayOrder: v.displayOrder,
           isActive: v.isActive,
+          isFeatured: v.isFeatured,
         });
         this.message.success($localize`:@@banks.update.success:Bank updated.`);
         this.ref.close({ saved: true });

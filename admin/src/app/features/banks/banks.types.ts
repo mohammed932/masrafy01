@@ -6,6 +6,8 @@ export interface Bank {
   logoS3Key?: string | null;
   websiteUrl?: string | null;
   isActive: boolean;
+  /** Phase-1 partner-bank flag. Mobile ranking uses it as a final tiebreaker. */
+  isFeatured: boolean;
   displayOrder: number;
   notes?: string | null;
   version: number;
@@ -34,6 +36,7 @@ export interface BankCreatePayload {
   notes?: string;
   displayOrder?: number;
   isActive?: boolean;
+  isFeatured?: boolean;
 }
 
 export interface BankUpdatePayload {
@@ -44,6 +47,7 @@ export interface BankUpdatePayload {
   notes?: string | null;
   displayOrder?: number;
   isActive?: boolean;
+  isFeatured?: boolean;
 }
 
 export interface BankToggle {

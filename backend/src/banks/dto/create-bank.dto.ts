@@ -46,4 +46,12 @@ export class CreateBankDto {
   @ApiProperty({ required: false, default: true })
   @IsOptional() @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({
+    required: false,
+    default: false,
+    description: 'Phase-1 partner-bank flag. Boosts this bank in mobile ranking ties.',
+  })
+  @IsOptional() @IsBoolean()
+  isFeatured?: boolean;
 }

@@ -311,6 +311,10 @@ model Bank {
   logoS3Key     String?       @db.VarChar(255)
   websiteUrl    String?       @db.VarChar(500)
   isActive      Boolean       @default(true)
+  /// Phase-1 partner-bank flag. When true, the matching engine's `rankOffers`
+  /// uses this as the final tiebreaker — identical primary-sort-key offers
+  /// from featured banks rank first. Does NOT change eligibility or pricing.
+  isFeatured    Boolean       @default(false)
   displayOrder  Int           @default(0)
   notes         String?       @db.VarChar(2000)
   version       Int           @default(1)
@@ -324,6 +328,7 @@ model Bank {
   programs       BankProgram[]
 
   @@index([isActive, displayOrder], name: "idx_bank_active_order")
+  @@index([isFeatured, isActive], name: "idx_bank_featured_active")
   @@map("bank")
 }
 
@@ -395,6 +400,11 @@ model BankOffer {
   bankName                  String      @db.VarChar(80)
   programFriendlyName       String      @db.VarChar(120)
   currency                  String      @db.VarChar(3)
+  /// Snapshot of the owning bank's `isFeatured` at match time (Constitution
+  /// Principle I — BankOffer is immutable; the partner-bank flag is frozen
+  /// here so a bank toggling its featured state later doesn't rewrite
+  /// history). Surfaced to mobile so the FEATURED chip never goes stale.
+  bankIsFeatured            Boolean     @default(false)
   effectiveRatePercent      Decimal     @db.Decimal(7, 4)
   monthlyInstallmentEGP     Decimal     @db.Decimal(13, 2)
   requestedLoanAmountEGP    Decimal     @db.Decimal(13, 2)

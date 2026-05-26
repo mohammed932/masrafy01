@@ -117,10 +117,11 @@ export class BankProgramRepository {
    * Return all active programs (used by matching engine).
    * No pagination — the engine needs the full set.
    */
-  async findAllActive(): Promise<BankProgram[]> {
+  async findAllActive(): Promise<Array<BankProgram & { bank: { isFeatured: boolean } | null }>> {
     return this.prisma.bankProgram.findMany({
       where: { active: true },
       orderBy: { updatedAt: 'desc' },
+      include: { bank: { select: { isFeatured: true } } },
     });
   }
 

@@ -101,7 +101,17 @@ import type { BankWithProgramCount } from './banks.types';
                 </td>
                 <td><span class="code-chip">{{ b.code }}</span></td>
                 <td>
-                  <a [routerLink]="['/banks', b.id]" class="row-link">{{ b.nameEnglish }}</a>
+                  <a [routerLink]="['/banks', b.id]" class="row-link">
+                    {{ b.nameEnglish }}
+                    @if (b.isFeatured) {
+                      <span
+                        class="featured-chip"
+                        nz-tooltip
+                        i18n-nzTooltipTitle="@@banks.featured.tooltip"
+                        nzTooltipTitle="Featured partner — boosted in mobile ranking ties"
+                      >★ Featured</span>
+                    }
+                  </a>
                   <p class="muted">{{ b.nameArabic }}</p>
                 </td>
                 <td class="numeric">{{ b.programCount }}</td>
@@ -188,6 +198,18 @@ import type { BankWithProgramCount } from './banks.types';
         font-weight: 700;
         color: var(--text-secondary, var(--color-text-secondary));
         letter-spacing: 0.04em;
+      }
+      .featured-chip {
+        display: inline-block;
+        margin-inline-start: 8px;
+        padding: 1px 8px;
+        background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+        color: var(--color-brand-primary);
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        vertical-align: middle;
       }
     `,
   ],

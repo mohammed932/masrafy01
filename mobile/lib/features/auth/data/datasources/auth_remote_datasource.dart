@@ -1,67 +1,56 @@
-import 'package:dio/dio.dart';
+import 'package:injectable/injectable.dart';
 
-import '../models/customer_model.dart';
+import '../../../../core/architecture/base_remote_data_source.dart';
+import '../../../../core/network/api_strings.dart';
+import '../../../../core/network/endpoint.dart';
+import '../models/request/login_request.dart';
+import '../models/request/logout_request.dart';
+import '../models/request/signup_request.dart';
+import '../models/response/customer_auth_envelope_model.dart';
+import '../models/response/customer_model.dart';
 
-/// Thin remote datasource — speaks the masrafy backend `/api/v1/auth/*`
-/// dialect. The Dio instance carries HMAC + customer-JWT interceptors so
-/// callers only pass JSON.
-class AuthRemoteDatasource {
-  AuthRemoteDatasource(this._dio);
+/// Auth datasource (Constitution Principle XXX + XI). Speaks the masrafy
+/// `/api/v1/auth/*` dialect; reaches the network via `appNetwork`. Methods
+/// accept typed `*Request` DTOs end-to-end and call `.toJson()` exactly
+/// once at the wire boundary.
+@injectable
+class AuthRemoteDataSource extends BaseRemoteDataSource {
+  AuthRemoteDataSource(super.appNetwork);
 
-  final Dio _dio;
-
-  Future<CustomerAuthEnvelopeModel> login({
-    required String phone,
-    required String password,
-  }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/api/v1/auth/login',
-      data: {'phone': phone, 'password': password},
+  Future<CustomerAuthEnvelopeModel> login(LoginRequest request) async {
+    final json = await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.authLogin),
+      data: request.toJson(),
     );
-    return CustomerAuthEnvelopeModel.fromJson(
-      _unwrap(response.data ?? const {}),
-    );
+    return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));
   }
 
-  Future<CustomerAuthEnvelopeModel> signup({
-    required String phone,
-    required String name,
-    required String password,
-    String? email,
-    String? locale,
-  }) async {
-    final body = <String, dynamic>{
-      'phone': phone,
-      'name': name,
-      'password': password,
-      if (email != null && email.isNotEmpty) 'email': email,
-      if (locale != null) 'locale': locale,
-    };
-    final response = await _dio.post<Map<String, dynamic>>(
-      '/api/v1/auth/signup',
-      data: body,
+  Future<CustomerAuthEnvelopeModel> signup(SignupRequest request) async {
+    final json = await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.authSignup),
+      data: request.toJson(),
     );
-    return CustomerAuthEnvelopeModel.fromJson(
-      _unwrap(response.data ?? const {}),
-    );
+    return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));
   }
 
   Future<CustomerModel> me() async {
-    final response = await _dio.get<Map<String, dynamic>>('/api/v1/auth/me');
-    return CustomerModel.fromJson(_unwrap(response.data ?? const {}));
+    final json = await appNetwork.get(MasrafyEndpoint(endpoint: ApiStrings.authMe));
+    return CustomerModel.fromJson(_unwrap(json));
   }
 
-  Future<void> logout({String? refreshToken}) async {
-    await _dio.post<void>(
-      '/api/v1/auth/logout',
-      data: refreshToken == null ? null : {'refreshToken': refreshToken},
+  Future<void> logout(LogoutRequest request) async {
+    await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.authLogout),
+      data: request.toJson(),
     );
   }
 
-  Map<String, dynamic> _unwrap(Map<String, dynamic> envelope) {
-    // Backend envelope: `{ success: true, data: {...} }`.
-    final data = envelope['data'];
-    if (data is Map<String, dynamic>) return data;
-    return envelope;
+  Map<String, dynamic> _unwrap(dynamic envelope) {
+    if (envelope is Map<String, dynamic>) {
+      final data = envelope['data'];
+      if (data is Map<String, dynamic>) return data;
+      return envelope;
+    }
+    return const {};
   }
 }
