@@ -95,7 +95,6 @@ class PilotToast {
       ToastificationType.success => colors.success.main,
       ToastificationType.warning => colors.warning.main,
       ToastificationType.info => colors.primary.main,
-      _ => colors.primary.main,
     };
 
     final resolvedTitle = title ?? _defaultTitleFor(type);
@@ -107,7 +106,8 @@ class PilotToast {
       alignment: Alignment.topCenter,
       autoCloseDuration: duration,
       showProgressBar: false,
-      closeButton: const ToastCloseButton(showType: CloseButtonShowType.none),
+      // Close-button control landed in toastification ^3.x which requires a
+      // newer Flutter SDK than the current pin. Default close button is OK.
       backgroundColor: colors.bg.container,
       foregroundColor: colors.text.heading,
       primaryColor: accent,
@@ -131,7 +131,6 @@ class PilotToast {
         ToastificationType.success => Icons.check_circle_outline,
         ToastificationType.warning => Icons.warning_amber_outlined,
         ToastificationType.info => Icons.info_outline,
-        _ => Icons.info_outline,
       };
 
   static String _defaultTitleFor(ToastificationType type) => switch (type) {
@@ -139,6 +138,5 @@ class PilotToast {
         ToastificationType.success => 'Success',
         ToastificationType.warning => 'Warning',
         ToastificationType.info => 'Info',
-        _ => 'Info',
       };
 }

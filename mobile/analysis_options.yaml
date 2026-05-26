@@ -16,7 +16,6 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - lib/core/features/**
-    - lib/core/widgets/**
     - lib/core/services/auth/**
     - lib/core/services/deep_links/**
     - lib/core/services/integrity/**

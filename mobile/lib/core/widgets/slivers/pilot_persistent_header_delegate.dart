@@ -33,6 +33,6 @@ class PilotPersistentHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(covariant PilotPersistentHeaderDelegate old) =>
-      old.height != height || old.child != child;
+  bool shouldRebuild(covariant PilotPersistentHeaderDelegate oldDelegate) =>
+      oldDelegate.height != height || oldDelegate.child != child;
 }

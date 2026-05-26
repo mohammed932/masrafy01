@@ -21,7 +21,10 @@ class PilotSwitch extends StatelessWidget {
       child: Switch(
         value: value,
         onChanged: onChanged,
-        activeThumbColor: colors.white,
+        // `activeThumbColor` landed in Flutter 3.30+; current pin is 3.27.x.
+        // The deprecated `activeColor` still maps to the active thumb.
+        // ignore: deprecated_member_use
+        activeColor: colors.white,
         activeTrackColor: colors.primary.main,
         inactiveThumbColor: colors.white,
         inactiveTrackColor: colors.fill.quaternary,
