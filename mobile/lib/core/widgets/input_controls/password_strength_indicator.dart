@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:app/core/theme/colors/pilot_color_theme.dart';
-import 'package:app/core/theme/typography/pilot_text_theme.dart';
+import 'package:app/core/theme/colors/masrafy_color_theme.dart';
+import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/utils/validators.dart';
 
 /// Live password-strength checklist (FR-048).
@@ -13,8 +13,8 @@ class PasswordStrengthIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = PilotColorTheme.of(context);
-    final text = PilotTextTheme.of(context);
+    final colors = MasrafyColorTheme.of(context);
+    final text = MasrafyTextTheme.of(context);
 
     final criteria = [
       (label: 'At least 8 characters', met: Validators.hasMinLength(password)),

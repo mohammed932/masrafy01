@@ -7,7 +7,7 @@ import '../../domain/entities/apply_result_entity.dart';
 import '../../domain/repositories/wizard_repository.dart';
 import '../models/request/loan_application_request.dart';
 
-/// Pilot100 shape — thin forwarder. `ApiHandler.callApi(...)` handles
+/// masrafy shape — thin forwarder. `ApiHandler.callApi(...)` handles
 /// the error surface; `.map((model) => model.toEntity())` converts the
 /// wire-format DTO into the domain entity before crossing the layer.
 @Injectable(as: WizardRepository)

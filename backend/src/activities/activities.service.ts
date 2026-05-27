@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import cuid from 'cuid';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { ApplicationRepository } from '@/applications/application.repository';
@@ -194,7 +195,7 @@ export class ActivitiesService {
           {
             actorId: actor.role === 'system' ? null : actor.staffId,
             targetId: null,
-            eventType: 'APPLICATION_ACTIVITY_LOGGED',
+            eventType: AuditEventType.APPLICATION_ACTIVITY_LOGGED,
             sourceIp,
             correlationId,
             payload: {
@@ -216,7 +217,7 @@ export class ActivitiesService {
             {
               actorId: actor.role === 'system' ? null : actor.staffId,
               targetId: null,
-              eventType: 'DOCUMENT_UPLOADED',
+              eventType: AuditEventType.DOCUMENT_UPLOADED,
               sourceIp,
               correlationId,
               payload: {
@@ -238,7 +239,7 @@ export class ActivitiesService {
             {
               actorId: actor.role === 'system' ? null : actor.staffId,
               targetId: null,
-              eventType: 'APPLICATION_LEAD_STATUS_CHANGED',
+              eventType: AuditEventType.APPLICATION_LEAD_STATUS_CHANGED,
               sourceIp,
               correlationId,
               payload: {

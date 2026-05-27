@@ -44,7 +44,7 @@ class CsrfRefreshInterceptor extends Interceptor {
 
       // Re-POST /auth/login — Firebase token is attached by HttpInterceptor;
       // HttpInterceptor.onResponse captures the new csrfToken into storage.
-      final endpoint = PilotEndpoint(endpoint: ApiStrings.authLogin);
+      final endpoint = MasrafyEndpoint(endpoint: ApiStrings.authLogin);
       await _dio.post(endpoint.fullUrl);
 
       // Retry the original request with the fresh CSRF token.

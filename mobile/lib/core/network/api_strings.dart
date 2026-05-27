@@ -2,7 +2,7 @@
 /// mobile app talks to. Private constructor — never instantiate. Static
 /// constants for fixed paths; static methods for parameterised paths.
 ///
-/// Pilot100 shape (Principle XXX adjacency — datasources build
+/// masrafy shape (Principle XXX adjacency — datasources build
 /// [MasrafyEndpoint]s from these constants so a backend rename is a
 /// one-line edit here).
 class ApiStrings {

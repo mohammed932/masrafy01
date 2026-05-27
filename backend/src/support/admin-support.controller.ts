@@ -12,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { SupportChannel, SupportStatus } from '@prisma/client';
+import { SupportChannel, SupportStatus } from './dto/enums';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { CorrelationId } from '@/common/decorators/correlation-id.decorator';

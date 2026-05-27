@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, type AuditEvent, type AuditEventType } from '@prisma/client';
+import { Prisma, type AuditEvent } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 
 export interface CreateAuditInput {
   actorId: string | null;
@@ -23,11 +24,20 @@ export class AuditEventRepository {
         actorId: input.actorId,
         targetId: input.targetId,
         bankProgramId: input.bankProgramId ?? undefined,
-        eventType: input.eventType,
+        // Local enum mirrors the Prisma enum value-for-value; cast at the
+        // Prisma boundary keeps the @prisma/client import contained to the
+        // repository (Constitution Principle X).
+        eventType: toPrismaAuditEventType(input.eventType),
         sourceIp: input.sourceIp ?? undefined,
         correlationId: input.correlationId,
         payload: input.payload,
       },
     });
   }
+}
+
+// ---- Boundary mappers (Prisma <-> local) ---------------------------------
+
+function toPrismaAuditEventType(value: AuditEventType): Prisma.AuditEventCreateInput['eventType'] {
+  return value as unknown as Prisma.AuditEventCreateInput['eventType'];
 }

@@ -60,7 +60,7 @@ Full walkthrough: [specs/001-admin-auth-users/quickstart.md](specs/001-admin-aut
 - **Password policy**: NIST-style — length 12–128, breach check via HIBP k-anonymity (fail-closed), common-list deny (top-10k).
 - **Sliding-window lockout**: Redis sorted set per canonical email, 5 fails / 15 min, auto-clear (no manual unlock UI).
 - **Super_admin floor**: SERIALIZABLE transaction with single retry on Postgres 40001 (Prisma P2034). FR-023 enforced atomically.
-- **Brand**: deep navy `#06152D` everywhere via `admin/src/styles/_tokens.scss` CSS custom properties.
+- **Brand**: azure blue `#0869C3` everywhere via `admin/src/styles/_tokens.scss` CSS custom properties.
 
 ## Repository layout
 

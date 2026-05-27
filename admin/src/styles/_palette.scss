@@ -1,6 +1,6 @@
 // ============================================================================
 // Masrafy — Palette (ported from pilot100-admin)
-// Burgundy primary (#5C0632) + Bronze accent (#A17C5B).
+// Azure primary (#0869C3) + Bronze accent (#A17C5B).
 // Light + dark modes. Verified contrast.
 // ============================================================================
 
@@ -15,23 +15,23 @@
   --bg-inverse: #1C1417;
   --bg-pure: #FFFFFF;
 
-  // ─── Burgundy (primary brand) ─────────────────────────────────────────────
-  --burgundy-50: #FAF7F8;
-  --burgundy-100: #F0E8EA;
-  --burgundy-200: #D9C7CC;
-  --burgundy-300: #B8959E;
-  --burgundy-400: #8B5A6B;
-  --burgundy-500: #6D2847;
-  --burgundy-600: #5C0632;
-  --burgundy-700: #4A0528;
-  --burgundy-800: #38041E;
-  --burgundy-900: #2D0119;
-  --burgundy-950: #1A000F;
+  // ─── Azure (primary brand) ────────────────────────────────────────────────
+  --azure-50: #F0F7FD;
+  --azure-100: #DAEAF8;
+  --azure-200: #B0D2F1;
+  --azure-300: #7DB3E6;
+  --azure-400: #4894D9;
+  --azure-500: #1F7BCC;
+  --azure-600: #0869C3;
+  --azure-700: #075596;
+  --azure-800: #0A4373;
+  --azure-900: #0C3358;
+  --azure-950: #06203B;
 
-  --primary: #5C0632;
-  --primary-hover: #7A0842;
-  --primary-active: #4A0528;
-  --primary-subtle: #F0E8EA;
+  --primary: #0869C3;
+  --primary-hover: #075596;
+  --primary-active: #0A4373;
+  --primary-subtle: #DAEAF8;
 
   // ─── Bronze (accent / selection) ──────────────────────────────────────────
   --bronze-50: #FAF8F5;
@@ -76,7 +76,7 @@
   --border-default: #DDD8D3;
   --border-subtle: #EFEAE5;
   --border-strong: #B8ACA3;
-  --border-interactive: #5C0632;
+  --border-interactive: #0869C3;
   --border-selection: #A17C5B;
 
   // ─── Semantic — success ───────────────────────────────────────────────────
@@ -121,8 +121,8 @@
   --info: #3D5A80;
 
   // ─── Gradients ────────────────────────────────────────────────────────────
-  --gradient-primary: linear-gradient(90deg, #5C0632 0%, #7A0842 100%);
-  --gradient-hero: linear-gradient(135deg, #5C0632 0%, #8B5A6B 100%);
+  --gradient-primary: linear-gradient(90deg, #0869C3 0%, #075596 100%);
+  --gradient-hero: linear-gradient(135deg, #0869C3 0%, #4894D9 100%);
   --gradient-bronze: linear-gradient(135deg, #D4B89F 0%, #8B7355 100%);
 
   // ─── Shadows ──────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@
   --card-hover: var(--border-strong);
 
   // ─── Chart palette ────────────────────────────────────────────────────────
-  --chart-1: #5C0632;
+  --chart-1: #0869C3;
   --chart-2: #A17C5B;
   --chart-3: #3D5A80;
   --chart-4: #2D5F3F;
@@ -168,22 +168,22 @@
   --bg-header: #0A080C;
   --bg-elevated: #2A2434;
 
-  --burgundy-50: #1F1A22;
-  --burgundy-100: #2D1F23;
-  --burgundy-200: #3D2A30;
-  --burgundy-300: #5C3D47;
-  --burgundy-400: #7A4F5D;
-  --burgundy-500: #8B5A6B;
-  --burgundy-600: #C75878;
-  --burgundy-700: #D4708A;
-  --burgundy-800: #E8A0B0;
-  --burgundy-900: #F5D0DA;
+  --azure-50: #0F1620;
+  --azure-100: #152233;
+  --azure-200: #1E3147;
+  --azure-300: #2A4467;
+  --azure-400: #3A5C8C;
+  --azure-500: #4D7AB0;
+  --azure-600: #5BA5E8;
+  --azure-700: #7DB8EE;
+  --azure-800: #A8CFF4;
+  --azure-900: #D0E5FA;
 
-  --primary: #E0708F;
-  --primary-hover: #EC8AA6;
-  --primary-active: #C75878;
-  --primary-subtle: #3D2A30;
-  --primary-visible: #EC8AA6;
+  --primary: #5BA5E8;
+  --primary-hover: #7DB8EE;
+  --primary-active: #5BA5E8;
+  --primary-subtle: #1E3147;
+  --primary-visible: #7DB8EE;
 
   --bronze-50: #2B2621;
   --bronze-100: #3D352D;
@@ -218,13 +218,13 @@
   --text-tertiary: #8B8595;
   --text-muted: #6B6575;
   --text-inverse: #2B2320;
-  --text-on-primary: #1A0810;
+  --text-on-primary: #051D33;
   --text-on-accent: #2B2320;
 
   --border-default: #3D3540;
   --border-subtle: #25202E;
   --border-strong: #6B6575;
-  --border-interactive: #C75878;
+  --border-interactive: #5BA5E8;
   --border-selection: #D4B89F;
 
   --success-50: #10b98115;
@@ -248,7 +248,7 @@
   --info-600: #60a5fa;
   --info: #3b82f6;
 
-  --gradient-chart: linear-gradient(90deg, #C75878 0%, #D4B89F 100%);
+  --gradient-chart: linear-gradient(90deg, #5BA5E8 0%, #D4B89F 100%);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
@@ -259,7 +259,7 @@
   --input-bg: var(--bg-subtle);
   --input-focus: var(--primary-visible);
 
-  --chart-1: #C75878;
+  --chart-1: #5BA5E8;
   --chart-2: #D4B89F;
   --chart-3: #8B7355;
   --chart-4: #4A3D35;

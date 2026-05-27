@@ -316,7 +316,7 @@ interface BankGroup {
       .strip-search input:focus {
         outline: none;
         border-color: var(--primary, var(--color-brand-primary));
-        box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
+        box-shadow: 0 0 0 3px rgba(8, 105, 195, 0.15);
       }
       .rail-empty {
         padding: var(--space-4);
@@ -419,7 +419,7 @@ interface BankGroup {
         padding: var(--space-5);
         border-block-end: 1px solid var(--border-default, var(--color-border-default));
         background:
-          radial-gradient(circle at 0% 0%, rgba(92, 6, 50, 0.045) 0%, transparent 60%),
+          radial-gradient(circle at 0% 0%, rgba(8, 105, 195, 0.045) 0%, transparent 60%),
           var(--bg-surface, var(--color-surface-default));
       }
       .detail-identity { flex: 1 1 240px; }

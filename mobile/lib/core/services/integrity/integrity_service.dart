@@ -93,7 +93,7 @@ class IntegrityService {
 
     try {
       await _network.post(
-        PilotEndpoint(endpoint: ApiStrings.integrityEvents(sessionId)),
+        MasrafyEndpoint(endpoint: ApiStrings.integrityEvents(sessionId)),
         // Body matches Angular `IntegrityApiService.sendEvents`
         // (integrity-api.service.ts L22): just `{ events }` — the
         // sessionId is encoded in the URL path.
@@ -126,7 +126,7 @@ class IntegrityService {
     if (sessionId == null) return;
     try {
       await _network.post(
-        PilotEndpoint(endpoint: ApiStrings.integrityInvalidate(sessionId)),
+        MasrafyEndpoint(endpoint: ApiStrings.integrityInvalidate(sessionId)),
         // Body matches Angular `IntegrityApiService.invalidate`
         // (integrity-api.service.ts L36): `{ triggerType, payload }`
         // — the sessionId rides on the URL path.

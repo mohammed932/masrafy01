@@ -9,7 +9,7 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
-# `lib/core/` was re-copied from pilot100-app as a structural reference.
+# `lib/core/` was re-copied from masrafy-app as a structural reference.
 # Folders below depend on packages and DI tokens we have not graduated yet;
 # exclude them from analysis so the masrafy login + router compile cleanly.
 # Drop each entry from the list as you migrate that subtree to masrafy.
@@ -43,7 +43,7 @@ analyzer:
     - lib/core/entities/**
     - lib/core/enums/storage_keys.dart
     - lib/core/enums/test_mode.dart
-    - lib/core/utils/pilot_assets.dart
+    - lib/core/utils/masrafy_assets.dart
     - lib/core/theme/theme_bloc/**
 
 linter:

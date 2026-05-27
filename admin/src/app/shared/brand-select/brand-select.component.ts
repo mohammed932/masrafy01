@@ -3,13 +3,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  EventEmitter,
   HostListener,
   Input,
   Output,
-  EventEmitter,
   ViewChild,
-  signal,
   forwardRef,
+  inject,
+  signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 
@@ -193,11 +194,11 @@ export interface BrandSelectOption {
       .bs-trigger:focus-visible {
         outline: none;
         border-color: var(--primary, var(--color-brand-primary));
-        box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
+        box-shadow: 0 0 0 3px rgba(8, 105, 195, 0.15);
       }
       .bs-open .bs-trigger {
         border-color: var(--primary, var(--color-brand-primary));
-        box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
+        box-shadow: 0 0 0 3px rgba(8, 105, 195, 0.15);
       }
       .bs-trigger:hover:not(:disabled):not(:focus) {
         border-color: var(--primary, var(--color-brand-primary));
@@ -385,7 +386,7 @@ export class BrandSelectComponent implements ControlValueAccessor {
   private onChange: (v: string | string[] | null) => void = () => {};
   private onTouched: () => void = () => {};
 
-  constructor(private readonly host: ElementRef<HTMLElement>) {}
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   // --- ControlValueAccessor ---
 

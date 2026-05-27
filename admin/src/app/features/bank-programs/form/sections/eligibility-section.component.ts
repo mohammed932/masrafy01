@@ -8,6 +8,7 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { CheckSquareOutline } from '@ant-design/icons-angular/icons';
+import { MoneyInputDirective } from '../../../../core/directives/money-input.directive';
 import { PlatformEnumerationsService } from '../../../../core/platform-enumerations/platform-enumerations.service';
 import {
   BrandSelectComponent,
@@ -27,6 +28,7 @@ import {
     NzSwitchModule,
     NzIconModule,
     BrandSelectComponent,
+    MoneyInputDirective,
   ],
   providers: [provideNzIconsPatch([CheckSquareOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -116,9 +118,10 @@ import {
             <nz-input-group nzAddOnBefore="EGP" class="money-group">
               <input
                 nz-input
+                appMoneyInput
                 id="minMonthlyIncomeEGP"
                 formControlName="minMonthlyIncomeEGP"
-                inputmode="decimal"
+                inputmode="numeric"
                 placeholder="5,000"
               />
             </nz-input-group>
@@ -240,9 +243,10 @@ import {
           <nz-form-control [nzExtra]="wealthAndHint">
             <input
               nz-input
+              appMoneyInput
               id="minBankStatementBalanceEGP"
               formControlName="minBankStatementBalanceEGP"
-              inputmode="decimal"
+              inputmode="numeric"
             />
             <ng-template #wealthAndHint>
               <span i18n="@@bank_programs.hint.wealth_and"
@@ -260,9 +264,10 @@ import {
           <nz-form-control>
             <input
               nz-input
+              appMoneyInput
               id="minAssetsValueEGP"
               formControlName="minAssetsValueEGP"
-              inputmode="decimal"
+              inputmode="numeric"
             />
           </nz-form-control>
         </nz-form-item>

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { AuditEvent, LeadStatus } from '@prisma/client';
-import { PrismaService } from '@/infra/prisma/prisma.service';
 import { HmacClientUnknownException, NotFoundException } from '@/common/errors/domain.exceptions';
+import { CustomerTimelineRepository } from './customer-timeline.repository';
 
 export interface CustomerTimelineMilestone {
   code: string;
@@ -33,28 +33,19 @@ const STATUS_TO_LABEL: Record<LeadStatus, string> = {
 
 @Injectable()
 export class CustomerTimelineService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly repo: CustomerTimelineRepository) {}
 
   async buildTimeline(
     applicationId: string,
     mobileClientId: string,
   ): Promise<CustomerTimelineResponse> {
-    const application = await this.prisma.application.findUnique({
-      where: { id: applicationId },
-      select: { id: true, mobileClientId: true, createdAt: true },
-    });
+    const application = await this.repo.findApplicationHeader(applicationId);
     if (!application) throw new NotFoundException();
     if (application.mobileClientId !== mobileClientId) {
       throw new HmacClientUnknownException(mobileClientId);
     }
 
-    const transitions = await this.prisma.auditEvent.findMany({
-      where: {
-        eventType: 'APPLICATION_LEAD_STATUS_CHANGED',
-        payload: { path: ['applicationId'], equals: applicationId },
-      },
-      orderBy: { occurredAt: 'asc' },
-    });
+    const transitions = await this.repo.findLeadStatusTransitions(applicationId);
 
     const milestones: CustomerTimelineMilestone[] = [];
 
@@ -81,11 +72,7 @@ export class CustomerTimelineService {
 
     const last = milestones[milestones.length - 1];
     if (last?.code === 'MILESTONE_BANK_DECIDED') {
-      const bankResponse = await this.prisma.activity.findFirst({
-        where: { applicationId, activityType: 'BANK_RESPONDED' },
-        orderBy: { occurredAt: 'desc' },
-        select: { reason: true, meta: true },
-      });
+      const bankResponse = await this.repo.findLatestBankResponseActivity(applicationId);
       if (bankResponse) {
         const outcome = this.mapBankOutcome(bankResponse.reason);
         if (outcome) last.outcome = outcome;

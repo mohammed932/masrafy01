@@ -2,7 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:app/core/cache/shared_prefs_service.dart';
-import 'package:app/core/theme/colors/pilot_color_theme.dart';
+import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/enums/storage_keys.dart';
 
 part 'theme_event.dart';
@@ -30,12 +30,12 @@ class ThemeBloc extends Bloc<ThemeBlocEvent, ThemeBlocState> {
     Emitter<ThemeBlocState> emit,
     ColorThemes mode,
   ) async {
-    await _prefs.setString(StorageKeys.pilotColorTheme.name, mode.name);
+    await _prefs.setString(StorageKeys.masrafyColorTheme.name, mode.name);
     emit(state.copyWith(mode: mode));
   }
 
   ColorThemes _readSavedMode() {
-    final raw = _prefs.getString(StorageKeys.pilotColorTheme.name);
+    final raw = _prefs.getString(StorageKeys.masrafyColorTheme.name);
     if (raw == null) return ColorThemes.dark;
     return ColorThemes.values.firstWhere(
       (e) => e.name == raw,

@@ -1,14 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, Length, IsUrl } from 'class-validator';
-import { SupportChannel } from '@prisma/client';
-
-const CHANNELS = ['chat', 'call', 'whatsapp', 'email'] as const;
+import { IsEnum, IsOptional, IsString, Length, IsUrl } from 'class-validator';
+import { SupportChannel, SupportStatus } from './enums';
 
 export class CreateSupportRequestDto {
-  @ApiProperty({ enum: CHANNELS })
-  @IsString()
-  @IsIn(CHANNELS as readonly string[])
-  channel!: (typeof CHANNELS)[number];
+  @ApiProperty({ enum: SupportChannel })
+  @IsEnum(SupportChannel)
+  channel!: SupportChannel;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -25,8 +22,8 @@ export class CreateSupportRequestDto {
 
 export class SupportRequestResponseDto {
   @ApiProperty() id!: string;
-  @ApiProperty() channel!: SupportChannel;
-  @ApiProperty() status!: 'open' | 'in_progress' | 'resolved';
+  @ApiProperty({ enum: SupportChannel }) channel!: SupportChannel;
+  @ApiProperty({ enum: SupportStatus }) status!: SupportStatus;
   @ApiProperty() createdAt!: string;
   @ApiPropertyOptional() resolvedAt?: string;
   @ApiPropertyOptional() applicationId?: string;

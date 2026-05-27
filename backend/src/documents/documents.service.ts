@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import cuid from 'cuid';
 import type { Prisma } from '@prisma/client';
-import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
   DocumentNotFoundException,
   DocumentNotPendingException,
@@ -12,6 +11,7 @@ import {
   UnknownEnumerationKeyException,
   DeprecatedEnumerationKeyException,
 } from '@/common/errors/domain.exceptions';
+import { ApplicationRepository } from '@/applications/application.repository';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import {
   ALLOWED_DOCUMENT_MIME_TYPES,
@@ -54,7 +54,7 @@ export class DocumentsService {
     private readonly s3: S3StorageClient,
     private readonly repo: DocumentsRepository,
     private readonly enumerations: PlatformEnumerationsRepository,
-    private readonly prisma: PrismaService,
+    private readonly applications: ApplicationRepository,
   ) {}
 
   /**
@@ -146,7 +146,10 @@ export class DocumentsService {
   private async assertDocumentTypeActive(documentType: string): Promise<void> {
     const isActive = await this.enumerations.isActiveMember('required_document', documentType);
     if (isActive) return;
-    const isDeprecated = await this.enumerations.isDeprecatedMember('required_document', documentType);
+    const isDeprecated = await this.enumerations.isDeprecatedMember(
+      'required_document',
+      documentType,
+    );
     if (isDeprecated) {
       throw new DeprecatedEnumerationKeyException({
         enumerationType: 'required_document',
@@ -166,10 +169,7 @@ export class DocumentsService {
     customerId: string;
     mobileClientId: string;
   }): Promise<void> {
-    const app = await this.prisma.application.findUnique({
-      where: { id: args.applicationId },
-      select: { id: true, applicantUserId: true, mobileClientId: true },
-    });
+    const app = await this.applications.findOwnershipById(args.applicationId);
     if (!app) throw new NotFoundException();
     // Allow either an explicit applicantUserId match (post-claim) OR a same-device guest application.
     const customerOwns = app.applicantUserId === args.customerId;

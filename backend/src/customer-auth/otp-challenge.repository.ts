@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import type { OtpChallenge, OtpPurpose, Prisma } from '@prisma/client';
+import type { OtpChallenge, OtpPurpose as PrismaOtpPurpose, Prisma } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import { OtpPurpose } from './dto/enums';
 
 export interface IssueOtpChallengeInput {
   customerId?: string | null;
@@ -24,7 +25,8 @@ export class OtpChallengeRepository {
       data: {
         customerId: input.customerId ?? null,
         phone: input.phone,
-        purpose: input.purpose,
+        // Local enum mirrors Prisma value-for-value; cast at the boundary.
+        purpose: input.purpose as unknown as PrismaOtpPurpose,
         codeHash: input.codeHash,
         expiresAt: input.expiresAt,
         attemptsLeft: input.attemptsLeft ?? 5,

@@ -455,8 +455,8 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         height: 4px;
         background: linear-gradient(
           90deg,
-          var(--burgundy-600) 0%,
-          var(--burgundy-500) 38%,
+          var(--azure-600) 0%,
+          var(--azure-500) 38%,
           var(--bronze-400) 100%
         );
       }
@@ -517,8 +517,8 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
         align-items: center;
         justify-content: center;
         border-radius: var(--radius-md);
-        background: rgba(92, 6, 50, 0.08);
-        color: var(--burgundy-600);
+        background: rgba(8, 105, 195, 0.08);
+        color: var(--azure-600);
         font-size: 18px;
       }
       .banks-hero__metric-icon--bronze {
@@ -572,20 +572,20 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
           box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .banks-hero__cta--primary {
-        background: linear-gradient(135deg, var(--burgundy-600) 0%, var(--burgundy-500) 100%);
+        background: linear-gradient(135deg, var(--azure-600) 0%, var(--azure-500) 100%);
         color: var(--text-on-primary);
         border: 1px solid transparent;
-        box-shadow: 0 1px 2px rgba(92, 6, 50, 0.18);
+        box-shadow: 0 1px 2px rgba(8, 105, 195, 0.18);
       }
       .banks-hero__cta--primary:hover {
         transform: translateY(-1px);
-        box-shadow: 0 8px 20px -6px rgba(92, 6, 50, 0.35);
+        box-shadow: 0 8px 20px -6px rgba(8, 105, 195, 0.35);
         color: var(--text-on-primary);
         text-decoration: none;
       }
       .banks-hero__cta--primary:active {
         transform: translateY(0);
-        box-shadow: 0 1px 2px rgba(92, 6, 50, 0.18);
+        box-shadow: 0 1px 2px rgba(8, 105, 195, 0.18);
       }
       .banks-hero__cta--primary:focus-visible {
         outline: 2px solid var(--bronze-500);
@@ -593,17 +593,17 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       }
       .banks-hero__cta--ghost {
         background: transparent;
-        color: var(--burgundy-600);
+        color: var(--azure-600);
         border: 1px solid var(--border-default);
       }
       .banks-hero__cta--ghost:hover {
         background: var(--bg-base);
         border-color: var(--bronze-500);
-        color: var(--burgundy-700);
+        color: var(--azure-700);
         text-decoration: none;
       }
       .banks-hero__cta--ghost:focus-visible {
-        outline: 2px solid var(--burgundy-600);
+        outline: 2px solid var(--azure-600);
         outline-offset: 2px;
       }
       @media (max-width: 1024px) {
@@ -686,7 +686,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       .values-search input:focus {
         outline: none;
         border-color: var(--primary, var(--color-brand-primary));
-        box-shadow: 0 0 0 3px rgba(92, 6, 50, 0.15);
+        box-shadow: 0 0 0 3px rgba(8, 105, 195, 0.15);
       }
       .values-search .clear {
         position: absolute;

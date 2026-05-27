@@ -21,6 +21,17 @@ export interface StaffAccountForLogin {
 
 export type StaffAccountSummary = Omit<StaffAccount, 'passwordHash'>;
 
+/**
+ * Minimal projection used by cross-feature consumers (e.g. ApplicationsService
+ * agent-assignment) that only need to know if a target is a valid, active,
+ * eligible staff role. Avoids leaking the full Prisma row.
+ */
+export interface StaffAccountRoleSummary {
+  id: string;
+  role: StaffRole;
+  isActive: boolean;
+}
+
 export interface CreateStaffInput {
   rawEmail: string;
   name: string;
@@ -90,6 +101,19 @@ export class StaffAccountRepository {
   async findById(id: string): Promise<StaffAccountSummary | null> {
     const row = await this.prisma.staffAccount.findUnique({ where: { id } });
     return row ? stripPassword(row) : null;
+  }
+
+  /**
+   * Cross-feature read for role + active-flag checks (e.g. applications
+   * agent-assignment). Returns a minimal projection; never the full Prisma
+   * row. Constitution Principle X — keeps `@prisma/client` out of services.
+   */
+  async findRoleSummaryById(id: string): Promise<StaffAccountRoleSummary | null> {
+    const row = await this.prisma.staffAccount.findUnique({
+      where: { id },
+      select: { id: true, role: true, isActive: true },
+    });
+    return row ? { id: row.id, role: row.role, isActive: row.isActive } : null;
   }
 
   async list(page: number, pageSize: number): Promise<PaginatedStaff> {

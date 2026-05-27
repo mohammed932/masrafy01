@@ -14,7 +14,7 @@ import type { Request } from 'express';
 import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
-import { SocialProvider, OtpPurpose } from '@prisma/client';
+import { SocialProvider, OtpPurpose } from './dto/enums';
 import { CustomerAuthService, type CustomerRequestContext } from './customer-auth.service';
 import { CustomerAuthMobileService } from './customer-auth-mobile.service';
 import {

@@ -8,7 +8,7 @@ import '../../cache/secure_storage.dart';
 import '../../router/router.dart';
 import '../../enums/storage_keys.dart';
 import '../../enums/logout_reason.dart';
-import '../../widgets/toasts/pilot_error_toast.dart';
+import '../../widgets/toasts/masrafy_error_toast.dart';
 import '../firebase_auth_service.dart';
 import '../unread_count/unread_count_service.dart';
 import '../user_service.dart';
@@ -77,7 +77,7 @@ class SessionExpirationHandler {
     final context = _router.navigatorKey.currentContext;
     if (context == null || !context.mounted) return;
     if (ScaffoldMessenger.maybeOf(context) == null) return;
-    PilotErrorToast(
+    MasrafyErrorToast(
       message: reason.message,
       duration: const Duration(seconds: 4),
     ).show(context);

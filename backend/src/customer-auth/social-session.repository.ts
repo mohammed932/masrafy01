@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma, SocialProvider, SocialSession } from '@prisma/client';
+import type { Prisma, SocialProvider as PrismaSocialProvider, SocialSession } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import { SocialProvider } from './dto/enums';
 
 export interface IssueSocialSessionInput {
   provider: SocialProvider;
@@ -22,7 +23,8 @@ export class SocialSessionRepository {
     const client = tx ?? this.prisma;
     return client.socialSession.create({
       data: {
-        provider: input.provider,
+        // Local enum mirrors Prisma value-for-value; cast at the boundary.
+        provider: input.provider as unknown as PrismaSocialProvider,
         providerUserId: input.providerUserId,
         email: input.email ?? null,
         fullName: input.fullName ?? null,

@@ -78,29 +78,36 @@ const PRICING_ORDER = [
         <code>{{ result().matchedLevel }}</code>
       </p>
 
-      <div
-        *ngIf="result().derivation as d"
-        class="derivation-chip"
-        nz-tooltip
-        [nzTooltipTitle]="derivationTooltip(d)"
-      >
-        <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
-        <span>{{ d.sourceRatePercent }}% + {{ d.deltaPercent }}% — {{ d.reason }}</span>
-      </div>
+      @if (result().derivation; as d) {
+        <div
+          class="derivation-chip"
+          nz-tooltip
+          [nzTooltipTitle]="derivationTooltip(d)"
+        >
+          <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
+          <span>{{ d.sourceRatePercent }}% + {{ d.deltaPercent }}% — {{ d.reason }}</span>
+        </div>
+      }
 
       <ol class="trace">
-        <li *ngFor="let step of result().trace" [class.matched]="step.matched">
-          <span
-            nz-icon
-            [nzType]="step.matched ? 'check-circle' : 'minus'"
-            nzTheme="outline"
-            class="trace-icon"
-            aria-hidden="true"
-          ></span>
-          <span class="trace-level">{{ step.level }}</span>
-          <span class="trace-value numeric" *ngIf="step.value">{{ step.value }}%</span>
-          <span class="trace-reason" *ngIf="step.reason">{{ step.reason }}</span>
-        </li>
+        @for (step of result().trace; track step.level) {
+          <li [class.matched]="step.matched">
+            <span
+              nz-icon
+              [nzType]="step.matched ? 'check-circle' : 'minus'"
+              nzTheme="outline"
+              class="trace-icon"
+              aria-hidden="true"
+            ></span>
+            <span class="trace-level">{{ step.level }}</span>
+            @if (step.value) {
+              <span class="trace-value numeric">{{ step.value }}%</span>
+            }
+            @if (step.reason) {
+              <span class="trace-reason">{{ step.reason }}</span>
+            }
+          </li>
+        }
       </ol>
     </section>
   `,

@@ -1,10 +1,28 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import type { PlatformEnumeration, Prisma } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
   EnumerationMember,
   EnumerationType,
   PlatformEnumerationsRepository,
 } from './platform-enumerations.repository';
+
+export interface CreateEnumerationInput {
+  type: string;
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  parentKey?: string | null;
+  sortOrder?: number;
+  createdBy: string;
+}
+
+export interface EnumerationTypeStats {
+  type: string;
+  total: number;
+  active: number;
+  deprecated: number;
+}
 
 const ALL_TYPES: readonly EnumerationType[] = [
   'salary_category',
@@ -100,6 +118,72 @@ export class PostgresPlatformEnumerationsRepository
   invalidateCache(type?: EnumerationType): void {
     if (type) this.cache.delete(type);
     else this.cache.clear();
+  }
+
+  // ---- Admin CRUD --------------------------------------------------------
+  // Admin-side read/write methods. Cache is invalidated by the caller after
+  // a successful mutation so the read-cache cannot serve stale rows.
+
+  async findAllOrdered(filter?: { type?: string }): Promise<PlatformEnumeration[]> {
+    return this.prisma.platformEnumeration.findMany({
+      where: filter?.type ? { type: filter.type } : undefined,
+      orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }, { key: 'asc' }],
+    });
+  }
+
+  async listTypeStats(): Promise<EnumerationTypeStats[]> {
+    const rows = await this.prisma.platformEnumeration.groupBy({
+      by: ['type'],
+      _count: { _all: true },
+      orderBy: { type: 'asc' },
+    });
+    const out: EnumerationTypeStats[] = [];
+    for (const r of rows) {
+      const [active, deprecated] = await Promise.all([
+        this.prisma.platformEnumeration.count({
+          where: { type: r.type, active: true, deprecatedAt: null },
+        }),
+        this.prisma.platformEnumeration.count({
+          where: { type: r.type, deprecatedAt: { not: null } },
+        }),
+      ]);
+      out.push({ type: r.type, total: r._count._all, active, deprecated });
+    }
+    return out;
+  }
+
+  async findByTypeAndKey(type: string, key: string): Promise<PlatformEnumeration | null> {
+    return this.prisma.platformEnumeration.findUnique({
+      where: { idx_platform_enumeration_type_key: { type, key } },
+    });
+  }
+
+  async findById(id: string): Promise<PlatformEnumeration | null> {
+    return this.prisma.platformEnumeration.findUnique({ where: { id } });
+  }
+
+  async insert(input: CreateEnumerationInput): Promise<PlatformEnumeration> {
+    return this.prisma.platformEnumeration.create({
+      data: {
+        type: input.type,
+        key: input.key,
+        labelAr: input.labelAr,
+        labelEn: input.labelEn,
+        parentKey: input.parentKey ?? null,
+        sortOrder: input.sortOrder ?? 0,
+        active: true,
+        systemOnly: false,
+        createdBy: input.createdBy,
+        updatedBy: input.createdBy,
+      },
+    });
+  }
+
+  async updateById(
+    id: string,
+    data: Prisma.PlatformEnumerationUpdateInput,
+  ): Promise<PlatformEnumeration> {
+    return this.prisma.platformEnumeration.update({ where: { id }, data });
   }
 
   static readonly KNOWN_TYPES = ALL_TYPES;

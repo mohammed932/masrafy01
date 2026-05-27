@@ -10,7 +10,7 @@ import {
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { AuditEventType } from '@prisma/client';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import { IsIn, IsOptional, IsString, Length } from 'class-validator';
 import type { Request } from 'express';
 import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';

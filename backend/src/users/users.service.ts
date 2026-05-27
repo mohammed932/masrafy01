@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AuditEventType, StaffRole, type Prisma } from '@prisma/client';
+import { StaffRole, type Prisma } from '@prisma/client';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import { CannotSelfModifyException, NotFoundException } from '@/common/errors/domain.exceptions';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { PasswordService } from '@/auth/password.service';

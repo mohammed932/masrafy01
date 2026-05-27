@@ -1,11 +1,11 @@
 // Masrafy design tokens.
-// Brand: pilot100 burgundy (#5C0632) + bronze accent (#A17C5B).
+// Brand: pilot100 azure (#0869C3) + bronze accent (#A17C5B).
 // Typography: Plus Jakarta Sans + Playfair Display + JetBrains Mono.
 //
 // Loads:
 //   1. Palette  → light + dark color tokens
 //   2. Typography → font families, sizes, weights, utility classes
-//   3. NG-ZORRO theme overrides (--ant-*) pointed at burgundy
+//   3. NG-ZORRO theme overrides (--ant-*) pointed at azure
 //   4. Masrafy-specific tokens (spacing, radius, motion, layout) preserved
 //   5. Legacy aliases (--color-*, --font-family-base, --space-*) bridge old code
 
@@ -14,10 +14,10 @@
 
 :root {
   // ===== NG-ZORRO theme overrides (var-mode) =================================
-  --ant-primary-color: #5C0632;
-  --ant-primary-color-hover: #7A0842;
-  --ant-primary-color-active: #4A0528;
-  --ant-primary-color-outline: rgba(92, 6, 50, 0.20);
+  --ant-primary-color: #0869C3;
+  --ant-primary-color-hover: #075596;
+  --ant-primary-color-active: #0A4373;
+  --ant-primary-color-outline: rgba(8, 105, 195, 0.20);
   --ant-info-color: #3D5A80;
   --ant-success-color: #2D5F3F;
   --ant-success-color-hover: #3D7856;
@@ -62,7 +62,7 @@
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
   --focus-ring-color: var(--primary);
-  --focus-halo: 0 0 0 3px rgba(92, 6, 50, 0.15);
+  --focus-halo: 0 0 0 3px rgba(8, 105, 195, 0.15);
 
   // ===== Layout primitives ===================================================
   --topbar-height: 64px;
@@ -135,15 +135,15 @@
   --line-height-base: var(--leading-normal);
   --line-height-loose: var(--leading-loose);
 
-  --shadow-focus-ring: 0 0 0 3px rgba(92, 6, 50, 0.16);
+  --shadow-focus-ring: 0 0 0 3px rgba(8, 105, 195, 0.16);
 }
 
 [data-theme='dark'] {
   // NG-ZORRO variable-theme overrides — bright accents over dark canvas
-  --ant-primary-color: #E0708F;
-  --ant-primary-color-hover: #EC8AA6;
-  --ant-primary-color-active: #C75878;
-  --ant-primary-color-outline: rgba(224, 112, 143, 0.40);
+  --ant-primary-color: #5BA5E8;
+  --ant-primary-color-hover: #7DB8EE;
+  --ant-primary-color-active: #5BA5E8;
+  --ant-primary-color-outline: rgba(91, 165, 232, 0.40);
   --ant-info-color: #6CABE0;
   --ant-success-color: #4FBE7C;
   --ant-success-color-hover: #6CD194;
@@ -160,6 +160,6 @@
 
   --color-topbar-bg: #0A080C;
   --color-topbar-text: var(--text-primary);
-  --shadow-focus-ring: 0 0 0 3px rgba(224, 112, 143, 0.40);
-  --focus-halo: 0 0 0 3px rgba(224, 112, 143, 0.40);
+  --shadow-focus-ring: 0 0 0 3px rgba(91, 165, 232, 0.40);
+  --focus-halo: 0 0 0 3px rgba(91, 165, 232, 0.40);
 }

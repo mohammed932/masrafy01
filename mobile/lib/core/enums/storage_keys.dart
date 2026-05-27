@@ -6,6 +6,6 @@ enum StorageKeys {
   csrfToken,
   deviceId,
   onboardingCompleted,
-  pilotColorTheme,
+  masrafyColorTheme,
   communityGuidelinesSeen,
 }

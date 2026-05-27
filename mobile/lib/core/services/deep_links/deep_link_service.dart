@@ -3,12 +3,12 @@ import 'dart:developer';
 
 import 'package:app_links/app_links.dart';
 import 'package:injectable/injectable.dart';
-import 'package:app/core/router/pilot_route_navigator.dart';
+import 'package:app/core/router/masrafy_route_navigator.dart';
 
 /// Owns the cold-start + warm-stream deep-link pipeline. One instance
 /// per app launch, registered as a `lazySingleton`.
 ///
-/// Path → screen routing is delegated to [PilotRouteNavigator] so a
+/// Path → screen routing is delegated to [MasrafyRouteNavigator] so a
 /// universal link (`https://api.masrafy.eg/dashboard`) and a
 /// notification tap pointing at `/dashboard` flow through the exact
 /// same normalize-then-push pipeline. Avoids drift between the two
@@ -29,7 +29,7 @@ import 'package:app/core/router/pilot_route_navigator.dart';
 class DeepLinkService {
   DeepLinkService(this._navigator);
 
-  final PilotRouteNavigator _navigator;
+  final MasrafyRouteNavigator _navigator;
   final AppLinks _appLinks = AppLinks();
 
   StreamSubscription<Uri>? _subscription;

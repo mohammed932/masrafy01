@@ -1,4 +1,4 @@
-import 'package:app/core/widgets/common/pilot_badge.dart';
+import 'package:app/core/widgets/common/masrafy_badge.dart';
 
 enum TestMode { study, exam, customExam, studyPlanner }
 
@@ -36,11 +36,11 @@ extension TestModeRemote on TestMode {
 }
 
 extension TestModeBadgeVariant on TestMode {
-  PilotBadgeVariant get badgeVariant => switch (this) {
-        TestMode.study => PilotBadgeVariant.primary,
-        TestMode.studyPlanner => PilotBadgeVariant.primary,
-        TestMode.exam => PilotBadgeVariant.warning,
-        TestMode.customExam => PilotBadgeVariant.warning,
+  MasrafyBadgeVariant get badgeVariant => switch (this) {
+        TestMode.study => MasrafyBadgeVariant.primary,
+        TestMode.studyPlanner => MasrafyBadgeVariant.primary,
+        TestMode.exam => MasrafyBadgeVariant.warning,
+        TestMode.customExam => MasrafyBadgeVariant.warning,
       };
 
   String get displayLabel => switch (this) {

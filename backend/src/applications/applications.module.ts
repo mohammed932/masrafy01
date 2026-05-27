@@ -14,8 +14,10 @@ import { ScoringVersionsModule } from '../scoring-versions/scoring-versions.modu
 import { MobileHmacGuard } from './guards/mobile-hmac.guard';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
+import { AuthModule } from '@/auth/auth.module';
 
 import { CustomerTimelineService } from './customer-timeline.service';
+import { CustomerTimelineRepository } from './customer-timeline.repository';
 
 /**
  * Imports `CustomerAuthModule` because the apply endpoint reads the optional
@@ -31,12 +33,17 @@ import { CustomerTimelineService } from './customer-timeline.service';
     AuditModule,
     ScoringVersionsModule,
     CustomerAuthModule,
+    // Exports `StaffAccountRepository` for cross-feature staff-account reads
+    // (e.g. assignAgent target validation). Constitution Principle X — service
+    // never calls Prisma directly.
+    AuthModule,
   ],
   controllers: [ApplicationsController, AdminApplicationsController],
   providers: [
     ApplicationsService,
     ApplicationRepository,
     CustomerTimelineService,
+    CustomerTimelineRepository,
     MobileHmacGuard,
     MobileRateLimitGuard,
   ],

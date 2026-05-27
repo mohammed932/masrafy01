@@ -1,208 +1,5 @@
-<!--
-SYNC IMPACT REPORT
-==================
-Version Change: TEMPLATE → 1.0.0 → 1.1.0 → 1.2.0 → 1.3.0 → 1.4.0 → 1.5.0 → 1.6.0 → 1.6.1 → 1.7.0 → 1.8.0 → 1.8.1
-Ratification: 2026-05-12 (initial ratification)
-Last Amended: 2026-05-27 (v1.8.1)
+<!-- See `# Governance` section near the bottom for the binding version history table. -->
 
-v1.8.1 amendment (2026-05-27):
-  New method-arity rule added to Principle XXX (Three-Layer Feature
-  Architecture, Mobile, NON-NEGOTIABLE): any datasource, repository,
-  usecase, or cubit method on the Flutter client that takes MORE THAN TWO
-  parameters MUST accept them as a single typed `<Name>Request` DTO from
-  `data/models/request/`, not as separate named or positional params. Two-
-  or-fewer params MAY remain named. Anti-Pattern A28 added to enforce the
-  rule. Pilot100-aligned. PATCH bump — sub-rule + anti-pattern addition,
-  no principle redefinition.
-
-v1.8.0 amendment (2026-05-26):
-  Customer-mobile auth model rewritten under Principle XIII to align with
-  feature 008-mobile-auth-apply. Guest mode is REMOVED: every reachable
-  in-app feature now requires HMAC + customer JWT. The 24-hour
-  `mobileClientId` claim endpoint (introduced in v1.7.0) is deleted from
-  the platform contract and MUST NOT be implemented. Two registration
-  paths are codified: PHONE-signup (mobile + OTP + name + email +
-  password + age upfront — fully-populated customer record) and SOCIAL
-  sign-in (Google / Apple — lite customer at sign-in; mobile + OTP +
-  email + age completed via a mandatory loan-request popup before any
-  loan submission). Mobile + `mobileVerifiedAt` immutable from the
-  moment of OTP-verified write; email + age (SOCIAL path) written
-  atomically with the first loan submission. Login lockout codified
-  (10 failures / 15 min → 30 min). Forgot-password remains PHONE-only.
-  MINOR bump — scope adjustment within Principle XIII, no other
-  principle redefined.
-
-v1.7.0 amendment (2026-05-25):
-  Scope-lock widened from THREE to FOUR retail loan categories.
-  Business loans (`business`) added alongside `personal`, `car`,
-  `mortgage` to align the platform with the mobile user-journey
-  product surface (SME / professional-use working-capital lending,
-  larger ticket sizes, separate underwriting expected at v2.x).
-  Principle II scope-lock paragraph and Project Context updated
-  in lockstep. Anti-pattern A26 rewritten to bound at a FIFTH
-  category instead of a fourth — adding anything beyond the four
-  enumerated categories still requires a constitution amendment.
-  Principle XIII extended with a customer-facing mobile auth
-  paragraph: `/api/v1/auth/*` endpoints add a customer JWT layer
-  on top of HMAC pinning (15-min access + 30-day refresh,
-  separate signing key from admin JWT) to support mobile signup /
-  login / guest→user upgrade flows. MINOR bump — scope widened
-  within an existing principle and a parallel auth surface added,
-  no principle redefinition.
-
-v1.6.1 amendment (2026-05-21):
-  New Anti-pattern A27 — every editable money / amount input MUST use the
-  shared `MoneyInputDirective` (`appMoneyInput`,
-  `admin/src/app/core/directives/money-input.directive.ts`). Introduced when
-  the bank-program tiered-rate band editor plus the loan-limit / income
-  amount inputs gained thousands-grouping display. Codifies a single
-  directive (grouped display "1,000,000", caret preservation, raw-string
-  contract so the FormControl / payload / backend DTO see digits only) in
-  place of per-input formatting handlers or comma-formatted control values.
-  Percent fields (rate, fee %) are excluded. PATCH bump — anti-pattern
-  addition, no principle change.
-
-v1.6.0 amendment (2026-05-21):
-  Tightening of v1.5.0 scope-lock from "soft-deactivation preferred" to
-  "physical removal is the standard". Triggered by operator confusion
-  after the v1.5.0 wipe left deactivated rows visible in audit dashboards
-  and in the `platform_enumeration` registry. Principle II scope-lock
-  paragraph now requires destructive migrations to fully remove a
-  retired category — registry entry, bank programs, applications, offers,
-  decisions, activities, documents — in dependency order. Anti-pattern
-  A26 rewritten to enforce hard-wipe; ghost rows from a half-finished
-  scope reduction = review block. Soft-deactivation remains acceptable
-  only as a transitional step inside the same PR; subsequent migrations
-  in the PR must complete the wipe. MINOR bump — rule sharpening within
-  existing principle, no redefinition.
-
-v1.5.0 amendment (2026-05-21):
-  Product scope locked to exactly THREE loan categories: Personal,
-  Auto (car), and Mortgage. The `loanPurpose` platform-enumeration
-  registry MUST contain only these three active members. Any other
-  category (education, pension, secured, buyout-as-purpose, etc.)
-  is OUT OF SCOPE for v1.x and MUST be soft-deactivated
-  (`deprecatedAt`) rather than re-introduced. Principle II is
-  extended with a normative scope-lock clause; Project Context is
-  hardened from descriptive to binding. Anti-pattern A26 added:
-  any code path, schema migration, seed row, or UI control that
-  introduces a fourth retail loan category without a constitution
-  amendment = review block. Triggered by stakeholder direction
-  ("we only offer loan, mortgage, auto loan") combined with form
-  surfaces accidentally exposing seven purposes to operators.
-  MINOR bump — scope-lock clause, no principle redefinition.
-
-v1.4.0 amendment (2026-05-19):
-  New Principle XXIX — "Dependency-Aware Changes — No Half Updates"
-  added (all platforms). Codifies the obligation that changing one place
-  with downstream readers requires updating EVERY reader in the same PR.
-  Triggered by repeated UI contradictions where list / detail / Kanban /
-  analytics surfaces showed inconsistent state for the same lead because
-  one consumer of a derivation was missed during refactor.
-  Anti-pattern A25 added. Flutter reservation shifted from XXIX–XXXVI
-  to XXX–XXXVII (no Flutter rule reordered — slot rename only).
-  MINOR bump — new principle, no redefinition.
-
-v1.3.0 amendment (2026-05-12):
-  Principle XXIII expanded to require BOTH design skills on every new
-  admin dashboard surface:
-    - `ui-ux-pro-max` (promax): invoked BEFORE designing — picks pattern,
-      palette, typography, effects, anti-patterns.
-    - `impec` (impeccable): invoked AFTER first implementation — surgical
-      polish/audit pass to catch AI-default drift (Inter-as-display,
-      AI-purple gradients, cards-in-cards, gray-on-color, bounce easing,
-      etc).
-  Anti-pattern A17 extended to cover both. Constitution still v1.x
-  (MINOR — scope expansion of existing principle, not redefinition).
-
-v1.2.0 amendment (2026-05-12):
-  Further scope reduction. Principles XVI (Backend Testing Requirements)
-  and XXVII (Frontend Testing Requirements) reduced to placeholders.
-  Unit testing, integration testing, and E2E testing are NO LONGER
-  constitutional gates of any kind. Accessibility scan (axe-core)
-  retained as an OPTIONAL recommendation, not a gate. Features MAY adopt
-  any testing strategy they prefer. Rationale: explicit team direction.
-  Numbered as MINOR because the principle slots are retained for future
-  use; full removal would be MAJOR and the v2.0 slot is reserved for
-  Flutter Phase 2 ratification.
-
-v1.1.0 amendment (2026-05-12):
-  Scope reduction on Principles XVI and XXVII. Unit + integration
-  testing dropped from constitutional gates; E2E + a11y retained.
-  Superseded by v1.2.0.
-
-Rationale:
-  Initial ratification of the Masrafy (internally "Credit Match") constitution
-  as a single document governing three codebases as one coherent system:
-    - NestJS backend (active)
-    - Angular admin dashboard (active)
-    - Flutter mobile app (architectural skeleton binding now; UI principles deferred)
-  Establishes financial-data integrity, data-driven bank programs, typed
-  errors end-to-end, Arabic-first i18n, the matching engine as core IP,
-  PII protection, observability, and brand identity (#06152D) as
-  cross-platform NON-NEGOTIABLE foundations.
-
-Principles Added (I–XXIX):
-  I.    Financial Data Integrity is Sacred (All Platforms)
-  II.   Bank Programs Are Data, Not Code (Backend + Admin)
-  III.  Typed Errors End-to-End (All Platforms)
-  IV.   Arabic-First Internationalization (Frontend Platforms)
-  V.    The Matching Engine is the Core IP (Backend)
-  VI.   PII Protection & Compliance (All Platforms)
-  VII.  Observability is Built-In (Backend + Mobile)
-  VIII. Brand Identity & Visual Consistency (Frontend Platforms)
-  IX.   Feature Module Architecture (Backend)
-  X.    Repository Pattern Mandatory (Backend)
-  XI.   Prisma Migration Discipline (Backend)
-  XII.  DTO vs Entity Separation (Backend)
-  XIII. Dual Authentication, No Compromise (Backend)
-  XIV.  API Contract Standards (Backend)
-  XV.   Rate Limiting & Abuse Protection (Backend)
-  XVI.  Backend Testing Requirements (Backend)
-  XVII. Standalone Components Only — No NgModules (Angular)
-  XVIII.Signals Over RxJS for State (Angular)
-  XIX.  New Control Flow Required (Angular)
-  XX.   inject() Function, Not Constructor DI (Angular)
-  XXI.  Strict TypeScript, No `any` (Angular)
-  XXII. Typed Reactive Forms (Angular)
-  XXIII.UI UX Pro Max Skill is the Design Authority (Angular)
-  XXIV. Design Tokens — #06152D Base (Angular)
-  XXV.  Lazy-Loaded Routes + Functional Guards (Angular)
-  XXVI. HTTP Layer Discipline (Angular)
-  XXVII.Frontend Testing Requirements (Angular)
-  XXVIII.Flutter Architectural Foundations (Binding Now)
-  XXIX. Dependency-Aware Changes — No Half Updates (All Platforms) [v1.4.0]
-
-Reserved (post-Figma, planned v2.0):
-  XXX–XXXVII — Detailed Flutter UI principles (screen patterns, shimmer
-  loading, widget reuse, cross-feature promotion, edit flow routing,
-  package reuse, anti-patterns). Reserved today; ratified once Figma
-  designs are delivered.
-
-Locations Affected:
-  - .specify/memory/constitution.md (this file) — replaces template
-  - Backend repo: feature module layout, error code constants, HMAC
-    middleware, Prisma schema discipline, OpenAPI publication
-  - Angular repo: standalone bootstrap, Signals state, new control flow,
-    inject() DI, typed Reactive Forms, design tokens (#06152D), i18n,
-    UI UX Pro Max skill invocation, HTTP interceptors
-  - Flutter repo (future): Clean Architecture, Cubit+Freezed, per-flow
-    page library pattern, get_it+injectable, Dio HMAC interceptor,
-    auto_route, secure storage of HMAC secret, three flavors,
-    MasrafyColorTheme (#06152D), Figma-traceable screens
-
-Templates / Artifacts Requiring Updates:
-  - PR template: add principle-citation checklist (cite principle # to block)
-  - Backend errorCodes.ts: keep in sync with Angular i18n + Flutter ARB
-  - Angular README: document chosen UI library (Principle XXIV)
-  - Flutter README (future): document flavors, DI, theme tokens
-
-v2.0 Planned (Post-Figma):
-  - Ratify Principles XXIX–XXXVI (Flutter UI)
-  - Extend Anti-Patterns Appendix with Flutter-specific blocks
-  - Update Technical Constraints with finalized Flutter SDK pin and
-    package choices
--->
 
 # Masrafy Constitution
 <!-- Internally: Credit Match — Egyptian fintech loan marketplace -->
@@ -266,7 +63,7 @@ programs priced at 26%+ waive admin fees. Picking the wrong program costs
 users hundreds of thousands of EGP over the loan lifetime. The matching
 engine is the platform's core IP and primary competitive moat.
 
-**Brand:** Primary color **#06152D** (deep navy — conveys trust, stability,
+**Brand:** Primary color **#0869c3** (azure blue — conveys trust, stability,
 banking professionalism). Used as the dominant brand color across admin
 dashboard and mobile app. Secondary palette and accents derive from this
 base per the UI UX Pro Max skill design system on web and Figma designs
@@ -291,7 +88,12 @@ Flutter architectural skeleton (Principle XXVIII) is binding TODAY.
 
 ---
 
-# Core Cross-Platform Principles (NON-NEGOTIABLE unless stated)
+# Part I — Core Cross-Platform Principles (NON-NEGOTIABLE unless stated)
+
+These principles apply to every platform (NestJS backend, Angular admin,
+Flutter mobile). Violating one is a review block regardless of which
+codebase the change lives in. Part II / III / IV below refine them with
+platform-specific obligations.
 
 ## I. Financial Data Integrity is Sacred (All Platforms)
 All monetary amounts use precise decimal types — NEVER floats. Backend
@@ -402,7 +204,7 @@ events: `application.created`, `application.matched`, `offer.selected`,
 Sentry/Crashlytics with sanitized context (NO PII).
 
 ## VIII. Brand Identity & Visual Consistency (Frontend Platforms)
-Primary brand color is **#06152D** (deep navy) — applied as the dominant
+Primary brand color is **#0869c3** (azure blue) — applied as the dominant
 color across all surfaces: app bars, primary buttons, headers, brand
 marks, focus accents. Secondary colors, semantic colors
 (success/warning/error/info), spacing scale, and typography scale are
@@ -416,7 +218,13 @@ implements via its own theming primitives.
 
 ---
 
-# Backend Principles (NestJS + PostgreSQL)
+# Part II — Backend (NestJS + PostgreSQL)
+
+The backend is the source of truth for money, identity, eligibility, and
+audit. Code lives in `backend/src/` organized by feature module. The
+backend obeys all Part I principles (typed errors, money-is-Decimal,
+Arabic-first error copy, PII protection, observability) AND the
+NestJS-specific principles below.
 
 ## IX. Feature Module Architecture
 Organize by domain feature, not technical layer. Required modules:
@@ -529,9 +337,109 @@ test artifacts to enforce those invariants are NOT mandated here.
 The principle slot is retained for future re-introduction if the team
 chooses to reinstate testing gates.
 
+## NestJS Clean Code Structure (v2.0.0)
+
+These are the binding craft rules for every backend file. They refine
+Principles IX–XV without redefining them. Reviewers cite these when a
+change drifts from the canonical NestJS pattern.
+
+**File-naming + layout per feature module.** Every feature module follows
+the same skeleton:
+
+```text
+backend/src/<feature>/
+├── <feature>.module.ts                  // @Module — providers + controllers
+├── <feature>.controller.ts              // HTTP surface — thin, no business logic
+├── <feature>.service.ts                 // orchestration — no Prisma client
+├── <feature>.repository.ts              // ONLY file that imports `@prisma/client`
+├── dto/
+│   ├── <name>.dto.ts                    // class-validator + @ApiProperty
+│   └── <name>.response.dto.ts           // response shape
+├── guards/                              // feature-local guards (e.g. ownership)
+└── <optional sub-services>.service.ts   // domain helpers, NOT controllers
+```
+
+**Single-responsibility.** A controller answers HTTP, calls one service
+method, returns the envelope. A service orchestrates the use case + emits
+audit events. A repository touches Prisma. Crossing layers (controller →
+Prisma, service → HTTP, etc.) = review block.
+
+**No business logic in controllers.** Controllers are routing + auth
+guards + DTO validation + delegation. If a controller method body has more
+than ~10 lines or contains `if` branches deciding business state, the
+logic belongs in a service.
+
+**No magic strings.** Endpoint paths in `<feature>.controller.ts`
+decorators, error codes in `common/errors/error-codes.ts`, header names in
+`common/constants/`, audit-event types in the `AuditEventType` enum.
+Inline string literals in service code (e.g. `'CUSTOMER_SIGNED_UP'`) =
+review block — use the constant.
+
+**Path aliases.** `tsconfig.json` defines `@/*` → `src/*`. Within `src/`,
+prefer the alias over deep relative imports (`'../../../infra/...'`).
+Within a single feature folder, relative imports (`'./repository'`) are
+fine and preferred.
+
+**Strict TypeScript everywhere.** `strict`, `noImplicitAny`,
+`strictNullChecks`, `noUncheckedIndexedAccess` — all enabled in
+`tsconfig.json`. Direct use of `any` = review block. Prefer `unknown` +
+narrowing. Type assertions (`as Foo`) are allowed at boundaries (parsing
+JSON from Pino logs, third-party APIs) but never to silence compiler
+errors inside business code.
+
+**DI via constructor.** NestJS uses constructor injection — explicit
+`readonly`, single line per dependency. Avoid `@Inject()` symbols unless
+binding an interface to a concrete implementation (e.g. `SMS_GATEWAY`
+token). Service field assignment outside the constructor (e.g.
+`this.foo = new Foo()`) = review block.
+
+**Repository methods return Prisma entity types ONLY to other repositories
+or to services in the SAME feature.** Cross-feature consumers receive
+mapped DTOs / domain types — never `Prisma.Customer & { … }`. The mapping
+function lives at the bottom of the repository file.
+
+**Transactional writes use `prisma.$transaction`.** Multi-table writes that
+must succeed or roll back together (loan-application apply, password
+reset + token revoke, customer create + provider link) MUST use the
+`prisma.$transaction(async (tx) => …)` pattern. Mid-write exceptions are
+allowed — the transaction handles rollback. Logging successful writes
+happens AFTER the transaction commits.
+
+**Pino structured logs + correlation IDs.** Every log line is JSON
+through `nestjs-pino`. Every request gets an `X-Correlation-Id` (generated
+by `CorrelationIdMiddleware` if absent) attached to `req`. Service methods
+that emit logs accept the correlation ID via context (audit events
+already carry it). Pino's redaction config masks every PII field at the
+process boundary — see `common/pino/pino.config.ts`.
+
+**Global ValidationPipe.** `app.useGlobalPipes(new ValidationPipe({
+whitelist: true, forbidNonWhitelisted: true, transform: true }))` is
+non-negotiable. DTO classes use `class-validator` decorators + at least
+one `@ApiProperty` annotation per public field for OpenAPI generation.
+
+**Boot-time env validation.** Every env var lives in
+`src/infra/env/env.schema.ts` as a Zod field. The app calls `loadEnv()`
+in `main.ts` BEFORE `NestFactory.create()` — a missing or
+wrong-typed env value crashes the process at boot, never at runtime.
+
+**OpenAPI published.** Every controller decorator includes `@ApiTags`,
+every endpoint has `@ApiOperation`, every response code has
+`@ApiResponse({ status, description })`. The generated `/api/docs` is
+restricted to dev + staging; production strips it.
+
+**Anti-magic test fixtures.** When tests exist, fixture data lives in
+`test/fixtures/` as typed factories (`buildCustomer(overrides)`), not
+inline JSON. Tests assert on structured error codes, not English message
+strings.
+
 ---
 
-# Angular Admin Dashboard Principles
+# Part III — Admin Dashboard (Angular 18)
+
+The admin dashboard is the operator surface (sales agents, analysts,
+super-admins). Code lives in `admin/src/app/` organized by feature folder
+with standalone components. The admin obeys all Part I principles AND
+the Angular-specific principles below.
 
 ## XVII. Standalone Components Only — No NgModules
 Every component, directive, and pipe is `standalone: true`. NgModules
@@ -587,7 +495,7 @@ pattern.
 Invoked BEFORE writing any UI code. Produces the design-system block
 (pattern, palette, typography, effects, anti-patterns, pre-delivery
 checklist) tailored to the surface. Combine its output with brand color
-#06152D and the Masrafy domain (bank program management, application
+#0869c3 and the Masrafy domain (bank program management, application
 review, offer matching, document review, commission tracking). Designs
 that contradict skill output require written justification in PR
 description.
@@ -609,9 +517,9 @@ data table presentation, form layouts, modal/drawer patterns, empty
 states, loading states, chart styling, navigation patterns, and admin
 UI conventions.
 
-## XXIV. Design Tokens — #06152D Base
+## XXIV. Design Tokens — #0869c3 Base
 Define full theme in CSS custom properties under `:root`:
-- `--color-brand-primary: #06152D`
+- `--color-brand-primary: #0869c3`
 - `--color-brand-primary-hover`, `--color-brand-primary-active` (derived shades)
 - `--color-surface-default`, `--color-surface-elevated`, `--color-surface-muted`
 - `--color-text-primary`, `--color-text-secondary`, `--color-text-disabled`, `--color-text-on-brand`
@@ -658,9 +566,121 @@ scanning is NOT mandated here.
 The principle slot is retained for future re-introduction if the team
 chooses to reinstate testing gates.
 
+## Angular Clean Code Structure (v2.0.0)
+
+These rules refine Principles XVII–XXVI without redefining them. They are
+the canonical "how" for new admin code. Reviewers cite them when a change
+drifts from the standalone + signals + new control flow pattern.
+
+**Feature-folder layout.** Every admin feature mirrors:
+
+```text
+admin/src/app/features/<feature>/
+├── <feature>.routes.ts                   // standalone route array w/ canActivateFn
+├── pages/
+│   └── <screen>.component.{ts,html,scss} // smart components — own the route + state
+├── components/
+│   └── <bit>.component.{ts,html,scss}    // presentational — inputs/outputs only
+├── services/
+│   └── <feature>.service.ts              // HTTP + state (signals), one per concern
+├── models/
+│   ├── <name>.model.ts                   // wire-format types
+│   └── <name>.entity.ts                  // domain types (computed properties)
+└── guards/                               // feature-local canActivateFn
+```
+
+Cross-feature components live under `admin/src/app/shared/components/`;
+cross-feature services under `admin/src/app/core/`.
+
+**Smart vs presentational split.** A "page" component owns the route, the
+service injection, the signals, and the loading/error states. A
+"presentational" component takes typed inputs + emits typed outputs —
+zero service injection, zero HttpClient, zero global state access. A
+presentational component that imports a service = review block.
+
+**Signals over RxJS for state.** `signal<T>(initial)` for mutable state,
+`computed(() => …)` for derived state, `effect(() => …)` ONLY for
+side-effects (e.g. syncing a signal to localStorage). `BehaviorSubject`,
+`Subject`, `ReplaySubject` for component state = review block (use
+`signal` / `computed`). Genuine streams (HTTP, WebSocket, debounced
+inputs) stay as RxJS `Observable` and convert via `toSignal()` for
+storage on the component.
+
+**New control flow only.** `@if`, `@for (… ; track …)`, `@switch`,
+`@defer`. The old `*ngIf` / `*ngFor` / `*ngSwitch` = review block. Every
+`@for` MUST include a `track` expression; missing track = review block
+(A13).
+
+**inject() over constructor DI.** Use `inject(SomeService)` at field
+declaration. Constructor DI in Angular 18+ = review block. This unlocks
+strongly-typed inject + works in functional guards / resolvers / factory
+functions.
+
+**Typed reactive forms.** `FormGroup<{...}>` with explicit type
+parameters. Template-driven forms (`ngModel`) = review block. Reactive
+forms compose with Signals via `controlValueChanges.pipe(toSignal())` or
+the `signal(controlValue)` pattern.
+
+**No `any`.** `strict`, `noImplicitAny`, `strictNullChecks`,
+`noUncheckedIndexedAccess` enabled in `tsconfig.json`. Use `unknown` for
+parsed-but-untyped values and narrow before use. Casting (`as Foo`) is
+allowed at API boundaries (parsing JSON responses) but never to silence a
+compiler error in business code.
+
+**HttpClient + interceptors only.** No `fetch()`, no `XMLHttpRequest`, no
+ad-hoc `Axios`. Interceptors handle: bearer token attach, error-code →
+typed `DomainError`, correlation ID echo, toast emission. Each
+interceptor is a single function — no class-based interceptors.
+
+**Functional guards + resolvers.** `canActivateFn`, `canMatchFn`,
+`resolveFn`. Class-based guards = review block. Guards receive `inject()`
+inside their function body.
+
+**Lazy routes everywhere.** Top-level feature routes use `loadChildren`
+or `loadComponent`. Eagerly importing a feature from `app.routes.ts` =
+review block.
+
+**Design tokens, no raw hex.** CSS custom properties in
+`admin/src/styles/_tokens.scss`. Component styles reference
+`var(--surface-primary)` etc. Raw `#0869c3` outside `_tokens.scss` =
+review block (A18). Brand primary is `#0869c3` (azure blue) — never
+re-pick.
+
+**Logical CSS only.** `margin-inline-start`, `padding-inline-end`,
+`text-align: start`. `margin-left` / `margin-right` = review block (A19)
+because the app ships in RTL and LTR.
+
+**Every visible string via `@angular/localize`.** Inline English strings
+in templates / TS / SCSS = review block (A20). The single error-code
+copy file (`error-codes.{ar-EG,en-US}.json`) is the typed-error surface;
+no per-component error message maps (A22).
+
+**One concern per service.** `CustomersService` does customer CRUD;
+`CustomerExportService` does exports; `CustomerListFiltersService` owns
+the filter state. A god-service named `AppService` or `MainService` =
+review block. Services are tree-shakeable singletons via `providedIn:
+'root'` unless feature-scoped.
+
+**Path aliases.** `tsconfig.json` defines `@app/*` → `src/app/*`,
+`@shared/*` → `src/app/shared/*`, `@core/*` → `src/app/core/*`. Deep
+relative imports (`'../../../core/...'`) across feature boundaries =
+review block. Within a feature folder, relative imports preferred.
+
+**UI UX skill pipeline (Principle XXIII).** Every new dashboard screen
+invokes `ui-ux-pro-max` (promax) BEFORE design + `impec` AFTER first
+implementation. Skipping either = review block (A17).
+
 ---
 
-# Mobile App Structure (Flutter) — Phase 2 Skeleton
+# Part IV — Mobile App (Flutter)
+
+The customer-facing mobile app is the primary product surface. Code lives
+in `mobile/lib/features/<name>/{data,domain,presentation}/`. Architecture
+and conventions are lifted from the pilot100 reference project + adapted
+to Masrafy domain constraints. The mobile app obeys all Part I principles
+AND the Flutter-specific principles below.
+
+## Mobile App Structure (Flutter) — Phase 2 Skeleton
 
 **Note:** Detailed UI principles are deferred to constitution amendment
 v2.0 once Figma designs are finalized. The architectural commitments
@@ -680,7 +700,7 @@ When the Flutter project starts, it MUST use:
 - **Three flavors**: `main_dev.dart`, `main_staging.dart`, `main_prod.dart` — each loads a distinct `BaseEnvironment`. `AppEnv` registered as singleton.
 - **Typed payloads end-to-end**: Request DTOs are typed Dart classes — never `Map<String, dynamic>` past the datasource. Domain entities typed — never `dynamic` past the repository. Enums for finite states.
 - **Typed errors**: Exceptions at boundary → `Failure` subtypes (`ServerFailure`, `NetworkFailure`, `ValidationFailure`, `EligibilityFailure`, `DbrExceededFailure`). Repository wraps datasource call with single error-translation helper (`ApiHandler.callApi`). `Either<Failure, T>` flows up; UI consumes `failure.userFacingMessage`.
-- **Design tokens**: Brand primary `#06152D` lives in `MasrafyColorTheme` — every surface using it reads via `MasrafyColorTheme.of(context).brandPrimary`. NO raw hex outside `lib/core/theme/`. Text via `MasrafyTextTheme.of(context)`. Sizes via `.w`/`.h`/`.sp`.
+- **Design tokens**: Brand primary `#0869c3` lives in `MasrafyColorTheme` — every surface using it reads via `MasrafyColorTheme.of(context).brandPrimary`. NO raw hex outside `lib/core/theme/`. Text via `MasrafyTextTheme.of(context)`. Sizes via `.w`/`.h`/`.sp`.
 - **RTL native, not retrofitted**: All layouts use `EdgeInsetsDirectional`, `AlignmentDirectional`, `Directionality`. Test app in Arabic AND English on every PR.
 - **Figma is the visual source of truth**: Every screen traces to a Figma frame. Implementing screens not yet in Figma = review block.
 
@@ -1341,7 +1361,7 @@ Any use of `any` (explicit or implicit) in Angular = review block. Use `unknown`
 Building a new dashboard screen without invoking BOTH `ui-ux-pro-max` (pre-design) AND `impec` (post-implementation polish), or deviating from their output without written justification in the PR description = review block. Either skill alone is insufficient.
 
 ## A18. Raw Hex Colors Outside Theme (Principle XXIV)
-`color: #ffffff` or `background: #06152D` in any component stylesheet = review block. Use `var(--color-*)`.
+`color: #ffffff` or `background: #0869c3` in any component stylesheet = review block. Use `var(--color-*)`.
 
 ## A19. margin-left/margin-right in Angular Stylesheets (Principle IV)
 Any directional CSS property that doesn't respect RTL = review block. Use `margin-inline-start`, etc.
@@ -1377,11 +1397,28 @@ Any datasource, repository, usecase, or cubit method on the Flutter client that 
 
 # Governance
 
-- Version SemVer. MAJOR = breaking principle removal/redefinition. MINOR = new principle or section (Flutter Phase 2 detailed principles = v2.0 minor). PATCH = clarification/anti-pattern addition.
-- Every amendment carries a SYNC IMPACT REPORT comment block at the top of the file: version change, rationale, locations affected, templates requiring updates.
-- Flutter amendment v2.0 is scheduled for ratification when Figma designs are delivered. Principle numbers XXIX–XXXVI are reserved.
+- Version SemVer. MAJOR = breaking principle removal/redefinition OR major structural reorganization. MINOR = new principle or section. PATCH = clarification / anti-pattern addition.
+- Every amendment updates the version-history table below and the Recent Changes block in `CLAUDE.md`. Old long-form rationale lives in git history, not here.
 - Brand color, primary stack, or any principle marked NON-NEGOTIABLE require explicit team sign-off recorded in the PR description.
+- Reviewers cite principle numbers (e.g. "Principle X violated") or anti-pattern IDs (e.g. "A18") to block PRs.
+
+## Version History
+
+| Version | Date | Type | Summary |
+|---|---|---|---|
+| 1.0.0 | 2026-05-12 | RATIFY | Initial three-platform constitution. Principles I–XXVIII. |
+| 1.1.0 | 2026-05-12 | MINOR | Drop unit + integration testing from constitutional gates. |
+| 1.2.0 | 2026-05-12 | MINOR | Drop E2E + a11y gates. Principles XVI / XXVII become placeholders. |
+| 1.3.0 | 2026-05-12 | MINOR | Principle XXIII expanded: promax BEFORE design + impec AFTER first impl. |
+| 1.4.0 | 2026-05-19 | MINOR | New Principle XXIX (No Half Updates). Anti-pattern A25. |
+| 1.5.0 | 2026-05-21 | MINOR | Product scope-lock: three retail loan categories (personal/car/mortgage). A26. |
+| 1.6.0 | 2026-05-21 | MINOR | Scope-lock tightened: destructive migration required for removed category. |
+| 1.6.1 | 2026-05-21 | PATCH | Anti-pattern A27: every money input MUST use `MoneyInputDirective`. |
+| 1.7.0 | 2026-05-25 | MINOR | Scope-lock widened to FOUR categories (added `business`). Customer JWT layer added to Principle XIII. |
+| 1.8.0 | 2026-05-26 | MINOR | Principle XIII rewrite: guest mode removed; two-path registration (PHONE upfront + SOCIAL lite + mandatory loan-request popup); claim endpoint deleted; login lockout codified. |
+| 1.8.1 | 2026-05-27 | PATCH | Principle XXX method-arity rule (>2 params → typed Request DTO). Anti-pattern A28. |
+| 2.0.0 | 2026-05-28 | MAJOR | Structural reorganization into Part I (Cross-Platform) / II (Backend NestJS) / III (Admin Angular) / IV (Mobile Flutter). New normative sub-sections: NestJS Clean Code Structure + Angular Clean Code Structure. No principle removed or redefined. |
 
 ---
 
-**Version**: 1.7.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-25
+**Version**: 2.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-28

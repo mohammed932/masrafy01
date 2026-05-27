@@ -8,7 +8,7 @@ Quiet, trust-conveying credential entry screen. Reads as banking-professional, n
 ## Layout
 - Single centered column, max-width 420 px.
 - Vertical rhythm uses `--space-5` between groups, `--space-3` inside groups.
-- Brand mark at top (deep navy text on `--color-surface-default` card).
+- Brand mark at top (azure blue text on `--color-surface-default` card).
 - Below mark: `<h1>` localized "تسجيل الدخول" / "Sign in".
 - Form: email field → password field → submit button. All `≥ 56 px` height to comfortably exceed the 24 × 24 WCAG 2.2 AA target size (FR-036a).
 - Below submit: helper text "Forgot password? Contact a super-admin." (no self-service reset per Assumptions).

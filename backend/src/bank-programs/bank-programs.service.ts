@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../infra/prisma/prisma.service';
+import { AuditEventType } from '../common/audit/audit-event-types';
 import { AuditEventRepository } from '../audit/audit-event.repository';
 import { PlatformEnumerationsRepository } from '../platform-enumerations/platform-enumerations.repository';
 import {
@@ -111,7 +112,7 @@ export class BankProgramsService {
           actorId: actor.id,
           targetId: null,
           bankProgramId: created.id,
-          eventType: 'BANK_PROGRAM_CREATED',
+          eventType: AuditEventType.BANK_PROGRAM_CREATED,
           sourceIp: actor.sourceIp,
           correlationId: actor.correlationId,
           payload: {
@@ -386,7 +387,7 @@ export class BankProgramsService {
           actorId: actor.id,
           targetId: null,
           bankProgramId: next.id,
-          eventType: 'BANK_PROGRAM_UPDATED',
+          eventType: AuditEventType.BANK_PROGRAM_UPDATED,
           sourceIp: actor.sourceIp,
           correlationId: actor.correlationId,
           payload: {
@@ -420,7 +421,7 @@ export class BankProgramsService {
             actorId: actor.id,
             targetId: null,
             bankProgramId: next.id,
-            eventType: 'BANK_PROGRAM_RATE_UPDATED',
+            eventType: AuditEventType.BANK_PROGRAM_RATE_UPDATED,
             sourceIp: actor.sourceIp,
             correlationId: actor.correlationId,
             payload: {
@@ -468,7 +469,7 @@ export class BankProgramsService {
           actorId: actor.id,
           targetId: null,
           bankProgramId: next.id,
-          eventType: 'BANK_PROGRAM_TOGGLED',
+          eventType: AuditEventType.BANK_PROGRAM_TOGGLED,
           sourceIp: actor.sourceIp,
           correlationId: actor.correlationId,
           payload: {
@@ -533,7 +534,7 @@ export class BankProgramsService {
           actorId: actor.id,
           targetId: null,
           bankProgramId: created.id,
-          eventType: 'BANK_PROGRAM_CLONED',
+          eventType: AuditEventType.BANK_PROGRAM_CLONED,
           sourceIp: actor.sourceIp,
           correlationId: actor.correlationId,
           payload: {
@@ -568,7 +569,7 @@ export class BankProgramsService {
           actorId: actor.id,
           targetId: null,
           bankProgramId: null,
-          eventType: 'BANK_PROGRAM_DELETED',
+          eventType: AuditEventType.BANK_PROGRAM_DELETED,
           sourceIp: actor.sourceIp,
           correlationId: actor.correlationId,
           payload: {

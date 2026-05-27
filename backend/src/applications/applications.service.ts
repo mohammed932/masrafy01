@@ -9,7 +9,8 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { Prisma, AuditEventType } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { AuditEventType } from '../common/audit/audit-event-types';
 import { Decimal } from '@prisma/client/runtime/library';
 import { randomUUID } from 'crypto';
 import cuid from 'cuid';
@@ -28,6 +29,7 @@ import {
   ApplicationNotMatchedException,
 } from '../common/errors/domain.exceptions';
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
+import { StaffAccountRepository } from '@/users/staff-account.repository';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
 import type {
   ApplicantProfile,
@@ -41,6 +43,7 @@ import type {
   ApprovalProbabilityResponseDto,
   ApprovalTierLiteral,
 } from './dto/apply-response.dto';
+import { ApplicationStatus } from './dto/enums';
 
 export interface ApplyContext {
   mobileClientId: string;
@@ -61,6 +64,7 @@ export class ApplicationsService {
     private readonly programsRepo: BankProgramRepository,
     private readonly audit: AuditEventWriter,
     private readonly scoringVersions: ScoringEngineVersionService,
+    private readonly staffAccounts: StaffAccountRepository,
   ) {}
 
   /**
@@ -174,10 +178,7 @@ export class ApplicationsService {
     toAgentId: string;
     correlationId: string;
   }> {
-    const target = await this.prisma.staffAccount.findUnique({
-      where: { id: input.toAgentStaffId },
-      select: { id: true, role: true, isActive: true },
-    });
+    const target = await this.staffAccounts.findRoleSummaryById(input.toAgentStaffId);
     if (!target || !target.isActive) throw new NotFoundException();
     if (target.role === 'analyst') throw new ForbiddenException();
 
@@ -225,7 +226,7 @@ export class ApplicationsService {
           {
             actorId: input.actor.staffId,
             targetId: input.toAgentStaffId,
-            eventType: 'APPLICATION_REASSIGNED',
+            eventType: AuditEventType.APPLICATION_REASSIGNED,
             sourceIp: input.sourceIp,
             correlationId: input.correlationId,
             payload: {
@@ -300,7 +301,7 @@ export class ApplicationsService {
         submissionCorrelationId: correlationId,
         idempotencyKey: ctx.idempotencyKey ?? null,
         payloadHash: ctx.payloadHash ?? null,
-        status: result.status === 'matched' ? 'matched' : 'no_match',
+        status: result.status === 'matched' ? ApplicationStatus.matched : ApplicationStatus.no_match,
         priority: dto.priority,
         requestedAmountEGP: new Prisma.Decimal(dto.requestedAmountEGP),
         requestedCurrency: dto.requestedCurrency ?? 'EGP',
@@ -362,7 +363,10 @@ export class ApplicationsService {
           {
             actorId: null,
             targetId: null,
-            eventType: result.status === 'matched' ? 'APPLICATION_MATCHED' : 'APPLICATION_NO_MATCH',
+            eventType:
+              result.status === 'matched'
+                ? AuditEventType.APPLICATION_MATCHED
+                : AuditEventType.APPLICATION_NO_MATCH,
             sourceIp: ctx.sourceIp ?? null,
             correlationId,
             payload: {

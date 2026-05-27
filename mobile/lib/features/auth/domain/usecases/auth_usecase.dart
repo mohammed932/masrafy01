@@ -13,7 +13,7 @@ import '../repositories/auth_repository.dart';
 /// Constitution Principle XXX — one usecase per feature; one method per
 /// action. Side effects that DON'T belong to the repository (secure-
 /// storage save/clear) live here so the repo stays a thin
-/// network-mapping forwarder, matching the pilot100 convention.
+/// network-mapping forwarder, matching the masrafy convention.
 @injectable
 class AuthUseCase extends BaseUseCase<AuthRepository> {
   AuthUseCase(super.repository, this._session);

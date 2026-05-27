@@ -91,8 +91,11 @@ export interface CloneProgramDialogResult {
         [disabled]="codeCtrl.invalid || busy()"
         [nzLoading]="busy()"
       >
-        <span *ngIf="!busy()" i18n="@@bank_programs.clone.cta">Clone program</span>
-        <span *ngIf="busy()" i18n="@@bank_programs.clone.cloning">Cloning…</span>
+        @if (!busy()) {
+          <span i18n="@@bank_programs.clone.cta">Clone program</span>
+        } @else {
+          <span i18n="@@bank_programs.clone.cloning">Cloning…</span>
+        }
       </button>
     </footer>
   `,

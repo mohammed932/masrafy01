@@ -411,7 +411,7 @@ textarea.ant-input {
 }
 
 // Unified hover state: when the input-group is hovered, color the sibling
-// addon's border too so the burgundy ring wraps the whole pill.
+// addon's border too so the azure ring wraps the whole pill.
 .ant-input-group:hover > .ant-input-group-addon,
 .ant-input-wrapper.ant-input-group:hover > .ant-input-group-addon,
 .ant-input-number-group:hover > .ant-input-number-group-addon {
@@ -419,7 +419,7 @@ textarea.ant-input {
 }
 
 // Unified focus state: when input inside a group is focused, color the
-// sibling addon's border too so the burgundy ring wraps the WHOLE pill
+// sibling addon's border too so the azure ring wraps the WHOLE pill
 // (input + %, input + EGP, etc.) — not just the input portion.
 .ant-input-group:focus-within > .ant-input-group-addon,
 .ant-input-wrapper.ant-input-group:focus-within > .ant-input-group-addon,
@@ -538,7 +538,7 @@ textarea.ant-input {
   background: var(--bg-muted, var(--color-surface-muted)) !important;
 }
 .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-  background: color-mix(in srgb, var(--primary, #5C0632) 12%, transparent) !important;
+  background: color-mix(in srgb, var(--primary, #0869C3) 12%, transparent) !important;
   font-weight: 600 !important;
 }
 .ant-select-item-option-selected:not(.ant-select-item-option-disabled) .ant-select-item-option-content {
@@ -696,12 +696,12 @@ textarea.ant-input {
   .dashboard .hero {
     background:
       radial-gradient(circle at 88% -20%, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 55%),
-      linear-gradient(135deg, #8B1543 0%, #C75878 55%, #E0708F 120%) !important;
-    color: #FFF6FA !important;
+      linear-gradient(135deg, #0A4373 0%, #5BA5E8 55%, #7DB8EE 120%) !important;
+    color: #F0F7FD !important;
   }
-  .dashboard .hero .kicker { color: rgba(255, 246, 250, 0.90) !important; }
-  .dashboard .hero .title { color: #FFF6FA !important; }
-  .dashboard .hero .subtitle { color: rgba(255, 246, 250, 0.92) !important; }
+  .dashboard .hero .kicker { color: rgba(240, 247, 253, 0.90) !important; }
+  .dashboard .hero .title { color: #F0F7FD !important; }
+  .dashboard .hero .subtitle { color: rgba(240, 247, 253, 0.92) !important; }
 
   // Action cards under hero
   .dashboard .card {
@@ -710,21 +710,21 @@ textarea.ant-input {
   }
   .dashboard .card-icon {
     background: var(--accent-subtle) !important;
-    color: var(--primary-visible, #C75878) !important;
+    color: var(--primary-visible, #7DB8EE) !important;
   }
   .dashboard .card:hover {
-    border-color: var(--primary-visible, #C75878) !important;
+    border-color: var(--primary-visible, #7DB8EE) !important;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
   }
 
-  // Sidebar selected item — use visible burgundy text on tonal-accent bg
+  // Sidebar selected item — use visible azure text on tonal-accent bg
   .item.active,
   app-sidebar .item.active {
-    color: var(--primary-visible, #C75878) !important;
+    color: var(--primary-visible, #7DB8EE) !important;
   }
   .item.active::before,
   app-sidebar .item.active::before {
-    background: var(--primary-visible, #C75878) !important;
+    background: var(--primary-visible, #7DB8EE) !important;
   }
 
   // Page surface backgrounds (atlas, lookups, etc.)
@@ -752,7 +752,7 @@ textarea.ant-input {
   // Bank atlas detail header gradient — visible accent
   .detail-head {
     background:
-      radial-gradient(circle at 0% 0%, rgba(199, 88, 120, 0.10) 0%, transparent 55%),
+      radial-gradient(circle at 0% 0%, rgba(91, 165, 232, 0.10) 0%, transparent 55%),
       var(--bg-surface) !important;
   }
 
@@ -780,10 +780,10 @@ textarea.ant-input {
     background: var(--bg-muted) !important;
   }
   .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
-    background: color-mix(in srgb, var(--primary-visible, #C75878) 18%, transparent) !important;
+    background: color-mix(in srgb, var(--primary-visible, #7DB8EE) 18%, transparent) !important;
   }
   .ant-select-item-option-selected:not(.ant-select-item-option-disabled) .ant-select-item-option-content {
-    color: var(--primary-visible, #C75878) !important;
+    color: var(--primary-visible, #7DB8EE) !important;
   }
 
   // Topbar user pill / select trigger

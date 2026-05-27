@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AuditEventType, OnboardingScreen } from '@prisma/client';
+import { OnboardingScreen } from '@prisma/client';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
   OnboardingOrderDuplicateException,

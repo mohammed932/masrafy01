@@ -15,7 +15,7 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
-import type { ApplicationStatus } from '@prisma/client';
+import { ApplicationStatus } from './dto/enums';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { randomUUID } from 'node:crypto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';

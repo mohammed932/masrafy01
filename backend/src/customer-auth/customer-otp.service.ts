@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import type { OtpPurpose } from '@prisma/client';
+import { OtpPurpose } from './dto/enums';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { OtpChallengeRepository } from './otp-challenge.repository';
@@ -137,7 +137,10 @@ export class CustomerOtpService {
   }): Promise<{ phone: string; customerId: string | null }> {
     const row = await this.otpRepo.findById(args.otpId);
     if (!row) throw new DomainException(ERROR_CODES.OTP_INVALID);
-    if (row.purpose !== args.purpose) throw new DomainException(ERROR_CODES.OTP_INVALID);
+    // Prisma enum + local enum share identical string values — compare as strings.
+    if ((row.purpose as string) !== (args.purpose as string)) {
+      throw new DomainException(ERROR_CODES.OTP_INVALID);
+    }
     if (row.consumedAt) throw new DomainException(ERROR_CODES.OTP_CONSUMED);
     if (row.expiresAt.getTime() < Date.now()) throw new DomainException(ERROR_CODES.OTP_EXPIRED);
     if (row.attemptsLeft <= 0) throw new DomainException(ERROR_CODES.OTP_ATTEMPTS_EXCEEDED);

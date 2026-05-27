@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AuditEventType, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
   CustomerAccountInactiveException,
@@ -9,13 +10,10 @@ import {
   CustomerPhoneAlreadyRegisteredException,
 } from '@/common/errors/domain.exceptions';
 import { PasswordService } from '@/auth/password.service';
-import { PrismaService } from '@/infra/prisma/prisma.service';
+import { ApplicationLinkRepository } from './application-link.repository';
 import { CustomerAccountRepository } from './customer-account.repository';
 import { CustomerJwtTokenService } from './customer-jwt-token.service';
-import {
-  CustomerIssueResult,
-  CustomerRefreshTokenService,
-} from './customer-refresh-token.service';
+import { CustomerIssueResult, CustomerRefreshTokenService } from './customer-refresh-token.service';
 import type { CustomerProfileResponseDto } from './dto/customer-auth.dto';
 
 export interface CustomerRequestContext {
@@ -60,7 +58,7 @@ export class CustomerAuthService {
     private readonly jwt: CustomerJwtTokenService,
     private readonly password: PasswordService,
     private readonly audit: AuditEventWriter,
-    private readonly prisma: PrismaService,
+    private readonly applicationLinks: ApplicationLinkRepository,
   ) {}
 
   // ---- Signup --------------------------------------------------------------
@@ -220,27 +218,20 @@ export class CustomerAuthService {
     ctx: CustomerRequestContext;
   }): Promise<{ linkedApplicationIds: string[] }> {
     const since = new Date(Date.now() - GUEST_LINK_WINDOW_MS);
-    const rows = await this.prisma.application.findMany({
-      where: {
-        mobileClientId: args.mobileClientId,
-        applicantUserId: null,
-        isGuest: true,
-        createdAt: { gte: since },
-      },
-      select: { id: true },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
+    const ids = await this.applicationLinks.findClaimableGuestApplicationIds({
+      mobileClientId: args.mobileClientId,
+      since,
+      limit: 10,
     });
-    if (rows.length === 0) {
+    if (ids.length === 0) {
       throw new CustomerGuestLinkWindowExpiredException({
         mobileClientId: args.mobileClientId,
         windowHours: 24,
       });
     }
-    const ids = rows.map((r) => r.id);
-    await this.prisma.application.updateMany({
-      where: { id: { in: ids } },
-      data: { applicantUserId: args.customerId, isGuest: false },
+    await this.applicationLinks.claimApplicationsForCustomer({
+      applicationIds: ids,
+      customerId: args.customerId,
     });
     for (const id of ids) {
       await this.audit.write({

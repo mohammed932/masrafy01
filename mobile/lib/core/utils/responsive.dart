@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:app/core/theme/pilot_ui_kit.dart';
+import 'package:app/core/theme/masrafy_ui_kit.dart';
 
 /// Single source of truth for device-class breakpoints and content max
 /// widths used across the app. Use this instead of redefining local
@@ -11,7 +11,7 @@ import 'package:app/core/theme/pilot_ui_kit.dart';
 class Responsive {
   Responsive._();
 
-  static const double tabletBreakpoint = PilotUiKitInitializer.tabletBreakpoint;
+  static const double tabletBreakpoint = MasrafyUiKitInitializer.tabletBreakpoint;
   static const double largeTabletBreakpoint = 900;
 
   static const double phoneMaxContentWidth = double.infinity;
@@ -49,7 +49,7 @@ class Responsive {
       isTablet(context) ? tabletCardMaxWidth : double.infinity;
 
   /// Symmetric page padding that grows with device class. Combine with a
-  /// `Center` + `ConstrainedBox` (or `PilotResponsiveContainer`) so content
+  /// `Center` + `ConstrainedBox` (or `MasrafyResponsiveContainer`) so content
   /// doesn't run edge-to-edge on iPad.
   static EdgeInsets pagePadding(BuildContext context) {
     if (isLargeTablet(context)) {

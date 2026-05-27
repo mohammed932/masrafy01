@@ -9,7 +9,7 @@ import '../result/failure.dart';
 /// XXX). Wraps a datasource call, catches the masrafy-relevant error
 /// shapes, and emits `Either<Failure, T>` so call sites are uniform.
 ///
-/// Pilot100 inspired the shape; masrafy keeps only the failure modes
+/// masrafy inspired the shape; masrafy keeps only the failure modes
 /// that apply today:
 ///   - `DioException`  → `NetworkFailure` (timeout / no connection)
 ///                   OR `ServerFailure`  (4xx/5xx with the backend's

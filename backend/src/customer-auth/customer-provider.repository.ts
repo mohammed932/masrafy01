@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import type { CustomerProvider, Prisma, SocialProvider } from '@prisma/client';
+import type { CustomerProvider, Prisma, SocialProvider as PrismaSocialProvider } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import { SocialProvider } from './dto/enums';
 
 export interface LinkProviderInput {
   customerId: string;
@@ -18,7 +19,8 @@ export class CustomerProviderRepository {
     return client.customerProvider.create({
       data: {
         customerId: input.customerId,
-        provider: input.provider,
+        // Local enum mirrors Prisma value-for-value; cast at the boundary.
+        provider: input.provider as unknown as PrismaSocialProvider,
         providerUserId: input.providerUserId,
         email: input.email ?? null,
       },
@@ -30,7 +32,12 @@ export class CustomerProviderRepository {
     providerUserId: string,
   ): Promise<CustomerProvider | null> {
     return this.prisma.customerProvider.findUnique({
-      where: { provider_providerUserId: { provider, providerUserId } },
+      where: {
+        provider_providerUserId: {
+          provider: provider as unknown as PrismaSocialProvider,
+          providerUserId,
+        },
+      },
     });
   }
 

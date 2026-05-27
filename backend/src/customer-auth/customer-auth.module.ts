@@ -9,6 +9,7 @@ import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { CustomerAuthService } from './customer-auth.service';
 import { CustomerAuthController } from './customer-auth.controller';
 import { AdminCustomerAccountsController } from './admin-customer-accounts.controller';
+import { ApplicationLinkRepository } from './application-link.repository';
 import { CustomerAccountRepository } from './customer-account.repository';
 import { CustomerRefreshTokenRepository } from './customer-refresh-token.repository';
 import { CustomerRefreshTokenService } from './customer-refresh-token.service';
@@ -62,6 +63,7 @@ import { MockSmsGateway } from './sms/mock-sms-gateway.service';
   ],
   controllers: [CustomerAuthController, AdminCustomerAccountsController],
   providers: [
+    ApplicationLinkRepository,
     CustomerAccountRepository,
     CustomerRefreshTokenRepository,
     CustomerRefreshTokenService,

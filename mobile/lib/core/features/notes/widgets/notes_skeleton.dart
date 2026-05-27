@@ -12,25 +12,25 @@ class NotesSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PilotShimmer(
+    return MasrafyShimmer(
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.all(12.w),
         decoration: BoxDecoration(
-          color: PilotColorTheme.of(context).fill.alterSolid,
+          color: MasrafyColorTheme.of(context).fill.alterSolid,
           border: Border.all(
-            color: PilotColorTheme.of(context).border.main,
+            color: MasrafyColorTheme.of(context).border.main,
           ),
           borderRadius: BorderRadius.circular(8.r),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            PilotShimmerLine(width: double.infinity, height: 14.h),
+            MasrafyShimmerLine(width: double.infinity, height: 14.h),
             Gap(6.h),
-            PilotShimmerLine(width: double.infinity, height: 14.h),
+            MasrafyShimmerLine(width: double.infinity, height: 14.h),
             Gap(6.h),
-            PilotShimmerLine(width: 180.w, height: 14.h),
+            MasrafyShimmerLine(width: 180.w, height: 14.h),
           ],
         ),
       ),

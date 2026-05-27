@@ -12,7 +12,7 @@ This file is the single source of truth future `impec` commands consult before t
 
 | Slot | Value | Source |
 |---|---|---|
-| Primary brand color | `#06152D` Deep Navy | constitution Principle VIII, locked |
+| Primary brand color | `#0869C3` Azure Blue | constitution Principle VIII, locked |
 | Primary hover | `#0B2247` | tokens |
 | Primary active | `#050F22` | tokens |
 | Tonal accent (links, secondary chips) | `#1C4290` | tokens — never used on top-bar |
@@ -25,11 +25,11 @@ This file is the single source of truth future `impec` commands consult before t
 | Semantic — warning | `#B97300` + bg `#FFF4E0` |
 | Semantic — error | `#C0292E` + bg `#FBE7E8` |
 | Semantic — info | `#1A5FAE` + bg `#E6F0FA` |
-| Text primary / secondary / tertiary / disabled | `#06152D / #4A5468 / #7A8194 / #B3B9C5` |
+| Text primary / secondary / tertiary / disabled | `#0869C3 / #4A5468 / #7A8194 / #B3B9C5` |
 
 **Brand voice**: refined banking · Swiss restraint · calm density · bilingual-balanced (AR + EN equally weighted) · accountable.
 
-**Anti-patterns specific to this brand**: never use the AI purple/pink hero gradient (kills bank trust); no neon; no glassmorphism on regulated surfaces; no pure black `#000000` (use the navy primary as text instead).
+**Anti-patterns specific to this brand**: never use the AI purple/pink hero gradient (kills bank trust); no neon; no glassmorphism on regulated surfaces; no pure black `#000000` (use the azure primary as text instead).
 
 ---
 

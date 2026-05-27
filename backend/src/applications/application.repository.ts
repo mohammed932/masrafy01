@@ -10,11 +10,11 @@ import { Injectable } from '@nestjs/common';
 import {
   Prisma,
   type ApplicationPriority,
-  type ApplicationStatus,
+  type ApplicationStatus as PrismaApplicationStatus,
   type ApprovalTier,
-  type LeadStatus,
 } from '@prisma/client';
 import { PrismaService } from '../infra/prisma/prisma.service';
+import { ApplicationStatus } from './dto/enums';
 
 export type LeadListFilter =
   | 'needs_first_contact'
@@ -89,13 +89,27 @@ export interface PersistMatchInput {
   txCallback?: (tx: Prisma.TransactionClient, applicationId: string) => Promise<void>;
 }
 
+/**
+ * Mapped domain type exposed to other features that only need to verify
+ * who owns an application (customer link + device link). Avoids leaking
+ * raw Prisma row shape across feature boundaries.
+ */
+export interface ApplicationOwnership {
+  id: string;
+  applicantUserId: string | null;
+  mobileClientId: string;
+}
+
 @Injectable()
 export class ApplicationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async persistMatch(input: PersistMatchInput): Promise<string> {
     return this.prisma.$transaction(async (tx) => {
-      const created = await tx.application.create({ data: input.application });
+      const created = await tx.application.create({
+        // Local enum values mirror Prisma's exactly; cast at the boundary.
+        data: input.application as unknown as Prisma.ApplicationUncheckedCreateInput,
+      });
       if (input.offers.length > 0) {
         await tx.bankOffer.createMany({
           data: input.offers.map((o) => ({ ...o, applicationId: created.id })),
@@ -113,6 +127,24 @@ export class ApplicationRepository {
       where: { id },
       include: { bankOffers: { where: { erasedAt: null }, orderBy: { createdAt: 'asc' } } },
     });
+  }
+
+  /**
+   * Cross-feature read: returns just the fields needed to enforce
+   * customer + device ownership. Used by the documents feature so the
+   * documents service does not need direct Prisma access.
+   */
+  async findOwnershipById(id: string): Promise<ApplicationOwnership | null> {
+    const row = await this.prisma.application.findUnique({
+      where: { id },
+      select: { id: true, applicantUserId: true, mobileClientId: true },
+    });
+    if (!row) return null;
+    return {
+      id: row.id,
+      applicantUserId: row.applicantUserId,
+      mobileClientId: row.mobileClientId,
+    };
   }
 
   async findByIdempotencyKey(mobileClientId: string, idempotencyKey: string) {
@@ -140,7 +172,8 @@ export class ApplicationRepository {
     const where: Prisma.ApplicationWhereInput = {};
     const onlyProceeded = params.onlyProceeded ?? true;
     if (onlyProceeded) where.userProceededAt = { not: null };
-    if (params.status?.length) where.status = { in: params.status };
+    if (params.status?.length)
+      where.status = { in: params.status as unknown as PrismaApplicationStatus[] };
     if (params.loanPurpose) where.loanPurpose = params.loanPurpose;
     if (params.assignedAgentStaffId) where.assignedAgentStaffId = params.assignedAgentStaffId;
 

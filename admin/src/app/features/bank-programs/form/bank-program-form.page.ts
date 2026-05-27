@@ -115,7 +115,7 @@ type ToggleKey =
         </div>
       </header>
 
-      <ng-container *ngIf="enums.unavailable(); else readyTpl">
+      @if (enums.unavailable()) {
         <div class="unavailable">
           <span class="unavailable-icon" nz-icon nzType="cloud" nzTheme="outline" aria-hidden="true"></span>
           <p class="unavailable-text" i18n="@@bank_programs.form.enums_unavailable">
@@ -126,9 +126,7 @@ type ToggleKey =
             <span i18n="@@bank_programs.form.retry">Retry</span>
           </button>
         </div>
-      </ng-container>
-
-      <ng-template #readyTpl>
+      } @else {
         <!-- Shared validation-error template, applied via [nzErrorTip] to every
              nz-form-control with typed validators. Declared inside readyTpl so
              the reference is in scope for the form controls below. -->
@@ -772,14 +770,17 @@ type ToggleKey =
                 [disabled]="form.invalid || busy() || enums.unavailable()"
                 [nzLoading]="busy()"
               >
-                <span *ngIf="!busy()" nz-icon [nzType]="isEditMode() ? 'save' : 'plus'" nzTheme="outline" aria-hidden="true"></span>
-                <span *ngIf="!busy()">{{ isEditMode() ? saveLabel() : createLabel() }}</span>
-                <span *ngIf="busy()" i18n="@@bank_programs.form.saving">Saving…</span>
+                @if (!busy()) {
+                  <span nz-icon [nzType]="isEditMode() ? 'save' : 'plus'" nzTheme="outline" aria-hidden="true"></span>
+                  <span>{{ isEditMode() ? saveLabel() : createLabel() }}</span>
+                } @else {
+                  <span i18n="@@bank_programs.form.saving">Saving…</span>
+                }
               </button>
             }
           </footer>
         </form>
-      </ng-template>
+      }
     </section>
   `,
   styles: [

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AuditEventType, SupportChannel, SupportStatus } from '@prisma/client';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
   SupportConfigNotFoundException,
@@ -7,6 +7,7 @@ import {
   SupportRequestNotFoundException,
 } from '@/common/errors/domain.exceptions';
 import { SupportRepository } from './support.repository';
+import { SupportChannel, SupportStatus } from './dto/enums';
 import type { SupportContactResponseDto, SupportRequestResponseDto } from './dto/support.dto';
 
 export interface SupportRequestContext {

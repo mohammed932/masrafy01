@@ -222,10 +222,12 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
             </nz-select>
           </nz-form-control>
         </nz-form-item>
-        <button nz-button type="button" (click)="clearFilters()" *ngIf="hasFilters()">
-          <span nz-icon nzType="close" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.filter.clear">Clear filters</span>
-        </button>
+        @if (hasFilters()) {
+          <button nz-button type="button" (click)="clearFilters()">
+            <span nz-icon nzType="close" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.filter.clear">Clear filters</span>
+          </button>
+        }
       </div>
 
       <div class="table-wrap">
@@ -235,9 +237,11 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
             <p class="empty-text" i18n="@@bank_programs.list.empty">
               No programs match these filters.
             </p>
-            <button nz-button type="button" (click)="clearFilters()" *ngIf="hasFilters()">
-              <span i18n="@@bank_programs.filter.clear">Clear filters</span>
-            </button>
+            @if (hasFilters()) {
+              <button nz-button type="button" (click)="clearFilters()">
+                <span i18n="@@bank_programs.filter.clear">Clear filters</span>
+              </button>
+            }
             <a
               nz-button
               nzType="primary"
@@ -278,17 +282,18 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
                     <a [routerLink]="['/bank-programs', row.programCode]" class="row-link">
                       <app-key-chip [value]="row.programCode" />
                     </a>
-                    <span
-                      *ngIf="row.deprecatedKeyCount > 0"
-                      class="deprecated-badge"
-                      nz-icon
-                      nzType="warning"
-                      nzTheme="outline"
-                      nz-tooltip
-                      nzTooltipTitle="One or more tier keys have been deprecated"
-                      i18n-nzTooltipTitle="@@bank_programs.col.deprecated_tip"
-                      aria-hidden="true"
-                    ></span>
+                    @if (row.deprecatedKeyCount > 0) {
+                      <span
+                        class="deprecated-badge"
+                        nz-icon
+                        nzType="warning"
+                        nzTheme="outline"
+                        nz-tooltip
+                        nzTooltipTitle="One or more tier keys have been deprecated"
+                        i18n-nzTooltipTitle="@@bank_programs.col.deprecated_tip"
+                        aria-hidden="true"
+                      ></span>
+                    }
                   </td>
                   <td>{{ row.friendlyName }}</td>
                   <td>{{ row.bankName }}</td>

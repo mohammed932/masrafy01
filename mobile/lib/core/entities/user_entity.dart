@@ -1,4 +1,4 @@
-/// Pure domain entity representing the authenticated pilot. No JSON
+/// Pure domain entity representing the authenticated masrafy. No JSON
 /// serialization, no remote-format concerns — consumers (cubits, services,
 /// widgets) reason about this shape. The data layer's `UserModel` knows
 /// how to build a [UserEntity] via `.toEntity()`.

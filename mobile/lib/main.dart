@@ -25,7 +25,7 @@ class MasrafyApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF06152D),
+          seedColor: const Color(0xFF0869C3),
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: const Color(0xFFF7F8FA),
@@ -53,7 +53,7 @@ class _PresentationPendingScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF06152D),
+                    color: Color(0xFF0869C3),
                   ),
                 ),
                 SizedBox(height: 12),

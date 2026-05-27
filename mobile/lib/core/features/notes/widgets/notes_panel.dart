@@ -11,8 +11,8 @@ class NotesPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = PilotColorTheme.of(context);
-    final texts = PilotTextTheme.of(context);
+    final colors = MasrafyColorTheme.of(context);
+    final texts = MasrafyTextTheme.of(context);
 
     return BlocListener<NotesCubit, NotesState>(
       listenWhen: (p, c) => c.isTrialLocked && !p.isTrialLocked,
@@ -47,10 +47,10 @@ class NotesPanel extends StatelessWidget {
 
   void _showTrialLockedDialog(
     BuildContext context,
-    PilotColorTheme colors,
-    PilotTextTheme texts,
+    MasrafyColorTheme colors,
+    MasrafyTextTheme texts,
   ) {
-    PilotInfoDialog.show(
+    MasrafyInfoDialog.show(
       context,
       title: 'Upgrade Required',
       message:
@@ -67,8 +67,8 @@ class _NoteComposer extends StatefulWidget {
   });
 
   final String questionId;
-  final PilotColorTheme colors;
-  final PilotTextTheme texts;
+  final MasrafyColorTheme colors;
+  final MasrafyTextTheme texts;
 
   @override
   State<_NoteComposer> createState() => _NoteComposerState();
@@ -208,8 +208,8 @@ class _NoteComposerState extends State<_NoteComposer> {
   void _confirmDelete(
     BuildContext context,
     NotesCubit cubit,
-    PilotColorTheme colors,
-    PilotTextTheme texts,
+    MasrafyColorTheme colors,
+    MasrafyTextTheme texts,
   ) {
     showDialog<bool>(
       context: context,
@@ -250,7 +250,7 @@ class _GhostButton extends StatelessWidget {
   final String label;
   final Color color;
   final VoidCallback? onTap;
-  final PilotTextTheme texts;
+  final MasrafyTextTheme texts;
 
   @override
   Widget build(BuildContext context) {
@@ -285,8 +285,8 @@ class _PrimaryPillButton extends StatelessWidget {
   final String label;
   final bool isLoading;
   final VoidCallback? onTap;
-  final PilotColorTheme colors;
-  final PilotTextTheme texts;
+  final MasrafyColorTheme colors;
+  final MasrafyTextTheme texts;
 
   @override
   Widget build(BuildContext context) {
@@ -332,8 +332,8 @@ class _NoteCard extends StatelessWidget {
   });
 
   final UserNoteEntity note;
-  final PilotColorTheme colors;
-  final PilotTextTheme texts;
+  final MasrafyColorTheme colors;
+  final MasrafyTextTheme texts;
 
   static const _months = [
     'jan', 'feb', 'mar', 'apr', 'may', 'jun',

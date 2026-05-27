@@ -7,7 +7,7 @@
 
 ## Tokens
 
-- **Palette** — [`_palette.scss`](./_palette.scss): primitive colors (burgundy, bronze, neutrals, semantic, gradients, shadows, dark-mode counterparts).
+- **Palette** — [`_palette.scss`](./_palette.scss): primitive colors (azure, bronze, neutrals, semantic, gradients, shadows, dark-mode counterparts).
 - **Typography** — [`_typography.scss`](./_typography.scss): fonts, sizes, weights, line-heights, letter-spacing.
 - **Tokens** — [`_tokens.scss`](./_tokens.scss): spacing, radius, motion, focus, layout primitives, legacy aliases (`--color-*` etc.), NG-ZORRO `--ant-*` overrides.
 - **Global styles** — [`styles.scss`](./styles.scss): NG-ZORRO component overrides (input, select, tag, modal, table, etc.) — applies the design system to every Ant widget.
@@ -20,8 +20,8 @@
 | Surface | `--bg-surface` | `#FDFCFB` | `#15101C` |
 | Subtle | `--bg-subtle` | `#F5F3F0` | `#1A1422` |
 | Muted | `--bg-muted` | `#EFEAE5` | `#25202E` |
-| Primary | `--primary` | `#5C0632` burgundy | `#E0708F` vivid pink |
-| Primary visible | `--primary-visible` | `#5C0632` | `#EC8AA6` |
+| Primary | `--primary` | `#0869C3` azure | `#5BA5E8` light azure |
+| Primary visible | `--primary-visible` | `#0869C3` | `#7DB8EE` |
 | Accent | `--accent` | `#A17C5B` bronze | `#E8D4B8` champagne |
 | Text primary | `--text-primary` | `#2B2320` | `#F5F3F8` |
 | Text secondary | `--text-secondary` | `#6B5D54` | `#B8B0C0` |
@@ -128,8 +128,8 @@ Loaded from Google Fonts in [`index.html`](../index.html): `Plus Jakarta Sans`, 
 ## Focus
 
 `--focus-halo` flips theme-aware:
-- Light: `0 0 0 3px rgba(92, 6, 50, 0.15)`
-- Dark: `0 0 0 3px rgba(224, 112, 143, 0.40)`
+- Light: `0 0 0 3px rgba(8, 105, 195, 0.15)`
+- Dark: `0 0 0 3px rgba(91, 165, 232, 0.40)`
 
 Every interactive element MUST have a visible focus ring.
 
@@ -160,7 +160,7 @@ Use NG-ZORRO `nz-tag` — globally restyled in [`styles.scss`](./styles.scss):
 - `color: #ccc` / `background: #fff` — use tokens, always
 - Inline `style="..."` for colors or sizes
 - New ad-hoc transitions without easing token
-- Hero text without explicit `color: var(--text-on-primary)` (caused the dark-mode burgundy-on-burgundy bug)
+- Hero text without explicit `color: var(--text-on-primary)` (caused the dark-mode azure-on-azure bug)
 
 ## How to add a new component
 

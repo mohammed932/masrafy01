@@ -189,7 +189,7 @@ interface LoginControls {
         justify-content: center;
         padding: 24px;
         background:
-          radial-gradient(ellipse at 20% 0%, rgba(92, 6, 50, 0.08) 0%, transparent 50%),
+          radial-gradient(ellipse at 20% 0%, rgba(8, 105, 195, 0.08) 0%, transparent 50%),
           radial-gradient(ellipse at 80% 100%, rgba(161, 124, 91, 0.10) 0%, transparent 50%),
           #F8F6F4;
         overflow: hidden;
@@ -210,7 +210,7 @@ interface LoginControls {
       }
       .orb-1 {
         width: 520px; height: 520px;
-        background: radial-gradient(circle, rgba(92, 6, 50, 0.18), transparent 70%);
+        background: radial-gradient(circle, rgba(8, 105, 195, 0.18), transparent 70%);
         top: -180px; left: -160px;
       }
       .orb-2 {
@@ -220,7 +220,7 @@ interface LoginControls {
       }
       .orb-3 {
         width: 360px; height: 360px;
-        background: radial-gradient(circle, rgba(92, 6, 50, 0.10), transparent 70%);
+        background: radial-gradient(circle, rgba(8, 105, 195, 0.10), transparent 70%);
         top: 50%; left: 50%; transform: translate(-50%, -50%);
       }
 
@@ -263,7 +263,7 @@ interface LoginControls {
         position: relative;
         padding: 48px;
         color: #FDFCFB;
-        background: linear-gradient(135deg, #5C0632 0%, #3D0421 60%, #2D0119 100%);
+        background: linear-gradient(135deg, #0869C3 0%, #0A4373 60%, #06203B 100%);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -343,7 +343,7 @@ interface LoginControls {
         width: 40px; height: 40px;
         display: flex; align-items: center; justify-content: center;
         background: linear-gradient(135deg, #D4B89F, #8B7355);
-        color: #1A000F;
+        color: #06203B;
         border-radius: 10px;
         font-size: 18px;
       }
@@ -402,9 +402,9 @@ interface LoginControls {
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #5C0632;
-        background: linear-gradient(135deg, rgba(92, 6, 50, 0.10), rgba(92, 6, 50, 0.04));
-        border: 1px solid rgba(92, 6, 50, 0.18);
+        color: #0869C3;
+        background: linear-gradient(135deg, rgba(8, 105, 195, 0.10), rgba(8, 105, 195, 0.04));
+        border: 1px solid rgba(8, 105, 195, 0.18);
         border-radius: 999px;
       }
       .header-badge i { color: #A17C5B; font-size: 12px; }
@@ -523,7 +523,7 @@ interface LoginControls {
         font-size: 15px;
         font-weight: 600;
         color: #FDFCFB;
-        background: linear-gradient(135deg, #5C0632 0%, #7A0842 100%);
+        background: linear-gradient(135deg, #0869C3 0%, #075596 100%);
         border: none;
         border-radius: 14px;
         cursor: pointer;
@@ -534,7 +534,7 @@ interface LoginControls {
       }
       .submit-btn:hover:not(:disabled) {
         transform: translateY(-1px);
-        box-shadow: 0 12px 28px -8px rgba(92, 6, 50, 0.45);
+        box-shadow: 0 12px 28px -8px rgba(8, 105, 195, 0.45);
       }
       .submit-btn:active:not(:disabled) { transform: translateY(0); }
       .submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }

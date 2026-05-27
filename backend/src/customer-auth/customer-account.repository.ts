@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { RegistrationPath } from '@prisma/client';
 import type { Prisma, CustomerAccount } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 
@@ -8,6 +9,31 @@ export interface CreateCustomerInput {
   passwordHash: string;
   email?: string | null;
   locale?: string;
+}
+
+export interface CreatePhoneVerifiedCustomerInput {
+  phone: string;
+  name: string;
+  passwordHash: string;
+  age: number;
+  email?: string | null;
+  locale?: string;
+}
+
+export interface CreateSocialLiteCustomerInput {
+  email?: string | null;
+  fullName?: string | null;
+  locale?: string;
+}
+
+export interface BindMobileInput {
+  customerId: string;
+  phone: string;
+}
+
+export interface UpdatePasswordHashInput {
+  customerId: string;
+  passwordHash: string;
 }
 
 export interface CustomerForLogin {
@@ -90,6 +116,77 @@ export class CustomerAccountRepository {
         email: input.email ?? null,
         locale: input.locale ?? 'ar-EG',
       },
+    });
+  }
+
+  /**
+   * Feature 008 — PHONE-path two-step signup. Creates a fully-verified
+   * customer in one shot (OTP already consumed by the caller, so
+   * `mobileVerifiedAt` is set immutably on insert per Principle XIII).
+   */
+  async createPhoneVerified(
+    input: CreatePhoneVerifiedCustomerInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<CustomerAccount> {
+    const client = tx ?? this.prisma;
+    return client.customerAccount.create({
+      data: {
+        registrationPath: RegistrationPath.PHONE,
+        phone: input.phone,
+        mobileVerifiedAt: new Date(),
+        name: input.name,
+        email: input.email ?? null,
+        locale: input.locale ?? 'ar-EG',
+        passwordHash: input.passwordHash,
+        age: input.age,
+      },
+    });
+  }
+
+  /**
+   * Feature 008 — SOCIAL-path lite signup. Mobile + age + passwordHash all
+   * null; filled later via the Complete-Profile mobile binding or the
+   * first loan-request popup.
+   */
+  async createSocialLite(
+    input: CreateSocialLiteCustomerInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<CustomerAccount> {
+    const client = tx ?? this.prisma;
+    return client.customerAccount.create({
+      data: {
+        registrationPath: RegistrationPath.SOCIAL,
+        phone: null,
+        mobileVerifiedAt: null,
+        name: input.fullName?.trim() ?? '',
+        email: input.email?.toLowerCase().trim() ?? null,
+        locale: input.locale ?? 'ar-EG',
+        passwordHash: null,
+        age: null,
+      },
+    });
+  }
+
+  /**
+   * Feature 008 — SOCIAL Complete-Profile binding. Persists the OTP-verified
+   * phone and stamps `mobileVerifiedAt` (immutable from this point).
+   */
+  async bindMobileVerified(input: BindMobileInput, tx?: Prisma.TransactionClient): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.customerAccount.update({
+      where: { id: input.customerId },
+      data: { phone: input.phone, mobileVerifiedAt: new Date() },
+    });
+  }
+
+  async updatePasswordHash(
+    input: UpdatePasswordHashInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.customerAccount.update({
+      where: { id: input.customerId },
+      data: { passwordHash: input.passwordHash },
     });
   }
 

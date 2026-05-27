@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { AuditEventType } from '@prisma/client';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import type { Request } from 'express';
 import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { AuditEventWriter } from '@/audit/audit-event.writer';

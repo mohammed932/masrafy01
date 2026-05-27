@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import cuid from 'cuid';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import { RedisService } from '@/infra/redis/redis.service';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 
 const LOCK_KEY = 'stale-lead-scan:lock';
@@ -132,7 +133,7 @@ export class StaleLeadScanner {
             {
               actorId: null,
               targetId: app.assignedAgentStaffId ?? null,
-              eventType: 'MANAGER_ATTENTION_REQUESTED',
+              eventType: AuditEventType.MANAGER_ATTENTION_REQUESTED,
               sourceIp: null,
               correlationId,
               payload: {

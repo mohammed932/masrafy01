@@ -1,15 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { PrismaService } from '@/infra/prisma/prisma.service';
+import { ActivitiesRepository } from '@/activities/activities.repository';
 import { RedisService } from '@/infra/redis/redis.service';
 
 const ALIAS_SALT = 'masrafy-alias-salt';
 const ALIAS_TTL_SECONDS = 15 * 60;
+const SYSTEM_ACTOR_ID = 'clsysactor00000000000000000000';
 
 @Injectable()
 export class AliasResolverService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly activities: ActivitiesRepository,
     private readonly redis: RedisService,
   ) {}
 
@@ -24,15 +25,9 @@ export class AliasResolverService {
       }
     }
 
-    const distinct = await this.prisma.activity.findMany({
-      distinct: ['actorStaffId'],
-      select: { actorStaffId: true },
-      orderBy: { actorStaffId: 'asc' },
-    });
+    const distinct = await this.activities.findDistinctActorStaffIds();
 
-    const ordered = [...distinct]
-      .map((d) => d.actorStaffId)
-      .filter((id): id is string => Boolean(id) && id !== 'clsysactor00000000000000000000');
+    const ordered = distinct.filter((id) => id !== SYSTEM_ACTOR_ID);
 
     ordered.sort((a, b) => {
       const ha = this.deterministicHash(analystSub, a);
@@ -44,7 +39,7 @@ export class AliasResolverService {
     ordered.forEach((staffId, idx) => {
       map[staffId] = this.aliasForIndex(idx);
     });
-    map['clsysactor00000000000000000000'] = 'System';
+    map[SYSTEM_ACTOR_ID] = 'System';
 
     await this.redis.raw.set(key, JSON.stringify(map), 'EX', ALIAS_TTL_SECONDS);
     return map;

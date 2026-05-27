@@ -83,4 +83,19 @@ export class ActivitiesRepository {
   async countByApplication(applicationId: string): Promise<number> {
     return this.prisma.activity.count({ where: { applicationId } });
   }
+
+  /**
+   * Cross-feature read: returns the distinct actor staff IDs that have
+   * ever logged an activity, in ascending ID order. Consumed by
+   * `LeadAnalyticsModule`'s `AliasResolverService` to build the analyst-
+   * scoped agent alias map (system actor is filtered by the caller).
+   */
+  async findDistinctActorStaffIds(): Promise<string[]> {
+    const rows = await this.prisma.activity.findMany({
+      distinct: ['actorStaffId'],
+      select: { actorStaffId: true },
+      orderBy: { actorStaffId: 'asc' },
+    });
+    return rows.map((r) => r.actorStaffId).filter((id): id is string => Boolean(id));
+  }
 }

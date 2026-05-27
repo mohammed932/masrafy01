@@ -331,7 +331,7 @@ Three codebases governed by **one constitution**
 | **Admin dashboard** | Angular 18 + Signals + standalone + NG-ZORRO + PrimeNG | Internal staff | Admin JWT (15min access + 7-day refresh httpOnly cookie) | Active — features 001–007 + customers + support + onboarding + funnel landed |
 | **Mobile app** | Flutter 3.27 + auto_route + flutter_bloc + freezed + get_it + injectable + dio + dartz | Egyptian end users | HMAC-signed requests + customer JWT (15min access + 30-day refresh, secure-storage) | Data + domain layers wired; UI rebuild post-Figma |
 
-Brand color **#06152D** (deep navy), primary across all surfaces.
+Brand color **#0869C3** (azure blue), primary across all surfaces.
 
 ---
 
@@ -349,7 +349,7 @@ Brand color **#06152D** (deep navy), primary across all surfaces.
   presigned URLs.
 - **VII.** Observability — `X-Correlation-Id` everywhere, structured
   JSON logs.
-- **VIII.** Brand identity — `#06152D` primary.
+- **VIII.** Brand identity — `#0869C3` primary.
 - **IX–XVI.** Backend rules (feature modules, repository pattern,
   Prisma migrations only, DTO vs Entity, dual auth, API envelope,
   rate limiting).

@@ -7,6 +7,7 @@ import {
   EnumerationRegistryUnavailableException,
   SeedRateVerificationFailedException,
 } from '../../common/errors/domain.exceptions';
+import { AuditEventType } from '../../common/audit/audit-event-types';
 import { BankProgramRepository } from '../bank-programs.repository';
 import { abkEgypt2026 } from './catalogs/abk-egypt-2026';
 import { salesfloorEgp2026 } from './catalogs/salesfloor-egp-2026';
@@ -101,7 +102,7 @@ export class SeedService {
             actorId: actor.id,
             targetId: null,
             bankProgramId: created.id,
-            eventType: 'BANK_PROGRAM_CREATED',
+            eventType: AuditEventType.BANK_PROGRAM_CREATED,
             sourceIp: actor.sourceIp,
             correlationId: actor.correlationId,
             payload: {

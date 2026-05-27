@@ -13,7 +13,7 @@ interface Row {
 }
 
 // Throwaway verification route. Confirms NG-ZORRO Less theme compiled with
-// brand primary #06152D, locale provider works in LTR/RTL builds, and core
+// brand primary #0869C3, locale provider works in LTR/RTL builds, and core
 // modules (button, table, message, icon) bootstrap. Deleted in PR 2.
 @Component({
   selector: 'app-nz-demo',
@@ -28,7 +28,7 @@ interface Row {
       <div class="row">
         <button nz-button nzType="primary" (click)="ping()">
           <span nz-icon nzType="check-circle" nzTheme="outline"></span>
-          Primary (should be #06152D)
+          Primary (should be #0869C3)
         </button>
         <button nz-button>Default</button>
         <button nz-button nzType="dashed">Dashed</button>

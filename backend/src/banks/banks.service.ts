@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { AuditEventType } from '@prisma/client';
+import { AuditEventType } from '../common/audit/audit-event-types';
 import { AuditEventWriter } from '../audit/audit-event.writer';
 import {
   BankCodeDuplicateException,

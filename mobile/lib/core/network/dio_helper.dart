@@ -92,7 +92,7 @@ class DioHelper implements BaseNetwork {
 
   @override
   Future<dynamic> get(
-    PilotEndpoint endpoint, {
+    MasrafyEndpoint endpoint, {
     Map<String, dynamic>? queryParameters,
   }) async {
     try {
@@ -109,7 +109,7 @@ class DioHelper implements BaseNetwork {
 
   @override
   Future<dynamic> post(
-    PilotEndpoint endpoint, {
+    MasrafyEndpoint endpoint, {
     Map<String, dynamic>? data,
   }) async {
     try {
@@ -126,7 +126,7 @@ class DioHelper implements BaseNetwork {
 
   @override
   Future<dynamic> put(
-    PilotEndpoint endpoint, {
+    MasrafyEndpoint endpoint, {
     Map<String, dynamic>? data,
   }) async {
     try {
@@ -143,7 +143,7 @@ class DioHelper implements BaseNetwork {
 
   @override
   Future<dynamic> patch(
-    PilotEndpoint endpoint, {
+    MasrafyEndpoint endpoint, {
     Map<String, dynamic>? data,
   }) async {
     try {
@@ -160,7 +160,7 @@ class DioHelper implements BaseNetwork {
 
   @override
   Future<dynamic> delete(
-    PilotEndpoint endpoint, {
+    MasrafyEndpoint endpoint, {
     Map<String, dynamic>? data,
   }) async {
     try {
@@ -177,7 +177,7 @@ class DioHelper implements BaseNetwork {
 
   @override
   Future<dynamic> upload(
-    PilotEndpoint endpoint,
+    MasrafyEndpoint endpoint,
     Map<String, List<File>> files, {
     Map<String, dynamic>? data,
   }) async {
@@ -203,7 +203,7 @@ class DioHelper implements BaseNetwork {
 
   @override
   Future<dynamic> patchMultipart(
-    PilotEndpoint endpoint,
+    MasrafyEndpoint endpoint,
     Map<String, String> fields, {
     Map<String, List<File>>? files,
   }) async {
@@ -230,7 +230,7 @@ class DioHelper implements BaseNetwork {
   }
 
   @override
-  Future<Uint8List> download(PilotEndpoint endpoint) async {
+  Future<Uint8List> download(MasrafyEndpoint endpoint) async {
     try {
       final response = await dio.get<Uint8List>(
         endpoint.fullUrl,

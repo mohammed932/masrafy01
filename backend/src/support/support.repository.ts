@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma, SupportConfig, SupportRequest, SupportChannel, SupportStatus } from '@prisma/client';
+import type {
+  Prisma,
+  SupportConfig,
+  SupportRequest as PrismaSupportRequest,
+  SupportChannel as PrismaSupportChannel,
+  SupportStatus as PrismaSupportStatus,
+} from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import { SupportChannel, SupportStatus } from './dto/enums';
 
 export interface CreateSupportRequestInput {
   channel: SupportChannel;
@@ -16,6 +23,24 @@ export interface ListSupportRequestsQuery {
   assignedStaffId?: string;
   pageSize: number;
   pageIndex: number;
+}
+
+/**
+ * Mapped domain row exposed across feature boundaries. Same shape as the
+ * Prisma model but with the local enum types — keeps `@prisma/client` out of
+ * services / controllers / DTOs (Constitution Principle X).
+ */
+export interface SupportRequestRow {
+  id: string;
+  channel: SupportChannel;
+  status: SupportStatus;
+  applicationId: string | null;
+  customerId: string | null;
+  mobileClientId: string | null;
+  assignedStaffId: string | null;
+  note: string | null;
+  createdAt: Date;
+  resolvedAt: Date | null;
 }
 
 @Injectable()
@@ -49,26 +74,30 @@ export class SupportRepository {
 
   // ---- Requests -----------------------------------------------------------
 
-  async createRequest(input: CreateSupportRequestInput): Promise<SupportRequest> {
-    return this.prisma.supportRequest.create({
+  async createRequest(input: CreateSupportRequestInput): Promise<SupportRequestRow> {
+    const row = await this.prisma.supportRequest.create({
       data: {
-        channel: input.channel,
+        channel: input.channel as unknown as PrismaSupportChannel,
         applicationId: input.applicationId ?? null,
         customerId: input.customerId ?? null,
         mobileClientId: input.mobileClientId ?? null,
         note: input.note ?? null,
       },
     });
+    return toSupportRequestRow(row);
   }
 
-  async findRequestById(id: string): Promise<SupportRequest | null> {
-    return this.prisma.supportRequest.findUnique({ where: { id } });
+  async findRequestById(id: string): Promise<SupportRequestRow | null> {
+    const row = await this.prisma.supportRequest.findUnique({ where: { id } });
+    return row ? toSupportRequestRow(row) : null;
   }
 
-  async list(query: ListSupportRequestsQuery): Promise<{ rows: SupportRequest[]; total: number }> {
+  async list(
+    query: ListSupportRequestsQuery,
+  ): Promise<{ rows: SupportRequestRow[]; total: number }> {
     const where: Prisma.SupportRequestWhereInput = {};
-    if (query.status) where.status = query.status;
-    if (query.channel) where.channel = query.channel;
+    if (query.status) where.status = query.status as unknown as PrismaSupportStatus;
+    if (query.channel) where.channel = query.channel as unknown as PrismaSupportChannel;
     if (query.assignedStaffId) where.assignedStaffId = query.assignedStaffId;
     const [rows, total] = await this.prisma.$transaction([
       this.prisma.supportRequest.findMany({
@@ -79,20 +108,39 @@ export class SupportRepository {
       }),
       this.prisma.supportRequest.count({ where }),
     ]);
-    return { rows, total };
+    return { rows: rows.map(toSupportRequestRow), total };
   }
 
-  async assign(id: string, staffId: string): Promise<SupportRequest> {
-    return this.prisma.supportRequest.update({
+  async assign(id: string, staffId: string): Promise<SupportRequestRow> {
+    const row = await this.prisma.supportRequest.update({
       where: { id },
       data: { assignedStaffId: staffId, status: 'in_progress' },
     });
+    return toSupportRequestRow(row);
   }
 
-  async resolve(id: string): Promise<SupportRequest> {
-    return this.prisma.supportRequest.update({
+  async resolve(id: string): Promise<SupportRequestRow> {
+    const row = await this.prisma.supportRequest.update({
       where: { id },
       data: { status: 'resolved', resolvedAt: new Date() },
     });
+    return toSupportRequestRow(row);
   }
+}
+
+// ---- Boundary mappers (Prisma -> local domain) ---------------------------
+
+function toSupportRequestRow(row: PrismaSupportRequest): SupportRequestRow {
+  return {
+    id: row.id,
+    channel: row.channel as unknown as SupportChannel,
+    status: row.status as unknown as SupportStatus,
+    applicationId: row.applicationId,
+    customerId: row.customerId,
+    mobileClientId: row.mobileClientId,
+    assignedStaffId: row.assignedStaffId,
+    note: row.note,
+    createdAt: row.createdAt,
+    resolvedAt: row.resolvedAt,
+  };
 }

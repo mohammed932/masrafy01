@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { lastValueFrom } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzFormModule } from 'ng-zorro-antd/form';
@@ -146,6 +148,7 @@ export class BankFormDialog {
   private readonly api = inject(BanksApiService);
   private readonly message = inject(NzMessageService);
   private readonly errors = inject(ErrorCodeService);
+  private readonly http = inject(HttpClient);
 
   readonly saving = signal(false);
   readonly uploading = signal(false);
@@ -220,8 +223,11 @@ export class BankFormDialog {
     this.uploading.set(true);
     try {
       const { data: presigned } = await this.api.requestLogoUpload(this.data.bank.id, file.type);
-      const put = await fetch(presigned.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-      if (!put.ok) throw new Error('upload-failed');
+      await lastValueFrom(
+        this.http.put(presigned.uploadUrl, file, {
+          headers: { 'Content-Type': file.type },
+        }),
+      );
       await this.api.confirmLogoUpload(this.data.bank.id, presigned.key);
       const reader = new FileReader();
       reader.onload = () => this.logoPreview.set(reader.result as string);

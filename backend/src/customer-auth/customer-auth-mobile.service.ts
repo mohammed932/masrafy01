@@ -1,11 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  AuditEventType,
-  OtpPurpose,
-  Prisma,
-  RegistrationPath,
-  SocialProvider,
-} from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { AuditEventType } from '@/common/audit/audit-event-types';
+import { OtpPurpose, SocialProvider } from './dto/enums';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
   CustomerAccountInactiveException,
@@ -119,18 +115,17 @@ export class CustomerAuthMobileService {
     const created = await this.prisma.$transaction(async (tx) => {
       const { phone } = await this.verifiedMobile.consume(args.verifiedMobileToken, tx);
       try {
-        return await tx.customerAccount.create({
-          data: {
-            registrationPath: RegistrationPath.PHONE,
+        return await this.accounts.createPhoneVerified(
+          {
             phone,
-            mobileVerifiedAt: new Date(),
             name: args.name.trim(),
             email,
             locale: args.locale ?? 'ar-EG',
             passwordHash,
             age: args.age,
           },
-        });
+          tx,
+        );
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
           throw new CustomerPhoneAlreadyRegisteredException();
@@ -182,7 +177,12 @@ export class CustomerAuthMobileService {
     return challenge;
   }
 
-  async verifyOtp(args: { otpId: string; code: string; purpose: OtpPurpose; ctx: CustomerRequestContext }) {
+  async verifyOtp(args: {
+    otpId: string;
+    code: string;
+    purpose: OtpPurpose;
+    ctx: CustomerRequestContext;
+  }) {
     const result = await this.otp.verify({
       otpId: args.otpId,
       code: args.code,
@@ -272,26 +272,22 @@ export class CustomerAuthMobileService {
 
     // First-time social — create a lite SOCIAL customer + provider link + tokens.
     const created = await this.prisma.$transaction(async (tx) => {
-      const customer = await tx.customerAccount.create({
-        data: {
-          registrationPath: RegistrationPath.SOCIAL,
-          phone: null,
-          mobileVerifiedAt: null,
-          name: identity.fullName?.trim() ?? '',
-          email: identity.email?.toLowerCase().trim() ?? null,
-          locale: 'ar-EG',
-          passwordHash: null,
-          age: null,
+      const customer = await this.accounts.createSocialLite(
+        {
+          fullName: identity.fullName,
+          email: identity.email,
         },
-      });
-      await tx.customerProvider.create({
-        data: {
+        tx,
+      );
+      await this.providers.link(
+        {
           customerId: customer.id,
           provider: args.provider,
           providerUserId: identity.providerUserId,
           email: identity.email ?? null,
         },
-      });
+        tx,
+      );
       return customer;
     });
 
@@ -398,9 +394,9 @@ export class CustomerAuthMobileService {
     }
 
     try {
-      await this.prisma.customerAccount.update({
-        where: { id: args.customerId },
-        data: { phone: verified.phone, mobileVerifiedAt: new Date() },
+      await this.accounts.bindMobileVerified({
+        customerId: args.customerId,
+        phone: verified.phone,
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -433,10 +429,7 @@ export class CustomerAuthMobileService {
 
     const customerId = await this.prisma.$transaction(async (tx) => {
       const { customerId } = await this.passwordResetTokens.consume(args.passwordResetToken, tx);
-      await tx.customerAccount.update({
-        where: { id: customerId },
-        data: { passwordHash },
-      });
+      await this.accounts.updatePasswordHash({ customerId, passwordHash }, tx);
       return customerId;
     });
 
@@ -483,9 +476,9 @@ export class CustomerAuthMobileService {
     await this.password.validatePolicy(args.newPassword);
     const newHash = await this.password.hash(args.newPassword);
 
-    await this.prisma.customerAccount.update({
-      where: { id: args.customerId },
-      data: { passwordHash: newHash },
+    await this.accounts.updatePasswordHash({
+      customerId: args.customerId,
+      passwordHash: newHash,
     });
     await this.refreshTokenRepo.revokeAllForCustomer(args.customerId);
     await this.audit.write({

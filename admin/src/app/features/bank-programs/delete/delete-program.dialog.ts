@@ -52,7 +52,7 @@ export interface DeleteProgramDialogData {
         <em>· {{ data.friendlyName }}</em>
       </p>
 
-      <ng-container *ngIf="offerCount() === null">
+      @if (offerCount() === null) {
         <nz-form-item class="full">
           <nz-form-label [nzFor]="'confirmCode'" i18n="@@bank_programs.delete.confirm_label"
             >Type the program code to confirm</nz-form-label
@@ -64,16 +64,16 @@ export interface DeleteProgramDialogData {
             </ng-template>
           </nz-form-control>
         </nz-form-item>
-      </ng-container>
+      }
 
-      <ng-container *ngIf="offerCount() !== null">
+      @if (offerCount() !== null) {
         <p class="has-offers">
           <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.delete.has_offers">
             This program has {{ offerCount() }} referencing offers. Deactivate it instead.
           </span>
         </p>
-      </ng-container>
+      }
     </div>
     <footer class="dialog-footer">
       <button
@@ -85,19 +85,23 @@ export interface DeleteProgramDialogData {
       >
         Cancel
       </button>
-      <button
-        *ngIf="offerCount() === null"
-        nz-button
-        nzType="primary"
-        nzDanger
-        type="button"
-        (click)="submit()"
-        [disabled]="confirmCtrl.value !== data.programCode || busy()"
-        [nzLoading]="busy()"
-      >
-        <span *ngIf="!busy()" i18n="@@bank_programs.delete.cta">Delete program</span>
-        <span *ngIf="busy()" i18n="@@bank_programs.delete.deleting">Deleting…</span>
-      </button>
+      @if (offerCount() === null) {
+        <button
+          nz-button
+          nzType="primary"
+          nzDanger
+          type="button"
+          (click)="submit()"
+          [disabled]="confirmCtrl.value !== data.programCode || busy()"
+          [nzLoading]="busy()"
+        >
+          @if (!busy()) {
+            <span i18n="@@bank_programs.delete.cta">Delete program</span>
+          } @else {
+            <span i18n="@@bank_programs.delete.deleting">Deleting…</span>
+          }
+        </button>
+      }
     </footer>
   `,
   styles: [

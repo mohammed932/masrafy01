@@ -7,7 +7,7 @@ Persistent identity + sign-out affordance across every authenticated screen. Bra
 
 ## Layout
 - Fixed height 64 px, full-width, position: sticky.
-- Background `--color-brand-primary` (#06152D), text `--color-text-on-brand`.
+- Background `--color-brand-primary` (#0869C3), text `--color-text-on-brand`.
 - Block start, with `--shadow-sm` underneath for scroll separation.
 - Inline-start cluster: brand mark "Masrafy" (`--font-weight-bold`, `--text-lg`).
 - Inline-end cluster: user-menu trigger button.

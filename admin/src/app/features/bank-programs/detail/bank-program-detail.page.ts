@@ -52,7 +52,8 @@ import type { BankProgramResponse } from '../bank-programs.types';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="page" *ngIf="program(); else loadingTpl">
+    @if (program()) {
+    <section class="page">
       <header class="page-header">
         <a routerLink="/bank-programs" class="back-link">
           <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
@@ -92,13 +93,15 @@ import type { BankProgramResponse } from '../bank-programs.types';
         </div>
       </header>
 
-      <div *ngIf="program()!.deprecatedKeys.length > 0" class="deprecated-banner">
-        <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
-        <span i18n="@@bank_programs.detail.deprecated_banner">
-          {{ program()!.deprecatedKeys.length }} tier key(s) have been deprecated in the registry —
-          review.
-        </span>
-      </div>
+      @if (program()!.deprecatedKeys.length > 0) {
+        <div class="deprecated-banner">
+          <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+          <span i18n="@@bank_programs.detail.deprecated_banner">
+            {{ program()!.deprecatedKeys.length }} tier key(s) have been deprecated in the registry —
+            review.
+          </span>
+        </div>
+      }
 
       <div class="layout">
         <div class="main">
@@ -135,10 +138,10 @@ import type { BankProgramResponse } from '../bank-programs.types';
               <dd class="numeric">{{ program()!.loanLimits.perCurrency['EGP']?.minAmount }}</dd>
               <dt>EGP max</dt>
               <dd class="numeric">{{ program()!.loanLimits.perCurrency['EGP']?.maxAmount }}</dd>
-              <ng-container *ngIf="program()!.loanLimits.qualitativeReviewMaxEGP as qr">
+              @if (program()!.loanLimits.qualitativeReviewMaxEGP; as qr) {
                 <dt i18n="@@bank_programs.detail.qr_max">Uplift ceiling (qualitative review)</dt>
                 <dd class="numeric">{{ qr }}</dd>
-              </ng-container>
+              }
             </dl>
           </section>
 
@@ -147,25 +150,26 @@ import type { BankProgramResponse } from '../bank-programs.types';
             <dl class="kv">
               <dt i18n="@@bank_programs.field.is_variable_rate">Variable rate</dt>
               <dd>{{ program()!.pricing.isVariableRate ? 'Yes' : 'No' }}</dd>
-              <dt *ngIf="!program()!.pricing.isVariableRate" i18n="@@bank_programs.field.base_rate">
-                Base rate
-              </dt>
-              <dd *ngIf="!program()!.pricing.isVariableRate" class="numeric">
-                {{ program()!.pricing.baseRatePercent }}%
-              </dd>
-              <dt
-                *ngIf="program()!.pricing.isVariableRate"
-                i18n="@@bank_programs.field.current_effective_rate"
-              >
-                Current effective rate
-              </dt>
-              <dd *ngIf="program()!.pricing.isVariableRate" class="numeric">
-                {{ program()!.pricing.currentEffectiveRatePercent }}%
-              </dd>
-              <ng-container *ngIf="program()!.pricing.variableRateNote">
+              @if (!program()!.pricing.isVariableRate) {
+                <dt i18n="@@bank_programs.field.base_rate">
+                  Base rate
+                </dt>
+                <dd class="numeric">
+                  {{ program()!.pricing.baseRatePercent }}%
+                </dd>
+              }
+              @if (program()!.pricing.isVariableRate) {
+                <dt i18n="@@bank_programs.field.current_effective_rate">
+                  Current effective rate
+                </dt>
+                <dd class="numeric">
+                  {{ program()!.pricing.currentEffectiveRatePercent }}%
+                </dd>
+              }
+              @if (program()!.pricing.variableRateNote) {
                 <dt i18n="@@bank_programs.field.variable_rate_note">Disclosure note</dt>
                 <dd>{{ program()!.pricing.variableRateNote }}</dd>
-              </ng-container>
+              }
             </dl>
           </section>
 
@@ -184,30 +188,28 @@ import type { BankProgramResponse } from '../bank-programs.types';
               <dd class="numeric">{{ program()!.eligibility.minMonthlyIncomeEGP }}</dd>
               <dt i18n="@@bank_programs.field.dbr_cap">DBR cap</dt>
               <dd class="numeric">{{ program()!.eligibility.dbrCapPercent }}%</dd>
-              <dt
-                *ngIf="program()!.eligibility.requiresNoDocuments"
-                i18n="@@bank_programs.flag.requires_no_docs"
-              >
-                No-documents lending tier
-              </dt>
-              <dd *ngIf="program()!.eligibility.requiresNoDocuments">Yes</dd>
-              <dt
-                *ngIf="program()!.eligibility.requiresQualitativeReview"
-                i18n="@@bank_programs.flag.requires_qr"
-              >
-                Qualitative review
-              </dt>
-              <dd *ngIf="program()!.eligibility.requiresQualitativeReview">Yes</dd>
-              <ng-container *ngIf="program()!.eligibility.minBankStatementBalanceEGP">
+              @if (program()!.eligibility.requiresNoDocuments) {
+                <dt i18n="@@bank_programs.flag.requires_no_docs">
+                  No-documents lending tier
+                </dt>
+                <dd>Yes</dd>
+              }
+              @if (program()!.eligibility.requiresQualitativeReview) {
+                <dt i18n="@@bank_programs.flag.requires_qr">
+                  Qualitative review
+                </dt>
+                <dd>Yes</dd>
+              }
+              @if (program()!.eligibility.minBankStatementBalanceEGP) {
                 <dt i18n="@@bank_programs.field.min_bank_statement_balance">
                   Wealth gate · bank balance
                 </dt>
                 <dd class="numeric">{{ program()!.eligibility.minBankStatementBalanceEGP }}</dd>
-              </ng-container>
-              <ng-container *ngIf="program()!.eligibility.minAssetsValueEGP">
+              }
+              @if (program()!.eligibility.minAssetsValueEGP) {
                 <dt i18n="@@bank_programs.field.min_assets_value">Wealth gate · assets</dt>
                 <dd class="numeric">{{ program()!.eligibility.minAssetsValueEGP }}</dd>
-              </ng-container>
+              }
             </dl>
           </section>
 
@@ -315,10 +317,9 @@ import type { BankProgramResponse } from '../bank-programs.types';
         </aside>
       </div>
     </section>
-
-    <ng-template #loadingTpl>
+    } @else {
       <div class="loading"><nz-spin nzSimple></nz-spin></div>
-    </ng-template>
+    }
   `,
   styles: [
     `

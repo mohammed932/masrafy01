@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:developer';
 
 import 'package:injectable/injectable.dart';
-import 'package:app/core/router/pilot_route_navigator.dart';
+import 'package:app/core/router/masrafy_route_navigator.dart';
 import 'package:app/features/notifications/domain/entities/notification_entity.dart';
 import 'package:app/features/notifications/domain/usecases/notifications_usecase.dart';
 
 /// Bridges notification surfaces (in-app cards + FCM data payloads) to the
-/// shared [PilotRouteNavigator].
+/// shared [MasrafyRouteNavigator].
 ///
 /// The backend ships the destination as `actionUrl` for personal notifications;
 /// broadcast notifications (no `notificationId`) ship an empty `actionUrl` and
@@ -21,7 +21,7 @@ import 'package:app/features/notifications/domain/usecases/notifications_usecase
 class NotificationRouter {
   NotificationRouter(this._navigator, this._useCase);
 
-  final PilotRouteNavigator _navigator;
+  final MasrafyRouteNavigator _navigator;
   final NotificationsUseCase _useCase;
 
   static const _tag = 'NotificationRouter';

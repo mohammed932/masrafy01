@@ -4,7 +4,8 @@
  * integrity check that refuses to serve `/apply` when the registry has no active row.
  */
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { AuditEventType, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
   ScoringVersionConcurrentPromotionException,
