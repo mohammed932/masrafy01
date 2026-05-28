@@ -3,6 +3,13 @@ import { BankProgram, Prisma, type BankProgramType } from '@prisma/client';
 import { PrismaService } from '../infra/prisma/prisma.service';
 
 /**
+ * Domain JSON value type exposed to services / DTOs. Accepts any JSON-serializable
+ * object (class instance or plain), array, or scalar. The repository casts to
+ * Prisma's `InputJsonValue` at the boundary (Constitution Principle X / A8).
+ */
+export type JsonBlob = object | unknown[] | string | number | boolean | null;
+
+/**
  * Bank-program persistence boundary. Services NEVER touch Prisma directly (Principle X).
  *
  * Spec anchors:
@@ -20,24 +27,58 @@ import { PrismaService } from '../infra/prisma/prisma.service';
  *           returns zero rows on mismatch → throw CONFLICT_STALE_DATA at the service layer
  */
 
-export type BankProgramCreate = Omit<
-  Prisma.BankProgramCreateInput,
-  'createdByStaff' | 'updatedByStaff' | 'auditEvents' | 'version' | 'bank'
-> & {
+/**
+ * Domain create input — kept free of Prisma types so services do not have to
+ * import `@prisma/client` to call `create()`. The repository casts each JSON
+ * field at the Prisma boundary below.
+ */
+export interface BankProgramCreate {
+  programCode: string;
+  bankName: string;
+  bankId?: string | null;
+  friendlyName: string;
+  friendlyNameAr?: string | null;
+  programType: string;
+  productCategory: string;
+  currencies: readonly string[];
+  active?: boolean;
+  isShariaCompliant?: boolean;
+  operatorNotes?: string | null;
+  operatorTips?: readonly string[];
+  requiredDocuments?: readonly string[];
+  tenor: JsonBlob;
+  loanLimits: JsonBlob;
+  pricing: JsonBlob;
+  eligibility: JsonBlob;
+  performanceCriteria?: JsonBlob;
+  incomeAssumption: JsonBlob;
+  fees: JsonBlob;
   createdBy: string;
   updatedBy: string;
-  bankId?: string | null;
-};
+}
 
-export type BankProgramUpdate = Omit<
-  Prisma.BankProgramUncheckedUpdateInput,
-  | 'programCode'
-  | 'auditEvents'
-  | 'version'
-  | 'createdAt'
-  | 'updatedAt'
-  | 'createdBy'
->;
+/** Domain update input — same Prisma-free posture as `BankProgramCreate`. */
+export interface BankProgramUpdate {
+  bankName?: string;
+  bankId?: string | null;
+  friendlyName?: string;
+  friendlyNameAr?: string | null;
+  programType?: string;
+  productCategory?: string;
+  currencies?: readonly string[];
+  active?: boolean;
+  isShariaCompliant?: boolean;
+  operatorNotes?: string | null;
+  operatorTips?: readonly string[];
+  requiredDocuments?: readonly string[];
+  tenor?: JsonBlob;
+  loanLimits?: JsonBlob;
+  pricing?: JsonBlob;
+  eligibility?: JsonBlob;
+  performanceCriteria?: JsonBlob;
+  incomeAssumption?: JsonBlob;
+  fees?: JsonBlob;
+}
 
 export interface ListFilters {
   search?: string;
@@ -133,26 +174,29 @@ export class BankProgramRepository {
       data: {
         programCode: input.programCode,
         bankName: input.bankName,
-        bankId: (input as { bankId?: string }).bankId ?? null,
+        bankId: input.bankId ?? null,
         friendlyName: input.friendlyName,
         friendlyNameAr: input.friendlyNameAr ?? null,
         programType: input.programType as BankProgramType,
         productCategory: input.productCategory,
-        currencies: input.currencies as Prisma.BankProgramCreateInput['currencies'],
+        currencies: [...input.currencies] as Prisma.BankProgramCreateInput['currencies'],
         active: input.active ?? true,
-        isShariaCompliant: (input as { isShariaCompliant?: boolean }).isShariaCompliant ?? false,
+        isShariaCompliant: input.isShariaCompliant ?? false,
         operatorNotes: input.operatorNotes ?? null,
-        operatorTips: (input.operatorTips ?? []) as Prisma.BankProgramCreateInput['operatorTips'],
-        requiredDocuments: (input.requiredDocuments ??
-          []) as Prisma.BankProgramCreateInput['requiredDocuments'],
-        tenor: input.tenor as Prisma.InputJsonValue,
-        loanLimits: input.loanLimits as Prisma.InputJsonValue,
-        pricing: input.pricing as Prisma.InputJsonValue,
-        eligibility: input.eligibility as Prisma.InputJsonValue,
+        operatorTips: [
+          ...(input.operatorTips ?? []),
+        ] as Prisma.BankProgramCreateInput['operatorTips'],
+        requiredDocuments: [
+          ...(input.requiredDocuments ?? []),
+        ] as Prisma.BankProgramCreateInput['requiredDocuments'],
+        tenor: input.tenor as unknown as Prisma.InputJsonValue,
+        loanLimits: input.loanLimits as unknown as Prisma.InputJsonValue,
+        pricing: input.pricing as unknown as Prisma.InputJsonValue,
+        eligibility: input.eligibility as unknown as Prisma.InputJsonValue,
         performanceCriteria: (input.performanceCriteria ??
-          Prisma.JsonNull) as Prisma.InputJsonValue,
-        incomeAssumption: input.incomeAssumption as Prisma.InputJsonValue,
-        fees: input.fees as Prisma.InputJsonValue,
+          Prisma.JsonNull) as unknown as Prisma.InputJsonValue,
+        incomeAssumption: input.incomeAssumption as unknown as Prisma.InputJsonValue,
+        fees: input.fees as unknown as Prisma.InputJsonValue,
         createdBy: input.createdBy,
         updatedBy: input.updatedBy,
         version: 1,
@@ -170,14 +214,57 @@ export class BankProgramRepository {
     data: BankProgramUpdate,
     updatedBy: string,
   ): Promise<BankProgram | null> {
+    const prismaData: Prisma.BankProgramUncheckedUpdateInput = {
+      updatedBy,
+      version: { increment: 1 },
+    };
+    if (data.bankName !== undefined) prismaData.bankName = data.bankName;
+    if (data.bankId !== undefined) prismaData.bankId = data.bankId;
+    if (data.friendlyName !== undefined) prismaData.friendlyName = data.friendlyName;
+    if (data.friendlyNameAr !== undefined) prismaData.friendlyNameAr = data.friendlyNameAr;
+    if (data.programType !== undefined) {
+      prismaData.programType = data.programType as BankProgramType;
+    }
+    if (data.productCategory !== undefined) prismaData.productCategory = data.productCategory;
+    if (data.currencies !== undefined) {
+      prismaData.currencies = [...data.currencies] as Prisma.BankProgramUpdateInput['currencies'];
+    }
+    if (data.active !== undefined) prismaData.active = data.active;
+    if (data.isShariaCompliant !== undefined) prismaData.isShariaCompliant = data.isShariaCompliant;
+    if (data.operatorNotes !== undefined) prismaData.operatorNotes = data.operatorNotes;
+    if (data.operatorTips !== undefined) {
+      prismaData.operatorTips = [
+        ...data.operatorTips,
+      ] as Prisma.BankProgramUpdateInput['operatorTips'];
+    }
+    if (data.requiredDocuments !== undefined) {
+      prismaData.requiredDocuments = [
+        ...data.requiredDocuments,
+      ] as Prisma.BankProgramUpdateInput['requiredDocuments'];
+    }
+    if (data.tenor !== undefined) prismaData.tenor = data.tenor as unknown as Prisma.InputJsonValue;
+    if (data.loanLimits !== undefined) {
+      prismaData.loanLimits = data.loanLimits as unknown as Prisma.InputJsonValue;
+    }
+    if (data.pricing !== undefined) {
+      prismaData.pricing = data.pricing as unknown as Prisma.InputJsonValue;
+    }
+    if (data.eligibility !== undefined) {
+      prismaData.eligibility = data.eligibility as unknown as Prisma.InputJsonValue;
+    }
+    if (data.performanceCriteria !== undefined) {
+      prismaData.performanceCriteria = (data.performanceCriteria ??
+        Prisma.JsonNull) as unknown as Prisma.InputJsonValue;
+    }
+    if (data.incomeAssumption !== undefined) {
+      prismaData.incomeAssumption = data.incomeAssumption as unknown as Prisma.InputJsonValue;
+    }
+    if (data.fees !== undefined) prismaData.fees = data.fees as unknown as Prisma.InputJsonValue;
+
     try {
       return await this.prisma.bankProgram.update({
         where: { id, version: submittedVersion },
-        data: {
-          ...data,
-          updatedBy,
-          version: { increment: 1 },
-        },
+        data: prismaData,
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {

@@ -60,7 +60,7 @@ export class ApplyProfileCompletionDto {
 /**
  * `POST /v1/applications/apply` (feature 008) — single atomic submission.
  *
- * Auth: HMAC + Customer JWT.
+ * Auth: Customer JWT (Constitution v3.0.0 / Principle XIII — JWT-only).
  *
  * PHONE customers: profileCompletion is omitted (their profile is already
  *   complete from signup).

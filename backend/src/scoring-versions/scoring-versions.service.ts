@@ -4,7 +4,6 @@
  * integrity check that refuses to serve `/apply` when the registry has no active row.
  */
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
@@ -15,6 +14,7 @@ import {
 import type { ScoringConfig } from '@/matching/types';
 import {
   ScoringEngineVersionRepository,
+  ScoringVersionConcurrentPromotionError,
   ScoringVersionNotFoundError,
   type ScoringEngineVersionRow,
 } from './scoring-versions.repository';
@@ -112,13 +112,7 @@ export class ScoringEngineVersionService implements OnModuleInit {
       if (err instanceof ScoringVersionNotFoundError) {
         throw new ScoringVersionNotFoundException(err.version);
       }
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        (err.code === 'P2034' || err.message.includes('serialization'))
-      ) {
-        throw new ScoringVersionConcurrentPromotionException();
-      }
-      if (err instanceof Error && err.message.includes('40001')) {
+      if (err instanceof ScoringVersionConcurrentPromotionError) {
         throw new ScoringVersionConcurrentPromotionException();
       }
       throw err;

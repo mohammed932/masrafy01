@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { StaffRole } from '@prisma/client';
+import { StaffRole } from '@/common/enums/staff-role.enum';
 
 export class AuthenticatedUserDto {
   @ApiProperty()

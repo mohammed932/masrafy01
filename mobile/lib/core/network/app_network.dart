@@ -6,7 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'endpoint.dart';
 import 'network_interface.dart';
 
-/// Concrete [BaseNetwork] backed by Dio. HMAC + customer-JWT
+/// Concrete [BaseNetwork] backed by Dio. Correlation-id + customer-JWT
 /// interceptors are attached by `DioFactory` before this instance lands
 /// in DI — datasources only see the typed CRUD surface.
 @LazySingleton(as: BaseNetwork)

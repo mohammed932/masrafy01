@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../cubits/login_cubit.dart';
+import 'cubit/login/login_cubit.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, this.initialPhone, required this.onForgotPassword});
@@ -13,8 +13,22 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  late final TextEditingController _phone = TextEditingController(text: widget.initialPhone ?? '');
+  late final TextEditingController _phone =
+      TextEditingController(text: widget.initialPhone ?? '');
   final _pwd = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPhone != null && widget.initialPhone!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context
+            .read<LoginCubit>()
+            .updateField(LoginField.phone, widget.initialPhone!);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -27,12 +41,14 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<LoginCubit, LoginState>(
       listener: (ctx, state) {
-        if (state is LoginFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is LoginInProgress;
+        final busy = state.isBusy;
         return Scaffold(
           appBar: AppBar(title: const Text('Log in')),
           body: Padding(
@@ -44,26 +60,33 @@ class _LoginPageState extends State<LoginPage> {
                   controller: _phone,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(labelText: 'Mobile number'),
+                  onChanged: (v) => ctx
+                      .read<LoginCubit>()
+                      .updateField(LoginField.phone, v.trim()),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _pwd,
                   obscureText: true,
                   decoration: const InputDecoration(labelText: 'Password'),
+                  onChanged: (v) => ctx
+                      .read<LoginCubit>()
+                      .updateField(LoginField.password, v),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: busy
-                      ? null
-                      : () => ctx
-                          .read<LoginCubit>()
-                          .submit(phone: _phone.text.trim(), password: _pwd.text),
+                  onPressed: busy ? null : () => ctx.read<LoginCubit>().submit(),
                   child: busy
                       ? const SizedBox.square(
-                          dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Log in'),
                 ),
-                TextButton(onPressed: widget.onForgotPassword, child: const Text('Forgot password?')),
+                TextButton(
+                  onPressed: widget.onForgotPassword,
+                  child: const Text('Forgot password?'),
+                ),
               ],
             ),
           ),

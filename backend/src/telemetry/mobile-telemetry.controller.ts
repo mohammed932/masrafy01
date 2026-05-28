@@ -1,22 +1,13 @@
-import {
-  Body,
-  Controller,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { IsIn, IsOptional, IsString, Length } from 'class-validator';
 import type { Request } from 'express';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
-import { OptionalCustomerJwtGuard } from '@/customer-auth/guards/optional-customer-jwt.guard';
+import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { TelemetryEventNotAllowedException } from '@/common/errors/domain.exceptions';
 import { ok } from '@/common/pagination/paginated.response.dto';
 
@@ -36,10 +27,7 @@ class TelemetryEventDto {
   applicationId?: string;
 }
 
-type MobileTelemetryRequest = Request & {
-  mobileClientId?: string;
-  customerId?: string;
-};
+type MobileTelemetryRequest = Request;
 
 /**
  * Mobile funnel beacon (PR #7). Mobile clients post one event per stage
@@ -52,8 +40,9 @@ type MobileTelemetryRequest = Request & {
  * funnel.
  */
 @ApiTags('Mobile · Telemetry')
+@ApiBearerAuth('CustomerBearerAuth')
 @Controller('v1/telemetry')
-@UseGuards(MobileHmacGuard, OptionalCustomerJwtGuard)
+@UseGuards(CustomerJwtGuard)
 export class MobileTelemetryController {
   constructor(private readonly audit: AuditEventWriter) {}
 
@@ -72,6 +61,8 @@ export class MobileTelemetryController {
         allowed: ALLOWED_EVENTS,
       });
     }
+    const user = (req as Request & { user?: { sub?: string } }).user;
+    const customerId = user?.sub ?? null;
     await this.audit.write({
       actorId: null,
       targetId: body.applicationId ?? null,
@@ -79,8 +70,7 @@ export class MobileTelemetryController {
       sourceIp: req.ip ?? null,
       correlationId,
       payload: {
-        mobileClientId: req.mobileClientId ?? null,
-        customerId: req.customerId ?? null,
+        customerId,
         applicationId: body.applicationId ?? null,
       },
     });

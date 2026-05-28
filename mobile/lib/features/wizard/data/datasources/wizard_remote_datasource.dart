@@ -14,7 +14,7 @@ import '../models/response/apply_envelope_model.dart';
 class WizardRemoteDataSource extends BaseRemoteDataSource {
   WizardRemoteDataSource(super.appNetwork);
 
-  /// `POST /api/v1/apply` — masrafy matching engine. HMAC + optional
+  /// `POST /api/v1/apply` — masrafy matching engine. Correlation-id +
   /// customer-JWT interceptors are applied by `DioFactory`.
   Future<ApplyEnvelopeModel> submitLoanApplication(LoanApplicationRequest request) async {
     final json = await appNetwork.post(

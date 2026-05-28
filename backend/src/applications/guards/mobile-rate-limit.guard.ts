@@ -1,8 +1,8 @@
 /**
  * Tiered rate limit (FR-066, research R9):
- *   - 30/h per HMAC client identity (mobile-client X-Client-Id)
+ *   - 30/h per authenticated customer (customer JWT subject)
  *   - 5/h per applicant fingerprint = sha256(nationalId) when present
- *       else sha256(`${clientId}:${sourceIp}`)
+ *       else sha256(`${customerId}:${sourceIp}`)
  *
  * Uses Redis INCR with a 1 h TTL window. On breach throws RateLimitedBucketException
  * with `meta.bucket` so the admin no-match insight knows which limit fired.
@@ -15,7 +15,6 @@ import { RedisService } from '@/infra/redis/redis.service';
 import { RateLimitedBucketException } from '@/common/errors/domain.exceptions';
 
 interface RateLimitRequest extends Request {
-  mobileClientId?: string;
   applicantFingerprint?: string;
 }
 
@@ -30,7 +29,8 @@ export class MobileRateLimitGuard implements CanActivate {
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest<RateLimitRequest>();
-    const clientId = req.mobileClientId ?? 'unknown';
+    const user = (req as Request & { user?: { sub?: string } }).user;
+    const customerId = user?.sub ?? 'unknown';
     const sourceIp = req.ip ?? '0.0.0.0';
 
     const clientLimit = this.config.getOrThrow<number>('MOBILE_RATE_LIMIT_PER_CLIENT_PER_HOUR');
@@ -38,12 +38,12 @@ export class MobileRateLimitGuard implements CanActivate {
       'MOBILE_RATE_LIMIT_PER_APPLICANT_PER_HOUR',
     );
 
-    await this.tick('hmac_client', `rl:client:${clientId}`, clientLimit);
+    await this.tick('customer', `rl:customer:${customerId}`, clientLimit);
 
     const body = (req.body ?? {}) as { nationalId?: string };
     const fingerprintSource = body.nationalId?.trim()
       ? body.nationalId.trim()
-      : `${clientId}:${sourceIp}`;
+      : `${customerId}:${sourceIp}`;
     const fingerprint = createHash('sha256').update(fingerprintSource).digest('hex');
     req.applicantFingerprint = fingerprint;
 
@@ -53,7 +53,7 @@ export class MobileRateLimitGuard implements CanActivate {
   }
 
   private async tick(
-    bucket: 'hmac_client' | 'applicant_fingerprint',
+    bucket: 'customer' | 'applicant_fingerprint',
     key: string,
     limit: number,
   ): Promise<void> {

@@ -1,5 +1,5 @@
 import { SetMetadata } from '@nestjs/common';
-import type { StaffRole } from '@prisma/client';
+import type { StaffRole } from '@/common/enums/staff-role.enum';
 
 export const ROLES_METADATA_KEY = 'roles_required';
 

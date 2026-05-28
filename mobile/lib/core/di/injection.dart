@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../../features/auth/data/repositories/auth_repository_impl.dart';
@@ -7,11 +8,11 @@ import '../../features/auth/data/services/social_signin_service.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/domain/repositories/customer_auth_repository.dart';
 import '../../features/auth/domain/usecases/auth_usecase.dart';
-import '../../features/auth/presentation/cubits/complete_profile_cubit.dart';
-import '../../features/auth/presentation/cubits/forgot_password_cubit.dart';
-import '../../features/auth/presentation/cubits/login_cubit.dart';
-import '../../features/auth/presentation/cubits/phone_signup_cubit.dart';
-import '../../features/auth/presentation/cubits/social_signin_cubit.dart';
+import '../../features/auth/presentation/pages/complete_profile/cubit/complete_profile/complete_profile_cubit.dart';
+import '../../features/auth/presentation/pages/forgot_password/cubit/forgot_password/forgot_password_cubit.dart';
+import '../../features/auth/presentation/pages/login/cubit/login/login_cubit.dart';
+import '../../features/auth/presentation/pages/phone_signup/cubit/phone_signup/phone_signup_cubit.dart';
+import '../../features/auth/presentation/pages/social_signin/cubit/social_signin/social_signin_cubit.dart';
 import '../../features/wizard/data/datasources/wizard_remote_datasource.dart';
 import '../../features/wizard/data/repositories/wizard_repository_impl.dart';
 import '../../features/wizard/domain/repositories/wizard_repository.dart';
@@ -77,7 +78,12 @@ Future<void> configureDependencies({required bool prod}) async {
   getIt.registerLazySingleton(() => WizardUseCase(getIt<WizardRepository>()));
 
   // -- Feature 008 — native social SDK service + cubit factories ---------
-  getIt.registerLazySingleton(() => SocialSignInService());
+  // Principle XXVIII: third-party SDK handles routed through `get_it`,
+  // never instantiated inside services.
+  getIt.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn());
+  getIt.registerLazySingleton(
+    () => SocialSignInService(getIt<GoogleSignIn>()),
+  );
   getIt.registerFactory(() => PhoneSignupCubit(getIt<CustomerAuthRepository>()));
   getIt.registerFactory(() => LoginCubit(getIt<AuthRepository>()));
   getIt.registerFactory(

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { AttemptOutcome, type StaffRole } from '@prisma/client';
+import { AttemptOutcome } from './dto/enums';
+import type { StaffRole } from '@/common/enums/staff-role.enum';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import {
   AuthAccountInactiveException,

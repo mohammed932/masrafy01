@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import type { PlatformEnumeration, Prisma } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
@@ -7,7 +6,11 @@ import {
   EnumerationSystemOnlyException,
   NotFoundException,
 } from '@/common/errors/domain.exceptions';
-import { PostgresPlatformEnumerationsRepository } from './postgres-platform-enumerations.repository';
+import {
+  PostgresPlatformEnumerationsRepository,
+  type EnumerationRow,
+  type EnumerationUpdatePatch,
+} from './postgres-platform-enumerations.repository';
 import type { CreateEnumerationDto, UpdateEnumerationDto } from './dto/enumeration.dto';
 
 export interface AdminActor {
@@ -23,7 +26,7 @@ export class PlatformEnumerationsAdminService {
     private readonly repo: PostgresPlatformEnumerationsRepository,
   ) {}
 
-  async listAll(filter?: { type?: string }): Promise<PlatformEnumeration[]> {
+  async listAll(filter?: { type?: string }): Promise<EnumerationRow[]> {
     return this.repo.findAllOrdered(filter);
   }
 
@@ -33,7 +36,7 @@ export class PlatformEnumerationsAdminService {
     return this.repo.listTypeStats();
   }
 
-  async create(input: CreateEnumerationDto, actor: AdminActor): Promise<PlatformEnumeration> {
+  async create(input: CreateEnumerationDto, actor: AdminActor): Promise<EnumerationRow> {
     const existing = await this.repo.findByTypeAndKey(input.type, input.key);
     if (existing) {
       throw new EnumerationKeyDuplicateException({ type: input.type, key: input.key });
@@ -63,7 +66,7 @@ export class PlatformEnumerationsAdminService {
     id: string,
     patch: UpdateEnumerationDto,
     actor: AdminActor,
-  ): Promise<PlatformEnumeration> {
+  ): Promise<EnumerationRow> {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException();
 
@@ -71,27 +74,26 @@ export class PlatformEnumerationsAdminService {
       throw new EnumerationSystemOnlyException({ type: existing.type, key: existing.key });
     }
 
-    const data: Prisma.PlatformEnumerationUpdateInput = { updatedBy: actor.staffId };
+    const repoPatch: EnumerationUpdatePatch = { updatedBy: actor.staffId };
     let eventType:
       | AuditEventType.PLATFORM_ENUMERATION_UPDATED
       | AuditEventType.PLATFORM_ENUMERATION_DEACTIVATED
       | AuditEventType.PLATFORM_ENUMERATION_DEPRECATED =
       AuditEventType.PLATFORM_ENUMERATION_UPDATED;
 
-    if (patch.labelAr !== undefined) data.labelAr = patch.labelAr;
-    if (patch.labelEn !== undefined) data.labelEn = patch.labelEn;
-    if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
+    if (patch.labelAr !== undefined) repoPatch.labelAr = patch.labelAr;
+    if (patch.labelEn !== undefined) repoPatch.labelEn = patch.labelEn;
+    if (patch.sortOrder !== undefined) repoPatch.sortOrder = patch.sortOrder;
 
     if (patch.deprecate === true && existing.deprecatedAt === null) {
-      data.deprecatedAt = new Date();
-      data.active = false;
+      repoPatch.deprecate = true;
       eventType = AuditEventType.PLATFORM_ENUMERATION_DEPRECATED;
     } else if (patch.active !== undefined && patch.deprecate !== true) {
-      data.active = patch.active;
+      repoPatch.active = patch.active;
       if (patch.active === false) eventType = AuditEventType.PLATFORM_ENUMERATION_DEACTIVATED;
     }
 
-    const updated = await this.repo.updateById(id, data);
+    const updated = await this.repo.updateById(id, repoPatch);
     this.repo.invalidateCache(existing.type as never);
     await this.audit.write({
       actorId: actor.staffId,
@@ -110,7 +112,7 @@ export class PlatformEnumerationsAdminService {
   }
 
   private diffChanges(
-    existing: PlatformEnumeration,
+    existing: EnumerationRow,
     patch: UpdateEnumerationDto,
   ): Record<string, { from: unknown; to: unknown }> {
     const changes: Record<string, { from: unknown; to: unknown }> = {};

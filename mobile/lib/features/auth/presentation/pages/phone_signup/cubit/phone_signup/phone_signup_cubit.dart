@@ -1,129 +1,138 @@
-import 'package:equatable/equatable.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bloc/bloc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:injectable/injectable.dart';
 
-import '../../data/models/request/otp/otp_verify_request.dart';
-import '../../data/models/request/signup/signup_phone_complete_request.dart';
-import '../../data/models/request/signup/signup_phone_start_request.dart';
-import '../../domain/entities/customer_entity.dart';
-import '../../domain/entities/otp_challenge_entity.dart';
-import '../../domain/enums/otp_purpose.dart';
-import '../../domain/repositories/customer_auth_repository.dart';
+import '../../../../../../../core/enums/request_state.dart';
+import '../../../../../../../core/result/failure.dart';
+import '../../../../../data/models/request/otp/otp_verify_request.dart';
+import '../../../../../data/models/request/signup/signup_phone_complete_request.dart';
+import '../../../../../data/models/request/signup/signup_phone_start_request.dart';
+import '../../../../../domain/entities/customer_entity.dart';
+import '../../../../../domain/entities/otp_challenge_entity.dart';
+import '../../../../../domain/enums/otp_purpose.dart';
+import '../../../../../domain/repositories/customer_auth_repository.dart';
 
-abstract class PhoneSignupState extends Equatable {
-  const PhoneSignupState();
-  @override
-  List<Object?> get props => [];
-}
+part 'phone_signup_cubit.freezed.dart';
+part 'phone_signup_state.dart';
 
-class PhoneSignupIdle extends PhoneSignupState {
-  const PhoneSignupIdle();
-}
-
-class PhoneSignupRequestingOtp extends PhoneSignupState {
-  const PhoneSignupRequestingOtp();
-}
-
-class PhoneSignupOtpSent extends PhoneSignupState {
-  const PhoneSignupOtpSent(this.challenge);
-  final OtpChallengeEntity challenge;
-  @override
-  List<Object?> get props => [challenge];
-}
-
-class PhoneSignupVerifyingOtp extends PhoneSignupState {
-  const PhoneSignupVerifyingOtp(this.challenge);
-  final OtpChallengeEntity challenge;
-  @override
-  List<Object?> get props => [challenge];
-}
-
-class PhoneSignupMobileVerified extends PhoneSignupState {
-  const PhoneSignupMobileVerified(this.verifiedMobileToken, this.phone);
-  final String verifiedMobileToken;
-  final String phone;
-  @override
-  List<Object?> get props => [verifiedMobileToken, phone];
-}
-
-class PhoneSignupSubmittingProfile extends PhoneSignupState {
-  const PhoneSignupSubmittingProfile();
-}
-
-class PhoneSignupSuccess extends PhoneSignupState {
-  const PhoneSignupSuccess(this.session);
-  final CustomerSessionEntity session;
-  @override
-  List<Object?> get props => [session];
-}
-
-class PhoneSignupFailure extends PhoneSignupState {
-  const PhoneSignupFailure(this.error);
-  final Object error;
-  @override
-  List<Object?> get props => [error];
-}
-
+@injectable
 class PhoneSignupCubit extends Cubit<PhoneSignupState> {
-  PhoneSignupCubit(this._repo) : super(const PhoneSignupIdle());
+  PhoneSignupCubit(this._repo) : super(const PhoneSignupState());
+
   final CustomerAuthRepository _repo;
 
-  Future<void> requestOtp({required String phone, required String locale}) async {
-    emit(const PhoneSignupRequestingOtp());
+  void updateField(PhoneSignupField field, Object value) {
+    switch (field) {
+      case PhoneSignupField.phone:
+        emit(state.copyWith(phone: value as String));
+        break;
+      case PhoneSignupField.otpCode:
+        emit(state.copyWith(otpCode: value as String));
+        break;
+      case PhoneSignupField.locale:
+        emit(state.copyWith(locale: value as String));
+        break;
+      case PhoneSignupField.name:
+        emit(state.copyWith(name: value as String));
+        break;
+      case PhoneSignupField.email:
+        emit(state.copyWith(email: value as String));
+        break;
+      case PhoneSignupField.password:
+        emit(state.copyWith(password: value as String));
+        break;
+      case PhoneSignupField.age:
+        emit(state.copyWith(age: value as int));
+        break;
+    }
+  }
+
+  Future<void> requestOtp() async {
+    if (state.status.isLoading) return;
+    emit(state.copyWith(
+      status: RequestState.loading,
+      step: PhoneSignupStep.requestingOtp,
+      error: null,
+    ));
     final res = await _repo.signupPhoneStart(
-      SignupPhoneStartRequest(phone: phone, locale: locale),
+      SignupPhoneStartRequest(phone: state.phone, locale: state.locale),
     );
     res.fold(
-      (err) => emit(PhoneSignupFailure(err)),
-      (ch) => emit(PhoneSignupOtpSent(ch)),
+      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
+      (ch) => emit(state.copyWith(
+        status: RequestState.loaded,
+        step: PhoneSignupStep.otpSent,
+        challenge: ch,
+        error: null,
+      )),
     );
   }
 
-  Future<void> verifyOtp({required String code}) async {
-    final s = state;
-    if (s is! PhoneSignupOtpSent) return;
-    emit(PhoneSignupVerifyingOtp(s.challenge));
+  Future<void> verifyOtp() async {
+    if (state.challenge == null) return;
+    if (state.status.isLoading) return;
+    emit(state.copyWith(
+      status: RequestState.loading,
+      step: PhoneSignupStep.verifyingOtp,
+      error: null,
+    ));
     final res = await _repo.verifyOtp(
       OtpVerifyRequest(
-        otpId: s.challenge.otpId,
-        code: code,
+        otpId: state.challenge!.otpId,
+        code: state.otpCode,
         purpose: OtpPurpose.signup,
       ),
     );
     res.fold(
-      (err) => emit(PhoneSignupFailure(err)),
+      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
       (out) {
         if (out.verifiedMobileToken == null) {
-          emit(PhoneSignupFailure(StateError('expected verifiedMobileToken')));
+          emit(state.copyWith(
+            status: RequestState.error,
+            error: const ServerFailure(code: 'NO_VERIFIED_MOBILE_TOKEN'),
+          ));
           return;
         }
-        emit(PhoneSignupMobileVerified(out.verifiedMobileToken!, out.phone ?? ''));
+        emit(state.copyWith(
+          status: RequestState.loaded,
+          step: PhoneSignupStep.mobileVerified,
+          verifiedMobileToken: out.verifiedMobileToken,
+          verifiedPhone: out.phone ?? state.phone,
+          error: null,
+        ));
       },
     );
   }
 
-  Future<void> completeProfile({
-    required String name,
-    String? email,
-    required String password,
-    required int age,
-  }) async {
-    final s = state;
-    if (s is! PhoneSignupMobileVerified) return;
-    emit(const PhoneSignupSubmittingProfile());
+  Future<void> completeProfile() async {
+    if (state.verifiedMobileToken == null) return;
+    if (state.status.isLoading) return;
+    final ageValue = state.age;
+    if (ageValue == null) return;
+    emit(state.copyWith(
+      status: RequestState.loading,
+      step: PhoneSignupStep.submittingProfile,
+      error: null,
+    ));
     final res = await _repo.signupPhoneComplete(
       SignupPhoneCompleteRequest(
-        verifiedMobileToken: s.verifiedMobileToken,
-        name: name,
-        email: email,
-        password: password,
-        age: age,
+        verifiedMobileToken: state.verifiedMobileToken!,
+        name: state.name,
+        email: state.email.isEmpty ? null : state.email,
+        password: state.password,
+        age: ageValue,
       ),
     );
     res.fold(
-      (err) => emit(PhoneSignupFailure(err)),
-      (session) => emit(PhoneSignupSuccess(session)),
+      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
+      (session) => emit(state.copyWith(
+        status: RequestState.loaded,
+        step: PhoneSignupStep.success,
+        session: session,
+        error: null,
+      )),
     );
   }
 
-  void reset() => emit(const PhoneSignupIdle());
+  void reset() => emit(const PhoneSignupState());
 }

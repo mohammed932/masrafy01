@@ -7,7 +7,7 @@ import 'endpoint.dart';
 /// CRUD surface so datasources never import `package:dio/dio.dart`.
 ///
 /// Concrete implementation: [AppNetwork] in `app_network.dart`, wrapping
-/// the singleton Dio built by [DioFactory] (HMAC + customer-JWT
+/// the singleton Dio built by [DioFactory] (correlation-id + customer-JWT
 /// interceptors already wired).
 abstract class BaseNetwork {
   Future<dynamic> get(

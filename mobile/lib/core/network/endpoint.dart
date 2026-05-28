@@ -23,7 +23,7 @@ class MasrafyEndpoint {
   }
 
   /// The path portion only — what Dio's `BaseOptions.baseUrl` concatenates
-  /// against. Datasources pass this to Dio so HMAC interceptor's canonical
-  /// path computation stays aligned with what the server sees.
+  /// against. Datasources pass this to Dio so the bearer-JWT interceptor
+  /// can attach `Authorization` to the final request.
   String get path => endpoint.startsWith('/') ? endpoint : '/$endpoint';
 }

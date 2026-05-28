@@ -1,17 +1,7 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { SocialProvider, OtpPurpose } from './dto/enums';
@@ -39,21 +29,17 @@ import {
   ProfileMobileRequestOtpDto,
   ProfileMobileVerifyOtpDto,
 } from './dto/customer-profile-completion.dto';
-import {
-  PasswordChangeDto,
-  PasswordResetDto,
-} from './dto/customer-password.dto';
-import { CustomerHmacJwtGuard } from './guards/customer-hmac-jwt.guard';
+import { PasswordChangeDto, PasswordResetDto } from './dto/customer-password.dto';
+import { CustomerJwtGuard } from './guards/customer-jwt.guard';
 
-interface HmacRequest extends Request {
-  mobileClientId?: string;
+interface MobileRequest extends Request {
   customerId?: string;
 }
 
 /**
- * Mobile customer authentication. Constitution v1.7.0 / Principle XIII:
- * - `POST /signup`, `/login`, `/refresh`  → HMAC only (anonymous bootstrap)
- * - `POST /logout`, `GET /me`              → HMAC + customer JWT
+ * Mobile customer authentication. Constitution v3.0.0 / Principle XIII:
+ * - `POST /signup`, `/login`, `/refresh`  → public (anonymous bootstrap)
+ * - `POST /logout`, `GET /me`              → customer JWT
  *
  * Refresh tokens are returned in the response body (not cookies) — mobile
  * clients store them in `flutter_secure_storage`.
@@ -67,13 +53,12 @@ export class CustomerAuthController {
   ) {}
 
   @Post('signup')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Create a new customer account + issue tokens' })
   async signup(
     @Body() body: CustomerSignupRequestDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.svc.signup({
@@ -88,13 +73,12 @@ export class CustomerAuthController {
   }
 
   @Post('login')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Log in with phone + password (feature 008: with lockout per FR-022)' })
   async login(
     @Body() body: CustomerLoginRequestDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.mobile.loginWithLockout({
@@ -106,13 +90,12 @@ export class CustomerAuthController {
   }
 
   @Post('refresh')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 30, ttl: 60 * 1000 } })
   @ApiOperation({ summary: 'Rotate refresh token, return fresh access token' })
   async refresh(
     @Body() body: CustomerRefreshRequestDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.svc.refresh({
@@ -123,13 +106,13 @@ export class CustomerAuthController {
   }
 
   @Post('logout')
-  @UseGuards(CustomerHmacJwtGuard)
+  @UseGuards(CustomerJwtGuard)
   @ApiBearerAuth('CustomerBearerAuth')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke refresh token + record logout' })
   async logout(
     @Body() body: CustomerLogoutRequestDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<void> {
     const customerId = this.requireCustomer(req);
@@ -141,11 +124,11 @@ export class CustomerAuthController {
   }
 
   @Get('me')
-  @UseGuards(CustomerHmacJwtGuard)
+  @UseGuards(CustomerJwtGuard)
   @ApiBearerAuth('CustomerBearerAuth')
   @ApiOperation({ summary: 'Currently authenticated customer profile' })
   async me(
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
   ): Promise<{ success: true; data: CustomerProfileResponseDto }> {
     const customerId = this.requireCustomer(req);
     const profile = await this.svc.me(customerId);
@@ -159,13 +142,12 @@ export class CustomerAuthController {
   // -------------------------------------------------------------------------
 
   @Post('signup/phone/start')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'PHONE signup — step 1: request OTP for new phone' })
   async signupPhoneStart(
     @Body() body: CustomerSignupPhoneStartDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.signupPhoneStart({
@@ -177,13 +159,12 @@ export class CustomerAuthController {
   }
 
   @Post('signup/phone/complete')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'PHONE signup — step 2: consume verifiedMobileToken + create customer' })
   async signupPhoneComplete(
     @Body() body: CustomerSignupPhoneCompleteDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.mobile.signupPhoneComplete({
@@ -198,13 +179,12 @@ export class CustomerAuthController {
   }
 
   @Post('otp/request')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Issue an OTP for SIGNUP / FORGOT_PASSWORD / MOBILE_CHANGE' })
   async otpRequest(
     @Body() body: OtpRequestDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.requestOtp({
@@ -217,13 +197,12 @@ export class CustomerAuthController {
   }
 
   @Post('otp/verify')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Verify an OTP. Returns verifiedMobileToken OR passwordResetToken.' })
   async otpVerify(
     @Body() body: OtpVerifyDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.verifyOtp({
@@ -236,13 +215,14 @@ export class CustomerAuthController {
   }
 
   @Post('social/google')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
-  @ApiOperation({ summary: 'Verify a Google ID token + create lite SOCIAL customer (or session for returning)' })
+  @ApiOperation({
+    summary: 'Verify a Google ID token + create lite SOCIAL customer (or session for returning)',
+  })
   async socialGoogle(
     @Body() body: SocialGoogleSignInDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.socialSignIn({
@@ -254,13 +234,12 @@ export class CustomerAuthController {
   }
 
   @Post('social/apple')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Verify an Apple ID token + create lite SOCIAL customer (or session)' })
   async socialApple(
     @Body() body: SocialAppleSignInDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.socialSignIn({
@@ -273,13 +252,12 @@ export class CustomerAuthController {
   }
 
   @Post('social/login')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Sign in a returning social customer (consume SocialSession)' })
   async socialLogin(
     @Body() body: SocialLoginDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.mobile.socialLogin({
@@ -290,14 +268,14 @@ export class CustomerAuthController {
   }
 
   @Post('profile/mobile-request-otp')
-  @UseGuards(CustomerHmacJwtGuard)
+  @UseGuards(CustomerJwtGuard)
   @ApiBearerAuth('CustomerBearerAuth')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'SOCIAL Complete-Profile — issue OTP for mobile binding' })
   async profileMobileRequestOtp(
     @Body() body: ProfileMobileRequestOtpDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const customerId = this.requireCustomer(req);
@@ -311,14 +289,14 @@ export class CustomerAuthController {
   }
 
   @Post('profile/mobile-verify-otp')
-  @UseGuards(CustomerHmacJwtGuard)
+  @UseGuards(CustomerJwtGuard)
   @ApiBearerAuth('CustomerBearerAuth')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'SOCIAL Complete-Profile — verify OTP + persist mobile to customer' })
   async profileMobileVerifyOtp(
     @Body() body: ProfileMobileVerifyOtpDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<void> {
     const customerId = this.requireCustomer(req);
@@ -331,13 +309,12 @@ export class CustomerAuthController {
   }
 
   @Post('password/reset')
-  @UseGuards(MobileHmacGuard)
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Reset password using a passwordResetToken (PHONE customers only)' })
   async passwordReset(
     @Body() body: PasswordResetDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.mobile.resetPassword({
@@ -349,14 +326,14 @@ export class CustomerAuthController {
   }
 
   @Post('password/change')
-  @UseGuards(CustomerHmacJwtGuard)
+  @UseGuards(CustomerJwtGuard)
   @ApiBearerAuth('CustomerBearerAuth')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Change password (authenticated, PHONE customers only)' })
   async passwordChange(
     @Body() body: PasswordChangeDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<void> {
     const customerId = this.requireCustomer(req);
@@ -384,8 +361,9 @@ export class CustomerAuthController {
     };
   }
 
-
-  private toEnvelope(r: Awaited<ReturnType<CustomerAuthService['login']>>): CustomerAuthEnvelopeDto {
+  private toEnvelope(
+    r: Awaited<ReturnType<CustomerAuthService['login']>>,
+  ): CustomerAuthEnvelopeDto {
     return {
       accessToken: r.accessToken,
       accessTokenExpiresIn: r.accessTokenExpiresIn,
@@ -395,16 +373,16 @@ export class CustomerAuthController {
     };
   }
 
-  private buildContext(req: HmacRequest, correlationId: string): CustomerRequestContext {
+  private buildContext(req: MobileRequest, correlationId: string): CustomerRequestContext {
     return {
       sourceIp: this.readClientIp(req),
       userAgent: this.truncatedUa(req),
       correlationId,
-      mobileClientId: req.mobileClientId ?? null,
+      mobileClientId: null,
     };
   }
 
-  private readClientIp(req: HmacRequest): string {
+  private readClientIp(req: MobileRequest): string {
     const xff = req.headers['x-forwarded-for'];
     if (typeof xff === 'string' && xff.length > 0) {
       const first = xff.split(',')[0]?.trim();
@@ -413,13 +391,13 @@ export class CustomerAuthController {
     return req.ip ?? '0.0.0.0';
   }
 
-  private truncatedUa(req: HmacRequest): string | null {
+  private truncatedUa(req: MobileRequest): string | null {
     const raw = req.headers['user-agent'];
     if (typeof raw !== 'string') return null;
     return raw.length > 500 ? raw.slice(0, 500) : raw;
   }
 
-  private requireCustomer(req: HmacRequest): string {
+  private requireCustomer(req: MobileRequest): string {
     // Passport's customer-jwt strategy attaches the verified payload on req.user.
     const user = (req as Request & { user?: { sub?: string } }).user;
     if (!user?.sub) {

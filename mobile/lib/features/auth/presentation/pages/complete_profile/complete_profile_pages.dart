@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../cubits/complete_profile_cubit.dart';
+import 'cubit/complete_profile/complete_profile_cubit.dart';
 
 /// Step 1 of the SOCIAL Complete-Profile flow — mobile + OTP request.
 class CompleteProfileMobilePage extends StatefulWidget {
@@ -23,12 +23,14 @@ class _CompleteProfileMobilePageState extends State<CompleteProfileMobilePage> {
   Widget build(BuildContext context) {
     return BlocConsumer<CompleteProfileCubit, CompleteProfileState>(
       listener: (ctx, state) {
-        if (state is CompleteProfileFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is CompleteProfileRequestingOtp;
+        final busy = state.isRequestingOtp;
         return Scaffold(
           appBar: AppBar(title: const Text('Complete profile — mobile')),
           body: Padding(
@@ -40,16 +42,22 @@ class _CompleteProfileMobilePageState extends State<CompleteProfileMobilePage> {
                   controller: _ctrl,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(labelText: 'Mobile number'),
+                  onChanged: (v) =>
+                      ctx.read<CompleteProfileCubit>().updateField(
+                            CompleteProfileField.phone,
+                            v.trim(),
+                          ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: busy
                       ? null
-                      : () =>
-                          ctx.read<CompleteProfileCubit>().requestOtp(phone: _ctrl.text.trim()),
+                      : () => ctx.read<CompleteProfileCubit>().requestOtp(),
                   child: busy
                       ? const SizedBox.square(
-                          dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Send code'),
                 ),
               ],
@@ -85,15 +93,17 @@ class _CompleteProfileOtpPageState extends State<CompleteProfileOtpPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<CompleteProfileCubit, CompleteProfileState>(
       listener: (ctx, state) {
-        if (state is CompleteProfileMobileBound) {
+        if (state.isMobileBound) {
           widget.onMobileBound();
         }
-        if (state is CompleteProfileFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is CompleteProfileVerifyingOtp;
+        final busy = state.isVerifyingOtp;
         return Scaffold(
           appBar: AppBar(title: const Text('Verify code')),
           body: Padding(
@@ -106,16 +116,22 @@ class _CompleteProfileOtpPageState extends State<CompleteProfileOtpPage> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                   decoration: const InputDecoration(labelText: '6-digit code'),
+                  onChanged: (v) =>
+                      ctx.read<CompleteProfileCubit>().updateField(
+                            CompleteProfileField.otpCode,
+                            v.trim(),
+                          ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: busy
                       ? null
-                      : () =>
-                          ctx.read<CompleteProfileCubit>().verifyOtp(code: _ctrl.text.trim()),
+                      : () => ctx.read<CompleteProfileCubit>().verifyOtp(),
                   child: busy
                       ? const SizedBox.square(
-                          dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Verify'),
                 ),
               ],

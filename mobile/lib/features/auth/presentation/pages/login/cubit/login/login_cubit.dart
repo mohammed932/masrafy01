@@ -1,55 +1,53 @@
-import 'package:equatable/equatable.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bloc/bloc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:injectable/injectable.dart';
 
-import '../../data/models/request/login/login_request.dart';
-import '../../domain/entities/customer_entity.dart';
-import '../../domain/repositories/auth_repository.dart';
+import '../../../../../../../core/enums/request_state.dart';
+import '../../../../../../../core/result/failure.dart';
+import '../../../../../data/models/request/login/login_request.dart';
+import '../../../../../domain/entities/customer_entity.dart';
+import '../../../../../domain/repositories/auth_repository.dart';
+
+part 'login_cubit.freezed.dart';
+part 'login_state.dart';
 
 /// Phone+password login (feature 008 / FR-021). Routes through the legacy
 /// `AuthRepository` whose `login()` already targets `/api/v1/auth/login` —
 /// the backend now applies the FR-022 lockout server-side (Redis counter)
 /// so the cubit needs no new client-side logic. SOCIAL customers using
 /// this endpoint receive `CUSTOMER_INVALID_CREDENTIALS` per FR-023.
-abstract class LoginState extends Equatable {
-  const LoginState();
-  @override
-  List<Object?> get props => [];
-}
-
-class LoginIdle extends LoginState {
-  const LoginIdle();
-}
-
-class LoginInProgress extends LoginState {
-  const LoginInProgress();
-}
-
-class LoginSuccess extends LoginState {
-  const LoginSuccess(this.session);
-  final CustomerSessionEntity session;
-  @override
-  List<Object?> get props => [session];
-}
-
-class LoginFailure extends LoginState {
-  const LoginFailure(this.error);
-  final Object error;
-  @override
-  List<Object?> get props => [error];
-}
-
+@injectable
 class LoginCubit extends Cubit<LoginState> {
-  LoginCubit(this._repo) : super(const LoginIdle());
+  LoginCubit(this._repo) : super(const LoginState());
+
   final AuthRepository _repo;
 
-  Future<void> submit({required String phone, required String password}) async {
-    emit(const LoginInProgress());
-    final res = await _repo.login(LoginRequest(phone: phone, password: password));
+  void updateField(LoginField field, Object value) {
+    switch (field) {
+      case LoginField.phone:
+        emit(state.copyWith(phone: value as String));
+        break;
+      case LoginField.password:
+        emit(state.copyWith(password: value as String));
+        break;
+    }
+  }
+
+  Future<void> submit() async {
+    if (state.status.isLoading) return;
+    emit(state.copyWith(status: RequestState.loading, error: null));
+    final res = await _repo.login(
+      LoginRequest(phone: state.phone, password: state.password),
+    );
     res.fold(
-      (err) => emit(LoginFailure(err)),
-      (session) => emit(LoginSuccess(session)),
+      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
+      (session) => emit(state.copyWith(
+        status: RequestState.loaded,
+        session: session,
+        error: null,
+      )),
     );
   }
 
-  void reset() => emit(const LoginIdle());
+  void reset() => emit(const LoginState());
 }

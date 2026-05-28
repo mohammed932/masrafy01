@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { StaffRole } from '@prisma/client';
+import type { StaffRole } from '@/common/enums/staff-role.enum';
 import { AnalyticsWindowTooLargeException } from '@/common/errors/domain.exceptions';
 import { LeadAnalyticsRepository } from './lead-analytics.repository';
 import { AliasResolverService } from './alias-resolver.service';
@@ -119,8 +119,7 @@ export class LeadAnalyticsService {
     const activityCountByStaffAndType = new Map<string, Map<string, number>>();
     for (const r of rawActivity) {
       totalsByStaff.set(r.actorStaffId, (totalsByStaff.get(r.actorStaffId) ?? 0) + r.count);
-      const byType =
-        activityCountByStaffAndType.get(r.actorStaffId) ?? new Map<string, number>();
+      const byType = activityCountByStaffAndType.get(r.actorStaffId) ?? new Map<string, number>();
       byType.set(r.activityType, r.count);
       activityCountByStaffAndType.set(r.actorStaffId, byType);
     }
@@ -159,8 +158,7 @@ export class LeadAnalyticsService {
         pipeline: {
           leadsSubmittedToBank,
           submittedActivityCount: o?.submittedToBank ?? 0,
-          bankApprovalRate:
-            leadsSubmittedToBank > 0 ? approved / leadsSubmittedToBank : null,
+          bankApprovalRate: leadsSubmittedToBank > 0 ? approved / leadsSubmittedToBank : null,
           avgSpeedToFirstContactMs: speedMs,
           avgCycleTimeMs: cycleMs,
           stuckLeadsCount: o?.stuckLeadsCount ?? 0,
@@ -206,8 +204,7 @@ export class LeadAnalyticsService {
         totalCallMinutes: 0,
       },
     );
-    team.conversionRate =
-      team.leadsAssigned > 0 ? team.loansApproved / team.leadsAssigned : null;
+    team.conversionRate = team.leadsAssigned > 0 ? team.loansApproved / team.leadsAssigned : null;
     team.bankApprovalRate =
       team.leadsSubmittedToBank > 0 ? team.loansApproved / team.leadsSubmittedToBank : null;
 

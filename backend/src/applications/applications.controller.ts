@@ -20,21 +20,19 @@ import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagg
 import { ApplicationsService } from './applications.service';
 import { ApplyRequestDto } from './dto/apply.dto';
 import { SelectOfferDto } from './dto/select-offer.dto';
-import { MobileHmacGuard } from './guards/mobile-hmac.guard';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerTimelineService } from './customer-timeline.service';
-import { OptionalCustomerJwtGuard } from '@/customer-auth/guards/optional-customer-jwt.guard';
-import { HmacClientUnknownException } from '@/common/errors/domain.exceptions';
+import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
+import { ForbiddenException } from '@/common/errors/domain.exceptions';
 
-interface HmacRequest extends Request {
-  mobileClientId?: string;
-  rawBodyHashHex?: string;
+interface MobileAuthedRequest extends Request {
   customerId?: string;
 }
 
 @ApiTags('Applications')
+@ApiBearerAuth('CustomerBearerAuth')
 @Controller('v1')
-@UseGuards(MobileHmacGuard, OptionalCustomerJwtGuard, MobileRateLimitGuard)
+@UseGuards(CustomerJwtGuard, MobileRateLimitGuard)
 export class ApplicationsController {
   constructor(
     private readonly service: ApplicationsService,
@@ -42,21 +40,18 @@ export class ApplicationsController {
   ) {}
 
   @Get('applications/:applicationId/timeline')
-  @ApiOperation({ summary: 'Customer milestone timeline (HMAC, milestone-only)' })
+  @ApiOperation({ summary: 'Customer milestone timeline (customer-JWT, milestone-only)' })
   @ApiResponse({ status: 200, description: 'Milestone list (no agent identities, no notes)' })
   @ApiResponse({
-    status: 401,
-    description: 'HMAC client identity does not match application owner',
+    status: 403,
+    description: 'Customer is not the owner of this application',
   })
   async timeline(
     @Param('applicationId') applicationId: string,
-    @Req() req: HmacRequest,
+    @Req() req: MobileAuthedRequest,
   ): Promise<unknown> {
-    const mobileClientId = req.mobileClientId;
-    if (!mobileClientId) {
-      throw new HmacClientUnknownException('unknown');
-    }
-    const data = await this.timelineService.buildTimeline(applicationId, mobileClientId);
+    const customerId = this.requireCustomerId(req);
+    const data = await this.timelineService.buildTimeline(applicationId, customerId);
     return { success: true, data };
   }
 
@@ -65,23 +60,22 @@ export class ApplicationsController {
   @ApiOperation({ summary: 'Submit loan-match application' })
   @ApiResponse({ status: 200, description: 'Match result envelope' })
   @ApiResponse({ status: 400, description: 'Validation error (typed code in body)' })
-  @ApiResponse({ status: 401, description: 'HMAC signature invalid' })
+  @ApiResponse({ status: 401, description: 'Customer JWT missing or invalid' })
   @ApiResponse({ status: 409, description: 'Idempotency key/body mismatch' })
   @ApiResponse({ status: 429, description: 'Rate limit exceeded' })
   async apply(
     @Body() dto: ApplyRequestDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileAuthedRequest,
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<unknown> {
-    const mobileClientId = req.mobileClientId ?? 'unknown';
+    const customerId = this.requireCustomerId(req);
     const sourceIp = req.ip ?? null;
-    const payloadHash = req.rawBodyHashHex ?? null;
     return this.service.apply(dto, {
-      mobileClientId,
+      mobileClientId: customerId,
       idempotencyKey: idempotencyKey?.trim() || undefined,
-      payloadHash,
+      payloadHash: null,
       sourceIp,
-      customerId: req.customerId ?? null,
+      customerId,
     });
   }
 
@@ -90,23 +84,32 @@ export class ApplicationsController {
   @ApiOperation({ summary: 'Applicant selects one matched offer and proceeds' })
   @ApiResponse({ status: 200, description: 'User-proceed gate recorded' })
   @ApiResponse({ status: 400, description: 'Validation error (typed code)' })
-  @ApiResponse({ status: 401, description: 'HMAC signature invalid' })
-  @ApiResponse({ status: 403, description: 'HMAC client does not own this application' })
+  @ApiResponse({ status: 401, description: 'Customer JWT missing or invalid' })
+  @ApiResponse({ status: 403, description: 'Customer does not own this application' })
   @ApiResponse({ status: 404, description: 'Application or bank offer not found' })
-  @ApiResponse({ status: 409, description: 'Already proceeded, status mismatch, or offer not for application' })
+  @ApiResponse({
+    status: 409,
+    description: 'Already proceeded, status mismatch, or offer not for application',
+  })
   async selectOffer(
     @Param('applicationId') applicationId: string,
     @Body() dto: SelectOfferDto,
-    @Req() req: HmacRequest,
+    @Req() req: MobileAuthedRequest,
   ): Promise<unknown> {
-    const mobileClientId = req.mobileClientId;
-    if (!mobileClientId) throw new HmacClientUnknownException('unknown');
+    const customerId = this.requireCustomerId(req);
     const data = await this.service.selectOffer({
       applicationId,
       bankOfferId: dto.bankOfferId,
-      mobileClientId,
+      mobileClientId: customerId,
       sourceIp: req.ip ?? null,
     });
     return { success: true, data };
+  }
+
+  private requireCustomerId(req: MobileAuthedRequest): string {
+    const user = (req as Request & { user?: { sub?: string } }).user;
+    const sub = user?.sub;
+    if (!sub) throw new ForbiddenException();
+    return sub;
   }
 }

@@ -1,13 +1,14 @@
 import { Controller, Get, Header, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { OnboardingService } from './onboarding.service';
 import { OnboardingScreenResponseDto } from './dto/onboarding.dto';
 
 @ApiTags('Mobile · Onboarding')
+@ApiBearerAuth('CustomerBearerAuth')
 @Controller('v1/onboarding')
-@UseGuards(MobileHmacGuard)
+@UseGuards(CustomerJwtGuard)
 export class MobileOnboardingController {
   constructor(private readonly svc: OnboardingService) {}
 

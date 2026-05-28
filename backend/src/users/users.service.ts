@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { StaffRole, type Prisma } from '@prisma/client';
+import { StaffRole } from '@/common/enums/staff-role.enum';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { CannotSelfModifyException, NotFoundException } from '@/common/errors/domain.exceptions';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
@@ -108,7 +108,7 @@ export class UsersService {
         eventType: AuditEventType.ADMIN_USER_UPDATED,
         sourceIp: ctx.sourceIp,
         correlationId: ctx.correlationId,
-        payload: { changedFields } as Prisma.JsonObject,
+        payload: { changedFields },
       });
     }
 

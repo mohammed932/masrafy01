@@ -1,6 +1,6 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
-import type { StaffRole } from '@prisma/client';
+import type { StaffRole } from '@/common/enums/staff-role.enum';
 
 export interface JwtPayload {
   sub: string;

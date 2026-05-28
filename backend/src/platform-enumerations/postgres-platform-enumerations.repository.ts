@@ -24,6 +24,38 @@ export interface EnumerationTypeStats {
   deprecated: number;
 }
 
+/**
+ * Domain row returned to services / controllers — keeps Prisma's
+ * `PlatformEnumeration` row type confined to this repository
+ * (Constitution Principle X / A8).
+ */
+export interface EnumerationRow {
+  id: string;
+  type: string;
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  active: boolean;
+  systemOnly: boolean;
+  deprecatedAt: Date | null;
+  parentKey: string | null;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Domain patch for `updateById` — translated to Prisma update input inside the repo. */
+export interface EnumerationUpdatePatch {
+  labelAr?: string;
+  labelEn?: string;
+  sortOrder?: number;
+  active?: boolean;
+  /** When `true` AND `deprecatedAt` is currently null, the repository stamps `deprecatedAt = now`
+   *  and forces `active = false`. */
+  deprecate?: true;
+  updatedBy: string;
+}
+
 const ALL_TYPES: readonly EnumerationType[] = [
   'salary_category',
   'transfer_type',
@@ -124,11 +156,12 @@ export class PostgresPlatformEnumerationsRepository
   // Admin-side read/write methods. Cache is invalidated by the caller after
   // a successful mutation so the read-cache cannot serve stale rows.
 
-  async findAllOrdered(filter?: { type?: string }): Promise<PlatformEnumeration[]> {
-    return this.prisma.platformEnumeration.findMany({
+  async findAllOrdered(filter?: { type?: string }): Promise<EnumerationRow[]> {
+    const rows = await this.prisma.platformEnumeration.findMany({
       where: filter?.type ? { type: filter.type } : undefined,
       orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }, { key: 'asc' }],
     });
+    return rows.map(toEnumerationRow);
   }
 
   async listTypeStats(): Promise<EnumerationTypeStats[]> {
@@ -152,18 +185,20 @@ export class PostgresPlatformEnumerationsRepository
     return out;
   }
 
-  async findByTypeAndKey(type: string, key: string): Promise<PlatformEnumeration | null> {
-    return this.prisma.platformEnumeration.findUnique({
+  async findByTypeAndKey(type: string, key: string): Promise<EnumerationRow | null> {
+    const row = await this.prisma.platformEnumeration.findUnique({
       where: { idx_platform_enumeration_type_key: { type, key } },
     });
+    return row ? toEnumerationRow(row) : null;
   }
 
-  async findById(id: string): Promise<PlatformEnumeration | null> {
-    return this.prisma.platformEnumeration.findUnique({ where: { id } });
+  async findById(id: string): Promise<EnumerationRow | null> {
+    const row = await this.prisma.platformEnumeration.findUnique({ where: { id } });
+    return row ? toEnumerationRow(row) : null;
   }
 
-  async insert(input: CreateEnumerationInput): Promise<PlatformEnumeration> {
-    return this.prisma.platformEnumeration.create({
+  async insert(input: CreateEnumerationInput): Promise<EnumerationRow> {
+    const row = await this.prisma.platformEnumeration.create({
       data: {
         type: input.type,
         key: input.key,
@@ -177,14 +212,44 @@ export class PostgresPlatformEnumerationsRepository
         updatedBy: input.createdBy,
       },
     });
+    return toEnumerationRow(row);
   }
 
-  async updateById(
-    id: string,
-    data: Prisma.PlatformEnumerationUpdateInput,
-  ): Promise<PlatformEnumeration> {
-    return this.prisma.platformEnumeration.update({ where: { id }, data });
+  async updateById(id: string, patch: EnumerationUpdatePatch): Promise<EnumerationRow> {
+    const data: Prisma.PlatformEnumerationUpdateInput = { updatedBy: patch.updatedBy };
+    if (patch.labelAr !== undefined) data.labelAr = patch.labelAr;
+    if (patch.labelEn !== undefined) data.labelEn = patch.labelEn;
+    if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
+
+    if (patch.deprecate === true) {
+      data.deprecatedAt = new Date();
+      data.active = false;
+    } else if (patch.active !== undefined) {
+      data.active = patch.active;
+    }
+
+    const row = await this.prisma.platformEnumeration.update({ where: { id }, data });
+    return toEnumerationRow(row);
   }
 
   static readonly KNOWN_TYPES = ALL_TYPES;
+}
+
+// ---- Boundary mapper (Prisma row -> domain row) --------------------------
+
+function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
+  return {
+    id: row.id,
+    type: row.type,
+    key: row.key,
+    labelAr: row.labelAr,
+    labelEn: row.labelEn,
+    active: row.active,
+    systemOnly: row.systemOnly,
+    deprecatedAt: row.deprecatedAt,
+    parentKey: row.parentKey,
+    sortOrder: row.sortOrder,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }

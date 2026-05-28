@@ -6,6 +6,9 @@ import { PrismaService } from '@/infra/prisma/prisma.service';
 // Append-only at the repository layer (R-001 — primary defence).
 // NO update* / delete* methods may be added here. DB trigger is layer 2.
 
+/** Domain JSON value type — keeps `Prisma.InputJsonValue` out of services. */
+export type ActivityMeta = Record<string, unknown> | unknown[] | null;
+
 export interface CreateActivityInput {
   id: string;
   applicationId: string;
@@ -18,7 +21,7 @@ export interface CreateActivityInput {
   outcomeFlags: readonly string[];
   followUpAt: Date | null;
   attachedDocumentIds: readonly string[];
-  meta: Prisma.InputJsonValue | null;
+  meta: ActivityMeta;
   correlationId: string;
 }
 
@@ -46,7 +49,7 @@ export class ActivitiesRepository {
         outcomeFlags: [...input.outcomeFlags],
         followUpAt: input.followUpAt,
         attachedDocumentIds: [...input.attachedDocumentIds],
-        meta: input.meta ?? Prisma.JsonNull,
+        meta: (input.meta ?? Prisma.JsonNull) as Prisma.InputJsonValue,
         correlationId: input.correlationId,
       },
     });

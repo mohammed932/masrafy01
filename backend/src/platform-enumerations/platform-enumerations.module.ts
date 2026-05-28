@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '@/auth/auth.module';
 import { AuditModule } from '@/audit/audit.module';
+import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { InfraModule } from '@/infra/infra.module';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { PostgresPlatformEnumerationsRepository } from './postgres-platform-enumerations.repository';
 import { PlatformEnumerationsController } from './platform-enumerations.controller';
 import { AdminPlatformEnumerationsController } from './admin-platform-enumerations.controller';
@@ -17,10 +17,11 @@ import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.
  *
  * Three controllers: staff-JWT picker reads (`/api/admin/platform-enumerations`
  * dashboard pickers + `/admin/platform-enumerations` operator CRUD) and
- * HMAC-only mobile reads (`/api/v1/platform-enumerations`, v1.7.0).
+ * customer-JWT mobile reads (`/api/v1/platform-enumerations`, Constitution
+ * v3.0.0 / Principle XIII — JWT-only).
  */
 @Module({
-  imports: [AuthModule, AuditModule, InfraModule],
+  imports: [AuthModule, AuditModule, CustomerAuthModule, InfraModule],
   controllers: [
     PlatformEnumerationsController,
     AdminPlatformEnumerationsController,
@@ -33,7 +34,6 @@ import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.
       useExisting: PostgresPlatformEnumerationsRepository,
     },
     PlatformEnumerationsAdminService,
-    MobileHmacGuard,
   ],
   exports: [PlatformEnumerationsRepository],
 })

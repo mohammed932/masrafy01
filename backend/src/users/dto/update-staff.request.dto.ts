@@ -8,7 +8,7 @@ import {
   registerDecorator,
   ValidationOptions,
 } from 'class-validator';
-import type { StaffRole } from '@prisma/client';
+import type { StaffRole } from '@/common/enums/staff-role.enum';
 
 // super_admin intentionally omitted — role cannot be elevated to super_admin via API;
 // bootstrap one via the seed script.

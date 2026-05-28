@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { OtpPurpose, SocialProvider } from './dto/enums';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
@@ -12,7 +11,10 @@ import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { PasswordService } from '@/auth/password.service';
 import { PrismaService } from '@/infra/prisma/prisma.service';
-import { CustomerAccountRepository } from './customer-account.repository';
+import {
+  CustomerAccountRepository,
+  CustomerAccountUniqueConflictError,
+} from './customer-account.repository';
 import { CustomerJwtTokenService } from './customer-jwt-token.service';
 import { CustomerRefreshTokenService } from './customer-refresh-token.service';
 import { CustomerRefreshTokenRepository } from './customer-refresh-token.repository';
@@ -127,7 +129,7 @@ export class CustomerAuthMobileService {
           tx,
         );
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        if (err instanceof CustomerAccountUniqueConflictError) {
           throw new CustomerPhoneAlreadyRegisteredException();
         }
         throw err;
@@ -399,7 +401,7 @@ export class CustomerAuthMobileService {
         phone: verified.phone,
       });
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      if (err instanceof CustomerAccountUniqueConflictError) {
         throw new CustomerPhoneAlreadyRegisteredException();
       }
       throw err;

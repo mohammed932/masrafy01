@@ -1,7 +1,32 @@
 import { Injectable } from '@nestjs/common';
-import { RegistrationPath } from '@prisma/client';
-import type { Prisma, CustomerAccount } from '@prisma/client';
+import { Prisma, RegistrationPath } from '@prisma/client';
+import type { CustomerAccount } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+
+/**
+ * Sentinel error — raised by repository write methods when a unique constraint
+ * is hit on `phone` or `email`. Service layer maps to the appropriate
+ * `CustomerPhoneAlreadyRegistered` / `CustomerEmailAlreadyRegistered` domain
+ * exception (constitutional carve-out keeps `Prisma.PrismaClientKnownRequestError`
+ * out of services).
+ */
+export class CustomerAccountUniqueConflictError extends Error {
+  constructor(public readonly field: 'phone' | 'email') {
+    super(`Customer ${field} already registered`);
+    this.name = 'CustomerAccountUniqueConflictError';
+  }
+}
+
+function detectUniqueConflict(err: unknown): CustomerAccountUniqueConflictError | null {
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    const target = (err.meta?.target as string[] | string | undefined) ?? '';
+    const involvesEmail = Array.isArray(target)
+      ? target.includes('email')
+      : String(target).includes('email');
+    return new CustomerAccountUniqueConflictError(involvesEmail ? 'email' : 'phone');
+  }
+  return null;
+}
 
 export interface CreateCustomerInput {
   phone: string;
@@ -108,15 +133,21 @@ export class CustomerAccountRepository {
     tx?: Prisma.TransactionClient,
   ): Promise<CustomerAccount> {
     const client = tx ?? this.prisma;
-    return client.customerAccount.create({
-      data: {
-        phone: input.phone,
-        name: input.name,
-        passwordHash: input.passwordHash,
-        email: input.email ?? null,
-        locale: input.locale ?? 'ar-EG',
-      },
-    });
+    try {
+      return await client.customerAccount.create({
+        data: {
+          phone: input.phone,
+          name: input.name,
+          passwordHash: input.passwordHash,
+          email: input.email ?? null,
+          locale: input.locale ?? 'ar-EG',
+        },
+      });
+    } catch (err) {
+      const conflict = detectUniqueConflict(err);
+      if (conflict) throw conflict;
+      throw err;
+    }
   }
 
   /**
@@ -129,18 +160,24 @@ export class CustomerAccountRepository {
     tx?: Prisma.TransactionClient,
   ): Promise<CustomerAccount> {
     const client = tx ?? this.prisma;
-    return client.customerAccount.create({
-      data: {
-        registrationPath: RegistrationPath.PHONE,
-        phone: input.phone,
-        mobileVerifiedAt: new Date(),
-        name: input.name,
-        email: input.email ?? null,
-        locale: input.locale ?? 'ar-EG',
-        passwordHash: input.passwordHash,
-        age: input.age,
-      },
-    });
+    try {
+      return await client.customerAccount.create({
+        data: {
+          registrationPath: RegistrationPath.PHONE,
+          phone: input.phone,
+          mobileVerifiedAt: new Date(),
+          name: input.name,
+          email: input.email ?? null,
+          locale: input.locale ?? 'ar-EG',
+          passwordHash: input.passwordHash,
+          age: input.age,
+        },
+      });
+    } catch (err) {
+      const conflict = detectUniqueConflict(err);
+      if (conflict) throw conflict;
+      throw err;
+    }
   }
 
   /**
@@ -173,10 +210,16 @@ export class CustomerAccountRepository {
    */
   async bindMobileVerified(input: BindMobileInput, tx?: Prisma.TransactionClient): Promise<void> {
     const client = tx ?? this.prisma;
-    await client.customerAccount.update({
-      where: { id: input.customerId },
-      data: { phone: input.phone, mobileVerifiedAt: new Date() },
-    });
+    try {
+      await client.customerAccount.update({
+        where: { id: input.customerId },
+        data: { phone: input.phone, mobileVerifiedAt: new Date() },
+      });
+    } catch (err) {
+      const conflict = detectUniqueConflict(err);
+      if (conflict) throw conflict;
+      throw err;
+    }
   }
 
   async updatePasswordHash(

@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
@@ -11,7 +10,10 @@ import {
 } from '@/common/errors/domain.exceptions';
 import { PasswordService } from '@/auth/password.service';
 import { ApplicationLinkRepository } from './application-link.repository';
-import { CustomerAccountRepository } from './customer-account.repository';
+import {
+  CustomerAccountRepository,
+  CustomerAccountUniqueConflictError,
+} from './customer-account.repository';
 import { CustomerJwtTokenService } from './customer-jwt-token.service';
 import { CustomerIssueResult, CustomerRefreshTokenService } from './customer-refresh-token.service';
 import type { CustomerProfileResponseDto } from './dto/customer-auth.dto';
@@ -87,11 +89,8 @@ export class CustomerAuthService {
         locale: args.locale ?? 'ar-EG',
       });
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        const target = (err.meta?.target as string[] | string | undefined) ?? '';
-        if (Array.isArray(target) ? target.includes('email') : String(target).includes('email')) {
-          throw new CustomerEmailAlreadyRegisteredException();
-        }
+      if (err instanceof CustomerAccountUniqueConflictError) {
+        if (err.field === 'email') throw new CustomerEmailAlreadyRegisteredException();
         throw new CustomerPhoneAlreadyRegisteredException();
       }
       throw err;

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { AuditEvent, LeadStatus } from '@prisma/client';
-import { HmacClientUnknownException, NotFoundException } from '@/common/errors/domain.exceptions';
+import { ForbiddenException, NotFoundException } from '@/common/errors/domain.exceptions';
+import { LeadStatus } from './dto/enums';
 import { CustomerTimelineRepository } from './customer-timeline.repository';
 
 export interface CustomerTimelineMilestone {
@@ -42,7 +42,7 @@ export class CustomerTimelineService {
     const application = await this.repo.findApplicationHeader(applicationId);
     if (!application) throw new NotFoundException();
     if (application.mobileClientId !== mobileClientId) {
-      throw new HmacClientUnknownException(mobileClientId);
+      throw new ForbiddenException();
     }
 
     const transitions = await this.repo.findLeadStatusTransitions(applicationId);
@@ -56,9 +56,7 @@ export class CustomerTimelineService {
     });
 
     for (const tx of transitions) {
-      const payload = (tx.payload ?? {}) as {
-        toLeadStatus?: LeadStatus;
-      };
+      const payload = (tx.payload ?? {}) as { toLeadStatus?: LeadStatus };
       if (!payload.toLeadStatus) continue;
       const code = STATUS_TO_MILESTONE[payload.toLeadStatus];
       const labelCode = STATUS_TO_LABEL[payload.toLeadStatus];
@@ -82,6 +80,8 @@ export class CustomerTimelineService {
     return { applicationId, milestones };
   }
 
+  // ---- Internals ----------------------------------------------------------
+
   private mapBankOutcome(reason: string): CustomerTimelineMilestone['outcome'] | null {
     switch (reason) {
       case 'APPROVED':
@@ -99,5 +99,3 @@ export class CustomerTimelineService {
     }
   }
 }
-
-export type _AuditEventShape = AuditEvent;

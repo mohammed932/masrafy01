@@ -267,46 +267,10 @@ export class UnauthenticatedException extends DomainException {
   }
 }
 
-// --- Mobile HMAC (feature 003) ---------------------------------------------
-
-export class HmacHeaderMissingException extends DomainException {
-  constructor(header: string) {
-    super(ERROR_CODES.HMAC_HEADER_MISSING, { header });
-  }
-}
-
-export class HmacClientUnknownException extends DomainException {
-  constructor(clientId: string) {
-    super(ERROR_CODES.HMAC_CLIENT_UNKNOWN, { clientId });
-  }
-}
-
-export class HmacSignatureInvalidException extends DomainException {
-  constructor() {
-    super(ERROR_CODES.HMAC_SIGNATURE_INVALID);
-  }
-}
-
-export class HmacTimestampSkewException extends DomainException {
-  constructor(meta: { toleranceSeconds: number }) {
-    super(ERROR_CODES.HMAC_TIMESTAMP_SKEW, meta);
-  }
-}
-
-export class HmacNonceReplayException extends DomainException {
-  constructor() {
-    super(ERROR_CODES.HMAC_NONCE_REPLAY);
-  }
-}
-
-export class HmacBodyHashMismatchException extends DomainException {
-  constructor() {
-    super(ERROR_CODES.HMAC_BODY_HASH_MISMATCH);
-  }
-}
+// --- Mobile rate limiting --------------------------------------------------
 
 export class RateLimitedBucketException extends DomainException {
-  constructor(bucket: 'hmac_client' | 'applicant_fingerprint', retryAfterSeconds: number) {
+  constructor(bucket: 'customer' | 'applicant_fingerprint', retryAfterSeconds: number) {
     super(ERROR_CODES.RATE_LIMITED, { bucket, retryAfterSeconds });
   }
 }
@@ -413,7 +377,11 @@ export class OfferNotForApplicationException extends DomainException {
 }
 
 export class AlreadyProceededException extends DomainException {
-  constructor(meta: { applicationId: string; userProceededAt: string; userSelectedBankOfferId: string }) {
+  constructor(meta: {
+    applicationId: string;
+    userProceededAt: string;
+    userSelectedBankOfferId: string;
+  }) {
     super(ERROR_CODES.ALREADY_PROCEEDED, meta);
   }
 }

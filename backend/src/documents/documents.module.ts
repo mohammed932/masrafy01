@@ -5,7 +5,6 @@ import { AuditModule } from '@/audit/audit.module';
 import { AuthModule } from '@/auth/auth.module';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { InfraModule } from '@/infra/infra.module';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 import { DocumentsController } from './documents.controller';
 import { MobileDocumentsController } from './mobile-documents.controller';
@@ -24,7 +23,7 @@ import { S3StorageClient } from './s3-storage.client';
     PlatformEnumerationsModule,
   ],
   controllers: [DocumentsController, MobileDocumentsController],
-  providers: [S3StorageClient, DocumentsRepository, DocumentsService, MobileHmacGuard],
+  providers: [S3StorageClient, DocumentsRepository, DocumentsService],
   exports: [DocumentsService, DocumentsRepository, S3StorageClient],
 })
 export class DocumentsModule {}

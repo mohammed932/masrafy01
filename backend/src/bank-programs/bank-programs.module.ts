@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AuditModule } from '../audit/audit.module';
+import { CustomerAuthModule } from '../customer-auth/customer-auth.module';
 import { PlatformEnumerationsModule } from '../platform-enumerations/platform-enumerations.module';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { BankProgramsController } from './bank-programs.controller';
@@ -13,7 +14,7 @@ import { SeedAbkController } from './seeds/seed-abk.controller';
 import { SeedCompetitorController } from './seeds/seed-competitor.controller';
 
 @Module({
-  imports: [AuthModule, AuditModule, PlatformEnumerationsModule],
+  imports: [AuthModule, AuditModule, CustomerAuthModule, PlatformEnumerationsModule],
   controllers: [
     BankProgramsController,
     BankProgramsMobileController,

@@ -11,7 +11,6 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import type { Request } from 'express';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
@@ -23,12 +22,11 @@ import {
   MobileRequestUploadUrlDto,
 } from './dto/mobile-documents.dto';
 
-type MobileAuthedRequest = Request & {
-  mobileClientId?: string;
-};
+type MobileAuthedRequest = Request;
 
 /**
- * Mobile customer document upload (PR #4 / v1.7.0).
+ * Mobile customer document upload (Constitution v3.0.0 / Principle XIII —
+ * JWT-only).
  *
  * Two-step protocol so failed PUTs don't leave orphan Document rows:
  *   1. `POST /upload-url` — create row in `pending_upload`, return presigned PUT
@@ -42,7 +40,7 @@ type MobileAuthedRequest = Request & {
 @ApiTags('Mobile · Documents')
 @ApiBearerAuth('CustomerBearerAuth')
 @Controller('v1/applications/:applicationId/documents')
-@UseGuards(MobileHmacGuard, CustomerJwtGuard)
+@UseGuards(CustomerJwtGuard)
 export class MobileDocumentsController {
   constructor(
     private readonly service: DocumentsService,
@@ -58,7 +56,6 @@ export class MobileDocumentsController {
     @Req() req: MobileAuthedRequest,
   ): Promise<{ success: true; data: MobilePresignedUploadResponseDto }> {
     const customerId = this.requireCustomerId(req);
-    const mobileClientId = this.requireMobileClientId(req);
     const out = await this.service.requestCustomerUploadUrl({
       applicationId,
       documentType: dto.documentType,
@@ -66,7 +63,7 @@ export class MobileDocumentsController {
       sizeBytes: dto.sizeBytes,
       originalFilename: dto.originalFilename,
       customer: { id: customerId },
-      mobileClientId,
+      mobileClientId: customerId,
     });
     return ok({
       documentId: out.documentId,
@@ -79,7 +76,9 @@ export class MobileDocumentsController {
 
   @Post(':documentId/confirm-upload')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Flip a customer-side document to `uploaded` after the S3 PUT succeeded' })
+  @ApiOperation({
+    summary: 'Flip a customer-side document to `uploaded` after the S3 PUT succeeded',
+  })
   async confirmUpload(
     @Param('applicationId') applicationId: string,
     @Param('documentId') documentId: string,
@@ -87,12 +86,11 @@ export class MobileDocumentsController {
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: MobileConfirmUploadResponseDto }> {
     const customerId = this.requireCustomerId(req);
-    const mobileClientId = this.requireMobileClientId(req);
     const result = await this.service.confirmCustomerUpload({
       documentId,
       applicationId,
       customer: { id: customerId },
-      mobileClientId,
+      mobileClientId: customerId,
     });
     await this.audit.write({
       actorId: null,
@@ -115,10 +113,5 @@ export class MobileDocumentsController {
     const sub = user?.sub;
     if (!sub) throw new Error('customer JWT guard did not attach req.user.sub');
     return sub;
-  }
-
-  private requireMobileClientId(req: MobileAuthedRequest): string {
-    if (!req.mobileClientId) throw new Error('HMAC guard did not attach mobileClientId');
-    return req.mobileClientId;
   }
 }

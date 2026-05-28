@@ -4,7 +4,8 @@
  * Prisma-touching surface for engine versions.
  */
 import { Injectable } from '@nestjs/common';
-import type { Prisma, ScoringEngineVersion } from '@prisma/client';
+import { Prisma } from '@prisma/client';
+import type { ScoringEngineVersion } from '@prisma/client';
 import { z } from 'zod';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 
@@ -73,41 +74,54 @@ export class ScoringEngineVersionRepository {
       next: ScoringEngineVersionRow,
     ) => Promise<void>,
   ): Promise<{ previous: ScoringEngineVersionRow | null; next: ScoringEngineVersionRow }> {
-    return this.prisma.$transaction(
-      async (tx) => {
-        const target = await tx.scoringEngineVersion.findUnique({
-          where: { version: targetVersion },
-        });
-        if (!target) {
-          throw new ScoringVersionNotFoundError(targetVersion);
-        }
-
-        const previousRaw = await tx.scoringEngineVersion.findFirst({
-          where: { deactivatedAt: null },
-        });
-        const previous = previousRaw ? this.hydrate(previousRaw) : null;
-
-        if (previousRaw && previousRaw.version !== targetVersion) {
-          await tx.scoringEngineVersion.update({
-            where: { id: previousRaw.id },
-            data: { deactivatedAt: new Date() },
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const target = await tx.scoringEngineVersion.findUnique({
+            where: { version: targetVersion },
           });
-        }
+          if (!target) {
+            throw new ScoringVersionNotFoundError(targetVersion);
+          }
 
-        const nextRaw = await tx.scoringEngineVersion.update({
-          where: { id: target.id },
-          data: { activatedAt: new Date(), deactivatedAt: null, activatedByStaffId },
-        });
-        const next = this.hydrate(nextRaw);
+          const previousRaw = await tx.scoringEngineVersion.findFirst({
+            where: { deactivatedAt: null },
+          });
+          const previous = previousRaw ? this.hydrate(previousRaw) : null;
 
-        if (txCallback) {
-          await txCallback(tx, previous, next);
-        }
+          if (previousRaw && previousRaw.version !== targetVersion) {
+            await tx.scoringEngineVersion.update({
+              where: { id: previousRaw.id },
+              data: { deactivatedAt: new Date() },
+            });
+          }
 
-        return { previous, next };
-      },
-      { isolationLevel: 'Serializable' },
-    );
+          const nextRaw = await tx.scoringEngineVersion.update({
+            where: { id: target.id },
+            data: { activatedAt: new Date(), deactivatedAt: null, activatedByStaffId },
+          });
+          const next = this.hydrate(nextRaw);
+
+          if (txCallback) {
+            await txCallback(tx, previous, next);
+          }
+
+          return { previous, next };
+        },
+        { isolationLevel: 'Serializable' },
+      );
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        (err.code === 'P2034' || err.message.includes('serialization'))
+      ) {
+        throw new ScoringVersionConcurrentPromotionError();
+      }
+      if (err instanceof Error && err.message.includes('40001')) {
+        throw new ScoringVersionConcurrentPromotionError();
+      }
+      throw err;
+    }
   }
 
   private hydrate(row: ScoringEngineVersion): ScoringEngineVersionRow {
@@ -130,5 +144,14 @@ export class ScoringVersionNotFoundError extends Error {
   constructor(public readonly version: string) {
     super(`Scoring engine version '${version}' is not registered`);
     this.name = 'ScoringVersionNotFoundError';
+  }
+}
+
+/** Sentinel error — Postgres serialization failure (P2034 / SQLSTATE 40001).
+ *  Service layer maps to `ScoringVersionConcurrentPromotionException`. */
+export class ScoringVersionConcurrentPromotionError extends Error {
+  constructor() {
+    super('Scoring engine version promotion serialization failure');
+    this.name = 'ScoringVersionConcurrentPromotionError';
   }
 }

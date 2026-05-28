@@ -57,10 +57,8 @@ export const envSchema = z.object({
   SEED_ADMIN_NAME: z.string().min(2).max(120),
   SEED_ADMIN_PASSWORD: z.string().min(12).max(128),
 
-  // Mobile HMAC dev identity (feature 003). Production swap: feature-005 mobile-client registry.
-  MOBILE_CLIENT_ID: z.string().min(1).default('dev'),
-  MOBILE_CLIENT_SECRET: z.string().min(16),
-  MOBILE_HMAC_TIMESTAMP_TOLERANCE_SECONDS: z.coerce.number().int().positive().default(300),
+  // Mobile API rate-limit knobs (Constitution v3.0.0 / Principle XV).
+  // Per-client = per authenticated customer; per-applicant = per (customer, nationalId).
   MOBILE_RATE_LIMIT_PER_CLIENT_PER_HOUR: z.coerce.number().int().positive().default(30),
   MOBILE_RATE_LIMIT_PER_APPLICANT_PER_HOUR: z.coerce.number().int().positive().default(5),
 

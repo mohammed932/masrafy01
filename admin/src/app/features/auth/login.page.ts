@@ -39,34 +39,34 @@ interface LoginControls {
                 </svg>
               </div>
               <div class="logo-text">
-                <span class="logo-main">Masrafy</span>
-                <span class="logo-sub">Admin Portal</span>
+                <span class="logo-main" i18n="@@auth.login.brand">Masrafy</span>
+                <span class="logo-sub" i18n="@@auth.login.tagline">Admin Portal</span>
               </div>
             </div>
 
             <div class="tagline">
-              <h1>Credit Match Console</h1>
-              <p>Match Egyptian borrowers with the best bank loan programs — at scale.</p>
+              <h1 i18n="@@auth.login.welcome">Credit Match Console</h1>
+              <p i18n="@@auth.login.subtitle">Match Egyptian borrowers with the best bank loan programs — at scale.</p>
             </div>
 
             <ul class="stats">
               <li>
                 <span class="stat-icon"><i nz-icon nzType="bank" nzTheme="outline"></i></span>
-                <span class="stat-text"><strong>20+</strong><em>Bank Programs</em></span>
+                <span class="stat-text"><strong>20+</strong><em i18n="@@auth.login.stat.bank_programs">Bank Programs</em></span>
               </li>
               <li>
                 <span class="stat-icon"><i nz-icon nzType="team" nzTheme="outline"></i></span>
-                <span class="stat-text"><strong>Live</strong><em>Lead Marketplace</em></span>
+                <span class="stat-text"><strong i18n="@@auth.login.stat.marketplace_value">Live</strong><em i18n="@@auth.login.stat.marketplace">Lead Marketplace</em></span>
               </li>
               <li>
                 <span class="stat-icon"><i nz-icon nzType="safety-certificate" nzTheme="outline"></i></span>
-                <span class="stat-text"><strong>99.9%</strong><em>Uptime SLA</em></span>
+                <span class="stat-text"><strong>99.9%</strong><em i18n="@@auth.login.stat.uptime">Uptime SLA</em></span>
               </li>
             </ul>
 
             <div class="security-pill">
               <i nz-icon nzType="lock" nzTheme="fill"></i>
-              <span>Enterprise-Grade Security</span>
+              <span i18n="@@auth.login.security">Enterprise-Grade Security</span>
             </div>
           </div>
           <div class="deco-circle deco-1"></div>
@@ -78,7 +78,7 @@ interface LoginControls {
             <div class="form-header">
               <div class="header-badge">
                 <i nz-icon nzType="crown" nzTheme="fill"></i>
-                <span>Administrator Access</span>
+                <span i18n="@@auth.login.admin_access">Administrator Access</span>
               </div>
               <h2 [id]="titleId" i18n="@@login.title">Welcome back</h2>
               <p i18n="@@login.subtitle">Sign in to the admin dashboard.</p>
@@ -133,7 +133,7 @@ interface LoginControls {
                     type="button"
                     class="toggle-eye"
                     (click)="togglePassword()"
-                    [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'"
+                    [attr.aria-label]="passwordToggleLabel()"
                   >
                     <i nz-icon [nzType]="showPassword() ? 'eye-invisible' : 'eye'" nzTheme="outline"></i>
                   </button>
@@ -191,7 +191,7 @@ interface LoginControls {
         background:
           radial-gradient(ellipse at 20% 0%, rgba(8, 105, 195, 0.08) 0%, transparent 50%),
           radial-gradient(ellipse at 80% 100%, rgba(161, 124, 91, 0.10) 0%, transparent 50%),
-          #F8F6F4;
+          var(--bg-base);
         overflow: hidden;
       }
 
@@ -242,9 +242,9 @@ interface LoginControls {
         width: 100%;
         max-width: 1120px;
         min-height: 640px;
-        background: #FDFCFB;
+        background: var(--bg-surface);
         border-radius: 24px;
-        border: 1px solid #EFEAE5;
+        border: 1px solid var(--border-subtle);
         overflow: hidden;
         box-shadow:
           0 24px 64px -16px rgba(43, 35, 32, 0.18),
@@ -262,8 +262,8 @@ interface LoginControls {
         flex: 1.05;
         position: relative;
         padding: 48px;
-        color: #FDFCFB;
-        background: linear-gradient(135deg, #0869C3 0%, #0A4373 60%, #06203B 100%);
+        color: var(--text-inverse);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-active) 60%, var(--azure-950) 100%);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -290,7 +290,7 @@ interface LoginControls {
         border: 1px solid rgba(255, 255, 255, 0.16);
         border-radius: 16px;
         backdrop-filter: blur(10px);
-        color: #D4B89F;
+        color: var(--bronze-300);
       }
       .logo-mark svg { width: 32px; height: 32px; }
       .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
@@ -342,8 +342,8 @@ interface LoginControls {
       .stat-icon {
         width: 40px; height: 40px;
         display: flex; align-items: center; justify-content: center;
-        background: linear-gradient(135deg, #D4B89F, #8B7355);
-        color: #06203B;
+        background: var(--gradient-bronze);
+        color: var(--azure-950);
         border-radius: 10px;
         font-size: 18px;
       }
@@ -362,7 +362,7 @@ interface LoginControls {
         padding: 8px 14px;
         font-size: 12px;
         font-weight: 500;
-        color: #D4B89F;
+        color: var(--bronze-300);
         background: rgba(212, 184, 159, 0.10);
         border: 1px solid rgba(212, 184, 159, 0.22);
         border-radius: 999px;
@@ -384,7 +384,7 @@ interface LoginControls {
         align-items: center;
         justify-content: center;
         padding: 48px;
-        background: #FDFCFB;
+        background: var(--bg-surface);
       }
       .form-container {
         width: 100%;
@@ -402,20 +402,20 @@ interface LoginControls {
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #0869C3;
+        color: var(--primary);
         background: linear-gradient(135deg, rgba(8, 105, 195, 0.10), rgba(8, 105, 195, 0.04));
         border: 1px solid rgba(8, 105, 195, 0.18);
         border-radius: 999px;
       }
-      .header-badge i { color: #A17C5B; font-size: 12px; }
+      .header-badge i { color: var(--accent); font-size: 12px; }
       .form-header h2 {
         margin: 0 0 6px;
         font-size: 28px;
         font-weight: 700;
         letter-spacing: -0.02em;
-        color: #2B2320;
+        color: var(--text-primary);
       }
-      .form-header p { margin: 0; font-size: 14px; color: #6B5D54; }
+      .form-header p { margin: 0; font-size: 14px; color: var(--text-secondary); }
 
       /* ─── Error ───────────────────────────────────────────────────────── */
       .error-alert {
@@ -437,13 +437,13 @@ interface LoginControls {
         width: 32px; height: 32px;
         display: flex; align-items: center; justify-content: center;
         background: rgba(193, 102, 107, 0.18);
-        color: #A8484D;
+        color: var(--error-500);
         border-radius: 8px;
         font-size: 16px;
         flex-shrink: 0;
       }
       .error-body { display: flex; flex-direction: column; gap: 2px; }
-      .error-title { font-size: 13px; font-weight: 600; color: #8B3338; }
+      .error-title { font-size: 13px; font-weight: 600; color: var(--error-600); }
       .error-text  { font-size: 12px; color: rgba(139, 51, 56, 0.85); }
 
       /* ─── Form fields ─────────────────────────────────────────────────── */
@@ -460,9 +460,9 @@ interface LoginControls {
         gap: 8px;
         font-size: 13px;
         font-weight: 500;
-        color: #4A413A;
+        color: var(--neutral-700);
       }
-      .field label i { color: #8C7E75; font-size: 14px; }
+      .field label i { color: var(--text-tertiary); font-size: 14px; }
 
       .field input,
       .input-with-toggle input {
@@ -470,9 +470,9 @@ interface LoginControls {
         height: 48px;
         padding: 0 16px;
         font-size: 14px;
-        color: #2B2320;
-        background: #FDFCFB;
-        border: 1.5px solid #DDD8D3;
+        color: var(--text-primary);
+        background: var(--bg-surface);
+        border: 1.5px solid var(--border-default);
         border-radius: 12px;
         outline: none;
         transition: border-color 180ms cubic-bezier(0.2, 0, 0, 1),
@@ -481,16 +481,16 @@ interface LoginControls {
         font-family: inherit;
       }
       .field input::placeholder,
-      .input-with-toggle input::placeholder { color: #B8ACA3; }
+      .input-with-toggle input::placeholder { color: var(--text-muted); }
 
       .field input:focus,
       .input-with-toggle input:focus {
-        border-color: #A17C5B;
-        background: #FAF8F5;
+        border-color: var(--accent);
+        background: var(--bronze-50);
         box-shadow: 0 0 0 4px rgba(161, 124, 91, 0.16);
       }
 
-      .field.has-error input { border-color: #C1666B; }
+      .field.has-error input { border-color: var(--error); }
       .field.has-error input:focus { box-shadow: 0 0 0 4px rgba(193, 102, 107, 0.16); }
 
       .input-with-toggle { position: relative; }
@@ -503,15 +503,15 @@ interface LoginControls {
         background: none;
         border: none;
         padding: 4px;
-        color: #8C7E75;
+        color: var(--text-tertiary);
         cursor: pointer;
         transition: color 180ms;
       }
-      .toggle-eye:hover { color: #A17C5B; }
+      .toggle-eye:hover { color: var(--accent); }
 
       .field-error {
         font-size: 12px;
-        color: #A8484D;
+        color: var(--error-500);
       }
 
       /* ─── Submit ──────────────────────────────────────────────────────── */
@@ -522,8 +522,8 @@ interface LoginControls {
         margin-top: 6px;
         font-size: 15px;
         font-weight: 600;
-        color: #FDFCFB;
-        background: linear-gradient(135deg, #0869C3 0%, #075596 100%);
+        color: var(--text-on-primary);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
         border: none;
         border-radius: 14px;
         cursor: pointer;
@@ -563,7 +563,7 @@ interface LoginControls {
         width: 18px;
         height: 18px;
         border: 2px solid rgba(255, 255, 255, 0.32);
-        border-top-color: #FDFCFB;
+        border-top-color: var(--text-on-primary);
         border-radius: 50%;
         animation: spin 700ms linear infinite;
       }
@@ -572,10 +572,10 @@ interface LoginControls {
       .form-footer {
         margin: 24px 0 0;
         padding-top: 18px;
-        border-top: 1px solid #EFEAE5;
+        border-top: 1px solid var(--border-subtle);
         text-align: center;
         font-size: 12px;
-        color: #8C7E75;
+        color: var(--text-tertiary);
       }
 
       /* ─── Responsive ──────────────────────────────────────────────────── */
@@ -635,6 +635,12 @@ export class LoginPage {
 
   protected togglePassword(): void {
     this.showPassword.update((v) => !v);
+  }
+
+  protected passwordToggleLabel(): string {
+    return this.showPassword()
+      ? $localize`:@@auth.login.password.hide:Hide password`
+      : $localize`:@@auth.login.password.show:Show password`;
   }
 
   async submit(): Promise<void> {

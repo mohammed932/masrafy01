@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../cubits/forgot_password_cubit.dart';
+import 'cubit/forgot_password/forgot_password_cubit.dart';
 
 class ForgotPasswordMobilePage extends StatefulWidget {
   const ForgotPasswordMobilePage({super.key});
@@ -22,12 +22,14 @@ class _ForgotPasswordMobilePageState extends State<ForgotPasswordMobilePage> {
   Widget build(BuildContext context) {
     return BlocConsumer<ForgotPasswordCubit, ForgotPasswordState>(
       listener: (ctx, state) {
-        if (state is ForgotPasswordFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is ForgotPasswordRequestingOtp;
+        final busy = state.isRequestingOtp;
         return Scaffold(
           appBar: AppBar(title: const Text('Forgot password')),
           body: Padding(
@@ -39,18 +41,30 @@ class _ForgotPasswordMobilePageState extends State<ForgotPasswordMobilePage> {
                   controller: _ctrl,
                   keyboardType: TextInputType.phone,
                   decoration: const InputDecoration(labelText: 'Mobile number'),
+                  onChanged: (v) => ctx.read<ForgotPasswordCubit>().updateField(
+                        ForgotPasswordField.phone,
+                        v.trim(),
+                      ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: busy
                       ? null
-                      : () => ctx.read<ForgotPasswordCubit>().requestOtp(
-                            phone: _ctrl.text.trim(),
-                            locale: Localizations.localeOf(ctx).languageCode == 'en' ? 'en' : 'ar',
-                          ),
+                      : () {
+                          final localeCode =
+                              Localizations.localeOf(ctx).languageCode == 'en'
+                                  ? 'en'
+                                  : 'ar';
+                          ctx
+                              .read<ForgotPasswordCubit>()
+                              .updateField(ForgotPasswordField.locale, localeCode);
+                          ctx.read<ForgotPasswordCubit>().requestOtp();
+                        },
                   child: busy
                       ? const SizedBox.square(
-                          dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Send code'),
                 ),
               ],
@@ -81,12 +95,14 @@ class _ForgotPasswordOtpPageState extends State<ForgotPasswordOtpPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<ForgotPasswordCubit, ForgotPasswordState>(
       listener: (ctx, state) {
-        if (state is ForgotPasswordFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is ForgotPasswordVerifying;
+        final busy = state.isVerifying;
         return Scaffold(
           appBar: AppBar(title: const Text('Verify code')),
           body: Padding(
@@ -99,17 +115,21 @@ class _ForgotPasswordOtpPageState extends State<ForgotPasswordOtpPage> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                   decoration: const InputDecoration(labelText: '6-digit code'),
+                  onChanged: (v) => ctx.read<ForgotPasswordCubit>().updateField(
+                        ForgotPasswordField.otpCode,
+                        v.trim(),
+                      ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: busy
                       ? null
-                      : () => ctx
-                          .read<ForgotPasswordCubit>()
-                          .verifyOtp(code: _ctrl.text.trim()),
+                      : () => ctx.read<ForgotPasswordCubit>().verifyOtp(),
                   child: busy
                       ? const SizedBox.square(
-                          dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Verify'),
                 ),
               ],
@@ -143,12 +163,14 @@ class _ForgotPasswordResetPageState extends State<ForgotPasswordResetPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<ForgotPasswordCubit, ForgotPasswordState>(
       listener: (ctx, state) {
-        if (state is ForgotPasswordFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is ForgotPasswordResetting;
+        final busy = state.isResetting;
         return Scaffold(
           appBar: AppBar(title: const Text('New password')),
           body: Padding(
@@ -162,6 +184,11 @@ class _ForgotPasswordResetPageState extends State<ForgotPasswordResetPage> {
                     controller: _pwd,
                     obscureText: true,
                     decoration: const InputDecoration(labelText: 'New password'),
+                    onChanged: (v) =>
+                        ctx.read<ForgotPasswordCubit>().updateField(
+                              ForgotPasswordField.newPassword,
+                              v,
+                            ),
                     validator: (v) {
                       if (v == null || v.length < 8) return 'min 8 chars';
                       if (!RegExp(r'[A-Za-z]').hasMatch(v)) return 'need a letter';
@@ -173,7 +200,8 @@ class _ForgotPasswordResetPageState extends State<ForgotPasswordResetPage> {
                   TextFormField(
                     controller: _confirm,
                     obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Confirm new password'),
+                    decoration:
+                        const InputDecoration(labelText: 'Confirm new password'),
                     validator: (v) => v == _pwd.text ? null : 'does not match',
                   ),
                   const SizedBox(height: 24),
@@ -182,11 +210,13 @@ class _ForgotPasswordResetPageState extends State<ForgotPasswordResetPage> {
                         ? null
                         : () {
                             if (!_formKey.currentState!.validate()) return;
-                            ctx.read<ForgotPasswordCubit>().reset(newPassword: _pwd.text);
+                            ctx.read<ForgotPasswordCubit>().reset();
                           },
                     child: busy
                         ? const SizedBox.square(
-                            dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('Reset password'),
                   ),
                 ],

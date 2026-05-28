@@ -1,7 +1,7 @@
 import { Controller, Get, Header, Param, UseGuards } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
+import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { EnumerationRegistryUnavailableException } from '@/common/errors/domain.exceptions';
 import {
   EnumerationMember,
@@ -11,16 +11,17 @@ import {
 
 /**
  * Mobile-facing read of the operator-managed enumeration registry.
- * Constitution Principle XIII: HMAC-only (no customer JWT) — these are
- * anonymous catalog reads required to render the wizard, onboarding,
- * and bank-program filters before the user has an account.
+ * Constitution v3.0.0 / Principle XIII: customer-JWT only — every reachable
+ * in-app feature, including the catalog reads used to render the wizard,
+ * onboarding, and bank-program filters, requires an authenticated customer.
  *
  * 5-minute Cache-Control header lets the Flutter client cache between
  * cold starts; the registry is read-mostly and operators update keys
  * in narrow windows.
  */
 @ApiTags('Mobile · Platform enumerations')
-@UseGuards(MobileHmacGuard)
+@ApiBearerAuth('CustomerBearerAuth')
+@UseGuards(CustomerJwtGuard)
 @SkipThrottle()
 @Controller('v1/platform-enumerations')
 export class MobilePlatformEnumerationsController {
@@ -31,7 +32,7 @@ export class MobilePlatformEnumerationsController {
   @ApiOperation({
     summary: 'List active members of an enumeration type (mobile)',
     description:
-      'HMAC-only catalog read. Returns 503 ENUMERATION_REGISTRY_UNAVAILABLE when the registry is unreachable.',
+      'Customer-JWT catalog read. Returns 503 ENUMERATION_REGISTRY_UNAVAILABLE when the registry is unreachable.',
   })
   async list(
     @Param('type') type: EnumerationType,

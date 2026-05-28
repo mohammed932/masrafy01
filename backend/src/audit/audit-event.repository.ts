@@ -3,6 +3,13 @@ import { Prisma, type AuditEvent } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 
+/**
+ * Domain payload type — kept free of `Prisma.JsonObject` so services do not
+ * have to import `@prisma/client` to call `audit.create()`. The repository
+ * casts at the Prisma boundary inside `create()`.
+ */
+export type AuditPayload = Record<string, unknown>;
+
 export interface CreateAuditInput {
   actorId: string | null;
   targetId: string | null;
@@ -10,7 +17,7 @@ export interface CreateAuditInput {
   eventType: AuditEventType;
   sourceIp: string | null;
   correlationId: string;
-  payload: Prisma.JsonObject;
+  payload: AuditPayload;
 }
 
 @Injectable()
@@ -30,7 +37,7 @@ export class AuditEventRepository {
         eventType: toPrismaAuditEventType(input.eventType),
         sourceIp: input.sourceIp ?? undefined,
         correlationId: input.correlationId,
-        payload: input.payload,
+        payload: input.payload as Prisma.JsonObject,
       },
     });
   }

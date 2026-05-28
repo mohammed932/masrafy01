@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService as NestJwtService } from '@nestjs/jwt';
-import type { StaffRole } from '@prisma/client';
+import type { StaffRole } from '@/common/enums/staff-role.enum';
 import type { JwtPayload } from '@/common/decorators/current-user.decorator';
 
 const ISS = 'masrafy-admin-api';

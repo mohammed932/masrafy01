@@ -75,12 +75,12 @@ on mobile.
 
 | Platform | Stack | Audience | Auth | Status |
 |----------|-------|----------|------|--------|
-| **Backend API** | NestJS + PostgreSQL + Prisma | Both clients | HMAC (mobile), JWT (admin) | 🟢 Active development |
+| **Backend API** | NestJS + PostgreSQL + Prisma | Both clients | JWT (mobile + admin, distinct signing keys) | 🟢 Active development |
 | **Admin Dashboard** | Angular 18+ standalone + Signals | Internal staff (admin, viewer, super_admin) | JWT bearer | 🟢 Active development |
-| **Mobile App** | Flutter + Clean Architecture | Egyptian end users | HMAC-signed requests | 🟡 Deferred — awaiting Figma |
+| **Mobile App** | Flutter + Clean Architecture | Egyptian end users | Customer JWT (access + refresh) | 🟡 Deferred — awaiting Figma |
 
 The backend MUST be designed to serve the future Flutter client. Mobile
-API endpoints (`/api/v1/*`) and HMAC authentication are built NOW even
+API endpoints (`/api/v1/*`) and customer JWT authentication are built NOW even
 though the Flutter client doesn't exist yet. The Postman collection serves
 as the mobile API consumer until Flutter is ready. Detailed Flutter UI
 principles are deferred to constitution amendment v2.0 post-Figma; the
@@ -148,7 +148,7 @@ localized user messages via a single canonical helper
 code requires same-PR updates to: backend `errorCodes.ts` constants,
 Angular Arabic + English localization files, Flutter Arabic + English
 ARB files. Error code naming: `DOMAIN_SPECIFIC_REASON` (e.g.,
-`DBR_EXCEEDED`, `INCOME_TOO_LOW`, `HMAC_NONCE_REPLAYED`,
+`DBR_EXCEEDED`, `INCOME_TOO_LOW`, `REFRESH_TOKEN_REUSED`,
 `BANK_PROGRAM_NOT_FOUND`, `NO_MATCHING_PROGRAMS`).
 
 ## IV. Arabic-First Internationalization (Frontend Platforms)
@@ -228,7 +228,7 @@ NestJS-specific principles below.
 
 ## IX. Feature Module Architecture
 Organize by domain feature, not technical layer. Required modules:
-- `auth/` — admin login, JWT issuance, HMAC verification middleware
+- `auth/` — admin login, JWT issuance + refresh-token rotation
 - `users/` — registered user accounts
 - `banks/` — BankProgram CRUD, eligibility config, pricing tiers
 - `applications/` — user loan applications, wizard data capture
@@ -273,39 +273,39 @@ separate from DTOs. Leaking Prisma types through controllers = review
 block.
 
 ## XIII. Dual Authentication, No Compromise
-Mobile API (`/api/v1/*`) requires HMAC-SHA256 signing in production with
-three headers: `X-App-Signature`, `X-Timestamp`, `X-Nonce`. Timestamp
-drift tolerance ±5 minutes. Nonce cache in Redis prevents replay attacks
-within window (TTL = 5 minutes). HMAC verification uses constant-time
-comparison. Admin API (`/api/admin/*`) uses JWT: 15-minute access token +
-7-day refresh token (httpOnly secure cookie). Admin passwords hashed with
-bcrypt cost ≥ 12, `select: false` in Prisma schema so they're never
-returned in queries. Skipping HMAC outside development = review block.
-Failed login attempts trigger progressive lockout.
+Two API surfaces. Both use JWT — no HMAC, no shared-secret signing,
+no nonce cache. (HMAC was removed in v3.0.0; the mobile client and the
+backend rely solely on customer JWT + refresh-token rotation.)
 
-**Customer-facing mobile auth (v1.8.0, supersedes v1.7.0 guest-mode language):**
-`/api/v1/auth/*` endpoints (`signup`, `login`, `refresh`, `logout`, `me`,
-plus the SOCIAL sign-in + Complete-Profile endpoints introduced by
-feature 008-mobile-auth-apply) layer a customer JWT on top of HMAC
-pinning — 15-minute access token + 30-day refresh token (NOT a cookie;
-mobile clients receive both as response-body strings and store them in
-`flutter_secure_storage`). Customer JWT signing keys are separate from
-admin JWT signing keys (env: `CUSTOMER_JWT_ACCESS_SECRET`,
-`CUSTOMER_JWT_REFRESH_SECRET`). Customer passwords hashed with bcrypt
-cost ≥ 12 and `select: false` like admin. There are two registration
-paths: PHONE-signup (mobile + OTP + name + email + password + age
-upfront — fully populated customer) and SOCIAL sign-in (Google / Apple
-— lite customer on first sign-in, with mobile + OTP + email + age
-completed via a mandatory loan-request popup before the customer can
-submit a loan application). Every reachable in-app feature
+**Admin API (`/api/admin/*`)** uses JWT: 15-minute access token + 7-day
+refresh token (httpOnly secure cookie). Admin passwords hashed with
+bcrypt cost ≥ 12, `select: false` in Prisma schema so they're never
+returned in queries. Failed login attempts trigger progressive lockout.
+
+**Mobile API (`/api/v1/*`)** uses customer JWT: 15-minute access token +
+30-day refresh token. Mobile clients receive both tokens as
+response-body strings (NOT cookies — mobile clients lack the cookie
+jar contract) and store them in `flutter_secure_storage`. Customer
+JWT signing keys are separate from admin JWT signing keys (env:
+`CUSTOMER_JWT_ACCESS_SECRET`, `CUSTOMER_JWT_REFRESH_SECRET`).
+Customer passwords hashed with bcrypt cost ≥ 12 and `select: false`
+like admin. Refresh-token rotation: each refresh issues a new access
++ refresh pair; the prior refresh token is invalidated server-side
+(opaque-token registry keyed by `jti`). Stolen-token detection: reusing
+an already-rotated refresh token revokes the entire session family.
+
+Two registration paths: PHONE-signup (mobile + OTP + name + email +
+password + age upfront — fully populated customer) and SOCIAL sign-in
+(Google / Apple — lite customer on first sign-in, with mobile + OTP +
+email + age completed via a mandatory loan-request popup before the
+customer can submit a loan application). Every reachable in-app feature
 (catalog, enumerations, questionnaire, matching, loan request, account
-screens) requires BOTH layers — HMAC headers AND a valid customer
-Bearer JWT. There is NO anonymous catalog access and NO guest
-application flow; consequently the previously-mentioned 24-hour
-`mobileClientId` claim endpoint is REMOVED from the platform and MUST
-NOT be implemented. Failed customer login attempts trigger 30-minute
-account lockout after 10 failures within a 15-minute window. Forgot-
-password is PHONE-only; SOCIAL customers recover via their provider.
+screens) requires a valid customer Bearer JWT — no anonymous catalog
+access, no guest application flow. The v1.7.0 24-hour `mobileClientId`
+claim endpoint is REMOVED and MUST NOT be implemented. Failed customer
+login attempts trigger 30-minute account lockout after 10 failures
+within a 15-minute window. Forgot-password is PHONE-only; SOCIAL
+customers recover via their provider.
 
 ## XIV. API Contract Standards
 All HTTP endpoints use typed DTO classes. All responses follow envelope:
@@ -694,9 +694,9 @@ When the Flutter project starts, it MUST use:
 - **State management**: Cubit + Freezed. One Cubit per screen. Pure data logic (validators, request builders, derived flags) lives on the state class.
 - **Per-Flow Page Library Pattern**: `presentation/pages/` and `presentation/pages/widgets/` use `<feature>_pages.imports.dart` library with `part` directives — zero imports inside page/widget files.
 - **DI**: `get_it` + `injectable` code-generated via `build_runner`.
-- **Network**: Dio with HMAC-signing interceptor reading secret from `flutter_secure_storage`. HMAC secret NEVER in code, assets, environment files, or `shared_preferences`.
+- **Network**: Dio with customer-JWT bearer interceptor + silent refresh-token rotation on 401 token-expired. Access + refresh tokens stored ONLY in `flutter_secure_storage` — never in code, assets, environment files, or `shared_preferences`. Reusing a rotated refresh token must trigger session-family revoke (server-enforced).
 - **Routing**: `auto_route` v9+.
-- **Persistence**: `shared_preferences` (non-sensitive), `flutter_secure_storage` (HMAC secret, tokens). Keys in `StorageKeys` enum.
+- **Persistence**: `shared_preferences` (non-sensitive), `flutter_secure_storage` (JWT access + refresh tokens, sensitive session flags). Keys in `StorageKeys` enum.
 - **Three flavors**: `main_dev.dart`, `main_staging.dart`, `main_prod.dart` — each loads a distinct `BaseEnvironment`. `AppEnv` registered as singleton.
 - **Typed payloads end-to-end**: Request DTOs are typed Dart classes — never `Map<String, dynamic>` past the datasource. Domain entities typed — never `dynamic` past the repository. Enums for finite states.
 - **Typed errors**: Exceptions at boundary → `Failure` subtypes (`ServerFailure`, `NetworkFailure`, `ValidationFailure`, `EligibilityFailure`, `DbrExceededFailure`). Repository wraps datasource call with single error-translation helper (`ApiHandler.callApi`). `Either<Failure, T>` flows up; UI consumes `failure.userFacingMessage`.
@@ -796,7 +796,7 @@ into production use.
 Every mobile feature MUST mirror `mobile/lib/features/<name>/{data,domain,presentation}`.
 
 - **data/datasources/**: exactly one concrete `<Name>RemoteDatasource`,
-  registered with `get_it`. The datasource accepts a `Dio` (HMAC + customer
+  registered with `get_it`. The datasource accepts a `Dio` (customer
   JWT interceptors are already wired by the shared `DioFactory`).
 - **data/models/**: wire-format DTOs with `fromJson` / `toJson`. Class
   names end in `Model` (response DTOs) or `Request` (write-only payloads).
@@ -1275,7 +1275,7 @@ trigger explicit so review can enforce promotion at the right moment.
 - `@nestjs/config` with Zod-validated env schema, fail-fast at boot
 - Pino-compatible structured logging
 - Docker multi-stage build, non-root user, slim runtime image
-- Redis for rate limiting and HMAC nonce cache
+- Redis for rate limiting, login-lockout sliding-window counters, and (future) refresh-token revoke broadcasts
 - S3-compatible object storage (AWS S3, Cloudflare R2, or MinIO) for documents
 - ESLint + Prettier with shared config; `tsc --noEmit` in CI
 
@@ -1333,8 +1333,9 @@ Modifying `schema.prisma` and using `db push` to apply = review block. Always `m
 ## A8. Leaking Prisma Types Through Controllers (Principle XII)
 Controller returning `Prisma.BankProgramGetPayload<...>` = review block. Map to DTO.
 
-## A9. Skipping HMAC in Mobile Tests (Principle XIII)
-Mobile API integration tests bypassing HMAC = review block.
+## A9. Reserved (was: Skipping HMAC in Mobile Tests — retired v3.0.0)
+HMAC was removed platform-wide in v3.0.0. Slot reserved to keep
+downstream anti-pattern IDs stable.
 
 ## A10. NgModules in New Angular Code (Principle XVII)
 Any new `*.module.ts` in Angular code outside third-party interop = review block.
@@ -1375,8 +1376,8 @@ Bypassing `HttpClient` with `fetch()` = review block.
 ## A22. Per-Component Error Message Mapping (Principle III)
 Local `mapErrorToMessage` helper in components or services other than the central `ErrorCodeService` = review block.
 
-## A23. HMAC Secret Outside Secure Storage (Principle XXVIII)
-HMAC secret in code, asset files, environment files, or `shared_preferences` = review block. Only `flutter_secure_storage`.
+## A23. JWT Tokens Outside Secure Storage (Principle XXVIII, restated v3.0.0)
+Customer JWT access or refresh token persisted in code, asset files, environment files, or `shared_preferences` = review block. Only `flutter_secure_storage`. (HMAC predecessor was retired in v3.0.0 along with the shared-secret signing model.)
 
 ## A24. Approval Probability Without Documented Weights (Principle V)
 Changing approval probability scoring without recording weight changes in the PR description with historical-impact analysis = review block. (Test artifacts not mandated post-v1.2.0; PR description carries the rationale.)
@@ -1418,7 +1419,8 @@ Any datasource, repository, usecase, or cubit method on the Flutter client that 
 | 1.8.0 | 2026-05-26 | MINOR | Principle XIII rewrite: guest mode removed; two-path registration (PHONE upfront + SOCIAL lite + mandatory loan-request popup); claim endpoint deleted; login lockout codified. |
 | 1.8.1 | 2026-05-27 | PATCH | Principle XXX method-arity rule (>2 params → typed Request DTO). Anti-pattern A28. |
 | 2.0.0 | 2026-05-28 | MAJOR | Structural reorganization into Part I (Cross-Platform) / II (Backend NestJS) / III (Admin Angular) / IV (Mobile Flutter). New normative sub-sections: NestJS Clean Code Structure + Angular Clean Code Structure. No principle removed or redefined. |
+| 3.0.0 | 2026-05-28 | MAJOR | Principle XIII redefined: HMAC-SHA256 signing model REMOVED platform-wide. Mobile API (`/api/v1/*`) is JWT-only — customer access (15min) + refresh (30d) with server-side rotation + reuse detection. Principle XXVIII Network bullet updated (Dio + bearer + silent refresh, no HMAC interceptor). Brand primary swapped from `#06152D` to `#0869C3` (azure). Anti-Pattern A9 retired (slot reserved). A23 restated for JWT secrets in secure storage. |
 
 ---
 
-**Version**: 2.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-28
+**Version**: 3.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-28

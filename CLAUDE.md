@@ -6,7 +6,7 @@ Auto-generated from feature plans + constitution. Last updated: 2026-05-28
 
 **Masrafy** (internally "Credit Match") — Egyptian fintech loan comparison marketplace. Connects users with 20+ bank loan programs (ABK Egypt + partners) via 5-step wizard + matching engine. Four product lines: personal loans, car loans, mortgages, business loans. Free for users; commission revenue from banks. Three platforms governed by a single constitution: NestJS backend (active), Angular admin dashboard (active), Flutter mobile app (deferred until Figma).
 
-Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v2.0.0
+Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v3.0.0
 
 **Product scope-lock (v1.7.0 / Principle II):** Platform supports exactly four retail loan categories — `personal`, `car`, `mortgage`, `business`. Removing a category requires a destructive migration that physically wipes registry entry, bank programs, and all applications + cascade (offers / decisions / activities / documents). Ghost / soft-deactivated rows = review block. Adding a fifth requires a constitution amendment (A26).
 
@@ -42,7 +42,7 @@ Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 ### Infrastructure
 
 - PostgreSQL 16 (Prisma migrations only — `db push` forbidden in prod)
-- Redis 7 (rate limit, lockout sliding-window counters, future HMAC nonces)
+- Redis 7 (rate limit, lockout sliding-window counters, future refresh-token revoke broadcasts)
 - S3-compatible object storage (future feature)
 - Docker multi-stage builds, non-root user
 
@@ -116,7 +116,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **X — Repository Pattern**: services NEVER touch Prisma directly. Use `*.repository.ts`.
 - **XI — Prisma Migrate Only**: `db push` forbidden in prod. Named migrations; indexes on FKs + hot WHERE/ORDER BY.
 - **XII — DTO vs Entity**: `class-validator` DTOs; Prisma types stay in repositories. Global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })`.
-- **XIII — Dual Auth (v1.8.0)**: Mobile API HMAC on every request; Admin JWT (15 min access + 7-day refresh httpOnly cookie); **Customer JWT** layered on HMAC for `/api/v1/auth/*` + every reachable in-app feature (catalog, enumerations, questionnaire, matching, loan request, account screens) — 15 min access + 30-day refresh, response-body strings (not cookies); separate signing keys `CUSTOMER_JWT_ACCESS_SECRET` / `CUSTOMER_JWT_REFRESH_SECRET`; bcrypt cost ≥ 12 with `select: false`. Two registration paths: PHONE-signup (fully upfront) + SOCIAL sign-in (lite at sign-in, completed via mandatory loan-request popup). NO guest mode. The v1.7.0 24-hour `mobileClientId` claim endpoint is REMOVED and MUST NOT be implemented. Login lockout: 10 failures / 15 min → 30 min. Forgot-password PHONE-only.
+- **XIII — Dual Auth (v3.0.0)**: JWT-only across both API surfaces — HMAC removed platform-wide. Admin JWT (15 min access + 7-day refresh httpOnly cookie). **Customer JWT** on `/api/v1/*` — 15 min access + 30-day refresh, response-body strings (not cookies), stored ONLY in `flutter_secure_storage`. Server-side refresh rotation + reuse detection: replaying a rotated refresh token revokes the session family. Separate signing keys `CUSTOMER_JWT_ACCESS_SECRET` / `CUSTOMER_JWT_REFRESH_SECRET`; bcrypt cost ≥ 12 with `select: false`. Two registration paths: PHONE-signup (fully upfront) + SOCIAL sign-in (lite at sign-in, completed via mandatory loan-request popup). NO guest mode. The v1.7.0 24-hour `mobileClientId` claim endpoint is REMOVED and MUST NOT be implemented. Login lockout: 10 failures / 15 min → 30 min. Forgot-password PHONE-only.
 - **XIV — API Contract**: envelope `{ success, data, pagination? }`; versioned (`/api/v1/`, `/api/admin/`); OpenAPI at `/api/docs`.
 - **XV — Rate Limiting**: `@nestjs/throttler` with Redis backing.
 - **XVI — Placeholder**: no constitutional testing requirements (v1.2.0).
@@ -135,9 +135,9 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **XXVI — HTTP Discipline**: `HttpClient` only (no `fetch()`); interceptors for auth / error / correlation / toast.
 - **XXVII — Placeholder**: no constitutional testing requirements (v1.2.0).
 
-### Flutter (Mobile — v1.8.0 ratified)
+### Flutter (Mobile — v3.0.0)
 
-- **XXVIII — Clean Architecture + Cubit/Freezed (skeleton)**: data/domain/presentation per feature; HMAC secret only in `flutter_secure_storage`; `auto_route` v9+; design tokens in `MasrafyColorTheme` (`#0869C3`).
+- **XXVIII — Clean Architecture + Cubit/Freezed (skeleton)**: data/domain/presentation per feature; customer JWT access + refresh tokens only in `flutter_secure_storage` (no HMAC, no shared-secret); Dio bearer interceptor + silent refresh on 401; `auto_route` v9+; design tokens in `MasrafyColorTheme` (`#0869C3` azure).
 - **XXX — Three-Layer Feature Architecture**: `mobile/lib/features/<name>/{data,domain,presentation}`. Models stay in data; entities returned by repositories; `Either<Failure, T>` from every repo method.
 - **XXXI — Cubit + Freezed State Management**: one cubit per screen by default; multi-field forms use `updateField(FieldEnum, Object)` with exhaustive switch; cubits are orchestration-only (data logic on the Freezed state); cross-feature cubit sharing forbidden.
 - **XXXII — Per-Flow Page Library Pattern**: `presentation/pages/<flow>/<flow>.imports.dart` owns flow's imports; screen files are `part of` it; flow-local widgets under `<flow>/widgets/`; feature-shared widgets under `pages/widgets/`; one widget per file.
@@ -155,7 +155,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A6** Mutable BankOffer after match
 - **A7** Schema via `db push`
 - **A8** Leaking Prisma types through controllers
-- **A9** Skipping HMAC in mobile tests
+- **A9** Reserved — was "Skipping HMAC in mobile tests", retired v3.0.0 (HMAC removed)
 - **A10** NgModules in new Angular code
 - **A11** `BehaviorSubject` for component state
 - **A12** Old `*ng*` control flow
@@ -169,7 +169,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A20** Hardcoded user-visible strings
 - **A21** Manual `fetch()` in Angular
 - **A22** Per-component error message mapping
-- **A23** HMAC secret outside secure storage
+- **A23** JWT access/refresh token outside `flutter_secure_storage` (restated v3.0.0)
 - **A24** Approval probability without documented weights
 - **A25** Half-updated dependents (cross-surface drift) — Principle XXIX
 - **A26** Fifth retail loan category without amendment / ghost rows after removal (Principle II scope-lock, v1.5.0 → v1.6.0 → v1.7.0)
@@ -177,6 +177,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A28** Mobile datasource/repository/usecase/cubit method with >2 params NOT promoted to a typed `<Name>Request` DTO (Principle XXX, v1.8.1)
 
 ## Recent Changes
+- 2026-05-28 (v3.0.0): MAJOR — Principle XIII redefined. HMAC-SHA256 signing model REMOVED platform-wide. Mobile API (`/api/v1/*`) is JWT-only — customer access (15 min) + refresh (30 days) with server-side rotation + reuse detection. Principle XXVIII Network bullet replaced (Dio + bearer interceptor + silent refresh on 401, no HMAC interceptor). Brand primary `#06152D` (deep navy) → `#0869C3` (azure blue) — same MAJOR bump bundled the two redefinitions. Anti-pattern A9 retired (slot reserved). A23 restated to cover JWT tokens in secure storage instead of HMAC secret.
 - 2026-05-28 (v2.0.0): MAJOR restructuring. Constitution split into 4 explicit Parts (Cross-Platform / Backend NestJS / Admin Angular / Mobile Flutter). Two new normative sub-sections added: **NestJS Clean Code Structure** (file layout, single-responsibility, ValidationPipe + Zod env, transactional writes, OpenAPI, no magic strings, path aliases) and **Angular Clean Code Structure** (feature-folder layout, smart/presentational split, Signals + new control flow, inject() DI, typed reactive forms, design tokens, logical CSS, functional guards + lazy routes, one-concern-per-service, path aliases). No principle removed or redefined. Pilot100 Flutter alignment maintained.
 - 2026-05-27 (v1.8.1): Principle XXX extended with the **method-arity rule** — Flutter datasource / repository / usecase / cubit methods taking >2 params MUST accept a single typed `<Name>Request` DTO (not separate named/positional params). Anti-Pattern A28 enforces it. Pilot100-aligned. Two-or-fewer params remain named. PATCH bump.
 - 2026-05-26 (v1.8.0): Principle XIII rewritten. Guest mode REMOVED platform-wide; every reachable in-app feature now requires HMAC + customer JWT. v1.7.0 24-hour claim endpoint deleted. Two registration paths codified: PHONE-signup (fully upfront) + SOCIAL sign-in (lite + mandatory loan-request popup). Mobile + `mobileVerifiedAt` immutable on first OTP-verified write; email + age (SOCIAL) atomic with first loan submission. Login lockout 10/15min → 30min. Forgot-password PHONE-only. Feature 008-mobile-auth-apply ratifies this model.

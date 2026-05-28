@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { AttemptOutcome, type Prisma, type SignInAttempt } from '@prisma/client';
+import type { Prisma, AttemptOutcome as PrismaAttemptOutcome, SignInAttempt } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import { AttemptOutcome } from './dto/enums';
 
 export interface RecordSignInAttemptInput {
   userId: string | null;
@@ -24,7 +25,7 @@ export class SignInAttemptRepository {
       data: {
         userId: input.userId,
         emailAttempted: input.emailAttempted,
-        outcome: input.outcome,
+        outcome: input.outcome as unknown as PrismaAttemptOutcome,
         sourceIp: input.sourceIp,
         userAgent: input.userAgent ?? null,
         correlationId: input.correlationId,

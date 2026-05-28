@@ -1,14 +1,16 @@
-import { Controller, Get, Param } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { ok } from '../common/pagination/paginated.response.dto';
 import { BankProgramsMobileService } from './bank-programs.mobile.service';
 
 /**
- * Mobile read-only catalog endpoints. Future HMAC middleware (Principle XIII) wraps
- * this controller. For Phase 7 MVP the controller is mounted under /api/mobile/v1
- * without HMAC enforcement — middleware lands when the Flutter client ships.
+ * Mobile read-only catalog endpoints. Constitution v3.0.0 / Principle XIII —
+ * every reachable in-app feature requires a valid customer Bearer JWT.
  */
 @ApiTags('bank-programs-mobile')
+@ApiBearerAuth('CustomerBearerAuth')
+@UseGuards(CustomerJwtGuard)
 @Controller('mobile/v1/bank-programs')
 export class BankProgramsMobileController {
   constructor(private readonly service: BankProgramsMobileService) {}

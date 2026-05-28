@@ -9,12 +9,11 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
-import { OptionalCustomerJwtGuard } from '@/customer-auth/guards/optional-customer-jwt.guard';
+import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { SupportService } from './support.service';
 import {
@@ -23,14 +22,12 @@ import {
   SupportRequestResponseDto,
 } from './dto/support.dto';
 
-type MobileSupportRequest = Request & {
-  mobileClientId?: string;
-  customerId?: string;
-};
+type MobileSupportRequest = Request;
 
 @ApiTags('Mobile · Support')
+@ApiBearerAuth('CustomerBearerAuth')
 @Controller('v1/support')
-@UseGuards(MobileHmacGuard, OptionalCustomerJwtGuard)
+@UseGuards(CustomerJwtGuard)
 export class MobileSupportController {
   constructor(private readonly svc: SupportService) {}
 
@@ -48,22 +45,24 @@ export class MobileSupportController {
   @ApiOperation({
     summary: 'Customer-initiated support request',
     description:
-      'Logs the customer\'s "Need Help" tap with the channel they chose. Customer JWT is optional — guest applications can still raise a ticket.',
+      'Logs the customer\'s "Need Help" tap with the channel they chose. Requires a valid customer JWT (Constitution v3.0.0 / Principle XIII).',
   })
   async create(
     @Body() body: CreateSupportRequestDto,
     @Req() req: MobileSupportRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: SupportRequestResponseDto }> {
-    if (!req.mobileClientId) {
-      throw new Error('HMAC guard did not attach mobileClientId');
+    const user = (req as Request & { user?: { sub?: string } }).user;
+    const customerId = user?.sub;
+    if (!customerId) {
+      throw new Error('customer JWT guard did not attach req.user.sub');
     }
     const data = await this.svc.createMobileRequest({
       channel: body.channel,
       applicationId: body.applicationId,
       note: body.note,
-      customerId: req.customerId ?? null,
-      mobileClientId: req.mobileClientId,
+      customerId,
+      mobileClientId: customerId,
       ctx: { sourceIp: req.ip ?? null, correlationId },
     });
     return ok(data);

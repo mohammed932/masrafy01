@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import cuid from 'cuid';
+// Constitution Principle X carve-out: `Prisma.TransactionIsolationLevel` is a
+// runtime value required for `$transaction` orchestration. All other Prisma
+// types are gone — the repo accepts the domain `meta` payload as plain JSON.
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import { AuditEventType } from '@/common/audit/audit-event-types';
@@ -17,7 +20,7 @@ import {
 } from '@/common/errors/domain.exceptions';
 import { DocumentsService } from '@/documents/documents.service';
 import { stripPiiFromFilename } from '@/documents/filename-pii';
-import { ActivitiesRepository } from './activities.repository';
+import { ActivitiesRepository, type ActivityMeta } from './activities.repository';
 import { ACTIVITY_REASONS, validateActivityReason } from './activity-reasons';
 import type {
   AttachedDocumentPayloadDto,
@@ -171,7 +174,7 @@ export class ActivitiesService {
             outcomeFlags: request.outcomeFlags ?? [],
             followUpAt: request.followUpAt ? new Date(request.followUpAt) : null,
             attachedDocumentIds: persistedDocs.map((d) => d.id),
-            meta: (request.meta as Prisma.InputJsonValue) ?? null,
+            meta: (request.meta as ActivityMeta) ?? null,
             correlationId,
           },
           tx,

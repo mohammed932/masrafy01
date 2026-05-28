@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../cubits/phone_signup_cubit.dart';
+import 'cubit/phone_signup/phone_signup_cubit.dart';
 
 /// Step 1 — mobile entry.
 class PhoneSignupMobilePage extends StatefulWidget {
@@ -23,12 +23,14 @@ class _PhoneSignupMobilePageState extends State<PhoneSignupMobilePage> {
   Widget build(BuildContext context) {
     return BlocConsumer<PhoneSignupCubit, PhoneSignupState>(
       listener: (ctx, state) {
-        if (state is PhoneSignupFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is PhoneSignupRequestingOtp;
+        final busy = state.isRequestingOtp;
         return Scaffold(
           appBar: AppBar(title: const Text('Sign up — Mobile')),
           body: Padding(
@@ -43,15 +45,30 @@ class _PhoneSignupMobilePageState extends State<PhoneSignupMobilePage> {
                     labelText: 'Mobile number',
                     hintText: '+201001234567',
                   ),
+                  onChanged: (v) => ctx.read<PhoneSignupCubit>().updateField(
+                        PhoneSignupField.phone,
+                        v.trim(),
+                      ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: busy ? null : () => ctx.read<PhoneSignupCubit>().requestOtp(
-                        phone: _ctrl.text.trim(),
-                        locale: Localizations.localeOf(ctx).languageCode == 'en' ? 'en' : 'ar',
-                      ),
+                  onPressed: busy
+                      ? null
+                      : () {
+                          final localeCode =
+                              Localizations.localeOf(ctx).languageCode == 'en'
+                                  ? 'en'
+                                  : 'ar';
+                          ctx
+                              .read<PhoneSignupCubit>()
+                              .updateField(PhoneSignupField.locale, localeCode);
+                          ctx.read<PhoneSignupCubit>().requestOtp();
+                        },
                   child: busy
-                      ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Send code'),
                 ),
               ],
@@ -83,12 +100,14 @@ class _PhoneSignupOtpPageState extends State<PhoneSignupOtpPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<PhoneSignupCubit, PhoneSignupState>(
       listener: (ctx, state) {
-        if (state is PhoneSignupFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is PhoneSignupVerifyingOtp;
+        final busy = state.isVerifyingOtp;
         return Scaffold(
           appBar: AppBar(title: const Text('Verify code')),
           body: Padding(
@@ -101,12 +120,21 @@ class _PhoneSignupOtpPageState extends State<PhoneSignupOtpPage> {
                   keyboardType: TextInputType.number,
                   maxLength: 6,
                   decoration: const InputDecoration(labelText: '6-digit code'),
+                  onChanged: (v) => ctx.read<PhoneSignupCubit>().updateField(
+                        PhoneSignupField.otpCode,
+                        v.trim(),
+                      ),
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
-                  onPressed: busy ? null : () => ctx.read<PhoneSignupCubit>().verifyOtp(code: _ctrl.text.trim()),
+                  onPressed: busy
+                      ? null
+                      : () => ctx.read<PhoneSignupCubit>().verifyOtp(),
                   child: busy
-                      ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : const Text('Verify'),
                 ),
               ],
@@ -148,12 +176,14 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
   Widget build(BuildContext context) {
     return BlocConsumer<PhoneSignupCubit, PhoneSignupState>(
       listener: (ctx, state) {
-        if (state is PhoneSignupFailure) {
-          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(state.error.toString())));
+        if (state.isFailure) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(state.error!.code)),
+          );
         }
       },
       builder: (ctx, state) {
-        final busy = state is PhoneSignupSubmittingProfile;
+        final busy = state.isSubmittingProfile;
         return Scaffold(
           appBar: AppBar(title: const Text('Your details')),
           body: SingleChildScrollView(
@@ -166,13 +196,24 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                   TextFormField(
                     controller: _name,
                     decoration: const InputDecoration(labelText: 'Full name'),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'required' : null,
+                    onChanged: (v) =>
+                        ctx.read<PhoneSignupCubit>().updateField(
+                              PhoneSignupField.name,
+                              v.trim(),
+                            ),
+                    validator: (v) =>
+                        (v == null || v.trim().isEmpty) ? 'required' : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(labelText: 'Email'),
+                    onChanged: (v) =>
+                        ctx.read<PhoneSignupCubit>().updateField(
+                              PhoneSignupField.email,
+                              v.trim(),
+                            ),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) return 'required';
                       if (!v.contains('@')) return 'invalid';
@@ -186,10 +227,17 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                     decoration: InputDecoration(
                       labelText: 'Password',
                       suffixIcon: IconButton(
-                        icon: Icon(_showPwd ? Icons.visibility_off : Icons.visibility),
+                        icon: Icon(_showPwd
+                            ? Icons.visibility_off
+                            : Icons.visibility),
                         onPressed: () => setState(() => _showPwd = !_showPwd),
                       ),
                     ),
+                    onChanged: (v) =>
+                        ctx.read<PhoneSignupCubit>().updateField(
+                              PhoneSignupField.password,
+                              v,
+                            ),
                     validator: (v) {
                       if (v == null || v.length < 8) return 'min 8 chars';
                       if (!RegExp(r'[A-Za-z]').hasMatch(v)) return 'need a letter';
@@ -201,7 +249,8 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                   TextFormField(
                     controller: _pwdConfirm,
                     obscureText: !_showPwd,
-                    decoration: const InputDecoration(labelText: 'Confirm password'),
+                    decoration:
+                        const InputDecoration(labelText: 'Confirm password'),
                     validator: (v) => v == _pwd.text ? null : 'does not match',
                   ),
                   const SizedBox(height: 12),
@@ -209,6 +258,14 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                     controller: _age,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(labelText: 'Age'),
+                    onChanged: (v) {
+                      final n = int.tryParse(v);
+                      if (n != null) {
+                        ctx
+                            .read<PhoneSignupCubit>()
+                            .updateField(PhoneSignupField.age, n);
+                      }
+                    },
                     validator: (v) {
                       final n = int.tryParse(v ?? '');
                       if (n == null || n < 18 || n > 80) return '18–80';
@@ -221,15 +278,13 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                         ? null
                         : () {
                             if (!_formKey.currentState!.validate()) return;
-                            ctx.read<PhoneSignupCubit>().completeProfile(
-                                  name: _name.text.trim(),
-                                  email: _email.text.trim(),
-                                  password: _pwd.text,
-                                  age: int.parse(_age.text),
-                                );
+                            ctx.read<PhoneSignupCubit>().completeProfile();
                           },
                     child: busy
-                        ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : const Text('Create account'),
                   ),
                 ],

@@ -1,8 +1,9 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Persists the customer-JWT access + refresh tokens between launches.
-/// Tokens land in `flutter_secure_storage` per Constitution Principle XXVIII
-/// (HMAC secret rule extended to all customer auth material).
+/// Tokens land in `flutter_secure_storage` per Constitution Principle
+/// XXVIII (v3.0.0 Network bullet) and Anti-Pattern A23 — never in
+/// `shared_preferences`, asset files, or code.
 class CustomerSessionStorage {
   CustomerSessionStorage(this._storage);
 

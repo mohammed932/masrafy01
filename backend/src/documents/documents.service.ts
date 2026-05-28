@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import cuid from 'cuid';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client'; // Prisma.TransactionClient only — transaction orchestration carve-out per Constitution Principle X.
 import {
   DocumentNotFoundException,
   DocumentNotPendingException,
@@ -21,7 +21,7 @@ import {
 import { DocumentsRepository } from './documents.repository';
 import { S3StorageClient } from './s3-storage.client';
 import { stripPiiFromFilename } from './filename-pii';
-import type { StaffRole } from '@prisma/client';
+import type { StaffRole } from '@/common/enums/staff-role.enum';
 
 export interface RequestUploadUrlInput {
   applicationId: string;

@@ -5,7 +5,6 @@ import { PassportModule } from '@nestjs/passport';
 import { AuditModule } from '@/audit/audit.module';
 import { AuthModule } from '@/auth/auth.module';
 import { InfraModule } from '@/infra/infra.module';
-import { MobileHmacGuard } from '@/applications/guards/mobile-hmac.guard';
 import { CustomerAuthService } from './customer-auth.service';
 import { CustomerAuthController } from './customer-auth.controller';
 import { AdminCustomerAccountsController } from './admin-customer-accounts.controller';
@@ -16,8 +15,6 @@ import { CustomerRefreshTokenService } from './customer-refresh-token.service';
 import { CustomerJwtTokenService } from './customer-jwt-token.service';
 import { CustomerJwtStrategy } from './customer-jwt.strategy';
 import { CustomerJwtGuard } from './guards/customer-jwt.guard';
-import { CustomerHmacJwtGuard } from './guards/customer-hmac-jwt.guard';
-import { OptionalCustomerJwtGuard } from './guards/optional-customer-jwt.guard';
 // Feature 008 — Two-Path Registration providers.
 import { CustomerAuthMobileService } from './customer-auth-mobile.service';
 import { OtpChallengeRepository } from './otp-challenge.repository';
@@ -35,16 +32,13 @@ import { SMS_GATEWAY } from './sms/sms-gateway.interface';
 import { MockSmsGateway } from './sms/mock-sms-gateway.service';
 
 /**
- * Customer-facing mobile auth (v1.7.0 / Principle XIII).
+ * Customer-facing mobile auth (Constitution v3.0.0 / Principle XIII).
  *
  * Reuses `AuthModule`'s `PasswordService` (bcrypt + HIBP + common-list
  * policy) so customer accounts get the same password protection floor as
  * staff accounts. JWT secrets are separate from admin so a stolen admin
- * token can never authenticate a mobile flow.
- *
- * Mobile-only routes require HMAC pinning via the dedicated
- * `ApplicationsHmacModule` (provides `MobileHmacGuard` without dragging in
- * the entire applications module's request graph).
+ * token can never authenticate a mobile flow. Mobile API authentication
+ * is JWT-only — HMAC signing was removed in v3.0.0.
  */
 @Module({
   imports: [
@@ -70,9 +64,6 @@ import { MockSmsGateway } from './sms/mock-sms-gateway.service';
     CustomerJwtTokenService,
     CustomerJwtStrategy,
     CustomerJwtGuard,
-    CustomerHmacJwtGuard,
-    OptionalCustomerJwtGuard,
-    MobileHmacGuard,
     CustomerAuthService,
     // Feature 008 providers.
     OtpChallengeRepository,
@@ -94,8 +85,6 @@ import { MockSmsGateway } from './sms/mock-sms-gateway.service';
     CustomerAccountRepository,
     CustomerJwtTokenService,
     CustomerJwtGuard,
-    CustomerHmacJwtGuard,
-    OptionalCustomerJwtGuard,
     CustomerAuthMobileService,
   ],
 })

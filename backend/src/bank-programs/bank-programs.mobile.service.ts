@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { BankProgramRepository } from './bank-programs.repository';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 import { MobileBankProgramResponseDto } from './dto/mobile-bank-program.response.dto';
@@ -80,10 +80,9 @@ export class BankProgramsMobileService {
       displayMinMonths: (program.tenor as { minMonths: number }).minMonths,
       displayMaxMonths: (program.tenor as { maxMonths: number }).maxMonths,
       requiredDocuments: program.requiredDocuments,
-      adminFeeDisplay:
-        fees.adminFeeDisplay ?? `${new Prisma.Decimal(fees.adminFeePercent).toString()}%`,
+      adminFeeDisplay: fees.adminFeeDisplay ?? `${new Decimal(fees.adminFeePercent).toString()}%`,
       lifeInsuranceMandatory: fees.lifeInsuranceMandatory,
-      stampDutyDisplay: `${new Prisma.Decimal(fees.stampDutyPercent).toString()}%`,
+      stampDutyDisplay: `${new Decimal(fees.stampDutyPercent).toString()}%`,
       acceptedEmploymentTypes: eligibility.acceptedEmploymentTypes,
       acceptedLoanPurposes: eligibility.acceptedLoanPurposes,
       ageRangeDisplay: `${eligibility.ageMin}–${eligibility.ageMax}`,

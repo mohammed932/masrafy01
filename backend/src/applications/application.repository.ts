@@ -13,8 +13,13 @@ import {
   type ApplicationStatus as PrismaApplicationStatus,
   type ApprovalTier,
 } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../infra/prisma/prisma.service';
 import { ApplicationStatus } from './dto/enums';
+
+/** Domain JSON value type — exposed to services / DTOs.
+ *  Internally cast at the Prisma boundary inside this repository. */
+export type JsonValueInput = object | unknown[] | string | number | boolean | null;
 
 export type LeadListFilter =
   | 'needs_first_contact'
@@ -41,16 +46,16 @@ export interface CreateApplicationInput {
   payloadHash?: string | null;
   status: ApplicationStatus;
   priority: ApplicationPriority;
-  requestedAmountEGP: Prisma.Decimal;
+  requestedAmountEGP: Decimal;
   requestedCurrency: string;
   preferredTenorMonths: number;
   loanPurpose: string;
   age: number;
   isGuest: boolean;
   applicantUserId?: string | null;
-  applicantProfile: Prisma.InputJsonValue;
-  summary: Prisma.InputJsonValue;
-  noMatchSummary?: Prisma.InputJsonValue;
+  applicantProfile: JsonValueInput;
+  summary: JsonValueInput;
+  noMatchSummary?: JsonValueInput;
   engineDurationMs?: number;
   programsCheckedCount: number;
   eligibleProgramsCount: number;
@@ -63,24 +68,24 @@ export interface CreateBankOfferInput {
   bankIsFeatured: boolean;
   programFriendlyName: string;
   currency: string;
-  effectiveRatePercent: Prisma.Decimal;
-  monthlyInstallmentEGP: Prisma.Decimal;
-  requestedLoanAmountEGP: Prisma.Decimal;
-  effectiveLoanAmountEGP: Prisma.Decimal;
+  effectiveRatePercent: Decimal;
+  monthlyInstallmentEGP: Decimal;
+  requestedLoanAmountEGP: Decimal;
+  effectiveLoanAmountEGP: Decimal;
   requestedTenorMonths: number;
   effectiveTenorMonths: number;
-  feesBreakdown: Prisma.InputJsonValue;
-  approvalProbabilityPercent: Prisma.Decimal;
+  feesBreakdown: JsonValueInput;
+  approvalProbabilityPercent: Decimal;
   approvalScore: number;
   approvalTier: ApprovalTier;
-  approvalFactors: Prisma.InputJsonValue;
+  approvalFactors: JsonValueInput;
   engineVersion: string;
   requiredDocuments: string[];
   matchReasons: string[];
-  cascadeTrace: Prisma.InputJsonValue;
+  cascadeTrace: JsonValueInput;
   qualitativeReviewBadge: boolean;
   selfDeclared: boolean;
-  maxLoanAvailableEGP?: Prisma.Decimal | null;
+  maxLoanAvailableEGP?: Decimal | null;
 }
 
 export interface PersistMatchInput {
@@ -112,7 +117,14 @@ export class ApplicationRepository {
       });
       if (input.offers.length > 0) {
         await tx.bankOffer.createMany({
-          data: input.offers.map((o) => ({ ...o, applicationId: created.id })),
+          data: input.offers.map((o) => ({
+            ...o,
+            applicationId: created.id,
+            // Domain `JsonValueInput` -> Prisma `InputJsonValue` boundary cast.
+            feesBreakdown: o.feesBreakdown as unknown as Prisma.InputJsonValue,
+            approvalFactors: o.approvalFactors as unknown as Prisma.InputJsonValue,
+            cascadeTrace: o.cascadeTrace as unknown as Prisma.InputJsonValue,
+          })),
         });
       }
       if (input.txCallback) {

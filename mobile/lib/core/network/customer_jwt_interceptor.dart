@@ -3,9 +3,11 @@ import 'package:dio/dio.dart';
 import '../storage/customer_session_storage.dart';
 
 /// Attaches `Authorization: Bearer <customerAccessToken>` to outgoing mobile
-/// requests when a logged-in session exists. HMAC headers are unaffected —
-/// the backend `CustomerHmacJwtGuard` requires both layers on authenticated
-/// writes (Constitution Principle XIII, v1.7.0 customer-auth paragraph).
+/// requests when a logged-in session exists.
+///
+/// Constitution Principle XIII (v3.0.0): mobile API is JWT-only — HMAC
+/// signing was removed platform-wide. The backend's customer-JWT guard
+/// is the sole auth layer on `/api/v1/*`.
 class CustomerJwtInterceptor extends Interceptor {
   CustomerJwtInterceptor(this._storage);
 

@@ -1,73 +1,77 @@
-import 'package:equatable/equatable.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bloc/bloc.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:injectable/injectable.dart';
 
-import '../../data/models/request/profile/profile_completion_request.dart';
-import '../../domain/entities/otp_challenge_entity.dart';
-import '../../domain/repositories/customer_auth_repository.dart';
+import '../../../../../../../core/enums/request_state.dart';
+import '../../../../../../../core/result/failure.dart';
+import '../../../../../data/models/request/profile/profile_completion_request.dart';
+import '../../../../../domain/entities/otp_challenge_entity.dart';
+import '../../../../../domain/repositories/customer_auth_repository.dart';
 
-abstract class CompleteProfileState extends Equatable {
-  const CompleteProfileState();
-  @override
-  List<Object?> get props => [];
-}
+part 'complete_profile_cubit.freezed.dart';
+part 'complete_profile_state.dart';
 
-class CompleteProfileIdle extends CompleteProfileState {
-  const CompleteProfileIdle();
-}
-
-class CompleteProfileRequestingOtp extends CompleteProfileState {
-  const CompleteProfileRequestingOtp();
-}
-
-class CompleteProfileOtpSent extends CompleteProfileState {
-  const CompleteProfileOtpSent(this.challenge);
-  final OtpChallengeEntity challenge;
-  @override
-  List<Object?> get props => [challenge];
-}
-
-class CompleteProfileVerifyingOtp extends CompleteProfileState {
-  const CompleteProfileVerifyingOtp();
-}
-
-class CompleteProfileMobileBound extends CompleteProfileState {
-  const CompleteProfileMobileBound();
-}
-
-class CompleteProfileFailure extends CompleteProfileState {
-  const CompleteProfileFailure(this.error);
-  final Object error;
-  @override
-  List<Object?> get props => [error];
-}
-
+@injectable
 class CompleteProfileCubit extends Cubit<CompleteProfileState> {
-  CompleteProfileCubit(this._repo) : super(const CompleteProfileIdle());
+  CompleteProfileCubit(this._repo) : super(const CompleteProfileState());
+
   final CustomerAuthRepository _repo;
 
-  Future<void> requestOtp({required String phone}) async {
-    emit(const CompleteProfileRequestingOtp());
+  void updateField(CompleteProfileField field, Object value) {
+    switch (field) {
+      case CompleteProfileField.phone:
+        emit(state.copyWith(phone: value as String));
+        break;
+      case CompleteProfileField.otpCode:
+        emit(state.copyWith(otpCode: value as String));
+        break;
+    }
+  }
+
+  Future<void> requestOtp() async {
+    if (state.status.isLoading) return;
+    emit(state.copyWith(
+      status: RequestState.loading,
+      step: CompleteProfileStep.requestingOtp,
+      error: null,
+    ));
     final res = await _repo.profileMobileRequestOtp(
-      ProfileMobileRequestOtpRequest(phone: phone),
+      ProfileMobileRequestOtpRequest(phone: state.phone),
     );
     res.fold(
-      (err) => emit(CompleteProfileFailure(err)),
-      (ch) => emit(CompleteProfileOtpSent(ch)),
+      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
+      (ch) => emit(state.copyWith(
+        status: RequestState.loaded,
+        step: CompleteProfileStep.otpSent,
+        challenge: ch,
+        error: null,
+      )),
     );
   }
 
-  Future<void> verifyOtp({required String code}) async {
-    final s = state;
-    if (s is! CompleteProfileOtpSent) return;
-    emit(const CompleteProfileVerifyingOtp());
+  Future<void> verifyOtp() async {
+    if (state.challenge == null) return;
+    if (state.status.isLoading) return;
+    emit(state.copyWith(
+      status: RequestState.loading,
+      step: CompleteProfileStep.verifyingOtp,
+      error: null,
+    ));
     final res = await _repo.profileMobileVerifyOtp(
-      ProfileMobileVerifyOtpRequest(otpId: s.challenge.otpId, code: code),
+      ProfileMobileVerifyOtpRequest(
+        otpId: state.challenge!.otpId,
+        code: state.otpCode,
+      ),
     );
     res.fold(
-      (err) => emit(CompleteProfileFailure(err)),
-      (_) => emit(const CompleteProfileMobileBound()),
+      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
+      (_) => emit(state.copyWith(
+        status: RequestState.loaded,
+        step: CompleteProfileStep.mobileBound,
+        error: null,
+      )),
     );
   }
 
-  void reset() => emit(const CompleteProfileIdle());
+  void reset() => emit(const CompleteProfileState());
 }

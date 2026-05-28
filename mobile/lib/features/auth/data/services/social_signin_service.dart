@@ -27,13 +27,16 @@ class NativeSocialResult {
 /// Calling `signInWithApple` on Android throws.
 @injectable
 class SocialSignInService {
-  SocialSignInService();
+  SocialSignInService(this._googleSignIn);
+
+  /// Native Google Sign-In SDK handle. Injected via `get_it` (Principle
+  /// XXVIII — no manual instantiation inside services).
+  final GoogleSignIn _googleSignIn;
 
   /// Triggers the Google Sign-In sheet on the native side, returns the
   /// verifiable ID token + provider profile preview.
   Future<NativeSocialResult> signInWithGoogle() async {
-    final google = GoogleSignIn();
-    final account = await google.signIn();
+    final account = await _googleSignIn.signIn();
     if (account == null) {
       throw const SocialSignInCancelledException();
     }
@@ -82,7 +85,7 @@ class SocialSignInService {
   /// Apple ID session is owned by the OS).
   Future<void> signOutGoogle() async {
     try {
-      await GoogleSignIn().signOut();
+      await _googleSignIn.signOut();
     } catch (_) {
       // Swallow — backend logout is authoritative.
     }

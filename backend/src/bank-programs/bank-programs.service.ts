@@ -1,5 +1,5 @@
-import { Inject, Injectable } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import { Injectable } from '@nestjs/common';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../infra/prisma/prisma.service';
 import { AuditEventType } from '../common/audit/audit-event-types';
 import { AuditEventRepository } from '../audit/audit-event.repository';
@@ -26,13 +26,12 @@ import {
   DeprecatedKeyDescriptor,
 } from './dto/bank-program.response.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
-import { BankProgramRepository } from './bank-programs.repository';
+import { BankProgramRepository, type JsonBlob } from './bank-programs.repository';
 import {
   validateAgainstRegistry,
   validateDerivationArithmetic,
   ValidationContext,
 } from './validation/cross-config.validators';
-import { Prisma as PrismaNs } from '@prisma/client';
 
 /**
  * Bank-program orchestration service.
@@ -93,14 +92,13 @@ export class BankProgramsService {
           operatorNotes: dto.operatorNotes,
           operatorTips: dto.operatorTips,
           requiredDocuments: dto.requiredDocuments,
-          tenor: dto.tenor as unknown as PrismaNs.InputJsonValue,
-          loanLimits: dto.loanLimits as unknown as PrismaNs.InputJsonValue,
-          pricing: dto.pricing as unknown as PrismaNs.InputJsonValue,
-          eligibility: dto.eligibility as unknown as PrismaNs.InputJsonValue,
-          performanceCriteria: (dto.performanceCriteria ??
-            null) as unknown as PrismaNs.InputJsonValue,
-          incomeAssumption: dto.incomeAssumption as unknown as PrismaNs.InputJsonValue,
-          fees: dto.fees as unknown as PrismaNs.InputJsonValue,
+          tenor: dto.tenor,
+          loanLimits: dto.loanLimits,
+          pricing: dto.pricing,
+          eligibility: dto.eligibility,
+          performanceCriteria: dto.performanceCriteria ?? null,
+          incomeAssumption: dto.incomeAssumption,
+          fees: dto.fees,
           createdBy: actor.id,
           updatedBy: actor.id,
         },
@@ -121,7 +119,7 @@ export class BankProgramsService {
             bankName: created.bankName,
             productCategory: created.productCategory,
             active: created.active,
-          } satisfies Prisma.JsonObject,
+          },
         },
         tx,
       );
@@ -180,8 +178,8 @@ export class BankProgramsService {
           maxEGP: '0',
         });
       }
-      const qrDec = new PrismaNs.Decimal(qrMax);
-      const baseDec = new PrismaNs.Decimal(baseMax);
+      const qrDec = new Decimal(qrMax);
+      const baseDec = new Decimal(baseMax);
       if (!qrDec.greaterThan(baseDec)) {
         throw new QualitativeReviewCeilingBelowBaseException({
           qualitativeReviewMaxEGP: qrMax,
@@ -352,24 +350,24 @@ export class BankProgramsService {
         dto.version,
         {
           bankName: dto.bankName,
-          ...((dto as { bankId?: string }).bankId !== undefined ? { bankId: (dto as { bankId?: string }).bankId ?? null } : {}),
+          ...((dto as { bankId?: string }).bankId !== undefined
+            ? { bankId: (dto as { bankId?: string }).bankId ?? null }
+            : {}),
           friendlyName: dto.friendlyName,
           friendlyNameAr: dto.friendlyNameAr ?? null,
           programType: dto.programType,
           productCategory: dto.productCategory,
-          currencies: dto.currencies as Prisma.BankProgramUpdateInput['currencies'],
+          currencies: dto.currencies,
           operatorNotes: dto.operatorNotes ?? null,
-          operatorTips: (dto.operatorTips ?? []) as Prisma.BankProgramUpdateInput['operatorTips'],
-          requiredDocuments: (dto.requiredDocuments ??
-            []) as Prisma.BankProgramUpdateInput['requiredDocuments'],
-          tenor: dto.tenor as unknown as PrismaNs.InputJsonValue,
-          loanLimits: dto.loanLimits as unknown as PrismaNs.InputJsonValue,
-          pricing: dto.pricing as unknown as PrismaNs.InputJsonValue,
-          eligibility: dto.eligibility as unknown as PrismaNs.InputJsonValue,
-          performanceCriteria: (dto.performanceCriteria ??
-            null) as unknown as PrismaNs.InputJsonValue,
-          incomeAssumption: dto.incomeAssumption as unknown as PrismaNs.InputJsonValue,
-          fees: dto.fees as unknown as PrismaNs.InputJsonValue,
+          operatorTips: dto.operatorTips ?? [],
+          requiredDocuments: dto.requiredDocuments ?? [],
+          tenor: dto.tenor,
+          loanLimits: dto.loanLimits,
+          pricing: dto.pricing,
+          eligibility: dto.eligibility,
+          performanceCriteria: dto.performanceCriteria ?? null,
+          incomeAssumption: dto.incomeAssumption,
+          fees: dto.fees,
         },
         actor.id,
       );
@@ -392,8 +390,8 @@ export class BankProgramsService {
           correlationId: actor.correlationId,
           payload: {
             programCode: next.programCode,
-            diff: diff as unknown as Prisma.JsonArray,
-          } as unknown as Prisma.JsonObject,
+            diff,
+          },
         },
         tx,
       );
@@ -429,7 +427,7 @@ export class BankProgramsService {
               beforeEffectiveRate: beforeRate ?? null,
               afterEffectiveRate: afterRate ?? null,
               isVariableRate: afterPricing.isVariableRate ?? false,
-            } as Prisma.JsonObject,
+            },
           },
           tx,
         );
@@ -476,7 +474,7 @@ export class BankProgramsService {
             programCode: next.programCode,
             before: before ? 'active' : 'inactive',
             after: next.active ? 'active' : 'inactive',
-          } as Prisma.JsonObject,
+          },
         },
         tx,
       );
@@ -516,14 +514,13 @@ export class BankProgramsService {
           operatorNotes: source.operatorNotes,
           operatorTips: source.operatorTips,
           requiredDocuments: source.requiredDocuments,
-          tenor: source.tenor as PrismaNs.InputJsonValue,
-          loanLimits: source.loanLimits as PrismaNs.InputJsonValue,
-          pricing: source.pricing as PrismaNs.InputJsonValue,
-          eligibility: source.eligibility as PrismaNs.InputJsonValue,
-          performanceCriteria: (source.performanceCriteria ??
-            PrismaNs.JsonNull) as PrismaNs.InputJsonValue,
-          incomeAssumption: source.incomeAssumption as PrismaNs.InputJsonValue,
-          fees: source.fees as PrismaNs.InputJsonValue,
+          tenor: source.tenor as JsonBlob,
+          loanLimits: source.loanLimits as JsonBlob,
+          pricing: source.pricing as JsonBlob,
+          eligibility: source.eligibility as JsonBlob,
+          performanceCriteria: (source.performanceCriteria ?? null) as JsonBlob,
+          incomeAssumption: source.incomeAssumption as JsonBlob,
+          fees: source.fees as JsonBlob,
           createdBy: actor.id,
           updatedBy: actor.id,
         },
@@ -540,7 +537,7 @@ export class BankProgramsService {
           payload: {
             sourceProgramCode: source.programCode,
             newProgramCode: created.programCode,
-          } as Prisma.JsonObject,
+          },
         },
         tx,
       );
@@ -577,7 +574,7 @@ export class BankProgramsService {
             friendlyName: program.friendlyName,
             bankName: program.bankName,
             deletedAt: new Date().toISOString(),
-          } as Prisma.JsonObject,
+          },
         },
         tx,
       );

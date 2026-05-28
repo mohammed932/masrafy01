@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { OnboardingScreen } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
   OnboardingOrderDuplicateException,
   OnboardingScreenNotFoundException,
 } from '@/common/errors/domain.exceptions';
-import { OnboardingRepository } from './onboarding.repository';
+import { OnboardingRepository, type OnboardingScreenRow } from './onboarding.repository';
 import type {
   CreateOnboardingScreenDto,
   OnboardingScreenResponseDto,
@@ -138,7 +137,7 @@ export class OnboardingService {
     }
   }
 
-  private toDto(row: OnboardingScreen): OnboardingScreenResponseDto {
+  private toDto(row: OnboardingScreenRow): OnboardingScreenResponseDto {
     return {
       id: row.id,
       order: row.order,

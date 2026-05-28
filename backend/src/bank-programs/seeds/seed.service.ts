@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import { AuditEventRepository } from '../../audit/audit-event.repository';
 import { PlatformEnumerationsRepository } from '../../platform-enumerations/platform-enumerations.repository';
@@ -83,14 +82,13 @@ export class SeedService {
             operatorNotes: dto.operatorNotes,
             operatorTips: dto.operatorTips,
             requiredDocuments: dto.requiredDocuments,
-            tenor: dto.tenor as unknown as Prisma.InputJsonValue,
-            loanLimits: dto.loanLimits as unknown as Prisma.InputJsonValue,
-            pricing: dto.pricing as unknown as Prisma.InputJsonValue,
-            eligibility: dto.eligibility as unknown as Prisma.InputJsonValue,
-            performanceCriteria: (dto.performanceCriteria ??
-              null) as unknown as Prisma.InputJsonValue,
-            incomeAssumption: dto.incomeAssumption as unknown as Prisma.InputJsonValue,
-            fees: dto.fees as unknown as Prisma.InputJsonValue,
+            tenor: dto.tenor,
+            loanLimits: dto.loanLimits,
+            pricing: dto.pricing,
+            eligibility: dto.eligibility,
+            performanceCriteria: dto.performanceCriteria ?? null,
+            incomeAssumption: dto.incomeAssumption,
+            fees: dto.fees,
             createdBy: actor.id,
             updatedBy: actor.id,
           },
@@ -112,7 +110,7 @@ export class SeedService {
               productCategory: created.productCategory,
               active: created.active,
               seededFrom: catalog.name,
-            } as Prisma.JsonObject,
+            },
           },
           tx,
         );

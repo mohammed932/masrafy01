@@ -9,13 +9,23 @@
  */
 
 import { Injectable } from '@nestjs/common';
+// Constitution Principle X carve-out: `Prisma.TransactionIsolationLevel` is a
+// runtime value (enum-like) required by `$transaction` orchestration — kept here
+// as the only allowed Prisma touchpoint in this service. All other former Prisma
+// types (Decimal, InputJsonValue, JsonValue) have been replaced by domain
+// equivalents from `@prisma/client/runtime/library` (Decimal) and the local
+// `JsonValueInput` exported by the repository.
 import { Prisma } from '@prisma/client';
 import { AuditEventType } from '../common/audit/audit-event-types';
 import { Decimal } from '@prisma/client/runtime/library';
 import { randomUUID } from 'crypto';
 import cuid from 'cuid';
 import { PrismaService } from '../infra/prisma/prisma.service';
-import { ApplicationRepository, type CreateBankOfferInput } from './application.repository';
+import {
+  ApplicationRepository,
+  type CreateBankOfferInput,
+  type JsonValueInput,
+} from './application.repository';
 import { EngineService } from '../matching/engine.service';
 import { BankProgramRepository } from '../bank-programs/bank-programs.repository';
 import { AuditEventWriter } from '../audit/audit-event.writer';
@@ -50,8 +60,9 @@ export interface ApplyContext {
   idempotencyKey?: string;
   payloadHash?: string | null;
   sourceIp?: string | null;
-  /** Constitution v1.7.0 — populated by `OptionalCustomerJwtGuard` when a
-   *  logged-in customer submits the wizard. Guest flows leave this undefined. */
+  /** Constitution v3.0.0 / Principle XIII — the authenticated customer (from
+   *  the customer JWT). The mobile API is JWT-only; every apply call carries
+   *  a customerId. */
   customerId?: string | null;
 }
 
@@ -276,7 +287,7 @@ export class ApplicationsService {
       this.toOfferInput(o, scoringConfig.version),
     );
 
-    const summaryJson: Prisma.InputJsonValue = {
+    const summaryJson: JsonValueInput = {
       programsCheckedCount: result.programsChecked,
       eligibleProgramsCount: result.eligibleCount,
       engineDurationMs: result.engineDurationMs,
@@ -284,7 +295,7 @@ export class ApplicationsService {
       bestInstallmentEGP: result.offers[0]?.monthlyInstallmentEGP.toFixed(2) ?? null,
     };
 
-    const noMatchJson: Prisma.InputJsonValue | undefined =
+    const noMatchJson: JsonValueInput | undefined =
       result.status === 'no_match'
         ? (JSON.parse(
             JSON.stringify({
@@ -292,7 +303,7 @@ export class ApplicationsService {
               details: result.noMatchDetails ?? [],
               suggestions: result.suggestions ?? [],
             }),
-          ) as Prisma.InputJsonValue)
+          ) as JsonValueInput)
         : undefined;
 
     const applicationId = await this.repo.persistMatch({
@@ -301,9 +312,10 @@ export class ApplicationsService {
         submissionCorrelationId: correlationId,
         idempotencyKey: ctx.idempotencyKey ?? null,
         payloadHash: ctx.payloadHash ?? null,
-        status: result.status === 'matched' ? ApplicationStatus.matched : ApplicationStatus.no_match,
+        status:
+          result.status === 'matched' ? ApplicationStatus.matched : ApplicationStatus.no_match,
         priority: dto.priority,
-        requestedAmountEGP: new Prisma.Decimal(dto.requestedAmountEGP),
+        requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
         requestedCurrency: dto.requestedCurrency ?? 'EGP',
         preferredTenorMonths: dto.preferredTenorMonths,
         loanPurpose: dto.loanPurpose,
@@ -464,25 +476,25 @@ export class ApplicationsService {
       bankIsFeatured: offer.bankIsFeatured,
       programFriendlyName: offer.programFriendlyName,
       currency: offer.currency,
-      effectiveRatePercent: new Prisma.Decimal(offer.effectiveRatePercent.toString()),
-      monthlyInstallmentEGP: new Prisma.Decimal(offer.monthlyInstallmentEGP.toString()),
-      requestedLoanAmountEGP: new Prisma.Decimal(offer.requestedLoanAmountEGP.toString()),
-      effectiveLoanAmountEGP: new Prisma.Decimal(offer.effectiveLoanAmountEGP.toString()),
+      effectiveRatePercent: new Decimal(offer.effectiveRatePercent.toString()),
+      monthlyInstallmentEGP: new Decimal(offer.monthlyInstallmentEGP.toString()),
+      requestedLoanAmountEGP: new Decimal(offer.requestedLoanAmountEGP.toString()),
+      effectiveLoanAmountEGP: new Decimal(offer.effectiveLoanAmountEGP.toString()),
       requestedTenorMonths: offer.requestedTenorMonths,
       effectiveTenorMonths: offer.effectiveTenorMonths,
-      feesBreakdown: offer.feesBreakdown as unknown as Prisma.InputJsonValue,
-      approvalProbabilityPercent: new Prisma.Decimal(offer.approvalProbabilityPercent),
+      feesBreakdown: offer.feesBreakdown as unknown as JsonValueInput,
+      approvalProbabilityPercent: new Decimal(offer.approvalProbabilityPercent),
       approvalScore: offer.approvalProbability.score,
       approvalTier: offer.approvalProbability.tier,
-      approvalFactors: offer.approvalProbability.factors as unknown as Prisma.InputJsonValue,
+      approvalFactors: offer.approvalProbability.factors as unknown as JsonValueInput,
       engineVersion,
       requiredDocuments: offer.requiredDocuments,
       matchReasons: offer.matchReasons,
-      cascadeTrace: offer.cascadeTrace as unknown as Prisma.InputJsonValue,
+      cascadeTrace: offer.cascadeTrace as unknown as JsonValueInput,
       qualitativeReviewBadge: offer.qualitativeReviewBadge,
       selfDeclared: offer.selfDeclared,
       maxLoanAvailableEGP: offer.maxLoanAvailableEGP
-        ? new Prisma.Decimal(offer.maxLoanAvailableEGP.toString())
+        ? new Decimal(offer.maxLoanAvailableEGP.toString())
         : null,
     };
   }
@@ -496,7 +508,7 @@ export class ApplicationsService {
   private projectApprovalProbability(row: {
     approvalScore: number;
     approvalTier: string;
-    approvalFactors: Prisma.JsonValue;
+    approvalFactors: unknown;
     engineVersion: string;
   }): ApprovalProbabilityResponseDto {
     const tier = row.approvalTier as ApprovalTierLiteral;
@@ -518,10 +530,10 @@ export class ApplicationsService {
     };
   }
 
-  private profileToJson(profile: ApplicantProfile): Prisma.InputJsonValue {
+  private profileToJson(profile: ApplicantProfile): JsonValueInput {
     return JSON.parse(
       JSON.stringify(profile, (_k, v) => (v instanceof Decimal ? v.toString() : v)),
-    ) as Prisma.InputJsonValue;
+    ) as JsonValueInput;
   }
 
   private toSnapshot(
