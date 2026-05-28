@@ -1,11 +1,10 @@
 part of 'complete_profile.imports.dart';
 
 /// Step 2 — OTP entry. On success, mobile + mobileVerifiedAt are persisted to
-/// the customer record IMMEDIATELY (per spec R6) — the flow advances to
-/// email/age (held client-side until apply) without further DB writes.
+/// the customer record IMMEDIATELY (per spec R6). The flow root listens
+/// for `state.step == mobileBound` and exits.
 class CompleteProfileOtpPage extends StatefulWidget {
-  const CompleteProfileOtpPage({super.key, required this.onMobileBound});
-  final VoidCallback onMobileBound;
+  const CompleteProfileOtpPage({super.key});
 
   @override
   State<CompleteProfileOtpPage> createState() => _CompleteProfileOtpPageState();
@@ -24,9 +23,6 @@ class _CompleteProfileOtpPageState extends State<CompleteProfileOtpPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<CompleteProfileCubit, CompleteProfileState>(
       listener: (ctx, state) {
-        if (state.isMobileBound) {
-          widget.onMobileBound();
-        }
         if (state.isFailure) {
           ScaffoldMessenger.of(ctx).showSnackBar(
             SnackBar(content: Text(state.error!.code)),

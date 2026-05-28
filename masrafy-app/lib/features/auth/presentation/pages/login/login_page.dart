@@ -1,15 +1,31 @@
 part of 'login.imports.dart';
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.initialPhone, required this.onForgotPassword});
+/// Login route. Wraps the form view in [BlocProvider] so [LoginCubit] is
+/// available before the form widgets mount.
+@RoutePage()
+class LoginPage extends StatelessWidget {
+  const LoginPage({super.key, this.initialPhone});
+
   final String? initialPhone;
-  final VoidCallback onForgotPassword;
 
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  Widget build(BuildContext context) {
+    return BlocProvider<LoginCubit>(
+      create: (_) => getIt<LoginCubit>(),
+      child: _LoginView(initialPhone: initialPhone),
+    );
+  }
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginView extends StatefulWidget {
+  const _LoginView({this.initialPhone});
+  final String? initialPhone;
+
+  @override
+  State<_LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<_LoginView> {
   late final TextEditingController _phone =
       TextEditingController(text: widget.initialPhone ?? '');
   final _pwd = TextEditingController();
@@ -82,7 +98,8 @@ class _LoginPageState extends State<LoginPage> {
                       : Text(l10n.auth_login_action_submit),
                 ),
                 TextButton(
-                  onPressed: widget.onForgotPassword,
+                  onPressed: () =>
+                      context.router.push(const ForgotPasswordRoute()),
                   child: Text(l10n.auth_login_action_forgot),
                 ),
               ],

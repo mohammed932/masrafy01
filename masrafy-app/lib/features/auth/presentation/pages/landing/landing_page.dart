@@ -4,21 +4,17 @@ part of 'landing.imports.dart';
 ///
 /// Three CTAs: Sign up with Phone / Continue with Google / Continue with
 /// Apple (iOS only — hidden on Android per research R15) + Log In link.
+@RoutePage()
 class LandingPage extends StatelessWidget {
-  const LandingPage({
-    super.key,
-    required this.onSignUpWithPhone,
-    required this.onContinueWithGoogle,
-    required this.onContinueWithApple,
-    required this.onLogIn,
-  });
-
-  final VoidCallback onSignUpWithPhone;
-  final VoidCallback onContinueWithGoogle;
-  final VoidCallback onContinueWithApple;
-  final VoidCallback onLogIn;
+  const LandingPage({super.key});
 
   bool get _showApple => defaultTargetPlatform == TargetPlatform.iOS;
+
+  void _showTodo(BuildContext context, String what) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('TODO: $what')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,26 +34,26 @@ class LandingPage extends StatelessWidget {
               ),
               const Spacer(),
               FilledButton(
-                onPressed: onSignUpWithPhone,
+                onPressed: () => context.router.push(const PhoneSignupRoute()),
                 child: Text(l10n.auth_landing_action_phone_signup),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
-                onPressed: onContinueWithGoogle,
+                onPressed: () => _showTodo(context, 'Google sign-in'),
                 icon: const Icon(Icons.g_mobiledata),
                 label: Text(l10n.auth_landing_action_google),
               ),
               if (_showApple) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
-                  onPressed: onContinueWithApple,
+                  onPressed: () => _showTodo(context, 'Apple sign-in'),
                   icon: const Icon(Icons.apple),
                   label: Text(l10n.auth_landing_action_apple),
                 ),
               ],
               const SizedBox(height: 24),
               TextButton(
-                onPressed: onLogIn,
+                onPressed: () => context.router.push(LoginRoute()),
                 child: Text(l10n.auth_landing_action_login),
               ),
               const SizedBox(height: 24),

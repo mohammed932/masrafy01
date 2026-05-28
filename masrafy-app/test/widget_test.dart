@@ -7,11 +7,9 @@ void main() {
     await configureDependencies();
   });
 
-  testWidgets('Placeholder screen renders brand', (tester) async {
+  testWidgets('App boots router shell without throwing', (tester) async {
     await tester.pumpWidget(const MasrafyApp());
     await tester.pump();
-
-    expect(find.text('Masrafy'), findsOneWidget);
-    expect(find.textContaining('Data + domain'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }

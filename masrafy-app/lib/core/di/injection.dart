@@ -23,6 +23,7 @@ import '../environments/dev_environment.dart';
 import '../network/app_network.dart';
 import '../network/dio_factory.dart';
 import '../network/network_interface.dart';
+import '../router/router.dart';
 import '../storage/customer_session_storage.dart';
 
 final GetIt getIt = GetIt.instance;
@@ -36,9 +37,10 @@ final GetIt getIt = GetIt.instance;
 /// `main_prod.dart`). When called from the default `main.dart` (no flavor),
 /// falls back to [DevEnvironment].
 Future<void> configureDependencies({BaseEnvironment? environment}) async {
-  // -- Env + storage -----------------------------------------------------
+  // -- Env + router + storage --------------------------------------------
   final env = environment ?? DevEnvironment();
   getIt.registerSingleton<AppEnv>(AppEnv(env));
+  getIt.registerLazySingleton<AppRouter>(AppRouter.new);
   getIt.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(
       aOptions: AndroidOptions(encryptedSharedPreferences: true),
