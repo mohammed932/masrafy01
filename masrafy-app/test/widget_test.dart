@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   setUpAll(() async {
-    await configureDependencies(prod: false);
+    await configureDependencies();
   });
 
   testWidgets('Placeholder screen renders brand', (tester) async {

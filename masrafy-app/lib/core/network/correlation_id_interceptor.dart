@@ -8,10 +8,6 @@ import 'package:uuid/uuid.dart';
 /// carries a correlation ID. Honor a caller-supplied value when present;
 /// otherwise mint a fresh UUID v4. Backend echoes it back and binds it
 /// to log lines.
-///
-/// This interceptor replaces the correlation-id logic that previously
-/// lived inside `HmacInterceptor` (removed in Constitution v3.0.0 along
-/// with the HMAC-SHA256 signing model — see Principle XIII).
 class CorrelationIdInterceptor extends Interceptor {
   CorrelationIdInterceptor();
 

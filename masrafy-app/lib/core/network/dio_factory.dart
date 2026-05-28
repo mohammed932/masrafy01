@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-import '../environments/env_config.dart';
+import '../environments/base_environment.dart';
 import '../storage/customer_session_storage.dart';
 import 'correlation_id_interceptor.dart';
 import 'customer_jwt_interceptor.dart';
@@ -10,13 +10,9 @@ import 'customer_jwt_interceptor.dart';
 ///      outgoing request (Principle VII).
 ///   2. CustomerJwtInterceptor   — attaches `Authorization: Bearer
 ///      \<accessToken\>` for `/api/v1/*` calls (Principle XIII v3.0.0).
-///
-/// Constitution v3.0.0 removed HMAC-SHA256 request signing platform-wide;
-/// mobile API auth is now JWT-only (15-min access + 30-day refresh, with
-/// server-side rotation + reuse detection).
 class DioFactory {
   static Dio create({
-    required EnvConfig env,
+    required BaseEnvironment env,
     required CustomerSessionStorage sessionStorage,
   }) {
     final dio = Dio(

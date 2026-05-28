@@ -18,9 +18,8 @@ import '../../features/wizard/data/repositories/wizard_repository_impl.dart';
 import '../../features/wizard/domain/repositories/wizard_repository.dart';
 import '../../features/wizard/domain/usecases/wizard_usecase.dart';
 import '../environments/app_env.dart';
+import '../environments/base_environment.dart';
 import '../environments/dev_environment.dart';
-import '../environments/env_config.dart';
-import '../environments/prod_environment.dart';
 import '../network/app_network.dart';
 import '../network/dio_factory.dart';
 import '../network/network_interface.dart';
@@ -32,13 +31,14 @@ final GetIt getIt = GetIt.instance;
 /// presentation layer is intentionally absent (feature UIs are rebuilt
 /// post-Figma). Switch to `injectable` codegen once the presentation
 /// tier returns.
-Future<void> configureDependencies({required bool prod}) async {
+///
+/// [environment] is selected at the flavor entrypoint (`main_dev.dart` /
+/// `main_prod.dart`). When called from the default `main.dart` (no flavor),
+/// falls back to [DevEnvironment].
+Future<void> configureDependencies({BaseEnvironment? environment}) async {
   // -- Env + storage -----------------------------------------------------
-  final envConfig = prod ? EnvConfig.prod() : EnvConfig.dev();
-  getIt.registerSingleton<EnvConfig>(envConfig);
-  getIt.registerSingleton<AppEnv>(
-    AppEnv(prod ? ProdEnvironment() : DevEnvironment()),
-  );
+  final env = environment ?? DevEnvironment();
+  getIt.registerSingleton<AppEnv>(AppEnv(env));
   getIt.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(
       aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -50,7 +50,7 @@ Future<void> configureDependencies({required bool prod}) async {
 
   // -- Network -----------------------------------------------------------
   getIt.registerLazySingleton(() => DioFactory.create(
-        env: getIt<EnvConfig>(),
+        env: getIt<AppEnv>().environment,
         sessionStorage: getIt<CustomerSessionStorage>(),
       ));
   getIt.registerLazySingleton<BaseNetwork>(() => AppNetwork(getIt()));

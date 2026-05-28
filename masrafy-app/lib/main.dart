@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import 'core/di/injection.dart';
+import 'core/environments/base_environment.dart';
 import 'l10n/generated/app_localizations.dart';
 
-Future<void> main() async {
+Future<void> main({BaseEnvironment? environment}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await configureDependencies(prod: false);
+  await configureDependencies(environment: environment);
   runApp(const MasrafyApp());
 }
 
