@@ -138,12 +138,12 @@ Tags map to constitution sections. Cite principle # to block PRs.
 ### Flutter (Mobile — v3.0.0)
 
 - **XXVIII — Clean Architecture + Cubit/Freezed (skeleton)**: data/domain/presentation per feature; customer JWT access + refresh tokens only in `flutter_secure_storage` (no HMAC, no shared-secret); Dio bearer interceptor + silent refresh on 401; `auto_route` v9+; design tokens in `MasrafyColorTheme` (`#0869C3` azure).
-- **XXX — Three-Layer Feature Architecture**: `mobile/lib/features/<name>/{data,domain,presentation}`. Models stay in data; entities returned by repositories; `Either<Failure, T>` from every repo method.
+- **XXX — Three-Layer Feature Architecture**: `masrafy-app/lib/features/<name>/{data,domain,presentation}`. Models stay in data; entities returned by repositories; `Either<Failure, T>` from every repo method.
 - **XXXI — Cubit + Freezed State Management**: one cubit per screen by default; multi-field forms use `updateField(FieldEnum, Object)` with exhaustive switch; cubits are orchestration-only (data logic on the Freezed state); cross-feature cubit sharing forbidden.
 - **XXXII — Per-Flow Page Library Pattern**: `presentation/pages/<flow>/<flow>.imports.dart` owns flow's imports; screen files are `part of` it; flow-local widgets under `<flow>/widgets/`; feature-shared widgets under `pages/widgets/`; one widget per file.
-- **XXXIII — Shared Widget Reuse**: `mobile/lib/core/widgets/<category>/` is the only home for cross-feature widgets; sheet/dialog/picker/app-bar surfaces extend their mandated base; naming `Masrafy[Action][ModalKind][Sheet|Dialog]`.
+- **XXXIII — Shared Widget Reuse**: `masrafy-app/lib/core/widgets/<category>/` is the only home for cross-feature widgets; sheet/dialog/picker/app-bar surfaces extend their mandated base; naming `Masrafy[Action][ModalKind][Sheet|Dialog]`.
 - **XXXIV — Shape-Matched Shimmer**: every async screen renders a shimmer skeleton mirroring the layout; centered spinner on first-load of content-bearing screens = review block; shimmer re-fires on every reload, not only first load.
-- **XXXV — Cross-Feature Sub-Feature Reuse**: cubit + state + widgets shared across ≥2 features lives at `mobile/lib/core/features/<concern>/`; promote on second use; each consumer gets a fresh `getIt<>()` cubit.
+- **XXXV — Cross-Feature Sub-Feature Reuse**: cubit + state + widgets shared across ≥2 features lives at `masrafy-app/lib/core/features/<concern>/`; promote on second use; each consumer gets a fresh `getIt<>()` cubit.
 - **XXXVI — One Screen, One File (v3.1.0)**: every navigable screen ships as exactly one public widget in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file. Private `_`-prefixed leaf helpers used by only that screen MAY co-exist below the page class. Helpers reused by ≥2 screens → promote per XXXIII. Page files are UI-only (no datasource calls, no token signing).
 
 ## Anti-Patterns (Binding — see constitution Appendix)

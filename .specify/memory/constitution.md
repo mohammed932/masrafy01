@@ -675,7 +675,7 @@ implementation. Skipping either = review block (A17).
 # Part IV — Mobile App (Flutter)
 
 The customer-facing mobile app is the primary product surface. Code lives
-in `mobile/lib/features/<name>/{data,domain,presentation}/`. Architecture
+in `masrafy-app/lib/features/<name>/{data,domain,presentation}/`. Architecture
 and conventions are lifted from the pilot100 reference project + adapted
 to Masrafy domain constraints. The mobile app obeys all Part I principles
 AND the Flutter-specific principles below.
@@ -793,7 +793,7 @@ into production use.
 
 ## XXX. Three-Layer Feature Architecture (Mobile, NON-NEGOTIABLE)
 
-Every mobile feature MUST mirror `mobile/lib/features/<name>/{data,domain,presentation}`.
+Every mobile feature MUST mirror `masrafy-app/lib/features/<name>/{data,domain,presentation}`.
 
 - **data/datasources/**: exactly one concrete `<Name>RemoteDatasource`,
   registered with `get_it`. The datasource accepts a `Dio` (customer
@@ -807,7 +807,7 @@ Every mobile feature MUST mirror `mobile/lib/features/<name>/{data,domain,presen
   + UI consume.
 - **domain/enums/**: feature-scoped enums consumed by domain entities,
   repositories, or cubits in the same feature — one file per enum. Enums
-  shared across features go in `mobile/lib/core/enums/`. Placing a
+  shared across features go in `masrafy-app/lib/core/enums/`. Placing a
   feature-scoped enum inside an entity file or a cubit = review block.
 - **domain/repositories/**: abstract `<Name>Repository` declaring
   `Future<Either<Failure, T>>` methods where `T` is an **entity**
@@ -994,14 +994,14 @@ features/auth/presentation/pages/
   the same `widgets/` folder, all `part of` the same imports library.
 - **Cross-feature widgets** (could reasonably be used by ≥2 features) do
   NOT live under any feature — they belong in
-  `mobile/lib/core/widgets/<category>/` per Principle XXXIII.
+  `masrafy-app/lib/core/widgets/<category>/` per Principle XXXIII.
 
 **Widget-promotion ladder (applies in the same PR that introduces the
 second use — a trailing duplicate is a review block):**
 
 - Flow-local → feature-shared: the moment a second flow in the same
   feature imports the widget, move it to `pages/widgets/` and rewire imports.
-- Feature-shared → `mobile/lib/core/widgets/<category>/`: the moment a
+- Feature-shared → `masrafy-app/lib/core/widgets/<category>/`: the moment a
   second feature would import it, promote per Principle XXXIII.
 
 The imports/part mechanism is preserved (part files have no imports,
@@ -1012,16 +1012,16 @@ is navigable by flow rather than buried in a single feature-wide library.
 ## XXXIII. Shared Widget Reuse (Mobile, NON-NEGOTIABLE)
 
 Any widget that could be used by more than one feature lives in
-`mobile/lib/core/widgets/`, grouped by widget family into categorized
+`masrafy-app/lib/core/widgets/`, grouped by widget family into categorized
 subfolders.
 
 **Rules:**
 
-- **Before creating any widget, grep `mobile/lib/core/widgets/`** for an
+- **Before creating any widget, grep `masrafy-app/lib/core/widgets/`** for an
   existing implementation. If one exists, reuse it. If it exists but is
   almost-but-not-quite right, extend it (new props, new variant) rather
   than forking.
-- **New shared widgets MUST be placed under `mobile/lib/core/widgets/<category>/`**
+- **New shared widgets MUST be placed under `masrafy-app/lib/core/widgets/<category>/`**
   where `<category>` groups by widget family. Current categories (imported
   from the pilot100 reference and progressively rebranded to `Masrafy…`):
   `answer_options/`, `app_bars/`, `bottom_sheets/`, `buttons/`, `cards/`,
@@ -1032,11 +1032,11 @@ subfolders.
   feature consuming them.
 - **Duplicated widgets across features = review block.** Two
   `EmailField` implementations across two features → promote to
-  `mobile/lib/core/widgets/input_controls/email_field.dart` in the same
+  `masrafy-app/lib/core/widgets/input_controls/email_field.dart` in the same
   PR that introduces the second use.
 - **Near-twin widget detection (NON-NEGOTIABLE):** before adding a row /
   tile / option / chip / card-shape widget to any feature, grep
-  `mobile/lib/features/` for the same shape (search by visual role — "offer
+  `masrafy-app/lib/features/` for the same shape (search by visual role — "offer
   card", "loan row", "doc-upload tile" — not by exact class name). If a
   sibling feature already ships a widget that renders the same primitive
   layout (even with different state / behaviour), the new feature MUST
@@ -1046,7 +1046,7 @@ subfolders.
 - **Feature-local widgets** (single-use, tightly-coupled to one screen's
   state) stay in `features/<name>/presentation/pages/<flow>/widgets/`
   per Principle XXXII. Test: "could another feature ever reasonably use
-  this?" — if yes, it goes in `mobile/lib/core/widgets/`.
+  this?" — if yes, it goes in `masrafy-app/lib/core/widgets/`.
 - Shared widgets use normal per-file imports (they are standalone
   libraries — Principle XXXII's imports/part pattern does NOT apply to
   `lib/core/widgets/`).
@@ -1129,7 +1129,7 @@ placeholder primitive matches the geometry of the widget it stands in for:
 **Implementation rules:**
 
 - Use one canonical shimmer effect (the `shimmer` package). Wrapper lives
-  at `mobile/lib/core/widgets/shimmers/<masrafy>_shimmer.dart`. Do NOT
+  at `masrafy-app/lib/core/widgets/shimmers/<masrafy>_shimmer.dart`. Do NOT
   introduce a second shimmer package.
 - **Wrapper + plain-primitive pattern (NON-NEGOTIABLE):** the wrapper is
   a non-abstract `StatelessWidget` that takes a `child` and owns the
@@ -1149,7 +1149,7 @@ placeholder primitive matches the geometry of the widget it stands in for:
 - **Promotion rule (NON-NEGOTIABLE):** when introducing a new feature-
   local skeleton, audit existing skeletons across features. If the new
   skeleton's layout matches an existing one AND will appear in ≥2
-  features, promote the shared layout to `mobile/lib/core/widgets/shimmers/`
+  features, promote the shared layout to `masrafy-app/lib/core/widgets/shimmers/`
   in the same PR.
 
 **When a generic spinner IS acceptable:**
@@ -1193,7 +1193,7 @@ real content appears there is no perceptual jolt.
 
 When the same behavioural unit — a cubit + its state + its widgets + the
 presentation glue that ties them together — needs to live inside ≥2
-features, it MUST be extracted to `mobile/lib/core/features/<concern>/`
+features, it MUST be extracted to `masrafy-app/lib/core/features/<concern>/`
 and consumed by composition. Duplicating the unit across features =
 review block. Importing a cubit / state / widget across feature folders
 (`features/foo/` reaching into `features/bar/`) = review block (already
@@ -1202,16 +1202,16 @@ forbidden by Principle XXXI's "Never share a cubit across features").
 This extends Principle XXXIII from "shared widgets" to "shared sub-
 features" — a sub-feature is a cubit + its state + its widgets + (optionally)
 its presentation imports library, taken as one cohesive package. Pure
-widgets without a cubit still go to `mobile/lib/core/widgets/<category>/`
+widgets without a cubit still go to `masrafy-app/lib/core/widgets/<category>/`
 per Principle XXXIII; pure data layers (datasource, repository, usecase,
 entities) are cross-feature-safe per Principle XXX and live in their
 owning feature. This principle covers the gap in between: behavior-
 with-state.
 
-**Folder layout under `mobile/lib/core/features/<concern>/`:**
+**Folder layout under `masrafy-app/lib/core/features/<concern>/`:**
 
 ```
-mobile/lib/core/features/<concern>/
+masrafy-app/lib/core/features/<concern>/
 ├── cubit/
 │   ├── <concern>_cubit.dart            # registered factory in get_it
 │   ├── <concern>_state.dart            # part of the cubit; freezed
@@ -1227,7 +1227,7 @@ mobile/lib/core/features/<concern>/
 - **Promote on the second use, not the first.** A sub-feature that
   today lives inside one feature stays there until a second consumer
   surfaces. The PR that introduces the second consumer MUST move the
-  sub-feature to `mobile/lib/core/features/<concern>/` and update the
+  sub-feature to `masrafy-app/lib/core/features/<concern>/` and update the
   original feature's imports in the same PR. The old location is
   deleted; no parallel implementation exists.
 - **Provider scope: lowest common ancestor of the consumers.** Each
@@ -1235,24 +1235,24 @@ mobile/lib/core/features/<concern>/
   `BlocProvider(create: (_) => getIt<XCubit>())` — there is NO singleton
   instance of a cross-feature cubit. `registerFactory` makes each
   `getIt<>()` call return a fresh cubit.
-- **Cubit naming.** Inside `mobile/lib/core/features/comments/cubit/`,
+- **Cubit naming.** Inside `masrafy-app/lib/core/features/comments/cubit/`,
   the cubit class is `CommentsCubit` — no `Masrafy…` prefix (those are
   reserved for shared widgets per Principle XXXIII) and no `Core…`
   prefix. The folder path declares the scope; the class name stays plain.
 - **Routing.** A sub-feature that exposes a screen-shaped surface (a
   full route) MAY register an `auto_route` page from inside
-  `mobile/lib/core/features/<concern>/`. The router config in
-  `mobile/lib/core/router/` is the canonical home for the route
+  `masrafy-app/lib/core/features/<concern>/`. The router config in
+  `masrafy-app/lib/core/router/` is the canonical home for the route
   registration entry; the page widget lives in `core/features/`.
 
 **Anti-patterns (review blocks):**
 
 - A `features/<x>/` folder importing from another `features/<y>/`
   folder for a cubit / state / widget. Promote the shared unit to
-  `mobile/lib/core/features/<concern>/` in the same PR.
-- A `mobile/lib/core/features/<concern>/` folder that holds only widgets
+  `masrafy-app/lib/core/features/<concern>/` in the same PR.
+- A `masrafy-app/lib/core/features/<concern>/` folder that holds only widgets
   without a cubit. Move the widgets to
-  `mobile/lib/core/widgets/<category>/` per Principle XXXIII —
+  `masrafy-app/lib/core/widgets/<category>/` per Principle XXXIII —
   `core/features/` is for cubit-bearing units.
 - A second copy of a cubit / state / widget that already lives in
   another feature.

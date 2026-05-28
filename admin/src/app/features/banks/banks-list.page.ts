@@ -230,8 +230,11 @@ export class BanksListPage implements OnInit {
     if (!ctrl) {
       ctrl = new FormControl<boolean>(b.isActive, { nonNullable: true });
       this.rowActiveControls.set(b.id, ctrl);
+      const bankId = b.id;
       ctrl.valueChanges.subscribe((next) => {
-        if (next !== b.isActive) void this.onToggle(b, next);
+        const current = this.rows().find((r) => r.id === bankId);
+        if (!current) return;
+        if (next !== current.isActive) void this.onToggle(current, next);
       });
     } else if (ctrl.value !== b.isActive) {
       ctrl.setValue(b.isActive, { emitEvent: false });
