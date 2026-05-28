@@ -6,7 +6,7 @@ Auto-generated from feature plans + constitution. Last updated: 2026-05-28
 
 **Masrafy** (internally "Credit Match") — Egyptian fintech loan comparison marketplace. Connects users with 20+ bank loan programs (ABK Egypt + partners) via 5-step wizard + matching engine. Four product lines: personal loans, car loans, mortgages, business loans. Free for users; commission revenue from banks. Three platforms governed by a single constitution: NestJS backend (active), Angular admin dashboard (active), Flutter mobile app (deferred until Figma).
 
-Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v3.0.0
+Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v3.1.0
 
 **Product scope-lock (v1.7.0 / Principle II):** Platform supports exactly four retail loan categories — `personal`, `car`, `mortgage`, `business`. Removing a category requires a destructive migration that physically wipes registry entry, bank programs, and all applications + cascade (offers / decisions / activities / documents). Ghost / soft-deactivated rows = review block. Adding a fifth requires a constitution amendment (A26).
 
@@ -144,6 +144,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **XXXIII — Shared Widget Reuse**: `mobile/lib/core/widgets/<category>/` is the only home for cross-feature widgets; sheet/dialog/picker/app-bar surfaces extend their mandated base; naming `Masrafy[Action][ModalKind][Sheet|Dialog]`.
 - **XXXIV — Shape-Matched Shimmer**: every async screen renders a shimmer skeleton mirroring the layout; centered spinner on first-load of content-bearing screens = review block; shimmer re-fires on every reload, not only first load.
 - **XXXV — Cross-Feature Sub-Feature Reuse**: cubit + state + widgets shared across ≥2 features lives at `mobile/lib/core/features/<concern>/`; promote on second use; each consumer gets a fresh `getIt<>()` cubit.
+- **XXXVI — One Screen, One File (v3.1.0)**: every navigable screen ships as exactly one public widget in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file. Private `_`-prefixed leaf helpers used by only that screen MAY co-exist below the page class. Helpers reused by ≥2 screens → promote per XXXIII. Page files are UI-only (no datasource calls, no token signing).
 
 ## Anti-Patterns (Binding — see constitution Appendix)
 
@@ -175,8 +176,10 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A26** Fifth retail loan category without amendment / ghost rows after removal (Principle II scope-lock, v1.5.0 → v1.6.0 → v1.7.0)
 - **A27** Money / amount input without `MoneyInputDirective` (`appMoneyInput`)
 - **A28** Mobile datasource/repository/usecase/cubit method with >2 params NOT promoted to a typed `<Name>Request` DTO (Principle XXX, v1.8.1)
+- **A29** Multiple route-level widgets in one page file (Principle XXXVI, v3.1.0)
 
 ## Recent Changes
+- 2026-05-28 (v3.1.0): MINOR — Principle XXXVI added (Mobile, NON-NEGOTIABLE): One Screen, One File. Every navigable screen lives in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file with exactly one public route-level widget. Private leaf helpers may co-exist below; cross-screen helpers promote per XXXIII. Page files are UI-only. Anti-Pattern A29 enforces. Pre-v3.1.0 multi-class files (`phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) flagged as tech debt.
 - 2026-05-28 (v3.0.0): MAJOR — Principle XIII redefined. HMAC-SHA256 signing model REMOVED platform-wide. Mobile API (`/api/v1/*`) is JWT-only — customer access (15 min) + refresh (30 days) with server-side rotation + reuse detection. Principle XXVIII Network bullet replaced (Dio + bearer interceptor + silent refresh on 401, no HMAC interceptor). Brand primary `#06152D` (deep navy) → `#0869C3` (azure blue) — same MAJOR bump bundled the two redefinitions. Anti-pattern A9 retired (slot reserved). A23 restated to cover JWT tokens in secure storage instead of HMAC secret.
 - 2026-05-28 (v2.0.0): MAJOR restructuring. Constitution split into 4 explicit Parts (Cross-Platform / Backend NestJS / Admin Angular / Mobile Flutter). Two new normative sub-sections added: **NestJS Clean Code Structure** (file layout, single-responsibility, ValidationPipe + Zod env, transactional writes, OpenAPI, no magic strings, path aliases) and **Angular Clean Code Structure** (feature-folder layout, smart/presentational split, Signals + new control flow, inject() DI, typed reactive forms, design tokens, logical CSS, functional guards + lazy routes, one-concern-per-service, path aliases). No principle removed or redefined. Pilot100 Flutter alignment maintained.
 - 2026-05-27 (v1.8.1): Principle XXX extended with the **method-arity rule** — Flutter datasource / repository / usecase / cubit methods taking >2 params MUST accept a single typed `<Name>Request` DTO (not separate named/positional params). Anti-Pattern A28 enforces it. Pilot100-aligned. Two-or-fewer params remain named. PATCH bump.

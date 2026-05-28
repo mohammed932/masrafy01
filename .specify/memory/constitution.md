@@ -1266,6 +1266,64 @@ trigger explicit so review can enforce promotion at the right moment.
 
 ---
 
+## XXXVI. One Screen, One File (Mobile, NON-NEGOTIABLE)
+
+Every navigable screen (a route / destination) is declared as exactly
+ONE public widget in its own file. A file MUST NOT contain more than
+one route-level widget.
+
+### Rules
+
+1. **One public page widget per file.** File name = widget name in
+   snake_case, suffixed `_page.dart`. e.g. `PhoneSignupOtpPage` lives
+   in `phone_signup_otp_page.dart`. Dialog/sheet/picker route-level
+   surfaces follow the same shape (`_dialog.dart`, `_sheet.dart`).
+2. **Private leaf helper widgets** (prefixed `_`) used ONLY by that
+   screen MAY live in the same file, declared below the page class.
+   Helper widgets reused by 2+ screens MUST be promoted to public and
+   moved to the feature's `widgets/` directory (or `core/widgets/`
+   per Principle XXXIII if cross-feature).
+3. **Page files contain UI only.** No datasource calls, no business
+   logic, no token signing, no async repository invocation outside the
+   cubit. Those belong in the Cubit per Principle XXXI. The page is a
+   `BlocBuilder` / `BlocConsumer` / `BlocSelector` surface that reads
+   state and dispatches intent.
+4. **Per-flow library compatibility (Principle XXXII).** Page files
+   remain `part of '<flow>.imports.dart';` — the per-flow library
+   declares `part` directives for each individual `*_page.dart` file
+   under the flow folder.
+
+### Rationale
+
+Predictable file → screen mapping makes navigation, code review, and
+ownership trivial. It keeps diffs small, prevents merge conflicts when
+two engineers touch different steps of the same flow, and stops files
+from growing into 800-line god-files (e.g. the original
+`phone_signup_pages.dart` collapsed three steps into one file —
+unreviewable). The pilot100 reference project enforces the same rule.
+
+### Naming
+
+| Surface | File suffix | Class suffix |
+|---|---|---|
+| Route page | `_page.dart` | `Page` |
+| Modal route — bottom sheet | `_sheet.dart` | `Sheet` |
+| Modal route — dialog | `_dialog.dart` | `Dialog` |
+| Modal route — picker | `_picker.dart` | `Picker` |
+
+For the four modal surfaces, the constitutional naming layer (Principle
+XXXIII) — `Masrafy[Action][ModalKind][Sheet|Dialog]` — still applies for
+the core-shared base; per-flow modals defined under a feature use the
+flow-local prefix (e.g. `LoginForgotPasswordSheet`).
+
+### Enforcement
+
+Citing Principle XXXVI (or Anti-Pattern A29) blocks PRs that introduce
+multiple route-level widgets in a single file. Existing multi-class
+files are technical debt; new PRs MUST NOT extend them.
+
+---
+
 # Technical Constraints
 
 ## Backend
@@ -1394,6 +1452,9 @@ Any editable money or amount input — EGP loan amounts, monthly income, balance
 ## A28. Mobile Method With More Than Two Params Not Promoted To a Request DTO (Principle XXX, v1.8.1)
 Any datasource, repository, usecase, or cubit method on the Flutter client that takes MORE THAN TWO parameters as separate named or positional params (instead of a single typed `<Name>Request` DTO from `data/models/request/`) = review block. The DTO MUST be the same one the datasource serializes at the wire boundary — one payload shape, one place to evolve. Two-or-fewer params MAY use named params. Promoting to a DTO retroactively when a third param is added is mandatory, not optional. Existing pre-v1.8.1 call sites with 3+ params get a one-PR grace period to migrate.
 
+## A29. Multiple Route-Level Widgets in One Page File (Principle XXXVI, v3.1.0)
+Any `*_page.dart` / `*_pages.dart` / `*_dialog.dart` / `*_sheet.dart` / `*_picker.dart` file containing MORE THAN ONE public route-level widget = review block. Each route / navigable destination ships in its own file named after the widget. Private `_`-prefixed leaf helpers used by exactly one screen MAY co-exist below the page class in the same file. Helpers reused by 2+ screens MUST be promoted to the feature's `widgets/` or `core/widgets/` per Principle XXXIII. Existing pre-v3.1.0 multi-class page files (e.g. `phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) are technical debt; new PRs MUST NOT extend them.
+
 ---
 
 # Governance
@@ -1420,7 +1481,8 @@ Any datasource, repository, usecase, or cubit method on the Flutter client that 
 | 1.8.1 | 2026-05-27 | PATCH | Principle XXX method-arity rule (>2 params → typed Request DTO). Anti-pattern A28. |
 | 2.0.0 | 2026-05-28 | MAJOR | Structural reorganization into Part I (Cross-Platform) / II (Backend NestJS) / III (Admin Angular) / IV (Mobile Flutter). New normative sub-sections: NestJS Clean Code Structure + Angular Clean Code Structure. No principle removed or redefined. |
 | 3.0.0 | 2026-05-28 | MAJOR | Principle XIII redefined: HMAC-SHA256 signing model REMOVED platform-wide. Mobile API (`/api/v1/*`) is JWT-only — customer access (15min) + refresh (30d) with server-side rotation + reuse detection. Principle XXVIII Network bullet updated (Dio + bearer + silent refresh, no HMAC interceptor). Brand primary swapped from `#06152D` to `#0869C3` (azure). Anti-Pattern A9 retired (slot reserved). A23 restated for JWT secrets in secure storage. |
+| 3.1.0 | 2026-05-28 | MINOR | New Principle XXXVI — One Screen, One File (Mobile, NON-NEGOTIABLE). Every navigable screen ships as exactly one public widget in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file. Anti-Pattern A29 enforces it. Pre-v3.1.0 multi-class files (`phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) flagged as tech debt. |
 
 ---
 
-**Version**: 3.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-28
+**Version**: 3.1.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-28
