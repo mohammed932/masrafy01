@@ -64,7 +64,7 @@
   "auth_phone_signup_title_verify": "Verify code",
   "auth_phone_signup_title_details": "Your details",
   "auth_phone_signup_field_mobile": "Mobile number",
-  "auth_phone_signup_field_mobile_hint": "+201001234567",
+  "auth_phone_signup_field_mobile_hint": "01001234567",
   "auth_phone_signup_field_otp": "6-digit code",
   "auth_phone_signup_field_name": "Full name",
   "auth_phone_signup_field_email": "Email",

@@ -118,7 +118,7 @@
   "@auth_phone_signup_title_details": { "description": "Phone signup — profile step app bar title" },
   "auth_phone_signup_field_mobile": "رقم الموبايل",
   "@auth_phone_signup_field_mobile": { "description": "Phone signup — mobile field label" },
-  "auth_phone_signup_field_mobile_hint": "+201001234567",
+  "auth_phone_signup_field_mobile_hint": "01001234567",
   "@auth_phone_signup_field_mobile_hint": { "description": "Phone signup — mobile field hint (E.164 example)" },
   "auth_phone_signup_field_otp": "كود مكون من 6 أرقام",
   "@auth_phone_signup_field_otp": { "description": "Phone signup — OTP field label" },

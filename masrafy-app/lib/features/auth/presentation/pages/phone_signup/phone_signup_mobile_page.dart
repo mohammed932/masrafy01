@@ -39,13 +39,18 @@ class _PhoneSignupMobilePageState extends State<PhoneSignupMobilePage> {
                 TextField(
                   controller: _ctrl,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
                   decoration: InputDecoration(
                     labelText: l10n.auth_phone_signup_field_mobile,
                     hintText: l10n.auth_phone_signup_field_mobile_hint,
+                    prefixText: '${MasrafyCountryCode.egypt} ',
                   ),
                   onChanged: (v) => ctx.read<PhoneSignupCubit>().updateField(
                         PhoneSignupField.phone,
-                        v.trim(),
+                        '${MasrafyCountryCode.egypt}${v.trim()}',
                       ),
                 ),
                 const SizedBox(height: 24),

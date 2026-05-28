@@ -169,7 +169,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_phone_signup_field_mobile => 'Mobile number';
 
   @override
-  String get auth_phone_signup_field_mobile_hint => '+201001234567';
+  String get auth_phone_signup_field_mobile_hint => '01001234567';
 
   @override
   String get auth_phone_signup_field_otp => '6-digit code';

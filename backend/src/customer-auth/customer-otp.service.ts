@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { OtpPurpose } from './dto/enums';
@@ -32,6 +33,7 @@ export class CustomerOtpService {
   constructor(
     private readonly otpRepo: OtpChallengeRepository,
     @Inject(SMS_GATEWAY) private readonly sms: SmsGateway,
+    private readonly config: ConfigService,
   ) {}
 
   /**
@@ -156,6 +158,15 @@ export class CustomerOtpService {
   }
 
   private generateCode(): string {
+    if (process.env.NODE_ENV !== 'production') {
+      const fixed = this.config.get<string>('OTP_DEV_FIXED_CODE', '');
+      if (fixed && /^\d{6}$/u.test(fixed)) {
+        this.logger.warn(
+          `OTP_DEV_FIXED_CODE active — every OTP resolves to a fixed dev code. MUST be empty in production.`,
+        );
+        return fixed;
+      }
+    }
     const max = 10 ** CustomerOtpService.CODE_LEN;
     const n = crypto.randomInt(0, max);
     return n.toString().padStart(CustomerOtpService.CODE_LEN, '0');

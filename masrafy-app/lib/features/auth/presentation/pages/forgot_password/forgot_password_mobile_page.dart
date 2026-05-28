@@ -38,12 +38,17 @@ class _ForgotPasswordMobilePageState extends State<ForgotPasswordMobilePage> {
                 TextField(
                   controller: _ctrl,
                   keyboardType: TextInputType.phone,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
                   decoration: InputDecoration(
                     labelText: l10n.auth_forgot_password_field_mobile,
+                    prefixText: '${MasrafyCountryCode.egypt} ',
                   ),
                   onChanged: (v) => ctx.read<ForgotPasswordCubit>().updateField(
                         ForgotPasswordField.phone,
-                        v.trim(),
+                        '${MasrafyCountryCode.egypt}${v.trim()}',
                       ),
                 ),
                 const SizedBox(height: 24),

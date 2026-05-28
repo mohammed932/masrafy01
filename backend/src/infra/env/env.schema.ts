@@ -82,6 +82,16 @@ export const envSchema = z.object({
   SMS_GATEWAY_PROVIDER: z.enum(['mock']).default('mock'),
   SMS_GATEWAY_FROM: z.string().min(1).default('+201000000000'),
 
+  // DEV-ONLY OTP override. When set to a 6-digit string, every OTP issued
+  // resolves to this fixed value (codeHash stored with bcrypt against this
+  // fixed code). Empty string = disabled (random codes). The runtime guards
+  // this knob with NODE_ENV !== 'production' so a stray prod env file
+  // cannot weaken security in production. Use '000000' for local testing.
+  OTP_DEV_FIXED_CODE: z
+    .string()
+    .regex(/^\d{6}$|^$/u, 'OTP_DEV_FIXED_CODE must be 6 digits or empty')
+    .default(''),
+
   // Google Sign-In OAuth audiences (iOS + Android client IDs, comma-separated).
   // verifyIdToken({ audience }) accepts the list to support both platforms.
   GOOGLE_OAUTH_CLIENT_IDS: z.string().min(1).default('replace_me.apps.googleusercontent.com'),

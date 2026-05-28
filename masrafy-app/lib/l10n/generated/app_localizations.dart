@@ -422,7 +422,7 @@ abstract class AppLocalizations {
   /// Phone signup — mobile field hint (E.164 example)
   ///
   /// In ar, this message translates to:
-  /// **'+201001234567'**
+  /// **'01001234567'**
   String get auth_phone_signup_field_mobile_hint;
 
   /// Phone signup — OTP field label
