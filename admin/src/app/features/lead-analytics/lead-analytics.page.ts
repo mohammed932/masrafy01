@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -43,7 +43,7 @@ const SEARCH_DEBOUNCE_MS = 300;
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
+    ReactiveFormsModule,
     NzSpinModule,
     NzTagModule,
     NzIconModule,
@@ -100,8 +100,7 @@ const SEARCH_DEBOUNCE_MS = 300;
               <input
                 nz-input
                 type="search"
-                [ngModel]="searchInput()"
-                (ngModelChange)="onSearchInput($event)"
+                [formControl]="searchControl"
                 [placeholder]="searchPlaceholder"
                 [attr.aria-label]="searchAria"
               />
@@ -140,8 +139,7 @@ const SEARCH_DEBOUNCE_MS = 300;
             <nz-select
               id="agentSort"
               class="sort-select"
-              [ngModel]="sortKey()"
-              (ngModelChange)="sortKey.set($event)"
+              [formControl]="sortKeyControl"
             >
               <nz-option nzValue="conversion" nzLabel="Conversion rate" i18n-nzLabel="@@leadAnalytics.sort.conversion"></nz-option>
               <nz-option nzValue="valueFunded" nzLabel="Value funded (EGP)" i18n-nzLabel="@@leadAnalytics.sort.valueFunded"></nz-option>
@@ -384,6 +382,11 @@ export class LeadAnalyticsPage implements OnInit {
   protected readonly searchAria = $localize`:@@leadAnalytics.search.aria:Filter agents by name`;
   protected readonly filterAria = $localize`:@@leadAnalytics.filter.aria:Performance filter`;
 
+  protected readonly searchControl = new FormControl<string>('', { nonNullable: true });
+  protected readonly sortKeyControl = new FormControl<AgentSortKey>('conversion', {
+    nonNullable: true,
+  });
+
   protected readonly window = signal<number>(30);
   protected readonly periodRangeText = computed<string>(() => {
     const w = this.window();
@@ -528,6 +531,8 @@ export class LeadAnalyticsPage implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
+    this.searchControl.valueChanges.subscribe((v) => this.onSearchInput(v));
+    this.sortKeyControl.valueChanges.subscribe((v) => this.sortKey.set(v));
     await this.reload(this.window());
   }
 

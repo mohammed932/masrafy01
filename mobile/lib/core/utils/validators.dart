@@ -106,7 +106,7 @@ class Validators {
     return null;
   }
 
-  // --- Per-criterion helpers for PasswordStrengthIndicator (FR-048) ---
+  // --- Per-criterion helpers for MasrafyPasswordStrengthIndicator (FR-048) ---
 
   static bool hasMinLength(String value) => value.length >= 8;
   static bool hasUppercase(String value) => value.contains(RegExp(r'[A-Z]'));

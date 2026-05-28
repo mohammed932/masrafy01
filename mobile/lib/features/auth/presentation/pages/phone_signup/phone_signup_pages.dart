@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'cubit/phone_signup/phone_signup_cubit.dart';
+part of 'phone_signup.imports.dart';
 
 /// Step 1 — mobile entry.
 class PhoneSignupMobilePage extends StatefulWidget {
@@ -31,8 +28,9 @@ class _PhoneSignupMobilePageState extends State<PhoneSignupMobilePage> {
       },
       builder: (ctx, state) {
         final busy = state.isRequestingOtp;
+        final l10n = AppLocalizations.of(ctx);
         return Scaffold(
-          appBar: AppBar(title: const Text('Sign up — Mobile')),
+          appBar: AppBar(title: Text(l10n.auth_phone_signup_title_phone)),
           body: Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: Column(
@@ -41,9 +39,9 @@ class _PhoneSignupMobilePageState extends State<PhoneSignupMobilePage> {
                 TextField(
                   controller: _ctrl,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'Mobile number',
-                    hintText: '+201001234567',
+                  decoration: InputDecoration(
+                    labelText: l10n.auth_phone_signup_field_mobile,
+                    hintText: l10n.auth_phone_signup_field_mobile_hint,
                   ),
                   onChanged: (v) => ctx.read<PhoneSignupCubit>().updateField(
                         PhoneSignupField.phone,
@@ -69,7 +67,7 @@ class _PhoneSignupMobilePageState extends State<PhoneSignupMobilePage> {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Send code'),
+                      : Text(l10n.auth_phone_signup_action_send),
                 ),
               ],
             ),
@@ -108,8 +106,9 @@ class _PhoneSignupOtpPageState extends State<PhoneSignupOtpPage> {
       },
       builder: (ctx, state) {
         final busy = state.isVerifyingOtp;
+        final l10n = AppLocalizations.of(ctx);
         return Scaffold(
-          appBar: AppBar(title: const Text('Verify code')),
+          appBar: AppBar(title: Text(l10n.auth_phone_signup_title_verify)),
           body: Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: Column(
@@ -119,7 +118,9 @@ class _PhoneSignupOtpPageState extends State<PhoneSignupOtpPage> {
                   controller: _ctrl,
                   keyboardType: TextInputType.number,
                   maxLength: 6,
-                  decoration: const InputDecoration(labelText: '6-digit code'),
+                  decoration: InputDecoration(
+                    labelText: l10n.auth_phone_signup_field_otp,
+                  ),
                   onChanged: (v) => ctx.read<PhoneSignupCubit>().updateField(
                         PhoneSignupField.otpCode,
                         v.trim(),
@@ -135,7 +136,7 @@ class _PhoneSignupOtpPageState extends State<PhoneSignupOtpPage> {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Verify'),
+                      : Text(l10n.auth_phone_signup_action_verify),
                 ),
               ],
             ),
@@ -184,8 +185,9 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
       },
       builder: (ctx, state) {
         final busy = state.isSubmittingProfile;
+        final l10n = AppLocalizations.of(ctx);
         return Scaffold(
-          appBar: AppBar(title: const Text('Your details')),
+          appBar: AppBar(title: Text(l10n.auth_phone_signup_title_details)),
           body: SingleChildScrollView(
             padding: const EdgeInsetsDirectional.all(24),
             child: Form(
@@ -195,28 +197,37 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                 children: [
                   TextFormField(
                     controller: _name,
-                    decoration: const InputDecoration(labelText: 'Full name'),
+                    decoration: InputDecoration(
+                      labelText: l10n.auth_phone_signup_field_name,
+                    ),
                     onChanged: (v) =>
                         ctx.read<PhoneSignupCubit>().updateField(
                               PhoneSignupField.name,
                               v.trim(),
                             ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'required' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? l10n.auth_phone_signup_validation_required
+                        : null,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'Email'),
+                    decoration: InputDecoration(
+                      labelText: l10n.auth_phone_signup_field_email,
+                    ),
                     onChanged: (v) =>
                         ctx.read<PhoneSignupCubit>().updateField(
                               PhoneSignupField.email,
                               v.trim(),
                             ),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'required';
-                      if (!v.contains('@')) return 'invalid';
+                      if (v == null || v.trim().isEmpty) {
+                        return l10n.auth_phone_signup_validation_required;
+                      }
+                      if (!v.contains('@')) {
+                        return l10n.auth_phone_signup_validation_email_invalid;
+                      }
                       return null;
                     },
                   ),
@@ -225,7 +236,7 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                     controller: _pwd,
                     obscureText: !_showPwd,
                     decoration: InputDecoration(
-                      labelText: 'Password',
+                      labelText: l10n.auth_phone_signup_field_password,
                       suffixIcon: IconButton(
                         icon: Icon(_showPwd
                             ? Icons.visibility_off
@@ -239,9 +250,15 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                               v,
                             ),
                     validator: (v) {
-                      if (v == null || v.length < 8) return 'min 8 chars';
-                      if (!RegExp(r'[A-Za-z]').hasMatch(v)) return 'need a letter';
-                      if (!RegExp(r'\d').hasMatch(v)) return 'need a digit';
+                      if (v == null || v.length < 8) {
+                        return l10n.auth_phone_signup_validation_password_min;
+                      }
+                      if (!RegExp(r'[A-Za-z]').hasMatch(v)) {
+                        return l10n.auth_phone_signup_validation_password_letter;
+                      }
+                      if (!RegExp(r'\d').hasMatch(v)) {
+                        return l10n.auth_phone_signup_validation_password_digit;
+                      }
                       return null;
                     },
                   ),
@@ -249,15 +266,20 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                   TextFormField(
                     controller: _pwdConfirm,
                     obscureText: !_showPwd,
-                    decoration:
-                        const InputDecoration(labelText: 'Confirm password'),
-                    validator: (v) => v == _pwd.text ? null : 'does not match',
+                    decoration: InputDecoration(
+                      labelText: l10n.auth_phone_signup_field_password_confirm,
+                    ),
+                    validator: (v) => v == _pwd.text
+                        ? null
+                        : l10n.auth_phone_signup_validation_password_mismatch,
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _age,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(labelText: 'Age'),
+                    decoration: InputDecoration(
+                      labelText: l10n.auth_phone_signup_field_age,
+                    ),
                     onChanged: (v) {
                       final n = int.tryParse(v);
                       if (n != null) {
@@ -268,7 +290,9 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                     },
                     validator: (v) {
                       final n = int.tryParse(v ?? '');
-                      if (n == null || n < 18 || n > 80) return '18–80';
+                      if (n == null || n < 18 || n > 80) {
+                        return l10n.auth_phone_signup_validation_age_range;
+                      }
                       return null;
                     },
                   ),
@@ -285,7 +309,7 @@ class _PhoneSignupProfilePageState extends State<PhoneSignupProfilePage> {
                             dimension: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Create account'),
+                        : Text(l10n.auth_phone_signup_action_create),
                   ),
                 ],
               ),

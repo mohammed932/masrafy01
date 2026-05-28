@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -67,7 +67,7 @@ const STAGE_FUNNEL: readonly StageDef[] = [
   imports: [
     CommonModule,
     RouterLink,
-    FormsModule,
+    ReactiveFormsModule,
     NzTableModule,
     NzIconModule,
     NzButtonModule,
@@ -105,8 +105,7 @@ const STAGE_FUNNEL: readonly StageDef[] = [
           <input
             nz-input
             type="search"
-            [ngModel]="searchQuery()"
-            (ngModelChange)="searchQuery.set($event)"
+            [formControl]="searchControl"
             [placeholder]="searchPlaceholder"
             [attr.aria-label]="searchPlaceholder"
           />
@@ -690,6 +689,7 @@ export class ApplicationsListPage implements OnInit {
   protected readonly selectedStage = signal<LeadStatus | 'all'>('all');
   protected readonly attentionOn = signal(false);
   protected readonly searchQuery = signal('');
+  protected readonly searchControl = new FormControl<string>('', { nonNullable: true });
   protected readonly view = signal<'list' | 'kanban'>('list');
 
   protected readonly effectiveStage = computed<LeadStatus | 'all'>(() =>
@@ -776,7 +776,11 @@ export class ApplicationsListPage implements OnInit {
       this.attentionOn.set(true);
     }
     const q = this.route.snapshot.queryParamMap.get('q');
-    if (q) this.searchQuery.set(q);
+    if (q) {
+      this.searchQuery.set(q);
+      this.searchControl.setValue(q, { emitEvent: false });
+    }
+    this.searchControl.valueChanges.subscribe((v) => this.searchQuery.set(v));
     await this.reload();
   }
 

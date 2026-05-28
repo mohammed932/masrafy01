@@ -8,7 +8,7 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
@@ -47,7 +47,7 @@ interface BankGroup {
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
+    ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
     NzDropDownModule,
@@ -84,8 +84,7 @@ interface BankGroup {
             <input
               type="text"
               placeholder="Filter banks…"
-              [(ngModel)]="bankQuery"
-              (ngModelChange)="onBankQueryChange()"
+              [formControl]="bankQueryControl"
               aria-label="Filter banks"
             />
           </div>
@@ -205,8 +204,7 @@ interface BankGroup {
                   <div class="prog-status">
                     <nz-switch
                       *can="['super_admin', 'sales_manager']"
-                      [ngModel]="row.active"
-                      (ngModelChange)="toggle.emit({ row, active: $event })"
+                      [formControl]="rowActiveControl(row)"
                       [attr.aria-label]="row.active ? 'Deactivate' : 'Activate'"
                     ></nz-switch>
                   </div>
@@ -660,10 +658,29 @@ export class BankAtlasView {
   @Output() readonly clone = new EventEmitter<BankProgramListRow>();
   @Output() readonly remove = new EventEmitter<BankProgramListRow>();
 
-  protected bankQuery = '';
+  protected readonly bankQueryControl = new FormControl<string>('', { nonNullable: true });
   protected readonly bankQuerySignal = signal('');
   protected readonly selectedBankName = signal<string | null>(null);
   protected readonly categoryFilter = signal<string | null>(null);
+  private readonly rowActiveControls = new Map<string, FormControl<boolean>>();
+
+  constructor() {
+    this.bankQueryControl.valueChanges.subscribe((v) => this.bankQuerySignal.set(v));
+  }
+
+  protected rowActiveControl(row: BankProgramListRow): FormControl<boolean> {
+    let ctrl = this.rowActiveControls.get(row.programCode);
+    if (!ctrl) {
+      ctrl = new FormControl<boolean>(row.active, { nonNullable: true });
+      this.rowActiveControls.set(row.programCode, ctrl);
+      ctrl.valueChanges.subscribe((next) => {
+        if (next !== row.active) this.toggle.emit({ row, active: next });
+      });
+    } else if (ctrl.value !== row.active) {
+      ctrl.setValue(row.active, { emitEvent: false });
+    }
+    return ctrl;
+  }
 
   protected readonly banks = computed<ReadonlyArray<BankGroup>>(() => {
     const map = new Map<string, BankProgramListRow[]>();
@@ -726,10 +743,6 @@ export class BankAtlasView {
   protected select(b: BankGroup): void {
     this.selectedBankName.set(b.bankName);
     this.categoryFilter.set(null);
-  }
-
-  protected onBankQueryChange(): void {
-    this.bankQuerySignal.set(this.bankQuery);
   }
 
   private initialsOf(name: string): string {

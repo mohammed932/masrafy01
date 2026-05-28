@@ -7,7 +7,7 @@ import {
   OnInit,
   signal,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
@@ -55,7 +55,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
+    ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
     NzDropDownModule,
@@ -149,8 +149,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
               <input
                 nz-input
                 id="searchInput"
-                [(ngModel)]="searchInput"
-                (ngModelChange)="onSearchInput($event)"
+                [formControl]="filterForm.controls.search"
               />
             </nz-input-group>
             <ng-template #searchPrefix>
@@ -166,8 +165,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
             <input
               nz-input
               id="bankFilter"
-              [(ngModel)]="bankFilter"
-              (ngModelChange)="reload()"
+              [formControl]="filterForm.controls.bank"
             />
           </nz-form-control>
         </nz-form-item>
@@ -178,8 +176,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           <nz-form-control>
             <nz-select
               id="activeFilter"
-              [(ngModel)]="activeFilter"
-              (ngModelChange)="reload()"
+              [formControl]="filterForm.controls.active"
               nzAllowClear
             >
               <nz-option
@@ -207,8 +204,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
           <nz-form-control>
             <nz-select
               id="categoryFilter"
-              [(ngModel)]="categoryFilter"
-              (ngModelChange)="reload()"
+              [formControl]="filterForm.controls.category"
               nzAllowClear
             >
               <nz-option
@@ -304,8 +300,7 @@ import type { BankProgramListRow, ListBankProgramsQuery } from '../bank-programs
                   <td>
                     <nz-switch
                       *can="['super_admin', 'sales_manager']"
-                      [ngModel]="row.active"
-                      (ngModelChange)="onToggle(row, $event)"
+                      [formControl]="rowActiveControl(row)"
                     ></nz-switch>
                     <app-status-pill
                       *can="['sales_agent', 'analyst']"
@@ -517,35 +512,62 @@ export class BankProgramsListPage implements OnInit {
   readonly loading = signal(false);
   readonly viewMode = signal<'atlas' | 'table'>('atlas');
 
-  searchInput = '';
+  readonly filterForm = new FormGroup({
+    search: new FormControl<string>('', { nonNullable: true }),
+    bank: new FormControl<string>('', { nonNullable: true }),
+    active: new FormControl<boolean | null>(null),
+    category: new FormControl<string | null>(null),
+  });
   private searchDebounce?: ReturnType<typeof setTimeout>;
-  bankFilter?: string;
-  activeFilter?: boolean;
-  categoryFilter?: string;
+  private readonly rowActiveControls = new Map<string, FormControl<boolean>>();
+
+  rowActiveControl(row: BankProgramListRow): FormControl<boolean> {
+    let ctrl = this.rowActiveControls.get(row.programCode);
+    if (!ctrl) {
+      ctrl = new FormControl<boolean>(row.active, { nonNullable: true });
+      this.rowActiveControls.set(row.programCode, ctrl);
+      ctrl.valueChanges.subscribe((next) => {
+        if (next !== row.active) void this.onToggle(row, next);
+      });
+    } else if (ctrl.value !== row.active) {
+      ctrl.setValue(row.active, { emitEvent: false });
+    }
+    return ctrl;
+  }
 
   readonly activeLabel = signal($localize`:@@bank_programs.col.active:Active`);
   readonly inactiveLabel = signal($localize`:@@bank_programs.col.inactive:Inactive`);
 
-  readonly hasFilters = computed(() =>
-    Boolean(
-      this.searchInput || this.bankFilter || this.activeFilter !== undefined || this.categoryFilter,
-    ),
-  );
+  readonly hasFilters = computed(() => {
+    const v = this.filterFormValueSignal();
+    return Boolean(v.search || v.bank || v.active !== null || v.category);
+  });
+  private readonly filterFormValueSignal = signal(this.filterForm.getRawValue());
 
   ngOnInit(): void {
+    // Search field is debounced; other filters fire immediately.
+    this.filterForm.controls.search.valueChanges.subscribe(() => {
+      this.filterFormValueSignal.set(this.filterForm.getRawValue());
+      if (this.searchDebounce) clearTimeout(this.searchDebounce);
+      this.searchDebounce = setTimeout(() => this.reload(), 250);
+    });
+    this.filterForm.controls.bank.valueChanges.subscribe(() => {
+      this.filterFormValueSignal.set(this.filterForm.getRawValue());
+      this.reload();
+    });
+    this.filterForm.controls.active.valueChanges.subscribe(() => {
+      this.filterFormValueSignal.set(this.filterForm.getRawValue());
+      this.reload();
+    });
+    this.filterForm.controls.category.valueChanges.subscribe(() => {
+      this.filterFormValueSignal.set(this.filterForm.getRawValue());
+      this.reload();
+    });
     this.reload();
   }
 
-  onSearchInput(_value: string): void {
-    if (this.searchDebounce) clearTimeout(this.searchDebounce);
-    this.searchDebounce = setTimeout(() => this.reload(), 250);
-  }
-
   clearFilters(): void {
-    this.searchInput = '';
-    this.bankFilter = undefined;
-    this.activeFilter = undefined;
-    this.categoryFilter = undefined;
+    this.filterForm.reset({ search: '', bank: '', active: null, category: null });
     this.reload();
   }
 
@@ -565,13 +587,14 @@ export class BankProgramsListPage implements OnInit {
   async reload(): Promise<void> {
     this.loading.set(true);
     try {
+      const v = this.filterForm.getRawValue();
       const query: ListBankProgramsQuery = {
         page: this.page(),
         pageSize: this.pageSize(),
-        search: this.searchInput || undefined,
-        bankName: this.bankFilter || undefined,
-        active: this.activeFilter,
-        productCategory: this.categoryFilter || undefined,
+        search: v.search || undefined,
+        bankName: v.bank || undefined,
+        active: v.active ?? undefined,
+        productCategory: v.category ?? undefined,
       };
       const res = await this.api.list(query);
       this.rows.set(res.data);

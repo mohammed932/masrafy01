@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -173,7 +173,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
+    ReactiveFormsModule,
     RouterLink,
     NzIconModule,
     NzButtonModule,
@@ -318,10 +318,9 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                     type="text"
                     placeholder="Filter values…"
                     i18n-placeholder="@@lookups.search"
-                    [(ngModel)]="valueFilter"
-                    (ngModelChange)="onValueFilter($event)"
+                    [formControl]="valueFilterControl"
                   />
-                  @if (valueFilter) {
+                  @if (valueFilterControl.value) {
                     <button type="button" class="clear" (click)="clearFilter()" aria-label="Clear">
                       <span nz-icon nzType="close-circle" nzTheme="outline"></span>
                     </button>
@@ -343,7 +342,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                   <span class="empty-icon" nz-icon nzType="flag" nzTheme="outline" aria-hidden="true"></span>
                   <p class="empty-title" i18n="@@lookups.empty.title">No matching values</p>
                   <p class="empty-text" i18n="@@lookups.empty">
-                    @if (valueFilter) { Try a different search term. } @else { Click <strong>Add value</strong> to seed the first one. }
+                    @if (valueFilterControl.value) { Try a different search term. } @else { Click <strong>Add value</strong> to seed the first one. }
                   </p>
                 </div>
               } @else {
@@ -367,9 +366,8 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
                       <span class="value-actions">
                         <nz-switch
                           class="row-toggle"
-                          [ngModel]="r.active && !r.deprecatedAt"
+                          [formControl]="rowToggleControl(r)"
                           [nzDisabled]="!!r.deprecatedAt || r.systemOnly"
-                          (ngModelChange)="toggleActive(r, $event)"
                           nzSize="small"
                         ></nz-switch>
                         <button
@@ -1329,8 +1327,27 @@ export class LookupsPage implements OnInit {
   protected readonly banksCount = signal<number>(0);
   protected readonly bankProgramsCount = signal<number>(0);
 
-  protected valueFilter = '';
+  protected readonly valueFilterControl = new FormControl<string>('', { nonNullable: true });
   protected readonly valueFilterSignal = signal<string>('');
+  private readonly rowToggleControls = new Map<string, FormControl<boolean>>();
+
+  protected rowToggleControl(r: EnumerationRow): FormControl<boolean> {
+    const desired = r.active && !r.deprecatedAt;
+    let ctrl = this.rowToggleControls.get(r.id);
+    if (!ctrl) {
+      ctrl = new FormControl<boolean>(desired, { nonNullable: true });
+      this.rowToggleControls.set(r.id, ctrl);
+      ctrl.valueChanges.subscribe((next) => {
+        // Guard: only fire mutation when state actually flips relative to the row.
+        const current = r.active && !r.deprecatedAt;
+        if (next !== current) void this.toggleActive(r, next);
+      });
+    } else if (ctrl.value !== desired) {
+      ctrl.setValue(desired, { emitEvent: false });
+    }
+    return ctrl;
+  }
+
   protected readonly filteredRows = computed(() => {
     const q = this.valueFilterSignal().trim().toLowerCase();
     const all = this.rows();
@@ -1348,13 +1365,8 @@ export class LookupsPage implements OnInit {
     };
   });
 
-  onValueFilter(value: string): void {
-    this.valueFilterSignal.set(value);
-  }
-
   clearFilter(): void {
-    this.valueFilter = '';
-    this.valueFilterSignal.set('');
+    this.valueFilterControl.setValue('');
   }
 
   protected readonly heroStats = computed(() => {
@@ -1385,6 +1397,7 @@ export class LookupsPage implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
+    this.valueFilterControl.valueChanges.subscribe((v) => this.valueFilterSignal.set(v));
     void this.loadBankStats();
     await this.reloadTypes();
     const initial = this.route.snapshot.queryParamMap.get('type');

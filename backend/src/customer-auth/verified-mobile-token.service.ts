@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
-import type { Prisma } from '@prisma/client';
+import type { TransactionClient } from '@/common/transaction/transaction-client';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { VerifiedMobileTokenRepository } from './verified-mobile-token.repository';
@@ -32,7 +32,7 @@ export class VerifiedMobileTokenService {
    * Validate + consume in a single atomic step. Throws domain exceptions on
    * invalid / expired / already-consumed.
    */
-  async consume(rawToken: string, tx?: Prisma.TransactionClient): Promise<{ phone: string }> {
+  async consume(rawToken: string, tx?: TransactionClient): Promise<{ phone: string }> {
     const tokenHash = this.hash(rawToken);
     const row = await this.repo.findByHash(tokenHash);
     if (!row) throw new DomainException(ERROR_CODES.VERIFIED_MOBILE_TOKEN_INVALID);

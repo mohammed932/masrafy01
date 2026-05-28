@@ -7,7 +7,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -33,10 +33,14 @@ export interface UploadedAttachmentPayload {
   uploadedBySource: string;
 }
 
+type PendingFileFormGroup = FormGroup<{
+  documentType: FormControl<string>;
+  uploadedBySource: FormControl<string>;
+}>;
+
 interface PendingFile {
   file: File;
-  documentType: string;
-  uploadedBySource: string;
+  form: PendingFileFormGroup;
   status: 'pending' | 'uploading' | 'done' | 'error';
   errorCode?: string;
   uploaded?: PresignedUploadResponse;
@@ -68,7 +72,6 @@ const SOURCE_OPTIONS = [
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     ReactiveFormsModule,
     NzButtonModule,
     NzFormModule,
@@ -121,8 +124,7 @@ const SOURCE_OPTIONS = [
               </div>
               <nz-select
                 class="field-type"
-                [ngModel]="entry.documentType"
-                (ngModelChange)="setDocType(entry, $event)"
+                [formControl]="entry.form.controls.documentType"
                 [nzPlaceHolder]="docTypeLabel"
               >
                 @for (t of docTypes; track t) {
@@ -131,8 +133,7 @@ const SOURCE_OPTIONS = [
               </nz-select>
               <nz-select
                 class="field-source"
-                [ngModel]="entry.uploadedBySource"
-                (ngModelChange)="setSource(entry, $event)"
+                [formControl]="entry.form.controls.uploadedBySource"
                 [nzPlaceHolder]="sourceLabel"
               >
                 @for (s of sources; track s) {
@@ -283,9 +284,11 @@ export class ActivityAttachmentsUploaderComponent {
   }
 
   defaultSource(s: string): void {
-    this.files.update((rows) =>
-      rows.map((r) => (r.status === 'pending' ? { ...r, uploadedBySource: s } : r)),
-    );
+    for (const r of this.files()) {
+      if (r.status === 'pending') {
+        r.form.controls.uploadedBySource.setValue(s);
+      }
+    }
   }
 
   onDragOver(ev: DragEvent): void {
@@ -314,21 +317,13 @@ export class ActivityAttachmentsUploaderComponent {
   addFiles(list: File[]): void {
     const entries: PendingFile[] = list.map((f) => ({
       file: f,
-      documentType: DOCUMENT_TYPE_OPTIONS[0],
-      uploadedBySource: SOURCE_OPTIONS[0],
+      form: new FormGroup({
+        documentType: new FormControl<string>(DOCUMENT_TYPE_OPTIONS[0], { nonNullable: true }),
+        uploadedBySource: new FormControl<string>(SOURCE_OPTIONS[0], { nonNullable: true }),
+      }),
       status: 'pending',
     }));
     this.files.update((prev) => [...prev, ...entries]);
-  }
-
-  setDocType(entry: PendingFile, value: string): void {
-    this.files.update((rows) => rows.map((r) => (r === entry ? { ...r, documentType: value } : r)));
-  }
-
-  setSource(entry: PendingFile, value: string): void {
-    this.files.update((rows) =>
-      rows.map((r) => (r === entry ? { ...r, uploadedBySource: value } : r)),
-    );
   }
 
   remove(entry: PendingFile): void {
@@ -350,13 +345,14 @@ export class ActivityAttachmentsUploaderComponent {
       }
       this.updateStatus(entry, 'uploading');
       try {
+        const { documentType, uploadedBySource } = entry.form.getRawValue();
         const resp = await this.api.requestUploadUrl({
           applicationId: this.applicationId,
-          documentType: entry.documentType,
+          documentType,
           mimeType: entry.file.type,
           sizeBytes: entry.file.size,
           originalFilename: entry.file.name,
-          uploadedBySource: entry.uploadedBySource,
+          uploadedBySource,
         });
         await this.api.putToS3(resp.uploadUrl, entry.file);
         const next = { ...entry, status: 'done' as const, uploaded: resp };
@@ -379,14 +375,15 @@ export class ActivityAttachmentsUploaderComponent {
   }
 
   private toPayload(entry: PendingFile): UploadedAttachmentPayload {
+    const { documentType, uploadedBySource } = entry.form.getRawValue();
     return {
       documentId: entry.uploaded!.documentId,
-      documentType: entry.documentType,
+      documentType,
       s3Key: entry.uploaded!.s3Key,
       mimeType: entry.file.type,
       sizeBytes: entry.file.size,
       originalFilename: entry.file.name,
-      uploadedBySource: entry.uploadedBySource,
+      uploadedBySource,
     };
   }
 

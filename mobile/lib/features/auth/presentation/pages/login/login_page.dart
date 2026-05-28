@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'cubit/login/login_cubit.dart';
+part of 'login.imports.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, this.initialPhone, required this.onForgotPassword});
@@ -49,8 +46,9 @@ class _LoginPageState extends State<LoginPage> {
       },
       builder: (ctx, state) {
         final busy = state.isBusy;
+        final l10n = AppLocalizations.of(ctx);
         return Scaffold(
-          appBar: AppBar(title: const Text('Log in')),
+          appBar: AppBar(title: Text(l10n.auth_login_title)),
           body: Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: Column(
@@ -59,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
                 TextField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Mobile number'),
+                  decoration: InputDecoration(labelText: l10n.auth_login_field_mobile),
                   onChanged: (v) => ctx
                       .read<LoginCubit>()
                       .updateField(LoginField.phone, v.trim()),
@@ -68,7 +66,7 @@ class _LoginPageState extends State<LoginPage> {
                 TextField(
                   controller: _pwd,
                   obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: InputDecoration(labelText: l10n.auth_login_field_password),
                   onChanged: (v) => ctx
                       .read<LoginCubit>()
                       .updateField(LoginField.password, v),
@@ -81,11 +79,11 @@ class _LoginPageState extends State<LoginPage> {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Log in'),
+                      : Text(l10n.auth_login_action_submit),
                 ),
                 TextButton(
                   onPressed: widget.onForgotPassword,
-                  child: const Text('Forgot password?'),
+                  child: Text(l10n.auth_login_action_forgot),
                 ),
               ],
             ),

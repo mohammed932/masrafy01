@@ -6,8 +6,8 @@ import 'package:app/core/utils/validators.dart';
 
 /// Live password-strength checklist (FR-048).
 /// Renders five criteria rows rebuilt on each keystroke.
-class PasswordStrengthIndicator extends StatelessWidget {
-  const PasswordStrengthIndicator({super.key, required this.password});
+class MasrafyPasswordStrengthIndicator extends StatelessWidget {
+  const MasrafyPasswordStrengthIndicator({super.key, required this.password});
 
   final String password;
 

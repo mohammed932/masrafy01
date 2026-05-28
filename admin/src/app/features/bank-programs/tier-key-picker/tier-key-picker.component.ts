@@ -1,6 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+} from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -19,7 +27,7 @@ import type { EnumerationType } from '../../../core/platform-enumerations/platfo
 @Component({
   selector: 'app-tier-key-picker',
   standalone: true,
-  imports: [CommonModule, FormsModule, NzFormModule, NzSelectModule, NzIconModule],
+  imports: [CommonModule, ReactiveFormsModule, NzFormModule, NzSelectModule, NzIconModule],
   providers: [provideNzIconsPatch([DisconnectOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -29,9 +37,7 @@ import type { EnumerationType } from '../../../core/platform-enumerations/platfo
         <nz-form-control>
           <nz-select
             [nzMode]="multiple() ? 'multiple' : 'default'"
-            [ngModel]="value()"
-            (ngModelChange)="emit($event)"
-            name="tierKey"
+            [formControl]="control"
           >
             @for (m of members(); track m.key) {
               <nz-option [nzValue]="m.key" [nzLabel]="m.labelEn"></nz-option>

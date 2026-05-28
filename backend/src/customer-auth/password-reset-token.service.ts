@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
-import type { Prisma } from '@prisma/client';
+import type { TransactionClient } from '@/common/transaction/transaction-client';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { PasswordResetTokenRepository } from './password-reset-token.repository';
@@ -25,7 +25,7 @@ export class PasswordResetTokenService {
     return { rawToken: raw, expiresAt };
   }
 
-  async consume(rawToken: string, tx?: Prisma.TransactionClient): Promise<{ customerId: string }> {
+  async consume(rawToken: string, tx?: TransactionClient): Promise<{ customerId: string }> {
     const tokenHash = this.hash(rawToken);
     const row = await this.repo.findByHash(tokenHash);
     if (!row) throw new DomainException(ERROR_CODES.VERIFIED_MOBILE_TOKEN_INVALID); // reuse code symbolically

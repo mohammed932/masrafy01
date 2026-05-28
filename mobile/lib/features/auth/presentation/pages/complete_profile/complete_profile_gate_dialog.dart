@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+part of 'complete_profile.imports.dart';
 
 /// Non-dismissible gate popup shown to a SOCIAL customer on Apply when their
 /// profile is incomplete. The popup is mandatory per FR-009a — there is NO
@@ -33,16 +33,21 @@ class CompleteProfileGateDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return PopScope(
       canPop: false,
       child: AlertDialog(
-        title: const Text('Complete your profile'),
-        content: const Text(
-          'We need a few more details before you can apply. This is required by the bank.',
-        ),
+        title: Text(l10n.auth_complete_profile_title),
+        content: Text(l10n.auth_complete_profile_body),
         actions: [
-          TextButton(onPressed: onCancelApply, child: const Text('Cancel')),
-          FilledButton(onPressed: onComplete, child: const Text('Complete Profile')),
+          TextButton(
+            onPressed: onCancelApply,
+            child: Text(l10n.auth_complete_profile_action_cancel),
+          ),
+          FilledButton(
+            onPressed: onComplete,
+            child: Text(l10n.auth_complete_profile_action_complete),
+          ),
         ],
       ),
     );

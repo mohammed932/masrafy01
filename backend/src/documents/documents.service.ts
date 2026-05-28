@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import cuid from 'cuid';
-import type { Prisma } from '@prisma/client'; // Prisma.TransactionClient only — transaction orchestration carve-out per Constitution Principle X.
+import type { TransactionClient } from '@/common/transaction/transaction-client';
 import {
   DocumentNotFoundException,
   DocumentNotPendingException,
@@ -249,7 +249,7 @@ export class DocumentsService {
     applicantName: string | null;
     mimeType: string;
     sizeBytes: number;
-    tx: Prisma.TransactionClient;
+    tx: TransactionClient;
   }) {
     const head = await this.s3.headObject(input.s3Key);
     if (!head.exists) throw new NotFoundException();

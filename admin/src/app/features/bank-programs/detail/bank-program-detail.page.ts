@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzFormModule } from 'ng-zorro-antd/form';
@@ -30,7 +30,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
+    ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
     NzFormModule,
@@ -236,18 +236,14 @@ import type { BankProgramResponse } from '../bank-programs.types';
             [context]="whatIfContext()"
           ></app-cascade-preview>
 
-          <section class="card whatif">
+          <section class="card whatif" [formGroup]="whatIfForm">
             <h3 class="card-title" i18n="@@bank_programs.detail.whatif">Try a sample applicant</h3>
             <nz-form-item>
               <nz-form-label [nzFor]="'ctxEmployment'" i18n="@@bank_programs.field.employment_type"
                 >Employment</nz-form-label
               >
               <nz-form-control>
-                <nz-select
-                  id="ctxEmployment"
-                  [(ngModel)]="ctxEmployment"
-                  (ngModelChange)="recompute()"
-                >
+                <nz-select id="ctxEmployment" formControlName="employmentType">
                   <nz-option nzValue="salaried" nzLabel="Salaried"></nz-option>
                   <nz-option nzValue="self_employed" nzLabel="Self-employed"></nz-option>
                 </nz-select>
@@ -258,7 +254,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
                 >Transfer</nz-form-label
               >
               <nz-form-control>
-                <nz-select id="ctxTransfer" [(ngModel)]="ctxTransfer" (ngModelChange)="recompute()">
+                <nz-select id="ctxTransfer" formControlName="transferType">
                   <nz-option nzValue="payroll" nzLabel="Payroll"></nz-option>
                   <nz-option nzValue="payroll_cat_a" nzLabel="Payroll · Cat-A"></nz-option>
                   <nz-option nzValue="payroll_cat_b" nzLabel="Payroll · Cat-B"></nz-option>
@@ -274,13 +270,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
                 >Tenor (months)</nz-form-label
               >
               <nz-form-control>
-                <input
-                  nz-input
-                  id="ctxTenor"
-                  type="number"
-                  [(ngModel)]="ctxTenor"
-                  (ngModelChange)="recompute()"
-                />
+                <input nz-input id="ctxTenor" type="number" formControlName="tenorMonths" />
               </nz-form-control>
             </nz-form-item>
             <nz-form-item>
@@ -294,8 +284,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
                   nz-input
                   id="ctxDownPayment"
                   type="number"
-                  [(ngModel)]="ctxDownPayment"
-                  (ngModelChange)="recompute()"
+                  formControlName="downPaymentPercent"
                 />
               </nz-form-control>
             </nz-form-item>
@@ -308,8 +297,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
                   nz-input
                   id="ctxAssetValue"
                   type="number"
-                  [(ngModel)]="ctxAssetValue"
-                  (ngModelChange)="recompute()"
+                  formControlName="assetValueEGP"
                 />
               </nz-form-control>
             </nz-form-item>
@@ -457,21 +445,26 @@ export class BankProgramDetailPage {
   );
   readonly program = signal<BankProgramResponse | null>(null);
 
-  ctxEmployment = 'salaried';
-  ctxTransfer = 'payroll';
-  ctxTenor = 60;
-  ctxDownPayment = 30;
-  ctxAssetValue = 1000000;
-  readonly _trigger = signal(0);
+  readonly whatIfForm = new FormGroup({
+    employmentType: new FormControl<string>('salaried', { nonNullable: true }),
+    transferType: new FormControl<string>('payroll', { nonNullable: true }),
+    tenorMonths: new FormControl<number>(60, { nonNullable: true }),
+    downPaymentPercent: new FormControl<number>(30, { nonNullable: true }),
+    assetValueEGP: new FormControl<number>(1000000, { nonNullable: true }),
+  });
+
+  private readonly whatIfFormValue = toSignal(this.whatIfForm.valueChanges, {
+    initialValue: this.whatIfForm.getRawValue(),
+  });
 
   readonly whatIfContext = computed<CascadeApplicantContext>(() => {
-    this._trigger();
+    const v = this.whatIfFormValue();
     return {
-      employmentType: this.ctxEmployment,
-      transferType: this.ctxTransfer,
-      tenorMonths: this.ctxTenor,
-      downPaymentPercent: this.ctxDownPayment,
-      assetValueEGP: this.ctxAssetValue,
+      employmentType: v.employmentType ?? 'salaried',
+      transferType: v.transferType ?? 'payroll',
+      tenorMonths: v.tenorMonths ?? 60,
+      downPaymentPercent: v.downPaymentPercent ?? 30,
+      assetValueEGP: v.assetValueEGP ?? 1000000,
     };
   });
 
@@ -481,10 +474,6 @@ export class BankProgramDetailPage {
   constructor() {
     // Reactive fetch.
     queueMicrotask(() => this.load());
-  }
-
-  recompute(): void {
-    this._trigger.update((n) => n + 1);
   }
 
   async load(): Promise<void> {

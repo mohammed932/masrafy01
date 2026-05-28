@@ -12,6 +12,7 @@ import {
   type ApplicationPriority,
   type ApplicationStatus as PrismaApplicationStatus,
   type ApprovalTier,
+  type LeadStatus,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../infra/prisma/prisma.service';
@@ -103,6 +104,40 @@ export interface ApplicationOwnership {
   id: string;
   applicantUserId: string | null;
   mobileClientId: string;
+}
+
+/**
+ * Mapped domain type for the offer-selection flow's pre-write read.
+ * Intra-feature (`applications`) so we expose the minimal projection
+ * the service needs to enforce ownership + status invariants.
+ */
+export interface ApplicationOfferSelectionSnapshot {
+  id: string;
+  mobileClientId: string;
+  status: PrismaApplicationStatus;
+  userProceededAt: Date | null;
+  userSelectedBankOfferId: string | null;
+}
+
+/**
+ * Mapped domain type for the assign-agent flow's pre-write read.
+ * Intra-feature; the service uses `assignedAgentStaffId` to record the
+ * previous agent on the activity log.
+ */
+export interface ApplicationAssignmentSnapshot {
+  id: string;
+  assignedAgentStaffId: string | null;
+}
+
+/**
+ * Mapped domain type for the activities feature's read of bank-offer
+ * ownership inside the offer-selection transaction. Intra-feature
+ * because BankOffer queries live in the applications feature.
+ */
+export interface BankOfferOwnershipSnapshot {
+  id: string;
+  applicationId: string;
+  erasedAt: Date | null;
 }
 
 @Injectable()
@@ -300,5 +335,187 @@ export class ApplicationRepository {
       data: { assignedAgentStaffId: input.toAgentStaffId, assignedAt: new Date() },
     });
     return { previousAgentId: existing.assignedAgentStaffId };
+  }
+
+  /**
+   * Read the minimal projection used by the offer-selection flow (Constitution
+   * Principle X — services may not call `tx.application.findUnique` directly).
+   * Accepts an optional `tx` so the service can call inside a
+   * `$transaction(async (tx) => …)` callback.
+   */
+  async findForOfferSelection(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<ApplicationOfferSelectionSnapshot | null> {
+    const client = tx ?? this.prisma;
+    const row = await client.application.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        mobileClientId: true,
+        status: true,
+        userProceededAt: true,
+        userSelectedBankOfferId: true,
+      },
+    });
+    if (!row) return null;
+    return {
+      id: row.id,
+      mobileClientId: row.mobileClientId,
+      status: row.status,
+      userProceededAt: row.userProceededAt,
+      userSelectedBankOfferId: row.userSelectedBankOfferId,
+    };
+  }
+
+  /**
+   * Read the minimal projection used by the assign-agent flow's pre-write
+   * check. The service needs `assignedAgentStaffId` to record the previous
+   * agent on the activity log.
+   */
+  async findAssignmentSnapshot(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<ApplicationAssignmentSnapshot | null> {
+    const client = tx ?? this.prisma;
+    const row = await client.application.findUnique({
+      where: { id },
+      select: { id: true, assignedAgentStaffId: true },
+    });
+    if (!row) return null;
+    return { id: row.id, assignedAgentStaffId: row.assignedAgentStaffId };
+  }
+
+  /**
+   * Read the minimal projection of a BankOffer used by the offer-selection
+   * flow to enforce (a) the offer exists and isn't erased, (b) the offer
+   * belongs to the application. BankOffer queries live in this repository
+   * because the applications feature owns the BankOffer table.
+   */
+  async findBankOfferOwnership(
+    bankOfferId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<BankOfferOwnershipSnapshot | null> {
+    const client = tx ?? this.prisma;
+    const row = await client.bankOffer.findUnique({
+      where: { id: bankOfferId },
+      select: { id: true, applicationId: true, erasedAt: true },
+    });
+    if (!row) return null;
+    return {
+      id: row.id,
+      applicationId: row.applicationId,
+      erasedAt: row.erasedAt,
+    };
+  }
+
+  /**
+   * Write helper for the offer-selection flow — sets the user-selected
+   * bank offer and the user-proceeded timestamp atomically. Intended to
+   * be called inside the service's `$transaction` callback.
+   */
+  async markOfferSelected(
+    input: {
+      applicationId: string;
+      bankOfferId: string;
+      proceededAt: Date;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.application.update({
+      where: { id: input.applicationId },
+      data: {
+        userSelectedBankOfferId: input.bankOfferId,
+        userProceededAt: input.proceededAt,
+      },
+    });
+  }
+
+  /**
+   * Write helper for the assign-agent flow — sets the assigned agent and
+   * stamps `assignedAt` to "now". The service controls the timing of the
+   * write within its `$transaction` callback.
+   */
+  async updateAssignedAgent(
+    input: {
+      applicationId: string;
+      toAgentStaffId: string;
+      assignedAt: Date;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.application.update({
+      where: { id: input.applicationId },
+      data: {
+        assignedAgentStaffId: input.toAgentStaffId,
+        assignedAt: input.assignedAt,
+      },
+    });
+  }
+
+  /**
+   * Persist a `LEAD_REASSIGNED` activity row as part of the assign-agent
+   * flow. The Activity table is owned by the activities feature, but
+   * `ActivitiesModule` already depends on `ApplicationsModule` — so this
+   * narrow intra-flow writer lives here to avoid a circular module dep.
+   * The applications service uses this only as part of `assignAgent`.
+   */
+  async appendReassignmentActivity(
+    input: {
+      activityId: string;
+      applicationId: string;
+      actorStaffId: string;
+      actorRole: 'super_admin' | 'sales_manager' | 'sales_agent' | 'analyst';
+      reason: string;
+      note: string | null;
+      fromAgentId: string | null;
+      toAgentId: string;
+      correlationId: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.activity.create({
+      data: {
+        id: input.activityId,
+        applicationId: input.applicationId,
+        actorStaffId: input.actorStaffId,
+        actorRole: input.actorRole,
+        activityType: 'LEAD_REASSIGNED',
+        reason: input.reason,
+        note: input.note,
+        durationMinutes: null,
+        outcomeFlags: [],
+        followUpAt: null,
+        attachedDocumentIds: [],
+        meta: {
+          fromAgentId: input.fromAgentId ?? null,
+          toAgentId: input.toAgentId,
+          reassignReason: input.reason,
+        },
+        correlationId: input.correlationId,
+      },
+    });
+  }
+
+  /**
+   * Write helper for the activities feature's lead-status transition — flips
+   * `leadStatus` to the derived next value. Accepts `tx` so it participates
+   * in the activities service's create-activity transaction.
+   */
+  async updateLeadStatus(
+    input: {
+      applicationId: string;
+      leadStatus: LeadStatus;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.application.update({
+      where: { id: input.applicationId },
+      data: { leadStatus: input.leadStatus },
+    });
   }
 }

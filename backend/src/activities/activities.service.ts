@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import cuid from 'cuid';
-// Constitution Principle X carve-out: `Prisma.TransactionIsolationLevel` is a
-// runtime value required for `$transaction` orchestration. All other Prisma
-// types are gone — the repo accepts the domain `meta` payload as plain JSON.
-import { Prisma } from '@prisma/client';
+// Constitution Principle X (Repository Pattern Mandatory): this service no
+// longer imports the `Prisma` namespace at runtime. The isolation-level
+// option is taken from a local string-literal mirror, and the lead-status
+// write inside the transaction goes through `ApplicationRepository`.
+import { IsolationLevel } from '@/common/transaction/isolation-level';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
@@ -188,10 +189,10 @@ export class ActivitiesService {
         });
 
         if (newLeadStatus !== null) {
-          await tx.application.update({
-            where: { id: applicationId },
-            data: { leadStatus: newLeadStatus },
-          });
+          await this.applications.updateLeadStatus(
+            { applicationId, leadStatus: newLeadStatus },
+            tx,
+          );
         }
 
         await this.audit.write(
@@ -263,7 +264,7 @@ export class ActivitiesService {
           previousLeadStatus,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel: IsolationLevel.Serializable },
     );
   }
 

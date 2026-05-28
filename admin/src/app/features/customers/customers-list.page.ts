@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzTagModule } from 'ng-zorro-antd/tag';
@@ -23,7 +23,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    FormsModule,
+    ReactiveFormsModule,
     NzInputModule,
     NzTableModule,
     NzTagModule,
@@ -43,8 +43,7 @@ import {
       <nz-input-group nzPrefixIcon="search" style="max-width: 360px;">
         <input
           nz-input
-          [ngModel]="q()"
-          (ngModelChange)="onSearch($event)"
+          [formControl]="searchControl"
           i18n-placeholder="@@customers.search.placeholder"
           placeholder="Search phone, email, or name"
           autocomplete="off"
@@ -119,6 +118,7 @@ import {
 export class CustomersListPage implements OnInit {
   private readonly api = inject(CustomersApiService);
 
+  protected readonly searchControl = new FormControl<string>('', { nonNullable: true });
   protected readonly q = signal('');
   protected readonly pageIndex = signal(0);
   protected readonly total = signal(0);
@@ -129,16 +129,15 @@ export class CustomersListPage implements OnInit {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   ngOnInit(): void {
+    this.searchControl.valueChanges.subscribe((value) => {
+      this.q.set(value);
+      if (this.searchTimer) clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        this.pageIndex.set(0);
+        void this.load();
+      }, 250);
+    });
     void this.load();
-  }
-
-  onSearch(value: string): void {
-    this.q.set(value);
-    if (this.searchTimer) clearTimeout(this.searchTimer);
-    this.searchTimer = setTimeout(() => {
-      this.pageIndex.set(0);
-      void this.load();
-    }, 250);
   }
 
   onPageChange(oneBasedIndex: number): void {

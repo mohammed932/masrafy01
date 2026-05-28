@@ -13,7 +13,6 @@ import {
   FormBuilder,
   FormControl,
   FormGroup,
-  FormsModule,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
@@ -40,7 +39,7 @@ import {
   DeleteOutline,
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { MoneyInputDirective } from '../../../core/directives/money-input.directive';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
@@ -71,7 +70,6 @@ type ToggleKey =
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
@@ -215,9 +213,7 @@ type ToggleKey =
                   <nz-form-control [nzErrorTip]="fieldErrorTpl">
                     <nz-select
                       id="bankId"
-                      [ngModel]="selectedBankId()"
-                      [ngModelOptions]="{ standalone: true }"
-                      (ngModelChange)="onBankPicked($event)"
+                      [formControl]="bankIdControl"
                       [nzDropdownStyle]="dropdownStyle"
                       nzShowSearch
                       nzAllowClear
@@ -409,7 +405,7 @@ type ToggleKey =
               <nz-form-item class="span-2">
                 <nz-form-label nzRequired i18n="@@bank_programs.field.accepted_employment">Accepted employment types</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-select [ngModel]="employmentArr()" (ngModelChange)="setArr('eligibility.acceptedEmploymentTypes', $event)" [ngModelOptions]="{ standalone: true }" nzMode="multiple" nzPlaceHolder="Pick one or more" [nzDropdownStyle]="dropdownStyle">
+                  <nz-select formControlName="acceptedEmploymentTypes" nzMode="multiple" nzPlaceHolder="Pick one or more" [nzDropdownStyle]="dropdownStyle">
                     @for (o of employmentOptions(); track o.value) {
                       <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
                     }
@@ -419,7 +415,7 @@ type ToggleKey =
               <nz-form-item class="span-2">
                 <nz-form-label nzRequired i18n="@@bank_programs.field.accepted_transfer">Accepted transfer types</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-select [ngModel]="transferArr()" (ngModelChange)="setArr('eligibility.acceptedTransferTypes', $event)" [ngModelOptions]="{ standalone: true }" nzMode="multiple" nzPlaceHolder="Pick one or more" [nzDropdownStyle]="dropdownStyle">
+                  <nz-select formControlName="acceptedTransferTypes" nzMode="multiple" nzPlaceHolder="Pick one or more" [nzDropdownStyle]="dropdownStyle">
                     @for (o of transferOptions(); track o.value) {
                       <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
                     }
@@ -441,7 +437,7 @@ type ToggleKey =
               <nz-form-item class="span-2">
                 <nz-form-label i18n="@@bank_programs.field.required_documents">Required documents</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-select [ngModel]="docsArr()" (ngModelChange)="setArr('documents.requiredDocuments', $event)" [ngModelOptions]="{ standalone: true }" nzMode="multiple" nzPlaceHolder="Pick required documents">
+                  <nz-select formControlName="requiredDocuments" nzMode="multiple" nzPlaceHolder="Pick required documents">
                     @for (o of documentOptions(); track o.value) {
                       <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
                     }
@@ -551,14 +547,14 @@ type ToggleKey =
               </div>
             </header>
             <div class="toggle-grid">
-              <label nz-checkbox [ngModel]="toggles.variableRate()" (ngModelChange)="setToggle('variableRate', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.variable_rate">Variable-rate program</label>
-              <label nz-checkbox [ngModel]="toggles.incomeSurrogate()" (ngModelChange)="setToggle('incomeSurrogate', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.income_surrogate">Income-surrogate program</label>
-              <label nz-checkbox [ngModel]="toggles.tieredRates()" (ngModelChange)="setToggle('tieredRates', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.tiered_rates">Tiered interest rates (by loan amount)</label>
-              <label nz-checkbox [ngModel]="toggles.buyout()" (ngModelChange)="setToggle('buyout', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.buyout">Buyout / refinance program</label>
+              <label nz-checkbox [nzChecked]="toggles.variableRate()" (nzCheckedChange)="setToggle('variableRate', $event)" i18n="@@bank_programs.toggle.variable_rate">Variable-rate program</label>
+              <label nz-checkbox [nzChecked]="toggles.incomeSurrogate()" (nzCheckedChange)="setToggle('incomeSurrogate', $event)" i18n="@@bank_programs.toggle.income_surrogate">Income-surrogate program</label>
+              <label nz-checkbox [nzChecked]="toggles.tieredRates()" (nzCheckedChange)="setToggle('tieredRates', $event)" i18n="@@bank_programs.toggle.tiered_rates">Tiered interest rates (by loan amount)</label>
+              <label nz-checkbox [nzChecked]="toggles.buyout()" (nzCheckedChange)="setToggle('buyout', $event)" i18n="@@bank_programs.toggle.buyout">Buyout / refinance program</label>
               @if (downPaymentApplicable()) {
-                <label nz-checkbox [ngModel]="toggles.downPayment()" (ngModelChange)="setToggle('downPayment', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.down_payment">Requires down payment</label>
+                <label nz-checkbox [nzChecked]="toggles.downPayment()" (nzCheckedChange)="setToggle('downPayment', $event)" i18n="@@bank_programs.toggle.down_payment">Requires down payment</label>
               }
-              <label nz-checkbox [ngModel]="toggles.shariaCompliant()" (ngModelChange)="setToggle('shariaCompliant', $event)" [ngModelOptions]="{ standalone: true }" i18n="@@bank_programs.toggle.sharia">Sharia-compliant (Islamic)</label>
+              <label nz-checkbox [nzChecked]="toggles.shariaCompliant()" (nzCheckedChange)="setToggle('shariaCompliant', $event)" i18n="@@bank_programs.toggle.sharia">Sharia-compliant (Islamic)</label>
             </div>
           </section>
 
@@ -1167,7 +1163,14 @@ export class BankProgramFormPage implements OnInit {
   readonly advancedFeesOpen = signal(false);
   readonly dropdownStyle: Record<string, string> = { 'max-height': '360px', 'min-height': '120px' };
   readonly activeBanks = signal<BankWithProgramCount[]>([]);
-  readonly selectedBankId = signal<string | null>(null);
+  /** Typed Reactive Form control backing the bank picker (UI-side; not part of the
+   *  main form group — its value drives bankId in the create/update payload and
+   *  mirrors into identity.bankName via valueChanges). */
+  readonly bankIdControl = new FormControl<string | null>(null);
+  /** Mirror of bankIdControl.value as a signal for template + payload reads. */
+  readonly selectedBankId = toSignal(this.bankIdControl.valueChanges, {
+    initialValue: this.bankIdControl.value,
+  });
 
   // Wizard state
   readonly currentStep = signal<number>(1);
@@ -1218,7 +1221,7 @@ export class BankProgramFormPage implements OnInit {
     if (step >= 1 && step <= this.steps.length) this.currentStep.set(step);
   }
   clearBank(): void {
-    this.selectedBankId.set(null);
+    this.bankIdControl.setValue(null);
     this.identityGroup.patchValue({ bankName: '' });
   }
   initialsOf(name: string): string {
@@ -1327,15 +1330,16 @@ export class BankProgramFormPage implements OnInit {
       rateByLoanAmountBands: new FormArray<FormGroup>([]),
     }),
     eligibility: this.fb.nonNullable.group({
-      acceptedEmploymentTypes: this.fb.nonNullable.array<string>(['salaried'], {
+      acceptedEmploymentTypes: new FormControl<string[]>(['salaried'], {
+        nonNullable: true,
         validators: [Validators.required],
       }),
       acceptedLoanPurposes: this.fb.nonNullable.array<string>(['personal'], {
         validators: [Validators.required],
       }),
-      acceptedTransferTypes: this.fb.nonNullable.array<string>(
+      acceptedTransferTypes: new FormControl<string[]>(
         ['payroll_cat_a', 'payroll_cat_b', 'payroll_cat_c'],
-        { validators: [Validators.required] },
+        { nonNullable: true, validators: [Validators.required] },
       ),
       ageMin: new FormControl(21, {
         nonNullable: true,
@@ -1410,7 +1414,7 @@ export class BankProgramFormPage implements OnInit {
       }),
     }),
     documents: this.fb.nonNullable.group({
-      requiredDocuments: this.fb.nonNullable.array<string>([]),
+      requiredDocuments: new FormControl<string[]>([], { nonNullable: true }),
       operatorNotes: new FormControl<string | null>(null),
       operatorTips: this.fb.nonNullable.array<string>([]),
     }),
@@ -1425,10 +1429,9 @@ export class BankProgramFormPage implements OnInit {
   get feesGroup(): FormGroup { return this.form.controls.fees as FormGroup; }
   get documentsGroup(): FormGroup { return this.form.controls.documents as FormGroup; }
 
-  // Live array views for nz-select [ngModel] bindings
-  readonly employmentArr = signal<string[]>(['salaried']);
-  readonly transferArr = signal<string[]>(['payroll_cat_a', 'payroll_cat_b', 'payroll_cat_c']);
-  readonly docsArr = signal<string[]>([]);
+  // Live array view for the FormArray-backed currencies field (kept as FormArray to
+  // preserve per-item validation hooks). Other multi-select fields are now typed
+  // FormControl<string[]> bound directly via [formControl] / formControlName.
   readonly currenciesArrValue = signal<string[]>(['EGP']);
 
   // Reactive view of identity.productCategory so the template + effects react.
@@ -1443,6 +1446,12 @@ export class BankProgramFormPage implements OnInit {
   });
 
   constructor() {
+    // Bank picker valueChanges → mirror into identity.bankName.
+    // Guard inside onBankPicked prevents setValue recursion.
+    this.bankIdControl.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((id) => this.onBankPicked(id ?? null));
+
     // Reset hidden sections when toggle flips off — keeps payload clean per requirement
     effect(() => {
       if (!this.toggles.variableRate()) {
@@ -1518,11 +1527,10 @@ export class BankProgramFormPage implements OnInit {
       'customer_program_tier',
     ]);
 
-    // Mirror form-arrays into signals for nz-select [ngModel] binding
+    // Mirror the currencies FormArray into a signal for read-only consumers.
+    // The eligibility / documents multi-selects are now typed FormControl<string[]>
+    // and bind directly via formControlName — no signal mirror needed.
     this.syncArr(this.identityGroup.get('currencies'), this.currenciesArrValue);
-    this.syncArr(this.eligibilityGroup.get('acceptedEmploymentTypes'), this.employmentArr);
-    this.syncArr(this.eligibilityGroup.get('acceptedTransferTypes'), this.transferArr);
-    this.syncArr(this.documentsGroup.get('requiredDocuments'), this.docsArr);
 
     void this.loadActiveBanks();
 
@@ -1553,7 +1561,9 @@ export class BankProgramFormPage implements OnInit {
   }
 
   onBankPicked(bankId: string | null): void {
-    this.selectedBankId.set(bankId ?? null);
+    if (this.bankIdControl.value !== (bankId ?? null)) {
+      this.bankIdControl.setValue(bankId ?? null);
+    }
     const bank = this.activeBanks().find((b) => b.id === bankId);
     this.identityGroup.patchValue({
       bankName: bank?.nameEnglish ?? '',
@@ -1624,10 +1634,17 @@ export class BankProgramFormPage implements OnInit {
   }
 
   setArr(path: 'identity.currencies' | 'eligibility.acceptedEmploymentTypes' | 'eligibility.acceptedTransferTypes' | 'documents.requiredDocuments', values: readonly unknown[]): void {
-    const arr = this.form.get(path) as FormArray;
-    arr.clear({ emitEvent: false });
-    for (const v of values) arr.push(new FormControl(String(v), { nonNullable: true }), { emitEvent: false });
-    arr.updateValueAndValidity();
+    const ctl = this.form.get(path);
+    if (!ctl) return;
+    const stringValues = values.map((v) => String(v));
+    if (ctl instanceof FormArray) {
+      ctl.clear({ emitEvent: false });
+      for (const v of stringValues) ctl.push(new FormControl(v, { nonNullable: true }), { emitEvent: false });
+      ctl.updateValueAndValidity();
+      return;
+    }
+    // Typed FormControl<string[]>
+    ctl.setValue(stringValues);
   }
 
   private syncArr(ctl: ReturnType<FormGroup['get']>, sig: ReturnType<typeof signal<string[]>>): void {
@@ -1800,7 +1817,7 @@ export class BankProgramFormPage implements OnInit {
       productCategory: initial.productCategory,
     });
     this.identityGroup.get('programCode')?.disable();
-    if (initial.bankId) this.selectedBankId.set(initial.bankId);
+    if (initial.bankId) this.bankIdControl.setValue(initial.bankId);
     this.setArr('identity.currencies', initial.currencies);
 
     this.tenorGroup.patchValue({

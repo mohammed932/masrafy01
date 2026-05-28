@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'cubit/forgot_password/forgot_password_cubit.dart';
+part of 'forgot_password.imports.dart';
 
 class ForgotPasswordMobilePage extends StatefulWidget {
   const ForgotPasswordMobilePage({super.key});
@@ -30,8 +27,9 @@ class _ForgotPasswordMobilePageState extends State<ForgotPasswordMobilePage> {
       },
       builder: (ctx, state) {
         final busy = state.isRequestingOtp;
+        final l10n = AppLocalizations.of(ctx);
         return Scaffold(
-          appBar: AppBar(title: const Text('Forgot password')),
+          appBar: AppBar(title: Text(l10n.auth_forgot_password_title_request)),
           body: Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: Column(
@@ -40,7 +38,9 @@ class _ForgotPasswordMobilePageState extends State<ForgotPasswordMobilePage> {
                 TextField(
                   controller: _ctrl,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Mobile number'),
+                  decoration: InputDecoration(
+                    labelText: l10n.auth_forgot_password_field_mobile,
+                  ),
                   onChanged: (v) => ctx.read<ForgotPasswordCubit>().updateField(
                         ForgotPasswordField.phone,
                         v.trim(),
@@ -65,7 +65,7 @@ class _ForgotPasswordMobilePageState extends State<ForgotPasswordMobilePage> {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Send code'),
+                      : Text(l10n.auth_forgot_password_action_send),
                 ),
               ],
             ),
@@ -103,8 +103,9 @@ class _ForgotPasswordOtpPageState extends State<ForgotPasswordOtpPage> {
       },
       builder: (ctx, state) {
         final busy = state.isVerifying;
+        final l10n = AppLocalizations.of(ctx);
         return Scaffold(
-          appBar: AppBar(title: const Text('Verify code')),
+          appBar: AppBar(title: Text(l10n.auth_forgot_password_title_verify)),
           body: Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: Column(
@@ -114,7 +115,9 @@ class _ForgotPasswordOtpPageState extends State<ForgotPasswordOtpPage> {
                   controller: _ctrl,
                   keyboardType: TextInputType.number,
                   maxLength: 6,
-                  decoration: const InputDecoration(labelText: '6-digit code'),
+                  decoration: InputDecoration(
+                    labelText: l10n.auth_forgot_password_field_otp,
+                  ),
                   onChanged: (v) => ctx.read<ForgotPasswordCubit>().updateField(
                         ForgotPasswordField.otpCode,
                         v.trim(),
@@ -130,7 +133,7 @@ class _ForgotPasswordOtpPageState extends State<ForgotPasswordOtpPage> {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Verify'),
+                      : Text(l10n.auth_forgot_password_action_verify),
                 ),
               ],
             ),
@@ -171,8 +174,9 @@ class _ForgotPasswordResetPageState extends State<ForgotPasswordResetPage> {
       },
       builder: (ctx, state) {
         final busy = state.isResetting;
+        final l10n = AppLocalizations.of(ctx);
         return Scaffold(
-          appBar: AppBar(title: const Text('New password')),
+          appBar: AppBar(title: Text(l10n.auth_forgot_password_title_reset)),
           body: Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: Form(
@@ -183,16 +187,24 @@ class _ForgotPasswordResetPageState extends State<ForgotPasswordResetPage> {
                   TextFormField(
                     controller: _pwd,
                     obscureText: true,
-                    decoration: const InputDecoration(labelText: 'New password'),
+                    decoration: InputDecoration(
+                      labelText: l10n.auth_forgot_password_field_new_password,
+                    ),
                     onChanged: (v) =>
                         ctx.read<ForgotPasswordCubit>().updateField(
                               ForgotPasswordField.newPassword,
                               v,
                             ),
                     validator: (v) {
-                      if (v == null || v.length < 8) return 'min 8 chars';
-                      if (!RegExp(r'[A-Za-z]').hasMatch(v)) return 'need a letter';
-                      if (!RegExp(r'\d').hasMatch(v)) return 'need a digit';
+                      if (v == null || v.length < 8) {
+                        return l10n.auth_forgot_password_validation_password_min;
+                      }
+                      if (!RegExp(r'[A-Za-z]').hasMatch(v)) {
+                        return l10n.auth_forgot_password_validation_password_letter;
+                      }
+                      if (!RegExp(r'\d').hasMatch(v)) {
+                        return l10n.auth_forgot_password_validation_password_digit;
+                      }
                       return null;
                     },
                   ),
@@ -200,9 +212,12 @@ class _ForgotPasswordResetPageState extends State<ForgotPasswordResetPage> {
                   TextFormField(
                     controller: _confirm,
                     obscureText: true,
-                    decoration:
-                        const InputDecoration(labelText: 'Confirm new password'),
-                    validator: (v) => v == _pwd.text ? null : 'does not match',
+                    decoration: InputDecoration(
+                      labelText: l10n.auth_forgot_password_field_confirm_password,
+                    ),
+                    validator: (v) => v == _pwd.text
+                        ? null
+                        : l10n.auth_forgot_password_validation_password_mismatch,
                   ),
                   const SizedBox(height: 24),
                   FilledButton(
@@ -217,7 +232,7 @@ class _ForgotPasswordResetPageState extends State<ForgotPasswordResetPage> {
                             dimension: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Reset password'),
+                        : Text(l10n.auth_forgot_password_action_reset),
                   ),
                 ],
               ),

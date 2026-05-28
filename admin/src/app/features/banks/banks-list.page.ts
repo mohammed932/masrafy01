@@ -7,7 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -30,7 +30,7 @@ import type { BankWithProgramCount } from './banks.types';
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
+    ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
     NzIconModule,
@@ -64,8 +64,7 @@ import type { BankWithProgramCount } from './banks.types';
           nz-input
           placeholder="Search by code or name…"
           i18n-placeholder="@@banks.list.search"
-          [(ngModel)]="searchInput"
-          (ngModelChange)="onSearch($event)"
+          [formControl]="searchControl"
         />
       </div>
 
@@ -118,8 +117,7 @@ import type { BankWithProgramCount } from './banks.types';
                 <td>
                   <nz-switch
                     *can="['super_admin']"
-                    [ngModel]="b.isActive"
-                    (ngModelChange)="onToggle(b, $event)"
+                    [formControl]="rowActiveControl(b)"
                   ></nz-switch>
                   <span *can="['sales_manager', 'sales_agent', 'analyst']">{{ b.isActive ? 'Yes' : 'No' }}</span>
                 </td>
@@ -223,26 +221,42 @@ export class BanksListPage implements OnInit {
 
   readonly rows = signal<BankWithProgramCount[]>([]);
   readonly loading = signal(false);
-  searchInput = '';
+  readonly searchControl = new FormControl<string>('', { nonNullable: true });
   private searchDebounce?: ReturnType<typeof setTimeout>;
+  private readonly rowActiveControls = new Map<string, FormControl<boolean>>();
 
-  ngOnInit(): void { void this.reload(); }
+  rowActiveControl(b: BankWithProgramCount): FormControl<boolean> {
+    let ctrl = this.rowActiveControls.get(b.id);
+    if (!ctrl) {
+      ctrl = new FormControl<boolean>(b.isActive, { nonNullable: true });
+      this.rowActiveControls.set(b.id, ctrl);
+      ctrl.valueChanges.subscribe((next) => {
+        if (next !== b.isActive) void this.onToggle(b, next);
+      });
+    } else if (ctrl.value !== b.isActive) {
+      ctrl.setValue(b.isActive, { emitEvent: false });
+    }
+    return ctrl;
+  }
+
+  ngOnInit(): void {
+    this.searchControl.valueChanges.subscribe(() => {
+      if (this.searchDebounce) clearTimeout(this.searchDebounce);
+      this.searchDebounce = setTimeout(() => void this.reload(), 250);
+    });
+    void this.reload();
+  }
 
   async reload(): Promise<void> {
     this.loading.set(true);
     try {
-      const res = await this.api.list({ pageSize: 100, search: this.searchInput || undefined });
+      const res = await this.api.list({ pageSize: 100, search: this.searchControl.value || undefined });
       this.rows.set(res.data);
     } catch (err) {
       this.handleError(err);
     } finally {
       this.loading.set(false);
     }
-  }
-
-  onSearch(_v: string): void {
-    if (this.searchDebounce) clearTimeout(this.searchDebounce);
-    this.searchDebounce = setTimeout(() => void this.reload(), 250);
   }
 
   openCreate(): void {

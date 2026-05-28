@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-
-import 'cubit/complete_profile/complete_profile_cubit.dart';
+part of 'complete_profile.imports.dart';
 
 /// Step 1 of the SOCIAL Complete-Profile flow — mobile + OTP request.
 class CompleteProfileMobilePage extends StatefulWidget {
@@ -30,9 +27,10 @@ class _CompleteProfileMobilePageState extends State<CompleteProfileMobilePage> {
         }
       },
       builder: (ctx, state) {
+        final l10n = AppLocalizations.of(ctx);
         final busy = state.isRequestingOtp;
         return Scaffold(
-          appBar: AppBar(title: const Text('Complete profile — mobile')),
+          appBar: AppBar(title: Text(l10n.auth_complete_profile_title_mobile)),
           body: Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: Column(
@@ -41,7 +39,7 @@ class _CompleteProfileMobilePageState extends State<CompleteProfileMobilePage> {
                 TextField(
                   controller: _ctrl,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Mobile number'),
+                  decoration: InputDecoration(labelText: l10n.auth_complete_profile_field_mobile),
                   onChanged: (v) =>
                       ctx.read<CompleteProfileCubit>().updateField(
                             CompleteProfileField.phone,
@@ -58,7 +56,7 @@ class _CompleteProfileMobilePageState extends State<CompleteProfileMobilePage> {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Send code'),
+                      : Text(l10n.auth_complete_profile_action_send),
                 ),
               ],
             ),
@@ -103,9 +101,10 @@ class _CompleteProfileOtpPageState extends State<CompleteProfileOtpPage> {
         }
       },
       builder: (ctx, state) {
+        final l10n = AppLocalizations.of(ctx);
         final busy = state.isVerifyingOtp;
         return Scaffold(
-          appBar: AppBar(title: const Text('Verify code')),
+          appBar: AppBar(title: Text(l10n.auth_complete_profile_title_verify)),
           body: Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: Column(
@@ -115,7 +114,7 @@ class _CompleteProfileOtpPageState extends State<CompleteProfileOtpPage> {
                   controller: _ctrl,
                   keyboardType: TextInputType.number,
                   maxLength: 6,
-                  decoration: const InputDecoration(labelText: '6-digit code'),
+                  decoration: InputDecoration(labelText: l10n.auth_complete_profile_field_otp),
                   onChanged: (v) =>
                       ctx.read<CompleteProfileCubit>().updateField(
                             CompleteProfileField.otpCode,
@@ -132,7 +131,7 @@ class _CompleteProfileOtpPageState extends State<CompleteProfileOtpPage> {
                           dimension: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Verify'),
+                      : Text(l10n.auth_complete_profile_action_verify),
                 ),
               ],
             ),
@@ -167,8 +166,9 @@ class _CompleteProfileEmailPageState extends State<CompleteProfileEmailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Email')),
+      appBar: AppBar(title: Text(l10n.auth_complete_profile_title_email)),
       body: Padding(
         padding: const EdgeInsetsDirectional.all(24),
         child: Column(
@@ -177,7 +177,7 @@ class _CompleteProfileEmailPageState extends State<CompleteProfileEmailPage> {
             TextField(
               controller: _ctrl,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email'),
+              decoration: InputDecoration(labelText: l10n.auth_complete_profile_field_email),
             ),
             const SizedBox(height: 24),
             FilledButton(
@@ -185,7 +185,7 @@ class _CompleteProfileEmailPageState extends State<CompleteProfileEmailPage> {
                 if (!_ctrl.text.contains('@')) return;
                 widget.onSubmit(_ctrl.text.trim());
               },
-              child: const Text('Continue'),
+              child: Text(l10n.auth_complete_profile_action_continue),
             ),
           ],
         ),
@@ -213,8 +213,9 @@ class _CompleteProfileAgePageState extends State<CompleteProfileAgePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Age')),
+      appBar: AppBar(title: Text(l10n.auth_complete_profile_title_age)),
       body: Padding(
         padding: const EdgeInsetsDirectional.all(24),
         child: Column(
@@ -223,7 +224,7 @@ class _CompleteProfileAgePageState extends State<CompleteProfileAgePage> {
             TextField(
               controller: _ctrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Age (18–80)'),
+              decoration: InputDecoration(labelText: l10n.auth_complete_profile_field_age),
             ),
             const SizedBox(height: 24),
             FilledButton(
@@ -232,7 +233,7 @@ class _CompleteProfileAgePageState extends State<CompleteProfileAgePage> {
                 if (n == null || n < 18 || n > 80) return;
                 widget.onSubmit(n);
               },
-              child: const Text('Continue'),
+              child: Text(l10n.auth_complete_profile_action_continue),
             ),
           ],
         ),

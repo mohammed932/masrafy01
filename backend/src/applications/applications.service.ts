@@ -9,13 +9,14 @@
  */
 
 import { Injectable } from '@nestjs/common';
-// Constitution Principle X carve-out: `Prisma.TransactionIsolationLevel` is a
-// runtime value (enum-like) required by `$transaction` orchestration — kept here
-// as the only allowed Prisma touchpoint in this service. All other former Prisma
-// types (Decimal, InputJsonValue, JsonValue) have been replaced by domain
-// equivalents from `@prisma/client/runtime/library` (Decimal) and the local
-// `JsonValueInput` exported by the repository.
-import { Prisma } from '@prisma/client';
+// Constitution Principle X (Repository Pattern Mandatory): this service no
+// longer imports the `Prisma` namespace at runtime. Isolation-level options
+// are sourced from a local string-literal mirror; every read/write inside a
+// `$transaction` callback goes through a repository method that accepts an
+// optional `tx?: Prisma.TransactionClient`. The only remaining Prisma touch
+// points are the `Decimal` value type and the domain `JsonValueInput`
+// exported by the repository.
+import { IsolationLevel } from '../common/transaction/isolation-level';
 import { AuditEventType } from '../common/audit/audit-event-types';
 import { Decimal } from '@prisma/client/runtime/library';
 import { randomUUID } from 'crypto';
@@ -98,16 +99,7 @@ export class ApplicationsService {
     const correlationId = randomUUID();
     return this.prisma.$transaction(
       async (tx) => {
-        const app = await tx.application.findUnique({
-          where: { id: input.applicationId },
-          select: {
-            id: true,
-            mobileClientId: true,
-            status: true,
-            userProceededAt: true,
-            userSelectedBankOfferId: true,
-          },
-        });
+        const app = await this.repo.findForOfferSelection(input.applicationId, tx);
         if (!app) throw new NotFoundException();
         if (app.mobileClientId !== input.mobileClientId) throw new ForbiddenException();
         if (app.status !== 'matched') {
@@ -124,10 +116,7 @@ export class ApplicationsService {
           });
         }
 
-        const offer = await tx.bankOffer.findUnique({
-          where: { id: input.bankOfferId },
-          select: { id: true, applicationId: true, erasedAt: true },
-        });
+        const offer = await this.repo.findBankOfferOwnership(input.bankOfferId, tx);
         if (!offer || offer.erasedAt !== null) {
           throw new BankOfferNotFoundException({ bankOfferId: input.bankOfferId });
         }
@@ -139,13 +128,14 @@ export class ApplicationsService {
         }
 
         const proceededAt = new Date();
-        await tx.application.update({
-          where: { id: app.id },
-          data: {
-            userSelectedBankOfferId: offer.id,
-            userProceededAt: proceededAt,
+        await this.repo.markOfferSelected(
+          {
+            applicationId: app.id,
+            bankOfferId: offer.id,
+            proceededAt,
           },
-        });
+          tx,
+        );
 
         await this.audit.write(
           {
@@ -170,7 +160,7 @@ export class ApplicationsService {
           correlationId,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel: IsolationLevel.Serializable },
     );
   }
 
@@ -195,43 +185,34 @@ export class ApplicationsService {
 
     return this.prisma.$transaction(
       async (tx) => {
-        const existing = await tx.application.findUnique({
-          where: { id: input.applicationId },
-          select: { id: true, assignedAgentStaffId: true },
-        });
+        const existing = await this.repo.findAssignmentSnapshot(input.applicationId, tx);
         if (!existing) throw new NotFoundException();
 
         const fromAgentId = existing.assignedAgentStaffId;
-        await tx.application.update({
-          where: { id: input.applicationId },
-          data: {
-            assignedAgentStaffId: input.toAgentStaffId,
+        await this.repo.updateAssignedAgent(
+          {
+            applicationId: input.applicationId,
+            toAgentStaffId: input.toAgentStaffId,
             assignedAt: new Date(),
           },
-        });
+          tx,
+        );
 
         const activityId = cuid();
-        await tx.activity.create({
-          data: {
-            id: activityId,
+        await this.repo.appendReassignmentActivity(
+          {
+            activityId,
             applicationId: input.applicationId,
             actorStaffId: input.actor.staffId,
             actorRole: input.actor.role,
-            activityType: 'LEAD_REASSIGNED',
             reason: input.reason,
             note: input.notes,
-            durationMinutes: null,
-            outcomeFlags: [],
-            followUpAt: null,
-            attachedDocumentIds: [],
-            meta: {
-              fromAgentId: fromAgentId ?? null,
-              toAgentId: input.toAgentStaffId,
-              reassignReason: input.reason,
-            },
+            fromAgentId: fromAgentId ?? null,
+            toAgentId: input.toAgentStaffId,
             correlationId: input.correlationId,
           },
-        });
+          tx,
+        );
 
         await this.audit.write(
           {
@@ -259,7 +240,7 @@ export class ApplicationsService {
           correlationId: input.correlationId,
         };
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      { isolationLevel: IsolationLevel.Serializable },
     );
   }
 

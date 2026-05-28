@@ -1,5 +1,4 @@
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
-import 'package:flutter/material.dart';
+part of 'landing.imports.dart';
 
 /// Landing screen — feature 008 / spec User Story 1 + 2 + 4.
 ///
@@ -23,6 +22,7 @@ class LandingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -32,33 +32,33 @@ class LandingPage extends StatelessWidget {
             children: [
               const SizedBox(height: 48),
               Text(
-                'Masrafy',
+                l10n.auth_landing_brand,
                 style: Theme.of(context).textTheme.headlineMedium,
                 textAlign: TextAlign.center,
               ),
               const Spacer(),
               FilledButton(
                 onPressed: onSignUpWithPhone,
-                child: const Text('Sign Up with Phone'),
+                child: Text(l10n.auth_landing_action_phone_signup),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
                 onPressed: onContinueWithGoogle,
                 icon: const Icon(Icons.g_mobiledata),
-                label: const Text('Continue with Google'),
+                label: Text(l10n.auth_landing_action_google),
               ),
               if (_showApple) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: onContinueWithApple,
                   icon: const Icon(Icons.apple),
-                  label: const Text('Continue with Apple'),
+                  label: Text(l10n.auth_landing_action_apple),
                 ),
               ],
               const SizedBox(height: 24),
               TextButton(
                 onPressed: onLogIn,
-                child: const Text('Log In'),
+                child: Text(l10n.auth_landing_action_login),
               ),
               const SizedBox(height: 24),
             ],
