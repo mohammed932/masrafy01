@@ -169,13 +169,24 @@ Matching logic lives in a dedicated `matching/` feature module in the
 backend with ZERO dependencies on the HTTP layer. Engine signature:
 `match(applicationProfile, programs[]) → MatchResult[]`. Every match
 decision returns `passedChecks[]` AND `failedChecks[]` arrays. Approval
-probability is calculable via rule-based scoring with documented weights —
-the algorithm is a first-class business artifact, version-controlled,
-weight changes require PR review and historical impact analysis. Unit test
-coverage MUST be ≥ 90%. Match reasons surface as error codes across the
-API boundary — NEVER English text. The matching service is a pure
-dependency-free TypeScript service that can run in isolation against
-in-memory bank program fixtures.
+probability is calculable via rule-based scoring with documented weights.
+The split (v4.1.0): the scoring **formula, tier thresholds, and any COMPUTED
+factors** (e.g. DBR comfort) live in code — version-controlled, changed only
+via PR with historical impact analysis. The **per-bank-program weights** and
+the **per-option sub-scores** (`scoreValue`) are admin-editable DATA. Because
+weights are core IP, weight changes do NOT go through code review but through
+an in-dashboard **two-person maker-checker flow**: a maker drafts and submits
+a `ScoringWeightSet` (weights must sum to 100), and a DIFFERENT admin (checker
+≠ maker, enforced server-side) approves it — approval archives the prior ACTIVE
+set and activates the new one atomically, with both admin IDs written to the
+audit log (Principle VII). A program with no approved set falls back to a
+code-defined default so nothing is ever unscored. The questionnaire that feeds
+the engine (questions, options, branching, ordering) is likewise admin-editable
+DATA, published as immutable versioned snapshots; only the algorithm consuming
+it is code. Unit test coverage of the engine MUST be ≥ 90% (includes COMPUTED
+factor logic). Match reasons surface as error codes across the API boundary —
+NEVER English text. The matching service is a pure dependency-free TypeScript
+service that can run in isolation against in-memory bank program fixtures.
 
 ## VI. PII Protection & Compliance (All Platforms)
 National IDs, salary slips, bank statements, and any PII-containing
@@ -1536,6 +1547,9 @@ Any `age` column, persisted `age` field, or DTO that writes a customer's age to 
 ## A32. Proceeding Past an Incomplete Profile (Principle XXXVII, v4.0.0)
 Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for a customer missing any completeness field (mobile+verified, firstName, lastName, birthday, profilePhotoKey, National ID front+back; PHONE also passwordHash) = review block. Backend returns `PROFILE_INCOMPLETE`; mobile routes into the completion flow instead of rendering the gated surface.
 
+## A33. Scoring Weights Without Maker-Checker / Hardcoded Sub-Scores (Principle V, v4.1.0)
+Activating a `ScoringWeightSet` whose `approvedBy == createdBy`, or whose weights do not sum to 100, or mutating ACTIVE weights in place without a new approved version = review block. Likewise, hardcoding a question/option's sub-score in the engine instead of reading the admin-set `scoreValue` (DIRECT factors), or typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them, = review block. Only COMPUTED factors (e.g. DBR comfort) and the formula/tiers live in code.
+
 ---
 
 # Governance
@@ -1564,7 +1578,8 @@ Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for
 | 3.0.0 | 2026-05-28 | MAJOR | Principle XIII redefined: HMAC-SHA256 signing model REMOVED platform-wide. Mobile API (`/api/v1/*`) is JWT-only — customer access (15min) + refresh (30d) with server-side rotation + reuse detection. Principle XXVIII Network bullet updated (Dio + bearer + silent refresh, no HMAC interceptor). Brand primary swapped from `#06152D` to `#0869C3` (azure). Anti-Pattern A9 retired (slot reserved). A23 restated for JWT secrets in secure storage. |
 | 3.1.0 | 2026-05-28 | MINOR | New Principle XXXVI — One Screen, One File (Mobile, NON-NEGOTIABLE). Every navigable screen ships as exactly one public widget in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file. Anti-Pattern A29 enforces it. Pre-v3.1.0 multi-class files (`phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) flagged as tech debt. |
 | 4.0.0 | 2026-06-02 | MAJOR | Principle XIII registration model redefined: customer row created LITE post-OTP/provider, then a MANDATORY profile-completion step (firstName + lastName + birthday + profile photo + National ID front+back; PHONE also password) for BOTH paths — the "upfront full registration" / "loan-request popup" model is gone. New Principle XXXVII (Mandatory Profile Completeness, NON-NEGOTIABLE). Data model: `name`→`firstName`+`lastName`; `age Int`→`birthday DateTime` (age always derived, never stored); new `profilePhotoKey`; `passwordHash` nullable (null for SOCIAL). National ID collected at profile completion (not apply) as two customer-linked Document rows. Guest plumbing (`Application.isGuest`, `mobileClientId`, claim flow) fully removed from code. Anti-Patterns A30/A31/A32 added. Principle VI guest sentence replaced with profile-photo/National-ID PII coverage. |
+| 4.1.0 | 2026-06-02 | MINOR | Principle V extended for the Dynamic Questionnaire & Matching feature: questionnaire (questions/options/branching/order) and per-bank scoring weights + per-option sub-scores become admin-editable DATA; formula/tiers/COMPUTED factors stay code (≥90% tests). Weight changes move from PR review to an in-dashboard two-person maker-checker flow (checker ≠ maker, weights sum to 100, atomic activate+archive, both IDs audited); code-default fallback when no ACTIVE set. Questionnaire published as immutable versioned snapshots. New Anti-Pattern A33. The feature's mobile/customer endpoints remain JWT-gated (no guest — consistent with v4.0.0). |
 
 ---
 
-**Version**: 4.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-02
+**Version**: 4.1.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-02

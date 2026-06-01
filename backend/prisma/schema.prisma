@@ -304,6 +304,8 @@ model BankProgram {
   createdByStaff StaffAccount @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
   updatedByStaff StaffAccount @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
   auditEvents    AuditEvent[] @relation("BankProgramAuditEvents")
+  // Feature 00X — approval-scoring weights (admin maker-checker, Principle V v4.1.0).
+  scoringWeightSets ScoringWeightSet[] @relation("BankProgramScoringWeightSets")
 
   @@index([active], name: "idx_bank_program_active")
   @@index([bankName], name: "idx_bank_program_bank_name")
@@ -362,6 +364,11 @@ model Application {
   requestedCurrency       String              @default("EGP") @db.VarChar(3)
   preferredTenorMonths    Int
   loanPurpose             String              @db.VarChar(64)
+  // Feature 00X — dynamic questionnaire: chosen category + the published
+  // questionnaire version answered (snapshot reproducibility). Nullable until
+  // the dynamic-questionnaire apply path replaces the legacy fixed-DTO path.
+  category                LoanCategory?
+  questionnaireVersionId  String?             @db.VarChar(30)
   age                     Int
   applicantProfile        Json
   summary                 Json
@@ -391,6 +398,7 @@ model Application {
   documents             Document[]            @relation("ApplicationDocuments")
   applicantCustomer     CustomerAccount       @relation("CustomerApplications", fields: [applicantUserId], references: [id], onDelete: Restrict)
   questionnaireAnswers  QuestionnaireAnswer[] @relation("QuestionnaireApplication")
+  dynamicAnswers        ApplicationAnswer[]   @relation("ApplicationDynamicAnswers")
 
   @@unique([applicantUserId, idempotencyKey], name: "idx_application_idempotency")
   @@index([loanPurpose], name: "idx_application_purpose")
@@ -841,4 +849,186 @@ model OnboardingScreen {
 
   @@index([active, order], name: "idx_onboarding_screen_active_order")
   @@map("onboarding_screen")
+}
+
+// -----------------------------------------------------------------------------
+// Feature 00X — Dynamic Questionnaire & Matching (Constitution V v4.1.0).
+// Questions/options/branching/ordering + per-bank scoring weights are
+// admin-editable DATA; formula/tiers/COMPUTED factors stay in code.
+// LoanCategory values are lowercase to align with existing `loanPurpose` /
+// `productCategory` string data (scope-locked to four — Principle II).
+// -----------------------------------------------------------------------------
+
+enum LoanCategory {
+  personal
+  car
+  mortgage
+  business
+}
+
+enum QuestionType {
+  SINGLE_SELECT // Phase 1: the only renderable type
+  MULTI_SELECT // reserved (Phase 2)
+  TEXT // reserved (Phase 2)
+  NUMERIC // reserved (Phase 2)
+}
+
+enum QuestionSystemRole {
+  SALARY
+  LOAN_AMOUNT
+  CURRENT_INSTALLMENTS
+  AGE
+  DOWN_PAYMENT
+  TENOR
+}
+
+enum ScoringFactorKind {
+  DIRECT // sub-score = selected option's scoreValue
+  COMPUTED // sub-score computed in code (e.g. DBR comfort)
+}
+
+enum ScoringWeightSetStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  ARCHIVED
+  REJECTED
+}
+
+model QuestionGroup {
+  id           String       @id @default(cuid()) @db.VarChar(30)
+  category     LoanCategory
+  code         String       @db.VarChar(64)
+  titleAr      String       @db.VarChar(160)
+  titleEn      String       @db.VarChar(160)
+  displayOrder Int
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
+
+  questions Question[] @relation("QuestionGroupQuestions")
+
+  @@unique([category, code], name: "uniq_question_group_category_code")
+  @@index([category, displayOrder], name: "idx_question_group_category_order")
+  @@map("question_group")
+}
+
+model Question {
+  id                String             @id @default(cuid()) @db.VarChar(30)
+  groupId           String             @db.VarChar(30)
+  category          LoanCategory
+  code              String             @db.VarChar(64) // auto-generated slug, immutable
+  type              QuestionType       @default(SINGLE_SELECT)
+  questionAr        String             @db.VarChar(500)
+  questionEn        String             @db.VarChar(500)
+  helperTextAr      String?            @db.VarChar(500)
+  helperTextEn      String?            @db.VarChar(500)
+  isRequired        Boolean            @default(true)
+  displayOrder      Int
+  isActive          Boolean            @default(true)
+  enabledWhen       Json? // { questionCode, operator: equals|not_equals, optionCode }
+  systemRole        QuestionSystemRole? // set for arithmetic fields; null otherwise
+  scoringFactorCode String?            @db.VarChar(64) // DIRECT scoring factor fed by this question
+  createdAt         DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
+
+  group   QuestionGroup       @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
+  options QuestionOption[]    @relation("QuestionOptions")
+  answers ApplicationAnswer[] @relation("QuestionAnswers")
+
+  @@unique([category, code], name: "uniq_question_category_code")
+  @@index([groupId, displayOrder], name: "idx_question_group_order")
+  @@map("question")
+}
+
+model QuestionOption {
+  id           String       @id @default(cuid()) @db.VarChar(30)
+  questionId   String       @db.VarChar(30)
+  code         String       @db.VarChar(64) // auto-generated slug, immutable
+  labelAr      String       @db.VarChar(200)
+  labelEn      String       @db.VarChar(200)
+  displayOrder Int
+  isActive     Boolean      @default(true)
+  numericMin   Decimal?     @db.Decimal(18, 2)
+  numericMax   Decimal?     @db.Decimal(18, 2)
+  numericPoint Decimal?     @db.Decimal(18, 2)
+  scoreValue   Decimal?     @db.Decimal(4, 3) // 0.000–1.000, DIRECT factors only
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
+
+  question Question @relation("QuestionOptions", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, code], name: "uniq_question_option_question_code")
+  @@index([questionId, displayOrder], name: "idx_question_option_question_order")
+  @@map("question_option")
+}
+
+model QuestionnaireVersion {
+  id            String       @id @default(cuid()) @db.VarChar(30)
+  category      LoanCategory
+  versionNumber Int
+  isActive      Boolean      @default(false) // exactly one active per category
+  publishedAt   DateTime?    @db.Timestamptz(6)
+  publishedBy   String?      @db.VarChar(30) // staff id
+  snapshot      Json // frozen groups+questions+options blob
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+
+  @@unique([category, versionNumber], name: "uniq_questionnaire_version_category_number")
+  @@index([category, isActive], name: "idx_questionnaire_version_category_active")
+  @@map("questionnaire_version")
+}
+
+model ApplicationAnswer {
+  id                 String   @id @default(cuid()) @db.VarChar(30)
+  applicationId      String   @db.VarChar(30)
+  questionId         String   @db.VarChar(30)
+  questionCode       String   @db.VarChar(64) // denormalised, stable across edits
+  selectedOptionId   String?  @db.VarChar(30)
+  selectedOptionCode String?  @db.VarChar(64) // denormalised
+  textValue          String?  @db.VarChar(2000) // Phase 2
+  numericValue       Decimal? @db.Decimal(18, 2) // Phase 2
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+
+  application Application @relation("ApplicationDynamicAnswers", fields: [applicationId], references: [id], onDelete: Cascade)
+  question    Question    @relation("QuestionAnswers", fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([applicationId, questionId], name: "uniq_application_answer_app_question")
+  @@index([applicationId], name: "idx_application_answer_application")
+  @@map("application_answer")
+}
+
+model ScoringFactor {
+  id                 String            @id @default(cuid()) @db.VarChar(30)
+  category           LoanCategory
+  code               String            @db.VarChar(64)
+  kind               ScoringFactorKind @default(DIRECT)
+  labelAr            String            @db.VarChar(200)
+  labelEn            String            @db.VarChar(200)
+  description        String?           @db.VarChar(500)
+  isActive           Boolean           @default(true)
+  sourceQuestionCode String?           @db.VarChar(64) // DIRECT: feeding question; COMPUTED: null
+  createdAt          DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(6)
+
+  @@unique([category, code], name: "uniq_scoring_factor_category_code")
+  @@map("scoring_factor")
+}
+
+model ScoringWeightSet {
+  id             String                 @id @default(cuid()) @db.VarChar(30)
+  bankProgramId  String                 @db.VarChar(30)
+  status         ScoringWeightSetStatus @default(DRAFT)
+  versionNumber  Int
+  weights        Json // { factorCode: points }, sums to 100
+  createdBy      String                 @db.VarChar(30) // maker (staff id)
+  createdAt      DateTime               @default(now()) @db.Timestamptz(6)
+  approvedBy     String?                @db.VarChar(30) // checker (staff id, != createdBy)
+  approvedAt     DateTime?              @db.Timestamptz(6)
+  rejectedReason String?                @db.VarChar(500)
+
+  bankProgram BankProgram @relation("BankProgramScoringWeightSets", fields: [bankProgramId], references: [id], onDelete: Cascade)
+
+  @@unique([bankProgramId, versionNumber], name: "uniq_scoring_weight_set_program_version")
+  @@index([bankProgramId, status], name: "idx_scoring_weight_set_program_status")
+  @@map("scoring_weight_set")
 }

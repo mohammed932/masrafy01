@@ -6,7 +6,7 @@ Auto-generated from feature plans + constitution. Last updated: 2026-06-02
 
 **Masrafy** (internally "Credit Match") — Egyptian fintech loan comparison marketplace. Connects users with 20+ bank loan programs (ABK Egypt + partners) via 5-step wizard + matching engine. Four product lines: personal loans, car loans, mortgages, business loans. Free for users; commission revenue from banks. Three platforms governed by a single constitution: NestJS backend (active), Angular admin dashboard (active), Flutter mobile app (deferred until Figma).
 
-Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v4.0.0
+Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v4.1.0
 
 **Product scope-lock (v1.7.0 / Principle II):** Platform supports exactly four retail loan categories — `personal`, `car`, `mortgage`, `business`. Removing a category requires a destructive migration that physically wipes registry entry, bank programs, and all applications + cascade (offers / decisions / activities / documents). Ghost / soft-deactivated rows = review block. Adding a fifth requires a constitution amendment (A26).
 
@@ -105,7 +105,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **II — Banks Are Data**: no `if (programId === ...)` branches; tier resolution generic.
 - **III — Typed Errors**: API returns `{ success: false, code: "CODE", meta? }`; no English to clients. Same-PR rule: backend `error-codes.ts` + Angular `error-codes.{ar-EG,en-US}.json` + Flutter ARB.
 - **IV — Arabic-First**: all user text via `@angular/localize`; logical CSS only (`margin-inline-start`, never `margin-left`); test LTR + RTL on UI PRs.
-- **V — Matching Engine Is IP**: pure module, ≥ 90% test coverage, weight changes need PR review.
+- **V — Matching Engine Is IP** (v4.1.0): pure module, ≥ 90% coverage. Formula/tiers/COMPUTED factors in code (PR-reviewed). Questionnaire (questions/options/branching) + per-bank weights + per-option `scoreValue` are admin-editable DATA. Weight changes via in-dashboard maker-checker (checker ≠ maker, sum=100, atomic activate+archive, both IDs audited); code-default fallback. Questionnaire published as immutable versioned snapshots.
 - **VI — PII Protection**: encrypt at rest; logs never carry PII; documents in S3 with presigned URLs; audit log append-only.
 - **VII — Observability**: `X-Correlation-Id` everywhere; `/health/live` + `/health/ready`; structured JSON logs (Pino); discrete business events.
 - **VIII — Brand**: `#0869C3` azure blue primary. Use tokens, never raw hex.
@@ -184,8 +184,10 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A30** National ID collected at apply instead of profile completion (Principle XXXVII, v4.0.0)
 - **A31** Storing age instead of deriving from `birthday` (Principle XXXVII, v4.0.0)
 - **A32** Proceeding past an incomplete profile (Principle XXXVII, v4.0.0)
+- **A33** Scoring weights without maker-checker / hardcoded sub-scores / hand-typed questionnaire codes (Principle V, v4.1.0)
 
 ## Recent Changes
+- 2026-06-02 (v4.1.0): MINOR — Principle V extended for Dynamic Questionnaire & Matching. Questionnaire (questions/options/branching/order) + per-bank scoring weights + per-option `scoreValue` are admin-editable DATA; formula/tiers/COMPUTED factors stay code (≥90% tests). Weight changes → in-dashboard two-person maker-checker (checker ≠ maker, weights sum 100, atomic activate+archive, audited). Questionnaire published as immutable versioned snapshots. Customer endpoints JWT-gated (no guest, per v4.0.0). Anti-Pattern A33. Feature `00X-questionnaire-matching`.
 - 2026-06-02 (v4.0.0): MAJOR — Principle XIII registration model redefined (lite row post-OTP/provider + mandatory profile-completion step for BOTH paths; the upfront / loan-request-popup model removed). New Principle XXXVII (Mandatory Profile Completeness, NON-NEGOTIABLE). Data model: `name`→`firstName`+`lastName`; `age Int`→`birthday DateTime` (age derived, never stored); new `profilePhotoKey`; `passwordHash` nullable (SOCIAL). National ID collected at profile completion as two customer-linked Document rows (not at apply). Guest plumbing (`Application.isGuest`, `mobileClientId`, claim flow) removed from code. Anti-Patterns A30/A31/A32. Principle VI guest sentence replaced with profile-photo/National-ID PII coverage.
 - 2026-05-28 (v3.1.0): MINOR — Principle XXXVI added (Mobile, NON-NEGOTIABLE): One Screen, One File. Every navigable screen lives in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file with exactly one public route-level widget. Private leaf helpers may co-exist below; cross-screen helpers promote per XXXIII. Page files are UI-only. Anti-Pattern A29 enforces. Pre-v3.1.0 multi-class files (`phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) flagged as tech debt.
 - 2026-05-28 (v3.0.0): MAJOR — Principle XIII redefined. HMAC-SHA256 signing model REMOVED platform-wide. Mobile API (`/api/v1/*`) is JWT-only — customer access (15 min) + refresh (30 days) with server-side rotation + reuse detection. Principle XXVIII Network bullet replaced (Dio + bearer interceptor + silent refresh on 401, no HMAC interceptor). Brand primary `#06152D` (deep navy) → `#0869C3` (azure blue) — same MAJOR bump bundled the two redefinitions. Anti-pattern A9 retired (slot reserved). A23 restated to cover JWT tokens in secure storage instead of HMAC secret.
