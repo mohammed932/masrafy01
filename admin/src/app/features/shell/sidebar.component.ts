@@ -11,6 +11,8 @@ import {
   FundOutline,
   ControlOutline,
   ReadOutline,
+  FormOutline,
+  AuditOutline,
 } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { CanDirective } from '../../shared/can.directive';
@@ -34,6 +36,8 @@ import { CanDirective } from '../../shared/can.directive';
       FundOutline,
       ControlOutline,
       ReadOutline,
+      FormOutline,
+      AuditOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -75,6 +79,25 @@ import { CanDirective } from '../../shared/can.directive';
         >
           <span nz-icon nzType="fund" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.lead_analytics">Lead analytics</span>
+        </a>
+        <a
+          *can="['super_admin', 'sales_manager']"
+          routerLink="/questionnaire"
+          routerLinkActive="active"
+          class="item"
+        >
+          <span nz-icon nzType="form" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span class="item-label" i18n="@@sidebar.questionnaire">Questionnaires</span>
+        </a>
+
+        <a
+          *can="['super_admin', 'sales_manager']"
+          routerLink="/questionnaire/approvals"
+          routerLinkActive="active"
+          class="item"
+        >
+          <span nz-icon nzType="audit" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span class="item-label" i18n="@@sidebar.scoring_approvals">Scoring approvals</span>
         </a>
       </nav>
 

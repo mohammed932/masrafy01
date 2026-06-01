@@ -83,6 +83,14 @@ export const APP_ROUTES: Routes = [
       import('./features/lookups/lookups.routes').then((m) => m.LOOKUPS_ROUTES),
   },
   {
+    // Feature 009 — dynamic questionnaire + scoring-weight approvals.
+    path: 'questionnaire',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager'])],
+    loadChildren: () =>
+      import('./features/questionnaire/questionnaire.routes').then((m) => m.QUESTIONNAIRE_ROUTES),
+  },
+  {
     // Throwaway: NG-ZORRO install verification. Removed in PR 2 (shell migration).
     path: 'nz-demo',
     loadComponent: () => import('./features/nz-demo/nz-demo.page').then((m) => m.NzDemoPage),
