@@ -64,9 +64,9 @@ import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.
                 @for (w of weightRows(set); track w.code) {
                   <li><span>{{ w.code }}</span><span class="mono">{{ w.points }}</span></li>
                 }
-                <li class="total">
+                <li class="total" [class.bad]="total(set) !== 100">
                   <span i18n="@@scoring.approvals.total">Total</span>
-                  <span class="mono">{{ total(set) }}</span>
+                  <span class="mono">{{ total(set) }} / 100</span>
                 </li>
               </ul>
               <div class="row gap actions">
@@ -92,11 +92,15 @@ import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.
         nzOkDanger
       >
         <ng-container *nzModalContent>
+          <label for="reject-reason" class="field-label" i18n="@@scoring.approvals.reason_label">
+            Reason for rejection
+          </label>
           <textarea
+            id="reject-reason"
             nz-input
             [formControl]="reason"
             rows="3"
-            placeholder="Reason (shown to the maker)"
+            placeholder="Shown to the maker"
             i18n-placeholder="@@scoring.approvals.reason_ph"
           ></textarea>
         </ng-container>
@@ -119,6 +123,8 @@ import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.
       .weights { list-style: none; margin: var(--space-3, 12px) 0 0; padding: 0; }
       .weights li { display: flex; justify-content: space-between; padding-block: 4px; border-block-end: 1px solid var(--ant-border-color-split, #f0f0f0); }
       .weights .total { font-weight: 600; border-block-end: none; }
+      .weights .total.bad { color: var(--ant-error-color, #c1666b); }
+      .field-label { display: block; margin-block-end: var(--space-2, 8px); font-weight: 500; }
     `,
   ],
 })
