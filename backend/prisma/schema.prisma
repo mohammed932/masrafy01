@@ -929,6 +929,10 @@ model Question {
   enabledWhen       Json? // { questionCode, operator: equals|not_equals, optionCode }
   systemRole        QuestionSystemRole? // set for arithmetic fields; null otherwise
   scoringFactorCode String?            @db.VarChar(64) // DIRECT scoring factor fed by this question
+  // Eligibility bridge: dotted ApplicantProfile path this answer maps to
+  // (e.g. "employment.employmentType"). Categorical value = selected option's
+  // profileValue; numeric value = systemRole numericPoint.
+  profileField      String?            @db.VarChar(80)
   createdAt         DateTime           @default(now()) @db.Timestamptz(6)
   updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
 
@@ -953,6 +957,7 @@ model QuestionOption {
   numericMax   Decimal?     @db.Decimal(18, 2)
   numericPoint Decimal?     @db.Decimal(18, 2)
   scoreValue   Decimal?     @db.Decimal(4, 3) // 0.000–1.000, DIRECT factors only
+  profileValue String?      @db.VarChar(120) // categorical value for the question's profileField
   createdAt    DateTime     @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
 

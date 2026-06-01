@@ -77,6 +77,7 @@ export class QuestionnaireService {
       enabledWhen: dto.enabledWhen ? (dto.enabledWhen as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
       systemRole: dto.systemRole ?? null,
       scoringFactorCode: dto.scoringFactorCode ?? null,
+      profileField: dto.profileField ?? null,
     });
   }
 
@@ -99,6 +100,7 @@ export class QuestionnaireService {
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
       scoringFactorCode: dto.scoringFactorCode,
+      profileField: dto.profileField,
     };
     if (dto.enabledWhen !== undefined) {
       data.enabledWhen =
@@ -141,6 +143,7 @@ export class QuestionnaireService {
       numericMax: dto.numericMax ?? null,
       numericPoint: dto.numericPoint ?? null,
       scoreValue: dto.scoreValue ?? null,
+      profileValue: dto.profileValue ?? null,
     });
   }
 
@@ -156,6 +159,7 @@ export class QuestionnaireService {
       numericMax: dto.numericMax,
       numericPoint: dto.numericPoint,
       scoreValue: dto.scoreValue,
+      profileValue: dto.profileValue,
     });
   }
 
@@ -196,6 +200,7 @@ export class QuestionnaireService {
           enabledWhen: q.enabledWhen ?? null,
           systemRole: q.systemRole,
           scoringFactorCode: q.scoringFactorCode,
+          profileField: q.profileField,
           options: options.map((o) => ({
             code: o.code,
             labelAr: o.labelAr,
@@ -205,6 +210,7 @@ export class QuestionnaireService {
             numericMax: o.numericMax?.toString() ?? null,
             numericPoint: o.numericPoint?.toString() ?? null,
             scoreValue: o.scoreValue?.toString() ?? null,
+            profileValue: o.profileValue ?? null,
           })),
         });
       }

@@ -61,6 +61,11 @@ export class CreateQuestionDto {
   @IsEnum(QuestionSystemRole)
   systemRole?: QuestionSystemRole;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 64) scoringFactorCode?: string;
+  @ApiPropertyOptional({ description: 'Dotted ApplicantProfile path for eligibility, e.g. employment.employmentType' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 80)
+  profileField?: string;
 }
 
 export class UpdateQuestionDto {
@@ -77,6 +82,7 @@ export class UpdateQuestionDto {
   @Type(() => EnabledWhenDto)
   enabledWhen?: EnabledWhenDto | null;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 64) scoringFactorCode?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 80) profileField?: string;
 }
 
 export class CreateOptionDto {
@@ -92,6 +98,11 @@ export class CreateOptionDto {
   @Min(0)
   @Max(1)
   scoreValue?: number;
+  @ApiPropertyOptional({ description: 'Categorical value for the question profileField' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 120)
+  profileValue?: string;
 }
 
 export class UpdateOptionDto {
@@ -108,6 +119,7 @@ export class UpdateOptionDto {
   @Min(0)
   @Max(1)
   scoreValue?: number;
+  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 120) profileValue?: string;
 }
 
 export class SubmittedAnswerDto {
