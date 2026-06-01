@@ -106,5 +106,19 @@
   "AGE_INVALID": "العمر يجب أن يكون بين 18 و80 سنة.",
   "DOCUMENTS_MISSING": "كلا وجهي بطاقة الرقم القومي مطلوبان.",
   "DOCUMENTS_NOT_OWNED": "هذه المستندات لا تخص حسابك.",
-  "BANK_PROGRAM_INVALID": "هذا العرض لم يعد متاحًا لملفك."
+  "BANK_PROGRAM_INVALID": "هذا العرض لم يعد متاحًا لملفك.",
+  "QUESTIONNAIRE_NOT_PUBLISHED": "لا يوجد استبيان منشور لهذه الفئة بعد.",
+  "QUESTION_GROUP_NOT_FOUND": "مجموعة الأسئلة غير موجودة.",
+  "QUESTION_NOT_FOUND": "السؤال غير موجود.",
+  "QUESTION_OPTION_NOT_FOUND": "الخيار غير موجود.",
+  "OPTION_MISSING_SCORE_VALUE": "كل خيار في سؤال التقييم يحتاج قيمة درجة قبل النشر.",
+  "ENABLED_WHEN_INVALID": "قاعدة تفرع غير صالحة: السؤال/الخيار المشار إليه مفقود أو يأتي لاحقًا.",
+  "QUESTION_IN_USE": "لا يمكن الحذف: تفرع سؤال آخر يعتمد على هذا السؤال.",
+  "SCORING_FACTOR_NOT_FOUND": "عامل التقييم غير موجود.",
+  "WEIGHT_SET_NOT_FOUND": "مجموعة الأوزان غير موجودة.",
+  "WEIGHTS_MUST_SUM_TO_100": "يجب أن يكون مجموع الأوزان 100 بالضبط.",
+  "WEIGHTS_UNKNOWN_FACTOR": "الأوزان تشير إلى عامل تقييم غير معروف.",
+  "WEIGHT_SET_NOT_DRAFT": "لا توجد مسودة أوزان قابلة للإرسال.",
+  "WEIGHT_SET_NOT_PENDING": "مجموعة الأوزان هذه ليست في انتظار الموافقة.",
+  "APPROVER_MUST_DIFFER_FROM_MAKER": "يجب أن يوافق مسؤول مختلف على تغيير الأوزان."
 }

@@ -106,5 +106,19 @@
   "AGE_INVALID": "Age must be between 18 and 80.",
   "DOCUMENTS_MISSING": "Both National ID front and back are required.",
   "DOCUMENTS_NOT_OWNED": "These documents are not associated with your account.",
-  "BANK_PROGRAM_INVALID": "This offer is no longer available for your profile."
+  "BANK_PROGRAM_INVALID": "This offer is no longer available for your profile.",
+  "QUESTIONNAIRE_NOT_PUBLISHED": "No published questionnaire for this category yet.",
+  "QUESTION_GROUP_NOT_FOUND": "Question group not found.",
+  "QUESTION_NOT_FOUND": "Question not found.",
+  "QUESTION_OPTION_NOT_FOUND": "Option not found.",
+  "OPTION_MISSING_SCORE_VALUE": "Every option of a scoring question needs a score value before publishing.",
+  "ENABLED_WHEN_INVALID": "Invalid branching rule: the referenced question/option is missing or comes later.",
+  "QUESTION_IN_USE": "Cannot delete: another question's branching depends on this one.",
+  "SCORING_FACTOR_NOT_FOUND": "Scoring factor not found.",
+  "WEIGHT_SET_NOT_FOUND": "Weight set not found.",
+  "WEIGHTS_MUST_SUM_TO_100": "Weights must add up to exactly 100.",
+  "WEIGHTS_UNKNOWN_FACTOR": "Weights reference an unknown scoring factor.",
+  "WEIGHT_SET_NOT_DRAFT": "No editable draft weight set to submit.",
+  "WEIGHT_SET_NOT_PENDING": "This weight set is not awaiting approval.",
+  "APPROVER_MUST_DIFFER_FROM_MAKER": "A different admin must approve the weight change."
 }

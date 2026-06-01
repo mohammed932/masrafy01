@@ -189,5 +189,13 @@
   "auth_complete_profile_action_verify": "تحقق",
   "@auth_complete_profile_action_verify": { "description": "Complete-profile — verify-OTP button" },
   "auth_complete_profile_action_continue": "متابعة",
-  "@auth_complete_profile_action_continue": { "description": "Complete-profile — continue to next step" }
+  "@auth_complete_profile_action_continue": { "description": "Complete-profile — continue to next step" },
+  "match_questionnaire_not_published": "الاستبيان غير متاح حاليًا. حاول لاحقًا.",
+  "@match_questionnaire_not_published": { "description": "Backend QUESTIONNAIRE_NOT_PUBLISHED error code" },
+  "match_unknown_question_code": "إجاباتك قديمة. أعد بدء الاستبيان.",
+  "@match_unknown_question_code": { "description": "Backend UNKNOWN_QUESTION_CODE error code" },
+  "match_unknown_option_code": "إجاباتك قديمة. أعد بدء الاستبيان.",
+  "@match_unknown_option_code": { "description": "Backend UNKNOWN_OPTION_CODE error code" },
+  "match_program_no_longer_matches": "هذا العرض لم يعد متاحًا لإجاباتك.",
+  "@match_program_no_longer_matches": { "description": "Backend PROGRAM_NO_LONGER_MATCHES error code" }
 }

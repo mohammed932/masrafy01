@@ -100,5 +100,9 @@
   "auth_complete_profile_field_age": "Age (18–80)",
   "auth_complete_profile_action_send": "Send code",
   "auth_complete_profile_action_verify": "Verify",
-  "auth_complete_profile_action_continue": "Continue"
+  "auth_complete_profile_action_continue": "Continue",
+  "match_questionnaire_not_published": "This questionnaire is not available yet. Please try again later.",
+  "match_unknown_question_code": "Your answers are out of date. Please restart the questionnaire.",
+  "match_unknown_option_code": "Your answers are out of date. Please restart the questionnaire.",
+  "match_program_no_longer_matches": "This offer is no longer available for your answers."
 }
