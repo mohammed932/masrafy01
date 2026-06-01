@@ -46,6 +46,73 @@ export interface QuestionnaireVersionRow {
   publishedBy: string | null;
 }
 
+export interface OptionRow {
+  id: string;
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  displayOrder: number;
+  isActive: boolean;
+  numericMin: string | null;
+  numericMax: string | null;
+  numericPoint: string | null;
+  scoreValue: string | null;
+  profileValue: string | null;
+}
+export interface QuestionRow {
+  id: string;
+  groupId: string;
+  code: string;
+  questionAr: string;
+  questionEn: string;
+  isRequired: boolean;
+  displayOrder: number;
+  isActive: boolean;
+  systemRole: string | null;
+  scoringFactorCode: string | null;
+  profileField: string | null;
+  enabledWhen: { questionCode: string; operator: string; optionCode: string } | null;
+  options: OptionRow[];
+}
+export interface GroupTreeRow {
+  id: string;
+  code: string;
+  category: LoanCategory;
+  titleAr: string;
+  titleEn: string;
+  displayOrder: number;
+  isActive: boolean;
+  questions: QuestionRow[];
+}
+
+export interface CreateGroupBody {
+  category: LoanCategory;
+  titleAr: string;
+  titleEn: string;
+  displayOrder: number;
+}
+export interface CreateQuestionBody {
+  groupId: string;
+  category: LoanCategory;
+  questionAr: string;
+  questionEn: string;
+  displayOrder: number;
+  isRequired?: boolean;
+  systemRole?: string;
+  scoringFactorCode?: string;
+  profileField?: string;
+}
+export interface CreateOptionBody {
+  labelAr: string;
+  labelEn: string;
+  displayOrder: number;
+  numericMin?: number;
+  numericMax?: number;
+  numericPoint?: number;
+  scoreValue?: number;
+  profileValue?: string;
+}
+
 /** Admin API for Feature 009 (questionnaire + scoring weights maker-checker). */
 @Injectable({ providedIn: 'root' })
 export class QuestionnaireApiService {
@@ -87,7 +154,23 @@ export class QuestionnaireApiService {
     return this.get<ScoringWeightSet[]>(`/scoring/programs/${programId}/weights/history`);
   }
 
-  // ---- Questionnaire versions -------------------------------------------
+  // ---- Questionnaire authoring ------------------------------------------
+  tree(category: LoanCategory): Promise<GroupTreeRow[]> {
+    return this.get<GroupTreeRow[]>(`/questionnaire/tree/${category}`);
+  }
+
+  createGroup(body: CreateGroupBody): Promise<GroupTreeRow> {
+    return this.post<GroupTreeRow>(`/questionnaire/groups`, body);
+  }
+
+  createQuestion(body: CreateQuestionBody): Promise<QuestionRow> {
+    return this.post<QuestionRow>(`/questionnaire/questions`, body);
+  }
+
+  createOption(questionId: string, body: CreateOptionBody): Promise<OptionRow> {
+    return this.post<OptionRow>(`/questionnaire/questions/${questionId}/options`, body);
+  }
+
   versionHistory(category: LoanCategory): Promise<QuestionnaireVersionRow[]> {
     return this.get<QuestionnaireVersionRow[]>(`/questionnaire/versions/${category}/history`);
   }

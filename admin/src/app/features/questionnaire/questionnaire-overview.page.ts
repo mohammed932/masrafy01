@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzTagModule } from 'ng-zorro-antd/tag';
@@ -27,7 +28,7 @@ interface CategoryCard {
   standalone: true,
   selector: 'mf-questionnaire-overview',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, NzButtonModule, NzCardModule, NzTagModule, NzSpinModule],
+  imports: [CommonModule, RouterLink, NzButtonModule, NzCardModule, NzTagModule, NzSpinModule],
   template: `
     <section class="page">
       <header class="page-head">
@@ -61,9 +62,14 @@ interface CategoryCard {
                 · <span class="mono">{{ c.versionCount }}</span>
                 <span i18n="@@questionnaire.overview.total_versions">versions</span>
               </p>
-              <button nz-button nzType="default" (click)="publish(c)" i18n="@@questionnaire.overview.publish">
-                Publish current draft
-              </button>
+              <div class="row gap">
+                <a nz-button nzType="primary" [routerLink]="['/questionnaire/edit', c.category]" i18n="@@questionnaire.overview.edit">
+                  Edit
+                </a>
+                <button nz-button nzType="default" (click)="publish(c)" i18n="@@questionnaire.overview.publish">
+                  Publish
+                </button>
+              </div>
             </nz-card>
           }
         </div>
@@ -78,6 +84,7 @@ interface CategoryCard {
       .small { font-size: 13px; }
       .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4, 16px); }
       .row { display: flex; align-items: center; }
+      .gap { gap: var(--space-2, 8px); }
       .between { justify-content: space-between; }
       .cat { text-transform: capitalize; font-weight: 600; font-size: 18px; }
       .mono { font-family: var(--font-family-mono, 'JetBrains Mono', monospace); }

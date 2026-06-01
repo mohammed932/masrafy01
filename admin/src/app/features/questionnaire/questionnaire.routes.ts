@@ -12,6 +12,11 @@ export const QUESTIONNAIRE_ROUTES: Routes = [
       import('./questionnaire-overview.page').then((m) => m.QuestionnaireOverviewPage),
   },
   {
+    path: 'edit/:category',
+    loadComponent: () =>
+      import('./questionnaire-editor.page').then((m) => m.QuestionnaireEditorPage),
+  },
+  {
     path: 'approvals',
     loadComponent: () =>
       import('./scoring-approvals.page').then((m) => m.ScoringApprovalsPage),
