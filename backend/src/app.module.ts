@@ -22,6 +22,7 @@ import { LeadAnalyticsModule } from '@/lead-analytics/lead-analytics.module';
 import { SupportModule } from '@/support/support.module';
 import { OnboardingModule } from '@/onboarding/onboarding.module';
 import { TelemetryModule } from '@/telemetry/telemetry.module';
+import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
 import { loadEnv } from '@/infra/env/env.schema';
 import { pinoOptions } from '@/common/pino/pino.config';
 
@@ -58,6 +59,7 @@ import { pinoOptions } from '@/common/pino/pino.config';
     SupportModule,
     OnboardingModule,
     TelemetryModule,
+    QuestionnaireModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })
