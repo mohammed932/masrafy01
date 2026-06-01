@@ -308,6 +308,10 @@ export class ApplicationsService {
         eligibleProgramsCount: result.eligibleCount,
       },
       offers: offerInputs,
+      questionnaire: {
+        customerId: ctx.customerId,
+        payloadJson: this.buildQuestionnairePayload(dto),
+      },
       txCallback: async (tx, applicationIdInTx) => {
         await this.audit.write(
           {
@@ -503,6 +507,28 @@ export class ApplicationsService {
       },
       engineVersion: row.engineVersion,
     };
+  }
+
+  /**
+   * Builds the questionnaire answer payload persisted alongside the application
+   * (Principle XXXVII / FR-013). National ID and other PII are deliberately
+   * excluded — those live in Documents / the masked applicant profile.
+   */
+  private buildQuestionnairePayload(dto: ApplyRequestDto): JsonValueInput {
+    return JSON.parse(
+      JSON.stringify({
+        loanPurpose: dto.loanPurpose,
+        requestedAmountEGP: dto.requestedAmountEGP,
+        requestedCurrency: dto.requestedCurrency ?? 'EGP',
+        preferredTenorMonths: dto.preferredTenorMonths,
+        priority: dto.priority,
+        employment: dto.employment,
+        obligations: dto.obligations,
+        assets: dto.assets,
+        mortgageDetails: dto.mortgageDetails ?? null,
+        carDetails: dto.carDetails ?? null,
+      }),
+    ) as JsonValueInput;
   }
 
   private profileToJson(profile: ApplicantProfile): JsonValueInput {

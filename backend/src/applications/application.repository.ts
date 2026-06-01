@@ -90,6 +90,13 @@ export interface CreateBankOfferInput {
 export interface PersistMatchInput {
   application: CreateApplicationInput;
   offers: CreateBankOfferInput[];
+  /**
+   * Questionnaire answers submitted with the application (Principle XXXVII /
+   * FR-013). Persisted as a `QuestionnaireAnswer` row in the SAME transaction
+   * as the application + offers — a failure rolls all of them back together.
+   * PII (e.g. National ID) is NOT included; that lives in Documents.
+   */
+  questionnaire?: { customerId: string; payloadJson: JsonValueInput };
   txCallback?: (tx: Prisma.TransactionClient, applicationId: string) => Promise<void>;
 }
 
@@ -157,6 +164,15 @@ export class ApplicationRepository {
             approvalFactors: o.approvalFactors as unknown as Prisma.InputJsonValue,
             cascadeTrace: o.cascadeTrace as unknown as Prisma.InputJsonValue,
           })),
+        });
+      }
+      if (input.questionnaire) {
+        await tx.questionnaireAnswer.create({
+          data: {
+            customerId: input.questionnaire.customerId,
+            applicationId: created.id,
+            payloadJson: input.questionnaire.payloadJson as unknown as Prisma.InputJsonValue,
+          },
         });
       }
       if (input.txCallback) {
