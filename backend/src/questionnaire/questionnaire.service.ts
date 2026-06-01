@@ -254,6 +254,41 @@ export class QuestionnaireService {
     return this.repo.activateExisting(category, versionId);
   }
 
+  /**
+   * Validate submitted answers against the LIVE questions/options for a category
+   * and resolve stable ids for persistence as `application_answer` rows. Throws
+   * UNKNOWN_QUESTION_CODE / UNKNOWN_OPTION_CODE. Used by the apply transaction.
+   */
+  async resolveAnswers(
+    category: LoanCategory,
+    answers: ReadonlyArray<{ questionCode: string; optionCode: string }>,
+  ): Promise<
+    Array<{
+      questionId: string;
+      questionCode: string;
+      selectedOptionId: string;
+      selectedOptionCode: string;
+    }>
+  > {
+    const questions = await this.repo.questionsByCategory(category);
+    const byCode = new Map(questions.map((q) => [q.code, q]));
+    const resolved = [];
+    for (const a of answers) {
+      const q = byCode.get(a.questionCode);
+      if (!q) throw new DomainException(ERROR_CODES.UNKNOWN_QUESTION_CODE, { code: a.questionCode });
+      const options = await this.repo.optionsByQuestion(q.id);
+      const opt = options.find((o) => o.code === a.optionCode);
+      if (!opt) throw new DomainException(ERROR_CODES.UNKNOWN_OPTION_CODE, { code: a.optionCode });
+      resolved.push({
+        questionId: q.id,
+        questionCode: q.code,
+        selectedOptionId: opt.id,
+        selectedOptionCode: opt.code,
+      });
+    }
+    return resolved;
+  }
+
   // ---- Internals ----------------------------------------------------------
   private async assertEnabledWhenValid(
     category: LoanCategory,

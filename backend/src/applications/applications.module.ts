@@ -14,6 +14,7 @@ import { ScoringVersionsModule } from '../scoring-versions/scoring-versions.modu
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { AuthModule } from '@/auth/auth.module';
+import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
 
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerTimelineRepository } from './customer-timeline.repository';
@@ -30,6 +31,7 @@ import { CustomerTimelineRepository } from './customer-timeline.repository';
     AuditModule,
     ScoringVersionsModule,
     CustomerAuthModule,
+    QuestionnaireModule,
     // Exports `StaffAccountRepository` for cross-feature staff-account reads
     // (e.g. assignAgent target validation). Constitution Principle X — service
     // never calls Prisma directly.

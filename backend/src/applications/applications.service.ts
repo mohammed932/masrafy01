@@ -41,6 +41,7 @@ import {
 } from '../common/errors/domain.exceptions';
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
 import { StaffAccountRepository } from '@/users/staff-account.repository';
+import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
 import type {
   ApplicantProfile,
@@ -76,6 +77,7 @@ export class ApplicationsService {
     private readonly audit: AuditEventWriter,
     private readonly scoringVersions: ScoringEngineVersionService,
     private readonly staffAccounts: StaffAccountRepository,
+    private readonly questionnaire: QuestionnaireService,
   ) {}
 
   /**
@@ -256,6 +258,13 @@ export class ApplicationsService {
       }
     }
 
+    // Feature 009 — resolve + validate dynamic questionnaire answers (if sent)
+    // against the live questions for the category, for atomic persistence.
+    const dynamicAnswers =
+      dto.category && dto.questionnaireAnswers && dto.questionnaireAnswers.length > 0
+        ? await this.questionnaire.resolveAnswers(dto.category, dto.questionnaireAnswers)
+        : undefined;
+
     const activePrograms = await this.programsRepo.findAllActive();
     const snapshots: BankProgramSnapshot[] = activePrograms.map((p) => this.toSnapshot(p));
 
@@ -300,6 +309,8 @@ export class ApplicationsService {
         loanPurpose: dto.loanPurpose,
         age: dto.age,
         applicantUserId: ctx.customerId,
+        category: dto.category ?? null,
+        questionnaireVersionId: dto.questionnaireVersionId ?? null,
         applicantProfile: this.profileToJson(profile),
         summary: summaryJson,
         noMatchSummary: noMatchJson,
@@ -312,6 +323,7 @@ export class ApplicationsService {
         customerId: ctx.customerId,
         payloadJson: this.buildQuestionnairePayload(dto),
       },
+      dynamicAnswers,
       txCallback: async (tx, applicationIdInTx) => {
         await this.audit.write(
           {

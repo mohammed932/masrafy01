@@ -36,8 +36,11 @@ import {
   Length,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { IsArray } from 'class-validator';
+import { LoanCategory } from '@prisma/client';
 import { APPLICATION_PRIORITIES, type ApplicationPriority } from '../../matching/types';
 import { IsDecimalString } from '../../common/validators/is-decimal-string.validator';
+import { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 
 export class EmploymentDto {
   @IsString()
@@ -199,6 +202,23 @@ export class ApplyRequestDto {
 
   @IsEnum(APPLICATION_PRIORITIES)
   priority!: ApplicationPriority;
+
+  // Feature 009 — dynamic questionnaire (optional; persisted as application_answer
+  // rows + application.category/questionnaireVersionId when supplied).
+  @IsOptional()
+  @IsEnum(LoanCategory)
+  category?: LoanCategory;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 30)
+  questionnaireVersionId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SubmittedAnswerDto)
+  questionnaireAnswers?: SubmittedAnswerDto[];
 
   @IsOptional()
   @IsString()

@@ -52,6 +52,8 @@ export interface CreateApplicationInput {
   loanPurpose: string;
   age: number;
   applicantUserId: string;
+  category?: string | null;
+  questionnaireVersionId?: string | null;
   applicantProfile: JsonValueInput;
   summary: JsonValueInput;
   noMatchSummary?: JsonValueInput;
@@ -97,6 +99,16 @@ export interface PersistMatchInput {
    * PII (e.g. National ID) is NOT included; that lives in Documents.
    */
   questionnaire?: { customerId: string; payloadJson: JsonValueInput };
+  /**
+   * Feature 009 — dynamic questionnaire answers persisted as `application_answer`
+   * rows in the SAME apply transaction (atomic with the application + offers).
+   */
+  dynamicAnswers?: Array<{
+    questionId: string;
+    questionCode: string;
+    selectedOptionId: string;
+    selectedOptionCode: string;
+  }>;
   txCallback?: (tx: Prisma.TransactionClient, applicationId: string) => Promise<void>;
 }
 
@@ -173,6 +185,17 @@ export class ApplicationRepository {
             applicationId: created.id,
             payloadJson: input.questionnaire.payloadJson as unknown as Prisma.InputJsonValue,
           },
+        });
+      }
+      if (input.dynamicAnswers && input.dynamicAnswers.length > 0) {
+        await tx.applicationAnswer.createMany({
+          data: input.dynamicAnswers.map((a) => ({
+            applicationId: created.id,
+            questionId: a.questionId,
+            questionCode: a.questionCode,
+            selectedOptionId: a.selectedOptionId,
+            selectedOptionCode: a.selectedOptionCode,
+          })),
         });
       }
       if (input.txCallback) {
