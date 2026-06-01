@@ -16,4 +16,9 @@ export const QUESTIONNAIRE_ROUTES: Routes = [
     loadComponent: () =>
       import('./scoring-approvals.page').then((m) => m.ScoringApprovalsPage),
   },
+  {
+    path: 'weights/:category/:programId',
+    loadComponent: () =>
+      import('./scoring-weights-editor.page').then((m) => m.ScoringWeightsEditorPage),
+  },
 ];
