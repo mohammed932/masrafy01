@@ -1,13 +1,6 @@
-import {
-  IsBoolean,
-  IsEmail,
-  IsIn,
-  IsOptional,
-  IsString,
-  Length,
-  Matches,
-} from 'class-validator';
+import { IsOptional, IsString, Length, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { deriveAge } from '../age.util';
 
 /**
  * Egyptian mobile phone — accepts +20 prefix or local 0 prefix; we
@@ -15,36 +8,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
  * UI can present a cleaner formatter without rejecting whitespace.
  */
 const PHONE_REGEX = /^[+\d][\d\s\-]{8,19}$/;
-
-const LOCALES = ['ar-EG', 'en-US'] as const;
-
-export class CustomerSignupRequestDto {
-  @ApiProperty({ example: '+201001234567' })
-  @IsString()
-  @Matches(PHONE_REGEX)
-  phone!: string;
-
-  @ApiProperty({ example: 'Ahmed Hassan' })
-  @IsString()
-  @Length(2, 120)
-  name!: string;
-
-  @ApiProperty({ minLength: 12, maxLength: 128 })
-  @IsString()
-  @Length(12, 128)
-  password!: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsEmail()
-  @Length(3, 320)
-  email?: string;
-
-  @ApiPropertyOptional({ enum: LOCALES, default: 'ar-EG' })
-  @IsOptional()
-  @IsIn(LOCALES as readonly string[])
-  locale?: (typeof LOCALES)[number];
-}
 
 export class CustomerLoginRequestDto {
   @ApiProperty()
@@ -76,9 +39,14 @@ export class CustomerProfileResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() phone!: string;
   @ApiPropertyOptional() email?: string;
-  @ApiProperty() name!: string;
+  @ApiProperty() firstName!: string;
+  @ApiProperty() lastName!: string;
+  @ApiPropertyOptional({ description: 'Derived from birthday — never stored (Principle XXXVII).' })
+  age?: number;
   @ApiProperty() locale!: string;
   @ApiProperty() isVerified!: boolean;
+  @ApiProperty({ description: 'True once the mandatory profile is complete (Principle XXXVII).' })
+  profileComplete!: boolean;
   @ApiProperty() createdAt!: string;
   @ApiPropertyOptional() lastLoginAt?: string;
 }
@@ -98,13 +66,40 @@ export interface CustomerJwtPayload {
   typ: 'customer';
 }
 
-/** Marker only — used by Swagger and the optional-JWT guard. */
-export class ApplicationClaimRequestDto {
-  @ApiPropertyOptional({
-    description:
-      'Forces claim even if the request would otherwise be rejected for ownership mismatch. Reserved — not honoured today.',
-  })
-  @IsOptional()
-  @IsBoolean()
-  force?: boolean;
+export interface CustomerProfileRow {
+  id: string;
+  phone: string | null;
+  email: string | null;
+  firstName: string;
+  lastName: string;
+  birthday: Date | null;
+  locale: string;
+  isVerified: boolean;
+  createdAt: Date;
+  lastLoginAt: Date | null;
+}
+
+/**
+ * Shared customer-profile mapper. Age is derived from `birthday` here and
+ * never stored (Principle XXXVII). `profileComplete` is computed by the
+ * caller via `CustomerProfileCompletenessService`.
+ */
+export function mapCustomerProfile(
+  row: CustomerProfileRow,
+  profileComplete: boolean,
+): CustomerProfileResponseDto {
+  const age = deriveAge(row.birthday);
+  return {
+    id: row.id,
+    phone: row.phone ?? '',
+    email: row.email ?? undefined,
+    firstName: row.firstName,
+    lastName: row.lastName,
+    age: age ?? undefined,
+    locale: row.locale,
+    isVerified: row.isVerified,
+    profileComplete,
+    createdAt: row.createdAt.toISOString(),
+    lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : undefined,
+  };
 }

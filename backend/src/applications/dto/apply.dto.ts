@@ -201,10 +201,6 @@ export class ApplyRequestDto {
   priority!: ApplicationPriority;
 
   @IsOptional()
-  @IsBoolean()
-  isGuest?: boolean;
-
-  @IsOptional()
   @IsString()
   nationalId?: string;
 

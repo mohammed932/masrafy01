@@ -41,7 +41,6 @@ export interface ApplicationListItemAggregates {
 }
 
 export interface CreateApplicationInput {
-  mobileClientId: string;
   submissionCorrelationId: string;
   idempotencyKey?: string | null;
   payloadHash?: string | null;
@@ -52,8 +51,7 @@ export interface CreateApplicationInput {
   preferredTenorMonths: number;
   loanPurpose: string;
   age: number;
-  isGuest: boolean;
-  applicantUserId?: string | null;
+  applicantUserId: string;
   applicantProfile: JsonValueInput;
   summary: JsonValueInput;
   noMatchSummary?: JsonValueInput;
@@ -102,8 +100,7 @@ export interface PersistMatchInput {
  */
 export interface ApplicationOwnership {
   id: string;
-  applicantUserId: string | null;
-  mobileClientId: string;
+  applicantUserId: string;
 }
 
 /**
@@ -113,7 +110,7 @@ export interface ApplicationOwnership {
  */
 export interface ApplicationOfferSelectionSnapshot {
   id: string;
-  mobileClientId: string;
+  applicantUserId: string;
   status: PrismaApplicationStatus;
   userProceededAt: Date | null;
   userSelectedBankOfferId: string | null;
@@ -184,19 +181,18 @@ export class ApplicationRepository {
   async findOwnershipById(id: string): Promise<ApplicationOwnership | null> {
     const row = await this.prisma.application.findUnique({
       where: { id },
-      select: { id: true, applicantUserId: true, mobileClientId: true },
+      select: { id: true, applicantUserId: true },
     });
     if (!row) return null;
     return {
       id: row.id,
       applicantUserId: row.applicantUserId,
-      mobileClientId: row.mobileClientId,
     };
   }
 
-  async findByIdempotencyKey(mobileClientId: string, idempotencyKey: string) {
+  async findByIdempotencyKey(applicantUserId: string, idempotencyKey: string) {
     return this.prisma.application.findFirst({
-      where: { mobileClientId, idempotencyKey },
+      where: { applicantUserId, idempotencyKey },
       include: { bankOffers: { where: { erasedAt: null } } },
     });
   }
@@ -352,7 +348,7 @@ export class ApplicationRepository {
       where: { id },
       select: {
         id: true,
-        mobileClientId: true,
+        applicantUserId: true,
         status: true,
         userProceededAt: true,
         userSelectedBankOfferId: true,
@@ -361,7 +357,7 @@ export class ApplicationRepository {
     if (!row) return null;
     return {
       id: row.id,
-      mobileClientId: row.mobileClientId,
+      applicantUserId: row.applicantUserId,
       status: row.status,
       userProceededAt: row.userProceededAt,
       userSelectedBankOfferId: row.userSelectedBankOfferId,

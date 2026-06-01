@@ -63,7 +63,6 @@ export class MobileDocumentsController {
       sizeBytes: dto.sizeBytes,
       originalFilename: dto.originalFilename,
       customer: { id: customerId },
-      mobileClientId: customerId,
     });
     return ok({
       documentId: out.documentId,
@@ -90,7 +89,6 @@ export class MobileDocumentsController {
       documentId,
       applicationId,
       customer: { id: customerId },
-      mobileClientId: customerId,
     });
     await this.audit.write({
       actorId: null,

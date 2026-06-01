@@ -10,7 +10,9 @@ paths:
         First call of the PHONE registration path. The customer record is NOT
         yet created — a fresh OTP is issued. Subsequent /auth/otp/verify with
         purpose=SIGNUP returns a verifiedMobileToken which the
-        /auth/signup/phone/complete endpoint consumes.
+        /auth/signup/phone/verify endpoint consumes to create a LITE PHONE
+        customer (firstName/lastName/birthday/password are collected later in
+        the mandatory profile-completion step, not here).
       security: []   # HMAC headers only
       requestBody:
         required: true
@@ -49,38 +51,39 @@ paths:
         '429':
           $ref: '#/components/responses/ErrorEnvelope'   # OTP_RATE_LIMITED (carries meta.retryAfterSeconds)
 
-  /api/v1/auth/signup/phone/complete:
+  /api/v1/auth/signup/phone/verify:
     post:
-      summary: Finalize phone signup — creates Customer, issues tokens
+      summary: Create LITE PHONE customer, issue tokens (lite verify)
       description: |
-        Consumes a verifiedMobileToken (from /auth/otp/verify, purpose=SIGNUP),
-        creates a PHONE-tagged Customer with mobile, fullName, email, password,
-        age (all required), and issues access + refresh tokens.
-      security: []   # HMAC only — Customer JWT does not exist yet
+        Consumes a verifiedMobileToken (from /auth/otp/verify, purpose=SIGNUP)
+        and creates a LITE PHONE-tagged Customer with only mobile +
+        mobileVerifiedAt set, then issues access + refresh tokens. firstName,
+        lastName, birthday, profilePhotoKey, password and the two National ID
+        Documents are collected afterwards in the mandatory profile-completion
+        step (POST /v1/auth/profile/complete). The returned customer has
+        profileComplete=false.
+      security: []   # Customer JWT does not exist yet
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [verifiedMobileToken, fullName, email, password, age]
+              required: [verifiedMobileToken]
               properties:
                 verifiedMobileToken: { type: string, example: "vmt_01H..." }
-                fullName: { type: string, minLength: 1, example: "محمد فتحي" }
-                email: { type: string, format: email }
-                password:
+                locale:
                   type: string
-                  description: min 8 chars, ≥1 letter, ≥1 digit
-                age: { type: integer, minimum: 18, maximum: 80 }
+                  enum: [ar, en]
       responses:
         '200':
-          description: Customer created, tokens issued
+          description: Lite customer created, tokens issued
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthEnvelope'
         '400':
-          $ref: '#/components/responses/ErrorEnvelope'   # PASSWORD_WEAK, AGE_INVALID
+          $ref: '#/components/responses/ErrorEnvelope'
         '401':
           $ref: '#/components/responses/ErrorEnvelope'   # VERIFIED_MOBILE_TOKEN_INVALID / _EXPIRED / _CONSUMED
         '409':
@@ -107,10 +110,13 @@ components:
         registrationPath: { type: string, enum: [PHONE, SOCIAL] }
         mobile: { type: string, nullable: true }
         mobileVerifiedAt: { type: string, format: date-time, nullable: true }
-        fullName: { type: string }
+        firstName: { type: string, nullable: true }
+        lastName: { type: string, nullable: true }
         email: { type: string, format: email, nullable: true }
-        age: { type: integer, nullable: true }
+        birthday: { type: string, format: date, nullable: true }
+        profilePhotoKey: { type: string, nullable: true }
         hasPassword: { type: boolean }
+        profileComplete: { type: boolean }
         linkedProviders:
           type: array
           items: { type: string, enum: [GOOGLE, APPLE] }

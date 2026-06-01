@@ -57,14 +57,13 @@ import type {
 import { ApplicationStatus } from './dto/enums';
 
 export interface ApplyContext {
-  mobileClientId: string;
+  /** Constitution v4.0.0 / Principle XIII — the authenticated customer (from
+   *  the customer JWT). The mobile API is JWT-only and there is no guest mode;
+   *  every apply call carries a customerId. */
+  customerId: string;
   idempotencyKey?: string;
   payloadHash?: string | null;
   sourceIp?: string | null;
-  /** Constitution v3.0.0 / Principle XIII — the authenticated customer (from
-   *  the customer JWT). The mobile API is JWT-only; every apply call carries
-   *  a customerId. */
-  customerId?: string | null;
 }
 
 @Injectable()
@@ -88,7 +87,7 @@ export class ApplicationsService {
   async selectOffer(input: {
     applicationId: string;
     bankOfferId: string;
-    mobileClientId: string;
+    customerId: string;
     sourceIp: string | null;
   }): Promise<{
     applicationId: string;
@@ -101,7 +100,7 @@ export class ApplicationsService {
       async (tx) => {
         const app = await this.repo.findForOfferSelection(input.applicationId, tx);
         if (!app) throw new NotFoundException();
-        if (app.mobileClientId !== input.mobileClientId) throw new ForbiddenException();
+        if (app.applicantUserId !== input.customerId) throw new ForbiddenException();
         if (app.status !== 'matched') {
           throw new ApplicationNotMatchedException({
             applicationId: app.id,
@@ -248,7 +247,7 @@ export class ApplicationsService {
     const correlationId = randomUUID();
 
     if (ctx.idempotencyKey) {
-      const existing = await this.repo.findByIdempotencyKey(ctx.mobileClientId, ctx.idempotencyKey);
+      const existing = await this.repo.findByIdempotencyKey(ctx.customerId, ctx.idempotencyKey);
       if (existing) {
         if (existing.payloadHash && ctx.payloadHash && existing.payloadHash !== ctx.payloadHash) {
           throw new IdempotencyKeyMismatchException({ idempotencyKey: ctx.idempotencyKey });
@@ -289,7 +288,6 @@ export class ApplicationsService {
 
     const applicationId = await this.repo.persistMatch({
       application: {
-        mobileClientId: ctx.mobileClientId,
         submissionCorrelationId: correlationId,
         idempotencyKey: ctx.idempotencyKey ?? null,
         payloadHash: ctx.payloadHash ?? null,
@@ -301,10 +299,7 @@ export class ApplicationsService {
         preferredTenorMonths: dto.preferredTenorMonths,
         loanPurpose: dto.loanPurpose,
         age: dto.age,
-        // Authenticated customer overrides DTO `isGuest`. A logged-in mobile
-        // user cannot accidentally submit as a guest.
-        isGuest: ctx.customerId ? false : (dto.isGuest ?? false),
-        applicantUserId: ctx.customerId ?? null,
+        applicantUserId: ctx.customerId,
         applicantProfile: this.profileToJson(profile),
         summary: summaryJson,
         noMatchSummary: noMatchJson,
@@ -323,11 +318,10 @@ export class ApplicationsService {
             correlationId,
             payload: {
               applicationId: applicationIdInTx,
-              mobileClientId: ctx.mobileClientId,
+              customerId: ctx.customerId,
               loanPurpose: dto.loanPurpose,
               requestedAmountEGP: dto.requestedAmountEGP,
               requestedCurrency: dto.requestedCurrency ?? 'EGP',
-              isGuest: dto.isGuest ?? false,
             },
           },
           tx,
@@ -554,7 +548,6 @@ export class ApplicationsService {
       requestedCurrency: dto.requestedCurrency ?? 'EGP',
       preferredTenorMonths: dto.preferredTenorMonths,
       priority: dto.priority,
-      isGuest: dto.isGuest ?? false,
       nationalId: dto.nationalId,
       employment: {
         employmentType: dto.employment.employmentType,

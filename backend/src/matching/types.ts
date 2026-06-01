@@ -74,7 +74,6 @@ export interface ApplicantProfile {
   requestedCurrency: string;
   preferredTenorMonths: number;
   priority: ApplicationPriority;
-  isGuest: boolean;
   nationalId?: string;
   employment: EmploymentProfile;
   obligations: ObligationsProfile;

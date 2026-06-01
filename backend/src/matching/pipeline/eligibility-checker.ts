@@ -143,9 +143,8 @@ export function checkEligibility(
     push(have.greaterThanOrEqualTo(min), 'declared_assets_value');
   }
 
-  if (elig.requiresFRMUVerification && profile.isGuest) {
-    failed.push('frmu_verification_required');
-  }
+  // FRMU verification gate retired with guest mode (v4.0.0): every applicant is
+  // an authenticated customer, so this check never fired for a real submission.
 
   // Credit-card holding tenure (e.g. ABK-CC-XSELL minimum 6 months).
   if (

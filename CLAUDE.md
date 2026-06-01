@@ -1,12 +1,12 @@
 # masrafy01 Development Guidelines
 
-Auto-generated from feature plans + constitution. Last updated: 2026-05-28
+Auto-generated from feature plans + constitution. Last updated: 2026-06-02
 
 ## Project Identity
 
 **Masrafy** (internally "Credit Match") — Egyptian fintech loan comparison marketplace. Connects users with 20+ bank loan programs (ABK Egypt + partners) via 5-step wizard + matching engine. Four product lines: personal loans, car loans, mortgages, business loans. Free for users; commission revenue from banks. Three platforms governed by a single constitution: NestJS backend (active), Angular admin dashboard (active), Flutter mobile app (deferred until Figma).
 
-Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v3.1.0
+Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md) v4.0.0
 
 **Product scope-lock (v1.7.0 / Principle II):** Platform supports exactly four retail loan categories — `personal`, `car`, `mortgage`, `business`. Removing a category requires a destructive migration that physically wipes registry entry, bank programs, and all applications + cascade (offers / decisions / activities / documents). Ghost / soft-deactivated rows = review block. Adding a fifth requires a constitution amendment (A26).
 
@@ -116,7 +116,7 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **X — Repository Pattern**: services NEVER touch Prisma directly. Use `*.repository.ts`.
 - **XI — Prisma Migrate Only**: `db push` forbidden in prod. Named migrations; indexes on FKs + hot WHERE/ORDER BY.
 - **XII — DTO vs Entity**: `class-validator` DTOs; Prisma types stay in repositories. Global `ValidationPipe({ whitelist: true, forbidNonWhitelisted: true })`.
-- **XIII — Dual Auth (v3.0.0)**: JWT-only across both API surfaces — HMAC removed platform-wide. Admin JWT (15 min access + 7-day refresh httpOnly cookie). **Customer JWT** on `/api/v1/*` — 15 min access + 30-day refresh, response-body strings (not cookies), stored ONLY in `flutter_secure_storage`. Server-side refresh rotation + reuse detection: replaying a rotated refresh token revokes the session family. Separate signing keys `CUSTOMER_JWT_ACCESS_SECRET` / `CUSTOMER_JWT_REFRESH_SECRET`; bcrypt cost ≥ 12 with `select: false`. Two registration paths: PHONE-signup (fully upfront) + SOCIAL sign-in (lite at sign-in, completed via mandatory loan-request popup). NO guest mode. The v1.7.0 24-hour `mobileClientId` claim endpoint is REMOVED and MUST NOT be implemented. Login lockout: 10 failures / 15 min → 30 min. Forgot-password PHONE-only.
+- **XIII — Dual Auth (v3.0.0)**: JWT-only across both API surfaces — HMAC removed platform-wide. Admin JWT (15 min access + 7-day refresh httpOnly cookie). **Customer JWT** on `/api/v1/*` — 15 min access + 30-day refresh, response-body strings (not cookies), stored ONLY in `flutter_secure_storage`. Server-side refresh rotation + reuse detection: replaying a rotated refresh token revokes the session family. Separate signing keys `CUSTOMER_JWT_ACCESS_SECRET` / `CUSTOMER_JWT_REFRESH_SECRET`; bcrypt cost ≥ 12 with `select: false`. Two registration paths, both LITE at OTP/provider then completed via the mandatory profile-completion step (Principle XXXVII): PHONE-signup (mobile+OTP → lite row → firstName+lastName+birthday+photo+National ID+password) and SOCIAL (provider → lite row, no password → mobile+OTP+firstName+lastName+birthday+photo+National ID). NO guest mode; `Application.isGuest`, `mobileClientId`, and the claim endpoint are removed from code and MUST NOT be reintroduced. Login lockout: 10 failures / 15 min → 30 min. Forgot-password PHONE-only.
 - **XIV — API Contract**: envelope `{ success, data, pagination? }`; versioned (`/api/v1/`, `/api/admin/`); OpenAPI at `/api/docs`.
 - **XV — Rate Limiting**: `@nestjs/throttler` with Redis backing.
 - **XVI — Placeholder**: no constitutional testing requirements (v1.2.0).
@@ -145,6 +145,10 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **XXXIV — Shape-Matched Shimmer**: every async screen renders a shimmer skeleton mirroring the layout; centered spinner on first-load of content-bearing screens = review block; shimmer re-fires on every reload, not only first load.
 - **XXXV — Cross-Feature Sub-Feature Reuse**: cubit + state + widgets shared across ≥2 features lives at `masrafy-app/lib/core/features/<concern>/`; promote on second use; each consumer gets a fresh `getIt<>()` cubit.
 - **XXXVI — One Screen, One File (v3.1.0)**: every navigable screen ships as exactly one public widget in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file. Private `_`-prefixed leaf helpers used by only that screen MAY co-exist below the page class. Helpers reused by ≥2 screens → promote per XXXIII. Page files are UI-only (no datasource calls, no token signing).
+
+### Cross-Platform (added v4.0.0)
+
+- **XXXVII — Mandatory Profile Completeness (v4.0.0, NON-NEGOTIABLE)**: account unusable (questionnaire + matching + apply gated, backend `PROFILE_INCOMPLETE`) until complete: mobile+verified, firstName, lastName, birthday, profilePhotoKey, National ID front+back (PHONE also passwordHash). Age DERIVED from `birthday`, never stored. National ID collected at profile completion, not apply. Photos follow Principle VI.
 
 ## Anti-Patterns (Binding — see constitution Appendix)
 
@@ -177,8 +181,12 @@ Tags map to constitution sections. Cite principle # to block PRs.
 - **A27** Money / amount input without `MoneyInputDirective` (`appMoneyInput`)
 - **A28** Mobile datasource/repository/usecase/cubit method with >2 params NOT promoted to a typed `<Name>Request` DTO (Principle XXX, v1.8.1)
 - **A29** Multiple route-level widgets in one page file (Principle XXXVI, v3.1.0)
+- **A30** National ID collected at apply instead of profile completion (Principle XXXVII, v4.0.0)
+- **A31** Storing age instead of deriving from `birthday` (Principle XXXVII, v4.0.0)
+- **A32** Proceeding past an incomplete profile (Principle XXXVII, v4.0.0)
 
 ## Recent Changes
+- 2026-06-02 (v4.0.0): MAJOR — Principle XIII registration model redefined (lite row post-OTP/provider + mandatory profile-completion step for BOTH paths; the upfront / loan-request-popup model removed). New Principle XXXVII (Mandatory Profile Completeness, NON-NEGOTIABLE). Data model: `name`→`firstName`+`lastName`; `age Int`→`birthday DateTime` (age derived, never stored); new `profilePhotoKey`; `passwordHash` nullable (SOCIAL). National ID collected at profile completion as two customer-linked Document rows (not at apply). Guest plumbing (`Application.isGuest`, `mobileClientId`, claim flow) removed from code. Anti-Patterns A30/A31/A32. Principle VI guest sentence replaced with profile-photo/National-ID PII coverage.
 - 2026-05-28 (v3.1.0): MINOR — Principle XXXVI added (Mobile, NON-NEGOTIABLE): One Screen, One File. Every navigable screen lives in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file with exactly one public route-level widget. Private leaf helpers may co-exist below; cross-screen helpers promote per XXXIII. Page files are UI-only. Anti-Pattern A29 enforces. Pre-v3.1.0 multi-class files (`phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) flagged as tech debt.
 - 2026-05-28 (v3.0.0): MAJOR — Principle XIII redefined. HMAC-SHA256 signing model REMOVED platform-wide. Mobile API (`/api/v1/*`) is JWT-only — customer access (15 min) + refresh (30 days) with server-side rotation + reuse detection. Principle XXVIII Network bullet replaced (Dio + bearer interceptor + silent refresh on 401, no HMAC interceptor). Brand primary `#06152D` (deep navy) → `#0869C3` (azure blue) — same MAJOR bump bundled the two redefinitions. Anti-pattern A9 retired (slot reserved). A23 restated to cover JWT tokens in secure storage instead of HMAC secret.
 - 2026-05-28 (v2.0.0): MAJOR restructuring. Constitution split into 4 explicit Parts (Cross-Platform / Backend NestJS / Admin Angular / Mobile Flutter). Two new normative sub-sections added: **NestJS Clean Code Structure** (file layout, single-responsibility, ValidationPipe + Zod env, transactional writes, OpenAPI, no magic strings, path aliases) and **Angular Clean Code Structure** (feature-folder layout, smart/presentational split, Signals + new control flow, inject() DI, typed reactive forms, design tokens, logical CSS, functional guards + lazy routes, one-concern-per-service, path aliases). No principle removed or redefined. Pilot100 Flutter alignment maintained.

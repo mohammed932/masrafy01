@@ -3,26 +3,23 @@ import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
   CustomerAccountInactiveException,
-  CustomerEmailAlreadyRegisteredException,
-  CustomerGuestLinkWindowExpiredException,
   CustomerInvalidCredentialsException,
-  CustomerPhoneAlreadyRegisteredException,
 } from '@/common/errors/domain.exceptions';
 import { PasswordService } from '@/auth/password.service';
-import { ApplicationLinkRepository } from './application-link.repository';
-import {
-  CustomerAccountRepository,
-  CustomerAccountUniqueConflictError,
-} from './customer-account.repository';
+import { CustomerAccountRepository } from './customer-account.repository';
 import { CustomerJwtTokenService } from './customer-jwt-token.service';
 import { CustomerIssueResult, CustomerRefreshTokenService } from './customer-refresh-token.service';
-import type { CustomerProfileResponseDto } from './dto/customer-auth.dto';
+import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
+import {
+  mapCustomerProfile,
+  type CustomerProfileResponseDto,
+  type CustomerProfileRow,
+} from './dto/customer-auth.dto';
 
 export interface CustomerRequestContext {
   sourceIp: string;
   userAgent: string | null;
   correlationId: string;
-  mobileClientId: string | null;
 }
 
 export interface CustomerAuthResult {
@@ -31,8 +28,6 @@ export interface CustomerAuthResult {
   refresh: CustomerIssueResult;
   customer: CustomerProfileResponseDto;
 }
-
-const GUEST_LINK_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Canonicalise an Egyptian-format phone number into E.164. Accepts:
@@ -60,56 +55,8 @@ export class CustomerAuthService {
     private readonly jwt: CustomerJwtTokenService,
     private readonly password: PasswordService,
     private readonly audit: AuditEventWriter,
-    private readonly applicationLinks: ApplicationLinkRepository,
+    private readonly completeness: CustomerProfileCompletenessService,
   ) {}
-
-  // ---- Signup --------------------------------------------------------------
-
-  async signup(args: {
-    phone: string;
-    name: string;
-    password: string;
-    email?: string;
-    locale?: string;
-    ctx: CustomerRequestContext;
-  }): Promise<CustomerAuthResult> {
-    const phone = canonicalisePhone(args.phone);
-    const email = args.email?.toLowerCase().trim() ?? null;
-
-    await this.password.validatePolicy(args.password);
-    const passwordHash = await this.password.hash(args.password);
-
-    let created;
-    try {
-      created = await this.accounts.create({
-        phone,
-        name: args.name.trim(),
-        passwordHash,
-        email,
-        locale: args.locale ?? 'ar-EG',
-      });
-    } catch (err) {
-      if (err instanceof CustomerAccountUniqueConflictError) {
-        if (err.field === 'email') throw new CustomerEmailAlreadyRegisteredException();
-        throw new CustomerPhoneAlreadyRegisteredException();
-      }
-      throw err;
-    }
-
-    await this.audit.write({
-      actorId: null,
-      targetId: null,
-      eventType: AuditEventType.CUSTOMER_SIGNED_UP,
-      sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
-      payload: { customerId: created.id, mobileClientId: args.ctx.mobileClientId },
-    });
-
-    return this.issueSession({
-      customerId: created.id,
-      ctx: args.ctx,
-    });
-  }
 
   // ---- Login ---------------------------------------------------------------
 
@@ -137,7 +84,7 @@ export class CustomerAuthService {
       eventType: AuditEventType.CUSTOMER_LOGGED_IN,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
-      payload: { customerId: row.id, mobileClientId: args.ctx.mobileClientId },
+      payload: { customerId: row.id },
     });
 
     return this.issueSession({ customerId: row.id, ctx: args.ctx });
@@ -153,7 +100,6 @@ export class CustomerAuthService {
       rawToken: args.refreshToken,
       userAgent: args.ctx.userAgent,
       sourceIp: args.ctx.sourceIp,
-      mobileClientId: args.ctx.mobileClientId,
     });
     const account = await this.accounts.findById(next.customerId);
     if (!account || !account.isActive) {
@@ -172,7 +118,7 @@ export class CustomerAuthService {
       accessToken,
       accessTokenExpiresIn: expiresIn,
       refresh: next,
-      customer: this.toProfile(account),
+      customer: await this.buildProfile(account),
     };
   }
 
@@ -201,48 +147,7 @@ export class CustomerAuthService {
   async me(customerId: string): Promise<CustomerProfileResponseDto> {
     const row = await this.accounts.findById(customerId);
     if (!row || !row.isActive) throw new CustomerAccountInactiveException();
-    return this.toProfile(row);
-  }
-
-  // ---- Guest-claim ---------------------------------------------------------
-
-  /**
-   * Link the most-recent guest application created within the last 24h by the
-   * caller's `mobileClientId` to the now-authenticated customer. Used when
-   * the customer signs up AFTER seeing offers in the wizard.
-   */
-  async claimRecentGuestApplications(args: {
-    customerId: string;
-    mobileClientId: string;
-    ctx: CustomerRequestContext;
-  }): Promise<{ linkedApplicationIds: string[] }> {
-    const since = new Date(Date.now() - GUEST_LINK_WINDOW_MS);
-    const ids = await this.applicationLinks.findClaimableGuestApplicationIds({
-      mobileClientId: args.mobileClientId,
-      since,
-      limit: 10,
-    });
-    if (ids.length === 0) {
-      throw new CustomerGuestLinkWindowExpiredException({
-        mobileClientId: args.mobileClientId,
-        windowHours: 24,
-      });
-    }
-    await this.applicationLinks.claimApplicationsForCustomer({
-      applicationIds: ids,
-      customerId: args.customerId,
-    });
-    for (const id of ids) {
-      await this.audit.write({
-        actorId: null,
-        targetId: id,
-        eventType: AuditEventType.CUSTOMER_GUEST_APP_LINKED,
-        sourceIp: args.ctx.sourceIp,
-        correlationId: args.ctx.correlationId,
-        payload: { customerId: args.customerId, mobileClientId: args.mobileClientId },
-      });
-    }
-    return { linkedApplicationIds: ids };
+    return this.buildProfile(row);
   }
 
   // ---- Internals -----------------------------------------------------------
@@ -255,7 +160,6 @@ export class CustomerAuthService {
       customerId: args.customerId,
       userAgent: args.ctx.userAgent,
       sourceIp: args.ctx.sourceIp,
-      mobileClientId: args.ctx.mobileClientId,
     });
     const { token: accessToken, expiresIn } = this.jwt.signAccessToken({ sub: args.customerId });
     const account = await this.accounts.findById(args.customerId);
@@ -264,33 +168,12 @@ export class CustomerAuthService {
       accessToken,
       accessTokenExpiresIn: expiresIn,
       refresh,
-      customer: this.toProfile(account),
+      customer: await this.buildProfile(account),
     };
   }
 
-  private toProfile(row: {
-    id: string;
-    /**
-     * Feature 008: nullable for SOCIAL customers pending the Complete-Profile
-     * mobile-binding step. DTO surface keeps the field optional via `??`.
-     */
-    phone: string | null;
-    email: string | null;
-    name: string;
-    locale: string;
-    isVerified: boolean;
-    createdAt: Date;
-    lastLoginAt: Date | null;
-  }): CustomerProfileResponseDto {
-    return {
-      id: row.id,
-      phone: row.phone ?? '',
-      email: row.email ?? undefined,
-      name: row.name,
-      locale: row.locale,
-      isVerified: row.isVerified,
-      createdAt: row.createdAt.toISOString(),
-      lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : undefined,
-    };
+  private async buildProfile(row: CustomerProfileRow & { id: string }): Promise<CustomerProfileResponseDto> {
+    const profileComplete = await this.completeness.isComplete(row.id);
+    return mapCustomerProfile(row, profileComplete);
   }
 }

@@ -200,7 +200,7 @@ async function wipePriorSeed(): Promise<void> {
   // bypass triggers for the duration of the cascade DELETE, then restore.
   await prisma.$transaction([
     prisma.$executeRawUnsafe(`SET session_replication_role = 'replica'`),
-    prisma.$executeRawUnsafe(`DELETE FROM application WHERE "mobileClientId" LIKE 'seed-%'`),
+    prisma.$executeRawUnsafe(`DELETE FROM application WHERE "submissionCorrelationId" LIKE 'seed-corr-%'`),
     prisma.$executeRawUnsafe(`SET session_replication_role = 'origin'`),
   ]);
 }
@@ -275,6 +275,23 @@ async function main(): Promise<void> {
   let activitiesCreated = 0;
   let approvedSum = 0;
 
+  // Every application requires an owning customer (guest mode removed, v4.0.0).
+  const seedCustomer = await prisma.customerAccount.upsert({
+    where: { phone: '+201000000001' },
+    update: {},
+    create: {
+      registrationPath: 'PHONE',
+      phone: '+201000000001',
+      mobileVerifiedAt: new Date(),
+      email: 'seed.scoring@masrafy.local',
+      firstName: 'Seed',
+      lastName: 'Scoring',
+      birthday: new Date('1990-01-01'),
+      profilePhotoKey: 'customers/seed-scoring/photo/seed.jpg',
+      isVerified: true,
+    },
+  });
+
   for (let i = 0; i < APP_COUNT; i++) {
     const agent = agents[i % agents.length]!;
     const profile = agentProfiles[agent.id]!;
@@ -285,7 +302,7 @@ async function main(): Promise<void> {
 
     const app = await prisma.application.create({
       data: {
-        mobileClientId: `seed-${i}-${Date.now()}`,
+        applicantUserId: seedCustomer.id,
         submissionCorrelationId: `seed-corr-${i}-${Date.now()}`,
         priority: ApplicationPriority.lowest_interest,
         status: ApplicationStatus.matched,
@@ -294,7 +311,6 @@ async function main(): Promise<void> {
         preferredTenorMonths: pick([36, 48, 60, 72]),
         loanPurpose: pick(['personal', 'car', 'mortgage', 'business']),
         age: rand(26, 52),
-        isGuest: false,
         applicantProfile: { seed: true, alias: pick(APPLICANT_NAMES) },
         summary: { matchedOfferCount: 3, topOfferTier: 'good' },
         leadStatus: pickLeadStage(),
@@ -502,7 +518,7 @@ async function main(): Promise<void> {
     very_low: 0.05,
   };
   const seededApps = await prisma.application.findMany({
-    where: { mobileClientId: { startsWith: 'seed-' } },
+    where: { submissionCorrelationId: { startsWith: 'seed-corr-' } },
     select: {
       id: true,
       bankOffers: {

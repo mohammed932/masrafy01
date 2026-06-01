@@ -6,6 +6,7 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 import { CustomerNotFoundException } from '@/common/errors/domain.exceptions';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { CustomerAccountRepository } from './customer-account.repository';
+import { deriveAge } from './age.util';
 
 /**
  * Admin read-only access to customer accounts. Used by the admin
@@ -37,7 +38,9 @@ export class AdminCustomerAccountsController {
         id: r.id,
         phone: r.phone,
         email: r.email,
-        name: r.name,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        nameSplitNeedsReview: r.nameSplitNeedsReview,
         locale: r.locale,
         isActive: r.isActive,
         isVerified: r.isVerified,
@@ -62,7 +65,10 @@ export class AdminCustomerAccountsController {
       id: row.id,
       phone: row.phone,
       email: row.email,
-      name: row.name,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      nameSplitNeedsReview: row.nameSplitNeedsReview,
+      age: deriveAge(row.birthday) ?? null,
       locale: row.locale,
       isActive: row.isActive,
       isVerified: row.isVerified,

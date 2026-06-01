@@ -472,20 +472,39 @@ async function seedApplications(agentIds: string[]): Promise<void> {
     };
   });
 
+  // Every application now requires an owning customer (guest mode removed,
+  // v4.0.0). Upsert one complete demo customer and attach all seeded apps to it.
+  const demoCustomer = await prisma.customerAccount.upsert({
+    where: { phone: '+201000000000' },
+    update: {},
+    create: {
+      registrationPath: 'PHONE',
+      phone: '+201000000000',
+      mobileVerifiedAt: new Date(),
+      email: 'demo.customer@masrafy.local',
+      firstName: 'Demo',
+      lastName: 'Customer',
+      birthday: new Date('1990-01-01'),
+      profilePhotoKey: 'customers/demo/photo/seed.jpg',
+      passwordHash: null,
+      isVerified: true,
+    },
+  });
+
   for (const s of shapes) {
-    await createOneApplication(s);
+    await createOneApplication(s, demoCustomer.id);
   }
   log(`applications: created ${shapes.length} with activities + follow-ups`);
 }
 
-async function createOneApplication(s: AppShape): Promise<void> {
+async function createOneApplication(s: AppShape, customerId: string): Promise<void> {
   const createdAt = new Date(Date.now() - s.daysOldCreated * 24 * 60 * 60 * 1000);
   const correlationId = randomUUID();
   const applicantProfile = buildApplicantProfile(s);
 
   const app = await prisma.application.create({
     data: {
-      mobileClientId: 'dev',
+      applicantUserId: customerId,
       submissionCorrelationId: correlationId,
       status: 'matched',
       priority: randomFromSet(PRIORITIES),
@@ -494,7 +513,6 @@ async function createOneApplication(s: AppShape): Promise<void> {
       preferredTenorMonths: s.tenor,
       loanPurpose: s.loanPurpose,
       age: s.age,
-      isGuest: true,
       applicantProfile: applicantProfile as unknown as Prisma.InputJsonValue,
       summary: {
         totalProgramsChecked: randomBetween(20, 34),

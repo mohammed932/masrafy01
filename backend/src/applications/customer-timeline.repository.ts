@@ -17,7 +17,7 @@ import { AuditEventType } from '@/common/audit/audit-event-types';
 
 export interface ApplicationTimelineHeader {
   id: string;
-  mobileClientId: string;
+  applicantUserId: string;
   createdAt: Date;
 }
 
@@ -40,10 +40,10 @@ export class CustomerTimelineRepository {
   async findApplicationHeader(applicationId: string): Promise<ApplicationTimelineHeader | null> {
     const row = await this.prisma.application.findUnique({
       where: { id: applicationId },
-      select: { id: true, mobileClientId: true, createdAt: true },
+      select: { id: true, applicantUserId: true, createdAt: true },
     });
     if (!row) return null;
-    return { id: row.id, mobileClientId: row.mobileClientId, createdAt: row.createdAt };
+    return { id: row.id, applicantUserId: row.applicantUserId, createdAt: row.createdAt };
   }
 
   /**

@@ -37,11 +37,11 @@ export class CustomerTimelineService {
 
   async buildTimeline(
     applicationId: string,
-    mobileClientId: string,
+    customerId: string,
   ): Promise<CustomerTimelineResponse> {
     const application = await this.repo.findApplicationHeader(applicationId);
     if (!application) throw new NotFoundException();
-    if (application.mobileClientId !== mobileClientId) {
+    if (application.applicantUserId !== customerId) {
       throw new ForbiddenException();
     }
 

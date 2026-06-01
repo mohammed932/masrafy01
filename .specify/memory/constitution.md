@@ -188,8 +188,10 @@ device logs in Flutter also MUST NOT contain PII. Application status
 transitions are append-only (state machine log table, not status column
 overwrites). Bank commission tracking is auditable end-to-end. Egyptian
 data protection compliance: user data deletion requests are supported
-end-to-end. Guest users complete matching without persistent account
-creation. Angular displays National IDs masked by default (last 4 digits
+end-to-end. Profile photos and National ID images are PII documents:
+stored in S3 with server-side encryption, served only via presigned
+short-expiry URLs (admin read URLs re-issued on demand), never inlined
+or logged. Angular displays National IDs masked by default (last 4 digits
 visible) with an explicit "Reveal" action that logs an audit event.
 
 ## VII. Observability is Built-In (Backend + Mobile)
@@ -294,18 +296,32 @@ like admin. Refresh-token rotation: each refresh issues a new access
 (opaque-token registry keyed by `jti`). Stolen-token detection: reusing
 an already-rotated refresh token revokes the entire session family.
 
-Two registration paths: PHONE-signup (mobile + OTP + name + email +
-password + age upfront — fully populated customer) and SOCIAL sign-in
-(Google / Apple — lite customer on first sign-in, with mobile + OTP +
-email + age completed via a mandatory loan-request popup before the
-customer can submit a loan application). Every reachable in-app feature
-(catalog, enumerations, questionnaire, matching, loan request, account
-screens) requires a valid customer Bearer JWT — no anonymous catalog
-access, no guest application flow. The v1.7.0 24-hour `mobileClientId`
-claim endpoint is REMOVED and MUST NOT be implemented. Failed customer
-login attempts trigger 30-minute account lockout after 10 failures
-within a 15-minute window. Forgot-password is PHONE-only; SOCIAL
-customers recover via their provider.
+Two registration paths, both creating the customer row **lite at
+OTP/provider time and completing the profile afterward** via the
+mandatory profile-completion step (see Principle XXXVII):
+- **PHONE-signup:** mobile + OTP verified first → a lite customer row is
+  created (`registrationPath = PHONE`, `mobileVerifiedAt` set) → the
+  mandatory profile-completion step then collects firstName, lastName,
+  birthday, profile photo, National ID front + back, and a password.
+  `passwordHash` is non-null for PHONE.
+- **SOCIAL sign-in (Google / Apple):** provider-token verification creates
+  a lite customer row (`registrationPath = SOCIAL`, name seeded from the
+  provider, `passwordHash = NULL`) → the same mandatory profile-completion
+  step collects mobile + OTP, firstName, lastName, birthday, profile photo,
+  and National ID front + back. SOCIAL customers never have a password and
+  recover access via their provider.
+
+There is **no "upfront full registration" and no "loan-request popup"**
+model — profile completion is a first-class, post-OTP step gating the
+whole authenticated surface, not a popup bolted onto apply. Every reachable
+in-app feature (catalog, enumerations, questionnaire, matching, loan
+request, account screens) requires a valid customer Bearer JWT — no
+anonymous catalog access, no guest application flow, **no `Application.isGuest`,
+no `mobileClientId`, no claim endpoint** (all removed from code as of
+v4.0.0; they MUST NOT be reintroduced). Failed customer login attempts
+trigger 30-minute account lockout after 10 failures within a 15-minute
+window. Forgot-password is PHONE-only; SOCIAL customers recover via their
+provider.
 
 ## XIV. API Contract Standards
 All HTTP endpoints use typed DTO classes. All responses follow envelope:
@@ -1324,6 +1340,62 @@ files are technical debt; new PRs MUST NOT extend them.
 
 ---
 
+## XXXVII. Mandatory Profile Completeness (All Platforms, NON-NEGOTIABLE)
+
+A customer account is UNUSABLE for the questionnaire, matching, and loan
+application until its profile is complete. Profile completion is a
+first-class step that runs immediately after OTP / provider verification
+creates the lite customer row — NOT a popup attached to "Apply", and NOT
+deferred to apply time.
+
+### Rules
+
+1. **Completeness contract.** A profile is COMPLETE only when ALL of the
+   following are persisted on the customer:
+   - mobile + `mobileVerifiedAt` (OTP-verified; non-null)
+   - `firstName` AND `lastName` (both non-empty)
+   - `birthday` (a `DateTime`; age is DERIVED from it, NEVER stored — see Rule 4)
+   - `profilePhotoKey` (an S3 object key under Principle VI)
+   - National ID FRONT + BACK — two `Document` rows of type
+     `NATIONAL_ID_FRONT` / `NATIONAL_ID_BACK` linked to the customer
+   - PHONE customers additionally: `passwordHash` (non-null). SOCIAL
+     customers have `passwordHash = NULL` and complete via their provider.
+2. **Hard gate.** Backend MUST reject questionnaire-submit, matching, and
+   `/applications/apply` for any customer whose profile is incomplete with
+   `PROFILE_INCOMPLETE`. The mobile app MUST route an incomplete customer
+   into the profile-completion flow and MUST NOT render the gated surfaces.
+3. **National ID is collected at profile completion, NOT at apply.** The two
+   National ID Document rows are created and linked to the CUSTOMER during
+   profile completion. Apply binds the already-present documents to the
+   application; apply MUST NOT be the first point National ID is requested.
+4. **Age is always derived from `birthday`.** No `age` column, no persisted
+   `age` DTO field on the customer. Validation (18–80) runs against the value
+   derived from `birthday` at write time and at apply time.
+5. **Images follow Principle VI.** Profile photo and National ID images are
+   PII: S3 + SSE, presigned short-expiry URLs, never logged, masked in admin.
+6. **Immutability.** Once set, mobile + `mobileVerifiedAt` and `birthday` are
+   immutable (service-layer assertion). firstName / lastName / profile photo
+   are editable via account screens.
+
+### Rationale
+
+Splitting registration into "lite row at OTP" + "mandatory completion step"
+gives both paths ONE identical completeness contract, removes the brittle
+apply-time popup, and lets the questionnaire/matching/apply gates check a
+single boolean instead of path-specific field sets. Storing `birthday` and
+deriving age eliminates the stale-age bug class (an age integer is wrong the
+day after it is written) and matches how National ID birthdate is verified.
+Collecting National ID at completion (not apply) means a complete customer
+can apply to any matched program with zero extra document steps.
+
+### Enforcement
+
+Citing Principle XXXVII (or Anti-Patterns A30 / A31 / A32) blocks PRs that
+collect National ID at apply, store an `age` value instead of deriving from
+`birthday`, or allow any gated surface to proceed past an incomplete profile.
+
+---
+
 # Technical Constraints
 
 ## Backend
@@ -1455,6 +1527,15 @@ Any datasource, repository, usecase, or cubit method on the Flutter client that 
 ## A29. Multiple Route-Level Widgets in One Page File (Principle XXXVI, v3.1.0)
 Any `*_page.dart` / `*_pages.dart` / `*_dialog.dart` / `*_sheet.dart` / `*_picker.dart` file containing MORE THAN ONE public route-level widget = review block. Each route / navigable destination ships in its own file named after the widget. Private `_`-prefixed leaf helpers used by exactly one screen MAY co-exist below the page class in the same file. Helpers reused by 2+ screens MUST be promoted to the feature's `widgets/` or `core/widgets/` per Principle XXXIII. Existing pre-v3.1.0 multi-class page files (e.g. `phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) are technical debt; new PRs MUST NOT extend them.
 
+## A30. National ID Collected at Apply Instead of Profile Completion (Principle XXXVII, v4.0.0)
+Requesting, uploading, or first-linking National ID FRONT/BACK inside the loan-application / apply flow = review block. National ID is collected during the mandatory profile-completion step and linked to the CUSTOMER; apply only binds pre-existing Document rows to the Application.
+
+## A31. Storing Age Instead of Deriving From Birthday (Principle XXXVII, v4.0.0)
+Any `age` column, persisted `age` field, or DTO that writes a customer's age to the database = review block. Store `birthday` (`DateTime`); derive age on read and validate the 18–80 range against the derived value.
+
+## A32. Proceeding Past an Incomplete Profile (Principle XXXVII, v4.0.0)
+Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for a customer missing any completeness field (mobile+verified, firstName, lastName, birthday, profilePhotoKey, National ID front+back; PHONE also passwordHash) = review block. Backend returns `PROFILE_INCOMPLETE`; mobile routes into the completion flow instead of rendering the gated surface.
+
 ---
 
 # Governance
@@ -1482,7 +1563,8 @@ Any `*_page.dart` / `*_pages.dart` / `*_dialog.dart` / `*_sheet.dart` / `*_picke
 | 2.0.0 | 2026-05-28 | MAJOR | Structural reorganization into Part I (Cross-Platform) / II (Backend NestJS) / III (Admin Angular) / IV (Mobile Flutter). New normative sub-sections: NestJS Clean Code Structure + Angular Clean Code Structure. No principle removed or redefined. |
 | 3.0.0 | 2026-05-28 | MAJOR | Principle XIII redefined: HMAC-SHA256 signing model REMOVED platform-wide. Mobile API (`/api/v1/*`) is JWT-only — customer access (15min) + refresh (30d) with server-side rotation + reuse detection. Principle XXVIII Network bullet updated (Dio + bearer + silent refresh, no HMAC interceptor). Brand primary swapped from `#06152D` to `#0869C3` (azure). Anti-Pattern A9 retired (slot reserved). A23 restated for JWT secrets in secure storage. |
 | 3.1.0 | 2026-05-28 | MINOR | New Principle XXXVI — One Screen, One File (Mobile, NON-NEGOTIABLE). Every navigable screen ships as exactly one public widget in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file. Anti-Pattern A29 enforces it. Pre-v3.1.0 multi-class files (`phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) flagged as tech debt. |
+| 4.0.0 | 2026-06-02 | MAJOR | Principle XIII registration model redefined: customer row created LITE post-OTP/provider, then a MANDATORY profile-completion step (firstName + lastName + birthday + profile photo + National ID front+back; PHONE also password) for BOTH paths — the "upfront full registration" / "loan-request popup" model is gone. New Principle XXXVII (Mandatory Profile Completeness, NON-NEGOTIABLE). Data model: `name`→`firstName`+`lastName`; `age Int`→`birthday DateTime` (age always derived, never stored); new `profilePhotoKey`; `passwordHash` nullable (null for SOCIAL). National ID collected at profile completion (not apply) as two customer-linked Document rows. Guest plumbing (`Application.isGuest`, `mobileClientId`, claim flow) fully removed from code. Anti-Patterns A30/A31/A32 added. Principle VI guest sentence replaced with profile-photo/National-ID PII coverage. |
 
 ---
 
-**Version**: 3.1.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-05-28
+**Version**: 4.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-02

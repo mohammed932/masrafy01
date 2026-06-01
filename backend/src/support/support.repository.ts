@@ -13,7 +13,6 @@ export interface CreateSupportRequestInput {
   channel: SupportChannel;
   applicationId?: string | null;
   customerId?: string | null;
-  mobileClientId?: string | null;
   note?: string | null;
 }
 
@@ -36,7 +35,6 @@ export interface SupportRequestRow {
   status: SupportStatus;
   applicationId: string | null;
   customerId: string | null;
-  mobileClientId: string | null;
   assignedStaffId: string | null;
   note: string | null;
   createdAt: Date;
@@ -80,7 +78,6 @@ export class SupportRepository {
         channel: input.channel as unknown as PrismaSupportChannel,
         applicationId: input.applicationId ?? null,
         customerId: input.customerId ?? null,
-        mobileClientId: input.mobileClientId ?? null,
         note: input.note ?? null,
       },
     });
@@ -137,7 +134,6 @@ function toSupportRequestRow(row: PrismaSupportRequest): SupportRequestRow {
     status: row.status as unknown as SupportStatus,
     applicationId: row.applicationId,
     customerId: row.customerId,
-    mobileClientId: row.mobileClientId,
     assignedStaffId: row.assignedStaffId,
     note: row.note,
     createdAt: row.createdAt,

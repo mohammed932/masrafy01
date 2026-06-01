@@ -208,6 +208,8 @@ description: "Task list for 008-mobile-auth-apply implementation"
 
 ---
 
+> **SUPERSEDED by v4.0.0** (Phase 10 / T150–T156): this phase's gate-popup + email/age-held-client-side + National-ID-at-apply model no longer applies. SOCIAL completes via the mandatory profile-completion step; apply is gated on `PROFILE_INCOMPLETE`.
+
 ## Phase 5: User Story 4 — SOCIAL sign-in + Complete-Profile + loan request (Priority: P1)
 
 **Goal**: First-time user signs in via Google/Apple → lite Customer created with provider profile → browses catalog + matches → on Apply, mandatory gate popup → Complete-Profile screen (mobile + OTP saved immediately; email + age held client-side) → National ID upload → submit (email + age persisted atomically with application).
@@ -336,6 +338,29 @@ description: "Task list for 008-mobile-auth-apply implementation"
 
 ---
 
+## Phase 10: Constitution v4.0.0 realignment — lite-row + mandatory profile completion
+
+**Purpose**: Replace the "fully-upfront PHONE" + "SOCIAL loan-request popup" + "National-ID-at-apply" + "stored age" + guest plumbing model with the ratified v4.0.0 model: both paths create a LITE row, then a mandatory profile-completion step (photo + National ID + name + birthday; PHONE also password) finalizes the account. Apply/select-offer gated on `PROFILE_INCOMPLETE`.
+
+- [x] T150 Migration `name`→`firstName`+`lastName`, `age`→`birthday` (DATE; age derived in code), add `profilePhotoKey`, add audit-only `nameSplitNeedsReview`, relax `passwordHash` nullable, drop guest columns (`Application.isGuest`, `mobileClientId` everywhere incl. refresh tokens + support). Reference migration `20260602120000_v4_customer_profile_and_guest_removal`. (DONE — backend.)
+- [x] T151 Profile-completion endpoint `POST /v1/auth/profile/complete` (`firstName`, `lastName`, `birthday`, optional `password`; PHONE-required / SOCIAL-forbidden) + customer-scoped profile-photo (`/auth/profile/photo/upload-url`) and National ID (`/auth/profile/national-id/upload-url`) presign endpoints. National ID becomes two CUSTOMER-linked `Document` rows (`customerId` set, `applicationId` null). New error codes `PROFILE_ID_DOCS_MISSING`, `PASSWORD_REQUIRED_FOR_PHONE_PROFILE`, `PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE` added across the 3 surfaces. (DONE — backend.)
+- [x] T152 `PROFILE_INCOMPLETE` gate guard on `POST /v1/applications/apply` and `/select-offer` (questionnaire submitted in apply body → gated too). Apply binds pre-existing customer National ID docs to the application; no apply-time `email`/`age`/`profileCompletion`/`isGuest`. (DONE — backend.)
+- [x] T153 Remove guest plumbing: `Application.isGuest`, `mobileClientId` (everywhere), and the 24h claim flow. `Application` now has a required `applicantUserId`. Remove `CUSTOMER_GUEST_LINK_WINDOW_EXPIRED` error code. (DONE — backend.)
+- [x] T154 Derive-age utility + 18–80 validation against `birthday` at profile completion (`AGE_INVALID` now raised here, not at apply). (DONE — backend.)
+- [ ] T155 [mobile] Profile-completion screens replacing the apply-time gate popup + apply-time National ID pages: firstName/lastName, birthday picker (derived-age validation), profile-photo capture, National ID front/back — driven by the apply `PROFILE_INCOMPLETE` gate. Supersedes T073, T075, T110, T111, T112. (PENDING — mobile.)
+- [x] T156 Constitution v4.0.0 sync: `.specify/memory/constitution.md` + `CLAUDE.md` updated to the lite-row + mandatory-profile-completion model. (DONE.)
+
+> **SUPERSEDED by v4.0.0** (kept for history, do not re-implement as written):
+> - T012 (schema added `age`, kept `name`/`fullName`) — superseded by T150 (`birthday`, `firstName`/`lastName`, `profilePhotoKey`, guest-column drop).
+> - T032, T079 (entity / admin card with `age`, single `fullName`) — superseded by T150-aligned fields (`firstName`/`lastName`/`birthday`/`profilePhotoKey`/`profileComplete`).
+> - T047 (`CompleteProfileRoute` sub: mobile/otp/email/age) — superseded by T155 (photo + National ID + name + birthday; no email/age steps).
+> - T052, T058, T059, T060 (`/auth/signup/phone/complete` with `fullName`/`email`/`password`/`age`) — superseded by the LITE `/auth/signup/phone/verify` (T013-area) + T151 profile completion.
+> - T063 apply DTO `profileCompletion?`, T106 SOCIAL apply branch writing `email`+`age`, T097/T098 SOCIAL-apply email/age tests — superseded by T152 gate (apply never mutates profile fields).
+> - T073 profile page (fullName/email/password/age), T076 summary holding email/age, T110/T111/T112 gate-popup + Complete-Profile email/age screens — superseded by T155.
+> - Phase 5 goal/independent-test (gate popup, email+age held client-side, National ID at apply) — superseded by the v4.0.0 model above.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -442,7 +467,7 @@ With 2 backend + 2 mobile + 1 admin:
 - The mobile `customer_auth` feature replaces the source-brief draft name `auth_apply`.
 - The legacy anonymous `/api/v1/matching/preview` endpoint is REMOVED — confirm no callers remain after T066.
 - Apple Sign-In on Android: button HIDDEN (R15). Web-flow deferred.
-- `Customer.age` becomes immutable on first write; `Customer.mobile` + `mobileVerifiedAt` become immutable on first write (R8 + data-model.md write-authority matrix).
+- (v4.0.0) `Customer.birthday` becomes immutable on first write (age derived in code, never stored); `Customer.mobile` + `mobileVerifiedAt` become immutable on first write (R8 + data-model.md write-authority matrix). The old `Customer.age` column is dropped (T150).
 - Spec clarifications recap: Q1 (revoke other tokens on password change/reset) → T123 + T129; Q2 (admin doc URL 1h) → T132; Q3 (mobile_change deferred) → reserved enum only; Q4 (no guest mode + hybrid persistence) → enforced throughout; Q5 (multi-device sessions) → T021 + T123/T129.
 - /speckit.analyze findings closed by this revision: A1 (T145 hardened blocker), C1 (T067a/T067b/T067c added), C2 (T147/T148 added), C3 (T149 added), C4 (T076/T077 augmented), U1 (T146 added), B1 (FR-018 quantified in spec), I1 (FR-005a wording aligned to "SOCIAL sign-in"), I2 (T106 depends-on annotated), D1 (plan.md glossary added), O1 (T067 enumeration extended), O2 (T022 resend lock explicit).
 - Total tasks after remediation: 152 (was 145; added T067a, T067b, T067c, T146, T147, T148, T149).

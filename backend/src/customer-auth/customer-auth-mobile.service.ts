@@ -31,7 +31,21 @@ import {
   type CustomerAuthResult,
   type CustomerRequestContext,
 } from './customer-auth.service';
-import type { CustomerProfileResponseDto } from './dto/customer-auth.dto';
+import {
+  mapCustomerProfile,
+  type CustomerProfileResponseDto,
+  type CustomerProfileRow,
+} from './dto/customer-auth.dto';
+import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
+import {
+  CustomerProfileDocumentRepository,
+  NATIONAL_ID_BACK,
+  NATIONAL_ID_FRONT,
+  hasUsableIdDoc,
+} from './customer-profile-document.repository';
+import { RegistrationPath } from '@prisma/client';
+import { splitFullName } from './name.util';
+import { deriveAge } from './age.util';
 
 /**
  * Feature 008 — Two-Path Registration service.
@@ -62,6 +76,8 @@ export class CustomerAuthMobileService {
     private readonly lockout: CustomerLoginLockoutService,
     private readonly audit: AuditEventWriter,
     private readonly prisma: PrismaService,
+    private readonly completeness: CustomerProfileCompletenessService,
+    private readonly idDocs: CustomerProfileDocumentRepository,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -101,31 +117,23 @@ export class CustomerAuthMobileService {
     return challenge;
   }
 
-  async signupPhoneComplete(args: {
+  /**
+   * v4.0.0 — PHONE signup step 2. Consumes the `verifiedMobileToken` (mobile
+   * already OTP-verified) and creates a LITE PHONE customer, then issues
+   * tokens so the client is authenticated for the mandatory profile-completion
+   * step (`completeProfile`). The account is NOT profile-complete yet, so the
+   * `CustomerProfileCompleteGuard` blocks apply until completion (Principle XXXVII).
+   */
+  async signupPhoneVerify(args: {
     verifiedMobileToken: string;
-    name: string;
-    email?: string;
-    password: string;
-    age: number;
     locale?: string;
     ctx: CustomerRequestContext;
   }): Promise<CustomerAuthResult> {
-    await this.password.validatePolicy(args.password);
-    const passwordHash = await this.password.hash(args.password);
-    const email = args.email?.toLowerCase().trim() ?? null;
-
     const created = await this.prisma.$transaction(async (tx) => {
       const { phone } = await this.verifiedMobile.consume(args.verifiedMobileToken, tx);
       try {
-        return await this.accounts.createPhoneVerified(
-          {
-            phone,
-            name: args.name.trim(),
-            email,
-            locale: args.locale ?? 'ar-EG',
-            passwordHash,
-            age: args.age,
-          },
+        return await this.accounts.createPhoneVerifiedLite(
+          { phone, locale: args.locale ?? 'ar-EG' },
           tx,
         );
       } catch (err) {
@@ -138,7 +146,7 @@ export class CustomerAuthMobileService {
 
     await this.audit.write({
       actorId: null,
-      targetId: created.id,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_SIGNUP_PHONE_COMPLETED,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
@@ -146,6 +154,84 @@ export class CustomerAuthMobileService {
     });
 
     return this.issueSession({ customerId: created.id, ctx: args.ctx });
+  }
+
+  /**
+   * Principle XXXVII — mandatory profile-completion step for BOTH paths.
+   * Requires the National ID front+back documents to already be uploaded and
+   * the profile photo persisted (via the profile-document / profile-photo
+   * presign endpoints). PHONE customers set a password here; SOCIAL customers
+   * must NOT send one. Returns a refreshed auth result (with `profileComplete`).
+   */
+  async completeProfile(args: {
+    customerId: string;
+    firstName: string;
+    lastName: string;
+    birthday: string;
+    password?: string;
+    ctx: CustomerRequestContext;
+  }): Promise<CustomerAuthResult> {
+    const state = await this.accounts.findProfileState(args.customerId);
+    if (!state) throw new CustomerAccountInactiveException();
+    if (state.mobileVerifiedAt === null) {
+      throw new DomainException(ERROR_CODES.PROFILE_INCOMPLETE);
+    }
+
+    // birthday immutable once set (Principle XXXVII Rule 6).
+    const birthday = new Date(args.birthday);
+    if (Number.isNaN(birthday.getTime())) throw new DomainException(ERROR_CODES.AGE_INVALID);
+    const age = deriveAge(birthday);
+    if (age === null || age < 18 || age > 80) throw new DomainException(ERROR_CODES.AGE_INVALID);
+    if (state.birthday !== null && state.birthday.getTime() !== birthday.getTime()) {
+      throw new DomainException(ERROR_CODES.PROFILE_FIELD_IMMUTABLE);
+    }
+
+    // Profile photo must already be persisted (set at photo-confirm).
+    if (state.profilePhotoKey === null) {
+      throw new DomainException(ERROR_CODES.PROFILE_INCOMPLETE);
+    }
+
+    // National ID front + back must already be uploaded.
+    const docs = await this.idDocs.findIdDocuments(args.customerId);
+    if (!hasUsableIdDoc(docs, NATIONAL_ID_FRONT) || !hasUsableIdDoc(docs, NATIONAL_ID_BACK)) {
+      throw new DomainException(ERROR_CODES.PROFILE_ID_DOCS_MISSING);
+    }
+
+    // Password rules by registration path.
+    let passwordHash: string | null | undefined;
+    if (state.registrationPath === RegistrationPath.PHONE) {
+      if (state.passwordHash === null) {
+        if (!args.password) {
+          throw new DomainException(ERROR_CODES.PASSWORD_REQUIRED_FOR_PHONE_PROFILE);
+        }
+        await this.password.validatePolicy(args.password);
+        passwordHash = await this.password.hash(args.password);
+      } else if (args.password) {
+        // Password already set during a prior completion attempt — ignore.
+        passwordHash = undefined;
+      }
+    } else if (args.password) {
+      throw new DomainException(ERROR_CODES.PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE);
+    }
+
+    await this.accounts.completeProfile({
+      customerId: args.customerId,
+      firstName: args.firstName.trim(),
+      lastName: args.lastName.trim(),
+      birthday,
+      passwordHash,
+    });
+
+    await this.audit.write({
+      actorId: null,
+      targetId: null,
+      eventType: AuditEventType.CUSTOMER_PROFILE_COMPLETED,
+      sourceIp: args.ctx.sourceIp,
+      correlationId: args.ctx.correlationId,
+      payload: { customerId: args.customerId, registrationPath: state.registrationPath },
+    });
+
+    return this.issueSession({ customerId: args.customerId, ctx: args.ctx });
   }
 
   // -------------------------------------------------------------------------
@@ -273,10 +359,12 @@ export class CustomerAuthMobileService {
     }
 
     // First-time social — create a lite SOCIAL customer + provider link + tokens.
+    const { firstName, lastName } = splitFullName(identity.fullName);
     const created = await this.prisma.$transaction(async (tx) => {
       const customer = await this.accounts.createSocialLite(
         {
-          fullName: identity.fullName,
+          firstName,
+          lastName,
           email: identity.email,
         },
         tx,
@@ -295,7 +383,7 @@ export class CustomerAuthMobileService {
 
     await this.audit.write({
       actorId: null,
-      targetId: created.id,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_SIGNUP_SOCIAL_COMPLETED,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
@@ -364,8 +452,8 @@ export class CustomerAuthMobileService {
       correlationId: args.ctx.correlationId,
     });
     await this.audit.write({
-      actorId: args.customerId,
-      targetId: args.customerId,
+      actorId: null,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_OTP_REQUESTED,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
@@ -408,8 +496,8 @@ export class CustomerAuthMobileService {
     }
 
     await this.audit.write({
-      actorId: args.customerId,
-      targetId: args.customerId,
+      actorId: null,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_PROFILE_MOBILE_BOUND,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
@@ -438,16 +526,16 @@ export class CustomerAuthMobileService {
     // Revoke all other sessions, then issue fresh tokens to the requester.
     await this.refreshTokenRepo.revokeAllForCustomer(customerId);
     await this.audit.write({
-      actorId: customerId,
-      targetId: customerId,
+      actorId: null,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_PASSWORD_RESET,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
       payload: { customerId },
     });
     await this.audit.write({
-      actorId: customerId,
-      targetId: customerId,
+      actorId: null,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_TOKENS_REVOKED_OTHERS,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
@@ -484,16 +572,16 @@ export class CustomerAuthMobileService {
     });
     await this.refreshTokenRepo.revokeAllForCustomer(args.customerId);
     await this.audit.write({
-      actorId: args.customerId,
-      targetId: args.customerId,
+      actorId: null,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_PASSWORD_CHANGED,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
       payload: { customerId: args.customerId },
     });
     await this.audit.write({
-      actorId: args.customerId,
-      targetId: args.customerId,
+      actorId: null,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_TOKENS_REVOKED_OTHERS,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
@@ -532,7 +620,7 @@ export class CustomerAuthMobileService {
       await this.lockout.recordFailure(phone);
       await this.audit.write({
         actorId: null,
-        targetId: row.id,
+        targetId: null,
         eventType: AuditEventType.CUSTOMER_LOGIN_FAILED,
         sourceIp: args.ctx.sourceIp,
         correlationId: args.ctx.correlationId,
@@ -545,8 +633,8 @@ export class CustomerAuthMobileService {
     await this.lockout.clearOnSuccess(phone);
     await this.accounts.updateLastLogin(row.id);
     await this.audit.write({
-      actorId: row.id,
-      targetId: row.id,
+      actorId: null,
+      targetId: null,
       eventType: AuditEventType.CUSTOMER_LOGGED_IN,
       sourceIp: args.ctx.sourceIp,
       correlationId: args.ctx.correlationId,
@@ -582,39 +670,21 @@ export class CustomerAuthMobileService {
       customerId: args.customerId,
       userAgent: args.ctx.userAgent,
       sourceIp: args.ctx.sourceIp,
-      mobileClientId: args.ctx.mobileClientId,
     });
     const { token: accessToken, expiresIn } = this.jwt.signAccessToken({ sub: args.customerId });
     const account = await this.accounts.findById(args.customerId);
     if (!account) throw new CustomerAccountInactiveException();
+    const profileComplete = await this.completeness.isComplete(args.customerId);
     return {
       accessToken,
       accessTokenExpiresIn: expiresIn,
       refresh,
-      customer: this.toProfile(account),
+      customer: this.toProfile(account, profileComplete),
     };
   }
 
-  private toProfile(row: {
-    id: string;
-    phone: string | null;
-    email: string | null;
-    name: string;
-    locale: string;
-    isVerified: boolean;
-    createdAt: Date;
-    lastLoginAt: Date | null;
-  }): CustomerProfileResponseDto {
-    return {
-      id: row.id,
-      phone: row.phone ?? '',
-      email: row.email ?? undefined,
-      name: row.name,
-      locale: row.locale,
-      isVerified: row.isVerified,
-      createdAt: row.createdAt.toISOString(),
-      lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : undefined,
-    };
+  private toProfile(row: CustomerProfileRow, profileComplete: boolean): CustomerProfileResponseDto {
+    return mapCustomerProfile(row, profileComplete);
   }
 }
 

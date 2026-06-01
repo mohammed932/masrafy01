@@ -28,27 +28,41 @@ function detectUniqueConflict(err: unknown): CustomerAccountUniqueConflictError 
   return null;
 }
 
-export interface CreateCustomerInput {
+export interface CreatePhoneVerifiedLiteInput {
   phone: string;
-  name: string;
-  passwordHash: string;
-  email?: string | null;
-  locale?: string;
-}
-
-export interface CreatePhoneVerifiedCustomerInput {
-  phone: string;
-  name: string;
-  passwordHash: string;
-  age: number;
-  email?: string | null;
   locale?: string;
 }
 
 export interface CreateSocialLiteCustomerInput {
   email?: string | null;
-  fullName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   locale?: string;
+}
+
+export interface CompleteProfileInput {
+  customerId: string;
+  firstName: string;
+  lastName: string;
+  birthday: Date;
+  /** PHONE customers set a password; SOCIAL customers omit it. */
+  passwordHash?: string | null;
+}
+
+export interface SetProfilePhotoKeyInput {
+  customerId: string;
+  profilePhotoKey: string;
+}
+
+/** Minimal projection used by the profile-completeness gate (Principle XXXVII). */
+export interface CustomerProfileState {
+  registrationPath: RegistrationPath;
+  mobileVerifiedAt: Date | null;
+  firstName: string;
+  lastName: string;
+  birthday: Date | null;
+  profilePhotoKey: string | null;
+  passwordHash: string | null;
 }
 
 export interface BindMobileInput {
@@ -71,13 +85,18 @@ export interface CustomerForLogin {
    */
   phone: string | null;
   email: string | null;
-  name: string;
+  firstName: string;
+  lastName: string;
   locale: string;
   /**
    * Feature 008 (Constitution v1.8.0): nullable for SOCIAL customers who
    * authenticate via Google / Apple and have no password set.
    */
   passwordHash: string | null;
+  registrationPath: RegistrationPath;
+  mobileVerifiedAt: Date | null;
+  birthday: Date | null;
+  profilePhotoKey: string | null;
   isActive: boolean;
   isVerified: boolean;
   createdAt: Date;
@@ -94,7 +113,9 @@ export interface CustomerListRow {
   id: string;
   phone: string | null;
   email: string | null;
-  name: string;
+  firstName: string;
+  lastName: string;
+  nameSplitNeedsReview: boolean;
   locale: string;
   isActive: boolean;
   isVerified: boolean;
@@ -128,35 +149,15 @@ export class CustomerAccountRepository {
     });
   }
 
-  async create(
-    input: CreateCustomerInput,
-    tx?: Prisma.TransactionClient,
-  ): Promise<CustomerAccount> {
-    const client = tx ?? this.prisma;
-    try {
-      return await client.customerAccount.create({
-        data: {
-          phone: input.phone,
-          name: input.name,
-          passwordHash: input.passwordHash,
-          email: input.email ?? null,
-          locale: input.locale ?? 'ar-EG',
-        },
-      });
-    } catch (err) {
-      const conflict = detectUniqueConflict(err);
-      if (conflict) throw conflict;
-      throw err;
-    }
-  }
-
   /**
-   * Feature 008 — PHONE-path two-step signup. Creates a fully-verified
-   * customer in one shot (OTP already consumed by the caller, so
-   * `mobileVerifiedAt` is set immutably on insert per Principle XIII).
+   * v4.0.0 — PHONE-path signup. Mobile + OTP already verified by the caller,
+   * so the row is created LITE (mobileVerifiedAt stamped, profile empty) and
+   * the mandatory profile-completion step fills firstName/lastName/birthday/
+   * photo/password later (Principle XXXVII). `mobileVerifiedAt` is immutable
+   * from this point (Principle XIII).
    */
-  async createPhoneVerified(
-    input: CreatePhoneVerifiedCustomerInput,
+  async createPhoneVerifiedLite(
+    input: CreatePhoneVerifiedLiteInput,
     tx?: Prisma.TransactionClient,
   ): Promise<CustomerAccount> {
     const client = tx ?? this.prisma;
@@ -166,11 +167,11 @@ export class CustomerAccountRepository {
           registrationPath: RegistrationPath.PHONE,
           phone: input.phone,
           mobileVerifiedAt: new Date(),
-          name: input.name,
-          email: input.email ?? null,
+          firstName: '',
+          lastName: '',
           locale: input.locale ?? 'ar-EG',
-          passwordHash: input.passwordHash,
-          age: input.age,
+          passwordHash: null,
+          birthday: null,
         },
       });
     } catch (err) {
@@ -181,9 +182,8 @@ export class CustomerAccountRepository {
   }
 
   /**
-   * Feature 008 — SOCIAL-path lite signup. Mobile + age + passwordHash all
-   * null; filled later via the Complete-Profile mobile binding or the
-   * first loan-request popup.
+   * Feature 008 — SOCIAL-path lite signup. Mobile + birthday + passwordHash all
+   * null; filled later via the Complete-Profile flow (Principle XXXVII).
    */
   async createSocialLite(
     input: CreateSocialLiteCustomerInput,
@@ -195,11 +195,60 @@ export class CustomerAccountRepository {
         registrationPath: RegistrationPath.SOCIAL,
         phone: null,
         mobileVerifiedAt: null,
-        name: input.fullName?.trim() ?? '',
+        firstName: input.firstName?.trim() ?? '',
+        lastName: input.lastName?.trim() ?? '',
         email: input.email?.toLowerCase().trim() ?? null,
         locale: input.locale ?? 'ar-EG',
         passwordHash: null,
-        age: null,
+        birthday: null,
+      },
+    });
+  }
+
+  /**
+   * Principle XXXVII — mandatory profile-completion write. Fills the lite row
+   * with firstName/lastName/birthday (and password for PHONE). The profile
+   * photo is persisted separately by `setProfilePhotoKey` at photo-confirm.
+   * Birthday becomes immutable from this point.
+   */
+  async completeProfile(
+    input: CompleteProfileInput,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.customerAccount.update({
+      where: { id: input.customerId },
+      data: {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        birthday: input.birthday,
+        nameSplitNeedsReview: false,
+        isVerified: true,
+        ...(input.passwordHash !== undefined ? { passwordHash: input.passwordHash } : {}),
+      },
+    });
+  }
+
+  /** Persists the S3 object key for the customer's profile photo (Principle VI/XXXVII). */
+  async setProfilePhotoKey(input: SetProfilePhotoKeyInput): Promise<void> {
+    await this.prisma.customerAccount.update({
+      where: { id: input.customerId },
+      data: { profilePhotoKey: input.profilePhotoKey },
+    });
+  }
+
+  /** Minimal projection for the profile-completeness gate (Principle XXXVII). */
+  async findProfileState(customerId: string): Promise<CustomerProfileState | null> {
+    return this.prisma.customerAccount.findUnique({
+      where: { id: customerId },
+      select: {
+        registrationPath: true,
+        mobileVerifiedAt: true,
+        firstName: true,
+        lastName: true,
+        birthday: true,
+        profilePhotoKey: true,
+        passwordHash: true,
       },
     });
   }
@@ -249,7 +298,8 @@ export class CustomerAccountRepository {
           OR: [
             { phone: { contains: query.q } },
             { email: { contains: query.q, mode: 'insensitive' } },
-            { name: { contains: query.q, mode: 'insensitive' } },
+            { firstName: { contains: query.q, mode: 'insensitive' } },
+            { lastName: { contains: query.q, mode: 'insensitive' } },
           ],
         }
       : {};
@@ -264,7 +314,9 @@ export class CustomerAccountRepository {
           id: true,
           phone: true,
           email: true,
-          name: true,
+          firstName: true,
+          lastName: true,
+          nameSplitNeedsReview: true,
           locale: true,
           isActive: true,
           isVerified: true,
@@ -282,7 +334,9 @@ export class CustomerAccountRepository {
         id: r.id,
         phone: r.phone,
         email: r.email,
-        name: r.name,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        nameSplitNeedsReview: r.nameSplitNeedsReview,
         locale: r.locale,
         isActive: r.isActive,
         isVerified: r.isVerified,
@@ -300,7 +354,11 @@ export class CustomerAccountRepository {
         id: true,
         phone: true,
         email: true,
-        name: true,
+        firstName: true,
+        lastName: true,
+        nameSplitNeedsReview: true,
+        birthday: true,
+        profilePhotoKey: true,
         locale: true,
         isActive: true,
         isVerified: true,
@@ -339,9 +397,14 @@ export class CustomerAccountRepository {
       id: true,
       phone: true,
       email: true,
-      name: true,
+      firstName: true,
+      lastName: true,
       locale: true,
       passwordHash: true,
+      registrationPath: true,
+      mobileVerifiedAt: true,
+      birthday: true,
+      profilePhotoKey: true,
       isActive: true,
       isVerified: true,
       createdAt: true,

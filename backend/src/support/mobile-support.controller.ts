@@ -62,7 +62,6 @@ export class MobileSupportController {
       applicationId: body.applicationId,
       note: body.note,
       customerId,
-      mobileClientId: customerId,
       ctx: { sourceIp: req.ip ?? null, correlationId },
     });
     return ok(data);

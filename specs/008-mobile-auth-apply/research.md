@@ -64,9 +64,9 @@ This document resolves every architectural decision the implementation depends o
 
 ## R5 — Verified-mobile token (PHONE path)
 
-**Decision**: The PHONE-signup OTP-verify endpoint returns a `verifiedMobileToken` only when the OTP is correct and the mobile is NOT yet registered to any customer. Token is a 32-byte random value, `cuid()`-prefixed (`vmt_…`), held only in mobile-client memory, never persisted to disk on the device. Server-side stored on `VerifiedMobileToken` table with `tokenHash` (bcrypt cost 10), `mobile`, `expiresAt = now + 15 min`, `consumedAt`. The next step (PHONE signup profile-save) consumes it atomically (transaction: validate + mark consumed + create customer).
+**Decision**: The PHONE-signup OTP-verify endpoint returns a `verifiedMobileToken` only when the OTP is correct and the mobile is NOT yet registered to any customer. Token is a 32-byte random value, `cuid()`-prefixed (`vmt_…`), held only in mobile-client memory, never persisted to disk on the device. Server-side stored on `VerifiedMobileToken` table with `tokenHash` (bcrypt cost 10), `mobile`, `expiresAt = now + 15 min`, `consumedAt`. `POST /v1/auth/signup/phone/verify` consumes it atomically (transaction: validate + mark consumed + create LITE PHONE customer + issue tokens). (v4.0.0: name/birthday/password are NOT collected here — they come at the profile-completion step.)
 
-**Rationale**: Single-use, short-lived bearer prevents replay between OTP-verify and profile-save. For PHONE path we want to defer customer creation until the user enters name + email + password + age, so the OTP-verify alone doesn't create a customer (matches spec's two-step "OTP verifies but doesn't create" semantics). 15-minute TTL is plenty for a user to fill profile + age.
+**Rationale**: Single-use, short-lived bearer prevents replay between OTP-verify and lite-customer creation. 15-minute TTL is plenty for the verify call.
 
 **Alternatives considered**:
 - Create customer-pending row at OTP-verify, finalize on profile-save — adds a partial-customer state that complicates invariants.
@@ -89,14 +89,14 @@ This document resolves every architectural decision the implementation depends o
 
 ---
 
-## R7 — Email and age persistence (SOCIAL path) — atomic with loan submission
+## R7 — Profile-field persistence — at profile completion, BEFORE apply (v4.0.0)
 
-**Decision**: The email-step and age-step of the SOCIAL Complete-Profile flow hold their values client-side only. The atomic `/api/v1/applications/apply` endpoint accepts these in its payload and writes them to the customer row alongside creating the application, documents, and questionnaire link — all in one Postgres transaction. On rollback, `customer.email` and `customer.age` revert to null (or to whatever they were before — `email` may have been already set if provider released it, in which case the request's email is ignored).
+**Decision (v4.0.0, supersedes the pre-v4.0.0 "atomic with loan submission" decision)**: Profile fields are persisted at the dedicated profile-completion step, NOT at loan submission. `firstName`, `lastName`, `birthday` (and PHONE `password`) are written by `POST /v1/auth/profile/complete`; profile photo + National ID front/back are uploaded as customer-scoped Documents beforehand; SOCIAL mobile is written immediately on OTP success. The `/api/v1/applications/apply` transaction does NOT mutate profile fields — it is gated on profile completeness (`PROFILE_INCOMPLETE`) and only binds the pre-existing National ID Documents to the new application. Age is derived from `birthday` and validated 18–80 at profile completion (`AGE_INVALID`).
 
-**Rationale**: Spec clarification (Q4 refinement) explicitly says mobile is immediate; email + age are atomic with submission. Saving them earlier risks leaving a half-complete customer with no application (acceptable, but the user explicitly wanted them transactional with submit).
+**Rationale**: The v4.0.0 constitution makes profile completion a mandatory, standalone step for both paths; it removes the SOCIAL loan-request popup and the "hold email/age client-side then write atomically at submit" model.
 
-**Alternatives considered**:
-- Persist incrementally for all three fields — initially proposed and rejected by the user; keeps mobile immediate but emails/age deferred.
+**Alternatives considered (historical)**:
+- Hold email + age client-side and write atomically with submission (pre-v4.0.0 model) — superseded by the standalone profile-completion step.
 
 ---
 
@@ -118,7 +118,7 @@ Both code paths catch the Postgres unique-violation error and translate to a typ
 
 ## R9 — Customer registration path tagging
 
-**Decision**: Add `registrationPath` ENUM `{ PHONE, SOCIAL }` to `Customer`, set at creation, never mutated. Used by the loan-request flow to decide whether to short-circuit the gate popup (PHONE = no popup; SOCIAL = popup if mobile/email/age null). Admin dashboard displays it.
+**Decision**: Add `registrationPath` ENUM `{ PHONE, SOCIAL }` to `CustomerAccount`, set at lite-row creation, never mutated. Used to drive path-specific profile-completion rules (PHONE requires password + already has mobile; SOCIAL forbids password + must bind mobile via OTP). Admin dashboard displays it. (v4.0.0: completeness is determined by the full contract — firstName/lastName/birthday/profilePhotoKey/verified-mobile/National-ID front+back — not by a per-path popup.)
 
 **Rationale**: Without this column, the loan-request endpoint would have to infer the path from "does this customer have a password?" — which is fragile if the product ever adds a "social customer sets a password" feature.
 
@@ -186,10 +186,10 @@ Both code paths catch the Postgres unique-violation error and translate to a typ
 
 ```text
 1. Validate Customer JWT → customerId
-2. SELECT customer FOR UPDATE → ensure mobile + email + age are NON-NULL (per FR-002)
-3. For SOCIAL: if email passed in payload and customer.email is null → SET customer.email
-4. For SOCIAL: SET customer.age = payload.age (only if currently null; reject if outside 18-80)
-5. SELECT documents WHERE id IN (frontUploadId, backUploadId) AND customerId = $1 AND applicationId IS NULL FOR UPDATE
+2. SELECT customer FOR UPDATE → enforce PROFILE COMPLETE (firstName, lastName, birthday, profilePhotoKey, mobileVerifiedAt, National ID front+back; PHONE also passwordHash) — else PROFILE_INCOMPLETE (per FR-002). This transaction does NOT mutate profile fields.
+3. (no profile writes — email/birthday/name were set earlier at profile completion)
+4. (no age write — age is derived from birthday, validated at profile completion)
+5. SELECT pre-existing customer National ID documents WHERE customerId = $1 AND documentType IN (NATIONAL_ID_FRONT, NATIONAL_ID_BACK) AND applicationId IS NULL FOR UPDATE
 6. Validate offer (bankProgramId valid + matches profile minimums)
 7. INSERT Application (status = 'submitted', ...)
 8. UPDATE documents SET applicationId = <new app id>
@@ -209,7 +209,7 @@ Postgres-level `SELECT … FOR UPDATE` prevents two concurrent submissions reusi
 
 ## R14 — Mobile flutter feature naming
 
-**Decision**: Rename the draft `auth_apply` feature (from the source brief) to `customer_auth` (auth + identity flows). The existing `apply` feature stays under that name and is extended with the gate popup and post-completion National ID step. Per spec, registration is now upfront — so "apply" is no longer part of the auth scope.
+**Decision**: Rename the draft `auth_apply` feature (from the source brief) to `customer_auth` (auth + identity flows, including the mandatory profile-completion flow). The existing `apply` feature stays under that name; it is gated on `PROFILE_INCOMPLETE` and routes to the profile-completion flow when incomplete. Registration/profile completion is not part of the apply scope.
 
 **Rationale**: Single Responsibility per feature module (Principle XXX). Mixing the registration flow and the loan-application flow in one feature violated the three-layer arch boundary.
 

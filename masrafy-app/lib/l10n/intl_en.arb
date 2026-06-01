@@ -25,6 +25,9 @@
 
   "auth_profile_incomplete": "Complete your profile to continue.",
   "auth_profile_field_immutable": "This field cannot be changed once set.",
+  "auth_profile_id_docs_missing": "Upload both National ID front and back before completing your profile.",
+  "auth_password_required_for_phone_profile": "A password is required to complete your profile.",
+  "auth_password_forbidden_for_social_profile": "Accounts using Google or Apple sign-in do not set a password.",
   "auth_phone_mutation_on_phone_customer_forbidden": "Mobile number is already set on this account.",
   "auth_password_change_forbidden_for_social": "Password change is not available for accounts using Google or Apple sign-in.",
 

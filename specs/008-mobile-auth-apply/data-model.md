@@ -41,12 +41,15 @@ enum OtpPurpose {
 model Customer {
   id                String           @id @default(cuid())
   registrationPath  RegistrationPath
-  fullName          String
-  mobile            String?          // unique partial — set immediately for PHONE; set at SOCIAL mobile-verify
-  mobileVerifiedAt  DateTime?        // set together with `mobile`
-  email             String?          // set at signup for PHONE; may be null for SOCIAL until provider returns it or popup collects it
-  age               Int?             // set at signup for PHONE; set at first loan submit for SOCIAL
-  passwordHash      String?          // PHONE only; null for SOCIAL — select: false in Prisma
+  firstName         String?          // set at profile completion (both paths); null on a lite row
+  lastName          String?          // set at profile completion (both paths); null on a lite row
+  mobile            String?          // unique partial — set at PHONE signup-verify; set at SOCIAL mobile-verify
+  mobileVerifiedAt  DateTime?        // set together with `mobile`; non-null for any COMPLETE profile
+  email             String?          // PHONE: may be derived/optional; SOCIAL: from provider when released
+  birthday          DateTime?        // set at profile completion; age ALWAYS derived in code, never stored
+  profilePhotoKey   String?          // S3 key for the profile photo; set at profile completion (both paths)
+  passwordHash      String?          // null for SOCIAL; set at profile completion for PHONE (not at signup) — select: false in Prisma
+  nameSplitNeedsReview Boolean       @default(false) // audit-only: flags rows whose firstName/lastName were derived from a backfilled `name` split
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   providers         CustomerProvider[]
@@ -62,12 +65,18 @@ model Customer {
 }
 ```
 
-**Invariants (enforced at write time + by CHECK constraints in the migration)**:
+> **v4.0.0 naming note**: In the shipped Prisma schema this model is the `CustomerAccount` table and the mobile column is named `phone`. This doc keeps the logical names `Customer` / `mobile` for readability; treat them as aliases for `CustomerAccount` / `phone`.
 
-- `registrationPath = PHONE` requires non-null `mobile`, `mobileVerifiedAt`, `fullName`, `email`, `passwordHash`, `age`. CHECK constraint: `age BETWEEN 18 AND 80`.
-- `registrationPath = SOCIAL` allows nullable `mobile`, `mobileVerifiedAt`, `email`, `age`. `passwordHash` MUST be null. At least one `CustomerProvider` row must exist for SOCIAL customers (enforced by the SOCIAL sign-in transaction).
-- `mobile` and `mobileVerifiedAt` are mutated together (both set in the same UPDATE statement) and are IMMUTABLE after first non-null write — enforced by application logic + a row-level trigger or a service-layer assertion (`if (customer.mobileVerifiedAt) throw IMMUTABLE_FIELD_VIOLATION`).
-- `age` becomes IMMUTABLE after first non-null write (same enforcement pattern).
+**v4.0.0 profile-completeness contract**: Both PHONE and SOCIAL create a LITE row first; a mandatory profile-completion step finalizes the account. A profile is COMPLETE when ALL of the following are set: `firstName`, `lastName`, `birthday`, `profilePhotoKey`, `mobileVerifiedAt` (non-null), and two `Document` rows of type `NATIONAL_ID_FRONT` + `NATIONAL_ID_BACK` linked to the customer. PHONE profiles additionally require a non-null `passwordHash`. An incomplete profile blocks apply / select-offer (error code `PROFILE_INCOMPLETE`).
+
+**Invariants (enforced at write time)**:
+
+- A COMPLETE `registrationPath = PHONE` profile requires non-null `mobile`, `mobileVerifiedAt`, `firstName`, `lastName`, `birthday`, `profilePhotoKey`, `passwordHash`, plus both National ID Documents. Age is derived from `birthday` and validated 18–80 at write time (profile completion).
+- A COMPLETE `registrationPath = SOCIAL` profile requires the same EXCEPT `passwordHash` MUST be null. At least one `CustomerProvider` row must exist for SOCIAL customers (enforced by the SOCIAL sign-in transaction).
+- A LITE row (either path, pre-completion) may have null `firstName`, `lastName`, `birthday`, `profilePhotoKey`, `passwordHash`, and (SOCIAL) `mobile`/`mobileVerifiedAt`.
+- `mobile` and `mobileVerifiedAt` are mutated together (both set in the same UPDATE statement) and are IMMUTABLE after first non-null write — enforced by application logic + a service-layer assertion (`if (customer.mobileVerifiedAt) throw IMMUTABLE_FIELD_VIOLATION`).
+- `birthday` becomes IMMUTABLE after first non-null write (same enforcement pattern). Age is derived from `birthday` in code and never stored.
+- `passwordHash` (PHONE) is set at profile completion and is mutable thereafter via password change/reset.
 - `registrationPath` never mutates (enforced by trigger / service-layer).
 
 **Indexes**:
@@ -236,21 +245,26 @@ If `Application` does not exist yet in the current Prisma schema, this migration
 ```prisma
 model Document {
   id            String              @id @default(cuid())
-  customerId    String
-  applicationId String?             // null between upload-URL issuance and apply-time binding
+  customerId    String?             // set for customer-scoped docs (National ID at profile completion); null when application-scoped
+  applicationId String?             // set when application-scoped; null for customer-scoped profile docs. EXACTLY ONE of customerId / applicationId is set.
   documentType  DocumentType                              // existing enum + NATIONAL_ID_FRONT, NATIONAL_ID_BACK
   s3Key         String
   contentType   String
-  uploadedAt    DateTime?                                 // set on confirm-by-customer (we treat the upload-URL issuance moment as the start; the "is uploaded" check happens during apply)
+  uploadedAt    DateTime?                                 // set on confirm-by-customer
   verifiedAt    DateTime?                                 // set when bound to an application during apply
   createdAt     DateTime            @default(now())
-  customer      Customer            @relation(fields: [customerId], references: [id])
+  customer      Customer?           @relation(fields: [customerId], references: [id])
   application   Application?        @relation(fields: [applicationId], references: [id])
 
   @@index([customerId])
   @@index([applicationId])
   @@unique([id])
 }
+```
+
+**v4.0.0**: National ID Documents (`NATIONAL_ID_FRONT` / `NATIONAL_ID_BACK`) are CUSTOMER-linked at PROFILE COMPLETION (`customerId` set, `applicationId` null), not at apply time. Apply later BINDS these pre-existing customer docs to the application. Exactly one of `customerId` / `applicationId` is set on any Document row.
+
+```prisma
 
 enum DocumentType {
   NATIONAL_ID_FRONT
@@ -302,8 +316,7 @@ The following `auditEvent.type` values are added (string enum or text column, de
 - `auth.password.change` / `.reset`
 - `auth.tokens.revoked` (with reason: `logout`, `password_change`, `password_reset`)
 - `customer.profile.mobile_bound`
-- `customer.profile.email_set`
-- `customer.profile.age_set`
+- `customer.profile.completed` (firstName/lastName/birthday/profilePhotoKey + National ID docs)
 - `application.apply.submitted`
 
 Every event row carries `correlationId`, `actorId` (customer ID or admin user ID), `maskedMobile` if relevant, and an outcome.
@@ -316,16 +329,20 @@ Migrations are run in this strict order — each step is its own SQL file under 
 
 1. **Enums**: `CREATE TYPE RegistrationPath`, `CREATE TYPE SocialProvider` (idempotent IF NOT EXISTS), update `OtpPurpose` enum to drop `LOGIN` if present and add `PROFILE_MOBILE`.
 2. **New tables**: `CustomerProvider`, `VerifiedMobileToken`, `SocialSession`, `PasswordResetToken`, `CustomerRefreshToken` (if not present), `QuestionnaireAnswer` (if not present).
-3. **`Customer` ALTER**:
+3. **`CustomerAccount` ALTER** (logical `Customer`):
    - ADD `registrationPath RegistrationPath` — initially nullable.
    - Backfill existing rows to `PHONE` (any pre-existing customer that was registered via the old flow is treated as PHONE).
    - ALTER COLUMN `registrationPath` SET NOT NULL.
-   - ADD `mobileVerifiedAt TIMESTAMPTZ` (nullable). Backfill `mobileVerifiedAt = createdAt` for existing PHONE-tagged customers if their mobile was already verified in prior flows (otherwise leave null and treat as "needs re-verification" — flag for ops).
-   - ADD `age INT` if not present. Existing customers may have null age; the new FR-002 invariant is enforced at WRITE time, not retroactively.
-   - ALTER `passwordHash` — make NULLABLE (it may have been NOT NULL).
-4. **Partial unique index**: `CREATE UNIQUE INDEX customer_mobile_unique ON "Customer"("mobile") WHERE mobile IS NOT NULL;`
-5. **CHECK constraints**: `ALTER TABLE "Customer" ADD CONSTRAINT customer_age_range CHECK (age IS NULL OR (age >= 18 AND age <= 80));` + a CHECK ensuring SOCIAL customers have null `passwordHash` and PHONE customers have non-null `passwordHash`, non-null `mobile`, non-null `email`, non-null `age` (only enforced for new rows; existing rows grandfathered via `NOT VALID` initially, validated as a separate step once backfill is complete).
-6. **FK indexes**: per Principle XI, add indexes on every FK column added above.
+   - ADD `mobileVerifiedAt TIMESTAMPTZ` (nullable). Backfill `mobileVerifiedAt = createdAt` for existing PHONE-tagged customers if their mobile was already verified in prior flows (otherwise leave null and flag for ops).
+   - ADD `firstName` + `lastName` (nullable). Backfill from the old `name` column by splitting on the first whitespace (first token → `firstName`, remainder → `lastName`); rows produced by this split set `nameSplitNeedsReview = true`. Drop the old `name` column once backfill completes.
+   - ADD `birthday DATE` (nullable). Existing rows leave it null; age is derived from `birthday` in code (never stored). The legacy `age INT` column, if present, is DROPPED.
+   - ADD `profilePhotoKey TEXT` (nullable).
+   - ADD `nameSplitNeedsReview BOOLEAN NOT NULL DEFAULT false` (audit-only).
+   - ALTER `passwordHash` — make NULLABLE (it may have been NOT NULL; SOCIAL rows must be null).
+   - DROP guest columns: `isGuest` (on `Application`) and `mobileClientId` (everywhere it appeared, incl. refresh tokens + support) — the claim flow is removed.
+4. **Partial unique index**: `CREATE UNIQUE INDEX customer_mobile_unique ON "CustomerAccount"("phone") WHERE phone IS NOT NULL;`
+5. **Validation note (no age CHECK)**: there is NO `age` column and therefore no `age` CHECK constraint. Age is derived from `birthday` in code and validated 18–80 at write time (profile completion). A CHECK still ensures SOCIAL customers have null `passwordHash` (existing rows grandfathered via `NOT VALID` initially, validated once backfill completes).
+6. **FK indexes**: per Principle XI, add indexes on every FK column added above. Add a partial index supporting customer-scoped Documents (`WHERE customerId IS NOT NULL`).
 
 The migration is REVERSIBLE in the sense that the new tables can be dropped and the new columns nulled. Backfilled `registrationPath = PHONE` rows are NOT reverted by rollback (data preservation). Coordinate rollback with ops before merging.
 
@@ -335,16 +352,15 @@ The migration is REVERSIBLE in the sense that the new tables can be dropped and 
 
 | Field | When written | By whom | Immutable after |
 |---|---|---|---|
-| `Customer.registrationPath` | Customer creation | `auth.service` | Always |
-| `Customer.fullName` | Customer creation | `auth.service` (PHONE) or social verify (SOCIAL) | First write |
-| `Customer.mobile` + `mobileVerifiedAt` (PHONE) | Customer creation | `auth.service` | First write |
+| `Customer.registrationPath` | Lite-row creation | `auth.service` | Always |
+| `Customer.firstName` + `lastName` | Profile completion (`/auth/profile/complete`) | `profile.service` | First write |
+| `Customer.mobile` + `mobileVerifiedAt` (PHONE) | `/auth/signup/phone/verify` (lite-row creation) | `auth.service` | First write |
 | `Customer.mobile` + `mobileVerifiedAt` (SOCIAL) | `/auth/profile/mobile-verify-otp` | `profile.controller` | First write |
-| `Customer.email` (PHONE) | Customer creation | `auth.service` | Never (admin can later edit if provided a feature; not in this spec) |
-| `Customer.email` (SOCIAL, provider-supplied) | Customer creation | `auth.service` | Never |
-| `Customer.email` (SOCIAL, popup-supplied) | Inside `/applications/apply` transaction | `apply.service` | After first set |
-| `Customer.passwordHash` | PHONE customer creation, password change, password reset | `auth.service` | Mutable (PHONE only) |
-| `Customer.age` (PHONE) | Customer creation | `auth.service` | First write |
-| `Customer.age` (SOCIAL) | Inside `/applications/apply` transaction | `apply.service` | First write |
+| `Customer.email` (SOCIAL, provider-supplied) | Lite-row creation | `auth.service` | Never |
+| `Customer.birthday` | Profile completion (`/auth/profile/complete`) | `profile.service` | First write |
+| `Customer.profilePhotoKey` | Profile completion (after photo presign + upload) | `profile.service` | Mutable (re-uploadable) |
+| `Customer.passwordHash` (PHONE) | Profile completion, password change, password reset | `profile.service` / `auth.service` | Mutable (PHONE only) |
+| `Document` NATIONAL_ID_FRONT/BACK (`customerId` set) | Profile completion (customer-scoped presign + upload) | `documents.service` | Bound to an application at apply |
 
 This matrix is the source of truth — any controller that violates it MUST be rejected at code review (Principle XXIX A25).
 

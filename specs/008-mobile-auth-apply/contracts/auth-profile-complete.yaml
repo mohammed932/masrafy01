@@ -1,15 +1,149 @@
 openapi: 3.1.0
 info:
-  title: Masrafy Mobile Auth — Complete Profile (SOCIAL customers)
+  title: Masrafy Mobile Auth — Complete Profile (both paths)
   version: 1.0.0
 paths:
+  /api/v1/auth/profile/complete:
+    post:
+      summary: Finalize the LITE customer (both PHONE and SOCIAL)
+      description: |
+        The mandatory profile-completion step for BOTH registration paths.
+        The authenticated customer is read from the Customer JWT.
+
+        PREREQUISITES (validated server-side, else PROFILE_ID_DOCS_MISSING):
+        the customer must have already uploaded a profile photo and BOTH
+        National ID images (front + back) via the customer-scoped presign
+        endpoints below. SOCIAL customers must additionally have bound a
+        verified mobile (/auth/profile/mobile-verify-otp).
+
+        Writes firstName, lastName, birthday (and, for PHONE, passwordHash).
+        Age is DERIVED from birthday and validated 18–80 (AGE_INVALID on
+        breach). On success the customer's profileComplete becomes true.
+
+        password is REQUIRED for PHONE customers
+        (PASSWORD_REQUIRED_FOR_PHONE_PROFILE if omitted) and FORBIDDEN for
+        SOCIAL customers (PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE if present).
+      security: [{ CustomerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firstName, lastName, birthday]
+              properties:
+                firstName: { type: string, minLength: 1, example: "محمد" }
+                lastName: { type: string, minLength: 1, example: "فتحي" }
+                birthday: { type: string, format: date, example: "1995-04-12" }
+                password:
+                  type: string
+                  description: |
+                    min 8 chars, ≥1 letter, ≥1 digit. REQUIRED for PHONE
+                    customers, FORBIDDEN for SOCIAL customers.
+      responses:
+        '200':
+          description: Profile completed, profileComplete=true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    description: Refreshed customer envelope (profileComplete=true)
+        '400':
+          description: |
+            AGE_INVALID, PASSWORD_WEAK,
+            PASSWORD_REQUIRED_FOR_PHONE_PROFILE,
+            PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE,
+            PROFILE_ID_DOCS_MISSING (profile photo and/or National ID
+            front/back not yet uploaded)
+        '401':
+          description: Missing / invalid Customer JWT
+
+  /api/v1/auth/profile/photo/upload-url:
+    post:
+      summary: Customer-scoped presign for the profile photo
+      description: |
+        Issues a short-lived presigned PUT URL for the customer's profile
+        photo. On confirm, the resulting S3 key is written to the customer's
+        profilePhotoKey. Auth: Customer JWT. TTL ≤ 10 minutes.
+      security: [{ CustomerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contentType]
+              properties:
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png]
+      responses:
+        '200':
+          description: Presigned URL issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      uploadId: { type: string }
+                      presignedUrl: { type: string, format: uri }
+                      expiresInSeconds: { type: integer, example: 600 }
+
+  /api/v1/auth/profile/national-id/upload-url:
+    post:
+      summary: Customer-scoped presign for a National ID image
+      description: |
+        Issues a short-lived presigned PUT URL for a National ID front/back
+        image. Creates a CUSTOMER-linked Document (customerId set,
+        applicationId null) of the given type. Apply later binds these
+        pre-existing customer docs to the application. Auth: Customer JWT.
+        TTL ≤ 10 minutes.
+      security: [{ CustomerJWT: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [documentType, contentType]
+              properties:
+                documentType:
+                  type: string
+                  enum: [NATIONAL_ID_FRONT, NATIONAL_ID_BACK]
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png, application/pdf]
+      responses:
+        '200':
+          description: Presigned URL issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, const: true }
+                  data:
+                    type: object
+                    properties:
+                      uploadId: { type: string }
+                      presignedUrl: { type: string, format: uri }
+                      expiresInSeconds: { type: integer, example: 600 }
+
   /api/v1/auth/profile/mobile-request-otp:
     post:
       summary: SOCIAL — issue OTP for mobile binding
       description: |
-        Used by the Complete-Profile flow's mobile step. The authenticated
-        SOCIAL customer's id is read from the Customer JWT; the request
-        carries only the mobile number. An OtpChallenge row with
+        Used by the SOCIAL profile-completion flow's mobile step. The
+        authenticated SOCIAL customer's id is read from the Customer JWT; the
+        request carries only the mobile number. An OtpChallenge row with
         purpose=PROFILE_MOBILE is created, tagged with both mobile and
         customerId. Subject to the OTP rate limits in spec §4.2.
 

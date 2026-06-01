@@ -8,8 +8,10 @@ import { InfraModule } from '@/infra/infra.module';
 import { CustomerAuthService } from './customer-auth.service';
 import { CustomerAuthController } from './customer-auth.controller';
 import { AdminCustomerAccountsController } from './admin-customer-accounts.controller';
-import { ApplicationLinkRepository } from './application-link.repository';
 import { CustomerAccountRepository } from './customer-account.repository';
+import { CustomerProfileDocumentRepository } from './customer-profile-document.repository';
+import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
+import { CustomerProfileCompleteGuard } from './guards/customer-profile-complete.guard';
 import { CustomerRefreshTokenRepository } from './customer-refresh-token.repository';
 import { CustomerRefreshTokenService } from './customer-refresh-token.service';
 import { CustomerJwtTokenService } from './customer-jwt-token.service';
@@ -57,8 +59,10 @@ import { MockSmsGateway } from './sms/mock-sms-gateway.service';
   ],
   controllers: [CustomerAuthController, AdminCustomerAccountsController],
   providers: [
-    ApplicationLinkRepository,
     CustomerAccountRepository,
+    CustomerProfileDocumentRepository,
+    CustomerProfileCompletenessService,
+    CustomerProfileCompleteGuard,
     CustomerRefreshTokenRepository,
     CustomerRefreshTokenService,
     CustomerJwtTokenService,
@@ -83,6 +87,9 @@ import { MockSmsGateway } from './sms/mock-sms-gateway.service';
   exports: [
     CustomerAuthService,
     CustomerAccountRepository,
+    CustomerProfileDocumentRepository,
+    CustomerProfileCompletenessService,
+    CustomerProfileCompleteGuard,
     CustomerJwtTokenService,
     CustomerJwtGuard,
     CustomerAuthMobileService,

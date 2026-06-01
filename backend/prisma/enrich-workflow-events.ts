@@ -41,7 +41,7 @@ async function main(): Promise<void> {
   const systemId = await ensureSystemActor();
   const apps = await prisma.application.findMany({
     where: {
-      mobileClientId: { startsWith: 'seed-' },
+      submissionCorrelationId: { startsWith: 'seed-corr-' },
       assignedAgentStaffId: { not: null },
     },
     select: {

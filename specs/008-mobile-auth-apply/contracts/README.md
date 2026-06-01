@@ -21,7 +21,8 @@ All endpoints share these conventions:
   - `SOCIAL_TOKEN_INVALID`, `SOCIAL_TOKEN_EXPIRED`, `SOCIAL_PROVIDER_UNAVAILABLE`, `SOCIAL_SESSION_INVALID`, `SOCIAL_SESSION_EXPIRED`, `SOCIAL_SESSION_CONSUMED`
   - `CREDENTIALS_INVALID`, `ACCOUNT_LOCKED`, `PASSWORD_NOT_SET`
   - `PASSWORD_WEAK`, `PASSWORD_SAME_AS_OLD`, `CURRENT_PASSWORD_INVALID`
-  - `PROFILE_INCOMPLETE`, `AGE_INVALID`
+  - `PROFILE_INCOMPLETE`, `AGE_INVALID` (AGE_INVALID now validated against the derived age at profile completion)
+  - `PROFILE_ID_DOCS_MISSING`, `PASSWORD_REQUIRED_FOR_PHONE_PROFILE`, `PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE` (v4.0.0)
   - `DOCUMENTS_MISSING`, `DOCUMENTS_NOT_OWNED`
   - `BANK_PROGRAM_INVALID`
 
@@ -33,19 +34,19 @@ Each error code MUST be added to backend `error-codes.ts`, Angular `error-codes.
 
 | File | Endpoints | Auth |
 |---|---|---|
-| `auth-signup-phone.yaml` | `POST /auth/signup/phone/start`, `POST /auth/signup/phone/complete` | HMAC only |
+| `auth-signup-phone.yaml` | `POST /auth/signup/phone/start`, `POST /auth/signup/phone/verify` (lite verify, creates LITE PHONE customer + tokens) | HMAC only |
 | `auth-otp.yaml` | `POST /auth/otp/request`, `POST /auth/otp/verify` | HMAC only |
 | `auth-social.yaml` | `POST /auth/social/google`, `POST /auth/social/apple`, `POST /auth/social/login` | HMAC only |
 | `auth-login-logout-refresh.yaml` | `POST /auth/login`, `POST /auth/logout`, `POST /auth/refresh` | login = HMAC; logout = HMAC + Customer JWT; refresh = HMAC + valid refresh token |
 | `auth-password.yaml` | `POST /auth/password/reset`, `POST /auth/password/change` | reset = HMAC + password reset token; change = HMAC + Customer JWT |
 | `auth-me.yaml` | `GET /auth/me` | HMAC + Customer JWT |
-| `auth-profile-complete.yaml` | `POST /auth/profile/mobile-request-otp`, `POST /auth/profile/mobile-verify-otp` | HMAC + Customer JWT (SOCIAL customers only) |
+| `auth-profile-complete.yaml` | `POST /auth/profile/complete` (both paths), `POST /auth/profile/photo/upload-url`, `POST /auth/profile/national-id/upload-url`, `POST /auth/profile/mobile-request-otp`, `POST /auth/profile/mobile-verify-otp` (last two SOCIAL only) | HMAC + Customer JWT |
 | `applications-apply.yaml` | `POST /applications/apply` | HMAC + Customer JWT |
 | `documents-upload-url.yaml` | `POST /documents/upload-url` | HMAC + Customer JWT |
 
 Admin-side endpoint extensions (read-only):
 
-- `GET /api/admin/customers/:id` — response gains `registrationPath`, `mobileVerifiedAt`, `age`, `email`, `hasPassword`, `linkedProviders[]`, `lastOtpChallenges[]` (last 10, status-only).
+- `GET /api/admin/customers/:id` — response gains `registrationPath`, `mobileVerifiedAt`, `firstName`, `lastName`, `birthday` (age derived), `profilePhotoKey`, `email`, `hasPassword`, `profileComplete`, `linkedProviders[]`, `lastOtpChallenges[]` (last 10, status-only).
 - `GET /api/admin/customers?hasApplications=true|false` — new query parameter.
 - `GET /api/admin/documents/:id/presigned-read-url` — 1-hour TTL per Q2.
 - `GET /api/admin/audit-events?eventTypes[]=auth.*` — already supports filters; this feature documents the new event types.

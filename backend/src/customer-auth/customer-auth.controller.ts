@@ -13,13 +13,13 @@ import {
   CustomerLogoutRequestDto,
   CustomerProfileResponseDto,
   CustomerRefreshRequestDto,
-  CustomerSignupRequestDto,
 } from './dto/customer-auth.dto';
 import { OtpRequestDto, OtpVerifyDto } from './dto/customer-otp.dto';
 import {
   CustomerSignupPhoneStartDto,
-  CustomerSignupPhoneCompleteDto,
+  CustomerSignupPhoneVerifyDto,
 } from './dto/customer-signup-phone.dto';
+import { CustomerCompleteProfileDto } from './dto/customer-complete-profile.dto';
 import {
   SocialAppleSignInDto,
   SocialGoogleSignInDto,
@@ -51,26 +51,6 @@ export class CustomerAuthController {
     private readonly svc: CustomerAuthService,
     private readonly mobile: CustomerAuthMobileService,
   ) {}
-
-  @Post('signup')
-  @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
-  @ApiOperation({ summary: 'Create a new customer account + issue tokens' })
-  async signup(
-    @Body() body: CustomerSignupRequestDto,
-    @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
-  ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
-    const result = await this.svc.signup({
-      phone: body.phone,
-      name: body.name,
-      password: body.password,
-      email: body.email,
-      locale: body.locale,
-      ctx: this.buildContext(req, correlationId),
-    });
-    return ok(this.toEnvelope(result));
-  }
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
@@ -136,9 +116,10 @@ export class CustomerAuthController {
   }
 
   // -------------------------------------------------------------------------
-  // Feature 008 — Two-Path Registration endpoints (Constitution v1.8.0).
-  // The legacy `POST /signup` and `claim-applications` (now removed) endpoint
-  // are replaced by the two-step phone-signup flow + social paths below.
+  // Two-Path Registration endpoints (Constitution v4.0.0 / Principle XIII+XXXVII).
+  // Both paths create a LITE customer (post-OTP/provider) then finalize via the
+  // mandatory profile-completion step `POST /profile/complete`. No guest mode,
+  // no claim endpoint.
   // -------------------------------------------------------------------------
 
   @Post('signup/phone/start')
@@ -158,21 +139,46 @@ export class CustomerAuthController {
     return ok(result);
   }
 
-  @Post('signup/phone/complete')
+  @Post('signup/phone/verify')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
-  @ApiOperation({ summary: 'PHONE signup — step 2: consume verifiedMobileToken + create customer' })
-  async signupPhoneComplete(
-    @Body() body: CustomerSignupPhoneCompleteDto,
+  @ApiOperation({
+    summary: 'PHONE signup — step 2: consume verifiedMobileToken + create LITE customer + issue tokens',
+  })
+  async signupPhoneVerify(
+    @Body() body: CustomerSignupPhoneVerifyDto,
     @Req() req: MobileRequest,
     @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
-    const result = await this.mobile.signupPhoneComplete({
+    const result = await this.mobile.signupPhoneVerify({
       verifiedMobileToken: body.verifiedMobileToken,
-      name: body.name,
-      email: body.email,
+      locale: body.locale,
+      ctx: this.buildContext(req, correlationId),
+    });
+    return ok(this.toEnvelope(result));
+  }
+
+  @Post('profile/complete')
+  @UseGuards(CustomerJwtGuard)
+  @ApiBearerAuth('CustomerBearerAuth')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({
+    summary:
+      'Mandatory profile completion (Principle XXXVII) — firstName/lastName/birthday (+password for PHONE). Requires profile photo + National ID front/back already uploaded.',
+  })
+  async completeProfile(
+    @Body() body: CustomerCompleteProfileDto,
+    @Req() req: MobileRequest,
+    @CorrelationId() correlationId: string,
+  ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
+    const customerId = this.requireCustomer(req);
+    const result = await this.mobile.completeProfile({
+      customerId,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      birthday: body.birthday,
       password: body.password,
-      age: body.age,
       ctx: this.buildContext(req, correlationId),
     });
     return ok(this.toEnvelope(result));
@@ -378,7 +384,6 @@ export class CustomerAuthController {
       sourceIp: this.readClientIp(req),
       userAgent: this.truncatedUa(req),
       correlationId,
-      mobileClientId: null,
     };
   }
 

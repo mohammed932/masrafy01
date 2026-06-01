@@ -38,15 +38,13 @@ export class SupportService {
     channel: SupportChannel;
     applicationId?: string;
     note?: string;
-    customerId?: string | null;
-    mobileClientId: string;
+    customerId: string;
     ctx: SupportRequestContext;
   }): Promise<SupportRequestResponseDto> {
     const row = await this.repo.createRequest({
       channel: args.channel,
       applicationId: args.applicationId ?? null,
-      customerId: args.customerId ?? null,
-      mobileClientId: args.mobileClientId,
+      customerId: args.customerId,
       note: args.note ?? null,
     });
     await this.audit.write({

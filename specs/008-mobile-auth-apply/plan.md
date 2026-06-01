@@ -7,12 +7,14 @@
 
 Ship the customer-facing mobile authentication and loan-request flow for the Masrafy mobile app. Two registration paths gate the entire app (no guest mode):
 
-- **PHONE path**: upfront signup collects mobile + OTP + name + email + password + age → fully populated Customer record → loan-request flow is just National ID + submit.
-- **SOCIAL path**: tap Continue with Google/Apple → lite Customer record from provider profile → at loan-request a mandatory gate popup with a "Complete Profile" CTA opens a full-screen Complete-Profile flow (mobile + OTP, then email, then age). Mobile+`mobileVerifiedAt` persist immediately on OTP success (avoids re-sending OTP after abandon — OTP cost rule); email + age persist atomically with the loan submission.
+> **v4.0.0 update**: Both paths now create a LITE row, then a MANDATORY profile-completion step finalizes the account. No "fully-upfront PHONE", no SOCIAL loan-request popup. Profile completion uploads profile photo + National ID front/back FIRST, then `POST /v1/auth/profile/complete` writes `firstName`, `lastName`, `birthday` (age derived, never stored), and PHONE `password`. Apply/select-offer are gated on `PROFILE_INCOMPLETE`. Guest plumbing (`Application.isGuest`, `mobileClientId`, claim flow) removed.
+
+- **PHONE path**: mobile + OTP creates a LITE PHONE customer (tokens issued) → mandatory profile completion (photo + National ID + firstName/lastName/birthday/password) → apply gate passes.
+- **SOCIAL path**: tap Continue with Google/Apple → lite Customer from provider profile → mandatory profile completion (bind mobile via OTP, photo + National ID + firstName/lastName/birthday, no password). Mobile+`mobileVerifiedAt` persist immediately on OTP success (avoids re-sending OTP after abandon — OTP cost rule); name/birthday/photo persist via `/auth/profile/complete` (before apply, not at submission).
 
 Returning users sign in via mobile+password (PHONE) or by re-tapping the original social provider (SOCIAL); no SMS on either return path. Forgot-password is PHONE-only.
 
-Technical approach: extend the existing NestJS backend with `/api/v1/auth/*` customer-JWT endpoints (per constitution principle XIII), a `/api/v1/applications/apply` atomic submission endpoint, a `/api/v1/auth/profile/*` mobile-OTP-and-age completion endpoints, plus presigned-document-upload endpoints scoped to authenticated customers. Add the data model (Prisma migrations) for `Customer` with `registrationPath` tag + nullable social fields, `CustomerProvider`, `OtpChallenge`, `VerifiedMobileToken`, `SocialSession`, `PasswordResetToken`. Build the Flutter mobile feature module `customer_auth` and extend the existing `apply` feature with the gate popup and Complete-Profile screen. Extend the Angular admin dashboard to show the new fields. All three platforms ship in lockstep (principle XXIX).
+Technical approach: extend the existing NestJS backend with `/api/v1/auth/*` customer-JWT endpoints (per constitution principle XIII), a `/api/v1/applications/apply` atomic submission endpoint gated on profile completeness, `/api/v1/auth/profile/*` profile-completion + mobile-OTP + customer-scoped presign endpoints, plus presigned-document-upload endpoints scoped to authenticated customers. Add the data model (Prisma migrations) for `CustomerAccount` with `registrationPath` tag + `firstName`/`lastName`/`birthday`/`profilePhotoKey` + nullable social fields, `CustomerProvider`, `OtpChallenge`, `VerifiedMobileToken`, `SocialSession`, `PasswordResetToken`. Build the Flutter mobile feature module `customer_auth` and extend the existing `apply` feature with the profile-completion flow. Extend the Angular admin dashboard to show the new fields. All three platforms ship in lockstep (principle XXIX).
 
 ## Technical Context
 
@@ -55,7 +57,7 @@ Technical approach: extend the existing NestJS backend with `/api/v1/auth/*` cus
 - Login lockout: 10 failed attempts / 15 min → 30 min lockout
 - Anonymous matching endpoint removed (no guest mode — `/api/v1/matching/preview` no longer required; matching is now an authenticated endpoint)
 - National ID admin read presigned URL TTL: 1 hour (per spec clarification Q2)
-- Mobile field becomes immutable on first OTP-verified write; age becomes immutable on first non-null write
+- Mobile field becomes immutable on first OTP-verified write; `birthday` becomes immutable on first non-null write (age derived in code, never stored)
 - `Customer.registrationPath` is set at creation and never mutates
 
 **Scale/Scope**:
@@ -163,7 +165,7 @@ admin/
 │   ├── app/
 │   │   ├── features/
 │   │   │   ├── customers/                 # extended
-│   │   │   │   ├── detail/                # adds registrationPath, mobileVerifiedAt, age, email, linkedProviders, hasPassword, last-10-OTPs
+│   │   │   │   ├── detail/                # adds registrationPath, mobileVerifiedAt, firstName/lastName, birthday(+derived age), profilePhotoKey, email, profileComplete, linkedProviders, hasPassword, last-10-OTPs
 │   │   │   │   └── list/                  # adds "has applications" filter
 │   │   │   └── audit-log/                 # extended — auth event filters
 │   │   └── core/
@@ -194,12 +196,12 @@ mobile/
     │   │       └── pages/
     │   │           ├── customer_auth_pages.imports.dart        # XXXII per-flow library
     │   │           ├── landing/                                # CTAs: Phone signup / Google / Apple / Log in
-    │   │           ├── phone_signup/                           # mobile → OTP → name+email+password → age
+    │   │           ├── phone_signup/                           # mobile → OTP (creates LITE PHONE customer)
     │   │           ├── login/
     │   │           ├── forgot_password/
-    │   │           └── complete_profile/                       # SOCIAL gate dialog → full-screen flow
+    │   │           └── complete_profile/                       # both paths: photo + National ID + firstName/lastName/birthday (+ PHONE password / SOCIAL mobile-OTP)
     │   └── apply/                         # extended (NOT new)
-    │       └── presentation/pages/apply/                       # adds gate-popup hand-off + post-completion National ID flow
+    │       └── presentation/pages/apply/                       # gated on PROFILE_INCOMPLETE → routes to complete_profile; submission binds pre-existing National ID docs
     └── core/
         ├── widgets/                       # MasrafyOtpInput, MasrafyMobileInput, MasrafyGateDialog (promoted only if reused twice — XXXV)
         ├── theme/
@@ -217,9 +219,9 @@ Canonical terms to avoid drift across spec / plan / tasks / contracts:
 |---|---|
 | **Apply / Loan-Request flow** | Identical concept. The user-facing flow that creates an `Application` entity. Mobile feature folder = `apply`; backend controller = `apply.controller.ts`; admin filter = "has applications". When narrating user journeys, prefer "loan-request flow". When naming code, use `apply`. |
 | **SOCIAL sign-in** | The Google / Apple authentication path (canonical phrasing). Avoid "social signup", "social signin" — pick "SOCIAL sign-in". |
-| **PHONE signup** | The mobile + OTP + name + email + password + age upfront registration path (canonical phrasing). |
-| **Complete-Profile flow** | The full-screen flow opened from the SOCIAL apply-gate-popup CTA. Mobile feature path = `customer_auth/.../complete_profile/`. |
-| **Gate popup** | The non-dismissible AlertDialog shown to a SOCIAL customer on Apply when their profile is incomplete. |
+| **PHONE signup** | The mobile + OTP path that creates a LITE PHONE customer (canonical phrasing). v4.0.0: name/birthday/password come later, at profile completion. |
+| **Profile-completion flow** | The full-screen flow (both paths) that finalizes a LITE row: photo + National ID front/back + firstName/lastName/birthday (PHONE also password; SOCIAL also mobile-OTP). Mobile feature path = `customer_auth/.../complete_profile/`. |
+| **Profile gate** | v4.0.0: apply/select-offer return `PROFILE_INCOMPLETE` while the profile is incomplete; the app routes to the profile-completion flow. Replaces the pre-v4.0.0 SOCIAL "gate popup". |
 | **Customer JWT** | Customer-facing access + refresh token pair (Principle XIII v1.8.0). Distinct from admin JWT. |
 | **Verified-mobile token** | Short-lived single-use bearer issued by `/auth/otp/verify` (PHONE-signup path only). |
 

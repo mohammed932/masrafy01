@@ -14,9 +14,12 @@ paths:
 
         If no match exists, a LITE SOCIAL Customer record is created
         IMMEDIATELY with the provider's name and (if released) email; tokens
-        are issued in the same response. The customer's mobile/email-if-not-
-        released/age remain null and must be collected at the first
-        loan-request via the Complete-Profile flow (FR-009).
+        are issued in the same response. The customer's mobile, firstName,
+        lastName, birthday, and profilePhotoKey remain null and must be
+        collected via the mandatory profile-completion step (bind mobile via
+        /auth/profile/mobile-verify-otp, upload photo + National ID, then
+        POST /auth/profile/complete). The returned customer has
+        profileComplete=false.
       security: []
       requestBody:
         required: true
@@ -173,10 +176,13 @@ components:
         registrationPath: { type: string, enum: [PHONE, SOCIAL] }
         mobile: { type: string, nullable: true }
         mobileVerifiedAt: { type: string, format: date-time, nullable: true }
-        fullName: { type: string }
+        firstName: { type: string, nullable: true }
+        lastName: { type: string, nullable: true }
         email: { type: string, format: email, nullable: true }
-        age: { type: integer, nullable: true }
+        birthday: { type: string, format: date, nullable: true }
+        profilePhotoKey: { type: string, nullable: true }
         hasPassword: { type: boolean }
+        profileComplete: { type: boolean }
         linkedProviders:
           type: array
           items: { type: string, enum: [GOOGLE, APPLE] }

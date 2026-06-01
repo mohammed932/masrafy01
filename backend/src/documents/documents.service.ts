@@ -21,7 +21,14 @@ import {
 import { DocumentsRepository } from './documents.repository';
 import { S3StorageClient } from './s3-storage.client';
 import { stripPiiFromFilename } from './filename-pii';
+import { CustomerAccountRepository } from '@/customer-auth/customer-account.repository';
+import {
+  NATIONAL_ID_BACK,
+  NATIONAL_ID_FRONT,
+} from '@/customer-auth/customer-profile-document.repository';
 import type { StaffRole } from '@/common/enums/staff-role.enum';
+
+const PROFILE_ID_DOCUMENT_TYPES: readonly string[] = [NATIONAL_ID_FRONT, NATIONAL_ID_BACK];
 
 export interface RequestUploadUrlInput {
   applicationId: string;
@@ -55,6 +62,7 @@ export class DocumentsService {
     private readonly repo: DocumentsRepository,
     private readonly enumerations: PlatformEnumerationsRepository,
     private readonly applications: ApplicationRepository,
+    private readonly customers: CustomerAccountRepository,
   ) {}
 
   /**
@@ -70,7 +78,6 @@ export class DocumentsService {
     sizeBytes: number;
     originalFilename: string;
     customer: { id: string };
-    mobileClientId: string;
   }): Promise<{
     documentId: string;
     uploadUrl: string;
@@ -88,7 +95,6 @@ export class DocumentsService {
     await this.assertCustomerOwnsApplication({
       applicationId: input.applicationId,
       customerId: input.customer.id,
-      mobileClientId: input.mobileClientId,
     });
 
     const documentId = cuid();
@@ -119,7 +125,6 @@ export class DocumentsService {
     documentId: string;
     applicationId: string;
     customer: { id: string };
-    mobileClientId: string;
   }): Promise<{ documentId: string; status: 'uploaded' }> {
     const doc = await this.repo.findById(input.documentId);
     if (!doc) throw new DocumentNotFoundException({ documentId: input.documentId });
@@ -135,12 +140,118 @@ export class DocumentsService {
     await this.assertCustomerOwnsApplication({
       applicationId: input.applicationId,
       customerId: input.customer.id,
-      mobileClientId: input.mobileClientId,
     });
     const head = await this.s3.headObject(doc.s3Key);
     if (!head.exists) throw new DocumentNotFoundException({ documentId: doc.id });
     await this.repo.markUploaded(doc.id, head.sizeBytes ?? doc.sizeBytes);
     return { documentId: doc.id, status: 'uploaded' };
+  }
+
+  // -------------------------------------------------------------------------
+  // Profile-completion uploads (Principle XXXVII) — customer-scoped, no
+  // application yet. National ID front/back become Document rows owned by the
+  // customer; the profile photo is persisted as `customerAccount.profilePhotoKey`.
+  // -------------------------------------------------------------------------
+
+  async requestCustomerProfileDocUploadUrl(input: {
+    documentType: string;
+    mimeType: string;
+    sizeBytes: number;
+    originalFilename: string;
+    customer: { id: string };
+  }): Promise<{
+    documentId: string;
+    uploadUrl: string;
+    s3Key: string;
+    expiresAt: Date;
+    maxSizeBytes: number;
+  }> {
+    if (input.sizeBytes > MAX_DOCUMENT_SIZE_BYTES) {
+      throw new FileTooLargeException(input.sizeBytes);
+    }
+    if (!(ALLOWED_DOCUMENT_MIME_TYPES as readonly string[]).includes(input.mimeType)) {
+      throw new FileTypeNotAllowedException(input.mimeType);
+    }
+    if (!PROFILE_ID_DOCUMENT_TYPES.includes(input.documentType)) {
+      throw new FileTypeNotAllowedException(input.documentType);
+    }
+    await this.assertDocumentTypeActive(input.documentType);
+
+    const documentId = cuid();
+    const ext = MIME_TO_EXT[input.mimeType as AllowedDocumentMimeType];
+    const s3Key = `customers/${input.customer.id}/id/${documentId}.${ext}`;
+    const { uploadUrl, expiresAt } = await this.s3.getPresignedPutUrl(s3Key, input.mimeType);
+
+    const redactedFilename = stripPiiFromFilename(input.originalFilename, null);
+    await this.repo.create({
+      id: documentId,
+      applicationId: null,
+      customerId: input.customer.id,
+      documentType: input.documentType,
+      s3Key,
+      status: 'pending_upload',
+      uploadedByContext: 'user',
+      uploadedBySource: 'mobile_app',
+      uploadedByStaffId: null,
+      uploadedByCustomerId: input.customer.id,
+      originalFilename: redactedFilename,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+    });
+
+    return { documentId, uploadUrl, s3Key, expiresAt, maxSizeBytes: MAX_DOCUMENT_SIZE_BYTES };
+  }
+
+  async confirmCustomerProfileDocUpload(input: {
+    documentId: string;
+    customer: { id: string };
+  }): Promise<{ documentId: string; status: 'uploaded' }> {
+    const doc = await this.repo.findById(input.documentId);
+    if (!doc) throw new DocumentNotFoundException({ documentId: input.documentId });
+    if (doc.customerId !== input.customer.id || doc.applicationId !== null) {
+      throw new DocumentOwnershipMismatchException();
+    }
+    if (doc.status !== 'pending_upload') {
+      throw new DocumentNotPendingException({ documentId: doc.id, status: doc.status });
+    }
+    const head = await this.s3.headObject(doc.s3Key);
+    if (!head.exists) throw new DocumentNotFoundException({ documentId: doc.id });
+    await this.repo.markUploaded(doc.id, head.sizeBytes ?? doc.sizeBytes);
+    return { documentId: doc.id, status: 'uploaded' };
+  }
+
+  async requestProfilePhotoUploadUrl(input: {
+    mimeType: string;
+    sizeBytes: number;
+    customer: { id: string };
+  }): Promise<{ uploadUrl: string; s3Key: string; expiresAt: Date; maxSizeBytes: number }> {
+    if (input.sizeBytes > MAX_DOCUMENT_SIZE_BYTES) {
+      throw new FileTooLargeException(input.sizeBytes);
+    }
+    if (!(ALLOWED_DOCUMENT_MIME_TYPES as readonly string[]).includes(input.mimeType)) {
+      throw new FileTypeNotAllowedException(input.mimeType);
+    }
+    const ext = MIME_TO_EXT[input.mimeType as AllowedDocumentMimeType];
+    const s3Key = `customers/${input.customer.id}/photo/${cuid()}.${ext}`;
+    const { uploadUrl, expiresAt } = await this.s3.getPresignedPutUrl(s3Key, input.mimeType);
+    return { uploadUrl, s3Key, expiresAt, maxSizeBytes: MAX_DOCUMENT_SIZE_BYTES };
+  }
+
+  async confirmProfilePhotoUpload(input: {
+    s3Key: string;
+    customer: { id: string };
+  }): Promise<{ s3Key: string }> {
+    // Bind the key to the caller — prevents claiming another customer's object.
+    if (!input.s3Key.startsWith(`customers/${input.customer.id}/photo/`)) {
+      throw new DocumentOwnershipMismatchException();
+    }
+    const head = await this.s3.headObject(input.s3Key);
+    if (!head.exists) throw new NotFoundException();
+    await this.customers.setProfilePhotoKey({
+      customerId: input.customer.id,
+      profilePhotoKey: input.s3Key,
+    });
+    return { s3Key: input.s3Key };
   }
 
   private async assertDocumentTypeActive(documentType: string): Promise<void> {
@@ -167,14 +278,10 @@ export class DocumentsService {
   private async assertCustomerOwnsApplication(args: {
     applicationId: string;
     customerId: string;
-    mobileClientId: string;
   }): Promise<void> {
     const app = await this.applications.findOwnershipById(args.applicationId);
     if (!app) throw new NotFoundException();
-    // Allow either an explicit applicantUserId match (post-claim) OR a same-device guest application.
-    const customerOwns = app.applicantUserId === args.customerId;
-    const sameDevice = app.applicantUserId === null && app.mobileClientId === args.mobileClientId;
-    if (!customerOwns && !sameDevice) {
+    if (app.applicantUserId !== args.customerId) {
       throw new DocumentOwnershipMismatchException();
     }
   }

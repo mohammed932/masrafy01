@@ -7,18 +7,17 @@ paths:
     post:
       summary: Atomic loan-application submission
       description: |
-        Single-transaction submission. For PHONE customers, the customer is
-        already fully populated; the request carries only the offer
-        selection, questionnaire payload, and document IDs. For SOCIAL
-        customers, the request additionally carries email + age (the popup-
-        collected fields that the Complete-Profile flow held client-side per
-        FR-009d). The transaction writes those to the customer (only if
-        currently null) alongside the application/documents/questionnaire-
-        link writes.
+        Single-transaction submission. The customer must already have a
+        COMPLETE profile (firstName, lastName, birthday, profilePhotoKey,
+        verified mobile, and both National ID Documents; PHONE also a
+        password). An incomplete profile is rejected with PROFILE_INCOMPLETE
+        — this endpoint never mutates customer profile fields.
 
-        Mobile + mobileVerifiedAt were already written earlier (PHONE: at
-        signup; SOCIAL: at the /auth/profile/mobile-verify-otp step) and are
-        NOT part of this transaction.
+        The request carries only the offer selection, questionnaire payload,
+        and document IDs. Apply BINDS the customer's pre-existing
+        National ID Documents (uploaded earlier at profile completion,
+        customerId set / applicationId null) to the new application; it does
+        NOT accept new uploads.
       security: [{ CustomerJWT: [] }]
       requestBody:
         required: true
@@ -28,15 +27,6 @@ paths:
               type: object
               required: [offerSelection, questionnaire, documents]
               properties:
-                profileCompletion:
-                  type: object
-                  description: |
-                    Required for SOCIAL customers whose email and/or age are
-                    still null. Forbidden when both fields are already set
-                    on the customer (server rejects mutation attempts).
-                  properties:
-                    email: { type: string, format: email, nullable: true }
-                    age: { type: integer, minimum: 18, maximum: 80, nullable: true }
                 offerSelection:
                   type: object
                   required: [bankProgramId, currency, tenorMonths]
@@ -74,7 +64,7 @@ paths:
                     properties:
                       customer:
                         type: object
-                        description: Refreshed customer (now with email+age set if SOCIAL)
+                        description: The (unchanged) complete customer envelope
                       application:
                         type: object
                         properties:
@@ -84,9 +74,9 @@ paths:
                           submittedAt: { type: string, format: date-time }
         '400':
           description: |
-            AGE_INVALID, DOCUMENTS_MISSING, BANK_PROGRAM_INVALID,
-            PROFILE_INCOMPLETE (customer.mobile is null — must complete
-            Complete-Profile flow first)
+            PROFILE_INCOMPLETE (customer profile not finalized — must
+            complete the profile-completion step first),
+            DOCUMENTS_MISSING, BANK_PROGRAM_INVALID
         '403':
           description: DOCUMENTS_NOT_OWNED
         '409':

@@ -352,8 +352,7 @@ model Bank {
 
 model Application {
   id                      String              @id @default(cuid()) @db.VarChar(30)
-  applicantUserId         String?             @db.VarChar(30)
-  mobileClientId          String              @db.VarChar(64)
+  applicantUserId         String              @db.VarChar(30)
   submissionCorrelationId String              @db.VarChar(36)
   idempotencyKey          String?             @db.VarChar(128)
   payloadHash             String?             @db.Char(64)
@@ -364,7 +363,6 @@ model Application {
   preferredTenorMonths    Int
   loanPurpose             String              @db.VarChar(64)
   age                     Int
-  isGuest                 Boolean             @default(true)
   applicantProfile        Json
   summary                 Json
   noMatchSummary          Json?
@@ -391,10 +389,10 @@ model Application {
   assignedAgent         StaffAccount?         @relation("AssignedLeads", fields: [assignedAgentStaffId], references: [id], onDelete: SetNull)
   activities            Activity[]            @relation("ApplicationActivities")
   documents             Document[]            @relation("ApplicationDocuments")
-  applicantCustomer     CustomerAccount?      @relation("CustomerApplications", fields: [applicantUserId], references: [id], onDelete: SetNull)
+  applicantCustomer     CustomerAccount       @relation("CustomerApplications", fields: [applicantUserId], references: [id], onDelete: Restrict)
   questionnaireAnswers  QuestionnaireAnswer[] @relation("QuestionnaireApplication")
 
-  @@unique([mobileClientId, idempotencyKey], name: "idx_application_idempotency")
+  @@unique([applicantUserId, idempotencyKey], name: "idx_application_idempotency")
   @@index([loanPurpose], name: "idx_application_purpose")
   @@index([applicantUserId, createdAt(sort: Desc)], name: "idx_application_customer_created")
   @@index([assignedAgentStaffId, leadStatus], name: "idx_application_agent_lead_status")
@@ -528,7 +526,8 @@ model Activity {
 
 model Document {
   id                   String    @id @default(cuid()) @db.VarChar(30)
-  applicationId        String    @db.VarChar(30)
+  applicationId        String?   @db.VarChar(30)
+  customerId           String?   @db.VarChar(30)
   documentType         String    @db.VarChar(64)
   s3Key                String    @unique @db.VarChar(256)
   status               String    @db.VarChar(24)
@@ -544,12 +543,14 @@ model Document {
   verifiedByStaffId    String?   @db.VarChar(30)
   erasedAt             DateTime? @db.Timestamptz(6)
 
-  application        Application      @relation("ApplicationDocuments", fields: [applicationId], references: [id], onDelete: Cascade)
+  application        Application?     @relation("ApplicationDocuments", fields: [applicationId], references: [id], onDelete: Cascade)
+  customer           CustomerAccount? @relation("DocumentCustomerOwner", fields: [customerId], references: [id], onDelete: Cascade)
   uploadedByStaff    StaffAccount?    @relation("DocumentUploader", fields: [uploadedByStaffId], references: [id], onDelete: SetNull)
   uploadedByCustomer CustomerAccount? @relation("DocumentCustomerUploader", fields: [uploadedByCustomerId], references: [id], onDelete: SetNull)
   verifiedByStaff    StaffAccount?    @relation("DocumentVerifier", fields: [verifiedByStaffId], references: [id], onDelete: SetNull)
 
   @@index([applicationId, documentType, status], name: "idx_document_application_type_status")
+  @@index([customerId, documentType, status], name: "idx_document_customer_type_status")
   @@index([uploadedByStaffId, createdAt(sort: Desc)], name: "idx_document_uploader_created")
   @@index([uploadedByCustomerId, createdAt(sort: Desc)], name: "idx_document_customer_uploader_created")
   @@map("document")
@@ -623,10 +624,13 @@ model CustomerAccount {
   phone            String?          @unique @db.VarChar(20)
   mobileVerifiedAt DateTime?        @db.Timestamptz(6)
   email            String?          @unique @db.VarChar(320)
-  name             String           @db.VarChar(120)
+  firstName        String           @db.VarChar(60)
+  lastName         String           @db.VarChar(60)
+  nameSplitNeedsReview Boolean      @default(false)
   locale           String           @default("ar-EG") @db.VarChar(8)
   passwordHash     String?          @db.VarChar(72)
-  age              Int?
+  birthday         DateTime?        @db.Date
+  profilePhotoKey  String?          @db.VarChar(256)
   nationalIdHash   String?          @db.Char(64)
   isVerified       Boolean          @default(false)
   isActive         Boolean          @default(true)
@@ -637,6 +641,7 @@ model CustomerAccount {
   refreshTokens     CustomerRefreshToken[]
   applications      Application[]          @relation("CustomerApplications")
   uploadedDocuments Document[]             @relation("DocumentCustomerUploader")
+  idDocuments       Document[]             @relation("DocumentCustomerOwner")
   supportRequests   SupportRequest[]       @relation("SupportRequestCustomer")
   providers         CustomerProvider[]
   passwordResets    PasswordResetToken[]
@@ -660,7 +665,6 @@ model CustomerRefreshToken {
   rotatedFromId  String?   @db.VarChar(30)
   userAgent      String?   @db.VarChar(500)
   sourceIp       String?   @db.Inet
-  mobileClientId String?   @db.VarChar(64)
 
   customer    CustomerAccount        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   rotatedFrom CustomerRefreshToken?  @relation("CustomerRefreshTokenRotation", fields: [rotatedFromId], references: [id], onDelete: SetNull)
@@ -802,7 +806,6 @@ model SupportRequest {
   id              String         @id @default(cuid()) @db.VarChar(30)
   applicationId   String?        @db.VarChar(30)
   customerId      String?        @db.VarChar(30)
-  mobileClientId  String?        @db.VarChar(64)
   channel         SupportChannel
   note            String?        @db.VarChar(2000)
   status          SupportStatus  @default(open)

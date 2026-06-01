@@ -23,19 +23,29 @@ paths:
                       registrationPath: { type: string, enum: [PHONE, SOCIAL] }
                       mobile: { type: string, nullable: true }
                       mobileVerifiedAt: { type: string, format: date-time, nullable: true }
-                      fullName: { type: string }
+                      firstName: { type: string, nullable: true }
+                      lastName: { type: string, nullable: true }
                       email: { type: string, nullable: true }
-                      age: { type: integer, nullable: true }
+                      birthday: { type: string, format: date, nullable: true }
+                      profilePhotoKey: { type: string, nullable: true }
                       hasPassword: { type: boolean }
                       linkedProviders:
                         type: array
                         items: { type: string, enum: [GOOGLE, APPLE] }
+                      profileComplete:
+                        type: boolean
+                        description: |
+                          true once the full completeness contract is met.
                       requiresProfileCompletion:
                         type: boolean
                         description: |
-                          true if any of {mobile, email, age} is null AND
-                          the customer is SOCIAL. Mobile clients use this to
-                          decide whether to show the gate popup on Apply.
+                          Inverse of profileComplete. true while ANY of the
+                          completeness fields is missing: firstName, lastName,
+                          birthday, profilePhotoKey, verified mobile
+                          (mobileVerifiedAt), and the two National ID
+                          Documents (front + back). PHONE customers also
+                          require passwordHash. Mobile clients route to the
+                          mandatory profile-completion flow while true.
 
 components:
   securitySchemes:

@@ -449,12 +449,6 @@ export class CustomerPhoneInvalidException extends DomainException {
   }
 }
 
-export class CustomerGuestLinkWindowExpiredException extends DomainException {
-  constructor(meta: { mobileClientId: string; windowHours: number }) {
-    super(ERROR_CODES.CUSTOMER_GUEST_LINK_WINDOW_EXPIRED, meta);
-  }
-}
-
 // --- Mobile document upload (v1.7.0) ---------------------------------------
 
 export class DocumentOwnershipMismatchException extends DomainException {

@@ -9,7 +9,7 @@ const DAY = 24 * HOUR;
 async function main(): Promise<void> {
   const apps = await prisma.application.findMany({
     where: {
-      mobileClientId: { startsWith: 'seed-' },
+      submissionCorrelationId: { startsWith: 'seed-corr-' },
       assignedAgentStaffId: { not: null },
     },
     select: {

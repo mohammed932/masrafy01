@@ -7,9 +7,14 @@ paths:
     post:
       summary: Issue a presigned PUT URL for a National ID image
       description: |
-        Auth: Customer JWT. The returned uploadId is bound to the caller's
-        customer record from this moment; another customer cannot reuse it
-        in their /applications/apply submission (FR-037).
+        Auth: Customer JWT. v4.0.0: National ID (front/back) and the profile
+        photo are CUSTOMER-scoped and uploaded PRE-APPLICATION, during the
+        mandatory profile-completion step — the created Document has
+        customerId set and applicationId null. The returned uploadId is bound
+        to the caller's customer record from this moment; another customer
+        cannot reuse it (FR-037). Apply later binds these pre-existing
+        customer docs to the application. (Mirror of the profile-scoped
+        presign endpoints in auth-profile-complete.yaml.)
 
         TTL of presigned URL: 10 minutes.
       security: [{ CustomerJWT: [] }]

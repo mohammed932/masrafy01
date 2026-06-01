@@ -9,7 +9,6 @@ export interface IssueCustomerRefreshTokenInput {
   rotatedFromId?: string | null;
   userAgent?: string | null;
   sourceIp?: string | null;
-  mobileClientId?: string | null;
 }
 
 export class CustomerRefreshTokenAlreadyRotatedError extends Error {
@@ -35,7 +34,6 @@ export class CustomerRefreshTokenRepository {
         rotatedFromId: input.rotatedFromId ?? null,
         userAgent: input.userAgent ?? null,
         sourceIp: input.sourceIp ?? undefined,
-        mobileClientId: input.mobileClientId ?? null,
       },
     });
   }
@@ -57,7 +55,6 @@ export class CustomerRefreshTokenRepository {
           rotatedFromId: args.oldId,
           userAgent: args.next.userAgent ?? null,
           sourceIp: args.next.sourceIp ?? undefined,
-          mobileClientId: args.next.mobileClientId ?? null,
         },
       });
       const updated = await tx.customerRefreshToken.updateMany({

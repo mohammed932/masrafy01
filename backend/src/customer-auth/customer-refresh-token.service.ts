@@ -29,7 +29,6 @@ export class CustomerRefreshTokenService {
     customerId: string;
     userAgent: string | null;
     sourceIp: string | null;
-    mobileClientId: string | null;
   }): Promise<CustomerIssueResult> {
     const issued = this.generate();
     await this.repo.issue({
@@ -38,7 +37,6 @@ export class CustomerRefreshTokenService {
       expiresAt: issued.expiresAt,
       userAgent: args.userAgent,
       sourceIp: args.sourceIp,
-      mobileClientId: args.mobileClientId,
     });
     return issued;
   }
@@ -47,7 +45,6 @@ export class CustomerRefreshTokenService {
     rawToken: string;
     userAgent: string | null;
     sourceIp: string | null;
-    mobileClientId: string | null;
   }): Promise<CustomerVerifyAndRotateResult> {
     const tokenHash = this.hash(args.rawToken);
     const existing = await this.repo.lookupByHash(tokenHash);
@@ -65,7 +62,6 @@ export class CustomerRefreshTokenService {
           expiresAt: next.expiresAt,
           userAgent: args.userAgent,
           sourceIp: args.sourceIp,
-          mobileClientId: args.mobileClientId,
         },
       });
     } catch (err) {

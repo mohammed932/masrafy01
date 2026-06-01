@@ -4,7 +4,8 @@ import { PrismaService } from '@/infra/prisma/prisma.service';
 
 export interface CreateDocumentInput {
   id: string;
-  applicationId: string;
+  applicationId?: string | null;
+  customerId?: string | null;
   documentType: string;
   s3Key: string;
   status: 'pending_upload' | 'uploaded' | 'verified' | 'rejected' | 'erased';

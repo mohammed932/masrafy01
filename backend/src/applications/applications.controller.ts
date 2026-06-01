@@ -23,6 +23,7 @@ import { SelectOfferDto } from './dto/select-offer.dto';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
+import { CustomerProfileCompleteGuard } from '@/customer-auth/guards/customer-profile-complete.guard';
 import { ForbiddenException } from '@/common/errors/domain.exceptions';
 
 interface MobileAuthedRequest extends Request {
@@ -56,8 +57,9 @@ export class ApplicationsController {
   }
 
   @Post('apply')
+  @UseGuards(CustomerProfileCompleteGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Submit loan-match application' })
+  @ApiOperation({ summary: 'Submit loan-match application (gated on a complete profile — Principle XXXVII)' })
   @ApiResponse({ status: 200, description: 'Match result envelope' })
   @ApiResponse({ status: 400, description: 'Validation error (typed code in body)' })
   @ApiResponse({ status: 401, description: 'Customer JWT missing or invalid' })
@@ -71,7 +73,6 @@ export class ApplicationsController {
     const customerId = this.requireCustomerId(req);
     const sourceIp = req.ip ?? null;
     return this.service.apply(dto, {
-      mobileClientId: customerId,
       idempotencyKey: idempotencyKey?.trim() || undefined,
       payloadHash: null,
       sourceIp,
@@ -80,6 +81,7 @@ export class ApplicationsController {
   }
 
   @Post('applications/:applicationId/select-offer')
+  @UseGuards(CustomerProfileCompleteGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Applicant selects one matched offer and proceeds' })
   @ApiResponse({ status: 200, description: 'User-proceed gate recorded' })
@@ -100,7 +102,7 @@ export class ApplicationsController {
     const data = await this.service.selectOffer({
       applicationId,
       bankOfferId: dto.bankOfferId,
-      mobileClientId: customerId,
+      customerId,
       sourceIp: req.ip ?? null,
     });
     return { success: true, data };
