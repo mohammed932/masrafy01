@@ -24,6 +24,7 @@ import { OnboardingModule } from '@/onboarding/onboarding.module';
 import { TelemetryModule } from '@/telemetry/telemetry.module';
 import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
 import { ScoringModule } from '@/scoring/scoring.module';
+import { MatchingPreviewModule } from '@/matching-preview/matching-preview.module';
 import { loadEnv } from '@/infra/env/env.schema';
 import { pinoOptions } from '@/common/pino/pino.config';
 
@@ -62,6 +63,7 @@ import { pinoOptions } from '@/common/pino/pino.config';
     TelemetryModule,
     QuestionnaireModule,
     ScoringModule,
+    MatchingPreviewModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })
