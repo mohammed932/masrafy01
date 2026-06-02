@@ -68,6 +68,19 @@ export function computeDbrComfort(
   return clamp01(comfort.toNumber());
 }
 
+/**
+ * Same COMPUTED debt-burden comfort, but from already-resolved percentages
+ * (both expressed 0..100). Used when the engine has already produced the
+ * offer's DBR % and the program's DBR cap %, so we avoid re-deriving from
+ * Decimals. 1.0 at DBR 0, 0.0 at/above the cap.
+ */
+export function dbrComfortFromPercents(dbrPercent: number, dbrCapPercent: number): number {
+  if (!Number.isFinite(dbrPercent) || !Number.isFinite(dbrCapPercent) || dbrCapPercent <= 0) {
+    return 0;
+  }
+  return clamp01((dbrCapPercent - dbrPercent) / dbrCapPercent);
+}
+
 function clamp01(n: number): number {
   if (Number.isNaN(n)) return 0;
   return Math.max(0, Math.min(1, n));

@@ -1,9 +1,10 @@
 import type { Routes } from '@angular/router';
 
 /**
- * Feature 009 admin routes — questionnaire overview + scoring-weight approvals.
- * Role gating applied at the parent mount in app.routes.ts. The full tree editor
- * (groups/questions/options) is a follow-up screen.
+ * Feature 009 admin routes — questionnaire overview + tree editor.
+ * Role gating applied at the parent mount in app.routes.ts. Scoring-weight
+ * approvals live under their own `/scoring-approvals` mount (SCORING_ROUTES) so
+ * the two sidebar destinations never share a path prefix (single active tab).
  */
 export const QUESTIONNAIRE_ROUTES: Routes = [
   {
@@ -15,15 +16,5 @@ export const QUESTIONNAIRE_ROUTES: Routes = [
     path: 'edit/:category',
     loadComponent: () =>
       import('./questionnaire-editor.page').then((m) => m.QuestionnaireEditorPage),
-  },
-  {
-    path: 'approvals',
-    loadComponent: () =>
-      import('./scoring-approvals.page').then((m) => m.ScoringApprovalsPage),
-  },
-  {
-    path: 'weights/:category/:programId',
-    loadComponent: () =>
-      import('./scoring-weights-editor.page').then((m) => m.ScoringWeightsEditorPage),
   },
 ];

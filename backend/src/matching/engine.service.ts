@@ -302,6 +302,7 @@ export class EngineService {
       qualitativeReviewBadge: args.program.eligibility.requiresQualitativeReview,
       selfDeclared: args.program.programType === 'income_surrogate',
       maxLoanAvailableEGP: args.maxLoanAvailableEGP,
+      dbrPercent: args.dbrPercent,
     };
   }
 

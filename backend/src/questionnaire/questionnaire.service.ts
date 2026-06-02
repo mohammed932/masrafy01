@@ -310,6 +310,10 @@ export class QuestionnaireService {
       questionCode: string;
       selectedOptionId: string;
       selectedOptionCode: string;
+      /** Factor this question feeds (DIRECT scoring); null = display/arithmetic. */
+      scoringFactorCode: string | null;
+      /** Selected option's admin-set sub-score (0..1) as string; null if unset. */
+      scoreValue: string | null;
     }>
   > {
     const questions = await this.repo.questionsByCategory(category);
@@ -326,6 +330,8 @@ export class QuestionnaireService {
         questionCode: q.code,
         selectedOptionId: opt.id,
         selectedOptionCode: opt.code,
+        scoringFactorCode: q.scoringFactorCode ?? null,
+        scoreValue: opt.scoreValue !== null ? opt.scoreValue.toString() : null,
       });
     }
     return resolved;

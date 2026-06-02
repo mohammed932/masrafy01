@@ -42,7 +42,9 @@ import {
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
 import { StaffAccountRepository } from '@/users/staff-account.repository';
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
+import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
+import type { LoanCategory } from '@prisma/client';
 import type {
   ApplicantProfile,
   BankProgramSnapshot,
@@ -78,6 +80,7 @@ export class ApplicationsService {
     private readonly scoringVersions: ScoringEngineVersionService,
     private readonly staffAccounts: StaffAccountRepository,
     private readonly questionnaire: QuestionnaireService,
+    private readonly weightedScoring: WeightedApprovalScoringService,
   ) {}
 
   /**
@@ -272,6 +275,14 @@ export class ApplicationsService {
     const profile = this.buildProfile(dto);
     const result = this.engine.run({ profile, programs: snapshots, scoringConfig, correlationId });
 
+    // Per-bank weighted approval scoring (Constitution V v4.1.0): override each
+    // eligible offer's probability/tier with Σ(subScore × weight)/100 from the
+    // program's ACTIVE ScoringWeightSet. Same scorer the mobile preview uses.
+    // Only runs when the application carries dynamic-questionnaire answers.
+    if (dto.category && dynamicAnswers && dynamicAnswers.length > 0) {
+      await this.applyPerBankScoring(result.offers, dto.category, dynamicAnswers, snapshots);
+    }
+
     const offerInputs: CreateBankOfferInput[] = result.offers.map((o) =>
       this.toOfferInput(o, scoringConfig.version),
     );
@@ -457,6 +468,40 @@ export class ApplicationsService {
         suggestions: noMatch.suggestions ?? [],
       },
     };
+  }
+
+  /**
+   * Overwrite each eligible offer's approval probability with the per-bank
+   * weighted score (Spec §5.5). Mutates the offers IN PLACE before they are
+   * mapped to BankOffer inputs — the rows are not yet created, so Principle I /
+   * A6 (immutable-after-match) is respected. DIRECT sub-scores come from the
+   * answers' option `scoreValue`; the COMPUTED `debt_burden` factor reads the
+   * offer's DBR % against the program's DBR cap.
+   */
+  private async applyPerBankScoring(
+    offers: Offer[],
+    category: LoanCategory,
+    answers: ReadonlyArray<{ scoringFactorCode: string | null; scoreValue: string | null }>,
+    snapshots: BankProgramSnapshot[],
+  ): Promise<void> {
+    if (offers.length === 0) return;
+    const directSubScores = this.weightedScoring.buildDirectSubScores(answers);
+    const idByCode = new Map(snapshots.map((s) => [s.programCode, s.id]));
+    const dbrCapByCode = new Map(snapshots.map((s) => [s.programCode, s.eligibility.dbrCapPercent]));
+
+    for (const offer of offers) {
+      const { score, tier, factors } = await this.weightedScoring.scoreProgram({
+        programId: idByCode.get(offer.programCode) ?? null,
+        category,
+        directSubScores,
+        computed: {
+          dbrPercent: Number(offer.dbrPercent),
+          dbrCapPercent: dbrCapByCode.get(offer.programCode) ?? null,
+        },
+      });
+      offer.approvalProbability = { score, tier, factors };
+      offer.approvalProbabilityPercent = score;
+    }
   }
 
   private toOfferInput(offer: Offer, engineVersion: string): CreateBankOfferInput {

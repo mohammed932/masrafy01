@@ -291,6 +291,10 @@ export interface Offer {
   qualitativeReviewBadge: boolean;
   selfDeclared: boolean;
   maxLoanAvailableEGP?: Decimal;
+  /** Debt-burden ratio for this offer, percent (0..100). Surfaced so the
+   *  per-bank weighted scorer can feed the COMPUTED `debt_burden` factor
+   *  without re-deriving it (Principle V v4.1.0). */
+  dbrPercent: Decimal;
 }
 
 export interface MatchResult {

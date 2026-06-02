@@ -257,8 +257,13 @@ type Mode = null | 'group' | 'question' | 'option';
         }
       </div>
 
-      <!-- Inspector drawer -->
-      @if (mode() !== null) {
+    </section>
+
+    <!-- Inspector drawer — rendered OUTSIDE section.page so position:fixed
+         resolves against the viewport. section.page runs the app-page-rise
+         transform, which makes it the containing block for fixed descendants
+         and would otherwise trap the scrim/blur inside the content area. -->
+    @if (mode() !== null) {
         <div class="scrim" (click)="cancel()" aria-hidden="true"></div>
         <aside class="drawer" role="dialog" aria-modal="true">
             <div class="ins-card">
@@ -393,7 +398,6 @@ type Mode = null | 'group' | 'question' | 'option';
             </div>
         </aside>
       }
-    </section>
   `,
   styles: [
     `
@@ -574,31 +578,47 @@ type Mode = null | 'group' | 'question' | 'option';
       .empty-line.tiny { font-size: 12px; margin-block-start: 4px; }
 
       /* Inspector drawer */
+      /* Match ng-zorro nz-modal (Edit value dialog): same backdrop + surface tokens. */
       .scrim {
         position: fixed; inset: 0; z-index: 1000;
-        background: rgba(16, 24, 40, 0.38);
+        background: var(--color-overlay-backdrop, rgba(16, 24, 40, 0.45));
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
         animation: qe-fade 160ms ease;
       }
+      /* Top-aligned + horizontally centered to match nz-modal default position
+         (~100px from viewport top, RTL-safe via inset-inline:0 + margin-inline:auto). */
       .drawer {
         position: fixed; z-index: 1001;
-        inset-block: 0; inset-inline-end: 0;
-        inline-size: clamp(340px, 32vw, 480px);
-        background: var(--qe-surface);
-        border-inline-start: 1px solid var(--qe-line);
-        box-shadow: -16px 0 40px rgba(16, 24, 40, 0.12);
+        inset-block-start: 100px;
+        inset-inline: 0;
+        margin-inline: auto;
+        inline-size: min(640px, calc(100vw - 48px));
+        block-size: fit-content;
+        max-block-size: calc(100vh - 148px);
+        background: var(--bg-surface, var(--qe-surface));
+        border-radius: var(--radius-lg, 14px);
+        box-shadow: var(--shadow-xl, 0 24px 64px rgba(16, 24, 40, 0.24));
         overflow-y: auto;
-        animation: qe-slide 200ms cubic-bezier(0.4, 0, 0.2, 1);
+        animation: qe-pop 180ms cubic-bezier(0.4, 0, 0.2, 1);
       }
       @keyframes qe-fade { from { opacity: 0; } to { opacity: 1; } }
-      @keyframes qe-slide { from { transform: translateX(8%); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
+      @keyframes qe-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
       @media (prefers-reduced-motion: reduce) {
         .scrim, .drawer { animation: none; }
       }
-      .ins-card { padding: var(--space-5, 20px); }
-      .ins-head { display: flex; align-items: center; justify-content: space-between; }
-      .ins-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+      .ins-card { display: flex; flex-direction: column; gap: var(--space-4, 16px); padding: var(--space-5, 24px); }
+      .ins-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: var(--space-2, 8px);
+      }
+      .ins-head h3 {
+        margin: 0;
+        font-size: var(--text-lg, 18px); font-weight: var(--font-weight-semibold, 600);
+        color: var(--color-text-primary, #1a2433);
+      }
       .ins-note {
-        font-size: 12px; color: var(--qe-muted); margin: var(--space-2, 8px) 0 var(--space-4, 16px);
+        font-size: 12px; color: var(--qe-muted); margin: 0;
         padding: var(--space-2, 8px) var(--space-3, 12px);
         background: var(--qe-primary-soft); border-radius: 8px;
       }
@@ -619,7 +639,12 @@ type Mode = null | 'group' | 'question' | 'option';
         color: var(--qe-muted); background: var(--ant-background-color-light, #f6f8fa);
         padding: 1px 6px; border-radius: 999px;
       }
-      .form-actions { display: flex; justify-content: flex-end; gap: var(--space-2, 8px); margin-block-start: var(--space-3, 12px); }
+      .form-actions {
+        display: flex; justify-content: flex-end; gap: var(--space-2, 8px);
+        margin-block-start: var(--space-2, 8px);
+        padding-block-start: var(--space-3, 12px);
+        border-block-start: 1px solid var(--color-border-default, var(--qe-line));
+      }
       nz-input-number, nz-select { inline-size: 100%; }
     `,
   ],

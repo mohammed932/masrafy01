@@ -4,19 +4,13 @@ import { randomUUID } from 'node:crypto';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
-import { ScoringRepository } from '@/scoring/scoring.repository';
+import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { EngineService } from '@/matching/engine.service';
 import { ScoringEngineVersionService } from '@/scoring-versions/scoring-versions.service';
 import { loadActiveScoringConfig } from '@/applications/adapters/active-scoring-config.adapter';
 import type { BankProgramSnapshot } from '@/matching/types';
-import {
-  computeProbability,
-  defaultWeights,
-  tierFor,
-  type SubScores,
-  type Weights,
-} from '@/matching/scoring/approval-probability.scorer';
+import type { SubScores } from '@/matching/scoring/approval-probability.scorer';
 import {
   buildApplicantProfile,
   type SnapshotQuestionFull,
@@ -68,7 +62,7 @@ export interface PreviewMatch {
 export class MatchingPreviewService {
   constructor(
     private readonly questionnaire: QuestionnaireRepository,
-    private readonly scoring: ScoringRepository,
+    private readonly weightedScoring: WeightedApprovalScoringService,
     private readonly programs: BankProgramRepository,
     private readonly engine: EngineService,
     private readonly scoringVersions: ScoringEngineVersionService,
@@ -115,16 +109,23 @@ export class MatchingPreviewService {
       correlationId: randomUUID(),
     });
 
-    const factorCodes = (await this.scoring.activeFactors(args.category)).map((f) => f.code);
+    // DBR cap per program (percent) — feeds the COMPUTED `debt_burden` factor.
+    const dbrCapByCode = new Map(
+      snapshots.map((s) => [s.programCode, s.eligibility.dbrCapPercent]),
+    );
     const matches: PreviewMatch[] = [];
 
     for (const offer of output.offers) {
       const programId = idByCode.get(offer.programCode) ?? null;
-      const { probability, tier, usedDefault } = await this.scoreProgram(
+      const { probability, tier, usedDefault } = await this.weightedScoring.scoreProgram({
         programId,
-        subScores,
-        factorCodes,
-      );
+        category: args.category,
+        directSubScores: subScores,
+        computed: {
+          dbrPercent: Number(offer.dbrPercent),
+          dbrCapPercent: dbrCapByCode.get(offer.programCode) ?? null,
+        },
+      });
       matches.push({
         bankProgramId: programId,
         programCode: offer.programCode,
@@ -145,11 +146,13 @@ export class MatchingPreviewService {
     for (const nm of output.noMatchDetails ?? []) {
       const row = rows.find((p) => p.programCode === nm.programCode);
       const programId = idByCode.get(nm.programCode) ?? null;
-      const { probability, tier, usedDefault } = await this.scoreProgram(
+      // No eligible offer → no DBR figure; debt_burden contributes 0.
+      const { probability, tier, usedDefault } = await this.weightedScoring.scoreProgram({
         programId,
-        subScores,
-        factorCodes,
-      );
+        category: args.category,
+        directSubScores: subScores,
+        computed: { dbrPercent: null, dbrCapPercent: dbrCapByCode.get(nm.programCode) ?? null },
+      });
       matches.push({
         bankProgramId: programId,
         programCode: nm.programCode,
@@ -176,20 +179,6 @@ export class MatchingPreviewService {
     });
 
     return { category: args.category, matches, suggestions: output.suggestions ?? [] };
-  }
-
-  private async scoreProgram(
-    programId: string | null,
-    subScores: SubScores,
-    factorCodes: string[],
-  ): Promise<{ probability: number; tier: string; usedDefault: boolean }> {
-    const active = programId ? await this.scoring.activeSet(programId) : null;
-    const usedDefault = active === null;
-    const weights: Weights = active
-      ? (active.weights as Record<string, number>)
-      : defaultWeights(factorCodes);
-    const probability = Number(computeProbability(weights, subScores).toFixed(4));
-    return { probability, tier: tierFor(probability), usedDefault };
   }
 }
 

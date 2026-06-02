@@ -111,11 +111,17 @@ a:hover {
 // Page entrance — calm rise 8px → 0. `forwards` (not `both`) so a CSS parse
 // failure leaves content visible (default opacity 1) instead of trapped at
 // opacity 0.
+//
+// NOTE: the `to` frame deliberately OMITS `transform`. With fill-mode forwards
+// a `transform: translateY(0)` here would compute to a non-`none` matrix and
+// persist, turning `section.page` into a containing block that traps any
+// `position: fixed` descendant (modals/scrims) inside the content area instead
+// of the viewport. Omitting it lets transform revert to `none` post-animation.
 // ============================================================================
 
 @keyframes app-page-rise {
   from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; }
 }
 
 section.page,

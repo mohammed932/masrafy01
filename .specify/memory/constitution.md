@@ -697,6 +697,20 @@ review block. Within a feature folder, relative imports preferred.
 invokes `ui-ux-pro-max` (promax) BEFORE design + `impec` AFTER first
 implementation. Skipping either = review block (A17).
 
+**Modals overlay the full viewport (A34).** Every modal / dialog / sheet
+backdrop MUST cover the entire viewport — scrim + blur dim the whole
+screen (sidebar, top bar, content), never just the content panel.
+Preferred mechanism is `NzModalService` / `NzDrawerService`, which portal
+the surface to `document.body` and cannot be clipped. A hand-rolled
+`position: fixed` scrim is allowed ONLY when it is NOT a descendant of any
+ancestor that establishes a containing block for fixed elements
+(`transform`, `filter`, `perspective`, `contain`, `will-change`) — render
+it as a root-level sibling of the page content, not inside `section.page`
+(which runs the `app-page-rise` transform). A modal whose blur stops at
+the content panel edge = review block. Backdrop tokens
+(`--color-overlay-backdrop`, blur radius) are shared so all modals dim
+identically.
+
 ---
 
 # Part IV — Mobile App (Flutter)
@@ -1550,6 +1564,9 @@ Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for
 ## A33. Scoring Weights Without Maker-Checker / Hardcoded Sub-Scores (Principle V, v4.1.0)
 Activating a `ScoringWeightSet` whose `approvedBy == createdBy`, or whose weights do not sum to 100, or mutating ACTIVE weights in place without a new approved version = review block. Likewise, hardcoding a question/option's sub-score in the engine instead of reading the admin-set `scoreValue` (DIRECT factors), or typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them, = review block. Only COMPUTED factors (e.g. DBR comfort) and the formula/tiers live in code.
 
+## A34. Modal Backdrop That Does Not Cover the Full Viewport (Angular Clean Code Structure, v4.1.1)
+A modal / dialog / sheet whose scrim + blur dims only the content panel instead of the entire viewport (sidebar + top bar + content) = review block. Cause is almost always a hand-rolled `position: fixed` scrim rendered inside an ancestor that establishes a containing block for fixed elements (`transform` / `filter` / `perspective` / `contain` / `will-change`) — notably `section.page`, which runs the `app-page-rise` transform. Fix: prefer `NzModalService` / `NzDrawerService` (portals to `document.body`), or render the custom scrim as a root-level sibling of the page content (outside `section.page`). Use the shared backdrop tokens (`--color-overlay-backdrop`, shared blur radius) so all modals dim identically.
+
 ---
 
 # Governance
@@ -1579,7 +1596,8 @@ Activating a `ScoringWeightSet` whose `approvedBy == createdBy`, or whose weight
 | 3.1.0 | 2026-05-28 | MINOR | New Principle XXXVI — One Screen, One File (Mobile, NON-NEGOTIABLE). Every navigable screen ships as exactly one public widget in its own `*_page.dart` (or `_dialog.dart` / `_sheet.dart` / `_picker.dart`) file. Anti-Pattern A29 enforces it. Pre-v3.1.0 multi-class files (`phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) flagged as tech debt. |
 | 4.0.0 | 2026-06-02 | MAJOR | Principle XIII registration model redefined: customer row created LITE post-OTP/provider, then a MANDATORY profile-completion step (firstName + lastName + birthday + profile photo + National ID front+back; PHONE also password) for BOTH paths — the "upfront full registration" / "loan-request popup" model is gone. New Principle XXXVII (Mandatory Profile Completeness, NON-NEGOTIABLE). Data model: `name`→`firstName`+`lastName`; `age Int`→`birthday DateTime` (age always derived, never stored); new `profilePhotoKey`; `passwordHash` nullable (null for SOCIAL). National ID collected at profile completion (not apply) as two customer-linked Document rows. Guest plumbing (`Application.isGuest`, `mobileClientId`, claim flow) fully removed from code. Anti-Patterns A30/A31/A32 added. Principle VI guest sentence replaced with profile-photo/National-ID PII coverage. |
 | 4.1.0 | 2026-06-02 | MINOR | Principle V extended for the Dynamic Questionnaire & Matching feature: questionnaire (questions/options/branching/order) and per-bank scoring weights + per-option sub-scores become admin-editable DATA; formula/tiers/COMPUTED factors stay code (≥90% tests). Weight changes move from PR review to an in-dashboard two-person maker-checker flow (checker ≠ maker, weights sum to 100, atomic activate+archive, both IDs audited); code-default fallback when no ACTIVE set. Questionnaire published as immutable versioned snapshots. New Anti-Pattern A33. The feature's mobile/customer endpoints remain JWT-gated (no guest — consistent with v4.0.0). |
+| 4.1.1 | 2026-06-02 | PATCH | Angular Clean Code Structure: modal/dialog/sheet backdrops MUST dim the full viewport (sidebar + top bar + content), never just the content panel. Prefer `NzModalService`/`NzDrawerService` (portal to body); a hand-rolled `position: fixed` scrim must NOT live inside a containing-block ancestor (`transform`/`filter`/`contain` — e.g. `section.page`'s `app-page-rise`) and must use shared backdrop tokens. New Anti-Pattern A34. |
 
 ---
 
-**Version**: 4.1.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-02
+**Version**: 4.1.1 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-02

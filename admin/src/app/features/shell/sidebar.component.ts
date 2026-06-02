@@ -92,7 +92,7 @@ import { CanDirective } from '../../shared/can.directive';
 
         <a
           *can="['super_admin', 'sales_manager']"
-          routerLink="/questionnaire/approvals"
+          routerLink="/scoring-approvals"
           routerLinkActive="active"
           class="item"
         >

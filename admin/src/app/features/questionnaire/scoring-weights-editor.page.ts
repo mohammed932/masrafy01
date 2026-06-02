@@ -37,7 +37,7 @@ import {
   template: `
     <section class="page">
       <header class="page-head">
-        <a routerLink="/questionnaire/approvals" class="back" i18n="@@scoring.editor.back">← Approvals inbox</a>
+        <a routerLink="/scoring-approvals" class="back" i18n="@@scoring.editor.back">← Approvals inbox</a>
         <h1 i18n="@@scoring.editor.title">Approval scoring weights</h1>
         <p class="muted small">
           <span class="mono">{{ programId }}</span> ·
