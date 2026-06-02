@@ -56,6 +56,12 @@ export class AdminQuestionnaireController {
     return ok(await this.service.updateGroup(id, dto));
   }
 
+  @Delete('groups/:id')
+  @ApiOperation({ summary: 'Soft-delete a group (blocked while it has active questions)' })
+  async deleteGroup(@Param('id') id: string) {
+    return ok(await this.service.softDeleteGroup(id));
+  }
+
   @Post('questions')
   @ApiOperation({ summary: 'Create a question (code auto-generated)' })
   async createQuestion(@Body() dto: CreateQuestionDto) {
@@ -90,6 +96,12 @@ export class AdminQuestionnaireController {
   @ApiOperation({ summary: 'Edit an option' })
   async updateOption(@Param('optionId') optionId: string, @Body() dto: UpdateOptionDto) {
     return ok(await this.service.updateOption(optionId, dto));
+  }
+
+  @Delete('options/:optionId')
+  @ApiOperation({ summary: 'Soft-delete an option (blocked while a branch references it)' })
+  async deleteOption(@Param('optionId') optionId: string) {
+    return ok(await this.service.softDeleteOption(optionId));
   }
 
   @Post('versions/:category/publish')

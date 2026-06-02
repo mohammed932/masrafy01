@@ -64,10 +64,39 @@ export class QuestionnaireRepository {
     return this.prisma.question.update({ where: { id }, data });
   }
 
-  /** Questions whose enabledWhen references the given question code (delete guard). */
+  /** Active questions whose enabledWhen references the given question code (delete guard). */
   async dependentsOf(category: LoanCategory, questionCode: string): Promise<string[]> {
     const rows = await this.prisma.question.findMany({
-      where: { category, enabledWhen: { path: ['questionCode'], equals: questionCode } },
+      where: {
+        category,
+        isActive: true,
+        enabledWhen: { path: ['questionCode'], equals: questionCode },
+      },
+      select: { code: true },
+    });
+    return rows.map((r) => r.code);
+  }
+
+  /**
+   * Active questions whose enabledWhen branches on a specific option of a
+   * specific question (option delete guard). Matches both questionCode and
+   * optionCode so deleting an unreferenced option of a referenced question is
+   * still allowed.
+   */
+  async optionDependentsOf(
+    category: LoanCategory,
+    questionCode: string,
+    optionCode: string,
+  ): Promise<string[]> {
+    const rows = await this.prisma.question.findMany({
+      where: {
+        category,
+        isActive: true,
+        AND: [
+          { enabledWhen: { path: ['questionCode'], equals: questionCode } },
+          { enabledWhen: { path: ['optionCode'], equals: optionCode } },
+        ],
+      },
       select: { code: true },
     });
     return rows.map((r) => r.code);

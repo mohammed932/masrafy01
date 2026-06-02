@@ -114,6 +114,8 @@
   "OPTION_MISSING_SCORE_VALUE": "Every option of a scoring question needs a score value before publishing.",
   "ENABLED_WHEN_INVALID": "Invalid branching rule: the referenced question/option is missing or comes later.",
   "QUESTION_IN_USE": "Cannot delete: another question's branching depends on this one.",
+  "QUESTION_OPTION_IN_USE": "Cannot delete: another question's branching depends on this option.",
+  "QUESTION_GROUP_NOT_EMPTY": "Cannot delete: remove the group's questions first.",
   "SCORING_FACTOR_NOT_FOUND": "Scoring factor not found.",
   "WEIGHT_SET_NOT_FOUND": "Weight set not found.",
   "WEIGHTS_MUST_SUM_TO_100": "Weights must add up to exactly 100.",

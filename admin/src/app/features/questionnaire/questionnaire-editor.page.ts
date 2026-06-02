@@ -10,9 +10,15 @@ import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { EditOutline, DeleteOutline, EllipsisOutline } from '@ant-design/icons-angular/icons';
 import {
   QuestionnaireApiService,
   type GroupTreeRow,
+  type OptionRow,
+  type QuestionRow,
   type LoanCategory,
 } from './questionnaire.api.service';
 
@@ -39,7 +45,10 @@ type Mode = null | 'group' | 'question' | 'option';
     NzSwitchModule,
     NzSpinModule,
     NzEmptyModule,
+    NzIconModule,
+    NzDropDownModule,
   ],
+  providers: [provideNzIconsPatch([EditOutline, DeleteOutline, EllipsisOutline])],
   template: `
     <section class="page">
       <!-- Hero -->
@@ -95,9 +104,38 @@ type Mode = null | 'group' | 'question' | 'option';
                   <span class="count-pill">{{ g.questions.length }}</span>
                   <code class="code-chip">{{ g.code }}</code>
                 </div>
-                <button nz-button nzSize="small" (click)="startQuestion(g)" i18n="@@qedit.add_question">
-                  ＋ Question
-                </button>
+                <div class="ghead-actions">
+                  <button nz-button nzSize="small" (click)="startQuestion(g)" i18n="@@qedit.add_question">
+                    ＋ Question
+                  </button>
+                  <button
+                    type="button"
+                    class="kebab"
+                    nz-button
+                    nzType="text"
+                    nzShape="circle"
+                    nz-dropdown
+                    [nzDropdownMenu]="gMenu"
+                    nzTrigger="click"
+                    nzPlacement="bottomRight"
+                    aria-label="Group actions"
+                    i18n-aria-label="@@qedit.group_actions_aria"
+                  >
+                    <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
+                  </button>
+                  <nz-dropdown-menu #gMenu="nzDropdownMenu">
+                    <ul nz-menu class="row-menu">
+                      <li nz-menu-item (click)="editGroup(g)">
+                        <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
+                        <span i18n="@@qedit.menu_edit">Edit</span>
+                      </li>
+                      <li nz-menu-item (click)="confirmDeleteGroup(g)">
+                        <span nz-icon nzType="delete" nzTheme="outline" style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"></span>
+                        <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete">Delete</span>
+                      </li>
+                    </ul>
+                  </nz-dropdown-menu>
+                </div>
               </header>
 
               @if (g.questions.length === 0) {
@@ -112,6 +150,33 @@ type Mode = null | 'group' | 'question' | 'option';
                       @if (q.isRequired) {
                         <span class="req" i18n="@@qedit.required_chip">required</span>
                       }
+                      <button
+                        type="button"
+                        class="kebab"
+                        nz-button
+                        nzType="text"
+                        nzShape="circle"
+                        nz-dropdown
+                        [nzDropdownMenu]="qMenu"
+                        nzTrigger="click"
+                        nzPlacement="bottomRight"
+                        aria-label="Question actions"
+                        i18n-aria-label="@@qedit.question_actions_aria"
+                      >
+                        <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
+                      </button>
+                      <nz-dropdown-menu #qMenu="nzDropdownMenu">
+                        <ul nz-menu class="row-menu">
+                          <li nz-menu-item (click)="editQuestion(q)">
+                            <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
+                            <span i18n="@@qedit.menu_edit">Edit</span>
+                          </li>
+                          <li nz-menu-item (click)="confirmDeleteQuestion(q)">
+                            <span nz-icon nzType="delete" nzTheme="outline" style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"></span>
+                            <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete">Delete</span>
+                          </li>
+                        </ul>
+                      </nz-dropdown-menu>
                     </div>
                     <div class="meta">
                       <code class="code-chip">{{ q.code }}</code>
@@ -147,6 +212,34 @@ type Mode = null | 'group' | 'question' | 'option';
                               @if (o.scoreValue) { <span class="metric score">s {{ o.scoreValue }}</span> }
                               @if (o.profileValue) { <span class="metric">{{ o.profileValue }}</span> }
                             </span>
+                            <button
+                              type="button"
+                              class="kebab"
+                              nz-button
+                              nzType="text"
+                              nzShape="circle"
+                              nzSize="small"
+                              nz-dropdown
+                              [nzDropdownMenu]="oMenu"
+                              nzTrigger="click"
+                              nzPlacement="bottomRight"
+                              aria-label="Option actions"
+                              i18n-aria-label="@@qedit.option_actions_aria"
+                            >
+                              <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
+                            </button>
+                            <nz-dropdown-menu #oMenu="nzDropdownMenu">
+                              <ul nz-menu class="row-menu">
+                                <li nz-menu-item (click)="editOption(o)">
+                                  <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
+                                  <span i18n="@@qedit.menu_edit">Edit</span>
+                                </li>
+                                <li nz-menu-item (click)="confirmDeleteOption(o)">
+                                  <span nz-icon nzType="delete" nzTheme="outline" style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"></span>
+                                  <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete">Delete</span>
+                                </li>
+                              </ul>
+                            </nz-dropdown-menu>
                           </li>
                         }
                       </ul>
@@ -172,14 +265,25 @@ type Mode = null | 'group' | 'question' | 'option';
               <header class="ins-head">
                 <h3>
                   @switch (mode()) {
-                    @case ('group') { <span i18n="@@qedit.new_group">New group</span> }
-                    @case ('question') { <span i18n="@@qedit.new_question">New question</span> }
-                    @default { <span i18n="@@qedit.new_option">New option</span> }
+                    @case ('group') {
+                      @if (editing()) { <span i18n="@@qedit.edit_group">Edit group</span> }
+                      @else { <span i18n="@@qedit.new_group">New group</span> }
+                    }
+                    @case ('question') {
+                      @if (editing()) { <span i18n="@@qedit.edit_question">Edit question</span> }
+                      @else { <span i18n="@@qedit.new_question">New question</span> }
+                    }
+                    @default {
+                      @if (editing()) { <span i18n="@@qedit.edit_option">Edit option</span> }
+                      @else { <span i18n="@@qedit.new_option">New option</span> }
+                    }
                   }
                 </h3>
                 <button nz-button nzType="text" nzShape="circle" (click)="cancel()" aria-label="Close">✕</button>
               </header>
-              <p class="ins-note" i18n="@@qedit.code_note">A stable code is generated automatically — no need to type one.</p>
+              @if (!editing()) {
+                <p class="ins-note" i18n="@@qedit.code_note">A stable code is generated automatically — no need to type one.</p>
+              }
 
               @if (mode() === 'group') {
                 <form [formGroup]="groupForm" class="form" (ngSubmit)="submitGroup()">
@@ -372,6 +476,19 @@ type Mode = null | 'group' | 'question' | 'option';
       .group-card:hover { box-shadow: 0 4px 16px rgba(16, 24, 40, 0.06); border-color: color-mix(in srgb, var(--qe-primary) 25%, var(--qe-line)); }
       .group-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3, 12px); }
       .ghead-left { display: flex; align-items: center; gap: var(--space-3, 12px); min-inline-size: 0; flex-wrap: wrap; }
+      .ghead-actions { display: flex; align-items: center; gap: var(--space-2, 8px); flex-shrink: 0; }
+
+      /* Overflow kebab (⋮) — always visible, one per group / question / option
+         row, inline beside the row content. Quiet muted dot; azure on hover.
+         Opens a small Edit · Delete menu. */
+      .kebab {
+        flex-shrink: 0;
+        color: var(--qe-muted);
+        transition: color 120ms ease;
+      }
+      .kebab:hover, .kebab:focus-visible { color: var(--qe-primary); }
+      /* ellipsis is horizontal by default → rotate to a vertical kebab */
+      .kebab span[nz-icon] { transform: rotate(90deg); }
       .drag { color: var(--qe-muted); cursor: grab; font-size: 16px; line-height: 1; opacity: 0.5; }
       .gtitle h2 { margin: 0; font-size: 16px; font-weight: 600; }
       .gtitle .ar { font-size: 12px; color: var(--qe-muted); }
@@ -441,11 +558,12 @@ type Mode = null | 'group' | 'question' | 'option';
       }
       .opts { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
       .opt {
+        position: relative;
         display: flex; align-items: center; justify-content: space-between; gap: var(--space-3, 12px);
         font-size: 13px; padding: 4px 8px; border-radius: 8px;
       }
       .opt:hover { background: var(--ant-background-color-light, #f6f8fa); }
-      .opt-label { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .opt-label { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .opt-metrics { display: flex; gap: 6px; flex-shrink: 0; }
       .metric {
         font-family: var(--font-family-mono, 'JetBrains Mono', monospace);
@@ -510,6 +628,7 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly message = inject(NzMessageService);
+  private readonly modal = inject(NzModalService);
 
   readonly roles = SYSTEM_ROLES;
   /** Active admin locale drives label language (ar build → Arabic, else English). */
@@ -518,12 +637,16 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly groups = signal<GroupTreeRow[]>([]);
   readonly loading = signal(true);
   readonly mode = signal<Mode>(null);
+  /** true → drawer is editing an existing node; false → creating a new one. */
+  readonly editing = signal(false);
   readonly totalQuestions = computed(() =>
     this.groups().reduce((sum, g) => sum + g.questions.length, 0),
   );
 
   private activeGroupId = '';
   private activeQuestionId = '';
+  /** Id of the node being edited (empty in create mode). */
+  private editingId = '';
 
   readonly groupForm = new FormGroup({
     titleEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -557,25 +680,78 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   startGroup(): void {
+    this.editingId = '';
+    this.editing.set(false);
     this.groupForm.reset({ titleEn: '', titleAr: '', displayOrder: this.groups().length });
     this.mode.set('group');
   }
+  editGroup(g: GroupTreeRow): void {
+    this.editingId = g.id;
+    this.editing.set(true);
+    this.groupForm.reset({ titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: g.displayOrder });
+    this.mode.set('group');
+  }
+
   startQuestion(g: GroupTreeRow): void {
     this.activeGroupId = g.id;
+    this.editingId = '';
+    this.editing.set(false);
+    this.questionForm.controls.systemRole.enable();
     this.questionForm.reset({ displayOrder: g.questions.length, isRequired: true } as never);
     this.mode.set('question');
   }
+  editQuestion(q: QuestionRow): void {
+    this.editingId = q.id;
+    this.editing.set(true);
+    this.questionForm.reset({
+      questionEn: q.questionEn,
+      questionAr: q.questionAr,
+      displayOrder: q.displayOrder,
+      systemRole: q.systemRole,
+      scoringFactorCode: q.scoringFactorCode ?? '',
+      profileField: q.profileField ?? '',
+      isRequired: q.isRequired,
+    } as never);
+    // systemRole is immutable post-creation (A33) — show it but lock it.
+    this.questionForm.controls.systemRole.disable();
+    this.mode.set('question');
+  }
+
   startOption(questionId: string): void {
     this.activeQuestionId = questionId;
+    this.editingId = '';
+    this.editing.set(false);
     this.optionForm.reset({ displayOrder: 0 } as never);
+    this.mode.set('option');
+  }
+  editOption(o: OptionRow): void {
+    this.editingId = o.id;
+    this.editing.set(true);
+    this.optionForm.reset({
+      labelEn: o.labelEn,
+      labelAr: o.labelAr,
+      displayOrder: o.displayOrder,
+      numericPoint: o.numericPoint != null ? Number(o.numericPoint) : null,
+      scoreValue: o.scoreValue != null ? Number(o.scoreValue) : null,
+      profileValue: o.profileValue ?? '',
+    } as never);
     this.mode.set('option');
   }
 
   async submitGroup(): Promise<void> {
     if (this.groupForm.invalid) return;
     const v = this.groupForm.getRawValue();
-    await this.api.createGroup({ category: this.category, ...v });
-    this.message.success($localize`:@@qedit.group_added:Group added`);
+    if (this.editing()) {
+      await this.api.updateGroup(this.editingId, {
+        titleEn: v.titleEn,
+        titleAr: v.titleAr,
+        displayOrder: v.displayOrder,
+      });
+      this.message.success($localize`:@@qedit.group_saved:Group saved`);
+    } else {
+      await this.api.createGroup({ category: this.category, ...v });
+      this.message.success($localize`:@@qedit.group_added:Group added`);
+    }
     this.mode.set(null);
     await this.reload();
   }
@@ -583,18 +759,31 @@ export class QuestionnaireEditorPage implements OnInit {
   async submitQuestion(): Promise<void> {
     if (this.questionForm.invalid) return;
     const v = this.questionForm.getRawValue();
-    await this.api.createQuestion({
-      groupId: this.activeGroupId,
-      category: this.category,
-      questionEn: v.questionEn,
-      questionAr: v.questionAr,
-      displayOrder: v.displayOrder,
-      isRequired: v.isRequired,
-      systemRole: v.systemRole ?? undefined,
-      scoringFactorCode: v.scoringFactorCode || undefined,
-      profileField: v.profileField || undefined,
-    });
-    this.message.success($localize`:@@qedit.question_added:Question added`);
+    if (this.editing()) {
+      // `code`, `category`, `systemRole` are immutable (A33) — never sent.
+      await this.api.updateQuestion(this.editingId, {
+        questionEn: v.questionEn,
+        questionAr: v.questionAr,
+        displayOrder: v.displayOrder,
+        isRequired: v.isRequired,
+        scoringFactorCode: v.scoringFactorCode || undefined,
+        profileField: v.profileField || undefined,
+      });
+      this.message.success($localize`:@@qedit.question_saved:Question saved`);
+    } else {
+      await this.api.createQuestion({
+        groupId: this.activeGroupId,
+        category: this.category,
+        questionEn: v.questionEn,
+        questionAr: v.questionAr,
+        displayOrder: v.displayOrder,
+        isRequired: v.isRequired,
+        systemRole: v.systemRole ?? undefined,
+        scoringFactorCode: v.scoringFactorCode || undefined,
+        profileField: v.profileField || undefined,
+      });
+      this.message.success($localize`:@@qedit.question_added:Question added`);
+    }
     this.mode.set(null);
     await this.reload();
   }
@@ -602,17 +791,93 @@ export class QuestionnaireEditorPage implements OnInit {
   async submitOption(): Promise<void> {
     if (this.optionForm.invalid) return;
     const v = this.optionForm.getRawValue();
-    await this.api.createOption(this.activeQuestionId, {
-      labelEn: v.labelEn,
-      labelAr: v.labelAr,
-      displayOrder: v.displayOrder,
-      numericPoint: v.numericPoint ?? undefined,
-      scoreValue: v.scoreValue ?? undefined,
-      profileValue: v.profileValue || undefined,
-    });
-    this.message.success($localize`:@@qedit.option_added:Option added`);
+    if (this.editing()) {
+      await this.api.updateOption(this.editingId, {
+        labelEn: v.labelEn,
+        labelAr: v.labelAr,
+        displayOrder: v.displayOrder,
+        numericPoint: v.numericPoint ?? undefined,
+        scoreValue: v.scoreValue ?? undefined,
+        profileValue: v.profileValue || undefined,
+      });
+      this.message.success($localize`:@@qedit.option_saved:Option saved`);
+    } else {
+      await this.api.createOption(this.activeQuestionId, {
+        labelEn: v.labelEn,
+        labelAr: v.labelAr,
+        displayOrder: v.displayOrder,
+        numericPoint: v.numericPoint ?? undefined,
+        scoreValue: v.scoreValue ?? undefined,
+        profileValue: v.profileValue || undefined,
+      });
+      this.message.success($localize`:@@qedit.option_added:Option added`);
+    }
     this.mode.set(null);
     await this.reload();
+  }
+
+  // ---- Deletes (soft-delete server-side; typed-error toasts via interceptor) --
+  confirmDeleteGroup(g: GroupTreeRow): void {
+    this.modal.confirm({
+      nzTitle: $localize`:@@qedit.del_group_title:Delete this group?`,
+      nzContent: this.isAr ? g.titleAr : g.titleEn,
+      nzCentered: true,
+      nzIconType: 'delete',
+      nzOkText: $localize`:@@qedit.del_ok:Delete`,
+      nzOkDanger: true,
+      nzCancelText: $localize`:@@qedit.del_cancel:Cancel`,
+      nzOnOk: async () => {
+        try {
+          await this.api.deleteGroup(g.id);
+          this.message.success($localize`:@@qedit.group_deleted:Group deleted`);
+          await this.reload();
+        } catch {
+          /* blocked / failed — localized toast already shown by the interceptor */
+        }
+      },
+    });
+  }
+
+  confirmDeleteQuestion(q: QuestionRow): void {
+    this.modal.confirm({
+      nzTitle: $localize`:@@qedit.del_question_title:Delete this question?`,
+      nzContent: this.isAr ? q.questionAr : q.questionEn,
+      nzCentered: true,
+      nzIconType: 'delete',
+      nzOkText: $localize`:@@qedit.del_ok:Delete`,
+      nzOkDanger: true,
+      nzCancelText: $localize`:@@qedit.del_cancel:Cancel`,
+      nzOnOk: async () => {
+        try {
+          await this.api.deleteQuestion(q.id);
+          this.message.success($localize`:@@qedit.question_deleted:Question deleted`);
+          await this.reload();
+        } catch {
+          /* blocked / failed — localized toast already shown by the interceptor */
+        }
+      },
+    });
+  }
+
+  confirmDeleteOption(o: OptionRow): void {
+    this.modal.confirm({
+      nzTitle: $localize`:@@qedit.del_option_title:Delete this option?`,
+      nzContent: this.isAr ? o.labelAr : o.labelEn,
+      nzCentered: true,
+      nzIconType: 'delete',
+      nzOkText: $localize`:@@qedit.del_ok:Delete`,
+      nzOkDanger: true,
+      nzCancelText: $localize`:@@qedit.del_cancel:Cancel`,
+      nzOnOk: async () => {
+        try {
+          await this.api.deleteOption(o.id);
+          this.message.success($localize`:@@qedit.option_deleted:Option deleted`);
+          await this.reload();
+        } catch {
+          /* blocked / failed — localized toast already shown by the interceptor */
+        }
+      },
+    });
   }
 
   async publish(): Promise<void> {

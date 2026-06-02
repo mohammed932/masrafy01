@@ -113,6 +113,33 @@ export interface CreateOptionBody {
   profileValue?: string;
 }
 
+/** Group edits — title/order only; `code` and `category` are immutable (A33). */
+export interface UpdateGroupBody {
+  titleAr?: string;
+  titleEn?: string;
+  displayOrder?: number;
+}
+/** Question edits — `code`, `category`, `systemRole` are immutable (A33). */
+export interface UpdateQuestionBody {
+  questionAr?: string;
+  questionEn?: string;
+  displayOrder?: number;
+  isRequired?: boolean;
+  scoringFactorCode?: string;
+  profileField?: string;
+}
+/** Option edits — `code` is immutable (A33). */
+export interface UpdateOptionBody {
+  labelAr?: string;
+  labelEn?: string;
+  displayOrder?: number;
+  numericMin?: number;
+  numericMax?: number;
+  numericPoint?: number;
+  scoreValue?: number;
+  profileValue?: string;
+}
+
 /** Admin API for Feature 009 (questionnaire + scoring weights maker-checker). */
 @Injectable({ providedIn: 'root' })
 export class QuestionnaireApiService {
@@ -163,12 +190,36 @@ export class QuestionnaireApiService {
     return this.post<GroupTreeRow>(`/questionnaire/groups`, body);
   }
 
+  updateGroup(id: string, body: UpdateGroupBody): Promise<GroupTreeRow> {
+    return this.patch<GroupTreeRow>(`/questionnaire/groups/${id}`, body);
+  }
+
+  deleteGroup(id: string): Promise<GroupTreeRow> {
+    return this.del<GroupTreeRow>(`/questionnaire/groups/${id}`);
+  }
+
   createQuestion(body: CreateQuestionBody): Promise<QuestionRow> {
     return this.post<QuestionRow>(`/questionnaire/questions`, body);
   }
 
+  updateQuestion(id: string, body: UpdateQuestionBody): Promise<QuestionRow> {
+    return this.patch<QuestionRow>(`/questionnaire/questions/${id}`, body);
+  }
+
+  deleteQuestion(id: string): Promise<QuestionRow> {
+    return this.del<QuestionRow>(`/questionnaire/questions/${id}`);
+  }
+
   createOption(questionId: string, body: CreateOptionBody): Promise<OptionRow> {
     return this.post<OptionRow>(`/questionnaire/questions/${questionId}/options`, body);
+  }
+
+  updateOption(optionId: string, body: UpdateOptionBody): Promise<OptionRow> {
+    return this.patch<OptionRow>(`/questionnaire/options/${optionId}`, body);
+  }
+
+  deleteOption(optionId: string): Promise<OptionRow> {
+    return this.del<OptionRow>(`/questionnaire/options/${optionId}`);
   }
 
   versionHistory(category: LoanCategory): Promise<QuestionnaireVersionRow[]> {
@@ -186,6 +237,14 @@ export class QuestionnaireApiService {
   }
   private async post<T>(path: string, body: unknown): Promise<T> {
     const res = await firstValueFrom(this.http.post<SuccessEnvelope<T>>(`${this.base()}${path}`, body));
+    return res.data;
+  }
+  private async patch<T>(path: string, body: unknown): Promise<T> {
+    const res = await firstValueFrom(this.http.patch<SuccessEnvelope<T>>(`${this.base()}${path}`, body));
+    return res.data;
+  }
+  private async del<T>(path: string): Promise<T> {
+    const res = await firstValueFrom(this.http.delete<SuccessEnvelope<T>>(`${this.base()}${path}`));
     return res.data;
   }
 }

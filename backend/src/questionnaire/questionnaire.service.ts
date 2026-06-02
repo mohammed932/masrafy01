@@ -48,6 +48,20 @@ export class QuestionnaireService {
     });
   }
 
+  /** Soft-delete a group; blocked while it still holds active questions. */
+  async softDeleteGroup(id: string) {
+    const group = await this.repo.findGroup(id);
+    if (!group) throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
+    const questions = await this.repo.questionsByCategory(group.category);
+    const active = questions.filter((q) => q.groupId === id && q.isActive);
+    if (active.length > 0) {
+      throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_EMPTY, {
+        questionCount: active.length,
+      });
+    }
+    return this.repo.updateGroup(id, { isActive: false });
+  }
+
   listGroups(category: LoanCategory) {
     return this.repo.groupsByCategory(category);
   }
@@ -163,6 +177,23 @@ export class QuestionnaireService {
     });
   }
 
+  /** Soft-delete an option; blocked while a branch (enabledWhen) references it. */
+  async softDeleteOption(id: string) {
+    const option = await this.repo.findOption(id);
+    if (!option) throw new DomainException(ERROR_CODES.QUESTION_OPTION_NOT_FOUND);
+    const question = await this.repo.findQuestion(option.questionId);
+    if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
+    const dependents = await this.repo.optionDependentsOf(
+      question.category,
+      question.code,
+      option.code,
+    );
+    if (dependents.length > 0) {
+      throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
+    }
+    return this.repo.updateOption(id, { isActive: false });
+  }
+
   listOptions(questionId: string) {
     return this.repo.optionsByQuestion(questionId);
   }
@@ -233,15 +264,20 @@ export class QuestionnaireService {
     });
   }
 
-  /** Editable working tree (active + inactive) for the admin editor + preview. */
+  /**
+   * Editable working tree for the admin editor + preview. Only ACTIVE nodes are
+   * returned — soft-deleted groups/questions/options are excluded so a delete
+   * visibly removes the row, consistent with what `publish` snapshots.
+   */
   async draftTree(category: LoanCategory) {
-    const groups = await this.repo.groupsByCategory(category);
-    const questions = await this.repo.questionsByCategory(category);
+    const groups = (await this.repo.groupsByCategory(category)).filter((g) => g.isActive);
+    const questions = (await this.repo.questionsByCategory(category)).filter((q) => q.isActive);
     const result = [];
     for (const g of groups) {
       const gQuestions = [];
       for (const q of questions.filter((qq) => qq.groupId === g.id)) {
-        gQuestions.push({ ...q, options: await this.repo.optionsByQuestion(q.id) });
+        const options = (await this.repo.optionsByQuestion(q.id)).filter((o) => o.isActive);
+        gQuestions.push({ ...q, options });
       }
       result.push({ ...g, questions: gQuestions });
     }
