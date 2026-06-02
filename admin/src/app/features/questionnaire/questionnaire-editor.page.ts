@@ -7,7 +7,6 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
-import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzMessageService } from 'ng-zorro-antd/message';
@@ -38,7 +37,6 @@ type Mode = null | 'group' | 'question' | 'option';
     NzInputNumberModule,
     NzSelectModule,
     NzSwitchModule,
-    NzTagModule,
     NzSpinModule,
     NzEmptyModule,
   ],
@@ -115,11 +113,29 @@ type Mode = null | 'group' | 'question' | 'option';
                         <span class="req" i18n="@@qedit.required_chip">required</span>
                       }
                     </div>
-                    <div class="chips">
+                    <div class="meta">
                       <code class="code-chip">{{ q.code }}</code>
-                      @if (q.systemRole) { <nz-tag nzColor="geekblue">⚙ {{ q.systemRole }}</nz-tag> }
-                      @if (q.scoringFactorCode) { <nz-tag nzColor="purple">★ {{ q.scoringFactorCode }}</nz-tag> }
-                      @if (q.profileField) { <nz-tag nzColor="cyan">↪ {{ q.profileField }}</nz-tag> }
+                      @if (q.systemRole) {
+                        <span class="facet role">
+                          <i class="dot" aria-hidden="true"></i>
+                          <span class="k" i18n="@@qedit.facet_role">role</span>
+                          <span class="v">{{ q.systemRole }}</span>
+                        </span>
+                      }
+                      @if (q.scoringFactorCode) {
+                        <span class="facet score">
+                          <i class="dot" aria-hidden="true"></i>
+                          <span class="k" i18n="@@qedit.facet_score">score</span>
+                          <span class="v">{{ q.scoringFactorCode }}</span>
+                        </span>
+                      }
+                      @if (q.profileField) {
+                        <span class="facet profile">
+                          <i class="dot" aria-hidden="true"></i>
+                          <span class="k" i18n="@@qedit.facet_maps">maps</span>
+                          <span class="v">{{ q.profileField }}</span>
+                        </span>
+                      }
                     </div>
                     @if (q.options.length > 0) {
                       <ul class="opts">
@@ -374,10 +390,11 @@ type Mode = null | 'group' | 'question' | 'option';
       /* Question card grid — uses the full width */
       .q-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--space-4, 16px);
         margin-block-start: var(--space-4, 16px);
       }
+      @media (max-width: 760px) { .q-grid { grid-template-columns: 1fr; } }
       .q-card {
         position: relative;
         border: 1px solid var(--qe-line);
@@ -401,7 +418,27 @@ type Mode = null | 'group' | 'question' | 'option';
         background: color-mix(in srgb, var(--ant-warning-color, #c8893d) 12%, transparent);
         padding: 1px 7px; border-radius: 999px;
       }
-      .chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-block: 6px; }
+      /* Metadata strip — quiet key:value facets with a semantic dot */
+      .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-block: 8px; }
+      .facet {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 2px 9px 2px 7px;
+        border-radius: 999px;
+        background: var(--ant-background-color-light, #f6f8fa);
+        border: 1px solid var(--qe-line);
+      }
+      .facet .dot { inline-size: 7px; block-size: 7px; border-radius: 50%; flex-shrink: 0; }
+      .facet.role .dot { background: var(--ant-info-color, #3d5a80); }
+      .facet.score .dot { background: var(--ant-warning-color, #c8893d); }
+      .facet.profile .dot { background: var(--ant-success-color, #2d5f3f); }
+      .facet .k {
+        font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        color: var(--qe-muted);
+      }
+      .facet .v {
+        font-family: var(--font-family-mono, 'JetBrains Mono', monospace);
+        font-size: 11px; font-weight: 600; color: var(--ant-text-color, #1a2433);
+      }
       .opts { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
       .opt {
         display: flex; align-items: center; justify-content: space-between; gap: var(--space-3, 12px);
