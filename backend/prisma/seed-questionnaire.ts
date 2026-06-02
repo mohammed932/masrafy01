@@ -618,7 +618,7 @@ async function main(): Promise<void> {
   for (const cfg of CONFIGS) {
     await seedCategory(cfg);
   }
-  await alignEmploymentEligibility();
+  await alignEligibility();
   console.log('seed-questionnaire: done for', CONFIGS.map((c) => c.category).join(', '));
 }
 
@@ -634,23 +634,29 @@ async function seedCategory(cfg: CategoryConfig): Promise<void> {
     });
   }
 
-  // 2) Groups + questions + options
+  // 2) Groups + questions + options. Track config codes so stale rows from a
+  //    previous seed (renamed labels → new slugs) get deactivated, not left as
+  //    duplicates. `isActive: true` on update reactivates anything previously off.
+  const groupCodes: string[] = [];
+  const questionCodes: string[] = [];
   let gOrder = 0;
   let qOrder = 0;
   for (const g of cfg.groups) {
     gOrder += 1;
+    groupCodes.push(g.code);
     const group = await prisma.questionGroup.upsert({
       where: { uniq_question_group_category_code: { category, code: g.code } },
-      update: { titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: gOrder },
+      update: { titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: gOrder, isActive: true },
       create: { category, code: g.code, titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: gOrder },
     });
     for (const q of g.questions) {
       qOrder += 1;
+      questionCodes.push(q.code);
       const question = await prisma.question.upsert({
         where: { uniq_question_category_code: { category, code: q.code } },
         update: {
           groupId: group.id, questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder,
-          isRequired: q.isRequired ?? true,
+          isRequired: q.isRequired ?? true, isActive: true,
           systemRole: (q.systemRole as never) ?? null, scoringFactorCode: q.scoringFactorCode ?? null, profileField: q.profileField ?? null,
         },
         create: {
@@ -659,18 +665,28 @@ async function seedCategory(cfg: CategoryConfig): Promise<void> {
           systemRole: (q.systemRole as never) ?? null, scoringFactorCode: q.scoringFactorCode ?? null, profileField: q.profileField ?? null,
         },
       });
+      const optionCodes: string[] = [];
       let oOrder = 0;
       for (const o of q.options) {
         oOrder += 1;
         const code = slug(o.labelEn);
+        optionCodes.push(code);
         await prisma.questionOption.upsert({
           where: { uniq_question_option_question_code: { questionId: question.id, code } },
-          update: { labelEn: o.labelEn, labelAr: o.labelAr, displayOrder: oOrder, numericPoint: o.numericPoint ?? null, scoreValue: o.scoreValue ?? null, profileValue: o.profileValue ?? null },
+          update: { labelEn: o.labelEn, labelAr: o.labelAr, displayOrder: oOrder, isActive: true, numericPoint: o.numericPoint ?? null, scoreValue: o.scoreValue ?? null, profileValue: o.profileValue ?? null },
           create: { questionId: question.id, code, labelEn: o.labelEn, labelAr: o.labelAr, displayOrder: oOrder, numericPoint: o.numericPoint ?? null, scoreValue: o.scoreValue ?? null, profileValue: o.profileValue ?? null },
         });
       }
+      // Deactivate stale options under this question (dropped from config).
+      await prisma.questionOption.updateMany({
+        where: { questionId: question.id, code: { notIn: optionCodes } },
+        data: { isActive: false },
+      });
     }
   }
+  // Deactivate stale questions + groups (dropped/renamed) for this category.
+  await prisma.question.updateMany({ where: { category, code: { notIn: questionCodes } }, data: { isActive: false } });
+  await prisma.questionGroup.updateMany({ where: { category, code: { notIn: groupCodes } }, data: { isActive: false } });
 
   // 3) Publish snapshot
   await publishVersion(category);
@@ -694,20 +710,37 @@ async function seedCategory(cfg: CategoryConfig): Promise<void> {
   console.log(`  ${category}: ${cfg.groups.length} groups, ${cfg.factors.length} factors, ${programs.length} weight sets.`);
 }
 
-/** Extend every active program's acceptedEmploymentTypes to the full code set so
- *  the questionnaire's employment options pass eligibility (additive). */
-async function alignEmploymentEligibility(): Promise<void> {
-  const programs = await prisma.bankProgram.findMany({ where: { active: true }, select: { id: true, eligibility: true } });
+/** Align every active program's accepted lists with the questionnaire's option
+ *  codes (additive) so answers pass eligibility:
+ *   - acceptedEmploymentTypes ← full employment code set
+ *   - acceptedTransferTypes   ← add `full_transfer` (the "Yes, salary transferred"
+ *     answer). `no_transfer` is intentionally NOT added, so transfer-requiring
+ *     programs still reject a no-transfer applicant. */
+async function alignEligibility(): Promise<void> {
+  // Categories whose questionnaire does NOT ask job tenure → programs there must
+  // not gate on minMonthsInJob (can't be answered, so it can't reject).
+  const NO_JOB_TENURE = new Set<string>(['mortgage', 'car', 'business']);
+  const programs = await prisma.bankProgram.findMany({ where: { active: true }, select: { id: true, productCategory: true, eligibility: true, tenor: true } });
   for (const p of programs) {
     const elig = (p.eligibility ?? {}) as Record<string, unknown>;
-    const current = Array.isArray(elig.acceptedEmploymentTypes) ? (elig.acceptedEmploymentTypes as string[]) : [];
-    const merged = Array.from(new Set([...current, ...ALL_EMPLOYMENT_CODES]));
-    await prisma.bankProgram.update({
-      where: { id: p.id },
-      data: { eligibility: { ...elig, acceptedEmploymentTypes: merged } as never },
-    });
+    const emp = Array.isArray(elig.acceptedEmploymentTypes) ? (elig.acceptedEmploymentTypes as string[]) : [];
+    const transfer = Array.isArray(elig.acceptedTransferTypes) ? (elig.acceptedTransferTypes as string[]) : [];
+    const next: Record<string, unknown> = {
+      ...elig,
+      acceptedEmploymentTypes: Array.from(new Set([...emp, ...ALL_EMPLOYMENT_CODES])),
+      acceptedTransferTypes: Array.from(new Set([...transfer, 'full_transfer'])),
+    };
+    if (NO_JOB_TENURE.has(p.productCategory.toLowerCase())) next.minMonthsInJob = 0;
+
+    const data: Record<string, unknown> = { eligibility: next };
+    // Correct mis-seeded mortgage tenor cap (84mo) so realistic 10–30y requests match.
+    if (p.productCategory.toLowerCase() === 'mortgage') {
+      const tenor = (p.tenor ?? {}) as Record<string, unknown>;
+      if (Number(tenor.maxMonths ?? 0) < 120) data.tenor = { ...tenor, maxMonths: 300 };
+    }
+    await prisma.bankProgram.update({ where: { id: p.id }, data: data as never });
   }
-  console.log(`  aligned acceptedEmploymentTypes on ${programs.length} programs.`);
+  console.log(`  aligned employment + transfer (+ job-tenure relax) on ${programs.length} programs.`);
 }
 
 async function publishVersion(category: Category): Promise<void> {

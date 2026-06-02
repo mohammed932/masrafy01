@@ -613,13 +613,29 @@ export class ApplicationsService {
       tenor: p.tenor as unknown as BankProgramSnapshot['tenor'],
       loanLimits: p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
       pricing: p.pricing as unknown as BankProgramSnapshot['pricing'],
-      eligibility: p.eligibility as unknown as BankProgramSnapshot['eligibility'],
+      eligibility: this.normalizeEligibility(p.eligibility),
       incomeAssumption: p.incomeAssumption as unknown as BankProgramSnapshot['incomeAssumption'],
       fees: p.fees as unknown as BankProgramSnapshot['fees'],
       performanceCriteria: p.performanceCriteria as unknown as
         | BankProgramSnapshot['performanceCriteria']
         | undefined,
     };
+  }
+
+  /**
+   * Reconcile feature-002 bank-program eligibility JSON with the feature-003
+   * engine shape: `ageMin`/`ageMax` → `minAge`/`maxAge`, `acceptedTransferTypes`
+   * → `acceptedSalaryTransferTypes`. Without this the age + transfer checks read
+   * undefined and reject everyone.
+   */
+  private normalizeEligibility(raw: unknown): BankProgramSnapshot['eligibility'] {
+    const e = (raw ?? {}) as Record<string, unknown>;
+    return {
+      ...e,
+      minAge: e['minAge'] ?? e['ageMin'],
+      maxAge: e['maxAge'] ?? e['ageMax'],
+      acceptedSalaryTransferTypes: e['acceptedSalaryTransferTypes'] ?? e['acceptedTransferTypes'],
+    } as unknown as BankProgramSnapshot['eligibility'];
   }
 
   private buildProfile(dto: ApplyRequestDto): ApplicantProfile {

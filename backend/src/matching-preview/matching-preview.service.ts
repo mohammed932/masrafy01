@@ -198,6 +198,22 @@ export class MatchingPreviewService {
 
 type ProgramRow = Awaited<ReturnType<BankProgramRepository['findAllActive']>>[number];
 
+/**
+ * Reconcile feature-002 bank-program eligibility JSON with the feature-003
+ * engine `EligibilityConfig` shape. Known key drift: `ageMin`/`ageMax` →
+ * `minAge`/`maxAge`, `acceptedTransferTypes` → `acceptedSalaryTransferTypes`.
+ * Without this the age check reads undefined and rejects everyone.
+ */
+function normalizeEligibility(raw: unknown): BankProgramSnapshot['eligibility'] {
+  const e = (raw ?? {}) as Record<string, unknown>;
+  return {
+    ...e,
+    minAge: e['minAge'] ?? e['ageMin'],
+    maxAge: e['maxAge'] ?? e['ageMax'],
+    acceptedSalaryTransferTypes: e['acceptedSalaryTransferTypes'] ?? e['acceptedTransferTypes'],
+  } as unknown as BankProgramSnapshot['eligibility'];
+}
+
 /** Map a BankProgram row (feature-002 JSON) into the engine snapshot. */
 function toSnapshot(p: ProgramRow): BankProgramSnapshot {
   return {
@@ -216,7 +232,7 @@ function toSnapshot(p: ProgramRow): BankProgramSnapshot {
     tenor: p.tenor as unknown as BankProgramSnapshot['tenor'],
     loanLimits: p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
     pricing: p.pricing as unknown as BankProgramSnapshot['pricing'],
-    eligibility: p.eligibility as unknown as BankProgramSnapshot['eligibility'],
+    eligibility: normalizeEligibility(p.eligibility),
     incomeAssumption: p.incomeAssumption as unknown as BankProgramSnapshot['incomeAssumption'],
     fees: p.fees as unknown as BankProgramSnapshot['fees'],
     performanceCriteria: p.performanceCriteria as unknown as
