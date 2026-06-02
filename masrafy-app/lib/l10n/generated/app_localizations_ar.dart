@@ -346,4 +346,32 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get match_tier_very_low => 'فرصة منخفضة جدًا';
+
+  @override
+  String get match_tier_unknown => 'تقدير غير محدد';
+
+  @override
+  String get match_action_retry => 'إعادة المحاولة';
+
+  @override
+  String get match_generic_error => 'حدث خطأ ما. حاول مرة أخرى.';
+
+  @override
+  String get match_network_error => 'لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.';
+
+  @override
+  String get match_preview_adjust_answers => 'تعديل إجاباتي';
+
+  @override
+  String get questionnaire_form_submit_hint => 'أجب عن جميع الأسئلة المطلوبة لعرض العروض.';
+
+  @override
+  String match_amount_egp(String value) {
+    return '$value ج.م';
+  }
+
+  @override
+  String match_rate_percent(String value) {
+    return '$value٪';
+  }
 }

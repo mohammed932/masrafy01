@@ -42,10 +42,20 @@ class _PreviewBody extends StatelessWidget {
       return Center(
         child: Padding(
           padding: const EdgeInsetsDirectional.all(24),
-          child: Text(
-            l10n.match_preview_no_matches,
-            textAlign: TextAlign.center,
-            style: textTheme.body.copyWith(color: colors.text.secondary),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l10n.match_preview_no_matches,
+                textAlign: TextAlign.center,
+                style: textTheme.body.copyWith(color: colors.text.secondary),
+              ),
+              const Gap(16),
+              FilledButton(
+                onPressed: () => context.read<QuestionnaireCubit>().backToForm(),
+                child: Text(l10n.match_preview_adjust_answers),
+              ),
+            ],
           ),
         ),
       );

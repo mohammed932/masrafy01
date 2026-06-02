@@ -120,5 +120,15 @@
   "match_tier_good": "Good chance",
   "match_tier_moderate": "Moderate chance",
   "match_tier_low": "Low chance",
-  "match_tier_very_low": "Very low chance"
+  "match_tier_very_low": "Very low chance",
+  "match_tier_unknown": "Estimated chance",
+  "match_action_retry": "Retry",
+  "match_generic_error": "Something went wrong. Please try again.",
+  "match_network_error": "No connection. Check your network and try again.",
+  "match_preview_adjust_answers": "Adjust my answers",
+  "questionnaire_form_submit_hint": "Answer all required questions to see your matches.",
+  "match_amount_egp": "{value} EGP",
+  "@match_amount_egp": { "placeholders": { "value": { "type": "String" } } },
+  "match_rate_percent": "{value}%",
+  "@match_rate_percent": { "placeholders": { "value": { "type": "String" } } }
 }

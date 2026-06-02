@@ -13,7 +13,7 @@ class QuestionGroupModel {
 
   factory QuestionGroupModel.fromJson(Map<String, dynamic> json) {
     return QuestionGroupModel(
-      code: json['code'] as String,
+      code: json['code'] as String? ?? '',
       titleAr: json['titleAr'] as String? ?? '',
       titleEn: json['titleEn'] as String? ?? '',
       displayOrder: json['displayOrder'] as int? ?? 0,

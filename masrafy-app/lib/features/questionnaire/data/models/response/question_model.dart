@@ -25,7 +25,7 @@ class QuestionModel {
   factory QuestionModel.fromJson(Map<String, dynamic> json) {
     final enabledWhenJson = json['enabledWhen'] as Map<String, dynamic>?;
     return QuestionModel(
-      code: json['code'] as String,
+      code: json['code'] as String? ?? '',
       type: json['type'] as String? ?? '',
       questionAr: json['questionAr'] as String? ?? '',
       questionEn: json['questionEn'] as String? ?? '',

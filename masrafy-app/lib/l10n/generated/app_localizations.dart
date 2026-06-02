@@ -748,6 +748,54 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'فرصة منخفضة جدًا'**
   String get match_tier_very_low;
+
+  /// Match card — approval tier: unknown/estimated
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدير غير محدد'**
+  String get match_tier_unknown;
+
+  /// Generic retry action
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة المحاولة'**
+  String get match_action_retry;
+
+  /// Generic non-specific failure message
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث خطأ ما. حاول مرة أخرى.'**
+  String get match_generic_error;
+
+  /// Network-unreachable failure message
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.'**
+  String get match_network_error;
+
+  /// Empty-result action — go back to edit answers
+  ///
+  /// In ar, this message translates to:
+  /// **'تعديل إجاباتي'**
+  String get match_preview_adjust_answers;
+
+  /// Hint shown when submit is disabled
+  ///
+  /// In ar, this message translates to:
+  /// **'أجب عن جميع الأسئلة المطلوبة لعرض العروض.'**
+  String get questionnaire_form_submit_hint;
+
+  /// Money amount with EGP currency suffix
+  ///
+  /// In ar, this message translates to:
+  /// **'{value} ج.م'**
+  String match_amount_egp(String value);
+
+  /// Percentage value
+  ///
+  /// In ar, this message translates to:
+  /// **'{value}٪'**
+  String match_rate_percent(String value);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

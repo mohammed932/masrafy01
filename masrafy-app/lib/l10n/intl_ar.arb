@@ -232,5 +232,21 @@
   "match_tier_low": "فرصة منخفضة",
   "@match_tier_low": { "description": "Match card — approval tier: low" },
   "match_tier_very_low": "فرصة منخفضة جدًا",
-  "@match_tier_very_low": { "description": "Match card — approval tier: very low" }
+  "@match_tier_very_low": { "description": "Match card — approval tier: very low" },
+  "match_tier_unknown": "تقدير غير محدد",
+  "@match_tier_unknown": { "description": "Match card — approval tier: unknown/estimated" },
+  "match_action_retry": "إعادة المحاولة",
+  "@match_action_retry": { "description": "Generic retry action" },
+  "match_generic_error": "حدث خطأ ما. حاول مرة أخرى.",
+  "@match_generic_error": { "description": "Generic non-specific failure message" },
+  "match_network_error": "لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.",
+  "@match_network_error": { "description": "Network-unreachable failure message" },
+  "match_preview_adjust_answers": "تعديل إجاباتي",
+  "@match_preview_adjust_answers": { "description": "Empty-result action — go back to edit answers" },
+  "questionnaire_form_submit_hint": "أجب عن جميع الأسئلة المطلوبة لعرض العروض.",
+  "@questionnaire_form_submit_hint": { "description": "Hint shown when submit is disabled" },
+  "match_amount_egp": "{value} ج.م",
+  "@match_amount_egp": { "description": "Money amount with EGP currency suffix", "placeholders": { "value": { "type": "String" } } },
+  "match_rate_percent": "{value}٪",
+  "@match_rate_percent": { "description": "Percentage value", "placeholders": { "value": { "type": "String" } } }
 }

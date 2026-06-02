@@ -48,11 +48,18 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
     final snapshot = state.snapshot;
     if (snapshot == null) return candidate;
     final pruned = Map<String, String>.from(candidate);
-    for (final question in snapshot.allQuestions) {
-      if (!_isVisibleIn(question, pruned)) {
-        pruned.remove(question.code);
+    // Iterate to a fixpoint: `allQuestions` is not dependency-ordered, so a
+    // multi-level chain (Q1→Q2→Q3) needs repeated passes until no answer is
+    // dropped. Converges regardless of question order.
+    bool changed;
+    do {
+      changed = false;
+      for (final question in snapshot.allQuestions) {
+        if (!_isVisibleIn(question, pruned) && pruned.remove(question.code) != null) {
+          changed = true;
+        }
       }
-    }
+    } while (changed);
     return pruned;
   }
 
@@ -111,7 +118,14 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
       ),
     );
     res.fold(
-      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
+      // Return to the form on failure so the skeleton clears and the form's
+      // error listener surfaces the (localized) message — the preview route
+      // has no error UI of its own.
+      (err) => emit(state.copyWith(
+        status: RequestState.error,
+        step: QuestionnaireStep.questionnaireReady,
+        error: err,
+      )),
       (preview) => emit(state.copyWith(
         status: RequestState.loaded,
         step: QuestionnaireStep.previewReady,
@@ -121,7 +135,11 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
     );
   }
 
-  void backToForm() => emit(state.copyWith(step: QuestionnaireStep.questionnaireReady));
+  void backToForm() => emit(state.copyWith(
+        step: QuestionnaireStep.questionnaireReady,
+        status: RequestState.loaded,
+        preview: null,
+      ));
 
   void reset() => emit(const QuestionnaireState());
 }

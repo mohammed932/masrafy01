@@ -12,7 +12,7 @@ class QuestionGroupSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = MasrafyTextTheme.of(context);
     final colors = MasrafyColorTheme.of(context);
-    final isRtl = context.isRtl;
+    final isAr = context.masrafyLocaleCode == 'ar';
     final questions = [...group.questions]
       ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
 
@@ -25,7 +25,7 @@ class QuestionGroupSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isRtl ? group.titleAr : group.titleEn,
+              isAr ? group.titleAr : group.titleEn,
               style: textTheme.heading5.copyWith(color: colors.text.primary),
             ),
             const Gap(12),

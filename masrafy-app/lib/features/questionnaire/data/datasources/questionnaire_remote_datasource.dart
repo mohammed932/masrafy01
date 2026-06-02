@@ -35,7 +35,7 @@ class QuestionnaireRemoteDataSource extends BaseRemoteDataSource {
     return MatchingPreviewModel.fromJson(_unwrap(json));
   }
 
-  Map<String, dynamic> _unwrap(dynamic envelope) {
+  Map<String, dynamic> _unwrap(Object? envelope) {
     if (envelope is Map<String, dynamic>) {
       final data = envelope['data'];
       if (data is Map<String, dynamic>) return data;

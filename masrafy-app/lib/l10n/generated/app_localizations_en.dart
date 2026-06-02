@@ -343,4 +343,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get match_tier_very_low => 'Very low chance';
+
+  @override
+  String get match_tier_unknown => 'Estimated chance';
+
+  @override
+  String get match_action_retry => 'Retry';
+
+  @override
+  String get match_generic_error => 'Something went wrong. Please try again.';
+
+  @override
+  String get match_network_error => 'No connection. Check your network and try again.';
+
+  @override
+  String get match_preview_adjust_answers => 'Adjust my answers';
+
+  @override
+  String get questionnaire_form_submit_hint => 'Answer all required questions to see your matches.';
+
+  @override
+  String match_amount_egp(String value) {
+    return '$value EGP';
+  }
+
+  @override
+  String match_rate_percent(String value) {
+    return '$value%';
+  }
 }

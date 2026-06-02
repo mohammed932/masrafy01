@@ -23,16 +23,28 @@ class QuestionnaireFormPage extends StatelessWidget {
           );
       },
       builder: (ctx, state) {
+        final Widget body;
+        if (state.isFailure && state.snapshot == null) {
+          // First-load failure: an explicit error + retry, never a stuck skeleton.
+          body = _LoadError(
+            message: _localizedFailure(l10n, state.error?.code ?? ''),
+            l10n: l10n,
+            textTheme: textTheme,
+            onRetry: () => ctx.read<QuestionnaireCubit>().loadQuestionnaire(state.category),
+          );
+        } else if (state.isLoadingQuestionnaire || state.snapshot == null) {
+          body = const QuestionnaireFormSkeleton();
+        } else {
+          body = _FormBody(
+            snapshot: state.snapshot!,
+            l10n: l10n,
+            colors: colors,
+            textTheme: textTheme,
+          );
+        }
         return Scaffold(
           appBar: AppBar(title: Text(l10n.questionnaire_form_title)),
-          body: state.isLoadingQuestionnaire || state.snapshot == null
-              ? const QuestionnaireFormSkeleton()
-              : _FormBody(
-                  snapshot: state.snapshot!,
-                  l10n: l10n,
-                  colors: colors,
-                  textTheme: textTheme,
-                ),
+          body: body,
         );
       },
     );
@@ -72,6 +84,40 @@ class _FormBody extends StatelessWidget {
   }
 }
 
+class _LoadError extends StatelessWidget {
+  const _LoadError({
+    required this.message,
+    required this.l10n,
+    required this.textTheme,
+    required this.onRetry,
+  });
+
+  final String message;
+  final AppLocalizations l10n;
+  final MasrafyTextTheme textTheme;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsetsDirectional.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, textAlign: TextAlign.center, style: textTheme.bodyLarge),
+            const Gap(16),
+            FilledButton(
+              onPressed: onRetry,
+              child: Text(l10n.match_action_retry),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SubmitBar extends StatelessWidget {
   const _SubmitBar({required this.l10n, required this.colors});
 
@@ -88,18 +134,32 @@ class _SubmitBar extends StatelessWidget {
         final enabled = state.canSubmit && !state.isSubmittingPreview;
         return SafeArea(
           minimum: const EdgeInsets.all(16),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed:
-                  enabled ? () => ctx.read<QuestionnaireCubit>().submitPreview() : null,
-              child: state.isSubmittingPreview
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l10n.questionnaire_form_action_submit),
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!state.canSubmit) ...[
+                Text(
+                  l10n.questionnaire_form_submit_hint,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: colors.textBase.withValues(alpha: 0.6)),
+                ),
+                const Gap(8),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: enabled
+                      ? () => ctx.read<QuestionnaireCubit>().submitPreview()
+                      : null,
+                  child: state.isSubmittingPreview
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(l10n.questionnaire_form_action_submit),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -108,8 +168,8 @@ class _SubmitBar extends StatelessWidget {
 }
 
 /// Map a backend error `code` to a localized message — never show the
-/// raw code (Constitution Principle III). Falls back to the generic
-/// "no matches" copy for unmapped codes.
+/// raw code (Constitution Principle III). Transport/server failures map to
+/// generic copy, NOT the empty-result "no matches" message.
 String _localizedFailure(AppLocalizations l10n, String code) {
   switch (code) {
     case 'QUESTIONNAIRE_NOT_PUBLISHED':
@@ -120,7 +180,9 @@ String _localizedFailure(AppLocalizations l10n, String code) {
       return l10n.match_unknown_option_code;
     case 'PROGRAM_NO_LONGER_MATCHES':
       return l10n.match_program_no_longer_matches;
+    case 'NETWORK_UNREACHABLE':
+      return l10n.match_network_error;
     default:
-      return l10n.match_preview_no_matches;
+      return l10n.match_generic_error;
   }
 }

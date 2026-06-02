@@ -11,8 +11,9 @@ class SingleSelectQuestion extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = MasrafyTextTheme.of(context);
     final colors = MasrafyColorTheme.of(context);
-    final isRtl = context.isRtl;
-    final helper = isRtl ? question.helperTextAr : question.helperTextEn;
+    // Language (not direction) drives Ar/En content selection (Principle IV).
+    final isAr = context.masrafyLocaleCode == 'ar';
+    final helper = isAr ? question.helperTextAr : question.helperTextEn;
     final options = [...question.options]
       ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
 
@@ -24,7 +25,7 @@ class SingleSelectQuestion extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isRtl ? question.questionAr : question.questionEn,
+              isAr ? question.questionAr : question.questionEn,
               style: textTheme.body.semiBold().copyWith(color: colors.text.primary),
             ),
             if (helper != null && helper.isNotEmpty) ...[
@@ -37,12 +38,11 @@ class SingleSelectQuestion extends StatelessWidget {
             const Gap(8),
             for (final option in options)
               RadioListTile<String>(
-                contentPadding: EdgeInsetsDirectional.zero,
-                dense: true,
+                contentPadding: const EdgeInsetsDirectional.symmetric(vertical: 8),
                 value: option.code,
                 groupValue: selected,
                 title: Text(
-                  isRtl ? option.labelAr : option.labelEn,
+                  isAr ? option.labelAr : option.labelEn,
                   style: textTheme.body.copyWith(color: colors.text.primary),
                 ),
                 onChanged: (value) {

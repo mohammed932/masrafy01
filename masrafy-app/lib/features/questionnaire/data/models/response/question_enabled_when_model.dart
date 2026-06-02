@@ -11,7 +11,7 @@ class QuestionEnabledWhenModel {
 
   factory QuestionEnabledWhenModel.fromJson(Map<String, dynamic> json) {
     return QuestionEnabledWhenModel(
-      questionCode: json['questionCode'] as String,
+      questionCode: json['questionCode'] as String? ?? '',
       operator: json['operator'] as String? ?? '',
       optionCode: json['optionCode'] as String? ?? '',
     );

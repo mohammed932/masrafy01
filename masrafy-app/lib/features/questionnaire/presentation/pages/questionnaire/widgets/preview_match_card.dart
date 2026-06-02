@@ -62,13 +62,13 @@ class PreviewMatchCard extends StatelessWidget {
               Expanded(
                 child: _Metric(
                   label: l10n.match_preview_monthly_installment,
-                  value: '${match.monthlyInstallmentEGP} EGP',
+                  value: l10n.match_amount_egp(match.monthlyInstallmentEGP),
                 ),
               ),
               Expanded(
                 child: _Metric(
                   label: l10n.match_preview_effective_rate,
-                  value: '${match.effectiveRatePercent}%',
+                  value: l10n.match_rate_percent(match.effectiveRatePercent),
                 ),
               ),
             ],
@@ -85,10 +85,7 @@ class PreviewMatchCard extends StatelessWidget {
             ),
             const Gap(4),
             for (final reason in match.rejectionReasons)
-              Text(
-                '• $reason',
-                style: textTheme.bodySmall.copyWith(color: colors.text.secondary),
-              ),
+              _BulletLine(text: reason),
           ],
           if (match.requiredDocuments.isNotEmpty) ...[
             const Gap(12),
@@ -100,10 +97,7 @@ class PreviewMatchCard extends StatelessWidget {
             ),
             const Gap(4),
             for (final doc in match.requiredDocuments)
-              Text(
-                '• $doc',
-                style: textTheme.bodySmall.copyWith(color: colors.text.secondary),
-              ),
+              _BulletLine(text: doc),
           ],
         ],
       ),
@@ -182,8 +176,34 @@ class _TierBadge extends StatelessWidget {
       ApprovalTier.moderate => l10n.match_tier_moderate,
       ApprovalTier.low => l10n.match_tier_low,
       ApprovalTier.veryLow => l10n.match_tier_very_low,
-      ApprovalTier.unknown => l10n.match_tier_moderate,
+      ApprovalTier.unknown => l10n.match_tier_unknown,
     };
     return _Badge(label: label, bg: tone.bg, fg: tone.text);
+  }
+}
+
+/// A bulleted line that mirrors correctly in RTL: a leading marker in its own
+/// box + the (backend) text expanded, rather than a manual "• " prefix.
+class _BulletLine extends StatelessWidget {
+  const _BulletLine({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    final textTheme = MasrafyTextTheme.of(context);
+    final style = textTheme.bodySmall.copyWith(color: colors.text.secondary);
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(bottom: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('•', style: style),
+          const Gap(6),
+          Expanded(child: Text(text, style: style)),
+        ],
+      ),
+    );
   }
 }
