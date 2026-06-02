@@ -14,6 +14,19 @@ export interface ScoringFactor {
   kind: 'DIRECT' | 'COMPUTED';
   labelAr: string;
   labelEn: string;
+  /** Question this DIRECT factor scores (null for COMPUTED factors). */
+  sourceQuestionCode: string | null;
+  sourceQuestionLabelEn: string | null;
+  sourceQuestionLabelAr: string | null;
+}
+
+/** Bank + program identity for labelling a per-program weight set. */
+export interface ProgramMeta {
+  programCode: string;
+  friendlyName: string;
+  friendlyNameAr: string | null;
+  bankName: string;
+  category: string;
 }
 
 export type WeightSetStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED';
@@ -32,9 +45,15 @@ export interface ScoringWeightSet {
 }
 
 export interface ProgramWeights {
+  program: ProgramMeta;
   active: ScoringWeightSet | null;
   draft: ScoringWeightSet | null;
   pending: ScoringWeightSet | null;
+}
+
+/** A pending weight set joined with its program/bank identity (checker inbox). */
+export interface PendingWeightSet extends ScoringWeightSet {
+  program: ProgramMeta;
 }
 
 export interface QuestionnaireVersionRow {
@@ -83,6 +102,35 @@ export interface GroupTreeRow {
   displayOrder: number;
   isActive: boolean;
   questions: QuestionRow[];
+}
+
+/** One program's outcome in the admin matching simulator. */
+export interface SimulationMatch {
+  bankProgramId: string | null;
+  programCode: string;
+  bankName: string;
+  bankIsFeatured: boolean;
+  programFriendlyName: string;
+  eligible: boolean;
+  monthlyInstallmentEGP: string | null;
+  effectiveRatePercent: string | null;
+  approvalProbability: number; // 0..1
+  approvalTier: string;
+  rejectionReasons: string[];
+  requiredDocuments: string[];
+  usedDefaultWeights: boolean;
+}
+
+export interface SimulationSuggestion {
+  code: string;
+  magnitude: number;
+  programsUnlocked: number;
+}
+
+export interface SimulationResult {
+  category: LoanCategory;
+  matches: SimulationMatch[];
+  suggestions: SimulationSuggestion[];
 }
 
 export interface CreateGroupBody {
@@ -165,8 +213,8 @@ export class QuestionnaireApiService {
     return this.post<ScoringWeightSet>(`/scoring/programs/${programId}/weights/submit`, {});
   }
 
-  pendingInbox(): Promise<ScoringWeightSet[]> {
-    return this.get<ScoringWeightSet[]>(`/scoring/weights/pending`);
+  pendingInbox(): Promise<PendingWeightSet[]> {
+    return this.get<PendingWeightSet[]>(`/scoring/weights/pending`);
   }
 
   approveWeights(setId: string): Promise<ScoringWeightSet> {
@@ -184,6 +232,15 @@ export class QuestionnaireApiService {
   // ---- Questionnaire authoring ------------------------------------------
   tree(category: LoanCategory): Promise<GroupTreeRow[]> {
     return this.get<GroupTreeRow[]>(`/questionnaire/tree/${category}`);
+  }
+
+  // ---- Matching simulator (admin) ---------------------------------------
+  /** Run the full engine + per-bank approval scoring for a sample applicant. */
+  simulateMatching(
+    category: LoanCategory,
+    answers: { questionCode: string; optionCode: string }[],
+  ): Promise<SimulationResult> {
+    return this.post<SimulationResult>(`/matching/simulate`, { category, answers });
   }
 
   createGroup(body: CreateGroupBody): Promise<GroupTreeRow> {

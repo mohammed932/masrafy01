@@ -99,6 +99,14 @@ export const APP_ROUTES: Routes = [
       import('./features/questionnaire/scoring.routes').then((m) => m.SCORING_ROUTES),
   },
   {
+    // Admin matching simulator — full engine + approval scoring, read-only.
+    path: 'matching-simulator',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
+    loadComponent: () =>
+      import('./features/questionnaire/matching-simulator.page').then((m) => m.MatchingSimulatorPage),
+  },
+  {
     // Throwaway: NG-ZORRO install verification. Removed in PR 2 (shell migration).
     path: 'nz-demo',
     loadComponent: () => import('./features/nz-demo/nz-demo.page').then((m) => m.NzDemoPage),

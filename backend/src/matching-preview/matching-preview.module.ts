@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
+import { AuthModule } from '@/auth/auth.module';
 import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
 import { ScoringModule } from '@/scoring/scoring.module';
 import { BankProgramsModule } from '@/bank-programs/bank-programs.module';
 import { MatchingModule } from '@/matching/matching.module';
 import { ScoringVersionsModule } from '@/scoring-versions/scoring-versions.module';
 import { MatchingPreviewController } from './matching-preview.controller';
+import { AdminMatchingController } from './admin-matching.controller';
 import { MatchingPreviewService } from './matching-preview.service';
 
 /**
@@ -15,13 +17,14 @@ import { MatchingPreviewService } from './matching-preview.service';
 @Module({
   imports: [
     CustomerAuthModule,
+    AuthModule,
     QuestionnaireModule,
     ScoringModule,
     BankProgramsModule,
     MatchingModule,
     ScoringVersionsModule,
   ],
-  controllers: [MatchingPreviewController],
+  controllers: [MatchingPreviewController, AdminMatchingController],
   providers: [MatchingPreviewService],
 })
 export class MatchingPreviewModule {}

@@ -6,6 +6,9 @@ import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { ScoringRepository } from './scoring.repository';
+import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
+import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
+import type { ScoringFactor, ScoringWeightSet } from '@prisma/client';
 import type {
   CreateScoringFactorDto,
   RejectWeightsDto,
@@ -17,16 +20,61 @@ export interface ScoringRequestContext {
   correlationId: string;
 }
 
+/** Bank + program identity surfaced to the admin so weights are labelled, not raw IDs. */
+export interface ProgramMeta {
+  programCode: string;
+  friendlyName: string;
+  friendlyNameAr: string | null;
+  bankName: string;
+  category: string; // lowercase LoanCategory
+}
+
+/** A scoring factor enriched with its source question's text (DIRECT factors). */
+export interface ScoringFactorView extends ScoringFactor {
+  sourceQuestionLabelEn: string | null;
+  sourceQuestionLabelAr: string | null;
+}
+
+export interface ProgramWeightsResult {
+  program: ProgramMeta;
+  active: ScoringWeightSet | null;
+  draft: ScoringWeightSet | null;
+  pending: ScoringWeightSet | null;
+}
+
+export interface PendingWeightSetView extends ScoringWeightSet {
+  program: ProgramMeta;
+}
+
 @Injectable()
 export class ScoringService {
   constructor(
     private readonly repo: ScoringRepository,
     private readonly audit: AuditEventWriter,
+    private readonly programs: BankProgramRepository,
+    private readonly questionnaire: QuestionnaireRepository,
   ) {}
 
   // ---- Factors ------------------------------------------------------------
-  listFactors(category: LoanCategory) {
-    return this.repo.activeFactors(category);
+  /**
+   * Active factors for a category, each DIRECT factor enriched with its source
+   * question's text so the admin labels weight rows by question (not raw code).
+   * COMPUTED factors (e.g. `debt_burden`) have no source question → nulls.
+   */
+  async listFactors(category: LoanCategory): Promise<ScoringFactorView[]> {
+    const [factors, questions] = await Promise.all([
+      this.repo.activeFactors(category),
+      this.questionnaire.questionsByCategory(category),
+    ]);
+    const byCode = new Map(questions.map((q) => [q.code, q]));
+    return factors.map((f) => {
+      const q = f.sourceQuestionCode ? byCode.get(f.sourceQuestionCode) : undefined;
+      return {
+        ...f,
+        sourceQuestionLabelEn: q?.questionEn ?? null,
+        sourceQuestionLabelAr: q?.questionAr ?? null,
+      };
+    });
   }
 
   createFactor(dto: CreateScoringFactorDto) {
@@ -42,13 +90,27 @@ export class ScoringService {
   }
 
   // ---- Weight sets (maker-checker) ----------------------------------------
-  async getProgramWeights(programId: string) {
-    const [active, draft, pending] = await Promise.all([
+  async getProgramWeights(programId: string): Promise<ProgramWeightsResult> {
+    const [program, active, draft, pending] = await Promise.all([
+      this.programMeta(programId),
       this.repo.activeSet(programId),
       this.repo.findByStatus(programId, ScoringWeightSetStatus.DRAFT),
       this.repo.findByStatus(programId, ScoringWeightSetStatus.PENDING_APPROVAL),
     ]);
-    return { active, draft, pending };
+    return { program, active, draft, pending };
+  }
+
+  /** Resolve a program's bank/program identity; throws typed error if unknown. */
+  private async programMeta(programId: string): Promise<ProgramMeta> {
+    const p = await this.programs.findById(programId);
+    if (!p) throw new DomainException(ERROR_CODES.BANK_PROGRAM_INVALID);
+    return {
+      programCode: p.programCode,
+      friendlyName: p.friendlyName,
+      friendlyNameAr: p.friendlyNameAr ?? null,
+      bankName: p.bankName,
+      category: p.productCategory.toLowerCase(),
+    };
   }
 
   async upsertDraft(programId: string, dto: UpsertWeightsDraftDto, makerId: string) {
@@ -145,8 +207,20 @@ export class ScoringService {
     return this.repo.listByProgram(programId);
   }
 
-  pendingInbox() {
-    return this.repo.listPending();
+  /** Pending sets joined with program/bank identity so the checker inbox is readable. */
+  async pendingInbox(): Promise<PendingWeightSetView[]> {
+    const sets = await this.repo.listPending();
+    const metaCache = new Map<string, ProgramMeta>();
+    const views: PendingWeightSetView[] = [];
+    for (const set of sets) {
+      let meta = metaCache.get(set.bankProgramId);
+      if (!meta) {
+        meta = await this.programMeta(set.bankProgramId);
+        metaCache.set(set.bankProgramId, meta);
+      }
+      views.push({ ...set, program: meta });
+    }
+    return views;
   }
 
   // ---- Validation ---------------------------------------------------------

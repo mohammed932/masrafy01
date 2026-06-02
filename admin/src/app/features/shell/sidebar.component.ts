@@ -13,6 +13,7 @@ import {
   ReadOutline,
   FormOutline,
   AuditOutline,
+  ExperimentOutline,
 } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { CanDirective } from '../../shared/can.directive';
@@ -38,6 +39,7 @@ import { CanDirective } from '../../shared/can.directive';
       ReadOutline,
       FormOutline,
       AuditOutline,
+      ExperimentOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -98,6 +100,16 @@ import { CanDirective } from '../../shared/can.directive';
         >
           <span nz-icon nzType="audit" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.scoring_approvals">Scoring approvals</span>
+        </a>
+
+        <a
+          *can="['super_admin', 'sales_manager', 'analyst']"
+          routerLink="/matching-simulator"
+          routerLinkActive="active"
+          class="item"
+        >
+          <span nz-icon nzType="experiment" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span class="item-label" i18n="@@sidebar.matching_simulator">Matching simulator</span>
         </a>
       </nav>
 

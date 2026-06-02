@@ -30,8 +30,13 @@ export function checkEligibility(
   const push = (ok: boolean, code: string): void => {
     (ok ? passed : failed).push(code);
   };
+  // An "accepted X" allow-list only constrains when it has entries. Missing /
+  // empty = the program does not restrict on that dimension → pass (NOT reject
+  // everyone, which an unconfigured list would otherwise do).
+  const accepts = (list: readonly string[] | undefined | null, value: string): boolean =>
+    !list || list.length === 0 || list.includes(value);
 
-  push(elig.acceptedEmploymentTypes.includes(profile.employment.employmentType), 'employment_type');
+  push(accepts(elig.acceptedEmploymentTypes, profile.employment.employmentType), 'employment_type');
 
   if (elig.companyType?.length) {
     push(elig.companyType.includes(profile.employment.companyType), 'company_type');
@@ -56,12 +61,9 @@ export function checkEligibility(
   push(assumedIncomeEGP.greaterThanOrEqualTo(minIncomeRaw), 'monthly_income');
 
   push(profile.employment.monthsInJob >= elig.minMonthsInJob, 'months_in_job');
-  push(elig.acceptedLoanPurposes.includes(profile.loanPurpose), 'loan_purpose');
-  push(
-    elig.acceptedSalaryTransferTypes.includes(profile.employment.salaryTransferType),
-    'salary_transfer_type',
-  );
-  push(program.currencies.includes(profile.requestedCurrency), 'currency');
+  push(accepts(elig.acceptedLoanPurposes, profile.loanPurpose), 'loan_purpose');
+  push(accepts(elig.acceptedSalaryTransferTypes, profile.employment.salaryTransferType), 'salary_transfer_type');
+  push(accepts(program.currencies, profile.requestedCurrency), 'currency');
 
   const minAmount = new Decimal(
     program.loanLimits.perCurrency[profile.requestedCurrency]?.minAmount ?? '0',

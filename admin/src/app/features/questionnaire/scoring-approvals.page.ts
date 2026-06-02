@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, LOCALE_ID, OnInit, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
@@ -9,7 +10,10 @@ import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzMessageService } from 'ng-zorro-antd/message';
-import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.api.service';
+import {
+  QuestionnaireApiService,
+  type PendingWeightSet,
+} from './questionnaire.api.service';
 
 /**
  * Scoring approvals inbox (Constitution V v4.1.0 maker-checker — checker side).
@@ -25,6 +29,7 @@ import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    RouterLink,
     NzButtonModule,
     NzCardModule,
     NzEmptyModule,
@@ -38,7 +43,7 @@ import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.
       <header class="page-head">
         <h1 i18n="@@scoring.approvals.title">Scoring weight approvals</h1>
         <p class="muted" i18n="@@scoring.approvals.subtitle">
-          Review pending per-bank weight changes. A different admin than the maker must approve.
+          Review pending per-program weight changes. A different admin than the maker must approve.
         </p>
       </header>
 
@@ -51,10 +56,17 @@ import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.
           @for (set of rows(); track set.id) {
             <nz-card class="set-card">
               <div class="row between">
-                <span class="mono prog">{{ set.bankProgramId }}</span>
+                <a
+                  class="prog-link"
+                  [routerLink]="['/scoring-approvals', 'weights', set.program.category, set.bankProgramId]"
+                >
+                  <span class="bank">{{ set.program.bankName }}</span>
+                  <span class="prog">{{ programName(set) }}</span>
+                </a>
                 <nz-tag nzColor="warning" i18n="@@scoring.status.pending">PENDING</nz-tag>
               </div>
               <p class="muted small">
+                <span class="cat-chip">{{ set.program.category }}</span> ·
                 <span i18n="@@scoring.approvals.version">Version</span>
                 <span class="mono">#{{ set.versionNumber }}</span> ·
                 <span i18n="@@scoring.approvals.maker">maker</span>
@@ -118,7 +130,19 @@ import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.
       .between { justify-content: space-between; }
       .gap { gap: var(--space-3, 12px); }
       .actions { margin-block-start: var(--space-4, 16px); }
-      .prog { font-size: 13px; }
+      .prog-link {
+        display: flex; flex-direction: column; gap: 2px; text-decoration: none;
+        color: inherit; min-inline-size: 0;
+      }
+      .prog-link:hover .prog { text-decoration: underline; }
+      .prog-link .bank { font-weight: 600; font-size: 14px; }
+      .prog-link .prog { font-size: 13px; color: var(--ant-text-color-secondary, #6b7280); }
+      .cat-chip {
+        text-transform: capitalize; font-size: 11px; font-weight: 600;
+        color: var(--ant-primary-color, #0869c3);
+        background: var(--ant-primary-color-outline, rgba(8, 105, 195, 0.12));
+        padding: 1px 8px; border-radius: 999px;
+      }
       .mono { font-family: var(--font-family-mono, 'JetBrains Mono', monospace); }
       .weights { list-style: none; margin: var(--space-3, 12px) 0 0; padding: 0; }
       .weights li { display: flex; justify-content: space-between; padding-block: 4px; border-block-end: 1px solid var(--ant-border-color-split, #f0f0f0); }
@@ -131,31 +155,38 @@ import { QuestionnaireApiService, type ScoringWeightSet } from './questionnaire.
 export class ScoringApprovalsPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
   private readonly message = inject(NzMessageService);
+  /** Active admin locale picks the program label language (ar build → Arabic). */
+  private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
-  readonly rows = signal<ScoringWeightSet[]>([]);
+  readonly rows = signal<PendingWeightSet[]>([]);
   readonly loading = signal(true);
-  readonly rejecting = signal<ScoringWeightSet | null>(null);
+  readonly rejecting = signal<PendingWeightSet | null>(null);
   readonly reason = new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(3)] });
 
   async ngOnInit(): Promise<void> {
     await this.reload();
   }
 
-  weightRows(set: ScoringWeightSet): { code: string; points: number }[] {
+  /** Program display name, Arabic-first with English fallback. */
+  programName(set: PendingWeightSet): string {
+    return (this.isAr && set.program.friendlyNameAr) || set.program.friendlyName;
+  }
+
+  weightRows(set: PendingWeightSet): { code: string; points: number }[] {
     return Object.entries(set.weights ?? {}).map(([code, points]) => ({ code, points }));
   }
 
-  total(set: ScoringWeightSet): number {
+  total(set: PendingWeightSet): number {
     return Object.values(set.weights ?? {}).reduce((a, b) => a + Number(b), 0);
   }
 
-  async approve(set: ScoringWeightSet): Promise<void> {
+  async approve(set: PendingWeightSet): Promise<void> {
     await this.api.approveWeights(set.id);
     this.message.success($localize`:@@scoring.approvals.approved:Weight set activated`);
     await this.reload();
   }
 
-  openReject(set: ScoringWeightSet): void {
+  openReject(set: PendingWeightSet): void {
     this.reason.reset('');
     this.rejecting.set(set);
   }

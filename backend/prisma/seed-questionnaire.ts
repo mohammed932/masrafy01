@@ -18,7 +18,15 @@ const FACTORS = [
   { code: 'debt_burden', kind: 'COMPUTED', labelEn: 'Debt burden', labelAr: 'عبء الدين', sourceQuestionCode: null },
 ] as const;
 
-const WEIGHTS = { salary_level: 25, job_stability: 20, salary_transferred: 25, debt_burden: 30 };
+// Per-program weight presets (each sums to 100) — assigned round-robin so the
+// matching simulator visibly shows DIFFERENT approval % per program out of the
+// box. Ops re-tunes any of these via the in-dashboard maker-checker flow.
+const WEIGHT_PRESETS: Array<Record<string, number>> = [
+  { salary_level: 25, job_stability: 20, salary_transferred: 25, debt_burden: 30 },
+  { salary_level: 40, job_stability: 15, salary_transferred: 20, debt_burden: 25 },
+  { salary_level: 15, job_stability: 30, salary_transferred: 15, debt_burden: 40 },
+  { salary_level: 30, job_stability: 25, salary_transferred: 30, debt_burden: 15 },
+];
 
 interface SeedOption {
   labelEn: string;
@@ -176,18 +184,24 @@ async function main(): Promise<void> {
     where: { active: true, productCategory: CATEGORY },
     select: { id: true },
   });
-  for (const p of programs) {
+  for (let i = 0; i < programs.length; i++) {
+    const p = programs[i]!;
+    const weights = WEIGHT_PRESETS[i % WEIGHT_PRESETS.length]!;
     const existingActive = await prisma.scoringWeightSet.findFirst({
       where: { bankProgramId: p.id, status: 'ACTIVE' },
     });
-    if (existingActive) continue;
+    if (existingActive) {
+      // Refresh the ACTIVE set so re-running the seed differentiates weights.
+      await prisma.scoringWeightSet.update({ where: { id: existingActive.id }, data: { weights } });
+      continue;
+    }
     const last = await prisma.scoringWeightSet.findFirst({
       where: { bankProgramId: p.id }, orderBy: { versionNumber: 'desc' }, select: { versionNumber: true },
     });
     await prisma.scoringWeightSet.create({
       data: {
         bankProgramId: p.id, status: 'ACTIVE', versionNumber: (last?.versionNumber ?? 0) + 1,
-        weights: WEIGHTS, createdBy: SEED_ACTOR, approvedBy: 'seed-approver', approvedAt: new Date(),
+        weights, createdBy: SEED_ACTOR, approvedBy: 'seed-approver', approvedAt: new Date(),
       },
     });
   }

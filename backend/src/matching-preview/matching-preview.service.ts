@@ -68,18 +68,30 @@ export class MatchingPreviewService {
     private readonly scoringVersions: ScoringEngineVersionService,
   ) {}
 
+  /** Mobile preview: profile derived entirely from the submitted answers. */
   async preview(args: { category: LoanCategory; answers: SubmittedAnswerDto[] }) {
-    const version = await this.questionnaire.activeVersion(args.category);
+    const { subScores, questions } = await this.resolveSubScores(args.category, args.answers);
+    const profile = buildApplicantProfile({
+      category: args.category,
+      questions: questions as unknown as SnapshotQuestionFull[],
+      answers: args.answers,
+    });
+    return this.runAndAssemble(args.category, profile, subScores);
+  }
+
+  /** Validate answers against the active snapshot + build DIRECT sub-scores. */
+  private async resolveSubScores(
+    category: LoanCategory,
+    answers: SubmittedAnswerDto[],
+  ): Promise<{ subScores: SubScores; questions: SnapshotQuestion[] }> {
+    const version = await this.questionnaire.activeVersion(category);
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     const snapshot = version.snapshot as unknown as Snapshot;
-
     const questions: SnapshotQuestion[] = [];
     for (const g of snapshot.groups ?? []) for (const q of g.questions ?? []) questions.push(q);
     const byCode = new Map(questions.map((q) => [q.code, q]));
-
-    // Validate + build DIRECT factor sub-scores.
     const subScores: SubScores = {};
-    for (const ans of args.answers) {
+    for (const ans of answers) {
       const q = byCode.get(ans.questionCode);
       if (!q) throw new DomainException(ERROR_CODES.UNKNOWN_QUESTION_CODE, { code: ans.questionCode });
       const opt = q.options.find((o) => o.code === ans.optionCode);
@@ -88,15 +100,17 @@ export class MatchingPreviewService {
         subScores[q.scoringFactorCode] = opt.scoreValue !== null ? Number(opt.scoreValue) : 0;
       }
     }
+    return { subScores, questions };
+  }
 
-    const profile = buildApplicantProfile({
-      category: args.category,
-      questions: questions as unknown as SnapshotQuestionFull[],
-      answers: args.answers,
-    });
-
+  /** Run the engine over the category's active programs + weighted scoring. */
+  private async runAndAssemble(
+    category: LoanCategory,
+    profile: ReturnType<typeof buildApplicantProfile>,
+    subScores: SubScores,
+  ) {
     const rows = (await this.programs.findAllActive()).filter(
-      (p) => p.productCategory.toLowerCase() === args.category,
+      (p) => p.productCategory.toLowerCase() === category,
     );
     const idByCode = new Map(rows.map((p) => [p.programCode, p.id]));
     const snapshots = rows.map((p) => toSnapshot(p));
@@ -119,7 +133,7 @@ export class MatchingPreviewService {
       const programId = idByCode.get(offer.programCode) ?? null;
       const { probability, tier, usedDefault } = await this.weightedScoring.scoreProgram({
         programId,
-        category: args.category,
+        category,
         directSubScores: subScores,
         computed: {
           dbrPercent: Number(offer.dbrPercent),
@@ -149,7 +163,7 @@ export class MatchingPreviewService {
       // No eligible offer → no DBR figure; debt_burden contributes 0.
       const { probability, tier, usedDefault } = await this.weightedScoring.scoreProgram({
         programId,
-        category: args.category,
+        category,
         directSubScores: subScores,
         computed: { dbrPercent: null, dbrCapPercent: dbrCapByCode.get(nm.programCode) ?? null },
       });
@@ -178,7 +192,7 @@ export class MatchingPreviewService {
       return Number(b.bankIsFeatured) - Number(a.bankIsFeatured);
     });
 
-    return { category: args.category, matches, suggestions: output.suggestions ?? [] };
+    return { category, matches, suggestions: output.suggestions ?? [] };
   }
 }
 

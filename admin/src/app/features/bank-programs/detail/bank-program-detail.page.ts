@@ -15,10 +15,12 @@ import {
   CopyOutline,
   DeleteOutline,
   WarningOutline,
+  SlidersOutline,
 } from '@ant-design/icons-angular/icons';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { CanDirective } from '../../../shared/can.directive';
+import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { CloneProgramDialog, type CloneProgramDialogData } from '../clone/clone-program.dialog';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
@@ -39,6 +41,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
     NzSelectModule,
     NzSpinModule,
     CanDirective,
+    HumanizePipe,
     CascadePreviewComponent,
   ],
   providers: [
@@ -48,6 +51,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
       CopyOutline,
       DeleteOutline,
       WarningOutline,
+      SlidersOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -71,7 +75,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
         </div>
         <p class="page-subtitle">
           {{ program()!.friendlyName }} · {{ program()!.bankName }} ·
-          {{ program()!.productCategory }} · v{{ program()!.version }}
+          {{ program()!.productCategory | humanize }} · v{{ program()!.version }}
         </p>
         <div class="actions">
           <a
@@ -81,6 +85,14 @@ import type { BankProgramResponse } from '../bank-programs.types';
           >
             <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
             <span i18n="@@bank_programs.action.edit">Edit</span>
+          </a>
+          <a
+            *can="['super_admin', 'sales_manager']"
+            nz-button
+            [routerLink]="['/scoring-approvals', 'weights', program()!.productCategory.toLowerCase(), program()!.id]"
+          >
+            <span nz-icon nzType="sliders" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.action.scoring_weights">Scoring weights</span>
           </a>
           <button *can="['super_admin', 'sales_manager']" nz-button (click)="openClone()">
             <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
@@ -113,9 +125,9 @@ import type { BankProgramResponse } from '../bank-programs.types';
               <dt i18n="@@bank_programs.field.friendly_name">Friendly name</dt>
               <dd>{{ program()!.friendlyName }}</dd>
               <dt i18n="@@bank_programs.field.program_type">Type</dt>
-              <dd>{{ program()!.programType }}</dd>
+              <dd>{{ program()!.programType | humanize }}</dd>
               <dt i18n="@@bank_programs.field.product_category">Category</dt>
-              <dd>{{ program()!.productCategory }}</dd>
+              <dd>{{ program()!.productCategory | humanize }}</dd>
               <dt i18n="@@bank_programs.field.currencies">Currencies</dt>
               <dd>{{ program()!.currencies.join(', ') }}</dd>
             </dl>
@@ -177,9 +189,15 @@ import type { BankProgramResponse } from '../bank-programs.types';
             <h3 class="card-title" i18n="@@bank_programs.section.eligibility">Eligibility</h3>
             <dl class="kv">
               <dt i18n="@@bank_programs.field.accepted_employment_types">Employment</dt>
-              <dd>{{ program()!.eligibility.acceptedEmploymentTypes.join(', ') }}</dd>
+              <dd class="chips">
+                @for (t of program()!.eligibility.acceptedEmploymentTypes; track t) {
+                  <span class="enum-chip">{{ t | humanize }}</span>
+                } @empty {
+                  <span class="empty-dash">—</span>
+                }
+              </dd>
               <dt i18n="@@bank_programs.field.accepted_loan_purposes">Purposes</dt>
-              <dd>{{ program()!.eligibility.acceptedLoanPurposes.join(', ') }}</dd>
+              <dd>{{ program()!.eligibility.acceptedLoanPurposes | humanize }}</dd>
               <dt i18n="@@bank_programs.field.age_min">Age</dt>
               <dd class="numeric">
                 {{ program()!.eligibility.ageMin }}–{{ program()!.eligibility.ageMax }}
@@ -417,6 +435,39 @@ import type { BankProgramResponse } from '../bank-programs.types';
         margin: 0;
         color: var(--color-text-primary);
         font-size: var(--text-sm);
+      }
+      /* Categorical enum values render as scannable brand pills, not a comma run-on. */
+      .kv dd.chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2, 8px);
+        align-self: center;
+      }
+      .enum-chip {
+        --chip-accent: var(--ant-primary-color, #0869c3);
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 13px;
+        border-radius: var(--radius-pill, 999px);
+        background: color-mix(in srgb, var(--chip-accent) 10%, var(--bg-surface, #ffffff));
+        color: color-mix(in srgb, var(--chip-accent) 82%, #000000);
+        border: 1px solid color-mix(in srgb, var(--chip-accent) 26%, transparent);
+        font-size: 13px;
+        font-weight: var(--font-weight-semibold, 600);
+        line-height: 1.4;
+        white-space: nowrap;
+      }
+      .enum-chip::before {
+        content: '';
+        inline-size: 6px;
+        block-size: 6px;
+        border-radius: 50%;
+        background: var(--chip-accent);
+        flex: none;
+      }
+      .empty-dash {
+        color: var(--color-text-secondary);
       }
       .numeric {
         font-variant-numeric: tabular-nums lining-nums;
