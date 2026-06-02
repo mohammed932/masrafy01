@@ -299,7 +299,7 @@ type Mode = null | 'group' | 'question' | 'option';
         --qe-surface: var(--ant-component-background, #ffffff);
         --qe-radius: var(--radius-lg, 14px);
       }
-      .page { padding: var(--space-6, 24px); max-inline-size: 1180px; margin-inline: auto; }
+      .page { padding: var(--space-6, 24px); inline-size: 100%; }
 
       /* Hero */
       .hero {
@@ -345,6 +345,7 @@ type Mode = null | 'group' | 'question' | 'option';
         border-radius: 999px;
       }
       .stats { margin: var(--space-2, 8px) 0 0; color: var(--ant-text-color, #1a2433); font-size: 14px; }
+      .stats strong { margin-inline-end: 4px; }
       .stats .dot { margin-inline: 8px; color: var(--qe-line); }
       .stats .muted { color: var(--qe-muted); }
       .hero-actions { display: flex; gap: var(--space-3, 12px); }
