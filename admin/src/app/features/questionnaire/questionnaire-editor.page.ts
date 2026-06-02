@@ -73,98 +73,87 @@ type Mode = null | 'group' | 'question' | 'option';
         </div>
       </header>
 
-      <div class="cols">
-        <!-- Tree -->
-        <div class="tree">
-          @if (loading()) {
-            <div class="center"><nz-spin nzSimple /></div>
-          } @else if (groups().length === 0) {
-            <div class="empty-card">
-              <nz-empty
-                nzNotFoundContent="No groups yet — add your first group to start building"
-                i18n-nzNotFoundContent="@@qedit.empty"
-              />
-              <button nz-button nzType="primary" (click)="startGroup()" i18n="@@qedit.empty_cta">Add a group</button>
-            </div>
-          } @else {
-            @for (g of groups(); track g.id) {
-              <article class="group-card">
-                <header class="group-head">
-                  <div class="ghead-left">
-                    <span class="drag" aria-hidden="true">⠿</span>
-                    <div class="gtitle">
-                      <h2>{{ g.titleEn }}</h2>
-                      <span class="ar" dir="rtl">{{ g.titleAr }}</span>
-                    </div>
+      <!-- Tree (full width) -->
+      <div class="tree">
+        @if (loading()) {
+          <div class="center"><nz-spin nzSimple /></div>
+        } @else if (groups().length === 0) {
+          <div class="empty-card">
+            <nz-empty
+              nzNotFoundContent="No groups yet — add your first group to start building"
+              i18n-nzNotFoundContent="@@qedit.empty"
+            />
+            <button nz-button nzType="primary" (click)="startGroup()" i18n="@@qedit.empty_cta">Add a group</button>
+          </div>
+        } @else {
+          @for (g of groups(); track g.id) {
+            <article class="group-card">
+              <header class="group-head">
+                <div class="ghead-left">
+                  <span class="drag" aria-hidden="true">⠿</span>
+                  <div class="gtitle">
+                    <h2>{{ g.titleEn }}</h2>
+                    <span class="ar" dir="rtl">{{ g.titleAr }}</span>
                   </div>
-                  <div class="ghead-right">
-                    <span class="count-pill">{{ g.questions.length }}</span>
-                    <code class="code-chip">{{ g.code }}</code>
-                    <button nz-button nzSize="small" (click)="startQuestion(g)" i18n="@@qedit.add_question">
-                      ＋ Question
-                    </button>
-                  </div>
-                </header>
+                  <span class="count-pill">{{ g.questions.length }}</span>
+                  <code class="code-chip">{{ g.code }}</code>
+                </div>
+                <button nz-button nzSize="small" (click)="startQuestion(g)" i18n="@@qedit.add_question">
+                  ＋ Question
+                </button>
+              </header>
 
-                @if (g.questions.length === 0) {
-                  <p class="empty-line" i18n="@@qedit.group_empty">No questions yet — add the first one.</p>
-                }
+              @if (g.questions.length === 0) {
+                <p class="empty-line" i18n="@@qedit.group_empty">No questions yet — add the first one.</p>
+              }
 
+              <div class="q-grid">
                 @for (q of g.questions; track q.id) {
-                  <div class="q-row">
-                    <span class="q-rail" aria-hidden="true"></span>
-                    <div class="q-main">
-                      <div class="q-top">
-                        <span class="q-text">{{ q.questionEn }}</span>
-                        @if (q.isRequired) {
-                          <span class="req" i18n="@@qedit.required_chip">required</span>
-                        }
-                        <span class="spacer"></span>
-                        <button nz-button nzSize="small" nzType="text" (click)="startOption(q.id)" i18n="@@qedit.add_option">
-                          ＋ option
-                        </button>
-                      </div>
-                      @if (q.questionAr) { <div class="q-ar" dir="rtl">{{ q.questionAr }}</div> }
-                      <div class="chips">
-                        <code class="code-chip">{{ q.code }}</code>
-                        @if (q.systemRole) { <nz-tag nzColor="geekblue">⚙ {{ q.systemRole }}</nz-tag> }
-                        @if (q.scoringFactorCode) { <nz-tag nzColor="purple">★ {{ q.scoringFactorCode }}</nz-tag> }
-                        @if (q.profileField) { <nz-tag nzColor="cyan">↪ {{ q.profileField }}</nz-tag> }
-                      </div>
-                      @if (q.options.length > 0) {
-                        <ul class="opts">
-                          @for (o of q.options; track o.id) {
-                            <li class="opt">
-                              <span class="opt-label">{{ o.labelEn }}</span>
-                              <span class="opt-metrics">
-                                @if (o.numericPoint) { <span class="metric">pt {{ o.numericPoint }}</span> }
-                                @if (o.scoreValue) { <span class="metric score">s {{ o.scoreValue }}</span> }
-                                @if (o.profileValue) { <span class="metric">{{ o.profileValue }}</span> }
-                              </span>
-                            </li>
-                          }
-                        </ul>
-                      } @else {
-                        <p class="empty-line tiny" i18n="@@qedit.q_empty">No options.</p>
+                  <div class="q-card">
+                    <div class="q-top">
+                      <span class="q-text">{{ q.questionEn }}</span>
+                      @if (q.isRequired) {
+                        <span class="req" i18n="@@qedit.required_chip">required</span>
                       }
                     </div>
+                    @if (q.questionAr) { <div class="q-ar" dir="rtl">{{ q.questionAr }}</div> }
+                    <div class="chips">
+                      <code class="code-chip">{{ q.code }}</code>
+                      @if (q.systemRole) { <nz-tag nzColor="geekblue">⚙ {{ q.systemRole }}</nz-tag> }
+                      @if (q.scoringFactorCode) { <nz-tag nzColor="purple">★ {{ q.scoringFactorCode }}</nz-tag> }
+                      @if (q.profileField) { <nz-tag nzColor="cyan">↪ {{ q.profileField }}</nz-tag> }
+                    </div>
+                    @if (q.options.length > 0) {
+                      <ul class="opts">
+                        @for (o of q.options; track o.id) {
+                          <li class="opt">
+                            <span class="opt-label">{{ o.labelEn }}</span>
+                            <span class="opt-metrics">
+                              @if (o.numericPoint) { <span class="metric">pt {{ o.numericPoint }}</span> }
+                              @if (o.scoreValue) { <span class="metric score">s {{ o.scoreValue }}</span> }
+                              @if (o.profileValue) { <span class="metric">{{ o.profileValue }}</span> }
+                            </span>
+                          </li>
+                        }
+                      </ul>
+                    } @else {
+                      <p class="empty-line tiny" i18n="@@qedit.q_empty">No options.</p>
+                    }
+                    <button class="add-opt" nz-button nzSize="small" nzType="text" (click)="startOption(q.id)" i18n="@@qedit.add_option">
+                      ＋ option
+                    </button>
                   </div>
                 }
-              </article>
-            }
+              </div>
+            </article>
           }
-        </div>
+        }
+      </div>
 
-        <!-- Inspector -->
-        <aside class="inspector">
-          @if (mode() === null) {
-            <div class="hint-card">
-              <span class="hint-icon" aria-hidden="true">✎</span>
-              <p class="muted" i18n="@@qedit.hint">
-                Pick an action — add a group, a question, or an option — and the editor opens here.
-              </p>
-            </div>
-          } @else {
+      <!-- Inspector drawer -->
+      @if (mode() !== null) {
+        <div class="scrim" (click)="cancel()" aria-hidden="true"></div>
+        <aside class="drawer" role="dialog" aria-modal="true">
             <div class="ins-card">
               <header class="ins-head">
                 <h3>
@@ -284,9 +273,8 @@ type Mode = null | 'group' | 'question' | 'option';
                 </form>
               }
             </div>
-          }
         </aside>
-      </div>
+      }
     </section>
   `,
   styles: [
@@ -350,9 +338,7 @@ type Mode = null | 'group' | 'question' | 'option';
       .stats .muted { color: var(--qe-muted); }
       .hero-actions { display: flex; gap: var(--space-3, 12px); }
 
-      /* Layout */
-      .cols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--space-5, 20px); align-items: start; }
-      @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+      /* Layout — tree spans full width; inspector is a drawer */
       .tree { display: flex; flex-direction: column; gap: var(--space-4, 16px); min-inline-size: 0; }
       .center { display: flex; justify-content: center; padding: var(--space-7, 40px); }
       .empty-card {
@@ -371,11 +357,10 @@ type Mode = null | 'group' | 'question' | 'option';
       }
       .group-card:hover { box-shadow: 0 4px 16px rgba(16, 24, 40, 0.06); border-color: color-mix(in srgb, var(--qe-primary) 25%, var(--qe-line)); }
       .group-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3, 12px); }
-      .ghead-left { display: flex; align-items: center; gap: var(--space-3, 12px); min-inline-size: 0; }
+      .ghead-left { display: flex; align-items: center; gap: var(--space-3, 12px); min-inline-size: 0; flex-wrap: wrap; }
       .drag { color: var(--qe-muted); cursor: grab; font-size: 16px; line-height: 1; opacity: 0.5; }
       .gtitle h2 { margin: 0; font-size: 16px; font-weight: 600; }
       .gtitle .ar { font-size: 12px; color: var(--qe-muted); }
-      .ghead-right { display: flex; align-items: center; gap: var(--space-2, 8px); flex-shrink: 0; }
       .count-pill {
         min-inline-size: 24px; text-align: center; font-size: 12px; font-weight: 700;
         color: var(--qe-primary); background: var(--qe-primary-soft);
@@ -388,14 +373,30 @@ type Mode = null | 'group' | 'question' | 'option';
         padding: 2px 6px; border-radius: 6px;
       }
 
-      /* Question row */
-      .q-row { display: flex; gap: var(--space-3, 12px); margin-block-start: var(--space-4, 16px); }
-      .q-rail { inline-size: 3px; border-radius: 3px; background: var(--qe-primary-soft); flex-shrink: 0; }
-      .q-row:hover .q-rail { background: var(--qe-primary); }
-      .q-main { flex: 1; min-inline-size: 0; }
+      /* Question card grid — uses the full width */
+      .q-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: var(--space-4, 16px);
+        margin-block-start: var(--space-4, 16px);
+      }
+      .q-card {
+        position: relative;
+        border: 1px solid var(--qe-line);
+        border-radius: var(--radius-md, 10px);
+        padding: var(--space-4, 16px);
+        background: var(--ant-background-color-light, #fbfcfe);
+        border-inline-start: 3px solid var(--qe-primary-soft);
+        transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+      }
+      .q-card:hover {
+        border-inline-start-color: var(--qe-primary);
+        box-shadow: 0 4px 14px rgba(16, 24, 40, 0.06);
+        transform: translateY(-1px);
+      }
       .q-top { display: flex; align-items: center; gap: var(--space-2, 8px); }
-      .q-top .spacer { flex: 1; }
-      .q-text { font-weight: 600; font-size: 14px; }
+      .q-text { font-weight: 600; font-size: 14px; flex: 1; min-inline-size: 0; }
+      .add-opt { margin-block-start: var(--space-2, 8px); padding-inline: 0; }
       .q-ar { font-size: 12px; color: var(--qe-muted); margin-block-start: 2px; }
       .req {
         font-size: 11px; font-weight: 600; color: var(--ant-warning-color, #c8893d);
@@ -419,14 +420,28 @@ type Mode = null | 'group' | 'question' | 'option';
       .empty-line { color: var(--qe-muted); font-style: italic; font-size: 13px; margin: var(--space-2, 8px) 0 0; }
       .empty-line.tiny { font-size: 12px; margin-block-start: 4px; }
 
-      /* Inspector */
-      .inspector { position: sticky; inset-block-start: var(--space-4, 16px); }
-      .hint-card, .ins-card {
-        background: var(--qe-surface); border: 1px solid var(--qe-line);
-        border-radius: var(--qe-radius); padding: var(--space-5, 20px);
+      /* Inspector drawer */
+      .scrim {
+        position: fixed; inset: 0; z-index: 1000;
+        background: rgba(16, 24, 40, 0.38);
+        animation: qe-fade 160ms ease;
       }
-      .hint-card { text-align: center; border-style: dashed; }
-      .hint-icon { display: block; font-size: 28px; color: var(--qe-primary); opacity: 0.6; margin-block-end: var(--space-2, 8px); }
+      .drawer {
+        position: fixed; z-index: 1001;
+        inset-block: 0; inset-inline-end: 0;
+        inline-size: clamp(340px, 32vw, 480px);
+        background: var(--qe-surface);
+        border-inline-start: 1px solid var(--qe-line);
+        box-shadow: -16px 0 40px rgba(16, 24, 40, 0.12);
+        overflow-y: auto;
+        animation: qe-slide 200ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      @keyframes qe-fade { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes qe-slide { from { transform: translateX(8%); opacity: 0.6; } to { transform: translateX(0); opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        .scrim, .drawer { animation: none; }
+      }
+      .ins-card { padding: var(--space-5, 20px); }
       .ins-head { display: flex; align-items: center; justify-content: space-between; }
       .ins-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
       .ins-note {
