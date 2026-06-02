@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, LOCALE_ID, OnInit, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -92,8 +92,7 @@ type Mode = null | 'group' | 'question' | 'option';
                 <div class="ghead-left">
                   <span class="drag" aria-hidden="true">⠿</span>
                   <div class="gtitle">
-                    <h2>{{ g.titleEn }}</h2>
-                    <span class="ar" dir="rtl">{{ g.titleAr }}</span>
+                    <h2 [dir]="isAr ? 'rtl' : 'ltr'">{{ isAr ? g.titleAr : g.titleEn }}</h2>
                   </div>
                   <span class="count-pill">{{ g.questions.length }}</span>
                   <code class="code-chip">{{ g.code }}</code>
@@ -111,12 +110,11 @@ type Mode = null | 'group' | 'question' | 'option';
                 @for (q of g.questions; track q.id) {
                   <div class="q-card">
                     <div class="q-top">
-                      <span class="q-text">{{ q.questionEn }}</span>
+                      <span class="q-text" [dir]="isAr ? 'rtl' : 'ltr'">{{ isAr ? q.questionAr : q.questionEn }}</span>
                       @if (q.isRequired) {
                         <span class="req" i18n="@@qedit.required_chip">required</span>
                       }
                     </div>
-                    @if (q.questionAr) { <div class="q-ar" dir="rtl">{{ q.questionAr }}</div> }
                     <div class="chips">
                       <code class="code-chip">{{ q.code }}</code>
                       @if (q.systemRole) { <nz-tag nzColor="geekblue">⚙ {{ q.systemRole }}</nz-tag> }
@@ -127,7 +125,7 @@ type Mode = null | 'group' | 'question' | 'option';
                       <ul class="opts">
                         @for (o of q.options; track o.id) {
                           <li class="opt">
-                            <span class="opt-label">{{ o.labelEn }}</span>
+                            <span class="opt-label" [dir]="isAr ? 'rtl' : 'ltr'">{{ isAr ? o.labelAr : o.labelEn }}</span>
                             <span class="opt-metrics">
                               @if (o.numericPoint) { <span class="metric">pt {{ o.numericPoint }}</span> }
                               @if (o.scoreValue) { <span class="metric score">s {{ o.scoreValue }}</span> }
@@ -477,6 +475,8 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly message = inject(NzMessageService);
 
   readonly roles = SYSTEM_ROLES;
+  /** Active admin locale drives label language (ar build → Arabic, else English). */
+  readonly isAr = inject(LOCALE_ID).startsWith('ar');
   readonly category = this.route.snapshot.paramMap.get('category') as LoanCategory;
   readonly groups = signal<GroupTreeRow[]>([]);
   readonly loading = signal(true);
