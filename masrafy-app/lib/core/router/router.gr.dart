@@ -19,18 +19,22 @@ import 'package:app/features/auth/presentation/pages/login/login.imports.dart'
     as _i4;
 import 'package:app/features/auth/presentation/pages/phone_signup/phone_signup.imports.dart'
     as _i5;
-import 'package:auto_route/auto_route.dart' as _i6;
-import 'package:flutter/material.dart' as _i7;
+import 'package:app/features/questionnaire/domain/enums/loan_category.dart'
+    as _i9;
+import 'package:app/features/questionnaire/presentation/pages/questionnaire/questionnaire.imports.dart'
+    as _i6;
+import 'package:auto_route/auto_route.dart' as _i7;
+import 'package:flutter/material.dart' as _i8;
 
 /// generated route for
 /// [_i1.CompleteProfilePage]
-class CompleteProfileRoute extends _i6.PageRouteInfo<void> {
-  const CompleteProfileRoute({List<_i6.PageRouteInfo>? children})
+class CompleteProfileRoute extends _i7.PageRouteInfo<void> {
+  const CompleteProfileRoute({List<_i7.PageRouteInfo>? children})
     : super(CompleteProfileRoute.name, initialChildren: children);
 
   static const String name = 'CompleteProfileRoute';
 
-  static _i6.PageInfo page = _i6.PageInfo(
+  static _i7.PageInfo page = _i7.PageInfo(
     name,
     builder: (data) {
       return const _i1.CompleteProfilePage();
@@ -40,13 +44,13 @@ class CompleteProfileRoute extends _i6.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i2.ForgotPasswordPage]
-class ForgotPasswordRoute extends _i6.PageRouteInfo<void> {
-  const ForgotPasswordRoute({List<_i6.PageRouteInfo>? children})
+class ForgotPasswordRoute extends _i7.PageRouteInfo<void> {
+  const ForgotPasswordRoute({List<_i7.PageRouteInfo>? children})
     : super(ForgotPasswordRoute.name, initialChildren: children);
 
   static const String name = 'ForgotPasswordRoute';
 
-  static _i6.PageInfo page = _i6.PageInfo(
+  static _i7.PageInfo page = _i7.PageInfo(
     name,
     builder: (data) {
       return const _i2.ForgotPasswordPage();
@@ -56,13 +60,13 @@ class ForgotPasswordRoute extends _i6.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i3.LandingPage]
-class LandingRoute extends _i6.PageRouteInfo<void> {
-  const LandingRoute({List<_i6.PageRouteInfo>? children})
+class LandingRoute extends _i7.PageRouteInfo<void> {
+  const LandingRoute({List<_i7.PageRouteInfo>? children})
     : super(LandingRoute.name, initialChildren: children);
 
   static const String name = 'LandingRoute';
 
-  static _i6.PageInfo page = _i6.PageInfo(
+  static _i7.PageInfo page = _i7.PageInfo(
     name,
     builder: (data) {
       return const _i3.LandingPage();
@@ -72,11 +76,11 @@ class LandingRoute extends _i6.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i4.LoginPage]
-class LoginRoute extends _i6.PageRouteInfo<LoginRouteArgs> {
+class LoginRoute extends _i7.PageRouteInfo<LoginRouteArgs> {
   LoginRoute({
-    _i7.Key? key,
+    _i8.Key? key,
     String? initialPhone,
-    List<_i6.PageRouteInfo>? children,
+    List<_i7.PageRouteInfo>? children,
   }) : super(
          LoginRoute.name,
          args: LoginRouteArgs(key: key, initialPhone: initialPhone),
@@ -85,7 +89,7 @@ class LoginRoute extends _i6.PageRouteInfo<LoginRouteArgs> {
 
   static const String name = 'LoginRoute';
 
-  static _i6.PageInfo page = _i6.PageInfo(
+  static _i7.PageInfo page = _i7.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<LoginRouteArgs>(
@@ -99,7 +103,7 @@ class LoginRoute extends _i6.PageRouteInfo<LoginRouteArgs> {
 class LoginRouteArgs {
   const LoginRouteArgs({this.key, this.initialPhone});
 
-  final _i7.Key? key;
+  final _i8.Key? key;
 
   final String? initialPhone;
 
@@ -111,16 +115,58 @@ class LoginRouteArgs {
 
 /// generated route for
 /// [_i5.PhoneSignupPage]
-class PhoneSignupRoute extends _i6.PageRouteInfo<void> {
-  const PhoneSignupRoute({List<_i6.PageRouteInfo>? children})
+class PhoneSignupRoute extends _i7.PageRouteInfo<void> {
+  const PhoneSignupRoute({List<_i7.PageRouteInfo>? children})
     : super(PhoneSignupRoute.name, initialChildren: children);
 
   static const String name = 'PhoneSignupRoute';
 
-  static _i6.PageInfo page = _i6.PageInfo(
+  static _i7.PageInfo page = _i7.PageInfo(
     name,
     builder: (data) {
       return const _i5.PhoneSignupPage();
     },
   );
+}
+
+/// generated route for
+/// [_i6.QuestionnairePage]
+class QuestionnaireRoute extends _i7.PageRouteInfo<QuestionnaireRouteArgs> {
+  QuestionnaireRoute({
+    _i8.Key? key,
+    _i9.LoanCategory category = _i9.LoanCategory.personal,
+    List<_i7.PageRouteInfo>? children,
+  }) : super(
+         QuestionnaireRoute.name,
+         args: QuestionnaireRouteArgs(key: key, category: category),
+         initialChildren: children,
+       );
+
+  static const String name = 'QuestionnaireRoute';
+
+  static _i7.PageInfo page = _i7.PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<QuestionnaireRouteArgs>(
+        orElse: () => const QuestionnaireRouteArgs(),
+      );
+      return _i6.QuestionnairePage(key: args.key, category: args.category);
+    },
+  );
+}
+
+class QuestionnaireRouteArgs {
+  const QuestionnaireRouteArgs({
+    this.key,
+    this.category = _i9.LoanCategory.personal,
+  });
+
+  final _i8.Key? key;
+
+  final _i9.LoanCategory category;
+
+  @override
+  String toString() {
+    return 'QuestionnaireRouteArgs{key: $key, category: $category}';
+  }
 }

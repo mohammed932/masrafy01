@@ -29,6 +29,11 @@ class ApiStrings {
   // --- Wizard / matching engine ---
   static const String apply = '/api/v1/apply';
 
+  // --- Feature 009 — Dynamic questionnaire + matching preview ---
+  static String questionnaireByCategory(String category) =>
+      '/api/v1/questionnaire/$category';
+  static const String matchingPreview = '/api/v1/matching/preview';
+
   // --- Applications ---
   static String applicationTimeline(String applicationId) =>
       '/api/v1/applications/$applicationId/timeline';

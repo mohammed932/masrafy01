@@ -13,6 +13,11 @@ import '../../features/auth/presentation/pages/forgot_password/cubit/forgot_pass
 import '../../features/auth/presentation/pages/login/cubit/login/login_cubit.dart';
 import '../../features/auth/presentation/pages/phone_signup/cubit/phone_signup/phone_signup_cubit.dart';
 import '../../features/auth/presentation/pages/social_signin/cubit/social_signin/social_signin_cubit.dart';
+import '../../features/questionnaire/data/datasources/questionnaire_remote_datasource.dart';
+import '../../features/questionnaire/data/repositories/questionnaire_repository_impl.dart';
+import '../../features/questionnaire/domain/repositories/questionnaire_repository.dart';
+import '../../features/questionnaire/domain/usecases/questionnaire_usecase.dart';
+import '../../features/questionnaire/presentation/pages/questionnaire/cubit/questionnaire/questionnaire_cubit.dart';
 import '../../features/wizard/data/datasources/wizard_remote_datasource.dart';
 import '../../features/wizard/data/repositories/wizard_repository_impl.dart';
 import '../../features/wizard/domain/repositories/wizard_repository.dart';
@@ -78,6 +83,20 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     () => WizardRepositoryImpl(getIt<WizardRemoteDataSource>()),
   );
   getIt.registerLazySingleton(() => WizardUseCase(getIt<WizardRepository>()));
+
+  // -- Feature 009 — Dynamic questionnaire + matching preview -----------
+  getIt.registerLazySingleton(
+    () => QuestionnaireRemoteDataSource(getIt<BaseNetwork>()),
+  );
+  getIt.registerLazySingleton<QuestionnaireRepository>(
+    () => QuestionnaireRepositoryImpl(getIt<QuestionnaireRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(
+    () => QuestionnaireUseCase(getIt<QuestionnaireRepository>()),
+  );
+  getIt.registerFactory(
+    () => QuestionnaireCubit(getIt<QuestionnaireUseCase>()),
+  );
 
   // -- Feature 008 — native social SDK service + cubit factories ---------
   // Principle XXVIII: third-party SDK handles routed through `get_it`,

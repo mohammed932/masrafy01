@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -65,6 +67,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get auth_profile_field_immutable => 'لا يمكن تعديل هذا الحقل بعد ضبطه.';
+
+  @override
+  String get auth_profile_id_docs_missing => 'ارفع وجهي بطاقة الرقم القومي قبل إكمال ملفك.';
+
+  @override
+  String get auth_password_required_for_phone_profile => 'كلمة المرور مطلوبة لإكمال ملفك.';
+
+  @override
+  String get auth_password_forbidden_for_social_profile => 'حسابات Google أو Apple لا تستخدم كلمة مرور.';
 
   @override
   String get auth_phone_mutation_on_phone_customer_forbidden => 'رقم الجوال مضبوط بالفعل على هذا الحساب.';
@@ -263,4 +274,76 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get auth_complete_profile_action_continue => 'متابعة';
+
+  @override
+  String get match_questionnaire_not_published => 'الاستبيان غير متاح حاليًا. حاول لاحقًا.';
+
+  @override
+  String get match_unknown_question_code => 'إجاباتك قديمة. أعد بدء الاستبيان.';
+
+  @override
+  String get match_unknown_option_code => 'إجاباتك قديمة. أعد بدء الاستبيان.';
+
+  @override
+  String get match_program_no_longer_matches => 'هذا العرض لم يعد متاحًا لإجاباتك.';
+
+  @override
+  String get questionnaire_form_title => 'أخبرنا عن قرضك';
+
+  @override
+  String get questionnaire_form_action_submit => 'عرض النتائج المطابقة';
+
+  @override
+  String get match_preview_title => 'النتائج المطابقة لك';
+
+  @override
+  String get match_preview_no_matches => 'لا توجد برامج تطابق إجاباتك بعد. حاول تعديلها.';
+
+  @override
+  String get match_preview_section_suggestions => 'طرق لفتح المزيد من العروض';
+
+  @override
+  String get match_preview_required_documents => 'المستندات المطلوبة';
+
+  @override
+  String get match_preview_rejection_reasons => 'سبب عدم الأهلية';
+
+  @override
+  String get match_preview_monthly_installment => 'القسط الشهري';
+
+  @override
+  String get match_preview_effective_rate => 'الفائدة الفعلية';
+
+  @override
+  String match_preview_suggestion_unlock(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'يفتح $count برنامج إضافي',
+      many: 'يفتح $count برنامجًا إضافيًا',
+      few: 'يفتح $count برامج إضافية',
+      two: 'يفتح برنامجين إضافيين',
+      one: 'يفتح برنامجًا إضافيًا واحدًا',
+      zero: 'قد يساعد تعديل هذه الإجابة',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get match_featured_badge => 'مميز';
+
+  @override
+  String get match_tier_excellent => 'فرصة ممتازة';
+
+  @override
+  String get match_tier_good => 'فرصة جيدة';
+
+  @override
+  String get match_tier_moderate => 'فرصة متوسطة';
+
+  @override
+  String get match_tier_low => 'فرصة منخفضة';
+
+  @override
+  String get match_tier_very_low => 'فرصة منخفضة جدًا';
 }

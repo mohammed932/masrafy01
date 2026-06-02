@@ -16,5 +16,6 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: PhoneSignupRoute.page),
         AutoRoute(page: ForgotPasswordRoute.page),
         AutoRoute(page: CompleteProfileRoute.page),
+        AutoRoute(page: QuestionnaireRoute.page),
       ];
 }

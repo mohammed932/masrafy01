@@ -215,6 +215,24 @@ abstract class AppLocalizations {
   /// **'لا يمكن تعديل هذا الحقل بعد ضبطه.'**
   String get auth_profile_field_immutable;
 
+  /// Backend PROFILE_ID_DOCS_MISSING error code
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع وجهي بطاقة الرقم القومي قبل إكمال ملفك.'**
+  String get auth_profile_id_docs_missing;
+
+  /// Backend PASSWORD_REQUIRED_FOR_PHONE_PROFILE error code
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور مطلوبة لإكمال ملفك.'**
+  String get auth_password_required_for_phone_profile;
+
+  /// Backend PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE error code
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابات Google أو Apple لا تستخدم كلمة مرور.'**
+  String get auth_password_forbidden_for_social_profile;
+
   /// Backend PHONE_MUTATION_ON_PHONE_CUSTOMER_FORBIDDEN error code
   ///
   /// In ar, this message translates to:
@@ -610,6 +628,126 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'متابعة'**
   String get auth_complete_profile_action_continue;
+
+  /// Backend QUESTIONNAIRE_NOT_PUBLISHED error code
+  ///
+  /// In ar, this message translates to:
+  /// **'الاستبيان غير متاح حاليًا. حاول لاحقًا.'**
+  String get match_questionnaire_not_published;
+
+  /// Backend UNKNOWN_QUESTION_CODE error code
+  ///
+  /// In ar, this message translates to:
+  /// **'إجاباتك قديمة. أعد بدء الاستبيان.'**
+  String get match_unknown_question_code;
+
+  /// Backend UNKNOWN_OPTION_CODE error code
+  ///
+  /// In ar, this message translates to:
+  /// **'إجاباتك قديمة. أعد بدء الاستبيان.'**
+  String get match_unknown_option_code;
+
+  /// Backend PROGRAM_NO_LONGER_MATCHES error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا العرض لم يعد متاحًا لإجاباتك.'**
+  String get match_program_no_longer_matches;
+
+  /// Dynamic questionnaire form — app bar title
+  ///
+  /// In ar, this message translates to:
+  /// **'أخبرنا عن قرضك'**
+  String get questionnaire_form_title;
+
+  /// Dynamic questionnaire form — submit button that triggers the matching preview
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض النتائج المطابقة'**
+  String get questionnaire_form_action_submit;
+
+  /// Matching preview — app bar title
+  ///
+  /// In ar, this message translates to:
+  /// **'النتائج المطابقة لك'**
+  String get match_preview_title;
+
+  /// Matching preview — empty-state message when no programs match
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد برامج تطابق إجاباتك بعد. حاول تعديلها.'**
+  String get match_preview_no_matches;
+
+  /// Matching preview — suggestions section header
+  ///
+  /// In ar, this message translates to:
+  /// **'طرق لفتح المزيد من العروض'**
+  String get match_preview_section_suggestions;
+
+  /// Match card — required-documents list header
+  ///
+  /// In ar, this message translates to:
+  /// **'المستندات المطلوبة'**
+  String get match_preview_required_documents;
+
+  /// Match card — rejection-reasons list header for an ineligible program
+  ///
+  /// In ar, this message translates to:
+  /// **'سبب عدم الأهلية'**
+  String get match_preview_rejection_reasons;
+
+  /// Match card — monthly installment metric label
+  ///
+  /// In ar, this message translates to:
+  /// **'القسط الشهري'**
+  String get match_preview_monthly_installment;
+
+  /// Match card — effective interest rate metric label
+  ///
+  /// In ar, this message translates to:
+  /// **'الفائدة الفعلية'**
+  String get match_preview_effective_rate;
+
+  /// Suggestion tile — how many more programs an answer change unlocks
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{قد يساعد تعديل هذه الإجابة} =1{يفتح برنامجًا إضافيًا واحدًا} =2{يفتح برنامجين إضافيين} few{يفتح {count} برامج إضافية} many{يفتح {count} برنامجًا إضافيًا} other{يفتح {count} برنامج إضافي}}'**
+  String match_preview_suggestion_unlock(int count);
+
+  /// Match card — featured-program badge
+  ///
+  /// In ar, this message translates to:
+  /// **'مميز'**
+  String get match_featured_badge;
+
+  /// Match card — approval tier: excellent
+  ///
+  /// In ar, this message translates to:
+  /// **'فرصة ممتازة'**
+  String get match_tier_excellent;
+
+  /// Match card — approval tier: good
+  ///
+  /// In ar, this message translates to:
+  /// **'فرصة جيدة'**
+  String get match_tier_good;
+
+  /// Match card — approval tier: moderate
+  ///
+  /// In ar, this message translates to:
+  /// **'فرصة متوسطة'**
+  String get match_tier_moderate;
+
+  /// Match card — approval tier: low
+  ///
+  /// In ar, this message translates to:
+  /// **'فرصة منخفضة'**
+  String get match_tier_low;
+
+  /// Match card — approval tier: very low
+  ///
+  /// In ar, this message translates to:
+  /// **'فرصة منخفضة جدًا'**
+  String get match_tier_very_low;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

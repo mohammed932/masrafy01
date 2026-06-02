@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -65,6 +67,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_profile_field_immutable => 'This field cannot be changed once set.';
+
+  @override
+  String get auth_profile_id_docs_missing => 'Upload both National ID front and back before completing your profile.';
+
+  @override
+  String get auth_password_required_for_phone_profile => 'A password is required to complete your profile.';
+
+  @override
+  String get auth_password_forbidden_for_social_profile => 'Accounts using Google or Apple sign-in do not set a password.';
 
   @override
   String get auth_phone_mutation_on_phone_customer_forbidden => 'Mobile number is already set on this account.';
@@ -263,4 +274,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_complete_profile_action_continue => 'Continue';
+
+  @override
+  String get match_questionnaire_not_published => 'This questionnaire is not available yet. Please try again later.';
+
+  @override
+  String get match_unknown_question_code => 'Your answers are out of date. Please restart the questionnaire.';
+
+  @override
+  String get match_unknown_option_code => 'Your answers are out of date. Please restart the questionnaire.';
+
+  @override
+  String get match_program_no_longer_matches => 'This offer is no longer available for your answers.';
+
+  @override
+  String get questionnaire_form_title => 'Tell us about your loan';
+
+  @override
+  String get questionnaire_form_action_submit => 'See matches';
+
+  @override
+  String get match_preview_title => 'Your matches';
+
+  @override
+  String get match_preview_no_matches => 'No programs match your answers yet. Try adjusting them.';
+
+  @override
+  String get match_preview_section_suggestions => 'Ways to unlock more offers';
+
+  @override
+  String get match_preview_required_documents => 'Required documents';
+
+  @override
+  String get match_preview_rejection_reasons => 'Why this isn\'t eligible';
+
+  @override
+  String get match_preview_monthly_installment => 'Monthly installment';
+
+  @override
+  String get match_preview_effective_rate => 'Effective rate';
+
+  @override
+  String match_preview_suggestion_unlock(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Unlocks $count more programs',
+      one: 'Unlocks 1 more program',
+      zero: 'Adjusting this answer could help',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get match_featured_badge => 'Featured';
+
+  @override
+  String get match_tier_excellent => 'Excellent chance';
+
+  @override
+  String get match_tier_good => 'Good chance';
+
+  @override
+  String get match_tier_moderate => 'Moderate chance';
+
+  @override
+  String get match_tier_low => 'Low chance';
+
+  @override
+  String get match_tier_very_low => 'Very low chance';
 }
