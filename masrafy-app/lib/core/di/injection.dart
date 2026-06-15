@@ -1,27 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../features/auth/data/datasources/auth_remote_datasource.dart';
-import '../../features/auth/data/repositories/auth_repository_impl.dart';
-import '../../features/auth/data/services/social_signin_service.dart';
-import '../../features/auth/domain/repositories/auth_repository.dart';
-import '../../features/auth/domain/repositories/customer_auth_repository.dart';
-import '../../features/auth/domain/usecases/auth_usecase.dart';
-import '../../features/auth/presentation/pages/complete_profile/cubit/complete_profile/complete_profile_cubit.dart';
-import '../../features/auth/presentation/pages/forgot_password/cubit/forgot_password/forgot_password_cubit.dart';
-import '../../features/auth/presentation/pages/login/cubit/login/login_cubit.dart';
-import '../../features/auth/presentation/pages/phone_signup/cubit/phone_signup/phone_signup_cubit.dart';
-import '../../features/auth/presentation/pages/social_signin/cubit/social_signin/social_signin_cubit.dart';
-import '../../features/questionnaire/data/datasources/questionnaire_remote_datasource.dart';
-import '../../features/questionnaire/data/repositories/questionnaire_repository_impl.dart';
-import '../../features/questionnaire/domain/repositories/questionnaire_repository.dart';
-import '../../features/questionnaire/domain/usecases/questionnaire_usecase.dart';
-import '../../features/questionnaire/presentation/pages/questionnaire/cubit/questionnaire/questionnaire_cubit.dart';
-import '../../features/wizard/data/datasources/wizard_remote_datasource.dart';
-import '../../features/wizard/data/repositories/wizard_repository_impl.dart';
-import '../../features/wizard/domain/repositories/wizard_repository.dart';
-import '../../features/wizard/domain/usecases/wizard_usecase.dart';
 import '../environments/app_env.dart';
 import '../environments/base_environment.dart';
 import '../environments/dev_environment.dart';
@@ -33,10 +12,11 @@ import '../storage/customer_session_storage.dart';
 
 final GetIt getIt = GetIt.instance;
 
-/// Manual DI graph. Wires env / network / storage / data / domain only —
-/// presentation layer is intentionally absent (feature UIs are rebuilt
-/// post-Figma). Switch to `injectable` codegen once the presentation
-/// tier returns.
+/// Manual DI graph. Wires env / network / storage infrastructure only —
+/// the feature layer (`auth`, `questionnaire`) is an empty scaffold awaiting
+/// a clean rebuild against the finalized backend, so no feature bindings are
+/// registered here yet. Re-add data/domain registrations (and switch to
+/// `injectable` codegen) as each feature is rebuilt.
 ///
 /// [environment] is selected at the flavor entrypoint (`main_dev.dart` /
 /// `main_prod.dart`). When called from the default `main.dart` (no flavor),
@@ -61,58 +41,4 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
         sessionStorage: getIt<CustomerSessionStorage>(),
       ));
   getIt.registerLazySingleton<BaseNetwork>(() => AppNetwork(getIt()));
-
-  // -- Auth feature (legacy v1.7.0 + feature 008 — Constitution v1.8.0). --
-  //    Single datasource + single repository impl wired to BOTH the
-  //    AuthRepository and CustomerAuthRepository interfaces.
-  getIt.registerLazySingleton(() => AuthRemoteDataSource(getIt<BaseNetwork>()));
-  getIt.registerLazySingleton(
-    () => AuthRepositoryImpl(getIt<AuthRemoteDataSource>()),
-  );
-  getIt.registerLazySingleton<AuthRepository>(() => getIt<AuthRepositoryImpl>());
-  getIt.registerLazySingleton<CustomerAuthRepository>(
-    () => getIt<AuthRepositoryImpl>(),
-  );
-  getIt.registerLazySingleton(
-    () => AuthUseCase(getIt<AuthRepository>(), getIt<CustomerSessionStorage>()),
-  );
-
-  // -- Wizard feature (data + domain only) -------------------------------
-  getIt.registerLazySingleton(() => WizardRemoteDataSource(getIt<BaseNetwork>()));
-  getIt.registerLazySingleton<WizardRepository>(
-    () => WizardRepositoryImpl(getIt<WizardRemoteDataSource>()),
-  );
-  getIt.registerLazySingleton(() => WizardUseCase(getIt<WizardRepository>()));
-
-  // -- Feature 009 — Dynamic questionnaire + matching preview -----------
-  getIt.registerLazySingleton(
-    () => QuestionnaireRemoteDataSource(getIt<BaseNetwork>()),
-  );
-  getIt.registerLazySingleton<QuestionnaireRepository>(
-    () => QuestionnaireRepositoryImpl(getIt<QuestionnaireRemoteDataSource>()),
-  );
-  getIt.registerLazySingleton(
-    () => QuestionnaireUseCase(getIt<QuestionnaireRepository>()),
-  );
-  getIt.registerFactory(
-    () => QuestionnaireCubit(getIt<QuestionnaireUseCase>()),
-  );
-
-  // -- Feature 008 — native social SDK service + cubit factories ---------
-  // Principle XXVIII: third-party SDK handles routed through `get_it`,
-  // never instantiated inside services.
-  getIt.registerLazySingleton<GoogleSignIn>(() => GoogleSignIn());
-  getIt.registerLazySingleton(
-    () => SocialSignInService(getIt<GoogleSignIn>()),
-  );
-  getIt.registerFactory(() => PhoneSignupCubit(getIt<CustomerAuthRepository>()));
-  getIt.registerFactory(() => LoginCubit(getIt<AuthRepository>()));
-  getIt.registerFactory(
-    () => SocialSignInCubit(
-      getIt<CustomerAuthRepository>(),
-      getIt<SocialSignInService>(),
-    ),
-  );
-  getIt.registerFactory(() => ForgotPasswordCubit(getIt<CustomerAuthRepository>()));
-  getIt.registerFactory(() => CompleteProfileCubit(getIt<CustomerAuthRepository>()));
 }

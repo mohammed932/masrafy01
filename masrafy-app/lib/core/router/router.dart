@@ -1,21 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 
-import 'router.gr.dart';
-
-/// App router. Routes are flat at the top level; multi-step flows
-/// (PhoneSignup, ForgotPassword, CompleteProfile) host their own step
-/// widgets internally via cubit state.
+/// App router. Routes are intentionally empty — the feature layer is an empty
+/// scaffold pending a clean rebuild, so there are no pages to register yet.
+/// Re-add `AutoRoute(page: ...Route.page)` entries (and regenerate
+/// `router.gr.dart`) as each feature's presentation tier is rebuilt.
 @AutoRouterConfig(replaceInRouteName: 'Page|Screen,Route')
 class AppRouter extends RootStackRouter {
   AppRouter();
 
   @override
-  List<AutoRoute> get routes => [
-        AutoRoute(page: LandingRoute.page, initial: true),
-        AutoRoute(page: LoginRoute.page),
-        AutoRoute(page: PhoneSignupRoute.page),
-        AutoRoute(page: ForgotPasswordRoute.page),
-        AutoRoute(page: CompleteProfileRoute.page),
-        AutoRoute(page: QuestionnaireRoute.page),
-      ];
+  List<AutoRoute> get routes => [];
 }
