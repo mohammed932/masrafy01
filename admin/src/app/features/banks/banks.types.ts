@@ -1,6 +1,5 @@
 export interface Bank {
   id: string;
-  code: string;
   nameArabic: string;
   nameEnglish: string;
   logoS3Key?: string | null;
@@ -29,7 +28,6 @@ export interface BankProgramSummary {
 }
 
 export interface BankCreatePayload {
-  code: string;
   nameArabic: string;
   nameEnglish: string;
   websiteUrl?: string;

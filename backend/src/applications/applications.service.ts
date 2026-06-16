@@ -20,7 +20,6 @@ import { IsolationLevel } from '../common/transaction/isolation-level';
 import { AuditEventType } from '../common/audit/audit-event-types';
 import { Decimal } from '@prisma/client/runtime/library';
 import { randomUUID } from 'crypto';
-import cuid from 'cuid';
 import { PrismaService } from '../infra/prisma/prisma.service';
 import {
   ApplicationRepository,
@@ -40,7 +39,6 @@ import {
   ApplicationNotMatchedException,
 } from '../common/errors/domain.exceptions';
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
-import { StaffAccountRepository } from '@/users/staff-account.repository';
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
@@ -78,7 +76,6 @@ export class ApplicationsService {
     private readonly programsRepo: BankProgramRepository,
     private readonly audit: AuditEventWriter,
     private readonly scoringVersions: ScoringEngineVersionService,
-    private readonly staffAccounts: StaffAccountRepository,
     private readonly questionnaire: QuestionnaireService,
     private readonly weightedScoring: WeightedApprovalScoringService,
   ) {}
@@ -162,86 +159,6 @@ export class ApplicationsService {
           bankOfferId: offer.id,
           userProceededAt: proceededAt.toISOString(),
           correlationId,
-        };
-      },
-      { isolationLevel: IsolationLevel.Serializable },
-    );
-  }
-
-  async assignAgent(input: {
-    applicationId: string;
-    toAgentStaffId: string;
-    reason: string;
-    notes: string | null;
-    actor: { staffId: string; role: 'super_admin' | 'sales_manager' | 'sales_agent' | 'analyst' };
-    correlationId: string;
-    sourceIp: string | null;
-  }): Promise<{
-    applicationId: string;
-    activityId: string;
-    fromAgentId: string | null;
-    toAgentId: string;
-    correlationId: string;
-  }> {
-    const target = await this.staffAccounts.findRoleSummaryById(input.toAgentStaffId);
-    if (!target || !target.isActive) throw new NotFoundException();
-    if (target.role === 'analyst') throw new ForbiddenException();
-
-    return this.prisma.$transaction(
-      async (tx) => {
-        const existing = await this.repo.findAssignmentSnapshot(input.applicationId, tx);
-        if (!existing) throw new NotFoundException();
-
-        const fromAgentId = existing.assignedAgentStaffId;
-        await this.repo.updateAssignedAgent(
-          {
-            applicationId: input.applicationId,
-            toAgentStaffId: input.toAgentStaffId,
-            assignedAt: new Date(),
-          },
-          tx,
-        );
-
-        const activityId = cuid();
-        await this.repo.appendReassignmentActivity(
-          {
-            activityId,
-            applicationId: input.applicationId,
-            actorStaffId: input.actor.staffId,
-            actorRole: input.actor.role,
-            reason: input.reason,
-            note: input.notes,
-            fromAgentId: fromAgentId ?? null,
-            toAgentId: input.toAgentStaffId,
-            correlationId: input.correlationId,
-          },
-          tx,
-        );
-
-        await this.audit.write(
-          {
-            actorId: input.actor.staffId,
-            targetId: input.toAgentStaffId,
-            eventType: AuditEventType.APPLICATION_REASSIGNED,
-            sourceIp: input.sourceIp,
-            correlationId: input.correlationId,
-            payload: {
-              applicationId: input.applicationId,
-              activityId,
-              fromAgentId: fromAgentId ?? null,
-              toAgentId: input.toAgentStaffId,
-              reassignReason: input.reason,
-            },
-          },
-          tx,
-        );
-
-        return {
-          applicationId: input.applicationId,
-          activityId,
-          fromAgentId,
-          toAgentId: input.toAgentStaffId,
-          correlationId: input.correlationId,
         };
       },
       { isolationLevel: IsolationLevel.Serializable },

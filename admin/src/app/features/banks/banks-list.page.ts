@@ -62,7 +62,7 @@ import type { BankWithProgramCount } from './banks.types';
       <div class="toolbar">
         <input
           nz-input
-          placeholder="Search by code or name…"
+          placeholder="Search by name…"
           i18n-placeholder="@@banks.list.search"
           [formControl]="searchControl"
         />
@@ -79,7 +79,6 @@ import type { BankWithProgramCount } from './banks.types';
           <thead>
             <tr>
               <th style="width: 64px"></th>
-              <th i18n="@@banks.col.code">Code</th>
               <th i18n="@@banks.col.name">Name</th>
               <th i18n="@@banks.col.programs">Programs</th>
               <th i18n="@@banks.col.active">Active</th>
@@ -98,7 +97,6 @@ import type { BankWithProgramCount } from './banks.types';
                     }
                   </span>
                 </td>
-                <td><span class="code-chip">{{ b.code }}</span></td>
                 <td>
                   <a [routerLink]="['/banks', b.id]" class="row-link">
                     {{ b.nameEnglish }}
@@ -186,17 +184,6 @@ import type { BankWithProgramCount } from './banks.types';
       .numeric { font-variant-numeric: tabular-nums lining-nums; }
       .actions { white-space: nowrap; }
       .empty { padding: var(--space-6); text-align: center; color: var(--text-tertiary); margin: 0; }
-      .code-chip {
-        display: inline-block;
-        padding: 2px 8px;
-        background: var(--bg-muted, var(--color-surface-muted));
-        border-radius: var(--radius-sm);
-        font-family: var(--font-mono, monospace);
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--text-secondary, var(--color-text-secondary));
-        letter-spacing: 0.04em;
-      }
       .featured-chip {
         display: inline-block;
         margin-inline-start: 8px;

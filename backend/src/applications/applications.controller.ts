@@ -5,7 +5,6 @@
 
 import {
   Controller,
-  Get,
   Post,
   Body,
   Headers,
@@ -21,7 +20,6 @@ import { ApplicationsService } from './applications.service';
 import { ApplyRequestDto } from './dto/apply.dto';
 import { SelectOfferDto } from './dto/select-offer.dto';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
-import { CustomerTimelineService } from './customer-timeline.service';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { CustomerProfileCompleteGuard } from '@/customer-auth/guards/customer-profile-complete.guard';
 import { ForbiddenException } from '@/common/errors/domain.exceptions';
@@ -35,26 +33,7 @@ interface MobileAuthedRequest extends Request {
 @Controller('v1')
 @UseGuards(CustomerJwtGuard, MobileRateLimitGuard)
 export class ApplicationsController {
-  constructor(
-    private readonly service: ApplicationsService,
-    private readonly timelineService: CustomerTimelineService,
-  ) {}
-
-  @Get('applications/:applicationId/timeline')
-  @ApiOperation({ summary: 'Customer milestone timeline (customer-JWT, milestone-only)' })
-  @ApiResponse({ status: 200, description: 'Milestone list (no agent identities, no notes)' })
-  @ApiResponse({
-    status: 403,
-    description: 'Customer is not the owner of this application',
-  })
-  async timeline(
-    @Param('applicationId') applicationId: string,
-    @Req() req: MobileAuthedRequest,
-  ): Promise<unknown> {
-    const customerId = this.requireCustomerId(req);
-    const data = await this.timelineService.buildTimeline(applicationId, customerId);
-    return { success: true, data };
-  }
+  constructor(private readonly service: ApplicationsService) {}
 
   @Post('apply')
   @UseGuards(CustomerProfileCompleteGuard)

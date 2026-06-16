@@ -227,6 +227,23 @@ export class ApplicationsApiService {
     return res.data;
   }
 
+  async setLeadStatus(
+    applicationId: string,
+    leadStatus: LeadStatus,
+    reason?: string,
+  ): Promise<{ applicationId: string; previousLeadStatus: LeadStatus; newLeadStatus: LeadStatus }> {
+    const res = await firstValueFrom(
+      this.http.patch<
+        SuccessEnvelope<{
+          applicationId: string;
+          previousLeadStatus: LeadStatus;
+          newLeadStatus: LeadStatus;
+        }>
+      >(`${this.base()}/applications/${applicationId}/lead-status`, { leadStatus, reason }),
+    );
+    return res.data;
+  }
+
   async getById(id: string): Promise<AdminApplicationDetail> {
     const res = await firstValueFrom(
       this.http.get<SuccessEnvelope<AdminApplicationDetail>>(`${this.base()}/applications/${id}`),

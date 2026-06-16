@@ -12,7 +12,6 @@ import {
   type ApplicationPriority,
   type ApplicationStatus as PrismaApplicationStatus,
   type ApprovalTier,
-  type LeadStatus,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../infra/prisma/prisma.service';
@@ -21,24 +20,6 @@ import { ApplicationStatus } from './dto/enums';
 /** Domain JSON value type — exposed to services / DTOs.
  *  Internally cast at the Prisma boundary inside this repository. */
 export type JsonValueInput = object | unknown[] | string | number | boolean | null;
-
-export type LeadListFilter =
-  | 'needs_first_contact'
-  | 'stale'
-  | 'recent'
-  | 'followup_today'
-  | 'docs_in_progress'
-  | 'ready_for_submission'
-  | 'submitted_to_bank';
-
-export interface ApplicationListItemAggregates {
-  lastActivityType: string | null;
-  lastActivityOccurredAt: string | null;
-  activityCount: number;
-  isStale: boolean;
-  hasOverdueFollowUp: boolean;
-  pendingFollowUpCount: number;
-}
 
 export interface CreateApplicationInput {
   submissionCorrelationId: string;
@@ -136,16 +117,6 @@ export interface ApplicationOfferSelectionSnapshot {
 }
 
 /**
- * Mapped domain type for the assign-agent flow's pre-write read.
- * Intra-feature; the service uses `assignedAgentStaffId` to record the
- * previous agent on the activity log.
- */
-export interface ApplicationAssignmentSnapshot {
-  id: string;
-  assignedAgentStaffId: string | null;
-}
-
-/**
  * Mapped domain type for the activities feature's read of bank-offer
  * ownership inside the offer-selection transaction. Intra-feature
  * because BankOffer queries live in the applications feature.
@@ -239,9 +210,7 @@ export class ApplicationRepository {
   async findManyAdmin(params: {
     status?: ApplicationStatus[];
     loanPurpose?: string;
-    tier?: 'high' | 'medium' | 'needs_coaching';
-    leadFilter?: LeadListFilter;
-    assignedAgentStaffId?: string;
+    tier?: 'high' | 'medium';
     cursor?: string;
     limit?: number;
     /**
@@ -257,7 +226,6 @@ export class ApplicationRepository {
     if (params.status?.length)
       where.status = { in: params.status as unknown as PrismaApplicationStatus[] };
     if (params.loanPurpose) where.loanPurpose = params.loanPurpose;
-    if (params.assignedAgentStaffId) where.assignedAgentStaffId = params.assignedAgentStaffId;
 
     if (params.tier === 'high') {
       where.bankOffers = { some: { approvalTier: 'excellent', erasedAt: null } };
@@ -266,58 +234,6 @@ export class ApplicationRepository {
         { bankOffers: { some: { approvalTier: 'good', erasedAt: null } } },
         { bankOffers: { none: { approvalTier: 'excellent', erasedAt: null } } },
       ];
-    } else if (params.tier === 'needs_coaching') {
-      where.OR = [
-        { status: 'no_match' },
-        {
-          AND: [
-            {
-              bankOffers: {
-                some: { approvalTier: { in: ['moderate', 'low', 'very_low'] }, erasedAt: null },
-              },
-            },
-            {
-              bankOffers: { none: { approvalTier: { in: ['excellent', 'good'] }, erasedAt: null } },
-            },
-          ],
-        },
-      ];
-    }
-
-    const stale48hCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    const last24hCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    if (params.leadFilter === 'needs_first_contact') {
-      where.leadStatus = 'needs_first_contact';
-    } else if (params.leadFilter === 'docs_in_progress') {
-      where.leadStatus = 'document_collection';
-    } else if (params.leadFilter === 'ready_for_submission') {
-      where.leadStatus = 'ready_for_submission';
-    } else if (params.leadFilter === 'submitted_to_bank') {
-      where.leadStatus = 'submitted_to_bank';
-    } else if (params.leadFilter === 'recent') {
-      where.activities = { some: { occurredAt: { gte: last24hCutoff } } };
-    } else if (params.leadFilter === 'stale') {
-      where.AND = [
-        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
-        { leadStatus: { in: ['needs_first_contact', 'document_collection'] } },
-        {
-          OR: [
-            { activities: { none: {} } },
-            { activities: { every: { occurredAt: { lt: stale48hCutoff } } } },
-          ],
-        },
-      ];
-    } else if (params.leadFilter === 'followup_today') {
-      where.activities = {
-        some: {
-          followUpAt: { gte: todayStart, lte: todayEnd },
-        },
-      };
     }
 
     return this.prisma.application.findMany({
@@ -327,49 +243,8 @@ export class ApplicationRepository {
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
       include: {
         bankOffers: { where: { erasedAt: null }, include: { decision: true } },
-        activities: {
-          orderBy: { occurredAt: 'desc' },
-          take: 1,
-          select: { activityType: true, occurredAt: true },
-        },
-        _count: { select: { activities: true } },
-        assignedAgent: { select: { id: true, name: true } },
       },
     });
-  }
-
-  async countActivitiesPendingFollowupForApplications(
-    applicationIds: readonly string[],
-  ): Promise<Map<string, number>> {
-    if (applicationIds.length === 0) return new Map();
-    const now = new Date();
-    const rows = await this.prisma.activity.groupBy({
-      by: ['applicationId'],
-      where: {
-        applicationId: { in: [...applicationIds] },
-        followUpAt: { not: null, lte: now },
-      },
-      _count: { _all: true },
-    });
-    return new Map(rows.map((r) => [r.applicationId, r._count._all]));
-  }
-
-  async assignAgent(input: {
-    applicationId: string;
-    toAgentStaffId: string;
-    tx?: Prisma.TransactionClient;
-  }): Promise<{ previousAgentId: string | null }> {
-    const client = input.tx ?? this.prisma;
-    const existing = await client.application.findUnique({
-      where: { id: input.applicationId },
-      select: { assignedAgentStaffId: true },
-    });
-    if (!existing) throw new Error(`Application not found: ${input.applicationId}`);
-    await client.application.update({
-      where: { id: input.applicationId },
-      data: { assignedAgentStaffId: input.toAgentStaffId, assignedAt: new Date() },
-    });
-    return { previousAgentId: existing.assignedAgentStaffId };
   }
 
   /**
@@ -401,24 +276,6 @@ export class ApplicationRepository {
       userProceededAt: row.userProceededAt,
       userSelectedBankOfferId: row.userSelectedBankOfferId,
     };
-  }
-
-  /**
-   * Read the minimal projection used by the assign-agent flow's pre-write
-   * check. The service needs `assignedAgentStaffId` to record the previous
-   * agent on the activity log.
-   */
-  async findAssignmentSnapshot(
-    id: string,
-    tx?: Prisma.TransactionClient,
-  ): Promise<ApplicationAssignmentSnapshot | null> {
-    const client = tx ?? this.prisma;
-    const row = await client.application.findUnique({
-      where: { id },
-      select: { id: true, assignedAgentStaffId: true },
-    });
-    if (!row) return null;
-    return { id: row.id, assignedAgentStaffId: row.assignedAgentStaffId };
   }
 
   /**
@@ -467,90 +324,4 @@ export class ApplicationRepository {
     });
   }
 
-  /**
-   * Write helper for the assign-agent flow — sets the assigned agent and
-   * stamps `assignedAt` to "now". The service controls the timing of the
-   * write within its `$transaction` callback.
-   */
-  async updateAssignedAgent(
-    input: {
-      applicationId: string;
-      toAgentStaffId: string;
-      assignedAt: Date;
-    },
-    tx?: Prisma.TransactionClient,
-  ): Promise<void> {
-    const client = tx ?? this.prisma;
-    await client.application.update({
-      where: { id: input.applicationId },
-      data: {
-        assignedAgentStaffId: input.toAgentStaffId,
-        assignedAt: input.assignedAt,
-      },
-    });
-  }
-
-  /**
-   * Persist a `LEAD_REASSIGNED` activity row as part of the assign-agent
-   * flow. The Activity table is owned by the activities feature, but
-   * `ActivitiesModule` already depends on `ApplicationsModule` — so this
-   * narrow intra-flow writer lives here to avoid a circular module dep.
-   * The applications service uses this only as part of `assignAgent`.
-   */
-  async appendReassignmentActivity(
-    input: {
-      activityId: string;
-      applicationId: string;
-      actorStaffId: string;
-      actorRole: 'super_admin' | 'sales_manager' | 'sales_agent' | 'analyst';
-      reason: string;
-      note: string | null;
-      fromAgentId: string | null;
-      toAgentId: string;
-      correlationId: string;
-    },
-    tx?: Prisma.TransactionClient,
-  ): Promise<void> {
-    const client = tx ?? this.prisma;
-    await client.activity.create({
-      data: {
-        id: input.activityId,
-        applicationId: input.applicationId,
-        actorStaffId: input.actorStaffId,
-        actorRole: input.actorRole,
-        activityType: 'LEAD_REASSIGNED',
-        reason: input.reason,
-        note: input.note,
-        durationMinutes: null,
-        outcomeFlags: [],
-        followUpAt: null,
-        attachedDocumentIds: [],
-        meta: {
-          fromAgentId: input.fromAgentId ?? null,
-          toAgentId: input.toAgentId,
-          reassignReason: input.reason,
-        },
-        correlationId: input.correlationId,
-      },
-    });
-  }
-
-  /**
-   * Write helper for the activities feature's lead-status transition — flips
-   * `leadStatus` to the derived next value. Accepts `tx` so it participates
-   * in the activities service's create-activity transaction.
-   */
-  async updateLeadStatus(
-    input: {
-      applicationId: string;
-      leadStatus: LeadStatus;
-    },
-    tx?: Prisma.TransactionClient,
-  ): Promise<void> {
-    const client = tx ?? this.prisma;
-    await client.application.update({
-      where: { id: input.applicationId },
-      data: { leadStatus: input.leadStatus },
-    });
-  }
 }

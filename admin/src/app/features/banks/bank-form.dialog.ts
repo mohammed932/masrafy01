@@ -43,19 +43,12 @@ export interface BankFormDialogResult {
     <form [formGroup]="form" (ngSubmit)="submit()" class="form">
       <h2 class="title">{{ data.mode === 'create' ? 'Add bank' : 'Edit bank' }}</h2>
 
-      <nz-form-item>
-        <nz-form-label nzRequired i18n="@@banks.field.code">Code</nz-form-label>
-        <nz-form-control [nzErrorTip]="codeErr">
-          <input nz-input formControlName="code" placeholder="ABK_EGYPT" [readonly]="data.mode === 'edit'" />
-          <ng-template #codeErr i18n="@@banks.help.code">A–Z, 0–9, _ — 2 to 40 chars. Immutable after save.</ng-template>
-        </nz-form-control>
-      </nz-form-item>
-
       <div class="row">
         <nz-form-item>
           <nz-form-label nzRequired i18n="@@banks.field.name_en">Name (English)</nz-form-label>
-          <nz-form-control>
+          <nz-form-control [nzErrorTip]="nameEnErr">
             <input nz-input formControlName="nameEnglish" />
+            <ng-template #nameEnErr i18n="@@banks.help.name_en">A bank with this English name already exists.</ng-template>
           </nz-form-control>
         </nz-form-item>
         <nz-form-item>
@@ -155,10 +148,6 @@ export class BankFormDialog {
   readonly logoPreview = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
-    code: new FormControl<string>(this.data.bank?.code ?? '', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.pattern(/^[A-Z][A-Z0-9_]{1,39}$/)],
-    }),
     nameEnglish: new FormControl<string>(this.data.bank?.nameEnglish ?? '', { nonNullable: true, validators: [Validators.required, Validators.maxLength(120)] }),
     nameArabic: new FormControl<string>(this.data.bank?.nameArabic ?? '', { nonNullable: true, validators: [Validators.required, Validators.maxLength(120)] }),
     websiteUrl: new FormControl<string>(this.data.bank?.websiteUrl ?? '', { nonNullable: true, validators: [Validators.maxLength(500)] }),
@@ -167,10 +156,6 @@ export class BankFormDialog {
     isActive: new FormControl<boolean>(this.data.bank?.isActive ?? true, { nonNullable: true }),
     isFeatured: new FormControl<boolean>(this.data.bank?.isFeatured ?? false, { nonNullable: true }),
   });
-
-  constructor() {
-    if (this.data.mode === 'edit') this.form.controls.code.disable();
-  }
 
   cancel(): void { this.ref.close({ saved: false }); }
 
@@ -184,7 +169,6 @@ export class BankFormDialog {
       if (this.data.mode === 'create') {
         const v = this.form.getRawValue();
         await this.api.create({
-          code: v.code,
           nameArabic: v.nameArabic,
           nameEnglish: v.nameEnglish,
           websiteUrl: v.websiteUrl || undefined,
@@ -245,7 +229,6 @@ export class BankFormDialog {
     const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } }).error;
     const code = envelope?.code ?? 'INTERNAL_ERROR';
     this.message.error(this.errors.toLocalizedMessage(code as never, envelope?.meta));
-    if (code === 'BANK_CODE_DUPLICATE') this.form.controls.code.setErrors({ duplicate: true });
-    if (code === 'BANK_CODE_INVALID_FORMAT') this.form.controls.code.setErrors({ format: true });
+    if (code === 'BANK_NAME_DUPLICATE') this.form.controls.nameEnglish.setErrors({ duplicate: true });
   }
 }

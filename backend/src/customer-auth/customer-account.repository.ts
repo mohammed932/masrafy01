@@ -369,7 +369,6 @@ export class CustomerAccountRepository {
             id: true,
             loanPurpose: true,
             status: true,
-            leadStatus: true,
             requestedAmountEGP: true,
             createdAt: true,
             userProceededAt: true,

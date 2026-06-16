@@ -78,7 +78,6 @@ export class AdminCustomerAccountsController {
         id: a.id,
         loanPurpose: a.loanPurpose,
         status: a.status,
-        leadStatus: a.leadStatus,
         requestedAmountEGP: a.requestedAmountEGP.toString(),
         createdAt: a.createdAt.toISOString(),
         userProceededAt: a.userProceededAt?.toISOString() ?? null,

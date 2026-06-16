@@ -184,15 +184,9 @@ export class BankNotFoundException extends DomainException {
   }
 }
 
-export class BankCodeDuplicateException extends DomainException {
-  constructor(code: string) {
-    super(ERROR_CODES.BANK_CODE_DUPLICATE, { code });
-  }
-}
-
-export class BankCodeInvalidFormatException extends DomainException {
-  constructor(code: string) {
-    super(ERROR_CODES.BANK_CODE_INVALID_FORMAT, { code });
+export class BankNameDuplicateException extends DomainException {
+  constructor(nameEnglish: string) {
+    super(ERROR_CODES.BANK_NAME_DUPLICATE, { nameEnglish });
   }
 }
 
@@ -292,59 +286,6 @@ export class ScoringVersionNotFoundException extends DomainException {
 export class ScoringVersionNoActiveException extends DomainException {
   constructor() {
     super(ERROR_CODES.SCORING_VERSION_NO_ACTIVE);
-  }
-}
-
-export class AnalyticsWindowTooLargeException extends DomainException {
-  constructor(maxDays: number) {
-    super(ERROR_CODES.ANALYTICS_WINDOW_TOO_LARGE, { maxDays });
-  }
-}
-
-// --- Lead management (feature 005) -----------------------------------------
-
-export class ActivityForbiddenNotAssignedException extends DomainException {
-  constructor(applicationId: string) {
-    super(ERROR_CODES.ACTIVITY_FORBIDDEN_NOT_ASSIGNED, { applicationId });
-  }
-}
-
-export class InvalidActivityReasonException extends DomainException {
-  constructor(meta: { activityType: string; reason: string; allowedReasons: readonly string[] }) {
-    super(ERROR_CODES.INVALID_ACTIVITY_REASON, meta);
-  }
-}
-
-export class ReasonDetailsRequiredException extends DomainException {
-  constructor() {
-    super(ERROR_CODES.REASON_DETAILS_REQUIRED);
-  }
-}
-
-export class DurationRequiredForCallException extends DomainException {
-  constructor() {
-    super(ERROR_CODES.DURATION_REQUIRED_FOR_CALL);
-  }
-}
-
-export class FollowupInPastException extends DomainException {
-  constructor(followUpAt: string) {
-    super(ERROR_CODES.FOLLOWUP_IN_PAST, { followUpAt });
-  }
-}
-
-export class FileTooLargeException extends DomainException {
-  constructor(sizeBytes: number) {
-    super(ERROR_CODES.FILE_TOO_LARGE, { maxSizeBytes: 10_485_760, sizeBytes });
-  }
-}
-
-export class FileTypeNotAllowedException extends DomainException {
-  constructor(mimeType: string) {
-    super(ERROR_CODES.FILE_TYPE_NOT_ALLOWED, {
-      mimeType,
-      allowedTypes: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
-    });
   }
 }
 

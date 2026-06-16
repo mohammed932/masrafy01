@@ -13,11 +13,3 @@ export enum ApplicationStatus {
   archived = 'archived',
   erased = 'erased',
 }
-
-export enum LeadStatus {
-  needs_first_contact = 'needs_first_contact',
-  document_collection = 'document_collection',
-  ready_for_submission = 'ready_for_submission',
-  submitted_to_bank = 'submitted_to_bank',
-  bank_decided = 'bank_decided',
-}

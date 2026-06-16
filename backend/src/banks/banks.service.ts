@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { AuditEventType } from '../common/audit/audit-event-types';
 import { AuditEventWriter } from '../audit/audit-event.writer';
 import {
-  BankCodeDuplicateException,
+  BankNameDuplicateException,
   BankConflictStaleDataException,
   BankHasProgramsException,
   BankNotFoundException,
@@ -61,12 +61,10 @@ export class BanksService {
   }
 
   async create(dto: CreateBankDto, actor: ActorCtx) {
-    const codeUpper = dto.code.toUpperCase();
-    const dup = await this.repo.findByCode(codeUpper);
-    if (dup) throw new BankCodeDuplicateException(codeUpper);
+    const dup = await this.repo.findByNameEnglish(dto.nameEnglish);
+    if (dup) throw new BankNameDuplicateException(dto.nameEnglish);
 
     const created = await this.repo.create({
-      code: codeUpper,
       nameArabic: dto.nameArabic,
       nameEnglish: dto.nameEnglish,
       websiteUrl: dto.websiteUrl ?? null,
@@ -84,7 +82,7 @@ export class BanksService {
       targetId: null,
       sourceIp: actor.sourceIp,
       correlationId: actor.correlationId,
-      payload: { id: created.id, code: created.code, nameEnglish: created.nameEnglish },
+      payload: { id: created.id, nameEnglish: created.nameEnglish },
     });
 
     return created;
@@ -171,7 +169,7 @@ export class BanksService {
       targetId: null,
       sourceIp: actor.sourceIp,
       correlationId: actor.correlationId,
-      payload: { id, code: existing.code },
+      payload: { id, nameEnglish: existing.nameEnglish },
     });
   }
 

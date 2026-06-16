@@ -3,13 +3,9 @@
  */
 
 import {
-  Body,
   Controller,
   Get,
-  Headers,
-  Ip,
   Param,
-  Post,
   Query,
   UseGuards,
   ParseIntPipe,
@@ -17,15 +13,11 @@ import {
 } from '@nestjs/common';
 import { ApplicationStatus } from './dto/enums';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { randomUUID } from 'node:crypto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
-import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
-import { ApplicationRepository, type LeadListFilter } from './application.repository';
-import { ForbiddenException, NotFoundException } from '@/common/errors/domain.exceptions';
-import { AssignLeadDto } from './dto/assign-lead.dto';
-import { ApplicationsService } from './applications.service';
+import { ApplicationRepository } from './application.repository';
+import { NotFoundException } from '@/common/errors/domain.exceptions';
 import { maskApplicantProfile, type RawApplicantProfileJson } from './pii-masker';
 
 @ApiTags('Admin · Applications')
@@ -34,86 +26,32 @@ import { maskApplicantProfile, type RawApplicantProfileJson } from './pii-masker
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('super_admin', 'sales_manager', 'sales_agent', 'analyst')
 export class AdminApplicationsController {
-  private static readonly LEAD_FILTER_VALUES: readonly LeadListFilter[] = [
-    'needs_first_contact',
-    'stale',
-    'recent',
-    'followup_today',
-    'docs_in_progress',
-    'ready_for_submission',
-    'submitted_to_bank',
-  ];
-
-  constructor(
-    private readonly repo: ApplicationRepository,
-    private readonly applicationsService: ApplicationsService,
-  ) {}
+  constructor(private readonly repo: ApplicationRepository) {}
 
   @Get()
-  @ApiOperation({ summary: 'List applications (paginated, with bestOffer + tier + lead filter)' })
+  @ApiOperation({ summary: 'List applications (paginated, with bestOffer + tier)' })
   async findMany(
-    @CurrentUser() user: JwtPayload,
     @Query('status') status?: string,
     @Query('loanPurpose') loanPurpose?: string,
     @Query('tier') tier?: string,
-    @Query('filter') leadFilter?: string,
     @Query('cursor') cursor?: string,
     @Query('limit', new DefaultValuePipe(25), ParseIntPipe) limit?: number,
   ): Promise<unknown> {
-    const tierBucket =
-      tier === 'high' || tier === 'medium' || tier === 'needs_coaching' ? tier : undefined;
-    const filterBucket = AdminApplicationsController.LEAD_FILTER_VALUES.includes(
-      leadFilter as LeadListFilter,
-    )
-      ? (leadFilter as LeadListFilter)
-      : undefined;
-    const assignedAgentStaffId = user.role === 'sales_agent' ? user.sub : undefined;
+    const tierBucket = tier === 'high' || tier === 'medium' ? tier : undefined;
     const rows = await this.repo.findManyAdmin({
       status: status?.split(',') as ApplicationStatus[] | undefined,
       loanPurpose,
       tier: tierBucket,
-      leadFilter: filterBucket,
-      assignedAgentStaffId,
       cursor,
       limit,
     });
-    const ids = rows.map((r) => r.id);
-    const pendingFollowupCounts =
-      await this.repo.countActivitiesPendingFollowupForApplications(ids);
     return {
       success: true,
-      data: rows.map((r) => this.projectListItem(r, pendingFollowupCounts)),
+      data: rows.map((r) => this.projectListItem(r)),
       pagination: {
         nextCursor: rows.length === limit ? (rows[rows.length - 1]?.id ?? null) : null,
       },
     };
-  }
-
-  @Post(':id/assign')
-  @Roles('super_admin', 'sales_manager')
-  @ApiOperation({ summary: 'Assign or reassign an application to an agent' })
-  async assign(
-    @Param('id') applicationId: string,
-    @Body() body: AssignLeadDto,
-    @CurrentUser() user: JwtPayload,
-    @Headers('x-correlation-id') correlationIdHeader: string | undefined,
-    @Ip() ip: string,
-  ): Promise<unknown> {
-    if (user.role !== 'super_admin' && user.role !== 'sales_manager') {
-      throw new ForbiddenException();
-    }
-    const correlationId =
-      correlationIdHeader && correlationIdHeader.length > 0 ? correlationIdHeader : randomUUID();
-    const out = await this.applicationsService.assignAgent({
-      applicationId,
-      toAgentStaffId: body.toAgentStaffId,
-      reason: body.reason,
-      notes: body.notes ?? null,
-      actor: { staffId: user.sub, role: user.role },
-      correlationId,
-      sourceIp: ip ?? null,
-    });
-    return { success: true, data: out };
   }
 
   @Get(':id')
@@ -126,7 +64,6 @@ export class AdminApplicationsController {
 
   private projectListItem(
     row: Awaited<ReturnType<ApplicationRepository['findManyAdmin']>>[number],
-    pendingFollowups: Map<string, number>,
   ) {
     const profile = row.applicantProfile as RawApplicantProfileJson;
     // Prefer the offer the applicant actually selected (feature 008).
@@ -145,14 +82,6 @@ export class AdminApplicationsController {
         }
       : null;
     const selectedOfferDecision = selected?.decision?.outcome ?? null;
-    const last = row.activities[0];
-    const activityCount = row._count.activities;
-    const lastActivityAt = last?.occurredAt ?? null;
-    const stale48hMs = 48 * 60 * 60 * 1000;
-    const isStale =
-      (row.leadStatus === 'needs_first_contact' || row.leadStatus === 'document_collection') &&
-      (lastActivityAt === null || Date.now() - lastActivityAt.getTime() >= stale48hMs);
-    const pendingFollowupCount = pendingFollowups.get(row.id) ?? 0;
     return {
       id: row.id,
       status: row.status,
@@ -166,16 +95,6 @@ export class AdminApplicationsController {
       programsCheckedCount: row.programsCheckedCount,
       maskedApplicant: maskApplicantProfile(profile),
       bestOffer,
-      leadStatus: row.leadStatus,
-      assignedAgent: row.assignedAgent
-        ? { id: row.assignedAgent.id, name: row.assignedAgent.name }
-        : null,
-      lastActivity: last
-        ? { activityType: last.activityType, occurredAt: last.occurredAt.toISOString() }
-        : null,
-      activityCount,
-      isStale,
-      hasOverdueFollowUp: pendingFollowupCount > 0,
       userProceededAt: row.userProceededAt ? row.userProceededAt.toISOString() : null,
       userSelectedBankOfferId: row.userSelectedBankOfferId ?? null,
       selectedOfferDecision,

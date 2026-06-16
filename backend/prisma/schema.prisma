@@ -116,14 +116,6 @@ enum SupportStatus {
   resolved
 }
 
-enum LeadStatus {
-  needs_first_contact
-  document_collection
-  ready_for_submission
-  submitted_to_bank
-  bank_decided
-}
-
 enum ApprovalTier {
   excellent
   good
@@ -184,8 +176,6 @@ model StaffAccount {
   banksCreated              Bank[]                 @relation("BankCreatedBy")
   banksUpdated              Bank[]                 @relation("BankUpdatedBy")
   scoringVersionActivations ScoringEngineVersion[] @relation("ScoringVersionActivator")
-  assignedLeads             Application[]          @relation("AssignedLeads")
-  activitiesAuthored        Activity[]             @relation("ActivityActor")
   documentsUploaded         Document[]             @relation("DocumentUploader")
   documentsVerified         Document[]             @relation("DocumentVerifier")
 
@@ -301,9 +291,9 @@ model BankProgram {
   createdBy String   @db.VarChar(30)
   updatedBy String   @db.VarChar(30)
 
-  createdByStaff StaffAccount @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
-  updatedByStaff StaffAccount @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
-  auditEvents    AuditEvent[] @relation("BankProgramAuditEvents")
+  createdByStaff    StaffAccount       @relation("BankProgramCreatedBy", fields: [createdBy], references: [id])
+  updatedByStaff    StaffAccount       @relation("BankProgramUpdatedBy", fields: [updatedBy], references: [id])
+  auditEvents       AuditEvent[]       @relation("BankProgramAuditEvents")
   // Feature 00X — approval-scoring weights (admin maker-checker, Principle V v4.1.0).
   scoringWeightSets ScoringWeightSet[] @relation("BankProgramScoringWeightSets")
 
@@ -321,9 +311,8 @@ model BankProgram {
 
 model Bank {
   id           String   @id @default(cuid()) @db.VarChar(30)
-  code         String   @unique @db.VarChar(40)
   nameArabic   String   @db.VarChar(120)
-  nameEnglish  String   @db.VarChar(120)
+  nameEnglish  String   @unique @db.VarChar(120)
   logoS3Key    String?  @db.VarChar(255)
   websiteUrl   String?  @db.VarChar(500)
   isActive     Boolean  @default(true)
@@ -381,11 +370,6 @@ model Application {
   programsCheckedCount    Int                 @default(0)
   eligibleProgramsCount   Int                 @default(0)
 
-  // Feature 005 — agent workflow lifecycle.
-  assignedAgentStaffId String?    @db.VarChar(30)
-  assignedAt           DateTime?  @db.Timestamptz(6)
-  leadStatus           LeadStatus @default(needs_first_contact)
-
   // Feature 008 — user-intent gate: admin dashboard surfaces only applications
   // where the applicant explicitly selected a matched offer and proceeded.
   userSelectedBankOfferId String?   @db.VarChar(30)
@@ -393,8 +377,6 @@ model Application {
 
   bankOffers            BankOffer[]           @relation("ApplicationBankOffers")
   userSelectedBankOffer BankOffer?            @relation("ApplicationUserSelectedOffer", fields: [userSelectedBankOfferId], references: [id], onDelete: SetNull)
-  assignedAgent         StaffAccount?         @relation("AssignedLeads", fields: [assignedAgentStaffId], references: [id], onDelete: SetNull)
-  activities            Activity[]            @relation("ApplicationActivities")
   documents             Document[]            @relation("ApplicationDocuments")
   applicantCustomer     CustomerAccount       @relation("CustomerApplications", fields: [applicantUserId], references: [id], onDelete: Restrict)
   questionnaireAnswers  QuestionnaireAnswer[] @relation("QuestionnaireApplication")
@@ -403,8 +385,6 @@ model Application {
   @@unique([applicantUserId, idempotencyKey], name: "idx_application_idempotency")
   @@index([loanPurpose], name: "idx_application_purpose")
   @@index([applicantUserId, createdAt(sort: Desc)], name: "idx_application_customer_created")
-  @@index([assignedAgentStaffId, leadStatus], name: "idx_application_agent_lead_status")
-  @@index([leadStatus, createdAt(sort: Desc)], name: "idx_application_lead_status_created")
   @@index([userProceededAt(sort: Desc)], name: "idx_application_user_proceeded_at")
   @@map("application")
 }
@@ -495,37 +475,6 @@ model BankOfferDecision {
   @@index([recordedAt(sort: Desc)], name: "idx_bank_offer_decision_recorded")
   @@index([outcome], name: "idx_bank_offer_decision_outcome")
   @@map("bank_offer_decision")
-}
-
-// -----------------------------------------------------------------------------
-// Activity (feature 005) — append-only agent / system action log
-// Append-only enforced at the DB layer by `activity_append_only_guard` trigger.
-// -----------------------------------------------------------------------------
-
-model Activity {
-  id                  String    @id @default(cuid()) @db.VarChar(30)
-  applicationId       String    @db.VarChar(30)
-  actorStaffId        String    @db.VarChar(30)
-  actorRole           String    @db.VarChar(32)
-  activityType        String    @db.VarChar(48)
-  reason              String    @db.VarChar(64)
-  note                String?   @db.VarChar(2000)
-  durationMinutes     Int?
-  outcomeFlags        String[]  @db.VarChar(48)
-  followUpAt          DateTime? @db.Timestamptz(6)
-  attachedDocumentIds String[]  @db.VarChar(30)
-  meta                Json?
-  correlationId       String    @db.VarChar(36)
-  occurredAt          DateTime  @default(now()) @db.Timestamptz(6)
-
-  application Application  @relation("ApplicationActivities", fields: [applicationId], references: [id], onDelete: Cascade)
-  actorStaff  StaffAccount @relation("ActivityActor", fields: [actorStaffId], references: [id], onDelete: Restrict)
-
-  @@index([applicationId, occurredAt(sort: Desc)], name: "idx_activity_application_occurred")
-  @@index([actorStaffId, occurredAt(sort: Desc)], name: "idx_activity_actor_occurred")
-  @@index([followUpAt], name: "idx_activity_followup")
-  @@index([activityType, reason], name: "idx_activity_type_reason")
-  @@map("activity")
 }
 
 // -----------------------------------------------------------------------------
@@ -627,24 +576,24 @@ enum OtpPurpose {
 }
 
 model CustomerAccount {
-  id               String           @id @default(cuid()) @db.VarChar(30)
-  registrationPath RegistrationPath @default(PHONE)
-  phone            String?          @unique @db.VarChar(20)
-  mobileVerifiedAt DateTime?        @db.Timestamptz(6)
-  email            String?          @unique @db.VarChar(320)
-  firstName        String           @db.VarChar(60)
-  lastName         String           @db.VarChar(60)
-  nameSplitNeedsReview Boolean      @default(false)
-  locale           String           @default("ar-EG") @db.VarChar(8)
-  passwordHash     String?          @db.VarChar(72)
-  birthday         DateTime?        @db.Date
-  profilePhotoKey  String?          @db.VarChar(256)
-  nationalIdHash   String?          @db.Char(64)
-  isVerified       Boolean          @default(false)
-  isActive         Boolean          @default(true)
-  createdAt        DateTime         @default(now()) @db.Timestamptz(6)
-  updatedAt        DateTime         @updatedAt @db.Timestamptz(6)
-  lastLoginAt      DateTime?        @db.Timestamptz(6)
+  id                   String           @id @default(cuid()) @db.VarChar(30)
+  registrationPath     RegistrationPath @default(PHONE)
+  phone                String?          @unique @db.VarChar(20)
+  mobileVerifiedAt     DateTime?        @db.Timestamptz(6)
+  email                String?          @unique @db.VarChar(320)
+  firstName            String           @db.VarChar(60)
+  lastName             String           @db.VarChar(60)
+  nameSplitNeedsReview Boolean          @default(false)
+  locale               String           @default("ar-EG") @db.VarChar(8)
+  passwordHash         String?          @db.VarChar(72)
+  birthday             DateTime?        @db.Date
+  profilePhotoKey      String?          @db.VarChar(256)
+  nationalIdHash       String?          @db.Char(64)
+  isVerified           Boolean          @default(false)
+  isActive             Boolean          @default(true)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(6)
+  lastLoginAt          DateTime?        @db.Timestamptz(6)
 
   refreshTokens     CustomerRefreshToken[]
   applications      Application[]          @relation("CustomerApplications")
@@ -664,15 +613,15 @@ model CustomerAccount {
 }
 
 model CustomerRefreshToken {
-  id             String    @id @default(cuid()) @db.VarChar(30)
-  customerId     String    @db.VarChar(30)
-  tokenHash      String    @unique @db.Char(64)
-  issuedAt       DateTime  @default(now()) @db.Timestamptz(6)
-  expiresAt      DateTime  @db.Timestamptz(6)
-  revokedAt      DateTime? @db.Timestamptz(6)
-  rotatedFromId  String?   @db.VarChar(30)
-  userAgent      String?   @db.VarChar(500)
-  sourceIp       String?   @db.Inet
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  customerId    String    @db.VarChar(30)
+  tokenHash     String    @unique @db.Char(64)
+  issuedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  expiresAt     DateTime  @db.Timestamptz(6)
+  revokedAt     DateTime? @db.Timestamptz(6)
+  rotatedFromId String?   @db.VarChar(30)
+  userAgent     String?   @db.VarChar(500)
+  sourceIp      String?   @db.Inet
 
   customer    CustomerAccount        @relation(fields: [customerId], references: [id], onDelete: Cascade)
   rotatedFrom CustomerRefreshToken?  @relation("CustomerRefreshTokenRotation", fields: [rotatedFromId], references: [id], onDelete: SetNull)
@@ -909,27 +858,27 @@ model QuestionGroup {
 }
 
 model Question {
-  id                String             @id @default(cuid()) @db.VarChar(30)
-  groupId           String             @db.VarChar(30)
-  category          LoanCategory
-  code              String             @db.VarChar(64) // auto-generated slug, immutable
-  type              QuestionType       @default(SINGLE_SELECT)
-  questionAr        String             @db.VarChar(500)
-  questionEn        String             @db.VarChar(500)
-  helperTextAr      String?            @db.VarChar(500)
-  helperTextEn      String?            @db.VarChar(500)
-  isRequired        Boolean            @default(true)
-  displayOrder      Int
-  isActive          Boolean            @default(true)
-  enabledWhen       Json? // { questionCode, operator: equals|not_equals, optionCode }
-  systemRole        QuestionSystemRole? // set for arithmetic fields; null otherwise
-  isScored          Boolean            @default(false) // counts toward approval probability (v5.0.0); options then need scoreValue
+  id           String              @id @default(cuid()) @db.VarChar(30)
+  groupId      String              @db.VarChar(30)
+  category     LoanCategory
+  code         String              @db.VarChar(64) // auto-generated slug, immutable
+  type         QuestionType        @default(SINGLE_SELECT)
+  questionAr   String              @db.VarChar(500)
+  questionEn   String              @db.VarChar(500)
+  helperTextAr String?             @db.VarChar(500)
+  helperTextEn String?             @db.VarChar(500)
+  isRequired   Boolean             @default(true)
+  displayOrder Int
+  isActive     Boolean             @default(true)
+  enabledWhen  Json? // { questionCode, operator: equals|not_equals, optionCode }
+  systemRole   QuestionSystemRole? // set for arithmetic fields; null otherwise
+  isScored     Boolean             @default(false) // counts toward approval probability (v5.0.0); options then need scoreValue
   // Eligibility bridge: dotted ApplicantProfile path this answer maps to
   // (e.g. "employment.employmentType"). Categorical value = selected option's
   // profileValue; numeric value = systemRole numericPoint.
-  profileField      String?            @db.VarChar(80)
-  createdAt         DateTime           @default(now()) @db.Timestamptz(6)
-  updatedAt         DateTime           @updatedAt @db.Timestamptz(6)
+  profileField String?             @db.VarChar(80)
+  createdAt    DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime            @updatedAt @db.Timestamptz(6)
 
   group   QuestionGroup       @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
   options QuestionOption[]    @relation("QuestionOptions")
@@ -941,20 +890,20 @@ model Question {
 }
 
 model QuestionOption {
-  id           String       @id @default(cuid()) @db.VarChar(30)
-  questionId   String       @db.VarChar(30)
-  code         String       @db.VarChar(64) // auto-generated slug, immutable
-  labelAr      String       @db.VarChar(200)
-  labelEn      String       @db.VarChar(200)
+  id           String   @id @default(cuid()) @db.VarChar(30)
+  questionId   String   @db.VarChar(30)
+  code         String   @db.VarChar(64) // auto-generated slug, immutable
+  labelAr      String   @db.VarChar(200)
+  labelEn      String   @db.VarChar(200)
   displayOrder Int
-  isActive     Boolean      @default(true)
-  numericMin   Decimal?     @db.Decimal(18, 2)
-  numericMax   Decimal?     @db.Decimal(18, 2)
-  numericPoint Decimal?     @db.Decimal(18, 2)
-  scoreValue   Decimal?     @db.Decimal(4, 3) // 0.000–1.000, DIRECT factors only
-  profileValue String?      @db.VarChar(120) // categorical value for the question's profileField
-  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
+  isActive     Boolean  @default(true)
+  numericMin   Decimal? @db.Decimal(18, 2)
+  numericMax   Decimal? @db.Decimal(18, 2)
+  numericPoint Decimal? @db.Decimal(18, 2)
+  scoreValue   Decimal? @db.Decimal(4, 3) // 0.000–1.000, DIRECT factors only
+  profileValue String?  @db.VarChar(120) // categorical value for the question's profileField
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
   question Question @relation("QuestionOptions", fields: [questionId], references: [id], onDelete: Cascade)
 

@@ -16,9 +16,7 @@ import { ApplicationsModule } from '@/applications/applications.module';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { ScoringVersionsModule } from '@/scoring-versions/scoring-versions.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
-import { ActivitiesModule } from '@/activities/activities.module';
 import { DocumentsModule } from '@/documents/documents.module';
-import { LeadAnalyticsModule } from '@/lead-analytics/lead-analytics.module';
 import { SupportModule } from '@/support/support.module';
 import { OnboardingModule } from '@/onboarding/onboarding.module';
 import { TelemetryModule } from '@/telemetry/telemetry.module';
@@ -55,9 +53,7 @@ import { pinoOptions } from '@/common/pino/pino.config';
     ScoringVersionsModule,
     CustomerAuthModule,
     ApplicationsModule,
-    ActivitiesModule,
     DocumentsModule,
-    LeadAnalyticsModule,
     SupportModule,
     OnboardingModule,
     TelemetryModule,

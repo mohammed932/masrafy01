@@ -13,12 +13,8 @@ import { AuditModule } from '../audit/audit.module';
 import { ScoringVersionsModule } from '../scoring-versions/scoring-versions.module';
 import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
-import { AuthModule } from '@/auth/auth.module';
 import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
 import { ScoringModule } from '@/scoring/scoring.module';
-
-import { CustomerTimelineService } from './customer-timeline.service';
-import { CustomerTimelineRepository } from './customer-timeline.repository';
 
 /**
  * Imports `CustomerAuthModule` so the apply endpoint can require a valid
@@ -34,19 +30,9 @@ import { CustomerTimelineRepository } from './customer-timeline.repository';
     CustomerAuthModule,
     QuestionnaireModule,
     ScoringModule,
-    // Exports `StaffAccountRepository` for cross-feature staff-account reads
-    // (e.g. assignAgent target validation). Constitution Principle X — service
-    // never calls Prisma directly.
-    AuthModule,
   ],
   controllers: [ApplicationsController, AdminApplicationsController],
-  providers: [
-    ApplicationsService,
-    ApplicationRepository,
-    CustomerTimelineService,
-    CustomerTimelineRepository,
-    MobileRateLimitGuard,
-  ],
+  providers: [ApplicationsService, ApplicationRepository, MobileRateLimitGuard],
   exports: [ApplicationRepository],
 })
 export class ApplicationsModule {}

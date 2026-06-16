@@ -4,7 +4,6 @@ import {
   IsInt,
   IsOptional,
   IsString,
-  Matches,
   MaxLength,
   Min,
   MinLength,
@@ -12,17 +11,9 @@ import {
 
 /**
  * Bank create payload.
- * - `code` is uppercased on the server; format `[A-Z][A-Z0-9_]{1,39}`.
- * - `nameArabic` + `nameEnglish` required. Logo + website + notes optional.
+ * - `nameArabic` + `nameEnglish` required (`nameEnglish` unique). Logo + website + notes optional.
  */
 export class CreateBankDto {
-  @ApiProperty({ example: 'ABK_EGYPT', description: 'Immutable. A-Z, 0-9, _. 2-40 chars.' })
-  @IsString()
-  @MinLength(2)
-  @MaxLength(40)
-  @Matches(/^[A-Z][A-Z0-9_]{1,39}$/, { message: 'BANK_CODE_INVALID_FORMAT' })
-  code!: string;
-
   @ApiProperty({ example: 'البنك الأهلي الكويتي - مصر' })
   @IsString() @MinLength(1) @MaxLength(120)
   nameArabic!: string;

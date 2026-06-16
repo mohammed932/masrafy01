@@ -21,8 +21,8 @@ export class BanksRepository {
     return this.prisma.bank.findUnique({ where: { id } });
   }
 
-  async findByCode(code: string): Promise<Bank | null> {
-    return this.prisma.bank.findUnique({ where: { code } });
+  async findByNameEnglish(nameEnglish: string): Promise<Bank | null> {
+    return this.prisma.bank.findUnique({ where: { nameEnglish } });
   }
 
   async list(
@@ -33,7 +33,6 @@ export class BanksRepository {
       ...(filters.search
         ? {
             OR: [
-              { code: { contains: filters.search, mode: 'insensitive' } },
               { nameArabic: { contains: filters.search, mode: 'insensitive' } },
               { nameEnglish: { contains: filters.search, mode: 'insensitive' } },
             ],
@@ -71,7 +70,7 @@ export class BanksRepository {
   async update(
     id: string,
     version: number,
-    data: Omit<Prisma.BankUncheckedUpdateInput, 'id' | 'code' | 'version' | 'createdAt' | 'createdBy'>,
+    data: Omit<Prisma.BankUncheckedUpdateInput, 'id' | 'version' | 'createdAt' | 'createdBy'>,
   ): Promise<Bank | null> {
     const res = await this.prisma.bank.updateMany({
       where: { id, version },

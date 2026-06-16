@@ -220,7 +220,7 @@ type ToggleKey =
                       nzPlaceHolder="Pick a bank"
                     >
                       @for (b of activeBanks(); track b.id) {
-                        <nz-option [nzValue]="b.id" [nzLabel]="b.nameEnglish + ' — ' + b.code"></nz-option>
+                        <nz-option [nzValue]="b.id" [nzLabel]="b.nameEnglish"></nz-option>
                       }
                     </nz-select>
                     @if (identityGroup.controls['bankName']?.touched && !selectedBankId()) {
