@@ -7,6 +7,7 @@
  */
 import { PrismaClient, StaffRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { seedQuestionnaire } from './seed-questionnaire';
 
 const prisma = new PrismaClient();
 
@@ -27,26 +28,29 @@ async function main(): Promise<void> {
   const existing = await prisma.staffAccount.findUnique({ where: { email } });
   if (existing) {
     log(`seed: super_admin already present (${email}) — no action.`);
-    return;
+  } else {
+    if (password.length < 12 || password.length > 128) {
+      throw new Error('SEED_ADMIN_PASSWORD must be 12–128 characters');
+    }
+
+    const passwordHash = await bcrypt.hash(password, cost);
+    await prisma.staffAccount.create({
+      data: {
+        email,
+        emailDisplay: display,
+        name: name.trim(),
+        passwordHash,
+        role: StaffRole.super_admin,
+        isActive: true,
+        mustChangePassword: true,
+      },
+    });
+    log(`seed: created super_admin (${email}) with mustChangePassword=true.`);
   }
 
-  if (password.length < 12 || password.length > 128) {
-    throw new Error('SEED_ADMIN_PASSWORD must be 12–128 characters');
-  }
-
-  const passwordHash = await bcrypt.hash(password, cost);
-  await prisma.staffAccount.create({
-    data: {
-      email,
-      emailDisplay: display,
-      name: name.trim(),
-      passwordHash,
-      role: StaffRole.super_admin,
-      isActive: true,
-      mustChangePassword: true,
-    },
-  });
-  log(`seed: created super_admin (${email}) with mustChangePassword=true.`);
+  // Idempotent: questionnaire (4 categories) + published versions + ACTIVE
+  // per-program weight sets. Without this a fresh DB returns QUESTIONNAIRE_NOT_PUBLISHED.
+  await seedQuestionnaire();
 }
 
 function required(key: string): string {

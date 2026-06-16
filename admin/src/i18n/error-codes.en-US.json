@@ -116,11 +116,11 @@
   "QUESTION_IN_USE": "Cannot delete: another question's branching depends on this one.",
   "QUESTION_OPTION_IN_USE": "Cannot delete: another question's branching depends on this option.",
   "QUESTION_GROUP_NOT_EMPTY": "Cannot delete: remove the group's questions first.",
-  "SCORING_FACTOR_NOT_FOUND": "Scoring factor not found.",
   "WEIGHT_SET_NOT_FOUND": "Weight set not found.",
   "WEIGHTS_MUST_SUM_TO_100": "Weights must add up to exactly 100.",
-  "WEIGHTS_UNKNOWN_FACTOR": "Weights reference an unknown scoring factor.",
-  "WEIGHT_SET_NOT_DRAFT": "No editable draft weight set to submit.",
-  "WEIGHT_SET_NOT_PENDING": "This weight set is not awaiting approval.",
-  "APPROVER_MUST_DIFFER_FROM_MAKER": "A different admin must approve the weight change."
+  "WEIGHTS_UNKNOWN_QUESTION": "Weights reference a question that isn't scored.",
+  "UNKNOWN_QUESTION_CODE": "This answer references a question that no longer exists.",
+  "UNKNOWN_OPTION_CODE": "This answer references an option that no longer exists.",
+  "REQUIRED_ANSWER_MISSING": "Please answer all required questions.",
+  "PROGRAM_NO_LONGER_MATCHES": "This program no longer matches the applicant's profile."
 }

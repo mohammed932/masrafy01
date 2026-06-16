@@ -10,10 +10,10 @@ import { ScoringRepository } from './scoring.repository';
 import { WeightedApprovalScoringService } from './weighted-approval.service';
 
 /**
- * Feature 00X — approval-scoring weights (Constitution V v4.1.0). Per-bank-program
- * weights via two-person maker-checker; factors are admin/seed data.
- * Imports QuestionnaireModule for the shared `parseCategory` util + question
- * labels; BankProgramsModule to resolve program/bank names for the admin UI.
+ * Feature 00X — approval-scoring weights (Constitution V v5.0.0). Per-bank-program
+ * per-question weights, saved directly (no maker-checker). Imports
+ * QuestionnaireModule for the shared `parseCategory` util + scored questions;
+ * BankProgramsModule to resolve program/bank names for the admin UI.
  */
 @Module({
   imports: [InfraModule, AuthModule, AuditModule, QuestionnaireModule, BankProgramsModule],

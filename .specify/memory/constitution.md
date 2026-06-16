@@ -170,21 +170,25 @@ backend with ZERO dependencies on the HTTP layer. Engine signature:
 `match(applicationProfile, programs[]) → MatchResult[]`. Every match
 decision returns `passedChecks[]` AND `failedChecks[]` arrays. Approval
 probability is calculable via rule-based scoring with documented weights.
-The split (v4.1.0): the scoring **formula, tier thresholds, and any COMPUTED
-factors** (e.g. DBR comfort) live in code — version-controlled, changed only
-via PR with historical impact analysis. The **per-bank-program weights** and
-the **per-option sub-scores** (`scoreValue`) are admin-editable DATA. Because
-weights are core IP, weight changes do NOT go through code review but through
-an in-dashboard **two-person maker-checker flow**: a maker drafts and submits
-a `ScoringWeightSet` (weights must sum to 100), and a DIFFERENT admin (checker
-≠ maker, enforced server-side) approves it — approval archives the prior ACTIVE
-set and activates the new one atomically, with both admin IDs written to the
-audit log (Principle VII). A program with no approved set falls back to a
-code-defined default so nothing is ever unscored. The questionnaire that feeds
+The split (v5.0.0): the scoring **formula and tier thresholds** live in code —
+version-controlled, changed only via PR. Approval probability is **per-question
+weighted**: `probability = Σ ( selectedOption.scoreValue × questionWeight ) ÷ 100`,
+computed over the category's **scored questions** (`Question.isScored`). The
+**per-bank-program question weights** and the **per-option sub-scores**
+(`scoreValue`, 0..1) are admin-editable DATA. Each bank program assigns a weight
+(1..100) to every scored question, keyed by `questionCode`; a program's weights
+MUST sum to exactly 100. For MVP, weight changes are saved **directly** by an
+authorized admin (no maker-checker): a save archives the prior ACTIVE
+`ScoringWeightSet` and activates the new versioned one atomically, with the
+editor's admin ID written to the audit log (Principle VII). A program with no
+ACTIVE set falls back to a code-defined equal-split default so nothing is ever
+unscored. Debt-burden (DBR) is NOT part of the probability — it is enforced
+separately as an eligibility gate + max-loan cap. The questionnaire that feeds
 the engine (questions, options, branching, ordering) is likewise admin-editable
 DATA, published as immutable versioned snapshots; only the algorithm consuming
-it is code. Unit test coverage of the engine MUST be ≥ 90% (includes COMPUTED
-factor logic). Match reasons surface as error codes across the API boundary —
+it is code. Per-option `scoreValue` and internal mapping fields are server-side
+IP and MUST NOT be exposed in the customer questionnaire payload. Unit test
+coverage of the engine MUST be ≥ 90%. Match reasons surface as error codes across the API boundary —
 NEVER English text. The matching service is a pure dependency-free TypeScript
 service that can run in isolation against in-memory bank program fixtures.
 
@@ -1561,8 +1565,8 @@ Any `age` column, persisted `age` field, or DTO that writes a customer's age to 
 ## A32. Proceeding Past an Incomplete Profile (Principle XXXVII, v4.0.0)
 Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for a customer missing any completeness field (mobile+verified, firstName, lastName, birthday, profilePhotoKey, National ID front+back; PHONE also passwordHash) = review block. Backend returns `PROFILE_INCOMPLETE`; mobile routes into the completion flow instead of rendering the gated surface.
 
-## A33. Scoring Weights Without Maker-Checker / Hardcoded Sub-Scores (Principle V, v4.1.0)
-Activating a `ScoringWeightSet` whose `approvedBy == createdBy`, or whose weights do not sum to 100, or mutating ACTIVE weights in place without a new approved version = review block. Likewise, hardcoding a question/option's sub-score in the engine instead of reading the admin-set `scoreValue` (DIRECT factors), or typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them, = review block. Only COMPUTED factors (e.g. DBR comfort) and the formula/tiers live in code.
+## A33. Hardcoded Sub-Scores / Hand-Typed Questionnaire Codes (Principle V, v5.0.0)
+A `ScoringWeightSet` whose question weights do not sum to exactly 100, or mutating an ACTIVE set in place without a new versioned set, = review block. Hardcoding a question's sub-score in the engine instead of reading the admin-set per-option `scoreValue`, or typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them, = review block. Exposing per-option `scoreValue` (or internal mapping fields) in the customer questionnaire payload = review block. Only the formula + tiers live in code; weights (per question, per program, keyed by `questionCode`) and sub-scores are admin DATA. (v5.0.0 removed the two-person maker-checker requirement for MVP — weight saves are direct, editor ID audited; debt-burden left the probability and is eligibility-only.)
 
 ## A34. Modal Backdrop That Does Not Cover the Full Viewport (Angular Clean Code Structure, v4.1.1)
 A modal / dialog / sheet whose scrim + blur dims only the content panel instead of the entire viewport (sidebar + top bar + content) = review block. Cause is almost always a hand-rolled `position: fixed` scrim rendered inside an ancestor that establishes a containing block for fixed elements (`transform` / `filter` / `perspective` / `contain` / `will-change`) — notably `section.page`, which runs the `app-page-rise` transform. Fix: prefer `NzModalService` / `NzDrawerService` (portals to `document.body`), or render the custom scrim as a root-level sibling of the page content (outside `section.page`). Use the shared backdrop tokens (`--color-overlay-backdrop`, shared blur radius) so all modals dim identically.
@@ -1580,6 +1584,7 @@ A modal / dialog / sheet whose scrim + blur dims only the content panel instead 
 
 | Version | Date | Type | Summary |
 |---|---|---|---|
+| 5.0.0 | 2026-06-16 | MAJOR | Principle V matching/scoring model simplified for MVP. Approval probability is now **per-question weighted** — `probability = Σ(option.scoreValue × questionWeight)/100` over a category's scored questions (`Question.isScored`), with per-bank-program weights keyed by `questionCode` summing to 100. The `ScoringFactor`/`scoringFactorCode` indirection and the COMPUTED `debt_burden` factor are removed from the probability (DBR stays an eligibility gate + max-loan cap only). The two-person **maker-checker** weight flow is REPLACED by **direct admin save** (editor ID audited; save archives prior ACTIVE + activates the new versioned set atomically); code-default equal-split fallback retained. Per-option `scoreValue` + internal mapping fields MUST be stripped from the customer questionnaire payload (IP). Anti-Pattern A33 rewritten accordingly. |
 | 1.0.0 | 2026-05-12 | RATIFY | Initial three-platform constitution. Principles I–XXVIII. |
 | 1.1.0 | 2026-05-12 | MINOR | Drop unit + integration testing from constitutional gates. |
 | 1.2.0 | 2026-05-12 | MINOR | Drop E2E + a11y gates. Principles XVI / XXVII become placeholders. |
@@ -1600,4 +1605,4 @@ A modal / dialog / sheet whose scrim + blur dims only the content panel instead 
 
 ---
 
-**Version**: 4.1.1 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-02
+**Version**: 5.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-16

@@ -60,7 +60,10 @@ export class CreateQuestionDto {
   @IsOptional()
   @IsEnum(QuestionSystemRole)
   systemRole?: QuestionSystemRole;
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 64) scoringFactorCode?: string;
+  @ApiPropertyOptional({ description: 'Counts toward approval probability; its options then need scoreValue.' })
+  @IsOptional()
+  @IsBoolean()
+  isScored?: boolean;
   @ApiPropertyOptional({ description: 'Dotted ApplicantProfile path for eligibility, e.g. employment.employmentType' })
   @IsOptional()
   @IsString()
@@ -81,7 +84,7 @@ export class UpdateQuestionDto {
   @ValidateNested()
   @Type(() => EnabledWhenDto)
   enabledWhen?: EnabledWhenDto | null;
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 64) scoringFactorCode?: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isScored?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 80) profileField?: string;
 }
 

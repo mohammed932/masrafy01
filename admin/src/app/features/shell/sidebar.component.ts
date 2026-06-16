@@ -93,16 +93,6 @@ import { CanDirective } from '../../shared/can.directive';
         </a>
 
         <a
-          *can="['super_admin', 'sales_manager']"
-          routerLink="/scoring-approvals"
-          routerLinkActive="active"
-          class="item"
-        >
-          <span nz-icon nzType="audit" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
-          <span class="item-label" i18n="@@sidebar.scoring_approvals">Scoring approvals</span>
-        </a>
-
-        <a
           *can="['super_admin', 'sales_manager', 'analyst']"
           routerLink="/matching-simulator"
           routerLinkActive="active"

@@ -187,11 +187,10 @@ type Mode = null | 'group' | 'question' | 'option';
                           <span class="v">{{ q.systemRole }}</span>
                         </span>
                       }
-                      @if (q.scoringFactorCode) {
+                      @if (q.isScored) {
                         <span class="facet score">
                           <i class="dot" aria-hidden="true"></i>
-                          <span class="k" i18n="@@qedit.facet_score">score</span>
-                          <span class="v">{{ q.scoringFactorCode }}</span>
+                          <span class="k" i18n="@@qedit.facet_score">scored</span>
                         </span>
                       }
                       @if (q.profileField) {
@@ -341,10 +340,10 @@ type Mode = null | 'group' | 'question' | 'option';
                     </nz-select>
                     <span class="hlp" i18n="@@qedit.role_hlp">Feeds a number into the engine (salary, amount, tenor…).</span>
                   </label>
-                  <label class="field">
-                    <span class="lbl" i18n="@@qedit.factor">Scoring factor code</span>
-                    <input nz-input formControlName="scoringFactorCode" placeholder="e.g. salary_level" />
-                    <span class="hlp" i18n="@@qedit.factor_hlp">Options carry a 0–1 score for approval probability.</span>
+                  <label class="field field-inline">
+                    <input type="checkbox" formControlName="isScored" />
+                    <span class="lbl" i18n="@@qedit.scored">Counts toward approval score</span>
+                    <span class="hlp" i18n="@@qedit.scored_hlp">When on, each option needs a 0–1 score and the question gets a per-program weight.</span>
                   </label>
                   <label class="field">
                     <span class="lbl" i18n="@@qedit.profile">Profile field</span>
@@ -683,7 +682,7 @@ export class QuestionnaireEditorPage implements OnInit {
     questionAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     displayOrder: new FormControl(0, { nonNullable: true }),
     systemRole: new FormControl<string | null>(null),
-    scoringFactorCode: new FormControl('', { nonNullable: true }),
+    isScored: new FormControl(false, { nonNullable: true }),
     profileField: new FormControl('', { nonNullable: true }),
     isRequired: new FormControl(true, { nonNullable: true }),
   });
@@ -733,7 +732,7 @@ export class QuestionnaireEditorPage implements OnInit {
       questionAr: q.questionAr,
       displayOrder: q.displayOrder,
       systemRole: q.systemRole,
-      scoringFactorCode: q.scoringFactorCode ?? '',
+      isScored: q.isScored,
       profileField: q.profileField ?? '',
       isRequired: q.isRequired,
     } as never);
@@ -791,7 +790,7 @@ export class QuestionnaireEditorPage implements OnInit {
         questionAr: v.questionAr,
         displayOrder: v.displayOrder,
         isRequired: v.isRequired,
-        scoringFactorCode: v.scoringFactorCode || undefined,
+        isScored: v.isScored,
         profileField: v.profileField || undefined,
       });
       this.message.success($localize`:@@qedit.question_saved:Question saved`);
@@ -804,7 +803,7 @@ export class QuestionnaireEditorPage implements OnInit {
         displayOrder: v.displayOrder,
         isRequired: v.isRequired,
         systemRole: v.systemRole ?? undefined,
-        scoringFactorCode: v.scoringFactorCode || undefined,
+        isScored: v.isScored,
         profileField: v.profileField || undefined,
       });
       this.message.success($localize`:@@qedit.question_added:Question added`);

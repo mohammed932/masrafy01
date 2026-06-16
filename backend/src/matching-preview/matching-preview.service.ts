@@ -25,7 +25,7 @@ interface SnapshotOption {
 }
 interface SnapshotQuestion {
   code: string;
-  scoringFactorCode: string | null;
+  isScored: boolean;
   systemRole: string | null;
   profileField: string | null;
   options: SnapshotOption[];
@@ -96,8 +96,8 @@ export class MatchingPreviewService {
       if (!q) throw new DomainException(ERROR_CODES.UNKNOWN_QUESTION_CODE, { code: ans.questionCode });
       const opt = q.options.find((o) => o.code === ans.optionCode);
       if (!opt) throw new DomainException(ERROR_CODES.UNKNOWN_OPTION_CODE, { code: ans.optionCode });
-      if (q.scoringFactorCode) {
-        subScores[q.scoringFactorCode] = opt.scoreValue !== null ? Number(opt.scoreValue) : 0;
+      if (q.isScored) {
+        subScores[q.code] = opt.scoreValue !== null ? Number(opt.scoreValue) : 0;
       }
     }
     return { subScores, questions };
@@ -123,10 +123,6 @@ export class MatchingPreviewService {
       correlationId: randomUUID(),
     });
 
-    // DBR cap per program (percent) — feeds the COMPUTED `debt_burden` factor.
-    const dbrCapByCode = new Map(
-      snapshots.map((s) => [s.programCode, s.eligibility.dbrCapPercent]),
-    );
     const matches: PreviewMatch[] = [];
 
     for (const offer of output.offers) {
@@ -134,11 +130,7 @@ export class MatchingPreviewService {
       const { probability, tier, usedDefault } = await this.weightedScoring.scoreProgram({
         programId,
         category,
-        directSubScores: subScores,
-        computed: {
-          dbrPercent: Number(offer.dbrPercent),
-          dbrCapPercent: dbrCapByCode.get(offer.programCode) ?? null,
-        },
+        subScores,
       });
       matches.push({
         bankProgramId: programId,
@@ -160,12 +152,10 @@ export class MatchingPreviewService {
     for (const nm of output.noMatchDetails ?? []) {
       const row = rows.find((p) => p.programCode === nm.programCode);
       const programId = idByCode.get(nm.programCode) ?? null;
-      // No eligible offer → no DBR figure; debt_burden contributes 0.
       const { probability, tier, usedDefault } = await this.weightedScoring.scoreProgram({
         programId,
         category,
-        directSubScores: subScores,
-        computed: { dbrPercent: null, dbrCapPercent: dbrCapByCode.get(nm.programCode) ?? null },
+        subScores,
       });
       matches.push({
         bankProgramId: programId,

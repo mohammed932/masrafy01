@@ -67,24 +67,18 @@ class CustomerEntity extends Equatable {
 class CustomerSessionEntity extends Equatable {
   const CustomerSessionEntity({
     required this.accessToken,
-    required this.accessTokenExpiresIn,
     required this.refreshToken,
-    required this.refreshTokenExpiresIn,
     required this.customer,
   });
 
   final String accessToken;
-  final int accessTokenExpiresIn;
   final String refreshToken;
-  final int refreshTokenExpiresIn;
   final CustomerEntity customer;
 
   @override
   List<Object?> get props => [
         accessToken,
-        accessTokenExpiresIn,
         refreshToken,
-        refreshTokenExpiresIn,
         customer,
       ];
 }

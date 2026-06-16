@@ -614,7 +614,7 @@ const BUSINESS: CategoryConfig = {
 
 const CONFIGS: CategoryConfig[] = [PERSONAL, MORTGAGE, CAR, BUSINESS];
 
-async function main(): Promise<void> {
+export async function seedQuestionnaire(): Promise<void> {
   for (const cfg of CONFIGS) {
     await seedCategory(cfg);
   }
@@ -625,14 +625,13 @@ async function main(): Promise<void> {
 async function seedCategory(cfg: CategoryConfig): Promise<void> {
   const { category } = cfg;
 
-  // 1) Factors
-  for (const f of cfg.factors) {
-    await prisma.scoringFactor.upsert({
-      where: { uniq_scoring_factor_category_code: { category, code: f.code } },
-      update: { labelEn: f.labelEn, labelAr: f.labelAr, kind: f.kind, sourceQuestionCode: f.sourceQuestionCode },
-      create: { category, code: f.code, kind: f.kind, labelEn: f.labelEn, labelAr: f.labelAr, sourceQuestionCode: f.sourceQuestionCode },
-    });
-  }
+  // 1) Map DIRECT scoring factors → their source question, used to re-key the
+  //    weight presets onto questionCodes (v5.0.0 — no ScoringFactor table).
+  const questionByFactor = new Map(
+    cfg.factors
+      .filter((f) => f.kind === 'DIRECT' && f.sourceQuestionCode)
+      .map((f) => [f.code, f.sourceQuestionCode as string]),
+  );
 
   // 2) Groups + questions + options. Track config codes so stale rows from a
   //    previous seed (renamed labels → new slugs) get deactivated, not left as
@@ -657,12 +656,12 @@ async function seedCategory(cfg: CategoryConfig): Promise<void> {
         update: {
           groupId: group.id, questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder,
           isRequired: q.isRequired ?? true, isActive: true,
-          systemRole: (q.systemRole as never) ?? null, scoringFactorCode: q.scoringFactorCode ?? null, profileField: q.profileField ?? null,
+          systemRole: (q.systemRole as never) ?? null, isScored: !!q.scoringFactorCode, profileField: q.profileField ?? null,
         },
         create: {
           groupId: group.id, category, code: q.code, type: 'SINGLE_SELECT',
           questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder, isRequired: q.isRequired ?? true,
-          systemRole: (q.systemRole as never) ?? null, scoringFactorCode: q.scoringFactorCode ?? null, profileField: q.profileField ?? null,
+          systemRole: (q.systemRole as never) ?? null, isScored: !!q.scoringFactorCode, profileField: q.profileField ?? null,
         },
       });
       const optionCodes: string[] = [];
@@ -695,7 +694,7 @@ async function seedCategory(cfg: CategoryConfig): Promise<void> {
   const programs = await prisma.bankProgram.findMany({ where: { active: true, productCategory: category }, select: { id: true } });
   for (let i = 0; i < programs.length; i++) {
     const p = programs[i]!;
-    const weights = cfg.weightPresets[i % cfg.weightPresets.length]!;
+    const weights = toQuestionWeights(cfg.weightPresets[i % cfg.weightPresets.length]!, questionByFactor);
     const existingActive = await prisma.scoringWeightSet.findFirst({ where: { bankProgramId: p.id, status: 'ACTIVE' } });
     if (existingActive) {
       await prisma.scoringWeightSet.update({ where: { id: existingActive.id }, data: { weights } });
@@ -755,7 +754,7 @@ async function publishVersion(category: Category): Promise<void> {
         code: q.code, type: q.type, questionAr: q.questionAr, questionEn: q.questionEn,
         helperTextAr: q.helperTextAr, helperTextEn: q.helperTextEn, isRequired: q.isRequired,
         displayOrder: q.displayOrder, enabledWhen: q.enabledWhen ?? null, systemRole: q.systemRole,
-        scoringFactorCode: q.scoringFactorCode, profileField: q.profileField,
+        isScored: q.isScored, profileField: q.profileField,
         options: options.map((o) => ({
           code: o.code, labelAr: o.labelAr, labelEn: o.labelEn, displayOrder: o.displayOrder,
           numericMin: o.numericMin?.toString() ?? null, numericMax: o.numericMax?.toString() ?? null,
@@ -778,9 +777,42 @@ function slug(label: string): string {
   return label.normalize('NFKD').replace(/[^\w\s-]/g, '').trim().toLowerCase().replace(/[\s-]+/g, '_').slice(0, 60) || 'opt';
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+/**
+ * Re-key a factor-keyed weight preset onto question codes (v5.0.0). Factors with
+ * no source question (COMPUTED, e.g. `debt_burden`) are dropped, then the
+ * remaining weights are renormalized to sum exactly 100 (integers; the rounding
+ * remainder lands on the largest weight).
+ */
+function toQuestionWeights(
+  preset: Record<string, number>,
+  questionByFactor: Map<string, string>,
+): Record<string, number> {
+  const raw: Record<string, number> = {};
+  for (const [factorCode, pts] of Object.entries(preset)) {
+    const questionCode = questionByFactor.get(factorCode);
+    if (!questionCode) continue; // dropped COMPUTED factor (e.g. debt_burden)
+    raw[questionCode] = (raw[questionCode] ?? 0) + pts;
+  }
+  const total = Object.values(raw).reduce((a, b) => a + b, 0);
+  if (total === 0) return raw;
+  const out: Record<string, number> = {};
+  for (const [code, pts] of Object.entries(raw)) out[code] = Math.round((pts * 100) / total);
+  // Fix the rounding drift so the set sums to exactly 100.
+  const drift = 100 - Object.values(out).reduce((a, b) => a + b, 0);
+  if (drift !== 0) {
+    const largest = Object.entries(out).sort((a, b) => b[1] - a[1])[0]?.[0];
+    if (largest) out[largest] += drift;
+  }
+  return out;
+}
+
+// Standalone run: `tsx prisma/seed-questionnaire.ts`. Skipped when imported by
+// seed.ts (which owns the prisma lifecycle and chains seedQuestionnaire()).
+if (process.argv[1]?.includes('seed-questionnaire')) {
+  seedQuestionnaire()
+    .catch((e: unknown) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}

@@ -14,20 +14,20 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
-import { NzTagModule } from 'ng-zorro-antd/tag';
+import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import {
   QuestionnaireApiService,
   type LoanCategory,
   type ProgramMeta,
-  type ScoringFactor,
+  type ScoredQuestion,
 } from './questionnaire.api.service';
 
 /**
- * Scoring weights editor (maker side, Constitution V v4.1.0). Edit per-factor
- * points for a bank program; the running total must equal exactly 100 before
- * Submit-for-approval is enabled. A DIFFERENT admin approves it in the inbox.
+ * Scoring weights editor (Constitution V v5.0.0 — direct save, no maker-checker).
+ * Each scored question gets a per-program weight; the running total must equal
+ * exactly 100 before Save. Saving activates the new versioned set immediately.
  */
 @Component({
   standalone: true,
@@ -40,13 +40,13 @@ import {
     NzButtonModule,
     NzCardModule,
     NzInputNumberModule,
-    NzTagModule,
+    NzEmptyModule,
     NzSpinModule,
   ],
   template: `
     <section class="page">
       <header class="page-head">
-        <a routerLink="/scoring-approvals" class="back" i18n="@@scoring.editor.back">← Approvals inbox</a>
+        <a routerLink="/bank-programs" class="back" i18n="@@scoring.editor.back">← Bank programs</a>
         <h1 i18n="@@scoring.editor.title">Approval scoring weights</h1>
         @if (program(); as p) {
           <p class="prog-line">
@@ -64,20 +64,24 @@ import {
 
       @if (loading()) {
         <nz-spin nzSimple />
+      } @else if (questions().length === 0) {
+        <nz-card>
+          <nz-empty
+            i18n-nzNotFoundContent="@@scoring.editor.no_questions"
+            nzNotFoundContent="No scored questions for this category yet. Mark questions as scored in the questionnaire editor first."
+          />
+        </nz-card>
       } @else {
         <nz-card>
           <form [formGroup]="form" class="weights">
-            @for (f of factors(); track f.code) {
+            @for (q of questions(); track q.code) {
               <div class="weight-row">
                 <div class="labels">
-                  <span class="label">{{ rowLabel(f) }}</span>
-                  <span class="mono code">{{ f.code }}</span>
-                  @if (f.kind === 'COMPUTED') {
-                    <nz-tag i18n="@@scoring.editor.computed">computed</nz-tag>
-                  }
+                  <span class="label">{{ rowLabel(q) }}</span>
+                  <span class="mono code">{{ q.code }}</span>
                 </div>
                 <nz-input-number
-                  [formControlName]="f.code"
+                  [formControlName]="q.code"
                   [nzMin]="0"
                   [nzMax]="100"
                   [nzStep]="1"
@@ -93,22 +97,17 @@ import {
           </div>
 
           <div class="row gap actions">
-            <button nz-button (click)="saveDraft()" i18n="@@scoring.editor.save">Save draft</button>
             <button
               nz-button
               nzType="primary"
-              [disabled]="total() !== 100"
-              (click)="submit()"
-              i18n="@@scoring.editor.submit"
+              [disabled]="total() !== 100 || saving()"
+              [nzLoading]="saving()"
+              (click)="save()"
+              i18n="@@scoring.editor.save"
             >
-              Submit for approval
+              Save weights
             </button>
           </div>
-          @if (pendingExists()) {
-            <p class="muted small" i18n="@@scoring.editor.pending_note">
-              A change is already awaiting approval for this program.
-            </p>
-          }
         </nz-card>
       }
     </section>
@@ -118,19 +117,19 @@ import {
       .page { padding: var(--space-6, 24px); max-inline-size: 640px; }
       .page-head { margin-block-end: var(--space-5, 20px); }
       .back { display: inline-block; margin-block-end: var(--space-2, 8px); }
-      .muted { color: var(--ant-text-color-secondary, #6b7280); }
+      .muted { color: var(--ant-text-color-secondary); }
       .small { font-size: 13px; }
       .prog-line {
         display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2, 8px);
         margin-block: var(--space-2, 8px) var(--space-1, 4px); font-size: 15px;
       }
       .prog-line .bank { font-weight: 600; }
-      .prog-line .sep { color: var(--ant-text-color-secondary, #6b7280); }
-      .prog-line .prog { color: var(--ant-text-color, #1a2433); }
+      .prog-line .sep { color: var(--ant-text-color-secondary); }
+      .prog-line .prog { color: var(--ant-text-color); }
       .cat-chip {
         text-transform: capitalize; font-size: 12px; font-weight: 600;
-        color: var(--ant-primary-color, #0869c3);
-        background: var(--ant-primary-color-outline, rgba(8, 105, 195, 0.12));
+        color: var(--ant-primary-color);
+        background: var(--ant-primary-color-outline);
         padding: 1px 10px; border-radius: 999px;
       }
       .caption { display: flex; flex-wrap: wrap; gap: var(--space-2, 8px); align-items: center; }
@@ -140,14 +139,17 @@ import {
       .weight-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4, 16px); }
       .labels { display: flex; flex-direction: column; }
       .label { font-weight: 500; }
-      .code { font-size: 12px; color: var(--ant-text-color-secondary, #6b7280); }
+      .code { font-size: 12px; color: var(--ant-text-color-secondary); }
       .total-bar {
         display: flex; justify-content: space-between; align-items: center;
         margin-block: var(--space-4, 16px); padding: var(--space-3, 12px);
-        border-radius: var(--radius-md, 8px); background: var(--ant-primary-color-outline, rgba(8,105,195,0.08));
+        border-radius: var(--radius-md, 8px); background: var(--ant-primary-color-outline);
         font-weight: 600;
       }
-      .total-bar.bad { background: rgba(193, 102, 107, 0.12); color: var(--ant-error-color, #c1666b); }
+      .total-bar.bad {
+        background: color-mix(in srgb, var(--ant-error-color) 12%, transparent);
+        color: var(--ant-error-color);
+      }
       .row { display: flex; align-items: center; }
       .gap { gap: var(--space-3, 12px); }
     `,
@@ -163,10 +165,10 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly category = this.route.snapshot.paramMap.get('category') as LoanCategory;
   readonly programId = this.route.snapshot.paramMap.get('programId') ?? '';
 
-  readonly factors = signal<ScoringFactor[]>([]);
+  readonly questions = signal<ScoredQuestion[]>([]);
   readonly program = signal<ProgramMeta | null>(null);
   readonly loading = signal(true);
-  readonly pendingExists = signal(false);
+  readonly saving = signal(false);
   readonly form = new FormGroup<Record<string, FormControl<number>>>({});
 
   private readonly value = toSignal(this.form.valueChanges, { initialValue: {} as Record<string, number> });
@@ -176,33 +178,30 @@ export class ScoringWeightsEditorPage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      const [factors, weights] = await Promise.all([
-        this.api.listFactors(this.category),
+      const [questions, weights] = await Promise.all([
+        this.api.listScoredQuestions(this.category),
         this.api.programWeights(this.programId),
       ]);
-      this.factors.set(factors);
+      this.questions.set(questions);
       this.program.set(weights.program);
-      this.pendingExists.set(weights.pending !== null);
-      const seed = (weights.draft ?? weights.active)?.weights ?? {};
-      for (const f of factors) {
-        this.form.addControl(f.code, new FormControl<number>(Number(seed[f.code] ?? 0), { nonNullable: true }));
+      const seed = weights.active?.weights ?? {};
+      for (const q of questions) {
+        this.form.addControl(q.code, new FormControl<number>(Number(seed[q.code] ?? 0), { nonNullable: true }));
       }
     } finally {
       this.loading.set(false);
     }
   }
 
-  async saveDraft(): Promise<void> {
-    await this.api.saveDraft(this.programId, this.currentWeights());
-    this.message.success($localize`:@@scoring.editor.saved:Draft saved`);
-  }
-
-  async submit(): Promise<void> {
-    if (this.total() !== 100) return;
-    await this.api.saveDraft(this.programId, this.currentWeights());
-    await this.api.submitWeights(this.programId);
-    this.pendingExists.set(true);
-    this.message.success($localize`:@@scoring.editor.submitted:Submitted for approval`);
+  async save(): Promise<void> {
+    if (this.total() !== 100 || this.saving()) return;
+    this.saving.set(true);
+    try {
+      await this.api.saveWeights(this.programId, this.currentWeights());
+      this.message.success($localize`:@@scoring.editor.saved:Weights saved`);
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   /** Program display name, Arabic-first with English fallback. */
@@ -210,14 +209,9 @@ export class ScoringWeightsEditorPage implements OnInit {
     return (this.isAr && p.friendlyNameAr) || p.friendlyName;
   }
 
-  /**
-   * Row label = the QUESTION this factor scores (so admins weight by question),
-   * Arabic-first. COMPUTED factors have no source question → use the factor label.
-   */
-  rowLabel(f: ScoringFactor): string {
-    const q = this.isAr ? f.sourceQuestionLabelAr : f.sourceQuestionLabelEn;
-    if (q) return q;
-    return (this.isAr ? f.labelAr : f.labelEn) || f.labelEn;
+  /** Row label = the scored question, Arabic-first. */
+  rowLabel(q: ScoredQuestion): string {
+    return (this.isAr ? q.labelAr : q.labelEn) || q.labelEn;
   }
 
   private currentWeights(): Record<string, number> {

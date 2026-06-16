@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { LoanCategory, ScoringFactorKind } from '@prisma/client';
+import { LoanCategory } from '@prisma/client';
 import { ScoringRepository } from './scoring.repository';
+import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
 import {
   computeProbability,
-  dbrComfortFromPercents,
   defaultWeights,
   tierFor,
   type ApprovalTier,
@@ -13,55 +13,53 @@ import {
 import type { ApprovalFactors } from '@/matching/types';
 
 /**
- * Per-bank weighted approval scoring (Constitution V v4.1.0).
+ * Per-question weighted approval scoring (Constitution V v5.0.0).
  *
  * THE single place that turns answers + a bank program's ACTIVE weight set into
  * an approval probability. Both the mobile preview (`matching-preview`) and the
  * persisted apply flow (`applications`) call this — no duplicated formula
  * (Anti-Pattern A25).
  *
- *   probability = Σ ( subScore[factor] × weight[factor] ) / 100
+ *   probability = Σ ( selectedOption.scoreValue × questionWeight ) / 100
  *
- * - DIRECT factors: subScore = the selected option's admin-set `scoreValue`.
- * - COMPUTED factors: subScore = computed in code here (Principle V — formula
- *   stays code). `debt_burden` is the only one today.
- * - Weights: the program's ACTIVE `ScoringWeightSet`; falls back to an equal
- *   code-default split so no program is ever left unscored (Spec §5.5.4).
+ * - Sub-scores: the selected option's admin-set `scoreValue` (0..1), keyed by
+ *   the answer's `questionCode`.
+ * - Weights: the program's ACTIVE `ScoringWeightSet` (keyed by `questionCode`);
+ *   falls back to an equal code-default split across the category's scored
+ *   questions so no program is ever left unscored.
+ * - DBR is NOT part of the probability (v5.0.0) — it is an eligibility gate only.
  */
 @Injectable()
 export class WeightedApprovalScoringService {
-  constructor(private readonly scoring: ScoringRepository) {}
+  constructor(
+    private readonly scoring: ScoringRepository,
+    private readonly questionnaire: QuestionnaireRepository,
+  ) {}
 
   /**
-   * DIRECT sub-scores keyed by factor code, from answers that carry their
-   * question's `scoringFactorCode` and the selected option's `scoreValue`.
-   * Display-only / arithmetic answers (null factor code) are ignored.
+   * Sub-scores keyed by `questionCode`, from each answer's selected option
+   * `scoreValue`. Non-scoring answers carry a null scoreValue → contribute 0
+   * (and are dropped from a program's weight set, so they don't matter).
    */
-  buildDirectSubScores(
-    answers: ReadonlyArray<{
-      scoringFactorCode: string | null;
-      scoreValue: string | number | null;
-    }>,
+  buildSubScores(
+    answers: ReadonlyArray<{ questionCode: string; scoreValue: string | number | null }>,
   ): SubScores {
     const subScores: SubScores = {};
     for (const a of answers) {
-      if (!a.scoringFactorCode) continue;
-      subScores[a.scoringFactorCode] = a.scoreValue != null ? Number(a.scoreValue) : 0;
+      subScores[a.questionCode] = a.scoreValue != null ? Number(a.scoreValue) : 0;
     }
     return subScores;
   }
 
   /**
-   * Score one program for one applicant. `directSubScores` come from the
-   * answers; COMPUTED factors are filled here from `computed`. Returns the
-   * 0..100 score, 0..1 probability, tier, the factor-contribution breakdown,
-   * and whether the code-default weight set was used.
+   * Score one program for one applicant. Returns the 0..100 score, 0..1
+   * probability, tier, the per-question contribution breakdown, and whether the
+   * code-default weight set was used.
    */
   async scoreProgram(args: {
     programId: string | null;
     category: LoanCategory;
-    directSubScores: SubScores;
-    computed?: { dbrPercent?: number | null; dbrCapPercent?: number | null };
+    subScores: SubScores;
   }): Promise<{
     score: number;
     probability: number;
@@ -69,54 +67,29 @@ export class WeightedApprovalScoringService {
     usedDefault: boolean;
     factors: ApprovalFactors;
   }> {
-    const factors = await this.scoring.activeFactors(args.category);
-    const factorCodes = factors.map((f) => f.code);
-
-    const subScores: SubScores = { ...args.directSubScores };
-    for (const f of factors) {
-      if (f.kind !== ScoringFactorKind.COMPUTED) continue;
-      subScores[f.code] = computeComputedFactor(f.code, args.computed);
-    }
-
     const active = args.programId ? await this.scoring.activeSet(args.programId) : null;
     const usedDefault = active === null;
-    const weights: Weights = active
-      ? (active.weights as Record<string, number>)
-      : defaultWeights(factorCodes);
+    let weights: Weights;
+    if (active) {
+      weights = active.weights as Record<string, number>;
+    } else {
+      const scored = await this.questionnaire.scoredQuestions(args.category);
+      weights = defaultWeights(scored.map((q) => q.code));
+    }
 
-    const probability = computeProbability(weights, subScores);
+    const probability = computeProbability(weights, args.subScores);
     return {
       score: Math.round(probability * 100),
       probability: Number(probability.toFixed(4)),
       tier: tierFor(probability),
       usedDefault,
-      factors: buildFactorBreakdown(weights, subScores),
+      factors: buildFactorBreakdown(weights, args.subScores),
     };
   }
 }
 
 /**
- * COMPUTED factor computers (Principle V — the formula lives in code). Unknown
- * COMPUTED codes contribute 0 (the factor is defined but not yet implemented),
- * which is safe: a 0 sub-score just removes that factor's points.
- */
-function computeComputedFactor(
-  code: string,
-  computed: { dbrPercent?: number | null; dbrCapPercent?: number | null } | undefined,
-): number {
-  switch (code) {
-    case 'debt_burden':
-      return dbrComfortFromPercents(
-        computed?.dbrPercent ?? Number.NaN,
-        computed?.dbrCapPercent ?? Number.NaN,
-      );
-    default:
-      return 0;
-  }
-}
-
-/**
- * Transparency breakdown persisted on the offer: each factor's earned points
+ * Transparency breakdown persisted on the offer: each question's earned points
  * (subScore × weight) as a positive impact, biggest first. Mirrors the
  * `ApprovalFactors` shape the admin/mobile already read.
  */

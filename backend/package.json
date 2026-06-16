@@ -18,6 +18,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "seed:demo": "tsx prisma/seed-demo.ts",
+    "seed:apps": "tsx prisma/seed-applications.ts",
     "check:codes": "tsx scripts/check-error-codes-parity.ts"
   },
   "dependencies": {

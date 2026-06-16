@@ -60,6 +60,17 @@ export class QuestionnaireRepository {
     return this.prisma.question.findMany({ where: { category }, select: { code: true } });
   }
 
+  /** Active questions that count toward approval probability (v5.0.0). */
+  scoredQuestions(
+    category: LoanCategory,
+  ): Promise<{ code: string; questionAr: string; questionEn: string }[]> {
+    return this.prisma.question.findMany({
+      where: { category, isActive: true, isScored: true },
+      orderBy: { displayOrder: 'asc' },
+      select: { code: true, questionAr: true, questionEn: true },
+    });
+  }
+
   updateQuestion(id: string, data: Prisma.QuestionUpdateInput): Promise<Question> {
     return this.prisma.question.update({ where: { id }, data });
   }

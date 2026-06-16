@@ -1,28 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import {
-  LoanCategory,
-  Prisma,
-  ScoringWeightSetStatus,
-} from '@prisma/client';
-import type { ScoringFactor, ScoringWeightSet } from '@prisma/client';
+import { LoanCategory, Prisma, ScoringWeightSetStatus } from '@prisma/client';
+import type { ScoringWeightSet } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 
 /** Scoring data access (Constitution Principle X). */
 @Injectable()
 export class ScoringRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  // ---- Factors ------------------------------------------------------------
-  activeFactors(category: LoanCategory): Promise<ScoringFactor[]> {
-    return this.prisma.scoringFactor.findMany({
-      where: { category, isActive: true },
-      orderBy: { code: 'asc' },
-    });
-  }
-
-  createFactor(data: Prisma.ScoringFactorUncheckedCreateInput): Promise<ScoringFactor> {
-    return this.prisma.scoringFactor.create({ data });
-  }
 
   // ---- Bank program lookup ------------------------------------------------
   async programCategory(programId: string): Promise<LoanCategory | null> {
@@ -36,32 +20,16 @@ export class ScoringRepository {
   }
 
   // ---- Weight sets --------------------------------------------------------
-  findSet(id: string): Promise<ScoringWeightSet | null> {
-    return this.prisma.scoringWeightSet.findUnique({ where: { id } });
-  }
-
-  findByStatus(
-    programId: string,
-    status: ScoringWeightSetStatus,
-  ): Promise<ScoringWeightSet | null> {
-    return this.prisma.scoringWeightSet.findFirst({ where: { bankProgramId: programId, status } });
-  }
-
   activeSet(programId: string): Promise<ScoringWeightSet | null> {
-    return this.findByStatus(programId, ScoringWeightSetStatus.ACTIVE);
+    return this.prisma.scoringWeightSet.findFirst({
+      where: { bankProgramId: programId, status: ScoringWeightSetStatus.ACTIVE },
+    });
   }
 
   listByProgram(programId: string): Promise<ScoringWeightSet[]> {
     return this.prisma.scoringWeightSet.findMany({
       where: { bankProgramId: programId },
       orderBy: { versionNumber: 'desc' },
-    });
-  }
-
-  listPending(): Promise<ScoringWeightSet[]> {
-    return this.prisma.scoringWeightSet.findMany({
-      where: { status: ScoringWeightSetStatus.PENDING_APPROVAL },
-      orderBy: { createdAt: 'asc' },
     });
   }
 
@@ -74,30 +42,30 @@ export class ScoringRepository {
     return (last?.versionNumber ?? 0) + 1;
   }
 
-  createSet(data: Prisma.ScoringWeightSetUncheckedCreateInput): Promise<ScoringWeightSet> {
-    return this.prisma.scoringWeightSet.create({ data });
-  }
-
-  updateSet(id: string, data: Prisma.ScoringWeightSetUpdateInput): Promise<ScoringWeightSet> {
-    return this.prisma.scoringWeightSet.update({ where: { id }, data });
-  }
-
-  /** Atomic: archive prior ACTIVE for the program, activate the approved set. */
-  approveTx(args: {
-    setId: string;
+  /**
+   * Direct save (Constitution V v5.0.0, no maker-checker): atomically archive the
+   * program's prior ACTIVE set and activate a freshly versioned one. The editor's
+   * id is recorded on both `createdBy` and `approvedBy` for the audit trail.
+   */
+  saveActiveTx(args: {
     programId: string;
-    approvedBy: string;
+    versionNumber: number;
+    weights: Prisma.InputJsonValue;
+    editorId: string;
   }): Promise<ScoringWeightSet> {
     return this.prisma.$transaction(async (tx) => {
       await tx.scoringWeightSet.updateMany({
         where: { bankProgramId: args.programId, status: ScoringWeightSetStatus.ACTIVE },
         data: { status: ScoringWeightSetStatus.ARCHIVED },
       });
-      return tx.scoringWeightSet.update({
-        where: { id: args.setId },
+      return tx.scoringWeightSet.create({
         data: {
+          bankProgramId: args.programId,
           status: ScoringWeightSetStatus.ACTIVE,
-          approvedBy: args.approvedBy,
+          versionNumber: args.versionNumber,
+          weights: args.weights,
+          createdBy: args.editorId,
+          approvedBy: args.editorId,
           approvedAt: new Date(),
         },
       });

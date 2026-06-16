@@ -372,9 +372,7 @@ export class CustomerAuthController {
   ): CustomerAuthEnvelopeDto {
     return {
       accessToken: r.accessToken,
-      accessTokenExpiresIn: r.accessTokenExpiresIn,
       refreshToken: r.refresh.rawToken,
-      refreshTokenExpiresIn: r.refresh.ttlSeconds,
       customer: r.customer,
     };
   }

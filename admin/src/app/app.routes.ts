@@ -91,8 +91,8 @@ export const APP_ROUTES: Routes = [
       import('./features/questionnaire/questionnaire.routes').then((m) => m.QUESTIONNAIRE_ROUTES),
   },
   {
-    // Feature 009 — scoring-weight maker-checker (own prefix → single active nav tab).
-    path: 'scoring-approvals',
+    // Feature 009 — per-program scoring weights (direct save, v5.0.0).
+    path: 'scoring',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager'])],
     loadChildren: () =>

@@ -7,17 +7,11 @@ import type { SuccessEnvelope } from '@core/auth/auth.types';
 export type LoanCategory = 'personal' | 'car' | 'mortgage' | 'business';
 export const LOAN_CATEGORIES: LoanCategory[] = ['personal', 'car', 'mortgage', 'business'];
 
-export interface ScoringFactor {
-  id: string;
-  category: LoanCategory;
+/** A scored question = one weight row in the editor (admins weight by question). */
+export interface ScoredQuestion {
   code: string;
-  kind: 'DIRECT' | 'COMPUTED';
   labelAr: string;
   labelEn: string;
-  /** Question this DIRECT factor scores (null for COMPUTED factors). */
-  sourceQuestionCode: string | null;
-  sourceQuestionLabelEn: string | null;
-  sourceQuestionLabelAr: string | null;
 }
 
 /** Bank + program identity for labelling a per-program weight set. */
@@ -29,7 +23,7 @@ export interface ProgramMeta {
   category: string;
 }
 
-export type WeightSetStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'ACTIVE' | 'ARCHIVED' | 'REJECTED';
+export type WeightSetStatus = 'ACTIVE' | 'ARCHIVED';
 
 export interface ScoringWeightSet {
   id: string;
@@ -41,19 +35,11 @@ export interface ScoringWeightSet {
   createdAt: string;
   approvedBy: string | null;
   approvedAt: string | null;
-  rejectedReason: string | null;
 }
 
 export interface ProgramWeights {
   program: ProgramMeta;
   active: ScoringWeightSet | null;
-  draft: ScoringWeightSet | null;
-  pending: ScoringWeightSet | null;
-}
-
-/** A pending weight set joined with its program/bank identity (checker inbox). */
-export interface PendingWeightSet extends ScoringWeightSet {
-  program: ProgramMeta;
 }
 
 export interface QuestionnaireVersionRow {
@@ -88,7 +74,7 @@ export interface QuestionRow {
   displayOrder: number;
   isActive: boolean;
   systemRole: string | null;
-  scoringFactorCode: string | null;
+  isScored: boolean;
   profileField: string | null;
   enabledWhen: { questionCode: string; operator: string; optionCode: string } | null;
   options: OptionRow[];
@@ -147,7 +133,7 @@ export interface CreateQuestionBody {
   displayOrder: number;
   isRequired?: boolean;
   systemRole?: string;
-  scoringFactorCode?: string;
+  isScored?: boolean;
   profileField?: string;
 }
 export interface CreateOptionBody {
@@ -173,7 +159,8 @@ export interface UpdateQuestionBody {
   questionEn?: string;
   displayOrder?: number;
   isRequired?: boolean;
-  scoringFactorCode?: string;
+  isActive?: boolean;
+  isScored?: boolean;
   profileField?: string;
 }
 /** Option edits — `code` is immutable (A33). */
@@ -188,7 +175,7 @@ export interface UpdateOptionBody {
   profileValue?: string;
 }
 
-/** Admin API for Feature 009 (questionnaire + scoring weights maker-checker). */
+/** Admin API for Feature 009 (questionnaire + per-question scoring weights, v5.0.0). */
 @Injectable({ providedIn: 'root' })
 export class QuestionnaireApiService {
   private readonly http = inject(HttpClient);
@@ -196,33 +183,17 @@ export class QuestionnaireApiService {
     return environment.apiBaseUrl;
   }
 
-  // ---- Scoring weights (maker-checker) ----------------------------------
-  listFactors(category: LoanCategory): Promise<ScoringFactor[]> {
-    return this.get<ScoringFactor[]>(`/scoring/factors/${category}`);
+  // ---- Scoring weights (direct save, v5.0.0) ----------------------------
+  listScoredQuestions(category: LoanCategory): Promise<ScoredQuestion[]> {
+    return this.get<ScoredQuestion[]>(`/scoring/questions/${category}`);
   }
 
   programWeights(programId: string): Promise<ProgramWeights> {
     return this.get<ProgramWeights>(`/scoring/programs/${programId}/weights`);
   }
 
-  saveDraft(programId: string, weights: Record<string, number>): Promise<ScoringWeightSet> {
-    return this.post<ScoringWeightSet>(`/scoring/programs/${programId}/weights/draft`, { weights });
-  }
-
-  submitWeights(programId: string): Promise<ScoringWeightSet> {
-    return this.post<ScoringWeightSet>(`/scoring/programs/${programId}/weights/submit`, {});
-  }
-
-  pendingInbox(): Promise<PendingWeightSet[]> {
-    return this.get<PendingWeightSet[]>(`/scoring/weights/pending`);
-  }
-
-  approveWeights(setId: string): Promise<ScoringWeightSet> {
-    return this.post<ScoringWeightSet>(`/scoring/weights/${setId}/approve`, {});
-  }
-
-  rejectWeights(setId: string, reason: string): Promise<ScoringWeightSet> {
-    return this.post<ScoringWeightSet>(`/scoring/weights/${setId}/reject`, { reason });
+  saveWeights(programId: string, weights: Record<string, number>): Promise<ScoringWeightSet> {
+    return this.post<ScoringWeightSet>(`/scoring/programs/${programId}/weights`, { weights });
   }
 
   weightsHistory(programId: string): Promise<ScoringWeightSet[]> {

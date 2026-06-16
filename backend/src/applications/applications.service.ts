@@ -474,30 +474,24 @@ export class ApplicationsService {
    * Overwrite each eligible offer's approval probability with the per-bank
    * weighted score (Spec §5.5). Mutates the offers IN PLACE before they are
    * mapped to BankOffer inputs — the rows are not yet created, so Principle I /
-   * A6 (immutable-after-match) is respected. DIRECT sub-scores come from the
-   * answers' option `scoreValue`; the COMPUTED `debt_burden` factor reads the
-   * offer's DBR % against the program's DBR cap.
+   * A6 (immutable-after-match) is respected. Sub-scores come from the answers'
+   * selected-option `scoreValue`, keyed by `questionCode` (v5.0.0).
    */
   private async applyPerBankScoring(
     offers: Offer[],
     category: LoanCategory,
-    answers: ReadonlyArray<{ scoringFactorCode: string | null; scoreValue: string | null }>,
+    answers: ReadonlyArray<{ questionCode: string; scoreValue: string | null }>,
     snapshots: BankProgramSnapshot[],
   ): Promise<void> {
     if (offers.length === 0) return;
-    const directSubScores = this.weightedScoring.buildDirectSubScores(answers);
+    const subScores = this.weightedScoring.buildSubScores(answers);
     const idByCode = new Map(snapshots.map((s) => [s.programCode, s.id]));
-    const dbrCapByCode = new Map(snapshots.map((s) => [s.programCode, s.eligibility.dbrCapPercent]));
 
     for (const offer of offers) {
       const { score, tier, factors } = await this.weightedScoring.scoreProgram({
         programId: idByCode.get(offer.programCode) ?? null,
         category,
-        directSubScores,
-        computed: {
-          dbrPercent: Number(offer.dbrPercent),
-          dbrCapPercent: dbrCapByCode.get(offer.programCode) ?? null,
-        },
+        subScores,
       });
       offer.approvalProbability = { score, tier, factors };
       offer.approvalProbabilityPercent = score;

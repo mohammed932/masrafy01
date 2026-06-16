@@ -1,29 +1,11 @@
-import { IsEnum, IsObject, IsOptional, IsString, Length } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanCategory, ScoringFactorKind } from '@prisma/client';
+import { IsObject } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
-export class CreateScoringFactorDto {
-  @ApiProperty({ enum: LoanCategory }) @IsEnum(LoanCategory) category!: LoanCategory;
-  @ApiProperty() @IsString() @Length(1, 64) code!: string;
-  @ApiPropertyOptional({ enum: ScoringFactorKind, default: 'DIRECT' })
-  @IsOptional()
-  @IsEnum(ScoringFactorKind)
-  kind?: ScoringFactorKind;
-  @ApiProperty() @IsString() @Length(1, 200) labelAr!: string;
-  @ApiProperty() @IsString() @Length(1, 200) labelEn!: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(0, 500) description?: string;
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 64) sourceQuestionCode?: string;
-}
-
-export class UpsertWeightsDraftDto {
+export class SaveWeightsDto {
   @ApiProperty({
-    description: 'Map of factorCode → points; must sum to exactly 100.',
-    example: { salary_level: 20, debt_burden: 30, salary_transferred: 30, job_stability: 20 },
+    description: 'Map of questionCode → weight points; must sum to exactly 100 (v5.0.0).',
+    example: { employment_status: 30, monthly_income: 40, salary_transferred: 30 },
   })
   @IsObject()
   weights!: Record<string, number>;
-}
-
-export class RejectWeightsDto {
-  @ApiProperty() @IsString() @Length(1, 500) reason!: string;
 }

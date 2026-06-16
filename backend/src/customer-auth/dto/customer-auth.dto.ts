@@ -53,9 +53,7 @@ export class CustomerProfileResponseDto {
 
 export class CustomerAuthEnvelopeDto {
   @ApiProperty() accessToken!: string;
-  @ApiProperty() accessTokenExpiresIn!: number;
   @ApiProperty() refreshToken!: string;
-  @ApiProperty() refreshTokenExpiresIn!: number;
   @ApiProperty({ type: CustomerProfileResponseDto }) customer!: CustomerProfileResponseDto;
 }
 

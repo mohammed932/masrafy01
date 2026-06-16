@@ -116,11 +116,11 @@
   "QUESTION_IN_USE": "لا يمكن الحذف: تفرع سؤال آخر يعتمد على هذا السؤال.",
   "QUESTION_OPTION_IN_USE": "لا يمكن الحذف: تفرع سؤال آخر يعتمد على هذا الخيار.",
   "QUESTION_GROUP_NOT_EMPTY": "لا يمكن الحذف: احذف أسئلة المجموعة أولًا.",
-  "SCORING_FACTOR_NOT_FOUND": "عامل التقييم غير موجود.",
   "WEIGHT_SET_NOT_FOUND": "مجموعة الأوزان غير موجودة.",
   "WEIGHTS_MUST_SUM_TO_100": "يجب أن يكون مجموع الأوزان 100 بالضبط.",
-  "WEIGHTS_UNKNOWN_FACTOR": "الأوزان تشير إلى عامل تقييم غير معروف.",
-  "WEIGHT_SET_NOT_DRAFT": "لا توجد مسودة أوزان قابلة للإرسال.",
-  "WEIGHT_SET_NOT_PENDING": "مجموعة الأوزان هذه ليست في انتظار الموافقة.",
-  "APPROVER_MUST_DIFFER_FROM_MAKER": "يجب أن يوافق مسؤول مختلف على تغيير الأوزان."
+  "WEIGHTS_UNKNOWN_QUESTION": "الأوزان تشير إلى سؤال غير مُقيَّم.",
+  "UNKNOWN_QUESTION_CODE": "تشير هذه الإجابة إلى سؤال لم يعد موجودًا.",
+  "UNKNOWN_OPTION_CODE": "تشير هذه الإجابة إلى خيار لم يعد موجودًا.",
+  "REQUIRED_ANSWER_MISSING": "من فضلك أجب على جميع الأسئلة المطلوبة.",
+  "PROGRAM_NO_LONGER_MATCHES": "لم يعد هذا البرنامج مطابقًا لملف المتقدم."
 }

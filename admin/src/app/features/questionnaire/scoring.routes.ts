@@ -1,17 +1,11 @@
 import type { Routes } from '@angular/router';
 
 /**
- * Feature 009 admin routes — scoring-weight maker-checker (Constitution V).
- * Mounted at `/scoring-approvals` (app.routes.ts), separate from the
- * `/questionnaire` tree so the two sidebar entries keep distinct path prefixes
- * and only one nav tab is ever active.
+ * Feature 009 admin routes — per-program scoring weights (Constitution V v5.0.0,
+ * direct save). Mounted at `/scoring` (app.routes.ts); reached from a bank
+ * program's detail page. No maker-checker / approvals inbox.
  */
 export const SCORING_ROUTES: Routes = [
-  {
-    path: '',
-    loadComponent: () =>
-      import('./scoring-approvals.page').then((m) => m.ScoringApprovalsPage),
-  },
   {
     path: 'weights/:category/:programId',
     loadComponent: () =>

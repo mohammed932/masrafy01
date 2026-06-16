@@ -2,9 +2,9 @@ import type { Routes } from '@angular/router';
 
 /**
  * Feature 009 admin routes — questionnaire overview + tree editor.
- * Role gating applied at the parent mount in app.routes.ts. Scoring-weight
- * approvals live under their own `/scoring-approvals` mount (SCORING_ROUTES) so
- * the two sidebar destinations never share a path prefix (single active tab).
+ * Role gating applied at the parent mount in app.routes.ts. Per-program scoring
+ * weights live under the `/scoring` mount (SCORING_ROUTES), reached from a bank
+ * program's detail page.
  */
 export const QUESTIONNAIRE_ROUTES: Routes = [
   {

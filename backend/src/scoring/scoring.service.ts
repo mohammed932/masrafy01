@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LoanCategory, ScoringWeightSetStatus } from '@prisma/client';
-import { Prisma } from '@prisma/client';
+import { LoanCategory, Prisma } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { DomainException } from '@/common/errors/domain.exceptions';
@@ -8,12 +7,8 @@ import { ERROR_CODES } from '@/common/errors/error-codes';
 import { ScoringRepository } from './scoring.repository';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
-import type { ScoringFactor, ScoringWeightSet } from '@prisma/client';
-import type {
-  CreateScoringFactorDto,
-  RejectWeightsDto,
-  UpsertWeightsDraftDto,
-} from './dto/scoring.dto';
+import type { ScoringWeightSet } from '@prisma/client';
+import type { SaveWeightsDto } from './dto/scoring.dto';
 
 export interface ScoringRequestContext {
   sourceIp: string | null;
@@ -29,21 +24,16 @@ export interface ProgramMeta {
   category: string; // lowercase LoanCategory
 }
 
-/** A scoring factor enriched with its source question's text (DIRECT factors). */
-export interface ScoringFactorView extends ScoringFactor {
-  sourceQuestionLabelEn: string | null;
-  sourceQuestionLabelAr: string | null;
+/** A scored question row for the weights editor (admins weight by question). */
+export interface ScoredQuestionView {
+  code: string;
+  labelAr: string;
+  labelEn: string;
 }
 
 export interface ProgramWeightsResult {
   program: ProgramMeta;
   active: ScoringWeightSet | null;
-  draft: ScoringWeightSet | null;
-  pending: ScoringWeightSet | null;
-}
-
-export interface PendingWeightSetView extends ScoringWeightSet {
-  program: ProgramMeta;
 }
 
 @Injectable()
@@ -55,49 +45,20 @@ export class ScoringService {
     private readonly questionnaire: QuestionnaireRepository,
   ) {}
 
-  // ---- Factors ------------------------------------------------------------
-  /**
-   * Active factors for a category, each DIRECT factor enriched with its source
-   * question's text so the admin labels weight rows by question (not raw code).
-   * COMPUTED factors (e.g. `debt_burden`) have no source question → nulls.
-   */
-  async listFactors(category: LoanCategory): Promise<ScoringFactorView[]> {
-    const [factors, questions] = await Promise.all([
-      this.repo.activeFactors(category),
-      this.questionnaire.questionsByCategory(category),
-    ]);
-    const byCode = new Map(questions.map((q) => [q.code, q]));
-    return factors.map((f) => {
-      const q = f.sourceQuestionCode ? byCode.get(f.sourceQuestionCode) : undefined;
-      return {
-        ...f,
-        sourceQuestionLabelEn: q?.questionEn ?? null,
-        sourceQuestionLabelAr: q?.questionAr ?? null,
-      };
-    });
+  // ---- Scored questions (weight rows) -------------------------------------
+  /** The category's scored questions — one weight row each in the editor. */
+  async listScoredQuestions(category: LoanCategory): Promise<ScoredQuestionView[]> {
+    const questions = await this.questionnaire.scoredQuestions(category);
+    return questions.map((q) => ({ code: q.code, labelAr: q.questionAr, labelEn: q.questionEn }));
   }
 
-  createFactor(dto: CreateScoringFactorDto) {
-    return this.repo.createFactor({
-      category: dto.category,
-      code: dto.code,
-      kind: dto.kind ?? 'DIRECT',
-      labelAr: dto.labelAr,
-      labelEn: dto.labelEn,
-      description: dto.description ?? null,
-      sourceQuestionCode: dto.sourceQuestionCode ?? null,
-    });
-  }
-
-  // ---- Weight sets (maker-checker) ----------------------------------------
+  // ---- Weight sets (direct save, v5.0.0) ----------------------------------
   async getProgramWeights(programId: string): Promise<ProgramWeightsResult> {
-    const [program, active, draft, pending] = await Promise.all([
+    const [program, active] = await Promise.all([
       this.programMeta(programId),
       this.repo.activeSet(programId),
-      this.repo.findByStatus(programId, ScoringWeightSetStatus.DRAFT),
-      this.repo.findByStatus(programId, ScoringWeightSetStatus.PENDING_APPROVAL),
     ]);
-    return { program, active, draft, pending };
+    return { program, active };
   }
 
   /** Resolve a program's bank/program identity; throws typed error if unknown. */
@@ -113,125 +74,53 @@ export class ScoringService {
     };
   }
 
-  async upsertDraft(programId: string, dto: UpsertWeightsDraftDto, makerId: string) {
+  /**
+   * Save per-question weights for a program (direct, no maker-checker). Validates
+   * the keys are the category's scored questions and that they sum to exactly 100,
+   * then atomically archives the prior ACTIVE set and activates the new one.
+   */
+  async saveWeights(
+    programId: string,
+    dto: SaveWeightsDto,
+    editorId: string,
+    ctx: ScoringRequestContext,
+  ): Promise<ScoringWeightSet> {
     const category = await this.repo.programCategory(programId);
     if (!category) throw new DomainException(ERROR_CODES.BANK_PROGRAM_INVALID);
-    await this.assertKnownFactors(category, dto.weights);
+    await this.assertKnownQuestions(category, dto.weights);
+    this.assertSums100(dto.weights);
 
-    const existing = await this.repo.findByStatus(programId, ScoringWeightSetStatus.DRAFT);
-    const weights = dto.weights as unknown as Prisma.InputJsonValue;
-    if (existing) {
-      return this.repo.updateSet(existing.id, { weights, createdBy: makerId });
-    }
     const versionNumber = await this.repo.nextVersionNumber(programId);
-    return this.repo.createSet({
-      bankProgramId: programId,
-      status: ScoringWeightSetStatus.DRAFT,
+    const saved = await this.repo.saveActiveTx({
+      programId,
       versionNumber,
-      weights,
-      createdBy: makerId,
-    });
-  }
-
-  async submit(programId: string, makerId: string, ctx: ScoringRequestContext) {
-    const draft = await this.repo.findByStatus(programId, ScoringWeightSetStatus.DRAFT);
-    if (!draft) throw new DomainException(ERROR_CODES.WEIGHT_SET_NOT_DRAFT);
-    const category = await this.repo.programCategory(programId);
-    if (!category) throw new DomainException(ERROR_CODES.BANK_PROGRAM_INVALID);
-    const weights = draft.weights as Record<string, number>;
-    await this.assertKnownFactors(category, weights);
-    this.assertSums100(weights);
-
-    const updated = await this.repo.updateSet(draft.id, {
-      status: ScoringWeightSetStatus.PENDING_APPROVAL,
-      createdBy: makerId,
+      weights: dto.weights as unknown as Prisma.InputJsonValue,
+      editorId,
     });
     await this.audit.write({
-      actorId: makerId,
-      targetId: draft.id,
-      eventType: AuditEventType.SCORING_WEIGHTS_SUBMITTED,
+      actorId: editorId,
+      targetId: saved.id,
+      eventType: AuditEventType.SCORING_WEIGHTS_SAVED,
       sourceIp: ctx.sourceIp,
       correlationId: ctx.correlationId,
-      payload: { bankProgramId: programId, weightSetId: draft.id },
+      payload: { bankProgramId: programId, weightSetId: saved.id, versionNumber },
     });
-    return updated;
-  }
-
-  async approve(setId: string, approverId: string, ctx: ScoringRequestContext) {
-    const set = await this.repo.findSet(setId);
-    if (!set) throw new DomainException(ERROR_CODES.WEIGHT_SET_NOT_FOUND);
-    if (set.status !== ScoringWeightSetStatus.PENDING_APPROVAL) {
-      throw new DomainException(ERROR_CODES.WEIGHT_SET_NOT_PENDING);
-    }
-    if (set.createdBy === approverId) {
-      throw new DomainException(ERROR_CODES.APPROVER_MUST_DIFFER_FROM_MAKER);
-    }
-    const activated = await this.repo.approveTx({
-      setId,
-      programId: set.bankProgramId,
-      approvedBy: approverId,
-    });
-    await this.audit.write({
-      actorId: approverId,
-      targetId: setId,
-      eventType: AuditEventType.SCORING_WEIGHTS_APPROVED,
-      sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
-      payload: { bankProgramId: set.bankProgramId, weightSetId: setId, makerId: set.createdBy },
-    });
-    return activated;
-  }
-
-  async reject(setId: string, approverId: string, dto: RejectWeightsDto, ctx: ScoringRequestContext) {
-    const set = await this.repo.findSet(setId);
-    if (!set) throw new DomainException(ERROR_CODES.WEIGHT_SET_NOT_FOUND);
-    if (set.status !== ScoringWeightSetStatus.PENDING_APPROVAL) {
-      throw new DomainException(ERROR_CODES.WEIGHT_SET_NOT_PENDING);
-    }
-    const updated = await this.repo.updateSet(setId, {
-      status: ScoringWeightSetStatus.REJECTED,
-      rejectedReason: dto.reason,
-    });
-    await this.audit.write({
-      actorId: approverId,
-      targetId: setId,
-      eventType: AuditEventType.SCORING_WEIGHTS_REJECTED,
-      sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
-      payload: { bankProgramId: set.bankProgramId, weightSetId: setId, reason: dto.reason },
-    });
-    return updated;
+    return saved;
   }
 
   history(programId: string) {
     return this.repo.listByProgram(programId);
   }
 
-  /** Pending sets joined with program/bank identity so the checker inbox is readable. */
-  async pendingInbox(): Promise<PendingWeightSetView[]> {
-    const sets = await this.repo.listPending();
-    const metaCache = new Map<string, ProgramMeta>();
-    const views: PendingWeightSetView[] = [];
-    for (const set of sets) {
-      let meta = metaCache.get(set.bankProgramId);
-      if (!meta) {
-        meta = await this.programMeta(set.bankProgramId);
-        metaCache.set(set.bankProgramId, meta);
-      }
-      views.push({ ...set, program: meta });
-    }
-    return views;
-  }
-
   // ---- Validation ---------------------------------------------------------
-  private async assertKnownFactors(
+  private async assertKnownQuestions(
     category: LoanCategory,
     weights: Record<string, number>,
   ): Promise<void> {
-    const valid = new Set((await this.repo.activeFactors(category)).map((f) => f.code));
+    const valid = new Set((await this.questionnaire.scoredQuestions(category)).map((q) => q.code));
     for (const code of Object.keys(weights)) {
       if (!valid.has(code)) {
-        throw new DomainException(ERROR_CODES.WEIGHTS_UNKNOWN_FACTOR, { factorCode: code });
+        throw new DomainException(ERROR_CODES.WEIGHTS_UNKNOWN_QUESTION, { questionCode: code });
       }
     }
   }

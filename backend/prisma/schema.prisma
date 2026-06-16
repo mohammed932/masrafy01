@@ -882,11 +882,6 @@ enum QuestionSystemRole {
   TENOR
 }
 
-enum ScoringFactorKind {
-  DIRECT // sub-score = selected option's scoreValue
-  COMPUTED // sub-score computed in code (e.g. DBR comfort)
-}
-
 enum ScoringWeightSetStatus {
   DRAFT
   PENDING_APPROVAL
@@ -928,7 +923,7 @@ model Question {
   isActive          Boolean            @default(true)
   enabledWhen       Json? // { questionCode, operator: equals|not_equals, optionCode }
   systemRole        QuestionSystemRole? // set for arithmetic fields; null otherwise
-  scoringFactorCode String?            @db.VarChar(64) // DIRECT scoring factor fed by this question
+  isScored          Boolean            @default(false) // counts toward approval probability (v5.0.0); options then need scoreValue
   // Eligibility bridge: dotted ApplicantProfile path this answer maps to
   // (e.g. "employment.employmentType"). Categorical value = selected option's
   // profileValue; numeric value = systemRole numericPoint.
@@ -1002,30 +997,13 @@ model ApplicationAnswer {
   @@map("application_answer")
 }
 
-model ScoringFactor {
-  id                 String            @id @default(cuid()) @db.VarChar(30)
-  category           LoanCategory
-  code               String            @db.VarChar(64)
-  kind               ScoringFactorKind @default(DIRECT)
-  labelAr            String            @db.VarChar(200)
-  labelEn            String            @db.VarChar(200)
-  description        String?           @db.VarChar(500)
-  isActive           Boolean           @default(true)
-  sourceQuestionCode String?           @db.VarChar(64) // DIRECT: feeding question; COMPUTED: null
-  createdAt          DateTime          @default(now()) @db.Timestamptz(6)
-  updatedAt          DateTime          @updatedAt @db.Timestamptz(6)
-
-  @@unique([category, code], name: "uniq_scoring_factor_category_code")
-  @@map("scoring_factor")
-}
-
 model ScoringWeightSet {
   id             String                 @id @default(cuid()) @db.VarChar(30)
   bankProgramId  String                 @db.VarChar(30)
   status         ScoringWeightSetStatus @default(DRAFT)
   versionNumber  Int
-  weights        Json // { factorCode: points }, sums to 100
-  createdBy      String                 @db.VarChar(30) // maker (staff id)
+  weights        Json // { questionCode: points }, sums to 100 (v5.0.0)
+  createdBy      String                 @db.VarChar(30) // editor who saved (staff id)
   createdAt      DateTime               @default(now()) @db.Timestamptz(6)
   approvedBy     String?                @db.VarChar(30) // checker (staff id, != createdBy)
   approvedAt     DateTime?              @db.Timestamptz(6)

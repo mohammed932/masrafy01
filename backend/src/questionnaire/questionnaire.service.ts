@@ -18,10 +18,16 @@ export class QuestionnaireService {
   constructor(private readonly repo: QuestionnaireRepository) {}
 
   // ---- Public read --------------------------------------------------------
+  /**
+   * Customer-facing snapshot. Strips internal matching IP — per-option
+   * `scoreValue`/`profileValue` and per-question `isScored`/`profileField` —
+   * which the mobile client never needs to render the questionnaire (Principle V,
+   * A33). The full snapshot stays server-side for scoring + eligibility.
+   */
   async activeSnapshot(category: LoanCategory): Promise<unknown> {
     const version = await this.repo.activeVersion(category);
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
-    return version.snapshot;
+    return toCustomerSnapshot(version.snapshot);
   }
 
   // ---- Groups -------------------------------------------------------------
@@ -40,6 +46,17 @@ export class QuestionnaireService {
   async updateGroup(id: string, dto: UpdateGroupDto) {
     const group = await this.repo.findGroup(id);
     if (!group) throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
+    // Deactivating a group is a delete in effect — block while it holds questions.
+    if (dto.isActive === false && group.isActive) {
+      const active = (await this.repo.questionsByCategory(group.category)).filter(
+        (q) => q.groupId === id && q.isActive,
+      );
+      if (active.length > 0) {
+        throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_EMPTY, {
+          questionCount: active.length,
+        });
+      }
+    }
     return this.repo.updateGroup(id, {
       titleAr: dto.titleAr,
       titleEn: dto.titleEn,
@@ -90,7 +107,7 @@ export class QuestionnaireService {
       displayOrder: dto.displayOrder,
       enabledWhen: dto.enabledWhen ? (dto.enabledWhen as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
       systemRole: dto.systemRole ?? null,
-      scoringFactorCode: dto.scoringFactorCode ?? null,
+      isScored: dto.isScored ?? false,
       profileField: dto.profileField ?? null,
     });
   }
@@ -105,6 +122,15 @@ export class QuestionnaireService {
         dto.enabledWhen,
       );
     }
+    // Deactivation must honour the same branch-integrity guard as delete (A33).
+    if (dto.isActive === false && question.isActive) {
+      const dependents = (await this.repo.dependentsOf(question.category, question.code)).filter(
+        (c) => c !== question.code,
+      );
+      if (dependents.length > 0) {
+        throw new DomainException(ERROR_CODES.QUESTION_IN_USE, { dependents });
+      }
+    }
     const data: Prisma.QuestionUpdateInput = {
       questionAr: dto.questionAr,
       questionEn: dto.questionEn,
@@ -113,7 +139,7 @@ export class QuestionnaireService {
       isRequired: dto.isRequired,
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
-      scoringFactorCode: dto.scoringFactorCode,
+      isScored: dto.isScored,
       profileField: dto.profileField,
     };
     if (dto.enabledWhen !== undefined) {
@@ -164,6 +190,20 @@ export class QuestionnaireService {
   async updateOption(id: string, dto: UpdateOptionDto) {
     const option = await this.repo.findOption(id);
     if (!option) throw new DomainException(ERROR_CODES.QUESTION_OPTION_NOT_FOUND);
+    // Deactivating an option must honour the same branch guard as delete (A33).
+    if (dto.isActive === false && option.isActive) {
+      const question = await this.repo.findQuestion(option.questionId);
+      if (question) {
+        const dependents = await this.repo.optionDependentsOf(
+          question.category,
+          question.code,
+          option.code,
+        );
+        if (dependents.length > 0) {
+          throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
+        }
+      }
+    }
     return this.repo.updateOption(id, {
       labelAr: dto.labelAr,
       labelEn: dto.labelEn,
@@ -209,8 +249,8 @@ export class QuestionnaireService {
       const qOut = [];
       for (const q of gQuestions) {
         const options = (await this.repo.optionsByQuestion(q.id)).filter((o) => o.isActive);
-        // AC: a DIRECT scoring question's options MUST carry a scoreValue.
-        if (q.scoringFactorCode) {
+        // A scored question's options MUST carry a scoreValue (v5.0.0).
+        if (q.isScored) {
           const missing = options.find((o) => o.scoreValue === null);
           if (missing) {
             throw new DomainException(ERROR_CODES.OPTION_MISSING_SCORE_VALUE, {
@@ -230,7 +270,7 @@ export class QuestionnaireService {
           displayOrder: q.displayOrder,
           enabledWhen: q.enabledWhen ?? null,
           systemRole: q.systemRole,
-          scoringFactorCode: q.scoringFactorCode,
+          isScored: q.isScored,
           profileField: q.profileField,
           options: options.map((o) => ({
             code: o.code,
@@ -310,8 +350,6 @@ export class QuestionnaireService {
       questionCode: string;
       selectedOptionId: string;
       selectedOptionCode: string;
-      /** Factor this question feeds (DIRECT scoring); null = display/arithmetic. */
-      scoringFactorCode: string | null;
       /** Selected option's admin-set sub-score (0..1) as string; null if unset. */
       scoreValue: string | null;
     }>
@@ -330,7 +368,6 @@ export class QuestionnaireService {
         questionCode: q.code,
         selectedOptionId: opt.id,
         selectedOptionCode: opt.code,
-        scoringFactorCode: q.scoringFactorCode ?? null,
         scoreValue: opt.scoreValue !== null ? opt.scoreValue.toString() : null,
       });
     }
@@ -357,4 +394,66 @@ export class QuestionnaireService {
       throw new DomainException(ERROR_CODES.ENABLED_WHEN_INVALID, { reason: 'unknown_option' });
     }
   }
+}
+
+interface StoredOption extends Record<string, unknown> {
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  displayOrder: number;
+  numericMin?: unknown;
+  numericMax?: unknown;
+  numericPoint?: unknown;
+}
+interface StoredQuestion extends Record<string, unknown> {
+  code: string;
+  options?: StoredOption[];
+}
+interface StoredGroup {
+  code: string;
+  titleAr: string;
+  titleEn: string;
+  displayOrder: number;
+  questions?: StoredQuestion[];
+}
+interface StoredSnapshot {
+  category?: unknown;
+  versionNumber?: unknown;
+  groups?: StoredGroup[];
+}
+
+/** Project the stored snapshot into the customer payload, dropping IP fields. */
+function toCustomerSnapshot(raw: unknown): unknown {
+  const snap = raw as StoredSnapshot;
+  return {
+    category: snap.category,
+    versionNumber: snap.versionNumber,
+    groups: (snap.groups ?? []).map((g) => ({
+      code: g.code,
+      titleAr: g.titleAr,
+      titleEn: g.titleEn,
+      displayOrder: g.displayOrder,
+      questions: (g.questions ?? []).map((q) => ({
+        code: q.code,
+        type: q['type'],
+        questionAr: q['questionAr'],
+        questionEn: q['questionEn'],
+        helperTextAr: q['helperTextAr'],
+        helperTextEn: q['helperTextEn'],
+        isRequired: q['isRequired'],
+        displayOrder: q['displayOrder'],
+        enabledWhen: q['enabledWhen'] ?? null,
+        systemRole: q['systemRole'],
+        options: (q.options ?? []).map((o) => ({
+          code: o.code,
+          labelAr: o.labelAr,
+          labelEn: o.labelEn,
+          displayOrder: o.displayOrder,
+          numericMin: o.numericMin ?? null,
+          numericMax: o.numericMax ?? null,
+          numericPoint: o.numericPoint ?? null,
+        })),
+      })),
+    })),
+  };
 }

@@ -342,9 +342,9 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         align-items: center;
         gap: 8px;
         font: 600 13px/1 var(--font-sans);
-        transition: background 140ms cubic-bezier(0.4, 0, 0.2, 1),
-                    color 140ms cubic-bezier(0.4, 0, 0.2, 1),
-                    border-color 140ms cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard),
+                    color var(--motion-duration-fast) var(--motion-easing-standard),
+                    border-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .attention:hover:not(.active) {
         color: var(--text-primary);
@@ -365,7 +365,7 @@ const STAGE_FUNNEL: readonly StageDef[] = [
       }
       .attention.active .attention-count {
         background: var(--error);
-        color: var(--text-on-primary, #fff);
+        color: var(--text-on-primary);
       }
 
       .view-toggle {
@@ -387,8 +387,8 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         border-radius: var(--radius-pill);
         display: inline-flex;
         align-items: center;
-        transition: background 140ms cubic-bezier(0.4, 0, 0.2, 1),
-                    color 140ms cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard),
+                    color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .view-seg:hover:not(.active) { color: var(--text-primary); }
       .view-seg.active {
@@ -425,8 +425,8 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         color: var(--text-secondary);
         font: 600 12px/1 var(--font-sans);
         letter-spacing: 0.01em;
-        transition: background 140ms cubic-bezier(0.4, 0, 0.2, 1),
-                    color 140ms cubic-bezier(0.4, 0, 0.2, 1);
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard),
+                    color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .funnel-step:hover:not(.active) { color: var(--text-primary); }
       .funnel-step.active {
@@ -447,8 +447,8 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         font-variant-numeric: tabular-nums lining-nums;
       }
       .funnel-step.active .funnel-count {
-        background: color-mix(in oklab, var(--text-on-primary, #fff) 22%, transparent);
-        color: var(--text-on-primary, #fff);
+        background: color-mix(in oklab, var(--text-on-primary) 22%, transparent);
+        color: var(--text-on-primary);
       }
       .funnel-arrow {
         color: var(--text-tertiary);
