@@ -117,7 +117,7 @@ export interface ApplicationOfferSelectionSnapshot {
 }
 
 /**
- * Mapped domain type for the activities feature's read of bank-offer
+ * Mapped domain type for the offer-selection flow's read of bank-offer
  * ownership inside the offer-selection transaction. Intra-feature
  * because BankOffer queries live in the applications feature.
  */

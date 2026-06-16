@@ -101,7 +101,7 @@ type ToggleKey =
   template: `
     <section class="page">
       <header class="page-header">
-        <a routerLink="/bank-programs" class="back-link">
+        <a routerLink="/banks/programs" class="back-link">
           <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.form.back">Back to list</span>
         </a>
@@ -1655,7 +1655,7 @@ export class BankProgramFormPage implements OnInit {
 
   cancel(): void {
     if (this.busy()) return;
-    void this.router.navigate(['/bank-programs']);
+    void this.router.navigate(['/banks/programs']);
   }
 
   async submit(): Promise<void> {
@@ -1669,12 +1669,12 @@ export class BankProgramFormPage implements OnInit {
         const payload = this.buildUpdatePayload();
         const res = await this.api.update(this.currentProgramCode, payload);
         this.message.success($localize`:@@bank_programs.form.updated:Bank program updated.`, { nzDuration: 4000 });
-        void this.router.navigate(['/bank-programs', res.data.programCode]);
+        void this.router.navigate(['/banks/programs', res.data.programCode]);
       } else {
         const payload = this.buildCreatePayload();
         const res = await this.api.create(payload);
         this.message.success($localize`:@@bank_programs.form.created:Bank program created.`, { nzDuration: 4000 });
-        void this.router.navigate(['/bank-programs', res.data.programCode]);
+        void this.router.navigate(['/banks/programs', res.data.programCode]);
       }
     } catch (err: unknown) {
       this.handleError(err);

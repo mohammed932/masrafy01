@@ -11,7 +11,6 @@ import {
 } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import type { StaffRole } from '@core/auth/auth.types';
-import { RemindersWidgetComponent } from './reminders-widget.component';
 
 interface QuickAction {
   icon: string;
@@ -29,7 +28,7 @@ interface QuickAction {
 @Component({
   selector: 'app-dashboard-placeholder',
   standalone: true,
-  imports: [CommonModule, NzButtonModule, NzIconModule, RemindersWidgetComponent],
+  imports: [CommonModule, NzButtonModule, NzIconModule],
   providers: [
     provideNzIconsPatch([TeamOutline, LockOutline, QuestionCircleOutline, RightOutline]),
   ],
@@ -43,10 +42,6 @@ interface QuickAction {
           <p class="subtitle">{{ subtitle() }}</p>
         </div>
       </header>
-
-      @if (showReminders()) {
-        <app-reminders-widget />
-      }
 
       <section class="cards" aria-label="Quick actions">
         @for (a of availableActions(); track a.title) {
@@ -248,11 +243,6 @@ export class DashboardPlaceholderComponent {
     () =>
       $localize`:@@dash.subtitle:Operational overview lands here as features ship. Use the quick actions below to start.`,
   );
-
-  protected readonly showReminders = computed(() => {
-    const role = this.auth.role();
-    return role === 'sales_agent' || role === 'sales_manager' || role === 'super_admin';
-  });
 
   private readonly allActions: ReadonlyArray<QuickAction> = [
     {

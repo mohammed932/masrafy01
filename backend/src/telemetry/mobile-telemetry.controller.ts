@@ -31,13 +31,13 @@ type MobileTelemetryRequest = Request;
 
 /**
  * Mobile funnel beacon (PR #7). Mobile clients post one event per stage
- * they reach so the admin lead-analytics page can render
- * catalog → questionnaire → apply → docs → select-offer conversion.
+ * they reach (catalog → questionnaire → apply → docs → select-offer) for
+ * future conversion analytics.
  *
  * Event allowlist is enforced; arbitrary event codes are rejected. Writes
  * go straight into the existing `audit_event` table (no separate funnel
- * table) — the analytics service joins on event type when computing the
- * funnel.
+ * table). Retained as a write-only beacon after the lead-analytics dashboard
+ * was removed — no reader currently consumes these events.
  */
 @ApiTags('Mobile · Telemetry')
 @ApiBearerAuth('CustomerBearerAuth')

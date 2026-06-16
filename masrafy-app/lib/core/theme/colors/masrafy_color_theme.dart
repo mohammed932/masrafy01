@@ -37,6 +37,7 @@ abstract class MasrafyColorTheme extends Equatable {
   MasrafyBorderColors get border;
   MasrafyFillColors get fill;
   MasrafyBrandTone get primary;
+  MasrafyBrandTone get secondary;
   MasrafyBrandTone get success;
   MasrafyBrandTone get warning;
   MasrafyBrandTone get info;

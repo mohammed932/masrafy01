@@ -390,6 +390,23 @@ export class CustomerPhoneInvalidException extends DomainException {
   }
 }
 
+// --- Document upload constraints -------------------------------------------
+
+export class FileTooLargeException extends DomainException {
+  constructor(sizeBytes: number) {
+    super(ERROR_CODES.FILE_TOO_LARGE, { maxSizeBytes: 10_485_760, sizeBytes });
+  }
+}
+
+export class FileTypeNotAllowedException extends DomainException {
+  constructor(mimeType: string) {
+    super(ERROR_CODES.FILE_TYPE_NOT_ALLOWED, {
+      mimeType,
+      allowedTypes: ['image/jpeg', 'image/png', 'image/heic', 'application/pdf'],
+    });
+  }
+}
+
 // --- Mobile document upload (v1.7.0) ---------------------------------------
 
 export class DocumentOwnershipMismatchException extends DomainException {

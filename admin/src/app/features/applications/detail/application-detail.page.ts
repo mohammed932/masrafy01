@@ -1,38 +1,20 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DestroyRef,
-  OnInit,
-  inject,
-  signal,
-} from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzSelectModule } from 'ng-zorro-antd/select';
 import { ArrowLeftOutline } from '@ant-design/icons-angular/icons';
-import { AuthService } from '@core/auth/auth.service';
 import {
   ApplicationsApiService,
   type AdminApplicationDetail,
-  type LeadStatus,
 } from '../api/applications.api.service';
 import { ApprovalPillComponent } from '../list/components/approval-pill.component';
 import { WhyThisScorePanelComponent } from './components/why-this-score-panel.component';
 
-interface LeadStatusOption {
-  readonly value: LeadStatus;
-  readonly label: string;
-}
-
 /**
- * Application detail page. A calm, read-only view of one application: header,
- * a single status control, and every matched offer with its "Why this score?"
- * panel. Status is the only mutable thing here — changed via the dropdown,
- * which drives the admin set-lead-status endpoint directly.
+ * Application detail page. A calm, read-only view of one application: header
+ * with requested amount + purpose, a little metadata, and every matched offer
+ * with its "Why this score?" panel.
  */
 @Component({
   selector: 'app-application-detail-page',
@@ -40,10 +22,8 @@ interface LeadStatusOption {
   imports: [
     CommonModule,
     RouterLink,
-    ReactiveFormsModule,
     NzSpinModule,
     NzIconModule,
-    NzSelectModule,
     ApprovalPillComponent,
     WhyThisScorePanelComponent,
   ],
@@ -74,31 +54,9 @@ interface LeadStatusOption {
               <span class="amount-value">{{ formatAmount(d.requestedAmountEGP) }}</span>
               <span class="amount-currency">{{ d.requestedCurrency }}</span>
             </div>
-
-            <div class="status-field" [attr.data-status]="statusControl.value">
-              <label class="status-label" for="lead-status" i18n="@@app.detail.statusLabel">
-                Status
-              </label>
-              <nz-select
-                id="lead-status"
-                class="status-select"
-                [formControl]="statusControl"
-                [nzBorderless]="true"
-                nzSize="small"
-                [attr.aria-label]="'Application status'"
-              >
-                @for (opt of statusOptions; track opt.value) {
-                  <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
-                }
-              </nz-select>
-            </div>
           </div>
 
           <dl class="hero-meta">
-            <div class="meta-item">
-              <dt i18n="@@app.detail.meta.status">Status</dt>
-              <dd>{{ d.leadStatus ? labelForLeadStatus(d.leadStatus) : '—' }}</dd>
-            </div>
             <div class="meta-item">
               <dt i18n="@@app.detail.meta.created">Created</dt>
               <dd>{{ d.createdAt | date: 'mediumDate' }}</dd>
@@ -260,50 +218,6 @@ interface LeadStatusOption {
         letter-spacing: 0.04em;
       }
 
-      /* Status control — a pill that is also the only mutable control */
-      .status-field {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        height: 32px;
-        padding-inline: var(--space-2) var(--space-1);
-        border-radius: var(--radius-pill);
-        background: var(--color-surface-muted);
-        color: var(--color-text-secondary);
-      }
-      .status-label {
-        font-size: var(--text-xxs);
-        font-weight: var(--font-weight-semibold);
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: currentColor;
-        opacity: 0.75;
-      }
-      .status-select {
-        min-width: 160px;
-        font-weight: var(--font-weight-semibold);
-      }
-      .status-field[data-status='needs_first_contact'] {
-        background: var(--color-warning-bg);
-        color: var(--color-warning);
-      }
-      .status-field[data-status='document_collection'] {
-        background: var(--color-info-bg);
-        color: var(--color-info);
-      }
-      .status-field[data-status='ready_for_submission'] {
-        background: var(--color-tonal-accent-bg);
-        color: var(--color-tonal-accent);
-      }
-      .status-field[data-status='submitted_to_bank'] {
-        background: var(--color-tonal-accent-bg);
-        color: var(--color-brand-primary);
-      }
-      .status-field[data-status='bank_decided'] {
-        background: var(--color-success-bg);
-        color: var(--color-success);
-      }
-
       .hero-meta {
         display: flex;
         flex-wrap: wrap;
@@ -403,44 +317,16 @@ interface LeadStatusOption {
 export class ApplicationDetailPage implements OnInit {
   private readonly api = inject(ApplicationsApiService);
   private readonly route = inject(ActivatedRoute);
-  private readonly auth = inject(AuthService);
-  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly detail = signal<AdminApplicationDetail | null>(null);
   protected readonly loading = signal(true);
   protected readonly activeEngineVersion = signal<string | null>(null);
-
-  protected readonly statusControl = new FormControl<LeadStatus | null>(null);
-
-  protected readonly statusOptions: readonly LeadStatusOption[] = [
-    { value: 'needs_first_contact', label: $localize`:@@app.leadStatus.needs_first_contact:Open` },
-    {
-      value: 'document_collection',
-      label: $localize`:@@app.leadStatus.document_collection:Document collection`,
-    },
-    {
-      value: 'ready_for_submission',
-      label: $localize`:@@app.leadStatus.ready_for_submission:Ready for submission`,
-    },
-    {
-      value: 'submitted_to_bank',
-      label: $localize`:@@app.leadStatus.submitted_to_bank:Submitted to bank`,
-    },
-    { value: 'bank_decided', label: $localize`:@@app.leadStatus.bank_decided:Done` },
-  ];
 
   protected sortedOffers(d: AdminApplicationDetail): AdminApplicationDetail['offers'] {
     return [...d.offers].sort((a, b) => b.approvalProbability.score - a.approvalProbability.score);
   }
 
   async ngOnInit(): Promise<void> {
-    if (!this.canWrite()) {
-      this.statusControl.disable({ emitEvent: false });
-    }
-    this.statusControl.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((next) => {
-      void this.onStatusChange(next);
-    });
-
     const id = this.route.snapshot.paramMap.get('id');
     if (!id) {
       this.loading.set(false);
@@ -449,27 +335,10 @@ export class ApplicationDetailPage implements OnInit {
     try {
       const d = await this.api.getById(id);
       this.detail.set(d);
-      this.statusControl.setValue(d.leadStatus ?? null, { emitEvent: false });
       this.activeEngineVersion.set(d.offers[0]?.approvalProbability.engineVersion ?? null);
     } finally {
       this.loading.set(false);
     }
-  }
-
-  private async onStatusChange(next: LeadStatus | null): Promise<void> {
-    const d = this.detail();
-    if (!d || !next || next === d.leadStatus) return;
-    try {
-      await this.api.setLeadStatus(d.id, next);
-      this.detail.set({ ...d, leadStatus: next });
-    } catch {
-      // surfaced via global error interceptor toast; revert the control
-      this.statusControl.setValue(d.leadStatus ?? null, { emitEvent: false });
-    }
-  }
-
-  labelForLeadStatus(s: LeadStatus): string {
-    return this.statusOptions.find((o) => o.value === s)?.label ?? s;
   }
 
   labelForPurpose(p: string): string {
@@ -488,10 +357,5 @@ export class ApplicationDetailPage implements OnInit {
       maximumFractionDigits: 0,
       minimumFractionDigits: 0,
     }).format(value);
-  }
-
-  canWrite(): boolean {
-    const role = this.auth.currentUser()?.role;
-    return role === 'super_admin' || role === 'sales_manager' || role === 'sales_agent';
   }
 }

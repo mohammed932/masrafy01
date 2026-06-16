@@ -123,17 +123,19 @@ class MasrafyColorShades {
   }
 }
 
+// Figma Secondary blue ramp (anchors: shade5 #3990FF Light /
+// shade6 #0082F8 Neutral / shade7 #005DB5 Dark).
 const _lightBlue = MasrafyColorShades(
-  shade1: Color(0xFFE6F4FF),
-  shade2: Color(0xFFBAE0FF),
-  shade3: Color(0xFF91CAFF),
-  shade4: Color(0xFF69B1FF),
-  shade5: Color(0xFF4096FF),
-  shade6: Color(0xFF1677FF),
-  shade7: Color(0xFF0958D9),
-  shade8: Color(0xFF003EB3),
-  shade9: Color(0xFF002C8C),
-  shade10: Color(0xFF001D66),
+  shade1: Color(0xFFEBF5FE),
+  shade2: Color(0xFFCCE6FE),
+  shade3: Color(0xFF9ED0FC),
+  shade4: Color(0xFF66B4FB),
+  shade5: Color(0xFF3990FF),
+  shade6: Color(0xFF0082F8),
+  shade7: Color(0xFF005DB5),
+  shade8: Color(0xFF004C94),
+  shade9: Color(0xFF003A70),
+  shade10: Color(0xFF00274C),
 );
 
 const _lightCyan = MasrafyColorShades(
@@ -149,17 +151,19 @@ const _lightCyan = MasrafyColorShades(
   shade10: Color(0xFF203F41),
 );
 
+// Figma Primary indigo ramp (anchors: shade5 #4D57A8 Light /
+// shade6 #283382 Neutral / shade7 #1B2776 Dark).
 const _lightGeekblue = MasrafyColorShades(
-  shade1: Color(0xFFF0F5FF),
-  shade2: Color(0xFFD6E4FF),
-  shade3: Color(0xFFADC6FF),
-  shade4: Color(0xFF85A5FF),
-  shade5: Color(0xFF597EF7),
-  shade6: Color(0xFF2F54EB),
-  shade7: Color(0xFF1D39C4),
-  shade8: Color(0xFF10239E),
-  shade9: Color(0xFF061178),
-  shade10: Color(0xFF030852),
+  shade1: Color(0xFFE7ECF6),
+  shade2: Color(0xFFD4D6E6),
+  shade3: Color(0xFFADB1D0),
+  shade4: Color(0xFF7E85B4),
+  shade5: Color(0xFF4D57A8),
+  shade6: Color(0xFF283382),
+  shade7: Color(0xFF1B2776),
+  shade8: Color(0xFF162061),
+  shade9: Color(0xFF111849),
+  shade10: Color(0xFF0B1032),
 );
 
 const _lightGold = MasrafyColorShades(
@@ -281,17 +285,19 @@ const _lightYellow = MasrafyColorShades(
   shade10: Color(0xFF614700),
 );
 
+// Figma Secondary blue ramp, dark convention (shade1 darkest → shade10
+// lightest, main at shade6). Hue preserved by mixing toward black/white.
 const _darkBlue = MasrafyColorShades(
-  shade1: Color(0xFF111A2C),
-  shade2: Color(0xFF112545),
-  shade3: Color(0xFF15325B),
-  shade4: Color(0xFF15417E),
-  shade5: Color(0xFF1554AD),
-  shade6: Color(0xFF1668DC),
-  shade7: Color(0xFF3C89E8),
-  shade8: Color(0xFF65A9F3),
-  shade9: Color(0xFF8DC5F8),
-  shade10: Color(0xFFB7DCFA),
+  shade1: Color(0xFF001A32),
+  shade2: Color(0xFF002C54),
+  shade3: Color(0xFF00417C),
+  shade4: Color(0xFF0058A9),
+  shade5: Color(0xFF0072DA),
+  shade6: Color(0xFF3990FF),
+  shade7: Color(0xFF74B1FF),
+  shade8: Color(0xFF9CC8FF),
+  shade9: Color(0xFFC4DEFF),
+  shade10: Color(0xFFE1EEFF),
 );
 
 const _darkCyan = MasrafyColorShades(
@@ -307,17 +313,19 @@ const _darkCyan = MasrafyColorShades(
   shade10: Color(0xFFD7F0EE),
 );
 
+// Figma Primary indigo ramp, dark convention (shade1 darkest → shade10
+// lightest, brightened main at shade6). Hue preserved via black/white mix.
 const _darkGeekblue = MasrafyColorShades(
-  shade1: Color(0xFF131629),
-  shade2: Color(0xFF161D40),
-  shade3: Color(0xFF1C2755),
-  shade4: Color(0xFF203175),
-  shade5: Color(0xFF263EA0),
-  shade6: Color(0xFF2B4ACB),
-  shade7: Color(0xFF5273E0),
-  shade8: Color(0xFF7F9EF3),
-  shade9: Color(0xFFA8C1F8),
-  shade10: Color(0xFFD2E0FA),
+  shade1: Color(0xFF080A1A),
+  shade2: Color(0xFF0E112C),
+  shade3: Color(0xFF141A41),
+  shade4: Color(0xFF1B2358),
+  shade5: Color(0xFF232D72),
+  shade6: Color(0xFF4D57A8),
+  shade7: Color(0xFF8289C2),
+  shade8: Color(0xFFA6ABD4),
+  shade9: Color(0xFFCACDE5),
+  shade10: Color(0xFFE4E6F2),
 );
 
 const _darkGold = MasrafyColorShades(

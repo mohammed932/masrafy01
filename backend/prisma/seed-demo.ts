@@ -7,9 +7,7 @@
  * What it creates (in order):
  *   1.  8 bank programs (ABK + competitor mix; minimal but realistic)
  *   2.  1 sales_manager + 3 sales_agent + 1 analyst (dev passwords)
- *   3. 23 applications distributed across all 5 leadStatus values
- *   4.  Activities per application (calls, messages, document receipts, reviews)
- *   5.  A handful of pending follow-ups for "today" so the reminders widget shows data
+ *   3. 23 applications (matched, with masked applicant profiles)
  *
  * Re-running is safe — every step checks for existing rows first.
  */
@@ -17,12 +15,10 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
-import cuid from 'cuid';
 
 const prisma = new PrismaClient();
 
 const SUPER_ADMIN_EMAIL = process.env['SEED_ADMIN_EMAIL'] ?? 'ops@masrafy.local';
-const SYSTEM_ACTOR_ID = 'clsysactor00000000000000000000';
 const DEV_PASSWORD = 'dev-password-12!';
 
 interface DemoStaff {
@@ -391,13 +387,6 @@ interface AppShape {
   firstName: string;
   lastName: string;
   company: string;
-  leadStatus:
-    | 'needs_first_contact'
-    | 'document_collection'
-    | 'ready_for_submission'
-    | 'submitted_to_bank'
-    | 'bank_decided';
-  assignedAgentId: string | null;
   daysOldCreated: number;
 }
 
@@ -421,56 +410,23 @@ function buildApplicantProfile(s: AppShape) {
   };
 }
 
-async function seedApplications(agentIds: string[]): Promise<void> {
+async function seedApplications(): Promise<void> {
   const existing = await prisma.application.count();
   if (existing >= 25) {
     log(`applications: ${existing} already seeded — skipping`);
     return;
   }
 
-  const distribution: AppShape['leadStatus'][] = [
-    'needs_first_contact',
-    'needs_first_contact',
-    'needs_first_contact',
-    'needs_first_contact',
-    'document_collection',
-    'document_collection',
-    'document_collection',
-    'document_collection',
-    'document_collection',
-    'document_collection',
-    'document_collection',
-    'document_collection',
-    'ready_for_submission',
-    'ready_for_submission',
-    'ready_for_submission',
-    'ready_for_submission',
-    'submitted_to_bank',
-    'submitted_to_bank',
-    'submitted_to_bank',
-    'submitted_to_bank',
-    'bank_decided',
-    'bank_decided',
-    'bank_decided',
-  ];
-
-  // Add a few unassigned + a few stale needs_first_contact (created > 48h ago)
-  const shapes: AppShape[] = distribution.map((leadStatus, idx) => {
-    const isUnassigned = leadStatus === 'needs_first_contact' && idx < 2;
-    const staleCandidate = leadStatus === 'needs_first_contact' && idx >= 2 && idx < 4;
-    return {
-      loanPurpose: randomFromSet(LOAN_PURPOSES),
-      amount: randomBetween(50_000, 800_000),
-      age: randomBetween(22, 58),
-      tenor: randomFromSet([12, 24, 36, 48, 60, 72, 84, 96]),
-      firstName: randomFromSet(FIRST_NAMES),
-      lastName: randomFromSet(LAST_NAMES),
-      company: randomFromSet(COMPANIES),
-      leadStatus,
-      assignedAgentId: isUnassigned ? null : agentIds[idx % agentIds.length] ?? null,
-      daysOldCreated: staleCandidate ? randomBetween(4, 12) : randomBetween(0, 30),
-    };
-  });
+  const shapes: AppShape[] = Array.from({ length: 23 }, () => ({
+    loanPurpose: randomFromSet(LOAN_PURPOSES),
+    amount: randomBetween(50_000, 800_000),
+    age: randomBetween(22, 58),
+    tenor: randomFromSet([12, 24, 36, 48, 60, 72, 84, 96]),
+    firstName: randomFromSet(FIRST_NAMES),
+    lastName: randomFromSet(LAST_NAMES),
+    company: randomFromSet(COMPANIES),
+    daysOldCreated: randomBetween(0, 30),
+  }));
 
   // Every application now requires an owning customer (guest mode removed,
   // v4.0.0). Upsert one complete demo customer and attach all seeded apps to it.
@@ -494,7 +450,7 @@ async function seedApplications(agentIds: string[]): Promise<void> {
   for (const s of shapes) {
     await createOneApplication(s, demoCustomer.id);
   }
-  log(`applications: created ${shapes.length} with activities + follow-ups`);
+  log(`applications: created ${shapes.length}`);
 }
 
 async function createOneApplication(s: AppShape, customerId: string): Promise<void> {
@@ -502,7 +458,7 @@ async function createOneApplication(s: AppShape, customerId: string): Promise<vo
   const correlationId = randomUUID();
   const applicantProfile = buildApplicantProfile(s);
 
-  const app = await prisma.application.create({
+  await prisma.application.create({
     data: {
       applicantUserId: customerId,
       submissionCorrelationId: correlationId,
@@ -520,144 +476,7 @@ async function createOneApplication(s: AppShape, customerId: string): Promise<vo
       },
       programsCheckedCount: randomBetween(20, 34),
       eligibleProgramsCount: randomBetween(2, 12),
-      assignedAgentStaffId: s.assignedAgentId,
-      assignedAt: s.assignedAgentId ? createdAt : null,
-      leadStatus: s.leadStatus,
       createdAt,
-    },
-  });
-
-  await seedActivitiesFor(app.id, s, createdAt);
-}
-
-async function seedActivitiesFor(
-  applicationId: string,
-  s: AppShape,
-  createdAt: Date,
-): Promise<void> {
-  if (s.leadStatus === 'needs_first_contact') {
-    // Stale candidates get no activity; others may get a single internal note
-    if (s.daysOldCreated < 2 && s.assignedAgentId) {
-      await writeActivity(applicationId, s.assignedAgentId, 'sales_agent', {
-        activityType: 'INTERNAL_NOTE',
-        reason: 'GENERAL_OBSERVATION',
-        note: 'Initial lead review — calling tomorrow morning.',
-        occurredAt: new Date(createdAt.getTime() + 60 * 60 * 1000),
-      });
-    }
-    return;
-  }
-
-  if (!s.assignedAgentId) return;
-  const agent = s.assignedAgentId;
-
-  // document_collection or later — at least one call + WhatsApp + receipt
-  await writeActivity(applicationId, agent, 'sales_agent', {
-    activityType: 'CALLED_USER',
-    reason: 'INITIAL_CONTACT',
-    note: 'تم التواصل مع العميل لتوضيح المستندات المطلوبة.',
-    durationMinutes: randomBetween(5, 20),
-    outcomeFlags: ['USER_CONFIRMED'],
-    occurredAt: new Date(createdAt.getTime() + 2 * 60 * 60 * 1000),
-  });
-
-  await writeActivity(applicationId, agent, 'sales_agent', {
-    activityType: 'SENT_WHATSAPP',
-    reason: 'DOCUMENT_REQUEST',
-    note: 'Sent the salary-slip + ID-photo upload links.',
-    occurredAt: new Date(createdAt.getTime() + 3 * 60 * 60 * 1000),
-  });
-
-  await writeActivity(applicationId, agent, 'sales_agent', {
-    activityType: 'RECEIVED_DOCUMENTS',
-    reason: 'VIA_WHATSAPP',
-    note: 'Received passport scan + salary slip.',
-    occurredAt: new Date(createdAt.getTime() + 5 * 60 * 60 * 1000),
-  });
-
-  if (s.leadStatus === 'document_collection') {
-    // Some get an open follow-up scheduled for soon (so the reminders widget pops)
-    const wantsFollowUp = Math.random() < 0.45;
-    if (wantsFollowUp) {
-      const hoursAhead = randomBetween(1, 22);
-      await writeActivity(applicationId, agent, 'sales_agent', {
-        activityType: 'INTERNAL_NOTE',
-        reason: 'REMINDER_FOR_SELF',
-        note: 'Follow up with the customer about the missing utility bill.',
-        followUpAt: new Date(Date.now() + hoursAhead * 60 * 60 * 1000),
-        occurredAt: new Date(createdAt.getTime() + 7 * 60 * 60 * 1000),
-      });
-    }
-    return;
-  }
-
-  // ready_for_submission and beyond — add the marked-as-reviewed step
-  await writeActivity(applicationId, agent, 'sales_agent', {
-    activityType: 'REVIEWED_DOCUMENTS',
-    reason: 'VERIFIED_READY',
-    occurredAt: new Date(createdAt.getTime() + 8 * 60 * 60 * 1000),
-  });
-
-  await writeActivity(applicationId, agent, 'sales_agent', {
-    activityType: 'MARKED_AS_REVIEWED',
-    reason: 'READY_FOR_SUBMISSION',
-    occurredAt: new Date(createdAt.getTime() + 9 * 60 * 60 * 1000),
-  });
-
-  if (s.leadStatus === 'ready_for_submission') return;
-
-  // submitted_to_bank
-  await writeActivity(applicationId, agent, 'sales_agent', {
-    activityType: 'SUBMITTED_TO_BANK',
-    reason: 'ABK-PERSONAL-2026',
-    note: 'Submitted under ABK Personal program 2026.',
-    occurredAt: new Date(createdAt.getTime() + 24 * 60 * 60 * 1000),
-  });
-
-  if (s.leadStatus === 'submitted_to_bank') return;
-
-  // bank_decided
-  const outcome = randomFromSet(['APPROVED', 'APPROVED', 'CONDITIONAL_APPROVAL', 'REJECTED']);
-  await writeActivity(applicationId, agent, 'sales_agent', {
-    activityType: 'BANK_RESPONDED',
-    reason: outcome,
-    note: `Bank response: ${outcome.toLowerCase().replace('_', ' ')}.`,
-    occurredAt: new Date(createdAt.getTime() + 48 * 60 * 60 * 1000),
-  });
-}
-
-interface ActivityWrite {
-  activityType: string;
-  reason: string;
-  note?: string;
-  durationMinutes?: number;
-  outcomeFlags?: string[];
-  followUpAt?: Date;
-  occurredAt: Date;
-}
-
-async function writeActivity(
-  applicationId: string,
-  actorStaffId: string,
-  actorRole: string,
-  w: ActivityWrite,
-): Promise<void> {
-  await prisma.activity.create({
-    data: {
-      id: cuid(),
-      applicationId,
-      actorStaffId,
-      actorRole,
-      activityType: w.activityType,
-      reason: w.reason,
-      note: w.note ?? null,
-      durationMinutes: w.durationMinutes ?? null,
-      outcomeFlags: w.outcomeFlags ?? [],
-      followUpAt: w.followUpAt ?? null,
-      attachedDocumentIds: [],
-      meta: Prisma.JsonNull,
-      correlationId: randomUUID(),
-      occurredAt: w.occurredAt,
     },
   });
 }
@@ -672,25 +491,13 @@ async function main(): Promise<void> {
 
   const superAdminId = await ensureSuperAdminId();
 
-  // Verify system actor row exists (created by feature 005 migration).
-  const systemActor = await prisma.staffAccount.findUnique({ where: { id: SYSTEM_ACTOR_ID } });
-  if (!systemActor) {
-    throw new Error('System actor row missing. Run `npx prisma migrate dev` first.');
-  }
-
   await seedBankPrograms(superAdminId);
 
-  const agentIds: string[] = [];
   for (const s of DEMO_STAFF) {
-    const id = await findOrCreateStaff(s);
-    if (s.role === 'sales_agent') agentIds.push(id);
+    await findOrCreateStaff(s);
   }
 
-  if (agentIds.length === 0) {
-    throw new Error('No sales_agent IDs collected — cannot seed applications.');
-  }
-
-  await seedApplications(agentIds);
+  await seedApplications();
 
   log('demo seed complete.');
   log(`  super_admin → ${SUPER_ADMIN_EMAIL} / <SEED_ADMIN_PASSWORD>`);

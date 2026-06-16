@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsInt, IsNotEmpty, IsPositive, IsString, Length, Max } from 'class-validator';
-import { MAX_DOCUMENT_SIZE_BYTES } from '@/activities/activities.types';
+import { MAX_DOCUMENT_SIZE_BYTES } from '../document.constants';
 
 export class RequestUploadUrlDto {
   @ApiProperty({ minLength: 1, maxLength: 30 })

@@ -27,17 +27,18 @@ class MasrafyTextColors {
   final Color placeholder;
   final Color solid;
 
+  // Light: alpha steps over Midnight Navy (#021331) instead of pure black.
   static const light = MasrafyTextColors(
-    primary: Color(0xE6000000),
-    secondary: Color(0xA6000000),
-    tertiary: Color(0x73000000),
-    quaternary: Color(0x40000000),
+    primary: Color(0xE6021331),
+    secondary: Color(0xA6021331),
+    tertiary: Color(0x73021331),
+    quaternary: Color(0x40021331),
     lightSolid: Color(0xFFFFFFFF),
-    heading: Color(0xE6000000),
-    label: Color(0xA6000000),
-    description: Color(0x73000000),
-    disabled: Color(0x40000000),
-    placeholder: Color(0x40000000),
+    heading: Color(0xE6021331),
+    label: Color(0xA6021331),
+    description: Color(0x73021331),
+    disabled: Color(0x40021331),
+    placeholder: Color(0x40021331),
     solid: Color(0xFFFFFFFF),
   );
 
@@ -52,7 +53,7 @@ class MasrafyTextColors {
     description: Color(0x73FFFFFF),
     disabled: Color(0x40FFFFFF),
     placeholder: Color(0x40FFFFFF),
-    solid: Color(0xFF000000),
+    solid: Color(0xFF021331),
   );
 
   MasrafyTextColors lerp(MasrafyTextColors other, double t) {
@@ -79,8 +80,8 @@ class MasrafyIconColors {
   final Color hover;
 
   static const light = MasrafyIconColors(
-    main: Color(0x73000000),
-    hover: Color(0xE6000000),
+    main: Color(0x73021331),
+    hover: Color(0xE6021331),
   );
 
   static const dark = MasrafyIconColors(
@@ -125,31 +126,34 @@ class MasrafyBgColors {
   final Color solidActive;
   final Color solidHover;
 
+  // Light: white containers on a Ghost White (Neutral #E7ECF6) layout.
   static const light = MasrafyBgColors(
     container: Color(0xFFFFFFFF),
     elevated: Color(0xFFFFFFFF),
-    layout: Color(0xFFF5F5F5),
-    mask: Color(0x73000000),
-    spotlight: Color(0xD9000000),
-    containerDisabled: Color(0x0A000000),
-    textActive: Color(0x26000000),
-    textHover: Color(0x0F000000),
+    layout: Color(0xFFE7ECF6),
+    mask: Color(0x73021331),
+    spotlight: Color(0xD9021331),
+    containerDisabled: Color(0x0A021331),
+    textActive: Color(0x26021331),
+    textHover: Color(0x0F021331),
     borderBg: Color(0xFFFFFFFF),
-    solid: Color(0xFF000000),
-    solidActive: Color(0xF2000000),
-    solidHover: Color(0xBF000000),
+    solid: Color(0xFF021331),
+    solidActive: Color(0xF2021331),
+    solidHover: Color(0xBF021331),
   );
 
+  // Dark: Midnight Navy surfaces (Neutral container, Dark layout, lifted
+  // elevated).
   static const dark = MasrafyBgColors(
-    container: Color(0xFF1F1F1F),
-    elevated: Color(0xFF1F1F1F),
-    layout: Color(0xFF000000),
+    container: Color(0xFF021331),
+    elevated: Color(0xFF0A1A3A),
+    layout: Color(0xFF020F27),
     mask: Color(0x73000000),
-    spotlight: Color(0xFF424242),
+    spotlight: Color(0xFF14233F),
     containerDisabled: Color(0x14FFFFFF),
     textActive: Color(0x2EFFFFFF),
     textHover: Color(0x1FFFFFFF),
-    borderBg: Color(0xFF1F1F1F),
+    borderBg: Color(0xFF021331),
     solid: Color(0xF2FFFFFF),
     solidActive: Color(0xE5FFFFFF),
     solidHover: Color(0xFFFFFFFF),
@@ -186,15 +190,17 @@ class MasrafyBorderColors {
   final Color secondary;
   final Color split;
 
+  // Light: indigo-tinted neutrals (Ghost White Neutral as the soft divider).
   static const light = MasrafyBorderColors(
-    main: Color(0xFFD9D9D9),
-    secondary: Color(0xFFF0F0F0),
-    split: Color(0x0F000000),
+    main: Color(0xFFD5DBEC),
+    secondary: Color(0xFFE7ECF6),
+    split: Color(0x0F021331),
   );
 
+  // Dark: navy-tinted dividers.
   static const dark = MasrafyBorderColors(
-    main: Color(0xFF424242),
-    secondary: Color(0xFF303030),
+    main: Color(0xFF2A3556),
+    secondary: Color(0xFF1A2540),
     split: Color(0x0FFFFFFF),
   );
 

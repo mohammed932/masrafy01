@@ -37,6 +37,10 @@
 
       <trans-unit id="sidebar.dashboard" datatype="html"><source>Dashboard</source><target>لوحة التحكم</target></trans-unit>
       <trans-unit id="sidebar.users" datatype="html"><source>Users</source><target>المستخدمون</target></trans-unit>
+      <trans-unit id="sidebar.banks" datatype="html"><source>Banks</source><target>البنوك</target></trans-unit>
+      <trans-unit id="banks.tabs.aria" datatype="html"><source>Banks sections</source><target>أقسام البنوك</target></trans-unit>
+      <trans-unit id="banks.tab.registry" datatype="html"><source>Registry</source><target>السجل</target></trans-unit>
+      <trans-unit id="banks.tab.programs" datatype="html"><source>Programs</source><target>البرامج</target></trans-unit>
 
       <trans-unit id="users.title" datatype="html"><source>Users</source><target>المستخدمون</target></trans-unit>
       <trans-unit id="users.create" datatype="html"><source>Create user</source><target>إنشاء مستخدم</target></trans-unit>

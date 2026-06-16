@@ -26,7 +26,6 @@ export interface CustomerApplicationSnapshot {
   id: string;
   loanPurpose: string;
   status: string;
-  leadStatus: string;
   requestedAmountEGP: string;
   createdAt: string;
   userProceededAt: string | null;

@@ -20,6 +20,10 @@ import {
   UserAddOutline,
   EllipsisOutline,
   TeamOutline,
+  CheckCircleOutline,
+  SafetyCertificateOutline,
+  SolutionOutline,
+  CustomerServiceOutline,
 } from '@ant-design/icons-angular/icons';
 import { UsersService } from './users.service';
 import { UserFormDialog, type UserFormDialogData } from './user-form.dialog';
@@ -53,7 +57,17 @@ import type { ErrorCode, ErrorEnvelope, StaffAccountSummary } from '@core/auth/a
     StatusPillComponent,
     SkeletonRowsComponent,
   ],
-  providers: [provideNzIconsPatch([UserAddOutline, EllipsisOutline, TeamOutline])],
+  providers: [
+    provideNzIconsPatch([
+      UserAddOutline,
+      EllipsisOutline,
+      TeamOutline,
+      CheckCircleOutline,
+      SafetyCertificateOutline,
+      SolutionOutline,
+      CustomerServiceOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
@@ -324,16 +338,42 @@ export class UsersListPage implements OnInit {
   protected readonly inactiveLabel = $localize`:@@users.status.inactive:Inactive`;
   protected readonly statItems = computed<StatStripItem[]>(() => {
     const r = this.rows();
+    const shown = r.length;
     const active = r.filter((u) => u.isActive).length;
     const admins = r.filter((u) => u.role === 'super_admin').length;
     const managers = r.filter((u) => u.role === 'sales_manager').length;
     const agents = r.filter((u) => u.role === 'sales_agent').length;
+    const livePct = shown > 0 ? Math.round((active / shown) * 100) : 0;
     return [
-      { label: $localize`:@@users.stat.total:Total`, value: this.total() },
-      { label: $localize`:@@users.stat.active:Active`, value: active, tone: 'success' },
-      { label: $localize`:@@users.stat.admins:Super-admins`, value: admins, tone: 'muted' },
-      { label: $localize`:@@users.stat.managers:Managers`, value: managers },
-      { label: $localize`:@@users.stat.agents:Sales agents`, value: agents },
+      {
+        label: $localize`:@@users.stat.total:Total`,
+        value: this.total(),
+        icon: 'team',
+        hint: $localize`:@@users.stat.total.hint:staff accounts`,
+      },
+      {
+        label: $localize`:@@users.stat.active:Active`,
+        value: active,
+        tone: 'success',
+        icon: 'check-circle',
+        hint: $localize`:@@users.stat.active.hint:${livePct}:pct:% live`,
+      },
+      {
+        label: $localize`:@@users.stat.admins:Super-admins`,
+        value: admins,
+        tone: 'muted',
+        icon: 'safety-certificate',
+      },
+      {
+        label: $localize`:@@users.stat.managers:Managers`,
+        value: managers,
+        icon: 'solution',
+      },
+      {
+        label: $localize`:@@users.stat.agents:Sales agents`,
+        value: agents,
+        icon: 'customer-service',
+      },
     ];
   });
   protected readonly page = signal<number>(1);

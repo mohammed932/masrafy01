@@ -1,6 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../cache/shared_prefs_service.dart';
 import '../environments/app_env.dart';
 import '../environments/base_environment.dart';
 import '../environments/dev_environment.dart';
@@ -9,6 +11,7 @@ import '../network/dio_factory.dart';
 import '../network/network_interface.dart';
 import '../router/router.dart';
 import '../storage/customer_session_storage.dart';
+import '../theme/theme_bloc/theme_bloc.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -41,4 +44,9 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
         sessionStorage: getIt<CustomerSessionStorage>(),
       ));
   getIt.registerLazySingleton<BaseNetwork>(() => AppNetwork(getIt()));
+
+  // -- Theme -------------------------------------------------------------
+  final prefs = await SharedPreferences.getInstance();
+  getIt.registerSingleton<SharedPrefsService>(SharedPrefsService(prefs));
+  getIt.registerFactory<ThemeBloc>(() => ThemeBloc(getIt<SharedPrefsService>()));
 }

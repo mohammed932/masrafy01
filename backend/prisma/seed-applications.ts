@@ -107,10 +107,6 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Reuse any seeded staff member as the assigned agent; null if none exist yet.
-  const agent = await prisma.staffAccount.findFirst({ select: { id: true } });
-  const agentId = agent?.id ?? null;
-
   // Upsert demo customers.
   const customerIdByPhone = new Map<string, string>();
   for (const c of CUSTOMERS) {
@@ -137,7 +133,6 @@ async function main(): Promise<void> {
     const cust = CUSTOMERS.find((c) => c.firstName === r.firstName) ?? CUSTOMERS[0]!;
     const customerId = customerIdByPhone.get(cust.phone)!;
     const createdAt = new Date(Date.now() - r.daysOld * DAY);
-    const assigned = r.assigned && agentId !== null;
 
     const app = await prisma.application.create({
       data: {
@@ -155,9 +150,6 @@ async function main(): Promise<void> {
         summary: { totalProgramsChecked: 28, eligiblePrograms: r.tier ? 6 : 0 } as Prisma.InputJsonValue,
         programsCheckedCount: 28,
         eligibleProgramsCount: r.tier ? 6 : 0,
-        assignedAgentStaffId: assigned ? agentId : null,
-        assignedAt: assigned ? createdAt : null,
-        leadStatus: r.leadStatus,
         userProceededAt: createdAt, // the gate that makes the row visible
         createdAt,
       },
@@ -199,7 +191,7 @@ async function main(): Promise<void> {
     created += 1;
   }
 
-  console.log(`[seed:apps] created ${created} applications (agent: ${agentId ?? 'none — all unassigned'}).`);
+  console.log(`[seed:apps] created ${created} applications.`);
 }
 
 main()

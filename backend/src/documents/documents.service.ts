@@ -17,7 +17,7 @@ import {
   ALLOWED_DOCUMENT_MIME_TYPES,
   MAX_DOCUMENT_SIZE_BYTES,
   type AllowedDocumentMimeType,
-} from '@/activities/activities.types';
+} from './document.constants';
 import { DocumentsRepository } from './documents.repository';
 import { S3StorageClient } from './s3-storage.client';
 import { stripPiiFromFilename } from './filename-pii';

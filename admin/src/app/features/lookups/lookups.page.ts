@@ -43,6 +43,9 @@ import {
   ArrowLeftOutline,
   CloseCircleOutline,
   SearchOutline,
+  TagsOutline,
+  CheckCircleOutline,
+  InboxOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -213,6 +216,9 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       ArrowLeftOutline,
       CloseCircleOutline,
       SearchOutline,
+      TagsOutline,
+      CheckCircleOutline,
+      InboxOutline,
     ]),
   ],
   template: `
@@ -1386,12 +1392,18 @@ export class LookupsPage implements OnInit {
   protected readonly statItems = computed<StatStripItem[]>(() => {
     const s = this.heroStats();
     return [
-      { label: $localize`:@@lookups.stat.types:Categories`, value: s.types },
-      { label: $localize`:@@lookups.stat.values:Active values`, value: s.active, tone: 'success' },
+      { label: $localize`:@@lookups.stat.types:Categories`, value: s.types, icon: 'tags' },
+      {
+        label: $localize`:@@lookups.stat.values:Active values`,
+        value: s.active,
+        tone: 'success',
+        icon: 'check-circle',
+      },
       {
         label: $localize`:@@lookups.stat.deprecated:Deprecated`,
         value: s.deprecated,
         tone: 'muted',
+        icon: 'inbox',
       },
     ];
   });

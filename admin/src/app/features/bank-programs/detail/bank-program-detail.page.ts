@@ -59,7 +59,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
     @if (program()) {
     <section class="page">
       <header class="page-header">
-        <a routerLink="/bank-programs" class="back-link">
+        <a routerLink="/banks/programs" class="back-link">
           <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.detail.back">Back to list</span>
         </a>
@@ -81,7 +81,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
           <a
             *can="['super_admin', 'sales_manager']"
             nz-button
-            [routerLink]="['/bank-programs', program()!.programCode, 'edit']"
+            [routerLink]="['/banks/programs', program()!.programCode, 'edit']"
           >
             <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
             <span i18n="@@bank_programs.action.edit">Edit</span>
@@ -548,7 +548,7 @@ export class BankProgramDetailPage {
       nzFooter: null,
     });
     ref.afterClose.subscribe((res) => {
-      if (res?.newProgramCode) void this.router.navigate(['/bank-programs', res.newProgramCode]);
+      if (res?.newProgramCode) void this.router.navigate(['/banks/programs', res.newProgramCode]);
     });
   }
 
@@ -562,7 +562,7 @@ export class BankProgramDetailPage {
       nzFooter: null,
     });
     ref.afterClose.subscribe((deleted) => {
-      if (deleted) void this.router.navigate(['/bank-programs']);
+      if (deleted) void this.router.navigate(['/banks/programs']);
     });
   }
 }

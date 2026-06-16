@@ -13,21 +13,14 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzModalService } from 'ng-zorro-antd/modal';
 import {
   RightOutline,
-  UnorderedListOutline,
-  AppstoreOutline,
   SearchOutline,
-  FireOutline,
   ClockCircleOutline,
-  UserOutline,
-  AlertOutline,
-  FilterOutline,
+  ProfileOutline,
+  RiseOutline,
+  LineChartOutline,
 } from '@ant-design/icons-angular/icons';
-import { ApplicationsKanbanComponent, type KanbanTransition } from './components/applications-kanban.component';
-import { AddActivityDialog, type AddActivityDialogData } from '../detail/components/add-activity.dialog';
-import { ACTIVITY_REASONS } from '../activity-reasons';
 import {
   PageHeaderComponent,
   SkeletonRowsComponent,
@@ -37,29 +30,12 @@ import {
 import {
   ApplicationsApiService,
   type AdminApplicationRow,
-  type LeadStatus,
 } from '../api/applications.api.service';
 import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
   TierFilterChipsComponent,
   type TierFilter,
 } from './components/tier-filter-chips.component';
-import { type LeadFilter } from './components/lead-filter-chips.component';
-
-interface StageDef {
-  key: LeadStatus | 'all';
-  label: string;
-  helper: string;
-}
-
-const STAGE_FUNNEL: readonly StageDef[] = [
-  { key: 'all', label: $localize`:@@apps.stage.all:All stages`, helper: $localize`:@@apps.stage.all.h:Every lead in view` },
-  { key: 'needs_first_contact', label: $localize`:@@apps.stage.first:First contact`, helper: $localize`:@@apps.stage.first.h:Awaiting agent call` },
-  { key: 'document_collection', label: $localize`:@@apps.stage.docs:Documents`, helper: $localize`:@@apps.stage.docs.h:Collecting paperwork` },
-  { key: 'ready_for_submission', label: $localize`:@@apps.stage.ready:Ready for bank`, helper: $localize`:@@apps.stage.ready.h:Reviewed, awaiting send` },
-  { key: 'submitted_to_bank', label: $localize`:@@apps.stage.submitted:With bank`, helper: $localize`:@@apps.stage.submitted.h:Bank decision pending` },
-  { key: 'bank_decided', label: $localize`:@@apps.stage.decided:Bank decided`, helper: $localize`:@@apps.stage.decided.h:Outcome recorded` },
-];
 
 @Component({
   selector: 'app-applications-list-page',
@@ -77,19 +53,15 @@ const STAGE_FUNNEL: readonly StageDef[] = [
     PageHeaderComponent,
     StatStripComponent,
     SkeletonRowsComponent,
-    ApplicationsKanbanComponent,
   ],
   providers: [
     provideNzIconsPatch([
       RightOutline,
-      UnorderedListOutline,
-      AppstoreOutline,
       SearchOutline,
-      FireOutline,
       ClockCircleOutline,
-      UserOutline,
-      AlertOutline,
-      FilterOutline,
+      ProfileOutline,
+      RiseOutline,
+      LineChartOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -110,45 +82,6 @@ const STAGE_FUNNEL: readonly StageDef[] = [
             [attr.aria-label]="searchPlaceholder"
           />
         </div>
-
-        <div class="toolbar-end">
-          <button
-            type="button"
-            class="attention"
-            [class.active]="attentionOn()"
-            [attr.aria-pressed]="attentionOn()"
-            (click)="toggleAttention()"
-          >
-            <span nz-icon nzType="fire" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@apps.attention.toggle">Needs attention</span>
-            <span class="attention-count tabular">{{ attentionCount() }}</span>
-          </button>
-
-          <div class="view-toggle" role="radiogroup" [attr.aria-label]="viewToggleAria">
-            <button
-              type="button"
-              class="view-seg"
-              role="radio"
-              [class.active]="view() === 'list'"
-              [attr.aria-checked]="view() === 'list'"
-              (click)="view.set('list')"
-              [attr.aria-label]="listViewLabel"
-            >
-              <span nz-icon nzType="unordered-list" nzTheme="outline" aria-hidden="true"></span>
-            </button>
-            <button
-              type="button"
-              class="view-seg"
-              role="radio"
-              [class.active]="view() === 'kanban'"
-              [attr.aria-checked]="view() === 'kanban'"
-              (click)="view.set('kanban')"
-              [attr.aria-label]="kanbanViewLabel"
-            >
-              <span nz-icon nzType="appstore" nzTheme="outline" aria-hidden="true"></span>
-            </button>
-          </div>
-        </div>
       </div>
 
       <app-tier-filter-chips
@@ -157,41 +90,18 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         (filterChange)="onTierFilterChange($event)"
       />
 
-      <nav class="funnel" [attr.aria-label]="funnelAria">
-        @for (s of stages; track s.key; let last = $last) {
-          <button
-            type="button"
-            class="funnel-step"
-            [class.active]="effectiveStage() === s.key"
-            [attr.aria-pressed]="effectiveStage() === s.key"
-            (click)="onStageClick(s.key)"
-          >
-            <span class="funnel-label">{{ s.label }}</span>
-            <span class="funnel-count tabular">{{ stageCount(s.key) }}</span>
-          </button>
-          @if (!last) {
-            <span class="funnel-arrow" aria-hidden="true">›</span>
-          }
-        }
-      </nav>
-
       @if (loading()) {
-        <app-skeleton-rows [rows]="6" [cols]="[2, 1, 1, 1, 1]" />
+        <app-skeleton-rows [rows]="6" [cols]="[2, 1, 1, 1]" />
       }
 
-      @if (!loading() && filteredRows().length === 0) {
+      @if (!loading() && filteredRowsArray().length === 0) {
         <div class="empty">
-          <p i18n="@@applications.empty.title">No leads match your filters</p>
+          <p i18n="@@applications.empty.title">No applications match your filters</p>
           <p class="muted" i18n="@@applications.empty.subtitle">
             Clear a filter or wait for new applications.
           </p>
         </div>
-      } @else if (view() === 'kanban') {
-        <app-applications-kanban
-          [rows]="filteredRowsArray()"
-          (transitionRequested)="onTransition($event)"
-        />
-      } @else {
+      } @else if (!loading()) {
         <div class="table-wrap">
           <nz-table
             #t
@@ -206,8 +116,7 @@ const STAGE_FUNNEL: readonly StageDef[] = [
                 <th i18n="@@applications.col.applicant">Applicant</th>
                 <th i18n="@@applications.col.loan">Loan</th>
                 <th i18n="@@applications.col.probability">Probability</th>
-                <th i18n="@@applications.col.stage">Stage · Age</th>
-                <th i18n="@@applications.col.owner">Owner</th>
+                <th i18n="@@applications.col.submitted">Submitted</th>
                 <th class="actions-th" aria-hidden="true"></th>
               </tr>
             </thead>
@@ -217,7 +126,6 @@ const STAGE_FUNNEL: readonly StageDef[] = [
                   class="applications-row"
                   tabindex="0"
                   role="link"
-                  [attr.data-urgency]="urgencyFor(row)"
                   [attr.aria-label]="detailAriaLabel(row.id)"
                   (click)="openDetail(row.id)"
                   (keydown.enter)="openDetail(row.id)"
@@ -242,28 +150,10 @@ const STAGE_FUNNEL: readonly StageDef[] = [
                     <app-approval-pill [bestOffer]="row.bestOffer" />
                   </td>
                   <td>
-                    <div class="stage">
-                      <span class="stage-chip" [attr.data-stage]="stageDataAttr(row)">
-                        {{ stageLabel(row.leadStatus, row.selectedOfferDecision ?? null) }}
-                      </span>
-                      <span class="stage-age" [attr.data-tone]="ageToneFor(row)">
-                        <span nz-icon nzType="clock-circle" nzTheme="outline" aria-hidden="true"></span>
-                        {{ relativeAge(row) }}
-                      </span>
-                    </div>
-                  </td>
-                  <td>
-                    @if (row.assignedAgent; as a) {
-                      <div class="owner">
-                        <span class="owner-avatar" aria-hidden="true">{{ agentInitials(a.name) }}</span>
-                        <span class="owner-name">{{ a.name }}</span>
-                      </div>
-                    } @else {
-                      <span class="owner-unassigned" i18n="@@apps.owner.unassigned">
-                        <span nz-icon nzType="alert" nzTheme="outline" aria-hidden="true"></span>
-                        Unassigned
-                      </span>
-                    }
+                    <span class="submitted-age">
+                      <span nz-icon nzType="clock-circle" nzTheme="outline" aria-hidden="true"></span>
+                      {{ relativeAge(row) }}
+                    </span>
                   </td>
                   <td class="actions-cell">
                     <a
@@ -301,7 +191,6 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         display: flex;
         gap: var(--space-3);
         align-items: center;
-        justify-content: space-between;
         flex-wrap: wrap;
       }
       .search {
@@ -323,141 +212,6 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         pointer-events: none;
       }
 
-      .toolbar-end {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-3);
-        flex-wrap: wrap;
-      }
-
-      .attention {
-        appearance: none;
-        background: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        color: var(--text-secondary);
-        cursor: pointer;
-        padding: 7px 14px;
-        border-radius: var(--radius-pill);
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font: 600 13px/1 var(--font-sans);
-        transition: background var(--motion-duration-fast) var(--motion-easing-standard),
-                    color var(--motion-duration-fast) var(--motion-easing-standard),
-                    border-color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .attention:hover:not(.active) {
-        color: var(--text-primary);
-        border-color: var(--border-strong, var(--border-default));
-      }
-      .attention.active {
-        background: color-mix(in oklab, var(--error) 12%, transparent);
-        color: var(--error);
-        border-color: color-mix(in oklab, var(--error) 35%, transparent);
-      }
-      .attention-count {
-        font-size: 11px;
-        font-weight: 700;
-        padding: 2px 7px;
-        border-radius: var(--radius-pill);
-        background: var(--bg-subtle);
-        color: var(--text-secondary);
-      }
-      .attention.active .attention-count {
-        background: var(--error);
-        color: var(--text-on-primary);
-      }
-
-      .view-toggle {
-        display: inline-flex;
-        background: var(--bg-subtle);
-        border: 1px solid var(--border-default);
-        padding: 3px;
-        border-radius: var(--radius-pill);
-        gap: 2px;
-      }
-      .view-seg {
-        appearance: none;
-        background: transparent;
-        border: 0;
-        cursor: pointer;
-        padding: 6px 12px;
-        font-size: 13px;
-        color: var(--text-secondary);
-        border-radius: var(--radius-pill);
-        display: inline-flex;
-        align-items: center;
-        transition: background var(--motion-duration-fast) var(--motion-easing-standard),
-                    color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .view-seg:hover:not(.active) { color: var(--text-primary); }
-      .view-seg.active {
-        background: var(--primary);
-        color: var(--text-on-primary);
-      }
-      .view-seg:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
-      }
-
-      /* ---------- stage funnel ---------- */
-      .funnel {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        flex-wrap: wrap;
-        padding: 6px;
-        background: var(--bg-subtle);
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-pill);
-        align-self: flex-start;
-      }
-      .funnel-step {
-        appearance: none;
-        background: transparent;
-        border: 0;
-        cursor: pointer;
-        padding: 6px 12px;
-        border-radius: var(--radius-pill);
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-secondary);
-        font: 600 12px/1 var(--font-sans);
-        letter-spacing: 0.01em;
-        transition: background var(--motion-duration-fast) var(--motion-easing-standard),
-                    color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .funnel-step:hover:not(.active) { color: var(--text-primary); }
-      .funnel-step.active {
-        background: var(--primary);
-        color: var(--text-on-primary);
-      }
-      .funnel-step:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
-      }
-      .funnel-count {
-        font-size: 11px;
-        font-weight: 700;
-        padding: 1px 7px;
-        border-radius: var(--radius-pill);
-        background: var(--bg-surface);
-        color: var(--text-tertiary);
-        font-variant-numeric: tabular-nums lining-nums;
-      }
-      .funnel-step.active .funnel-count {
-        background: color-mix(in oklab, var(--text-on-primary) 22%, transparent);
-        color: var(--text-on-primary);
-      }
-      .funnel-arrow {
-        color: var(--text-tertiary);
-        font-size: 14px;
-        line-height: 1;
-        padding-inline: 2px;
-        user-select: none;
-      }
-
       /* ---------- table ---------- */
       .table-wrap {
         background: var(--bg-surface);
@@ -475,33 +229,21 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         letter-spacing: 0.1em;
         color: var(--text-tertiary);
       }
-      .actions-th { inline-size: 48px; }
+      .actions-th {
+        inline-size: 48px;
+      }
       .tabular {
         font-variant-numeric: tabular-nums lining-nums;
         font-feature-settings: var(--font-feature-tabular);
       }
-      .muted { color: var(--text-tertiary); }
+      .muted {
+        color: var(--text-tertiary);
+      }
 
       .applications-row {
         cursor: pointer;
         position: relative;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .applications-row > td:first-child {
-        border-inline-start: 3px solid transparent;
-        padding-inline-start: 12px;
-      }
-      .applications-row[data-urgency='stale'] > td:first-child {
-        border-inline-start-color: var(--error);
-      }
-      .applications-row[data-urgency='overdue'] > td:first-child {
-        border-inline-start-color: var(--warning);
-      }
-      .applications-row[data-urgency='cold'] > td:first-child {
-        border-inline-start-color: color-mix(in oklab, var(--warning) 60%, transparent);
-      }
-      .applications-row[data-urgency='hot'] > td:first-child {
-        border-inline-start-color: var(--success);
       }
       .applications-row:hover {
         background: var(--bg-subtle);
@@ -531,7 +273,12 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         letter-spacing: 0.04em;
         flex-shrink: 0;
       }
-      .applicant-meta { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
+      .applicant-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-inline-size: 0;
+      }
       .applicant-name {
         font-size: 13px;
         font-weight: 600;
@@ -545,7 +292,11 @@ const STAGE_FUNNEL: readonly StageDef[] = [
       }
 
       /* loan cell */
-      .loan { display: flex; flex-direction: column; gap: 2px; }
+      .loan {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
       .loan-amount {
         font-size: 13px;
         font-weight: 700;
@@ -559,52 +310,7 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         text-transform: capitalize;
       }
 
-      /* stage cell */
-      .stage { display: flex; flex-direction: column; gap: 4px; }
-      .stage-chip {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 9px;
-        border-radius: var(--radius-pill);
-        font: 700 10px/1 var(--font-sans);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        background: var(--bg-subtle);
-        color: var(--text-secondary);
-        align-self: flex-start;
-        white-space: nowrap;
-      }
-      .stage-chip[data-stage='needs_first_contact'] {
-        background: color-mix(in oklab, var(--warning) 14%, transparent);
-        color: var(--warning);
-      }
-      .stage-chip[data-stage='document_collection'] {
-        background: color-mix(in oklab, var(--info, var(--accent)) 14%, transparent);
-        color: var(--info, var(--accent));
-      }
-      .stage-chip[data-stage='ready_for_submission'] {
-        background: color-mix(in oklab, var(--primary) 12%, transparent);
-        color: var(--primary);
-      }
-      .stage-chip[data-stage='submitted_to_bank'] {
-        background: color-mix(in oklab, var(--accent) 16%, transparent);
-        color: var(--accent);
-      }
-      .stage-chip[data-stage='bank_decided'],
-      .stage-chip[data-stage='approved'] {
-        background: color-mix(in oklab, var(--success) 14%, transparent);
-        color: var(--success);
-      }
-      .stage-chip[data-stage='rejected'] {
-        background: color-mix(in oklab, var(--error) 14%, transparent);
-        color: var(--error);
-      }
-      .stage-chip[data-stage='withdrawn'] {
-        background: color-mix(in oklab, var(--text-tertiary) 16%, transparent);
-        color: var(--text-secondary);
-      }
-
-      .stage-age {
+      .submitted-age {
         display: inline-flex;
         align-items: center;
         gap: 4px;
@@ -612,37 +318,10 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         color: var(--text-tertiary);
         font-variant-numeric: tabular-nums lining-nums;
       }
-      .stage-age[data-tone='stale'] { color: var(--error); font-weight: 600; }
-      .stage-age[data-tone='cold']  { color: var(--warning); font-weight: 600; }
 
-      /* owner cell */
-      .owner { display: inline-flex; align-items: center; gap: 8px; }
-      .owner-avatar {
-        inline-size: 24px;
-        block-size: 24px;
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: color-mix(in oklab, var(--accent) 16%, transparent);
-        color: var(--accent);
-        font-size: 10px;
-        font-weight: 700;
+      .actions-cell {
+        text-align: end;
       }
-      .owner-name {
-        font-size: 12px;
-        color: var(--text-primary);
-      }
-      .owner-unassigned {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--warning);
-      }
-
-      .actions-cell { text-align: end; }
 
       .empty {
         padding: var(--space-8) var(--space-6);
@@ -651,17 +330,29 @@ const STAGE_FUNNEL: readonly StageDef[] = [
         border-radius: var(--radius-lg);
         border: 1px dashed var(--border-default);
       }
-      .empty p { margin: 0 0 var(--space-2); font-size: 15px; color: var(--text-primary); }
-      .empty .muted { font-size: 13px; }
+      .empty p {
+        margin: 0 0 var(--space-2);
+        font-size: 15px;
+        color: var(--text-primary);
+      }
+      .empty .muted {
+        font-size: 13px;
+      }
 
       @media (prefers-reduced-motion: reduce) {
-        .attention, .view-seg, .funnel-step, .applications-row { transition: none !important; }
+        .applications-row {
+          transition: none !important;
+        }
       }
 
       @media (max-width: 720px) {
-        .toolbar { flex-direction: column; align-items: stretch; }
-        .toolbar-end { justify-content: space-between; }
-        .search { max-inline-size: 100%; }
+        .toolbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .search {
+          max-inline-size: 100%;
+        }
       }
     `,
   ],
@@ -670,57 +361,17 @@ export class ApplicationsListPage implements OnInit {
   private readonly api = inject(ApplicationsApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly modal = inject(NzModalService);
 
   protected readonly titleText = $localize`:@@applications.title:Applications`;
-  protected readonly subtitleText = $localize`:@@applications.subtitle:Triage leads by approval probability, workflow stage, and urgency.`;
+  protected readonly subtitleText = $localize`:@@applications.subtitle:Review applications by approval probability.`;
   protected readonly statAriaLabel = $localize`:@@applications.stat.aria:Application totals`;
-  protected readonly viewToggleAria = $localize`:@@applications.view.aria:Switch between list and Kanban view`;
-  protected readonly listViewLabel = $localize`:@@applications.view.list:List`;
-  protected readonly kanbanViewLabel = $localize`:@@applications.view.kanban:Kanban`;
   protected readonly searchPlaceholder = $localize`:@@apps.search.placeholder:Search by applicant or ID`;
-  protected readonly funnelAria = $localize`:@@apps.funnel.aria:Filter by workflow stage`;
-
-  protected readonly stages = STAGE_FUNNEL;
 
   protected readonly rows = signal<readonly AdminApplicationRow[]>([]);
   protected readonly loading = signal(false);
   protected readonly selectedTier = signal<TierFilter>(null);
-  protected readonly selectedStage = signal<LeadStatus | 'all'>('all');
-  protected readonly attentionOn = signal(false);
   protected readonly searchQuery = signal('');
   protected readonly searchControl = new FormControl<string>('', { nonNullable: true });
-  protected readonly view = signal<'list' | 'kanban'>('list');
-
-  protected readonly effectiveStage = computed<LeadStatus | 'all'>(() =>
-    this.attentionOn() ? 'all' : this.selectedStage(),
-  );
-
-  protected readonly filteredRows = computed<readonly AdminApplicationRow[]>(() => {
-    const q = this.searchQuery().trim().toLowerCase();
-    const stage = this.selectedStage();
-    const attention = this.attentionOn();
-    return this.rows().filter((r) => {
-      if (attention) {
-        const urgent =
-          r.isStale === true ||
-          r.hasOverdueFollowUp === true ||
-          r.leadStatus === 'needs_first_contact';
-        if (!urgent) return false;
-      } else if (stage !== 'all') {
-        if (r.leadStatus !== stage) return false;
-      }
-      if (q.length > 0) {
-        const name = this.applicantName(r).toLowerCase();
-        if (!name.includes(q) && !r.id.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
-  });
-
-  protected filteredRowsArray(): AdminApplicationRow[] {
-    return [...this.filteredRows()];
-  }
 
   protected readonly counts = computed(() => {
     const r = this.rows();
@@ -736,44 +387,50 @@ export class ApplicationsListPage implements OnInit {
     };
   });
 
-  protected readonly attentionCount = computed(() => {
-    return this.rows().filter(
-      (r) =>
-        r.isStale === true ||
-        r.hasOverdueFollowUp === true ||
-        r.leadStatus === 'needs_first_contact',
-    ).length;
+  protected readonly filteredRows = computed<readonly AdminApplicationRow[]>(() => {
+    const q = this.searchQuery().trim().toLowerCase();
+    const tier = this.selectedTier();
+    return this.rows().filter((r) => {
+      if (tier && !this.matchesTier(r, tier)) return false;
+      if (q.length > 0) {
+        const name = this.applicantName(r).toLowerCase();
+        if (!name.includes(q) && !r.id.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
   });
+
+  protected filteredRowsArray(): AdminApplicationRow[] {
+    return [...this.filteredRows()];
+  }
 
   protected readonly statItems = computed<StatStripItem[]>(() => {
-    const r = this.rows();
-    const unassigned = r.filter((x) => !x.assignedAgent).length;
-    const stale = r.filter((x) => x.isStale === true).length;
-    const withBank = r.filter((x) => x.leadStatus === 'submitted_to_bank').length;
+    const c = this.counts();
     return [
-      { label: $localize`:@@applications.stat.total:Total in view`, value: r.length },
-      { label: $localize`:@@applications.stat.unassigned:Unassigned`, value: unassigned, tone: unassigned > 0 ? 'warning' : 'muted' },
-      { label: $localize`:@@applications.stat.stale:Stale (no activity >7d)`, value: stale, tone: stale > 0 ? 'error' : 'muted' },
-      { label: $localize`:@@applications.stat.withBank:With bank`, value: withBank, tone: withBank > 0 ? 'success' : 'muted' },
+      {
+        label: $localize`:@@applications.stat.total:Total in view`,
+        value: this.rows().length,
+        icon: 'profile',
+      },
+      {
+        label: $localize`:@@applications.stat.high:High probability`,
+        value: c.high,
+        tone: c.high > 0 ? 'success' : 'muted',
+        icon: 'rise',
+      },
+      {
+        label: $localize`:@@applications.stat.medium:Medium probability`,
+        value: c.medium,
+        tone: 'muted',
+        icon: 'line-chart',
+      },
     ];
   });
-
-  protected stageCount(key: LeadStatus | 'all'): number {
-    if (key === 'all') return this.rows().length;
-    return this.rows().filter((r) => r.leadStatus === key).length;
-  }
 
   async ngOnInit(): Promise<void> {
     const tierParam = this.route.snapshot.queryParamMap.get('tier');
     if (tierParam === 'high' || tierParam === 'medium' || tierParam === 'needs_coaching') {
       this.selectedTier.set(tierParam);
-    }
-    const stageParam = this.route.snapshot.queryParamMap.get('stage');
-    if (this.isValidStage(stageParam)) {
-      this.selectedStage.set(stageParam);
-    }
-    if (this.route.snapshot.queryParamMap.get('attention') === '1') {
-      this.attentionOn.set(true);
     }
     const q = this.route.snapshot.queryParamMap.get('q');
     if (q) {
@@ -789,28 +446,6 @@ export class ApplicationsListPage implements OnInit {
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tier: next ?? null },
-      queryParamsHandling: 'merge',
-    });
-    void this.reload();
-  }
-
-  protected onStageClick(key: LeadStatus | 'all'): void {
-    if (this.attentionOn()) this.attentionOn.set(false);
-    const next = this.selectedStage() === key ? 'all' : key;
-    this.selectedStage.set(next);
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { stage: next === 'all' ? null : next, attention: null },
-      queryParamsHandling: 'merge',
-    });
-  }
-
-  protected toggleAttention(): void {
-    const next = !this.attentionOn();
-    this.attentionOn.set(next);
-    void this.router.navigate([], {
-      relativeTo: this.route,
-      queryParams: { attention: next ? '1' : null },
       queryParamsHandling: 'merge',
     });
   }
@@ -835,13 +470,6 @@ export class ApplicationsListPage implements OnInit {
     const parts = name.split(/\s+/).filter(Boolean);
     if (parts.length === 0) return '?';
     if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
-    return (parts[0]!.charAt(0) + parts[1]!.charAt(0)).toUpperCase();
-  }
-
-  protected agentInitials(name: string): string {
-    const parts = name.split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return '?';
-    if (parts.length === 1) return parts[0]!.charAt(0).toUpperCase();
     return (parts[0]!.charAt(0) + parts[1]!.charAt(0)).toUpperCase();
   }
 
@@ -873,39 +501,8 @@ export class ApplicationsListPage implements OnInit {
     }
   }
 
-  protected stageLabel(
-    s: LeadStatus | undefined,
-    decision: 'approved' | 'rejected' | 'withdrawn' | null,
-  ): string {
-    switch (s) {
-      case 'needs_first_contact':
-        return $localize`:@@apps.stage.first.short:First contact`;
-      case 'document_collection':
-        return $localize`:@@apps.stage.docs.short:Documents`;
-      case 'ready_for_submission':
-        return $localize`:@@apps.stage.ready.short:Ready`;
-      case 'submitted_to_bank':
-        return $localize`:@@apps.stage.submitted.short:With bank`;
-      case 'bank_decided':
-        if (decision === 'approved') return $localize`:@@apps.stage.decided.approved:Approved`;
-        if (decision === 'rejected') return $localize`:@@apps.stage.decided.rejected:Rejected`;
-        if (decision === 'withdrawn') return $localize`:@@apps.stage.decided.withdrawn:Withdrawn`;
-        return $localize`:@@apps.stage.decided.short:Decided`;
-      default:
-        return $localize`:@@apps.stage.unknown:Unknown`;
-    }
-  }
-
-  protected stageDataAttr(row: AdminApplicationRow): string {
-    if (row.leadStatus === 'bank_decided' && row.selectedOfferDecision) {
-      return row.selectedOfferDecision;
-    }
-    return row.leadStatus ?? 'unknown';
-  }
-
   protected relativeAge(row: AdminApplicationRow): string {
-    const ref = row.lastActivity?.occurredAt ?? row.createdAt;
-    const ms = Date.now() - new Date(ref).getTime();
+    const ms = Date.now() - new Date(row.createdAt).getTime();
     const days = Math.floor(ms / 86_400_000);
     const hours = Math.floor(ms / 3_600_000);
     const mins = Math.floor(ms / 60_000);
@@ -915,88 +512,21 @@ export class ApplicationsListPage implements OnInit {
     return $localize`:@@apps.age.now:just now`;
   }
 
-  protected ageToneFor(row: AdminApplicationRow): 'stale' | 'cold' | 'warm' {
-    if (row.isStale === true) return 'stale';
-    const ref = row.lastActivity?.occurredAt ?? row.createdAt;
-    const days = (Date.now() - new Date(ref).getTime()) / 86_400_000;
-    if (days >= 3) return 'cold';
-    return 'warm';
-  }
-
-  protected urgencyFor(row: AdminApplicationRow): 'stale' | 'overdue' | 'cold' | 'hot' | 'none' {
-    if (row.isStale === true) return 'stale';
-    if (row.hasOverdueFollowUp === true) return 'overdue';
-    if (row.leadStatus === 'bank_decided') return 'hot';
-    const ref = row.lastActivity?.occurredAt ?? row.createdAt;
-    const days = (Date.now() - new Date(ref).getTime()) / 86_400_000;
-    if (days >= 3 && row.leadStatus !== 'submitted_to_bank') return 'cold';
-    return 'none';
-  }
-
-  protected onTransition(t: KanbanTransition): void {
-    const seed = this.activityForTransition(t.to);
-    if (!seed) return;
-    const ref = this.modal.create<AddActivityDialog, AddActivityDialogData, boolean>({
-      nzContent: AddActivityDialog,
-      nzData: {
-        applicationId: t.application.id,
-        defaultActivityType: seed,
-        reasonsByType: ACTIVITY_REASONS,
-      },
-      nzFooter: null,
-      nzWidth: 720,
-      nzAutofocus: null,
-    });
-    ref.afterClose.subscribe((saved) => {
-      if (saved) void this.reload();
-    });
-  }
-
-  private activityForTransition(to: AdminApplicationRow['leadStatus']): string | null {
-    switch (to) {
-      case 'document_collection':
-        return 'CALLED_USER';
-      case 'ready_for_submission':
-        return 'MARKED_AS_REVIEWED';
-      case 'submitted_to_bank':
-        return 'SUBMITTED_TO_BANK';
-      case 'bank_decided':
-        return 'BANK_RESPONDED';
-      default:
-        return null;
-    }
-  }
-
-  private isValidStage(v: string | null): v is LeadStatus | 'all' {
+  private matchesTier(row: AdminApplicationRow, tier: NonNullable<TierFilter>): boolean {
+    if (tier === 'high') return row.bestOffer?.tier === 'excellent';
+    if (tier === 'medium') return row.bestOffer?.tier === 'good';
+    // needs_coaching
     return (
-      v === 'all' ||
-      v === 'needs_first_contact' ||
-      v === 'document_collection' ||
-      v === 'ready_for_submission' ||
-      v === 'submitted_to_bank' ||
-      v === 'bank_decided'
+      row.status === 'no_match' ||
+      (!!row.bestOffer &&
+        (['moderate', 'low', 'very_low'] as ApprovalTier[]).includes(row.bestOffer.tier))
     );
-  }
-
-  private legacyLeadFilter(): LeadFilter {
-    // Kept to preserve backend filter semantics on /applications?filter=...
-    const stage = this.selectedStage();
-    if (stage === 'all') return null;
-    if (stage === 'needs_first_contact') return 'needs_first_contact';
-    if (stage === 'document_collection') return 'docs_in_progress';
-    if (stage === 'ready_for_submission') return 'ready_for_submission';
-    if (stage === 'submitted_to_bank') return 'submitted_to_bank';
-    return null;
   }
 
   private async reload(): Promise<void> {
     this.loading.set(true);
     try {
-      const { rows } = await this.api.list({
-        tier: this.selectedTier(),
-        leadFilter: this.legacyLeadFilter(),
-        limit: 100,
-      });
+      const { rows } = await this.api.list({ limit: 100 });
       this.rows.set(rows);
     } finally {
       this.loading.set(false);

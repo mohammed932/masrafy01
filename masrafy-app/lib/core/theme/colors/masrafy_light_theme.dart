@@ -32,6 +32,9 @@ class MasrafyLightTheme extends MasrafyColorTheme {
   MasrafyBrandTone get primary => masrafyPrimaryLight;
 
   @override
+  MasrafyBrandTone get secondary => masrafySecondaryLight;
+
+  @override
   MasrafyBrandTone get success => masrafySuccessLight;
 
   @override
@@ -61,11 +64,12 @@ class MasrafyLightTheme extends MasrafyColorTheme {
   @override
   Color get white => const Color(0xFFFFFFFF);
 
+  // Ghost White (Light) base; text on Midnight Navy (Neutral).
   @override
   Color get bgBase => const Color(0xFFFFFFFF);
 
   @override
-  Color get textBase => const Color(0xFF000000);
+  Color get textBase => const Color(0xFF021331);
 
   @override
   MasrafyLightTheme copyWith() => const MasrafyLightTheme();

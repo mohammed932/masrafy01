@@ -97,149 +97,198 @@ class MasrafyControlColors {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Brand tones — sourced from the Masrafy Figma "Mode 1" tokens.
+//   Primary   = Figma Primary indigo   (Light #4D57A8 / Neutral #283382 /
+//               Dark #1B2776; border = Support "Wisteria Blue" #8099CB).
+//   Secondary = Figma Secondary blue   (Light #3990FF / Neutral #0082F8 /
+//               Dark #005DB5; border = Support "Blue Ice" #A6CEFF).
+// `main`/`text` = Neutral, `hover` = Light, `active` = Dark in light mode.
+// Dark mode brightens (`main` = Light, `active` = Neutral) and mixes surface
+// tints toward Midnight Navy (#021331). bg/bgHover tints + accent ramps are
+// derived from the anchors by tint/shade interpolation.
+// ---------------------------------------------------------------------------
+
 const masrafyPrimaryLight = MasrafyBrandTone(
-  main: Color(0xFF338284),
-  bg: Color(0xFFF3FAF9),
-  bgHover: Color(0xFFD7F0EE),
-  border: Color(0xFFAEE1DE),
-  borderHover: Color(0xFF7DCBC8),
-  hover: Color(0xFF53ADAE),
-  active: Color(0xFF2B7376),
-  text: Color(0xFF338284),
-  textHover: Color(0xFF53ADAE),
-  textActive: Color(0xFF2B7376),
+  main: Color(0xFF283382),
+  bg: Color(0xFFEEEFF5),
+  bgHover: Color(0xFFDFE0EC),
+  border: Color(0xFF8099CB),
+  borderHover: Color(0xFF4D57A8),
+  hover: Color(0xFF4D57A8),
+  active: Color(0xFF1B2776),
+  text: Color(0xFF283382),
+  textHover: Color(0xFF4D57A8),
+  textActive: Color(0xFF1B2776),
+  outline: Color(0x1A283382),
 );
 
 const masrafyPrimaryDark = MasrafyBrandTone(
-  main: Color(0xFF338284),
-  bg: Color(0xFF0E2225),
-  bgHover: Color(0xFF203F41),
-  border: Color(0xFF224A4D),
-  borderHover: Color(0xFF265C5F),
-  hover: Color(0xFF53ADAE),
-  active: Color(0xFF2B7376),
-  text: Color(0xFF338284),
-  textHover: Color(0xFF53ADAE),
-  textActive: Color(0xFF2B7376),
+  main: Color(0xFF4D57A8),
+  bg: Color(0xFF0E1E44),
+  bgHover: Color(0xFF162550),
+  border: Color(0xFF202E61),
+  borderHover: Color(0xFF2B3872),
+  hover: Color(0xFF7A81BE),
+  active: Color(0xFF283382),
+  text: Color(0xFF4D57A8),
+  textHover: Color(0xFF7A81BE),
+  textActive: Color(0xFF283382),
+  outline: Color(0x264D57A8),
+);
+
+const masrafySecondaryLight = MasrafyBrandTone(
+  main: Color(0xFF0082F8),
+  bg: Color(0xFFEBF5FE),
+  bgHover: Color(0xFFD9ECFE),
+  border: Color(0xFFA6CEFF),
+  borderHover: Color(0xFF3990FF),
+  hover: Color(0xFF3990FF),
+  active: Color(0xFF005DB5),
+  text: Color(0xFF0082F8),
+  textHover: Color(0xFF3990FF),
+  textActive: Color(0xFF005DB5),
+  outline: Color(0x1A0082F8),
+);
+
+const masrafySecondaryDark = MasrafyBrandTone(
+  main: Color(0xFF3990FF),
+  bg: Color(0xFF0B2752),
+  bgHover: Color(0xFF103467),
+  border: Color(0xFF184583),
+  borderHover: Color(0xFF2058A2),
+  hover: Color(0xFF6BACFF),
+  active: Color(0xFF0082F8),
+  text: Color(0xFF3990FF),
+  textHover: Color(0xFF6BACFF),
+  textActive: Color(0xFF0082F8),
+  outline: Color(0x263990FF),
 );
 
 const masrafySuccessLight = MasrafyBrandTone(
-  main: Color(0xFF52C41A),
-  bg: Color(0xFFF6FFED),
-  bgHover: Color(0xFFD9F7BE),
-  border: Color(0xFFB7EB8F),
-  borderHover: Color(0xFF95DE64),
-  hover: Color(0xFF95DE64),
-  active: Color(0xFF389E0D),
-  text: Color(0xFF52C41A),
-  textHover: Color(0xFF73D13D),
-  textActive: Color(0xFF389E0D),
+  main: Color(0xFF21A05A),
+  bg: Color(0xFFEDF7F2),
+  bgHover: Color(0xFFDEF1E6),
+  border: Color(0xFF9BD4B5),
+  borderHover: Color(0xFF52B57E),
+  hover: Color(0xFF52B57E),
+  active: Color(0xFF1B834A),
+  text: Color(0xFF21A05A),
+  textHover: Color(0xFF52B57E),
+  textActive: Color(0xFF1B834A),
+  outline: Color(0x1A21A05A),
 );
 
 const masrafySuccessDark = MasrafyBrandTone(
-  main: Color(0xFF49AA19),
-  bg: Color(0xFF162312),
-  bgHover: Color(0xFF1D3712),
-  border: Color(0xFF274916),
-  borderHover: Color(0xFF306317),
-  hover: Color(0xFF306317),
-  active: Color(0xFF3C8618),
-  text: Color(0xFF49AA19),
-  textHover: Color(0xFF6ABE39),
-  textActive: Color(0xFF3C8618),
+  main: Color(0xFF42AE73),
+  bg: Color(0xFF04130B),
+  bgHover: Color(0xFF072012),
+  border: Color(0xFF0B361F),
+  borderHover: Color(0xFF104D2B),
+  hover: Color(0xFF71C296),
+  active: Color(0xFF21A05A),
+  text: Color(0xFF42AE73),
+  textHover: Color(0xFF71C296),
+  textActive: Color(0xFF21A05A),
+  outline: Color(0x2621A05A),
 );
 
 const masrafyWarningLight = MasrafyBrandTone(
-  main: Color(0xFFFAAD14),
-  bg: Color(0xFFFFFBE6),
-  bgHover: Color(0xFFFFF1B8),
-  border: Color(0xFFFFE58F),
-  borderHover: Color(0xFFFFD666),
-  hover: Color(0xFFFFD666),
-  active: Color(0xFFD48806),
-  text: Color(0xFFFAAD14),
-  textHover: Color(0xFFFFC53D),
-  textActive: Color(0xFFD48806),
-  outline: Color(0x1AFFD705),
+  main: Color(0xFFFCBC2B),
+  bg: Color(0xFFFFFAEE),
+  bgHover: Color(0xFFFFF5DF),
+  border: Color(0xFFFEE1A0),
+  borderHover: Color(0xFFFDCB5A),
+  hover: Color(0xFFFDCB5A),
+  active: Color(0xFFCF9A23),
+  text: Color(0xFFFCBC2B),
+  textHover: Color(0xFFFDCB5A),
+  textActive: Color(0xFFCF9A23),
+  outline: Color(0x1AFCBC2B),
 );
 
 const masrafyWarningDark = MasrafyBrandTone(
-  main: Color(0xFFD89614),
-  bg: Color(0xFF2B2111),
-  bgHover: Color(0xFF443111),
-  border: Color(0xFF594214),
-  borderHover: Color(0xFF7C5914),
-  hover: Color(0xFF7C5914),
-  active: Color(0xFFAA7714),
-  text: Color(0xFFD89614),
-  textHover: Color(0xFFE8B339),
-  textActive: Color(0xFFAA7714),
-  outline: Color(0x26AD6B00),
+  main: Color(0xFFFCBC2B),
+  bg: Color(0xFF1E1705),
+  bgHover: Color(0xFF322609),
+  border: Color(0xFF56400F),
+  borderHover: Color(0xFF795A15),
+  hover: Color(0xFFFDCB5A),
+  active: Color(0xFFDEA526),
+  text: Color(0xFFFCBC2B),
+  textHover: Color(0xFFFDCB5A),
+  textActive: Color(0xFFDEA526),
+  outline: Color(0x26FCBC2B),
 );
 
-const masrafyInfoLight = masrafyPrimaryLight;
-const masrafyInfoDark = masrafyPrimaryDark;
+// Info reuses the Secondary blue tone (classic "info" = blue).
+const masrafyInfoLight = masrafySecondaryLight;
+const masrafyInfoDark = masrafySecondaryDark;
 
 const masrafyErrorLight = MasrafyBrandTone(
-  main: Color(0xFFFF4D4F),
-  bg: Color(0xFFFFF2F0),
-  bgHover: Color(0xFFFFF1F0),
-  border: Color(0xFFFFCCC7),
-  borderHover: Color(0xFFFFA39E),
-  hover: Color(0xFFFF7875),
-  active: Color(0xFFD9363E),
-  text: Color(0xFFFF4D4F),
-  textHover: Color(0xFFFF7875),
-  textActive: Color(0xFFD9363E),
-  outline: Color(0x0FFF2606),
+  main: Color(0xFFD3292C),
+  bg: Color(0xFFFBEEEE),
+  bgHover: Color(0xFFF8DFDF),
+  border: Color(0xFFEB9FA0),
+  borderHover: Color(0xFFDD585A),
+  hover: Color(0xFFDD585A),
+  active: Color(0xFFAD2224),
+  text: Color(0xFFD3292C),
+  textHover: Color(0xFFDD585A),
+  textActive: Color(0xFFAD2224),
+  outline: Color(0x1AD3292C),
 );
 
 const masrafyErrorDark = MasrafyBrandTone(
-  main: Color(0xFFDC4446),
-  bg: Color(0xFF2C1618),
-  bgHover: Color(0xFF451D1F),
-  border: Color(0xFF5B2526),
-  borderHover: Color(0xFF7E2E2F),
-  hover: Color(0xFFE86E6B),
-  active: Color(0xFFAD393A),
-  text: Color(0xFFDC4446),
-  textHover: Color(0xFFE86E6B),
-  textActive: Color(0xFFAD393A),
-  outline: Color(0x1CEE2638),
+  main: Color(0xFFD84345),
+  bg: Color(0xFF190505),
+  bgHover: Color(0xFF2A0809),
+  border: Color(0xFF480E0F),
+  borderHover: Color(0xFF651415),
+  hover: Color(0xFFE16C6E),
+  active: Color(0xFFD3292C),
+  text: Color(0xFFD84345),
+  textHover: Color(0xFFE16C6E),
+  textActive: Color(0xFFD3292C),
+  outline: Color(0x26D3292C),
 );
 
+// Links follow the Secondary blue triplet.
 const masrafyLinkLight = MasrafyLinkColors(
-  main: Color(0xFF338284),
-  hover: Color(0xFF53ADAE),
-  active: Color(0xFF2B7376),
+  main: Color(0xFF0082F8),
+  hover: Color(0xFF3990FF),
+  active: Color(0xFF005DB5),
 );
 
 const masrafyLinkDark = MasrafyLinkColors(
-  main: Color(0xFF338284),
-  hover: Color(0xFF53ADAE),
-  active: Color(0xFF2B7376),
+  main: Color(0xFF3990FF),
+  hover: Color(0xFF6BACFF),
+  active: Color(0xFF0082F8),
 );
 
+// Controls (checkbox / radio / toggle) take the Primary indigo selection bg.
 const masrafyControlLight = MasrafyControlColors(
-  itemBgActive: Color(0xFFF3FAF9),
+  itemBgActive: Color(0xFFEEEFF5),
   itemBgActiveDisabled: Color(0x26000000),
-  itemBgActiveHover: Color(0xFFD7F0EE),
+  itemBgActiveHover: Color(0xFFDFE0EC),
   itemBgHover: Color(0x0A000000),
-  outline: Color(0x1A0591FF),
+  outline: Color(0x1A283382),
   tmpOutline: Color(0x05000000),
 );
 
 const masrafyControlDark = MasrafyControlColors(
-  itemBgActive: Color(0xFF0E2225),
+  itemBgActive: Color(0xFF0E1E44),
   itemBgActiveDisabled: Color(0x2EFFFFFF),
-  itemBgActiveHover: Color(0xFF203F41),
+  itemBgActiveHover: Color(0xFF162550),
   itemBgHover: Color(0x14FFFFFF),
-  outline: Color(0x26003CB4),
+  outline: Color(0x264D57A8),
   tmpOutline: Color(0x0AFFFFFF),
 );
 
 // ---------------------------------------------------------------------------
 // Dashboard — medal, crown, chart tokens
+// NOT from Figma "Mode 1" (no data-viz tokens supplied). Retained from the
+// pilot100 baseline; revisit when a Masrafy data-viz palette is defined.
 // ---------------------------------------------------------------------------
 
 class MasrafyMedalColors {
@@ -291,9 +340,8 @@ class MasrafyChartColors {
   final Color userFill;
   final Color averageFill;
 
-  /// Brand-locked data-viz palette used by multi-ring radial charts
-  /// (e.g. `PlanSubjectsSummaryCard`). Order = innermost → outermost.
-  /// Same in light + dark per Figma 3268:100917.
+  /// Brand-locked data-viz palette used by multi-ring radial charts.
+  /// Order = innermost → outermost. NOT from Figma "Mode 1".
   final List<Color> subjectRings;
 
   /// Dark neutral dot used as the chart's focus indicator. Stays the
@@ -338,10 +386,8 @@ const masrafyCrownDark = MasrafyCrownColors(
   stroke: Color(0xFFD48806),
 );
 
-// Multi-ring data-viz palette (Figma node 3268:100917). Brand-locked
-// so the same hues read identically across light + dark modes.
-// Order = innermost → outermost (Air Law / Principles / Mass /
-// Performance in the canonical 4-subject layout).
+// Multi-ring data-viz palette. NOT from Figma "Mode 1"; brand-locked so the
+// same hues read identically across light + dark modes.
 const _masrafyChartSubjectRings = <Color>[
   Color(0xFF9E49F9),
   Color(0xFF47D3A2),
@@ -352,18 +398,18 @@ const _masrafyChartSubjectRings = <Color>[
 const _masrafyChartIndicator = Color(0xFF2D2D2D);
 
 const masrafyChartLight = MasrafyChartColors(
-  userLine: Color(0xFF338284),
+  userLine: Color(0xFF283382),
   averageLine: Color(0xFFFF7A45),
-  userFill: Color(0x33338284),
+  userFill: Color(0x33283382),
   averageFill: Color(0x33FF7A45),
   subjectRings: _masrafyChartSubjectRings,
   indicator: _masrafyChartIndicator,
 );
 
 const masrafyChartDark = MasrafyChartColors(
-  userLine: Color(0xFF53ADAE),
+  userLine: Color(0xFF4D57A8),
   averageLine: Color(0xFFE87040),
-  userFill: Color(0x2253ADAE),
+  userFill: Color(0x224D57A8),
   averageFill: Color(0x22E87040),
   subjectRings: _masrafyChartSubjectRings,
   indicator: _masrafyChartIndicator,

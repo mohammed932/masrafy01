@@ -3,7 +3,20 @@ import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router } from '@angular/router';
-import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import {
+  ArrowRightOutline,
+  BankOutline,
+  CrownFill,
+  ExclamationCircleFill,
+  EyeOutline,
+  EyeInvisibleOutline,
+  LockFill,
+  LockOutline,
+  MailOutline,
+  SafetyCertificateOutline,
+  TeamOutline,
+} from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode, ErrorEnvelope } from '@core/auth/auth.types';
@@ -17,6 +30,21 @@ interface LoginControls {
   selector: 'app-login-page',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, NzIconModule],
+  providers: [
+    provideNzIconsPatch([
+      ArrowRightOutline,
+      BankOutline,
+      CrownFill,
+      ExclamationCircleFill,
+      EyeOutline,
+      EyeInvisibleOutline,
+      LockFill,
+      LockOutline,
+      MailOutline,
+      SafetyCertificateOutline,
+      TeamOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="login-container" role="main">

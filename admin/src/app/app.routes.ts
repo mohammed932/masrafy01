@@ -39,11 +39,11 @@ export const APP_ROUTES: Routes = [
     loadChildren: () => import('./features/users/users.routes').then((m) => m.USERS_ROUTES),
   },
   {
+    // Legacy path — programs now live under the merged Banks workspace.
+    // pathMatch:'prefix' preserves the tail: /bank-programs/ABC/edit → /banks/programs/ABC/edit.
     path: 'bank-programs',
-    canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'sales_agent', 'analyst'])],
-    loadChildren: () =>
-      import('./features/bank-programs/bank-programs.routes').then((m) => m.BANK_PROGRAMS_ROUTES),
+    redirectTo: 'banks/programs',
+    pathMatch: 'prefix',
   },
   {
     path: 'applications',
@@ -58,15 +58,6 @@ export const APP_ROUTES: Routes = [
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
     loadChildren: () =>
       import('./features/customers/customers.routes').then((m) => m.CUSTOMERS_ROUTES),
-  },
-  {
-    path: 'lead-analytics',
-    canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
-    loadChildren: () =>
-      import('./features/lead-analytics/lead-analytics.routes').then(
-        (m) => m.LEAD_ANALYTICS_ROUTES,
-      ),
   },
   {
     path: 'banks',

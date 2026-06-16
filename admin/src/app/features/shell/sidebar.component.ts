@@ -6,7 +6,6 @@ import {
   DashboardOutline,
   TeamOutline,
   BankOutline,
-  ClusterOutline,
   FileTextOutline,
   FundOutline,
   ControlOutline,
@@ -32,7 +31,6 @@ import { CanDirective } from '../../shared/can.directive';
       DashboardOutline,
       TeamOutline,
       BankOutline,
-      ClusterOutline,
       FileTextOutline,
       FundOutline,
       ControlOutline,
@@ -58,13 +56,8 @@ import { CanDirective } from '../../shared/can.directive';
           <span class="item-label" i18n="@@sidebar.users">Users</span>
         </a>
 
-        <a routerLink="/bank-programs" routerLinkActive="active" class="item">
-          <span nz-icon nzType="bank" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
-          <span class="item-label" i18n="@@sidebar.bank_programs">Bank programs</span>
-        </a>
-
         <a routerLink="/banks" routerLinkActive="active" class="item">
-          <span nz-icon nzType="cluster" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span nz-icon nzType="bank" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.banks">Banks</span>
         </a>
 
@@ -73,15 +66,6 @@ import { CanDirective } from '../../shared/can.directive';
           <span class="item-label" i18n="@@sidebar.applications">Applications</span>
         </a>
 
-        <a
-          *can="['super_admin', 'sales_manager', 'analyst']"
-          routerLink="/lead-analytics"
-          routerLinkActive="active"
-          class="item"
-        >
-          <span nz-icon nzType="fund" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
-          <span class="item-label" i18n="@@sidebar.lead_analytics">Lead analytics</span>
-        </a>
         <a
           *can="['super_admin', 'sales_manager']"
           routerLink="/questionnaire"
