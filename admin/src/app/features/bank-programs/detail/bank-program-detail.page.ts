@@ -59,12 +59,12 @@ import type { BankProgramResponse } from '../bank-programs.types';
     @if (program()) {
     <section class="page">
       <header class="page-header">
-        <a routerLink="/banks/programs" class="back-link">
+        <a [routerLink]="backLink()" class="back-link">
           <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.detail.back">Back to list</span>
+          <span i18n="@@bank_programs.detail.back">Back to bank</span>
         </a>
         <div class="title-row">
-          <h1 class="page-title">{{ program()!.programCode }}</h1>
+          <h1 class="page-title">{{ program()!.friendlyName }}</h1>
           <span
             class="status-chip"
             [class.active]="program()!.active"
@@ -74,8 +74,9 @@ import type { BankProgramResponse } from '../bank-programs.types';
           </span>
         </div>
         <p class="page-subtitle">
-          {{ program()!.friendlyName }} · {{ program()!.bankName }} ·
-          {{ program()!.productCategory | humanize }} · v{{ program()!.version }}
+          {{ program()!.bankName }} · {{ program()!.productCategory | humanize }} · v{{
+            program()!.version
+          }}
         </p>
         <div class="actions">
           <a
@@ -496,6 +497,12 @@ export class BankProgramDetailPage {
   );
   readonly program = signal<BankProgramResponse | null>(null);
 
+  /** Back / post-delete target: the owning bank's detail page (registry fallback). */
+  readonly backLink = computed<unknown[]>(() => {
+    const id = this.program()?.bankId;
+    return id ? ['/banks', id] : ['/banks'];
+  });
+
   readonly whatIfForm = new FormGroup({
     employmentType: new FormControl<string>('salaried', { nonNullable: true }),
     transferType: new FormControl<string>('payroll', { nonNullable: true }),
@@ -562,7 +569,7 @@ export class BankProgramDetailPage {
       nzFooter: null,
     });
     ref.afterClose.subscribe((deleted) => {
-      if (deleted) void this.router.navigate(['/banks/programs']);
+      if (deleted) void this.router.navigate(p.bankId ? ['/banks', p.bankId] : ['/banks']);
     });
   }
 }

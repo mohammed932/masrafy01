@@ -24,9 +24,14 @@ const PROGRAM_TYPES = ['income_proof', 'income_surrogate'] as const;
 export type ProgramType = (typeof PROGRAM_TYPES)[number];
 
 export class CreateBankProgramDto {
+  /**
+   * Optional — auto-generated server-side from bank + category when omitted
+   * (A33: codes are never hand-typed). A supplied value still validates.
+   */
+  @IsOptional()
   @IsString()
   @Matches(/^[A-Z0-9_-]{3,32}$/, { message: 'programCode must match ^[A-Z0-9_-]{3,32}$' })
-  programCode!: string;
+  programCode?: string;
 
   @IsString() @MinLength(1) @MaxLength(80) bankName!: string;
   @IsOptional() @IsString() @MaxLength(30) bankId?: string;

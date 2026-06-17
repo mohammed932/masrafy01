@@ -46,7 +46,7 @@ import {
   template: `
     <section class="page">
       <header class="page-head">
-        <a routerLink="/banks/programs" class="back" i18n="@@scoring.editor.back">← Bank programs</a>
+        <a routerLink="/banks" class="back" i18n="@@scoring.editor.back">← Banks</a>
         <h1 i18n="@@scoring.editor.title">Approval scoring weights</h1>
         @if (program(); as p) {
           <p class="prog-line">

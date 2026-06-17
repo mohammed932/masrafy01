@@ -796,6 +796,966 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'{value}٪'**
   String match_rate_percent(String value);
+
+  /// No description provided for @common_coming_soon.
+  ///
+  /// In ar, this message translates to:
+  /// **'قريبًا'**
+  String get common_coming_soon;
+
+  /// No description provided for @error_invalid_credentials.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الهاتف أو كلمة المرور غير صحيحة.'**
+  String get error_invalid_credentials;
+
+  /// No description provided for @error_network.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.'**
+  String get error_network;
+
+  /// No description provided for @error_generic.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث خطأ ما. حاول مرة أخرى.'**
+  String get error_generic;
+
+  /// No description provided for @onboarding_slide1_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتشف عروض قروض مصمّمة لك.'**
+  String get onboarding_slide1_title;
+
+  /// No description provided for @onboarding_slide1_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'نبحث في عدة بنوك رائدة لإيجاد أفضل الأسعار والشروط المناسبة لملفك تحديدًا.'**
+  String get onboarding_slide1_body;
+
+  /// No description provided for @onboarding_slide2_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'قارن العروض في ثوانٍ.'**
+  String get onboarding_slide2_title;
+
+  /// No description provided for @onboarding_slide2_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'قروض شخصية وسيارات وعقارية وأعمال — جنبًا إلى جنب، بأسعار وحدود واضحة.'**
+  String get onboarding_slide2_body;
+
+  /// No description provided for @onboarding_slide3_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدّم بثقة.'**
+  String get onboarding_slide3_title;
+
+  /// No description provided for @onboarding_slide3_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'نطابقك مع العروض، ثم تتقدّم للعرض الأنسب لك. مجاني لك دائمًا.'**
+  String get onboarding_slide3_body;
+
+  /// No description provided for @onboarding_next.
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي'**
+  String get onboarding_next;
+
+  /// No description provided for @onboarding_skip.
+  ///
+  /// In ar, this message translates to:
+  /// **'تخطّي'**
+  String get onboarding_skip;
+
+  /// No description provided for @onboarding_signin.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول'**
+  String get onboarding_signin;
+
+  /// No description provided for @onboarding_or_continue.
+  ///
+  /// In ar, this message translates to:
+  /// **'أو تابع باستخدام'**
+  String get onboarding_or_continue;
+
+  /// No description provided for @onboarding_google.
+  ///
+  /// In ar, this message translates to:
+  /// **'Google'**
+  String get onboarding_google;
+
+  /// No description provided for @onboarding_apple.
+  ///
+  /// In ar, this message translates to:
+  /// **'Apple'**
+  String get onboarding_apple;
+
+  /// No description provided for @onboarding_lang_toggle.
+  ///
+  /// In ar, this message translates to:
+  /// **'English'**
+  String get onboarding_lang_toggle;
+
+  /// No description provided for @login_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول إلى حسابك'**
+  String get login_title;
+
+  /// No description provided for @login_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل الدخول لاكتشاف أفضل عروض القروض'**
+  String get login_subtitle;
+
+  /// No description provided for @login_identifier_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد أو الهاتف'**
+  String get login_identifier_label;
+
+  /// No description provided for @login_identifier_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ahmed@masrafy.io'**
+  String get login_identifier_hint;
+
+  /// No description provided for @login_password_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور'**
+  String get login_password_label;
+
+  /// No description provided for @login_password_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور'**
+  String get login_password_hint;
+
+  /// No description provided for @login_forgot.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل نسيت كلمة المرور؟'**
+  String get login_forgot;
+
+  /// No description provided for @login_cta.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول'**
+  String get login_cta;
+
+  /// No description provided for @login_or_continue.
+  ///
+  /// In ar, this message translates to:
+  /// **'أو تابع باستخدام'**
+  String get login_or_continue;
+
+  /// No description provided for @login_google.
+  ///
+  /// In ar, this message translates to:
+  /// **'Google'**
+  String get login_google;
+
+  /// No description provided for @login_apple.
+  ///
+  /// In ar, this message translates to:
+  /// **'Apple'**
+  String get login_apple;
+
+  /// No description provided for @login_no_account.
+  ///
+  /// In ar, this message translates to:
+  /// **'ليس لديك حساب؟'**
+  String get login_no_account;
+
+  /// No description provided for @login_create_account.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء حساب'**
+  String get login_create_account;
+
+  /// No description provided for @login_terms.
+  ///
+  /// In ar, this message translates to:
+  /// **'بالتسجيل، أنت توافق على شروط الخدمة'**
+  String get login_terms;
+
+  /// No description provided for @signup_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ حسابك'**
+  String get signup_title;
+
+  /// No description provided for @signup_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سجّل لاكتشاف أفضل عروض القروض'**
+  String get signup_subtitle;
+
+  /// No description provided for @signup_photo_upload.
+  ///
+  /// In ar, this message translates to:
+  /// **'رفع'**
+  String get signup_photo_upload;
+
+  /// No description provided for @signup_first_name_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الاسم الأول'**
+  String get signup_first_name_label;
+
+  /// No description provided for @signup_first_name_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'محمد'**
+  String get signup_first_name_hint;
+
+  /// No description provided for @signup_last_name_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسم العائلة'**
+  String get signup_last_name_label;
+
+  /// No description provided for @signup_last_name_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'إسكندر'**
+  String get signup_last_name_hint;
+
+  /// No description provided for @signup_phone_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم الهاتف'**
+  String get signup_phone_label;
+
+  /// No description provided for @signup_phone_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'101 234 5678'**
+  String get signup_phone_hint;
+
+  /// No description provided for @signup_email_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'البريد الإلكتروني'**
+  String get signup_email_label;
+
+  /// No description provided for @signup_email_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ahmed@example.com'**
+  String get signup_email_hint;
+
+  /// No description provided for @signup_dob_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'تاريخ الميلاد'**
+  String get signup_dob_label;
+
+  /// No description provided for @signup_dob_day.
+  ///
+  /// In ar, this message translates to:
+  /// **'اليوم'**
+  String get signup_dob_day;
+
+  /// No description provided for @signup_dob_month.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشهر'**
+  String get signup_dob_month;
+
+  /// No description provided for @signup_dob_year.
+  ///
+  /// In ar, this message translates to:
+  /// **'السنة'**
+  String get signup_dob_year;
+
+  /// No description provided for @signup_age_verified.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم التحقق من العمر — {years} سنة'**
+  String signup_age_verified(Object years);
+
+  /// No description provided for @signup_password_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور'**
+  String get signup_password_label;
+
+  /// No description provided for @signup_password_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنشئ كلمة مرور'**
+  String get signup_password_hint;
+
+  /// No description provided for @signup_confirm_password_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد كلمة المرور'**
+  String get signup_confirm_password_label;
+
+  /// No description provided for @signup_confirm_password_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعد إدخال كلمة المرور'**
+  String get signup_confirm_password_hint;
+
+  /// No description provided for @signup_national_id_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرقم القومي'**
+  String get signup_national_id_label;
+
+  /// No description provided for @signup_national_id_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'— مطلوب للأهلية للحصول على القرض'**
+  String get signup_national_id_hint;
+
+  /// No description provided for @signup_id_front.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجه الأمامي'**
+  String get signup_id_front;
+
+  /// No description provided for @signup_id_back.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجه الخلفي'**
+  String get signup_id_back;
+
+  /// No description provided for @signup_id_tap_to_upload.
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط للرفع'**
+  String get signup_id_tap_to_upload;
+
+  /// No description provided for @signup_terms.
+  ///
+  /// In ar, this message translates to:
+  /// **'أوافق على شروط الخدمة وسياسة الخصوصية الخاصة بمصرفي، وأوافق على معالجة بياناتي المالية.'**
+  String get signup_terms;
+
+  /// No description provided for @signup_cta.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنشاء الحساب'**
+  String get signup_cta;
+
+  /// No description provided for @signup_have_account.
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك حساب بالفعل؟'**
+  String get signup_have_account;
+
+  /// No description provided for @signup_sign_in.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول'**
+  String get signup_sign_in;
+
+  /// No description provided for @otp_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق من رقم هاتفك'**
+  String get otp_title;
+
+  /// No description provided for @otp_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أرسلنا رمزًا من 6 أرقام إلى {destination}. أدخله بالأسفل.'**
+  String otp_subtitle(Object destination);
+
+  /// No description provided for @otp_enter_code.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رمز التحقق'**
+  String get otp_enter_code;
+
+  /// No description provided for @otp_attempts_left.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} محاولات متبقية'**
+  String otp_attempts_left(Object count);
+
+  /// No description provided for @otp_resend_in.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة إرسال الرمز خلال'**
+  String get otp_resend_in;
+
+  /// No description provided for @otp_resend_action.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة إرسال الرمز'**
+  String get otp_resend_action;
+
+  /// No description provided for @otp_expiry_notice.
+  ///
+  /// In ar, this message translates to:
+  /// **'ينتهي هذا الرمز خلال {minutes} دقائق. لا تشاركه مع أحد — لن يطلبه منك مصرفي أبدًا.'**
+  String otp_expiry_notice(Object minutes);
+
+  /// No description provided for @otp_verify_cta.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقّق وتابع'**
+  String get otp_verify_cta;
+
+  /// No description provided for @otp_didnt_receive.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يصلك الرمز؟'**
+  String get otp_didnt_receive;
+
+  /// No description provided for @otp_wrong_number.
+  ///
+  /// In ar, this message translates to:
+  /// **'رقم خاطئ؟'**
+  String get otp_wrong_number;
+
+  /// No description provided for @otp_change_phone.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير الرقم'**
+  String get otp_change_phone;
+
+  /// No description provided for @home_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما نوع القرض الذي تبحث عنه؟'**
+  String get home_title;
+
+  /// No description provided for @home_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستشار القروض جاهز لمساعدتك'**
+  String get home_subtitle;
+
+  /// No description provided for @home_loan_types.
+  ///
+  /// In ar, this message translates to:
+  /// **'أنواع القروض'**
+  String get home_loan_types;
+
+  /// No description provided for @home_continue.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get home_continue;
+
+  /// No description provided for @home_support_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدعم'**
+  String get home_support_label;
+
+  /// No description provided for @home_support_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'اسأل مصرفي عن أي شيء'**
+  String get home_support_title;
+
+  /// No description provided for @home_nav_loans.
+  ///
+  /// In ar, this message translates to:
+  /// **'قروضي'**
+  String get home_nav_loans;
+
+  /// No description provided for @home_nav_profile.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابي'**
+  String get home_nav_profile;
+
+  /// No description provided for @home_cat_personal.
+  ///
+  /// In ar, this message translates to:
+  /// **'شخصي'**
+  String get home_cat_personal;
+
+  /// No description provided for @home_cat_mortgage.
+  ///
+  /// In ar, this message translates to:
+  /// **'عقاري'**
+  String get home_cat_mortgage;
+
+  /// No description provided for @home_cat_car.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيارة'**
+  String get home_cat_car;
+
+  /// No description provided for @home_cat_business.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعمال'**
+  String get home_cat_business;
+
+  /// No description provided for @home_limit_personal.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى ٢٠٠ ألف ج.م'**
+  String get home_limit_personal;
+
+  /// No description provided for @home_limit_mortgage.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى ٣ مليون ج.م'**
+  String get home_limit_mortgage;
+
+  /// No description provided for @home_limit_car.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى ٢ مليون ج.م'**
+  String get home_limit_car;
+
+  /// No description provided for @home_limit_business.
+  ///
+  /// In ar, this message translates to:
+  /// **'حتى ٥ مليون ج.م'**
+  String get home_limit_business;
+
+  /// No description provided for @home_apr_personal.
+  ///
+  /// In ar, this message translates to:
+  /// **'من ١١٪ سنويًا'**
+  String get home_apr_personal;
+
+  /// No description provided for @home_apr_mortgage.
+  ///
+  /// In ar, this message translates to:
+  /// **'من ٩٫٥٪ سنويًا'**
+  String get home_apr_mortgage;
+
+  /// No description provided for @home_apr_car.
+  ///
+  /// In ar, this message translates to:
+  /// **'من ١٠٫٢٪ سنويًا'**
+  String get home_apr_car;
+
+  /// No description provided for @home_apr_business.
+  ///
+  /// In ar, this message translates to:
+  /// **'من ١٢٪ سنويًا'**
+  String get home_apr_business;
+
+  /// No description provided for @q_common_yes.
+  ///
+  /// In ar, this message translates to:
+  /// **'نعم'**
+  String get q_common_yes;
+
+  /// No description provided for @q_common_no.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا'**
+  String get q_common_no;
+
+  /// No description provided for @q_common_currency_egp.
+  ///
+  /// In ar, this message translates to:
+  /// **'ج.م'**
+  String get q_common_currency_egp;
+
+  /// No description provided for @q_mortgage_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلب تمويل عقاري'**
+  String get q_mortgage_title;
+
+  /// No description provided for @q_mortgage_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنطابقك مع البنوك المتخصصة في احتياجاتك'**
+  String get q_mortgage_subtitle;
+
+  /// No description provided for @q_mortgage_next.
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي'**
+  String get q_mortgage_next;
+
+  /// No description provided for @q_mortgage_finish.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء'**
+  String get q_mortgage_finish;
+
+  /// No description provided for @q_mortgage_submitted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حفظ إجاباتك'**
+  String get q_mortgage_submitted;
+
+  /// No description provided for @q_mortgage_step1_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات العقار والتمويل'**
+  String get q_mortgage_step1_title;
+
+  /// No description provided for @q_mortgage_step2_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوظيفة والدخل'**
+  String get q_mortgage_step2_title;
+
+  /// No description provided for @q_mortgage_step3_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'السجل الائتماني'**
+  String get q_mortgage_step3_title;
+
+  /// No description provided for @q_mortgage_step4_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'التفضيلات'**
+  String get q_mortgage_step4_title;
+
+  /// No description provided for @q_mortgage_select_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر'**
+  String get q_mortgage_select_hint;
+
+  /// No description provided for @q_mortgage_years.
+  ///
+  /// In ar, this message translates to:
+  /// **'{years} سنة'**
+  String q_mortgage_years(Object years);
+
+  /// No description provided for @q_mortgage_q_property_type.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما نوع العقار الذي ترغب في تمويله؟'**
+  String get q_mortgage_q_property_type;
+
+  /// No description provided for @q_mortgage_hint_property_type.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر نوع العقار'**
+  String get q_mortgage_hint_property_type;
+
+  /// No description provided for @q_opt_property_apartment.
+  ///
+  /// In ar, this message translates to:
+  /// **'شقة'**
+  String get q_opt_property_apartment;
+
+  /// No description provided for @q_opt_property_villa.
+  ///
+  /// In ar, this message translates to:
+  /// **'فيلا'**
+  String get q_opt_property_villa;
+
+  /// No description provided for @q_opt_property_duplex.
+  ///
+  /// In ar, this message translates to:
+  /// **'دوبلكس'**
+  String get q_opt_property_duplex;
+
+  /// No description provided for @q_opt_property_commercial.
+  ///
+  /// In ar, this message translates to:
+  /// **'محل تجاري'**
+  String get q_opt_property_commercial;
+
+  /// No description provided for @q_opt_property_office.
+  ///
+  /// In ar, this message translates to:
+  /// **'مكتب إداري'**
+  String get q_opt_property_office;
+
+  /// No description provided for @q_opt_property_other.
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get q_opt_property_other;
+
+  /// No description provided for @q_mortgage_q_in_compound.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل يقع العقار داخل كمبوند سكني؟'**
+  String get q_mortgage_q_in_compound;
+
+  /// No description provided for @q_mortgage_q_registration_status.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما حالة تسجيل العقار؟'**
+  String get q_mortgage_q_registration_status;
+
+  /// No description provided for @q_opt_reg_registered.
+  ///
+  /// In ar, this message translates to:
+  /// **'مسجل رسميًا'**
+  String get q_opt_reg_registered;
+
+  /// No description provided for @q_opt_reg_eligible.
+  ///
+  /// In ar, this message translates to:
+  /// **'قابل للتسجيل'**
+  String get q_opt_reg_eligible;
+
+  /// No description provided for @q_opt_reg_not_registered.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير مسجل'**
+  String get q_opt_reg_not_registered;
+
+  /// No description provided for @q_opt_reg_unsure.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متأكد'**
+  String get q_opt_reg_unsure;
+
+  /// No description provided for @q_mortgage_q_address.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما هو عنوان العقار؟'**
+  String get q_mortgage_q_address;
+
+  /// No description provided for @q_mortgage_hint_governorate.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر المحافظة'**
+  String get q_mortgage_hint_governorate;
+
+  /// No description provided for @q_mortgage_address_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'العنوان'**
+  String get q_mortgage_address_label;
+
+  /// No description provided for @q_mortgage_address_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'الشارع، المبنى، المنطقة'**
+  String get q_mortgage_address_hint;
+
+  /// No description provided for @q_mortgage_q_property_value.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما هي القيمة التقريبية للعقار؟'**
+  String get q_mortgage_q_property_value;
+
+  /// No description provided for @q_mortgage_q_down_payment.
+  ///
+  /// In ar, this message translates to:
+  /// **'كم نسبة المقدم المتوفر لديك حاليًا؟ (٪)'**
+  String get q_mortgage_q_down_payment;
+
+  /// No description provided for @q_mortgage_hint_down_payment.
+  ///
+  /// In ar, this message translates to:
+  /// **'المقدم'**
+  String get q_mortgage_hint_down_payment;
+
+  /// No description provided for @q_opt_dp_under10.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل من ١٠٪'**
+  String get q_opt_dp_under10;
+
+  /// No description provided for @q_opt_dp_10_20.
+  ///
+  /// In ar, this message translates to:
+  /// **'١٠٪ – ٢٠٪'**
+  String get q_opt_dp_10_20;
+
+  /// No description provided for @q_opt_dp_20_30.
+  ///
+  /// In ar, this message translates to:
+  /// **'٢٠٪ – ٣٠٪'**
+  String get q_opt_dp_20_30;
+
+  /// No description provided for @q_opt_dp_over30.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكثر من ٣٠٪'**
+  String get q_opt_dp_over30;
+
+  /// No description provided for @q_mortgage_q_repayment_period.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما مدة السداد المناسبة لك؟'**
+  String get q_mortgage_q_repayment_period;
+
+  /// No description provided for @q_mortgage_repayment_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة السداد'**
+  String get q_mortgage_repayment_label;
+
+  /// No description provided for @q_mortgage_q_employment.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما هي حالتك الوظيفية؟'**
+  String get q_mortgage_q_employment;
+
+  /// No description provided for @q_opt_emp_government.
+  ///
+  /// In ar, this message translates to:
+  /// **'موظف حكومي'**
+  String get q_opt_emp_government;
+
+  /// No description provided for @q_opt_emp_private.
+  ///
+  /// In ar, this message translates to:
+  /// **'موظف قطاع خاص'**
+  String get q_opt_emp_private;
+
+  /// No description provided for @q_opt_emp_business_owner.
+  ///
+  /// In ar, this message translates to:
+  /// **'صاحب عمل'**
+  String get q_opt_emp_business_owner;
+
+  /// No description provided for @q_opt_emp_freelancer.
+  ///
+  /// In ar, this message translates to:
+  /// **'عمل حر'**
+  String get q_opt_emp_freelancer;
+
+  /// No description provided for @q_opt_emp_retired.
+  ///
+  /// In ar, this message translates to:
+  /// **'متقاعد'**
+  String get q_opt_emp_retired;
+
+  /// No description provided for @q_mortgage_q_income.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما متوسط دخلك الشهري؟'**
+  String get q_mortgage_q_income;
+
+  /// No description provided for @q_mortgage_hint_income.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدخل الشهري'**
+  String get q_mortgage_hint_income;
+
+  /// No description provided for @q_opt_income_b1.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل من ٥٠٬٠٠٠ ج.م'**
+  String get q_opt_income_b1;
+
+  /// No description provided for @q_opt_income_b2.
+  ///
+  /// In ar, this message translates to:
+  /// **'٥٠٬٠٠٠ – ١٠٠٬٠٠٠ ج.م'**
+  String get q_opt_income_b2;
+
+  /// No description provided for @q_opt_income_b3.
+  ///
+  /// In ar, this message translates to:
+  /// **'١٠٠٬٠٠٠ – ٣٠٠٬٠٠٠ ج.م'**
+  String get q_opt_income_b3;
+
+  /// No description provided for @q_opt_income_b4.
+  ///
+  /// In ar, this message translates to:
+  /// **'٣٠٠٬٠٠٠ – ٦٠٠٬٠٠٠ ج.م'**
+  String get q_opt_income_b4;
+
+  /// No description provided for @q_opt_income_b5.
+  ///
+  /// In ar, this message translates to:
+  /// **'٦٠٠٬٠٠٠ – ١٬٠٠٠٬٠٠٠ ج.م'**
+  String get q_opt_income_b5;
+
+  /// No description provided for @q_opt_income_b6.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكثر من ١٬٠٠٠٬٠٠٠ ج.م'**
+  String get q_opt_income_b6;
+
+  /// No description provided for @q_mortgage_q_salary_transfer.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل يتم تحويل راتبك إلى حساب بنكي؟'**
+  String get q_mortgage_q_salary_transfer;
+
+  /// No description provided for @q_mortgage_q_additional_income.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل لديك مصادر دخل إضافية؟'**
+  String get q_mortgage_q_additional_income;
+
+  /// No description provided for @q_mortgage_q_current_loans.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل لديك حاليًا أي قروض أو التزامات مالية؟'**
+  String get q_mortgage_q_current_loans;
+
+  /// No description provided for @q_mortgage_q_installments.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما إجمالي قيمة أقساطك الشهرية؟'**
+  String get q_mortgage_q_installments;
+
+  /// No description provided for @q_mortgage_installments_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'الأقساط الشهرية'**
+  String get q_mortgage_installments_label;
+
+  /// No description provided for @q_mortgage_installments_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيمة القسط الشهري'**
+  String get q_mortgage_installments_hint;
+
+  /// No description provided for @q_mortgage_q_prior_rejection.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل سبق ورُفض لك طلب تمويل عقاري؟'**
+  String get q_mortgage_q_prior_rejection;
+
+  /// No description provided for @q_mortgage_q_priority.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما الأهم بالنسبة لك في التمويل العقاري؟'**
+  String get q_mortgage_q_priority;
+
+  /// No description provided for @q_opt_priority_lowest_installment.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل قسط شهري'**
+  String get q_opt_priority_lowest_installment;
+
+  /// No description provided for @q_opt_priority_longest_period.
+  ///
+  /// In ar, this message translates to:
+  /// **'أطول مدة سداد'**
+  String get q_opt_priority_longest_period;
+
+  /// No description provided for @q_opt_priority_lowest_down_payment.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل مقدم'**
+  String get q_opt_priority_lowest_down_payment;
+
+  /// No description provided for @q_opt_priority_fastest_approval.
+  ///
+  /// In ar, this message translates to:
+  /// **'أسرع موافقة'**
+  String get q_opt_priority_fastest_approval;
+
+  /// No description provided for @q_opt_priority_lowest_fees.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل مصاريف إدارية'**
+  String get q_opt_priority_lowest_fees;
+
+  /// No description provided for @q_mortgage_q_assistance.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟'**
+  String get q_mortgage_q_assistance;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

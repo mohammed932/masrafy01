@@ -101,9 +101,9 @@ type ToggleKey =
   template: `
     <section class="page">
       <header class="page-header">
-        <a routerLink="/banks/programs" class="back-link">
+        <a [routerLink]="backLink()" class="back-link">
           <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.form.back">Back to list</span>
+          <span i18n="@@bank_programs.form.back">Back</span>
         </a>
         <div class="title-block">
           <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
@@ -194,19 +194,6 @@ type ToggleKey =
             </header>
 
             <div class="grid">
-              <nz-form-item>
-                <nz-form-label [nzFor]="'programCode'" nzRequired i18n="@@bank_programs.field.program_code">Program code</nz-form-label>
-                <nz-form-control [nzErrorTip]="programCodeErrorTpl">
-                  <input nz-input id="programCode" formControlName="programCode" placeholder="ABK-PAYROLL-CAT-A" />
-                  <ng-template #programCodeErrorTpl let-control>
-                    @if (control.hasError('required')) {
-                      <span i18n="@@bank_programs.err.program_code_required">Program code is required.</span>
-                    } @else if (control.hasError('minlength') || control.hasError('maxlength')) {
-                      <span i18n="@@bank_programs.err.program_code_length">Must be 3–32 characters.</span>
-                    }
-                  </ng-template>
-                </nz-form-control>
-              </nz-form-item>
               @if (!preselectedBank) {
                 <nz-form-item>
                   <nz-form-label [nzFor]="'bankId'" nzRequired i18n="@@bank_programs.field.bank">Bank</nz-form-label>
@@ -1172,6 +1159,12 @@ export class BankProgramFormPage implements OnInit {
     initialValue: this.bankIdControl.value,
   });
 
+  /** Back / cancel target: the selected bank's detail page (registry fallback). */
+  readonly backLink = computed<unknown[]>(() => {
+    const id = this.selectedBankId();
+    return id ? ['/banks', id] : ['/banks'];
+  });
+
   // Wizard state
   readonly currentStep = signal<number>(1);
   readonly steps: ReadonlyArray<{ id: number; label: string }> = [
@@ -1271,10 +1264,6 @@ export class BankProgramFormPage implements OnInit {
 
   readonly form = this.fb.nonNullable.group({
     identity: this.fb.nonNullable.group({
-      programCode: new FormControl('', {
-        nonNullable: true,
-        validators: [Validators.required, Validators.minLength(3), Validators.maxLength(32)],
-      }),
       bankName: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, Validators.maxLength(80)],
@@ -1543,14 +1532,39 @@ export class BankProgramFormPage implements OnInit {
     try {
       const res = await this.banksApi.list({ pageSize: 100, active: true });
       this.activeBanks.set(res.data);
-      // Preselect bank from ?bank=<nameEnglish> query (passed from atlas "Add to {Bank}" CTA).
-      const preName = this.route.snapshot.queryParamMap.get('bank');
-      if (preName && !this.selectedBankId()) {
-        const match = res.data.find((b) => b.nameEnglish === preName);
-        if (match) this.onBankPicked(match.id);
-      }
+      await this.preselectBankFromQuery(res.data);
     } catch {
       // dropdown stays empty; user can retry by reloading
+    }
+  }
+
+  /**
+   * Preselect + lock the bank when creating from a bank's detail page.
+   * Prefers `?bankId=<id>` (robust); falls back to legacy `?bank=<nameEnglish>`.
+   * If the id isn't in the active list (inactive / paginated out), fetch it
+   * directly so the chip still resolves.
+   */
+  private async preselectBankFromQuery(active: BankWithProgramCount[]): Promise<void> {
+    if (this.selectedBankId()) return;
+    const params = this.route.snapshot.queryParamMap;
+    const preId = params.get('bankId');
+    if (preId) {
+      let bank = active.find((b) => b.id === preId);
+      if (!bank) {
+        try {
+          bank = (await this.banksApi.getById(preId)).data;
+          this.activeBanks.set([bank, ...active]);
+        } catch {
+          return;
+        }
+      }
+      this.onBankPicked(bank.id);
+      return;
+    }
+    const preName = params.get('bank');
+    if (preName) {
+      const match = active.find((b) => b.nameEnglish === preName);
+      if (match) this.onBankPicked(match.id);
     }
   }
 
@@ -1655,7 +1669,7 @@ export class BankProgramFormPage implements OnInit {
 
   cancel(): void {
     if (this.busy()) return;
-    void this.router.navigate(['/banks/programs']);
+    void this.router.navigate(this.backLink());
   }
 
   async submit(): Promise<void> {
@@ -1730,7 +1744,6 @@ export class BankProgramFormPage implements OnInit {
     const dc = v.documents;
 
     return {
-      programCode: id.programCode,
       bankName: id.bankName,
       ...(this.selectedBankId() ? { bankId: this.selectedBankId()! } : {}),
       friendlyName: id.friendlyName,
@@ -1809,14 +1822,12 @@ export class BankProgramFormPage implements OnInit {
 
   private applyInitial(initial: BankProgramResponse): void {
     this.identityGroup.patchValue({
-      programCode: initial.programCode,
       bankName: initial.bankName,
       friendlyName: initial.friendlyName,
       friendlyNameAr: initial.friendlyNameAr ?? null,
       programType: initial.programType,
       productCategory: initial.productCategory,
     });
-    this.identityGroup.get('programCode')?.disable();
     if (initial.bankId) this.bankIdControl.setValue(initial.bankId);
     this.setArr('identity.currencies', initial.currencies);
 
@@ -1897,9 +1908,6 @@ export class BankProgramFormPage implements OnInit {
     const msg = this.errorsService.toLocalizedMessage(code as never, envelope?.meta);
     this.notification.error($localize`:@@bank_programs.form.dismiss:Dismiss`, msg);
 
-    if (code === 'PROGRAM_CODE_ALREADY_IN_USE') {
-      this.identityGroup.get('programCode')?.setErrors({ duplicate: true });
-    }
     if (code === 'INVALID_VARIABLE_RATE_CONFIGURATION') {
       this.pricingGroup.get('currentEffectiveRatePercent')?.setErrors({ variableRate: true });
       this.pricingGroup.get('baseRatePercent')?.setErrors({ variableRate: true });

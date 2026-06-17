@@ -21,6 +21,11 @@ import {
 import { CreateBankProgramDto } from './dto/create-bank-program.dto';
 import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
 import {
+  buildProgramCodeBase,
+  composeProgramCode,
+  randomCodeSuffix,
+} from './bank-program-code.util';
+import {
   BankProgramListRowDto,
   BankProgramResponseDto,
   DeprecatedKeyDescriptor,
@@ -70,17 +75,22 @@ export class BankProgramsService {
     // Cross-config + registry validation.
     await this.runCrossConfigChecks(dto);
 
+    // Resolve the program code: auto-generated when the admin doesn't supply one
+    // (A33 — codes are never hand-typed). The generation loop already guarantees
+    // uniqueness; this check still guards an explicitly-supplied code.
+    const programCode = dto.programCode ?? (await this.generateProgramCode(dto));
+
     // Uniqueness check (defense-in-depth above Prisma's unique constraint).
-    const existing = await this.repo.findByProgramCode(dto.programCode);
+    const existing = await this.repo.findByProgramCode(programCode);
     if (existing) {
-      throw new ProgramCodeAlreadyInUseException(dto.programCode);
+      throw new ProgramCodeAlreadyInUseException(programCode);
     }
 
     // Persist + emit audit in one transaction.
     const program = await this.prisma.$transaction(async (tx) => {
       const created = await this.repo.create(
         {
-          programCode: dto.programCode,
+          programCode,
           bankName: dto.bankName,
           bankId: dto.bankId,
           friendlyName: dto.friendlyName,
@@ -128,6 +138,21 @@ export class BankProgramsService {
     });
 
     return this.toResponse(program, []);
+  }
+
+  /**
+   * Build a readable, unique program code from bank + category, e.g.
+   * `ABK-PERSONAL-A3F9`. Retries the random suffix until the code is free;
+   * falls back to a timestamp suffix in the (practically impossible) event
+   * every attempt collides.
+   */
+  private async generateProgramCode(dto: CreateBankProgramDto): Promise<string> {
+    const base = buildProgramCodeBase(dto.bankName, dto.productCategory);
+    for (let i = 0; i < 50; i++) {
+      const candidate = composeProgramCode(base, randomCodeSuffix());
+      if (!(await this.repo.findByProgramCode(candidate))) return candidate;
+    }
+    return composeProgramCode(base, Date.now().toString(36).toUpperCase());
   }
 
   // --- Cross-config + registry validation ---------------------------------

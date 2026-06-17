@@ -5,30 +5,16 @@ import type { Routes } from '@angular/router';
  * (super_admin, sales_manager, sales_agent, analyst) for read; write actions
  * are gated per-row inside the list/detail/form components.
  *
- * `BanksShellComponent` wraps the two LIST views (Registry | Programs) so the
- * segmented tab bar persists across them. Program drill-downs render full-page
- * as shell siblings — they own their own header + back-link.
+ * IA: the registry (`''`) lists banks; pressing a bank drills into its detail
+ * page (`:bankId`), which holds that bank's programs. Program create/edit/detail
+ * keep flat `programs/*` paths (programCode is globally unique). The `programs/*`
+ * routes MUST precede `:bankId` so a UUID never shadows them.
  */
 export const BANKS_ROUTES: Routes = [
   {
     path: '',
-    loadComponent: () => import('./banks-shell.component').then((m) => m.BanksShellComponent),
-    children: [
-      { path: '', pathMatch: 'full', redirectTo: 'registry' },
-      {
-        path: 'registry',
-        loadComponent: () => import('./banks-list.page').then((m) => m.BanksListPage),
-      },
-      {
-        path: 'programs',
-        loadComponent: () =>
-          import('../bank-programs/list/bank-programs-list.page').then(
-            (m) => m.BankProgramsListPage,
-          ),
-      },
-    ],
+    loadComponent: () => import('./banks-list.page').then((m) => m.BanksListPage),
   },
-  // Program drill-downs render full-page (outside the segmented shell).
   {
     path: 'programs/new',
     loadComponent: () =>
@@ -45,5 +31,9 @@ export const BANKS_ROUTES: Routes = [
       import('../bank-programs/detail/bank-program-detail.page').then(
         (m) => m.BankProgramDetailPage,
       ),
+  },
+  {
+    path: ':bankId',
+    loadComponent: () => import('./bank-detail.page').then((m) => m.BankDetailPage),
   },
 ];

@@ -408,7 +408,7 @@ class __$$ThemeBlocStateImplCopyWithImpl<$Res>
 /// @nodoc
 
 class _$ThemeBlocStateImpl implements _ThemeBlocState {
-  const _$ThemeBlocStateImpl({this.mode = ColorThemes.dark});
+  const _$ThemeBlocStateImpl({this.mode = ColorThemes.light});
 
   @override
   @JsonKey()

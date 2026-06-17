@@ -22,9 +22,31 @@ const SEED_ACTOR = 'seed-system';
 
 type Category = 'personal' | 'mortgage' | 'car' | 'business';
 
+// Active platform-enumeration members → seed options (code = enum key). Cached
+// per type so a category seed reads each list at most once.
+const _enumOptionsCache = new Map<string, SeedOption[]>();
+async function enumOptions(type: string): Promise<SeedOption[]> {
+  const cached = _enumOptionsCache.get(type);
+  if (cached) return cached;
+  const rows = await prisma.platformEnumeration.findMany({
+    where: { type, active: true },
+    orderBy: { sortOrder: 'asc' },
+  });
+  const opts: SeedOption[] = rows.map((r) => ({
+    code: r.key,
+    labelEn: r.labelEn,
+    labelAr: r.labelAr,
+    profileValue: r.key,
+  }));
+  _enumOptionsCache.set(type, opts);
+  return opts;
+}
+
 interface SeedOption {
   labelEn: string;
   labelAr: string;
+  /** Stable option code; defaults to slug(labelEn). Set for enum-backed options. */
+  code?: string;
   numericPoint?: number;
   scoreValue?: number;
   profileValue?: string;
@@ -37,6 +59,10 @@ interface SeedQuestion {
   systemRole?: string;
   scoringFactorCode?: string;
   profileField?: string;
+  /** When set, options are expanded from the active `platform_enumeration`
+   *  members of this type at seed time — single source of truth (e.g. governorate),
+   *  so mobile still gets the list inside the one questionnaire snapshot call. */
+  optionsFromEnum?: string;
   options: SeedOption[];
 }
 interface SeedGroup {
@@ -290,6 +316,13 @@ const MORTGAGE: CategoryConfig = {
             { labelEn: 'Not registered', labelAr: 'غير مسجل', profileValue: 'not_registered' },
             { labelEn: 'Not sure', labelAr: 'غير متأكد', profileValue: 'unsure' },
           ],
+        },
+        {
+          // Options expanded from the active `governorate` platform-enumeration
+          // members (single source: Manage values), so mobile gets them in the
+          // one questionnaire snapshot call.
+          code: 'governorate', questionEn: 'In which governorate is the property located?', questionAr: 'في أي محافظة يقع العقار؟', isRequired: false,
+          optionsFromEnum: 'governorate', options: [],
         },
         {
           code: 'property_value', questionEn: 'What is the approximate property value?', questionAr: 'ما القيمة التقريبية للعقار؟', systemRole: 'LOAN_AMOUNT',
@@ -666,9 +699,10 @@ async function seedCategory(cfg: CategoryConfig): Promise<void> {
       });
       const optionCodes: string[] = [];
       let oOrder = 0;
-      for (const o of q.options) {
+      const optionList = q.optionsFromEnum ? await enumOptions(q.optionsFromEnum) : q.options;
+      for (const o of optionList) {
         oOrder += 1;
-        const code = slug(o.labelEn);
+        const code = o.code ?? slug(o.labelEn);
         optionCodes.push(code);
         await prisma.questionOption.upsert({
           where: { uniq_question_option_question_code: { questionId: question.id, code } },

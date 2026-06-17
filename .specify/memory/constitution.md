@@ -1143,6 +1143,49 @@ follows `Masrafy[Action][ModalKind][Sheet|Dialog]` — e.g.
 `MasrafyLogoutConfirmationDialog`. Generic single-word names
 (`MasrafyRenameSheet`, `MasrafyEditSheet`) = review block.
 
+**Gradient hero header (NON-NEGOTIABLE, v5.1.0):** the brand gradient hero
+is a SINGLE shared widget — `MasrafyGradientHeader`
+(`core/widgets/common/`). Never fork the gradient, the glass back button,
+or the title/subtitle stack into a feature.
+
+- **Content-sized height (no fixed clip).** The hero height is DERIVED
+  FROM CONTENT, never a hardcoded literal that clips a long title /
+  subtitle / `bottom` bar or wastes space. Compute it with
+  `MasrafyGradientHeader.expandedHeightFor(context, …)` (a `TextPainter`
+  measure) — feed the result to the sliver `expandedHeight` and to the
+  static header's `heightInPixels`. Keep a small `minHeight` floor
+  (~180 logical px) so short heroes still read as a brand band; the
+  header grows for long / two-line titles. A hardcoded `height` /
+  `expandedHeight` literal that can clip content = review block.
+- **Full title when collapsed.** The collapsed sliver toolbar shows the
+  WHOLE title — wrap it in `FittedBox(fit: BoxFit.scaleDown)` (shrinks
+  the font only when too wide), never `maxLines:1 + ellipsis` truncation.
+- **Breathing space below the hero.** The content sheet's first element
+  (avatar, field, card) MUST NOT hug the gradient — keep a visible gap
+  between the hero's bottom edge and the first content widget (sheet top
+  padding, net of the rounded `-28` overlap, ≥ ~12 logical px of gap).
+- **Collapse on scroll (scrollable screens).** Any SCROLLABLE screen
+  using the hero MUST render it as a collapsing sliver —
+  `SliverPersistentHeader(pinned: true, delegate:
+  MasrafySliverGradientHeaderDelegate(...))` inside a `CustomScrollView`
+  whose `physics` is `BouncingScrollPhysics(parent:
+  AlwaysScrollableScrollPhysics())`. On collapse it shrinks to a compact
+  pinned toolbar: a SMALLER title (`heading4`) vertically centred on the
+  back-button row, the subtitle faded out, the gradient + glass back
+  button preserved. A static (non-collapsing) hero on a scrollable
+  screen = review block.
+- **Wizard hero follows its step's scroll (v5.1.2).** A button-driven
+  `PageView` wizard (e.g. the mortgage questionnaire, which renders its
+  `MasrafySegmentedProgress` in the hero's `bottom` slot) keeps the static
+  hero ONLY while a step's form fits without scrolling. When a step's form
+  scrolls, that step MUST host its OWN collapsing sliver hero — each
+  `PageView` child is its own `CustomScrollView` +
+  `SliverPersistentHeader(pinned)` (per-step collapse offset, so a short
+  step always opens fully expanded; a single `NestedScrollView` over the
+  PageView is forbidden — its shared offset leaves short steps
+  pre-collapsed). The `bottom` progress bar fades with the hero on collapse
+  (it returns on scroll-up); it stays visible on steps that never scroll.
+
 Duplicated widgets are the #1 source of inconsistent UI — button A has
 4px radius, button B has 6px radius, both "copied from somewhere".
 Forcing a home for every reusable widget prevents drift, makes design-
@@ -1571,6 +1614,9 @@ A `ScoringWeightSet` whose question weights do not sum to exactly 100, or mutati
 ## A34. Modal Backdrop That Does Not Cover the Full Viewport (Angular Clean Code Structure, v4.1.1)
 A modal / dialog / sheet whose scrim + blur dims only the content panel instead of the entire viewport (sidebar + top bar + content) = review block. Cause is almost always a hand-rolled `position: fixed` scrim rendered inside an ancestor that establishes a containing block for fixed elements (`transform` / `filter` / `perspective` / `contain` / `will-change`) — notably `section.page`, which runs the `app-page-rise` transform. Fix: prefer `NzModalService` / `NzDrawerService` (portals to `document.body`), or render the custom scrim as a root-level sibling of the page content (outside `section.page`). Use the shared backdrop tokens (`--color-overlay-backdrop`, shared blur radius) so all modals dim identically.
 
+## A35. Fixed/Clipping or Non-Collapsing Gradient Hero (Principle XXXIII, v5.1.0; clarified v5.1.1, v5.1.2)
+A `MasrafyGradientHeader` with a hardcoded `height` / `expandedHeight` literal that can clip its title / subtitle / `bottom` content (or wastes space), a hero whose content sheet hugs the gradient with no breathing space, a collapsed sliver toolbar that truncates the title with an ellipsis instead of showing it in full, OR a STATIC (non-collapsing) gradient hero on a scrollable screen = review block. Height MUST be content-sized via `MasrafyGradientHeader.expandedHeightFor(...)` (feed the sliver `expandedHeight` and the static header's `heightInPixels`, with a small `minHeight` floor); the collapsed toolbar title uses `FittedBox(fit: BoxFit.scaleDown)`. Scrollable screens host the hero in `MasrafySliverGradientHeaderDelegate` (`SliverPersistentHeader(pinned: true)` + `CustomScrollView` with `BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics())`), collapsing to a compact toolbar — smaller `heading4` title vertically centred on the back-button row, subtitle faded out, gradient + glass back button preserved. A button-driven `PageView` wizard keeps the static header ONLY for steps whose form fits without scrolling; a step whose form scrolls MUST host its OWN per-step collapsing sliver hero (each `PageView` child is its own `CustomScrollView` + `SliverPersistentHeader(pinned)` — a single `NestedScrollView` over the PageView is forbidden, its shared offset leaves short steps pre-collapsed). The `bottom` progress bar fades with the hero on collapse and stays visible on non-scrolling steps (v5.1.2).
+
 ---
 
 # Governance
@@ -1602,7 +1648,10 @@ A modal / dialog / sheet whose scrim + blur dims only the content panel instead 
 | 4.0.0 | 2026-06-02 | MAJOR | Principle XIII registration model redefined: customer row created LITE post-OTP/provider, then a MANDATORY profile-completion step (firstName + lastName + birthday + profile photo + National ID front+back; PHONE also password) for BOTH paths — the "upfront full registration" / "loan-request popup" model is gone. New Principle XXXVII (Mandatory Profile Completeness, NON-NEGOTIABLE). Data model: `name`→`firstName`+`lastName`; `age Int`→`birthday DateTime` (age always derived, never stored); new `profilePhotoKey`; `passwordHash` nullable (null for SOCIAL). National ID collected at profile completion (not apply) as two customer-linked Document rows. Guest plumbing (`Application.isGuest`, `mobileClientId`, claim flow) fully removed from code. Anti-Patterns A30/A31/A32 added. Principle VI guest sentence replaced with profile-photo/National-ID PII coverage. |
 | 4.1.0 | 2026-06-02 | MINOR | Principle V extended for the Dynamic Questionnaire & Matching feature: questionnaire (questions/options/branching/order) and per-bank scoring weights + per-option sub-scores become admin-editable DATA; formula/tiers/COMPUTED factors stay code (≥90% tests). Weight changes move from PR review to an in-dashboard two-person maker-checker flow (checker ≠ maker, weights sum to 100, atomic activate+archive, both IDs audited); code-default fallback when no ACTIVE set. Questionnaire published as immutable versioned snapshots. New Anti-Pattern A33. The feature's mobile/customer endpoints remain JWT-gated (no guest — consistent with v4.0.0). |
 | 4.1.1 | 2026-06-02 | PATCH | Angular Clean Code Structure: modal/dialog/sheet backdrops MUST dim the full viewport (sidebar + top bar + content), never just the content panel. Prefer `NzModalService`/`NzDrawerService` (portal to body); a hand-rolled `position: fixed` scrim must NOT live inside a containing-block ancestor (`transform`/`filter`/`contain` — e.g. `section.page`'s `app-page-rise`) and must use shared backdrop tokens. New Anti-Pattern A34. |
+| 5.1.0 | 2026-06-17 | MINOR | Principle XXXIII extended with the **Gradient hero header** rule: single shared `MasrafyGradientHeader`; expanded height bounded ≤ 240 logical px (compact band, ~210–230); mandatory breathing space between the hero and the content sheet; scrollable screens MUST host the hero as a collapsing sliver (`MasrafySliverGradientHeaderDelegate` + `SliverPersistentHeader(pinned)` in a `CustomScrollView` with `BouncingScrollPhysics`), collapsing to a compact toolbar (smaller `heading4` title centred on the back-button row, subtitle faded, gradient + glass back button preserved); non-scrollable `PageView` wizards keep the static header. New Anti-Pattern A35. |
+| 5.1.1 | 2026-06-17 | PATCH | Gradient hero height clarified from a fixed ≤240 bound to **content-sized**: callers compute it via `MasrafyGradientHeader.expandedHeightFor(context, …)` (`TextPainter` measure) — fed to the sliver `expandedHeight` and the static header's `heightInPixels`, with a ~180 logical-px `minHeight` floor — so it grows for long/two-line titles and never clips. Collapsed toolbar title MUST show in full via `FittedBox(scaleDown)` (no ellipsis truncation). A35 reworded accordingly. |
+| 5.1.2 | 2026-06-17 | PATCH | Wizard hero rule clarified: a button-driven `PageView` wizard step whose form scrolls MUST host its OWN per-step collapsing sliver hero (each `PageView` child = its own `CustomScrollView` + `SliverPersistentHeader(pinned)`); a single `NestedScrollView` over the PageView is forbidden (shared offset leaves short steps pre-collapsed). The static header is only for non-scrolling steps; the `bottom` progress bar fades with the hero on collapse. Principle XXXIII bullet + A35 reworded; first applied to the mortgage questionnaire. |
 
 ---
 
-**Version**: 5.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-16
+**Version**: 5.1.2 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-17

@@ -172,7 +172,8 @@ export interface FeesConfig {
 }
 
 export interface BankProgramCreatePayload {
-  programCode: string;
+  /** Optional — server auto-generates when omitted (A33). */
+  programCode?: string;
   bankName: string;
   bankId?: string;
   friendlyName: string;

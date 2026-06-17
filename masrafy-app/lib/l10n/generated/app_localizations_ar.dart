@@ -374,4 +374,494 @@ class AppLocalizationsAr extends AppLocalizations {
   String match_rate_percent(String value) {
     return '$value٪';
   }
+
+  @override
+  String get common_coming_soon => 'قريبًا';
+
+  @override
+  String get error_invalid_credentials => 'رقم الهاتف أو كلمة المرور غير صحيحة.';
+
+  @override
+  String get error_network => 'لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.';
+
+  @override
+  String get error_generic => 'حدث خطأ ما. حاول مرة أخرى.';
+
+  @override
+  String get onboarding_slide1_title => 'اكتشف عروض قروض مصمّمة لك.';
+
+  @override
+  String get onboarding_slide1_body => 'نبحث في عدة بنوك رائدة لإيجاد أفضل الأسعار والشروط المناسبة لملفك تحديدًا.';
+
+  @override
+  String get onboarding_slide2_title => 'قارن العروض في ثوانٍ.';
+
+  @override
+  String get onboarding_slide2_body => 'قروض شخصية وسيارات وعقارية وأعمال — جنبًا إلى جنب، بأسعار وحدود واضحة.';
+
+  @override
+  String get onboarding_slide3_title => 'تقدّم بثقة.';
+
+  @override
+  String get onboarding_slide3_body => 'نطابقك مع العروض، ثم تتقدّم للعرض الأنسب لك. مجاني لك دائمًا.';
+
+  @override
+  String get onboarding_next => 'التالي';
+
+  @override
+  String get onboarding_skip => 'تخطّي';
+
+  @override
+  String get onboarding_signin => 'تسجيل الدخول';
+
+  @override
+  String get onboarding_or_continue => 'أو تابع باستخدام';
+
+  @override
+  String get onboarding_google => 'Google';
+
+  @override
+  String get onboarding_apple => 'Apple';
+
+  @override
+  String get onboarding_lang_toggle => 'English';
+
+  @override
+  String get login_title => 'سجّل الدخول إلى حسابك';
+
+  @override
+  String get login_subtitle => 'سجّل الدخول لاكتشاف أفضل عروض القروض';
+
+  @override
+  String get login_identifier_label => 'البريد أو الهاتف';
+
+  @override
+  String get login_identifier_hint => 'ahmed@masrafy.io';
+
+  @override
+  String get login_password_label => 'كلمة المرور';
+
+  @override
+  String get login_password_hint => 'أدخل كلمة المرور';
+
+  @override
+  String get login_forgot => 'هل نسيت كلمة المرور؟';
+
+  @override
+  String get login_cta => 'تسجيل الدخول';
+
+  @override
+  String get login_or_continue => 'أو تابع باستخدام';
+
+  @override
+  String get login_google => 'Google';
+
+  @override
+  String get login_apple => 'Apple';
+
+  @override
+  String get login_no_account => 'ليس لديك حساب؟';
+
+  @override
+  String get login_create_account => 'إنشاء حساب';
+
+  @override
+  String get login_terms => 'بالتسجيل، أنت توافق على شروط الخدمة';
+
+  @override
+  String get signup_title => 'أنشئ حسابك';
+
+  @override
+  String get signup_subtitle => 'سجّل لاكتشاف أفضل عروض القروض';
+
+  @override
+  String get signup_photo_upload => 'رفع';
+
+  @override
+  String get signup_first_name_label => 'الاسم الأول';
+
+  @override
+  String get signup_first_name_hint => 'محمد';
+
+  @override
+  String get signup_last_name_label => 'اسم العائلة';
+
+  @override
+  String get signup_last_name_hint => 'إسكندر';
+
+  @override
+  String get signup_phone_label => 'رقم الهاتف';
+
+  @override
+  String get signup_phone_hint => '101 234 5678';
+
+  @override
+  String get signup_email_label => 'البريد الإلكتروني';
+
+  @override
+  String get signup_email_hint => 'ahmed@example.com';
+
+  @override
+  String get signup_dob_label => 'تاريخ الميلاد';
+
+  @override
+  String get signup_dob_day => 'اليوم';
+
+  @override
+  String get signup_dob_month => 'الشهر';
+
+  @override
+  String get signup_dob_year => 'السنة';
+
+  @override
+  String signup_age_verified(Object years) {
+    return 'تم التحقق من العمر — $years سنة';
+  }
+
+  @override
+  String get signup_password_label => 'كلمة المرور';
+
+  @override
+  String get signup_password_hint => 'أنشئ كلمة مرور';
+
+  @override
+  String get signup_confirm_password_label => 'تأكيد كلمة المرور';
+
+  @override
+  String get signup_confirm_password_hint => 'أعد إدخال كلمة المرور';
+
+  @override
+  String get signup_national_id_label => 'الرقم القومي';
+
+  @override
+  String get signup_national_id_hint => '— مطلوب للأهلية للحصول على القرض';
+
+  @override
+  String get signup_id_front => 'الوجه الأمامي';
+
+  @override
+  String get signup_id_back => 'الوجه الخلفي';
+
+  @override
+  String get signup_id_tap_to_upload => 'اضغط للرفع';
+
+  @override
+  String get signup_terms => 'أوافق على شروط الخدمة وسياسة الخصوصية الخاصة بمصرفي، وأوافق على معالجة بياناتي المالية.';
+
+  @override
+  String get signup_cta => 'إنشاء الحساب';
+
+  @override
+  String get signup_have_account => 'لديك حساب بالفعل؟';
+
+  @override
+  String get signup_sign_in => 'تسجيل الدخول';
+
+  @override
+  String get otp_title => 'تحقّق من رقم هاتفك';
+
+  @override
+  String otp_subtitle(Object destination) {
+    return 'أرسلنا رمزًا من 6 أرقام إلى $destination. أدخله بالأسفل.';
+  }
+
+  @override
+  String get otp_enter_code => 'أدخل رمز التحقق';
+
+  @override
+  String otp_attempts_left(Object count) {
+    return '$count محاولات متبقية';
+  }
+
+  @override
+  String get otp_resend_in => 'إعادة إرسال الرمز خلال';
+
+  @override
+  String get otp_resend_action => 'إعادة إرسال الرمز';
+
+  @override
+  String otp_expiry_notice(Object minutes) {
+    return 'ينتهي هذا الرمز خلال $minutes دقائق. لا تشاركه مع أحد — لن يطلبه منك مصرفي أبدًا.';
+  }
+
+  @override
+  String get otp_verify_cta => 'تحقّق وتابع';
+
+  @override
+  String get otp_didnt_receive => 'لم يصلك الرمز؟';
+
+  @override
+  String get otp_wrong_number => 'رقم خاطئ؟';
+
+  @override
+  String get otp_change_phone => 'تغيير الرقم';
+
+  @override
+  String get home_title => 'ما نوع القرض الذي تبحث عنه؟';
+
+  @override
+  String get home_subtitle => 'مستشار القروض جاهز لمساعدتك';
+
+  @override
+  String get home_loan_types => 'أنواع القروض';
+
+  @override
+  String get home_continue => 'متابعة';
+
+  @override
+  String get home_support_label => 'الدعم';
+
+  @override
+  String get home_support_title => 'اسأل مصرفي عن أي شيء';
+
+  @override
+  String get home_nav_loans => 'قروضي';
+
+  @override
+  String get home_nav_profile => 'حسابي';
+
+  @override
+  String get home_cat_personal => 'شخصي';
+
+  @override
+  String get home_cat_mortgage => 'عقاري';
+
+  @override
+  String get home_cat_car => 'سيارة';
+
+  @override
+  String get home_cat_business => 'أعمال';
+
+  @override
+  String get home_limit_personal => 'حتى ٢٠٠ ألف ج.م';
+
+  @override
+  String get home_limit_mortgage => 'حتى ٣ مليون ج.م';
+
+  @override
+  String get home_limit_car => 'حتى ٢ مليون ج.م';
+
+  @override
+  String get home_limit_business => 'حتى ٥ مليون ج.م';
+
+  @override
+  String get home_apr_personal => 'من ١١٪ سنويًا';
+
+  @override
+  String get home_apr_mortgage => 'من ٩٫٥٪ سنويًا';
+
+  @override
+  String get home_apr_car => 'من ١٠٫٢٪ سنويًا';
+
+  @override
+  String get home_apr_business => 'من ١٢٪ سنويًا';
+
+  @override
+  String get q_common_yes => 'نعم';
+
+  @override
+  String get q_common_no => 'لا';
+
+  @override
+  String get q_common_currency_egp => 'ج.م';
+
+  @override
+  String get q_mortgage_title => 'طلب تمويل عقاري';
+
+  @override
+  String get q_mortgage_subtitle => 'سنطابقك مع البنوك المتخصصة في احتياجاتك';
+
+  @override
+  String get q_mortgage_next => 'التالي';
+
+  @override
+  String get q_mortgage_finish => 'إنهاء';
+
+  @override
+  String get q_mortgage_submitted => 'تم حفظ إجاباتك';
+
+  @override
+  String get q_mortgage_step1_title => 'بيانات العقار والتمويل';
+
+  @override
+  String get q_mortgage_step2_title => 'الوظيفة والدخل';
+
+  @override
+  String get q_mortgage_step3_title => 'السجل الائتماني';
+
+  @override
+  String get q_mortgage_step4_title => 'التفضيلات';
+
+  @override
+  String get q_mortgage_select_hint => 'اختر';
+
+  @override
+  String q_mortgage_years(Object years) {
+    return '$years سنة';
+  }
+
+  @override
+  String get q_mortgage_q_property_type => 'ما نوع العقار الذي ترغب في تمويله؟';
+
+  @override
+  String get q_mortgage_hint_property_type => 'اختر نوع العقار';
+
+  @override
+  String get q_opt_property_apartment => 'شقة';
+
+  @override
+  String get q_opt_property_villa => 'فيلا';
+
+  @override
+  String get q_opt_property_duplex => 'دوبلكس';
+
+  @override
+  String get q_opt_property_commercial => 'محل تجاري';
+
+  @override
+  String get q_opt_property_office => 'مكتب إداري';
+
+  @override
+  String get q_opt_property_other => 'أخرى';
+
+  @override
+  String get q_mortgage_q_in_compound => 'هل يقع العقار داخل كمبوند سكني؟';
+
+  @override
+  String get q_mortgage_q_registration_status => 'ما حالة تسجيل العقار؟';
+
+  @override
+  String get q_opt_reg_registered => 'مسجل رسميًا';
+
+  @override
+  String get q_opt_reg_eligible => 'قابل للتسجيل';
+
+  @override
+  String get q_opt_reg_not_registered => 'غير مسجل';
+
+  @override
+  String get q_opt_reg_unsure => 'غير متأكد';
+
+  @override
+  String get q_mortgage_q_address => 'ما هو عنوان العقار؟';
+
+  @override
+  String get q_mortgage_hint_governorate => 'اختر المحافظة';
+
+  @override
+  String get q_mortgage_address_label => 'العنوان';
+
+  @override
+  String get q_mortgage_address_hint => 'الشارع، المبنى، المنطقة';
+
+  @override
+  String get q_mortgage_q_property_value => 'ما هي القيمة التقريبية للعقار؟';
+
+  @override
+  String get q_mortgage_q_down_payment => 'كم نسبة المقدم المتوفر لديك حاليًا؟ (٪)';
+
+  @override
+  String get q_mortgage_hint_down_payment => 'المقدم';
+
+  @override
+  String get q_opt_dp_under10 => 'أقل من ١٠٪';
+
+  @override
+  String get q_opt_dp_10_20 => '١٠٪ – ٢٠٪';
+
+  @override
+  String get q_opt_dp_20_30 => '٢٠٪ – ٣٠٪';
+
+  @override
+  String get q_opt_dp_over30 => 'أكثر من ٣٠٪';
+
+  @override
+  String get q_mortgage_q_repayment_period => 'ما مدة السداد المناسبة لك؟';
+
+  @override
+  String get q_mortgage_repayment_label => 'مدة السداد';
+
+  @override
+  String get q_mortgage_q_employment => 'ما هي حالتك الوظيفية؟';
+
+  @override
+  String get q_opt_emp_government => 'موظف حكومي';
+
+  @override
+  String get q_opt_emp_private => 'موظف قطاع خاص';
+
+  @override
+  String get q_opt_emp_business_owner => 'صاحب عمل';
+
+  @override
+  String get q_opt_emp_freelancer => 'عمل حر';
+
+  @override
+  String get q_opt_emp_retired => 'متقاعد';
+
+  @override
+  String get q_mortgage_q_income => 'ما متوسط دخلك الشهري؟';
+
+  @override
+  String get q_mortgage_hint_income => 'الدخل الشهري';
+
+  @override
+  String get q_opt_income_b1 => 'أقل من ٥٠٬٠٠٠ ج.م';
+
+  @override
+  String get q_opt_income_b2 => '٥٠٬٠٠٠ – ١٠٠٬٠٠٠ ج.م';
+
+  @override
+  String get q_opt_income_b3 => '١٠٠٬٠٠٠ – ٣٠٠٬٠٠٠ ج.م';
+
+  @override
+  String get q_opt_income_b4 => '٣٠٠٬٠٠٠ – ٦٠٠٬٠٠٠ ج.م';
+
+  @override
+  String get q_opt_income_b5 => '٦٠٠٬٠٠٠ – ١٬٠٠٠٬٠٠٠ ج.م';
+
+  @override
+  String get q_opt_income_b6 => 'أكثر من ١٬٠٠٠٬٠٠٠ ج.م';
+
+  @override
+  String get q_mortgage_q_salary_transfer => 'هل يتم تحويل راتبك إلى حساب بنكي؟';
+
+  @override
+  String get q_mortgage_q_additional_income => 'هل لديك مصادر دخل إضافية؟';
+
+  @override
+  String get q_mortgage_q_current_loans => 'هل لديك حاليًا أي قروض أو التزامات مالية؟';
+
+  @override
+  String get q_mortgage_q_installments => 'ما إجمالي قيمة أقساطك الشهرية؟';
+
+  @override
+  String get q_mortgage_installments_label => 'الأقساط الشهرية';
+
+  @override
+  String get q_mortgage_installments_hint => 'قيمة القسط الشهري';
+
+  @override
+  String get q_mortgage_q_prior_rejection => 'هل سبق ورُفض لك طلب تمويل عقاري؟';
+
+  @override
+  String get q_mortgage_q_priority => 'ما الأهم بالنسبة لك في التمويل العقاري؟';
+
+  @override
+  String get q_opt_priority_lowest_installment => 'أقل قسط شهري';
+
+  @override
+  String get q_opt_priority_longest_period => 'أطول مدة سداد';
+
+  @override
+  String get q_opt_priority_lowest_down_payment => 'أقل مقدم';
+
+  @override
+  String get q_opt_priority_fastest_approval => 'أسرع موافقة';
+
+  @override
+  String get q_opt_priority_lowest_fees => 'أقل مصاريف إدارية';
+
+  @override
+  String get q_mortgage_q_assistance => 'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟';
 }

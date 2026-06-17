@@ -20,7 +20,8 @@ export type EnumerationType =
   | 'performance_tier'
   | 'company_type'
   | 'required_document'
-  | 'currency';
+  | 'currency'
+  | 'governorate';
 
 export interface EnumerationMember {
   type: EnumerationType;

@@ -1,0 +1,109 @@
+import 'package:dartz/dartz.dart';
+import 'package:injectable/injectable.dart';
+
+import 'package:app/core/result/failure.dart';
+import 'package:app/core/utils/api_handler.dart';
+import 'package:app/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:app/features/auth/data/models/request/otp/otp_request.dart';
+import 'package:app/features/auth/data/models/request/otp/otp_verify_request.dart';
+import 'package:app/features/auth/data/models/request/password/password_reset_request.dart';
+import 'package:app/features/auth/data/models/request/profile/profile_completion_request.dart';
+import 'package:app/features/auth/data/models/request/signup/signup_phone_complete_request.dart';
+import 'package:app/features/auth/data/models/request/signup/signup_phone_start_request.dart';
+import 'package:app/features/auth/data/models/request/social/social_signin_request.dart';
+import 'package:app/features/auth/domain/entities/customer_entity.dart';
+import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart';
+import 'package:app/features/auth/domain/entities/social_session_entity.dart';
+import 'package:app/features/auth/domain/repositories/customer_auth_repository.dart';
+
+/// Thin network-mapping forwarder for [CustomerAuthRepository] (Constitution
+/// Principles X + XXX). Mirrors [AuthRepositoryImpl]: every call routes through
+/// [ApiHandler.callApi] and maps the wire `Model` to its domain entity. The
+/// secure-storage session save lives in [CustomerAuthUseCase], not here, so the
+/// repo stays a pure forwarder.
+///
+/// The interface is a plain abstract class (no [BaseRepository]), so the
+/// datasource is injected directly. Registered manually in `injection.dart`;
+/// the annotation mirrors the codebase convention.
+@Injectable(as: CustomerAuthRepository)
+class CustomerAuthRepositoryImpl implements CustomerAuthRepository {
+  CustomerAuthRepositoryImpl(this._ds);
+
+  final AuthRemoteDataSource _ds;
+
+  @override
+  Future<Either<Failure, OtpChallengeEntity>> signupPhoneStart(
+    SignupPhoneStartRequest body,
+  ) async {
+    final result = await ApiHandler.callApi(() => _ds.signupPhoneStart(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, CustomerSessionEntity>> signupPhoneComplete(
+    SignupPhoneCompleteRequest body,
+  ) async {
+    final result = await ApiHandler.callApi(() => _ds.signupPhoneComplete(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, OtpChallengeEntity>> requestOtp(OtpRequestRequest body) async {
+    final result = await ApiHandler.callApi(() => _ds.otpRequest(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, OtpVerifyOutcome>> verifyOtp(OtpVerifyRequest body) async {
+    final result = await ApiHandler.callApi(() => _ds.otpVerify(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, SocialSessionEntity>> socialGoogle(
+    SocialGoogleSignInRequest body,
+  ) async {
+    final result = await ApiHandler.callApi(() => _ds.socialGoogle(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, SocialSessionEntity>> socialApple(
+    SocialAppleSignInRequest body,
+  ) async {
+    final result = await ApiHandler.callApi(() => _ds.socialApple(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, CustomerSessionEntity>> socialLogin(SocialLoginRequest body) async {
+    final result = await ApiHandler.callApi(() => _ds.socialLogin(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, OtpChallengeEntity>> profileMobileRequestOtp(
+    ProfileMobileRequestOtpRequest body,
+  ) async {
+    final result = await ApiHandler.callApi(() => _ds.profileMobileRequestOtp(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, void>> profileMobileVerifyOtp(
+    ProfileMobileVerifyOtpRequest body,
+  ) {
+    return ApiHandler.callApi(() => _ds.profileMobileVerifyOtp(body));
+  }
+
+  @override
+  Future<Either<Failure, CustomerSessionEntity>> resetPassword(PasswordResetRequest body) async {
+    final result = await ApiHandler.callApi(() => _ds.resetPassword(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, void>> changePassword(PasswordChangeRequest body) {
+    return ApiHandler.callApi(() => _ds.changePassword(body));
+  }
+}

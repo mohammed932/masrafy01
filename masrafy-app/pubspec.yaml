@@ -97,3 +97,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+
+  assets:
+    - resources/images/onboarding/
+    - resources/images/home/

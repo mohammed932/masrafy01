@@ -1,13 +1,23 @@
 import 'package:auto_route/auto_route.dart';
 
-/// App router. Routes are intentionally empty — the feature layer is an empty
-/// scaffold pending a clean rebuild, so there are no pages to register yet.
-/// Re-add `AutoRoute(page: ...Route.page)` entries (and regenerate
-/// `router.gr.dart`) as each feature's presentation tier is rebuilt.
+import 'router.gr.dart';
+
+/// App router. [SplashRoute] is the initial gate: it resolves persisted state
+/// and `replaceAll`s to Onboarding (first launch), Login (onboarded /
+/// unauthenticated), or Home (authenticated). Add new feature routes here and
+/// regenerate `router.gr.dart` via build_runner.
 @AutoRouterConfig(replaceInRouteName: 'Page|Screen,Route')
 class AppRouter extends RootStackRouter {
   AppRouter();
 
   @override
-  List<AutoRoute> get routes => [];
+  List<AutoRoute> get routes => [
+        AutoRoute(page: SplashRoute.page),
+        AutoRoute(page: OnboardingRoute.page),
+        AutoRoute(page: LoginRoute.page),
+        AutoRoute(page: SignupRoute.page),
+        AutoRoute(page: OtpRoute.page),
+        AutoRoute(page: HomeRoute.page, initial: true),
+        AutoRoute(page: MortgageQuestionnaireRoute.page),
+      ];
 }

@@ -71,6 +71,7 @@ const ALL_TYPES: readonly EnumerationType[] = [
   'company_type',
   'required_document',
   'currency',
+  'governorate',
 ];
 
 interface CacheEntry {

@@ -371,4 +371,494 @@ class AppLocalizationsEn extends AppLocalizations {
   String match_rate_percent(String value) {
     return '$value%';
   }
+
+  @override
+  String get common_coming_soon => 'Coming soon';
+
+  @override
+  String get error_invalid_credentials => 'Incorrect phone or password.';
+
+  @override
+  String get error_network => 'No connection. Check your network and try again.';
+
+  @override
+  String get error_generic => 'Something went wrong. Please try again.';
+
+  @override
+  String get onboarding_slide1_title => 'Discover tailored loan offers.';
+
+  @override
+  String get onboarding_slide1_body => 'We scan multiple top-tier banks to find the best rates and terms specifically for your profile.';
+
+  @override
+  String get onboarding_slide2_title => 'Compare offers in seconds.';
+
+  @override
+  String get onboarding_slide2_body => 'Personal, car, mortgage and business loans — side by side, with clear rates and limits.';
+
+  @override
+  String get onboarding_slide3_title => 'Apply with confidence.';
+
+  @override
+  String get onboarding_slide3_body => 'Get matched, then apply to the offer that fits you best. Free for you, always.';
+
+  @override
+  String get onboarding_next => 'Next';
+
+  @override
+  String get onboarding_skip => 'Skip';
+
+  @override
+  String get onboarding_signin => 'Sign in';
+
+  @override
+  String get onboarding_or_continue => 'or continue with';
+
+  @override
+  String get onboarding_google => 'Google';
+
+  @override
+  String get onboarding_apple => 'Apple';
+
+  @override
+  String get onboarding_lang_toggle => 'العربية';
+
+  @override
+  String get login_title => 'Sign in to your Account';
+
+  @override
+  String get login_subtitle => 'Sign in to explore your best loan offers';
+
+  @override
+  String get login_identifier_label => 'Email or Phone';
+
+  @override
+  String get login_identifier_hint => 'ahmed@masrafy.io';
+
+  @override
+  String get login_password_label => 'Password';
+
+  @override
+  String get login_password_hint => 'Enter your password';
+
+  @override
+  String get login_forgot => 'Forgot your password?';
+
+  @override
+  String get login_cta => 'Sign in';
+
+  @override
+  String get login_or_continue => 'or continue with';
+
+  @override
+  String get login_google => 'Google';
+
+  @override
+  String get login_apple => 'Apple';
+
+  @override
+  String get login_no_account => 'Don\'t have an account?';
+
+  @override
+  String get login_create_account => 'Create account';
+
+  @override
+  String get login_terms => 'By signing up, you agree to the Terms of Service';
+
+  @override
+  String get signup_title => 'Create your Account';
+
+  @override
+  String get signup_subtitle => 'Sign up to explore your best loan offers';
+
+  @override
+  String get signup_photo_upload => 'Upload';
+
+  @override
+  String get signup_first_name_label => 'First name';
+
+  @override
+  String get signup_first_name_hint => 'David';
+
+  @override
+  String get signup_last_name_label => 'Last name';
+
+  @override
+  String get signup_last_name_hint => 'Iskandar';
+
+  @override
+  String get signup_phone_label => 'Phone number';
+
+  @override
+  String get signup_phone_hint => '101 234 5678';
+
+  @override
+  String get signup_email_label => 'Email address';
+
+  @override
+  String get signup_email_hint => 'ahmed@example.com';
+
+  @override
+  String get signup_dob_label => 'Date of birth';
+
+  @override
+  String get signup_dob_day => 'Day';
+
+  @override
+  String get signup_dob_month => 'Month';
+
+  @override
+  String get signup_dob_year => 'Year';
+
+  @override
+  String signup_age_verified(Object years) {
+    return 'Age verified — $years years old';
+  }
+
+  @override
+  String get signup_password_label => 'Password';
+
+  @override
+  String get signup_password_hint => 'Create a password';
+
+  @override
+  String get signup_confirm_password_label => 'Confirm password';
+
+  @override
+  String get signup_confirm_password_hint => 'Re-enter password';
+
+  @override
+  String get signup_national_id_label => 'National ID';
+
+  @override
+  String get signup_national_id_hint => '— required for loan eligibility';
+
+  @override
+  String get signup_id_front => 'Front side';
+
+  @override
+  String get signup_id_back => 'Back side';
+
+  @override
+  String get signup_id_tap_to_upload => 'Tap to upload';
+
+  @override
+  String get signup_terms => 'I agree to Masrafy\'s Terms of Service and Privacy Policy, and consent to processing my financial data.';
+
+  @override
+  String get signup_cta => 'Create Account';
+
+  @override
+  String get signup_have_account => 'Already have an account?';
+
+  @override
+  String get signup_sign_in => 'Sign in';
+
+  @override
+  String get otp_title => 'Verify your phone number';
+
+  @override
+  String otp_subtitle(Object destination) {
+    return 'We sent a 6-digit code to $destination. Enter it below.';
+  }
+
+  @override
+  String get otp_enter_code => 'Enter verification code';
+
+  @override
+  String otp_attempts_left(Object count) {
+    return '$count attempts left';
+  }
+
+  @override
+  String get otp_resend_in => 'Resend code in';
+
+  @override
+  String get otp_resend_action => 'Resend code';
+
+  @override
+  String otp_expiry_notice(Object minutes) {
+    return 'This code expires in $minutes minutes. Never share it with anyone — Masrafy will never ask for it.';
+  }
+
+  @override
+  String get otp_verify_cta => 'Verify & continue';
+
+  @override
+  String get otp_didnt_receive => 'DIDN\'T RECEIVE IT?';
+
+  @override
+  String get otp_wrong_number => 'Wrong number?';
+
+  @override
+  String get otp_change_phone => 'Change phone';
+
+  @override
+  String get home_title => 'What type of loan are you looking for?';
+
+  @override
+  String get home_subtitle => 'Your loan advisor is ready';
+
+  @override
+  String get home_loan_types => 'Loan types';
+
+  @override
+  String get home_continue => 'Continue';
+
+  @override
+  String get home_support_label => 'Support';
+
+  @override
+  String get home_support_title => 'Ask Masrafy anything';
+
+  @override
+  String get home_nav_loans => 'My Loans';
+
+  @override
+  String get home_nav_profile => 'Profile';
+
+  @override
+  String get home_cat_personal => 'Personal';
+
+  @override
+  String get home_cat_mortgage => 'Mortgage';
+
+  @override
+  String get home_cat_car => 'Car loan';
+
+  @override
+  String get home_cat_business => 'Business';
+
+  @override
+  String get home_limit_personal => 'Up to EGP 200K';
+
+  @override
+  String get home_limit_mortgage => 'Up to EGP 3M';
+
+  @override
+  String get home_limit_car => 'Up to EGP 2M';
+
+  @override
+  String get home_limit_business => 'Up to EGP 5M';
+
+  @override
+  String get home_apr_personal => 'From 11% APR';
+
+  @override
+  String get home_apr_mortgage => 'From 9.5% APR';
+
+  @override
+  String get home_apr_car => 'From 10.2% APR';
+
+  @override
+  String get home_apr_business => 'From 12% APR';
+
+  @override
+  String get q_common_yes => 'Yes';
+
+  @override
+  String get q_common_no => 'No';
+
+  @override
+  String get q_common_currency_egp => 'EGP';
+
+  @override
+  String get q_mortgage_title => 'Mortgage application';
+
+  @override
+  String get q_mortgage_subtitle => 'We\'ll match you with banks that specialise in your needs';
+
+  @override
+  String get q_mortgage_next => 'Next';
+
+  @override
+  String get q_mortgage_finish => 'Finish';
+
+  @override
+  String get q_mortgage_submitted => 'Your answers have been saved';
+
+  @override
+  String get q_mortgage_step1_title => 'Property & Financing Details';
+
+  @override
+  String get q_mortgage_step2_title => 'Employment & Income';
+
+  @override
+  String get q_mortgage_step3_title => 'Credit Profile';
+
+  @override
+  String get q_mortgage_step4_title => 'Preferences';
+
+  @override
+  String get q_mortgage_select_hint => 'Select an option';
+
+  @override
+  String q_mortgage_years(Object years) {
+    return '$years years';
+  }
+
+  @override
+  String get q_mortgage_q_property_type => 'What type of property would you like to finance?';
+
+  @override
+  String get q_mortgage_hint_property_type => 'Select property type';
+
+  @override
+  String get q_opt_property_apartment => 'Apartment';
+
+  @override
+  String get q_opt_property_villa => 'Villa';
+
+  @override
+  String get q_opt_property_duplex => 'Duplex';
+
+  @override
+  String get q_opt_property_commercial => 'Commercial shop';
+
+  @override
+  String get q_opt_property_office => 'Administrative office';
+
+  @override
+  String get q_opt_property_other => 'Other';
+
+  @override
+  String get q_mortgage_q_in_compound => 'Is the property located within a residential compound?';
+
+  @override
+  String get q_mortgage_q_registration_status => 'What is the property\'s registration status?';
+
+  @override
+  String get q_opt_reg_registered => 'Officially registered';
+
+  @override
+  String get q_opt_reg_eligible => 'Eligible for registration';
+
+  @override
+  String get q_opt_reg_not_registered => 'Not registered';
+
+  @override
+  String get q_opt_reg_unsure => 'Not sure';
+
+  @override
+  String get q_mortgage_q_address => 'What is the property address?';
+
+  @override
+  String get q_mortgage_hint_governorate => 'Select governorate';
+
+  @override
+  String get q_mortgage_address_label => 'Address';
+
+  @override
+  String get q_mortgage_address_hint => 'Street, building, area';
+
+  @override
+  String get q_mortgage_q_property_value => 'What is the approximate property value?';
+
+  @override
+  String get q_mortgage_q_down_payment => 'How much down payment do you currently have? (%)';
+
+  @override
+  String get q_mortgage_hint_down_payment => 'Down payment';
+
+  @override
+  String get q_opt_dp_under10 => 'Less than 10%';
+
+  @override
+  String get q_opt_dp_10_20 => '10% – 20%';
+
+  @override
+  String get q_opt_dp_20_30 => '20% – 30%';
+
+  @override
+  String get q_opt_dp_over30 => 'More than 30%';
+
+  @override
+  String get q_mortgage_q_repayment_period => 'What repayment period suits you?';
+
+  @override
+  String get q_mortgage_repayment_label => 'Repayment period';
+
+  @override
+  String get q_mortgage_q_employment => 'What is your employment status?';
+
+  @override
+  String get q_opt_emp_government => 'Government employee';
+
+  @override
+  String get q_opt_emp_private => 'Private sector employee';
+
+  @override
+  String get q_opt_emp_business_owner => 'Business owner';
+
+  @override
+  String get q_opt_emp_freelancer => 'Freelancer';
+
+  @override
+  String get q_opt_emp_retired => 'Retired';
+
+  @override
+  String get q_mortgage_q_income => 'What is your average monthly income?';
+
+  @override
+  String get q_mortgage_hint_income => 'Monthly income';
+
+  @override
+  String get q_opt_income_b1 => 'Less than EGP 50,000';
+
+  @override
+  String get q_opt_income_b2 => 'EGP 50,000 – 100,000';
+
+  @override
+  String get q_opt_income_b3 => 'EGP 100,000 – 300,000';
+
+  @override
+  String get q_opt_income_b4 => 'EGP 300,000 – 600,000';
+
+  @override
+  String get q_opt_income_b5 => 'EGP 600,000 – 1,000,000';
+
+  @override
+  String get q_opt_income_b6 => 'More than EGP 1,000,000';
+
+  @override
+  String get q_mortgage_q_salary_transfer => 'Is your salary transferred to a bank account?';
+
+  @override
+  String get q_mortgage_q_additional_income => 'Do you have additional sources of income?';
+
+  @override
+  String get q_mortgage_q_current_loans => 'Do you currently have any loans or financial obligations?';
+
+  @override
+  String get q_mortgage_q_installments => 'What is the total amount of your monthly installments?';
+
+  @override
+  String get q_mortgage_installments_label => 'Monthly installments';
+
+  @override
+  String get q_mortgage_installments_hint => 'Monthly installment amount';
+
+  @override
+  String get q_mortgage_q_prior_rejection => 'Have you ever had a mortgage application rejected?';
+
+  @override
+  String get q_mortgage_q_priority => 'What is most important to you in mortgage financing?';
+
+  @override
+  String get q_opt_priority_lowest_installment => 'Lowest monthly installment';
+
+  @override
+  String get q_opt_priority_longest_period => 'Longest repayment period';
+
+  @override
+  String get q_opt_priority_lowest_down_payment => 'Lowest down payment';
+
+  @override
+  String get q_opt_priority_fastest_approval => 'Fastest approval';
+
+  @override
+  String get q_opt_priority_lowest_fees => 'Lowest administrative fees';
+
+  @override
+  String get q_mortgage_q_assistance => 'Do you need assistance preparing documents and completing procedures?';
 }

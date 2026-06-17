@@ -2,7 +2,8 @@ import type { CreateBankProgramDto } from '../dto/create-bank-program.dto';
 
 export interface SeedCatalog {
   name: string;
-  programs: CreateBankProgramDto[];
+  /** Seeds always pin an explicit, stable programCode (optional on the API DTO). */
+  programs: (CreateBankProgramDto & { programCode: string })[];
   expectedRates: Record<string, string>;
 }
 

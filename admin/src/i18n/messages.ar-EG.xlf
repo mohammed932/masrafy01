@@ -38,9 +38,29 @@
       <trans-unit id="sidebar.dashboard" datatype="html"><source>Dashboard</source><target>لوحة التحكم</target></trans-unit>
       <trans-unit id="sidebar.users" datatype="html"><source>Users</source><target>المستخدمون</target></trans-unit>
       <trans-unit id="sidebar.banks" datatype="html"><source>Banks</source><target>البنوك</target></trans-unit>
-      <trans-unit id="banks.tabs.aria" datatype="html"><source>Banks sections</source><target>أقسام البنوك</target></trans-unit>
-      <trans-unit id="banks.tab.registry" datatype="html"><source>Registry</source><target>السجل</target></trans-unit>
-      <trans-unit id="banks.tab.programs" datatype="html"><source>Programs</source><target>البرامج</target></trans-unit>
+      <trans-unit id="bank_detail.back" datatype="html"><source>Banks</source><target>البنوك</target></trans-unit>
+      <trans-unit id="bank_detail.eyebrow" datatype="html"><source>Bank</source><target>بنك</target></trans-unit>
+      <trans-unit id="bank_detail.active" datatype="html"><source>Active</source><target>مُفعّل</target></trans-unit>
+      <trans-unit id="bank_detail.status.active" datatype="html"><source>Active</source><target>مُفعّل</target></trans-unit>
+      <trans-unit id="bank_detail.status.inactive" datatype="html"><source>Inactive</source><target>غير مُفعّل</target></trans-unit>
+      <trans-unit id="bank_detail.edit" datatype="html"><source>Edit bank</source><target>تعديل البنك</target></trans-unit>
+      <trans-unit id="bank_detail.delete" datatype="html"><source>Delete bank</source><target>حذف البنك</target></trans-unit>
+      <trans-unit id="bank_detail.stats.aria" datatype="html"><source>Bank program statistics</source><target>إحصاءات برامج البنك</target></trans-unit>
+      <trans-unit id="bank_detail.stat.total" datatype="html"><source>Total programs</source><target>إجمالي البرامج</target></trans-unit>
+      <trans-unit id="bank_detail.stat.active" datatype="html"><source>Active</source><target>مُفعّل</target></trans-unit>
+      <trans-unit id="bank_detail.stat.inactive" datatype="html"><source>Inactive</source><target>غير مُفعّل</target></trans-unit>
+      <trans-unit id="bank_detail.programs.title" datatype="html"><source>Programs</source><target>البرامج</target></trans-unit>
+      <trans-unit id="bank_detail.programs.add" datatype="html"><source>Add program</source><target>إضافة برنامج</target></trans-unit>
+      <trans-unit id="bank_detail.programs.empty" datatype="html"><source>No programs yet for this bank.</source><target>لا توجد برامج لهذا البنك بعد.</target></trans-unit>
+      <trans-unit id="bank_detail.programs.add_first" datatype="html"><source>Add the first program</source><target>أضف أول برنامج</target></trans-unit>
+      <trans-unit id="bank_detail.col.name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
+      <trans-unit id="bank_detail.col.code" datatype="html"><source>Code</source><target>الرمز</target></trans-unit>
+      <trans-unit id="bank_detail.col.category" datatype="html"><source>Category</source><target>الفئة</target></trans-unit>
+      <trans-unit id="bank_detail.col.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
+      <trans-unit id="bank_detail.program.edit" datatype="html"><source>Edit program</source><target>تعديل البرنامج</target></trans-unit>
+      <trans-unit id="bank_detail.program.clone" datatype="html"><source>Clone program</source><target>نسخ البرنامج</target></trans-unit>
+      <trans-unit id="bank_detail.program.delete" datatype="html"><source>Delete program</source><target>حذف البرنامج</target></trans-unit>
+      <trans-unit id="bank_detail.not_found" datatype="html"><source>Bank not found.</source><target>البنك غير موجود.</target></trans-unit>
 
       <trans-unit id="users.title" datatype="html"><source>Users</source><target>المستخدمون</target></trans-unit>
       <trans-unit id="users.create" datatype="html"><source>Create user</source><target>إنشاء مستخدم</target></trans-unit>

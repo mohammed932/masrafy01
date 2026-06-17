@@ -3,7 +3,9 @@ import type { CreateBankProgramDto } from '../../dto/create-bank-program.dto';
 /**
  * Minimal-but-valid skeleton for catalog entries. Specific catalogs spread + override.
  */
-export function skeletonProgram(overrides: Partial<CreateBankProgramDto>): CreateBankProgramDto {
+export function skeletonProgram(
+  overrides: Partial<CreateBankProgramDto> & { programCode: string },
+): CreateBankProgramDto & { programCode: string } {
   const base: CreateBankProgramDto = {
     programCode: 'PLACEHOLDER',
     bankName: 'ABK Egypt',

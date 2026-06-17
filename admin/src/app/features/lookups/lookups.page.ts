@@ -46,6 +46,7 @@ import {
   TagsOutline,
   CheckCircleOutline,
   InboxOutline,
+  EnvironmentOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -169,7 +170,26 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
     description: 'ISO 4217 codes the platform accepts on applications + programs.',
     icon: 'credit-card',
   },
+  governorate: {
+    en: 'Governorates',
+    ar: 'المحافظات',
+    description: 'Egyptian governorates — the property-address dropdown in the mobile wizard.',
+    icon: 'environment',
+  },
 };
+
+// MVP scope: only these enumeration types drive real backend logic (matching,
+// bank-programs, documents, the customer wizard). Everything else is deactivated
+// in the DB (migration 20260616120000) and hidden here to keep the rail simple.
+const MVP_TYPES: ReadonlySet<string> = new Set([
+  'salary_category',
+  'transfer_type',
+  'employment_type',
+  'loan_purpose',
+  'product_category',
+  'required_document',
+  'governorate',
+]);
 
 @Component({
   selector: 'app-lookups-page',
@@ -205,6 +225,7 @@ const TYPE_LABELS: Record<string, TypeMeta> = {
       ShopOutline,
       FileTextOutline,
       CreditCardOutline,
+      EnvironmentOutline,
       UnorderedListOutline,
       HistoryOutline,
       LockOutline,
@@ -1324,12 +1345,12 @@ export class LookupsPage implements OnInit {
   protected readonly selectedType = signal<string | null>(null);
   protected readonly reservedOpen = signal<boolean>(false);
 
+  // MVP: only show the enumeration types that back real backend logic. Reserved/
+  // future types are deactivated in the DB and hidden from the rail entirely.
   protected readonly coreTypes = computed(() =>
-    this.types().filter((t) => !RESERVED_TYPES.has(t.type)),
+    this.types().filter((t) => MVP_TYPES.has(t.type)),
   );
-  protected readonly reservedTypes = computed(() =>
-    this.types().filter((t) => RESERVED_TYPES.has(t.type)),
-  );
+  protected readonly reservedTypes = computed<EnumerationTypeSummary[]>(() => []);
   protected readonly banksCount = signal<number>(0);
   protected readonly bankProgramsCount = signal<number>(0);
 

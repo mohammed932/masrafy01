@@ -197,23 +197,23 @@ class MasrafyAssets {
   static const String kEshopSuccessIllustration =
       'resources/images/eshop/eshop_success.svg';
 
-  // ── Images — onboarding ───────────────────────────────────────────────────
+  // ── Images — onboarding (3 slides, Figma 71:256 / 71:188 / 71:221) ─────────
   static const String onboardingSlide1 =
-      'resources/images/onboarding/slide_1.svg';
+      'resources/images/onboarding/slide_1.png';
   static const String onboardingSlide2 =
-      'resources/images/onboarding/slide_2.svg';
+      'resources/images/onboarding/slide_2.png';
   static const String onboardingSlide3 =
-      'resources/images/onboarding/slide_3.svg';
-  static const String onboardingSlide4 =
-      'resources/images/onboarding/slide_4.svg';
-  static const String onboardingSlide5 =
-      'resources/images/onboarding/slide_5.svg';
+      'resources/images/onboarding/slide_3.png';
 
   static const List<String> onboardingSlides = [
     onboardingSlide1,
     onboardingSlide2,
     onboardingSlide3,
-    onboardingSlide4,
-    onboardingSlide5,
   ];
+
+  // ── Images — home loan-type icons (Figma 100:1503) ─────────────────────────
+  static const String homeIconPersonal = 'resources/images/home/personal.png';
+  static const String homeIconMortgage = 'resources/images/home/mortgage.png';
+  static const String homeIconCar = 'resources/images/home/car.png';
+  static const String homeIconBusiness = 'resources/images/home/business.png';
 }

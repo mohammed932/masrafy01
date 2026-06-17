@@ -1,0 +1,84 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
+
+import 'package:app/core/theme/colors/masrafy_color_theme.dart';
+import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+
+/// Selectable loan-type card (Figma `137:2929`): icon + title + limit + APR.
+/// Selected state uses an azure-tinted fill + azure border. Flow-local widget
+/// (Principle XXXII); one widget per file (XXXVI). Tokens only.
+class HomeLoanCard extends StatelessWidget {
+  const HomeLoanCard({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.limit,
+    required this.apr,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String icon;
+  final String title;
+  final String limit;
+  final String apr;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    final text = MasrafyTextTheme.of(context);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16.r),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsetsDirectional.all(15.r),
+        decoration: BoxDecoration(
+          color: selected
+              ? colors.secondary.border.withValues(alpha: 0.2)
+              : colors.bg.container,
+          borderRadius: BorderRadius.circular(16.r),
+          border: Border.all(
+            color: selected ? colors.secondary.main : colors.border.split,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12.r),
+              child: Image.asset(
+                icon,
+                width: 45.r,
+                height: 45.r,
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
+            Gap(7.h),
+            Text(
+              title,
+              style: text.bodySmall.bold().copyWith(color: colors.text.heading),
+            ),
+            Gap(2.h),
+            Text(
+              limit,
+              style: text.caption.copyWith(color: colors.text.placeholder),
+            ),
+            Gap(2.h),
+            Text(
+              apr,
+              style: text.caption.bold().copyWith(color: colors.secondary.main),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -38,13 +38,12 @@ export const APP_ROUTES: Routes = [
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
     loadChildren: () => import('./features/users/users.routes').then((m) => m.USERS_ROUTES),
   },
-  {
-    // Legacy path — programs now live under the merged Banks workspace.
-    // pathMatch:'prefix' preserves the tail: /bank-programs/ABC/edit → /banks/programs/ABC/edit.
-    path: 'bank-programs',
-    redirectTo: 'banks/programs',
-    pathMatch: 'prefix',
-  },
+  // Legacy paths — the flat program list is gone; programs live under their bank.
+  // Bare list → registry; deep program links → the kept flat program pages.
+  { path: 'bank-programs', pathMatch: 'full', redirectTo: 'banks' },
+  { path: 'bank-programs/new', redirectTo: 'banks/programs/new' },
+  { path: 'bank-programs/:programCode/edit', redirectTo: 'banks/programs/:programCode/edit' },
+  { path: 'bank-programs/:programCode', redirectTo: 'banks/programs/:programCode' },
   {
     path: 'applications',
     canActivate: [authGuardFn],

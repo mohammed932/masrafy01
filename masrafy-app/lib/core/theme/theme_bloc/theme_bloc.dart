@@ -36,10 +36,12 @@ class ThemeBloc extends Bloc<ThemeBlocEvent, ThemeBlocState> {
 
   ColorThemes _readSavedMode() {
     final raw = _prefs.getString(StorageKeys.masrafyColorTheme.name);
-    if (raw == null) return ColorThemes.dark;
+    // Default to light: the current Figma screens (onboarding / login / home)
+    // are designed light-first. Users can still switch to dark.
+    if (raw == null) return ColorThemes.light;
     return ColorThemes.values.firstWhere(
       (e) => e.name == raw,
-      orElse: () => ColorThemes.dark,
+      orElse: () => ColorThemes.light,
     );
   }
 }
