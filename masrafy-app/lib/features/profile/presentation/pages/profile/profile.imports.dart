@@ -1,0 +1,36 @@
+import 'package:auto_route/auto_route.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:gap/gap.dart';
+import 'package:intl/intl.dart';
+
+import 'package:app/core/di/injection.dart';
+import 'package:app/core/router/router.gr.dart';
+import 'package:app/core/theme/colors/masrafy_color_theme.dart';
+import 'package:app/core/utils/egypt_governorates.dart';
+import 'package:app/core/widgets/buttons/masrafy_gradient_button.dart';
+import 'package:app/core/widgets/common/masrafy_app_bottom_nav.dart';
+import 'package:app/core/widgets/common/masrafy_avatar.dart';
+import 'package:app/core/widgets/common/masrafy_toast.dart';
+import 'package:app/core/widgets/date_pickers/masrafy_single_date_picker_sheet.dart';
+import 'package:app/core/widgets/input_controls/masrafy_dob_selector.dart';
+import 'package:app/core/widgets/input_controls/masrafy_labeled_field.dart';
+import 'package:app/core/widgets/input_controls/masrafy_national_id_uploader.dart';
+import 'package:app/core/widgets/input_controls/masrafy_phone_field.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
+import 'package:app/core/widgets/input_controls/masrafy_single_select_sheet.dart';
+import 'package:app/l10n/generated/app_localizations.dart';
+
+import '../../models/profile_data.dart';
+import 'cubit/profile/profile_cubit.dart';
+import 'cubit/profile_edit_contact/profile_edit_contact_cubit.dart';
+import 'cubit/profile_edit_personal/profile_edit_personal_cubit.dart';
+import 'widgets/profile_avatar_editor.dart';
+import 'widgets/profile_field_row.dart';
+import 'widgets/profile_header.dart';
+import 'widgets/profile_info_card.dart';
+
+part 'profile_page.dart';
+part 'profile_edit_personal_page.dart';
+part 'profile_edit_contact_page.dart';

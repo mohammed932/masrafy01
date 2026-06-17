@@ -8,8 +8,11 @@ import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 /// with an eligibility hint over two upload cards (front / back). UI-only for
 /// now — capture/upload is deferred (no mobile document endpoint wired yet);
 /// [onTapFront] / [onTapBack] surface a coming-soon hint from the page.
-class SignupNationalIdUploader extends StatelessWidget {
-  const SignupNationalIdUploader({
+///
+/// Promoted to `core/widgets/input_controls/` per Principle XXXIII (shared by
+/// signup + profile).
+class MasrafyNationalIdUploader extends StatelessWidget {
+  const MasrafyNationalIdUploader({
     super.key,
     required this.sectionLabel,
     required this.sectionHint,

@@ -1,3 +1,4 @@
+import 'package:app/core/utils/egypt_governorates.dart';
 import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
@@ -87,50 +88,13 @@ class MortgageLookups {
             value: 'lowest_fees', label: l.q_opt_priority_lowest_fees),
       ];
 
-  /// The 27 Egyptian governorates. Bilingual in-file (Arabic-first), picked by
-  /// the active locale — consistent with `CountryList` reference data.
+  /// The 27 Egyptian governorates — mapped from the shared
+  /// [EgyptGovernorates] reference list (Principle XXXIII).
   static List<MasrafySelectOption<String>> governorates(AppLocalizations l) {
     final isArabic = l.localeName.startsWith('ar');
     return [
-      for (final g in _governorates)
-        MasrafySelectOption(value: g.slug, label: isArabic ? g.ar : g.en),
+      for (final g in EgyptGovernorates.all)
+        MasrafySelectOption(value: g.slug, label: g.label(isArabic)),
     ];
   }
-
-  static const List<_Gov> _governorates = [
-    _Gov('cairo', 'Cairo', 'القاهرة'),
-    _Gov('giza', 'Giza', 'الجيزة'),
-    _Gov('alexandria', 'Alexandria', 'الإسكندرية'),
-    _Gov('qalyubia', 'Qalyubia', 'القليوبية'),
-    _Gov('port_said', 'Port Said', 'بورسعيد'),
-    _Gov('suez', 'Suez', 'السويس'),
-    _Gov('dakahlia', 'Dakahlia', 'الدقهلية'),
-    _Gov('sharqia', 'Sharqia', 'الشرقية'),
-    _Gov('gharbia', 'Gharbia', 'الغربية'),
-    _Gov('monufia', 'Monufia', 'المنوفية'),
-    _Gov('beheira', 'Beheira', 'البحيرة'),
-    _Gov('kafr_el_sheikh', 'Kafr El Sheikh', 'كفر الشيخ'),
-    _Gov('damietta', 'Damietta', 'دمياط'),
-    _Gov('ismailia', 'Ismailia', 'الإسماعيلية'),
-    _Gov('faiyum', 'Faiyum', 'الفيوم'),
-    _Gov('beni_suef', 'Beni Suef', 'بني سويف'),
-    _Gov('minya', 'Minya', 'المنيا'),
-    _Gov('asyut', 'Asyut', 'أسيوط'),
-    _Gov('sohag', 'Sohag', 'سوهاج'),
-    _Gov('qena', 'Qena', 'قنا'),
-    _Gov('luxor', 'Luxor', 'الأقصر'),
-    _Gov('aswan', 'Aswan', 'أسوان'),
-    _Gov('red_sea', 'Red Sea', 'البحر الأحمر'),
-    _Gov('new_valley', 'New Valley', 'الوادي الجديد'),
-    _Gov('matrouh', 'Matrouh', 'مطروح'),
-    _Gov('north_sinai', 'North Sinai', 'شمال سيناء'),
-    _Gov('south_sinai', 'South Sinai', 'جنوب سيناء'),
-  ];
-}
-
-class _Gov {
-  const _Gov(this.slug, this.en, this.ar);
-  final String slug;
-  final String en;
-  final String ar;
 }

@@ -317,5 +317,153 @@
   "q_opt_priority_fastest_approval": "Fastest approval",
   "q_opt_priority_lowest_fees": "Lowest administrative fees",
 
-  "q_mortgage_q_assistance": "Do you need assistance preparing documents and completing procedures?"
+  "q_mortgage_q_assistance": "Do you need assistance preparing documents and completing procedures?",
+
+  "q_business_title": "Business Loan Application",
+  "q_business_subtitle": "We'll match you with banks that specialise in your needs",
+  "q_business_next": "Next",
+  "q_business_finish": "Finish",
+  "q_business_submitted": "Your answers have been saved",
+  "q_business_select_hint": "Select an option",
+  "q_business_years": "{years} years",
+
+  "q_business_step1_title": "Business & Financing Details",
+  "q_business_step2_title": "Financial Information",
+  "q_business_step3_title": "Obligations & Credit Status",
+  "q_business_step4_title": "Preferences & Support",
+
+  "q_business_q_activity": "What type of business or project do you operate?",
+  "q_business_hint_activity": "Select business type",
+  "q_opt_biz_activity_trade": "Trading",
+  "q_opt_biz_activity_services": "Services",
+  "q_opt_biz_activity_food": "Restaurants & Cafés",
+  "q_opt_biz_activity_manufacturing": "Manufacturing",
+  "q_opt_biz_activity_technology": "Technology",
+  "q_opt_biz_activity_other": "Other",
+
+  "q_business_q_business_age": "How long has the business been operating?",
+  "q_business_business_age_hint": "No. of years",
+
+  "q_business_q_financing_amount": "What is the approximate financing amount required?",
+  "q_business_financing_amount_hint": "Financing amount required",
+
+  "q_business_q_purpose": "What is the primary purpose of the financing?",
+  "q_business_hint_purpose": "Select purpose",
+  "q_opt_biz_purpose_expansion": "Expansion",
+  "q_opt_biz_purpose_equipment": "Equipment Purchase",
+  "q_opt_biz_purpose_working_capital": "Working Capital",
+  "q_opt_biz_purpose_new_branch": "Opening a New Branch",
+  "q_opt_biz_purpose_settle_obligations": "Debt Settlement",
+  "q_opt_biz_purpose_other": "Other",
+
+  "q_business_repayment_label": "Repayment period",
+
+  "q_business_q_revenue": "What is the average monthly business revenue?",
+  "q_business_q_bank_account": "Do you have a business bank account?",
+  "q_business_q_registered": "Is the business officially registered?",
+  "q_opt_biz_registration_in_progress": "Registration in Progress",
+  "q_business_q_tax": "Do you have a tax registration or commercial registration?",
+
+  "q_business_q_current_facilities": "Does the business currently have any loans or financing facilities?",
+  "q_business_q_installments": "What is the total amount of current monthly obligations?",
+  "q_business_installments_label": "Monthly obligations",
+  "q_business_installments_hint": "Monthly Installment",
+  "q_business_q_prior_rejection": "Has the business ever been declined for financing?",
+
+  "q_business_q_priority": "What is most important to you in business financing?",
+  "q_opt_biz_priority_fast_approval": "Fast Approval",
+  "q_opt_biz_priority_flexible_repayment": "Flexible Repayment",
+  "q_opt_biz_priority_highest_amount": "Highest Financing Amount",
+  "q_opt_biz_priority_lowest_interest": "Lowest Interest Rate",
+  "q_opt_biz_priority_least_paperwork": "Minimum Documentation",
+  "q_business_q_consultation": "Would you like to consult with a business financing expert?",
+
+  "q_car_subtitle": "We'll match you with banks that specialise in your needs",
+  "q_car_next": "Next",
+  "q_car_finish": "Finish",
+  "q_car_submitted": "Your answers have been saved",
+  "q_car_select_hint": "Select an option",
+  "q_car_years": "{years} years",
+
+  "q_car_step1_title": "Vehicle & Financing Information",
+  "q_car_step2_title": "Employment & Income",
+  "q_car_step3_title": "Financial Status",
+  "q_car_step4_title": "Preferences",
+
+  "q_car_q_condition": "Is the vehicle new or used?",
+  "q_opt_car_cond_new": "New",
+  "q_opt_car_cond_used": "Used",
+
+  "q_car_q_model_year": "What is the vehicle model year?",
+  "q_opt_car_year_current": "Current year model",
+  "q_opt_car_year_last3": "Within the last 3 years",
+  "q_opt_car_year_3_5": "3 to 5 years old",
+  "q_opt_car_year_over5": "More than 5 years old",
+
+  "q_car_q_price": "What is the approximate vehicle price?",
+
+  "q_car_q_down_payment": "How much down payment do you have available?",
+  "q_opt_car_dp_none": "No down payment",
+  "q_opt_car_dp_under20": "Less than 20%",
+  "q_opt_car_dp_20_40": "20% – 40%",
+  "q_opt_car_dp_over40": "More than 40%",
+
+  "q_car_repayment_label": "Repayment period",
+
+  "q_car_q_employment": "What is your employment status?",
+
+  "q_car_q_income": "What is your average monthly income?",
+  "q_opt_car_income_b1": "Less than EGP 10,000",
+  "q_opt_car_income_b2": "EGP 10,000 – 25,000",
+  "q_opt_car_income_b3": "EGP 25,000 – 50,000",
+  "q_opt_car_income_b4": "More than EGP 50,000",
+
+  "q_car_q_salary_transfer": "Is your salary transferred to a bank account?",
+
+  "q_car_q_employer_approved": "Is your employer approved by banks?",
+  "q_opt_car_emp_yes": "Yes",
+  "q_opt_car_emp_no": "No",
+  "q_opt_car_emp_unsure": "Not sure",
+
+  "q_car_q_current_loans": "Do you currently have obligations or loans?",
+  "q_car_installments_label": "Monthly installments",
+  "q_car_installments_hint": "Monthly installment amount",
+  "q_car_q_credit_card": "Do you have active credit cards?",
+
+  "q_car_q_priority": "Primary priority when choosing a car loan?",
+  "q_opt_priority_lowest_interest": "Lowest interest rate",
+  "q_opt_priority_no_guarantor": "Financing without a guarantor",
+  "q_car_q_insurance": "Would you like vehicle insurance offers?",
+
+  "profile_title": "Profile",
+  "profile_section_personal": "Personal Information",
+  "profile_section_contact": "Contact Details",
+  "profile_edit": "Edit",
+  "profile_first_name": "First Name",
+  "profile_last_name": "Last Name",
+  "profile_password": "Password",
+  "profile_password_changed": "Last changed {count} months ago",
+  "@profile_password_changed": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "profile_password_hint": "New password",
+  "profile_dob": "Date of Birth",
+  "profile_dob_day": "Day",
+  "profile_dob_month": "Month",
+  "profile_dob_year": "Year",
+  "profile_national_id": "National ID",
+  "profile_national_id_hint": "— required for loan eligibility",
+  "profile_id_front": "Front side",
+  "profile_id_back": "Back side",
+  "profile_id_uploaded": "Uploaded",
+  "profile_id_tap_to_upload": "Tap to upload",
+  "profile_phone": "Phone",
+  "profile_phone_hint": "Phone number",
+  "profile_email": "Email",
+  "profile_address": "Address",
+  "profile_governorate": "Governorate",
+  "profile_city": "City",
+  "profile_save": "Save",
+  "profile_cancel": "Cancel",
+  "profile_search_hint": "Search"
 }

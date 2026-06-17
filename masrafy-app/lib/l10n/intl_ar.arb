@@ -431,5 +431,153 @@
   "q_opt_priority_fastest_approval": "أسرع موافقة",
   "q_opt_priority_lowest_fees": "أقل مصاريف إدارية",
 
-  "q_mortgage_q_assistance": "هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟"
+  "q_mortgage_q_assistance": "هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟",
+
+  "q_business_title": "طلب تمويل تجاري",
+  "q_business_subtitle": "سنطابقك مع البنوك المتخصصة في احتياجاتك",
+  "q_business_next": "التالي",
+  "q_business_finish": "إنهاء",
+  "q_business_submitted": "تم حفظ إجاباتك",
+  "q_business_select_hint": "اختر",
+  "q_business_years": "{years} سنة",
+
+  "q_business_step1_title": "بيانات النشاط والتمويل",
+  "q_business_step2_title": "المعلومات المالية",
+  "q_business_step3_title": "الالتزامات والوضع الائتماني",
+  "q_business_step4_title": "التفضيلات والدعم",
+
+  "q_business_q_activity": "ما نوع النشاط أو المشروع الذي تديره؟",
+  "q_business_hint_activity": "اختر نوع النشاط",
+  "q_opt_biz_activity_trade": "تجارة",
+  "q_opt_biz_activity_services": "خدمات",
+  "q_opt_biz_activity_food": "مطاعم ومقاهي",
+  "q_opt_biz_activity_manufacturing": "تصنيع",
+  "q_opt_biz_activity_technology": "تكنولوجيا",
+  "q_opt_biz_activity_other": "أخرى",
+
+  "q_business_q_business_age": "منذ متى يعمل النشاط؟",
+  "q_business_business_age_hint": "عدد السنوات",
+
+  "q_business_q_financing_amount": "ما قيمة التمويل التقريبية المطلوبة؟",
+  "q_business_financing_amount_hint": "قيمة التمويل المطلوبة",
+
+  "q_business_q_purpose": "ما الغرض الأساسي من التمويل؟",
+  "q_business_hint_purpose": "اختر الغرض",
+  "q_opt_biz_purpose_expansion": "توسعة",
+  "q_opt_biz_purpose_equipment": "شراء معدات",
+  "q_opt_biz_purpose_working_capital": "رأس مال تشغيلي",
+  "q_opt_biz_purpose_new_branch": "افتتاح فرع جديد",
+  "q_opt_biz_purpose_settle_obligations": "سداد التزامات",
+  "q_opt_biz_purpose_other": "أخرى",
+
+  "q_business_repayment_label": "مدة السداد",
+
+  "q_business_q_revenue": "ما متوسط الإيراد الشهري للنشاط؟",
+  "q_business_q_bank_account": "هل لديك حساب بنكي للنشاط؟",
+  "q_business_q_registered": "هل النشاط مسجل رسميًا؟",
+  "q_opt_biz_registration_in_progress": "التسجيل قيد التنفيذ",
+  "q_business_q_tax": "هل لديك سجل ضريبي أو سجل تجاري؟",
+
+  "q_business_q_current_facilities": "هل لدى النشاط حاليًا أي قروض أو تسهيلات تمويلية؟",
+  "q_business_q_installments": "ما إجمالي قيمة الالتزامات الشهرية الحالية؟",
+  "q_business_installments_label": "الالتزامات الشهرية",
+  "q_business_installments_hint": "قيمة القسط الشهري",
+  "q_business_q_prior_rejection": "هل سبق ورُفض للنشاط طلب تمويل؟",
+
+  "q_business_q_priority": "ما الأهم بالنسبة لك في تمويل الأعمال؟",
+  "q_opt_biz_priority_fast_approval": "أسرع موافقة",
+  "q_opt_biz_priority_flexible_repayment": "سداد مرن",
+  "q_opt_biz_priority_highest_amount": "أعلى مبلغ تمويل",
+  "q_opt_biz_priority_lowest_interest": "أقل سعر فائدة",
+  "q_opt_biz_priority_least_paperwork": "أقل مستندات مطلوبة",
+  "q_business_q_consultation": "هل ترغب في استشارة خبير تمويل الأعمال؟",
+
+  "q_car_subtitle": "سنطابقك مع البنوك المتخصصة في احتياجاتك",
+  "q_car_next": "التالي",
+  "q_car_finish": "إنهاء",
+  "q_car_submitted": "تم حفظ إجاباتك",
+  "q_car_select_hint": "اختر",
+  "q_car_years": "{years} سنة",
+
+  "q_car_step1_title": "معلومات السيارة والتمويل",
+  "q_car_step2_title": "العمل والدخل",
+  "q_car_step3_title": "الحالة المالية",
+  "q_car_step4_title": "التفضيلات",
+
+  "q_car_q_condition": "هل السيارة جديدة أم مستعملة؟",
+  "q_opt_car_cond_new": "جديدة",
+  "q_opt_car_cond_used": "مستعملة",
+
+  "q_car_q_model_year": "ما سنة موديل السيارة؟",
+  "q_opt_car_year_current": "موديل السنة الحالية",
+  "q_opt_car_year_last3": "خلال آخر 3 سنوات",
+  "q_opt_car_year_3_5": "من 3 إلى 5 سنوات",
+  "q_opt_car_year_over5": "أكثر من 5 سنوات",
+
+  "q_car_q_price": "ما السعر التقريبي للسيارة؟",
+
+  "q_car_q_down_payment": "ما حجم الدفعة المقدمة المتاحة لديك؟",
+  "q_opt_car_dp_none": "بدون دفعة مقدمة",
+  "q_opt_car_dp_under20": "أقل من 20%",
+  "q_opt_car_dp_20_40": "20% – 40%",
+  "q_opt_car_dp_over40": "أكثر من 40%",
+
+  "q_car_repayment_label": "مدة السداد",
+
+  "q_car_q_employment": "ما هي حالتك الوظيفية؟",
+
+  "q_car_q_income": "ما متوسط دخلك الشهري؟",
+  "q_opt_car_income_b1": "أقل من 10,000 جنيه",
+  "q_opt_car_income_b2": "10,000 – 25,000 جنيه",
+  "q_opt_car_income_b3": "25,000 – 50,000 جنيه",
+  "q_opt_car_income_b4": "أكثر من 50,000 جنيه",
+
+  "q_car_q_salary_transfer": "هل يتم تحويل راتبك إلى حساب بنكي؟",
+
+  "q_car_q_employer_approved": "هل جهة عملك معتمدة لدى البنوك؟",
+  "q_opt_car_emp_yes": "نعم",
+  "q_opt_car_emp_no": "لا",
+  "q_opt_car_emp_unsure": "غير متأكد",
+
+  "q_car_q_current_loans": "هل لديك التزامات أو قروض حالية؟",
+  "q_car_installments_label": "القسط الشهري",
+  "q_car_installments_hint": "قيمة القسط الشهري",
+  "q_car_q_credit_card": "هل لديك بطاقات ائتمان نشطة؟",
+
+  "q_car_q_priority": "أهم أولوية عند اختيار تمويل السيارة؟",
+  "q_opt_priority_lowest_interest": "أقل سعر فائدة",
+  "q_opt_priority_no_guarantor": "تمويل بدون ضامن",
+  "q_car_q_insurance": "هل ترغب في عروض تأمين السيارة؟",
+
+  "profile_title": "الملف الشخصي",
+  "profile_section_personal": "المعلومات الشخصية",
+  "profile_section_contact": "بيانات التواصل",
+  "profile_edit": "تعديل",
+  "profile_first_name": "الاسم الأول",
+  "profile_last_name": "اسم العائلة",
+  "profile_password": "كلمة المرور",
+  "profile_password_changed": "آخر تغيير منذ {count} أشهر",
+  "@profile_password_changed": {
+    "placeholders": { "count": { "type": "int" } }
+  },
+  "profile_password_hint": "كلمة مرور جديدة",
+  "profile_dob": "تاريخ الميلاد",
+  "profile_dob_day": "اليوم",
+  "profile_dob_month": "الشهر",
+  "profile_dob_year": "السنة",
+  "profile_national_id": "الرقم القومي",
+  "profile_national_id_hint": "— مطلوب لأهلية القرض",
+  "profile_id_front": "الوجه الأمامي",
+  "profile_id_back": "الوجه الخلفي",
+  "profile_id_uploaded": "تم الرفع",
+  "profile_id_tap_to_upload": "اضغط للرفع",
+  "profile_phone": "الهاتف",
+  "profile_phone_hint": "رقم الهاتف",
+  "profile_email": "البريد الإلكتروني",
+  "profile_address": "العنوان",
+  "profile_governorate": "المحافظة",
+  "profile_city": "المدينة",
+  "profile_save": "حفظ",
+  "profile_cancel": "إلغاء",
+  "profile_search_hint": "بحث"
 }

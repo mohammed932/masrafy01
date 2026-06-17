@@ -6,12 +6,15 @@ import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
 /// Date-of-birth control (Figma `91:475`): an uppercase label over Day / Month
-/// / Year display pills (Day + Month share a row, Year spans below) and a green
-/// "Age verified — N years old" hint. Tapping any pill calls [onTap], which the
-/// page wires to [MasrafySingleDatePickerSheet]; the picker owns day/month
-/// validity so this widget only displays the chosen [value].
-class SignupDobSelector extends StatelessWidget {
-  const SignupDobSelector({
+/// / Year display pills (Day + Month share a row, Year spans below) and an
+/// optional green hint line. Tapping any pill calls [onTap], which the page
+/// wires to [MasrafySingleDatePickerSheet]; the picker owns day/month validity
+/// so this widget only displays the chosen [value].
+///
+/// Promoted to `core/widgets/input_controls/` per Principle XXXIII (shared by
+/// signup + profile). State is fully external — the caller owns [value].
+class MasrafyDobSelector extends StatelessWidget {
+  const MasrafyDobSelector({
     super.key,
     required this.label,
     required this.onTap,

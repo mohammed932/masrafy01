@@ -43,10 +43,13 @@ class _HomeView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.bg.layout,
-      bottomNavigationBar: _HomeBottomNav(
+      bottomNavigationBar: MasrafyAppBottomNav(
+        active: MasrafyAppNavTab.home,
         loansLabel: l.home_nav_loans,
         profileLabel: l.home_nav_profile,
-        onTap: soon,
+        onLoans: soon,
+        onHome: () {},
+        onProfile: () => context.router.push(const ProfileRoute()),
       ),
       body: BlocBuilder<HomeCubit, HomeState>(
         builder: (ctx, state) {
@@ -132,11 +135,21 @@ class _HomeView extends StatelessWidget {
                           Gap(25.h),
                           MasrafyGradientButton(
                             label: l.home_continue,
-                            onPressed: () =>
-                                state.selected == HomeLoanCategory.mortgage
-                                    ? ctx.router.push(
-                                        const MortgageQuestionnaireRoute())
-                                    : soon(),
+                            onPressed: () {
+                              switch (state.selected) {
+                                case HomeLoanCategory.mortgage:
+                                  ctx.router.push(
+                                      const MortgageQuestionnaireRoute());
+                                case HomeLoanCategory.car:
+                                  ctx.router
+                                      .push(const CarQuestionnaireRoute());
+                                case HomeLoanCategory.business:
+                                  ctx.router.push(
+                                      const BusinessQuestionnaireRoute());
+                                case HomeLoanCategory.personal:
+                                  soon();
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -230,59 +243,3 @@ class _SupportBanner extends StatelessWidget {
   }
 }
 
-/// Bottom navigation bar — My Loans / Home (active) / Profile (Figma `137:2976`).
-class _HomeBottomNav extends StatelessWidget {
-  const _HomeBottomNav({
-    required this.loansLabel,
-    required this.profileLabel,
-    required this.onTap,
-  });
-  final String loansLabel;
-  final String profileLabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final text = MasrafyTextTheme.of(context);
-    Widget item(IconData icon, String label) => InkWell(
-          onTap: onTap,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 20.r, color: colors.primary.main),
-              Gap(2.h),
-              Text(
-                label,
-                style: text.caption.copyWith(color: colors.primary.main),
-              ),
-            ],
-          ),
-        );
-
-    return Container(
-      color: colors.bg.container,
-      padding: EdgeInsetsDirectional.only(top: 8.h, bottom: 15.h),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            item(Icons.favorite_border, loansLabel),
-            Container(
-              width: 45.r,
-              height: 45.r,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: colors.primary.main,
-                border: Border.all(color: colors.white, width: 4),
-              ),
-              child: Icon(Icons.home_rounded, color: colors.white, size: 22.r),
-            ),
-            item(Icons.person_outline, profileLabel),
-          ],
-        ),
-      ),
-    );
-  }
-}

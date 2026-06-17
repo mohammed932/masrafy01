@@ -207,7 +207,7 @@ class _SignupViewState extends State<_SignupView> {
                                 cubit.updateField(SignupField.email, v),
                           ),
                           Gap(16.h),
-                          SignupDobSelector(
+                          MasrafyDobSelector(
                             label: l.signup_dob_label,
                             dayPlaceholder: l.signup_dob_day,
                             monthPlaceholder: l.signup_dob_month,
@@ -265,7 +265,7 @@ class _SignupViewState extends State<_SignupView> {
                           Gap(20.h),
                           Divider(height: 1.h, color: colors.border.secondary),
                           Gap(16.h),
-                          SignupNationalIdUploader(
+                          MasrafyNationalIdUploader(
                             sectionLabel: l.signup_national_id_label,
                             sectionHint: l.signup_national_id_hint,
                             frontLabel: l.signup_id_front,

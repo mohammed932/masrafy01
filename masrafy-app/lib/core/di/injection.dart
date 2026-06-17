@@ -24,8 +24,13 @@ import 'package:app/features/auth/presentation/pages/login/cubit/login/login_cub
 import 'package:app/features/auth/presentation/pages/otp/cubit/otp/otp_cubit.dart';
 import 'package:app/features/auth/presentation/pages/signup/cubit/signup/signup_cubit.dart';
 import 'package:app/features/home/presentation/pages/home/cubit/home/home_cubit.dart';
+import 'package:app/features/questionnaire/presentation/pages/business/cubit/business_questionnaire/business_questionnaire_cubit.dart';
+import 'package:app/features/questionnaire/presentation/pages/car/cubit/car_questionnaire/car_questionnaire_cubit.dart';
 import 'package:app/features/questionnaire/presentation/pages/mortgage/cubit/mortgage_questionnaire/mortgage_questionnaire_cubit.dart';
 import 'package:app/features/onboarding/presentation/pages/onboarding/cubit/onboarding/onboarding_cubit.dart';
+import 'package:app/features/profile/presentation/pages/profile/cubit/profile/profile_cubit.dart';
+import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_contact/profile_edit_contact_cubit.dart';
+import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_personal/profile_edit_personal_cubit.dart';
 import 'package:app/features/splash/presentation/pages/splash/cubit/splash/splash_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
@@ -104,7 +109,15 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   // home
   getIt.registerFactory(() => HomeCubit());
 
-  // questionnaire — mortgage group (UI-only; local static lookups, no
-  // datasource/repo yet — see plan). Screen-scoped factory (Principle XXXI).
+  // questionnaire — mortgage + car + business groups (UI-only; local static
+  // lookups, no datasource/repo yet — see plan). Screen-scoped (Principle XXXI).
   getIt.registerFactory(() => MortgageQuestionnaireCubit());
+  getIt.registerFactory(() => CarQuestionnaireCubit());
+  getIt.registerFactory(() => BusinessQuestionnaireCubit());
+
+  // profile — view + two edit screens (UI-only mock; no datasource/repo yet,
+  // see plan). Screen-scoped (Principle XXXI).
+  getIt.registerFactory(() => ProfileCubit());
+  getIt.registerFactory(() => ProfileEditPersonalCubit());
+  getIt.registerFactory(() => ProfileEditContactCubit());
 }

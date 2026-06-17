@@ -864,4 +864,373 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get q_mortgage_q_assistance => 'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟';
+
+  @override
+  String get q_business_title => 'طلب تمويل تجاري';
+
+  @override
+  String get q_business_subtitle => 'سنطابقك مع البنوك المتخصصة في احتياجاتك';
+
+  @override
+  String get q_business_next => 'التالي';
+
+  @override
+  String get q_business_finish => 'إنهاء';
+
+  @override
+  String get q_business_submitted => 'تم حفظ إجاباتك';
+
+  @override
+  String get q_business_select_hint => 'اختر';
+
+  @override
+  String q_business_years(Object years) {
+    return '$years سنة';
+  }
+
+  @override
+  String get q_business_step1_title => 'بيانات النشاط والتمويل';
+
+  @override
+  String get q_business_step2_title => 'المعلومات المالية';
+
+  @override
+  String get q_business_step3_title => 'الالتزامات والوضع الائتماني';
+
+  @override
+  String get q_business_step4_title => 'التفضيلات والدعم';
+
+  @override
+  String get q_business_q_activity => 'ما نوع النشاط أو المشروع الذي تديره؟';
+
+  @override
+  String get q_business_hint_activity => 'اختر نوع النشاط';
+
+  @override
+  String get q_opt_biz_activity_trade => 'تجارة';
+
+  @override
+  String get q_opt_biz_activity_services => 'خدمات';
+
+  @override
+  String get q_opt_biz_activity_food => 'مطاعم ومقاهي';
+
+  @override
+  String get q_opt_biz_activity_manufacturing => 'تصنيع';
+
+  @override
+  String get q_opt_biz_activity_technology => 'تكنولوجيا';
+
+  @override
+  String get q_opt_biz_activity_other => 'أخرى';
+
+  @override
+  String get q_business_q_business_age => 'منذ متى يعمل النشاط؟';
+
+  @override
+  String get q_business_business_age_hint => 'عدد السنوات';
+
+  @override
+  String get q_business_q_financing_amount => 'ما قيمة التمويل التقريبية المطلوبة؟';
+
+  @override
+  String get q_business_financing_amount_hint => 'قيمة التمويل المطلوبة';
+
+  @override
+  String get q_business_q_purpose => 'ما الغرض الأساسي من التمويل؟';
+
+  @override
+  String get q_business_hint_purpose => 'اختر الغرض';
+
+  @override
+  String get q_opt_biz_purpose_expansion => 'توسعة';
+
+  @override
+  String get q_opt_biz_purpose_equipment => 'شراء معدات';
+
+  @override
+  String get q_opt_biz_purpose_working_capital => 'رأس مال تشغيلي';
+
+  @override
+  String get q_opt_biz_purpose_new_branch => 'افتتاح فرع جديد';
+
+  @override
+  String get q_opt_biz_purpose_settle_obligations => 'سداد التزامات';
+
+  @override
+  String get q_opt_biz_purpose_other => 'أخرى';
+
+  @override
+  String get q_business_repayment_label => 'مدة السداد';
+
+  @override
+  String get q_business_q_revenue => 'ما متوسط الإيراد الشهري للنشاط؟';
+
+  @override
+  String get q_business_q_bank_account => 'هل لديك حساب بنكي للنشاط؟';
+
+  @override
+  String get q_business_q_registered => 'هل النشاط مسجل رسميًا؟';
+
+  @override
+  String get q_opt_biz_registration_in_progress => 'التسجيل قيد التنفيذ';
+
+  @override
+  String get q_business_q_tax => 'هل لديك سجل ضريبي أو سجل تجاري؟';
+
+  @override
+  String get q_business_q_current_facilities => 'هل لدى النشاط حاليًا أي قروض أو تسهيلات تمويلية؟';
+
+  @override
+  String get q_business_q_installments => 'ما إجمالي قيمة الالتزامات الشهرية الحالية؟';
+
+  @override
+  String get q_business_installments_label => 'الالتزامات الشهرية';
+
+  @override
+  String get q_business_installments_hint => 'قيمة القسط الشهري';
+
+  @override
+  String get q_business_q_prior_rejection => 'هل سبق ورُفض للنشاط طلب تمويل؟';
+
+  @override
+  String get q_business_q_priority => 'ما الأهم بالنسبة لك في تمويل الأعمال؟';
+
+  @override
+  String get q_opt_biz_priority_fast_approval => 'أسرع موافقة';
+
+  @override
+  String get q_opt_biz_priority_flexible_repayment => 'سداد مرن';
+
+  @override
+  String get q_opt_biz_priority_highest_amount => 'أعلى مبلغ تمويل';
+
+  @override
+  String get q_opt_biz_priority_lowest_interest => 'أقل سعر فائدة';
+
+  @override
+  String get q_opt_biz_priority_least_paperwork => 'أقل مستندات مطلوبة';
+
+  @override
+  String get q_business_q_consultation => 'هل ترغب في استشارة خبير تمويل الأعمال؟';
+
+  @override
+  String get q_car_subtitle => 'سنطابقك مع البنوك المتخصصة في احتياجاتك';
+
+  @override
+  String get q_car_next => 'التالي';
+
+  @override
+  String get q_car_finish => 'إنهاء';
+
+  @override
+  String get q_car_submitted => 'تم حفظ إجاباتك';
+
+  @override
+  String get q_car_select_hint => 'اختر';
+
+  @override
+  String q_car_years(Object years) {
+    return '$years سنة';
+  }
+
+  @override
+  String get q_car_step1_title => 'معلومات السيارة والتمويل';
+
+  @override
+  String get q_car_step2_title => 'العمل والدخل';
+
+  @override
+  String get q_car_step3_title => 'الحالة المالية';
+
+  @override
+  String get q_car_step4_title => 'التفضيلات';
+
+  @override
+  String get q_car_q_condition => 'هل السيارة جديدة أم مستعملة؟';
+
+  @override
+  String get q_opt_car_cond_new => 'جديدة';
+
+  @override
+  String get q_opt_car_cond_used => 'مستعملة';
+
+  @override
+  String get q_car_q_model_year => 'ما سنة موديل السيارة؟';
+
+  @override
+  String get q_opt_car_year_current => 'موديل السنة الحالية';
+
+  @override
+  String get q_opt_car_year_last3 => 'خلال آخر 3 سنوات';
+
+  @override
+  String get q_opt_car_year_3_5 => 'من 3 إلى 5 سنوات';
+
+  @override
+  String get q_opt_car_year_over5 => 'أكثر من 5 سنوات';
+
+  @override
+  String get q_car_q_price => 'ما السعر التقريبي للسيارة؟';
+
+  @override
+  String get q_car_q_down_payment => 'ما حجم الدفعة المقدمة المتاحة لديك؟';
+
+  @override
+  String get q_opt_car_dp_none => 'بدون دفعة مقدمة';
+
+  @override
+  String get q_opt_car_dp_under20 => 'أقل من 20%';
+
+  @override
+  String get q_opt_car_dp_20_40 => '20% – 40%';
+
+  @override
+  String get q_opt_car_dp_over40 => 'أكثر من 40%';
+
+  @override
+  String get q_car_repayment_label => 'مدة السداد';
+
+  @override
+  String get q_car_q_employment => 'ما هي حالتك الوظيفية؟';
+
+  @override
+  String get q_car_q_income => 'ما متوسط دخلك الشهري؟';
+
+  @override
+  String get q_opt_car_income_b1 => 'أقل من 10,000 جنيه';
+
+  @override
+  String get q_opt_car_income_b2 => '10,000 – 25,000 جنيه';
+
+  @override
+  String get q_opt_car_income_b3 => '25,000 – 50,000 جنيه';
+
+  @override
+  String get q_opt_car_income_b4 => 'أكثر من 50,000 جنيه';
+
+  @override
+  String get q_car_q_salary_transfer => 'هل يتم تحويل راتبك إلى حساب بنكي؟';
+
+  @override
+  String get q_car_q_employer_approved => 'هل جهة عملك معتمدة لدى البنوك؟';
+
+  @override
+  String get q_opt_car_emp_yes => 'نعم';
+
+  @override
+  String get q_opt_car_emp_no => 'لا';
+
+  @override
+  String get q_opt_car_emp_unsure => 'غير متأكد';
+
+  @override
+  String get q_car_q_current_loans => 'هل لديك التزامات أو قروض حالية؟';
+
+  @override
+  String get q_car_installments_label => 'القسط الشهري';
+
+  @override
+  String get q_car_installments_hint => 'قيمة القسط الشهري';
+
+  @override
+  String get q_car_q_credit_card => 'هل لديك بطاقات ائتمان نشطة؟';
+
+  @override
+  String get q_car_q_priority => 'أهم أولوية عند اختيار تمويل السيارة؟';
+
+  @override
+  String get q_opt_priority_lowest_interest => 'أقل سعر فائدة';
+
+  @override
+  String get q_opt_priority_no_guarantor => 'تمويل بدون ضامن';
+
+  @override
+  String get q_car_q_insurance => 'هل ترغب في عروض تأمين السيارة؟';
+
+  @override
+  String get profile_title => 'الملف الشخصي';
+
+  @override
+  String get profile_section_personal => 'المعلومات الشخصية';
+
+  @override
+  String get profile_section_contact => 'بيانات التواصل';
+
+  @override
+  String get profile_edit => 'تعديل';
+
+  @override
+  String get profile_first_name => 'الاسم الأول';
+
+  @override
+  String get profile_last_name => 'اسم العائلة';
+
+  @override
+  String get profile_password => 'كلمة المرور';
+
+  @override
+  String profile_password_changed(int count) {
+    return 'آخر تغيير منذ $count أشهر';
+  }
+
+  @override
+  String get profile_password_hint => 'كلمة مرور جديدة';
+
+  @override
+  String get profile_dob => 'تاريخ الميلاد';
+
+  @override
+  String get profile_dob_day => 'اليوم';
+
+  @override
+  String get profile_dob_month => 'الشهر';
+
+  @override
+  String get profile_dob_year => 'السنة';
+
+  @override
+  String get profile_national_id => 'الرقم القومي';
+
+  @override
+  String get profile_national_id_hint => '— مطلوب لأهلية القرض';
+
+  @override
+  String get profile_id_front => 'الوجه الأمامي';
+
+  @override
+  String get profile_id_back => 'الوجه الخلفي';
+
+  @override
+  String get profile_id_uploaded => 'تم الرفع';
+
+  @override
+  String get profile_id_tap_to_upload => 'اضغط للرفع';
+
+  @override
+  String get profile_phone => 'الهاتف';
+
+  @override
+  String get profile_phone_hint => 'رقم الهاتف';
+
+  @override
+  String get profile_email => 'البريد الإلكتروني';
+
+  @override
+  String get profile_address => 'العنوان';
+
+  @override
+  String get profile_governorate => 'المحافظة';
+
+  @override
+  String get profile_city => 'المدينة';
+
+  @override
+  String get profile_save => 'حفظ';
+
+  @override
+  String get profile_cancel => 'إلغاء';
+
+  @override
+  String get profile_search_hint => 'بحث';
 }

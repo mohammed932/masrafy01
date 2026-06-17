@@ -861,4 +861,373 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get q_mortgage_q_assistance => 'Do you need assistance preparing documents and completing procedures?';
+
+  @override
+  String get q_business_title => 'Business Loan Application';
+
+  @override
+  String get q_business_subtitle => 'We\'ll match you with banks that specialise in your needs';
+
+  @override
+  String get q_business_next => 'Next';
+
+  @override
+  String get q_business_finish => 'Finish';
+
+  @override
+  String get q_business_submitted => 'Your answers have been saved';
+
+  @override
+  String get q_business_select_hint => 'Select an option';
+
+  @override
+  String q_business_years(Object years) {
+    return '$years years';
+  }
+
+  @override
+  String get q_business_step1_title => 'Business & Financing Details';
+
+  @override
+  String get q_business_step2_title => 'Financial Information';
+
+  @override
+  String get q_business_step3_title => 'Obligations & Credit Status';
+
+  @override
+  String get q_business_step4_title => 'Preferences & Support';
+
+  @override
+  String get q_business_q_activity => 'What type of business or project do you operate?';
+
+  @override
+  String get q_business_hint_activity => 'Select business type';
+
+  @override
+  String get q_opt_biz_activity_trade => 'Trading';
+
+  @override
+  String get q_opt_biz_activity_services => 'Services';
+
+  @override
+  String get q_opt_biz_activity_food => 'Restaurants & Cafés';
+
+  @override
+  String get q_opt_biz_activity_manufacturing => 'Manufacturing';
+
+  @override
+  String get q_opt_biz_activity_technology => 'Technology';
+
+  @override
+  String get q_opt_biz_activity_other => 'Other';
+
+  @override
+  String get q_business_q_business_age => 'How long has the business been operating?';
+
+  @override
+  String get q_business_business_age_hint => 'No. of years';
+
+  @override
+  String get q_business_q_financing_amount => 'What is the approximate financing amount required?';
+
+  @override
+  String get q_business_financing_amount_hint => 'Financing amount required';
+
+  @override
+  String get q_business_q_purpose => 'What is the primary purpose of the financing?';
+
+  @override
+  String get q_business_hint_purpose => 'Select purpose';
+
+  @override
+  String get q_opt_biz_purpose_expansion => 'Expansion';
+
+  @override
+  String get q_opt_biz_purpose_equipment => 'Equipment Purchase';
+
+  @override
+  String get q_opt_biz_purpose_working_capital => 'Working Capital';
+
+  @override
+  String get q_opt_biz_purpose_new_branch => 'Opening a New Branch';
+
+  @override
+  String get q_opt_biz_purpose_settle_obligations => 'Debt Settlement';
+
+  @override
+  String get q_opt_biz_purpose_other => 'Other';
+
+  @override
+  String get q_business_repayment_label => 'Repayment period';
+
+  @override
+  String get q_business_q_revenue => 'What is the average monthly business revenue?';
+
+  @override
+  String get q_business_q_bank_account => 'Do you have a business bank account?';
+
+  @override
+  String get q_business_q_registered => 'Is the business officially registered?';
+
+  @override
+  String get q_opt_biz_registration_in_progress => 'Registration in Progress';
+
+  @override
+  String get q_business_q_tax => 'Do you have a tax registration or commercial registration?';
+
+  @override
+  String get q_business_q_current_facilities => 'Does the business currently have any loans or financing facilities?';
+
+  @override
+  String get q_business_q_installments => 'What is the total amount of current monthly obligations?';
+
+  @override
+  String get q_business_installments_label => 'Monthly obligations';
+
+  @override
+  String get q_business_installments_hint => 'Monthly Installment';
+
+  @override
+  String get q_business_q_prior_rejection => 'Has the business ever been declined for financing?';
+
+  @override
+  String get q_business_q_priority => 'What is most important to you in business financing?';
+
+  @override
+  String get q_opt_biz_priority_fast_approval => 'Fast Approval';
+
+  @override
+  String get q_opt_biz_priority_flexible_repayment => 'Flexible Repayment';
+
+  @override
+  String get q_opt_biz_priority_highest_amount => 'Highest Financing Amount';
+
+  @override
+  String get q_opt_biz_priority_lowest_interest => 'Lowest Interest Rate';
+
+  @override
+  String get q_opt_biz_priority_least_paperwork => 'Minimum Documentation';
+
+  @override
+  String get q_business_q_consultation => 'Would you like to consult with a business financing expert?';
+
+  @override
+  String get q_car_subtitle => 'We\'ll match you with banks that specialise in your needs';
+
+  @override
+  String get q_car_next => 'Next';
+
+  @override
+  String get q_car_finish => 'Finish';
+
+  @override
+  String get q_car_submitted => 'Your answers have been saved';
+
+  @override
+  String get q_car_select_hint => 'Select an option';
+
+  @override
+  String q_car_years(Object years) {
+    return '$years years';
+  }
+
+  @override
+  String get q_car_step1_title => 'Vehicle & Financing Information';
+
+  @override
+  String get q_car_step2_title => 'Employment & Income';
+
+  @override
+  String get q_car_step3_title => 'Financial Status';
+
+  @override
+  String get q_car_step4_title => 'Preferences';
+
+  @override
+  String get q_car_q_condition => 'Is the vehicle new or used?';
+
+  @override
+  String get q_opt_car_cond_new => 'New';
+
+  @override
+  String get q_opt_car_cond_used => 'Used';
+
+  @override
+  String get q_car_q_model_year => 'What is the vehicle model year?';
+
+  @override
+  String get q_opt_car_year_current => 'Current year model';
+
+  @override
+  String get q_opt_car_year_last3 => 'Within the last 3 years';
+
+  @override
+  String get q_opt_car_year_3_5 => '3 to 5 years old';
+
+  @override
+  String get q_opt_car_year_over5 => 'More than 5 years old';
+
+  @override
+  String get q_car_q_price => 'What is the approximate vehicle price?';
+
+  @override
+  String get q_car_q_down_payment => 'How much down payment do you have available?';
+
+  @override
+  String get q_opt_car_dp_none => 'No down payment';
+
+  @override
+  String get q_opt_car_dp_under20 => 'Less than 20%';
+
+  @override
+  String get q_opt_car_dp_20_40 => '20% – 40%';
+
+  @override
+  String get q_opt_car_dp_over40 => 'More than 40%';
+
+  @override
+  String get q_car_repayment_label => 'Repayment period';
+
+  @override
+  String get q_car_q_employment => 'What is your employment status?';
+
+  @override
+  String get q_car_q_income => 'What is your average monthly income?';
+
+  @override
+  String get q_opt_car_income_b1 => 'Less than EGP 10,000';
+
+  @override
+  String get q_opt_car_income_b2 => 'EGP 10,000 – 25,000';
+
+  @override
+  String get q_opt_car_income_b3 => 'EGP 25,000 – 50,000';
+
+  @override
+  String get q_opt_car_income_b4 => 'More than EGP 50,000';
+
+  @override
+  String get q_car_q_salary_transfer => 'Is your salary transferred to a bank account?';
+
+  @override
+  String get q_car_q_employer_approved => 'Is your employer approved by banks?';
+
+  @override
+  String get q_opt_car_emp_yes => 'Yes';
+
+  @override
+  String get q_opt_car_emp_no => 'No';
+
+  @override
+  String get q_opt_car_emp_unsure => 'Not sure';
+
+  @override
+  String get q_car_q_current_loans => 'Do you currently have obligations or loans?';
+
+  @override
+  String get q_car_installments_label => 'Monthly installments';
+
+  @override
+  String get q_car_installments_hint => 'Monthly installment amount';
+
+  @override
+  String get q_car_q_credit_card => 'Do you have active credit cards?';
+
+  @override
+  String get q_car_q_priority => 'Primary priority when choosing a car loan?';
+
+  @override
+  String get q_opt_priority_lowest_interest => 'Lowest interest rate';
+
+  @override
+  String get q_opt_priority_no_guarantor => 'Financing without a guarantor';
+
+  @override
+  String get q_car_q_insurance => 'Would you like vehicle insurance offers?';
+
+  @override
+  String get profile_title => 'Profile';
+
+  @override
+  String get profile_section_personal => 'Personal Information';
+
+  @override
+  String get profile_section_contact => 'Contact Details';
+
+  @override
+  String get profile_edit => 'Edit';
+
+  @override
+  String get profile_first_name => 'First Name';
+
+  @override
+  String get profile_last_name => 'Last Name';
+
+  @override
+  String get profile_password => 'Password';
+
+  @override
+  String profile_password_changed(int count) {
+    return 'Last changed $count months ago';
+  }
+
+  @override
+  String get profile_password_hint => 'New password';
+
+  @override
+  String get profile_dob => 'Date of Birth';
+
+  @override
+  String get profile_dob_day => 'Day';
+
+  @override
+  String get profile_dob_month => 'Month';
+
+  @override
+  String get profile_dob_year => 'Year';
+
+  @override
+  String get profile_national_id => 'National ID';
+
+  @override
+  String get profile_national_id_hint => '— required for loan eligibility';
+
+  @override
+  String get profile_id_front => 'Front side';
+
+  @override
+  String get profile_id_back => 'Back side';
+
+  @override
+  String get profile_id_uploaded => 'Uploaded';
+
+  @override
+  String get profile_id_tap_to_upload => 'Tap to upload';
+
+  @override
+  String get profile_phone => 'Phone';
+
+  @override
+  String get profile_phone_hint => 'Phone number';
+
+  @override
+  String get profile_email => 'Email';
+
+  @override
+  String get profile_address => 'Address';
+
+  @override
+  String get profile_governorate => 'Governorate';
+
+  @override
+  String get profile_city => 'City';
+
+  @override
+  String get profile_save => 'Save';
+
+  @override
+  String get profile_cancel => 'Cancel';
+
+  @override
+  String get profile_search_hint => 'Search';
 }
