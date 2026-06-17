@@ -615,6 +615,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get home_nav_loans => 'My Loans';
 
   @override
+  String get home_nav_home => 'Home';
+
+  @override
   String get home_nav_menu => 'Menu';
 
   @override

@@ -190,12 +190,21 @@ export class ApplicationsService {
 
     const scoringConfig: ScoringConfig = await loadActiveScoringConfig(this.scoringVersions);
     const profile = this.buildProfile(dto);
-    const result = this.engine.run({ profile, programs: snapshots, scoringConfig, correlationId });
+    // MVP simplification: eligibility gating is dropped on apply — every active
+    // program yields an offer, ranked purely by the per-bank approval score.
+    const result = this.engine.run({
+      profile,
+      programs: snapshots,
+      scoringConfig,
+      correlationId,
+      skipEligibility: true,
+    });
 
-    // Per-bank weighted approval scoring (Constitution V v4.1.0): override each
-    // eligible offer's probability/tier with Σ(subScore × weight)/100 from the
-    // program's ACTIVE ScoringWeightSet. Same scorer the mobile preview uses.
-    // Only runs when the application carries dynamic-questionnaire answers.
+    // Per-bank weighted approval scoring (Constitution V v5.0.0): override each
+    // offer's probability/tier with the per-program per-answer approval score
+    // from `WeightedApprovalScoringService.scoreProgram`. Same scorer the mobile
+    // preview uses. Only runs when the application carries dynamic-questionnaire
+    // answers; otherwise the engine's own approval probability is left as-is.
     if (dto.category && dynamicAnswers && dynamicAnswers.length > 0) {
       await this.applyPerBankScoring(result.offers, dto.category, dynamicAnswers, snapshots);
     }
@@ -388,27 +397,31 @@ export class ApplicationsService {
   }
 
   /**
-   * Overwrite each eligible offer's approval probability with the per-bank
-   * weighted score (Spec §5.5). Mutates the offers IN PLACE before they are
-   * mapped to BankOffer inputs — the rows are not yet created, so Principle I /
-   * A6 (immutable-after-match) is respected. Sub-scores come from the answers'
-   * selected-option `scoreValue`, keyed by `questionCode` (v5.0.0).
+   * Overwrite each offer's approval probability with the per-bank, per-answer
+   * approval score (Constitution V v5.0.0). Mutates the offers IN PLACE before
+   * they are mapped to BankOffer inputs — the rows are not yet created, so
+   * Principle I / A6 (immutable-after-match) is respected. The score is derived
+   * by `scoreProgram` from the program's ACTIVE weight set and the customer's
+   * selected option codes.
    */
   private async applyPerBankScoring(
     offers: Offer[],
     category: LoanCategory,
-    answers: ReadonlyArray<{ questionCode: string; scoreValue: string | null }>,
+    answers: ReadonlyArray<{ questionCode: string; selectedOptionCode: string }>,
     snapshots: BankProgramSnapshot[],
   ): Promise<void> {
     if (offers.length === 0) return;
-    const subScores = this.weightedScoring.buildSubScores(answers);
+    const selectedAnswers = answers.map((a) => ({
+      questionCode: a.questionCode,
+      optionCode: a.selectedOptionCode,
+    }));
     const idByCode = new Map(snapshots.map((s) => [s.programCode, s.id]));
 
     for (const offer of offers) {
       const { score, tier, factors } = await this.weightedScoring.scoreProgram({
         programId: idByCode.get(offer.programCode) ?? null,
         category,
-        subScores,
+        answers: selectedAnswers,
       });
       offer.approvalProbability = { score, tier, factors };
       offer.approvalProbabilityPercent = score;

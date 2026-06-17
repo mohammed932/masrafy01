@@ -11,9 +11,9 @@ import { parseCategory } from '@/questionnaire/category.util';
 import { SaveWeightsDto } from './dto/scoring.dto';
 
 /**
- * Admin approval-scoring: per-bank-program question weights, saved directly
- * (Constitution V v5.0.0 — no maker-checker). Weights are keyed by `questionCode`
- * and MUST sum to 100; saving atomically archives the prior ACTIVE set.
+ * Admin approval-scoring: per-bank-program per-answer points, saved directly
+ * (Constitution V — no maker-checker). Weights are keyed by `optionCode` with no
+ * sum constraint; saving atomically archives the prior ACTIVE set.
  */
 @ApiTags('Admin · Scoring weights')
 @ApiBearerAuth()
@@ -24,9 +24,9 @@ export class AdminScoringController {
   constructor(private readonly service: ScoringService) {}
 
   @Get('questions/:category')
-  @ApiOperation({ summary: 'List the category scored questions (one weight row each)' })
+  @ApiOperation({ summary: 'List the category questions with their answers (points per answer)' })
   async questions(@Param('category') category: string) {
-    return ok(await this.service.listScoredQuestions(parseCategory(category)));
+    return ok(await this.service.listWeightableOptions(parseCategory(category)));
   }
 
   @Get('programs/:programId/weights')
@@ -36,7 +36,7 @@ export class AdminScoringController {
   }
 
   @Post('programs/:programId/weights')
-  @ApiOperation({ summary: 'Save per-question weights (direct; must sum to 100)' })
+  @ApiOperation({ summary: 'Save per-answer points (direct; keyed by optionCode, no sum)' })
   async save(
     @Param('programId') programId: string,
     @Body() dto: SaveWeightsDto,

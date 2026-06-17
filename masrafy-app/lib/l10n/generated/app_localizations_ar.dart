@@ -618,6 +618,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get home_nav_loans => 'قروضي';
 
   @override
+  String get home_nav_home => 'الرئيسية';
+
+  @override
   String get home_nav_menu => 'القائمة';
 
   @override

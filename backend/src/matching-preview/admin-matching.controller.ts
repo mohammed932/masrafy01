@@ -8,11 +8,10 @@ import { PreviewMatchesDto } from '@/questionnaire/dto/questionnaire.dto';
 import { MatchingPreviewService } from './matching-preview.service';
 
 /**
- * Admin matching simulator. Runs the SAME full engine + per-bank weighted
- * approval scoring as the customer preview (`MatchingPreviewService`), but
- * admin-JWT-gated — lets ops test "what would programs decide for applicant X"
- * (eligibility + installment + fees + approval %) without creating a real
- * application. Read-only: persists nothing.
+ * Admin matching simulator. Runs the SAME per-bank weighted approval scoring as
+ * the customer preview (`MatchingPreviewService`), but admin-JWT-gated — lets ops
+ * test "how would programs rank for applicant X" (approval %) without creating a
+ * real application. Read-only: persists nothing.
  */
 @ApiTags('Admin · Matching simulator')
 @ApiBearerAuth()

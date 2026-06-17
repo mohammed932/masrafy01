@@ -7,11 +7,19 @@ import type { SuccessEnvelope } from '@core/auth/auth.types';
 export type LoanCategory = 'personal' | 'car' | 'mortgage' | 'business';
 export const LOAN_CATEGORIES: LoanCategory[] = ['personal', 'car', 'mortgage', 'business'];
 
-/** A scored question = one weight row in the editor (admins weight by question). */
-export interface ScoredQuestion {
+/** One answer option that can carry per-program points. */
+export interface WeightableOption {
   code: string;
   labelAr: string;
   labelEn: string;
+}
+
+/** A question (with its options) shown in the per-answer weights editor. */
+export interface WeightableQuestion {
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  options: WeightableOption[];
 }
 
 /** Bank + program identity for labelling a per-program weight set. */
@@ -30,7 +38,8 @@ export interface ScoringWeightSet {
   bankProgramId: string;
   status: WeightSetStatus;
   versionNumber: number;
-  weights: Record<string, number>;
+  /** Nested per-answer points: questionCode → optionCode → points (no sum constraint). */
+  weights: Record<string, Record<string, number>>;
   createdBy: string;
   createdAt: string;
   approvedBy: string | null;
@@ -58,11 +67,6 @@ export interface OptionRow {
   labelEn: string;
   displayOrder: number;
   isActive: boolean;
-  numericMin: string | null;
-  numericMax: string | null;
-  numericPoint: string | null;
-  scoreValue: string | null;
-  profileValue: string | null;
 }
 export interface QuestionRow {
   id: string;
@@ -73,9 +77,6 @@ export interface QuestionRow {
   isRequired: boolean;
   displayOrder: number;
   isActive: boolean;
-  systemRole: string | null;
-  isScored: boolean;
-  profileField: string | null;
   enabledWhen: { questionCode: string; operator: string; optionCode: string } | null;
   options: OptionRow[];
 }
@@ -132,19 +133,11 @@ export interface CreateQuestionBody {
   questionEn: string;
   displayOrder: number;
   isRequired?: boolean;
-  systemRole?: string;
-  isScored?: boolean;
-  profileField?: string;
 }
 export interface CreateOptionBody {
   labelAr: string;
   labelEn: string;
   displayOrder: number;
-  numericMin?: number;
-  numericMax?: number;
-  numericPoint?: number;
-  scoreValue?: number;
-  profileValue?: string;
 }
 
 /** Group edits — title/order only; `code` and `category` are immutable (A33). */
@@ -153,26 +146,20 @@ export interface UpdateGroupBody {
   titleEn?: string;
   displayOrder?: number;
 }
-/** Question edits — `code`, `category`, `systemRole` are immutable (A33). */
+/** Question edits — `code` and `category` are immutable (A33). */
 export interface UpdateQuestionBody {
   questionAr?: string;
   questionEn?: string;
   displayOrder?: number;
   isRequired?: boolean;
   isActive?: boolean;
-  isScored?: boolean;
-  profileField?: string;
 }
 /** Option edits — `code` is immutable (A33). */
 export interface UpdateOptionBody {
   labelAr?: string;
   labelEn?: string;
   displayOrder?: number;
-  numericMin?: number;
-  numericMax?: number;
-  numericPoint?: number;
-  scoreValue?: number;
-  profileValue?: string;
+  isActive?: boolean;
 }
 
 /** Admin API for Feature 009 (questionnaire + per-question scoring weights, v5.0.0). */
@@ -183,16 +170,21 @@ export class QuestionnaireApiService {
     return environment.apiBaseUrl;
   }
 
-  // ---- Scoring weights (direct save, v5.0.0) ----------------------------
-  listScoredQuestions(category: LoanCategory): Promise<ScoredQuestion[]> {
-    return this.get<ScoredQuestion[]>(`/scoring/questions/${category}`);
+  // ---- Scoring weights (direct save, per-answer points) ------------------
+  /** Category questions WITH their answer options (the per-answer weighting grid). */
+  weightableQuestions(category: LoanCategory): Promise<WeightableQuestion[]> {
+    return this.get<WeightableQuestion[]>(`/scoring/questions/${category}`);
   }
 
   programWeights(programId: string): Promise<ProgramWeights> {
     return this.get<ProgramWeights>(`/scoring/programs/${programId}/weights`);
   }
 
-  saveWeights(programId: string, weights: Record<string, number>): Promise<ScoringWeightSet> {
+  /** Save nested per-answer points: questionCode → optionCode → points (no sum constraint). */
+  saveWeights(
+    programId: string,
+    weights: Record<string, Record<string, number>>,
+  ): Promise<ScoringWeightSet> {
     return this.post<ScoringWeightSet>(`/scoring/programs/${programId}/weights`, { weights });
   }
 

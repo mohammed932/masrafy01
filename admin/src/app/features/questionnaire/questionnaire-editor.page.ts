@@ -5,7 +5,6 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
-import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
@@ -22,7 +21,6 @@ import {
   type LoanCategory,
 } from './questionnaire.api.service';
 
-const SYSTEM_ROLES = ['SALARY', 'LOAN_AMOUNT', 'CURRENT_INSTALLMENTS', 'AGE', 'DOWN_PAYMENT', 'TENOR'];
 type Mode = null | 'group' | 'question' | 'option';
 
 /**
@@ -41,7 +39,6 @@ type Mode = null | 'group' | 'question' | 'option';
     NzButtonModule,
     NzInputModule,
     NzInputNumberModule,
-    NzSelectModule,
     NzSwitchModule,
     NzSpinModule,
     NzEmptyModule,
@@ -180,37 +177,12 @@ type Mode = null | 'group' | 'question' | 'option';
                     </div>
                     <div class="meta">
                       <code class="code-chip">{{ q.code }}</code>
-                      @if (q.systemRole) {
-                        <span class="facet role">
-                          <i class="dot" aria-hidden="true"></i>
-                          <span class="k" i18n="@@qedit.facet_role">role</span>
-                          <span class="v">{{ q.systemRole }}</span>
-                        </span>
-                      }
-                      @if (q.isScored) {
-                        <span class="facet score">
-                          <i class="dot" aria-hidden="true"></i>
-                          <span class="k" i18n="@@qedit.facet_score">scored</span>
-                        </span>
-                      }
-                      @if (q.profileField) {
-                        <span class="facet profile">
-                          <i class="dot" aria-hidden="true"></i>
-                          <span class="k" i18n="@@qedit.facet_maps">maps</span>
-                          <span class="v">{{ q.profileField }}</span>
-                        </span>
-                      }
                     </div>
                     @if (q.options.length > 0) {
                       <ul class="opts">
                         @for (o of q.options; track o.id) {
                           <li class="opt">
                             <span class="opt-label" [dir]="isAr ? 'rtl' : 'ltr'">{{ isAr ? o.labelAr : o.labelEn }}</span>
-                            <span class="opt-metrics">
-                              @if (o.numericPoint) { <span class="metric">pt {{ o.numericPoint }}</span> }
-                              @if (o.scoreValue) { <span class="metric score">s {{ o.scoreValue }}</span> }
-                              @if (o.profileValue) { <span class="metric">{{ o.profileValue }}</span> }
-                            </span>
                             <button
                               type="button"
                               class="kebab"
@@ -332,25 +304,6 @@ type Mode = null | 'group' | 'question' | 'option';
                     </label>
                   </div>
 
-                  <p class="section-lbl" i18n="@@qedit.sec_engine">Engine mapping <span class="opt-tag">optional</span></p>
-                  <label class="field">
-                    <span class="lbl" i18n="@@qedit.role">Arithmetic role</span>
-                    <nz-select formControlName="systemRole" nzAllowClear nzPlaceHolder="— none —" i18n-nzPlaceHolder="@@qedit.role_ph">
-                      @for (r of roles; track r) { <nz-option [nzValue]="r" [nzLabel]="r" /> }
-                    </nz-select>
-                    <span class="hlp" i18n="@@qedit.role_hlp">Feeds a number into the engine (salary, amount, tenor…).</span>
-                  </label>
-                  <label class="field field-inline">
-                    <input type="checkbox" formControlName="isScored" />
-                    <span class="lbl" i18n="@@qedit.scored">Counts toward approval score</span>
-                    <span class="hlp" i18n="@@qedit.scored_hlp">When on, each option needs a 0–1 score and the question gets a per-program weight.</span>
-                  </label>
-                  <label class="field">
-                    <span class="lbl" i18n="@@qedit.profile">Profile field</span>
-                    <input nz-input formControlName="profileField" placeholder="e.g. employment.employmentType" />
-                    <span class="hlp" i18n="@@qedit.profile_hlp">Maps the answer onto the eligibility profile.</span>
-                  </label>
-
                   <div class="form-actions">
                     <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
                     <button nz-button nzType="primary" [disabled]="questionForm.invalid" i18n="@@qedit.save_q">Save question</button>
@@ -369,23 +322,6 @@ type Mode = null | 'group' | 'question' | 'option';
                   <label class="field">
                     <span class="lbl" i18n="@@qedit.order">Display order</span>
                     <nz-input-number formControlName="displayOrder" [nzMin]="0" />
-                  </label>
-
-                  <p class="section-lbl" i18n="@@qedit.sec_values">Engine values <span class="opt-tag">as applicable</span></p>
-                  <label class="field">
-                    <span class="lbl" i18n="@@qedit.numeric">Numeric point</span>
-                    <nz-input-number formControlName="numericPoint" nzPlaceHolder="e.g. 30000" />
-                    <span class="hlp" i18n="@@qedit.numeric_hlp">For arithmetic questions — the representative value.</span>
-                  </label>
-                  <label class="field">
-                    <span class="lbl" i18n="@@qedit.score">Score value (0–1)</span>
-                    <nz-input-number formControlName="scoreValue" [nzMin]="0" [nzMax]="1" [nzStep]="0.05" nzPlaceHolder="e.g. 0.75" />
-                    <span class="hlp" i18n="@@qedit.score_hlp">For scoring questions — how good this answer is.</span>
-                  </label>
-                  <label class="field">
-                    <span class="lbl" i18n="@@qedit.pvalue">Profile value</span>
-                    <input nz-input formControlName="profileValue" placeholder="e.g. government_employee" />
-                    <span class="hlp" i18n="@@qedit.pvalue_hlp">For mapped questions — the eligibility value.</span>
                   </label>
 
                   <div class="form-actions">
@@ -538,27 +474,8 @@ type Mode = null | 'group' | 'question' | 'option';
         background: color-mix(in srgb, var(--ant-warning-color, #c8893d) 12%, transparent);
         padding: 1px 7px; border-radius: 999px;
       }
-      /* Metadata strip — quiet key:value facets with a semantic dot */
+      /* Metadata strip — the question's stable code chip */
       .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-block: 8px; }
-      .facet {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 2px 9px 2px 7px;
-        border-radius: 999px;
-        background: var(--ant-background-color-light, #f6f8fa);
-        border: 1px solid var(--qe-line);
-      }
-      .facet .dot { inline-size: 7px; block-size: 7px; border-radius: 50%; flex-shrink: 0; }
-      .facet.role .dot { background: var(--ant-info-color, #3d5a80); }
-      .facet.score .dot { background: var(--ant-warning-color, #c8893d); }
-      .facet.profile .dot { background: var(--ant-success-color, #2d5f3f); }
-      .facet .k {
-        font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-        color: var(--qe-muted);
-      }
-      .facet .v {
-        font-family: var(--font-family-mono, 'JetBrains Mono', monospace);
-        font-size: 11px; font-weight: 600; color: var(--ant-text-color, #1a2433);
-      }
       .opts { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
       .opt {
         position: relative;
@@ -567,12 +484,6 @@ type Mode = null | 'group' | 'question' | 'option';
       }
       .opt:hover { background: var(--ant-background-color-light, #f6f8fa); }
       .opt-label { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .opt-metrics { display: flex; gap: 6px; flex-shrink: 0; }
-      .metric {
-        font-family: var(--font-family-mono, 'JetBrains Mono', monospace);
-        font-size: 11px; color: var(--qe-muted);
-      }
-      .metric.score { color: var(--ant-primary-color, #0869c3); }
       .empty-line { color: var(--qe-muted); font-style: italic; font-size: 13px; margin: var(--space-2, 8px) 0 0; }
       .empty-line.tiny { font-size: 12px; margin-block-start: 4px; }
 
@@ -654,7 +565,6 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly message = inject(NzMessageService);
   private readonly modal = inject(NzModalService);
 
-  readonly roles = SYSTEM_ROLES;
   /** Active admin locale drives label language (ar build → Arabic, else English). */
   readonly isAr = inject(LOCALE_ID).startsWith('ar');
   readonly category = this.route.snapshot.paramMap.get('category') as LoanCategory;
@@ -681,18 +591,12 @@ export class QuestionnaireEditorPage implements OnInit {
     questionEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     questionAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     displayOrder: new FormControl(0, { nonNullable: true }),
-    systemRole: new FormControl<string | null>(null),
-    isScored: new FormControl(false, { nonNullable: true }),
-    profileField: new FormControl('', { nonNullable: true }),
     isRequired: new FormControl(true, { nonNullable: true }),
   });
   readonly optionForm = new FormGroup({
     labelEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     labelAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     displayOrder: new FormControl(0, { nonNullable: true }),
-    numericPoint: new FormControl<number | null>(null),
-    scoreValue: new FormControl<number | null>(null),
-    profileValue: new FormControl('', { nonNullable: true }),
   });
 
   async ngOnInit(): Promise<void> {
@@ -720,7 +624,6 @@ export class QuestionnaireEditorPage implements OnInit {
     this.activeGroupId = g.id;
     this.editingId = '';
     this.editing.set(false);
-    this.questionForm.controls.systemRole.enable();
     this.questionForm.reset({ displayOrder: g.questions.length, isRequired: true } as never);
     this.mode.set('question');
   }
@@ -731,13 +634,8 @@ export class QuestionnaireEditorPage implements OnInit {
       questionEn: q.questionEn,
       questionAr: q.questionAr,
       displayOrder: q.displayOrder,
-      systemRole: q.systemRole,
-      isScored: q.isScored,
-      profileField: q.profileField ?? '',
       isRequired: q.isRequired,
     } as never);
-    // systemRole is immutable post-creation (A33) — show it but lock it.
-    this.questionForm.controls.systemRole.disable();
     this.mode.set('question');
   }
 
@@ -755,9 +653,6 @@ export class QuestionnaireEditorPage implements OnInit {
       labelEn: o.labelEn,
       labelAr: o.labelAr,
       displayOrder: o.displayOrder,
-      numericPoint: o.numericPoint != null ? Number(o.numericPoint) : null,
-      scoreValue: o.scoreValue != null ? Number(o.scoreValue) : null,
-      profileValue: o.profileValue ?? '',
     } as never);
     this.mode.set('option');
   }
@@ -784,14 +679,12 @@ export class QuestionnaireEditorPage implements OnInit {
     if (this.questionForm.invalid) return;
     const v = this.questionForm.getRawValue();
     if (this.editing()) {
-      // `code`, `category`, `systemRole` are immutable (A33) — never sent.
+      // `code` and `category` are immutable (A33) — never sent.
       await this.api.updateQuestion(this.editingId, {
         questionEn: v.questionEn,
         questionAr: v.questionAr,
         displayOrder: v.displayOrder,
         isRequired: v.isRequired,
-        isScored: v.isScored,
-        profileField: v.profileField || undefined,
       });
       this.message.success($localize`:@@qedit.question_saved:Question saved`);
     } else {
@@ -802,9 +695,6 @@ export class QuestionnaireEditorPage implements OnInit {
         questionAr: v.questionAr,
         displayOrder: v.displayOrder,
         isRequired: v.isRequired,
-        systemRole: v.systemRole ?? undefined,
-        isScored: v.isScored,
-        profileField: v.profileField || undefined,
       });
       this.message.success($localize`:@@qedit.question_added:Question added`);
     }
@@ -820,9 +710,6 @@ export class QuestionnaireEditorPage implements OnInit {
         labelEn: v.labelEn,
         labelAr: v.labelAr,
         displayOrder: v.displayOrder,
-        numericPoint: v.numericPoint ?? undefined,
-        scoreValue: v.scoreValue ?? undefined,
-        profileValue: v.profileValue || undefined,
       });
       this.message.success($localize`:@@qedit.option_saved:Option saved`);
     } else {
@@ -830,9 +717,6 @@ export class QuestionnaireEditorPage implements OnInit {
         labelEn: v.labelEn,
         labelAr: v.labelAr,
         displayOrder: v.displayOrder,
-        numericPoint: v.numericPoint ?? undefined,
-        scoreValue: v.scoreValue ?? undefined,
-        profileValue: v.profileValue || undefined,
       });
       this.message.success($localize`:@@qedit.option_added:Option added`);
     }

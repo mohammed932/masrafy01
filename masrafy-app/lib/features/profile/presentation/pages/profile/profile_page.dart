@@ -46,6 +46,7 @@ class _ProfileView extends StatelessWidget {
       bottomNavigationBar: MasrafyAppBottomNav(
         active: MasrafyAppNavTab.menu,
         loansLabel: l.home_nav_loans,
+        homeLabel: l.home_nav_home,
         menuLabel: l.home_nav_menu,
         onLoans: soon,
         onHome: () => context.router.popUntilRoot(),

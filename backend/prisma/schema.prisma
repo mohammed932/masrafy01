@@ -822,15 +822,6 @@ enum QuestionType {
   NUMERIC // reserved (Phase 2)
 }
 
-enum QuestionSystemRole {
-  SALARY
-  LOAN_AMOUNT
-  CURRENT_INSTALLMENTS
-  AGE
-  DOWN_PAYMENT
-  TENOR
-}
-
 enum ScoringWeightSetStatus {
   DRAFT
   PENDING_APPROVAL
@@ -871,12 +862,6 @@ model Question {
   displayOrder Int
   isActive     Boolean             @default(true)
   enabledWhen  Json? // { questionCode, operator: equals|not_equals, optionCode }
-  systemRole   QuestionSystemRole? // set for arithmetic fields; null otherwise
-  isScored     Boolean             @default(false) // counts toward approval probability (v5.0.0); options then need scoreValue
-  // Eligibility bridge: dotted ApplicantProfile path this answer maps to
-  // (e.g. "employment.employmentType"). Categorical value = selected option's
-  // profileValue; numeric value = systemRole numericPoint.
-  profileField String?             @db.VarChar(80)
   createdAt    DateTime            @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime            @updatedAt @db.Timestamptz(6)
 
@@ -897,11 +882,6 @@ model QuestionOption {
   labelEn      String   @db.VarChar(200)
   displayOrder Int
   isActive     Boolean  @default(true)
-  numericMin   Decimal? @db.Decimal(18, 2)
-  numericMax   Decimal? @db.Decimal(18, 2)
-  numericPoint Decimal? @db.Decimal(18, 2)
-  scoreValue   Decimal? @db.Decimal(4, 3) // 0.000–1.000, DIRECT factors only
-  profileValue String?  @db.VarChar(120) // categorical value for the question's profileField
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
@@ -951,7 +931,7 @@ model ScoringWeightSet {
   bankProgramId  String                 @db.VarChar(30)
   status         ScoringWeightSetStatus @default(DRAFT)
   versionNumber  Int
-  weights        Json // { questionCode: points }, sums to 100 (v5.0.0)
+  weights        Json // questionCode → optionCode → points; 1–100 per answer (decimals allowed); no sum constraint
   createdBy      String                 @db.VarChar(30) // editor who saved (staff id)
   createdAt      DateTime               @default(now()) @db.Timestamptz(6)
   approvedBy     String?                @db.VarChar(30) // checker (staff id, != createdBy)

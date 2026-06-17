@@ -1265,6 +1265,12 @@ abstract class AppLocalizations {
   /// **'قروضي'**
   String get home_nav_loans;
 
+  /// No description provided for @home_nav_home.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرئيسية'**
+  String get home_nav_home;
+
   /// No description provided for @home_nav_menu.
   ///
   /// In ar, this message translates to:

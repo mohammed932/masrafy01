@@ -14,20 +14,21 @@ const _navDuration = Duration(milliseconds: 320);
 const _navCurve = Curves.easeOutCubic;
 const _pressDuration = Duration(milliseconds: 120);
 
-/// Customer-app bottom navigation — My Loans / Home (raised gradient circle) /
-/// Menu. Shared by the home + account + profile screens (Principle XXXIII).
+/// Customer-app bottom navigation — My Loans / Home / Menu. Shared by the home
+/// + account + profile screens (Principle XXXIII).
 ///
 /// Premium + animated: the bar floats as a rounded sheet with a soft upward
-/// lift shadow; side tabs grow a Material-3 indicator pill behind the icon
-/// (outline → filled cross-fade, label morphing colour + weight); the centre
-/// Home button carries the brand azure→indigo gradient with a glow and bounces
-/// on press. Every tap fires `HapticFeedback.selectionClick()`. Each item's tap
-/// is wired by the host screen.
+/// lift shadow. All three tabs are identical — each grows a Material-3 indicator
+/// pill behind the icon (outline → filled cross-fade), the label morphs colour +
+/// weight, and the tab bounces on press. Every tap fires
+/// `HapticFeedback.selectionClick()`. Each item's tap is wired by the host
+/// screen.
 class MasrafyAppBottomNav extends StatelessWidget {
   const MasrafyAppBottomNav({
     super.key,
     required this.active,
     required this.loansLabel,
+    required this.homeLabel,
     required this.menuLabel,
     this.onLoans,
     this.onHome,
@@ -36,6 +37,7 @@ class MasrafyAppBottomNav extends StatelessWidget {
 
   final MasrafyAppNavTab active;
   final String loansLabel;
+  final String homeLabel;
   final String menuLabel;
   final VoidCallback? onLoans;
   final VoidCallback? onHome;
@@ -68,15 +70,21 @@ class MasrafyAppBottomNav extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              _NavSideItem(
+              _NavItem(
                 outlineIcon: Icons.favorite_border,
                 filledIcon: Icons.favorite,
                 label: loansLabel,
                 isActive: active == MasrafyAppNavTab.loans,
                 onTap: onLoans,
               ),
-              _HomeFab(onTap: onHome),
-              _NavSideItem(
+              _NavItem(
+                outlineIcon: Icons.home_outlined,
+                filledIcon: Icons.home_rounded,
+                label: homeLabel,
+                isActive: active == MasrafyAppNavTab.home,
+                onTap: onHome,
+              ),
+              _NavItem(
                 outlineIcon: Icons.person_outline,
                 filledIcon: Icons.person,
                 label: menuLabel,
@@ -91,11 +99,11 @@ class MasrafyAppBottomNav extends StatelessWidget {
   }
 }
 
-/// A side tab (My Loans / Menu): a pill indicator fades + grows behind the
-/// icon when active, the glyph cross-fades outline → filled, and the label
-/// morphs colour + weight. Local [_pressed] state drives the tap bounce.
-class _NavSideItem extends StatefulWidget {
-  const _NavSideItem({
+/// A single tab: a pill indicator fades + grows behind the icon when active,
+/// the glyph cross-fades outline → filled, and the label morphs colour +
+/// weight. Local [_pressed] state drives the tap bounce.
+class _NavItem extends StatefulWidget {
+  const _NavItem({
     required this.outlineIcon,
     required this.filledIcon,
     required this.label,
@@ -110,10 +118,10 @@ class _NavSideItem extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  State<_NavSideItem> createState() => _NavSideItemState();
+  State<_NavItem> createState() => _NavItemState();
 }
 
-class _NavSideItemState extends State<_NavSideItem> {
+class _NavItemState extends State<_NavItem> {
   bool _pressed = false;
 
   void _setPressed(bool value) {
@@ -186,76 +194,6 @@ class _NavSideItemState extends State<_NavSideItem> {
                 child: Text(widget.label),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The raised centre Home button — brand azure→indigo gradient, azure glow, a
-/// white ring punching it through the bar, and a press bounce.
-class _HomeFab extends StatefulWidget {
-  const _HomeFab({required this.onTap});
-
-  final VoidCallback? onTap;
-
-  @override
-  State<_HomeFab> createState() => _HomeFabState();
-}
-
-class _HomeFabState extends State<_HomeFab> {
-  bool _pressed = false;
-
-  void _setPressed(bool value) {
-    if (_pressed != value) setState(() => _pressed = value);
-  }
-
-  void _handleTap() {
-    HapticFeedback.selectionClick();
-    widget.onTap?.call();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-
-    return Semantics(
-      button: true,
-      label: 'Home',
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _handleTap,
-        onTapDown: (_) => _setPressed(true),
-        onTapUp: (_) => _setPressed(false),
-        onTapCancel: () => _setPressed(false),
-        child: Transform.translate(
-          offset: Offset(0, -12.h),
-          child: AnimatedScale(
-            scale: _pressed ? 0.92 : 1,
-            duration: _pressDuration,
-            curve: Curves.easeOut,
-            child: Container(
-              width: 52.r,
-              height: 52.r,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: AlignmentDirectional.topStart,
-                  end: AlignmentDirectional.bottomEnd,
-                  colors: [colors.secondary.main, colors.primary.main],
-                ),
-                border: Border.all(color: colors.white, width: 4),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.secondary.main.withValues(alpha: 0.4),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: Icon(Icons.home_rounded, color: colors.white, size: 24.r),
-            ),
           ),
         ),
       ),

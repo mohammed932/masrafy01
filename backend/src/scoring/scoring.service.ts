@@ -24,11 +24,19 @@ export interface ProgramMeta {
   category: string; // lowercase LoanCategory
 }
 
-/** A scored question row for the weights editor (admins weight by question). */
-export interface ScoredQuestionView {
+/** An answer option the admin assigns points to in the weights editor. */
+export interface WeightableOptionView {
   code: string;
   labelAr: string;
   labelEn: string;
+}
+
+/** A question with its answer options for the weights editor (points per answer). */
+export interface WeightableQuestionView {
+  code: string;
+  labelAr: string;
+  labelEn: string;
+  options: WeightableOptionView[];
 }
 
 export interface ProgramWeightsResult {
@@ -45,11 +53,16 @@ export class ScoringService {
     private readonly questionnaire: QuestionnaireRepository,
   ) {}
 
-  // ---- Scored questions (weight rows) -------------------------------------
-  /** The category's scored questions — one weight row each in the editor. */
-  async listScoredQuestions(category: LoanCategory): Promise<ScoredQuestionView[]> {
-    const questions = await this.questionnaire.scoredQuestions(category);
-    return questions.map((q) => ({ code: q.code, labelAr: q.questionAr, labelEn: q.questionEn }));
+  // ---- Weightable answers (points-per-answer editor) ----------------------
+  /** The category's questions with their answer options — each option a points input. */
+  async listWeightableOptions(category: LoanCategory): Promise<WeightableQuestionView[]> {
+    const questions = await this.questionnaire.questionsWithOptions(category);
+    return questions.map((q) => ({
+      code: q.code,
+      labelAr: q.questionAr,
+      labelEn: q.questionEn,
+      options: q.options.map((o) => ({ code: o.code, labelAr: o.labelAr, labelEn: o.labelEn })),
+    }));
   }
 
   // ---- Weight sets (direct save, v5.0.0) ----------------------------------
@@ -75,9 +88,11 @@ export class ScoringService {
   }
 
   /**
-   * Save per-question weights for a program (direct, no maker-checker). Validates
-   * the keys are the category's scored questions and that they sum to exactly 100,
-   * then atomically archives the prior ACTIVE set and activates the new one.
+   * Save per-answer points for a program (direct, no maker-checker). Validates
+   * the keys are active answer-option codes in the category and that every point
+   * is within [1, 100] (decimals allowed), then atomically archives the prior
+   * ACTIVE set and activates the new one. No sum constraint — points are
+   * normalised by max-achievable at score time.
    */
   async saveWeights(
     programId: string,
@@ -87,8 +102,8 @@ export class ScoringService {
   ): Promise<ScoringWeightSet> {
     const category = await this.repo.programCategory(programId);
     if (!category) throw new DomainException(ERROR_CODES.BANK_PROGRAM_INVALID);
-    await this.assertKnownQuestions(category, dto.weights);
-    this.assertSums100(dto.weights);
+    await this.assertKnownOptions(category, dto.weights);
+    this.assertPointsInRange(dto.weights);
 
     const versionNumber = await this.repo.nextVersionNumber(programId);
     const saved = await this.repo.saveActiveTx({
@@ -113,22 +128,37 @@ export class ScoringService {
   }
 
   // ---- Validation ---------------------------------------------------------
-  private async assertKnownQuestions(
+  private async assertKnownOptions(
     category: LoanCategory,
-    weights: Record<string, number>,
+    weights: Record<string, Record<string, number>>,
   ): Promise<void> {
-    const valid = new Set((await this.questionnaire.scoredQuestions(category)).map((q) => q.code));
-    for (const code of Object.keys(weights)) {
-      if (!valid.has(code)) {
-        throw new DomainException(ERROR_CODES.WEIGHTS_UNKNOWN_QUESTION, { questionCode: code });
+    const questions = await this.questionnaire.questionsWithOptions(category);
+    const valid = new Map(questions.map((q) => [q.code, new Set(q.options.map((o) => o.code))]));
+    for (const [questionCode, byOption] of Object.entries(weights)) {
+      const options = valid.get(questionCode);
+      if (!options) {
+        throw new DomainException(ERROR_CODES.WEIGHTS_UNKNOWN_OPTION, { questionCode });
+      }
+      for (const optionCode of Object.keys(byOption)) {
+        if (!options.has(optionCode)) {
+          throw new DomainException(ERROR_CODES.WEIGHTS_UNKNOWN_OPTION, { questionCode, optionCode });
+        }
       }
     }
   }
 
-  private assertSums100(weights: Record<string, number>): void {
-    const total = Object.values(weights).reduce((a, b) => a + Number(b), 0);
-    if (Math.round(total * 1000) / 1000 !== 100) {
-      throw new DomainException(ERROR_CODES.WEIGHTS_MUST_SUM_TO_100, { total });
+  /** Every per-answer point must be a finite number within [1, 100] (decimals allowed). */
+  private assertPointsInRange(weights: Record<string, Record<string, number>>): void {
+    for (const [questionCode, byOption] of Object.entries(weights)) {
+      for (const [optionCode, points] of Object.entries(byOption)) {
+        if (typeof points !== 'number' || !Number.isFinite(points) || points < 1 || points > 100) {
+          throw new DomainException(ERROR_CODES.WEIGHTS_POINTS_OUT_OF_RANGE, {
+            questionCode,
+            optionCode,
+            points,
+          });
+        }
+      }
     }
   }
 }

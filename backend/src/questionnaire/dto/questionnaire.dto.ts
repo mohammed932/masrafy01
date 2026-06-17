@@ -4,17 +4,15 @@ import {
   IsEnum,
   IsIn,
   IsInt,
-  IsNumber,
   IsOptional,
   IsString,
   Length,
-  Max,
   Min,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanCategory, QuestionSystemRole, QuestionType } from '@prisma/client';
+import { LoanCategory, QuestionType } from '@prisma/client';
 
 export class EnabledWhenDto {
   @ApiProperty() @IsString() @Length(1, 64) questionCode!: string;
@@ -56,19 +54,6 @@ export class CreateQuestionDto {
   @ValidateNested()
   @Type(() => EnabledWhenDto)
   enabledWhen?: EnabledWhenDto;
-  @ApiPropertyOptional({ enum: QuestionSystemRole })
-  @IsOptional()
-  @IsEnum(QuestionSystemRole)
-  systemRole?: QuestionSystemRole;
-  @ApiPropertyOptional({ description: 'Counts toward approval probability; its options then need scoreValue.' })
-  @IsOptional()
-  @IsBoolean()
-  isScored?: boolean;
-  @ApiPropertyOptional({ description: 'Dotted ApplicantProfile path for eligibility, e.g. employment.employmentType' })
-  @IsOptional()
-  @IsString()
-  @Length(1, 80)
-  profileField?: string;
 }
 
 export class UpdateQuestionDto {
@@ -84,28 +69,12 @@ export class UpdateQuestionDto {
   @ValidateNested()
   @Type(() => EnabledWhenDto)
   enabledWhen?: EnabledWhenDto | null;
-  @ApiPropertyOptional() @IsOptional() @IsBoolean() isScored?: boolean;
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 80) profileField?: string;
 }
 
 export class CreateOptionDto {
   @ApiProperty() @IsString() @Length(1, 200) labelAr!: string;
   @ApiProperty() @IsString() @Length(1, 200) labelEn!: string;
   @ApiProperty() @IsInt() @Min(0) displayOrder!: number;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() numericMin?: number;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() numericMax?: number;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() numericPoint?: number;
-  @ApiPropertyOptional({ minimum: 0, maximum: 1 })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(1)
-  scoreValue?: number;
-  @ApiPropertyOptional({ description: 'Categorical value for the question profileField' })
-  @IsOptional()
-  @IsString()
-  @Length(1, 120)
-  profileValue?: string;
 }
 
 export class UpdateOptionDto {
@@ -113,16 +82,6 @@ export class UpdateOptionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 200) labelEn?: string;
   @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) displayOrder?: number;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() numericMin?: number;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() numericMax?: number;
-  @ApiPropertyOptional() @IsOptional() @IsNumber() numericPoint?: number;
-  @ApiPropertyOptional({ minimum: 0, maximum: 1 })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(1)
-  scoreValue?: number;
-  @ApiPropertyOptional() @IsOptional() @IsString() @Length(1, 120) profileValue?: string;
 }
 
 export class SubmittedAnswerDto {

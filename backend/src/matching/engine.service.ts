@@ -30,6 +30,15 @@ export interface EngineInput {
   programs: BankProgramSnapshot[];
   scoringConfig: ScoringConfig;
   correlationId: string;
+  /**
+   * MVP simplification: when true, eligibility gating is dropped — every active
+   * program yields an offer and NO program is rejected on the eligibility check
+   * or the DBR cap (the requested-amount path is used, as if `skipDbrCheck` were
+   * on per program). Money math (PMT/installment, fees, effective rate, income
+   * resolution, max-loan) is unchanged. `passedChecks`/`failedChecks` stay
+   * populated for transparency. Defaults to false to preserve existing behavior.
+   */
+  skipEligibility?: boolean;
 }
 
 export interface EngineOutput {
@@ -48,12 +57,13 @@ export class EngineService {
   run(input: EngineInput): EngineOutput {
     const t0 = Date.now();
     const { profile, programs, scoringConfig } = input;
+    const skipEligibility = input.skipEligibility ?? false;
     const results: MatchResult[] = [];
     const noMatchDetails: NoMatchDetail[] = [];
 
     for (const program of programs) {
       if (!program.active) continue;
-      const result = this.evaluateProgram(profile, program, scoringConfig);
+      const result = this.evaluateProgram(profile, program, scoringConfig, skipEligibility);
       results.push(result);
       if (!result.eligible) {
         noMatchDetails.push({
@@ -94,6 +104,7 @@ export class EngineService {
     profile: ApplicantProfile,
     program: BankProgramSnapshot,
     scoringConfig: ScoringConfig,
+    skipEligibility = false,
   ): MatchResult {
     const assumedIncome = resolveAssumedIncome(
       profile,
@@ -102,7 +113,7 @@ export class EngineService {
     );
 
     const eligibility = checkEligibility(profile, program, assumedIncome);
-    if (!eligibility.passed) {
+    if (!eligibility.passed && !skipEligibility) {
       return {
         programCode: program.programCode,
         programVersion: program.version,
@@ -151,7 +162,7 @@ export class EngineService {
       program.eligibility.dbrCapPercent,
     );
 
-    if (!dbr.withinCap && !program.eligibility.skipDbrCheck) {
+    if (!dbr.withinCap && !program.eligibility.skipDbrCheck && !skipEligibility) {
       const amountStep = program.loanLimits.amountStepEGP
         ? new Decimal(program.loanLimits.amountStepEGP)
         : undefined;

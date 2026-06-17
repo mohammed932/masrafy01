@@ -60,14 +60,32 @@ export class QuestionnaireRepository {
     return this.prisma.question.findMany({ where: { category }, select: { code: true } });
   }
 
-  /** Active questions that count toward approval probability (v5.0.0). */
-  scoredQuestions(
-    category: LoanCategory,
-  ): Promise<{ code: string; questionAr: string; questionEn: string }[]> {
+  /**
+   * Active questions of a category with their active options (code + labels),
+   * ordered. Feeds both the admin weights editor (points per answer) and the
+   * `maxPoints` normaliser in the scorer.
+   */
+  questionsWithOptions(category: LoanCategory): Promise<
+    {
+      code: string;
+      questionAr: string;
+      questionEn: string;
+      options: { code: string; labelAr: string; labelEn: string }[];
+    }[]
+  > {
     return this.prisma.question.findMany({
-      where: { category, isActive: true, isScored: true },
+      where: { category, isActive: true },
       orderBy: { displayOrder: 'asc' },
-      select: { code: true, questionAr: true, questionEn: true },
+      select: {
+        code: true,
+        questionAr: true,
+        questionEn: true,
+        options: {
+          where: { isActive: true },
+          orderBy: { displayOrder: 'asc' },
+          select: { code: true, labelAr: true, labelEn: true },
+        },
+      },
     });
   }
 

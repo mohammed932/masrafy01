@@ -19,10 +19,9 @@ export class QuestionnaireService {
 
   // ---- Public read --------------------------------------------------------
   /**
-   * Customer-facing snapshot. Strips internal matching IP — per-option
-   * `scoreValue`/`profileValue` and per-question `isScored`/`profileField` —
-   * which the mobile client never needs to render the questionnaire (Principle V,
-   * A33). The full snapshot stays server-side for scoring + eligibility.
+   * Customer-facing snapshot. Questions/answers are now pure content (MVP) — the
+   * per-program per-answer points live in `ScoringWeightSet`, never in the
+   * snapshot — so this is a shape passthrough with no IP left to strip.
    */
   async activeSnapshot(category: LoanCategory): Promise<unknown> {
     const version = await this.repo.activeVersion(category);
@@ -106,9 +105,6 @@ export class QuestionnaireService {
       isRequired: dto.isRequired ?? true,
       displayOrder: dto.displayOrder,
       enabledWhen: dto.enabledWhen ? (dto.enabledWhen as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
-      systemRole: dto.systemRole ?? null,
-      isScored: dto.isScored ?? false,
-      profileField: dto.profileField ?? null,
     });
   }
 
@@ -139,8 +135,6 @@ export class QuestionnaireService {
       isRequired: dto.isRequired,
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
-      isScored: dto.isScored,
-      profileField: dto.profileField,
     };
     if (dto.enabledWhen !== undefined) {
       data.enabledWhen =
@@ -148,7 +142,7 @@ export class QuestionnaireService {
           ? Prisma.DbNull
           : (dto.enabledWhen as unknown as Prisma.InputJsonValue);
     }
-    // `code`, `category`, `systemRole` are immutable post-creation (A33).
+    // `code` and `category` are immutable post-creation (A33).
     return this.repo.updateQuestion(id, data);
   }
 
@@ -179,11 +173,6 @@ export class QuestionnaireService {
       labelAr: dto.labelAr,
       labelEn: dto.labelEn,
       displayOrder: dto.displayOrder,
-      numericMin: dto.numericMin ?? null,
-      numericMax: dto.numericMax ?? null,
-      numericPoint: dto.numericPoint ?? null,
-      scoreValue: dto.scoreValue ?? null,
-      profileValue: dto.profileValue ?? null,
     });
   }
 
@@ -209,11 +198,6 @@ export class QuestionnaireService {
       labelEn: dto.labelEn,
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
-      numericMin: dto.numericMin,
-      numericMax: dto.numericMax,
-      numericPoint: dto.numericPoint,
-      scoreValue: dto.scoreValue,
-      profileValue: dto.profileValue,
     });
   }
 
@@ -249,16 +233,6 @@ export class QuestionnaireService {
       const qOut = [];
       for (const q of gQuestions) {
         const options = (await this.repo.optionsByQuestion(q.id)).filter((o) => o.isActive);
-        // A scored question's options MUST carry a scoreValue (v5.0.0).
-        if (q.isScored) {
-          const missing = options.find((o) => o.scoreValue === null);
-          if (missing) {
-            throw new DomainException(ERROR_CODES.OPTION_MISSING_SCORE_VALUE, {
-              questionCode: q.code,
-              optionCode: missing.code,
-            });
-          }
-        }
         qOut.push({
           code: q.code,
           type: q.type,
@@ -269,19 +243,11 @@ export class QuestionnaireService {
           isRequired: q.isRequired,
           displayOrder: q.displayOrder,
           enabledWhen: q.enabledWhen ?? null,
-          systemRole: q.systemRole,
-          isScored: q.isScored,
-          profileField: q.profileField,
           options: options.map((o) => ({
             code: o.code,
             labelAr: o.labelAr,
             labelEn: o.labelEn,
             displayOrder: o.displayOrder,
-            numericMin: o.numericMin?.toString() ?? null,
-            numericMax: o.numericMax?.toString() ?? null,
-            numericPoint: o.numericPoint?.toString() ?? null,
-            scoreValue: o.scoreValue?.toString() ?? null,
-            profileValue: o.profileValue ?? null,
           })),
         });
       }
@@ -350,8 +316,6 @@ export class QuestionnaireService {
       questionCode: string;
       selectedOptionId: string;
       selectedOptionCode: string;
-      /** Selected option's admin-set sub-score (0..1) as string; null if unset. */
-      scoreValue: string | null;
     }>
   > {
     const questions = await this.repo.questionsByCategory(category);
@@ -368,7 +332,6 @@ export class QuestionnaireService {
         questionCode: q.code,
         selectedOptionId: opt.id,
         selectedOptionCode: opt.code,
-        scoreValue: opt.scoreValue !== null ? opt.scoreValue.toString() : null,
       });
     }
     return resolved;
@@ -401,9 +364,6 @@ interface StoredOption extends Record<string, unknown> {
   labelAr: string;
   labelEn: string;
   displayOrder: number;
-  numericMin?: unknown;
-  numericMax?: unknown;
-  numericPoint?: unknown;
 }
 interface StoredQuestion extends Record<string, unknown> {
   code: string;
@@ -422,7 +382,10 @@ interface StoredSnapshot {
   groups?: StoredGroup[];
 }
 
-/** Project the stored snapshot into the customer payload, dropping IP fields. */
+/**
+ * Project the stored snapshot into the customer payload. Questions/answers are
+ * pure content (MVP) so this is a shape passthrough — no IP fields to strip.
+ */
 function toCustomerSnapshot(raw: unknown): unknown {
   const snap = raw as StoredSnapshot;
   return {
@@ -443,15 +406,11 @@ function toCustomerSnapshot(raw: unknown): unknown {
         isRequired: q['isRequired'],
         displayOrder: q['displayOrder'],
         enabledWhen: q['enabledWhen'] ?? null,
-        systemRole: q['systemRole'],
         options: (q.options ?? []).map((o) => ({
           code: o.code,
           labelAr: o.labelAr,
           labelEn: o.labelEn,
           displayOrder: o.displayOrder,
-          numericMin: o.numericMin ?? null,
-          numericMax: o.numericMax ?? null,
-          numericPoint: o.numericPoint ?? null,
         })),
       })),
     })),

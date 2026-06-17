@@ -69,7 +69,7 @@ export class AdminQuestionnaireController {
   }
 
   @Patch('questions/:id')
-  @ApiOperation({ summary: 'Edit a question (code/category/systemRole immutable)' })
+  @ApiOperation({ summary: 'Edit a question (code/category immutable)' })
   async updateQuestion(@Param('id') id: string, @Body() dto: UpdateQuestionDto) {
     return ok(await this.service.updateQuestion(id, dto));
   }
