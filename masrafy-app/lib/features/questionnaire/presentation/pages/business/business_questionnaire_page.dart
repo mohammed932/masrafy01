@@ -48,7 +48,15 @@ class _BusinessViewState extends State<_BusinessView> {
           (!prev.submitted && curr.submitted),
       listener: (ctx, state) {
         if (state.submitted) {
-          MasrafyToast.success(ctx, l.q_business_submitted);
+          ctx.router.push(
+            MatchResultsRoute(
+              args: MatchResultsArgs.mock(
+                loanTypeKey: 'business',
+                amount: double.tryParse(state.financingAmount) ?? 0,
+                durationMonths: (state.repaymentPeriod * 12).round(),
+              ),
+            ),
+          );
           return;
         }
         _controller.animateToPage(

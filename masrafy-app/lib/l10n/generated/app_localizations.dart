@@ -1265,11 +1265,47 @@ abstract class AppLocalizations {
   /// **'قروضي'**
   String get home_nav_loans;
 
-  /// No description provided for @home_nav_profile.
+  /// No description provided for @home_nav_menu.
+  ///
+  /// In ar, this message translates to:
+  /// **'القائمة'**
+  String get home_nav_menu;
+
+  /// No description provided for @account_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الحساب'**
+  String get account_title;
+
+  /// No description provided for @account_row_profile.
   ///
   /// In ar, this message translates to:
   /// **'حسابي'**
-  String get home_nav_profile;
+  String get account_row_profile;
+
+  /// No description provided for @account_row_settings_security.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعدادات والأمان'**
+  String get account_row_settings_security;
+
+  /// No description provided for @account_row_saved_offers.
+  ///
+  /// In ar, this message translates to:
+  /// **'العروض المحفوظة'**
+  String get account_row_saved_offers;
+
+  /// No description provided for @account_row_notifications.
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز الإشعارات'**
+  String get account_row_notifications;
+
+  /// No description provided for @account_row_previous_applications.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات السابقة'**
+  String get account_row_previous_applications;
 
   /// No description provided for @home_cat_personal.
   ///
@@ -2482,6 +2518,258 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'بحث'**
   String get profile_search_hint;
+
+  /// No description provided for @results_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل العروض المطابقة جاهزة'**
+  String get results_title;
+
+  /// No description provided for @results_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'مستشار القروض جاهز'**
+  String get results_subtitle;
+
+  /// No description provided for @results_loan_type.
+  ///
+  /// In ar, this message translates to:
+  /// **'نوع القرض'**
+  String get results_loan_type;
+
+  /// No description provided for @results_amount.
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ'**
+  String get results_amount;
+
+  /// No description provided for @results_amount_egp.
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} ج.م'**
+  String results_amount_egp(String amount);
+
+  /// No description provided for @results_duration.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة القرض'**
+  String get results_duration;
+
+  /// No description provided for @results_months.
+  ///
+  /// In ar, this message translates to:
+  /// **'{count} شهرًا'**
+  String results_months(int count);
+
+  /// No description provided for @results_guarantee_approval.
+  ///
+  /// In ar, this message translates to:
+  /// **'ضمان الموافقة {pct}%'**
+  String results_guarantee_approval(int pct);
+
+  /// No description provided for @results_best_match.
+  ///
+  /// In ar, this message translates to:
+  /// **'أفضل تطابق'**
+  String get results_best_match;
+
+  /// No description provided for @results_rate.
+  ///
+  /// In ar, this message translates to:
+  /// **'الفائدة'**
+  String get results_rate;
+
+  /// No description provided for @results_monthly.
+  ///
+  /// In ar, this message translates to:
+  /// **'شهريًا'**
+  String get results_monthly;
+
+  /// No description provided for @results_total.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإجمالي'**
+  String get results_total;
+
+  /// No description provided for @results_view_offer.
+  ///
+  /// In ar, this message translates to:
+  /// **'عرض العرض'**
+  String get results_view_offer;
+
+  /// No description provided for @offer_type_personal.
+  ///
+  /// In ar, this message translates to:
+  /// **'شخصي'**
+  String get offer_type_personal;
+
+  /// No description provided for @offer_type_car.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيارة'**
+  String get offer_type_car;
+
+  /// No description provided for @offer_type_mortgage.
+  ///
+  /// In ar, this message translates to:
+  /// **'عقاري'**
+  String get offer_type_mortgage;
+
+  /// No description provided for @offer_type_business.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعمال'**
+  String get offer_type_business;
+
+  /// No description provided for @offer_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'قرض {type}'**
+  String offer_title(String type);
+
+  /// No description provided for @offer_approval.
+  ///
+  /// In ar, this message translates to:
+  /// **'موافقة {pct}%'**
+  String offer_approval(int pct);
+
+  /// No description provided for @offer_interest_rate.
+  ///
+  /// In ar, this message translates to:
+  /// **'سعر الفائدة'**
+  String get offer_interest_rate;
+
+  /// No description provided for @offer_fixed_apr.
+  ///
+  /// In ar, this message translates to:
+  /// **'فائدة ثابتة'**
+  String get offer_fixed_apr;
+
+  /// No description provided for @offer_monthly.
+  ///
+  /// In ar, this message translates to:
+  /// **'شهريًا'**
+  String get offer_monthly;
+
+  /// No description provided for @offer_egp_month.
+  ///
+  /// In ar, this message translates to:
+  /// **'ج.م / شهر'**
+  String get offer_egp_month;
+
+  /// No description provided for @offer_duration.
+  ///
+  /// In ar, this message translates to:
+  /// **'المدة'**
+  String get offer_duration;
+
+  /// No description provided for @offer_months.
+  ///
+  /// In ar, this message translates to:
+  /// **'أشهر'**
+  String get offer_months;
+
+  /// No description provided for @offer_total_interest.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي الفائدة'**
+  String get offer_total_interest;
+
+  /// No description provided for @offer_egp_extra.
+  ///
+  /// In ar, this message translates to:
+  /// **'ج.م إضافية'**
+  String get offer_egp_extra;
+
+  /// No description provided for @offer_national_id.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرقم القومي'**
+  String get offer_national_id;
+
+  /// No description provided for @offer_national_id_pending.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيد الانتظار'**
+  String get offer_national_id_pending;
+
+  /// No description provided for @offer_personal_id.
+  ///
+  /// In ar, this message translates to:
+  /// **'إثبات الهوية'**
+  String get offer_personal_id;
+
+  /// No description provided for @offer_total_loan.
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي القرض'**
+  String get offer_total_loan;
+
+  /// No description provided for @offer_total_loan_caption.
+  ///
+  /// In ar, this message translates to:
+  /// **'شامل الفائدة + الأصل'**
+  String get offer_total_loan_caption;
+
+  /// No description provided for @offer_fees_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرسوم والمصاريف'**
+  String get offer_fees_title;
+
+  /// No description provided for @offer_admin_fees.
+  ///
+  /// In ar, this message translates to:
+  /// **'رسوم إدارية'**
+  String get offer_admin_fees;
+
+  /// No description provided for @offer_admin_fees_value.
+  ///
+  /// In ar, this message translates to:
+  /// **'1% (1,500 ج.م)'**
+  String get offer_admin_fees_value;
+
+  /// No description provided for @offer_interest_charge.
+  ///
+  /// In ar, this message translates to:
+  /// **'12% - 15% من أصل المبلغ'**
+  String get offer_interest_charge;
+
+  /// No description provided for @offer_interest_charge_value.
+  ///
+  /// In ar, this message translates to:
+  /// **'12.5% سنويًا'**
+  String get offer_interest_charge_value;
+
+  /// No description provided for @offer_early_settlement.
+  ///
+  /// In ar, this message translates to:
+  /// **'السداد المبكر'**
+  String get offer_early_settlement;
+
+  /// No description provided for @offer_early_settlement_value.
+  ///
+  /// In ar, this message translates to:
+  /// **'مجاني بعد 12 شهرًا'**
+  String get offer_early_settlement_value;
+
+  /// No description provided for @offer_apply.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدم بطلب لهذا العرض'**
+  String get offer_apply;
+
+  /// No description provided for @offer_save_later.
+  ///
+  /// In ar, this message translates to:
+  /// **'احفظ العرض لاحقًا'**
+  String get offer_save_later;
+
+  /// No description provided for @offer_action_soon.
+  ///
+  /// In ar, this message translates to:
+  /// **'قريبًا'**
+  String get offer_action_soon;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

@@ -12,6 +12,7 @@ import 'package:app/core/utils/egypt_governorates.dart';
 import 'package:app/core/widgets/buttons/masrafy_gradient_button.dart';
 import 'package:app/core/widgets/common/masrafy_app_bottom_nav.dart';
 import 'package:app/core/widgets/common/masrafy_avatar.dart';
+import 'package:app/core/widgets/common/masrafy_back_title_header.dart';
 import 'package:app/core/widgets/common/masrafy_toast.dart';
 import 'package:app/core/widgets/date_pickers/masrafy_single_date_picker_sheet.dart';
 import 'package:app/core/widgets/input_controls/masrafy_dob_selector.dart';
@@ -28,7 +29,6 @@ import 'cubit/profile_edit_contact/profile_edit_contact_cubit.dart';
 import 'cubit/profile_edit_personal/profile_edit_personal_cubit.dart';
 import 'widgets/profile_avatar_editor.dart';
 import 'widgets/profile_field_row.dart';
-import 'widgets/profile_header.dart';
 import 'widgets/profile_info_card.dart';
 
 part 'profile_page.dart';

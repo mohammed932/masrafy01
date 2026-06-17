@@ -615,7 +615,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get home_nav_loans => 'My Loans';
 
   @override
-  String get home_nav_profile => 'Profile';
+  String get home_nav_menu => 'Menu';
+
+  @override
+  String get account_title => 'Account';
+
+  @override
+  String get account_row_profile => 'Profile';
+
+  @override
+  String get account_row_settings_security => 'Settings & Security';
+
+  @override
+  String get account_row_saved_offers => 'Saved Offers';
+
+  @override
+  String get account_row_notifications => 'Notifications Center';
+
+  @override
+  String get account_row_previous_applications => 'Previous Applications';
 
   @override
   String get home_cat_personal => 'Personal';
@@ -1230,4 +1248,140 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profile_search_hint => 'Search';
+
+  @override
+  String get results_title => 'Your top matches are ready';
+
+  @override
+  String get results_subtitle => 'Your loan advisor is ready';
+
+  @override
+  String get results_loan_type => 'Loan type';
+
+  @override
+  String get results_amount => 'Amount';
+
+  @override
+  String results_amount_egp(String amount) {
+    return 'EGP $amount';
+  }
+
+  @override
+  String get results_duration => 'Loan Duration';
+
+  @override
+  String results_months(int count) {
+    return '$count months';
+  }
+
+  @override
+  String results_guarantee_approval(int pct) {
+    return '$pct% Guarantee Approval';
+  }
+
+  @override
+  String get results_best_match => 'Best Match';
+
+  @override
+  String get results_rate => 'Rate';
+
+  @override
+  String get results_monthly => 'Monthly';
+
+  @override
+  String get results_total => 'Total';
+
+  @override
+  String get results_view_offer => 'View Offer';
+
+  @override
+  String get offer_type_personal => 'Personal';
+
+  @override
+  String get offer_type_car => 'Car';
+
+  @override
+  String get offer_type_mortgage => 'Mortgage';
+
+  @override
+  String get offer_type_business => 'Business';
+
+  @override
+  String offer_title(String type) {
+    return '$type Loan';
+  }
+
+  @override
+  String offer_approval(int pct) {
+    return '$pct% Approval';
+  }
+
+  @override
+  String get offer_interest_rate => 'Interest rate';
+
+  @override
+  String get offer_fixed_apr => 'Fixed APR';
+
+  @override
+  String get offer_monthly => 'Monthly';
+
+  @override
+  String get offer_egp_month => 'EGP / month';
+
+  @override
+  String get offer_duration => 'Duration';
+
+  @override
+  String get offer_months => 'months';
+
+  @override
+  String get offer_total_interest => 'Total interest';
+
+  @override
+  String get offer_egp_extra => 'EGP paid extra';
+
+  @override
+  String get offer_national_id => 'National ID';
+
+  @override
+  String get offer_national_id_pending => 'Pending';
+
+  @override
+  String get offer_personal_id => 'personal ID';
+
+  @override
+  String get offer_total_loan => 'Total Loan';
+
+  @override
+  String get offer_total_loan_caption => 'incl. interest + principal';
+
+  @override
+  String get offer_fees_title => 'Fees & charges';
+
+  @override
+  String get offer_admin_fees => 'Admin fees';
+
+  @override
+  String get offer_admin_fees_value => '1% (EGP 1,500)';
+
+  @override
+  String get offer_interest_charge => '12% - 15% from principal amount';
+
+  @override
+  String get offer_interest_charge_value => '12.5% / year';
+
+  @override
+  String get offer_early_settlement => 'Early settlement';
+
+  @override
+  String get offer_early_settlement_value => 'Free after 12M';
+
+  @override
+  String get offer_apply => 'Apply for this offer';
+
+  @override
+  String get offer_save_later => 'Save offer for later';
+
+  @override
+  String get offer_action_soon => 'Coming soon';
 }

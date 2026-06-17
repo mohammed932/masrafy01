@@ -44,12 +44,12 @@ class _ProfileView extends StatelessWidget {
     return Scaffold(
       backgroundColor: colors.bg.layout,
       bottomNavigationBar: MasrafyAppBottomNav(
-        active: MasrafyAppNavTab.profile,
+        active: MasrafyAppNavTab.menu,
         loansLabel: l.home_nav_loans,
-        profileLabel: l.home_nav_profile,
+        menuLabel: l.home_nav_menu,
         onLoans: soon,
-        onHome: () => context.router.maybePop(),
-        onProfile: () {},
+        onHome: () => context.router.popUntilRoot(),
+        onMenu: () => context.router.maybePop(),
       ),
       body: BlocBuilder<ProfileCubit, ProfileData>(
         builder: (ctx, data) {
@@ -67,7 +67,7 @@ class _ProfileView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ProfileHeader(
+                  MasrafyBackTitleHeader(
                     title: l.profile_title,
                     onBack: () => ctx.router.maybePop(),
                   ),

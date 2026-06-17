@@ -48,7 +48,15 @@ class _CarViewState extends State<_CarView> {
           (!prev.submitted && curr.submitted),
       listener: (ctx, state) {
         if (state.submitted) {
-          MasrafyToast.success(ctx, l.q_car_submitted);
+          ctx.router.push(
+            MatchResultsRoute(
+              args: MatchResultsArgs.mock(
+                loanTypeKey: 'car',
+                amount: state.vehiclePriceEnd,
+                durationMonths: (state.repaymentPeriod * 12).round(),
+              ),
+            ),
+          );
           return;
         }
         _controller.animateToPage(

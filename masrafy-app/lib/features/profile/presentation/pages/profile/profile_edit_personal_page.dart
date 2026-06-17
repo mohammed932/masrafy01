@@ -78,12 +78,12 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
     return Scaffold(
       backgroundColor: colors.bg.layout,
       bottomNavigationBar: MasrafyAppBottomNav(
-        active: MasrafyAppNavTab.profile,
+        active: MasrafyAppNavTab.menu,
         loansLabel: l.home_nav_loans,
-        profileLabel: l.home_nav_profile,
+        menuLabel: l.home_nav_menu,
         onLoans: soon,
         onHome: () => context.router.popUntilRoot(),
-        onProfile: () => context.router.maybePop(),
+        onMenu: () => context.router.maybePop(),
       ),
       body: BlocBuilder<ProfileEditPersonalCubit, ProfileEditPersonalState>(
         builder: (ctx, state) {
@@ -93,7 +93,7 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
             bottom: false,
             child: Column(
               children: [
-                ProfileHeader(
+                MasrafyBackTitleHeader(
                   title: l.profile_title,
                   onBack: () => ctx.router.maybePop(),
                 ),

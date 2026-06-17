@@ -4,13 +4,16 @@ import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
-/// Plain profile screen header (Figma `4028:4449`): a white rounded back chip
-/// followed by the "Profile" title on the light layout background. The profile
-/// screens use this in place of the gradient hero (so A35 does not apply); it
-/// is flow-local (Principle XXXII) — bakes in the back-chip + title layout
-/// specific to this flow.
-class ProfileHeader extends StatelessWidget {
-  const ProfileHeader({super.key, required this.title, required this.onBack});
+/// Plain screen header (Figma `4028:4449` / `4028:4383`): a white rounded back
+/// chip followed by the screen title on the light layout background. Used in
+/// place of the gradient hero on flat screens (so A35 does not apply). Shared
+/// across the profile + account flows (Principle XXXIII).
+class MasrafyBackTitleHeader extends StatelessWidget {
+  const MasrafyBackTitleHeader({
+    super.key,
+    required this.title,
+    required this.onBack,
+  });
 
   final String title;
   final VoidCallback onBack;

@@ -46,10 +46,10 @@ class _HomeView extends StatelessWidget {
       bottomNavigationBar: MasrafyAppBottomNav(
         active: MasrafyAppNavTab.home,
         loansLabel: l.home_nav_loans,
-        profileLabel: l.home_nav_profile,
+        menuLabel: l.home_nav_menu,
         onLoans: soon,
         onHome: () {},
-        onProfile: () => context.router.push(const ProfileRoute()),
+        onMenu: () => context.router.push(const AccountRoute()),
       ),
       body: BlocBuilder<HomeCubit, HomeState>(
         builder: (ctx, state) {
@@ -127,7 +127,7 @@ class _HomeView extends StatelessWidget {
                             ],
                           ),
                           Gap(25.h),
-                          _SupportBanner(
+                          MasrafySupportCard(
                             label: l.home_support_label,
                             title: l.home_support_title,
                             onTap: soon,
@@ -172,74 +172,5 @@ class _LoanCardData {
   final String title;
   final String limit;
   final String apr;
-}
-
-/// Navy "Ask Masrafy anything" support banner (Figma `137:2966`).
-class _SupportBanner extends StatelessWidget {
-  const _SupportBanner({
-    required this.label,
-    required this.title,
-    required this.onTap,
-  });
-  final String label;
-  final String title;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final text = MasrafyTextTheme.of(context);
-    return InkWell(
-      borderRadius: BorderRadius.circular(18.r),
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsetsDirectional.all(17.r),
-        decoration: BoxDecoration(
-          color: Color.lerp(colors.primary.active, Colors.black, 0.4),
-          borderRadius: BorderRadius.circular(18.r),
-          border: Border.all(color: colors.secondary.main.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46.r,
-              height: 46.r,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14.r),
-                border: Border.all(
-                  color: colors.secondary.main.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Icon(
-                Icons.support_agent_outlined,
-                color: colors.secondary.hover,
-                size: 24.r,
-              ),
-            ),
-            Gap(14.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label.toUpperCase(),
-                    style: text.caption.bold().copyWith(
-                          color: colors.secondary.hover,
-                          letterSpacing: 0.8,
-                        ),
-                  ),
-                  Gap(2.h),
-                  Text(
-                    title,
-                    style: text.bodySmall.bold().copyWith(color: colors.white),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 

@@ -618,7 +618,25 @@ class AppLocalizationsAr extends AppLocalizations {
   String get home_nav_loans => 'قروضي';
 
   @override
-  String get home_nav_profile => 'حسابي';
+  String get home_nav_menu => 'القائمة';
+
+  @override
+  String get account_title => 'الحساب';
+
+  @override
+  String get account_row_profile => 'حسابي';
+
+  @override
+  String get account_row_settings_security => 'الإعدادات والأمان';
+
+  @override
+  String get account_row_saved_offers => 'العروض المحفوظة';
+
+  @override
+  String get account_row_notifications => 'مركز الإشعارات';
+
+  @override
+  String get account_row_previous_applications => 'الطلبات السابقة';
 
   @override
   String get home_cat_personal => 'شخصي';
@@ -1233,4 +1251,140 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profile_search_hint => 'بحث';
+
+  @override
+  String get results_title => 'أفضل العروض المطابقة جاهزة';
+
+  @override
+  String get results_subtitle => 'مستشار القروض جاهز';
+
+  @override
+  String get results_loan_type => 'نوع القرض';
+
+  @override
+  String get results_amount => 'المبلغ';
+
+  @override
+  String results_amount_egp(String amount) {
+    return '$amount ج.م';
+  }
+
+  @override
+  String get results_duration => 'مدة القرض';
+
+  @override
+  String results_months(int count) {
+    return '$count شهرًا';
+  }
+
+  @override
+  String results_guarantee_approval(int pct) {
+    return 'ضمان الموافقة $pct%';
+  }
+
+  @override
+  String get results_best_match => 'أفضل تطابق';
+
+  @override
+  String get results_rate => 'الفائدة';
+
+  @override
+  String get results_monthly => 'شهريًا';
+
+  @override
+  String get results_total => 'الإجمالي';
+
+  @override
+  String get results_view_offer => 'عرض العرض';
+
+  @override
+  String get offer_type_personal => 'شخصي';
+
+  @override
+  String get offer_type_car => 'سيارة';
+
+  @override
+  String get offer_type_mortgage => 'عقاري';
+
+  @override
+  String get offer_type_business => 'أعمال';
+
+  @override
+  String offer_title(String type) {
+    return 'قرض $type';
+  }
+
+  @override
+  String offer_approval(int pct) {
+    return 'موافقة $pct%';
+  }
+
+  @override
+  String get offer_interest_rate => 'سعر الفائدة';
+
+  @override
+  String get offer_fixed_apr => 'فائدة ثابتة';
+
+  @override
+  String get offer_monthly => 'شهريًا';
+
+  @override
+  String get offer_egp_month => 'ج.م / شهر';
+
+  @override
+  String get offer_duration => 'المدة';
+
+  @override
+  String get offer_months => 'أشهر';
+
+  @override
+  String get offer_total_interest => 'إجمالي الفائدة';
+
+  @override
+  String get offer_egp_extra => 'ج.م إضافية';
+
+  @override
+  String get offer_national_id => 'الرقم القومي';
+
+  @override
+  String get offer_national_id_pending => 'قيد الانتظار';
+
+  @override
+  String get offer_personal_id => 'إثبات الهوية';
+
+  @override
+  String get offer_total_loan => 'إجمالي القرض';
+
+  @override
+  String get offer_total_loan_caption => 'شامل الفائدة + الأصل';
+
+  @override
+  String get offer_fees_title => 'الرسوم والمصاريف';
+
+  @override
+  String get offer_admin_fees => 'رسوم إدارية';
+
+  @override
+  String get offer_admin_fees_value => '1% (1,500 ج.م)';
+
+  @override
+  String get offer_interest_charge => '12% - 15% من أصل المبلغ';
+
+  @override
+  String get offer_interest_charge_value => '12.5% سنويًا';
+
+  @override
+  String get offer_early_settlement => 'السداد المبكر';
+
+  @override
+  String get offer_early_settlement_value => 'مجاني بعد 12 شهرًا';
+
+  @override
+  String get offer_apply => 'تقدم بطلب لهذا العرض';
+
+  @override
+  String get offer_save_later => 'احفظ العرض لاحقًا';
+
+  @override
+  String get offer_action_soon => 'قريبًا';
 }

@@ -48,7 +48,15 @@ class _MortgageViewState extends State<_MortgageView> {
           (!prev.submitted && curr.submitted),
       listener: (ctx, state) {
         if (state.submitted) {
-          MasrafyToast.success(ctx, l.q_mortgage_submitted);
+          ctx.router.push(
+            MatchResultsRoute(
+              args: MatchResultsArgs.mock(
+                loanTypeKey: 'mortgage',
+                amount: state.propertyValueEnd,
+                durationMonths: (state.repaymentPeriod * 12).round(),
+              ),
+            ),
+          );
           return;
         }
         _controller.animateToPage(
