@@ -1,6 +1,9 @@
 # syntax=docker/dockerfile:1.7
 # ---- build ----
-FROM node:22-alpine AS build
+# Debian slim (not alpine): Angular's build cache uses `lmdb`, which ships
+# glibc prebuilt binaries but NO musl build — on alpine npm tries to compile it
+# and fails (no Python). glibc base loads the prebuild, no compile needed.
+FROM node:22-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
