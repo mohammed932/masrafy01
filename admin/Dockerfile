@@ -1,12 +1,19 @@
 # syntax=docker/dockerfile:1.7
 # ---- build ----
-# Debian slim (not alpine): Angular's build cache uses `lmdb`, which ships
-# glibc prebuilt binaries but NO musl build — on alpine npm tries to compile it
-# and fails (no Python). glibc base loads the prebuild, no compile needed.
+# Debian slim (not alpine): Angular pulls native deps (lmdb, esbuild) that have
+# NO musl build. glibc + a small toolchain handles them.
 FROM node:22-slim AS build
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Copy ONLY package.json (not the lockfile) and let npm resolve fresh for this
+# build's OS/arch. npm has a bug (npm/cli#4828) where a lockfile generated on a
+# different platform omits optional native binaries (@rollup/rollup-linux-x64-gnu,
+# @lmdb/lmdb-linux-x64, @esbuild/linux-x64) — `npm ci`, and even `npm install`
+# reusing that lockfile, then fail at build time. Fresh resolution fixes it.
+COPY package.json ./
+RUN npm install --no-audit --no-fund
 COPY . .
 
 # Bake the backend API base URL into the production bundle at BUILD time.
