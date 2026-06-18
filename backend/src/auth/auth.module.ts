@@ -16,6 +16,7 @@ import { RefreshTokenService } from './refresh-token.service';
 import { SignInAttemptRepository } from './sign-in-attempt.repository';
 import { LockoutService } from './lockout.service';
 import { PasswordService } from './password.service';
+import { AdminBootstrapService } from './admin-bootstrap.service';
 import { StaffAccountRepository } from '@/users/staff-account.repository';
 
 @Module({
@@ -37,6 +38,7 @@ import { StaffAccountRepository } from '@/users/staff-account.repository';
     // Infra (PrismaService/RedisService/HibpClient/CommonPasswordsService) come from
     // global InfraModule.
     PasswordService,
+    AdminBootstrapService,
     StaffAccountRepository,
     SignInAttemptRepository,
     RefreshTokenRepository,
