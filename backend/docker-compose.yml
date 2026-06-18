@@ -1,0 +1,118 @@
+# Masrafy backend — production deploy (DigitalOcean droplet).
+# Self-contained: API + Postgres + Redis (+ optional MinIO via `--profile storage`).
+# Public traffic is routed by the shared nginx-proxy on the external `web` network
+# using VIRTUAL_HOST / LETSENCRYPT_HOST (= ${HOST}). See ../DEPLOY.md.
+#
+# Build & (re)deploy without ever stopping/removing by hand:
+#   docker compose build && docker compose up -d
+name: masrafy-backend
+
+services:
+  backend:
+    build:
+      context: .
+    image: masrafy-backend:latest
+    container_name: masrafy_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Overrides env_file so `SEED_ON_START=true docker compose up -d` works for
+      # the first deploy (shell/.env interpolation > env_file inside the container).
+      SEED_ON_START: ${SEED_ON_START:-false}
+      # nginx-proxy + acme-companion auto-discovery (own subdomain + SSL).
+      VIRTUAL_HOST: ${HOST}
+      VIRTUAL_PORT: 3000
+      LETSENCRYPT_HOST: ${HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    expose:
+      - "3000"
+    # Optional localhost-only port for on-droplet debugging (NOT public).
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - web
+      - internal
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: masrafy_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: masrafy_redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Optional self-hosted S3 (MinIO). Off by default — enable with:
+  #   docker compose --profile storage up -d
+  # Prod default = AWS S3 (set S3_* in .env). When enabling MinIO instead, set in .env:
+  #   S3_ENDPOINT_URL=https://${S3_HOST}   and   S3_FORCE_PATH_STYLE=true
+  minio:
+    image: minio/minio:latest
+    container_name: masrafy_minio
+    restart: unless-stopped
+    profiles: ["storage"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY}
+      # Expose the S3 API (port 9000) publicly so presigned URLs resolve over SSL.
+      VIRTUAL_HOST: ${S3_HOST}
+      VIRTUAL_PORT: 9000
+      LETSENCRYPT_HOST: ${S3_HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    volumes:
+      - miniodata:/data
+    networks:
+      - web
+      - internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  # Your existing nginx-proxy network. Set PROXY_NETWORK in .env to its real name
+  # (find it: docker inspect <proxy-container> -f '{{json .NetworkSettings.Networks}}').
+  web:
+    external: true
+    name: ${PROXY_NETWORK:-web}
+  internal:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:

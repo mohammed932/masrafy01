@@ -44,6 +44,7 @@ import { map } from 'rxjs';
 import { MoneyInputDirective } from '../../../core/directives/money-input.directive';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
+import { LOAN_CATEGORIES, categoryLabel, isLoanCategory } from '@core/loan-category';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import type {
   BankProgramCreatePayload,
@@ -233,9 +234,9 @@ type ToggleKey =
                 <nz-form-label [nzFor]="'productCategory'" nzRequired i18n="@@bank_programs.field.product_type">Product type</nz-form-label>
                 <nz-form-control [nzErrorTip]="productCategoryErrorTpl">
                   <nz-select id="productCategory" formControlName="productCategory" [nzDropdownStyle]="dropdownStyle">
-                    <nz-option nzValue="personal" nzLabel="Personal" i18n-nzLabel="@@product.personal"></nz-option>
-                    <nz-option nzValue="car" nzLabel="Car" i18n-nzLabel="@@product.car"></nz-option>
-                    <nz-option nzValue="mortgage" nzLabel="Mortgage" i18n-nzLabel="@@product.mortgage"></nz-option>
+                    @for (opt of categoryOptions(); track opt.value) {
+                      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+                    }
                   </nz-select>
                   <ng-template #productCategoryErrorTpl>
                     <span i18n="@@bank_programs.err.product_required">Product type is required.</span>
@@ -1261,6 +1262,25 @@ export class BankProgramFormPage implements OnInit {
   readonly documentOptions = computed(() =>
     this.enums.membersFor('required_document')().map((m) => ({ value: m.key, label: m.labelEn })),
   );
+  /**
+   * Product-category options sourced from the live registry (`product_category`).
+   * Localized via the shared `categoryLabel()` for the four known categories;
+   * falls back to the canonical four if the registry hasn't loaded yet so the
+   * picker is never empty. Adding `business` to the registry surfaces it here
+   * automatically — no hardcoded option list (Principle II).
+   */
+  readonly categoryOptions = computed(() => {
+    const members = this.enums
+      .membersFor('product_category')()
+      .filter((m) => m.active && !m.deprecated);
+    if (members.length === 0) {
+      return LOAN_CATEGORIES.map((cat) => ({ value: cat as string, label: categoryLabel(cat) }));
+    }
+    return members.map((m) => ({
+      value: m.key,
+      label: isLoanCategory(m.key) ? categoryLabel(m.key) : m.labelEn,
+    }));
+  });
 
   readonly form = this.fb.nonNullable.group({
     identity: this.fb.nonNullable.group({
@@ -1525,6 +1545,20 @@ export class BankProgramFormPage implements OnInit {
 
     if (this.isEditMode() && this.editProgramCode()) {
       void this.loadForEdit(this.editProgramCode());
+    } else {
+      this.preselectCategoryFromQuery();
+    }
+  }
+
+  /**
+   * Preselect the product category when creating from a bank-detail category
+   * section (`?category=<loanCategory>`), overriding the `personal` default.
+   * Ignored for unknown values so the registry/default still governs.
+   */
+  private preselectCategoryFromQuery(): void {
+    const cat = this.route.snapshot.queryParamMap.get('category');
+    if (isLoanCategory(cat)) {
+      this.form.controls.identity.controls.productCategory.setValue(cat);
     }
   }
 

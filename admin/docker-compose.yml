@@ -1,0 +1,38 @@
+# Masrafy admin dashboard — production deploy (DigitalOcean droplet).
+# Static Angular build served by nginx; SSL + routing via the shared nginx-proxy
+# on the external `web` network (VIRTUAL_HOST / LETSENCRYPT_HOST = ${HOST}).
+# See ../DEPLOY.md.
+#
+# Build & (re)deploy without stopping/removing by hand:
+#   docker compose build && docker compose up -d
+name: masrafy-admin
+
+services:
+  admin:
+    build:
+      context: .
+      args:
+        # API base URL is baked at build time (static SPA). From .env.
+        API_BASE_URL: ${API_BASE_URL}
+    image: masrafy-admin:latest
+    container_name: masrafy_admin
+    restart: unless-stopped
+    environment:
+      VIRTUAL_HOST: ${HOST}
+      VIRTUAL_PORT: 80
+      LETSENCRYPT_HOST: ${HOST}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL}
+    expose:
+      - "80"
+    # Optional localhost-only port for on-droplet debugging (NOT public).
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - web
+
+networks:
+  # Your existing nginx-proxy network. Set PROXY_NETWORK in .env to its real name
+  # (find it: docker inspect <proxy-container> -f '{{json .NetworkSettings.Networks}}').
+  web:
+    external: true
+    name: ${PROXY_NETWORK:-web}

@@ -10,6 +10,7 @@ import {
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
@@ -23,10 +24,16 @@ import {
   DeleteOutline,
   EditOutline,
   PlusOutline,
+  RightOutline,
 } from '@ant-design/icons-angular/icons';
 import { CanDirective } from '../../shared/can.directive';
-import { HumanizePipe } from '../../shared/humanize.pipe';
 import { StatStripComponent, type StatStripItem } from '@shared/ui';
+import {
+  LOAN_CATEGORIES,
+  categoryLabel,
+  isLoanCategory,
+  type LoanCategory,
+} from '@core/loan-category';
 import { ErrorCodeService } from '../../core/errors/error-code.service';
 import { BankProgramsApiService } from '../bank-programs/bank-programs.api.service';
 import {
@@ -45,6 +52,13 @@ import {
 } from './bank-form.dialog';
 import type { BankProgramSummary, BankWithProgramCount } from './banks.types';
 
+/** One category accordion section on the bank-detail programs list. */
+interface ProgramSection {
+  cat: LoanCategory | 'other';
+  label: string;
+  items: BankProgramSummary[];
+}
+
 /**
  * Bank detail — drill-down target of the registry (`/banks/:bankId`).
  *
@@ -61,17 +75,24 @@ import type { BankProgramSummary, BankWithProgramCount } from './banks.types';
     ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
+    NzCollapseModule,
     NzIconModule,
     NzSpinModule,
     NzSwitchModule,
     NzTableModule,
     NzToolTipModule,
     CanDirective,
-    HumanizePipe,
     StatStripComponent,
   ],
   providers: [
-    provideNzIconsPatch([ArrowLeftOutline, EditOutline, DeleteOutline, PlusOutline, CopyOutline]),
+    provideNzIconsPatch([
+      ArrowLeftOutline,
+      EditOutline,
+      DeleteOutline,
+      PlusOutline,
+      CopyOutline,
+      RightOutline,
+    ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -158,124 +179,148 @@ import type { BankProgramSummary, BankWithProgramCount } from './banks.types';
 
           <div class="section-head">
             <h2 class="section-title" i18n="@@bank_detail.programs.title">Programs</h2>
-            <a
-              *can="['super_admin', 'sales_manager']"
-              nz-button
-              nzType="primary"
-              [routerLink]="['/banks/programs/new']"
-              [queryParams]="{ bankId: bank()!.id }"
-            >
-              <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-              <span i18n="@@bank_detail.programs.add">Add program</span>
-            </a>
           </div>
 
-          <div class="table-wrap">
-            <nz-table
-              #t
-              [nzData]="programs()"
-              [nzLoading]="loadingPrograms()"
-              [nzFrontPagination]="false"
-              [nzShowPagination]="false"
-            >
-              <thead>
-                <tr>
-                  <th i18n="@@bank_detail.col.name">Name</th>
-                  <th i18n="@@bank_detail.col.category">Category</th>
-                  <th i18n="@@bank_detail.col.status">Status</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (p of t.data; track p.programCode) {
-                  <tr>
-                    <td>
-                      <a [routerLink]="['/banks/programs', p.programCode]" class="row-link">{{
-                        p.friendlyName
-                      }}</a>
-                    </td>
-                    <td>{{ p.productCategory | humanize }}</td>
-                    <td>
-                      <nz-switch
-                        *can="['super_admin', 'sales_manager']"
-                        [formControl]="rowActiveControl(p)"
-                      ></nz-switch>
-                      <span
-                        *can="['sales_agent', 'analyst']"
-                        class="status-chip"
-                        [class.active]="p.active"
-                        [class.inactive]="!p.active"
-                      >
-                        @if (p.active) {
-                          <span i18n="@@bank_detail.status.active">Active</span>
-                        } @else {
-                          <span i18n="@@bank_detail.status.inactive">Inactive</span>
+          @if (loadingPrograms()) {
+            <div class="loading"><nz-spin nzSimple></nz-spin></div>
+          } @else {
+            <nz-collapse class="cat-collapse">
+              @for (section of categorySections(); track section.cat) {
+                <nz-collapse-panel
+                  [nzActive]="section.items.length > 0"
+                  [nzHeader]="catHeaderTpl"
+                  [nzExtra]="catExtraTpl"
+                >
+                  <ng-template #catHeaderTpl>
+                    <span class="cat-name">{{ section.label }}</span>
+                    <span class="cat-count" [class.empty]="section.items.length === 0">{{
+                      section.items.length
+                    }}</span>
+                  </ng-template>
+
+                  <ng-template #catExtraTpl>
+                    <a
+                      *can="['super_admin', 'sales_manager']"
+                      nz-button
+                      nzType="link"
+                      nzSize="small"
+                      [routerLink]="['/banks/programs/new']"
+                      [queryParams]="addQueryParams(section.cat)"
+                      (click)="$event.stopPropagation()"
+                    >
+                      <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                      <span i18n="@@bank_detail.programs.add">Add program</span>
+                    </a>
+                  </ng-template>
+
+                  @if (section.items.length === 0) {
+                    <p class="empty-text" i18n="@@bank_detail.programs.cat_empty">
+                      No programs in this category yet.
+                    </p>
+                  } @else {
+                    <nz-table
+                      #t
+                      [nzData]="section.items"
+                      [nzFrontPagination]="false"
+                      [nzShowPagination]="false"
+                    >
+                      <thead>
+                        <tr>
+                          <th i18n="@@bank_detail.col.name">Name</th>
+                          <th i18n="@@bank_detail.col.status">Status</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (p of t.data; track p.programCode) {
+                          <tr>
+                            <td>
+                              <a
+                                [routerLink]="['/banks/programs', p.programCode]"
+                                class="row-link"
+                                >{{ p.friendlyName }}</a
+                              >
+                            </td>
+                            <td>
+                              <nz-switch
+                                *can="['super_admin', 'sales_manager']"
+                                [formControl]="rowActiveControl(p)"
+                              ></nz-switch>
+                              <span
+                                *can="['sales_agent', 'analyst']"
+                                class="status-chip"
+                                [class.active]="p.active"
+                                [class.inactive]="!p.active"
+                              >
+                                @if (p.active) {
+                                  <span i18n="@@bank_detail.status.active">Active</span>
+                                } @else {
+                                  <span i18n="@@bank_detail.status.inactive">Inactive</span>
+                                }
+                              </span>
+                            </td>
+                            <td class="actions">
+                              <a
+                                *can="['super_admin', 'sales_manager']"
+                                nz-button
+                                nzType="text"
+                                nzShape="circle"
+                                nz-tooltip
+                                i18n-nzTooltipTitle="@@bank_detail.program.edit"
+                                nzTooltipTitle="Edit program"
+                                [routerLink]="['/banks/programs', p.programCode, 'edit']"
+                              >
+                                <span
+                                  nz-icon
+                                  nzType="edit"
+                                  nzTheme="outline"
+                                  aria-hidden="true"
+                                ></span>
+                              </a>
+                              <button
+                                *can="['super_admin', 'sales_manager']"
+                                nz-button
+                                nzType="text"
+                                nzShape="circle"
+                                nz-tooltip
+                                i18n-nzTooltipTitle="@@bank_detail.program.clone"
+                                nzTooltipTitle="Clone program"
+                                (click)="openClone(p)"
+                              >
+                                <span
+                                  nz-icon
+                                  nzType="copy"
+                                  nzTheme="outline"
+                                  aria-hidden="true"
+                                ></span>
+                              </button>
+                              <button
+                                *can="['super_admin', 'sales_manager']"
+                                nz-button
+                                nzType="text"
+                                nzShape="circle"
+                                nz-tooltip
+                                i18n-nzTooltipTitle="@@bank_detail.program.delete"
+                                nzTooltipTitle="Delete program"
+                                (click)="openDelete(p)"
+                              >
+                                <span
+                                  nz-icon
+                                  nzType="delete"
+                                  nzTheme="outline"
+                                  aria-hidden="true"
+                                ></span>
+                              </button>
+                            </td>
+                          </tr>
                         }
-                      </span>
-                    </td>
-                    <td class="actions">
-                      <a
-                        *can="['super_admin', 'sales_manager']"
-                        nz-button
-                        nzType="text"
-                        nzShape="circle"
-                        nz-tooltip
-                        i18n-nzTooltipTitle="@@bank_detail.program.edit"
-                        nzTooltipTitle="Edit program"
-                        [routerLink]="['/banks/programs', p.programCode, 'edit']"
-                      >
-                        <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
-                      </a>
-                      <button
-                        *can="['super_admin', 'sales_manager']"
-                        nz-button
-                        nzType="text"
-                        nzShape="circle"
-                        nz-tooltip
-                        i18n-nzTooltipTitle="@@bank_detail.program.clone"
-                        nzTooltipTitle="Clone program"
-                        (click)="openClone(p)"
-                      >
-                        <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
-                      </button>
-                      <button
-                        *can="['super_admin', 'sales_manager']"
-                        nz-button
-                        nzType="text"
-                        nzShape="circle"
-                        nz-tooltip
-                        i18n-nzTooltipTitle="@@bank_detail.program.delete"
-                        nzTooltipTitle="Delete program"
-                        (click)="openDelete(p)"
-                      >
-                        <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
-                      </button>
-                    </td>
-                  </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="4">
-                      <div class="empty">
-                        <p class="empty-text" i18n="@@bank_detail.programs.empty">
-                          No programs yet for this bank.
-                        </p>
-                        <a
-                          *can="['super_admin', 'sales_manager']"
-                          nz-button
-                          nzType="primary"
-                          [routerLink]="['/banks/programs/new']"
-                          [queryParams]="{ bankId: bank()!.id }"
-                        >
-                          <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                          <span i18n="@@bank_detail.programs.add_first">Add the first program</span>
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </nz-table>
-          </div>
+                      </tbody>
+                    </nz-table>
+                  }
+                </nz-collapse-panel>
+              }
+            </nz-collapse>
+          }
         } @else {
           <p class="empty-text" i18n="@@bank_detail.not_found">Bank not found.</p>
         }
@@ -407,11 +452,31 @@ import type { BankProgramSummary, BankWithProgramCount } from './banks.types';
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
       }
-      .table-wrap {
+      .cat-collapse {
         background: var(--color-surface-default);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
+      }
+      .cat-name {
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .cat-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-inline-size: 22px;
+        block-size: 20px;
+        margin-inline-start: var(--space-2);
+        padding-inline: var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-brand-primary);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-bold);
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .cat-count.empty {
+        background: var(--color-surface-muted);
+        color: var(--color-text-tertiary);
       }
       .row-link {
         color: var(--color-text-primary);
@@ -478,6 +543,36 @@ export class BankDetailPage implements OnInit {
 
   private get bankId(): string {
     return this.route.snapshot.paramMap.get('bankId') ?? '';
+  }
+
+  /**
+   * Programs grouped into the four constitution-locked categories (Principle II),
+   * in canonical order. Any program whose category falls outside the four
+   * (legacy / unknown) is surfaced in a trailing "Other" section rather than
+   * silently hidden.
+   */
+  readonly categorySections = computed<ProgramSection[]>(() => {
+    const ps = this.programs();
+    const sections: ProgramSection[] = LOAN_CATEGORIES.map((cat) => ({
+      cat,
+      label: categoryLabel(cat),
+      items: ps.filter((p) => p.productCategory === cat),
+    }));
+    const others = ps.filter((p) => !isLoanCategory(p.productCategory));
+    if (others.length > 0) {
+      sections.push({
+        cat: 'other',
+        label: $localize`:@@bank_detail.cat.other:Other`,
+        items: others,
+      });
+    }
+    return sections;
+  });
+
+  /** Query params for the per-section "Add program" link (scopes category). */
+  addQueryParams(cat: LoanCategory | 'other'): Record<string, string> {
+    const bankId = this.bank()?.id ?? '';
+    return cat === 'other' ? { bankId } : { bankId, category: cat };
   }
 
   readonly stats = computed<StatStripItem[]>(() => {

@@ -4,26 +4,17 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { SuccessEnvelope } from '@core/auth/auth.types';
 
-export type LoanCategory = 'personal' | 'car' | 'mortgage' | 'business';
-export const LOAN_CATEGORIES: LoanCategory[] = ['personal', 'car', 'mortgage', 'business'];
-
-/**
- * Friendly, localized label for a loan category. Single source for both the
- * questionnaire overview and the editor tab strip so naming stays consistent
- * (`car` → "Auto Loan"). Arabic lands in messages.ar-EG.xlf on extraction.
- */
-export function categoryLabel(cat: LoanCategory): string {
-  switch (cat) {
-    case 'personal':
-      return $localize`:@@loan.cat.personal:Personal Loan`;
-    case 'car':
-      return $localize`:@@loan.cat.car:Auto Loan`;
-    case 'mortgage':
-      return $localize`:@@loan.cat.mortgage:Mortgage`;
-    case 'business':
-      return $localize`:@@loan.cat.business:Business Loan`;
-  }
-}
+// Loan-category set + labels now live in @core/loan-category (shared across
+// questionnaire, banks, and the bank-program form). Imported locally (this file
+// uses the `LoanCategory` type in its method signatures) and re-exported so the
+// existing questionnaire importers keep their import path unchanged.
+import {
+  LOAN_CATEGORIES,
+  categoryLabel,
+  isLoanCategory,
+  type LoanCategory,
+} from '@core/loan-category';
+export { LOAN_CATEGORIES, categoryLabel, isLoanCategory, type LoanCategory };
 
 /** One answer option that can carry per-program points. */
 export interface WeightableOption {
