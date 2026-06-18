@@ -104,11 +104,12 @@ services:
       retries: 5
 
 networks:
-  # Your existing nginx-proxy network. Set PROXY_NETWORK in .env to its real name
-  # (find it: docker inspect <proxy-container> -f '{{json .NetworkSettings.Networks}}').
+  # Your existing nginx-proxy network (override the name via PROXY_NETWORK in .env).
+  # Modern Compose syntax: `name` + `external: true` (the old `external: { name: }`
+  # form is removed in Compose v2 and silently breaks).
   web:
     external: true
-    name: ${PROXY_NETWORK:-web}
+    name: ${PROXY_NETWORK:-nginx-proxy}
   internal:
     driver: bridge
 
