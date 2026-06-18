@@ -7,6 +7,24 @@ import type { SuccessEnvelope } from '@core/auth/auth.types';
 export type LoanCategory = 'personal' | 'car' | 'mortgage' | 'business';
 export const LOAN_CATEGORIES: LoanCategory[] = ['personal', 'car', 'mortgage', 'business'];
 
+/**
+ * Friendly, localized label for a loan category. Single source for both the
+ * questionnaire overview and the editor tab strip so naming stays consistent
+ * (`car` → "Auto Loan"). Arabic lands in messages.ar-EG.xlf on extraction.
+ */
+export function categoryLabel(cat: LoanCategory): string {
+  switch (cat) {
+    case 'personal':
+      return $localize`:@@loan.cat.personal:Personal Loan`;
+    case 'car':
+      return $localize`:@@loan.cat.car:Auto Loan`;
+    case 'mortgage':
+      return $localize`:@@loan.cat.mortgage:Mortgage`;
+    case 'business':
+      return $localize`:@@loan.cat.business:Business Loan`;
+  }
+}
+
 /** One answer option that can carry per-program points. */
 export interface WeightableOption {
   code: string;
@@ -33,13 +51,19 @@ export interface ProgramMeta {
 
 export type WeightSetStatus = 'ACTIVE' | 'ARCHIVED';
 
+/** Two-level scoring (v8): per-question weights (sum 100) + per-answer scores (0–100). */
+export interface ProgramScoringWeights {
+  questionWeights: Record<string, number>;
+  answerScores: Record<string, Record<string, number>>;
+}
+
 export interface ScoringWeightSet {
   id: string;
   bankProgramId: string;
   status: WeightSetStatus;
   versionNumber: number;
-  /** Nested per-answer points: questionCode → optionCode → points (no sum constraint). */
-  weights: Record<string, Record<string, number>>;
+  /** Two-level: questionWeights (sum 100) + answerScores (0–100). */
+  weights: ProgramScoringWeights;
   createdBy: string;
   createdAt: string;
   approvedBy: string | null;
@@ -180,11 +204,8 @@ export class QuestionnaireApiService {
     return this.get<ProgramWeights>(`/scoring/programs/${programId}/weights`);
   }
 
-  /** Save nested per-answer points: questionCode → optionCode → points (no sum constraint). */
-  saveWeights(
-    programId: string,
-    weights: Record<string, Record<string, number>>,
-  ): Promise<ScoringWeightSet> {
+  /** Save two-level scoring (v8): question weights (sum 100) + answer scores (0–100). */
+  saveWeights(programId: string, weights: ProgramScoringWeights): Promise<ScoringWeightSet> {
     return this.post<ScoringWeightSet>(`/scoring/programs/${programId}/weights`, { weights });
   }
 
@@ -256,11 +277,15 @@ export class QuestionnaireApiService {
     return res.data;
   }
   private async post<T>(path: string, body: unknown): Promise<T> {
-    const res = await firstValueFrom(this.http.post<SuccessEnvelope<T>>(`${this.base()}${path}`, body));
+    const res = await firstValueFrom(
+      this.http.post<SuccessEnvelope<T>>(`${this.base()}${path}`, body),
+    );
     return res.data;
   }
   private async patch<T>(path: string, body: unknown): Promise<T> {
-    const res = await firstValueFrom(this.http.patch<SuccessEnvelope<T>>(`${this.base()}${path}`, body));
+    const res = await firstValueFrom(
+      this.http.patch<SuccessEnvelope<T>>(`${this.base()}${path}`, body),
+    );
     return res.data;
   }
   private async del<T>(path: string): Promise<T> {

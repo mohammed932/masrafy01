@@ -931,7 +931,7 @@ model ScoringWeightSet {
   bankProgramId  String                 @db.VarChar(30)
   status         ScoringWeightSetStatus @default(DRAFT)
   versionNumber  Int
-  weights        Json // questionCode → optionCode → points; 1–100 per answer (decimals allowed); no sum constraint
+  weights        Json // v8: { questionWeights: {qCode→weight, sum 100}, answerScores: {qCode→oCode→score 0–100} }; legacy {qCode→oCode→points} upgraded on read
   createdBy      String                 @db.VarChar(30) // editor who saved (staff id)
   createdAt      DateTime               @default(now()) @db.Timestamptz(6)
   approvedBy     String?                @db.VarChar(30) // checker (staff id, != createdBy)

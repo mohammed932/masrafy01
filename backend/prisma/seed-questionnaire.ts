@@ -23,6 +23,29 @@ type Category = 'personal' | 'mortgage' | 'car' | 'business';
 /** Per-program multipliers applied to the seed `points` so programs rank differently. */
 const PROGRAM_POINT_MULTIPLIERS = [1.0, 0.85, 1.15, 0.95];
 
+/**
+ * Neutral score (0–100) given to every answer of a non-financial / content
+ * question (loan purpose, governorate, vehicle condition…). Flat → the question
+ * contributes a constant, never unfairly ranking one applicant over another, but
+ * it is never 0 so no answer reads as "0".
+ */
+const NEUTRAL_SCORE = 50;
+
+/** Equal question weights summing to exactly 100 (remainder spread over the first
+ *  questions). Every question gets a non-zero share; no per-question tuning. */
+function equalWeights(questionCodes: readonly string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  const n = questionCodes.length;
+  if (n === 0) return out;
+  const base = Math.floor(100 / n);
+  let remainder = 100 - base * n;
+  for (const code of questionCodes) {
+    out[code] = base + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder -= 1;
+  }
+  return out;
+}
+
 // Active platform-enumeration members → seed options (code = enum key). Cached
 // per type so a category seed reads each list at most once.
 const _enumOptionsCache = new Map<string, SeedOption[]>();
@@ -72,13 +95,14 @@ interface CategoryConfig {
   groups: SeedGroup[];
 }
 
-// Employment codes used across categories.
+// Employment codes used across categories. Points = desirability to a lender
+// (stable salaried income scores highest; irregular income lowest).
 const EMPLOYMENT_OPTIONS: SeedOption[] = [
-  { labelEn: 'Government employee', labelAr: 'موظف حكومي' },
-  { labelEn: 'Private sector employee', labelAr: 'موظف قطاع خاص' },
-  { labelEn: 'Business owner / company owner', labelAr: 'صاحب عمل / شركة' },
-  { labelEn: 'Freelancer', labelAr: 'عمل حر' },
-  { labelEn: 'Retired', labelAr: 'متقاعد' },
+  { labelEn: 'Government employee', labelAr: 'موظف حكومي', points: 100 },
+  { labelEn: 'Private sector employee', labelAr: 'موظف قطاع خاص', points: 85 },
+  { labelEn: 'Business owner / company owner', labelAr: 'صاحب عمل / شركة', points: 70 },
+  { labelEn: 'Freelancer', labelAr: 'عمل حر', points: 45 },
+  { labelEn: 'Retired', labelAr: 'متقاعد', points: 55 },
 ];
 
 const YESNO = (yesPoints?: number, noPoints?: number): SeedOption[] => [
@@ -89,10 +113,10 @@ const YESNO = (yesPoints?: number, noPoints?: number): SeedOption[] => [
 const AGE_Q: SeedQuestion = {
   code: 'your_age', questionEn: 'Your age', questionAr: 'عمرك',
   options: [
-    { labelEn: '21 – 30', labelAr: '21 – 30' },
-    { labelEn: '31 – 45', labelAr: '31 – 45' },
-    { labelEn: '46 – 60', labelAr: '46 – 60' },
-    { labelEn: 'More than 60', labelAr: 'أكثر من 60' },
+    { labelEn: '21 – 30', labelAr: '21 – 30', points: 70 },
+    { labelEn: '31 – 45', labelAr: '31 – 45', points: 100 },
+    { labelEn: '46 – 60', labelAr: '46 – 60', points: 75 },
+    { labelEn: 'More than 60', labelAr: 'أكثر من 60', points: 35 },
   ],
 };
 const SALARY_TRANSFER_Q: SeedQuestion = {
@@ -181,9 +205,9 @@ const PERSONAL: CategoryConfig = {
         {
           code: 'employer_approved', questionEn: 'Is your employer approved by banks?', questionAr: 'هل جهة عملك معتمدة لدى البنوك؟',
           isRequired: false, options: [
-            { labelEn: 'Yes', labelAr: 'نعم' },
-            { labelEn: 'No', labelAr: 'لا' },
-            { labelEn: 'Not sure', labelAr: 'غير متأكد' },
+            { labelEn: 'Yes', labelAr: 'نعم', points: 100 },
+            { labelEn: 'No', labelAr: 'لا', points: 40 },
+            { labelEn: 'Not sure', labelAr: 'غير متأكد', points: 65 },
           ],
         },
       ],
@@ -194,21 +218,21 @@ const PERSONAL: CategoryConfig = {
         {
           code: 'current_loans', questionEn: 'Do you currently have any loans or obligations?', questionAr: 'هل لديك قروض أو التزامات حالية؟',
           options: [
-            { labelEn: 'None', labelAr: 'لا يوجد' },
-            { labelEn: 'Personal loan', labelAr: 'قرض شخصي' },
-            { labelEn: 'Car loan', labelAr: 'قرض سيارة' },
-            { labelEn: 'Mortgage', labelAr: 'قرض عقاري' },
-            { labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان' },
-            { labelEn: 'Other', labelAr: 'أخرى' },
+            { labelEn: 'None', labelAr: 'لا يوجد', points: 100 },
+            { labelEn: 'Personal loan', labelAr: 'قرض شخصي', points: 55 },
+            { labelEn: 'Car loan', labelAr: 'قرض سيارة', points: 55 },
+            { labelEn: 'Mortgage', labelAr: 'قرض عقاري', points: 50 },
+            { labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان', points: 60 },
+            { labelEn: 'Other', labelAr: 'أخرى', points: 50 },
           ],
         },
         {
           code: 'current_installments', questionEn: 'Total approximate current monthly installments?', questionAr: 'إجمالي الأقساط الشهرية الحالية تقريبًا؟',
           options: [
-            { labelEn: 'Less than EGP 2,000', labelAr: 'أقل من 2,000 جنيه' },
-            { labelEn: 'EGP 2,000 – 5,000', labelAr: '2,000 – 5,000 جنيه' },
-            { labelEn: 'EGP 5,000 – 10,000', labelAr: '5,000 – 10,000 جنيه' },
-            { labelEn: 'More than EGP 10,000', labelAr: 'أكثر من 10,000 جنيه' },
+            { labelEn: 'Less than EGP 2,000', labelAr: 'أقل من 2,000 جنيه', points: 100 },
+            { labelEn: 'EGP 2,000 – 5,000', labelAr: '2,000 – 5,000 جنيه', points: 75 },
+            { labelEn: 'EGP 5,000 – 10,000', labelAr: '5,000 – 10,000 جنيه', points: 50 },
+            { labelEn: 'More than EGP 10,000', labelAr: 'أكثر من 10,000 جنيه', points: 25 },
           ],
         },
         { code: 'has_credit_card', questionEn: 'Do you have a credit card?', questionAr: 'هل لديك بطاقة ائتمان؟', isRequired: false, options: YESNO() },
@@ -237,7 +261,7 @@ const PERSONAL: CategoryConfig = {
             { labelEn: 'Flexible repayment', labelAr: 'سداد مرن' },
           ],
         },
-        { code: 'prior_rejection', questionEn: 'Have you ever had a financing application rejected?', questionAr: 'هل سبق رفض طلب تمويل لك؟', isRequired: false, options: YESNO() },
+        { code: 'prior_rejection', questionEn: 'Have you ever had a financing application rejected?', questionAr: 'هل سبق رفض طلب تمويل لك؟', isRequired: false, options: YESNO(25, 100) },
         { code: 'needs_consultant', questionEn: 'Do you need assistance from a financing consultant?', questionAr: 'هل تحتاج مساعدة مستشار تمويل؟', isRequired: false, options: YESNO() },
       ],
     },
@@ -321,24 +345,24 @@ const MORTGAGE: CategoryConfig = {
           ],
         },
         SALARY_TRANSFER_Q,
-        { code: 'additional_income', questionEn: 'Do you have additional sources of income?', questionAr: 'هل لديك مصادر دخل إضافية؟', isRequired: false, options: YESNO() },
-        { code: 'active_account', questionEn: 'Do you have an active bank account?', questionAr: 'هل لديك حساب بنكي نشط؟', isRequired: false, options: YESNO() },
+        { code: 'additional_income', questionEn: 'Do you have additional sources of income?', questionAr: 'هل لديك مصادر دخل إضافية؟', isRequired: false, options: YESNO(100, 70) },
+        { code: 'active_account', questionEn: 'Do you have an active bank account?', questionAr: 'هل لديك حساب بنكي نشط؟', isRequired: false, options: YESNO(100, 40) },
       ],
     },
     {
       code: 'credit_status', titleEn: 'Credit Status', titleAr: 'الحالة الائتمانية',
       questions: [
-        { code: 'current_loans', questionEn: 'Do you currently have any loans or obligations?', questionAr: 'هل لديك قروض أو التزامات حالية؟', options: YESNO() },
+        { code: 'current_loans', questionEn: 'Do you currently have any loans or obligations?', questionAr: 'هل لديك قروض أو التزامات حالية؟', options: YESNO(40, 100) },
         {
           code: 'current_installments', questionEn: 'What is your total current monthly installment amount?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
           options: [
-            { labelEn: 'Less than EGP 5,000', labelAr: 'أقل من 5,000 جنيه' },
-            { labelEn: 'EGP 5,000 – 15,000', labelAr: '5,000 – 15,000 جنيه' },
-            { labelEn: 'EGP 15,000 – 30,000', labelAr: '15,000 – 30,000 جنيه' },
-            { labelEn: 'More than EGP 30,000', labelAr: 'أكثر من 30,000 جنيه' },
+            { labelEn: 'Less than EGP 5,000', labelAr: 'أقل من 5,000 جنيه', points: 100 },
+            { labelEn: 'EGP 5,000 – 15,000', labelAr: '5,000 – 15,000 جنيه', points: 70 },
+            { labelEn: 'EGP 15,000 – 30,000', labelAr: '15,000 – 30,000 جنيه', points: 45 },
+            { labelEn: 'More than EGP 30,000', labelAr: 'أكثر من 30,000 جنيه', points: 20 },
           ],
         },
-        { code: 'prior_rejection', questionEn: 'Have you ever had a mortgage application rejected?', questionAr: 'هل سبق رفض طلب تمويل عقاري لك؟', isRequired: false, options: YESNO() },
+        { code: 'prior_rejection', questionEn: 'Have you ever had a mortgage application rejected?', questionAr: 'هل سبق رفض طلب تمويل عقاري لك؟', isRequired: false, options: YESNO(25, 100) },
       ],
     },
     {
@@ -425,23 +449,23 @@ const CAR: CategoryConfig = {
         },
         SALARY_TRANSFER_Q,
         { code: 'employer_approved', questionEn: 'Is your employer approved by banks?', questionAr: 'هل جهة عملك معتمدة لدى البنوك؟', isRequired: false, options: [
-          { labelEn: 'Yes', labelAr: 'نعم' },
-          { labelEn: 'No', labelAr: 'لا' },
-          { labelEn: 'Not sure', labelAr: 'غير متأكد' },
+          { labelEn: 'Yes', labelAr: 'نعم', points: 100 },
+          { labelEn: 'No', labelAr: 'لا', points: 40 },
+          { labelEn: 'Not sure', labelAr: 'غير متأكد', points: 65 },
         ] },
       ],
     },
     {
       code: 'financial_status', titleEn: 'Financial Status', titleAr: 'الحالة المالية',
       questions: [
-        { code: 'current_loans', questionEn: 'Do you currently have obligations or loans?', questionAr: 'هل لديك التزامات أو قروض حالية؟', options: YESNO() },
+        { code: 'current_loans', questionEn: 'Do you currently have obligations or loans?', questionAr: 'هل لديك التزامات أو قروض حالية؟', options: YESNO(40, 100) },
         {
           code: 'current_installments', questionEn: 'What is your total current monthly installment amount?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
           options: [
-            { labelEn: 'Less than EGP 3,000', labelAr: 'أقل من 3,000 جنيه' },
-            { labelEn: 'EGP 3,000 – 7,000', labelAr: '3,000 – 7,000 جنيه' },
-            { labelEn: 'EGP 7,000 – 15,000', labelAr: '7,000 – 15,000 جنيه' },
-            { labelEn: 'More than EGP 15,000', labelAr: 'أكثر من 15,000 جنيه' },
+            { labelEn: 'Less than EGP 3,000', labelAr: 'أقل من 3,000 جنيه', points: 100 },
+            { labelEn: 'EGP 3,000 – 7,000', labelAr: '3,000 – 7,000 جنيه', points: 70 },
+            { labelEn: 'EGP 7,000 – 15,000', labelAr: '7,000 – 15,000 جنيه', points: 45 },
+            { labelEn: 'More than EGP 15,000', labelAr: 'أكثر من 15,000 جنيه', points: 20 },
           ],
         },
         { code: 'has_credit_card', questionEn: 'Do you have active credit cards?', questionAr: 'هل لديك بطاقات ائتمان نشطة؟', isRequired: false, options: YESNO() },
@@ -534,28 +558,28 @@ const BUSINESS: CategoryConfig = {
             { labelEn: 'More than EGP 500,000', labelAr: 'أكثر من 500,000 جنيه', points: 100 },
           ],
         },
-        { code: 'business_account', questionEn: 'Do you have a business bank account?', questionAr: 'هل لديك حساب بنكي للنشاط؟', isRequired: false, options: YESNO() },
+        { code: 'business_account', questionEn: 'Do you have a business bank account?', questionAr: 'هل لديك حساب بنكي للنشاط؟', isRequired: false, options: YESNO(100, 50) },
         { code: 'registered', questionEn: 'Is the business officially registered?', questionAr: 'هل النشاط مسجل رسميًا؟', isRequired: false, options: [
-          { labelEn: 'Yes', labelAr: 'نعم' },
-          { labelEn: 'No', labelAr: 'لا' },
-          { labelEn: 'Registration in progress', labelAr: 'التسجيل جارٍ' },
+          { labelEn: 'Yes', labelAr: 'نعم', points: 100 },
+          { labelEn: 'No', labelAr: 'لا', points: 40 },
+          { labelEn: 'Registration in progress', labelAr: 'التسجيل جارٍ', points: 65 },
         ] },
-        { code: 'tax_registration', questionEn: 'Do you have a tax or commercial registration?', questionAr: 'هل لديك سجل ضريبي أو تجاري؟', isRequired: false, options: YESNO() },
+        { code: 'tax_registration', questionEn: 'Do you have a tax or commercial registration?', questionAr: 'هل لديك سجل ضريبي أو تجاري؟', isRequired: false, options: YESNO(100, 45) },
       ],
     },
     {
       code: 'obligations_credit', titleEn: 'Obligations & Credit Status', titleAr: 'الالتزامات والحالة الائتمانية',
       questions: [
-        { code: 'current_facilities', questionEn: 'Does the business currently have financing facilities or loans?', questionAr: 'هل لدى النشاط تسهيلات أو قروض حالية؟', options: YESNO() },
+        { code: 'current_facilities', questionEn: 'Does the business currently have financing facilities or loans?', questionAr: 'هل لدى النشاط تسهيلات أو قروض حالية؟', options: YESNO(40, 100) },
         {
           code: 'current_installments', questionEn: 'Total current monthly financial obligation amount?', questionAr: 'إجمالي الالتزام المالي الشهري الحالي؟',
           options: [
-            { labelEn: 'Less than EGP 10,000', labelAr: 'أقل من 10,000 جنيه' },
-            { labelEn: 'EGP 10,000 – 50,000', labelAr: '10,000 – 50,000 جنيه' },
-            { labelEn: 'More than EGP 50,000', labelAr: 'أكثر من 50,000 جنيه' },
+            { labelEn: 'Less than EGP 10,000', labelAr: 'أقل من 10,000 جنيه', points: 100 },
+            { labelEn: 'EGP 10,000 – 50,000', labelAr: '10,000 – 50,000 جنيه', points: 60 },
+            { labelEn: 'More than EGP 50,000', labelAr: 'أكثر من 50,000 جنيه', points: 25 },
           ],
         },
-        { code: 'prior_rejection', questionEn: 'Has a financing request for the business ever been rejected?', questionAr: 'هل سبق رفض طلب تمويل للنشاط؟', isRequired: false, options: YESNO() },
+        { code: 'prior_rejection', questionEn: 'Has a financing request for the business ever been rejected?', questionAr: 'هل سبق رفض طلب تمويل للنشاط؟', isRequired: false, options: YESNO(25, 100) },
       ],
     },
     {
@@ -627,9 +651,9 @@ async function seedCategory(cfg: CategoryConfig): Promise<void> {
         oOrder += 1;
         const code = o.code ?? slug(o.labelEn);
         optionCodes.push(code);
-        if (o.points != null) {
-          (pointsByAnswer[q.code] ??= {})[code] = o.points;
-        }
+        // Every answer gets a score: its desirability hint, or a neutral default
+        // for content answers with no natural good/bad. None is ever left at 0.
+        (pointsByAnswer[q.code] ??= {})[code] = o.points ?? NEUTRAL_SCORE;
         await prisma.questionOption.upsert({
           where: { uniq_question_option_question_code: { questionId: question.id, code } },
           update: { labelEn: o.labelEn, labelAr: o.labelAr, displayOrder: oOrder, isActive: true },
@@ -650,16 +674,25 @@ async function seedCategory(cfg: CategoryConfig): Promise<void> {
   // Publish snapshot
   await publishVersion(category);
 
-  // Differentiated ACTIVE weight set (per-answer points) per active program.
+  // Simple model: every question gets an EQUAL weight (auto, sums 100, never 0).
+  // No per-question tuning — only the per-answer scores differ.
+  const questionWeights = equalWeights(questionCodes);
+
+  // ACTIVE weight set per active program: shared equal question weights + per-answer
+  // scores (1–100) scaled by the program multiplier so programs rank differently.
   const programs = await prisma.bankProgram.findMany({ where: { active: true, productCategory: category }, select: { id: true } });
   for (let i = 0; i < programs.length; i++) {
     const p = programs[i]!;
     const mult = PROGRAM_POINT_MULTIPLIERS[i % PROGRAM_POINT_MULTIPLIERS.length]!;
-    const weights: Record<string, Record<string, number>> = {};
+    const answerScores: Record<string, Record<string, number>> = {};
     for (const [qCode, byOption] of Object.entries(pointsByAnswer)) {
-      weights[qCode] = {};
-      for (const [oCode, pts] of Object.entries(byOption)) weights[qCode][oCode] = Math.round(pts * mult);
+      answerScores[qCode] = {};
+      for (const [oCode, pts] of Object.entries(byOption)) {
+        // Floor at 1 so a low base × low multiplier never rounds down to 0.
+        answerScores[qCode][oCode] = Math.min(100, Math.max(1, Math.round(pts * mult)));
+      }
     }
+    const weights = { questionWeights, answerScores };
     const existingActive = await prisma.scoringWeightSet.findFirst({ where: { bankProgramId: p.id, status: 'ACTIVE' } });
     if (existingActive) {
       await prisma.scoringWeightSet.update({ where: { id: existingActive.id }, data: { weights } });

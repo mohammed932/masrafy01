@@ -4,11 +4,20 @@ import { ApiProperty } from '@nestjs/swagger';
 export class SaveWeightsDto {
   @ApiProperty({
     description:
-      'Nested per-answer points: questionCode → optionCode → points. Each point ' +
-      'is 1–100 (decimals allowed); no sum constraint. Probability = Σ(points of ' +
-      'picked answers) / max-achievable points.',
-    example: { monthly_income: { less_than_egp_10_000: 20, more_than_egp_40_000: 100 } },
+      'Two-level scoring (v8): questionWeights (questionCode → weight, all summing ' +
+      'to 100) + answerScores (questionCode → optionCode → score 0–100). ' +
+      'Probability = Σ_question(questionWeight ÷ 100 × pickedAnswerScore ÷ 100).',
+    example: {
+      questionWeights: { monthly_income: 60, employment_status: 40 },
+      answerScores: {
+        monthly_income: { less_than_egp_10_000: 20, more_than_egp_40_000: 100 },
+        employment_status: { employed: 100, unemployed: 0 },
+      },
+    },
   })
   @IsObject()
-  weights!: Record<string, Record<string, number>>;
+  weights!: {
+    questionWeights: Record<string, number>;
+    answerScores: Record<string, Record<string, number>>;
+  };
 }

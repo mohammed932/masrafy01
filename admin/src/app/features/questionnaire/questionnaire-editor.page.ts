@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, LOCALE_ID, OnInit, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { map } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
@@ -11,10 +13,13 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { EditOutline, DeleteOutline, EllipsisOutline } from '@ant-design/icons-angular/icons';
 import {
+  LOAN_CATEGORIES,
   QuestionnaireApiService,
+  categoryLabel,
   type GroupTreeRow,
   type OptionRow,
   type QuestionRow,
@@ -44,6 +49,7 @@ type Mode = null | 'group' | 'question' | 'option';
     NzEmptyModule,
     NzIconModule,
     NzDropDownModule,
+    NzTabsModule,
   ],
   providers: [provideNzIconsPatch([EditOutline, DeleteOutline, EllipsisOutline])],
   template: `
@@ -55,7 +61,6 @@ type Mode = null | 'group' | 'question' | 'option';
           <div class="hero-lead">
             <a routerLink="/questionnaire" class="back" i18n="@@qedit.back">‹ Questionnaires</a>
             <div class="title-row">
-              <span class="cat-badge">{{ category }}</span>
               <h1 i18n="@@qedit.title">Questionnaire builder</h1>
             </div>
             <p class="stats">
@@ -77,6 +82,24 @@ type Mode = null | 'group' | 'question' | 'option';
         </div>
       </header>
 
+      <!-- Category tab strip — flip categories in place; URL stays /edit/:category
+           (link-router → deep-linkable + keyboard a11y + animated ink bar). -->
+      <nav class="cat-tabs" aria-label="Loan categories" i18n-aria-label="@@qedit.tabs_aria">
+        <nz-tabset nzLinkRouter [nzAnimated]="true">
+          @for (cat of categories; track cat) {
+            <nz-tab>
+              <a *nzTabLink nz-tab-link [routerLink]="['/questionnaire/edit', cat]" class="cat-tab">
+                <span class="cat-name">{{ label(cat) }}</span>
+                @if (tabMeta()[cat].live) {
+                  <span class="live-dot" title="Live" i18n-title="@@qedit.tab_live" aria-hidden="true"></span>
+                }
+                <span class="cat-count">{{ tabMeta()[cat].count }}</span>
+              </a>
+            </nz-tab>
+          }
+        </nz-tabset>
+      </nav>
+
       <!-- Tree (full width) -->
       <div class="tree">
         @if (loading()) {
@@ -90,6 +113,10 @@ type Mode = null | 'group' | 'question' | 'option';
             <button nz-button nzType="primary" (click)="startGroup()" i18n="@@qedit.empty_cta">Add a group</button>
           </div>
         } @else {
+          <!-- Keyed by category so the list re-creates on tab switch → re-fires the
+               fade (qe-fade); cheap because all four trees are cached client-side. -->
+          @for (activeCat of [category()]; track activeCat) {
+          <div class="tree-list">
           @for (g of groups(); track g.id) {
             <article class="group-card">
               <header class="group-head">
@@ -224,6 +251,8 @@ type Mode = null | 'group' | 'question' | 'option';
                 }
               </div>
             </article>
+          }
+          </div>
           }
         }
       </div>
@@ -380,23 +409,51 @@ type Mode = null | 'group' | 'question' | 'option';
       .back:hover { color: var(--qe-primary); }
       .title-row { display: flex; align-items: center; gap: var(--space-3, 12px); }
       .title-row h1 { margin: 0; font-size: 22px; font-weight: 700; }
-      .cat-badge {
-        text-transform: capitalize;
-        font-weight: 700;
-        font-size: 13px;
-        color: var(--qe-primary);
-        background: var(--qe-primary-soft);
-        padding: 4px 12px;
-        border-radius: 999px;
-      }
       .stats { margin: var(--space-2, 8px) 0 0; color: var(--ant-text-color, #1a2433); font-size: 14px; }
       .stats strong { margin-inline-end: 4px; }
       .stats .dot { margin-inline: 8px; color: var(--qe-line); }
       .stats .muted { color: var(--qe-muted); }
       .hero-actions { display: flex; gap: var(--space-3, 12px); }
 
+      /* Category tab strip — segmented nav over the four loan categories.
+         Built on nz-tabset (link-router) so a11y + ink bar come for free;
+         restyled with brand tokens for an impec segmented feel. */
+      .cat-tabs { margin-block-end: var(--space-5, 20px); }
+      .cat-tabs ::ng-deep .ant-tabs-nav { margin: 0; }
+      .cat-tabs ::ng-deep .ant-tabs-nav::before { border-block-end-color: var(--qe-line); }
+      .cat-tabs ::ng-deep .ant-tabs-ink-bar {
+        background: var(--gradient-primary, linear-gradient(90deg, var(--qe-primary), color-mix(in srgb, var(--qe-primary) 55%, #4aa3e0)));
+        block-size: 3px;
+        border-radius: var(--radius-pill, 999px);
+      }
+      .cat-tab {
+        display: inline-flex; align-items: center; gap: var(--space-2, 8px);
+        font-size: 14px; font-weight: 600; color: var(--qe-muted);
+        transition: color 160ms ease;
+      }
+      .cat-tabs ::ng-deep .ant-tabs-tab:hover .cat-tab { color: var(--qe-primary); }
+      .cat-tabs ::ng-deep .ant-tabs-tab-active .cat-tab { color: var(--qe-primary); }
+      .live-dot {
+        inline-size: 8px; block-size: 8px; border-radius: var(--radius-pill, 999px);
+        background: var(--success, #2d5f3f);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #2d5f3f) 18%, transparent);
+      }
+      .cat-count {
+        min-inline-size: 22px; text-align: center; font-size: 12px; font-weight: 700;
+        color: var(--qe-primary); background: var(--qe-primary-soft);
+        padding: 1px 8px; border-radius: var(--radius-pill, 999px);
+      }
+      .cat-tabs ::ng-deep .ant-tabs-tab:not(.ant-tabs-tab-active) .cat-count {
+        color: var(--qe-muted); background: var(--ant-background-color-light, #f6f8fa);
+      }
+
       /* Layout — tree spans full width; inspector is a drawer */
-      .tree { display: flex; flex-direction: column; gap: var(--space-4, 16px); min-inline-size: 0; }
+      .tree { min-inline-size: 0; }
+      .tree-list {
+        display: flex; flex-direction: column; gap: var(--space-4, 16px); min-inline-size: 0;
+        animation: qe-fade var(--motion-duration-base, 180ms) var(--motion-easing-standard, ease);
+      }
+      @media (prefers-reduced-motion: reduce) { .tree-list { animation: none; } }
       .center { display: flex; justify-content: center; padding: var(--space-7, 40px); }
       .empty-card {
         display: flex; flex-direction: column; align-items: center; gap: var(--space-3, 12px);
@@ -567,8 +624,24 @@ export class QuestionnaireEditorPage implements OnInit {
 
   /** Active admin locale drives label language (ar build → Arabic, else English). */
   readonly isAr = inject(LOCALE_ID).startsWith('ar');
-  readonly category = this.route.snapshot.paramMap.get('category') as LoanCategory;
-  readonly groups = signal<GroupTreeRow[]>([]);
+  readonly categories = LOAN_CATEGORIES;
+  /** Friendly localized category name for the tab strip ("car" → "Auto Loan"). */
+  readonly label = categoryLabel;
+  /** Active category — reactive so routed tab switches re-render in place. */
+  readonly category = toSignal(
+    this.route.paramMap.pipe(map((p) => (p.get('category') ?? 'personal') as LoanCategory)),
+    { initialValue: (this.route.snapshot.paramMap.get('category') ?? 'personal') as LoanCategory },
+  );
+  /** All four trees cached client-side → instant, spinner-free tab switching. */
+  private readonly treesByCat = signal<Partial<Record<LoanCategory, GroupTreeRow[]>>>({});
+  /** Per-tab badge data: LIVE (published version) + question count. */
+  readonly tabMeta = signal<Record<LoanCategory, { live: boolean; count: number }>>(
+    LOAN_CATEGORIES.reduce(
+      (acc, c) => ({ ...acc, [c]: { live: false, count: 0 } }),
+      {} as Record<LoanCategory, { live: boolean; count: number }>,
+    ),
+  );
+  readonly groups = computed<GroupTreeRow[]>(() => this.treesByCat()[this.category()] ?? []);
   readonly loading = signal(true);
   readonly mode = signal<Mode>(null);
   /** true → drawer is editing an existing node; false → creating a new one. */
@@ -600,7 +673,7 @@ export class QuestionnaireEditorPage implements OnInit {
   });
 
   async ngOnInit(): Promise<void> {
-    await this.reload();
+    await this.loadAll();
   }
 
   cancel(): void {
@@ -668,11 +741,11 @@ export class QuestionnaireEditorPage implements OnInit {
       });
       this.message.success($localize`:@@qedit.group_saved:Group saved`);
     } else {
-      await this.api.createGroup({ category: this.category, ...v });
+      await this.api.createGroup({ category: this.category(), ...v });
       this.message.success($localize`:@@qedit.group_added:Group added`);
     }
     this.mode.set(null);
-    await this.reload();
+    await this.refreshActive();
   }
 
   async submitQuestion(): Promise<void> {
@@ -690,7 +763,7 @@ export class QuestionnaireEditorPage implements OnInit {
     } else {
       await this.api.createQuestion({
         groupId: this.activeGroupId,
-        category: this.category,
+        category: this.category(),
         questionEn: v.questionEn,
         questionAr: v.questionAr,
         displayOrder: v.displayOrder,
@@ -699,7 +772,7 @@ export class QuestionnaireEditorPage implements OnInit {
       this.message.success($localize`:@@qedit.question_added:Question added`);
     }
     this.mode.set(null);
-    await this.reload();
+    await this.refreshActive();
   }
 
   async submitOption(): Promise<void> {
@@ -721,7 +794,7 @@ export class QuestionnaireEditorPage implements OnInit {
       this.message.success($localize`:@@qedit.option_added:Option added`);
     }
     this.mode.set(null);
-    await this.reload();
+    await this.refreshActive();
   }
 
   // ---- Deletes (soft-delete server-side; typed-error toasts via interceptor) --
@@ -738,7 +811,7 @@ export class QuestionnaireEditorPage implements OnInit {
         try {
           await this.api.deleteGroup(g.id);
           this.message.success($localize`:@@qedit.group_deleted:Group deleted`);
-          await this.reload();
+          await this.refreshActive();
         } catch {
           /* blocked / failed — localized toast already shown by the interceptor */
         }
@@ -759,7 +832,7 @@ export class QuestionnaireEditorPage implements OnInit {
         try {
           await this.api.deleteQuestion(q.id);
           this.message.success($localize`:@@qedit.question_deleted:Question deleted`);
-          await this.reload();
+          await this.refreshActive();
         } catch {
           /* blocked / failed — localized toast already shown by the interceptor */
         }
@@ -780,7 +853,7 @@ export class QuestionnaireEditorPage implements OnInit {
         try {
           await this.api.deleteOption(o.id);
           this.message.success($localize`:@@qedit.option_deleted:Option deleted`);
-          await this.reload();
+          await this.refreshActive();
         } catch {
           /* blocked / failed — localized toast already shown by the interceptor */
         }
@@ -789,16 +862,46 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   async publish(): Promise<void> {
-    const v = await this.api.publish(this.category);
+    const cat = this.category();
+    const v = await this.api.publish(cat);
     this.message.success($localize`:@@qedit.published:Published version #${v.versionNumber}`);
+    // Publishing creates the active version → reflect LIVE on the tab immediately.
+    this.tabMeta.update((m) => ({ ...m, [cat]: { ...m[cat], live: true } }));
   }
 
-  private async reload(): Promise<void> {
+  /** First load: fetch all four trees + version histories in parallel so tab
+   *  switching is instant (cache) and every tab shows its LIVE badge + count. */
+  private async loadAll(): Promise<void> {
     this.loading.set(true);
     try {
-      this.groups.set(await this.api.tree(this.category));
+      const [trees, histories] = await Promise.all([
+        Promise.all(LOAN_CATEGORIES.map((c) => this.api.tree(c))),
+        Promise.all(LOAN_CATEGORIES.map((c) => this.api.versionHistory(c))),
+      ]);
+      const byCat: Partial<Record<LoanCategory, GroupTreeRow[]>> = {};
+      const meta = {} as Record<LoanCategory, { live: boolean; count: number }>;
+      LOAN_CATEGORIES.forEach((c, i) => {
+        const tree = trees[i] ?? [];
+        byCat[c] = tree;
+        meta[c] = { live: (histories[i] ?? []).some((v) => v.isActive), count: questionCount(tree) };
+      });
+      this.treesByCat.set(byCat);
+      this.tabMeta.set(meta);
     } finally {
       this.loading.set(false);
     }
   }
+
+  /** After a mutation, re-fetch only the active category's tree + count. */
+  private async refreshActive(): Promise<void> {
+    const cat = this.category();
+    const tree = await this.api.tree(cat);
+    this.treesByCat.update((m) => ({ ...m, [cat]: tree }));
+    this.tabMeta.update((m) => ({ ...m, [cat]: { ...m[cat], count: questionCount(tree) } }));
+  }
+}
+
+/** Sum of active questions across a category's groups. */
+function questionCount(tree: GroupTreeRow[]): number {
+  return tree.reduce((sum, g) => sum + g.questions.length, 0);
 }

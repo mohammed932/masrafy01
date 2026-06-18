@@ -170,16 +170,17 @@ backend with ZERO dependencies on the HTTP layer. Engine signature:
 `match(applicationProfile, programs[]) → MatchResult[]`. Every match
 decision returns `passedChecks[]` AND `failedChecks[]` arrays. Approval
 probability is calculable via rule-based scoring with documented weights.
-The split (v6.0.0): the scoring **formula and tier thresholds** live in code —
-version-controlled, changed only via PR. Approval probability is **per-answer
-weighted**: `probability = Σ ( points[questionCode][selectedOptionCode] ) ÷
-maxAchievablePoints`, clamped to 0..1. `maxAchievablePoints` is, per question,
-the highest points the program assigned to any of that question's options,
-summed across the questionnaire — so picking the best answer to every question
-yields 1. The **per-bank-program per-answer points** are admin-editable DATA:
-each bank program assigns points (an arbitrary non-negative scale, **no sum
-constraint**) to individual answer **options**, stored nested by
-`questionCode → optionCode → points` in its `ScoringWeightSet`. Questions and
+The split (v8.0.0): the scoring **formula and tier thresholds** live in code —
+version-controlled, changed only via PR. Approval probability is **two-level
+weighted**, per bank program: each QUESTION carries an importance **weight** and
+all of a program's question weights sum to **100**; each ANSWER carries a
+**score 0–100**. `probability = Σ_question ( questionWeight ÷ 100 ×
+pickedAnswerScore ÷ 100 )`, clamped to 0..1 — so the best answer (score 100) to
+every question yields exactly 1 (max achievable = 100% by construction). Both
+the **per-program question weights** and **per-program answer scores** are
+admin-editable DATA, stored in the program's `ScoringWeightSet.weights` as
+`{ questionWeights: { questionCode → weight }, answerScores: { questionCode →
+optionCode → score } }`. Questions and
 answer options themselves are **pure content** (label + order) — they carry NO
 scoring or eligibility fields. Weight changes are saved **directly** by an
 authorized admin (no maker-checker): a save archives the prior ACTIVE
@@ -191,8 +192,8 @@ the customer preview or the persisted apply flow — every active program in the
 category is returned, ranked by approval probability. The questionnaire that
 feeds the engine (questions, options, branching, ordering) is admin-editable
 DATA, published as immutable versioned snapshots; only the algorithm consuming
-it is code. The customer questionnaire payload carries pure content only (points
-live in `ScoringWeightSet`, never in the snapshot). Match reasons surface as error codes across the API boundary —
+it is code. The customer questionnaire payload carries pure content only (weights
++ scores live in `ScoringWeightSet`, never in the snapshot). Match reasons surface as error codes across the API boundary —
 NEVER English text. The matching service is a pure dependency-free TypeScript
 service that can run in isolation against in-memory bank program fixtures.
 
@@ -1612,8 +1613,8 @@ Any `age` column, persisted `age` field, or DTO that writes a customer's age to 
 ## A32. Proceeding Past an Incomplete Profile (Principle XXXVII, v4.0.0)
 Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for a customer missing any completeness field (mobile+verified, firstName, lastName, birthday, profilePhotoKey, National ID front+back; PHONE also passwordHash) = review block. Backend returns `PROFILE_INCOMPLETE`; mobile routes into the completion flow instead of rendering the gated surface.
 
-## A33. Hardcoded Points / Hand-Typed Questionnaire Codes / Reintroduced Eligibility (Principle V, v6.0.0)
-Mutating an ACTIVE `ScoringWeightSet` in place instead of archiving it and activating a new versioned set = review block. Hardcoding a program's per-answer points in the engine instead of reading the admin-set `ScoringWeightSet.weights` (nested `questionCode → optionCode → points`), or typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them, = review block. Adding a scoring or eligibility field back onto `Question`/`QuestionOption` (they are pure content), reintroducing hard eligibility gates (salary / age / DBR / loan-amount / max-loan) into the preview or apply flow, or computing approval probability by any formula other than `Σ(points of picked answers) ÷ maxAchievablePoints`, = review block. Only the formula + tiers live in code; per-answer points (per program) are admin DATA. (Weight saves are direct — no maker-checker — editor ID audited.)
+## A33. Hardcoded Scores / Hand-Typed Questionnaire Codes / Reintroduced Eligibility (Principle V, v6.0.0; two-level weights v8.0.0)
+Mutating an ACTIVE `ScoringWeightSet` in place instead of archiving it and activating a new versioned set = review block. Hardcoding a program's question weights or answer scores in the engine instead of reading the admin-set `ScoringWeightSet.weights`, or typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them, = review block. Adding a scoring or eligibility field back onto `Question`/`QuestionOption` (they are pure content), reintroducing hard eligibility gates (salary / age / DBR / loan-amount / max-loan) into the preview or apply flow, or computing approval probability by any formula other than `Σ_question(questionWeight ÷ 100 × pickedAnswerScore ÷ 100)`, = review block. Only the formula + tiers live in code; per-program question weights + answer scores are admin DATA. Per program, the **question weights MUST sum to 100** and each **answer score is 0–100**; a save violating either is rejected (`WEIGHTS_QUESTION_WEIGHT_SUM_INVALID` / `WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE`). (Weight saves are direct — no maker-checker — editor ID audited.)
 
 ## A34. Modal Backdrop That Does Not Cover the Full Viewport (Angular Clean Code Structure, v4.1.1)
 A modal / dialog / sheet whose scrim + blur dims only the content panel instead of the entire viewport (sidebar + top bar + content) = review block. Cause is almost always a hand-rolled `position: fixed` scrim rendered inside an ancestor that establishes a containing block for fixed elements (`transform` / `filter` / `perspective` / `contain` / `will-change`) — notably `section.page`, which runs the `app-page-rise` transform. Fix: prefer `NzModalService` / `NzDrawerService` (portals to `document.body`), or render the custom scrim as a root-level sibling of the page content (outside `section.page`). Use the shared backdrop tokens (`--color-overlay-backdrop`, shared blur radius) so all modals dim identically.
@@ -1634,6 +1635,8 @@ A `MasrafyGradientHeader` with a hardcoded `height` / `expandedHeight` literal t
 
 | Version | Date | Type | Summary |
 |---|---|---|---|
+| 8.0.0 | 2026-06-17 | MAJOR | Principle V switched to a TWO-LEVEL model: per bank program, each QUESTION has a weight and all question weights sum to **100**, each ANSWER has a **score 0–100**; `probability = Σ_question(questionWeight ÷ 100 × pickedAnswerScore ÷ 100)` (max achievable = 100% by construction). Reverses v7.0.0's per-question ≤100 single-level points. `ScoringWeightSet.weights` shape → `{ questionWeights, answerScores }` (legacy rows upgrade on read with equal weights; no DB migration). Error codes `WEIGHTS_POINTS_OUT_OF_RANGE` + `WEIGHTS_QUESTION_OVER_BUDGET` removed; `WEIGHTS_QUESTION_WEIGHT_SUM_INVALID` + `WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE` added. A33 reworded. |
+| 7.0.0 | 2026-06-17 | MAJOR | Principle V: per-bank-program answer points are now capped **per question** — the points across one question's options must sum to **≤ 100** (a percentage budget; each answer 1–100). Reverses the v6.0.0 "no sum constraint". The scoring formula is UNCHANGED (`probability = Σ(picked points) ÷ maxAchievablePoints`); only the editable-data rule changes. New error code `WEIGHTS_QUESTION_OVER_BUDGET` (422); the admin weights editor validates per-question totals and blocks save when over; pre-existing weight sets exceeding the cap surface as over-budget and must be adjusted. Anti-Pattern A33 extended. |
 | 6.0.0 | 2026-06-17 | MAJOR | Principle V matching/scoring model simplified again for MVP. Questions + answer options become **pure content** (label + order) — all engine/eligibility fields dropped from `Question` (`systemRole`, `isScored`, `profileField`) and `QuestionOption` (`numericMin/Max`, `numericPoint`, `scoreValue`, `profileValue`); `QuestionSystemRole` enum removed. Approval probability is now **per-answer weighted**: `probability = Σ(points[questionCode][optionCode]) ÷ maxAchievablePoints`. Per bank program, points are assigned to individual answer **options** (nested `questionCode → optionCode → points` in `ScoringWeightSet.weights`, arbitrary scale, **no sum-100 constraint**). **Eligibility gating dropped entirely** (no salary/age/DBR/loan-amount/max-loan filters) in BOTH the customer preview and the persisted apply flow — every active program is returned, ranked by probability; the apply path runs the engine with `skipEligibility`. Error codes `OPTION_MISSING_SCORE_VALUE` + `WEIGHTS_MUST_SUM_TO_100` removed; `WEIGHTS_UNKNOWN_QUESTION` → `WEIGHTS_UNKNOWN_OPTION`. Anti-Pattern A33 rewritten. |
 | 5.0.0 | 2026-06-16 | MAJOR | Principle V matching/scoring model simplified for MVP. Approval probability is now **per-question weighted** — `probability = Σ(option.scoreValue × questionWeight)/100` over a category's scored questions (`Question.isScored`), with per-bank-program weights keyed by `questionCode` summing to 100. The `ScoringFactor`/`scoringFactorCode` indirection and the COMPUTED `debt_burden` factor are removed from the probability (DBR stays an eligibility gate + max-loan cap only). The two-person **maker-checker** weight flow is REPLACED by **direct admin save** (editor ID audited; save archives prior ACTIVE + activates the new versioned set atomically); code-default equal-split fallback retained. Per-option `scoreValue` + internal mapping fields MUST be stripped from the customer questionnaire payload (IP). Anti-Pattern A33 rewritten accordingly. |
 | 1.0.0 | 2026-05-12 | RATIFY | Initial three-platform constitution. Principles I–XXVIII. |
@@ -1659,4 +1662,4 @@ A `MasrafyGradientHeader` with a hardcoded `height` / `expandedHeight` literal t
 
 ---
 
-**Version**: 6.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-17
+**Version**: 8.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-17

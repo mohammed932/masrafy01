@@ -9,6 +9,7 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import {
   LOAN_CATEGORIES,
   QuestionnaireApiService,
+  categoryLabel,
   type LoanCategory,
   type QuestionnaireVersionRow,
 } from './questionnaire.api.service';
@@ -45,7 +46,7 @@ interface CategoryCard {
           @for (c of cards(); track c.category) {
             <nz-card class="cat-card">
               <div class="row between">
-                <span class="cat">{{ c.category }}</span>
+                <span class="cat">{{ label(c.category) }}</span>
                 @if (c.active) {
                   <nz-tag nzColor="success" i18n="@@questionnaire.overview.live">LIVE</nz-tag>
                 } @else {
@@ -97,6 +98,8 @@ export class QuestionnaireOverviewPage implements OnInit {
 
   readonly cards = signal<CategoryCard[]>([]);
   readonly loading = signal(true);
+  /** Friendly localized category name ("car" → "Auto Loan"), shared with the editor. */
+  readonly label = categoryLabel;
 
   async ngOnInit(): Promise<void> {
     await this.reload();

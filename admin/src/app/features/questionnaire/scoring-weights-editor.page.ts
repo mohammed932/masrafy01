@@ -13,6 +13,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { startWith } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { NzSliderModule } from 'ng-zorro-antd/slider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
@@ -21,24 +22,38 @@ import {
   QuestionnaireApiService,
   type LoanCategory,
   type ProgramMeta,
+  type ProgramScoringWeights,
   type WeightableOption,
   type WeightableQuestion,
 } from './questionnaire.api.service';
 
-/** Joins a question + option code into a flat control name. */
+/** Control-name prefixes: question weight vs answer score. Composite keys joined by SEP. */
 const SEP = '::';
-const key = (questionCode: string, optionCode: string): string =>
-  `${questionCode}${SEP}${optionCode}`;
+const QW = 'qw';
+const SC = 'sc';
+const weightKey = (q: string): string => `${QW}${SEP}${q}`;
+const scoreKey = (q: string, o: string): string => `${SC}${SEP}${q}${SEP}${o}`;
 
-/** Per-answer point bounds (mirrors backend WEIGHTS_POINTS_OUT_OF_RANGE). */
-const MIN_POINTS = 1;
-const MAX_POINTS = 100;
-const clampPoints = (n: number): number => Math.min(MAX_POINTS, Math.max(MIN_POINTS, n));
+/** Weights + scores are both 0..100. */
+const clampPct = (n: number): number => Math.min(100, Math.max(0, n));
 
-type NestedWeights = Record<string, Record<string, number>>;
 type ApprovalTier = 'excellent' | 'good' | 'moderate' | 'low' | 'very_low';
 
 const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
+
+/** Equal question weights summing to exactly 100 (remainder spread over the first questions). */
+function equalSplit(codes: readonly string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  const n = codes.length;
+  if (n === 0) return out;
+  const base = Math.floor(100 / n);
+  let rem = 100 - base * n;
+  for (const c of codes) {
+    out[c] = base + (rem > 0 ? 1 : 0);
+    if (rem > 0) rem -= 1;
+  }
+  return out;
+}
 
 /**
  * Client-side mirror of the backend tier thresholds
@@ -54,11 +69,11 @@ const tierFor = (probability: number): ApprovalTier => {
 };
 
 /**
- * Scoring weights editor — "Weight Studio" (Constitution V — direct save, no maker-checker).
- * Admins assign 1–100 points (decimals allowed) per ANSWER, per program; each option's
- * points seed a slider + numeric badge bound to the same control. A live what-if gauge
- * mirrors the real approval formula `Σ(picked points) / maxAchievable` for instant feedback.
- * Saving activates the new versioned set immediately. No sum-to-100 constraint.
+ * Scoring weights editor — "Weight Studio" (Constitution V — direct save, v8.0.0).
+ * TWO levels, per program: each QUESTION has an importance **weight** (all summing to 100,
+ * tracked by the top budget bar) and each ANSWER a **score 0–100**. A live what-if gauge
+ * mirrors `probability = Σ(questionWeight÷100 × pickedScore÷100)`. Questions render as an
+ * accordion (first open). Save is blocked until the weights total exactly 100.
  */
 @Component({
   standalone: true,
@@ -69,6 +84,7 @@ const tierFor = (probability: number): ApprovalTier => {
     ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
+    NzCollapseModule,
     NzSliderModule,
     NzEmptyModule,
     NzSpinModule,
@@ -107,54 +123,118 @@ const tierFor = (probability: number): ApprovalTier => {
         </div>
       } @else {
         <div class="studio">
-          <!-- LEFT — point editors ------------------------------------------ -->
+          <!-- LEFT — weight + score editors --------------------------------- -->
           <section
             class="questions"
-            aria-label="Answer points"
+            aria-label="Scoring weights"
             i18n-aria-label="@@scoring.editor.editors_aria"
           >
             <p class="intro" i18n="@@scoring.editor.points_intro">
-              Give each answer 1–100 points (decimals allowed) — higher points raise the approval
-              chance for that answer.
+              Give each question a weight (how much it matters) — all question weights must total
+              100%. Then score each answer 0–100 (how favorable it is).
             </p>
+
+            <!-- Top budget: question weights must total 100 -->
+            <div class="wbudget" [class.bad]="!weightSumOk()">
+              <div class="wbudget-top">
+                <span class="wbudget-label" i18n="@@scoring.editor.weight_budget"
+                  >Question weights</span
+                >
+                <span class="wbudget-val"
+                  >{{ weightSum() | number: '1.0-1' }}<span class="wbudget-unit"> / 100</span></span
+                >
+              </div>
+              <div class="wbudget-bar">
+                <span class="wbudget-fill" [style.inline-size.%]="weightBarPct()"></span>
+              </div>
+              @if (!weightSumOk()) {
+                <p class="wbudget-hint" i18n="@@scoring.editor.weight_sum_bad">
+                  All question weights must total exactly 100%.
+                </p>
+              }
+            </div>
+
             <form [formGroup]="form">
-              @for (q of questions(); track q.code) {
-                <fieldset class="qcard">
-                  <legend class="qhead">
-                    <span class="qlabel">{{ questionLabel(q) }}</span>
-                    <span class="qcode mono">{{ q.code }}</span>
-                  </legend>
-                  @for (o of q.options; track o.code) {
-                    <div class="answer" [class.is-top]="isTop(q.code, o.code)">
-                      <div class="answer-head">
-                        <span class="answer-label">{{ optionLabel(o) }}</span>
-                        @if (isTop(q.code, o.code)) {
-                          <span class="top-pill" i18n="@@scoring.editor.top">★ Top</span>
-                        }
-                        <span
-                          class="pts-readout"
-                          [class.is-top]="isTop(q.code, o.code)"
-                          aria-hidden="true"
-                          >{{ pointValues()[q.code]?.[o.code] | number: '1.0-1'
-                          }}<span class="pts-unit">%</span></span
+              <nz-collapse class="qaccordion" nzAccordion>
+                @for (q of questions(); track q.code) {
+                  <nz-collapse-panel
+                    [nzActive]="openPanel() === q.code"
+                    (nzActiveChange)="openPanel.set($event ? q.code : null)"
+                    [nzHeader]="qHeader"
+                    [nzExtra]="qExtra"
+                  >
+                    <ng-template #qHeader>
+                      <span class="qlabel">{{ questionLabel(q) }}</span>
+                      <span class="qcode mono">{{ q.code }}</span>
+                    </ng-template>
+                    <ng-template #qExtra>
+                      <span class="qweight-chip"
+                        >{{ weightOf(q.code) | number: '1.0-1' }}%
+                        <span class="qweight-chip-label" i18n="@@scoring.editor.weight"
+                          >weight</span
+                        >
+                      </span>
+                    </ng-template>
+
+                    <!-- Level 1: question weight (importance) — slider + live % readout -->
+                    <div class="qweight-block">
+                      <div class="qweight-head">
+                        <div class="qweight-text">
+                          <span class="qweight-name" i18n="@@scoring.editor.q_weight"
+                            >Question weight (importance)</span
+                          >
+                          <span class="qweight-sub" i18n="@@scoring.editor.q_weight_hint"
+                            >share of the 100% across all questions</span
+                          >
+                        </div>
+                        <span class="qweight-readout">{{ weightOf(q.code) | number: '1.0-0'
+                          }}<span class="qweight-unit">%</span></span
                         >
                       </div>
                       <nz-slider
-                        class="pts-slider"
-                        [formControlName]="controlName(q.code, o.code)"
-                        [nzMin]="MIN"
-                        [nzMax]="MAX"
-                        [nzStep]="0.1"
+                        class="qweight-slider"
+                        [formControlName]="weightKey(q.code)"
+                        [nzMin]="0"
+                        [nzMax]="100"
+                        [nzStep]="1"
+                        aria-label="question weight"
+                        i18n-aria-label="@@scoring.editor.q_weight_aria"
                       />
-                      @if (ctrlInvalid(q.code, o.code)) {
-                        <p class="err" i18n="@@scoring.editor.range_error">
-                          Points must be between 1 and 100.
-                        </p>
+                    </div>
+
+                    <!-- Level 2: answer scores (quality) -->
+                    <p class="ascore-head" i18n="@@scoring.editor.answer_scores">
+                      Answer scores — how favorable each answer is (0–100)
+                    </p>
+                    <div class="answers">
+                      @for (o of q.options; track o.code) {
+                        <div class="answer" [class.is-top]="isTop(q.code, o.code)">
+                          <div class="answer-head">
+                            <span class="answer-label">{{ optionLabel(o) }}</span>
+                            @if (isTop(q.code, o.code)) {
+                              <span class="top-pill" i18n="@@scoring.editor.top">★ Top</span>
+                            }
+                            <span
+                              class="pts-readout"
+                              [class.is-top]="isTop(q.code, o.code)"
+                              aria-hidden="true"
+                              >{{ scoreOf(q.code, o.code) | number: '1.0-0'
+                              }}<span class="pts-unit">%</span></span
+                            >
+                          </div>
+                          <nz-slider
+                            class="pts-slider"
+                            [formControlName]="scoreKey(q.code, o.code)"
+                            [nzMin]="0"
+                            [nzMax]="100"
+                            [nzStep]="1"
+                          />
+                        </div>
                       }
                     </div>
-                  }
-                </fieldset>
-              }
+                  </nz-collapse-panel>
+                }
+              </nz-collapse>
             </form>
           </section>
 
@@ -188,14 +268,6 @@ const tierFor = (probability: number): ApprovalTier => {
               <p class="preview-sub" i18n="@@scoring.editor.preview_sub">
                 If the applicant picks these answers
               </p>
-
-              <div class="maxline">
-                <span i18n="@@scoring.editor.max_achievable">Max achievable</span>
-                <strong
-                  >{{ maxAchievable() | number: '1.0-1' }}
-                  <span i18n="@@scoring.editor.pts">pts</span></strong
-                >
-              </div>
 
               <button
                 type="button"
@@ -234,14 +306,26 @@ const tierFor = (probability: number): ApprovalTier => {
         </div>
 
         <div class="savebar">
-          @if (form.dirty && !saving()) {
+          @if (!weightSumOk()) {
+            <span class="savebar-error" i18n="@@scoring.editor.fix_weights"
+              >Question weights must total 100% to save.</span
+            >
+          } @else if (!allWeightsPositive()) {
+            <span class="savebar-error" i18n="@@scoring.editor.fix_zero_weight"
+              >Every question needs a weight above 0%.</span
+            >
+          } @else if (!allScoresPositive()) {
+            <span class="savebar-error" i18n="@@scoring.editor.fix_zero_score"
+              >Every answer needs a score above 0.</span
+            >
+          } @else if (form.dirty && !saving()) {
             <span class="dirty" i18n="@@scoring.editor.unsaved">Unsaved changes</span>
           }
           <button
             nz-button
             nzType="primary"
             nzSize="large"
-            [disabled]="saving() || form.invalid"
+            [disabled]="saving() || form.invalid || !canSave()"
             [nzLoading]="saving()"
             (click)="save()"
             i18n="@@scoring.editor.save"
@@ -256,7 +340,7 @@ const tierFor = (probability: number): ApprovalTier => {
     `
       .page {
         padding: var(--space-6);
-        max-inline-size: min(1040px, 100%);
+        max-inline-size: min(1180px, 100%);
         margin-inline: auto;
         padding-block-end: var(--space-9);
       }
@@ -375,30 +459,112 @@ const tierFor = (probability: number): ApprovalTier => {
         color: var(--text-secondary);
         font-size: var(--text-sm);
         line-height: var(--leading-relaxed);
-        max-inline-size: 60ch;
+        max-inline-size: 64ch;
       }
 
-      /* ── Question cards ───────────────────────────────────────────────── */
-      .questions form {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-4);
-      }
-      .qcard {
-        margin: 0;
+      /* ── Weight budget (question weights must total 100) ──────────────── */
+      .wbudget {
         background: var(--bg-surface);
         border: 1px solid var(--border-default);
         border-radius: var(--radius-lg);
-        padding: var(--space-4) var(--space-5) var(--space-5);
+        padding: var(--space-4) var(--space-5);
+        margin-block-end: var(--space-4);
         box-shadow: var(--shadow-sm);
       }
-      .qhead {
+      .wbudget.bad {
+        border-color: var(--error);
+      }
+      .wbudget-top {
         display: flex;
         align-items: baseline;
-        flex-wrap: wrap;
+        justify-content: space-between;
         gap: var(--space-2);
-        padding: 0;
-        margin-block-end: var(--space-2);
+      }
+      .wbudget-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--text-secondary);
+      }
+      .wbudget-val {
+        font-size: var(--text-xl);
+        font-weight: var(--font-bold);
+        color: var(--text-primary);
+        font-feature-settings:
+          'tnum' 1,
+          'lnum' 1;
+      }
+      .wbudget.bad .wbudget-val {
+        color: var(--error);
+      }
+      .wbudget-unit {
+        font-size: var(--text-sm);
+        font-weight: var(--font-normal);
+        color: var(--text-tertiary);
+      }
+      .wbudget-bar {
+        block-size: 8px;
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+        overflow: hidden;
+        margin-block-start: var(--space-2);
+      }
+      .wbudget-fill {
+        display: block;
+        block-size: 100%;
+        background: var(--primary);
+        border-radius: var(--radius-pill);
+        transition:
+          inline-size var(--motion-duration-base) var(--motion-easing-standard),
+          background var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .wbudget.bad .wbudget-fill {
+        background: var(--error);
+      }
+      .wbudget-hint {
+        margin-block: var(--space-2) 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-medium);
+        color: var(--error);
+      }
+
+      /* ── Accordion (one question per panel) ───────────────────────────── */
+      .qaccordion {
+        display: block;
+        border: none;
+        background: transparent;
+      }
+      .qaccordion ::ng-deep .ant-collapse {
+        border: none;
+        background: transparent;
+      }
+      .qaccordion ::ng-deep .ant-collapse-item {
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg) !important;
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+        margin-block-end: var(--space-4);
+      }
+      .qaccordion ::ng-deep .ant-collapse-item:last-child {
+        margin-block-end: 0;
+      }
+      .qaccordion ::ng-deep .ant-collapse-header {
+        align-items: center !important;
+        gap: var(--space-2);
+        padding: var(--space-4) var(--space-5) !important;
+        color: var(--text-primary) !important;
+      }
+      .qaccordion ::ng-deep .ant-collapse-item-active {
+        border-color: var(--primary);
+      }
+      .qaccordion ::ng-deep .ant-collapse-item-active .ant-collapse-header {
+        background: color-mix(in srgb, var(--primary) 5%, transparent);
+      }
+      .qaccordion ::ng-deep .ant-collapse-extra {
+        margin-inline-start: auto;
+      }
+      .qaccordion ::ng-deep .ant-collapse-content-box {
+        padding: var(--space-4) var(--space-5) var(--space-5) !important;
       }
       .qlabel {
         font-size: var(--text-lg);
@@ -412,16 +578,127 @@ const tierFor = (probability: number): ApprovalTier => {
         padding-block: 1px;
         padding-inline: var(--space-2);
         border-radius: var(--radius-sm);
+        margin-inline-start: var(--space-2);
+      }
+      .qweight-chip {
+        font-size: var(--text-sm);
+        font-weight: var(--font-bold);
+        color: var(--primary);
+        background: var(--primary-subtle);
+        padding-block: 2px;
+        padding-inline: var(--space-3);
+        border-radius: var(--radius-pill);
+        white-space: nowrap;
+        font-feature-settings:
+          'tnum' 1,
+          'lnum' 1;
+      }
+      .qweight-chip-label {
+        font-weight: var(--font-normal);
+        font-size: var(--text-xs);
       }
 
+      /* ── Level 1: question weight — slider + live % readout ───────────── */
+      .qweight-block {
+        padding: var(--space-4) var(--space-4) var(--space-3);
+        background: var(--bg-subtle);
+        border-radius: var(--radius-md);
+        border-inline-start: 3px solid var(--primary);
+        margin-block-end: var(--space-4);
+      }
+      .qweight-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-4);
+      }
+      .qweight-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .qweight-name {
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+      .qweight-sub {
+        font-size: var(--text-xs);
+        color: var(--text-tertiary);
+      }
+      .qweight-readout {
+        display: flex;
+        align-items: baseline;
+        font-size: var(--text-2xl);
+        font-weight: var(--font-bold);
+        line-height: 1;
+        color: var(--primary);
+        font-feature-settings:
+          'tnum' 1,
+          'lnum' 1;
+      }
+      .qweight-unit {
+        font-size: var(--text-base);
+        font-weight: var(--font-semibold);
+        margin-inline-start: 1px;
+        color: color-mix(in srgb, var(--primary) 65%, transparent);
+      }
+      /* Weight slider reads heavier than the answer sliders — it's the level-1 control. */
+      .qweight-slider {
+        margin-block-start: var(--space-3);
+      }
+      .qweight-slider ::ng-deep .ant-slider-rail {
+        block-size: 8px;
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+      }
+      .qweight-slider ::ng-deep .ant-slider-track {
+        block-size: 8px;
+        border-radius: var(--radius-pill);
+        background: linear-gradient(
+          90deg,
+          color-mix(in srgb, var(--primary) 70%, transparent),
+          var(--primary)
+        );
+      }
+      .qweight-slider ::ng-deep .ant-slider:hover .ant-slider-track {
+        background: var(--primary-hover);
+      }
+      .qweight-slider ::ng-deep .ant-slider-handle {
+        inline-size: 22px;
+        block-size: 22px;
+        margin-block-start: -7px;
+        border: 3px solid var(--primary);
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-md);
+        transition:
+          transform var(--motion-duration-fast) var(--motion-easing-standard),
+          box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .qweight-slider ::ng-deep .ant-slider-handle:hover,
+      .qweight-slider ::ng-deep .ant-slider-handle:focus {
+        transform: scale(1.12);
+        box-shadow: var(--focus-halo);
+      }
+
+      /* ── Level 2: answer scores ───────────────────────────────────────── */
+      .ascore-head {
+        margin-block: 0 var(--space-2);
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+      .answers {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: var(--space-3) var(--space-5);
+      }
       .answer {
         padding: var(--space-3) var(--space-3) var(--space-2);
         border-radius: var(--radius-md);
         border-inline-start: 3px solid transparent;
         transition: background var(--motion-duration-base) var(--motion-easing-standard);
-      }
-      .answer + .answer {
-        margin-block-start: var(--space-2);
       }
       .answer.is-top {
         background: color-mix(in srgb, var(--primary) 6%, transparent);
@@ -449,9 +726,9 @@ const tierFor = (probability: number): ApprovalTier => {
       }
       .pts-readout {
         margin-inline-start: auto;
-        min-inline-size: 56px;
+        min-inline-size: 44px;
         padding-block: var(--space-1);
-        padding-inline: var(--space-3);
+        padding-inline: var(--space-2);
         text-align: center;
         font-size: var(--text-lg);
         font-weight: var(--font-bold);
@@ -465,18 +742,18 @@ const tierFor = (probability: number): ApprovalTier => {
           color var(--motion-duration-base) var(--motion-easing-standard),
           background var(--motion-duration-base) var(--motion-easing-standard);
       }
+      .pts-unit {
+        font-size: var(--text-xs);
+        font-weight: var(--font-semibold);
+        margin-inline-start: 1px;
+        color: var(--text-tertiary);
+      }
       .pts-readout.is-top {
         color: var(--primary);
         background: var(--primary-subtle);
       }
-      .pts-unit {
-        margin-inline-start: 1px;
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        color: var(--text-tertiary);
-      }
       .pts-readout.is-top .pts-unit {
-        color: var(--primary);
+        color: color-mix(in srgb, var(--primary) 60%, transparent);
       }
       .pts-slider {
         margin-block-start: var(--space-1);
@@ -510,17 +787,6 @@ const tierFor = (probability: number): ApprovalTier => {
         transform: scale(1.14);
         box-shadow: var(--focus-halo);
       }
-      @media (prefers-reduced-motion: reduce) {
-        .pts-readout,
-        .pts-slider ::ng-deep .ant-slider-handle {
-          transition: none;
-        }
-      }
-      .err {
-        margin-block: var(--space-1) 0;
-        color: var(--error);
-        font-size: var(--text-xs);
-      }
 
       /* ── Preview rail ─────────────────────────────────────────────────── */
       .preview {
@@ -541,7 +807,6 @@ const tierFor = (probability: number): ApprovalTier => {
         text-transform: uppercase;
         color: var(--text-tertiary);
       }
-
       .gauge {
         position: relative;
         inline-size: 180px;
@@ -581,7 +846,6 @@ const tierFor = (probability: number): ApprovalTier => {
       .gauge[data-tier='very_low'] .gauge-fill {
         stroke: var(--error);
       }
-
       .gauge-center {
         position: absolute;
         inset: 0;
@@ -624,29 +888,11 @@ const tierFor = (probability: number): ApprovalTier => {
       .gauge[data-tier='very_low'] .gauge-tier {
         color: var(--error);
       }
-
       .preview-sub {
-        margin: 0;
+        margin: 0 0 var(--space-4);
         text-align: center;
         font-size: var(--text-xs);
         color: var(--text-tertiary);
-      }
-      .maxline {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-2);
-        margin-block: var(--space-4) var(--space-3);
-        padding-block: var(--space-3);
-        border-block: 1px solid var(--border-subtle);
-        font-size: var(--text-sm);
-        color: var(--text-secondary);
-      }
-      .maxline strong {
-        color: var(--text-primary);
-        font-feature-settings:
-          'tnum' 1,
-          'lnum' 1;
       }
       .reset {
         inline-size: 100%;
@@ -670,7 +916,6 @@ const tierFor = (probability: number): ApprovalTier => {
         outline: none;
         box-shadow: var(--focus-halo);
       }
-
       .whatif-hint {
         margin-block: var(--space-4) var(--space-2);
         font-size: var(--text-xs);
@@ -724,32 +969,35 @@ const tierFor = (probability: number): ApprovalTier => {
 
       /* ── Save bar ─────────────────────────────────────────────────────── */
       .savebar {
-        position: sticky;
-        inset-block-end: var(--space-3);
         display: flex;
         align-items: center;
         justify-content: flex-end;
         gap: var(--space-4);
-        margin-block-start: var(--space-5);
-        padding: var(--space-3) var(--space-4);
-        background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
-        backdrop-filter: blur(8px);
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
+        margin-block-start: var(--space-6);
+        padding-block-start: var(--space-5);
+        border-block-start: 1px solid var(--border-default);
       }
       .dirty {
         font-size: var(--text-sm);
         color: var(--warning);
         font-weight: var(--font-medium);
       }
+      .savebar-error {
+        font-size: var(--text-sm);
+        color: var(--error);
+        font-weight: var(--font-medium);
+      }
 
       /* ── Reduced motion ───────────────────────────────────────────────── */
       @media (prefers-reduced-motion: reduce) {
         .gauge-fill,
+        .wbudget-fill,
         .answer,
         .reset,
-        .chip {
+        .chip,
+        .pts-readout,
+        .pts-slider ::ng-deep .ant-slider-handle,
+        .qweight-slider ::ng-deep .ant-slider-handle {
           transition: none;
         }
       }
@@ -766,16 +1014,18 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly category = this.route.snapshot.paramMap.get('category') as LoanCategory;
   readonly programId = this.route.snapshot.paramMap.get('programId') ?? '';
 
-  readonly MIN = MIN_POINTS;
-  readonly MAX = MAX_POINTS;
+  readonly weightKey = weightKey;
+  readonly scoreKey = scoreKey;
 
   readonly questions = signal<WeightableQuestion[]>([]);
   readonly program = signal<ProgramMeta | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
+  /** Accordion: the single open question (by code); the first question opens on load. */
+  readonly openPanel = signal<string | null>(null);
 
   readonly form = new FormGroup<Record<string, FormControl<number>>>({});
-  /** Bumps whenever any point changes so the preview computeds recompute. */
+  /** Bumps whenever any weight/score changes so the preview computeds recompute. */
   private readonly formTick = toSignal(this.form.valueChanges.pipe(startWith(null)), {
     initialValue: null,
   });
@@ -786,18 +1036,51 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly gaugeR = 54;
   readonly gaugeC = 2 * Math.PI * 54;
 
-  /** Per-question highest-points option — feeds maxAchievable + the "Top" marker. */
-  readonly bestByQuestion = computed<Record<string, string>>(() => {
+  /** Live two-level scoring rebuilt from the form on every change. */
+  readonly scoring = computed<ProgramScoringWeights>(() => {
     this.formTick();
-    const w = this.weightsNow();
+    return this.scoringNow();
+  });
+
+  /** Question weights, rounded to 1 decimal — drives the header chips + budget. */
+  readonly weightValues = computed<Record<string, number>>(() => this.scoring().questionWeights);
+  readonly scoreValues = computed<Record<string, Record<string, number>>>(
+    () => this.scoring().answerScores,
+  );
+  /** Sum of all question weights (1-decimal). Must equal 100 to save. */
+  readonly weightSum = computed<number>(() => {
+    const total = Object.values(this.weightValues()).reduce((a, b) => a + b, 0);
+    return Math.round(total * 10) / 10;
+  });
+  readonly weightSumOk = computed<boolean>(() => this.weightSum() === 100);
+  readonly weightBarPct = computed<number>(() => Math.min(100, Math.max(0, this.weightSum())));
+
+  /** No question may be left at 0% weight. */
+  readonly allWeightsPositive = computed<boolean>(() =>
+    this.questions().every((q) => (this.weightValues()[q.code] ?? 0) > 0),
+  );
+  /** No answer may be left at 0 score. */
+  readonly allScoresPositive = computed<boolean>(() =>
+    this.questions().every((q) =>
+      q.options.every((o) => (this.scoreValues()[q.code]?.[o.code] ?? 0) > 0),
+    ),
+  );
+  /** Save is allowed only when weights total 100 and nothing is left at zero. */
+  readonly canSave = computed<boolean>(
+    () => this.weightSumOk() && this.allWeightsPositive() && this.allScoresPositive(),
+  );
+
+  /** Per-question highest-scoring option — feeds the "Top" marker + best what-if. */
+  readonly bestByQuestion = computed<Record<string, string>>(() => {
+    const scores = this.scoreValues();
     const out: Record<string, string> = {};
     for (const q of this.questions()) {
       let best = -Infinity;
       let code = '';
       for (const o of q.options) {
-        const p = w[q.code]?.[o.code] ?? 0;
-        if (p > best) {
-          best = p;
+        const s = scores[q.code]?.[o.code] ?? 0;
+        if (s > best) {
+          best = s;
           code = o.code;
         }
       }
@@ -806,47 +1089,24 @@ export class ScoringWeightsEditorPage implements OnInit {
     return out;
   });
 
-  /** Σ over questions of the best option's points (the achievable ceiling). */
-  readonly maxAchievable = computed<number>(() => {
-    this.formTick();
-    const w = this.weightsNow();
-    let total = 0;
-    for (const q of this.questions()) {
-      let best = 0;
-      for (const o of q.options) {
-        const p = w[q.code]?.[o.code] ?? 0;
-        if (p > best) best = p;
-      }
-      total += best;
-    }
-    return total;
-  });
-
-  /** Σ of the points for the currently simulated answers. */
-  readonly earned = computed<number>(() => {
-    this.formTick();
-    const w = this.weightsNow();
+  /** probability = Σ ( questionWeight/100 × pickedScore/100 ) over the simulated answers. */
+  readonly probability = computed<number>(() => {
+    const weights = this.weightValues();
+    const scores = this.scoreValues();
     const sel = this.selected();
     let total = 0;
     for (const q of this.questions()) {
       const oc = sel[q.code];
-      if (oc) total += w[q.code]?.[oc] ?? 0;
+      if (!oc) continue;
+      const weight = weights[q.code] ?? 0;
+      const score = scores[q.code]?.[oc] ?? 0;
+      total += (weight / 100) * (score / 100);
     }
-    return total;
-  });
-
-  readonly probability = computed<number>(() => {
-    const max = this.maxAchievable();
-    return max > 0 ? clamp01(this.earned() / max) : 0;
+    return clamp01(total);
   });
   readonly pct = computed<number>(() => this.probability() * 100);
   readonly tier = computed<ApprovalTier>(() => tierFor(this.probability()));
   readonly dashOffset = computed<number>(() => this.gaugeC * (1 - this.probability()));
-  /** Live nested point values — recomputed on every slider change to drive the read-only readouts. */
-  readonly pointValues = computed<NestedWeights>(() => {
-    this.formTick();
-    return this.weightsNow();
-  });
 
   async ngOnInit(): Promise<void> {
     try {
@@ -855,26 +1115,28 @@ export class ScoringWeightsEditorPage implements OnInit {
         this.api.programWeights(this.programId),
       ]);
       this.questions.set(questions);
+      this.openPanel.set(questions[0]?.code ?? null);
       this.program.set(weights.program);
-      const seed = weights.active?.weights ?? {};
+
+      const active = weights.active?.weights;
+      const seedWeights = active?.questionWeights ?? {};
+      const seedScores = active?.answerScores ?? {};
+      // equalSplit ONLY seeds a brand-new program with no saved set. When a set
+      // exists its weights are authoritative (already sum 100); questions it
+      // doesn't cover default to 0 — never equalSplit-of-all, which would stack
+      // on top of the saved 100 and blow the budget past 100.
+      const hasActiveWeights = Object.keys(seedWeights).length > 0;
+      const fallbackWeights = hasActiveWeights ? {} : equalSplit(questions.map((q) => q.code));
+
       for (const q of questions) {
+        const w = clampPct(Number(seedWeights[q.code] ?? fallbackWeights[q.code] ?? 0));
+        this.form.addControl(weightKey(q.code), this.numberControl(w));
         for (const o of q.options) {
-          const raw = Number(seed[q.code]?.[o.code] ?? 0);
-          const points = clampPoints(raw > 0 ? raw : MIN_POINTS);
-          this.form.addControl(
-            key(q.code, o.code),
-            new FormControl<number>(points, {
-              nonNullable: true,
-              validators: [
-                Validators.required,
-                Validators.min(MIN_POINTS),
-                Validators.max(MAX_POINTS),
-              ],
-            }),
-          );
+          const s = clampPct(Number(seedScores[q.code]?.[o.code] ?? 0));
+          this.form.addControl(scoreKey(q.code, o.code), this.numberControl(s));
         }
       }
-      // Default the what-if to the best answer per question → gauge starts at the ceiling.
+      // Default the what-if to the best (highest-scoring) answer per question.
       this.selected.set({ ...this.bestByQuestion() });
     } finally {
       this.loading.set(false);
@@ -882,15 +1144,23 @@ export class ScoringWeightsEditorPage implements OnInit {
   }
 
   async save(): Promise<void> {
-    if (this.saving() || this.form.invalid) return;
+    if (this.saving() || this.form.invalid || !this.canSave()) return;
     this.saving.set(true);
     try {
-      await this.api.saveWeights(this.programId, this.weightsNow());
+      await this.api.saveWeights(this.programId, this.scoringNow());
       this.form.markAsPristine();
       this.message.success($localize`:@@scoring.editor.saved:Weights saved`);
     } finally {
       this.saving.set(false);
     }
+  }
+
+  /** A 0..100 form control with required + range validators. */
+  private numberControl(value: number): FormControl<number> {
+    return new FormControl<number>(value, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0), Validators.max(100)],
+    });
   }
 
   /** Program display name, Arabic-first with English fallback. */
@@ -908,12 +1178,17 @@ export class ScoringWeightsEditorPage implements OnInit {
     return (this.isAr ? o.labelAr : o.labelEn) || o.labelEn;
   }
 
-  /** Composite control name for a given question/option pair. */
-  controlName(questionCode: string, optionCode: string): string {
-    return key(questionCode, optionCode);
+  /** Live question weight (for the header chip). */
+  weightOf(questionCode: string): number {
+    return this.weightValues()[questionCode] ?? 0;
   }
 
-  /** True when this option carries the highest points for its question. */
+  /** Live answer score (for the read-only readout). */
+  scoreOf(questionCode: string, optionCode: string): number {
+    return this.scoreValues()[questionCode]?.[optionCode] ?? 0;
+  }
+
+  /** True when this option carries the highest score for its question. */
   isTop(questionCode: string, optionCode: string): boolean {
     return this.bestByQuestion()[questionCode] === optionCode;
   }
@@ -931,12 +1206,6 @@ export class ScoringWeightsEditorPage implements OnInit {
     this.selected.set({ ...this.bestByQuestion() });
   }
 
-  /** Whether a control is invalid and has been interacted with (inline error gate). */
-  ctrlInvalid(questionCode: string, optionCode: string): boolean {
-    const c = this.form.get(this.controlName(questionCode, optionCode));
-    return !!c && c.invalid && (c.dirty || c.touched);
-  }
-
   tierLabel(t: ApprovalTier): string {
     switch (t) {
       case 'excellent':
@@ -952,15 +1221,19 @@ export class ScoringWeightsEditorPage implements OnInit {
     }
   }
 
-  /** Reduce the flat composite form value back into the nested points map. */
-  private weightsNow(): NestedWeights {
+  /** Reduce the flat composite form value into the two-level scoring payload. */
+  private scoringNow(): ProgramScoringWeights {
     const raw = this.form.getRawValue() as Record<string, number>;
-    const out: NestedWeights = {};
-    for (const [composite, points] of Object.entries(raw)) {
-      const [questionCode, optionCode] = composite.split(SEP);
-      if (!questionCode || !optionCode) continue;
-      (out[questionCode] ??= {})[optionCode] = Number(points ?? 0);
+    const questionWeights: Record<string, number> = {};
+    const answerScores: Record<string, Record<string, number>> = {};
+    for (const [composite, value] of Object.entries(raw)) {
+      const parts = composite.split(SEP);
+      if (parts[0] === QW && parts[1]) {
+        questionWeights[parts[1]] = Number(value ?? 0);
+      } else if (parts[0] === SC && parts[1] && parts[2]) {
+        (answerScores[parts[1]] ??= {})[parts[2]] = Number(value ?? 0);
+      }
     }
-    return out;
+    return { questionWeights, answerScores };
   }
 }
