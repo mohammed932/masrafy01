@@ -22,7 +22,6 @@ import { ok, okPaginated } from '../common/pagination/paginated.response.dto';
 import { CreateBankProgramDto } from './dto/create-bank-program.dto';
 import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
 import { ToggleBankProgramDto } from './dto/toggle-bank-program.dto';
-import { CloneBankProgramDto } from './dto/clone-bank-program.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
 import { BankProgramsService } from './bank-programs.service';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
@@ -116,27 +115,6 @@ export class BankProgramsController {
       programCode,
       body.active,
       body.version,
-      this.actor(user, req, correlationId),
-    );
-    return ok(program);
-  }
-
-  @Post(':programCode/clone')
-  @Roles('super_admin', 'sales_manager')
-  @HttpCode(201)
-  @ApiOperation({ summary: 'Clone an existing program' })
-  @ApiResponse({ status: 201, description: 'Cloned.' })
-  @ApiResponse({ status: 409, description: 'PROGRAM_CODE_ALREADY_IN_USE' })
-  async clone(
-    @Param('programCode') sourceProgramCode: string,
-    @Body() body: CloneBankProgramDto,
-    @CurrentUser() user: JwtPayload,
-    @Req() req: Request,
-    @CorrelationId() correlationId: string,
-  ) {
-    const program = await this.service.clone(
-      sourceProgramCode,
-      body.newProgramCode,
       this.actor(user, req, correlationId),
     );
     return ok(program);

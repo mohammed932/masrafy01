@@ -11,11 +11,12 @@ import {
   Prisma,
   type ApplicationPriority,
   type ApplicationStatus as PrismaApplicationStatus,
+  type LeadStatus as PrismaLeadStatus,
   type ApprovalTier,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../infra/prisma/prisma.service';
-import { ApplicationStatus } from './dto/enums';
+import { ApplicationStatus, LeadStatus } from './dto/enums';
 
 /** Domain JSON value type — exposed to services / DTOs.
  *  Internally cast at the Prisma boundary inside this repository. */
@@ -209,6 +210,7 @@ export class ApplicationRepository {
 
   async findManyAdmin(params: {
     status?: ApplicationStatus[];
+    leadStatus?: LeadStatus[];
     loanPurpose?: string;
     tier?: 'high' | 'medium';
     cursor?: string;
@@ -225,6 +227,8 @@ export class ApplicationRepository {
     if (onlyProceeded) where.userProceededAt = { not: null };
     if (params.status?.length)
       where.status = { in: params.status as unknown as PrismaApplicationStatus[] };
+    if (params.leadStatus?.length)
+      where.leadStatus = { in: params.leadStatus as unknown as PrismaLeadStatus[] };
     if (params.loanPurpose) where.loanPurpose = params.loanPurpose;
 
     if (params.tier === 'high') {
@@ -324,4 +328,26 @@ export class ApplicationRepository {
     });
   }
 
+  /** Light read of the current lead status — existence guard + audit `from`. */
+  async findLeadStatus(id: string): Promise<{ id: string; leadStatus: LeadStatus } | null> {
+    const row = await this.prisma.application.findUnique({
+      where: { id },
+      select: { id: true, leadStatus: true },
+    });
+    if (!row) return null;
+    return { id: row.id, leadStatus: row.leadStatus as unknown as LeadStatus };
+  }
+
+  /** Set the sales pipeline status (admin-managed). */
+  async updateLeadStatus(
+    id: string,
+    leadStatus: LeadStatus,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.application.update({
+      where: { id },
+      data: { leadStatus: leadStatus as unknown as PrismaLeadStatus },
+    });
+  }
 }

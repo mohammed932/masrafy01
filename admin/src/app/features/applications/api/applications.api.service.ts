@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import type { SuccessEnvelope, PaginatedEnvelope } from '@core/auth/auth.types';
 import type { ApprovalTier, BestOfferSummary } from '../list/components/approval-pill.component';
+import type { LeadStatus } from '../shared/lead-status';
 
 export interface FactorImpact {
   code: string;
@@ -21,6 +22,7 @@ export interface ApprovalProbability {
 export interface AdminApplicationRow {
   id: string;
   status: string;
+  leadStatus: LeadStatus;
   priority: string;
   requestedAmountEGP: string;
   requestedCurrency: string;
@@ -56,6 +58,7 @@ export interface AdminApplicationOffer {
 export interface AdminApplicationDetail {
   id: string;
   status: string;
+  leadStatus: LeadStatus;
   priority: string;
   requestedAmountEGP: string;
   requestedCurrency: string;
@@ -85,6 +88,7 @@ export class ApplicationsApiService {
     opts: {
       cursor?: string;
       limit?: number;
+      leadStatus?: LeadStatus;
     } = {},
   ): Promise<{
     rows: readonly AdminApplicationRow[];
@@ -93,6 +97,7 @@ export class ApplicationsApiService {
     let params = new HttpParams();
     if (opts.cursor) params = params.set('cursor', opts.cursor);
     if (opts.limit) params = params.set('limit', String(opts.limit));
+    if (opts.leadStatus) params = params.set('leadStatus', opts.leadStatus);
     const res = await firstValueFrom(
       this.http.get<PaginatedEnvelope<AdminApplicationRow>>(`${this.base()}/applications`, {
         params,
@@ -111,5 +116,15 @@ export class ApplicationsApiService {
       this.http.get<SuccessEnvelope<AdminApplicationDetail>>(`${this.base()}/applications/${id}`),
     );
     return res.data;
+  }
+
+  /** Set the sales pipeline status of an application (lead). */
+  async updateLeadStatus(id: string, leadStatus: LeadStatus): Promise<void> {
+    await firstValueFrom(
+      this.http.patch<SuccessEnvelope<unknown>>(
+        `${this.base()}/applications/${id}/lead-status`,
+        { leadStatus },
+      ),
+    );
   }
 }

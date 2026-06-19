@@ -79,18 +79,6 @@ export class BankProgramsApiService {
     );
   }
 
-  async clone(
-    sourceProgramCode: string,
-    newProgramCode: string,
-  ): Promise<SuccessEnvelope<BankProgramResponse>> {
-    return firstValueFrom(
-      this.http.post<SuccessEnvelope<BankProgramResponse>>(
-        `${this.base}/${encodeURIComponent(sourceProgramCode)}/clone`,
-        { newProgramCode },
-      ),
-    );
-  }
-
   async delete(programCode: string, confirmHeader: string): Promise<void> {
     await firstValueFrom(
       this.http.delete<void>(`${this.base}/${encodeURIComponent(programCode)}`, {

@@ -7,6 +7,7 @@ import {
   inject,
   input,
   signal,
+  untracked,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { NzIconModule } from 'ng-zorro-antd/icon';
@@ -195,7 +196,10 @@ export class StatStripComponent {
 
   private animateTo(targets: readonly (number | null)[]): void {
     this.cancel();
-    const current = this.displayed();
+    // Read untracked: this method runs inside `effect`, and `displayed` is also
+    // written every animation frame. Tracking the read would re-trigger the
+    // effect each frame, cancel the in-flight rAF, and pin the tween at frame 0.
+    const current = untracked(() => this.displayed());
     const startVals = targets.map((t, i) => (t === null ? 0 : (current[i] ?? 0)));
     const finals = targets.map((t) => t ?? 0);
 

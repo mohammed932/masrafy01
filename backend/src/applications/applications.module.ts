@@ -6,6 +6,7 @@ import { Module } from '@nestjs/common';
 import { ApplicationsController } from './applications.controller';
 import { AdminApplicationsController } from './admin-applications.controller';
 import { ApplicationsService } from './applications.service';
+import { AdminApplicationsService } from './admin-applications.service';
 import { ApplicationRepository } from './application.repository';
 import { MatchingModule } from '../matching/matching.module';
 import { BankProgramsModule } from '../bank-programs/bank-programs.module';
@@ -32,7 +33,12 @@ import { ScoringModule } from '@/scoring/scoring.module';
     ScoringModule,
   ],
   controllers: [ApplicationsController, AdminApplicationsController],
-  providers: [ApplicationsService, ApplicationRepository, MobileRateLimitGuard],
+  providers: [
+    ApplicationsService,
+    AdminApplicationsService,
+    ApplicationRepository,
+    MobileRateLimitGuard,
+  ],
   exports: [ApplicationRepository],
 })
 export class ApplicationsModule {}

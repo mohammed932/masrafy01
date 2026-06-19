@@ -3,20 +3,29 @@
  */
 
 import {
+  Body,
   Controller,
   Get,
+  HttpCode,
   Param,
+  Patch,
   Query,
+  Req,
   UseGuards,
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
-import { ApplicationStatus } from './dto/enums';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import type { Request } from 'express';
+import { ApplicationStatus, LeadStatus } from './dto/enums';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
+import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
+import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ApplicationRepository } from './application.repository';
+import { AdminApplicationsService } from './admin-applications.service';
+import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { NotFoundException } from '@/common/errors/domain.exceptions';
 import { maskApplicantProfile, type RawApplicantProfileJson } from './pii-masker';
 
@@ -26,12 +35,16 @@ import { maskApplicantProfile, type RawApplicantProfileJson } from './pii-masker
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('super_admin', 'sales_manager', 'sales_agent', 'analyst')
 export class AdminApplicationsController {
-  constructor(private readonly repo: ApplicationRepository) {}
+  constructor(
+    private readonly repo: ApplicationRepository,
+    private readonly service: AdminApplicationsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List applications (paginated, with bestOffer + tier)' })
   async findMany(
     @Query('status') status?: string,
+    @Query('leadStatus') leadStatus?: string,
     @Query('loanPurpose') loanPurpose?: string,
     @Query('tier') tier?: string,
     @Query('cursor') cursor?: string,
@@ -40,6 +53,7 @@ export class AdminApplicationsController {
     const tierBucket = tier === 'high' || tier === 'medium' ? tier : undefined;
     const rows = await this.repo.findManyAdmin({
       status: status?.split(',') as ApplicationStatus[] | undefined,
+      leadStatus: leadStatus?.split(',') as LeadStatus[] | undefined,
       loanPurpose,
       tier: tierBucket,
       cursor,
@@ -60,6 +74,36 @@ export class AdminApplicationsController {
     const row = await this.repo.findById(id);
     if (!row) throw new NotFoundException();
     return { success: true, data: this.projectDetail(row) };
+  }
+
+  @Patch(':id/lead-status')
+  @Roles('super_admin', 'sales_manager', 'sales_agent')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Set the sales pipeline status of an application (lead)' })
+  @ApiResponse({ status: 200, description: 'Lead status updated.' })
+  @ApiResponse({ status: 403, description: 'FORBIDDEN' })
+  @ApiResponse({ status: 404, description: 'NOT_FOUND' })
+  async setLeadStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateLeadStatusDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+    @CorrelationId() correlationId: string,
+  ): Promise<unknown> {
+    await this.service.setLeadStatus(id, body.leadStatus, {
+      id: user.sub,
+      sourceIp: this.readClientIp(req),
+      correlationId,
+    });
+    return { success: true };
+  }
+
+  private readClientIp(req: Request): string | null {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') {
+      return forwarded.split(',')[0]?.trim() ?? null;
+    }
+    return req.ip ?? null;
   }
 
   private projectListItem(
@@ -85,6 +129,7 @@ export class AdminApplicationsController {
     return {
       id: row.id,
       status: row.status,
+      leadStatus: row.leadStatus,
       priority: row.priority,
       requestedAmountEGP: row.requestedAmountEGP.toFixed(2),
       requestedCurrency: row.requestedCurrency,
@@ -105,6 +150,7 @@ export class AdminApplicationsController {
     return {
       id: row.id,
       status: row.status,
+      leadStatus: row.leadStatus,
       priority: row.priority,
       requestedAmountEGP: row.requestedAmountEGP.toFixed(2),
       requestedCurrency: row.requestedCurrency,

@@ -58,7 +58,6 @@
       <trans-unit id="bank_detail.col.category" datatype="html"><source>Category</source><target>الفئة</target></trans-unit>
       <trans-unit id="bank_detail.col.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
       <trans-unit id="bank_detail.program.edit" datatype="html"><source>Edit program</source><target>تعديل البرنامج</target></trans-unit>
-      <trans-unit id="bank_detail.program.clone" datatype="html"><source>Clone program</source><target>نسخ البرنامج</target></trans-unit>
       <trans-unit id="bank_detail.program.delete" datatype="html"><source>Delete program</source><target>حذف البرنامج</target></trans-unit>
       <trans-unit id="bank_detail.not_found" datatype="html"><source>Bank not found.</source><target>البنك غير موجود.</target></trans-unit>
 
@@ -115,6 +114,11 @@
       <trans-unit id="applications.col.purpose" datatype="html"><source>Loan purpose</source><target>الغرض من القرض</target></trans-unit>
       <trans-unit id="applications.col.amount" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
       <trans-unit id="applications.col.status" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
+      <trans-unit id="lead.status.pending" datatype="html"><source>Pending</source><target>قيد الانتظار</target></trans-unit>
+      <trans-unit id="lead.status.in_progress" datatype="html"><source>In Progress</source><target>قيد التنفيذ</target></trans-unit>
+      <trans-unit id="lead.status.done" datatype="html"><source>Done</source><target>مكتمل</target></trans-unit>
+      <trans-unit id="lead.status.cancelled" datatype="html"><source>Cancelled</source><target>ملغي</target></trans-unit>
+      <trans-unit id="app.detail.status.change" datatype="html"><source>Change application status</source><target>تغيير حالة الطلب</target></trans-unit>
       <trans-unit id="applications.col.created" datatype="html"><source>Created</source><target>تاريخ الإنشاء</target></trans-unit>
       <trans-unit id="applications.action.detail" datatype="html"><source>Open application <x id="INTERPOLATION"/></source><target>افتح الطلب <x id="INTERPOLATION"/></target></trans-unit>
       <trans-unit id="applications.detail.back" datatype="html"><source>Back to applications</source><target>العودة إلى الطلبات</target></trans-unit>
@@ -307,6 +311,7 @@
       <trans-unit id="bank_programs.section.sharia" datatype="html"><source>Sharia-compliant (Islamic)</source><target>متوافق مع الشريعة (إسلامي)</target></trans-unit>
       <trans-unit id="bank_programs.section.sharia_sub" datatype="html"><source>Profit-rate pricing under an Islamic contract. Rate fields above are interpreted as profit rates, not interest.</source><target>تسعير بسعر ربح ضمن عقد إسلامي. حقول السعر أعلاه تُفسَّر كأسعار ربح وليس فوائد.</target></trans-unit>
 
+      <trans-unit id="bank_programs.field.program_code" datatype="html"><source>Program code</source><target>كود البرنامج</target></trans-unit>
       <trans-unit id="bank_programs.field.buyout_delta" datatype="html"><source>Buyout rate delta</source><target>فارق سعر السداد</target></trans-unit>
       <trans-unit id="bank_programs.field.buyout_floor" datatype="html"><source>Minimum floor rate</source><target>أدنى سعر مسموح</target></trans-unit>
       <trans-unit id="bank_programs.field.min_down_payment" datatype="html"><source>Minimum down payment</source><target>الحد الأدنى للمقدم</target></trans-unit>
@@ -316,6 +321,13 @@
       <trans-unit id="bank_programs.contract.murabaha" datatype="html"><source>Murabaha</source><target>مرابحة</target></trans-unit>
       <trans-unit id="bank_programs.contract.ijara" datatype="html"><source>Ijara</source><target>إجارة</target></trans-unit>
       <trans-unit id="bank_programs.contract.tawarruq" datatype="html"><source>Tawarruq</source><target>تورق</target></trans-unit>
+      <trans-unit id="bank_programs.form.title_edit_named" datatype="html"><source>Edit <x id="bankName"/> bank program</source><target>تعديل برنامج بنك <x id="bankName"/></target></trans-unit>
+
+      <trans-unit id="questionnaire.overview.eyebrow" datatype="html"><source>Matching engine</source><target>محرّك المطابقة</target></trans-unit>
+      <trans-unit id="questionnaire.overview.title" datatype="html"><source>Questionnaires</source><target>الاستبيانات</target></trans-unit>
+      <trans-unit id="questionnaire.overview.subtitle" datatype="html"><source>One published version per loan category drives the mobile questionnaire.</source><target>تُشغّل نسخة منشورة واحدة لكل فئة قرض استبيانَ التطبيق.</target></trans-unit>
+      <trans-unit id="questionnaire.overview.published_prefix" datatype="html"><source>Published</source><target>نُشِر</target></trans-unit>
+      <trans-unit id="questionnaire.overview.never_published" datatype="html"><source>Never published</source><target>لم يُنشر مطلقاً</target></trans-unit>
     </body>
   </file>
 </xliff>

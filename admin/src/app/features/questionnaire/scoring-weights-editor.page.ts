@@ -13,7 +13,6 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { startWith } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { NzSliderModule } from 'ng-zorro-antd/slider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
@@ -37,10 +36,6 @@ const scoreKey = (q: string, o: string): string => `${SC}${SEP}${q}${SEP}${o}`;
 /** Weights + scores are both 0..100. */
 const clampPct = (n: number): number => Math.min(100, Math.max(0, n));
 
-type ApprovalTier = 'excellent' | 'good' | 'moderate' | 'low' | 'very_low';
-
-const clamp01 = (n: number): number => (n < 0 ? 0 : n > 1 ? 1 : n);
-
 /** Equal question weights summing to exactly 100 (remainder spread over the first questions). */
 function equalSplit(codes: readonly string[]): Record<string, number> {
   const out: Record<string, number> = {};
@@ -56,23 +51,10 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
 }
 
 /**
- * Client-side mirror of the backend tier thresholds
- * ([approval-probability.scorer.ts](../../../../../backend/src/matching/scoring/approval-probability.scorer.ts)).
- * Preview only — the backend stays the source of truth; the formula is constitution-frozen.
- */
-const tierFor = (probability: number): ApprovalTier => {
-  if (probability >= 0.8) return 'excellent';
-  if (probability >= 0.6) return 'good';
-  if (probability >= 0.4) return 'moderate';
-  if (probability >= 0.2) return 'low';
-  return 'very_low';
-};
-
-/**
- * Scoring weights editor — "Weight Studio" (Constitution V — direct save, v8.0.0).
+ * Scoring weights editor (Constitution V — direct save, v8.0.0).
  * TWO levels, per program: each QUESTION has an importance **weight** (all summing to 100,
- * tracked by the top budget bar) and each ANSWER a **score 0–100**. A live what-if gauge
- * mirrors `probability = Σ(questionWeight÷100 × pickedScore÷100)`. Questions render as an
+ * tracked by the sticky budget strip) and each ANSWER a **score 0–100** —
+ * `probability = Σ(questionWeight÷100 × pickedScore÷100)`. Questions render as an
  * accordion (first open). Save is blocked until the weights total exactly 100.
  */
 @Component({
@@ -84,7 +66,6 @@ const tierFor = (probability: number): ApprovalTier => {
     ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
-    NzCollapseModule,
     NzSliderModule,
     NzEmptyModule,
     NzSpinModule,
@@ -102,13 +83,6 @@ const tierFor = (probability: number): ApprovalTier => {
             <span class="prog">{{ programName(p) }}</span>
             <span class="cat-chip">{{ p.category }}</span>
           </p>
-          <p class="caption">
-            <span i18n="@@scoring.editor.hint"
-              >Weights are specific to this program — other programs at this bank are weighted
-              independently.</span
-            >
-            <span class="mono id">{{ programId }}</span>
-          </p>
         }
       </header>
 
@@ -122,188 +96,109 @@ const tierFor = (probability: number): ApprovalTier => {
           />
         </div>
       } @else {
-        <div class="studio">
-          <!-- LEFT — weight + score editors --------------------------------- -->
-          <section
-            class="questions"
-            aria-label="Scoring weights"
-            i18n-aria-label="@@scoring.editor.editors_aria"
+        <!-- Governor: question weights must total exactly 100 -->
+        <div class="budget-strip" [class.is-bad]="!weightSumOk()">
+          <span class="budget-label" i18n="@@scoring.editor.weight_budget">Question weights</span>
+          <span class="budget-val"
+            >{{ weightSum() | number: '1.0-1' }}<span class="budget-unit"> / 100</span></span
           >
-            <p class="intro" i18n="@@scoring.editor.points_intro">
-              Give each question a weight (how much it matters) — all question weights must total
-              100%. Then score each answer 0–100 (how favorable it is).
-            </p>
+          <div class="budget-bar">
+            <span class="budget-fill" [style.inline-size.%]="weightBarPct()"></span>
+          </div>
+          @if (!weightSumOk()) {
+            <span class="budget-hint" aria-live="polite" i18n="@@scoring.editor.weight_sum_bad"
+              >All question weights must total exactly 100%.</span
+            >
+          }
+        </div>
 
-            <!-- Top budget: question weights must total 100 -->
-            <div class="wbudget" [class.bad]="!weightSumOk()">
-              <div class="wbudget-top">
-                <span class="wbudget-label" i18n="@@scoring.editor.weight_budget"
-                  >Question weights</span
-                >
-                <span class="wbudget-val"
-                  >{{ weightSum() | number: '1.0-1' }}<span class="wbudget-unit"> / 100</span></span
-                >
-              </div>
-              <div class="wbudget-bar">
-                <span class="wbudget-fill" [style.inline-size.%]="weightBarPct()"></span>
-              </div>
-              @if (!weightSumOk()) {
-                <p class="wbudget-hint" i18n="@@scoring.editor.weight_sum_bad">
-                  All question weights must total exactly 100%.
-                </p>
-              }
-            </div>
-
-            <form [formGroup]="form">
-              <nz-collapse class="qaccordion" nzAccordion>
-                @for (q of questions(); track q.code) {
-                  <nz-collapse-panel
-                    [nzActive]="openPanel() === q.code"
-                    (nzActiveChange)="openPanel.set($event ? q.code : null)"
-                    [nzHeader]="qHeader"
-                    [nzExtra]="qExtra"
-                  >
-                    <ng-template #qHeader>
-                      <span class="qlabel">{{ questionLabel(q) }}</span>
-                      <span class="qcode mono">{{ q.code }}</span>
-                    </ng-template>
-                    <ng-template #qExtra>
-                      <span class="qweight-chip"
-                        >{{ weightOf(q.code) | number: '1.0-1' }}%
-                        <span class="qweight-chip-label" i18n="@@scoring.editor.weight"
-                          >weight</span
-                        >
-                      </span>
-                    </ng-template>
-
-                    <!-- Level 1: question weight (importance) — slider + live % readout -->
-                    <div class="qweight-block">
-                      <div class="qweight-head">
-                        <div class="qweight-text">
-                          <span class="qweight-name" i18n="@@scoring.editor.q_weight"
-                            >Question weight (importance)</span
-                          >
-                          <span class="qweight-sub" i18n="@@scoring.editor.q_weight_hint"
-                            >share of the 100% across all questions</span
-                          >
-                        </div>
-                        <span class="qweight-readout">{{ weightOf(q.code) | number: '1.0-0'
-                          }}<span class="qweight-unit">%</span></span
-                        >
-                      </div>
-                      <nz-slider
-                        class="qweight-slider"
-                        [formControlName]="weightKey(q.code)"
-                        [nzMin]="0"
-                        [nzMax]="100"
-                        [nzStep]="1"
-                        aria-label="question weight"
-                        i18n-aria-label="@@scoring.editor.q_weight_aria"
-                      />
-                    </div>
-
-                    <!-- Level 2: answer scores (quality) -->
-                    <p class="ascore-head" i18n="@@scoring.editor.answer_scores">
-                      Answer scores — how favorable each answer is (0–100)
-                    </p>
-                    <div class="answers">
-                      @for (o of q.options; track o.code) {
-                        <div class="answer" [class.is-top]="isTop(q.code, o.code)">
-                          <div class="answer-head">
-                            <span class="answer-label">{{ optionLabel(o) }}</span>
-                            @if (isTop(q.code, o.code)) {
-                              <span class="top-pill" i18n="@@scoring.editor.top">★ Top</span>
-                            }
-                            <span
-                              class="pts-readout"
-                              [class.is-top]="isTop(q.code, o.code)"
-                              aria-hidden="true"
-                              >{{ scoreOf(q.code, o.code) | number: '1.0-0'
-                              }}<span class="pts-unit">%</span></span
-                            >
-                          </div>
-                          <nz-slider
-                            class="pts-slider"
-                            [formControlName]="scoreKey(q.code, o.code)"
-                            [nzMin]="0"
-                            [nzMax]="100"
-                            [nzStep]="1"
-                          />
-                        </div>
-                      }
-                    </div>
-                  </nz-collapse-panel>
-                }
-              </nz-collapse>
-            </form>
-          </section>
-
-          <!-- RIGHT — live approval preview --------------------------------- -->
-          <aside class="rail">
-            <div class="preview">
-              <p class="preview-eyebrow" i18n="@@scoring.editor.preview_title">
-                Approval probability
-              </p>
-
-              <div class="gauge" [attr.data-tier]="tier()">
-                <svg viewBox="0 0 140 140" class="gauge-svg" aria-hidden="true">
-                  <circle class="gauge-track" cx="70" cy="70" [attr.r]="gaugeR" />
-                  <circle
-                    class="gauge-fill"
-                    cx="70"
-                    cy="70"
-                    [attr.r]="gaugeR"
-                    [attr.stroke-dasharray]="gaugeC"
-                    [attr.stroke-dashoffset]="dashOffset()"
-                  />
-                </svg>
-                <div class="gauge-center">
-                  <span class="gauge-pct"
-                    >{{ pct() | number: '1.0-1' }}<span class="gauge-unit">%</span></span
-                  >
-                  <span class="gauge-tier">{{ tierLabel(tier()) }}</span>
-                </div>
-              </div>
-
-              <p class="preview-sub" i18n="@@scoring.editor.preview_sub">
-                If the applicant picks these answers
-              </p>
-
+        <form class="workbench" [formGroup]="form">
+          <!-- Left rail: every question + its live weight; one click to edit -->
+          <aside class="qlist" aria-label="Questions" i18n-aria-label="@@scoring.editor.qlist_aria">
+            <p class="qlist-head" i18n="@@scoring.editor.qlist_head">Questions</p>
+            @for (q of questions(); track q.code) {
               <button
                 type="button"
-                class="reset"
-                (click)="resetToBest()"
-                i18n="@@scoring.editor.reset_best"
+                class="q-row"
+                [class.active]="selected() === q.code"
+                [attr.aria-current]="selected() === q.code"
+                (click)="selected.set(q.code)"
               >
-                Reset to best answers
+                <span class="q-name">{{ questionLabel(q) }}</span>
+                @if (questionIncomplete(q)) {
+                  <span
+                    class="attn"
+                    title="Needs a weight and answer scores above 0"
+                    i18n-title="@@scoring.editor.attn"
+                  ></span>
+                }
+                <span class="q-weight">{{ weightOf(q.code) | number: '1.0-0' }}%</span>
               </button>
+            }
+          </aside>
 
-              <p class="whatif-hint" i18n="@@scoring.editor.whatif_hint">
-                Tap an answer to simulate a different applicant.
+          <!-- Right canvas: the selected question's weight + answer scores -->
+          @if (selectedQuestion(); as q) {
+            <section class="canvas">
+              <header class="canvas-head">
+                <h2 class="qlabel">{{ questionLabel(q) }}</h2>
+                <span class="qcode mono">{{ q.code }}</span>
+              </header>
+
+              <!-- Level 1: question weight (importance) — slider + live % readout -->
+              <div class="qweight-block">
+                <div class="qweight-head">
+                  <span class="qweight-name" i18n="@@scoring.editor.q_weight"
+                    >Question weight (importance)</span
+                  >
+                  <span class="qweight-readout">{{ weightOf(q.code) | number: '1.0-0'
+                    }}<span class="qweight-unit">%</span></span
+                  >
+                </div>
+                <nz-slider
+                  class="qweight-slider"
+                  [formControlName]="weightKey(q.code)"
+                  [nzMin]="0"
+                  [nzMax]="100"
+                  [nzStep]="1"
+                  aria-label="question weight"
+                  i18n-aria-label="@@scoring.editor.q_weight_aria"
+                />
+              </div>
+
+              <!-- Level 2: answer scores — one row each: label (+Top) · slider · readout -->
+              <p class="ascore-head" i18n="@@scoring.editor.answer_scores">
+                Answer scores — how favorable each answer is (0–100)
               </p>
-              <div class="whatif">
-                @for (q of questions(); track q.code) {
-                  <div class="whatif-q">
-                    <span class="whatif-label">{{ questionLabel(q) }}</span>
-                    <div class="chips">
-                      @for (o of q.options; track o.code) {
-                        <button
-                          type="button"
-                          class="chip"
-                          [class.active]="isPicked(q.code, o.code)"
-                          [attr.aria-pressed]="isPicked(q.code, o.code)"
-                          (click)="pickAnswer(q.code, o.code)"
-                        >
-                          {{ optionLabel(o) }}
-                        </button>
+              <div class="answers">
+                @for (o of q.options; track o.code) {
+                  <div class="answer-row">
+                    <span class="answer-label"
+                      >{{ optionLabel(o) }}
+                      @if (isTop(q.code, o.code)) {
+                        <span class="top-pill" i18n="@@scoring.editor.top">★ Top</span>
                       }
-                    </div>
+                    </span>
+                    <nz-slider
+                      class="pts-slider"
+                      [formControlName]="scoreKey(q.code, o.code)"
+                      [nzMin]="0"
+                      [nzMax]="100"
+                      [nzStep]="1"
+                    />
+                    <span
+                      class="pts-readout"
+                      [class.is-top]="isTop(q.code, o.code)"
+                      aria-hidden="true"
+                      >{{ scoreOf(q.code, o.code) | number: '1.0-0'
+                      }}<span class="pts-unit">%</span></span
+                    >
                   </div>
                 }
               </div>
-            </div>
-          </aside>
-        </div>
+            </section>
+          }
+        </form>
 
         <div class="savebar">
           @if (!weightSumOk()) {
@@ -338,22 +233,34 @@ const tierFor = (probability: number): ApprovalTier => {
   `,
   styles: [
     `
+      :host {
+        display: block;
+        block-size: 100%;
+      }
+      /* Full-height column: hero + governor + workbench (fills) + save bar.
+         The PAGE never scrolls — the rail and canvas scroll inside themselves.
+         No own padding: the shell's <main class="content"> already gutters us, and
+         a second pad on top of block-size:100% would overflow and re-add a scroll. */
       .page {
-        padding: var(--space-6);
-        max-inline-size: min(1180px, 100%);
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        min-block-size: 0;
+        block-size: 100%;
+        max-inline-size: min(1100px, 100%);
         margin-inline: auto;
-        padding-block-end: var(--space-9);
       }
 
       /* ── Hero ─────────────────────────────────────────────────────────── */
       .hero {
         position: relative;
         overflow: hidden;
+        flex: 0 0 auto;
         background: var(--bg-surface);
         border: 1px solid var(--border-default);
         border-radius: var(--radius-lg);
-        padding: var(--space-5) var(--space-5) var(--space-4);
-        margin-block-end: var(--space-5);
+        padding: var(--space-4) var(--space-5);
+        margin-block-end: var(--space-4);
         box-shadow: var(--shadow-sm);
       }
       .hero-accent {
@@ -404,19 +311,6 @@ const tierFor = (probability: number): ApprovalTier => {
         padding-inline: var(--space-3);
         border-radius: var(--radius-pill);
       }
-      .caption {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2);
-        align-items: center;
-        margin-block-start: var(--space-1);
-        font-size: var(--text-sm);
-        color: var(--text-tertiary);
-      }
-      .caption .id {
-        font-size: var(--text-xs);
-        opacity: 0.85;
-      }
       .mono {
         font-family: var(--font-mono);
       }
@@ -433,82 +327,55 @@ const tierFor = (probability: number): ApprovalTier => {
         justify-content: center;
       }
 
-      /* ── Studio layout ────────────────────────────────────────────────── */
-      .studio {
+      /* ── Weight governor — always-visible, flex-none top of the column ── */
+      .budget-strip {
+        flex: 0 0 auto;
         display: flex;
-        flex-direction: column;
-        gap: var(--space-5);
-      }
-      .rail {
-        order: -1;
-      }
-      @media (min-width: 900px) {
-        .studio {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) 340px;
-          gap: var(--space-6);
-          align-items: start;
-        }
-        .rail {
-          order: 0;
-        }
-      }
-
-      .intro {
-        margin-block: 0 var(--space-4);
-        color: var(--text-secondary);
-        font-size: var(--text-sm);
-        line-height: var(--leading-relaxed);
-        max-inline-size: 64ch;
-      }
-
-      /* ── Weight budget (question weights must total 100) ──────────────── */
-      .wbudget {
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-2) var(--space-4);
+        padding: var(--space-3) var(--space-5);
+        margin-block-end: var(--space-4);
         background: var(--bg-surface);
         border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        padding: var(--space-4) var(--space-5);
-        margin-block-end: var(--space-4);
+        border-radius: var(--radius-md);
         box-shadow: var(--shadow-sm);
+        transition: border-color var(--motion-duration-base) var(--motion-easing-standard);
       }
-      .wbudget.bad {
+      .budget-strip.is-bad {
         border-color: var(--error);
       }
-      .wbudget-top {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: var(--space-2);
-      }
-      .wbudget-label {
+      .budget-label {
         font-size: var(--text-sm);
         font-weight: var(--font-semibold);
         color: var(--text-secondary);
+        white-space: nowrap;
       }
-      .wbudget-val {
+      .budget-val {
         font-size: var(--text-xl);
         font-weight: var(--font-bold);
         color: var(--text-primary);
+        white-space: nowrap;
         font-feature-settings:
           'tnum' 1,
           'lnum' 1;
       }
-      .wbudget.bad .wbudget-val {
+      .budget-strip.is-bad .budget-val {
         color: var(--error);
       }
-      .wbudget-unit {
+      .budget-unit {
         font-size: var(--text-sm);
         font-weight: var(--font-normal);
         color: var(--text-tertiary);
       }
-      .wbudget-bar {
+      .budget-bar {
+        flex: 1 1 120px;
         block-size: 8px;
         border-radius: var(--radius-pill);
         background: var(--bg-muted);
         overflow: hidden;
-        margin-block-start: var(--space-2);
       }
-      .wbudget-fill {
+      .budget-fill {
         display: block;
         block-size: 100%;
         background: var(--primary);
@@ -517,56 +384,124 @@ const tierFor = (probability: number): ApprovalTier => {
           inline-size var(--motion-duration-base) var(--motion-easing-standard),
           background var(--motion-duration-base) var(--motion-easing-standard);
       }
-      .wbudget.bad .wbudget-fill {
+      .budget-strip.is-bad .budget-fill {
         background: var(--error);
       }
-      .wbudget-hint {
-        margin-block: var(--space-2) 0;
+      .budget-hint {
+        flex-basis: 100%;
+        margin: 0;
         font-size: var(--text-xs);
         font-weight: var(--font-medium);
         color: var(--error);
       }
 
-      /* ── Accordion (one question per panel) ───────────────────────────── */
-      .qaccordion {
-        display: block;
-        border: none;
-        background: transparent;
+      /* ── Workbench: master–detail (question rail + editor canvas) ─────── */
+      .workbench {
+        flex: 1 1 auto;
+        min-block-size: 0;
+        display: grid;
+        grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+        gap: var(--space-5);
       }
-      .qaccordion ::ng-deep .ant-collapse {
-        border: none;
-        background: transparent;
-      }
-      .qaccordion ::ng-deep .ant-collapse-item {
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg) !important;
+
+      /* Left rail — scrolls inside itself so the page never does. */
+      .qlist {
+        min-block-size: 0;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--space-3);
         background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
         box-shadow: var(--shadow-sm);
-        overflow: hidden;
+      }
+      .qlist-head {
+        margin: 0 0 var(--space-1);
+        padding-inline: var(--space-2);
+        font-size: var(--text-xs);
+        font-weight: var(--font-bold);
+        letter-spacing: var(--tracking-wide);
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+      .q-row {
+        inline-size: 100%;
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border: 0;
+        border-inline-start: 3px solid transparent;
+        border-radius: var(--radius-md);
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: var(--text-sm);
+        font-weight: var(--font-medium);
+        text-align: start;
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .q-row:hover {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+      }
+      .q-row:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-halo);
+      }
+      .q-row.active {
+        border-inline-start-color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 8%, transparent);
+        color: var(--text-primary);
+        font-weight: var(--font-semibold);
+      }
+      .q-name {
+        flex: 1;
+        min-inline-size: 0;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: var(--leading-normal);
+      }
+      /* Amber dot = this question still blocks Save (no weight, or a 0 answer). */
+      .attn {
+        flex: none;
+        inline-size: 7px;
+        block-size: 7px;
+        border-radius: var(--radius-pill);
+        background: var(--warning);
+      }
+      .q-weight {
+        flex: none;
+        font-size: var(--text-xs);
+        font-weight: var(--font-bold);
+        color: var(--primary);
+        font-feature-settings:
+          'tnum' 1,
+          'lnum' 1;
+      }
+
+      /* Right canvas — the selected question's editor; scrolls if ever tall. */
+      .canvas {
+        min-block-size: 0;
+        overflow-y: auto;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: var(--space-5);
+      }
+      .canvas-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
         margin-block-end: var(--space-4);
       }
-      .qaccordion ::ng-deep .ant-collapse-item:last-child {
-        margin-block-end: 0;
-      }
-      .qaccordion ::ng-deep .ant-collapse-header {
-        align-items: center !important;
-        gap: var(--space-2);
-        padding: var(--space-4) var(--space-5) !important;
-        color: var(--text-primary) !important;
-      }
-      .qaccordion ::ng-deep .ant-collapse-item-active {
-        border-color: var(--primary);
-      }
-      .qaccordion ::ng-deep .ant-collapse-item-active .ant-collapse-header {
-        background: color-mix(in srgb, var(--primary) 5%, transparent);
-      }
-      .qaccordion ::ng-deep .ant-collapse-extra {
-        margin-inline-start: auto;
-      }
-      .qaccordion ::ng-deep .ant-collapse-content-box {
-        padding: var(--space-4) var(--space-5) var(--space-5) !important;
-      }
       .qlabel {
+        margin: 0;
         font-size: var(--text-lg);
         font-weight: var(--font-semibold);
         color: var(--text-primary);
@@ -578,24 +513,41 @@ const tierFor = (probability: number): ApprovalTier => {
         padding-block: 1px;
         padding-inline: var(--space-2);
         border-radius: var(--radius-sm);
-        margin-inline-start: var(--space-2);
       }
-      .qweight-chip {
-        font-size: var(--text-sm);
-        font-weight: var(--font-bold);
-        color: var(--primary);
-        background: var(--primary-subtle);
-        padding-block: 2px;
-        padding-inline: var(--space-3);
-        border-radius: var(--radius-pill);
-        white-space: nowrap;
-        font-feature-settings:
-          'tnum' 1,
-          'lnum' 1;
-      }
-      .qweight-chip-label {
-        font-weight: var(--font-normal);
-        font-size: var(--text-xs);
+
+      /* Narrow: stack panes, rail becomes a horizontal chip scroller, page scrolls. */
+      @media (max-width: 960px) {
+        .page {
+          block-size: auto;
+        }
+        .workbench {
+          grid-template-columns: 1fr;
+          min-block-size: auto;
+        }
+        .qlist {
+          flex-direction: row;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+        }
+        .qlist-head {
+          display: none;
+        }
+        .q-row {
+          inline-size: auto;
+          flex: 0 0 auto;
+          border-inline-start: 0;
+          border-block-end: 3px solid transparent;
+        }
+        .q-row.active {
+          border-block-end-color: var(--primary);
+        }
+        .q-name {
+          white-space: nowrap;
+        }
+        .canvas {
+          overflow: visible;
+        }
       }
 
       /* ── Level 1: question weight — slider + live % readout ───────────── */
@@ -612,18 +564,9 @@ const tierFor = (probability: number): ApprovalTier => {
         justify-content: space-between;
         gap: var(--space-4);
       }
-      .qweight-text {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
       .qweight-name {
         font-weight: var(--font-semibold);
         color: var(--text-primary);
-      }
-      .qweight-sub {
-        font-size: var(--text-xs);
-        color: var(--text-tertiary);
       }
       .qweight-readout {
         display: flex;
@@ -680,37 +623,37 @@ const tierFor = (probability: number): ApprovalTier => {
         box-shadow: var(--focus-halo);
       }
 
-      /* ── Level 2: answer scores ───────────────────────────────────────── */
+      /* ── Level 2: answer scores — one tidy row per answer ─────────────── */
       .ascore-head {
-        margin-block: 0 var(--space-2);
+        margin-block: 0 var(--space-3);
         font-size: var(--text-xs);
         font-weight: var(--font-semibold);
         letter-spacing: var(--tracking-wide);
         text-transform: uppercase;
         color: var(--text-tertiary);
       }
+      /* Grid lives on the container so every row's label/slider/readout share
+         the same columns (subgrid) — sliders + readouts align down the panel. */
       .answers {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: var(--space-3) var(--space-5);
+        grid-template-columns: minmax(12ch, 18ch) 1fr auto;
+        column-gap: var(--space-4);
+        row-gap: var(--space-1);
       }
-      .answer {
-        padding: var(--space-3) var(--space-3) var(--space-2);
-        border-radius: var(--radius-md);
-        border-inline-start: 3px solid transparent;
-        transition: background var(--motion-duration-base) var(--motion-easing-standard);
-      }
-      .answer.is-top {
-        background: color-mix(in srgb, var(--primary) 6%, transparent);
-        border-inline-start-color: var(--primary);
-      }
-      .answer-head {
-        display: flex;
+      .answer-row {
+        display: grid;
+        grid-template-columns: subgrid;
+        grid-column: 1 / -1;
         align-items: center;
-        gap: var(--space-3);
-        margin-block-end: var(--space-1);
+        padding-block: var(--space-1);
       }
       .answer-label {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        min-inline-size: 0;
+        font-size: var(--text-sm);
         font-weight: var(--font-medium);
         color: var(--text-primary);
       }
@@ -725,22 +668,15 @@ const tierFor = (probability: number): ApprovalTier => {
         white-space: nowrap;
       }
       .pts-readout {
-        margin-inline-start: auto;
-        min-inline-size: 44px;
-        padding-block: var(--space-1);
-        padding-inline: var(--space-2);
-        text-align: center;
-        font-size: var(--text-lg);
+        min-inline-size: 4ch;
+        text-align: end;
+        font-size: var(--text-base);
         font-weight: var(--font-bold);
         font-feature-settings:
           'tnum' 1,
           'lnum' 1;
         color: var(--text-primary);
-        background: var(--bg-subtle);
-        border-radius: var(--radius-md);
-        transition:
-          color var(--motion-duration-base) var(--motion-easing-standard),
-          background var(--motion-duration-base) var(--motion-easing-standard);
+        transition: color var(--motion-duration-base) var(--motion-easing-standard);
       }
       .pts-unit {
         font-size: var(--text-xs);
@@ -750,13 +686,18 @@ const tierFor = (probability: number): ApprovalTier => {
       }
       .pts-readout.is-top {
         color: var(--primary);
-        background: var(--primary-subtle);
       }
       .pts-readout.is-top .pts-unit {
         color: color-mix(in srgb, var(--primary) 60%, transparent);
       }
       .pts-slider {
-        margin-block-start: var(--space-1);
+        margin: 0;
+      }
+      /* Drop ant's tall default block margin so answer rows stay dense;
+         keep a little inline margin so the handle never clips at 0 / 100%. */
+      .pts-slider ::ng-deep .ant-slider {
+        margin-block: 0;
+        margin-inline: var(--space-2);
       }
       .pts-slider ::ng-deep .ant-slider-rail {
         block-size: 6px;
@@ -788,193 +729,15 @@ const tierFor = (probability: number): ApprovalTier => {
         box-shadow: var(--focus-halo);
       }
 
-      /* ── Preview rail ─────────────────────────────────────────────────── */
-      .preview {
-        position: sticky;
-        inset-block-start: var(--space-5);
-        background: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        padding: var(--space-5);
-        box-shadow: var(--shadow-md);
-      }
-      .preview-eyebrow {
-        margin: 0;
-        text-align: center;
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        letter-spacing: var(--tracking-wider);
-        text-transform: uppercase;
-        color: var(--text-tertiary);
-      }
-      .gauge {
-        position: relative;
-        inline-size: 180px;
-        block-size: 180px;
-        margin-inline: auto;
-        margin-block: var(--space-3) var(--space-2);
-      }
-      .gauge-svg {
-        inline-size: 100%;
-        block-size: 100%;
-        transform: rotate(-90deg);
-      }
-      .gauge-track {
-        fill: none;
-        stroke: var(--bg-muted);
-        stroke-width: 12;
-      }
-      .gauge-fill {
-        fill: none;
-        stroke-width: 12;
-        stroke-linecap: round;
-        stroke: var(--primary);
-        transition:
-          stroke-dashoffset var(--motion-duration-slow) var(--motion-easing-standard),
-          stroke var(--motion-duration-base) var(--motion-easing-standard);
-      }
-      .gauge[data-tier='excellent'] .gauge-fill {
-        stroke: var(--success);
-      }
-      .gauge[data-tier='good'] .gauge-fill {
-        stroke: var(--primary);
-      }
-      .gauge[data-tier='moderate'] .gauge-fill {
-        stroke: var(--warning);
-      }
-      .gauge[data-tier='low'] .gauge-fill,
-      .gauge[data-tier='very_low'] .gauge-fill {
-        stroke: var(--error);
-      }
-      .gauge-center {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-      }
-      .gauge-pct {
-        display: flex;
-        align-items: baseline;
-        font-size: var(--text-4xl);
-        font-weight: var(--font-bold);
-        line-height: 1;
-        color: var(--text-primary);
-        font-feature-settings:
-          'tnum' 1,
-          'lnum' 1;
-      }
-      .gauge-unit {
-        font-size: var(--text-xl);
-        margin-inline-start: 2px;
-        color: var(--text-secondary);
-      }
-      .gauge-tier {
-        margin-block-start: var(--space-2);
-        font-size: var(--text-sm);
-        font-weight: var(--font-semibold);
-      }
-      .gauge[data-tier='excellent'] .gauge-tier {
-        color: var(--success);
-      }
-      .gauge[data-tier='good'] .gauge-tier {
-        color: var(--primary);
-      }
-      .gauge[data-tier='moderate'] .gauge-tier {
-        color: var(--warning);
-      }
-      .gauge[data-tier='low'] .gauge-tier,
-      .gauge[data-tier='very_low'] .gauge-tier {
-        color: var(--error);
-      }
-      .preview-sub {
-        margin: 0 0 var(--space-4);
-        text-align: center;
-        font-size: var(--text-xs);
-        color: var(--text-tertiary);
-      }
-      .reset {
-        inline-size: 100%;
-        border: 1px solid var(--border-default);
-        background: var(--bg-subtle);
-        color: var(--text-secondary);
-        border-radius: var(--radius-md);
-        padding-block: var(--space-2);
-        font-size: var(--text-sm);
-        font-weight: var(--font-medium);
-        cursor: pointer;
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .reset:hover {
-        border-color: var(--primary);
-        color: var(--primary);
-      }
-      .reset:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
-      }
-      .whatif-hint {
-        margin-block: var(--space-4) var(--space-2);
-        font-size: var(--text-xs);
-        color: var(--text-tertiary);
-      }
-      .whatif {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-      }
-      .whatif-q {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-      }
-      .whatif-label {
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        color: var(--text-secondary);
-      }
-      .chips {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-1);
-      }
-      .chip {
-        border: 1px solid var(--border-default);
-        background: var(--bg-surface);
-        color: var(--text-secondary);
-        border-radius: var(--radius-pill);
-        padding-block: 3px;
-        padding-inline: var(--space-3);
-        font-size: var(--text-xs);
-        font-weight: var(--font-medium);
-        cursor: pointer;
-        transition: all var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .chip:hover {
-        border-color: var(--primary);
-        color: var(--primary);
-      }
-      .chip.active {
-        border-color: var(--primary);
-        background: var(--primary);
-        color: var(--text-on-primary);
-      }
-      .chip:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
-      }
-
-      /* ── Save bar ─────────────────────────────────────────────────────── */
+      /* ── Save bar — flex-none footer of the page column ───────────────── */
       .savebar {
+        flex: 0 0 auto;
         display: flex;
         align-items: center;
         justify-content: flex-end;
         gap: var(--space-4);
-        margin-block-start: var(--space-6);
-        padding-block-start: var(--space-5);
+        margin-block-start: var(--space-4);
+        padding-block-start: var(--space-4);
         border-block-start: 1px solid var(--border-default);
       }
       .dirty {
@@ -990,11 +753,9 @@ const tierFor = (probability: number): ApprovalTier => {
 
       /* ── Reduced motion ───────────────────────────────────────────────── */
       @media (prefers-reduced-motion: reduce) {
-        .gauge-fill,
-        .wbudget-fill,
-        .answer,
-        .reset,
-        .chip,
+        .budget-strip,
+        .budget-fill,
+        .answer-row,
         .pts-readout,
         .pts-slider ::ng-deep .ant-slider-handle,
         .qweight-slider ::ng-deep .ant-slider-handle {
@@ -1021,20 +782,18 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly program = signal<ProgramMeta | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
-  /** Accordion: the single open question (by code); the first question opens on load. */
-  readonly openPanel = signal<string | null>(null);
+  /** Master–detail: the question being edited (by code); the first opens on load. */
+  readonly selected = signal<string | null>(null);
+  /** The question object for the selected code — drives the right-hand editor pane. */
+  readonly selectedQuestion = computed<WeightableQuestion | null>(
+    () => this.questions().find((q) => q.code === this.selected()) ?? null,
+  );
 
   readonly form = new FormGroup<Record<string, FormControl<number>>>({});
-  /** Bumps whenever any weight/score changes so the preview computeds recompute. */
+  /** Bumps whenever any weight/score changes so the derived weight/score signals recompute. */
   private readonly formTick = toSignal(this.form.valueChanges.pipe(startWith(null)), {
     initialValue: null,
   });
-  /** The applicant's simulated pick: one optionCode per question. */
-  private readonly selected = signal<Record<string, string>>({});
-
-  /** Gauge geometry — radius + circumference for the SVG arc. */
-  readonly gaugeR = 54;
-  readonly gaugeC = 2 * Math.PI * 54;
 
   /** Live two-level scoring rebuilt from the form on every change. */
   readonly scoring = computed<ProgramScoringWeights>(() => {
@@ -1070,7 +829,7 @@ export class ScoringWeightsEditorPage implements OnInit {
     () => this.weightSumOk() && this.allWeightsPositive() && this.allScoresPositive(),
   );
 
-  /** Per-question highest-scoring option — feeds the "Top" marker + best what-if. */
+  /** Per-question highest-scoring option — feeds the "Top" marker. */
   readonly bestByQuestion = computed<Record<string, string>>(() => {
     const scores = this.scoreValues();
     const out: Record<string, string> = {};
@@ -1089,25 +848,6 @@ export class ScoringWeightsEditorPage implements OnInit {
     return out;
   });
 
-  /** probability = Σ ( questionWeight/100 × pickedScore/100 ) over the simulated answers. */
-  readonly probability = computed<number>(() => {
-    const weights = this.weightValues();
-    const scores = this.scoreValues();
-    const sel = this.selected();
-    let total = 0;
-    for (const q of this.questions()) {
-      const oc = sel[q.code];
-      if (!oc) continue;
-      const weight = weights[q.code] ?? 0;
-      const score = scores[q.code]?.[oc] ?? 0;
-      total += (weight / 100) * (score / 100);
-    }
-    return clamp01(total);
-  });
-  readonly pct = computed<number>(() => this.probability() * 100);
-  readonly tier = computed<ApprovalTier>(() => tierFor(this.probability()));
-  readonly dashOffset = computed<number>(() => this.gaugeC * (1 - this.probability()));
-
   async ngOnInit(): Promise<void> {
     try {
       const [questions, weights] = await Promise.all([
@@ -1115,7 +855,7 @@ export class ScoringWeightsEditorPage implements OnInit {
         this.api.programWeights(this.programId),
       ]);
       this.questions.set(questions);
-      this.openPanel.set(questions[0]?.code ?? null);
+      this.selected.set(questions[0]?.code ?? null);
       this.program.set(weights.program);
 
       const active = weights.active?.weights;
@@ -1136,8 +876,6 @@ export class ScoringWeightsEditorPage implements OnInit {
           this.form.addControl(scoreKey(q.code, o.code), this.numberControl(s));
         }
       }
-      // Default the what-if to the best (highest-scoring) answer per question.
-      this.selected.set({ ...this.bestByQuestion() });
     } finally {
       this.loading.set(false);
     }
@@ -1193,32 +931,11 @@ export class ScoringWeightsEditorPage implements OnInit {
     return this.bestByQuestion()[questionCode] === optionCode;
   }
 
-  /** True when this option is the simulated pick for its question. */
-  isPicked(questionCode: string, optionCode: string): boolean {
-    return this.selected()[questionCode] === optionCode;
-  }
-
-  pickAnswer(questionCode: string, optionCode: string): void {
-    this.selected.update((s) => ({ ...s, [questionCode]: optionCode }));
-  }
-
-  resetToBest(): void {
-    this.selected.set({ ...this.bestByQuestion() });
-  }
-
-  tierLabel(t: ApprovalTier): string {
-    switch (t) {
-      case 'excellent':
-        return $localize`:@@scoring.editor.tier_excellent:Excellent`;
-      case 'good':
-        return $localize`:@@scoring.editor.tier_good:Good`;
-      case 'moderate':
-        return $localize`:@@scoring.editor.tier_moderate:Moderate`;
-      case 'low':
-        return $localize`:@@scoring.editor.tier_low:Low`;
-      default:
-        return $localize`:@@scoring.editor.tier_very_low:Very low`;
-    }
+  /** A question still needs work: no weight yet, or some answer left at 0 — flags the rail row. */
+  questionIncomplete(q: WeightableQuestion): boolean {
+    if ((this.weightValues()[q.code] ?? 0) <= 0) return true;
+    const scores = this.scoreValues()[q.code] ?? {};
+    return q.options.some((o) => (scores[o.code] ?? 0) <= 0);
   }
 
   /** Reduce the flat composite form value into the two-level scoring payload. */

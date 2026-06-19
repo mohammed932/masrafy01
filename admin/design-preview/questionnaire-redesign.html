@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Questionnaires — redesign preview</title>
+    <style>
+      :root {
+        --bg-base: #f8f6f4;
+        --surface: #fdfcfb;
+        --muted: #efeae5;
+        --border: #ddd8d3;
+        --border-subtle: #efeae5;
+        --text-primary: #2b2320;
+        --text-secondary: #6b5d54;
+        --text-tertiary: #8c7e75;
+        --text-muted: #b8aca3;
+        --primary: #0869c3;
+        --accent: #a17c5b;
+        --success: #2d5f3f;
+        --warning: #c8893d;
+        --cat-personal: #0869c3;
+        --cat-car: #a17c5b;
+        --cat-mortgage: #3d5a80;
+        --cat-business: #2d5f3f;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --radius-pill: 999px;
+        --shadow-sm: 0 1px 2px rgba(43, 35, 32, 0.06);
+        --shadow-md: 0 4px 6px -1px rgba(43, 35, 32, 0.08);
+        --s1: 4px;
+        --s2: 8px;
+        --s3: 12px;
+        --s4: 16px;
+        --s5: 24px;
+        --s6: 32px;
+        --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg-base);
+        color: var(--text-primary);
+        font-family: var(--font);
+        -webkit-font-smoothing: antialiased;
+      }
+      .topbar {
+        height: 64px;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-inline: var(--s6);
+        color: #fff;
+      }
+      .topbar .who {
+        display: flex;
+        align-items: center;
+        gap: var(--s3);
+        background: rgba(255, 255, 255, 0.14);
+        border-radius: var(--radius-pill);
+        padding: 6px 14px 6px 6px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .topbar .av {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.25);
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+      }
+      .page {
+        max-width: 1280px;
+        margin-inline: auto;
+        padding: var(--s6);
+        display: flex;
+        flex-direction: column;
+        gap: var(--s5);
+      }
+      /* page-header */
+      .header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: var(--s5);
+        align-items: end;
+        padding-block-end: var(--s4);
+        border-block-end: 1px solid var(--border);
+      }
+      .eyebrow {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      .title {
+        margin: 4px 0 0;
+        font-size: 30px;
+        font-weight: 800;
+        letter-spacing: -0.015em;
+      }
+      .subtitle {
+        margin: 8px 0 0;
+        max-width: 56ch;
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      /* stat strip */
+      .strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: var(--s4);
+        margin: 0;
+      }
+      .stat {
+        display: flex;
+        flex-direction: column;
+        padding: var(--s4) var(--s5);
+        background: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+      }
+      .stat .shead {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-block-end: var(--s3);
+      }
+      .stat dt {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+      .chip {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+      }
+      .chip.success { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+      .chip.brand { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+      .chip.warning { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
+      .stat dd {
+        margin: 0;
+        font-size: 30px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.01em;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat dd.success { color: var(--success); }
+      .stat dd.warning { color: var(--warning); }
+      .stat .hint {
+        margin-block-start: var(--s2);
+        font-size: 12px;
+        color: var(--text-tertiary);
+      }
+      /* cards */
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: var(--s4);
+      }
+      .card {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: var(--s4);
+        min-height: 200px;
+        padding: var(--s5);
+        padding-inline-start: calc(var(--s5) + 4px);
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 180ms cubic-bezier(0.2, 0, 0, 1), box-shadow 180ms, border-color 180ms;
+      }
+      .card::before {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        width: 4px;
+        background: var(--cat);
+      }
+      .card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: color-mix(in srgb, var(--cat) 45%, var(--border));
+      }
+      .chead { display: flex; align-items: center; gap: var(--s3); }
+      .icon-chip {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+        background: color-mix(in srgb, var(--cat) 14%, transparent);
+        color: var(--cat);
+        flex-shrink: 0;
+      }
+      .cname { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--s1);
+        margin-inline-start: auto;
+        padding: 3px 10px;
+        border-radius: var(--radius-pill);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+      .pill.live { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+      .pill.idle { background: var(--muted); color: var(--text-tertiary); }
+      .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+      .published { display: flex; align-items: center; gap: var(--s2); margin: 0; font-size: 14px; color: var(--text-secondary); }
+      .published .ic { color: var(--text-tertiary); }
+      .edit {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        align-self: flex-end;
+        margin-block-start: auto;
+        padding: 8px 16px;
+        border-radius: var(--radius-pill);
+        background: color-mix(in srgb, var(--cat) 12%, transparent);
+        color: var(--cat);
+        font-size: 14px;
+        font-weight: 600;
+        transition: background 120ms ease;
+      }
+      .card:hover .edit { background: color-mix(in srgb, var(--cat) 22%, transparent); }
+      .ic { width: 1em; height: 1em; display: inline-block; }
+      .legend { font-size: 13px; color: var(--text-tertiary); text-align: center; padding-block: var(--s4); }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="who"><span class="av">OP</span> Operations · SUPER-ADMIN</div>
+    </div>
+    <main class="page">
+      <header class="header">
+        <div>
+          <p class="eyebrow">Matching engine</p>
+          <h1 class="title">Questionnaires</h1>
+          <p class="subtitle">One published version per loan category drives the mobile questionnaire.</p>
+        </div>
+      </header>
+
+      <div class="cards">
+        <article class="card" style="--cat: var(--cat-personal)">
+          <div class="chead">
+            <span class="icon-chip">&#128100;</span>
+            <h2 class="cname">Personal Loan</h2>
+          </div>
+          <p class="published"><span class="ic">&#128339;</span>Published 3 days ago</p>
+        </article>
+
+        <article class="card" style="--cat: var(--cat-car)">
+          <div class="chead">
+            <span class="icon-chip">&#128663;</span>
+            <h2 class="cname">Auto Loan</h2>
+          </div>
+          <p class="published"><span class="ic">&#128339;</span>Published 1 minute ago</p>
+        </article>
+
+        <article class="card" style="--cat: var(--cat-mortgage)">
+          <div class="chead">
+            <span class="icon-chip">&#127968;</span>
+            <h2 class="cname">Mortgage</h2>
+          </div>
+          <p class="published"><span class="ic">&#128339;</span>Published yesterday</p>
+        </article>
+
+        <article class="card" style="--cat: var(--cat-business)">
+          <div class="chead">
+            <span class="icon-chip">&#127978;</span>
+            <h2 class="cname">Business Loan</h2>
+          </div>
+          <p class="published"><span class="ic">&#128339;</span>Published yesterday</p>
+        </article>
+      </div>
+
+      <p class="legend">Static HTML preview · real component uses ng-zorro icons + design tokens (light/dark, RTL)</p>
+    </main>
+  </body>
+</html>

@@ -1,12 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzInputModule } from 'ng-zorro-antd/input';
-import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import {
@@ -16,33 +12,42 @@ import {
   DeleteOutline,
   WarningOutline,
   SlidersOutline,
+  AppstoreOutline,
+  BankOutline,
+  CarOutline,
+  HomeOutline,
+  ShopOutline,
+  UserOutline,
 } from '@ant-design/icons-angular/icons';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { CanDirective } from '../../../shared/can.directive';
 import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
-import { CloneProgramDialog, type CloneProgramDialogData } from '../clone/clone-program.dialog';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
-import { CascadePreviewComponent, type CascadeApplicantContext } from './cascade-preview.component';
 import type { BankProgramResponse } from '../bank-programs.types';
 
+/**
+ * Bank-program detail — drill-down target of a bank's program list
+ * (`/banks/programs/:programCode`).
+ *
+ * Read-only summary of one program's stored configuration (identity, tenor,
+ * loan limits, pricing, eligibility, fees) plus the row actions (edit, scoring
+ * weights, delete). The rate-cascade "what-if" simulator was removed for
+ * MVP — pricing-tier resolution is exercised by the matching engine, not by an
+ * admin debug panel.
+ */
 @Component({
   selector: 'app-bank-program-detail-page',
   standalone: true,
   imports: [
     CommonModule,
-    ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
-    NzFormModule,
     NzIconModule,
-    NzInputModule,
-    NzSelectModule,
     NzSpinModule,
     CanDirective,
     HumanizePipe,
-    CascadePreviewComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -52,37 +57,45 @@ import type { BankProgramResponse } from '../bank-programs.types';
       DeleteOutline,
       WarningOutline,
       SlidersOutline,
+      AppstoreOutline,
+      BankOutline,
+      CarOutline,
+      HomeOutline,
+      ShopOutline,
+      UserOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (program()) {
+    @if (program(); as p) {
     <section class="page">
-      <header class="page-header">
-        <a [routerLink]="backLink()" class="back-link">
-          <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.detail.back">Back to bank</span>
-        </a>
-        <div class="title-row">
-          <h1 class="page-title">{{ program()!.friendlyName }}</h1>
-          <span
-            class="status-chip"
-            [class.active]="program()!.active"
-            [class.inactive]="!program()!.active"
-          >
-            {{ program()!.active ? activeLabel() : inactiveLabel() }}
-          </span>
+      <a [routerLink]="backLink()" class="back">
+        <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
+        <span i18n="@@bank_programs.detail.back">Back to bank</span>
+      </a>
+
+      <header class="hero">
+        <span class="cat-badge" aria-hidden="true">
+          <span nz-icon [nzType]="catIcon(p.productCategory)" nzTheme="outline"></span>
+        </span>
+
+        <div class="hero-text">
+          <span class="eyebrow">{{ p.bankName }}</span>
+          <h1 class="title">
+            {{ p.friendlyName }}
+            <span class="status-chip" [class.active]="p.active">
+              <span class="dot" aria-hidden="true"></span>
+              {{ p.active ? activeLabel() : inactiveLabel() }}
+            </span>
+          </h1>
+          <p class="sub">{{ p.productCategory | humanize }} · {{ p.programType | humanize }} · v{{ p.version }}</p>
         </div>
-        <p class="page-subtitle">
-          {{ program()!.bankName }} · {{ program()!.productCategory | humanize }} · v{{
-            program()!.version
-          }}
-        </p>
-        <div class="actions">
+
+        <div class="hero-actions">
           <a
             *can="['super_admin', 'sales_manager']"
             nz-button
-            [routerLink]="['/banks/programs', program()!.programCode, 'edit']"
+            [routerLink]="['/banks/programs', p.programCode, 'edit']"
           >
             <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
             <span i18n="@@bank_programs.action.edit">Edit</span>
@@ -90,242 +103,180 @@ import type { BankProgramResponse } from '../bank-programs.types';
           <a
             *can="['super_admin', 'sales_manager']"
             nz-button
-            [routerLink]="['/scoring', 'weights', program()!.productCategory.toLowerCase(), program()!.id]"
+            [routerLink]="['/scoring', 'weights', p.productCategory.toLowerCase(), p.id]"
           >
             <span nz-icon nzType="sliders" nzTheme="outline" aria-hidden="true"></span>
             <span i18n="@@bank_programs.action.scoring_weights">Scoring weights</span>
           </a>
-          <button *can="['super_admin', 'sales_manager']" nz-button (click)="openClone()">
-            <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@bank_programs.action.clone">Clone</span>
-          </button>
-          <button *can="['super_admin']" nz-button nzDanger (click)="openDelete()">
+          <button
+            *can="['super_admin']"
+            nz-button
+            nzType="text"
+            nzShape="circle"
+            nzDanger
+            (click)="openDelete()"
+            aria-label="Delete program"
+            i18n-aria-label="@@bank_programs.action.delete"
+          >
             <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@bank_programs.action.delete">Delete</span>
           </button>
         </div>
       </header>
 
-      @if (program()!.deprecatedKeys.length > 0) {
-        <div class="deprecated-banner">
+      @if (p.deprecatedKeys.length > 0) {
+        <div class="deprecated-banner" role="status">
           <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.detail.deprecated_banner">
-            {{ program()!.deprecatedKeys.length }} tier key(s) have been deprecated in the registry —
-            review.
+            {{ p.deprecatedKeys.length }} tier key(s) have been deprecated in the registry — review.
           </span>
         </div>
       }
 
-      <div class="layout">
-        <div class="main">
-          <section class="card">
-            <h3 class="card-title" i18n="@@bank_programs.section.identity">Identity</h3>
-            <dl class="kv">
+      <div class="grid">
+        <section class="card">
+          <h2 class="card-title" i18n="@@bank_programs.section.identity">Identity</h2>
+          <dl class="kv">
+            <div class="row">
+              <dt i18n="@@bank_programs.field.program_code">Program code</dt>
+              <dd>{{ p.programCode }}</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.bank_name">Bank</dt>
-              <dd>{{ program()!.bankName }}</dd>
+              <dd>{{ p.bankName }}</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.friendly_name">Friendly name</dt>
-              <dd>{{ program()!.friendlyName }}</dd>
-              <dt i18n="@@bank_programs.field.program_type">Type</dt>
-              <dd>{{ program()!.programType | humanize }}</dd>
+              <dd>{{ p.friendlyName }}</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.product_category">Category</dt>
-              <dd>{{ program()!.productCategory | humanize }}</dd>
+              <dd>{{ p.productCategory | humanize }}</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.currencies">Currencies</dt>
-              <dd>{{ program()!.currencies.join(', ') }}</dd>
-            </dl>
-          </section>
+              <dd>{{ p.currencies.join(', ') }}</dd>
+            </div>
+          </dl>
+        </section>
 
-          <section class="card">
-            <h3 class="card-title" i18n="@@bank_programs.section.tenor">Tenor</h3>
-            <dl class="kv">
+        <section class="card">
+          <h2 class="card-title" i18n="@@bank_programs.section.tenor">Tenor</h2>
+          <dl class="kv">
+            <div class="row">
               <dt i18n="@@bank_programs.field.min_months">Min months</dt>
-              <dd class="numeric">{{ program()!.tenor.minMonths }}</dd>
+              <dd class="numeric">{{ p.tenor.minMonths }}</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.max_months">Max months</dt>
-              <dd class="numeric">{{ program()!.tenor.maxMonths }}</dd>
-            </dl>
-          </section>
+              <dd class="numeric">{{ p.tenor.maxMonths }}</dd>
+            </div>
+          </dl>
+        </section>
 
-          <section class="card">
-            <h3 class="card-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h3>
-            <dl class="kv">
+        <section class="card">
+          <h2 class="card-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h2>
+          <dl class="kv">
+            <div class="row">
               <dt>EGP min</dt>
-              <dd class="numeric">{{ program()!.loanLimits.perCurrency['EGP']?.minAmount }}</dd>
+              <dd class="numeric">{{ p.loanLimits.perCurrency['EGP']?.minAmount }}</dd>
+            </div>
+            <div class="row">
               <dt>EGP max</dt>
-              <dd class="numeric">{{ program()!.loanLimits.perCurrency['EGP']?.maxAmount }}</dd>
-              @if (program()!.loanLimits.qualitativeReviewMaxEGP; as qr) {
+              <dd class="numeric">{{ p.loanLimits.perCurrency['EGP']?.maxAmount }}</dd>
+            </div>
+            @if (p.loanLimits.qualitativeReviewMaxEGP; as qr) {
+              <div class="row">
                 <dt i18n="@@bank_programs.detail.qr_max">Uplift ceiling (qualitative review)</dt>
                 <dd class="numeric">{{ qr }}</dd>
-              }
-            </dl>
-          </section>
+              </div>
+            }
+          </dl>
+        </section>
 
-          <section class="card">
-            <h3 class="card-title" i18n="@@bank_programs.section.pricing">Pricing</h3>
-            <dl class="kv">
+        <section class="card">
+          <h2 class="card-title" i18n="@@bank_programs.section.pricing">Pricing</h2>
+          <dl class="kv">
+            <div class="row">
               <dt i18n="@@bank_programs.field.is_variable_rate">Variable rate</dt>
-              <dd>{{ program()!.pricing.isVariableRate ? 'Yes' : 'No' }}</dd>
-              @if (!program()!.pricing.isVariableRate) {
-                <dt i18n="@@bank_programs.field.base_rate">
-                  Base rate
-                </dt>
-                <dd class="numeric">
-                  {{ program()!.pricing.baseRatePercent }}%
-                </dd>
-              }
-              @if (program()!.pricing.isVariableRate) {
-                <dt i18n="@@bank_programs.field.current_effective_rate">
-                  Current effective rate
-                </dt>
-                <dd class="numeric">
-                  {{ program()!.pricing.currentEffectiveRatePercent }}%
-                </dd>
-              }
-              @if (program()!.pricing.variableRateNote) {
+              <dd>{{ p.pricing.isVariableRate ? 'Yes' : 'No' }}</dd>
+            </div>
+            @if (!p.pricing.isVariableRate) {
+              <div class="row">
+                <dt i18n="@@bank_programs.field.base_rate">Base rate</dt>
+                <dd class="numeric">{{ p.pricing.baseRatePercent }}%</dd>
+              </div>
+            } @else {
+              <div class="row">
+                <dt i18n="@@bank_programs.field.current_effective_rate">Current effective rate</dt>
+                <dd class="numeric">{{ p.pricing.currentEffectiveRatePercent }}%</dd>
+              </div>
+            }
+            @if (p.pricing.variableRateNote) {
+              <div class="row">
                 <dt i18n="@@bank_programs.field.variable_rate_note">Disclosure note</dt>
-                <dd>{{ program()!.pricing.variableRateNote }}</dd>
-              }
-            </dl>
-          </section>
+                <dd>{{ p.pricing.variableRateNote }}</dd>
+              </div>
+            }
+          </dl>
+        </section>
 
-          <section class="card">
-            <h3 class="card-title" i18n="@@bank_programs.section.eligibility">Eligibility</h3>
-            <dl class="kv">
+        <section class="card">
+          <h2 class="card-title" i18n="@@bank_programs.section.eligibility">Eligibility</h2>
+          <dl class="kv">
+            <div class="row">
               <dt i18n="@@bank_programs.field.accepted_employment_types">Employment</dt>
               <dd class="chips">
-                @for (t of program()!.eligibility.acceptedEmploymentTypes; track t) {
+                @for (t of p.eligibility.acceptedEmploymentTypes; track t) {
                   <span class="enum-chip">{{ t | humanize }}</span>
                 } @empty {
                   <span class="empty-dash">—</span>
                 }
               </dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.accepted_loan_purposes">Purposes</dt>
-              <dd>{{ program()!.eligibility.acceptedLoanPurposes | humanize }}</dd>
+              <dd>{{ p.eligibility.acceptedLoanPurposes | humanize }}</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.age_min">Age</dt>
-              <dd class="numeric">
-                {{ program()!.eligibility.ageMin }}–{{ program()!.eligibility.ageMax }}
-              </dd>
+              <dd class="numeric">{{ p.eligibility.ageMin }}–{{ p.eligibility.ageMax }}</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.min_monthly_income_egp">Min income (EGP)</dt>
-              <dd class="numeric">{{ program()!.eligibility.minMonthlyIncomeEGP }}</dd>
+              <dd class="numeric">{{ p.eligibility.minMonthlyIncomeEGP }}</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.dbr_cap">DBR cap</dt>
-              <dd class="numeric">{{ program()!.eligibility.dbrCapPercent }}%</dd>
-              @if (program()!.eligibility.requiresNoDocuments) {
-                <dt i18n="@@bank_programs.flag.requires_no_docs">
-                  No-documents lending tier
-                </dt>
-                <dd>Yes</dd>
-              }
-              @if (program()!.eligibility.requiresQualitativeReview) {
-                <dt i18n="@@bank_programs.flag.requires_qr">
-                  Qualitative review
-                </dt>
-                <dd>Yes</dd>
-              }
-              @if (program()!.eligibility.minBankStatementBalanceEGP) {
-                <dt i18n="@@bank_programs.field.min_bank_statement_balance">
-                  Wealth gate · bank balance
-                </dt>
-                <dd class="numeric">{{ program()!.eligibility.minBankStatementBalanceEGP }}</dd>
-              }
-              @if (program()!.eligibility.minAssetsValueEGP) {
-                <dt i18n="@@bank_programs.field.min_assets_value">Wealth gate · assets</dt>
-                <dd class="numeric">{{ program()!.eligibility.minAssetsValueEGP }}</dd>
-              }
-            </dl>
-          </section>
+              <dd class="numeric">{{ p.eligibility.dbrCapPercent }}%</dd>
+            </div>
+          </dl>
+        </section>
 
-          <section class="card">
-            <h3 class="card-title" i18n="@@bank_programs.section.fees">Fees</h3>
-            <dl class="kv">
+        <section class="card">
+          <h2 class="card-title" i18n="@@bank_programs.section.fees">Fees</h2>
+          <dl class="kv">
+            <div class="row">
               <dt i18n="@@bank_programs.field.admin_fee">Admin fee</dt>
-              <dd class="numeric">{{ program()!.fees.adminFeePercent }}%</dd>
+              <dd class="numeric">{{ p.fees.adminFeePercent }}%</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.stamp_duty">Stamp duty</dt>
-              <dd class="numeric">{{ program()!.fees.stampDutyPercent }}%</dd>
+              <dd class="numeric">{{ p.fees.stampDutyPercent }}%</dd>
+            </div>
+            <div class="row">
               <dt i18n="@@bank_programs.field.life_insurance_pct">Life insurance</dt>
               <dd class="numeric">
-                {{ program()!.fees.lifeInsurancePercent }}%{{
-                  program()!.fees.lifeInsuranceMandatory ? ' (mandatory)' : ''
+                {{ p.fees.lifeInsurancePercent }}%{{
+                  p.fees.lifeInsuranceMandatory ? ' (mandatory)' : ''
                 }}
               </dd>
-            </dl>
-          </section>
-        </div>
-
-        <aside class="rail">
-          <app-cascade-preview
-            [program]="program()!"
-            [context]="whatIfContext()"
-          ></app-cascade-preview>
-
-          <section class="card whatif" [formGroup]="whatIfForm">
-            <h3 class="card-title" i18n="@@bank_programs.detail.whatif">Try a sample applicant</h3>
-            <nz-form-item>
-              <nz-form-label [nzFor]="'ctxEmployment'" i18n="@@bank_programs.field.employment_type"
-                >Employment</nz-form-label
-              >
-              <nz-form-control>
-                <nz-select id="ctxEmployment" formControlName="employmentType">
-                  <nz-option nzValue="salaried" nzLabel="Salaried"></nz-option>
-                  <nz-option nzValue="self_employed" nzLabel="Self-employed"></nz-option>
-                </nz-select>
-              </nz-form-control>
-            </nz-form-item>
-            <nz-form-item>
-              <nz-form-label [nzFor]="'ctxTransfer'" i18n="@@bank_programs.field.transfer_type"
-                >Transfer</nz-form-label
-              >
-              <nz-form-control>
-                <nz-select id="ctxTransfer" formControlName="transferType">
-                  <nz-option nzValue="payroll" nzLabel="Payroll"></nz-option>
-                  <nz-option nzValue="payroll_cat_a" nzLabel="Payroll · Cat-A"></nz-option>
-                  <nz-option nzValue="payroll_cat_b" nzLabel="Payroll · Cat-B"></nz-option>
-                  <nz-option nzValue="payroll_cat_c" nzLabel="Payroll · Cat-C"></nz-option>
-                  <nz-option nzValue="salary_transfer_letter" nzLabel="STL"></nz-option>
-                  <nz-option nzValue="income_transfer_letter" nzLabel="ITL"></nz-option>
-                  <nz-option nzValue="none" nzLabel="None"></nz-option>
-                </nz-select>
-              </nz-form-control>
-            </nz-form-item>
-            <nz-form-item>
-              <nz-form-label [nzFor]="'ctxTenor'" i18n="@@bank_programs.detail.tenor_months"
-                >Tenor (months)</nz-form-label
-              >
-              <nz-form-control>
-                <input nz-input id="ctxTenor" type="number" formControlName="tenorMonths" />
-              </nz-form-control>
-            </nz-form-item>
-            <nz-form-item>
-              <nz-form-label
-                [nzFor]="'ctxDownPayment'"
-                i18n="@@bank_programs.detail.down_payment_pct"
-                >Down payment %</nz-form-label
-              >
-              <nz-form-control>
-                <input
-                  nz-input
-                  id="ctxDownPayment"
-                  type="number"
-                  formControlName="downPaymentPercent"
-                />
-              </nz-form-control>
-            </nz-form-item>
-            <nz-form-item>
-              <nz-form-label [nzFor]="'ctxAssetValue'" i18n="@@bank_programs.detail.asset_value"
-                >Asset value (EGP)</nz-form-label
-              >
-              <nz-form-control>
-                <input
-                  nz-input
-                  id="ctxAssetValue"
-                  type="number"
-                  formControlName="assetValueEGP"
-                />
-              </nz-form-control>
-            </nz-form-item>
-          </section>
-        </aside>
+            </div>
+          </dl>
+        </section>
       </div>
     </section>
     } @else {
-      <div class="loading"><nz-spin nzSimple></nz-spin></div>
+      <div class="loading" aria-busy="true"><nz-spin nzSimple></nz-spin></div>
     }
   `,
   styles: [
@@ -336,126 +287,277 @@ import type { BankProgramResponse } from '../bank-programs.types';
         max-width: var(--content-max-width);
         margin-inline: auto;
       }
-      .back-link {
+      .back {
         display: inline-flex;
         align-items: center;
-        gap: var(--space-1);
+        gap: var(--space-2);
+        margin-block-end: var(--space-4);
         color: var(--color-text-secondary);
         text-decoration: none;
         font-size: var(--text-sm);
-        margin-block-end: var(--space-2);
+        font-weight: var(--font-weight-medium);
+        transition: color var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .back-link:hover {
-        color: var(--color-text-link);
+      .back:hover {
+        color: var(--color-brand-primary);
       }
-      .title-row {
+      .loading {
         display: flex;
         align-items: center;
-        gap: var(--space-3);
+        justify-content: center;
+        padding: var(--space-10);
       }
-      .page-title {
-        font-size: var(--text-2xl);
-        font-weight: var(--font-weight-semibold);
-        margin: 0;
-        color: var(--color-text-primary);
-        font-feature-settings: 'tnum';
-      }
-      .page-subtitle {
-        color: var(--color-text-secondary);
-        margin: var(--space-1) 0 var(--space-3);
-      }
-      .actions {
+
+      /* ── Hero ─────────────────────────────────────────── */
+      .hero {
+        position: relative;
         display: flex;
-        gap: var(--space-2);
-        margin-block-end: var(--space-4);
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-4);
+        padding: var(--space-6);
+        border-radius: var(--radius-lg);
+        background: var(--gradient-hero);
+        box-shadow: var(--shadow-md);
+        overflow: hidden;
+        isolation: isolate;
+      }
+      /* Soft diagonal sheen — pure white tint, no brand hex literals. */
+      .hero::after {
+        content: '';
+        position: absolute;
+        inset-block-start: -40%;
+        inset-inline-end: -10%;
+        inline-size: 320px;
+        block-size: 320px;
+        background: radial-gradient(
+          circle,
+          color-mix(in srgb, #fff 14%, transparent) 0%,
+          transparent 70%
+        );
+        z-index: -1;
+        pointer-events: none;
+      }
+      .cat-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        inline-size: 60px;
+        block-size: 60px;
+        flex: none;
+        border-radius: var(--radius-lg);
+        background: color-mix(in srgb, #fff 18%, transparent);
+        color: #fff;
+        font-size: var(--text-2xl);
+        backdrop-filter: blur(6px);
+      }
+      .hero-text {
+        flex: 1 1 auto;
+        min-inline-size: 0;
+      }
+      .eyebrow {
+        display: block;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, #fff 80%, transparent);
+      }
+      .title {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        margin: var(--space-1) 0 0;
+        font-family: var(--font-display);
+        font-size: var(--text-2xl);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: var(--tracking-tight);
+        color: #fff;
+      }
+      .sub {
+        margin: var(--space-1) 0 0;
+        color: color-mix(in srgb, #fff 78%, transparent);
+        font-size: var(--text-sm);
       }
       .status-chip {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: var(--radius-sm);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: 3px 11px;
+        border-radius: var(--radius-pill);
         font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        background: color-mix(in srgb, #fff 16%, transparent);
+        color: color-mix(in srgb, #fff 78%, transparent);
+        backdrop-filter: blur(6px);
       }
       .status-chip.active {
-        background: var(--color-success-bg);
-        color: var(--color-success);
+        background: color-mix(in srgb, #fff 24%, transparent);
+        color: #fff;
       }
-      .status-chip.inactive {
-        background: var(--color-surface-muted);
-        color: var(--color-text-tertiary);
+      .status-chip .dot {
+        inline-size: 6px;
+        block-size: 6px;
+        border-radius: 50%;
+        background: color-mix(in srgb, #fff 60%, transparent);
       }
+      .status-chip.active .dot {
+        background: #fff;
+      }
+      .hero-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex: none;
+      }
+      /* Glass treatment so controls read on the gradient (no gray-on-color). */
+      .hero-actions ::ng-deep .ant-btn:not(.ant-btn-dangerous) {
+        background: color-mix(in srgb, #fff 16%, transparent);
+        border-color: color-mix(in srgb, #fff 32%, transparent);
+        color: #fff;
+        backdrop-filter: blur(6px);
+      }
+      .hero-actions ::ng-deep .ant-btn:not(.ant-btn-dangerous):hover {
+        background: color-mix(in srgb, #fff 26%, transparent);
+        border-color: color-mix(in srgb, #fff 48%, transparent);
+        color: #fff;
+      }
+      .hero-actions ::ng-deep .ant-btn-dangerous {
+        color: color-mix(in srgb, #fff 90%, transparent);
+      }
+      .hero-actions ::ng-deep .ant-btn-dangerous:hover {
+        background: color-mix(in srgb, #fff 18%, transparent);
+        color: #fff;
+      }
+      @media (max-width: 640px) {
+        .hero-actions {
+          flex-basis: 100%;
+          flex-wrap: wrap;
+        }
+      }
+
+      /* ── Deprecated banner ────────────────────────────── */
       .deprecated-banner {
         display: flex;
         align-items: center;
         gap: var(--space-2);
         background: var(--color-warning-bg);
         color: var(--color-warning);
-        border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-sm);
-        padding: var(--space-3);
-        margin-block-end: var(--space-4);
+        border-radius: var(--radius-md);
+        padding: var(--space-3) var(--space-4);
+        margin-block-start: var(--space-4);
+        font-size: var(--text-sm);
       }
-      .layout {
+
+      /* ── Info grid ────────────────────────────────────── */
+      .grid {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 320px;
-        gap: var(--space-5);
-      }
-      @media (max-width: 980px) {
-        .layout {
-          grid-template-columns: minmax(0, 1fr);
-        }
-      }
-      .main,
-      .rail {
-        display: flex;
-        flex-direction: column;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: var(--space-4);
+        margin-block-start: var(--space-6);
       }
       .card {
-        background: var(--color-surface);
+        background: var(--color-surface-default);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-lg);
-        padding: var(--space-4);
+        padding: var(--space-5);
+        transition:
+          box-shadow var(--motion-duration-base) var(--motion-easing-standard),
+          transform var(--motion-duration-base) var(--motion-easing-standard);
+        animation: card-rise var(--motion-duration-base) var(--motion-easing-standard) both;
+      }
+      .card:hover {
+        box-shadow: var(--shadow-sm);
+        transform: translateY(-2px);
+      }
+      .card:nth-child(2) {
+        animation-delay: 50ms;
+      }
+      .card:nth-child(3) {
+        animation-delay: 100ms;
+      }
+      .card:nth-child(4) {
+        animation-delay: 150ms;
+      }
+      .card:nth-child(5) {
+        animation-delay: 200ms;
+      }
+      .card:nth-child(6) {
+        animation-delay: 250ms;
+      }
+      @keyframes card-rise {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .card {
+          animation: none;
+        }
+        .card:hover {
+          transform: none;
+        }
       }
       .card-title {
-        font-size: var(--text-md);
+        font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
-        margin: 0 0 var(--space-2);
-        color: var(--color-text-primary);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text-tertiary);
+        margin: 0 0 var(--space-3);
       }
       .kv {
-        display: grid;
-        grid-template-columns: max-content 1fr;
-        gap: var(--space-1) var(--space-3);
         margin: 0;
+        display: flex;
+        flex-direction: column;
       }
-      .kv dt {
+      .row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-4);
+        padding-block: var(--space-2);
+        border-block-start: 1px solid var(--color-border-default);
+      }
+      .row:first-child {
+        border-block-start: none;
+        padding-block-start: 0;
+      }
+      .row dt {
+        flex: none;
         color: var(--color-text-secondary);
         font-size: var(--text-sm);
       }
-      .kv dd {
+      .row dd {
         margin: 0;
+        text-align: end;
         color: var(--color-text-primary);
         font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
       }
       /* Categorical enum values render as scannable brand pills, not a comma run-on. */
-      .kv dd.chips {
+      .row dd.chips {
         display: flex;
         flex-wrap: wrap;
-        gap: var(--space-2, 8px);
-        align-self: center;
+        justify-content: flex-end;
+        gap: var(--space-2);
       }
       .enum-chip {
-        --chip-accent: var(--ant-primary-color, #0869c3);
         display: inline-flex;
         align-items: center;
-        gap: 7px;
-        padding: 5px 13px;
-        border-radius: var(--radius-pill, 999px);
-        background: color-mix(in srgb, var(--chip-accent) 10%, var(--bg-surface, #ffffff));
-        color: color-mix(in srgb, var(--chip-accent) 82%, #000000);
-        border: 1px solid color-mix(in srgb, var(--chip-accent) 26%, transparent);
-        font-size: 13px;
-        font-weight: var(--font-weight-semibold, 600);
+        gap: var(--space-2);
+        padding: 4px 12px;
+        border-radius: var(--radius-pill);
+        background: var(--color-tonal-accent-bg);
+        color: var(--color-tonal-accent);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
         line-height: 1.4;
         white-space: nowrap;
       }
@@ -464,23 +566,14 @@ import type { BankProgramResponse } from '../bank-programs.types';
         inline-size: 6px;
         block-size: 6px;
         border-radius: 50%;
-        background: var(--chip-accent);
+        background: currentColor;
         flex: none;
       }
       .empty-dash {
-        color: var(--color-text-secondary);
+        color: var(--color-text-tertiary);
       }
       .numeric {
         font-variant-numeric: tabular-nums lining-nums;
-      }
-      .rail nz-form-item,
-      .rail nz-select {
-        width: 100%;
-      }
-      .loading {
-        display: flex;
-        justify-content: center;
-        padding: var(--space-8);
       }
     `,
   ],
@@ -503,31 +596,20 @@ export class BankProgramDetailPage {
     return id ? ['/banks', id] : ['/banks'];
   });
 
-  readonly whatIfForm = new FormGroup({
-    employmentType: new FormControl<string>('salaried', { nonNullable: true }),
-    transferType: new FormControl<string>('payroll', { nonNullable: true }),
-    tenorMonths: new FormControl<number>(60, { nonNullable: true }),
-    downPaymentPercent: new FormControl<number>(30, { nonNullable: true }),
-    assetValueEGP: new FormControl<number>(1000000, { nonNullable: true }),
-  });
-
-  private readonly whatIfFormValue = toSignal(this.whatIfForm.valueChanges, {
-    initialValue: this.whatIfForm.getRawValue(),
-  });
-
-  readonly whatIfContext = computed<CascadeApplicantContext>(() => {
-    const v = this.whatIfFormValue();
-    return {
-      employmentType: v.employmentType ?? 'salaried',
-      transferType: v.transferType ?? 'payroll',
-      tenorMonths: v.tenorMonths ?? 60,
-      downPaymentPercent: v.downPaymentPercent ?? 30,
-      assetValueEGP: v.assetValueEGP ?? 1000000,
-    };
-  });
-
   readonly activeLabel = signal($localize`:@@bank_programs.col.active:Active`);
   readonly inactiveLabel = signal($localize`:@@bank_programs.col.inactive:Inactive`);
+
+  /** ng-zorro icon nzType per loan category — generic map, no hardcoded bank logic. */
+  private static readonly CAT_ICONS: Readonly<Record<string, string>> = {
+    personal: 'user',
+    car: 'car',
+    mortgage: 'home',
+    business: 'shop',
+  };
+
+  catIcon(category: string): string {
+    return BankProgramDetailPage.CAT_ICONS[category.toLowerCase()] ?? 'bank';
+  }
 
   constructor() {
     // Reactive fetch.
@@ -539,24 +621,6 @@ export class BankProgramDetailPage {
     if (!code) return;
     const res = await this.api.getByCode(code);
     this.program.set(res.data);
-  }
-
-  openClone(): void {
-    const p = this.program();
-    if (!p) return;
-    const ref = this.modal.create<
-      CloneProgramDialog,
-      CloneProgramDialogData,
-      { newProgramCode?: string } | undefined
-    >({
-      nzContent: CloneProgramDialog,
-      nzData: { sourceProgramCode: p.programCode, sourceFriendlyName: p.friendlyName },
-      nzWidth: 440,
-      nzFooter: null,
-    });
-    ref.afterClose.subscribe((res) => {
-      if (res?.newProgramCode) void this.router.navigate(['/banks/programs', res.newProgramCode]);
-    });
   }
 
   openDelete(): void {

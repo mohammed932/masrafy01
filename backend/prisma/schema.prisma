@@ -143,6 +143,16 @@ enum ApplicationStatus {
   erased
 }
 
+// Sales-managed operational status of a lead (the applicant proceeded with an
+// offer). Distinct from `ApplicationStatus` (engine matching outcome + data
+// retention, system-set). Free-form transitions for MVP; default `pending`.
+enum LeadStatus {
+  pending
+  in_progress
+  done
+  cancelled
+}
+
 enum ApplicationPriority {
   lowest_installment
   lowest_interest
@@ -348,6 +358,8 @@ model Application {
   idempotencyKey          String?             @db.VarChar(128)
   payloadHash             String?             @db.Char(64)
   status                  ApplicationStatus   @default(draft)
+  // Sales pipeline status — admin-managed, separate from engine `status`.
+  leadStatus              LeadStatus          @default(pending)
   priority                ApplicationPriority
   requestedAmountEGP      Decimal             @db.Decimal(13, 2)
   requestedCurrency       String              @default("EGP") @db.VarChar(3)
@@ -384,6 +396,7 @@ model Application {
 
   @@unique([applicantUserId, idempotencyKey], name: "idx_application_idempotency")
   @@index([loanPurpose], name: "idx_application_purpose")
+  @@index([leadStatus], name: "idx_application_lead_status")
   @@index([applicantUserId, createdAt(sort: Desc)], name: "idx_application_customer_created")
   @@index([userProceededAt(sort: Desc)], name: "idx_application_user_proceeded_at")
   @@map("application")

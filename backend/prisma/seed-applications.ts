@@ -1,15 +1,17 @@
 /**
  * Simple MVP seeder for the admin "Applications" triage screen.
  *
- *   npm run seed:apps
+ *   npm run seed:apps                 # tops up to 36 proceeded applications
+ *   SEED_APPS_COUNT=60 npm run seed:apps
  *
- * Drops ~12 applications that actually render on the triage board and light up
- * every counter + stage tab. Two things the legacy demo seed skipped — and the
- * reason the board shows all zeros — are set here:
+ * Drops enough applications to actually render + paginate on the triage board
+ * and light up every counter + probability bucket. Two things the legacy demo
+ * seed skipped — and the reason the board showed all zeros — are set here:
  *   1. `userProceededAt` (Feature-008 gate: the admin list filters on it).
- *   2. one `BankOffer` per app (probability buckets read `approvalTier`).
+ *   2. one `BankOffer` per matched app (probability buckets read `approvalTier`).
  *
- * Idempotent: skips entirely if any proceeded application already exists.
+ * Idempotent + top-up: creates only the difference between the current proceeded
+ * count and the target (SEED_APPS_COUNT, default 36). Never deletes.
  */
 
 import { Prisma, PrismaClient } from '@prisma/client';
@@ -23,20 +25,27 @@ const prisma = new PrismaClient();
 const DEMO_PASSWORD_HASH = bcrypt.hashSync('demo-password-12!', 4);
 
 const DAY = 24 * 60 * 60 * 1000;
+const DEFAULT_TARGET = 36;
 
 type Tier = 'excellent' | 'good' | 'moderate' | 'low';
+type LeadStatus = 'pending' | 'in_progress' | 'done' | 'cancelled';
+type Purpose = 'personal' | 'car' | 'mortgage' | 'business';
+type Priority =
+  | 'lowest_installment'
+  | 'lowest_interest'
+  | 'fastest_approval'
+  | 'least_paperwork';
 
 interface RowSpec {
-  leadStatus: 'needs_first_contact' | 'document_collection' | 'ready_for_submission' | 'submitted_to_bank' | 'bank_decided';
+  leadStatus: LeadStatus;
   status: 'matched' | 'no_match';
   tier: Tier | null; // null = no offer (no_match)
-  assigned: boolean;
   daysOld: number;
   amount: number;
   tenor: number;
   age: number;
-  purpose: 'personal' | 'car' | 'mortgage' | 'business';
-  priority: 'lowest_installment' | 'lowest_interest' | 'fastest_approval' | 'least_paperwork';
+  purpose: Purpose;
+  priority: Priority;
   firstName: string;
   lastName: string;
 }
@@ -48,25 +57,26 @@ const CUSTOMERS = [
   { phone: '+201111100003', firstName: 'Omar', lastName: 'Saleh', birthday: '1987-01-22' },
 ] as const;
 
-// ~12 rows spread across every stage + probability tier + assignment state.
-const ROWS: RowSpec[] = [
-  // needs_first_contact (old + no activity => stale)
-  { leadStatus: 'needs_first_contact', status: 'matched', tier: 'excellent', assigned: true,  daysOld: 15, amount: 250_000, tenor: 48, age: 34, purpose: 'personal', priority: 'fastest_approval',  firstName: 'Youssef', lastName: 'Hassan' },
-  { leadStatus: 'needs_first_contact', status: 'matched', tier: 'good',      assigned: false, daysOld: 12, amount: 120_000, tenor: 36, age: 29, purpose: 'car',      priority: 'lowest_installment', firstName: 'Mariam',  lastName: 'Adel' },
-  { leadStatus: 'needs_first_contact', status: 'matched', tier: 'moderate',  assigned: false, daysOld: 20, amount: 80_000,  tenor: 24, age: 41, purpose: 'personal', priority: 'least_paperwork',    firstName: 'Omar',    lastName: 'Saleh' },
-  // document_collection (old + no activity => stale)
-  { leadStatus: 'document_collection', status: 'matched',  tier: 'excellent', assigned: true,  daysOld: 10, amount: 1_500_000, tenor: 120, age: 38, purpose: 'mortgage', priority: 'lowest_interest',    firstName: 'Youssef', lastName: 'Hassan' },
-  { leadStatus: 'document_collection', status: 'matched',  tier: 'good',      assigned: false, daysOld: 18, amount: 300_000,   tenor: 60,  age: 31, purpose: 'business', priority: 'fastest_approval',   firstName: 'Mariam',  lastName: 'Adel' },
-  { leadStatus: 'document_collection', status: 'no_match', tier: null,        assigned: false, daysOld: 14, amount: 90_000,    tenor: 24,  age: 45, purpose: 'personal', priority: 'lowest_installment', firstName: 'Omar',    lastName: 'Saleh' },
-  // ready_for_submission
-  { leadStatus: 'ready_for_submission', status: 'matched', tier: 'excellent', assigned: true, daysOld: 2, amount: 200_000, tenor: 36, age: 33, purpose: 'personal', priority: 'fastest_approval',   firstName: 'Youssef', lastName: 'Hassan' },
-  { leadStatus: 'ready_for_submission', status: 'matched', tier: 'good',      assigned: true, daysOld: 3, amount: 450_000, tenor: 48, age: 36, purpose: 'car',      priority: 'lowest_interest',    firstName: 'Mariam',  lastName: 'Adel' },
-  // submitted_to_bank (=> WITH BANK)
-  { leadStatus: 'submitted_to_bank', status: 'matched', tier: 'excellent', assigned: true, daysOld: 5, amount: 600_000, tenor: 60, age: 40, purpose: 'business', priority: 'lowest_installment', firstName: 'Omar',    lastName: 'Saleh' },
-  { leadStatus: 'submitted_to_bank', status: 'matched', tier: 'good',      assigned: true, daysOld: 6, amount: 350_000, tenor: 48, age: 28, purpose: 'personal', priority: 'fastest_approval',   firstName: 'Youssef', lastName: 'Hassan' },
-  // bank_decided
-  { leadStatus: 'bank_decided', status: 'matched', tier: 'excellent', assigned: true, daysOld: 8, amount: 500_000, tenor: 60, age: 37, purpose: 'mortgage', priority: 'lowest_interest', firstName: 'Mariam', lastName: 'Adel' },
-  { leadStatus: 'bank_decided', status: 'matched', tier: 'moderate',  assigned: true, daysOld: 9, amount: 75_000,  tenor: 18, age: 44, purpose: 'personal', priority: 'least_paperwork', firstName: 'Omar',   lastName: 'Saleh' },
+const PURPOSES: readonly Purpose[] = ['personal', 'car', 'mortgage', 'business'];
+const PRIORITIES: readonly Priority[] = [
+  'lowest_installment',
+  'lowest_interest',
+  'fastest_approval',
+  'least_paperwork',
+];
+const LEAD_STATUSES: readonly LeadStatus[] = ['pending', 'in_progress', 'done', 'cancelled'];
+// Mostly matched offers across the tiers, with the occasional no_match (null).
+const TIER_CYCLE: readonly (Tier | null)[] = [
+  'excellent',
+  'good',
+  'moderate',
+  'excellent',
+  'good',
+  'low',
+  null,
+  'good',
+  'excellent',
+  'moderate',
 ];
 
 const TIER_SCORE: Record<Tier, { score: number; prob: number; rate: number }> = {
@@ -75,6 +85,43 @@ const TIER_SCORE: Record<Tier, { score: number; prob: number; rate: number }> = 
   moderate: { score: 55, prob: 52, rate: 24.5 },
   low: { score: 40, prob: 35, rate: 27.0 },
 };
+
+const AMOUNT_BASE: Record<Purpose, number> = {
+  personal: 80_000,
+  car: 150_000,
+  mortgage: 900_000,
+  business: 250_000,
+};
+const AMOUNT_STEP: Record<Purpose, number> = {
+  personal: 25_000,
+  car: 40_000,
+  mortgage: 200_000,
+  business: 100_000,
+};
+const TENOR: Record<Purpose, number> = { personal: 36, car: 48, mortgage: 120, business: 60 };
+
+function buildRows(count: number): RowSpec[] {
+  const rows: RowSpec[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const cust = CUSTOMERS[i % CUSTOMERS.length]!;
+    const purpose = PURPOSES[i % PURPOSES.length]!;
+    const tier = TIER_CYCLE[i % TIER_CYCLE.length]!;
+    rows.push({
+      leadStatus: LEAD_STATUSES[i % LEAD_STATUSES.length]!,
+      status: tier ? 'matched' : 'no_match',
+      tier,
+      daysOld: i % 30,
+      amount: AMOUNT_BASE[purpose] + AMOUNT_STEP[purpose] * (i % 10),
+      tenor: TENOR[purpose],
+      age: 25 + (i % 25),
+      purpose,
+      priority: PRIORITIES[i % PRIORITIES.length]!,
+      firstName: cust.firstName,
+      lastName: cust.lastName,
+    });
+  }
+  return rows;
+}
 
 function monthlyInstallment(amount: number, ratePct: number, tenor: number): number {
   const r = ratePct / 100 / 12;
@@ -101,9 +148,13 @@ function applicantProfile(r: RowSpec, phone: string) {
 }
 
 async function main(): Promise<void> {
+  const target = Number(process.env.SEED_APPS_COUNT ?? DEFAULT_TARGET);
   const already = await prisma.application.count({ where: { userProceededAt: { not: null } } });
-  if (already > 0) {
-    console.log(`[seed:apps] ${already} proceeded application(s) already exist — skipping (idempotent).`);
+  const toCreate = Math.max(0, target - already);
+  if (toCreate === 0) {
+    console.log(
+      `[seed:apps] ${already} proceeded application(s) already exist (target ${target}) — skipping (idempotent).`,
+    );
     return;
   }
 
@@ -128,8 +179,9 @@ async function main(): Promise<void> {
     customerIdByPhone.set(c.phone, row.id);
   }
 
+  const rows = buildRows(toCreate);
   let created = 0;
-  for (const r of ROWS) {
+  for (const r of rows) {
     const cust = CUSTOMERS.find((c) => c.firstName === r.firstName) ?? CUSTOMERS[0]!;
     const customerId = customerIdByPhone.get(cust.phone)!;
     const createdAt = new Date(Date.now() - r.daysOld * DAY);
@@ -139,6 +191,7 @@ async function main(): Promise<void> {
         applicantUserId: customerId,
         submissionCorrelationId: randomUUID(),
         status: r.status,
+        leadStatus: r.leadStatus,
         priority: r.priority,
         requestedAmountEGP: new Prisma.Decimal(r.amount),
         requestedCurrency: 'EGP',
@@ -191,7 +244,9 @@ async function main(): Promise<void> {
     created += 1;
   }
 
-  console.log(`[seed:apps] created ${created} applications.`);
+  console.log(
+    `[seed:apps] created ${created} applications (now ~${already + created}, target ${target}).`,
+  );
 }
 
 main()

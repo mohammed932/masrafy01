@@ -13,3 +13,10 @@ export enum ApplicationStatus {
   archived = 'archived',
   erased = 'erased',
 }
+
+export enum LeadStatus {
+  pending = 'pending',
+  in_progress = 'in_progress',
+  done = 'done',
+  cancelled = 'cancelled',
+}

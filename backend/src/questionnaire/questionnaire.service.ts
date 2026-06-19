@@ -30,19 +30,21 @@ export class QuestionnaireService {
   }
 
   // ---- Groups -------------------------------------------------------------
-  async createGroup(dto: CreateGroupDto) {
+  async createGroup(dto: CreateGroupDto, actor: string) {
     const existing = new Set((await this.repo.groupCodes(dto.category)).map((g) => g.code));
     const code = uniqueSlug(dto.titleEn, existing);
-    return this.repo.createGroup({
+    const created = await this.repo.createGroup({
       category: dto.category,
       code,
       titleAr: dto.titleAr,
       titleEn: dto.titleEn,
       displayOrder: dto.displayOrder,
     });
+    await this.publish(dto.category, actor);
+    return created;
   }
 
-  async updateGroup(id: string, dto: UpdateGroupDto) {
+  async updateGroup(id: string, dto: UpdateGroupDto, actor: string) {
     const group = await this.repo.findGroup(id);
     if (!group) throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
     // Deactivating a group is a delete in effect — block while it holds questions.
@@ -56,16 +58,18 @@ export class QuestionnaireService {
         });
       }
     }
-    return this.repo.updateGroup(id, {
+    const updated = await this.repo.updateGroup(id, {
       titleAr: dto.titleAr,
       titleEn: dto.titleEn,
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
     });
+    await this.publish(group.category, actor);
+    return updated;
   }
 
   /** Soft-delete a group; blocked while it still holds active questions. */
-  async softDeleteGroup(id: string) {
+  async softDeleteGroup(id: string, actor: string) {
     const group = await this.repo.findGroup(id);
     if (!group) throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
     const questions = await this.repo.questionsByCategory(group.category);
@@ -75,7 +79,9 @@ export class QuestionnaireService {
         questionCount: active.length,
       });
     }
-    return this.repo.updateGroup(id, { isActive: false });
+    const deleted = await this.repo.updateGroup(id, { isActive: false });
+    await this.publish(group.category, actor);
+    return deleted;
   }
 
   listGroups(category: LoanCategory) {
@@ -83,7 +89,7 @@ export class QuestionnaireService {
   }
 
   // ---- Questions ----------------------------------------------------------
-  async createQuestion(dto: CreateQuestionDto) {
+  async createQuestion(dto: CreateQuestionDto, actor: string) {
     const group = await this.repo.findGroup(dto.groupId);
     if (!group || group.category !== dto.category) {
       throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
@@ -93,7 +99,7 @@ export class QuestionnaireService {
     }
     const existing = new Set((await this.repo.questionCodes(dto.category)).map((q) => q.code));
     const code = uniqueSlug(dto.questionEn, existing);
-    return this.repo.createQuestion({
+    const created = await this.repo.createQuestion({
       groupId: dto.groupId,
       category: dto.category,
       code,
@@ -106,9 +112,11 @@ export class QuestionnaireService {
       displayOrder: dto.displayOrder,
       enabledWhen: dto.enabledWhen ? (dto.enabledWhen as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
     });
+    await this.publish(dto.category, actor);
+    return created;
   }
 
-  async updateQuestion(id: string, dto: UpdateQuestionDto) {
+  async updateQuestion(id: string, dto: UpdateQuestionDto, actor: string) {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     if (dto.enabledWhen) {
@@ -143,10 +151,12 @@ export class QuestionnaireService {
           : (dto.enabledWhen as unknown as Prisma.InputJsonValue);
     }
     // `code` and `category` are immutable post-creation (A33).
-    return this.repo.updateQuestion(id, data);
+    const updated = await this.repo.updateQuestion(id, data);
+    await this.publish(question.category, actor);
+    return updated;
   }
 
-  async softDeleteQuestion(id: string) {
+  async softDeleteQuestion(id: string, actor: string) {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     const dependents = await this.repo.dependentsOf(question.category, question.code);
@@ -154,7 +164,9 @@ export class QuestionnaireService {
     if (others.length > 0) {
       throw new DomainException(ERROR_CODES.QUESTION_IN_USE, { dependents: others });
     }
-    return this.repo.updateQuestion(id, { isActive: false });
+    const deleted = await this.repo.updateQuestion(id, { isActive: false });
+    await this.publish(question.category, actor);
+    return deleted;
   }
 
   listQuestions(category: LoanCategory) {
@@ -162,47 +174,50 @@ export class QuestionnaireService {
   }
 
   // ---- Options ------------------------------------------------------------
-  async createOption(questionId: string, dto: CreateOptionDto) {
+  async createOption(questionId: string, dto: CreateOptionDto, actor: string) {
     const question = await this.repo.findQuestion(questionId);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     const existing = new Set((await this.repo.optionCodes(questionId)).map((o) => o.code));
     const code = uniqueSlug(dto.labelEn, existing);
-    return this.repo.createOption({
+    const created = await this.repo.createOption({
       questionId,
       code,
       labelAr: dto.labelAr,
       labelEn: dto.labelEn,
       displayOrder: dto.displayOrder,
     });
+    await this.publish(question.category, actor);
+    return created;
   }
 
-  async updateOption(id: string, dto: UpdateOptionDto) {
+  async updateOption(id: string, dto: UpdateOptionDto, actor: string) {
     const option = await this.repo.findOption(id);
     if (!option) throw new DomainException(ERROR_CODES.QUESTION_OPTION_NOT_FOUND);
+    const question = await this.repo.findQuestion(option.questionId);
+    if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     // Deactivating an option must honour the same branch guard as delete (A33).
     if (dto.isActive === false && option.isActive) {
-      const question = await this.repo.findQuestion(option.questionId);
-      if (question) {
-        const dependents = await this.repo.optionDependentsOf(
-          question.category,
-          question.code,
-          option.code,
-        );
-        if (dependents.length > 0) {
-          throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
-        }
+      const dependents = await this.repo.optionDependentsOf(
+        question.category,
+        question.code,
+        option.code,
+      );
+      if (dependents.length > 0) {
+        throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
       }
     }
-    return this.repo.updateOption(id, {
+    const updated = await this.repo.updateOption(id, {
       labelAr: dto.labelAr,
       labelEn: dto.labelEn,
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
     });
+    await this.publish(question.category, actor);
+    return updated;
   }
 
   /** Soft-delete an option; blocked while a branch (enabledWhen) references it. */
-  async softDeleteOption(id: string) {
+  async softDeleteOption(id: string, actor: string) {
     const option = await this.repo.findOption(id);
     if (!option) throw new DomainException(ERROR_CODES.QUESTION_OPTION_NOT_FOUND);
     const question = await this.repo.findQuestion(option.questionId);
@@ -215,7 +230,9 @@ export class QuestionnaireService {
     if (dependents.length > 0) {
       throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
     }
-    return this.repo.updateOption(id, { isActive: false });
+    const deleted = await this.repo.updateOption(id, { isActive: false });
+    await this.publish(question.category, actor);
+    return deleted;
   }
 
   listOptions(questionId: string) {

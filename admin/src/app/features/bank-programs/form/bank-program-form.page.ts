@@ -9,11 +9,13 @@ import {
   signal,
 } from '@angular/core';
 import {
+  AbstractControl,
   FormArray,
   FormBuilder,
   FormControl,
   FormGroup,
   ReactiveFormsModule,
+  ValidationErrors,
   Validators,
 } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -65,6 +67,20 @@ type ToggleKey =
   | 'buyout'
   | 'downPayment'
   | 'shariaCompliant';
+
+/**
+ * Cross-field guard for the tenor group: maximum duration must be ≥ minimum.
+ * Surfaced inline in the Loan-duration section (error key `minGtMax`) so the
+ * dual-handle range + precise inputs can't be saved in an inverted state.
+ */
+function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
+  const min = group.get('minMonths')?.value;
+  const max = group.get('maxMonths')?.value;
+  if (typeof min === 'number' && typeof max === 'number' && max < min) {
+    return { minGtMax: true };
+  }
+  return null;
+}
 
 @Component({
   selector: 'app-bank-program-form-page',
@@ -169,7 +185,7 @@ type ToggleKey =
             }
           </nav>
 
-          @if (preselectedBank; as b) {
+          @if (!isEditMode() && preselectedBank; as b) {
             <div class="bank-chip">
               <span class="bank-chip-avatar" aria-hidden="true">{{ initialsOf(b.nameEnglish) }}</span>
               <span class="bank-chip-body">
@@ -195,7 +211,7 @@ type ToggleKey =
             </header>
 
             <div class="grid">
-              @if (!preselectedBank) {
+              @if (!preselectedBank && !isEditMode()) {
                 <nz-form-item>
                   <nz-form-label [nzFor]="'bankId'" nzRequired i18n="@@bank_programs.field.bank">Bank</nz-form-label>
                   <nz-form-control [nzErrorTip]="fieldErrorTpl">
@@ -214,6 +230,14 @@ type ToggleKey =
                     @if (identityGroup.controls['bankName']?.touched && !selectedBankId()) {
                       <div class="manual-error" i18n="@@bank_programs.err.bank_required">Bank is required.</div>
                     }
+                  </nz-form-control>
+                </nz-form-item>
+              }
+              @if (isEditMode()) {
+                <nz-form-item class="span-2">
+                  <nz-form-label [nzFor]="'programCode'" i18n="@@bank_programs.field.program_code">Program code</nz-form-label>
+                  <nz-form-control>
+                    <input nz-input id="programCode" formControlName="programCode" />
                   </nz-form-control>
                 </nz-form-item>
               }
@@ -295,7 +319,7 @@ type ToggleKey =
             <header class="card-head">
               <div>
                 <h2 class="card-title" i18n="@@bank_programs.form.tenor.title">Loan duration</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.tenor.sub">Minimum and maximum months.</p>
+                <p class="card-sub" i18n="@@bank_programs.form.tenor.sub">Minimum and maximum months a customer can borrow over.</p>
               </div>
             </header>
             <div class="grid">
@@ -303,12 +327,17 @@ type ToggleKey =
                 <nz-form-label [nzFor]="'minMonths'" nzRequired i18n="@@bank_programs.field.min_months">Minimum months</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-number id="minMonths" class="num-field" formControlName="minMonths" [nzMin]="1" [nzMax]="600" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
+                  <span class="field-hint">≈ {{ minMonthsHint() }}</span>
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
                 <nz-form-label [nzFor]="'maxMonths'" nzRequired i18n="@@bank_programs.field.max_months">Maximum months</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-number id="maxMonths" class="num-field" formControlName="maxMonths" [nzMin]="1" [nzMax]="600" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
+                  <span class="field-hint">≈ {{ maxMonthsHint() }}</span>
+                  @if (tenorGroup.hasError('minGtMax') && tenorGroup.controls['maxMonths']?.touched) {
+                    <span class="field-error" role="alert" i18n="@@bank_programs.tenor.min_gt_max">Maximum must be greater than or equal to minimum.</span>
+                  }
                 </nz-form-control>
               </nz-form-item>
             </div>
@@ -942,6 +971,14 @@ type ToggleKey =
         .grid { grid-template-columns: minmax(0, 1fr); }
         .grid .span-2 { grid-column: span 1; }
       }
+
+      /* Cross-field tenor error (max < min), shown under the Maximum input. */
+      .field-error {
+        display: block; margin-block-start: var(--space-1);
+        font-size: var(--text-xs); font-weight: var(--font-weight-medium);
+        color: var(--color-error);
+      }
+
       .flag-grid {
         display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--space-2) var(--space-4);
@@ -1245,7 +1282,14 @@ export class BankProgramFormPage implements OnInit {
   readonly isEditMode = computed(() => this.mode() === 'edit');
 
   readonly createTitle = signal($localize`:@@bank_programs.form.title_create:Add bank program`);
-  readonly editTitle = signal($localize`:@@bank_programs.form.title_edit:Edit bank program`);
+  /** Bank name of the program being edited; drives the named edit title. */
+  readonly editBankName = signal<string>('');
+  readonly editTitle = computed(() => {
+    const name = this.editBankName();
+    return name
+      ? $localize`:@@bank_programs.form.title_edit_named:Edit ${name}:bankName: bank program`
+      : $localize`:@@bank_programs.form.title_edit:Edit bank program`;
+  });
   readonly createLabel = signal($localize`:@@bank_programs.form.cta_create:Create bank program`);
   readonly saveLabel = signal($localize`:@@bank_programs.form.cta_save:Save changes`);
 
@@ -1284,6 +1328,8 @@ export class BankProgramFormPage implements OnInit {
 
   readonly form = this.fb.nonNullable.group({
     identity: this.fb.nonNullable.group({
+      // Read-only display on edit; auto-generated by backend on create (never user-typed).
+      programCode: new FormControl('', { nonNullable: true }),
       bankName: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, Validators.maxLength(80)],
@@ -1305,16 +1351,19 @@ export class BankProgramFormPage implements OnInit {
       }),
       currencies: this.fb.nonNullable.array<string>(['EGP'], { validators: [Validators.required] }),
     }),
-    tenor: this.fb.nonNullable.group({
-      minMonths: new FormControl(12, {
-        nonNullable: true,
-        validators: [Validators.required, Validators.min(1), Validators.max(600)],
-      }),
-      maxMonths: new FormControl(60, {
-        nonNullable: true,
-        validators: [Validators.required, Validators.min(1), Validators.max(600)],
-      }),
-    }),
+    tenor: this.fb.nonNullable.group(
+      {
+        minMonths: new FormControl(12, {
+          nonNullable: true,
+          validators: [Validators.required, Validators.min(1), Validators.max(600)],
+        }),
+        maxMonths: new FormControl(60, {
+          nonNullable: true,
+          validators: [Validators.required, Validators.min(1), Validators.max(600)],
+        }),
+      },
+      { validators: [tenorRangeValidator] },
+    ),
     loanLimits: this.fb.nonNullable.group({
       minAmountEGP: new FormControl('50000', {
         nonNullable: true,
@@ -1437,6 +1486,31 @@ export class BankProgramFormPage implements OnInit {
   get incomeAssumptionGroup(): FormGroup { return this.form.controls.incomeAssumption as FormGroup; }
   get feesGroup(): FormGroup { return this.form.controls.fees as FormGroup; }
   get documentsGroup(): FormGroup { return this.form.controls.documents as FormGroup; }
+
+  // ── Loan-duration helpers ────────────────────────────────────────────────
+  // Plain min/max month inputs (consistent with the rest of the form, e.g. the
+  // age fields). tenor.minMonths/maxMonths remain the source of truth; these
+  // signals only drive the "≈ N years" hint shown under each input.
+  private readonly tenorValue = toSignal(this.form.controls.tenor.valueChanges, {
+    initialValue: this.form.controls.tenor.getRawValue(),
+  });
+  /** Years-equivalent hint under the Minimum months input ("≈ 1 yr"). */
+  readonly minMonthsHint = computed(() => this.formatMonths(this.tenorValue().minMonths ?? 0));
+  /** Years-equivalent hint under the Maximum months input ("≈ 7 yr"). */
+  readonly maxMonthsHint = computed(() => this.formatMonths(this.tenorValue().maxMonths ?? 0));
+
+  /** Months → years label: 84 → "7 yr", 18 → "1 yr 6 mo", 1 → "1 mo". */
+  readonly formatMonths = (total: number): string => {
+    const years = Math.floor(total / 12);
+    const months = total % 12;
+    if (years > 0 && months > 0) {
+      return $localize`:@@bank_programs.tenor.ym:${years}:years: yr ${months}:months: mo`;
+    }
+    if (years > 0) {
+      return $localize`:@@bank_programs.tenor.y:${years}:years: yr`;
+    }
+    return $localize`:@@bank_programs.tenor.m:${months}:months: mo`;
+  };
 
   // Live array view for the FormArray-backed currencies field (kept as FormArray to
   // preserve per-item validation hooks). Other multi-select fields are now typed
@@ -1855,13 +1929,17 @@ export class BankProgramFormPage implements OnInit {
   }
 
   private applyInitial(initial: BankProgramResponse): void {
+    this.editBankName.set(initial.bankName);
     this.identityGroup.patchValue({
+      programCode: initial.programCode,
       bankName: initial.bankName,
       friendlyName: initial.friendlyName,
       friendlyNameAr: initial.friendlyNameAr ?? null,
       programType: initial.programType,
       productCategory: initial.productCategory,
     });
+    // programCode is immutable on edit — show it read-only.
+    this.identityGroup.controls.programCode?.disable();
     if (initial.bankId) this.bankIdControl.setValue(initial.bankId);
     this.setArr('identity.currencies', initial.currencies);
 

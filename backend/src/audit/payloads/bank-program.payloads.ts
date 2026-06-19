@@ -27,11 +27,6 @@ export interface BankProgramToggledPayload {
   after: 'active' | 'inactive';
 }
 
-export interface BankProgramClonedPayload {
-  sourceProgramCode: string;
-  newProgramCode: string;
-}
-
 export interface BankProgramDeletedPayload {
   programCode: string;
   friendlyName: string;

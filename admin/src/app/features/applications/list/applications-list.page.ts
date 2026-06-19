@@ -25,12 +25,14 @@ import {
   PageHeaderComponent,
   SkeletonRowsComponent,
   StatStripComponent,
+  StatusPillComponent,
   type StatStripItem,
 } from '@shared/ui';
 import {
   ApplicationsApiService,
   type AdminApplicationRow,
 } from '../api/applications.api.service';
+import { leadStatusMeta, type LeadStatusMeta } from '../shared/lead-status';
 import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
   TierFilterChipsComponent,
@@ -52,6 +54,7 @@ import {
     TierFilterChipsComponent,
     PageHeaderComponent,
     StatStripComponent,
+    StatusPillComponent,
     SkeletonRowsComponent,
   ],
   providers: [
@@ -91,7 +94,7 @@ import {
       />
 
       @if (loading()) {
-        <app-skeleton-rows [rows]="6" [cols]="[2, 1, 1, 1]" />
+        <app-skeleton-rows [rows]="6" [cols]="[2, 1, 1, 1, 1]" />
       }
 
       @if (!loading() && filteredRowsArray().length === 0) {
@@ -106,8 +109,14 @@ import {
           <nz-table
             #t
             [nzData]="filteredRowsArray()"
-            [nzShowPagination]="false"
-            [nzFrontPagination]="false"
+            [nzFrontPagination]="true"
+            [nzShowPagination]="filteredRowsArray().length > pageSize()"
+            [nzPageIndex]="pageIndex()"
+            (nzPageIndexChange)="pageIndex.set($event)"
+            [nzPageSize]="pageSize()"
+            (nzPageSizeChange)="onPageSizeChange($event)"
+            [nzPageSizeOptions]="pageSizeOptions"
+            [nzShowSizeChanger]="filteredRowsArray().length > pageSize()"
             class="applications-table"
             nzSize="middle"
           >
@@ -116,6 +125,7 @@ import {
                 <th i18n="@@applications.col.applicant">Applicant</th>
                 <th i18n="@@applications.col.loan">Loan</th>
                 <th i18n="@@applications.col.probability">Probability</th>
+                <th i18n="@@applications.col.status">Status</th>
                 <th i18n="@@applications.col.submitted">Submitted</th>
                 <th class="actions-th" aria-hidden="true"></th>
               </tr>
@@ -148,6 +158,9 @@ import {
                   </td>
                   <td>
                     <app-approval-pill [bestOffer]="row.bestOffer" />
+                  </td>
+                  <td>
+                    <app-status-pill [label]="leadMeta(row).label" [tone]="leadMeta(row).tone" />
                   </td>
                   <td>
                     <span class="submitted-age">
@@ -373,6 +386,10 @@ export class ApplicationsListPage implements OnInit {
   protected readonly searchQuery = signal('');
   protected readonly searchControl = new FormControl<string>('', { nonNullable: true });
 
+  protected readonly pageIndex = signal(1);
+  protected readonly pageSize = signal(10);
+  protected readonly pageSizeOptions = [10, 25, 50];
+
   protected readonly counts = computed(() => {
     const r = this.rows();
     return {
@@ -437,12 +454,16 @@ export class ApplicationsListPage implements OnInit {
       this.searchQuery.set(q);
       this.searchControl.setValue(q, { emitEvent: false });
     }
-    this.searchControl.valueChanges.subscribe((v) => this.searchQuery.set(v));
+    this.searchControl.valueChanges.subscribe((v) => {
+      this.searchQuery.set(v);
+      this.pageIndex.set(1);
+    });
     await this.reload();
   }
 
   protected onTierFilterChange(next: TierFilter): void {
     this.selectedTier.set(next);
+    this.pageIndex.set(1);
     void this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tier: next ?? null },
@@ -450,8 +471,17 @@ export class ApplicationsListPage implements OnInit {
     });
   }
 
+  protected onPageSizeChange(size: number): void {
+    this.pageSize.set(size);
+    this.pageIndex.set(1);
+  }
+
   protected detailAriaLabel(id: string): string {
     return $localize`:@@applications.action.detail:Open application ${id}`;
+  }
+
+  protected leadMeta(row: AdminApplicationRow): LeadStatusMeta {
+    return leadStatusMeta(row.leadStatus);
   }
 
   protected openDetail(id: string, ev?: Event): void {
@@ -526,8 +556,26 @@ export class ApplicationsListPage implements OnInit {
   private async reload(): Promise<void> {
     this.loading.set(true);
     try {
-      const { rows } = await this.api.list({ limit: 100 });
-      this.rows.set(rows);
+      // Load every proceeded application so client-side counts, filters and
+      // front pagination operate on the full set. Follow the cursor with a
+      // safety cap so a runaway dataset can never loop forever.
+      const PAGE_LIMIT = 100;
+      const MAX_PAGES = 20;
+      const all: AdminApplicationRow[] = [];
+      let cursor: string | undefined;
+      let pages = 0;
+      do {
+        const { rows, nextCursor } = await this.api.list({ cursor, limit: PAGE_LIMIT });
+        all.push(...rows);
+        cursor = nextCursor ?? undefined;
+        pages += 1;
+      } while (cursor && pages < MAX_PAGES);
+      if (cursor) {
+        console.warn(
+          `[applications] stopped loading after ${pages} pages (${all.length} rows); more remain.`,
+        );
+      }
+      this.rows.set(all);
     } finally {
       this.loading.set(false);
     }

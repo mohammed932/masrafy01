@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Loan duration — redesign</title>
+<style>
+  :root{
+    --primary:#0869C3; --primary-hover:#0a5aa8;
+    --text:#16202E; --text-2:#5A6B7B;
+    --surface:#FFFFFF; --panel:#F1F6FB; --rail:#DCE3EB; --border:#E3E8EF;
+    --chip-active:#DCEAF6; --error:#D4351C;
+    --r-lg:12px; --r-pill:999px;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:40px 24px;
+    background:#F4F5F7;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--text); display:flex; justify-content:center;
+  }
+  .wrap{width:100%; max-width:880px}
+  .caption{font-size:13px;color:var(--text-2);margin:0 0 16px;letter-spacing:.01em}
+  .caption b{color:var(--text)}
+
+  /* mirrors .card */
+  .card{
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-lg); padding:var(--s5);
+    display:flex; flex-direction:column; gap:var(--s4);
+  }
+  .card-title{font-size:1.125rem;font-weight:700;margin:0 0 var(--s1);letter-spacing:-.005em}
+  .card-sub{font-size:.875rem;margin:0;max-width:72ch;color:var(--text-2)}
+
+  /* mirrors .duration */
+  .duration{display:flex;flex-direction:column;gap:var(--s4);max-inline-size:58ch}
+  .duration-panel{
+    display:flex;flex-direction:column;gap:var(--s4);
+    padding:var(--s5) var(--s5) var(--s4);
+    border-radius:var(--r-lg); background:var(--panel);
+  }
+  .duration-readout{display:flex;align-items:baseline;flex-wrap:wrap;gap:var(--s1) var(--s3)}
+  .dr-range{font-size:1.5rem;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+  .dr-months{font-size:.875rem;color:var(--text-2);font-variant-numeric:tabular-nums}
+
+  /* slider mock */
+  .slider{position:relative;margin:6px var(--s2) var(--s5);height:6px}
+  .rail{position:absolute;inset-inline:0;top:0;height:6px;background:var(--rail);border-radius:var(--r-pill)}
+  .track{position:absolute;top:0;height:6px;background:var(--primary);border-radius:var(--r-pill);
+         left:3.1%;width:20%}
+  .handle{position:absolute;top:50%;width:16px;height:16px;border-radius:50%;
+          background:#fff;transform:translate(-50%,-50%);
+          box-shadow:0 0 0 2px var(--primary),0 1px 3px rgba(0,0,0,.18)}
+  .handle.lo{left:3.1%} .handle.hi{left:23.1%}
+  .marks{position:absolute;top:18px;inset-inline:0;height:18px}
+  .mark{position:absolute;transform:translateX(-50%);font-size:.875rem;color:var(--text-2);font-variant-numeric:tabular-nums}
+  .mark.on{color:var(--text);font-weight:500}
+
+  .presets{display:flex;flex-wrap:wrap;gap:var(--s2)}
+  .chip{
+    appearance:none;cursor:pointer;padding:var(--s1) var(--s3);border-radius:var(--r-pill);
+    border:1px solid var(--border);background:var(--surface);color:var(--text-2);
+    font-size:.875rem;font-weight:600;line-height:1.4;font-variant-numeric:tabular-nums;
+  }
+  .chip:hover{border-color:var(--primary);color:var(--primary)}
+  .chip.on{background:var(--chip-active);border-color:var(--primary);color:var(--primary)}
+
+  .exact{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s6)}
+  .field label{display:block;font-size:.875rem;color:var(--text);margin-bottom:6px}
+  .field label .req{color:var(--error);margin-inline-end:3px}
+  .field input{
+    width:9ch;padding:8px 11px;border:1px solid var(--border);border-radius:8px;
+    font-size:14px;color:var(--text);font-variant-numeric:tabular-nums;background:#fff;
+  }
+  .field input:focus{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--primary)}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="caption"><b>Loan duration — redesigned.</b> Calibrated 30-yr scale (no more 600-month / “34 yr” nonsense), one tonal control instead of four stacked rows, compact month inputs instead of giant empty boxes.</p>
+
+    <section class="card">
+      <div>
+        <h2 class="card-title">Loan duration</h2>
+        <p class="card-sub">Drag the handles or pick a standard tenor — the range is the window of months a customer can borrow over.</p>
+      </div>
+
+      <div class="duration">
+        <div class="duration-panel">
+          <div class="duration-readout">
+            <span class="dr-range">1 – 7 yr</span>
+            <span class="dr-months">12–84 months</span>
+          </div>
+
+          <div class="slider">
+            <div class="rail"></div>
+            <div class="track"></div>
+            <div class="handle lo"></div>
+            <div class="handle hi"></div>
+            <div class="marks">
+              <span class="mark on" style="left:3.1%">1y</span>
+              <span class="mark on" style="left:16.4%">5y</span>
+              <span class="mark" style="left:33.1%">10y</span>
+              <span class="mark" style="left:66.6%">20y</span>
+              <span class="mark" style="left:99%">30y</span>
+            </div>
+          </div>
+
+          <div class="presets">
+            <button class="chip">1y</button>
+            <button class="chip">2y</button>
+            <button class="chip">3y</button>
+            <button class="chip">5y</button>
+            <button class="chip on">7y</button>
+            <button class="chip">10y</button>
+          </div>
+        </div>
+
+        <div class="exact">
+          <div class="field">
+            <label><span class="req">*</span>Minimum months</label>
+            <input value="12" inputmode="numeric" />
+          </div>
+          <div class="field">
+            <label><span class="req">*</span>Maximum months</label>
+            <input value="84" inputmode="numeric" />
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

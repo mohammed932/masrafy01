@@ -42,7 +42,7 @@ import {
  * Bank-program orchestration service.
  *
  * Phase 3 (US1) implements `create()` end-to-end.
- * Later phases extend `update()`, `toggle()`, `clone()`, `delete()`, `list()`, `findOne()`.
+ * Later phases extend `update()`, `toggle()`, `delete()`, `list()`, `findOne()`.
  *
  * Spec anchors (US1 only):
  *   FR-011a — variable-rate consistency
@@ -507,68 +507,6 @@ export class BankProgramsService {
     });
     const deprecatedKeys = await this.collectDeprecatedKeys(updated);
     return this.toResponse(updated, deprecatedKeys);
-  }
-
-  // --- CLONE (US4) ---------------------------------------------------------
-
-  async clone(
-    sourceProgramCode: string,
-    newProgramCode: string,
-    actor: { id: string; sourceIp: string | null; correlationId: string },
-  ): Promise<BankProgramResponseDto> {
-    const source = await this.repo.findByProgramCode(sourceProgramCode);
-    if (!source) {
-      throw new BankProgramNotFoundException({ programCode: sourceProgramCode });
-    }
-    const conflict = await this.repo.findByProgramCode(newProgramCode);
-    if (conflict) {
-      throw new ProgramCodeAlreadyInUseException(newProgramCode);
-    }
-
-    const cloned = await this.prisma.$transaction(async (tx) => {
-      const created = await this.repo.create(
-        {
-          programCode: newProgramCode,
-          bankName: source.bankName,
-          friendlyName: source.friendlyName,
-          friendlyNameAr: source.friendlyNameAr,
-          programType: source.programType,
-          productCategory: source.productCategory,
-          currencies: source.currencies,
-          active: source.active,
-          operatorNotes: source.operatorNotes,
-          operatorTips: source.operatorTips,
-          requiredDocuments: source.requiredDocuments,
-          tenor: source.tenor as JsonBlob,
-          loanLimits: source.loanLimits as JsonBlob,
-          pricing: source.pricing as JsonBlob,
-          eligibility: source.eligibility as JsonBlob,
-          performanceCriteria: (source.performanceCriteria ?? null) as JsonBlob,
-          incomeAssumption: source.incomeAssumption as JsonBlob,
-          fees: source.fees as JsonBlob,
-          createdBy: actor.id,
-          updatedBy: actor.id,
-        },
-        tx,
-      );
-      await this.audit.create(
-        {
-          actorId: actor.id,
-          targetId: null,
-          bankProgramId: created.id,
-          eventType: AuditEventType.BANK_PROGRAM_CLONED,
-          sourceIp: actor.sourceIp,
-          correlationId: actor.correlationId,
-          payload: {
-            sourceProgramCode: source.programCode,
-            newProgramCode: created.programCode,
-          },
-        },
-        tx,
-      );
-      return created;
-    });
-    return this.toResponse(cloned, []);
   }
 
   // --- DELETE (US5) --------------------------------------------------------

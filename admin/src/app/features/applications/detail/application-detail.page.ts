@@ -1,13 +1,29 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ReactiveFormsModule, FormControl } from '@angular/forms';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { ArrowLeftOutline } from '@ant-design/icons-angular/icons';
+import { StatusPillComponent } from '@shared/ui';
 import {
   ApplicationsApiService,
   type AdminApplicationDetail,
 } from '../api/applications.api.service';
+import {
+  leadStatusMeta,
+  LEAD_STATUS_VALUES,
+  type LeadStatus,
+  type LeadStatusMeta,
+} from '../shared/lead-status';
 import { ApprovalPillComponent } from '../list/components/approval-pill.component';
 import { WhyThisScorePanelComponent } from './components/why-this-score-panel.component';
 
@@ -22,8 +38,11 @@ import { WhyThisScorePanelComponent } from './components/why-this-score-panel.co
   imports: [
     CommonModule,
     RouterLink,
+    ReactiveFormsModule,
     NzSpinModule,
+    NzSelectModule,
     NzIconModule,
+    StatusPillComponent,
     ApprovalPillComponent,
     WhyThisScorePanelComponent,
   ],
@@ -53,6 +72,23 @@ import { WhyThisScorePanelComponent } from './components/why-this-score-panel.co
             <div class="hero-amount">
               <span class="amount-value">{{ formatAmount(d.requestedAmountEGP) }}</span>
               <span class="amount-currency">{{ d.requestedCurrency }}</span>
+            </div>
+
+            <div class="hero-status">
+              <span class="hero-status-label" i18n="@@applications.col.status">Status</span>
+              <app-status-pill [label]="leadMeta().label" [tone]="leadMeta().tone" />
+              <nz-select
+                class="lead-select"
+                [formControl]="leadStatusControl"
+                [nzLoading]="savingStatus()"
+                [nzDisabled]="savingStatus()"
+                nzSize="small"
+                [attr.aria-label]="changeStatusAria"
+              >
+                @for (s of leadStatusValues; track s) {
+                  <nz-option [nzValue]="s" [nzLabel]="leadLabel(s)"></nz-option>
+                }
+              </nz-select>
             </div>
           </div>
 
@@ -218,6 +254,23 @@ import { WhyThisScorePanelComponent } from './components/why-this-score-panel.co
         letter-spacing: 0.04em;
       }
 
+      .hero-status {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+      .hero-status-label {
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-text-tertiary);
+      }
+      .lead-select {
+        min-inline-size: 150px;
+      }
+
       .hero-meta {
         display: flex;
         flex-wrap: wrap;
@@ -322,6 +375,20 @@ export class ApplicationDetailPage implements OnInit {
   protected readonly loading = signal(true);
   protected readonly activeEngineVersion = signal<string | null>(null);
 
+  // Lead (sales pipeline) status — admin-editable, separate from engine status.
+  protected readonly leadStatus = signal<LeadStatus>('pending');
+  protected readonly savingStatus = signal(false);
+  protected readonly leadStatusControl = new FormControl<LeadStatus>('pending', {
+    nonNullable: true,
+  });
+  protected readonly leadStatusValues = LEAD_STATUS_VALUES;
+  protected readonly changeStatusAria = $localize`:@@app.detail.status.change:Change application status`;
+  protected readonly leadMeta = computed<LeadStatusMeta>(() => leadStatusMeta(this.leadStatus()));
+
+  protected leadLabel(s: LeadStatus): string {
+    return leadStatusMeta(s).label;
+  }
+
   protected sortedOffers(d: AdminApplicationDetail): AdminApplicationDetail['offers'] {
     return [...d.offers].sort((a, b) => b.approvalProbability.score - a.approvalProbability.score);
   }
@@ -335,9 +402,28 @@ export class ApplicationDetailPage implements OnInit {
     try {
       const d = await this.api.getById(id);
       this.detail.set(d);
+      this.leadStatus.set(d.leadStatus);
+      this.leadStatusControl.setValue(d.leadStatus, { emitEvent: false });
+      this.leadStatusControl.valueChanges.subscribe((v) => void this.saveLeadStatus(v));
       this.activeEngineVersion.set(d.offers[0]?.approvalProbability.engineVersion ?? null);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  private async saveLeadStatus(next: LeadStatus): Promise<void> {
+    const id = this.detail()?.id;
+    const prev = this.leadStatus();
+    if (!id || next === prev) return;
+    this.savingStatus.set(true);
+    try {
+      await this.api.updateLeadStatus(id, next);
+      this.leadStatus.set(next);
+    } catch {
+      // Revert the control; the HTTP error interceptor surfaces the typed toast.
+      this.leadStatusControl.setValue(prev, { emitEvent: false });
+    } finally {
+      this.savingStatus.set(false);
     }
   }
 

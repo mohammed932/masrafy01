@@ -49,6 +49,7 @@
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
+  --radius-xl: 18px;
   --radius-pill: 999px;
 
   // ===== Motion ==============================================================
@@ -117,6 +118,14 @@
   --color-info: var(--info);
   --color-info-bg: var(--info-50);
   --color-info-dot: var(--info);
+
+  // Loan-category accent hues — generic, keyed by category (Principle II).
+  // Reuse the chart palette so light + dark both resolve.
+  --color-cat-personal: var(--chart-1); // azure
+  --color-cat-car: var(--chart-2); // bronze
+  --color-cat-mortgage: var(--chart-3); // slate blue
+  --color-cat-business: var(--chart-4); // green
+  --color-cat-other: var(--color-border-strong);
 
   // Type-scale legacy mappings (px → rem equivalents kept for code that still
   // reads `--text-md`, `--text-xxs`, `--font-family-base`).
