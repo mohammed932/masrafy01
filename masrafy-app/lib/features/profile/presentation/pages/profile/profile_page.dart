@@ -39,7 +39,6 @@ class _ProfileView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final l = AppLocalizations.of(context);
-    void soon() => MasrafyToast.info(context, l.common_coming_soon);
 
     return Scaffold(
       backgroundColor: colors.bg.layout,
@@ -48,8 +47,9 @@ class _ProfileView extends StatelessWidget {
         loansLabel: l.home_nav_loans,
         homeLabel: l.home_nav_home,
         menuLabel: l.home_nav_menu,
-        onLoans: soon,
-        onHome: () => context.router.popUntilRoot(),
+        onLoans: () =>
+            context.router.replace(SavedOffersRoute(fromTab: true)),
+        onHome: () => context.router.replaceAll([const HomeRoute()]),
         onMenu: () => context.router.maybePop(),
       ),
       body: BlocBuilder<ProfileCubit, ProfileData>(

@@ -48,7 +48,8 @@ class _HomeView extends StatelessWidget {
         loansLabel: l.home_nav_loans,
         homeLabel: l.home_nav_home,
         menuLabel: l.home_nav_menu,
-        onLoans: soon,
+        onLoans: () =>
+            context.router.replace(SavedOffersRoute(fromTab: true)),
         onHome: () {},
         onMenu: () => context.router.push(const AccountRoute()),
       ),
@@ -148,7 +149,8 @@ class _HomeView extends StatelessWidget {
                                   ctx.router.push(
                                       const BusinessQuestionnaireRoute());
                                 case HomeLoanCategory.personal:
-                                  soon();
+                                  ctx.router.push(
+                                      const PersonalQuestionnaireRoute());
                               }
                             },
                           ),

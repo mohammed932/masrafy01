@@ -26,25 +26,19 @@ class AccountPage extends StatelessWidget {
         icon: Icons.verified_user,
         color: colors.info.main,
         title: l.account_row_settings_security,
-        onTap: soon,
+        onTap: () => context.router.push(const SettingsSecurityRoute()),
       ),
       _AccountMenuItem(
         icon: Icons.favorite,
         color: colors.error.main,
         title: l.account_row_saved_offers,
-        onTap: soon,
-      ),
-      _AccountMenuItem(
-        icon: Icons.info,
-        color: colors.secondary.main,
-        title: l.account_row_notifications,
-        onTap: soon,
+        onTap: () => context.router.push(SavedOffersRoute()),
       ),
       _AccountMenuItem(
         icon: Icons.description,
         color: colors.success.main,
         title: l.account_row_previous_applications,
-        onTap: soon,
+        onTap: () => context.router.push(const PreviousApplicationsRoute()),
       ),
     ];
 
@@ -55,8 +49,9 @@ class AccountPage extends StatelessWidget {
         loansLabel: l.home_nav_loans,
         homeLabel: l.home_nav_home,
         menuLabel: l.home_nav_menu,
-        onLoans: soon,
-        onHome: () => context.router.popUntilRoot(),
+        onLoans: () =>
+            context.router.replace(SavedOffersRoute(fromTab: true)),
+        onHome: () => context.router.replaceAll([const HomeRoute()]),
         onMenu: () {},
       ),
       body: SafeArea(
@@ -68,10 +63,7 @@ class AccountPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MasrafyBackTitleHeader(
-                title: l.account_title,
-                onBack: () => context.router.maybePop(),
-              ),
+              MasrafyBackTitleHeader(title: l.account_title),
               Gap(17.h),
               Padding(
                 padding: EdgeInsetsDirectional.symmetric(horizontal: 24.w),

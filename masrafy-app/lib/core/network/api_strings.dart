@@ -38,6 +38,11 @@ class ApiStrings {
   static String applicationSelectOffer(String applicationId) =>
       '/api/v1/applications/$applicationId/select-offer';
 
+  // --- Saved offers (Saved Offers screen) ---
+  static const String savedOffers = '/api/v1/saved-offers';
+  static String savedOfferDelete(String bankOfferId) =>
+      '/api/v1/saved-offers/$bankOfferId';
+
   // --- Mobile document upload ---
   static String documentUploadUrl(String applicationId) =>
       '/api/v1/applications/$applicationId/documents/upload-url';

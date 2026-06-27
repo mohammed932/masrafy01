@@ -1,28 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:gap/gap.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/utils/masrafy_assets.dart';
 
-/// The three customer-app tabs (Figma `137:2976`).
+/// The three customer-app tabs.
 enum MasrafyAppNavTab { loans, home, menu }
 
-/// Shared motion language for the bar — matches [MasrafyBottomNavBar] so every
-/// nav surface animates with one continuous, eased feel.
-const _navDuration = Duration(milliseconds: 320);
-const _navCurve = Curves.easeOutCubic;
+const _switchDuration = Duration(milliseconds: 200);
 const _pressDuration = Duration(milliseconds: 120);
 
 /// Customer-app bottom navigation — My Loans / Home / Menu. Shared by the home
-/// + account + profile screens (Principle XXXIII).
+/// + account + profile screens (Principle XXXIII). Matches Figma `4138:162`.
 ///
-/// Premium + animated: the bar floats as a rounded sheet with a soft upward
-/// lift shadow. All three tabs are identical — each grows a Material-3 indicator
-/// pill behind the icon (outline → filled cross-fade), the label morphs colour +
-/// weight, and the tab bounces on press. Every tap fires
-/// `HapticFeedback.selectionClick()`. Each item's tap is wired by the host
-/// screen.
+/// White bar, no top border, tabs bottom-aligned. The **active** tab's glyph is
+/// wrapped in a raised 45px circle (filled `primary.main`, white ring, soft
+/// shadow) with its label hidden; the others show a bare `primary.main` glyph
+/// with a `primary.main` label. The circle + label-hide follow [active], so the
+/// selected treatment moves with whichever tab is current. Each tap fires
+/// `HapticFeedback.selectionClick()`; the host wires callbacks.
 class MasrafyAppBottomNav extends StatelessWidget {
   const MasrafyAppBottomNav({
     super.key,
@@ -48,48 +46,37 @@ class MasrafyAppBottomNav extends StatelessWidget {
     final colors = MasrafyColorTheme.of(context);
 
     return Container(
-      decoration: BoxDecoration(
-        color: colors.bg.container,
-        borderRadius: BorderRadiusDirectional.only(
-          topStart: Radius.circular(24.r),
-          topEnd: Radius.circular(24.r),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colors.textBase.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: const Offset(0, -8),
-          ),
-        ],
-      ),
+      color: colors.bg.container,
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: EdgeInsetsDirectional.only(top: 2.h, bottom: 2.h),
+          padding: EdgeInsetsDirectional.symmetric(horizontal: 12.w, vertical: 5.h),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              _NavItem(
-                outlineIcon: Icons.favorite_border,
-                filledIcon: Icons.favorite,
-                label: loansLabel,
-                isActive: active == MasrafyAppNavTab.loans,
-                onTap: onLoans,
+              Expanded(
+                child: _NavTab(
+                  asset: MasrafyAssets.kNavLoans,
+                  label: loansLabel,
+                  isActive: active == MasrafyAppNavTab.loans,
+                  onTap: onLoans,
+                ),
               ),
-              _NavItem(
-                outlineIcon: Icons.home_outlined,
-                filledIcon: Icons.home_rounded,
-                label: homeLabel,
-                isActive: active == MasrafyAppNavTab.home,
-                onTap: onHome,
+              Expanded(
+                child: _NavTab(
+                  asset: MasrafyAssets.kNavHomeFilled,
+                  label: homeLabel,
+                  isActive: active == MasrafyAppNavTab.home,
+                  onTap: onHome,
+                ),
               ),
-              _NavItem(
-                outlineIcon: Icons.person_outline,
-                filledIcon: Icons.person,
-                label: menuLabel,
-                isActive: active == MasrafyAppNavTab.menu,
-                onTap: onMenu,
+              Expanded(
+                child: _NavTab(
+                  asset: MasrafyAssets.kNavAccount,
+                  label: menuLabel,
+                  isActive: active == MasrafyAppNavTab.menu,
+                  onTap: onMenu,
+                ),
               ),
             ],
           ),
@@ -99,29 +86,28 @@ class MasrafyAppBottomNav extends StatelessWidget {
   }
 }
 
-/// A single tab: a pill indicator fades + grows behind the icon when active,
-/// the glyph cross-fades outline → filled, and the label morphs colour +
-/// weight. Local [_pressed] state drives the tap bounce.
-class _NavItem extends StatefulWidget {
-  const _NavItem({
-    required this.outlineIcon,
-    required this.filledIcon,
+/// One tab. **Active** → glyph inside a raised 45px circle (white-tinted glyph,
+/// `primary.main` fill, white ring, soft shadow), label hidden. **Inactive** →
+/// bare `primary.main` glyph + `primary.main` label. The active/inactive morph
+/// is animated; local [_pressed] drives a light tap bounce.
+class _NavTab extends StatefulWidget {
+  const _NavTab({
+    required this.asset,
     required this.label,
     required this.isActive,
     required this.onTap,
   });
 
-  final IconData outlineIcon;
-  final IconData filledIcon;
+  final String asset;
   final String label;
   final bool isActive;
   final VoidCallback? onTap;
 
   @override
-  State<_NavItem> createState() => _NavItemState();
+  State<_NavTab> createState() => _NavTabState();
 }
 
-class _NavItemState extends State<_NavItem> {
+class _NavTabState extends State<_NavTab> {
   bool _pressed = false;
 
   void _setPressed(bool value) {
@@ -138,8 +124,15 @@ class _NavItemState extends State<_NavItem> {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final isActive = widget.isActive;
-    final activeColor = colors.primary.main;
-    final idleColor = colors.icon.main;
+
+    final glyphColor = isActive ? colors.bg.container : colors.primary.main;
+    final glyphSize = isActive ? 20.r : 24.r;
+    final glyph = SvgPicture.asset(
+      widget.asset,
+      width: glyphSize,
+      height: glyphSize,
+      colorFilter: ColorFilter.mode(glyphColor, BlendMode.srcIn),
+    );
 
     return Semantics(
       button: true,
@@ -152,46 +145,52 @@ class _NavItemState extends State<_NavItem> {
         onTapUp: (_) => _setPressed(false),
         onTapCancel: () => _setPressed(false),
         child: AnimatedScale(
-          scale: _pressed ? 0.90 : 1,
+          scale: _pressed ? 0.92 : 1,
           duration: _pressDuration,
           curve: Curves.easeOut,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               AnimatedContainer(
-                duration: _navDuration,
-                curve: _navCurve,
-                padding: EdgeInsets.symmetric(
-                  horizontal: isActive ? 18.w : 12.w,
-                  vertical: 2.h,
-                ),
+                duration: _switchDuration,
+                curve: Curves.easeOut,
+                // border 4 + padding ~8.5 + glyph 20 ≈ 45px outer (Figma).
+                padding: EdgeInsets.all(isActive ? 8.5.r : 0),
                 decoration: BoxDecoration(
-                  color: isActive ? colors.primary.bg : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16.r),
+                  shape: BoxShape.circle,
+                  color: isActive ? colors.primary.main : Colors.transparent,
+                  border: isActive
+                      ? Border.all(color: colors.bg.container, width: 4.r)
+                      : null,
+                  boxShadow: isActive
+                      ? [
+                          BoxShadow(
+                            color: colors.primary.hover.withValues(alpha: 0.2),
+                            offset: Offset(0, 5.h),
+                            blurRadius: 5.r,
+                          ),
+                        ]
+                      : null,
                 ),
-                child: AnimatedSwitcher(
-                  duration: _navDuration,
-                  switchInCurve: _navCurve,
-                  switchOutCurve: _navCurve,
-                  transitionBuilder: (child, anim) =>
-                      FadeTransition(opacity: anim, child: child),
-                  child: Icon(
-                    isActive ? widget.filledIcon : widget.outlineIcon,
-                    key: ValueKey(isActive),
-                    size: 22.r,
-                    color: isActive ? activeColor : idleColor,
-                  ),
-                ),
+                child: glyph,
               ),
-              Gap(1.h),
-              AnimatedDefaultTextStyle(
-                duration: _navDuration,
-                curve: _navCurve,
-                style: (isActive
-                        ? text.caption.semiBold()
-                        : text.caption.regular())
-                    .copyWith(color: isActive ? activeColor : idleColor),
-                child: Text(widget.label),
+              // Label hidden on the active tab; collapses as the circle grows.
+              AnimatedSize(
+                duration: _switchDuration,
+                curve: Curves.easeOut,
+                child: isActive
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: EdgeInsetsDirectional.only(top: 2.h),
+                        child: Text(
+                          widget.label,
+                          maxLines: 1,
+                          style: text.caption.copyWith(
+                            fontSize: 10.sp,
+                            color: colors.primary.main,
+                          ),
+                        ),
+                      ),
               ),
             ],
           ),

@@ -32,7 +32,6 @@ mixin _$BusinessQuestionnaireState {
   bool? get priorRejection => throw _privateConstructorUsedError; // Step 4
   String? get priorityFactor => throw _privateConstructorUsedError;
   bool? get needsConsultation => throw _privateConstructorUsedError; // UI
-  BusinessField? get openField => throw _privateConstructorUsedError;
   bool get submitted => throw _privateConstructorUsedError;
 
   /// Create a copy of BusinessQuestionnaireState
@@ -66,7 +65,6 @@ abstract class $BusinessQuestionnaireStateCopyWith<$Res> {
       bool? priorRejection,
       String? priorityFactor,
       bool? needsConsultation,
-      BusinessField? openField,
       bool submitted});
 }
 
@@ -102,7 +100,6 @@ class _$BusinessQuestionnaireStateCopyWithImpl<$Res,
     Object? priorRejection = freezed,
     Object? priorityFactor = freezed,
     Object? needsConsultation = freezed,
-    Object? openField = freezed,
     Object? submitted = null,
   }) {
     return _then(_value.copyWith(
@@ -170,10 +167,6 @@ class _$BusinessQuestionnaireStateCopyWithImpl<$Res,
           ? _value.needsConsultation
           : needsConsultation // ignore: cast_nullable_to_non_nullable
               as bool?,
-      openField: freezed == openField
-          ? _value.openField
-          : openField // ignore: cast_nullable_to_non_nullable
-              as BusinessField?,
       submitted: null == submitted
           ? _value.submitted
           : submitted // ignore: cast_nullable_to_non_nullable
@@ -208,7 +201,6 @@ abstract class _$$BusinessQuestionnaireStateImplCopyWith<$Res>
       bool? priorRejection,
       String? priorityFactor,
       bool? needsConsultation,
-      BusinessField? openField,
       bool submitted});
 }
 
@@ -243,7 +235,6 @@ class __$$BusinessQuestionnaireStateImplCopyWithImpl<$Res>
     Object? priorRejection = freezed,
     Object? priorityFactor = freezed,
     Object? needsConsultation = freezed,
-    Object? openField = freezed,
     Object? submitted = null,
   }) {
     return _then(_$BusinessQuestionnaireStateImpl(
@@ -311,10 +302,6 @@ class __$$BusinessQuestionnaireStateImplCopyWithImpl<$Res>
           ? _value.needsConsultation
           : needsConsultation // ignore: cast_nullable_to_non_nullable
               as bool?,
-      openField: freezed == openField
-          ? _value.openField
-          : openField // ignore: cast_nullable_to_non_nullable
-              as BusinessField?,
       submitted: null == submitted
           ? _value.submitted
           : submitted // ignore: cast_nullable_to_non_nullable
@@ -343,7 +330,6 @@ class _$BusinessQuestionnaireStateImpl extends _BusinessQuestionnaireState {
       this.priorRejection,
       this.priorityFactor,
       this.needsConsultation,
-      this.openField,
       this.submitted = false})
       : super._();
 
@@ -392,14 +378,12 @@ class _$BusinessQuestionnaireStateImpl extends _BusinessQuestionnaireState {
   final bool? needsConsultation;
 // UI
   @override
-  final BusinessField? openField;
-  @override
   @JsonKey()
   final bool submitted;
 
   @override
   String toString() {
-    return 'BusinessQuestionnaireState(currentStep: $currentStep, activityType: $activityType, businessAge: $businessAge, financingAmount: $financingAmount, financingPurpose: $financingPurpose, repaymentPeriod: $repaymentPeriod, monthlyRevenueStart: $monthlyRevenueStart, monthlyRevenueEnd: $monthlyRevenueEnd, businessAccount: $businessAccount, registered: $registered, taxRegistration: $taxRegistration, currentFacilities: $currentFacilities, currentInstallments: $currentInstallments, priorRejection: $priorRejection, priorityFactor: $priorityFactor, needsConsultation: $needsConsultation, openField: $openField, submitted: $submitted)';
+    return 'BusinessQuestionnaireState(currentStep: $currentStep, activityType: $activityType, businessAge: $businessAge, financingAmount: $financingAmount, financingPurpose: $financingPurpose, repaymentPeriod: $repaymentPeriod, monthlyRevenueStart: $monthlyRevenueStart, monthlyRevenueEnd: $monthlyRevenueEnd, businessAccount: $businessAccount, registered: $registered, taxRegistration: $taxRegistration, currentFacilities: $currentFacilities, currentInstallments: $currentInstallments, priorRejection: $priorRejection, priorityFactor: $priorityFactor, needsConsultation: $needsConsultation, submitted: $submitted)';
   }
 
   @override
@@ -439,8 +423,6 @@ class _$BusinessQuestionnaireStateImpl extends _BusinessQuestionnaireState {
                 other.priorityFactor == priorityFactor) &&
             (identical(other.needsConsultation, needsConsultation) ||
                 other.needsConsultation == needsConsultation) &&
-            (identical(other.openField, openField) ||
-                other.openField == openField) &&
             (identical(other.submitted, submitted) ||
                 other.submitted == submitted));
   }
@@ -464,7 +446,6 @@ class _$BusinessQuestionnaireStateImpl extends _BusinessQuestionnaireState {
       priorRejection,
       priorityFactor,
       needsConsultation,
-      openField,
       submitted);
 
   /// Create a copy of BusinessQuestionnaireState
@@ -495,7 +476,6 @@ abstract class _BusinessQuestionnaireState extends BusinessQuestionnaireState {
       final bool? priorRejection,
       final String? priorityFactor,
       final bool? needsConsultation,
-      final BusinessField? openField,
       final bool submitted}) = _$BusinessQuestionnaireStateImpl;
   const _BusinessQuestionnaireState._() : super._();
 
@@ -531,8 +511,6 @@ abstract class _BusinessQuestionnaireState extends BusinessQuestionnaireState {
   String? get priorityFactor;
   @override
   bool? get needsConsultation; // UI
-  @override
-  BusinessField? get openField;
   @override
   bool get submitted;
 

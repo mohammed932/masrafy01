@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/core/widgets/input_controls/masrafy_labeled_field.dart';
 import 'package:app/core/widgets/sliders/masrafy_range_slider.dart';
 import 'package:app/core/widgets/sliders/masrafy_value_slider.dart';
@@ -17,8 +17,7 @@ import 'mortgage_step_scaffold.dart';
 /// type / compound / registration / governorate + address, an EGP property-
 /// value range slider, a down-payment bucket, and a repayment-years slider.
 /// Stateful to own the address [TextEditingController]; selects are driven by
-/// the cubit (`openField` + `updateField`). Flow-local widget (Principle
-/// XXXII); UI-only.
+/// the cubit (`updateField`). Flow-local widget (Principle XXXII); UI-only.
 class MortgageStepProperty extends StatefulWidget {
   const MortgageStepProperty({super.key, required this.state});
 
@@ -55,48 +54,39 @@ class _MortgageStepPropertyState extends State<MortgageStepProperty> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_mortgage_q_property_type,
             hint: l.q_mortgage_hint_property_type,
             options: MortgageLookups.propertyTypes(l),
             value: state.propertyType,
-            expanded: state.openField == MortgageField.propertyType,
-            onToggle: () => cubit.toggleField(MortgageField.propertyType),
             onSelected: (v) =>
                 cubit.updateField(MortgageField.propertyType, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_mortgage_q_in_compound,
             hint: l.q_mortgage_select_hint,
             options: MortgageLookups.yesNo(l),
             value: state.inCompound,
-            expanded: state.openField == MortgageField.inCompound,
-            onToggle: () => cubit.toggleField(MortgageField.inCompound),
             onSelected: (v) => cubit.updateField(MortgageField.inCompound, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_mortgage_q_registration_status,
             hint: l.q_mortgage_select_hint,
             options: MortgageLookups.registrationStatuses(l),
             value: state.registrationStatus,
-            expanded: state.openField == MortgageField.registrationStatus,
-            onToggle: () =>
-                cubit.toggleField(MortgageField.registrationStatus),
             onSelected: (v) =>
                 cubit.updateField(MortgageField.registrationStatus, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_mortgage_q_address,
             hint: l.q_mortgage_hint_governorate,
             options: MortgageLookups.governorates(l),
             value: state.governorate,
-            expanded: state.openField == MortgageField.governorate,
-            onToggle: () => cubit.toggleField(MortgageField.governorate),
             onSelected: (v) => cubit.updateField(MortgageField.governorate, v),
-            maxListHeight: 240.h,
+            showSearch: true,
           ),
           Gap(12.h),
           MasrafyLabeledField(
@@ -122,13 +112,11 @@ class _MortgageStepPropertyState extends State<MortgageStepProperty> {
                 cubit.updatePropertyValue(start: rv.start, end: rv.end),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_mortgage_q_down_payment,
             hint: l.q_mortgage_hint_down_payment,
             options: MortgageLookups.downPaymentBuckets(l),
             value: state.downPaymentPct,
-            expanded: state.openField == MortgageField.downPaymentPct,
-            onToggle: () => cubit.toggleField(MortgageField.downPaymentPct),
             onSelected: (v) =>
                 cubit.updateField(MortgageField.downPaymentPct, v),
           ),

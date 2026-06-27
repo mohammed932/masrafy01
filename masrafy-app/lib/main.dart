@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injection.dart';
 import 'core/environments/base_environment.dart';
+import 'core/locale/locale_cubit/locale_cubit.dart';
 import 'core/router/router.dart';
 import 'core/theme/colors/masrafy_color_theme.dart';
 import 'core/theme/masrafy_ui_kit.dart';
@@ -22,22 +23,31 @@ class MasrafyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MasrafyUiKitInitializer(
-      child: BlocProvider<ThemeBloc>(
-        create: (_) =>
-            getIt<ThemeBloc>()..add(const ThemeBlocEvent.initColorTheme()),
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<ThemeBloc>(
+            create: (_) =>
+                getIt<ThemeBloc>()..add(const ThemeBlocEvent.initColorTheme()),
+          ),
+          BlocProvider<LocaleCubit>(
+            create: (_) => getIt<LocaleCubit>()..init(),
+          ),
+        ],
         child: BlocBuilder<ThemeBloc, ThemeBlocState>(
           builder: (context, state) {
             final router = getIt<AppRouter>();
-            return MaterialApp.router(
-              title: 'Masrafy',
-              debugShowCheckedModeBanner: false,
-              localizationsDelegates: AppLocalizations.localizationsDelegates,
-              supportedLocales: AppLocalizations.supportedLocales,
-              theme: _buildTheme(const MasrafyLightTheme()),
-              darkTheme: _buildTheme(const MasrafyDarkTheme()),
-              themeMode: _materialThemeMode(state.mode),
-              routerConfig: router.config(),
-              builder: (context, child) {
+            return BlocBuilder<LocaleCubit, LocaleState>(
+              builder: (context, localeState) => MaterialApp.router(
+                title: 'Masrafy',
+                debugShowCheckedModeBanner: false,
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                locale: localeState.locale,
+                theme: _buildTheme(const MasrafyLightTheme()),
+                darkTheme: _buildTheme(const MasrafyDarkTheme()),
+                themeMode: _materialThemeMode(state.mode),
+                routerConfig: router.config(),
+                builder: (context, child) {
                 MasrafyUiKitInitializer.update(context);
                 // Resolve the active theme for the InheritedWidget so
                 // `MasrafyColorTheme.of(context)` matches the rendered mode
@@ -51,6 +61,7 @@ class MasrafyApp extends StatelessWidget {
                   child: child ?? const SizedBox.shrink(),
                 );
               },
+              ),
             );
           },
         ),

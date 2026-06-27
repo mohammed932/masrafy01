@@ -7,7 +7,7 @@ part 'car_questionnaire_state.dart';
 
 /// Orchestrates the 4-step car-loan questionnaire wizard (Figma `4024:2586`,
 /// `4024:3204`, `4024:3744`, `4024:4023`). Holds every answer plus the active
-/// step and which inline-expand dropdown is open. Pure orchestration — all
+/// step. Pure orchestration — all
 /// validation/derivation lives on [CarQuestionnaireState] (Principle XXXI).
 /// Screen-scoped via the page's `BlocProvider`; never shared across features.
 ///
@@ -20,39 +20,38 @@ class CarQuestionnaireCubit extends Cubit<CarQuestionnaireState> {
 
   /// Scalar field edits (selects, installments text, repayment slider).
   /// Exhaustive over [CarField] — no `default:` (the cast target is explicit
-  /// per case). Select edits also collapse any open accordion so the layout
-  /// settles after a pick.
+  /// per case).
   void updateField(CarField field, Object value) {
     switch (field) {
       case CarField.vehicleCondition:
-        emit(state.copyWith(vehicleCondition: value as String, openField: null));
+        emit(state.copyWith(vehicleCondition: value as String));
       case CarField.modelYear:
-        emit(state.copyWith(modelYear: value as String, openField: null));
+        emit(state.copyWith(modelYear: value as String));
       case CarField.downPaymentPct:
-        emit(state.copyWith(downPaymentPct: value as String, openField: null));
+        emit(state.copyWith(downPaymentPct: value as String));
       case CarField.repaymentPeriod:
-        emit(state.copyWith(repaymentPeriod: value as double, openField: null));
+        emit(state.copyWith(repaymentPeriod: value as double));
       case CarField.employmentStatus:
         emit(state.copyWith(
-            employmentStatus: value as String, openField: null));
+            employmentStatus: value as String));
       case CarField.monthlyIncome:
-        emit(state.copyWith(monthlyIncome: value as String, openField: null));
+        emit(state.copyWith(monthlyIncome: value as String));
       case CarField.salaryTransfer:
-        emit(state.copyWith(salaryTransfer: value as bool, openField: null));
+        emit(state.copyWith(salaryTransfer: value as bool));
       case CarField.employerApproved:
         emit(state.copyWith(
-            employerApproved: value as String, openField: null));
+            employerApproved: value as String));
       case CarField.currentLoans:
-        emit(state.copyWith(currentLoans: value as bool, openField: null));
+        emit(state.copyWith(currentLoans: value as bool));
       case CarField.currentInstallments:
         emit(state.copyWith(
-            currentInstallments: value as String, openField: null));
+            currentInstallments: value as String));
       case CarField.hasCreditCard:
-        emit(state.copyWith(hasCreditCard: value as bool, openField: null));
+        emit(state.copyWith(hasCreditCard: value as bool));
       case CarField.priorityFactor:
-        emit(state.copyWith(priorityFactor: value as String, openField: null));
+        emit(state.copyWith(priorityFactor: value as String));
       case CarField.wantsInsurance:
-        emit(state.copyWith(wantsInsurance: value as bool, openField: null));
+        emit(state.copyWith(wantsInsurance: value as bool));
     }
   }
 
@@ -60,11 +59,6 @@ class CarQuestionnaireCubit extends Cubit<CarQuestionnaireState> {
   /// cubit stays free of any `package:flutter` `RangeValues` import.
   void updateVehiclePrice({required double start, required double end}) =>
       emit(state.copyWith(vehiclePriceStart: start, vehiclePriceEnd: end));
-
-  /// Toggle the inline-expand accordion for [field]; only one open at a time.
-  void toggleField(CarField field) => emit(state.copyWith(
-        openField: state.openField == field ? null : field,
-      ));
 
   /// Advance the wizard. Guarded by [CarQuestionnaireState.canAdvance]; on the
   /// last step it flips [CarQuestionnaireState.submitted] (the page shows the
@@ -75,18 +69,18 @@ class CarQuestionnaireCubit extends Cubit<CarQuestionnaireState> {
       emit(state.copyWith(submitted: true));
       return;
     }
-    emit(state.copyWith(currentStep: state.currentStep + 1, openField: null));
+    emit(state.copyWith(currentStep: state.currentStep + 1));
   }
 
   /// Step backward. Returns `false` when already on the first step so the page
   /// can pop the route instead.
   bool back() {
     if (state.isFirstStep) return false;
-    emit(state.copyWith(currentStep: state.currentStep - 1, openField: null));
+    emit(state.copyWith(currentStep: state.currentStep - 1));
     return true;
   }
 
   /// Sync from `PageView.onPageChanged` (kept in case swipe is re-enabled).
   void goToStep(int step) =>
-      emit(state.copyWith(currentStep: step, openField: null));
+      emit(state.copyWith(currentStep: step));
 }

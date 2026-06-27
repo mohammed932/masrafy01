@@ -1,4 +1,4 @@
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_single_select_sheet.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 /// Local, static option lists for the car-loan questionnaire dropdowns

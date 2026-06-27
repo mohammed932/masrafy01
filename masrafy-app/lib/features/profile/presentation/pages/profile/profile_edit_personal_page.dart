@@ -82,8 +82,9 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
         loansLabel: l.home_nav_loans,
         homeLabel: l.home_nav_home,
         menuLabel: l.home_nav_menu,
-        onLoans: soon,
-        onHome: () => context.router.popUntilRoot(),
+        onLoans: () =>
+            context.router.replace(SavedOffersRoute(fromTab: true)),
+        onHome: () => context.router.replaceAll([const HomeRoute()]),
         onMenu: () => context.router.maybePop(),
       ),
       body: BlocBuilder<ProfileEditPersonalCubit, ProfileEditPersonalState>(
@@ -107,70 +108,76 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        ProfileAvatarEditor(onTap: soon),
+                        Center(child: ProfileAvatarEditor(onTap: soon)),
                         Gap(24.h),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        ProfileFormSection(
+                          title: l.profile_section_personal,
                           children: [
-                            Expanded(
-                              child: MasrafyLabeledField(
-                                label: l.profile_first_name,
-                                controller: _firstName,
-                                textInputAction: TextInputAction.next,
-                                onChanged: (v) => cubit.updateField(
-                                    ProfileEditPersonalField.firstName, v),
-                              ),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: MasrafyLabeledField(
+                                    label: l.profile_first_name,
+                                    controller: _firstName,
+                                    textInputAction: TextInputAction.next,
+                                    onChanged: (v) => cubit.updateField(
+                                        ProfileEditPersonalField.firstName, v),
+                                  ),
+                                ),
+                                Gap(10.w),
+                                Expanded(
+                                  child: MasrafyLabeledField(
+                                    label: l.profile_last_name,
+                                    controller: _lastName,
+                                    textInputAction: TextInputAction.next,
+                                    onChanged: (v) => cubit.updateField(
+                                        ProfileEditPersonalField.lastName, v),
+                                  ),
+                                ),
+                              ],
                             ),
-                            Gap(10.w),
-                            Expanded(
-                              child: MasrafyLabeledField(
-                                label: l.profile_last_name,
-                                controller: _lastName,
-                                textInputAction: TextInputAction.next,
-                                onChanged: (v) => cubit.updateField(
-                                    ProfileEditPersonalField.lastName, v),
+                            MasrafyDobSelector(
+                              label: l.profile_dob,
+                              hint: l.profile_dob_hint,
+                              value: state.birthday,
+                              onTap: () =>
+                                  _pickBirthday(ctx, cubit, state.birthday),
+                            ),
+                            MasrafyLabeledField(
+                              label: l.profile_password,
+                              controller: _password,
+                              hint: l.profile_password_hint,
+                              obscure: state.obscurePassword,
+                              onChanged: (v) => cubit.updateField(
+                                  ProfileEditPersonalField.password, v),
+                              suffix: _ObscureToggle(
+                                obscured: state.obscurePassword,
+                                onTap: cubit.toggleObscure,
                               ),
                             ),
                           ],
                         ),
-                        Gap(16.h),
-                        MasrafyDobSelector(
-                          label: l.profile_dob,
-                          dayPlaceholder: l.profile_dob_day,
-                          monthPlaceholder: l.profile_dob_month,
-                          yearPlaceholder: l.profile_dob_year,
-                          value: state.birthday,
-                          onTap: () => _pickBirthday(ctx, cubit, state.birthday),
-                        ),
-                        Gap(16.h),
-                        MasrafyLabeledField(
-                          label: l.profile_password,
-                          controller: _password,
-                          hint: l.profile_password_hint,
-                          obscure: state.obscurePassword,
-                          onChanged: (v) => cubit.updateField(
-                              ProfileEditPersonalField.password, v),
-                          suffix: _ObscureToggle(
-                            obscured: state.obscurePassword,
-                            onTap: cubit.toggleObscure,
-                          ),
-                        ),
                         Gap(20.h),
-                        MasrafyNationalIdUploader(
-                          sectionLabel: l.profile_national_id,
-                          sectionHint: l.profile_national_id_hint,
-                          frontLabel: l.profile_id_front,
-                          backLabel: l.profile_id_back,
-                          frontSubtitle: state.frontUploaded
-                              ? l.profile_id_uploaded
-                              : l.profile_id_tap_to_upload,
-                          backSubtitle: state.backUploaded
-                              ? l.profile_id_uploaded
-                              : l.profile_id_tap_to_upload,
-                          frontUploaded: state.frontUploaded,
-                          backUploaded: state.backUploaded,
-                          onTapFront: soon,
-                          onTapBack: soon,
+                        ProfileFormSection(
+                          children: [
+                            MasrafyNationalIdUploader(
+                              sectionLabel: l.profile_national_id,
+                              sectionHint: l.profile_national_id_hint,
+                              frontLabel: l.profile_id_front,
+                              backLabel: l.profile_id_back,
+                              frontSubtitle: state.frontUploaded
+                                  ? l.profile_id_uploaded
+                                  : l.profile_id_tap_to_upload,
+                              backSubtitle: state.backUploaded
+                                  ? l.profile_id_uploaded
+                                  : l.profile_id_tap_to_upload,
+                              frontUploaded: state.frontUploaded,
+                              backUploaded: state.backUploaded,
+                              onTapFront: soon,
+                              onTapBack: soon,
+                            ),
+                          ],
                         ),
                       ],
                     ),

@@ -514,6 +514,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signup_dob_year => 'السنة';
 
   @override
+  String get signup_dob_hint => 'اختر تاريخ الميلاد';
+
+  @override
   String signup_age_verified(Object years) {
     return 'تم التحقق من العمر — $years سنة';
   }
@@ -621,7 +624,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get home_nav_home => 'الرئيسية';
 
   @override
-  String get home_nav_menu => 'القائمة';
+  String get home_nav_menu => 'الحساب';
 
   @override
   String get account_title => 'الحساب';
@@ -640,6 +643,33 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get account_row_previous_applications => 'الطلبات السابقة';
+
+  @override
+  String get saved_offers_empty_title => 'لا توجد عروض محفوظة بعد';
+
+  @override
+  String get saved_offers_empty_body => 'ستظهر هنا العروض التي تحفظها.';
+
+  @override
+  String get saved_offers_remove => 'إزالة';
+
+  @override
+  String get saved_offers_remove_failed => 'تعذّر إزالة العرض. حاول مرة أخرى.';
+
+  @override
+  String get error_saved_offer_not_found => 'هذا العرض ليس ضمن عروضك المحفوظة.';
+
+  @override
+  String get previous_applications_title => 'الطلبات';
+
+  @override
+  String get previous_applications_status_applied => 'تم التقديم';
+
+  @override
+  String get previous_applications_status_approved => 'تمت الموافقة';
+
+  @override
+  String get previous_applications_status_rejected => 'مرفوض';
 
   @override
   String get home_cat_personal => 'شخصي';
@@ -685,6 +715,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get q_common_currency_egp => 'ج.م';
+
+  @override
+  String get q_common_save => 'حفظ';
+
+  @override
+  String get q_common_cancel => 'إلغاء';
+
+  @override
+  String get q_common_search => 'بحث';
 
   @override
   String get q_mortgage_title => 'طلب تمويل عقاري';
@@ -1170,6 +1209,206 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_car_q_insurance => 'هل ترغب في عروض تأمين السيارة؟';
 
   @override
+  String get q_personal_subtitle => 'سنطابقك مع البنوك المتخصصة في احتياجاتك';
+
+  @override
+  String get q_personal_next => 'التالي';
+
+  @override
+  String get q_personal_finish => 'إنهاء';
+
+  @override
+  String get q_personal_submitted => 'تم حفظ إجاباتك';
+
+  @override
+  String get q_personal_select_hint => 'اختر';
+
+  @override
+  String q_personal_years(Object years) {
+    return '$years سنة';
+  }
+
+  @override
+  String get q_personal_step1_title => 'بيانات التمويل';
+
+  @override
+  String get q_personal_step2_title => 'العمل والدخل';
+
+  @override
+  String get q_personal_step3_title => 'الالتزامات البنكية';
+
+  @override
+  String get q_personal_step4_title => 'التفضيلات والمؤهلات';
+
+  @override
+  String get q_personal_q_amount => 'ما المبلغ التقريبي الذي تحتاجه؟';
+
+  @override
+  String get q_personal_amount_label => 'قيمة القرض';
+
+  @override
+  String get q_personal_amount_hint => 'المبلغ التقريبي الذي تحتاجه';
+
+  @override
+  String get q_personal_q_repayment => 'ما مدة السداد المناسبة لك؟';
+
+  @override
+  String get q_personal_repayment_label => 'مدة السداد';
+
+  @override
+  String get q_personal_q_purpose => 'ما الغرض من القرض؟';
+
+  @override
+  String get q_personal_hint_purpose => 'الغرض من القرض';
+
+  @override
+  String get q_opt_personal_purpose_home_finishing => 'تشطيب / تجديد المنزل';
+
+  @override
+  String get q_opt_personal_purpose_marriage => 'زواج';
+
+  @override
+  String get q_opt_personal_purpose_appliances => 'شراء أجهزة أو أثاث';
+
+  @override
+  String get q_opt_personal_purpose_education => 'تعليم';
+
+  @override
+  String get q_opt_personal_purpose_debt_consolidation => 'سداد ديون';
+
+  @override
+  String get q_opt_personal_purpose_personal_project => 'مشروع شخصي';
+
+  @override
+  String get q_opt_personal_purpose_other => 'أخرى';
+
+  @override
+  String get q_personal_q_employment => 'ما هي حالتك الوظيفية؟';
+
+  @override
+  String get q_personal_q_job_tenure => 'منذ متى وأنت في وظيفتك الحالية؟';
+
+  @override
+  String get q_personal_hint_job_tenure => 'الوظيفة الحالية';
+
+  @override
+  String get q_opt_personal_tenure_under6m => 'أقل من 6 أشهر';
+
+  @override
+  String get q_opt_personal_tenure_6m_1y => '6 أشهر – سنة';
+
+  @override
+  String get q_opt_personal_tenure_1_3y => '1 – 3 سنوات';
+
+  @override
+  String get q_opt_personal_tenure_over3y => 'أكثر من 3 سنوات';
+
+  @override
+  String get q_personal_q_income => 'ما متوسط دخلك الشهري؟';
+
+  @override
+  String get q_opt_personal_income_b1 => 'بدءًا من 10,000 جنيه';
+
+  @override
+  String get q_opt_personal_income_b2 => '10,000 – 20,000 جنيه';
+
+  @override
+  String get q_opt_personal_income_b3 => '20,000 – 50,000 جنيه';
+
+  @override
+  String get q_opt_personal_income_b4 => '50,000 – 80,000 جنيه';
+
+  @override
+  String get q_opt_personal_income_b5 => 'أكثر من 100,000 جنيه';
+
+  @override
+  String get q_personal_q_salary_transfer => 'هل يتم تحويل راتبك إلى حساب بنكي؟';
+
+  @override
+  String get q_personal_q_employer_approved => 'هل جهة عملك معتمدة لدى البنوك؟';
+
+  @override
+  String get q_opt_personal_emp_yes => 'نعم';
+
+  @override
+  String get q_opt_personal_emp_no => 'لا';
+
+  @override
+  String get q_opt_personal_emp_unsure => 'غير متأكد';
+
+  @override
+  String get q_personal_q_obligations => 'هل لديك حاليًا أي قروض أو التزامات مالية؟';
+
+  @override
+  String get q_personal_hint_obligations => 'قروض أو التزامات مالية';
+
+  @override
+  String get q_opt_personal_obligation_none => 'لا يوجد';
+
+  @override
+  String get q_opt_personal_obligation_personal_loan => 'قرض شخصي';
+
+  @override
+  String get q_opt_personal_obligation_car_loan => 'قرض سيارة';
+
+  @override
+  String get q_opt_personal_obligation_mortgage => 'تمويل عقاري';
+
+  @override
+  String get q_opt_personal_obligation_credit_cards => 'بطاقات ائتمان';
+
+  @override
+  String get q_opt_personal_obligation_other => 'أخرى';
+
+  @override
+  String get q_personal_q_installment => 'ما إجمالي قيمة قسطك الشهري التقريبي؟';
+
+  @override
+  String get q_personal_installment_label => 'القسط الشهري';
+
+  @override
+  String get q_personal_installment_hint => 'القسط الشهري';
+
+  @override
+  String get q_personal_q_credit_card => 'هل لديك بطاقة ائتمان؟';
+
+  @override
+  String get q_personal_q_credit_card_usage => 'إذا نعم، ما متوسط استخدامك الشهري لبطاقة الائتمان؟';
+
+  @override
+  String get q_opt_personal_cc_usage_b1 => 'أقل من 10,000 جنيه';
+
+  @override
+  String get q_opt_personal_cc_usage_b2 => '10,000 – 30,000 جنيه';
+
+  @override
+  String get q_opt_personal_cc_usage_b3 => '30,000 – 50,000 جنيه';
+
+  @override
+  String get q_opt_personal_cc_usage_b4 => 'أكثر من 50,000 جنيه';
+
+  @override
+  String get q_personal_q_priority => 'ما العامل الأهم عند اختيار التمويل؟';
+
+  @override
+  String get q_opt_personal_priority_lowest_installment => 'أقل قسط شهري';
+
+  @override
+  String get q_opt_personal_priority_lowest_interest => 'أقل سعر فائدة';
+
+  @override
+  String get q_opt_personal_priority_minimum_docs => 'أقل مستندات مطلوبة';
+
+  @override
+  String get q_opt_personal_priority_flexible_repayment => 'سداد مرن';
+
+  @override
+  String get q_personal_q_prior_rejection => 'هل سبق ورُفض لك طلب تمويل؟';
+
+  @override
+  String get q_personal_q_assistance => 'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟';
+
+  @override
   String get profile_title => 'الملف الشخصي';
 
   @override
@@ -1209,6 +1448,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profile_dob_year => 'السنة';
+
+  @override
+  String get profile_dob_hint => 'اختر تاريخ الميلاد';
 
   @override
   String get profile_national_id => 'الرقم القومي';
@@ -1390,4 +1632,46 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get offer_action_soon => 'قريبًا';
+
+  @override
+  String get settings_security_title => 'الإعدادات والأمان';
+
+  @override
+  String get settings_section_privacy_security => 'الخصوصية والأمان';
+
+  @override
+  String get settings_biometric_title => 'تسجيل الدخول بالبصمة';
+
+  @override
+  String get settings_biometric_subtitle => 'بصمة الوجه / بصمة الإصبع';
+
+  @override
+  String get settings_privacy_policies_title => 'سياسات الخصوصية';
+
+  @override
+  String get settings_privacy_policies_subtitle => 'سياسات الخصوصية - الشروط والأحكام';
+
+  @override
+  String get settings_section_notification_center => 'مركز الإشعارات';
+
+  @override
+  String get settings_notifications_title => 'تفعيل الإشعارات';
+
+  @override
+  String get settings_notifications_subtitle => 'استقبال الإشعارات';
+
+  @override
+  String get settings_section_languages => 'اللغات';
+
+  @override
+  String get settings_change_language_title => 'تغيير اللغة';
+
+  @override
+  String get settings_language_sheet_title => 'تغيير اللغة';
+
+  @override
+  String get settings_language_english => 'الإنجليزية';
+
+  @override
+  String get settings_language_arabic => 'العربية';
 }

@@ -1073,6 +1073,12 @@ abstract class AppLocalizations {
   /// **'السنة'**
   String get signup_dob_year;
 
+  /// No description provided for @signup_dob_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر تاريخ الميلاد'**
+  String get signup_dob_hint;
+
   /// No description provided for @signup_age_verified.
   ///
   /// In ar, this message translates to:
@@ -1274,7 +1280,7 @@ abstract class AppLocalizations {
   /// No description provided for @home_nav_menu.
   ///
   /// In ar, this message translates to:
-  /// **'القائمة'**
+  /// **'الحساب'**
   String get home_nav_menu;
 
   /// No description provided for @account_title.
@@ -1312,6 +1318,60 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'الطلبات السابقة'**
   String get account_row_previous_applications;
+
+  /// No description provided for @saved_offers_empty_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عروض محفوظة بعد'**
+  String get saved_offers_empty_title;
+
+  /// No description provided for @saved_offers_empty_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'ستظهر هنا العروض التي تحفظها.'**
+  String get saved_offers_empty_body;
+
+  /// No description provided for @saved_offers_remove.
+  ///
+  /// In ar, this message translates to:
+  /// **'إزالة'**
+  String get saved_offers_remove;
+
+  /// No description provided for @saved_offers_remove_failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إزالة العرض. حاول مرة أخرى.'**
+  String get saved_offers_remove_failed;
+
+  /// Backend SAVED_OFFER_NOT_FOUND error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا العرض ليس ضمن عروضك المحفوظة.'**
+  String get error_saved_offer_not_found;
+
+  /// No description provided for @previous_applications_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الطلبات'**
+  String get previous_applications_title;
+
+  /// No description provided for @previous_applications_status_applied.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم التقديم'**
+  String get previous_applications_status_applied;
+
+  /// No description provided for @previous_applications_status_approved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الموافقة'**
+  String get previous_applications_status_approved;
+
+  /// No description provided for @previous_applications_status_rejected.
+  ///
+  /// In ar, this message translates to:
+  /// **'مرفوض'**
+  String get previous_applications_status_rejected;
 
   /// No description provided for @home_cat_personal.
   ///
@@ -1402,6 +1462,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'ج.م'**
   String get q_common_currency_egp;
+
+  /// No description provided for @q_common_save.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get q_common_save;
+
+  /// No description provided for @q_common_cancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get q_common_cancel;
+
+  /// No description provided for @q_common_search.
+  ///
+  /// In ar, this message translates to:
+  /// **'بحث'**
+  String get q_common_search;
 
   /// No description provided for @q_mortgage_title.
   ///
@@ -2357,6 +2435,402 @@ abstract class AppLocalizations {
   /// **'هل ترغب في عروض تأمين السيارة؟'**
   String get q_car_q_insurance;
 
+  /// No description provided for @q_personal_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنطابقك مع البنوك المتخصصة في احتياجاتك'**
+  String get q_personal_subtitle;
+
+  /// No description provided for @q_personal_next.
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي'**
+  String get q_personal_next;
+
+  /// No description provided for @q_personal_finish.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء'**
+  String get q_personal_finish;
+
+  /// No description provided for @q_personal_submitted.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حفظ إجاباتك'**
+  String get q_personal_submitted;
+
+  /// No description provided for @q_personal_select_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر'**
+  String get q_personal_select_hint;
+
+  /// No description provided for @q_personal_years.
+  ///
+  /// In ar, this message translates to:
+  /// **'{years} سنة'**
+  String q_personal_years(Object years);
+
+  /// No description provided for @q_personal_step1_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'بيانات التمويل'**
+  String get q_personal_step1_title;
+
+  /// No description provided for @q_personal_step2_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'العمل والدخل'**
+  String get q_personal_step2_title;
+
+  /// No description provided for @q_personal_step3_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الالتزامات البنكية'**
+  String get q_personal_step3_title;
+
+  /// No description provided for @q_personal_step4_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'التفضيلات والمؤهلات'**
+  String get q_personal_step4_title;
+
+  /// No description provided for @q_personal_q_amount.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما المبلغ التقريبي الذي تحتاجه؟'**
+  String get q_personal_q_amount;
+
+  /// No description provided for @q_personal_amount_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'قيمة القرض'**
+  String get q_personal_amount_label;
+
+  /// No description provided for @q_personal_amount_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ التقريبي الذي تحتاجه'**
+  String get q_personal_amount_hint;
+
+  /// No description provided for @q_personal_q_repayment.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما مدة السداد المناسبة لك؟'**
+  String get q_personal_q_repayment;
+
+  /// No description provided for @q_personal_repayment_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'مدة السداد'**
+  String get q_personal_repayment_label;
+
+  /// No description provided for @q_personal_q_purpose.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما الغرض من القرض؟'**
+  String get q_personal_q_purpose;
+
+  /// No description provided for @q_personal_hint_purpose.
+  ///
+  /// In ar, this message translates to:
+  /// **'الغرض من القرض'**
+  String get q_personal_hint_purpose;
+
+  /// No description provided for @q_opt_personal_purpose_home_finishing.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشطيب / تجديد المنزل'**
+  String get q_opt_personal_purpose_home_finishing;
+
+  /// No description provided for @q_opt_personal_purpose_marriage.
+  ///
+  /// In ar, this message translates to:
+  /// **'زواج'**
+  String get q_opt_personal_purpose_marriage;
+
+  /// No description provided for @q_opt_personal_purpose_appliances.
+  ///
+  /// In ar, this message translates to:
+  /// **'شراء أجهزة أو أثاث'**
+  String get q_opt_personal_purpose_appliances;
+
+  /// No description provided for @q_opt_personal_purpose_education.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعليم'**
+  String get q_opt_personal_purpose_education;
+
+  /// No description provided for @q_opt_personal_purpose_debt_consolidation.
+  ///
+  /// In ar, this message translates to:
+  /// **'سداد ديون'**
+  String get q_opt_personal_purpose_debt_consolidation;
+
+  /// No description provided for @q_opt_personal_purpose_personal_project.
+  ///
+  /// In ar, this message translates to:
+  /// **'مشروع شخصي'**
+  String get q_opt_personal_purpose_personal_project;
+
+  /// No description provided for @q_opt_personal_purpose_other.
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get q_opt_personal_purpose_other;
+
+  /// No description provided for @q_personal_q_employment.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما هي حالتك الوظيفية؟'**
+  String get q_personal_q_employment;
+
+  /// No description provided for @q_personal_q_job_tenure.
+  ///
+  /// In ar, this message translates to:
+  /// **'منذ متى وأنت في وظيفتك الحالية؟'**
+  String get q_personal_q_job_tenure;
+
+  /// No description provided for @q_personal_hint_job_tenure.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوظيفة الحالية'**
+  String get q_personal_hint_job_tenure;
+
+  /// No description provided for @q_opt_personal_tenure_under6m.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل من 6 أشهر'**
+  String get q_opt_personal_tenure_under6m;
+
+  /// No description provided for @q_opt_personal_tenure_6m_1y.
+  ///
+  /// In ar, this message translates to:
+  /// **'6 أشهر – سنة'**
+  String get q_opt_personal_tenure_6m_1y;
+
+  /// No description provided for @q_opt_personal_tenure_1_3y.
+  ///
+  /// In ar, this message translates to:
+  /// **'1 – 3 سنوات'**
+  String get q_opt_personal_tenure_1_3y;
+
+  /// No description provided for @q_opt_personal_tenure_over3y.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكثر من 3 سنوات'**
+  String get q_opt_personal_tenure_over3y;
+
+  /// No description provided for @q_personal_q_income.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما متوسط دخلك الشهري؟'**
+  String get q_personal_q_income;
+
+  /// No description provided for @q_opt_personal_income_b1.
+  ///
+  /// In ar, this message translates to:
+  /// **'بدءًا من 10,000 جنيه'**
+  String get q_opt_personal_income_b1;
+
+  /// No description provided for @q_opt_personal_income_b2.
+  ///
+  /// In ar, this message translates to:
+  /// **'10,000 – 20,000 جنيه'**
+  String get q_opt_personal_income_b2;
+
+  /// No description provided for @q_opt_personal_income_b3.
+  ///
+  /// In ar, this message translates to:
+  /// **'20,000 – 50,000 جنيه'**
+  String get q_opt_personal_income_b3;
+
+  /// No description provided for @q_opt_personal_income_b4.
+  ///
+  /// In ar, this message translates to:
+  /// **'50,000 – 80,000 جنيه'**
+  String get q_opt_personal_income_b4;
+
+  /// No description provided for @q_opt_personal_income_b5.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكثر من 100,000 جنيه'**
+  String get q_opt_personal_income_b5;
+
+  /// No description provided for @q_personal_q_salary_transfer.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل يتم تحويل راتبك إلى حساب بنكي؟'**
+  String get q_personal_q_salary_transfer;
+
+  /// No description provided for @q_personal_q_employer_approved.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل جهة عملك معتمدة لدى البنوك؟'**
+  String get q_personal_q_employer_approved;
+
+  /// No description provided for @q_opt_personal_emp_yes.
+  ///
+  /// In ar, this message translates to:
+  /// **'نعم'**
+  String get q_opt_personal_emp_yes;
+
+  /// No description provided for @q_opt_personal_emp_no.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا'**
+  String get q_opt_personal_emp_no;
+
+  /// No description provided for @q_opt_personal_emp_unsure.
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متأكد'**
+  String get q_opt_personal_emp_unsure;
+
+  /// No description provided for @q_personal_q_obligations.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل لديك حاليًا أي قروض أو التزامات مالية؟'**
+  String get q_personal_q_obligations;
+
+  /// No description provided for @q_personal_hint_obligations.
+  ///
+  /// In ar, this message translates to:
+  /// **'قروض أو التزامات مالية'**
+  String get q_personal_hint_obligations;
+
+  /// No description provided for @q_opt_personal_obligation_none.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد'**
+  String get q_opt_personal_obligation_none;
+
+  /// No description provided for @q_opt_personal_obligation_personal_loan.
+  ///
+  /// In ar, this message translates to:
+  /// **'قرض شخصي'**
+  String get q_opt_personal_obligation_personal_loan;
+
+  /// No description provided for @q_opt_personal_obligation_car_loan.
+  ///
+  /// In ar, this message translates to:
+  /// **'قرض سيارة'**
+  String get q_opt_personal_obligation_car_loan;
+
+  /// No description provided for @q_opt_personal_obligation_mortgage.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمويل عقاري'**
+  String get q_opt_personal_obligation_mortgage;
+
+  /// No description provided for @q_opt_personal_obligation_credit_cards.
+  ///
+  /// In ar, this message translates to:
+  /// **'بطاقات ائتمان'**
+  String get q_opt_personal_obligation_credit_cards;
+
+  /// No description provided for @q_opt_personal_obligation_other.
+  ///
+  /// In ar, this message translates to:
+  /// **'أخرى'**
+  String get q_opt_personal_obligation_other;
+
+  /// No description provided for @q_personal_q_installment.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما إجمالي قيمة قسطك الشهري التقريبي؟'**
+  String get q_personal_q_installment;
+
+  /// No description provided for @q_personal_installment_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'القسط الشهري'**
+  String get q_personal_installment_label;
+
+  /// No description provided for @q_personal_installment_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'القسط الشهري'**
+  String get q_personal_installment_hint;
+
+  /// No description provided for @q_personal_q_credit_card.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل لديك بطاقة ائتمان؟'**
+  String get q_personal_q_credit_card;
+
+  /// No description provided for @q_personal_q_credit_card_usage.
+  ///
+  /// In ar, this message translates to:
+  /// **'إذا نعم، ما متوسط استخدامك الشهري لبطاقة الائتمان؟'**
+  String get q_personal_q_credit_card_usage;
+
+  /// No description provided for @q_opt_personal_cc_usage_b1.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل من 10,000 جنيه'**
+  String get q_opt_personal_cc_usage_b1;
+
+  /// No description provided for @q_opt_personal_cc_usage_b2.
+  ///
+  /// In ar, this message translates to:
+  /// **'10,000 – 30,000 جنيه'**
+  String get q_opt_personal_cc_usage_b2;
+
+  /// No description provided for @q_opt_personal_cc_usage_b3.
+  ///
+  /// In ar, this message translates to:
+  /// **'30,000 – 50,000 جنيه'**
+  String get q_opt_personal_cc_usage_b3;
+
+  /// No description provided for @q_opt_personal_cc_usage_b4.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكثر من 50,000 جنيه'**
+  String get q_opt_personal_cc_usage_b4;
+
+  /// No description provided for @q_personal_q_priority.
+  ///
+  /// In ar, this message translates to:
+  /// **'ما العامل الأهم عند اختيار التمويل؟'**
+  String get q_personal_q_priority;
+
+  /// No description provided for @q_opt_personal_priority_lowest_installment.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل قسط شهري'**
+  String get q_opt_personal_priority_lowest_installment;
+
+  /// No description provided for @q_opt_personal_priority_lowest_interest.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل سعر فائدة'**
+  String get q_opt_personal_priority_lowest_interest;
+
+  /// No description provided for @q_opt_personal_priority_minimum_docs.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقل مستندات مطلوبة'**
+  String get q_opt_personal_priority_minimum_docs;
+
+  /// No description provided for @q_opt_personal_priority_flexible_repayment.
+  ///
+  /// In ar, this message translates to:
+  /// **'سداد مرن'**
+  String get q_opt_personal_priority_flexible_repayment;
+
+  /// No description provided for @q_personal_q_prior_rejection.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل سبق ورُفض لك طلب تمويل؟'**
+  String get q_personal_q_prior_rejection;
+
+  /// No description provided for @q_personal_q_assistance.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟'**
+  String get q_personal_q_assistance;
+
   /// No description provided for @profile_title.
   ///
   /// In ar, this message translates to:
@@ -2434,6 +2908,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'السنة'**
   String get profile_dob_year;
+
+  /// No description provided for @profile_dob_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر تاريخ الميلاد'**
+  String get profile_dob_hint;
 
   /// No description provided for @profile_national_id.
   ///
@@ -2776,6 +3256,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'قريبًا'**
   String get offer_action_soon;
+
+  /// No description provided for @settings_security_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإعدادات والأمان'**
+  String get settings_security_title;
+
+  /// No description provided for @settings_section_privacy_security.
+  ///
+  /// In ar, this message translates to:
+  /// **'الخصوصية والأمان'**
+  String get settings_section_privacy_security;
+
+  /// No description provided for @settings_biometric_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول بالبصمة'**
+  String get settings_biometric_title;
+
+  /// No description provided for @settings_biometric_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'بصمة الوجه / بصمة الإصبع'**
+  String get settings_biometric_subtitle;
+
+  /// No description provided for @settings_privacy_policies_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'سياسات الخصوصية'**
+  String get settings_privacy_policies_title;
+
+  /// No description provided for @settings_privacy_policies_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سياسات الخصوصية - الشروط والأحكام'**
+  String get settings_privacy_policies_subtitle;
+
+  /// No description provided for @settings_section_notification_center.
+  ///
+  /// In ar, this message translates to:
+  /// **'مركز الإشعارات'**
+  String get settings_section_notification_center;
+
+  /// No description provided for @settings_notifications_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تفعيل الإشعارات'**
+  String get settings_notifications_title;
+
+  /// No description provided for @settings_notifications_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'استقبال الإشعارات'**
+  String get settings_notifications_subtitle;
+
+  /// No description provided for @settings_section_languages.
+  ///
+  /// In ar, this message translates to:
+  /// **'اللغات'**
+  String get settings_section_languages;
+
+  /// No description provided for @settings_change_language_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير اللغة'**
+  String get settings_change_language_title;
+
+  /// No description provided for @settings_language_sheet_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير اللغة'**
+  String get settings_language_sheet_title;
+
+  /// No description provided for @settings_language_english.
+  ///
+  /// In ar, this message translates to:
+  /// **'الإنجليزية'**
+  String get settings_language_english;
+
+  /// No description provided for @settings_language_arabic.
+  ///
+  /// In ar, this message translates to:
+  /// **'العربية'**
+  String get settings_language_arabic;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

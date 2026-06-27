@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import '../cubit/car_questionnaire/car_questionnaire_cubit.dart';
@@ -30,44 +30,36 @@ class CarStepEmployment extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_car_q_employment,
             hint: l.q_car_select_hint,
             options: CarLookups.employmentStatuses(l),
             value: state.employmentStatus,
-            expanded: state.openField == CarField.employmentStatus,
-            onToggle: () => cubit.toggleField(CarField.employmentStatus),
             onSelected: (v) =>
                 cubit.updateField(CarField.employmentStatus, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_car_q_income,
             hint: l.q_car_select_hint,
             options: CarLookups.incomeBands(l),
             value: state.monthlyIncome,
-            expanded: state.openField == CarField.monthlyIncome,
-            onToggle: () => cubit.toggleField(CarField.monthlyIncome),
             onSelected: (v) => cubit.updateField(CarField.monthlyIncome, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_car_q_salary_transfer,
             hint: l.q_car_select_hint,
             options: CarLookups.yesNo(l),
             value: state.salaryTransfer,
-            expanded: state.openField == CarField.salaryTransfer,
-            onToggle: () => cubit.toggleField(CarField.salaryTransfer),
             onSelected: (v) => cubit.updateField(CarField.salaryTransfer, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_car_q_employer_approved,
             hint: l.q_car_select_hint,
             options: CarLookups.employerApproved(l),
             value: state.employerApproved,
-            expanded: state.openField == CarField.employerApproved,
-            onToggle: () => cubit.toggleField(CarField.employerApproved),
             onSelected: (v) =>
                 cubit.updateField(CarField.employerApproved, v),
           ),

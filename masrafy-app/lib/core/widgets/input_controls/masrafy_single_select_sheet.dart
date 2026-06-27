@@ -5,24 +5,42 @@ import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/utils/masrafy_assets.dart';
-import 'package:app/core/widgets/buttons/masrafy_primary_button.dart';
+
+/// One selectable option for the Masrafy selection surfaces. [value] is a
+/// stable, language-neutral identifier; [label] is the already-localized
+/// display text. [code] is an optional prefix (e.g. subject code "010")
+/// joined with [label] as `"$code - $label"` in the rendered row.
+///
+/// This is the SINGLE option model app-wide (Principle XXXIII) — the trigger
+/// [MasrafySelectField] and this sheet share it.
+class MasrafySelectOption<T> {
+  const MasrafySelectOption({
+    required this.value,
+    required this.label,
+    this.code = '',
+  });
+
+  final T value;
+  final String label;
+  final String code;
+}
 
 /// Single-select bottom sheet matching Figma `3268:44496` and the shared
-/// design system. Returns the chosen value when the user taps **Save**;
-/// returns `null` when they tap **Cancel** or dismiss the sheet.
+/// design system. **Instant tap-to-select** (Principle XXXIII): tapping a row
+/// applies that value and closes the sheet immediately — there is no
+/// Save/Cancel footer. Dismissing (drag-down / back / tap-outside) returns
+/// `null` (no change). Pass [nullOptionLabel] to prepend a "clear" row that
+/// commits `null`.
 ///
 /// Visual:
-/// - Header (76h): centered 44×4 `#DEDEDE` drag handle → 24h gap →
-///   centered title (14sp semibold) → 0.75px `#DEDEDE` bottom divider.
+/// - Header (76h): centered 44×4 drag handle → 24h gap → centered title
+///   (14sp semibold) → 0.75px bottom divider.
 /// - Content (px16/py24): optional bordered search input (40r/r8 with
-///   16r magnifier SVG) → radio list with 0.75px `#DEDEDE` hairlines.
-/// - Footer (px24/py22, top 0.75px `#DEDEDE`): text [cancelLabel] +
-///   primary [applyLabel] (filled r24 from `MasrafyPrimaryButton`).
+///   16r magnifier SVG) → radio list with 0.75px hairlines. The current
+///   value reads as selected (filled radio dot) on open.
 ///
 /// Each row label renders as `"$code - $label"` when [MasrafySelectOption.code]
-/// is non-empty, otherwise just [MasrafySelectOption.label]. Pass
-/// [nullOptionLabel] to prepend a "clear" row that returns `null` when
-/// committed.
+/// is non-empty, otherwise just [MasrafySelectOption.label].
 Future<T?> showMasrafySingleSelectSheet<T>({
   required BuildContext context,
   required String title,
@@ -30,8 +48,6 @@ Future<T?> showMasrafySingleSelectSheet<T>({
   required T? initialValue,
   bool showSearch = false,
   String searchHint = 'Search',
-  String cancelLabel = 'Cancel',
-  String applyLabel = 'Save',
   String? nullOptionLabel,
   String emptyMessage = 'No items available',
   String noMatchesMessage = 'No matches',
@@ -50,8 +66,6 @@ Future<T?> showMasrafySingleSelectSheet<T>({
         initialValue: initialValue,
         showSearch: showSearch,
         searchHint: searchHint,
-        cancelLabel: cancelLabel,
-        applyLabel: applyLabel,
         nullOptionLabel: nullOptionLabel,
         emptyMessage: emptyMessage,
         noMatchesMessage: noMatchesMessage,
@@ -60,23 +74,9 @@ Future<T?> showMasrafySingleSelectSheet<T>({
   ).then((result) => result?.value);
 }
 
-class MasrafySelectOption<T> {
-  const MasrafySelectOption({
-    required this.value,
-    required this.label,
-    this.code = '',
-  });
-
-  final T value;
-  final String label;
-
-  /// Optional prefix code (e.g. subject code "010"). Joined with [label]
-  /// as `"$code - $label"` in the rendered row when non-empty.
-  final String code;
-}
-
-/// Wrapper so the sheet can distinguish a Cancel/dismiss (`null` future)
-/// from an explicit Save of `null` (used when [nullOptionLabel] is set).
+/// Wrapper so the sheet can distinguish a dismiss (`null` future) from an
+/// explicit tap on a row whose value is `null` (the [nullOptionLabel] clear
+/// row). The public helper unwraps to `T?` for the common case.
 class _Result<T> {
   const _Result(this.value);
   final T? value;
@@ -89,8 +89,6 @@ class _SingleSelectSheet<T> extends StatefulWidget {
     required this.initialValue,
     required this.showSearch,
     required this.searchHint,
-    required this.cancelLabel,
-    required this.applyLabel,
     required this.nullOptionLabel,
     required this.emptyMessage,
     required this.noMatchesMessage,
@@ -101,8 +99,6 @@ class _SingleSelectSheet<T> extends StatefulWidget {
   final T? initialValue;
   final bool showSearch;
   final String searchHint;
-  final String cancelLabel;
-  final String applyLabel;
   final String? nullOptionLabel;
   final String emptyMessage;
   final String noMatchesMessage;
@@ -112,14 +108,12 @@ class _SingleSelectSheet<T> extends StatefulWidget {
 }
 
 class _SingleSelectSheetState<T> extends State<_SingleSelectSheet<T>> {
-  late T? _selected;
   final _searchCtrl = TextEditingController();
   String _query = '';
 
   @override
   void initState() {
     super.initState();
-    _selected = widget.initialValue;
     _searchCtrl.addListener(() {
       setState(() => _query = _searchCtrl.text.trim().toLowerCase());
     });
@@ -142,10 +136,21 @@ class _SingleSelectSheetState<T> extends State<_SingleSelectSheet<T>> {
         .toList();
   }
 
+  void _commit(T? value) => Navigator.of(context).pop(_Result<T>(value));
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
+    final texts = MasrafyTextTheme.of(context);
     final mediaQuery = MediaQuery.of(context);
+
+    final rows = _filtered;
+    final hasNullRow = widget.nullOptionLabel != null;
+    final showEmpty = !hasNullRow && rows.isEmpty;
+    final totalCount = rows.length + (hasNullRow ? 1 : 0);
+    final emptyMessage = widget.options.isEmpty
+        ? widget.emptyMessage
+        : widget.noMatchesMessage;
 
     return AnimatedPadding(
       duration: const Duration(milliseconds: 150),
@@ -158,30 +163,65 @@ class _SingleSelectSheetState<T> extends State<_SingleSelectSheet<T>> {
         ),
         child: SafeArea(
           top: false,
+          // mainAxisSize.min + a SINGLE Flexible around the list = hug the
+          // content when short, cap + scroll when long. A second nested
+          // Flexible defeats the hug and inflates the sheet toward maxHeight.
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               _Header(title: widget.title),
-              Flexible(
-                child: _Content<T>(
-                  showSearch: widget.showSearch,
-                  searchCtrl: _searchCtrl,
-                  searchHint: widget.searchHint,
-                  rows: _filtered,
-                  selected: _selected,
-                  nullOptionLabel: widget.nullOptionLabel,
-                  onSelect: (value) => setState(() => _selected = value),
-                  emptyMessage: widget.options.isEmpty
-                      ? widget.emptyMessage
-                      : widget.noMatchesMessage,
+              if (widget.showSearch)
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 0),
+                  child: _SearchField(
+                    controller: _searchCtrl,
+                    hint: widget.searchHint,
+                  ),
                 ),
-              ),
-              _Footer(
-                cancelLabel: widget.cancelLabel,
-                applyLabel: widget.applyLabel,
-                onCancel: () => Navigator.of(context).pop(),
-                onSave: () => Navigator.of(context).pop(_Result<T>(_selected)),
-              ),
+              if (showEmpty)
+                Padding(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 16.w, vertical: 32.h),
+                  child: Text(
+                    emptyMessage,
+                    textAlign: TextAlign.center,
+                    style: texts.body.regular().copyWith(
+                      color: colors.text.secondary,
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                    itemCount: totalCount,
+                    separatorBuilder: (_, __) => Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16.h),
+                      child: SizedBox(
+                        height: 0.75,
+                        child: ColoredBox(color: colors.border.main),
+                      ),
+                    ),
+                    itemBuilder: (_, i) {
+                      if (hasNullRow && i == 0) {
+                        return _OptionRow<T>.nullValue(
+                          label: widget.nullOptionLabel!,
+                          isSelected: widget.initialValue == null,
+                          onTap: () => _commit(null),
+                        );
+                      }
+                      final option = rows[hasNullRow ? i - 1 : i];
+                      return _OptionRow<T>(
+                        option: option,
+                        isSelected: widget.initialValue != null &&
+                            option.value == widget.initialValue,
+                        onTap: () => _commit(option.value),
+                      );
+                    },
+                  ),
+                ),
             ],
           ),
         ),
@@ -199,133 +239,37 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final texts = MasrafyTextTheme.of(context);
     final colors = MasrafyColorTheme.of(context);
-    return SizedBox(
-      height: 76.h,
-      child: Stack(
-        children: [
-          Positioned(
-            top: 8.h,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
-                Container(
-                  width: 44.w,
-                  height: 4.h,
-                  decoration: BoxDecoration(
-                    color: colors.border.main,
-                    borderRadius: BorderRadius.circular(4.r),
-                  ),
-                ),
-                Gap(24.h),
-                Text(
-                  title,
-                  style: texts.body.semiBold().copyWith(
-                    color: colors.text.heading,
-                    height: 1.0,
-                  ),
-                ),
-              ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Gap(8.h),
+        Container(
+          width: 44.w,
+          height: 4.h,
+          decoration: BoxDecoration(
+            color: colors.border.main,
+            borderRadius: BorderRadius.circular(4.r),
+          ),
+        ),
+        Gap(20.h),
+        Padding(
+          padding: EdgeInsetsDirectional.symmetric(horizontal: 20.w),
+          child: Text(
+            title,
+            textAlign: TextAlign.center,
+            style: texts.body.semiBold().copyWith(
+              color: colors.text.heading,
+              height: 1.25,
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SizedBox(
-              height: 0.75,
-              child: ColoredBox(color: colors.border.main),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Content<T> extends StatelessWidget {
-  const _Content({
-    required this.showSearch,
-    required this.searchCtrl,
-    required this.searchHint,
-    required this.rows,
-    required this.selected,
-    required this.nullOptionLabel,
-    required this.onSelect,
-    required this.emptyMessage,
-  });
-
-  final bool showSearch;
-  final TextEditingController searchCtrl;
-  final String searchHint;
-  final List<MasrafySelectOption<T>> rows;
-  final T? selected;
-  final String? nullOptionLabel;
-  final void Function(T? value) onSelect;
-  final String emptyMessage;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final texts = MasrafyTextTheme.of(context);
-    final hasNullRow = nullOptionLabel != null;
-    final showEmpty = !hasNullRow && rows.isEmpty;
-    final totalCount = rows.length + (hasNullRow ? 1 : 0);
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (showSearch) ...[
-            _SearchField(controller: searchCtrl, hint: searchHint),
-            Gap(24.h),
-          ],
-          Flexible(
-            child: showEmpty
-                ? Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24.h),
-                    child: Center(
-                      child: Text(
-                        emptyMessage,
-                        style: texts.body.regular().copyWith(
-                          color: colors.text.secondary,
-                        ),
-                      ),
-                    ),
-                  )
-                : ListView.separated(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.all(10.r),
-                    itemCount: totalCount,
-                    separatorBuilder: (_, __) => Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.h),
-                      child: SizedBox(
-                        height: 0.75,
-                        child: ColoredBox(color: colors.border.main),
-                      ),
-                    ),
-                    itemBuilder: (_, i) {
-                      if (hasNullRow && i == 0) {
-                        return _OptionRow<T>.nullValue(
-                          label: nullOptionLabel!,
-                          isSelected: selected == null,
-                          onTap: () => onSelect(null),
-                        );
-                      }
-                      final option = rows[hasNullRow ? i - 1 : i];
-                      return _OptionRow<T>(
-                        option: option,
-                        isSelected:
-                            selected != null && option.value == selected,
-                        onTap: () => onSelect(option.value),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+        ),
+        Gap(16.h),
+        SizedBox(
+          height: 0.75,
+          width: double.infinity,
+          child: ColoredBox(color: colors.border.main),
+        ),
+      ],
     );
   }
 }
@@ -373,7 +317,7 @@ class _SearchField extends StatelessWidget {
                 border: InputBorder.none,
                 hintText: hint,
                 hintStyle: texts.bodyLarge.regular().copyWith(
-                  color: Colors.white.withValues(alpha: 0.25),
+                  color: colors.text.placeholder,
                 ),
               ),
             ),
@@ -473,58 +417,6 @@ class _RadioDot extends StatelessWidget {
               ),
             )
           : const SizedBox.shrink(),
-    );
-  }
-}
-
-class _Footer extends StatelessWidget {
-  const _Footer({
-    required this.cancelLabel,
-    required this.applyLabel,
-    required this.onCancel,
-    required this.onSave,
-  });
-
-  final String cancelLabel;
-  final String applyLabel;
-  final VoidCallback onCancel;
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final texts = MasrafyTextTheme.of(context);
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 22.h),
-      decoration: BoxDecoration(
-        color: colors.bg.container,
-        border: Border(top: BorderSide(color: colors.border.main, width: 0.75)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onCancel,
-              child: SizedBox(
-                height: 40.r,
-                child: Center(
-                  child: Text(
-                    cancelLabel,
-                    style: texts.bodyLarge.regular().copyWith(
-                      color: colors.text.heading,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Gap(16.w),
-          Expanded(
-            child: MasrafyPrimaryButton(label: applyLabel, onPressed: onSave),
-          ),
-        ],
-      ),
     );
   }
 }

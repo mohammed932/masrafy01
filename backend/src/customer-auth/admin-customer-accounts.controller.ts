@@ -1,11 +1,27 @@
-import { Controller, DefaultValuePipe, Get, Param, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Query,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
+import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
+import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { CustomerNotFoundException } from '@/common/errors/domain.exceptions';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { CustomerAccountRepository } from './customer-account.repository';
+import { AdminCustomerAccountsService } from './admin-customer-accounts.service';
+import { UpdateCustomerStatusDto } from './dto/update-customer-status.dto';
 import { deriveAge } from './age.util';
 
 /**
@@ -20,7 +36,10 @@ import { deriveAge } from './age.util';
 @Roles('super_admin', 'sales_manager', 'analyst')
 @Controller('admin/customers')
 export class AdminCustomerAccountsController {
-  constructor(private readonly repo: CustomerAccountRepository) {}
+  constructor(
+    private readonly repo: CustomerAccountRepository,
+    private readonly admin: AdminCustomerAccountsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List customer accounts (paginated, searchable)' })
@@ -90,5 +109,32 @@ export class AdminCustomerAccountsController {
         resolvedAt: s.resolvedAt?.toISOString() ?? null,
       })),
     });
+  }
+
+  @Patch(':id/status')
+  @Roles('super_admin') // tighter than the class-level read roles (method overrides via getAllAndOverride)
+  @ApiOperation({ summary: 'Activate / deactivate a customer account (super_admin)' })
+  async setStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateCustomerStatusDto,
+    @CurrentUser() actor: JwtPayload,
+    @CorrelationId() correlationId: string,
+    @Req() req: Request,
+  ) {
+    const result = await this.admin.setActive(id, body.isActive, {
+      actorId: actor.sub,
+      sourceIp: this.readClientIp(req),
+      correlationId,
+    });
+    return ok(result);
+  }
+
+  private readClientIp(req: Request): string | null {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.length > 0) {
+      const first = xff.split(',')[0]?.trim();
+      if (first && first.length > 0) return first;
+    }
+    return req.ip ?? null;
   }
 }

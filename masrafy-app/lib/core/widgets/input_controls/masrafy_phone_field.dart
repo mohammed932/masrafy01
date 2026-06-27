@@ -32,6 +32,7 @@ class MasrafyPhoneField extends StatelessWidget {
     this.phoneNumberPlaceholder = 'Phone number',
     this.phoneNumberValidator,
     this.dialCodes = phoneDialCodes,
+    this.uppercaseLabels = false,
   });
 
   final String? dialCode;
@@ -46,6 +47,11 @@ class MasrafyPhoneField extends StatelessWidget {
   final String phoneNumberPlaceholder;
   final String? Function(String?)? phoneNumberValidator;
   final List<PhoneDialCode> dialCodes;
+
+  /// When true the labels render as the uppercase indigo `caption` style used by
+  /// the edit-form field family (`MasrafyLabeledField`); default `false` keeps
+  /// the Figma sign-up label (`body` regular `text.primary`).
+  final bool uppercaseLabels;
 
   Future<void> _pickDialCode(BuildContext context) async {
     final colors = MasrafyColorTheme.of(context);
@@ -110,7 +116,7 @@ class MasrafyPhoneField extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Label(text: phoneCodeLabel),
+              _Label(text: phoneCodeLabel, uppercase: uppercaseLabels),
               _DialCodeSelect(
                 placeholder: phoneCodePlaceholder,
                 value: selected?.display,
@@ -124,7 +130,7 @@ class MasrafyPhoneField extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Label(text: phoneNumberLabel),
+              _Label(text: phoneNumberLabel, uppercase: uppercaseLabels),
               _PhoneNumberInput(
                 value: phoneNumber,
                 onChanged: onPhoneNumberChanged,
@@ -227,21 +233,29 @@ class _PhoneNumberInputState extends State<_PhoneNumberInput> {
   }
 }
 
-/// Field label — Inter Regular 14/22 `text.primary`, 8h pad below.
+/// Field label — Inter Regular 14/22 `text.primary`, 8h pad below; or, when
+/// [uppercase] is set, the uppercase indigo `caption` style of the edit-form
+/// field family (`MasrafyLabeledField`).
 class _Label extends StatelessWidget {
-  const _Label({required this.text});
+  const _Label({required this.text, this.uppercase = false});
 
   final String text;
+  final bool uppercase;
 
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final texts = MasrafyTextTheme.of(context);
     return Padding(
-      padding: EdgeInsets.only(bottom: 8.h),
+      padding: EdgeInsets.only(bottom: uppercase ? 6.h : 8.h),
       child: Text(
-        text,
-        style: texts.body.regular().copyWith(color: colors.text.primary),
+        uppercase ? text.toUpperCase() : text,
+        style: uppercase
+            ? texts.caption.semiBold().copyWith(
+                  color: colors.primary.main,
+                  letterSpacing: 0.66,
+                )
+            : texts.body.regular().copyWith(color: colors.text.primary),
       ),
     );
   }

@@ -511,6 +511,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup_dob_year => 'Year';
 
   @override
+  String get signup_dob_hint => 'Select date of birth';
+
+  @override
   String signup_age_verified(Object years) {
     return 'Age verified — $years years old';
   }
@@ -618,7 +621,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get home_nav_home => 'Home';
 
   @override
-  String get home_nav_menu => 'Menu';
+  String get home_nav_menu => 'Account';
 
   @override
   String get account_title => 'Account';
@@ -637,6 +640,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get account_row_previous_applications => 'Previous Applications';
+
+  @override
+  String get saved_offers_empty_title => 'No saved offers yet';
+
+  @override
+  String get saved_offers_empty_body => 'Offers you save will appear here.';
+
+  @override
+  String get saved_offers_remove => 'Remove';
+
+  @override
+  String get saved_offers_remove_failed => 'Couldn\'t remove the offer. Please try again.';
+
+  @override
+  String get error_saved_offer_not_found => 'This offer is not in your saved offers.';
+
+  @override
+  String get previous_applications_title => 'Applications';
+
+  @override
+  String get previous_applications_status_applied => 'Applied';
+
+  @override
+  String get previous_applications_status_approved => 'Approved';
+
+  @override
+  String get previous_applications_status_rejected => 'Rejected';
 
   @override
   String get home_cat_personal => 'Personal';
@@ -682,6 +712,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get q_common_currency_egp => 'EGP';
+
+  @override
+  String get q_common_save => 'Save';
+
+  @override
+  String get q_common_cancel => 'Cancel';
+
+  @override
+  String get q_common_search => 'Search';
 
   @override
   String get q_mortgage_title => 'Mortgage application';
@@ -1167,6 +1206,206 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_car_q_insurance => 'Would you like vehicle insurance offers?';
 
   @override
+  String get q_personal_subtitle => 'We\'ll match you with banks that specialise in your needs';
+
+  @override
+  String get q_personal_next => 'Next';
+
+  @override
+  String get q_personal_finish => 'Finish';
+
+  @override
+  String get q_personal_submitted => 'Your answers have been saved';
+
+  @override
+  String get q_personal_select_hint => 'Select an option';
+
+  @override
+  String q_personal_years(Object years) {
+    return '$years years';
+  }
+
+  @override
+  String get q_personal_step1_title => 'Financing Details';
+
+  @override
+  String get q_personal_step2_title => 'Employment & Income';
+
+  @override
+  String get q_personal_step3_title => 'Banking Commitments';
+
+  @override
+  String get q_personal_step4_title => 'Preferences & Qualifications';
+
+  @override
+  String get q_personal_q_amount => 'What is the approximate amount you need?';
+
+  @override
+  String get q_personal_amount_label => 'Loan amount';
+
+  @override
+  String get q_personal_amount_hint => 'Approximate amount you need';
+
+  @override
+  String get q_personal_q_repayment => 'What repayment period suits you?';
+
+  @override
+  String get q_personal_repayment_label => 'Repayment period';
+
+  @override
+  String get q_personal_q_purpose => 'What is the purpose of the loan?';
+
+  @override
+  String get q_personal_hint_purpose => 'Purpose of the loan';
+
+  @override
+  String get q_opt_personal_purpose_home_finishing => 'Home finishing / Renovation';
+
+  @override
+  String get q_opt_personal_purpose_marriage => 'Marriage';
+
+  @override
+  String get q_opt_personal_purpose_appliances => 'Purchasing appliances or furniture';
+
+  @override
+  String get q_opt_personal_purpose_education => 'Education';
+
+  @override
+  String get q_opt_personal_purpose_debt_consolidation => 'Debt consolidation';
+
+  @override
+  String get q_opt_personal_purpose_personal_project => 'Personal project';
+
+  @override
+  String get q_opt_personal_purpose_other => 'Other';
+
+  @override
+  String get q_personal_q_employment => 'What is your employment status?';
+
+  @override
+  String get q_personal_q_job_tenure => 'How long have you been in your current job?';
+
+  @override
+  String get q_personal_hint_job_tenure => 'Current job';
+
+  @override
+  String get q_opt_personal_tenure_under6m => 'Less than 6 months';
+
+  @override
+  String get q_opt_personal_tenure_6m_1y => '6 months – 1 year';
+
+  @override
+  String get q_opt_personal_tenure_1_3y => '1–3 years';
+
+  @override
+  String get q_opt_personal_tenure_over3y => 'More than 3 years';
+
+  @override
+  String get q_personal_q_income => 'What is your average monthly income?';
+
+  @override
+  String get q_opt_personal_income_b1 => 'Start from EGP 10,000';
+
+  @override
+  String get q_opt_personal_income_b2 => 'EGP 10,000 – 20,000';
+
+  @override
+  String get q_opt_personal_income_b3 => 'EGP 20,000 – 50,000';
+
+  @override
+  String get q_opt_personal_income_b4 => 'EGP 50,000 – 80,000';
+
+  @override
+  String get q_opt_personal_income_b5 => 'More than EGP 100,000';
+
+  @override
+  String get q_personal_q_salary_transfer => 'Is your salary transferred to a bank account?';
+
+  @override
+  String get q_personal_q_employer_approved => 'Is your employer approved by banks?';
+
+  @override
+  String get q_opt_personal_emp_yes => 'Yes';
+
+  @override
+  String get q_opt_personal_emp_no => 'No';
+
+  @override
+  String get q_opt_personal_emp_unsure => 'Not sure';
+
+  @override
+  String get q_personal_q_obligations => 'Do you currently have any loans or financial obligations?';
+
+  @override
+  String get q_personal_hint_obligations => 'Loans or financial obligations';
+
+  @override
+  String get q_opt_personal_obligation_none => 'None';
+
+  @override
+  String get q_opt_personal_obligation_personal_loan => 'Personal Loan';
+
+  @override
+  String get q_opt_personal_obligation_car_loan => 'Car Loan';
+
+  @override
+  String get q_opt_personal_obligation_mortgage => 'Mortgage';
+
+  @override
+  String get q_opt_personal_obligation_credit_cards => 'Credit Cards';
+
+  @override
+  String get q_opt_personal_obligation_other => 'Other';
+
+  @override
+  String get q_personal_q_installment => 'What is your approximate total monthly installment amount?';
+
+  @override
+  String get q_personal_installment_label => 'Monthly installment';
+
+  @override
+  String get q_personal_installment_hint => 'Monthly installment';
+
+  @override
+  String get q_personal_q_credit_card => 'Do you have a credit card?';
+
+  @override
+  String get q_personal_q_credit_card_usage => 'If yes, what is your average monthly credit card usage?';
+
+  @override
+  String get q_opt_personal_cc_usage_b1 => 'Less than EGP 10,000';
+
+  @override
+  String get q_opt_personal_cc_usage_b2 => 'EGP 10,000 – 30,000';
+
+  @override
+  String get q_opt_personal_cc_usage_b3 => 'EGP 30,000 – 50,000';
+
+  @override
+  String get q_opt_personal_cc_usage_b4 => 'More than EGP 50,000';
+
+  @override
+  String get q_personal_q_priority => 'What is the most important factor when choosing financing?';
+
+  @override
+  String get q_opt_personal_priority_lowest_installment => 'Lowest Monthly Installment';
+
+  @override
+  String get q_opt_personal_priority_lowest_interest => 'Lowest Interest Rate';
+
+  @override
+  String get q_opt_personal_priority_minimum_docs => 'Minimum Documentation';
+
+  @override
+  String get q_opt_personal_priority_flexible_repayment => 'Flexible Repayment';
+
+  @override
+  String get q_personal_q_prior_rejection => 'Have you ever had a financing application rejected?';
+
+  @override
+  String get q_personal_q_assistance => 'Do you need assistance preparing documents and completing procedures?';
+
+  @override
   String get profile_title => 'Profile';
 
   @override
@@ -1206,6 +1445,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profile_dob_year => 'Year';
+
+  @override
+  String get profile_dob_hint => 'Select date of birth';
 
   @override
   String get profile_national_id => 'National ID';
@@ -1387,4 +1629,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offer_action_soon => 'Coming soon';
+
+  @override
+  String get settings_security_title => 'Settings & Security';
+
+  @override
+  String get settings_section_privacy_security => 'Privacy & Security';
+
+  @override
+  String get settings_biometric_title => 'Biometric login';
+
+  @override
+  String get settings_biometric_subtitle => 'Face ID / Fingerprint';
+
+  @override
+  String get settings_privacy_policies_title => 'Privacy Policies';
+
+  @override
+  String get settings_privacy_policies_subtitle => 'Privacy Policies - Term & Conditions';
+
+  @override
+  String get settings_section_notification_center => 'Notification center';
+
+  @override
+  String get settings_notifications_title => 'Enable Notifications';
+
+  @override
+  String get settings_notifications_subtitle => 'Get Notifications';
+
+  @override
+  String get settings_section_languages => 'Languages';
+
+  @override
+  String get settings_change_language_title => 'Change Language';
+
+  @override
+  String get settings_language_sheet_title => 'Change Language';
+
+  @override
+  String get settings_language_english => 'English';
+
+  @override
+  String get settings_language_arabic => 'Arabic';
 }

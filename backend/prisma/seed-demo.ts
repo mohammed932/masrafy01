@@ -15,6 +15,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
+import { seedCustomers } from './seed-customers';
 
 const prisma = new PrismaClient();
 
@@ -498,6 +499,9 @@ async function main(): Promise<void> {
   }
 
   await seedApplications();
+
+  // Mobile end-users for the admin /customers list + detail drawer.
+  await seedCustomers(prisma);
 
   log('demo seed complete.');
   log(`  super_admin → ${SUPER_ADMIN_EMAIL} / <SEED_ADMIN_PASSWORD>`);

@@ -8,6 +8,7 @@ import { InfraModule } from '@/infra/infra.module';
 import { CustomerAuthService } from './customer-auth.service';
 import { CustomerAuthController } from './customer-auth.controller';
 import { AdminCustomerAccountsController } from './admin-customer-accounts.controller';
+import { AdminCustomerAccountsService } from './admin-customer-accounts.service';
 import { CustomerAccountRepository } from './customer-account.repository';
 import { CustomerProfileDocumentRepository } from './customer-profile-document.repository';
 import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
@@ -60,6 +61,7 @@ import { MockSmsGateway } from './sms/mock-sms-gateway.service';
   controllers: [CustomerAuthController, AdminCustomerAccountsController],
   providers: [
     CustomerAccountRepository,
+    AdminCustomerAccountsService,
     CustomerProfileDocumentRepository,
     CustomerProfileCompletenessService,
     CustomerProfileCompleteGuard,

@@ -155,6 +155,7 @@ async function main(): Promise<void> {
     console.log(
       `[seed:apps] ${already} proceeded application(s) already exist (target ${target}) — skipping (idempotent).`,
     );
+    await seedSavedOffers();
     return;
   }
 
@@ -246,6 +247,44 @@ async function main(): Promise<void> {
 
   console.log(
     `[seed:apps] created ${created} applications (now ~${already + created}, target ${target}).`,
+  );
+
+  await seedSavedOffers();
+}
+
+/**
+ * Link the primary demo customer's matched offers as Saved Offers so the
+ * mobile "Saved Offers" screen (Figma 4088-153) renders content out of the box.
+ * Mobile dev logs in as +201111100001 / demo-password-12!. Idempotent — the
+ * unique (customerId, bankOfferId) pair makes re-running a no-op.
+ */
+async function seedSavedOffers(): Promise<void> {
+  const phone = CUSTOMERS[0]!.phone; // +201111100001
+  const customer = await prisma.customerAccount.findUnique({ where: { phone } });
+  if (!customer) {
+    console.log('[seed:apps] saved-offers: primary demo customer not found — skipped.');
+    return;
+  }
+  const offers = await prisma.bankOffer.findMany({
+    where: { application: { applicantUserId: customer.id }, erasedAt: null },
+    orderBy: { createdAt: 'desc' },
+    take: 3,
+    select: { id: true },
+  });
+  for (const o of offers) {
+    await prisma.savedOffer.upsert({
+      where: {
+        idx_saved_offer_customer_offer: {
+          customerId: customer.id,
+          bankOfferId: o.id,
+        },
+      },
+      create: { customerId: customer.id, bankOfferId: o.id },
+      update: {},
+    });
+  }
+  console.log(
+    `[seed:apps] saved-offers: linked ${offers.length} offer(s) for ${phone}.`,
   );
 }
 

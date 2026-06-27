@@ -32,7 +32,6 @@ mixin _$CarQuestionnaireState {
   bool? get hasCreditCard => throw _privateConstructorUsedError; // Step 4
   String? get priorityFactor => throw _privateConstructorUsedError;
   bool? get wantsInsurance => throw _privateConstructorUsedError; // UI
-  CarField? get openField => throw _privateConstructorUsedError;
   bool get submitted => throw _privateConstructorUsedError;
 
   /// Create a copy of CarQuestionnaireState
@@ -65,7 +64,6 @@ abstract class $CarQuestionnaireStateCopyWith<$Res> {
       bool? hasCreditCard,
       String? priorityFactor,
       bool? wantsInsurance,
-      CarField? openField,
       bool submitted});
 }
 
@@ -101,7 +99,6 @@ class _$CarQuestionnaireStateCopyWithImpl<$Res,
     Object? hasCreditCard = freezed,
     Object? priorityFactor = freezed,
     Object? wantsInsurance = freezed,
-    Object? openField = freezed,
     Object? submitted = null,
   }) {
     return _then(_value.copyWith(
@@ -169,10 +166,6 @@ class _$CarQuestionnaireStateCopyWithImpl<$Res,
           ? _value.wantsInsurance
           : wantsInsurance // ignore: cast_nullable_to_non_nullable
               as bool?,
-      openField: freezed == openField
-          ? _value.openField
-          : openField // ignore: cast_nullable_to_non_nullable
-              as CarField?,
       submitted: null == submitted
           ? _value.submitted
           : submitted // ignore: cast_nullable_to_non_nullable
@@ -207,7 +200,6 @@ abstract class _$$CarQuestionnaireStateImplCopyWith<$Res>
       bool? hasCreditCard,
       String? priorityFactor,
       bool? wantsInsurance,
-      CarField? openField,
       bool submitted});
 }
 
@@ -241,7 +233,6 @@ class __$$CarQuestionnaireStateImplCopyWithImpl<$Res>
     Object? hasCreditCard = freezed,
     Object? priorityFactor = freezed,
     Object? wantsInsurance = freezed,
-    Object? openField = freezed,
     Object? submitted = null,
   }) {
     return _then(_$CarQuestionnaireStateImpl(
@@ -309,10 +300,6 @@ class __$$CarQuestionnaireStateImplCopyWithImpl<$Res>
           ? _value.wantsInsurance
           : wantsInsurance // ignore: cast_nullable_to_non_nullable
               as bool?,
-      openField: freezed == openField
-          ? _value.openField
-          : openField // ignore: cast_nullable_to_non_nullable
-              as CarField?,
       submitted: null == submitted
           ? _value.submitted
           : submitted // ignore: cast_nullable_to_non_nullable
@@ -341,7 +328,6 @@ class _$CarQuestionnaireStateImpl extends _CarQuestionnaireState {
       this.hasCreditCard,
       this.priorityFactor,
       this.wantsInsurance,
-      this.openField,
       this.submitted = false})
       : super._();
 
@@ -388,14 +374,12 @@ class _$CarQuestionnaireStateImpl extends _CarQuestionnaireState {
   final bool? wantsInsurance;
 // UI
   @override
-  final CarField? openField;
-  @override
   @JsonKey()
   final bool submitted;
 
   @override
   String toString() {
-    return 'CarQuestionnaireState(currentStep: $currentStep, vehicleCondition: $vehicleCondition, modelYear: $modelYear, vehiclePriceStart: $vehiclePriceStart, vehiclePriceEnd: $vehiclePriceEnd, downPaymentPct: $downPaymentPct, repaymentPeriod: $repaymentPeriod, employmentStatus: $employmentStatus, monthlyIncome: $monthlyIncome, salaryTransfer: $salaryTransfer, employerApproved: $employerApproved, currentLoans: $currentLoans, currentInstallments: $currentInstallments, hasCreditCard: $hasCreditCard, priorityFactor: $priorityFactor, wantsInsurance: $wantsInsurance, openField: $openField, submitted: $submitted)';
+    return 'CarQuestionnaireState(currentStep: $currentStep, vehicleCondition: $vehicleCondition, modelYear: $modelYear, vehiclePriceStart: $vehiclePriceStart, vehiclePriceEnd: $vehiclePriceEnd, downPaymentPct: $downPaymentPct, repaymentPeriod: $repaymentPeriod, employmentStatus: $employmentStatus, monthlyIncome: $monthlyIncome, salaryTransfer: $salaryTransfer, employerApproved: $employerApproved, currentLoans: $currentLoans, currentInstallments: $currentInstallments, hasCreditCard: $hasCreditCard, priorityFactor: $priorityFactor, wantsInsurance: $wantsInsurance, submitted: $submitted)';
   }
 
   @override
@@ -435,8 +419,6 @@ class _$CarQuestionnaireStateImpl extends _CarQuestionnaireState {
                 other.priorityFactor == priorityFactor) &&
             (identical(other.wantsInsurance, wantsInsurance) ||
                 other.wantsInsurance == wantsInsurance) &&
-            (identical(other.openField, openField) ||
-                other.openField == openField) &&
             (identical(other.submitted, submitted) ||
                 other.submitted == submitted));
   }
@@ -460,7 +442,6 @@ class _$CarQuestionnaireStateImpl extends _CarQuestionnaireState {
       hasCreditCard,
       priorityFactor,
       wantsInsurance,
-      openField,
       submitted);
 
   /// Create a copy of CarQuestionnaireState
@@ -491,7 +472,6 @@ abstract class _CarQuestionnaireState extends CarQuestionnaireState {
       final bool? hasCreditCard,
       final String? priorityFactor,
       final bool? wantsInsurance,
-      final CarField? openField,
       final bool submitted}) = _$CarQuestionnaireStateImpl;
   const _CarQuestionnaireState._() : super._();
 
@@ -527,8 +507,6 @@ abstract class _CarQuestionnaireState extends CarQuestionnaireState {
   String? get priorityFactor;
   @override
   bool? get wantsInsurance; // UI
-  @override
-  CarField? get openField;
   @override
   bool get submitted;
 

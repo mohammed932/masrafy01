@@ -317,6 +317,14 @@ export class OfferNotForApplicationException extends DomainException {
   }
 }
 
+// --- Saved offers ----------------------------------------------------------
+
+export class SavedOfferNotFoundException extends DomainException {
+  constructor(meta: { bankOfferId: string }) {
+    super(ERROR_CODES.SAVED_OFFER_NOT_FOUND, meta);
+  }
+}
+
 export class AlreadyProceededException extends DomainException {
   constructor(meta: {
     applicationId: string;

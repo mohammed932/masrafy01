@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import '../cubit/business_questionnaire/business_questionnaire_cubit.dart';
@@ -29,24 +29,20 @@ class BusinessStepPreferences extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_business_q_priority,
             hint: l.q_business_select_hint,
             options: BusinessLookups.priorityFactors(l),
             value: state.priorityFactor,
-            expanded: state.openField == BusinessField.priorityFactor,
-            onToggle: () => cubit.toggleField(BusinessField.priorityFactor),
             onSelected: (v) =>
                 cubit.updateField(BusinessField.priorityFactor, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_business_q_consultation,
             hint: l.q_business_select_hint,
             options: BusinessLookups.yesNo(l),
             value: state.needsConsultation,
-            expanded: state.openField == BusinessField.needsConsultation,
-            onToggle: () => cubit.toggleField(BusinessField.needsConsultation),
             onSelected: (v) =>
                 cubit.updateField(BusinessField.needsConsultation, v),
           ),

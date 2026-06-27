@@ -328,6 +328,57 @@
       <trans-unit id="questionnaire.overview.subtitle" datatype="html"><source>One published version per loan category drives the mobile questionnaire.</source><target>تُشغّل نسخة منشورة واحدة لكل فئة قرض استبيانَ التطبيق.</target></trans-unit>
       <trans-unit id="questionnaire.overview.published_prefix" datatype="html"><source>Published</source><target>نُشِر</target></trans-unit>
       <trans-unit id="questionnaire.overview.never_published" datatype="html"><source>Never published</source><target>لم يُنشر مطلقاً</target></trans-unit>
+      <trans-unit id="sidebar.customers" datatype="html"><source>Customers</source><target>العملاء</target></trans-unit>
+      <trans-unit id="customers.title" datatype="html"><source>Customers</source><target>العملاء</target></trans-unit>
+      <trans-unit id="customers.subtitle" datatype="html"><source>Mobile end-users who signed up for the Masrafy app.</source><target>المستخدمون النهائيون الذين سجّلوا عبر تطبيق مصرفي.</target></trans-unit>
+      <trans-unit id="customers.search.placeholder" datatype="html"><source>Search phone, email, or name</source><target>ابحث بالهاتف أو البريد الإلكتروني أو الاسم</target></trans-unit>
+      <trans-unit id="customers.col.name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
+      <trans-unit id="customers.col.phone" datatype="html"><source>Phone</source><target>الهاتف</target></trans-unit>
+      <trans-unit id="customers.col.email" datatype="html"><source>Email</source><target>البريد الإلكتروني</target></trans-unit>
+      <trans-unit id="customers.col.applications" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
+      <trans-unit id="customers.col.verified" datatype="html"><source>Status</source><target>الحالة</target></trans-unit>
+      <trans-unit id="customers.col.created" datatype="html"><source>Joined</source><target>تاريخ الانضمام</target></trans-unit>
+      <trans-unit id="customers.col.lastLogin" datatype="html"><source>Last login</source><target>آخر دخول</target></trans-unit>
+      <trans-unit id="customers.status.verified" datatype="html"><source>Verified</source><target>موثَّق</target></trans-unit>
+      <trans-unit id="customers.status.unverified" datatype="html"><source>Unverified</source><target>غير موثَّق</target></trans-unit>
+      <trans-unit id="customers.status.active" datatype="html"><source>Active</source><target>نشط</target></trans-unit>
+      <trans-unit id="customers.status.inactive" datatype="html"><source>Inactive</source><target>غير نشط</target></trans-unit>
+      <trans-unit id="customers.empty" datatype="html"><source>Mobile signups will appear here once people register in the app.</source><target>ستظهر تسجيلات التطبيق هنا بمجرد تسجيل المستخدمين.</target></trans-unit>
+      <trans-unit id="customers.empty.title" datatype="html"><source>No customers yet</source><target>لا يوجد عملاء بعد</target></trans-unit>
+      <trans-unit id="customers.empty.search" datatype="html"><source>No customers match your search.</source><target>لا يوجد عملاء مطابقون لبحثك.</target></trans-unit>
+      <trans-unit id="customers.empty.search.title" datatype="html"><source>No matches</source><target>لا توجد نتائج</target></trans-unit>
+      <trans-unit id="customers.stat.aria" datatype="html"><source>Customer totals</source><target>إجماليات العملاء</target></trans-unit>
+      <trans-unit id="customers.stat.total" datatype="html"><source>Total</source><target>الإجمالي</target></trans-unit>
+      <trans-unit id="customers.stat.total.hint" datatype="html"><source>registered customers</source><target>عملاء مسجّلون</target></trans-unit>
+      <trans-unit id="customers.stat.verified" datatype="html"><source>Verified</source><target>موثَّقون</target></trans-unit>
+      <trans-unit id="customers.stat.pending" datatype="html"><source>Pending</source><target>قيد الإكمال</target></trans-unit>
+      <trans-unit id="customers.stat.pending.hint" datatype="html"><source>awaiting profile</source><target>بانتظار إكمال الملف</target></trans-unit>
+      <trans-unit id="customers.stat.inactive" datatype="html"><source>Inactive</source><target>غير نشط</target></trans-unit>
+      <trans-unit id="customers.stat.inactive.hint" datatype="html"><source>deactivated</source><target>معطّلون</target></trans-unit>
+      <trans-unit id="customers.name.review" datatype="html"><source>Needs review</source><target>بحاجة لمراجعة</target></trans-unit>
+      <trans-unit id="customers.open" datatype="html"><source>View customer details</source><target>عرض تفاصيل العميل</target></trans-unit>
+      <trans-unit id="customers.detail.loading" datatype="html"><source>Loading customer</source><target>جارٍ تحميل العميل</target></trans-unit>
+      <trans-unit id="customers.detail.meta.phone" datatype="html"><source>Phone</source><target>الهاتف</target></trans-unit>
+      <trans-unit id="customers.detail.meta.email" datatype="html"><source>Email</source><target>البريد الإلكتروني</target></trans-unit>
+      <trans-unit id="customers.detail.meta.age" datatype="html"><source>Age</source><target>العمر</target></trans-unit>
+      <trans-unit id="customers.detail.meta.locale" datatype="html"><source>Locale</source><target>اللغة</target></trans-unit>
+      <trans-unit id="customers.detail.meta.joined" datatype="html"><source>Joined</source><target>تاريخ الانضمام</target></trans-unit>
+      <trans-unit id="customers.detail.meta.lastLogin" datatype="html"><source>Last login</source><target>آخر دخول</target></trans-unit>
+      <trans-unit id="customers.detail.applications" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
+      <trans-unit id="customers.detail.applications.empty" datatype="html"><source>No applications yet.</source><target>لا توجد طلبات بعد.</target></trans-unit>
+      <trans-unit id="customers.detail.app.amount" datatype="html"><source>Requested</source><target>المبلغ المطلوب</target></trans-unit>
+      <trans-unit id="customers.detail.app.created" datatype="html"><source>Created</source><target>تاريخ الإنشاء</target></trans-unit>
+      <trans-unit id="customers.detail.app.proceeded" datatype="html"><source>Proceeded</source><target>تابع</target></trans-unit>
+      <trans-unit id="customers.detail.support" datatype="html"><source>Support requests</source><target>طلبات الدعم</target></trans-unit>
+      <trans-unit id="customers.detail.support.empty" datatype="html"><source>No support requests.</source><target>لا توجد طلبات دعم.</target></trans-unit>
+      <trans-unit id="customers.detail.support.created" datatype="html"><source>Opened</source><target>تاريخ الفتح</target></trans-unit>
+      <trans-unit id="customers.detail.support.resolved" datatype="html"><source>Resolved</source><target>تاريخ الحل</target></trans-unit>
+      <trans-unit id="customers.detail.notFound" datatype="html"><source>Customer not found.</source><target>لم يُعثر على العميل.</target></trans-unit>
+      <trans-unit id="customers.action.deactivate" datatype="html"><source>Deactivate account</source><target>تعطيل الحساب</target></trans-unit>
+      <trans-unit id="customers.action.activate" datatype="html"><source>Reactivate account</source><target>إعادة تنشيط الحساب</target></trans-unit>
+      <trans-unit id="customers.action.deactivate.title" datatype="html"><source>Deactivate this customer?</source><target>تعطيل هذا العميل؟</target></trans-unit>
+      <trans-unit id="customers.action.activated" datatype="html"><source>Customer reactivated.</source><target>تم إعادة تنشيط العميل.</target></trans-unit>
+      <trans-unit id="customers.action.deactivated" datatype="html"><source>Customer deactivated.</source><target>تم تعطيل العميل.</target></trans-unit>
     </body>
   </file>
 </xliff>

@@ -12,11 +12,14 @@ class MasrafyBackTitleHeader extends StatelessWidget {
   const MasrafyBackTitleHeader({
     super.key,
     required this.title,
-    required this.onBack,
+    this.onBack,
   });
 
   final String title;
-  final VoidCallback onBack;
+
+  /// Tap handler for the back chip. When `null` the chip is omitted entirely
+  /// (e.g. when the screen is a tab root with nothing to pop).
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -28,25 +31,27 @@ class MasrafyBackTitleHeader extends StatelessWidget {
       padding: EdgeInsetsDirectional.fromSTEB(20.w, 12.h, 20.w, 8.h),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: onBack,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: 40.r,
-              height: 40.r,
-              decoration: BoxDecoration(
-                color: colors.bg.container,
-                borderRadius: BorderRadius.circular(12.r),
-                border: Border.all(color: colors.border.main),
-              ),
-              child: Icon(
-                isRtl ? Icons.chevron_right : Icons.chevron_left,
-                size: 24.r,
-                color: colors.text.heading,
+          if (onBack != null) ...[
+            GestureDetector(
+              onTap: onBack,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 40.r,
+                height: 40.r,
+                decoration: BoxDecoration(
+                  color: colors.bg.container,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: colors.border.main),
+                ),
+                child: Icon(
+                  isRtl ? Icons.chevron_right : Icons.chevron_left,
+                  size: 24.r,
+                  color: colors.text.heading,
+                ),
               ),
             ),
-          ),
-          Gap(12.w),
+            Gap(12.w),
+          ],
           Text(
             title,
             style: text.heading4.bold().copyWith(color: colors.text.heading),

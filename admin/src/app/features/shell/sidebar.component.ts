@@ -5,6 +5,7 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import {
   DashboardOutline,
   TeamOutline,
+  IdcardOutline,
   BankOutline,
   FileTextOutline,
   FundOutline,
@@ -30,6 +31,7 @@ import { CanDirective } from '../../shared/can.directive';
     provideNzIconsPatch([
       DashboardOutline,
       TeamOutline,
+      IdcardOutline,
       BankOutline,
       FileTextOutline,
       FundOutline,
@@ -64,6 +66,16 @@ import { CanDirective } from '../../shared/can.directive';
         <a routerLink="/applications" routerLinkActive="active" class="item">
           <span nz-icon nzType="file-text" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
           <span class="item-label" i18n="@@sidebar.applications">Applications</span>
+        </a>
+
+        <a
+          *can="['super_admin', 'sales_manager', 'analyst']"
+          routerLink="/customers"
+          routerLinkActive="active"
+          class="item"
+        >
+          <span nz-icon nzType="idcard" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span class="item-label" i18n="@@sidebar.customers">Customers</span>
         </a>
 
         <a

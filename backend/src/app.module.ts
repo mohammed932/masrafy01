@@ -13,6 +13,7 @@ import { UsersModule } from '@/users/users.module';
 import { BanksModule } from '@/banks/banks.module';
 import { BankProgramsModule } from '@/bank-programs/bank-programs.module';
 import { ApplicationsModule } from '@/applications/applications.module';
+import { SavedOffersModule } from '@/saved-offers/saved-offers.module';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { ScoringVersionsModule } from '@/scoring-versions/scoring-versions.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
@@ -53,6 +54,7 @@ import { pinoOptions } from '@/common/pino/pino.config';
     ScoringVersionsModule,
     CustomerAuthModule,
     ApplicationsModule,
+    SavedOffersModule,
     DocumentsModule,
     SupportModule,
     OnboardingModule,

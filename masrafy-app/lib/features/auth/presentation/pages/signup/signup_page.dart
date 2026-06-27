@@ -209,9 +209,7 @@ class _SignupViewState extends State<_SignupView> {
                           Gap(16.h),
                           MasrafyDobSelector(
                             label: l.signup_dob_label,
-                            dayPlaceholder: l.signup_dob_day,
-                            monthPlaceholder: l.signup_dob_month,
-                            yearPlaceholder: l.signup_dob_year,
+                            hint: l.signup_dob_hint,
                             value: state.birthday,
                             ageVerifiedText: state.age != null
                                 ? l.signup_age_verified(state.age!)

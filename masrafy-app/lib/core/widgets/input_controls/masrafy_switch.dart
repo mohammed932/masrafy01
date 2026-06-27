@@ -27,8 +27,15 @@ class MasrafySwitch extends StatelessWidget {
         activeColor: colors.white,
         activeTrackColor: colors.primary.main,
         inactiveThumbColor: colors.white,
-        inactiveTrackColor: colors.fill.quaternary,
-        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+        // OFF: clearly visible light-gray track + subtle outline so the
+        // control reads as "off", not "hidden", on white cards.
+        // `fill.quaternary` (2% black) vanished against the card.
+        inactiveTrackColor: colors.fill.main,
+        trackOutlineColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? Colors.transparent
+              : colors.border.main,
+        ),
       ),
     );
   }

@@ -1,8 +1,7 @@
 part of 'business_questionnaire_cubit.dart';
 
 /// Editable answers across the 4 business-loan steps, addressed by
-/// [updateField]. Also identifies which inline-expand accordion is open
-/// ([openField]). Monthly revenue is edited via
+/// [updateField]. Monthly revenue is edited via
 /// [BusinessQuestionnaireCubit.updateMonthlyRevenue], not this enum.
 enum BusinessField {
   // Step 1 — Business & Financing
@@ -53,7 +52,6 @@ class BusinessQuestionnaireState with _$BusinessQuestionnaireState {
     String? priorityFactor,
     bool? needsConsultation,
     // UI
-    BusinessField? openField,
     @Default(false) bool submitted,
   }) = _BusinessQuestionnaireState;
 

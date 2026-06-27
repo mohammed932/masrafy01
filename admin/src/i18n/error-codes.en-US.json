@@ -68,6 +68,7 @@
   "BANK_OFFER_NOT_FOUND": "Selected offer not found.",
   "OFFER_NOT_FOR_APPLICATION": "That offer does not belong to this application.",
   "ALREADY_PROCEEDED": "You already selected an offer for this application.",
+  "SAVED_OFFER_NOT_FOUND": "This offer is not in your saved offers.",
   "APPLICATION_NOT_MATCHED": "This application is not in a matched state and cannot proceed.",
   "NONE_TRANSFER_UNSAFE": "Programs accepting \"No salary transfer\" require either a rate band for that case or a collateral requirement.",
 

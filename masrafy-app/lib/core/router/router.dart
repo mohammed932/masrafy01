@@ -21,11 +21,15 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: MortgageQuestionnaireRoute.page),
         AutoRoute(page: CarQuestionnaireRoute.page),
         AutoRoute(page: BusinessQuestionnaireRoute.page),
+        AutoRoute(page: PersonalQuestionnaireRoute.page),
         AutoRoute(page: MatchResultsRoute.page),
         AutoRoute(page: OfferDetailsRoute.page),
         AutoRoute(page: ProfileRoute.page),
         AutoRoute(page: ProfileEditPersonalRoute.page),
         AutoRoute(page: ProfileEditContactRoute.page),
         AutoRoute(page: AccountRoute.page),
+        AutoRoute(page: SettingsSecurityRoute.page),
+        AutoRoute(page: PreviousApplicationsRoute.page),
+        AutoRoute(page: SavedOffersRoute.page),
       ];
 }

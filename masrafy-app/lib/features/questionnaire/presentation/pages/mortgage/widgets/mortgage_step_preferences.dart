@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import '../cubit/mortgage_questionnaire/mortgage_questionnaire_cubit.dart';
@@ -28,24 +28,20 @@ class MortgageStepPreferences extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_mortgage_q_priority,
             hint: l.q_mortgage_select_hint,
             options: MortgageLookups.priorityFactors(l),
             value: state.priorityFactor,
-            expanded: state.openField == MortgageField.priorityFactor,
-            onToggle: () => cubit.toggleField(MortgageField.priorityFactor),
             onSelected: (v) =>
                 cubit.updateField(MortgageField.priorityFactor, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_mortgage_q_assistance,
             hint: l.q_mortgage_select_hint,
             options: MortgageLookups.yesNo(l),
             value: state.needsAssistance,
-            expanded: state.openField == MortgageField.needsAssistance,
-            onToggle: () => cubit.toggleField(MortgageField.needsAssistance),
             onSelected: (v) =>
                 cubit.updateField(MortgageField.needsAssistance, v),
           ),

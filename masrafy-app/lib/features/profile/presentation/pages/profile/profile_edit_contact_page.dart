@@ -49,36 +49,10 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
     super.dispose();
   }
 
-  Future<void> _pickGovernorate(
-    BuildContext context,
-    ProfileEditContactCubit cubit,
-    AppLocalizations l,
-    String? current,
-  ) async {
-    final isArabic = l.localeName.startsWith('ar');
-    final picked = await showMasrafySingleSelectSheet<String>(
-      context: context,
-      title: l.profile_governorate,
-      options: [
-        for (final g in EgyptGovernorates.all)
-          MasrafySelectOption(value: g.slug, label: g.label(isArabic)),
-      ],
-      initialValue: current,
-      showSearch: true,
-      searchHint: l.profile_search_hint,
-      cancelLabel: l.profile_cancel,
-      applyLabel: l.profile_save,
-    );
-    if (picked != null) {
-      cubit.updateField(ProfileEditContactField.governorate, picked);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final l = AppLocalizations.of(context);
-    void soon() => MasrafyToast.info(context, l.common_coming_soon);
 
     return Scaffold(
       backgroundColor: colors.bg.layout,
@@ -87,14 +61,15 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
         loansLabel: l.home_nav_loans,
         homeLabel: l.home_nav_home,
         menuLabel: l.home_nav_menu,
-        onLoans: soon,
-        onHome: () => context.router.popUntilRoot(),
+        onLoans: () =>
+            context.router.replace(SavedOffersRoute(fromTab: true)),
+        onHome: () => context.router.replaceAll([const HomeRoute()]),
         onMenu: () => context.router.maybePop(),
       ),
       body: BlocBuilder<ProfileEditContactCubit, ProfileEditContactState>(
         builder: (ctx, state) {
           final cubit = ctx.read<ProfileEditContactCubit>();
-          final govLabel = EgyptGovernorates.labelFor(l, state.governorate);
+          final isArabic = l.localeName.startsWith('ar');
 
           return SafeArea(
             bottom: false,
@@ -110,8 +85,8 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                       parent: AlwaysScrollableScrollPhysics(),
                     ),
                     padding: EdgeInsetsDirectional.fromSTEB(20.w, 16.h, 20.w, 24.h),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    child: ProfileFormSection(
+                      title: l.profile_section_contact,
                       children: [
                         MasrafyPhoneField(
                           dialCode: state.dialCode,
@@ -123,8 +98,8 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                           phoneCodeLabel: ' ',
                           phoneNumberLabel: l.profile_phone,
                           phoneNumberPlaceholder: l.profile_phone_hint,
+                          uppercaseLabels: true,
                         ),
-                        Gap(16.h),
                         MasrafyLabeledField(
                           label: l.profile_email,
                           controller: _email,
@@ -133,7 +108,6 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                           onChanged: (v) => cubit.updateField(
                               ProfileEditContactField.email, v),
                         ),
-                        Gap(16.h),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -141,9 +115,20 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                               child: MasrafySelectField<String>(
                                 label: l.profile_governorate,
                                 hint: l.profile_governorate,
-                                displayValue: govLabel,
-                                onTap: () => _pickGovernorate(
-                                    ctx, cubit, l, state.governorate),
+                                sheetTitle: l.profile_governorate,
+                                dense: true,
+                                showSearch: true,
+                                searchHint: l.profile_search_hint,
+                                value: state.governorate,
+                                options: [
+                                  for (final g in EgyptGovernorates.all)
+                                    MasrafySelectOption(
+                                      value: g.slug,
+                                      label: g.label(isArabic),
+                                    ),
+                                ],
+                                onSelected: (v) => cubit.updateField(
+                                    ProfileEditContactField.governorate, v),
                               ),
                             ),
                             Gap(10.w),
@@ -158,7 +143,6 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                             ),
                           ],
                         ),
-                        Gap(16.h),
                         MasrafyLabeledField(
                           label: l.profile_address,
                           controller: _address,

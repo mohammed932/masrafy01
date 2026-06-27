@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/core/widgets/sliders/masrafy_range_slider.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
@@ -52,34 +52,28 @@ class BusinessStepFinancial extends StatelessWidget {
                 cubit.updateMonthlyRevenue(start: rv.start, end: rv.end),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_business_q_bank_account,
             hint: l.q_business_select_hint,
             options: BusinessLookups.yesNo(l),
             value: state.businessAccount,
-            expanded: state.openField == BusinessField.businessAccount,
-            onToggle: () => cubit.toggleField(BusinessField.businessAccount),
             onSelected: (v) =>
                 cubit.updateField(BusinessField.businessAccount, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_business_q_registered,
             hint: l.q_business_select_hint,
             options: BusinessLookups.registrationStates(l),
             value: state.registered,
-            expanded: state.openField == BusinessField.registered,
-            onToggle: () => cubit.toggleField(BusinessField.registered),
             onSelected: (v) => cubit.updateField(BusinessField.registered, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_business_q_tax,
             hint: l.q_business_select_hint,
             options: BusinessLookups.yesNo(l),
             value: state.taxRegistration,
-            expanded: state.openField == BusinessField.taxRegistration,
-            onToggle: () => cubit.toggleField(BusinessField.taxRegistration),
             onSelected: (v) =>
                 cubit.updateField(BusinessField.taxRegistration, v),
           ),

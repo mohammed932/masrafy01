@@ -35,7 +35,6 @@ mixin _$MortgageQuestionnaireState {
   bool? get priorRejection => throw _privateConstructorUsedError; // Step 4
   String? get priorityFactor => throw _privateConstructorUsedError;
   bool? get needsAssistance => throw _privateConstructorUsedError; // UI
-  MortgageField? get openField => throw _privateConstructorUsedError;
   bool get submitted => throw _privateConstructorUsedError;
 
   /// Create a copy of MortgageQuestionnaireState
@@ -72,7 +71,6 @@ abstract class $MortgageQuestionnaireStateCopyWith<$Res> {
       bool? priorRejection,
       String? priorityFactor,
       bool? needsAssistance,
-      MortgageField? openField,
       bool submitted});
 }
 
@@ -111,7 +109,6 @@ class _$MortgageQuestionnaireStateCopyWithImpl<$Res,
     Object? priorRejection = freezed,
     Object? priorityFactor = freezed,
     Object? needsAssistance = freezed,
-    Object? openField = freezed,
     Object? submitted = null,
   }) {
     return _then(_value.copyWith(
@@ -191,10 +188,6 @@ class _$MortgageQuestionnaireStateCopyWithImpl<$Res,
           ? _value.needsAssistance
           : needsAssistance // ignore: cast_nullable_to_non_nullable
               as bool?,
-      openField: freezed == openField
-          ? _value.openField
-          : openField // ignore: cast_nullable_to_non_nullable
-              as MortgageField?,
       submitted: null == submitted
           ? _value.submitted
           : submitted // ignore: cast_nullable_to_non_nullable
@@ -232,7 +225,6 @@ abstract class _$$MortgageQuestionnaireStateImplCopyWith<$Res>
       bool? priorRejection,
       String? priorityFactor,
       bool? needsAssistance,
-      MortgageField? openField,
       bool submitted});
 }
 
@@ -270,7 +262,6 @@ class __$$MortgageQuestionnaireStateImplCopyWithImpl<$Res>
     Object? priorRejection = freezed,
     Object? priorityFactor = freezed,
     Object? needsAssistance = freezed,
-    Object? openField = freezed,
     Object? submitted = null,
   }) {
     return _then(_$MortgageQuestionnaireStateImpl(
@@ -350,10 +341,6 @@ class __$$MortgageQuestionnaireStateImplCopyWithImpl<$Res>
           ? _value.needsAssistance
           : needsAssistance // ignore: cast_nullable_to_non_nullable
               as bool?,
-      openField: freezed == openField
-          ? _value.openField
-          : openField // ignore: cast_nullable_to_non_nullable
-              as MortgageField?,
       submitted: null == submitted
           ? _value.submitted
           : submitted // ignore: cast_nullable_to_non_nullable
@@ -385,7 +372,6 @@ class _$MortgageQuestionnaireStateImpl extends _MortgageQuestionnaireState {
       this.priorRejection,
       this.priorityFactor,
       this.needsAssistance,
-      this.openField,
       this.submitted = false})
       : super._();
 
@@ -439,14 +425,12 @@ class _$MortgageQuestionnaireStateImpl extends _MortgageQuestionnaireState {
   final bool? needsAssistance;
 // UI
   @override
-  final MortgageField? openField;
-  @override
   @JsonKey()
   final bool submitted;
 
   @override
   String toString() {
-    return 'MortgageQuestionnaireState(currentStep: $currentStep, propertyType: $propertyType, inCompound: $inCompound, registrationStatus: $registrationStatus, governorate: $governorate, address: $address, propertyValueStart: $propertyValueStart, propertyValueEnd: $propertyValueEnd, downPaymentPct: $downPaymentPct, repaymentPeriod: $repaymentPeriod, employmentStatus: $employmentStatus, monthlyIncome: $monthlyIncome, salaryTransfer: $salaryTransfer, additionalIncome: $additionalIncome, currentLoans: $currentLoans, currentInstallments: $currentInstallments, priorRejection: $priorRejection, priorityFactor: $priorityFactor, needsAssistance: $needsAssistance, openField: $openField, submitted: $submitted)';
+    return 'MortgageQuestionnaireState(currentStep: $currentStep, propertyType: $propertyType, inCompound: $inCompound, registrationStatus: $registrationStatus, governorate: $governorate, address: $address, propertyValueStart: $propertyValueStart, propertyValueEnd: $propertyValueEnd, downPaymentPct: $downPaymentPct, repaymentPeriod: $repaymentPeriod, employmentStatus: $employmentStatus, monthlyIncome: $monthlyIncome, salaryTransfer: $salaryTransfer, additionalIncome: $additionalIncome, currentLoans: $currentLoans, currentInstallments: $currentInstallments, priorRejection: $priorRejection, priorityFactor: $priorityFactor, needsAssistance: $needsAssistance, submitted: $submitted)';
   }
 
   @override
@@ -491,8 +475,6 @@ class _$MortgageQuestionnaireStateImpl extends _MortgageQuestionnaireState {
                 other.priorityFactor == priorityFactor) &&
             (identical(other.needsAssistance, needsAssistance) ||
                 other.needsAssistance == needsAssistance) &&
-            (identical(other.openField, openField) ||
-                other.openField == openField) &&
             (identical(other.submitted, submitted) ||
                 other.submitted == submitted));
   }
@@ -519,7 +501,6 @@ class _$MortgageQuestionnaireStateImpl extends _MortgageQuestionnaireState {
         priorRejection,
         priorityFactor,
         needsAssistance,
-        openField,
         submitted
       ]);
 
@@ -554,7 +535,6 @@ abstract class _MortgageQuestionnaireState extends MortgageQuestionnaireState {
       final bool? priorRejection,
       final String? priorityFactor,
       final bool? needsAssistance,
-      final MortgageField? openField,
       final bool submitted}) = _$MortgageQuestionnaireStateImpl;
   const _MortgageQuestionnaireState._() : super._();
 
@@ -596,8 +576,6 @@ abstract class _MortgageQuestionnaireState extends MortgageQuestionnaireState {
   String? get priorityFactor;
   @override
   bool? get needsAssistance; // UI
-  @override
-  MortgageField? get openField;
   @override
   bool get submitted;
 

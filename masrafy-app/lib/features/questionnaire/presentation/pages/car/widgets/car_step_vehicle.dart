@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/core/widgets/sliders/masrafy_range_slider.dart';
 import 'package:app/core/widgets/sliders/masrafy_value_slider.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
@@ -14,8 +14,8 @@ import 'car_step_scaffold.dart';
 
 /// Step 1 body — Vehicle & Financing (Figma `4024:2586`). Vehicle condition,
 /// model year, an EGP price range slider, a down-payment bucket, and a
-/// repayment-years slider. Selects are driven by the cubit (`openField` +
-/// `updateField`). Flow-local widget (Principle XXXII); UI-only.
+/// repayment-years slider. Selects are driven by the cubit (`updateField`).
+/// Flow-local widget (Principle XXXII); UI-only.
 class CarStepVehicle extends StatelessWidget {
   const CarStepVehicle({super.key, required this.state});
 
@@ -37,24 +37,20 @@ class CarStepVehicle extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_car_q_condition,
             hint: l.q_car_select_hint,
             options: CarLookups.vehicleConditions(l),
             value: state.vehicleCondition,
-            expanded: state.openField == CarField.vehicleCondition,
-            onToggle: () => cubit.toggleField(CarField.vehicleCondition),
             onSelected: (v) =>
                 cubit.updateField(CarField.vehicleCondition, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_car_q_model_year,
             hint: l.q_car_select_hint,
             options: CarLookups.modelYears(l),
             value: state.modelYear,
-            expanded: state.openField == CarField.modelYear,
-            onToggle: () => cubit.toggleField(CarField.modelYear),
             onSelected: (v) => cubit.updateField(CarField.modelYear, v),
           ),
           Gap(20.h),
@@ -74,13 +70,11 @@ class CarStepVehicle extends StatelessWidget {
                 cubit.updateVehiclePrice(start: rv.start, end: rv.end),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_car_q_down_payment,
             hint: l.q_car_select_hint,
             options: CarLookups.downPaymentBuckets(l),
             value: state.downPaymentPct,
-            expanded: state.openField == CarField.downPaymentPct,
-            onToggle: () => cubit.toggleField(CarField.downPaymentPct),
             onSelected: (v) =>
                 cubit.updateField(CarField.downPaymentPct, v),
           ),

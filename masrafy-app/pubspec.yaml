@@ -101,3 +101,4 @@ flutter:
   assets:
     - resources/images/onboarding/
     - resources/images/home/
+    - resources/icons/nav/

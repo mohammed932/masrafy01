@@ -1,7 +1,6 @@
 part of 'car_questionnaire_cubit.dart';
 
 /// Editable answers across the 4 car-loan steps, addressed by [updateField].
-/// Also identifies which inline-expand accordion is open ([openField]).
 enum CarField {
   // Step 1 — Vehicle & Financing
   vehicleCondition,
@@ -50,7 +49,6 @@ class CarQuestionnaireState with _$CarQuestionnaireState {
     String? priorityFactor,
     bool? wantsInsurance,
     // UI
-    CarField? openField,
     @Default(false) bool submitted,
   }) = _CarQuestionnaireState;
 

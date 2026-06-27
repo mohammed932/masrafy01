@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import '../cubit/car_questionnaire/car_questionnaire_cubit.dart';
@@ -28,24 +28,20 @@ class CarStepPreferences extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyExpandableSelect<String>(
+          MasrafySelectField<String>(
             label: l.q_car_q_priority,
             hint: l.q_car_select_hint,
             options: CarLookups.priorityFactors(l),
             value: state.priorityFactor,
-            expanded: state.openField == CarField.priorityFactor,
-            onToggle: () => cubit.toggleField(CarField.priorityFactor),
             onSelected: (v) =>
                 cubit.updateField(CarField.priorityFactor, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_car_q_insurance,
             hint: l.q_car_select_hint,
             options: CarLookups.yesNo(l),
             value: state.wantsInsurance,
-            expanded: state.openField == CarField.wantsInsurance,
-            onToggle: () => cubit.toggleField(CarField.wantsInsurance),
             onSelected: (v) => cubit.updateField(CarField.wantsInsurance, v),
           ),
         ],

@@ -1,7 +1,6 @@
 part of 'mortgage_questionnaire_cubit.dart';
 
 /// Editable answers across the 4 mortgage steps, addressed by [updateField].
-/// Also identifies which inline-expand accordion is open ([openField]).
 enum MortgageField {
   // Step 1 — Property & Financing
   propertyType,
@@ -56,7 +55,6 @@ class MortgageQuestionnaireState with _$MortgageQuestionnaireState {
     String? priorityFactor,
     bool? needsAssistance,
     // UI
-    MortgageField? openField,
     @Default(false) bool submitted,
   }) = _MortgageQuestionnaireState;
 

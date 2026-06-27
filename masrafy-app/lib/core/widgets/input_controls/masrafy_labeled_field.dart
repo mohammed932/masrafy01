@@ -82,12 +82,14 @@ class MasrafyLabeledField extends StatelessWidget {
               ),
               Gap(6.w),
             ],
-            Text(
-              label.toUpperCase(),
-              style: text.caption.semiBold().copyWith(
-                    color: colors.primary.main,
-                    letterSpacing: 0.66,
-                  ),
+            Expanded(
+              child: Text(
+                label.toUpperCase(),
+                style: text.caption.semiBold().copyWith(
+                      color: colors.primary.main,
+                      letterSpacing: 0.66,
+                    ),
+              ),
             ),
           ],
         ),

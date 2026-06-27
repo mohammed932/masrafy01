@@ -75,8 +75,9 @@ export class CustomerRefreshTokenRepository {
     });
   }
 
-  async revokeAllForCustomer(customerId: string): Promise<void> {
-    await this.prisma.customerRefreshToken.updateMany({
+  async revokeAllForCustomer(customerId: string, tx?: Prisma.TransactionClient): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.customerRefreshToken.updateMany({
       where: { customerId, revokedAt: null },
       data: { revokedAt: new Date() },
     });

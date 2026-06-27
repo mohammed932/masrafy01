@@ -7,7 +7,7 @@ part 'business_questionnaire_state.dart';
 
 /// Orchestrates the 4-step business-loan questionnaire wizard (Figma
 /// `4024:2741`, `4024:3359`, `4024:3836`, `4024:4118`). Holds every answer plus
-/// the active step and which inline-expand dropdown is open. Pure orchestration
+/// the active step. Pure orchestration
 /// — all validation/derivation lives on [BusinessQuestionnaireState]
 /// (Principle XXXI). Screen-scoped via the page's `BlocProvider`; never shared
 /// across features (Principle XXXI).
@@ -22,40 +22,39 @@ class BusinessQuestionnaireCubit extends Cubit<BusinessQuestionnaireState> {
 
   /// Scalar field edits (selects, business-age / financing-amount /
   /// installments text, repayment slider). Exhaustive over [BusinessField] — no
-  /// `default:` (A15: the cast target is explicit per case). Select edits also
-  /// collapse any open accordion so the layout settles after a pick.
+  /// `default:` (A15: the cast target is explicit per case).
   void updateField(BusinessField field, Object value) {
     switch (field) {
       case BusinessField.activityType:
-        emit(state.copyWith(activityType: value as String, openField: null));
+        emit(state.copyWith(activityType: value as String));
       case BusinessField.businessAge:
-        emit(state.copyWith(businessAge: value as String, openField: null));
+        emit(state.copyWith(businessAge: value as String));
       case BusinessField.financingAmount:
-        emit(state.copyWith(financingAmount: value as String, openField: null));
+        emit(state.copyWith(financingAmount: value as String));
       case BusinessField.financingPurpose:
         emit(state.copyWith(
-            financingPurpose: value as String, openField: null));
+            financingPurpose: value as String));
       case BusinessField.repaymentPeriod:
-        emit(state.copyWith(repaymentPeriod: value as double, openField: null));
+        emit(state.copyWith(repaymentPeriod: value as double));
       case BusinessField.businessAccount:
-        emit(state.copyWith(businessAccount: value as bool, openField: null));
+        emit(state.copyWith(businessAccount: value as bool));
       case BusinessField.registered:
-        emit(state.copyWith(registered: value as String, openField: null));
+        emit(state.copyWith(registered: value as String));
       case BusinessField.taxRegistration:
-        emit(state.copyWith(taxRegistration: value as bool, openField: null));
+        emit(state.copyWith(taxRegistration: value as bool));
       case BusinessField.currentFacilities:
         emit(state.copyWith(
-            currentFacilities: value as bool, openField: null));
+            currentFacilities: value as bool));
       case BusinessField.currentInstallments:
         emit(state.copyWith(
-            currentInstallments: value as String, openField: null));
+            currentInstallments: value as String));
       case BusinessField.priorRejection:
-        emit(state.copyWith(priorRejection: value as bool, openField: null));
+        emit(state.copyWith(priorRejection: value as bool));
       case BusinessField.priorityFactor:
-        emit(state.copyWith(priorityFactor: value as String, openField: null));
+        emit(state.copyWith(priorityFactor: value as String));
       case BusinessField.needsConsultation:
         emit(state.copyWith(
-            needsConsultation: value as bool, openField: null));
+            needsConsultation: value as bool));
     }
   }
 
@@ -63,11 +62,6 @@ class BusinessQuestionnaireCubit extends Cubit<BusinessQuestionnaireState> {
   /// the cubit stays free of any `package:flutter` `RangeValues` import.
   void updateMonthlyRevenue({required double start, required double end}) =>
       emit(state.copyWith(monthlyRevenueStart: start, monthlyRevenueEnd: end));
-
-  /// Toggle the inline-expand accordion for [field]; only one open at a time.
-  void toggleField(BusinessField field) => emit(state.copyWith(
-        openField: state.openField == field ? null : field,
-      ));
 
   /// Advance the wizard. Guarded by [BusinessQuestionnaireState.canAdvance];
   /// on the last step it flips [BusinessQuestionnaireState.submitted] (the page
@@ -78,18 +72,18 @@ class BusinessQuestionnaireCubit extends Cubit<BusinessQuestionnaireState> {
       emit(state.copyWith(submitted: true));
       return;
     }
-    emit(state.copyWith(currentStep: state.currentStep + 1, openField: null));
+    emit(state.copyWith(currentStep: state.currentStep + 1));
   }
 
   /// Step backward. Returns `false` when already on the first step so the page
   /// can pop the route instead.
   bool back() {
     if (state.isFirstStep) return false;
-    emit(state.copyWith(currentStep: state.currentStep - 1, openField: null));
+    emit(state.copyWith(currentStep: state.currentStep - 1));
     return true;
   }
 
   /// Sync from `PageView.onPageChanged` (kept in case swipe is re-enabled).
   void goToStep(int step) =>
-      emit(state.copyWith(currentStep: step, openField: null));
+      emit(state.copyWith(currentStep: step));
 }

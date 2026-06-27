@@ -1141,6 +1141,28 @@ chrome = review block.
   error reporting, or persistence calls inside the sheet's `State` =
   review block — that's cubit territory.
 
+**Value selection = bottom sheet (default, NON-NEGOTIABLE, v8.1.0):** picking
+one value (or several) for a form field uses a modal bottom sheet — never an
+inline / floating / overlay dropdown, an accordion expand-in-place select, a
+native `DropdownButton` / `DropdownButtonFormField` / `DropdownMenu`, or a
+`PopupMenuButton` acting as a value picker.
+
+- The trigger is a labeled `MasrafySelectField<T>` (a tappable field showing
+  the current value or hint + a chevron); tapping it opens the shared
+  `showMasrafySingleSelectSheet<T>` / `showMasrafyMultiSelectSheet<T>`.
+- Selection is **instant tap-to-select**: a row tap applies the value and
+  closes the sheet (no Save/Cancel footer). Dismiss (drag-down / back /
+  tap-outside) leaves the value unchanged; an optional `nullOptionLabel` row
+  commits a clear.
+- Long lists pass `showSearch: true`; the sheet scrolls natively — no
+  caller-managed max-height or overlay anchoring.
+- One `MasrafySelectOption<T>` model (value + localized label) app-wide. The
+  caller-owned accordion plumbing (`openField` / `toggleField`) the old
+  floating dropdown required is forbidden — the sheet owns its own open/close.
+- Exempt (NOT form-field value selection): action menus / kebabs
+  (`MasrafyPopupMenu`), filter pills (`MasrafyDropdownPill`), and period
+  selectors (`MasrafyPeriodSelector`).
+
 **Sheet & dialog naming convention (NON-NEGOTIABLE):** every concrete
 sheet under `bottom_sheets/` and every concrete dialog under `dialogs/`
 follows `Masrafy[Action][ModalKind][Sheet|Dialog]` — e.g.
@@ -1622,6 +1644,9 @@ A modal / dialog / sheet whose scrim + blur dims only the content panel instead 
 ## A35. Fixed/Clipping or Non-Collapsing Gradient Hero (Principle XXXIII, v5.1.0; clarified v5.1.1, v5.1.2)
 A `MasrafyGradientHeader` with a hardcoded `height` / `expandedHeight` literal that can clip its title / subtitle / `bottom` content (or wastes space), a hero whose content sheet hugs the gradient with no breathing space, a collapsed sliver toolbar that truncates the title with an ellipsis instead of showing it in full, OR a STATIC (non-collapsing) gradient hero on a scrollable screen = review block. Height MUST be content-sized via `MasrafyGradientHeader.expandedHeightFor(...)` (feed the sliver `expandedHeight` and the static header's `heightInPixels`, with a small `minHeight` floor); the collapsed toolbar title uses `FittedBox(fit: BoxFit.scaleDown)`. Scrollable screens host the hero in `MasrafySliverGradientHeaderDelegate` (`SliverPersistentHeader(pinned: true)` + `CustomScrollView` with `BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics())`), collapsing to a compact toolbar — smaller `heading4` title vertically centred on the back-button row, subtitle faded out, gradient + glass back button preserved. A button-driven `PageView` wizard keeps the static header ONLY for steps whose form fits without scrolling; a step whose form scrolls MUST host its OWN per-step collapsing sliver hero (each `PageView` child is its own `CustomScrollView` + `SliverPersistentHeader(pinned)` — a single `NestedScrollView` over the PageView is forbidden, its shared offset leaves short steps pre-collapsed). The `bottom` progress bar fades with the hero on collapse and stays visible on non-scrolling steps (v5.1.2).
 
+## A36. Dropdown Instead of Bottom Sheet for Value Selection (Principle XXXIII, v8.1.0)
+Selecting a value for a form field with an inline / floating / overlay dropdown, an accordion expand-in-place select, a native `DropdownButton` / `DropdownButtonFormField` / `DropdownMenu`, or a `PopupMenuButton` used as a value picker = review block. Single / multi value selection uses the shared **instant tap-to-select** bottom sheet (`showMasrafySingleSelectSheet<T>` / `showMasrafyMultiSelectSheet<T>`) opened from a `MasrafySelectField<T>` trigger, with one shared `MasrafySelectOption<T>` model (value + localized label). A row tap applies the value and closes the sheet — no Save/Cancel footer; long lists pass `showSearch: true` and the sheet scrolls natively. Caller-owned accordion plumbing (`openField` / `toggleField`) for selects is forbidden — the sheet owns its own open/close. Action menus / kebabs (`MasrafyPopupMenu`), filter pills (`MasrafyDropdownPill`), and period selectors (`MasrafyPeriodSelector`) are NOT value selection and are exempt.
+
 ---
 
 # Governance
@@ -1635,6 +1660,7 @@ A `MasrafyGradientHeader` with a hardcoded `height` / `expandedHeight` literal t
 
 | Version | Date | Type | Summary |
 |---|---|---|---|
+| 8.1.0 | 2026-06-27 | MINOR | Principle XXXIII extended: the **bottom sheet is the default value-selection control** on mobile. Inline / floating / overlay / accordion dropdowns (incl. the removed `MasrafyExpandableSelect`), native `DropdownButton` / `DropdownMenu`, and value-picking `PopupMenuButton`s are banned for form-field selection; use a `MasrafySelectField<T>` trigger opening the shared **instant tap-to-select** `showMasrafySingleSelectSheet` / `showMasrafyMultiSelectSheet`, with one `MasrafySelectOption<T>` model. The 33 questionnaire selects + the profile governorate picker migrated; per-cubit `openField` / `toggleField` accordion plumbing removed. Kebab / filter / period controls exempt. New Anti-Pattern A36. |
 | 8.0.0 | 2026-06-17 | MAJOR | Principle V switched to a TWO-LEVEL model: per bank program, each QUESTION has a weight and all question weights sum to **100**, each ANSWER has a **score 0–100**; `probability = Σ_question(questionWeight ÷ 100 × pickedAnswerScore ÷ 100)` (max achievable = 100% by construction). Reverses v7.0.0's per-question ≤100 single-level points. `ScoringWeightSet.weights` shape → `{ questionWeights, answerScores }` (legacy rows upgrade on read with equal weights; no DB migration). Error codes `WEIGHTS_POINTS_OUT_OF_RANGE` + `WEIGHTS_QUESTION_OVER_BUDGET` removed; `WEIGHTS_QUESTION_WEIGHT_SUM_INVALID` + `WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE` added. A33 reworded. |
 | 7.0.0 | 2026-06-17 | MAJOR | Principle V: per-bank-program answer points are now capped **per question** — the points across one question's options must sum to **≤ 100** (a percentage budget; each answer 1–100). Reverses the v6.0.0 "no sum constraint". The scoring formula is UNCHANGED (`probability = Σ(picked points) ÷ maxAchievablePoints`); only the editable-data rule changes. New error code `WEIGHTS_QUESTION_OVER_BUDGET` (422); the admin weights editor validates per-question totals and blocks save when over; pre-existing weight sets exceeding the cap surface as over-budget and must be adjusted. Anti-Pattern A33 extended. |
 | 6.0.0 | 2026-06-17 | MAJOR | Principle V matching/scoring model simplified again for MVP. Questions + answer options become **pure content** (label + order) — all engine/eligibility fields dropped from `Question` (`systemRole`, `isScored`, `profileField`) and `QuestionOption` (`numericMin/Max`, `numericPoint`, `scoreValue`, `profileValue`); `QuestionSystemRole` enum removed. Approval probability is now **per-answer weighted**: `probability = Σ(points[questionCode][optionCode]) ÷ maxAchievablePoints`. Per bank program, points are assigned to individual answer **options** (nested `questionCode → optionCode → points` in `ScoringWeightSet.weights`, arbitrary scale, **no sum-100 constraint**). **Eligibility gating dropped entirely** (no salary/age/DBR/loan-amount/max-loan filters) in BOTH the customer preview and the persisted apply flow — every active program is returned, ranked by probability; the apply path runs the engine with `skipEligibility`. Error codes `OPTION_MISSING_SCORE_VALUE` + `WEIGHTS_MUST_SUM_TO_100` removed; `WEIGHTS_UNKNOWN_QUESTION` → `WEIGHTS_UNKNOWN_OPTION`. Anti-Pattern A33 rewritten. |
@@ -1662,4 +1688,4 @@ A `MasrafyGradientHeader` with a hardcoded `height` / `expandedHeight` literal t
 
 ---
 
-**Version**: 8.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-17
+**Version**: 8.1.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-27

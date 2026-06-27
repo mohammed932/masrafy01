@@ -211,10 +211,7 @@ export class CustomerAccountRepository {
    * photo is persisted separately by `setProfilePhotoKey` at photo-confirm.
    * Birthday becomes immutable from this point.
    */
-  async completeProfile(
-    input: CompleteProfileInput,
-    tx?: Prisma.TransactionClient,
-  ): Promise<void> {
+  async completeProfile(input: CompleteProfileInput, tx?: Prisma.TransactionClient): Promise<void> {
     const client = tx ?? this.prisma;
     await client.customerAccount.update({
       where: { id: input.customerId },
@@ -286,6 +283,18 @@ export class CustomerAccountRepository {
     await this.prisma.customerAccount.update({
       where: { id },
       data: { lastLoginAt: new Date() },
+    });
+  }
+
+  /** Admin-initiated account enable/disable (super_admin). Login is gated by `isActive`. */
+  async setActive(
+    input: { customerId: string; isActive: boolean },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    const client = tx ?? this.prisma;
+    await client.customerAccount.update({
+      where: { id: input.customerId },
+      data: { isActive: input.isActive },
     });
   }
 

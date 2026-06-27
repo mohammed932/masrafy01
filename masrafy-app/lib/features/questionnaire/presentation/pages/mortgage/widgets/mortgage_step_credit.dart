@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/core/widgets/input_controls/masrafy_labeled_field.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
@@ -47,13 +47,11 @@ class _MortgageStepCreditState extends State<MortgageStepCredit> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_mortgage_q_current_loans,
             hint: l.q_mortgage_select_hint,
             options: MortgageLookups.yesNo(l),
             value: state.currentLoans,
-            expanded: state.openField == MortgageField.currentLoans,
-            onToggle: () => cubit.toggleField(MortgageField.currentLoans),
             onSelected: (v) => cubit.updateField(MortgageField.currentLoans, v),
           ),
           Gap(20.h),
@@ -67,13 +65,11 @@ class _MortgageStepCreditState extends State<MortgageStepCredit> {
                 cubit.updateField(MortgageField.currentInstallments, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_mortgage_q_prior_rejection,
             hint: l.q_mortgage_select_hint,
             options: MortgageLookups.yesNo(l),
             value: state.priorRejection,
-            expanded: state.openField == MortgageField.priorRejection,
-            onToggle: () => cubit.toggleField(MortgageField.priorRejection),
             onSelected: (v) =>
                 cubit.updateField(MortgageField.priorRejection, v),
           ),

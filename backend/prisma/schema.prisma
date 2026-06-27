@@ -101,6 +101,9 @@ enum AuditEventType {
   CUSTOMER_TOKENS_REVOKED_OTHERS
   CUSTOMER_PASSWORD_RESET
   APPLICATION_SUBMITTED
+  // --- Admin-initiated customer account status (super_admin only) ---
+  CUSTOMER_DEACTIVATED
+  CUSTOMER_REACTIVATED
 }
 
 enum SupportChannel {
@@ -443,6 +446,7 @@ model BankOffer {
   application            Application        @relation("ApplicationBankOffers", fields: [applicationId], references: [id], onDelete: Cascade)
   selectedByApplications Application[]      @relation("ApplicationUserSelectedOffer")
   decision               BankOfferDecision? @relation("BankOfferDecisionFor")
+  savedBy                SavedOffer[]       @relation("BankOfferSavedBy")
 
   @@index([applicationId], name: "idx_bank_offer_application")
   @@index([programCode, createdAt(sort: Desc)], name: "idx_bank_offer_program_created")
@@ -450,6 +454,28 @@ model BankOffer {
   @@index([approvalScore], name: "idx_bank_offer_approval_score")
   @@index([engineVersion], name: "idx_bank_offer_engine_version")
   @@map("bank_offer")
+}
+
+// -----------------------------------------------------------------------------
+// SavedOffer — a customer bookmarking a matched BankOffer ("Saved Offers"
+// screen, Figma 4088-153). Pure link row: a customer ↔ an immutable BankOffer.
+// All display fields are read from the related BankOffer (and its parent
+// Application for the loan category) — nothing is duplicated here, so the
+// BankOffer snapshot stays the single source of truth (Principle I).
+// -----------------------------------------------------------------------------
+
+model SavedOffer {
+  id          String   @id @default(cuid()) @db.VarChar(30)
+  customerId  String   @db.VarChar(30)
+  bankOfferId String   @db.VarChar(30)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  customer  CustomerAccount @relation("CustomerSavedOffers", fields: [customerId], references: [id], onDelete: Cascade)
+  bankOffer BankOffer       @relation("BankOfferSavedBy", fields: [bankOfferId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, bankOfferId], name: "idx_saved_offer_customer_offer")
+  @@index([customerId, createdAt(sort: Desc)], name: "idx_saved_offer_customer_created")
+  @@map("saved_offer")
 }
 
 // -----------------------------------------------------------------------------
@@ -616,6 +642,7 @@ model CustomerAccount {
   providers         CustomerProvider[]
   passwordResets    PasswordResetToken[]
   questionnaires    QuestionnaireAnswer[]
+  savedOffers       SavedOffer[]           @relation("CustomerSavedOffers")
 
   // Postgres UNIQUE allows multiple NULLs by default, so `phone @unique`
   // works fine for SOCIAL customers whose phone is still null pending the

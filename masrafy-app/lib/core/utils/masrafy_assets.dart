@@ -88,6 +88,11 @@ class MasrafyAssets {
   static const String kMenuUser = 'resources/icons/menu/user_outlined.svg';
 
   // ── Icons — bottom nav ────────────────────────────────────────────────────
+  // Customer-app nav glyphs (Figma 4138:162): wallet / filled-home / user.
+  static const String kNavLoans = 'resources/icons/nav/nav_loans.svg';
+  static const String kNavHomeFilled =
+      'resources/icons/nav/nav_home_filled.svg';
+  static const String kNavAccount = 'resources/icons/nav/nav_account.svg';
   static const String kNavEshop = 'resources/icons/nav/nav_eshop.svg';
   static const String kNavHome = 'resources/icons/nav/nav_home.svg';
   static const String kNavReports = 'resources/icons/nav/nav_reports.svg';

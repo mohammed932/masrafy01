@@ -6,6 +6,7 @@ import '../cache/shared_prefs_service.dart';
 import '../environments/app_env.dart';
 import '../environments/base_environment.dart';
 import '../environments/dev_environment.dart';
+import '../locale/locale_cubit/locale_cubit.dart';
 import '../network/app_network.dart';
 import '../network/dio_factory.dart';
 import '../network/network_interface.dart';
@@ -27,11 +28,18 @@ import 'package:app/features/home/presentation/pages/home/cubit/home/home_cubit.
 import 'package:app/features/questionnaire/presentation/pages/business/cubit/business_questionnaire/business_questionnaire_cubit.dart';
 import 'package:app/features/questionnaire/presentation/pages/car/cubit/car_questionnaire/car_questionnaire_cubit.dart';
 import 'package:app/features/questionnaire/presentation/pages/mortgage/cubit/mortgage_questionnaire/mortgage_questionnaire_cubit.dart';
+import 'package:app/features/questionnaire/presentation/pages/personal/cubit/personal_questionnaire/personal_questionnaire_cubit.dart';
 import 'package:app/features/onboarding/presentation/pages/onboarding/cubit/onboarding/onboarding_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile/profile_cubit.dart';
+import 'package:app/features/saved_offers/data/datasources/saved_offers_remote_datasource.dart';
+import 'package:app/features/saved_offers/data/repositories/saved_offers_repository_impl.dart';
+import 'package:app/features/saved_offers/domain/repositories/saved_offers_repository.dart';
+import 'package:app/features/saved_offers/domain/usecases/saved_offers_usecase.dart';
+import 'package:app/features/saved_offers/presentation/pages/saved_offers/cubit/saved_offers/saved_offers_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_contact/profile_edit_contact_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_personal/profile_edit_personal_cubit.dart';
 import 'package:app/features/splash/presentation/pages/splash/cubit/splash/splash_cubit.dart';
+import 'package:app/features/account/presentation/pages/settings_security/cubit/settings_security/settings_security_cubit.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -69,6 +77,11 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   final prefs = await SharedPreferences.getInstance();
   getIt.registerSingleton<SharedPrefsService>(SharedPrefsService(prefs));
   getIt.registerFactory<ThemeBloc>(() => ThemeBloc(getIt<SharedPrefsService>()));
+
+  // -- Locale (app-wide UI language; same instance feeds MaterialApp + settings)
+  getIt.registerLazySingleton<LocaleCubit>(
+    () => LocaleCubit(getIt<SharedPrefsService>()),
+  );
 
   // -- Features (bottom-up: datasource → repo → usecase → cubit) ---------
   // auth
@@ -114,10 +127,27 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   getIt.registerFactory(() => MortgageQuestionnaireCubit());
   getIt.registerFactory(() => CarQuestionnaireCubit());
   getIt.registerFactory(() => BusinessQuestionnaireCubit());
+  getIt.registerFactory(() => PersonalQuestionnaireCubit());
 
   // profile — view + two edit screens (UI-only mock; no datasource/repo yet,
   // see plan). Screen-scoped (Principle XXXI).
   getIt.registerFactory(() => ProfileCubit());
   getIt.registerFactory(() => ProfileEditPersonalCubit());
   getIt.registerFactory(() => ProfileEditContactCubit());
+
+  // saved offers — list + unsave (backend-wired). Screen-scoped cubit.
+  getIt.registerLazySingleton(
+    () => SavedOffersRemoteDataSource(getIt<BaseNetwork>()),
+  );
+  getIt.registerLazySingleton<SavedOffersRepository>(
+    () => SavedOffersRepositoryImpl(getIt<SavedOffersRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(
+    () => SavedOffersUseCase(getIt<SavedOffersRepository>()),
+  );
+  getIt.registerFactory(() => SavedOffersCubit(getIt<SavedOffersUseCase>()));
+
+  // account — settings & security (UI-only mock; toggles flip local state).
+  // Screen-scoped (Principle XXXI).
+  getIt.registerFactory(() => SettingsSecurityCubit());
 }

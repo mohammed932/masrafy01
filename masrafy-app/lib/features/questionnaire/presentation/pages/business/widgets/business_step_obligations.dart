@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
-import 'package:app/core/widgets/input_controls/masrafy_expandable_select.dart';
+import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/core/widgets/input_controls/masrafy_labeled_field.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
@@ -48,13 +48,11 @@ class _BusinessStepObligationsState extends State<BusinessStepObligations> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_business_q_current_facilities,
             hint: l.q_business_select_hint,
             options: BusinessLookups.yesNo(l),
             value: state.currentFacilities,
-            expanded: state.openField == BusinessField.currentFacilities,
-            onToggle: () => cubit.toggleField(BusinessField.currentFacilities),
             onSelected: (v) =>
                 cubit.updateField(BusinessField.currentFacilities, v),
           ),
@@ -69,13 +67,11 @@ class _BusinessStepObligationsState extends State<BusinessStepObligations> {
                 cubit.updateField(BusinessField.currentInstallments, v),
           ),
           Gap(20.h),
-          MasrafyExpandableSelect<bool>(
+          MasrafySelectField<bool>(
             label: l.q_business_q_prior_rejection,
             hint: l.q_business_select_hint,
             options: BusinessLookups.yesNo(l),
             value: state.priorRejection,
-            expanded: state.openField == BusinessField.priorRejection,
-            onToggle: () => cubit.toggleField(BusinessField.priorRejection),
             onSelected: (v) =>
                 cubit.updateField(BusinessField.priorRejection, v),
           ),
