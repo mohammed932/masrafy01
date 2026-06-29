@@ -8,6 +8,7 @@ import '../models/request/login/logout_request.dart';
 import '../models/request/otp/otp_request.dart';
 import '../models/request/otp/otp_verify_request.dart';
 import '../models/request/password/password_reset_request.dart';
+import '../models/request/profile/complete_profile_request.dart';
 import '../models/request/profile/profile_completion_request.dart';
 import '../models/request/signup/signup_phone_complete_request.dart';
 import '../models/request/signup/signup_phone_start_request.dart';
@@ -17,6 +18,7 @@ import '../models/response/customer_auth_envelope_model.dart';
 import '../models/response/customer_model.dart';
 import '../models/response/otp_challenge_model.dart';
 import '../models/response/otp_verify_outcome_model.dart';
+import '../models/response/profile_upload_ticket_model.dart';
 import '../models/response/social_session_model.dart';
 
 /// Customer-auth datasource. Routes typed `*Request` DTOs to the masrafy
@@ -142,6 +144,60 @@ class AuthRemoteDataSource extends BaseRemoteDataSource {
     await appNetwork.post(
       MasrafyEndpoint(endpoint: ApiStrings.authPasswordChange),
       data: body.toJson(),
+    );
+  }
+
+  // --- Profile completion (Principle XXXVII) ----------------------------
+
+  Future<CustomerAuthEnvelopeModel> completeProfile(
+    CompleteProfileRequest body,
+  ) async {
+    final json = await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.authProfileComplete),
+      data: body.toJson(),
+    );
+    return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));
+  }
+
+  Future<PhotoUploadTicketModel> requestPhotoUploadUrl(
+    PhotoUploadUrlRequest body,
+  ) async {
+    final json = await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.profilePhotoUploadUrl),
+      data: body.toJson(),
+    );
+    return PhotoUploadTicketModel.fromJson(_unwrap(json));
+  }
+
+  Future<void> confirmPhotoUpload(PhotoConfirmRequest body) async {
+    await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.profilePhotoConfirm),
+      data: body.toJson(),
+    );
+  }
+
+  Future<DocUploadTicketModel> requestDocUploadUrl(
+    ProfileDocUploadUrlRequest body,
+  ) async {
+    final json = await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.profileDocUploadUrl),
+      data: body.toJson(),
+    );
+    return DocUploadTicketModel.fromJson(_unwrap(json));
+  }
+
+  Future<void> confirmDocUpload(String documentId) async {
+    await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.profileDocConfirmUpload(documentId)),
+    );
+  }
+
+  /// Raw binary PUT to the presigned S3 URL (bare client; see [BaseNetwork]).
+  Future<void> uploadBytes(S3UploadRequest body) async {
+    await appNetwork.uploadBytes(
+      body.url,
+      body.bytes,
+      contentType: body.contentType,
     );
   }
 

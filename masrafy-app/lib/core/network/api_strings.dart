@@ -68,4 +68,12 @@ class ApiStrings {
   static const String authProfileMobileVerifyOtp = '/api/v1/auth/profile/mobile-verify-otp';
   static const String authPasswordReset = '/api/v1/auth/password/reset';
   static const String authPasswordChange = '/api/v1/auth/password/change';
+
+  // --- Profile completion (Principle XXXVII) ---
+  static const String authProfileComplete = '/api/v1/auth/profile/complete';
+  static const String profilePhotoUploadUrl = '/api/v1/profile/photo/upload-url';
+  static const String profilePhotoConfirm = '/api/v1/profile/photo/confirm-upload';
+  static const String profileDocUploadUrl = '/api/v1/profile/documents/upload-url';
+  static String profileDocConfirmUpload(String documentId) =>
+      '/api/v1/profile/documents/$documentId/confirm-upload';
 }

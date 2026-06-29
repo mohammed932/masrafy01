@@ -4,6 +4,7 @@ import '../../../../core/result/failure.dart';
 import '../../data/models/request/otp/otp_request.dart';
 import '../../data/models/request/otp/otp_verify_request.dart';
 import '../../data/models/request/password/password_reset_request.dart';
+import '../../data/models/request/profile/complete_profile_request.dart';
 import '../../data/models/request/profile/profile_completion_request.dart';
 import '../../data/models/request/signup/signup_phone_complete_request.dart';
 import '../../data/models/request/signup/signup_phone_start_request.dart';
@@ -40,6 +41,20 @@ abstract class CustomerAuthRepository {
   Future<Either<Failure, CustomerSessionEntity>> resetPassword(PasswordResetRequest body);
 
   Future<Either<Failure, void>> changePassword(PasswordChangeRequest body);
+
+  // --- Profile completion (Principle XXXVII) ---
+
+  /// Uploads the profile photo: presign → S3 PUT → confirm (one transaction
+  /// from the caller's view).
+  Future<Either<Failure, Unit>> uploadProfilePhoto(UploadAssetRequest body);
+
+  /// Uploads one National ID side: presign → S3 PUT → confirm.
+  Future<Either<Failure, Unit>> uploadNationalIdSide(UploadNationalIdRequest body);
+
+  /// Submits the scalar profile fields; returns the refreshed session.
+  Future<Either<Failure, CustomerSessionEntity>> completeProfile(
+    CompleteProfileRequest body,
+  );
 }
 
 /// Discriminated outcome of `verifyOtp`. SIGNUP/MOBILE_CHANGE → `verifiedMobileToken`;

@@ -17,6 +17,8 @@ class CustomerModel {
     required this.locale,
     required this.hasPassword,
     required this.linkedProviders,
+    required this.profileComplete,
+    required this.isVerified,
     required this.createdAt,
     this.phone,
     this.mobileVerifiedAt,
@@ -34,10 +36,12 @@ class CustomerModel {
     return CustomerModel(
       id: json['id'] as String,
       registrationPath: path,
-      name: (json['name'] ?? json['fullName'] ?? '') as String,
+      name: _composeName(json),
       locale: json['locale'] as String? ?? 'ar-EG',
-      hasPassword: json['hasPassword'] as bool? ?? (json['registrationPath'] == 'PHONE'),
+      hasPassword: json['hasPassword'] as bool? ?? (pathStr == 'PHONE'),
       linkedProviders: providers,
+      profileComplete: json['profileComplete'] as bool? ?? false,
+      isVerified: json['isVerified'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       phone: json['phone'] as String?,
       mobileVerifiedAt: json['mobileVerifiedAt'] == null
@@ -51,12 +55,24 @@ class CustomerModel {
     );
   }
 
+  /// Backend sends `firstName`/`lastName` separately; compose a display name,
+  /// falling back to a pre-composed `name`/`fullName` for forward-compat.
+  static String _composeName(Map<String, dynamic> json) {
+    final first = (json['firstName'] as String? ?? '').trim();
+    final last = (json['lastName'] as String? ?? '').trim();
+    final composed = [first, last].where((p) => p.isNotEmpty).join(' ');
+    if (composed.isNotEmpty) return composed;
+    return ((json['name'] ?? json['fullName'] ?? '') as String).trim();
+  }
+
   final String id;
   final RegistrationPath registrationPath;
   final String name;
   final String locale;
   final bool hasPassword;
   final List<SocialProvider> linkedProviders;
+  final bool profileComplete;
+  final bool isVerified;
   final DateTime createdAt;
   final String? phone;
   final DateTime? mobileVerifiedAt;
@@ -70,6 +86,8 @@ class CustomerModel {
         name: name,
         hasPassword: hasPassword,
         linkedProviders: linkedProviders,
+        profileComplete: profileComplete,
+        isVerified: isVerified,
         createdAt: createdAt,
         phone: phone,
         mobileVerifiedAt: mobileVerifiedAt,

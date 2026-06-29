@@ -83,4 +83,25 @@ class AppNetwork implements BaseNetwork {
     );
     return Uint8List.fromList(response.data ?? const <int>[]);
   }
+
+  @override
+  Future<void> uploadBytes(
+    String url,
+    Uint8List bytes, {
+    required String contentType,
+  }) async {
+    // Bare client: no base url, no interceptors — the presigned URL is fully
+    // self-authorising and must not carry the customer bearer header.
+    final raw = Dio();
+    await raw.put<void>(
+      url,
+      data: Stream<List<int>>.fromIterable([bytes]),
+      options: Options(
+        headers: <String, dynamic>{
+          Headers.contentTypeHeader: contentType,
+          Headers.contentLengthHeader: bytes.length,
+        },
+      ),
+    );
+  }
 }

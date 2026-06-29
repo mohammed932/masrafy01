@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
 
+import 'package:app/core/di/injection.dart';
+import 'package:app/core/router/router.dart';
+import 'package:app/core/router/router.gr.dart';
 import '../../storage/customer_session_storage.dart';
 import '../api_strings.dart';
 
@@ -53,10 +56,10 @@ class CustomerJwtRefreshInterceptor extends Interceptor {
 
     if (!refreshed) {
       // Unrecoverable: refresh token missing, expired, or reuse-revoked.
-      // Drop the dead session. (No Login route exists yet — the router is an
-      // empty scaffold pending the presentation rebuild. Once it lands, hook
-      // an explicit redirect here with LogoutReason.sessionExpired.)
+      // Drop the dead session and send the user back to Login so an expired
+      // session can't strand them on an authenticated screen.
       await _storage.clear();
+      _redirectToLogin();
       return handler.next(err);
     }
 
@@ -114,4 +117,13 @@ class CustomerJwtRefreshInterceptor extends Interceptor {
 
   bool _isAuthPath(String path) =>
       _authPaths.any((p) => path == p || path.endsWith(p));
+
+  /// Routes back to Login after a dead session. The router is a getIt
+  /// singleton, so the interceptor can drive navigation without a
+  /// BuildContext. No-op when already on Login to avoid a redundant rebuild.
+  void _redirectToLogin() {
+    final router = getIt<AppRouter>();
+    if (router.current.name == LoginRoute.name) return;
+    router.replaceAll([const LoginRoute()]);
+  }
 }

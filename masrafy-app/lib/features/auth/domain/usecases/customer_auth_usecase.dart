@@ -5,6 +5,7 @@ import '../../../../core/result/failure.dart';
 import '../../../../core/storage/customer_session_storage.dart';
 import '../../data/models/request/otp/otp_request.dart';
 import '../../data/models/request/otp/otp_verify_request.dart';
+import '../../data/models/request/profile/complete_profile_request.dart';
 import '../../data/models/request/signup/signup_phone_complete_request.dart';
 import '../../data/models/request/signup/signup_phone_start_request.dart';
 import '../entities/customer_entity.dart';
@@ -38,6 +39,31 @@ class CustomerAuthUseCase {
     SignupPhoneCompleteRequest request,
   ) async {
     final result = await _repo.signupPhoneComplete(request);
+    await result.fold(
+      (_) async {},
+      (session) => _session.save(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+        customerId: session.customer.id,
+      ),
+    );
+    return result;
+  }
+
+  // --- Profile completion (Principle XXXVII) ---
+
+  Future<Either<Failure, Unit>> uploadProfilePhoto(UploadAssetRequest request) =>
+      _repo.uploadProfilePhoto(request);
+
+  Future<Either<Failure, Unit>> uploadNationalIdSide(
+    UploadNationalIdRequest request,
+  ) =>
+      _repo.uploadNationalIdSide(request);
+
+  Future<Either<Failure, CustomerSessionEntity>> completeProfile(
+    CompleteProfileRequest request,
+  ) async {
+    final result = await _repo.completeProfile(request);
     await result.fold(
       (_) async {},
       (session) => _session.save(

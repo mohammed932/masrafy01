@@ -36,4 +36,14 @@ abstract class BaseNetwork {
   });
 
   Future<Uint8List> download(MasrafyEndpoint endpoint);
+
+  /// Raw binary `PUT` to an ABSOLUTE url (e.g. an S3/MinIO presigned upload
+  /// URL). Runs on a bare client with NO base url and NO interceptors, so the
+  /// customer-JWT bearer is never leaked to object storage and a 401 here can
+  /// never recurse into the refresh interceptor.
+  Future<void> uploadBytes(
+    String url,
+    Uint8List bytes, {
+    required String contentType,
+  });
 }

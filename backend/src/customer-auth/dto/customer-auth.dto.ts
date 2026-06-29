@@ -1,5 +1,6 @@
 import { IsOptional, IsString, Length, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { RegistrationPath, SocialProvider } from '@prisma/client';
 import { deriveAge } from '../age.util';
 
 /**
@@ -47,6 +48,14 @@ export class CustomerProfileResponseDto {
   @ApiProperty() isVerified!: boolean;
   @ApiProperty({ description: 'True once the mandatory profile is complete (Principle XXXVII).' })
   profileComplete!: boolean;
+  @ApiProperty({ enum: RegistrationPath, description: 'PHONE | SOCIAL — drives Complete-Profile requirements.' })
+  registrationPath!: RegistrationPath;
+  @ApiProperty({ description: 'True when a password is set (always true for PHONE; SOCIAL until set).' })
+  hasPassword!: boolean;
+  @ApiProperty({ enum: SocialProvider, isArray: true, description: 'Linked social providers (GOOGLE / APPLE).' })
+  linkedProviders!: SocialProvider[];
+  @ApiPropertyOptional({ description: 'ISO timestamp the mobile was OTP-verified; null until verified.' })
+  mobileVerifiedAt?: string;
   @ApiProperty() createdAt!: string;
   @ApiPropertyOptional() lastLoginAt?: string;
 }
@@ -73,6 +82,10 @@ export interface CustomerProfileRow {
   birthday: Date | null;
   locale: string;
   isVerified: boolean;
+  registrationPath: RegistrationPath;
+  passwordHash: string | null;
+  mobileVerifiedAt: Date | null;
+  providers: { provider: SocialProvider }[];
   createdAt: Date;
   lastLoginAt: Date | null;
 }
@@ -97,6 +110,10 @@ export function mapCustomerProfile(
     locale: row.locale,
     isVerified: row.isVerified,
     profileComplete,
+    registrationPath: row.registrationPath,
+    hasPassword: row.passwordHash !== null,
+    linkedProviders: row.providers.map((p) => p.provider),
+    mobileVerifiedAt: row.mobileVerifiedAt ? row.mobileVerifiedAt.toISOString() : undefined,
     createdAt: row.createdAt.toISOString(),
     lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : undefined,
   };

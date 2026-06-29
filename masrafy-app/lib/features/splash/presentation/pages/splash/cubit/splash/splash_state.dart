@@ -1,7 +1,7 @@
 part of 'splash_cubit.dart';
 
 /// Where the splash gate routes after resolving persisted state.
-enum SplashDestination { onboarding, login, home }
+enum SplashDestination { onboarding, login, home, completeProfile }
 
 @freezed
 class SplashState with _$SplashState {

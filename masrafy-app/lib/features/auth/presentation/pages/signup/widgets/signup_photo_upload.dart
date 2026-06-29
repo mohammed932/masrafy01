@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,50 +8,95 @@ import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
 /// Profile-photo upload affordance (Figma `91:349`): a 128px dashed-border
-/// circle with a camera glyph + "Upload" label. UI-only for now — the actual
-/// pick/upload is deferred (see plan / Principle XXXVII follow-up); [onTap]
-/// currently surfaces a coming-soon hint from the page.
+/// circle with a camera glyph + "Upload" label. When [imageBytes] is provided
+/// the picked photo fills the circle; [uploading] shows a spinner overlay.
+/// [onTap] picks/uploads (or surfaces a coming-soon hint where deferred).
 class SignupPhotoUpload extends StatelessWidget {
-  const SignupPhotoUpload({super.key, required this.label, this.onTap});
+  const SignupPhotoUpload({
+    super.key,
+    required this.label,
+    this.onTap,
+    this.imageBytes,
+    this.uploading = false,
+  });
 
   final String label;
   final VoidCallback? onTap;
+
+  /// Picked photo bytes — when set, rendered inside the circle.
+  final Uint8List? imageBytes;
+
+  /// Shows a progress overlay while the upload is in flight.
+  final bool uploading;
 
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
+    final hasImage = imageBytes != null;
 
     return Center(
       child: GestureDetector(
-        onTap: onTap,
+        onTap: uploading ? null : onTap,
         behavior: HitTestBehavior.opaque,
         child: CustomPaint(
           painter: _DashedCirclePainter(color: colors.secondary.main),
           child: Container(
             width: 128.r,
             height: 128.r,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: colors.secondary.main.withValues(alpha: 0.12),
+              image: hasImage
+                  ? DecorationImage(
+                      image: MemoryImage(imageBytes!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_a_photo_outlined,
-                  size: 26.r,
-                  color: colors.secondary.main,
-                ),
-                Gap(4.h),
-                Text(
-                  label,
-                  style: text.caption.medium().copyWith(
+            child: uploading
+                ? Center(
+                    child: SizedBox(
+                      width: 24.r,
+                      height: 24.r,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
                         color: colors.secondary.main,
                       ),
-                ),
-              ],
-            ),
+                    ),
+                  )
+                : hasImage
+                    ? Align(
+                        alignment: AlignmentDirectional.bottomCenter,
+                        child: Container(
+                          width: double.infinity,
+                          color: colors.secondary.main.withValues(alpha: 0.85),
+                          padding: EdgeInsets.symmetric(vertical: 4.h),
+                          child: Icon(
+                            Icons.edit_outlined,
+                            size: 16.r,
+                            color: colors.white,
+                          ),
+                        ),
+                      )
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_a_photo_outlined,
+                            size: 26.r,
+                            color: colors.secondary.main,
+                          ),
+                          Gap(4.h),
+                          Text(
+                            label,
+                            style: text.caption.medium().copyWith(
+                                  color: colors.secondary.main,
+                                ),
+                          ),
+                        ],
+                      ),
           ),
         ),
       ),

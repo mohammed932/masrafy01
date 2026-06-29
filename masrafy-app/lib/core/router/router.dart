@@ -4,20 +4,47 @@ import 'router.gr.dart';
 
 /// App router. [SplashRoute] is the initial gate: it resolves persisted state
 /// and `replaceAll`s to Onboarding (first launch), Login (onboarded /
-/// unauthenticated), or Home (authenticated). Add new feature routes here and
-/// regenerate `router.gr.dart` via build_runner.
+/// unauthenticated), Complete-Profile (authenticated but incomplete), or Home
+/// (authenticated + complete). The gate's `replaceAll` targets use a fade
+/// [CustomRoute] so Splash → next is a seamless cross-fade; forward pushes
+/// (Signup / OTP) keep the default slide. Regenerate `router.gr.dart` via
+/// build_runner after editing.
 @AutoRouterConfig(replaceInRouteName: 'Page|Screen,Route')
 class AppRouter extends RootStackRouter {
   AppRouter();
 
+  static const _fadeMs = 400;
+
   @override
   List<AutoRoute> get routes => [
-        AutoRoute(page: SplashRoute.page),
-        AutoRoute(page: OnboardingRoute.page),
-        AutoRoute(page: LoginRoute.page),
+        CustomRoute(
+          page: SplashRoute.page,
+          transitionsBuilder: TransitionsBuilders.fadeIn,
+          durationInMilliseconds: _fadeMs,
+        ),
+        CustomRoute(
+          page: OnboardingRoute.page,
+          transitionsBuilder: TransitionsBuilders.fadeIn,
+          durationInMilliseconds: _fadeMs,
+        ),
+        CustomRoute(
+          page: LoginRoute.page,
+          transitionsBuilder: TransitionsBuilders.fadeIn,
+          durationInMilliseconds: _fadeMs,
+        ),
         AutoRoute(page: SignupRoute.page),
         AutoRoute(page: OtpRoute.page),
-        AutoRoute(page: HomeRoute.page, initial: true),
+        CustomRoute(
+          page: CompleteProfileRoute.page,
+          transitionsBuilder: TransitionsBuilders.fadeIn,
+          durationInMilliseconds: _fadeMs,
+        ),
+        CustomRoute(
+          page: HomeRoute.page,
+          initial: true,
+          transitionsBuilder: TransitionsBuilders.fadeIn,
+          durationInMilliseconds: _fadeMs,
+        ),
         AutoRoute(page: MortgageQuestionnaireRoute.page),
         AutoRoute(page: CarQuestionnaireRoute.page),
         AutoRoute(page: BusinessQuestionnaireRoute.page),

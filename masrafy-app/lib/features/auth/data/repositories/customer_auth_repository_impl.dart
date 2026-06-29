@@ -7,6 +7,7 @@ import 'package:app/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:app/features/auth/data/models/request/otp/otp_request.dart';
 import 'package:app/features/auth/data/models/request/otp/otp_verify_request.dart';
 import 'package:app/features/auth/data/models/request/password/password_reset_request.dart';
+import 'package:app/features/auth/data/models/request/profile/complete_profile_request.dart';
 import 'package:app/features/auth/data/models/request/profile/profile_completion_request.dart';
 import 'package:app/features/auth/data/models/request/signup/signup_phone_complete_request.dart';
 import 'package:app/features/auth/data/models/request/signup/signup_phone_start_request.dart';
@@ -105,5 +106,59 @@ class CustomerAuthRepositoryImpl implements CustomerAuthRepository {
   @override
   Future<Either<Failure, void>> changePassword(PasswordChangeRequest body) {
     return ApiHandler.callApi(() => _ds.changePassword(body));
+  }
+
+  @override
+  Future<Either<Failure, Unit>> uploadProfilePhoto(UploadAssetRequest body) {
+    return ApiHandler.callApi(() async {
+      final ticket = await _ds.requestPhotoUploadUrl(
+        PhotoUploadUrlRequest(
+          mimeType: body.contentType,
+          sizeBytes: body.bytes.length,
+        ),
+      );
+      await _ds.uploadBytes(
+        S3UploadRequest(
+          url: ticket.uploadUrl,
+          bytes: body.bytes,
+          contentType: body.contentType,
+        ),
+      );
+      await _ds.confirmPhotoUpload(PhotoConfirmRequest(s3Key: ticket.s3Key));
+      return unit;
+    });
+  }
+
+  @override
+  Future<Either<Failure, Unit>> uploadNationalIdSide(
+    UploadNationalIdRequest body,
+  ) {
+    return ApiHandler.callApi(() async {
+      final ticket = await _ds.requestDocUploadUrl(
+        ProfileDocUploadUrlRequest(
+          documentType: body.documentType,
+          mimeType: body.contentType,
+          sizeBytes: body.bytes.length,
+          originalFilename: body.filename,
+        ),
+      );
+      await _ds.uploadBytes(
+        S3UploadRequest(
+          url: ticket.uploadUrl,
+          bytes: body.bytes,
+          contentType: body.contentType,
+        ),
+      );
+      await _ds.confirmDocUpload(ticket.documentId);
+      return unit;
+    });
+  }
+
+  @override
+  Future<Either<Failure, CustomerSessionEntity>> completeProfile(
+    CompleteProfileRequest body,
+  ) async {
+    final result = await ApiHandler.callApi(() => _ds.completeProfile(body));
+    return result.map((m) => m.toEntity());
   }
 }

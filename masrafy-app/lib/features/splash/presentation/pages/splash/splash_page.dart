@@ -28,6 +28,8 @@ class _SplashView extends StatelessWidget {
         context.router.replaceAll([const LoginRoute()]);
       case SplashDestination.home:
         context.router.replaceAll([const HomeRoute()]);
+      case SplashDestination.completeProfile:
+        context.router.replaceAll([const CompleteProfileRoute()]);
     }
   }
 
@@ -54,23 +56,35 @@ class _SplashView extends StatelessWidget {
             ),
           ),
           child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Masrafy',
-                  style: text.heading1.bold().copyWith(color: colors.white),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.easeOutCubic,
+              builder: (context, t, child) => Opacity(
+                opacity: t.clamp(0.0, 1.0),
+                child: Transform.scale(
+                  scale: 0.85 + (0.15 * t),
+                  child: child,
                 ),
-                Gap(24.h),
-                SizedBox(
-                  width: 26.r,
-                  height: 26.r,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: colors.white.withValues(alpha: 0.85),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Masrafy',
+                    style: text.heading1.bold().copyWith(color: colors.white),
                   ),
-                ),
-              ],
+                  Gap(24.h),
+                  SizedBox(
+                    width: 26.r,
+                    height: 26.r,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: colors.white.withValues(alpha: 0.85),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

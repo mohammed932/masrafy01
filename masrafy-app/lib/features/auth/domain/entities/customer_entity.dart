@@ -16,6 +16,8 @@ class CustomerEntity extends Equatable {
     required this.name,
     required this.hasPassword,
     required this.linkedProviders,
+    required this.profileComplete,
+    required this.isVerified,
     required this.createdAt,
     this.phone,
     this.mobileVerifiedAt,
@@ -29,6 +31,14 @@ class CustomerEntity extends Equatable {
   final String name;
   final bool hasPassword;
   final List<SocialProvider> linkedProviders;
+
+  /// Authoritative profile-completeness flag from the backend (Principle
+  /// XXXVII). When false the account is gated to the Complete-Profile flow.
+  final bool profileComplete;
+
+  /// Account verification status from the backend.
+  final bool isVerified;
+
   final DateTime createdAt;
 
   /// Null for SOCIAL customers pending Complete-Profile. Once set, immutable.
@@ -45,8 +55,8 @@ class CustomerEntity extends Equatable {
 
   final DateTime? lastLoginAt;
 
-  bool get requiresProfileCompletion =>
-      phone == null || email == null || age == null;
+  /// Authoritative: the backend computes completeness (Principle XXXVII).
+  bool get requiresProfileCompletion => !profileComplete;
 
   @override
   List<Object?> get props => [
@@ -55,6 +65,8 @@ class CustomerEntity extends Equatable {
         name,
         hasPassword,
         linkedProviders,
+        profileComplete,
+        isVerified,
         createdAt,
         phone,
         mobileVerifiedAt,

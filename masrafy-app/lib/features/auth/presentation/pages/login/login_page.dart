@@ -62,7 +62,10 @@ class _LoginViewState extends State<_LoginView> {
         listenWhen: (p, c) => p.status != c.status,
         listener: (ctx, state) {
           if (state.isSuccess) {
-            ctx.router.replaceAll([const HomeRoute()]);
+            final complete = state.session!.customer.profileComplete;
+            ctx.router.replaceAll(
+              [complete ? const HomeRoute() : const CompleteProfileRoute()],
+            );
           } else if (state.isFailure) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));
           }

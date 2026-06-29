@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, RegistrationPath } from '@prisma/client';
+import { Prisma, RegistrationPath, SocialProvider } from '@prisma/client';
 import type { CustomerAccount } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 
@@ -99,6 +99,7 @@ export interface CustomerForLogin {
   profilePhotoKey: string | null;
   isActive: boolean;
   isVerified: boolean;
+  providers: { provider: SocialProvider }[];
   createdAt: Date;
   lastLoginAt: Date | null;
 }
@@ -415,6 +416,7 @@ export class CustomerAccountRepository {
       profilePhotoKey: true,
       isActive: true,
       isVerified: true,
+      providers: { select: { provider: true } },
       createdAt: true,
       lastLoginAt: true,
     } as const;

@@ -21,6 +21,7 @@ import 'package:app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:app/features/auth/domain/repositories/customer_auth_repository.dart';
 import 'package:app/features/auth/domain/usecases/auth_usecase.dart';
 import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
+import 'package:app/features/auth/presentation/pages/complete_profile/cubit/complete_profile/complete_profile_cubit.dart';
 import 'package:app/features/auth/presentation/pages/login/cubit/login/login_cubit.dart';
 import 'package:app/features/auth/presentation/pages/otp/cubit/otp/otp_cubit.dart';
 import 'package:app/features/auth/presentation/pages/signup/cubit/signup/signup_cubit.dart';
@@ -108,6 +109,12 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerFactory(() => SignupCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(() => OtpCubit(getIt<CustomerAuthUseCase>()));
+  getIt.registerFactory(
+    () => CompleteProfileCubit(
+      getIt<AuthUseCase>(),
+      getIt<CustomerAuthUseCase>(),
+    ),
+  );
 
   // splash gate + onboarding
   getIt.registerFactory(
@@ -115,6 +122,7 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
       getIt<CustomerSessionStorage>(),
       getIt<SharedPrefsService>(),
       getIt<AppEnv>(),
+      getIt<AuthUseCase>(),
     ),
   );
   getIt.registerFactory(() => OnboardingCubit(getIt<SharedPrefsService>()));
