@@ -12,18 +12,21 @@ class CompleteProfileRequest {
     required this.firstName,
     required this.lastName,
     required this.birthday,
+    this.email,
     this.password,
   });
 
   final String firstName;
   final String lastName;
   final DateTime birthday;
+  final String? email;
   final String? password;
 
   Map<String, dynamic> toJson() => {
         'firstName': firstName,
         'lastName': lastName,
         'birthday': _isoDate(birthday),
+        if (email != null && email!.isNotEmpty) 'email': email,
         if (password != null && password!.isNotEmpty) 'password': password,
       };
 

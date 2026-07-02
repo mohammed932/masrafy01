@@ -81,7 +81,7 @@ class SignupState with _$SignupState {
         lastName: lastName.trim(),
         phone: fullPhone,
         password: password,
-        age: age ?? 0,
+        birthday: birthday!,
         email: email.trim().isEmpty ? null : email.trim(),
       );
 }

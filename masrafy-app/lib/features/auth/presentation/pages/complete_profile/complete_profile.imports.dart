@@ -19,6 +19,7 @@ import 'package:app/core/widgets/input_controls/masrafy_labeled_field.dart';
 import 'package:app/core/widgets/input_controls/masrafy_national_id_uploader.dart';
 import 'package:app/core/widgets/input_controls/masrafy_password_strength_bar.dart';
 import 'package:app/core/widgets/slivers/masrafy_sliver_gradient_header_delegate.dart';
+import 'package:app/features/auth/domain/entities/signup_draft.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import '../signup/widgets/signup_photo_upload.dart';

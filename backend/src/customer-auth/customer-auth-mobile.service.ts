@@ -37,12 +37,7 @@ import {
   type CustomerProfileRow,
 } from './dto/customer-auth.dto';
 import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
-import {
-  CustomerProfileDocumentRepository,
-  NATIONAL_ID_BACK,
-  NATIONAL_ID_FRONT,
-  hasUsableIdDoc,
-} from './customer-profile-document.repository';
+import { CustomerProfileDocumentRepository } from './customer-profile-document.repository';
 import { RegistrationPath } from '@prisma/client';
 import { splitFullName } from './name.util';
 import { deriveAge } from './age.util';
@@ -158,16 +153,18 @@ export class CustomerAuthMobileService {
 
   /**
    * Principle XXXVII — mandatory profile-completion step for BOTH paths.
-   * Requires the National ID front+back documents to already be uploaded and
-   * the profile photo persisted (via the profile-document / profile-photo
-   * presign endpoints). PHONE customers set a password here; SOCIAL customers
-   * must NOT send one. Returns a refreshed auth result (with `profileComplete`).
+   * Requires the profile photo persisted (via the profile-photo presign
+   * endpoint). National ID is OPTIONAL here ("add later") and enforced only at
+   * loan-apply time. Optional `email` is persisted when supplied. PHONE
+   * customers set a password here; SOCIAL customers must NOT send one. Returns a
+   * refreshed auth result (with `profileComplete`).
    */
   async completeProfile(args: {
     customerId: string;
     firstName: string;
     lastName: string;
     birthday: string;
+    email?: string;
     password?: string;
     ctx: CustomerRequestContext;
   }): Promise<CustomerAuthResult> {
@@ -191,10 +188,15 @@ export class CustomerAuthMobileService {
       throw new DomainException(ERROR_CODES.PROFILE_INCOMPLETE);
     }
 
-    // National ID front + back must already be uploaded.
-    const docs = await this.idDocs.findIdDocuments(args.customerId);
-    if (!hasUsableIdDoc(docs, NATIONAL_ID_FRONT) || !hasUsableIdDoc(docs, NATIONAL_ID_BACK)) {
-      throw new DomainException(ERROR_CODES.PROFILE_ID_DOCS_MISSING);
+    // National ID is optional at signup (enforced later at loan-apply time).
+
+    // Optional email — persisted when supplied; must not collide with another account.
+    const email = args.email?.trim().toLowerCase();
+    if (email) {
+      const existing = await this.accounts.findByEmail(email);
+      if (existing && existing.id !== args.customerId) {
+        throw new DomainException(ERROR_CODES.CUSTOMER_EMAIL_ALREADY_REGISTERED);
+      }
     }
 
     // Password rules by registration path.
@@ -220,6 +222,7 @@ export class CustomerAuthMobileService {
       lastName: args.lastName.trim(),
       birthday,
       passwordHash,
+      ...(email ? { email } : {}),
     });
 
     await this.audit.write({

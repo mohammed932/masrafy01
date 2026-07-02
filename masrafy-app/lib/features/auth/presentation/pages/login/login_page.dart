@@ -64,7 +64,7 @@ class _LoginViewState extends State<_LoginView> {
           if (state.isSuccess) {
             final complete = state.session!.customer.profileComplete;
             ctx.router.replaceAll(
-              [complete ? const HomeRoute() : const CompleteProfileRoute()],
+              [complete ? const HomeRoute() : CompleteProfileRoute()],
             );
           } else if (state.isFailure) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));

@@ -10,6 +10,7 @@ import 'package:app/core/result/failure.dart';
 import 'package:app/core/utils/validators.dart';
 import 'package:app/features/auth/data/models/request/profile/complete_profile_request.dart';
 import 'package:app/features/auth/domain/entities/customer_entity.dart';
+import 'package:app/features/auth/domain/entities/signup_draft.dart';
 import 'package:app/features/auth/domain/enums/registration_path.dart';
 import 'package:app/features/auth/domain/usecases/auth_usecase.dart';
 import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
@@ -30,6 +31,20 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
   final AuthUseCase _auth;
   final CustomerAuthUseCase _customerAuth;
   final ImagePicker _picker = ImagePicker();
+
+  /// Seeds the form from the PHONE-signup [SignupDraft] so the user does not
+  /// retype name / birthday / email / password already entered on signup.
+  /// Call before [load] (which only fills still-empty fields).
+  void seed(SignupDraft? draft) {
+    if (draft == null) return;
+    emit(state.copyWith(
+      firstName: draft.firstName,
+      lastName: draft.lastName,
+      birthday: draft.birthday,
+      email: draft.email ?? '',
+      password: draft.password,
+    ));
+  }
 
   /// Prefills the form from the current account. The form stays usable even if
   /// this fails — submission re-validates server-side.
@@ -112,6 +127,7 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
         firstName: state.firstName.trim(),
         lastName: state.lastName.trim(),
         birthday: state.birthday!,
+        email: state.email.trim().isEmpty ? null : state.email.trim(),
         password: state.requiresPassword ? state.password : null,
       ),
     );

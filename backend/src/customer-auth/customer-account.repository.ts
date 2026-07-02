@@ -45,6 +45,8 @@ export interface CompleteProfileInput {
   firstName: string;
   lastName: string;
   birthday: Date;
+  /** Optional email (lowercased upstream); persisted only when supplied. */
+  email?: string;
   /** PHONE customers set a password; SOCIAL customers omit it. */
   passwordHash?: string | null;
 }
@@ -222,6 +224,7 @@ export class CustomerAccountRepository {
         birthday: input.birthday,
         nameSplitNeedsReview: false,
         isVerified: true,
+        ...(input.email ? { email: input.email } : {}),
         ...(input.passwordHash !== undefined ? { passwordHash: input.passwordHash } : {}),
       },
     });

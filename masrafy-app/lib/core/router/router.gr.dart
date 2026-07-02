@@ -16,9 +16,9 @@ import 'package:app/features/account/presentation/pages/settings_security/settin
 import 'package:app/features/applications/presentation/pages/previous_applications/previous_applications.imports.dart'
     as _i13;
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart'
-    as _i22;
-import 'package:app/features/auth/domain/entities/signup_draft.dart' as _i24;
-import 'package:app/features/auth/domain/enums/otp_purpose.dart' as _i23;
+    as _i23;
+import 'package:app/features/auth/domain/entities/signup_draft.dart' as _i21;
+import 'package:app/features/auth/domain/enums/otp_purpose.dart' as _i24;
 import 'package:app/features/auth/presentation/pages/complete_profile/complete_profile.imports.dart'
     as _i4;
 import 'package:app/features/auth/presentation/pages/login/login.imports.dart'
@@ -30,7 +30,7 @@ import 'package:app/features/auth/presentation/pages/signup/signup.imports.dart'
 import 'package:app/features/home/presentation/pages/home/home.imports.dart'
     as _i5;
 import 'package:app/features/offers/presentation/models/match_results_args.dart'
-    as _i21;
+    as _i22;
 import 'package:app/features/offers/presentation/pages/offer_details/offer_details.imports.dart'
     as _i9;
 import 'package:app/features/offers/presentation/pages/results/results.imports.dart'
@@ -106,18 +106,42 @@ class CarQuestionnaireRoute extends _i19.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i4.CompleteProfilePage]
-class CompleteProfileRoute extends _i19.PageRouteInfo<void> {
-  const CompleteProfileRoute({List<_i19.PageRouteInfo>? children})
-    : super(CompleteProfileRoute.name, initialChildren: children);
+class CompleteProfileRoute
+    extends _i19.PageRouteInfo<CompleteProfileRouteArgs> {
+  CompleteProfileRoute({
+    _i20.Key? key,
+    _i21.SignupDraft? draft,
+    List<_i19.PageRouteInfo>? children,
+  }) : super(
+         CompleteProfileRoute.name,
+         args: CompleteProfileRouteArgs(key: key, draft: draft),
+         initialChildren: children,
+       );
 
   static const String name = 'CompleteProfileRoute';
 
   static _i19.PageInfo page = _i19.PageInfo(
     name,
     builder: (data) {
-      return const _i4.CompleteProfilePage();
+      final args = data.argsAs<CompleteProfileRouteArgs>(
+        orElse: () => const CompleteProfileRouteArgs(),
+      );
+      return _i4.CompleteProfilePage(key: args.key, draft: args.draft);
     },
   );
+}
+
+class CompleteProfileRouteArgs {
+  const CompleteProfileRouteArgs({this.key, this.draft});
+
+  final _i20.Key? key;
+
+  final _i21.SignupDraft? draft;
+
+  @override
+  String toString() {
+    return 'CompleteProfileRouteArgs{key: $key, draft: $draft}';
+  }
 }
 
 /// generated route for
@@ -157,7 +181,7 @@ class LoginRoute extends _i19.PageRouteInfo<void> {
 class MatchResultsRoute extends _i19.PageRouteInfo<MatchResultsRouteArgs> {
   MatchResultsRoute({
     _i20.Key? key,
-    required _i21.MatchResultsArgs args,
+    required _i22.MatchResultsArgs args,
     List<_i19.PageRouteInfo>? children,
   }) : super(
          MatchResultsRoute.name,
@@ -181,7 +205,7 @@ class MatchResultsRouteArgs {
 
   final _i20.Key? key;
 
-  final _i21.MatchResultsArgs args;
+  final _i22.MatchResultsArgs args;
 
   @override
   String toString() {
@@ -210,8 +234,8 @@ class MortgageQuestionnaireRoute extends _i19.PageRouteInfo<void> {
 class OfferDetailsRoute extends _i19.PageRouteInfo<OfferDetailsRouteArgs> {
   OfferDetailsRoute({
     _i20.Key? key,
-    required _i21.MatchOffer offer,
-    required _i21.MatchResultsArgs summary,
+    required _i22.MatchOffer offer,
+    required _i22.MatchResultsArgs summary,
     List<_i19.PageRouteInfo>? children,
   }) : super(
          OfferDetailsRoute.name,
@@ -243,9 +267,9 @@ class OfferDetailsRouteArgs {
 
   final _i20.Key? key;
 
-  final _i21.MatchOffer offer;
+  final _i22.MatchOffer offer;
 
-  final _i21.MatchResultsArgs summary;
+  final _i22.MatchResultsArgs summary;
 
   @override
   String toString() {
@@ -274,9 +298,9 @@ class OnboardingRoute extends _i19.PageRouteInfo<void> {
 class OtpRoute extends _i19.PageRouteInfo<OtpRouteArgs> {
   OtpRoute({
     _i20.Key? key,
-    required _i22.OtpChallengeEntity challenge,
-    required _i23.OtpPurpose purpose,
-    _i24.SignupDraft? draft,
+    required _i23.OtpChallengeEntity challenge,
+    required _i24.OtpPurpose purpose,
+    _i21.SignupDraft? draft,
     List<_i19.PageRouteInfo>? children,
   }) : super(
          OtpRoute.name,
@@ -315,11 +339,11 @@ class OtpRouteArgs {
 
   final _i20.Key? key;
 
-  final _i22.OtpChallengeEntity challenge;
+  final _i23.OtpChallengeEntity challenge;
 
-  final _i23.OtpPurpose purpose;
+  final _i24.OtpPurpose purpose;
 
-  final _i24.SignupDraft? draft;
+  final _i21.SignupDraft? draft;
 
   @override
   String toString() {

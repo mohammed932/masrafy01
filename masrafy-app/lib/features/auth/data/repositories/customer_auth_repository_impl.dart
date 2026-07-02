@@ -9,7 +9,7 @@ import 'package:app/features/auth/data/models/request/otp/otp_verify_request.dar
 import 'package:app/features/auth/data/models/request/password/password_reset_request.dart';
 import 'package:app/features/auth/data/models/request/profile/complete_profile_request.dart';
 import 'package:app/features/auth/data/models/request/profile/profile_completion_request.dart';
-import 'package:app/features/auth/data/models/request/signup/signup_phone_complete_request.dart';
+import 'package:app/features/auth/data/models/request/signup/signup_phone_verify_request.dart';
 import 'package:app/features/auth/data/models/request/signup/signup_phone_start_request.dart';
 import 'package:app/features/auth/data/models/request/social/social_signin_request.dart';
 import 'package:app/features/auth/domain/entities/customer_entity.dart';
@@ -41,10 +41,10 @@ class CustomerAuthRepositoryImpl implements CustomerAuthRepository {
   }
 
   @override
-  Future<Either<Failure, CustomerSessionEntity>> signupPhoneComplete(
-    SignupPhoneCompleteRequest body,
+  Future<Either<Failure, CustomerSessionEntity>> signupPhoneVerify(
+    SignupPhoneVerifyRequest body,
   ) async {
-    final result = await ApiHandler.callApi(() => _ds.signupPhoneComplete(body));
+    final result = await ApiHandler.callApi(() => _ds.signupPhoneVerify(body));
     return result.map((m) => m.toEntity());
   }
 

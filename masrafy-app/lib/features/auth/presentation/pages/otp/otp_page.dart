@@ -75,7 +75,10 @@ class _OtpView extends StatelessWidget {
         listenWhen: (p, c) => p.status != c.status,
         listener: (ctx, state) {
           if (state.isSuccess) {
-            ctx.router.replaceAll([const HomeRoute()]);
+            // LITE account created — finish the mandatory profile-completion
+            // step (photo required, National ID optional), prefilled from the
+            // carried draft.
+            ctx.router.replaceAll([CompleteProfileRoute(draft: state.draft)]);
           } else if (state.isFailure) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));
           }

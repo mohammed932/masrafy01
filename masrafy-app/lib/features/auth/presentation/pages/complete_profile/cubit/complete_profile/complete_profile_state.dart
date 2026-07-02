@@ -9,6 +9,7 @@ class CompleteProfileState with _$CompleteProfileState {
     @Default('') String firstName,
     @Default('') String lastName,
     DateTime? birthday,
+    @Default('') String email,
     @Default('') String password,
     @Default(true) bool obscure,
     @Default(RegistrationPath.phone) RegistrationPath registrationPath,
@@ -51,7 +52,16 @@ class CompleteProfileState with _$CompleteProfileState {
   bool get _ageOk => (age ?? 0) >= 18 && (age ?? 0) <= 80;
   bool get _passwordOk =>
       !requiresPassword || Validators.strongPassword(password) == null;
-  bool get _docsReady => photoUploaded && idFrontUploaded && idBackUploaded;
+  bool get _emailOk => email.trim().isEmpty || Validators.email(email) == null;
+
+  /// Profile photo is mandatory (Principle VI/XXXVII); National ID is optional
+  /// at signup ("add later") and enforced only at loan-apply time.
+  bool get _photoReady => photoUploaded;
+
+  /// True once both National ID sides are uploaded (purely informational —
+  /// not required to submit).
+  bool get nationalIdComplete => idFrontUploaded && idBackUploaded;
+
   bool get _anyUploading =>
       photoUploading || idFrontUploading || idBackUploading;
 
@@ -60,8 +70,9 @@ class CompleteProfileState with _$CompleteProfileState {
       lastName.trim().isNotEmpty &&
       birthday != null &&
       _ageOk &&
+      _emailOk &&
       _passwordOk &&
-      _docsReady &&
+      _photoReady &&
       !_anyUploading &&
       !status.isLoading;
 }

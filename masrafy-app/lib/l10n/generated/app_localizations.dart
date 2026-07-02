@@ -221,6 +221,12 @@ abstract class AppLocalizations {
   /// **'ارفع وجهي بطاقة الرقم القومي قبل إكمال ملفك.'**
   String get auth_profile_id_docs_missing;
 
+  /// Backend NATIONAL_ID_REQUIRED error code
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع بطاقة الرقم القومي (الوجه والظهر) قبل التقديم على القرض.'**
+  String get auth_national_id_required;
+
   /// Backend PASSWORD_REQUIRED_FOR_PHONE_PROFILE error code
   ///
   /// In ar, this message translates to:

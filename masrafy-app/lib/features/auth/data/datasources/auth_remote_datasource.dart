@@ -10,7 +10,7 @@ import '../models/request/otp/otp_verify_request.dart';
 import '../models/request/password/password_reset_request.dart';
 import '../models/request/profile/complete_profile_request.dart';
 import '../models/request/profile/profile_completion_request.dart';
-import '../models/request/signup/signup_phone_complete_request.dart';
+import '../models/request/signup/signup_phone_verify_request.dart';
 import '../models/request/signup/signup_phone_start_request.dart';
 import '../models/request/signup/signup_request.dart';
 import '../models/request/social/social_signin_request.dart';
@@ -65,11 +65,11 @@ class AuthRemoteDataSource extends BaseRemoteDataSource {
     return OtpChallengeModel.fromJson(_unwrap(json));
   }
 
-  Future<CustomerAuthEnvelopeModel> signupPhoneComplete(
-    SignupPhoneCompleteRequest body,
+  Future<CustomerAuthEnvelopeModel> signupPhoneVerify(
+    SignupPhoneVerifyRequest body,
   ) async {
     final json = await appNetwork.post(
-      MasrafyEndpoint(endpoint: ApiStrings.authSignupPhoneComplete),
+      MasrafyEndpoint(endpoint: ApiStrings.authSignupPhoneVerify),
       data: body.toJson(),
     );
     return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));

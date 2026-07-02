@@ -8,10 +8,8 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { startWith } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzSliderModule } from 'ng-zorro-antd/slider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
@@ -64,6 +62,7 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     RouterLink,
     NzButtonModule,
     NzSliderModule,
@@ -157,7 +156,9 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
                 </div>
                 <nz-slider
                   class="qweight-slider"
-                  [formControlName]="weightKey(q.code)"
+                  [ngModel]="weightOf(q.code)"
+                  [ngModelOptions]="{ standalone: true }"
+                  (ngModelChange)="setWeight(q.code, $event)"
                   [nzMin]="0"
                   [nzMax]="100"
                   [nzStep]="1"
@@ -181,7 +182,9 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
                     </span>
                     <nz-slider
                       class="pts-slider"
-                      [formControlName]="scoreKey(q.code, o.code)"
+                      [ngModel]="scoreOf(q.code, o.code)"
+                      [ngModelOptions]="{ standalone: true }"
+                      (ngModelChange)="setScore(q.code, o.code, $event)"
                       [nzMin]="0"
                       [nzMax]="100"
                       [nzStep]="1"
@@ -790,14 +793,20 @@ export class ScoringWeightsEditorPage implements OnInit {
   );
 
   readonly form = new FormGroup<Record<string, FormControl<number>>>({});
-  /** Bumps whenever any weight/score changes so the derived weight/score signals recompute. */
-  private readonly formTick = toSignal(this.form.valueChanges.pipe(startWith(null)), {
-    initialValue: null,
-  });
+  /**
+   * Explicit revision counter, bumped by every `setWeight`/`setScore` (the sole
+   * mutation points now the sliders use `ngModel`+`ngModelChange`). All derived
+   * signals depend on it, so they recompute deterministically on each drag —
+   * NOT via `form.valueChanges`, whose signal bridge proved unreliable here.
+   */
+  private readonly rev = signal(0);
+  private touch(): void {
+    this.rev.update((n) => n + 1);
+  }
 
   /** Live two-level scoring rebuilt from the form on every change. */
   readonly scoring = computed<ProgramScoringWeights>(() => {
-    this.formTick();
+    this.rev();
     return this.scoringNow();
   });
 
@@ -876,6 +885,8 @@ export class ScoringWeightsEditorPage implements OnInit {
           this.form.addControl(scoreKey(q.code, o.code), this.numberControl(s));
         }
       }
+      // Controls now seeded — recompute the derived signals off the initial values.
+      this.touch();
     } finally {
       this.loading.set(false);
     }
@@ -916,14 +927,48 @@ export class ScoringWeightsEditorPage implements OnInit {
     return (this.isAr ? o.labelAr : o.labelEn) || o.labelEn;
   }
 
-  /** Live question weight (for the header chip). */
+  /**
+   * Live question weight (for the header chip). Reads the SAME control the
+   * slider binds to (not the derived split map), so readout ≡ slider always;
+   * `formTick()` keeps it reactive to drags.
+   */
   weightOf(questionCode: string): number {
-    return this.weightValues()[questionCode] ?? 0;
+    this.rev();
+    return this.form.controls[weightKey(questionCode)]?.value ?? 0;
   }
 
-  /** Live answer score (for the read-only readout). */
+  /**
+   * Live answer score (for the read-only readout). Reads the SAME control the
+   * slider binds to, so the label can never diverge from the handle.
+   */
   scoreOf(questionCode: string, optionCode: string): number {
-    return this.scoreValues()[questionCode]?.[optionCode] ?? 0;
+    this.rev();
+    return this.form.controls[scoreKey(questionCode, optionCode)]?.value ?? 0;
+  }
+
+  /**
+   * Write a dragged question weight back into its control. The slider uses a
+   * standalone `ngModel` + this `(ngModelChange)` handler (NOT `formControlName`)
+   * so the write is a parent-template event — it reliably schedules change
+   * detection so every readout/validation refreshes on each drag.
+   */
+  setWeight(questionCode: string, value: number): void {
+    const ctrl = this.form.controls[weightKey(questionCode)];
+    if (!ctrl) return;
+    ctrl.setValue(value);
+    ctrl.markAsDirty();
+    this.form.markAsDirty();
+    this.touch();
+  }
+
+  /** Write a dragged answer score back into its control (see {@link setWeight}). */
+  setScore(questionCode: string, optionCode: string, value: number): void {
+    const ctrl = this.form.controls[scoreKey(questionCode, optionCode)];
+    if (!ctrl) return;
+    ctrl.setValue(value);
+    ctrl.markAsDirty();
+    this.form.markAsDirty();
+    this.touch();
   }
 
   /** True when this option carries the highest score for its question. */
@@ -938,18 +983,22 @@ export class ScoringWeightsEditorPage implements OnInit {
     return q.options.some((o) => (scores[o.code] ?? 0) <= 0);
   }
 
-  /** Reduce the flat composite form value into the two-level scoring payload. */
+  /**
+   * Build the two-level scoring payload by reading each control by its EXACT
+   * key off the known questions/options — never by splitting composite control
+   * names. Immune to any code content (incl. non-slug enum-backed option codes)
+   * and keeps save/validation reading the identical source as the sliders.
+   */
   private scoringNow(): ProgramScoringWeights {
-    const raw = this.form.getRawValue() as Record<string, number>;
     const questionWeights: Record<string, number> = {};
     const answerScores: Record<string, Record<string, number>> = {};
-    for (const [composite, value] of Object.entries(raw)) {
-      const parts = composite.split(SEP);
-      if (parts[0] === QW && parts[1]) {
-        questionWeights[parts[1]] = Number(value ?? 0);
-      } else if (parts[0] === SC && parts[1] && parts[2]) {
-        (answerScores[parts[1]] ??= {})[parts[2]] = Number(value ?? 0);
+    for (const q of this.questions()) {
+      questionWeights[q.code] = Number(this.form.controls[weightKey(q.code)]?.value ?? 0);
+      const scores: Record<string, number> = {};
+      for (const o of q.options) {
+        scores[o.code] = Number(this.form.controls[scoreKey(q.code, o.code)]?.value ?? 0);
       }
+      answerScores[q.code] = scores;
     }
     return { questionWeights, answerScores };
   }

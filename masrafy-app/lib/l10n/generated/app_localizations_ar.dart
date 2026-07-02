@@ -72,6 +72,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_profile_id_docs_missing => 'ارفع وجهي بطاقة الرقم القومي قبل إكمال ملفك.';
 
   @override
+  String get auth_national_id_required => 'ارفع بطاقة الرقم القومي (الوجه والظهر) قبل التقديم على القرض.';
+
+  @override
   String get auth_password_required_for_phone_profile => 'كلمة المرور مطلوبة لإكمال ملفك.';
 
   @override

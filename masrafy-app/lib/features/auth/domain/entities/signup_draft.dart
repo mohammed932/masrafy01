@@ -1,17 +1,18 @@
 import 'package:equatable/equatable.dart';
 
 /// The PHONE-signup details collected on the Create-Account screen and carried
-/// to the OTP screen (as route args). After the mobile is OTP-verified the OTP
-/// cubit combines these with the `verifiedMobileToken` into a
-/// [SignupPhoneCompleteRequest]. Photo + National ID are NOT here — their
-/// upload is deferred (see plan / Principle XXXVII follow-up).
+/// to the OTP screen (as route args). Once the mobile is OTP-verified, the OTP
+/// cubit creates the LITE account; this draft is then forwarded to the
+/// Complete-Profile screen to prefill name / birthday / email / password.
+/// Photo + National ID are NOT here — they are uploaded on Complete-Profile
+/// (they need the customer JWT issued at verify, and National ID is optional).
 class SignupDraft extends Equatable {
   const SignupDraft({
     required this.firstName,
     required this.lastName,
     required this.phone,
     required this.password,
-    required this.age,
+    required this.birthday,
     this.email,
   });
 
@@ -23,14 +24,24 @@ class SignupDraft extends Equatable {
   final String phone;
   final String password;
 
-  /// Derived from the birthday at submit time — never stored as state-of-record
-  /// (Principle XXXVII / A31). Sent only because the current
-  /// `SignupPhoneCompleteRequest` DTO still takes `age` (flagged DTO debt).
-  final int age;
+  /// Date of birth (sent to `/profile/complete`; age derived, never stored —
+  /// Principle XXXVII / A31).
+  final DateTime birthday;
   final String? email;
 
   String get fullName => '$firstName $lastName'.trim();
 
+  /// Age derived from [birthday] (never persisted).
+  int get age {
+    final now = DateTime.now();
+    var years = now.year - birthday.year;
+    if (now.month < birthday.month ||
+        (now.month == birthday.month && now.day < birthday.day)) {
+      years--;
+    }
+    return years;
+  }
+
   @override
-  List<Object?> get props => [firstName, lastName, phone, password, age, email];
+  List<Object?> get props => [firstName, lastName, phone, password, birthday, email];
 }

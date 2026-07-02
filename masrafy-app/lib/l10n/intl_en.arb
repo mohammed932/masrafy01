@@ -26,6 +26,7 @@
   "auth_profile_incomplete": "Complete your profile to continue.",
   "auth_profile_field_immutable": "This field cannot be changed once set.",
   "auth_profile_id_docs_missing": "Upload both National ID front and back before completing your profile.",
+  "auth_national_id_required": "Upload your National ID (front and back) before applying for a loan.",
   "auth_password_required_for_phone_profile": "A password is required to complete your profile.",
   "auth_password_forbidden_for_social_profile": "Accounts using Google or Apple sign-in do not set a password.",
   "auth_phone_mutation_on_phone_customer_forbidden": "Mobile number is already set on this account.",

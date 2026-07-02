@@ -6,7 +6,7 @@ import '../../../../core/storage/customer_session_storage.dart';
 import '../../data/models/request/otp/otp_request.dart';
 import '../../data/models/request/otp/otp_verify_request.dart';
 import '../../data/models/request/profile/complete_profile_request.dart';
-import '../../data/models/request/signup/signup_phone_complete_request.dart';
+import '../../data/models/request/signup/signup_phone_verify_request.dart';
 import '../../data/models/request/signup/signup_phone_start_request.dart';
 import '../entities/customer_entity.dart';
 import '../entities/otp_challenge_entity.dart';
@@ -35,10 +35,10 @@ class CustomerAuthUseCase {
   Future<Either<Failure, OtpVerifyOutcome>> verifyOtp(OtpVerifyRequest request) =>
       _repo.verifyOtp(request);
 
-  Future<Either<Failure, CustomerSessionEntity>> signupPhoneComplete(
-    SignupPhoneCompleteRequest request,
+  Future<Either<Failure, CustomerSessionEntity>> signupPhoneVerify(
+    SignupPhoneVerifyRequest request,
   ) async {
-    final result = await _repo.signupPhoneComplete(request);
+    final result = await _repo.signupPhoneVerify(request);
     await result.fold(
       (_) async {},
       (session) => _session.save(

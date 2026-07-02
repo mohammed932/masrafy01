@@ -72,6 +72,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_profile_id_docs_missing => 'Upload both National ID front and back before completing your profile.';
 
   @override
+  String get auth_national_id_required => 'Upload your National ID (front and back) before applying for a loan.';
+
+  @override
   String get auth_password_required_for_phone_profile => 'A password is required to complete your profile.';
 
   @override

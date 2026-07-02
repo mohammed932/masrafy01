@@ -178,6 +178,7 @@ export class CustomerAuthController {
       firstName: body.firstName,
       lastName: body.lastName,
       birthday: body.birthday,
+      email: body.email,
       password: body.password,
       ctx: this.buildContext(req, correlationId),
     });

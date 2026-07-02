@@ -7,12 +7,18 @@ part of 'complete_profile.imports.dart';
 /// One route-level widget; private leaf helpers below (Principle XXXVI).
 @RoutePage()
 class CompleteProfilePage extends StatelessWidget {
-  const CompleteProfilePage({super.key});
+  const CompleteProfilePage({super.key, this.draft});
+
+  /// Optional PHONE-signup draft used to prefill the form (null for the SOCIAL
+  /// path and for a returning login with an incomplete profile).
+  final SignupDraft? draft;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<CompleteProfileCubit>(
-      create: (_) => getIt<CompleteProfileCubit>()..load(),
+      create: (_) => getIt<CompleteProfileCubit>()
+        ..seed(draft)
+        ..load(),
       child: const _CompleteProfileView(),
     );
   }
@@ -85,6 +91,7 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
           if (state.loadStatus.isLoaded && _firstName.text.isEmpty) {
             _firstName.text = state.firstName;
             _lastName.text = state.lastName;
+            _password.text = state.password;
           }
           if (state.isSuccess) {
             ctx.router.replaceAll([const HomeRoute()]);

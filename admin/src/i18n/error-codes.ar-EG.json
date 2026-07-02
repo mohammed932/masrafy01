@@ -93,6 +93,7 @@
   "PROFILE_INCOMPLETE": "أكمل بيانات حسابك للمتابعة.",
   "PROFILE_FIELD_IMMUTABLE": "لا يمكن تعديل هذا الحقل بعد ضبطه.",
   "PROFILE_ID_DOCS_MISSING": "ارفع وجهي بطاقة الرقم القومي قبل إكمال ملفك.",
+  "NATIONAL_ID_REQUIRED": "ارفع بطاقة الرقم القومي (الوجه والظهر) قبل التقديم على القرض.",
   "PASSWORD_REQUIRED_FOR_PHONE_PROFILE": "كلمة المرور مطلوبة لإكمال ملفك.",
   "PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE": "حسابات Google أو Apple لا تستخدم كلمة مرور.",
   "PHONE_MUTATION_ON_PHONE_CUSTOMER_FORBIDDEN": "رقم الجوال مضبوط بالفعل على هذا الحساب.",

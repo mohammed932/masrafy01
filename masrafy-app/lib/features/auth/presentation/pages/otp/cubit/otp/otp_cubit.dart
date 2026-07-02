@@ -8,7 +8,7 @@ import 'package:app/core/enums/request_state.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/features/auth/data/models/request/otp/otp_request.dart';
 import 'package:app/features/auth/data/models/request/otp/otp_verify_request.dart';
-import 'package:app/features/auth/data/models/request/signup/signup_phone_complete_request.dart';
+import 'package:app/features/auth/data/models/request/signup/signup_phone_verify_request.dart';
 import 'package:app/features/auth/domain/entities/customer_entity.dart';
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart';
 import 'package:app/features/auth/domain/entities/signup_draft.dart';
@@ -86,6 +86,9 @@ class OtpCubit extends Cubit<OtpState> {
     );
   }
 
+  /// Creates the LITE account from the OTP-verified token. The collected
+  /// [SignupDraft] is kept in state so the OTP page can forward it to the
+  /// Complete-Profile screen (name / birthday / email / password prefill).
   Future<void> _completeSignup(OtpVerifyOutcome outcome) async {
     final draft = state.draft;
     final token = outcome.verifiedMobileToken;
@@ -96,14 +99,8 @@ class OtpCubit extends Cubit<OtpState> {
       ));
       return;
     }
-    final res = await _auth.signupPhoneComplete(
-      SignupPhoneCompleteRequest(
-        verifiedMobileToken: token,
-        name: draft.fullName,
-        email: draft.email,
-        password: draft.password,
-        age: draft.age,
-      ),
+    final res = await _auth.signupPhoneVerify(
+      SignupPhoneVerifyRequest(verifiedMobileToken: token),
     );
     res.fold(
       (err) => emit(state.copyWith(status: RequestState.error, error: err)),

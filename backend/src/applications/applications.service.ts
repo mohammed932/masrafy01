@@ -39,6 +39,7 @@ import {
   ApplicationNotMatchedException,
 } from '../common/errors/domain.exceptions';
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
+import { CustomerProfileCompletenessService } from '@/customer-auth/customer-profile-completeness.service';
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
@@ -78,6 +79,7 @@ export class ApplicationsService {
     private readonly scoringVersions: ScoringEngineVersionService,
     private readonly questionnaire: QuestionnaireService,
     private readonly weightedScoring: WeightedApprovalScoringService,
+    private readonly completeness: CustomerProfileCompletenessService,
   ) {}
 
   /**
@@ -167,6 +169,9 @@ export class ApplicationsService {
 
   async apply(dto: ApplyRequestDto, ctx: ApplyContext): Promise<ApplyResponse> {
     const correlationId = randomUUID();
+
+    // National ID is optional at signup but required to submit a loan application.
+    await this.completeness.assertNationalId(ctx.customerId);
 
     if (ctx.idempotencyKey) {
       const existing = await this.repo.findByIdempotencyKey(ctx.customerId, ctx.idempotencyKey);

@@ -29,7 +29,7 @@ class _SplashView extends StatelessWidget {
       case SplashDestination.home:
         context.router.replaceAll([const HomeRoute()]);
       case SplashDestination.completeProfile:
-        context.router.replaceAll([const CompleteProfileRoute()]);
+        context.router.replaceAll([CompleteProfileRoute()]);
     }
   }
 

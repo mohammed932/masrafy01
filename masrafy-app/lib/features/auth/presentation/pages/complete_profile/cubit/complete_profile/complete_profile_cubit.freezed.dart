@@ -19,6 +19,7 @@ mixin _$CompleteProfileState {
   String get firstName => throw _privateConstructorUsedError;
   String get lastName => throw _privateConstructorUsedError;
   DateTime? get birthday => throw _privateConstructorUsedError;
+  String get email => throw _privateConstructorUsedError;
   String get password => throw _privateConstructorUsedError;
   bool get obscure => throw _privateConstructorUsedError;
   RegistrationPath get registrationPath => throw _privateConstructorUsedError;
@@ -52,6 +53,7 @@ abstract class $CompleteProfileStateCopyWith<$Res> {
       {String firstName,
       String lastName,
       DateTime? birthday,
+      String email,
       String password,
       bool obscure,
       RegistrationPath registrationPath,
@@ -88,6 +90,7 @@ class _$CompleteProfileStateCopyWithImpl<$Res,
     Object? firstName = null,
     Object? lastName = null,
     Object? birthday = freezed,
+    Object? email = null,
     Object? password = null,
     Object? obscure = null,
     Object? registrationPath = null,
@@ -117,6 +120,10 @@ class _$CompleteProfileStateCopyWithImpl<$Res,
           ? _value.birthday
           : birthday // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      email: null == email
+          ? _value.email
+          : email // ignore: cast_nullable_to_non_nullable
+              as String,
       password: null == password
           ? _value.password
           : password // ignore: cast_nullable_to_non_nullable
@@ -193,6 +200,7 @@ abstract class _$$CompleteProfileStateImplCopyWith<$Res>
       {String firstName,
       String lastName,
       DateTime? birthday,
+      String email,
       String password,
       bool obscure,
       RegistrationPath registrationPath,
@@ -226,6 +234,7 @@ class __$$CompleteProfileStateImplCopyWithImpl<$Res>
     Object? firstName = null,
     Object? lastName = null,
     Object? birthday = freezed,
+    Object? email = null,
     Object? password = null,
     Object? obscure = null,
     Object? registrationPath = null,
@@ -255,6 +264,10 @@ class __$$CompleteProfileStateImplCopyWithImpl<$Res>
           ? _value.birthday
           : birthday // ignore: cast_nullable_to_non_nullable
               as DateTime?,
+      email: null == email
+          ? _value.email
+          : email // ignore: cast_nullable_to_non_nullable
+              as String,
       password: null == password
           ? _value.password
           : password // ignore: cast_nullable_to_non_nullable
@@ -326,6 +339,7 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
       {this.firstName = '',
       this.lastName = '',
       this.birthday,
+      this.email = '',
       this.password = '',
       this.obscure = true,
       this.registrationPath = RegistrationPath.phone,
@@ -351,6 +365,9 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
   final String lastName;
   @override
   final DateTime? birthday;
+  @override
+  @JsonKey()
+  final String email;
   @override
   @JsonKey()
   final String password;
@@ -396,7 +413,7 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
 
   @override
   String toString() {
-    return 'CompleteProfileState(firstName: $firstName, lastName: $lastName, birthday: $birthday, password: $password, obscure: $obscure, registrationPath: $registrationPath, hasPassword: $hasPassword, photoBytes: $photoBytes, photoUploaded: $photoUploaded, photoUploading: $photoUploading, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idBackUploading: $idBackUploading, loadStatus: $loadStatus, status: $status, error: $error, session: $session)';
+    return 'CompleteProfileState(firstName: $firstName, lastName: $lastName, birthday: $birthday, email: $email, password: $password, obscure: $obscure, registrationPath: $registrationPath, hasPassword: $hasPassword, photoBytes: $photoBytes, photoUploaded: $photoUploaded, photoUploading: $photoUploading, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idBackUploading: $idBackUploading, loadStatus: $loadStatus, status: $status, error: $error, session: $session)';
   }
 
   @override
@@ -410,6 +427,7 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
                 other.lastName == lastName) &&
             (identical(other.birthday, birthday) ||
                 other.birthday == birthday) &&
+            (identical(other.email, email) || other.email == email) &&
             (identical(other.password, password) ||
                 other.password == password) &&
             (identical(other.obscure, obscure) || other.obscure == obscure) &&
@@ -439,26 +457,28 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      firstName,
-      lastName,
-      birthday,
-      password,
-      obscure,
-      registrationPath,
-      hasPassword,
-      const DeepCollectionEquality().hash(photoBytes),
-      photoUploaded,
-      photoUploading,
-      idFrontUploaded,
-      idFrontUploading,
-      idBackUploaded,
-      idBackUploading,
-      loadStatus,
-      status,
-      error,
-      session);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        firstName,
+        lastName,
+        birthday,
+        email,
+        password,
+        obscure,
+        registrationPath,
+        hasPassword,
+        const DeepCollectionEquality().hash(photoBytes),
+        photoUploaded,
+        photoUploading,
+        idFrontUploaded,
+        idFrontUploading,
+        idBackUploaded,
+        idBackUploading,
+        loadStatus,
+        status,
+        error,
+        session
+      ]);
 
   /// Create a copy of CompleteProfileState
   /// with the given fields replaced by the non-null parameter values.
@@ -476,6 +496,7 @@ abstract class _CompleteProfileState extends CompleteProfileState {
       {final String firstName,
       final String lastName,
       final DateTime? birthday,
+      final String email,
       final String password,
       final bool obscure,
       final RegistrationPath registrationPath,
@@ -499,6 +520,8 @@ abstract class _CompleteProfileState extends CompleteProfileState {
   String get lastName;
   @override
   DateTime? get birthday;
+  @override
+  String get email;
   @override
   String get password;
   @override

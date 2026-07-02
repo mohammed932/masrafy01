@@ -6,7 +6,7 @@ import '../../data/models/request/otp/otp_verify_request.dart';
 import '../../data/models/request/password/password_reset_request.dart';
 import '../../data/models/request/profile/complete_profile_request.dart';
 import '../../data/models/request/profile/profile_completion_request.dart';
-import '../../data/models/request/signup/signup_phone_complete_request.dart';
+import '../../data/models/request/signup/signup_phone_verify_request.dart';
 import '../../data/models/request/signup/signup_phone_start_request.dart';
 import '../../data/models/request/social/social_signin_request.dart';
 import '../entities/customer_entity.dart';
@@ -18,8 +18,10 @@ import '../entities/social_session_entity.dart';
 abstract class CustomerAuthRepository {
   Future<Either<Failure, OtpChallengeEntity>> signupPhoneStart(SignupPhoneStartRequest body);
 
-  Future<Either<Failure, CustomerSessionEntity>> signupPhoneComplete(
-    SignupPhoneCompleteRequest body,
+  /// Consumes the OTP `verifiedMobileToken` to create the LITE account and
+  /// issue the first session (profile completed afterwards).
+  Future<Either<Failure, CustomerSessionEntity>> signupPhoneVerify(
+    SignupPhoneVerifyRequest body,
   );
 
   Future<Either<Failure, OtpChallengeEntity>> requestOtp(OtpRequestRequest body);
