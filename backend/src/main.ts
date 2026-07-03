@@ -22,7 +22,13 @@ async function bootstrap(): Promise<void> {
     origin: corsOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Content-Type', 'X-Correlation-Id', 'Idempotency-Key'],
+    allowedHeaders: [
+      'Authorization',
+      'Content-Type',
+      'X-Correlation-Id',
+      'Idempotency-Key',
+      'X-Confirm-Program-Code',
+    ],
     exposedHeaders: ['X-Correlation-Id'],
     maxAge: 600,
   });

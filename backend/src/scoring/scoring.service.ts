@@ -119,7 +119,10 @@ export class ScoringService {
     });
     await this.audit.write({
       actorId: editorId,
-      targetId: saved.id,
+      // targetId FKs StaffAccount — the saved weight-set id belongs in the
+      // payload, and the program is linked via bankProgramId.
+      targetId: null,
+      bankProgramId: programId,
       eventType: AuditEventType.SCORING_WEIGHTS_SAVED,
       sourceIp: ctx.sourceIp,
       correlationId: ctx.correlationId,

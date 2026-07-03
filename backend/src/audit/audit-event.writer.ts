@@ -31,6 +31,7 @@ export class AuditEventWriter {
     args: {
       actorId: string | null;
       targetId: string | null;
+      bankProgramId?: string | null;
       eventType: AuditEventType;
       sourceIp: string | null;
       correlationId: string;
@@ -43,6 +44,7 @@ export class AuditEventWriter {
       {
         actorId: args.actorId,
         targetId: args.targetId,
+        bankProgramId: args.bankProgramId ?? null,
         eventType: args.eventType,
         sourceIp: args.sourceIp,
         correlationId: args.correlationId,

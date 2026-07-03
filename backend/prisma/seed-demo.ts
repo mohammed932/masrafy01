@@ -331,7 +331,7 @@ async function seedBankPrograms(superAdminId: string): Promise<void> {
         version: 1,
         operatorNotes: null,
         operatorTips: [],
-        requiredDocuments: ['national_id', 'salary_slip', 'bank_statement'],
+        requiredDocuments: ['national_id', 'salary_certificate', 'bank_statement'],
         tenor: { minMonths: 12, maxMonths: 84 },
         loanLimits: {
           perCurrency: {
