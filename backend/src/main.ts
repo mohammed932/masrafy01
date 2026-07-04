@@ -8,7 +8,8 @@ import { setupSwagger } from './common/swagger/swagger.config';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  app.useLogger(app.get(Logger));
+  const logger = app.get(Logger);
+  app.useLogger(logger);
 
   app.setGlobalPrefix('api');
 
@@ -32,6 +33,10 @@ async function bootstrap(): Promise<void> {
     exposedHeaders: ['X-Correlation-Id'],
     maxAge: 600,
   });
+  logger.log(
+    `CORS enabled for ${corsOrigins.length} origin(s): ${corsOrigins.join(', ')}`,
+    'Bootstrap',
+  );
 
   app.use(cookieParser());
 
