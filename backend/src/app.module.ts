@@ -6,6 +6,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { CorrelationIdMiddleware } from '@/common/middleware/correlation-id.middleware';
 import { HttpExceptionFilter } from '@/common/errors/http-exception.filter';
 import { InfraModule } from '@/infra/infra.module';
+import { BootstrapModule } from '@/infra/bootstrap/bootstrap.module';
 import { AuditModule } from '@/audit/audit.module';
 import { HealthModule } from '@/health/health.module';
 import { AuthModule } from '@/auth/auth.module';
@@ -44,6 +45,7 @@ import { pinoOptions } from '@/common/pino/pino.config';
         ),
     }),
     InfraModule,
+    BootstrapModule,
     AuditModule,
     HealthModule,
     AuthModule,
