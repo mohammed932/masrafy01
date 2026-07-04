@@ -50,10 +50,9 @@ class _CarViewState extends State<_CarView> {
         if (state.submitted) {
           ctx.router.push(
             MatchResultsRoute(
-              args: MatchResultsArgs.mock(
+              args: MatchResultsArgs.fromRequest(
+                request: mapCarToApplyRequest(state),
                 loanTypeKey: 'car',
-                amount: state.vehiclePriceEnd,
-                durationMonths: (state.repaymentPeriod * 12).round(),
               ),
             ),
           );

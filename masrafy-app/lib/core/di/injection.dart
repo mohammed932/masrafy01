@@ -37,6 +37,12 @@ import 'package:app/features/saved_offers/data/repositories/saved_offers_reposit
 import 'package:app/features/saved_offers/domain/repositories/saved_offers_repository.dart';
 import 'package:app/features/saved_offers/domain/usecases/saved_offers_usecase.dart';
 import 'package:app/features/saved_offers/presentation/pages/saved_offers/cubit/saved_offers/saved_offers_cubit.dart';
+import 'package:app/features/matching/data/datasources/matching_remote_datasource.dart';
+import 'package:app/features/matching/data/repositories/matching_repository_impl.dart';
+import 'package:app/features/matching/domain/repositories/matching_repository.dart';
+import 'package:app/features/matching/domain/usecases/matching_usecase.dart';
+import 'package:app/features/offers/presentation/pages/results/cubit/matching_results/matching_results_cubit.dart';
+import 'package:app/features/offers/presentation/pages/offer_details/cubit/select_offer/select_offer_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_contact/profile_edit_contact_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_personal/profile_edit_personal_cubit.dart';
 import 'package:app/features/splash/presentation/pages/splash/cubit/splash/splash_cubit.dart';
@@ -154,6 +160,23 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     () => SavedOffersUseCase(getIt<SavedOffersRepository>()),
   );
   getIt.registerFactory(() => SavedOffersCubit(getIt<SavedOffersUseCase>()));
+
+  // matching — apply (real offers) + select-offer (proceed). Data-layer
+  // lazySingletons; screen-scoped cubits (Principle XXXI). MatchingResultsCubit
+  // reads the profile age via AuthUseCase before calling /apply.
+  getIt.registerLazySingleton(
+    () => MatchingRemoteDataSource(getIt<BaseNetwork>()),
+  );
+  getIt.registerLazySingleton<MatchingRepository>(
+    () => MatchingRepositoryImpl(getIt<MatchingRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(
+    () => MatchingUseCase(getIt<MatchingRepository>()),
+  );
+  getIt.registerFactory(
+    () => MatchingResultsCubit(getIt<MatchingUseCase>(), getIt<AuthUseCase>()),
+  );
+  getIt.registerFactory(() => SelectOfferCubit(getIt<MatchingUseCase>()));
 
   // account — settings & security (UI-only mock; toggles flip local state).
   // Screen-scoped (Principle XXXI).

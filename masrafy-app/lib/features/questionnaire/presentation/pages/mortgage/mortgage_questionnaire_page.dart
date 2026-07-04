@@ -50,10 +50,9 @@ class _MortgageViewState extends State<_MortgageView> {
         if (state.submitted) {
           ctx.router.push(
             MatchResultsRoute(
-              args: MatchResultsArgs.mock(
+              args: MatchResultsArgs.fromRequest(
+                request: mapMortgageToApplyRequest(state),
                 loanTypeKey: 'mortgage',
-                amount: state.propertyValueEnd,
-                durationMonths: (state.repaymentPeriod * 12).round(),
               ),
             ),
           );

@@ -1504,6 +1504,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get results_subtitle => 'Your loan advisor is ready';
 
   @override
+  String get results_empty_title => 'No offers yet';
+
+  @override
+  String get results_empty_body => 'We couldn\'t find matching programs for your answers right now.';
+
+  @override
+  String get results_profile_title => 'Complete your profile';
+
+  @override
+  String get results_profile_body => 'Finish your profile to see loan offers.';
+
+  @override
+  String get results_profile_action => 'Complete profile';
+
+  @override
   String get results_loan_type => 'Loan type';
 
   @override
@@ -1632,6 +1647,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offer_action_soon => 'Coming soon';
+
+  @override
+  String get offer_proceed_success => 'Your request was sent to the bank.';
+
+  @override
+  String get offer_proceed_error => 'Something went wrong. Please try again.';
 
   @override
   String get settings_security_title => 'Settings & Security';

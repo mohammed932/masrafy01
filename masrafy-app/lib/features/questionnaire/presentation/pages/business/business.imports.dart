@@ -11,6 +11,7 @@ import 'package:app/features/offers/presentation/models/match_results_args.dart'
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import 'cubit/business_questionnaire/business_questionnaire_cubit.dart';
+import 'business_apply_mapper.dart';
 import 'widgets/business_step_financial.dart';
 import 'widgets/business_step_financing.dart';
 import 'widgets/business_step_obligations.dart';

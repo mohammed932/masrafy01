@@ -1,36 +1,60 @@
+import 'package:app/features/matching/data/models/request/apply_request.dart';
+import 'package:app/features/matching/domain/entities/apply_result_entity.dart';
+import 'package:app/features/matching/domain/enums/approval_tier.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 /// Route payload for the offers-list + offer-details screens (Figma `2040:1253`,
-/// `2040:1402`). Static mock for this iteration — the mobile matching API is not
-/// wired yet — so [MatchResultsArgs.mock] fabricates a deterministic set of
-/// offers while the loan summary (type / amount / duration) is carried from the
-/// questionnaire answers.
+/// `2040:1402`).
 ///
-/// Root + nested [MatchOffer] live in this one file on purpose (payload
-/// co-location); do not split per-class.
+/// Dual role:
+///  - From a wizard, [request] is set (via [MatchResultsArgs.fromRequest]) and
+///    the results screen runs `/api/v1/apply`, rendering the real offers.
+///  - As an offer-details `summary` (saved offers / past applications / tests),
+///    [request] is null and [offers] is shown as-is.
+///
+/// The loan summary (type / amount / duration) is always explicit so both roles
+/// render the summary card. Root + nested [MatchOffer] live in this one file on
+/// purpose (payload co-location); do not split per-class.
 class MatchResultsArgs {
   const MatchResultsArgs({
     required this.loanTypeKey,
     required this.amount,
     required this.durationMonths,
-    required this.offers,
+    this.request,
+    this.offers = const [],
   });
 
   /// Language-neutral loan category id: `car` | `mortgage` | `business` |
   /// `personal`. The screens resolve it to a localized label.
   final String loanTypeKey;
 
-  /// Requested principal (EGP), derived from the questionnaire.
+  /// Requested principal (EGP) — summary card.
   final double amount;
 
-  /// Requested repayment duration in months, derived from the questionnaire.
+  /// Requested repayment duration in months — summary card.
   final int durationMonths;
 
-  /// Ranked matches, best first.
+  /// When set, the results screen submits it to `/api/v1/apply` (the wizard
+  /// flow). Null for static summaries (saved offers / past applications).
+  final ApplyRequest? request;
+
+  /// Static offers shown when [request] is null.
   final List<MatchOffer> offers;
 
-  /// Deterministic mock matches mirroring the Figma frames. Offers themselves
-  /// are static (no backend); only the summary reflects the user's answers.
+  /// Build the results payload from a wizard-mapped request. Summary fields are
+  /// derived from the request so they always mirror the customer's answers.
+  factory MatchResultsArgs.fromRequest({
+    required ApplyRequest request,
+    required String loanTypeKey,
+  }) =>
+      MatchResultsArgs(
+        loanTypeKey: loanTypeKey,
+        amount: double.tryParse(request.requestedAmountEGP) ?? 0,
+        durationMonths: request.preferredTenorMonths,
+        request: request,
+      );
+
+  /// Deterministic mock matches (used by widget tests + any static preview).
   factory MatchResultsArgs.mock({
     required String loanTypeKey,
     required double amount,
@@ -75,9 +99,13 @@ class MatchResultsArgs {
   }
 }
 
-/// A single bank match. [approvalPct] drives the "{pct}% Guarantee Approval"
-/// heading; the rate / monthly / totals feed both the list KPI row and the
-/// details stat grid.
+/// A single bank match rendered by the list + details screens. Display fields
+/// ([approvalPct], rate, monthly, totals) feed the existing Figma widgets and
+/// are always required. The identity/meta fields ([bankOfferId],
+/// [applicationId], [bankName], …) are populated only for real offers (via
+/// [MatchOffer.fromEntity]); saved-offer / past-application / mock offers leave
+/// them at their defaults, and the details screen's proceed CTA stays inert
+/// unless [applicationId] is set.
 class MatchOffer {
   const MatchOffer({
     required this.approvalPct,
@@ -87,6 +115,16 @@ class MatchOffer {
     required this.totalLabel,
     required this.totalInterest,
     required this.totalLoan,
+    this.bankOfferId = '',
+    this.applicationId = '',
+    this.bankName = '',
+    this.programCode = '',
+    this.programFriendlyName = '',
+    this.currency = 'EGP',
+    this.tier = ApprovalTier.veryLow,
+    this.bankIsFeatured = false,
+    this.requiredDocuments = const [],
+    this.feesBreakdown,
     this.isBestMatch = false,
   });
 
@@ -108,7 +146,66 @@ class MatchOffer {
   /// Total repayable incl. principal + interest (EGP) — details "Total Loan".
   final int totalLoan;
 
+  /// Persisted offer id — the select-offer key sent back to the backend.
+  final String bankOfferId;
+
+  /// Owning application id — needed for the select-offer call.
+  final String applicationId;
+
+  final String bankName;
+  final String programCode;
+  final String programFriendlyName;
+  final String currency;
+  final ApprovalTier tier;
+  final bool bankIsFeatured;
+  final List<String> requiredDocuments;
+
+  /// Raw engine fee breakdown (shape TBD) — carried for the details screen.
+  final Map<String, dynamic>? feesBreakdown;
+
   final bool isBestMatch;
+
+  /// Build a display offer from a domain [OfferEntity]. Totals are derived on
+  /// the entity (installment × term); [isBestMatch] marks the top-ranked row.
+  factory MatchOffer.fromEntity(
+    OfferEntity e, {
+    required String applicationId,
+    required bool isBestMatch,
+  }) {
+    return MatchOffer(
+      approvalPct: e.approvalScore,
+      termMonths: e.effectiveTenorMonths,
+      ratePct: e.effectiveRatePercent,
+      monthly: e.monthlyInstallmentEGP.round(),
+      totalLabel: _compact(e.totalRepayableEGP),
+      totalInterest: e.totalInterestEGP.round(),
+      totalLoan: e.totalRepayableEGP.round(),
+      bankOfferId: e.bankOfferId,
+      applicationId: applicationId,
+      bankName: e.bankName,
+      programCode: e.programCode,
+      programFriendlyName: e.programFriendlyName,
+      currency: e.currency,
+      tier: e.approvalTier,
+      bankIsFeatured: e.bankIsFeatured,
+      requiredDocuments: e.requiredDocuments,
+      feesBreakdown: e.feesBreakdown,
+      isBestMatch: isBestMatch,
+    );
+  }
+}
+
+/// Compact EGP total, e.g. 166320 → "166K", 1_200_000 → "1.2M".
+String _compact(num v) {
+  if (v >= 1e6) return '${_trim(v / 1e6)}M';
+  if (v >= 1e3) return '${_trim(v / 1e3)}K';
+  return v.round().toString();
+}
+
+/// Drop a trailing ".0": 1.0 → "1", 1.2 → "1.2".
+String _trim(double v) {
+  final r = (v * 10).round() / 10;
+  return r == r.truncateToDouble() ? r.truncate().toString() : r.toString();
 }
 
 /// Resolve a language-neutral [loanTypeKey] to its localized noun

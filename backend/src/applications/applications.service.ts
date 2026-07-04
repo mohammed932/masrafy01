@@ -353,6 +353,7 @@ export class ApplicationsService {
             bestRatePercent: best ? best.effectiveRatePercent.toFixed(4) : '0.0000',
           },
           matchedOffers: sorted.map((o) => ({
+            bankOfferId: o.id,
             programCode: o.programCode,
             programVersion: o.programVersion,
             bankName: o.bankName,

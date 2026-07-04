@@ -157,10 +157,42 @@ class OfferDetailsPage extends StatelessWidget {
                         ],
                       ),
                       Gap(25.h),
-                      MasrafyGradientButton(
-                        label: l.offer_apply,
-                        onPressed: comingSoon,
-                      ),
+                      // Real offers (from apply) proceed via select-offer;
+                      // saved-offer / past-application summaries have no
+                      // application to proceed on, so keep the placeholder and
+                      // avoid touching DI (widget tests pump this page directly).
+                      offer.applicationId.isEmpty
+                          ? MasrafyGradientButton(
+                              label: l.offer_apply,
+                              onPressed: comingSoon,
+                            )
+                          : BlocProvider<SelectOfferCubit>(
+                              create: (_) => getIt<SelectOfferCubit>(),
+                              child: BlocConsumer<SelectOfferCubit,
+                                  SelectOfferState>(
+                                listener: (ctx, state) {
+                                  if (state.isSuccess) {
+                                    MasrafyToast.success(
+                                        ctx, l.offer_proceed_success);
+                                  } else if (state.isError) {
+                                    MasrafyToast.error(
+                                        ctx, l.offer_proceed_error);
+                                  }
+                                },
+                                builder: (ctx, state) => MasrafyGradientButton(
+                                  label: l.offer_apply,
+                                  isLoading: state.isLoading,
+                                  onPressed: state.isLoading
+                                      ? null
+                                      : () => ctx
+                                          .read<SelectOfferCubit>()
+                                          .select(
+                                            offer.applicationId,
+                                            offer.bankOfferId,
+                                          ),
+                                ),
+                              ),
+                            ),
                       Gap(12.h),
                       _SaveOfferButton(
                         label: l.offer_save_later,

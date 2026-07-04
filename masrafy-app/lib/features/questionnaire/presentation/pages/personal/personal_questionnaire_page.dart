@@ -50,10 +50,9 @@ class _PersonalViewState extends State<_PersonalView> {
         if (state.submitted) {
           ctx.router.push(
             MatchResultsRoute(
-              args: MatchResultsArgs.mock(
+              args: MatchResultsArgs.fromRequest(
+                request: mapPersonalToApplyRequest(state),
                 loanTypeKey: 'personal',
-                amount: state.amountValue,
-                durationMonths: (state.repaymentPeriod * 12).round(),
               ),
             ),
           );

@@ -1507,6 +1507,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String get results_subtitle => 'مستشار القروض جاهز';
 
   @override
+  String get results_empty_title => 'لا توجد عروض بعد';
+
+  @override
+  String get results_empty_body => 'لم نتمكن من العثور على برامج مطابقة لإجاباتك الآن.';
+
+  @override
+  String get results_profile_title => 'أكمل ملفك الشخصي';
+
+  @override
+  String get results_profile_body => 'أكمل ملفك الشخصي لعرض عروض القروض.';
+
+  @override
+  String get results_profile_action => 'إكمال الملف الشخصي';
+
+  @override
   String get results_loan_type => 'نوع القرض';
 
   @override
@@ -1635,6 +1650,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get offer_action_soon => 'قريبًا';
+
+  @override
+  String get offer_proceed_success => 'تم إرسال طلبك إلى البنك.';
+
+  @override
+  String get offer_proceed_error => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
   String get settings_security_title => 'الإعدادات والأمان';

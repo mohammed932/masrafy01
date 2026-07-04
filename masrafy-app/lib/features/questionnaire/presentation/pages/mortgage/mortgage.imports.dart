@@ -11,6 +11,7 @@ import 'package:app/features/offers/presentation/models/match_results_args.dart'
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import 'cubit/mortgage_questionnaire/mortgage_questionnaire_cubit.dart';
+import 'mortgage_apply_mapper.dart';
 import 'widgets/mortgage_step_credit.dart';
 import 'widgets/mortgage_step_employment.dart';
 import 'widgets/mortgage_step_preferences.dart';

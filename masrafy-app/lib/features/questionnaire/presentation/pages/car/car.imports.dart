@@ -11,6 +11,7 @@ import 'package:app/features/offers/presentation/models/match_results_args.dart'
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import 'cubit/car_questionnaire/car_questionnaire_cubit.dart';
+import 'car_apply_mapper.dart';
 import 'widgets/car_step_employment.dart';
 import 'widgets/car_step_financial.dart';
 import 'widgets/car_step_preferences.dart';

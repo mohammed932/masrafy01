@@ -37,6 +37,8 @@ export interface ApplyMatchedResponse {
       bestRatePercent: string;
     };
     matchedOffers: Array<{
+      /** Persisted BankOffer id — the select-offer key the client sends back. */
+      bankOfferId: string;
       programCode: string;
       programVersion: number;
       bankName: string;

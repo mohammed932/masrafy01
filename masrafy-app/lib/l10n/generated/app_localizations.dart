@@ -3023,6 +3023,36 @@ abstract class AppLocalizations {
   /// **'مستشار القروض جاهز'**
   String get results_subtitle;
 
+  /// No description provided for @results_empty_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد عروض بعد'**
+  String get results_empty_title;
+
+  /// No description provided for @results_empty_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نتمكن من العثور على برامج مطابقة لإجاباتك الآن.'**
+  String get results_empty_body;
+
+  /// No description provided for @results_profile_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكمل ملفك الشخصي'**
+  String get results_profile_title;
+
+  /// No description provided for @results_profile_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكمل ملفك الشخصي لعرض عروض القروض.'**
+  String get results_profile_body;
+
+  /// No description provided for @results_profile_action.
+  ///
+  /// In ar, this message translates to:
+  /// **'إكمال الملف الشخصي'**
+  String get results_profile_action;
+
   /// No description provided for @results_loan_type.
   ///
   /// In ar, this message translates to:
@@ -3262,6 +3292,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'قريبًا'**
   String get offer_action_soon;
+
+  /// No description provided for @offer_proceed_success.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إرسال طلبك إلى البنك.'**
+  String get offer_proceed_success;
+
+  /// No description provided for @offer_proceed_error.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث خطأ ما. حاول مرة أخرى.'**
+  String get offer_proceed_error;
 
   /// No description provided for @settings_security_title.
   ///

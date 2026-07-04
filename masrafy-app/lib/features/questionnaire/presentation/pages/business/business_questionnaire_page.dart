@@ -50,10 +50,9 @@ class _BusinessViewState extends State<_BusinessView> {
         if (state.submitted) {
           ctx.router.push(
             MatchResultsRoute(
-              args: MatchResultsArgs.mock(
+              args: MatchResultsArgs.fromRequest(
+                request: mapBusinessToApplyRequest(state),
                 loanTypeKey: 'business',
-                amount: double.tryParse(state.financingAmount) ?? 0,
-                durationMonths: (state.repaymentPeriod * 12).round(),
               ),
             ),
           );
