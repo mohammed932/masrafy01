@@ -1227,6 +1227,30 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_personal_select_hint => 'اختر';
 
   @override
+  String get q_dyn_subtitle => 'سنطابقك مع البنوك المتخصصة في احتياجاتك';
+
+  @override
+  String get q_dyn_select_hint => 'اختر';
+
+  @override
+  String get q_dyn_next => 'التالي';
+
+  @override
+  String get q_dyn_finish => 'إنهاء';
+
+  @override
+  String get q_dyn_error_title => 'حدث خطأ ما';
+
+  @override
+  String get q_dyn_error_message => 'تعذّر تحميل الاستبيان. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get q_dyn_retry => 'إعادة المحاولة';
+
+  @override
+  String get q_dyn_empty => 'لا توجد أسئلة متاحة حالياً.';
+
+  @override
   String q_personal_years(Object years) {
     return '$years سنة';
   }

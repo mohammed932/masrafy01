@@ -18,6 +18,9 @@ class ApplyRequest {
     this.requestedCurrency = 'EGP',
     this.mortgageDetails,
     this.carDetails,
+    this.category,
+    this.questionnaireVersionId,
+    this.questionnaireAnswers,
   });
 
   /// 18–75. Null until the results cubit injects it from the customer profile.
@@ -38,6 +41,19 @@ class ApplyRequest {
   final MortgageDetailsPayload? mortgageDetails;
   final CarDetailsPayload? carDetails;
 
+  /// Loan category (`personal|car|mortgage|business`). Set by the dynamic
+  /// questionnaire flow so the engine applies per-bank weighted scoring; null
+  /// for the legacy structured-only wizards.
+  final String? category;
+
+  /// Published questionnaire version the [questionnaireAnswers] were collected
+  /// against (echoed from the snapshot).
+  final String? questionnaireVersionId;
+
+  /// Picked answers `{questionCode, optionCode}` — drives admin-weighted
+  /// approval scoring (Principle V). Null for the legacy flows.
+  final List<QuestionnaireAnswer>? questionnaireAnswers;
+
   /// Returns a copy with [age] set — called by the results cubit before submit.
   ApplyRequest withAge(int age) => ApplyRequest(
         loanPurpose: loanPurpose,
@@ -51,6 +67,9 @@ class ApplyRequest {
         requestedCurrency: requestedCurrency,
         mortgageDetails: mortgageDetails,
         carDetails: carDetails,
+        category: category,
+        questionnaireVersionId: questionnaireVersionId,
+        questionnaireAnswers: questionnaireAnswers,
       );
 
   Map<String, dynamic> toJson() => {
@@ -65,6 +84,30 @@ class ApplyRequest {
         'assets': assets.toJson(),
         if (mortgageDetails != null) 'mortgageDetails': mortgageDetails!.toJson(),
         if (carDetails != null) 'carDetails': carDetails!.toJson(),
+        if (category != null) 'category': category,
+        if (questionnaireVersionId != null)
+          'questionnaireVersionId': questionnaireVersionId,
+        if (questionnaireAnswers != null)
+          'questionnaireAnswers':
+              questionnaireAnswers!.map((a) => a.toJson()).toList(),
+      };
+}
+
+/// A single picked questionnaire answer sent to `/api/v1/apply`
+/// (`SubmittedAnswerDto` on the backend). Co-located with [ApplyRequest] on
+/// purpose; do not split per-class.
+class QuestionnaireAnswer {
+  const QuestionnaireAnswer({
+    required this.questionCode,
+    required this.optionCode,
+  });
+
+  final String questionCode;
+  final String optionCode;
+
+  Map<String, dynamic> toJson() => {
+        'questionCode': questionCode,
+        'optionCode': optionCode,
       };
 }
 

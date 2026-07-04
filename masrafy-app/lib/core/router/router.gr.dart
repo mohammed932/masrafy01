@@ -47,7 +47,7 @@ import 'package:app/features/questionnaire/presentation/pages/car/car.imports.da
     as _i3;
 import 'package:app/features/questionnaire/presentation/pages/mortgage/mortgage.imports.dart'
     as _i8;
-import 'package:app/features/questionnaire/presentation/pages/personal/personal.imports.dart'
+import 'package:app/features/questionnaire/presentation/pages/personal/personal_questionnaire_page.dart'
     as _i12;
 import 'package:app/features/saved_offers/presentation/pages/saved_offers/saved_offers.imports.dart'
     as _i15;

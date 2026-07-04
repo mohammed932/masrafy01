@@ -1224,6 +1224,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_personal_select_hint => 'Select an option';
 
   @override
+  String get q_dyn_subtitle => 'We\'ll match you with banks that specialise in your needs';
+
+  @override
+  String get q_dyn_select_hint => 'Select an option';
+
+  @override
+  String get q_dyn_next => 'Next';
+
+  @override
+  String get q_dyn_finish => 'Finish';
+
+  @override
+  String get q_dyn_error_title => 'Something went wrong';
+
+  @override
+  String get q_dyn_error_message => 'We couldn\'t load the questionnaire. Please try again.';
+
+  @override
+  String get q_dyn_retry => 'Try again';
+
+  @override
+  String get q_dyn_empty => 'No questions are available right now.';
+
+  @override
   String q_personal_years(Object years) {
     return '$years years';
   }

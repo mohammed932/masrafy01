@@ -26,10 +26,14 @@ import 'package:app/features/auth/presentation/pages/login/cubit/login/login_cub
 import 'package:app/features/auth/presentation/pages/otp/cubit/otp/otp_cubit.dart';
 import 'package:app/features/auth/presentation/pages/signup/cubit/signup/signup_cubit.dart';
 import 'package:app/features/home/presentation/pages/home/cubit/home/home_cubit.dart';
+import 'package:app/features/questionnaire/data/datasources/questionnaire_remote_datasource.dart';
+import 'package:app/features/questionnaire/data/repositories/questionnaire_repository_impl.dart';
+import 'package:app/features/questionnaire/domain/repositories/questionnaire_repository.dart';
+import 'package:app/features/questionnaire/domain/usecases/questionnaire_usecase.dart';
+import 'package:app/features/questionnaire/presentation/pages/dynamic/questionnaire_cubit.dart';
 import 'package:app/features/questionnaire/presentation/pages/business/cubit/business_questionnaire/business_questionnaire_cubit.dart';
 import 'package:app/features/questionnaire/presentation/pages/car/cubit/car_questionnaire/car_questionnaire_cubit.dart';
 import 'package:app/features/questionnaire/presentation/pages/mortgage/cubit/mortgage_questionnaire/mortgage_questionnaire_cubit.dart';
-import 'package:app/features/questionnaire/presentation/pages/personal/cubit/personal_questionnaire/personal_questionnaire_cubit.dart';
 import 'package:app/features/onboarding/presentation/pages/onboarding/cubit/onboarding/onboarding_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile/profile_cubit.dart';
 import 'package:app/features/saved_offers/data/datasources/saved_offers_remote_datasource.dart';
@@ -136,12 +140,23 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   // home
   getIt.registerFactory(() => HomeCubit());
 
-  // questionnaire — mortgage + car + business groups (UI-only; local static
-  // lookups, no datasource/repo yet — see plan). Screen-scoped (Principle XXXI).
+  // questionnaire — personal is backend-driven via the generic dynamic renderer
+  // (QuestionnaireCubit fetches the published snapshot); car / mortgage /
+  // business still use their bespoke static-lookup cubits until migrated.
+  // Screen-scoped cubits (Principle XXXI).
+  getIt.registerLazySingleton(
+    () => QuestionnaireRemoteDataSource(getIt<BaseNetwork>()),
+  );
+  getIt.registerLazySingleton<QuestionnaireRepository>(
+    () => QuestionnaireRepositoryImpl(getIt<QuestionnaireRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(
+    () => QuestionnaireUseCase(getIt<QuestionnaireRepository>()),
+  );
+  getIt.registerFactory(() => QuestionnaireCubit(getIt<QuestionnaireUseCase>()));
   getIt.registerFactory(() => MortgageQuestionnaireCubit());
   getIt.registerFactory(() => CarQuestionnaireCubit());
   getIt.registerFactory(() => BusinessQuestionnaireCubit());
-  getIt.registerFactory(() => PersonalQuestionnaireCubit());
 
   // profile — view + two edit screens (UI-only mock; no datasource/repo yet,
   // see plan). Screen-scoped (Principle XXXI).

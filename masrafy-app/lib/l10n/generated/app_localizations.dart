@@ -2471,6 +2471,54 @@ abstract class AppLocalizations {
   /// **'اختر'**
   String get q_personal_select_hint;
 
+  /// No description provided for @q_dyn_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنطابقك مع البنوك المتخصصة في احتياجاتك'**
+  String get q_dyn_subtitle;
+
+  /// No description provided for @q_dyn_select_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر'**
+  String get q_dyn_select_hint;
+
+  /// No description provided for @q_dyn_next.
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي'**
+  String get q_dyn_next;
+
+  /// No description provided for @q_dyn_finish.
+  ///
+  /// In ar, this message translates to:
+  /// **'إنهاء'**
+  String get q_dyn_finish;
+
+  /// No description provided for @q_dyn_error_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'حدث خطأ ما'**
+  String get q_dyn_error_title;
+
+  /// No description provided for @q_dyn_error_message.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تحميل الاستبيان. يرجى المحاولة مرة أخرى.'**
+  String get q_dyn_error_message;
+
+  /// No description provided for @q_dyn_retry.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة المحاولة'**
+  String get q_dyn_retry;
+
+  /// No description provided for @q_dyn_empty.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد أسئلة متاحة حالياً.'**
+  String get q_dyn_empty;
+
   /// No description provided for @q_personal_years.
   ///
   /// In ar, this message translates to:
