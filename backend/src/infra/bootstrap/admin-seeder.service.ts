@@ -10,13 +10,12 @@ import { PrismaService } from '@/infra/prisma/prisma.service';
  * already exists (so a forgotten dev password is recoverable by reboot).
  *
  * Credentials come from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` /
- * `SEED_ADMIN_NAME` (defaults: `admin@gmail.com` / `123456` / `Admin`).
+ * `SEED_ADMIN_NAME` (defaults: `admin@gmail.com` / `masrafy123456789` / `Admin`).
  *
- * SECURITY: gated to non-production. A weak default admin must never be
- * auto-provisioned in prod — production onboarding stays with
- * `npx prisma db seed` + a strong `SEED_ADMIN_PASSWORD` (Principle VI). This
- * seeder deliberately bypasses the NIST password policy (`PasswordService`) so
- * short dev passwords like `admin` are accepted.
+ * SECURITY: runs in all environments including production. Override
+ * `SEED_ADMIN_PASSWORD` per-environment with a strong secret (Principle VI).
+ * This seeder bypasses the NIST password policy (`PasswordService`), so the
+ * seed value is trusted as-is — never leave the default in a shared/prod env.
  */
 @Injectable()
 export class AdminSeederService implements OnApplicationBootstrap {
@@ -25,14 +24,9 @@ export class AdminSeederService implements OnApplicationBootstrap {
   constructor(private readonly prisma: PrismaService) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    if (process.env['NODE_ENV'] === 'production') {
-      this.logger.log('admin seed skipped (production)');
-      return;
-    }
-
     const display = (process.env['SEED_ADMIN_EMAIL'] ?? 'admin@gmail.com').trim();
     const email = display.normalize('NFKC').toLowerCase();
-    const password = process.env['SEED_ADMIN_PASSWORD'] ?? '123456';
+    const password = process.env['SEED_ADMIN_PASSWORD'] ?? 'masrafy123456789';
     const name = (process.env['SEED_ADMIN_NAME'] ?? 'Admin').trim();
     const cost = Number(process.env['BCRYPT_COST'] ?? 12);
 
