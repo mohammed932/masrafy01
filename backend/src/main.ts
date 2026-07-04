@@ -15,9 +15,11 @@ async function bootstrap(): Promise<void> {
 
   // CORS for the admin dashboard dev origin. credentials:true required
   // because the refresh cookie crosses origins. Strict allow-list — no wildcards.
+  // Strip any trailing slash — the browser Origin header never carries one,
+  // so 'https://admin.masrafy.app/' would never match and CORS would fail.
   const corsOrigins = (process.env['CORS_ORIGINS'] ?? 'http://localhost:5173')
     .split(',')
-    .map((o) => o.trim())
+    .map((o) => o.trim().replace(/\/+$/, ''))
     .filter(Boolean);
   app.enableCors({
     origin: corsOrigins,
