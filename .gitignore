@@ -48,3 +48,6 @@ Thumbs.db
 
 # Generated OpenAPI types — checked-in source of truth in plan but regenerated locally
 # admin/src/app/core/auth/auth.types.ts   # keep checked-in per Principle XXII
+
+# Server config (infra access — never commit)
+server-config.md

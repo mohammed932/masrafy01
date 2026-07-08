@@ -55,7 +55,7 @@ import { CanDirective } from '../../shared/can.directive';
 
         <a *can="['super_admin']" routerLink="/users" routerLinkActive="active" class="item">
           <span nz-icon nzType="team" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
-          <span class="item-label" i18n="@@sidebar.users">Users</span>
+          <span class="item-label" i18n="@@sidebar.users">Staff</span>
         </a>
 
         <a routerLink="/banks" routerLinkActive="active" class="item">

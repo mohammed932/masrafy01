@@ -36,7 +36,7 @@
       <trans-unit id="topBar.signOut" datatype="html"><source>Sign out</source><target>تسجيل الخروج</target></trans-unit>
 
       <trans-unit id="sidebar.dashboard" datatype="html"><source>Dashboard</source><target>لوحة التحكم</target></trans-unit>
-      <trans-unit id="sidebar.users" datatype="html"><source>Users</source><target>المستخدمون</target></trans-unit>
+      <trans-unit id="sidebar.users" datatype="html"><source>Staff</source><target>الموظفون</target></trans-unit>
       <trans-unit id="sidebar.banks" datatype="html"><source>Banks</source><target>البنوك</target></trans-unit>
       <trans-unit id="bank_detail.back" datatype="html"><source>Banks</source><target>البنوك</target></trans-unit>
       <trans-unit id="bank_detail.eyebrow" datatype="html"><source>Bank</source><target>بنك</target></trans-unit>
