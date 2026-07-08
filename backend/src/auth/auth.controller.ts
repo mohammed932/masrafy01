@@ -37,7 +37,7 @@ export class AuthController {
   @Post('login')
   @Public()
   @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @Throttle({ default: { limit: 30, ttl: 15 * 60 * 1000 } })
   @ApiOperation({ summary: 'Sign in (issue access token + refresh cookie)' })
   async login(
     @Body() body: LoginRequestDto,
