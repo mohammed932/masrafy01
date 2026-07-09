@@ -2,7 +2,6 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } fro
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { SocialProvider, OtpPurpose } from './dto/enums';
 import { CustomerAuthService, type CustomerRequestContext } from './customer-auth.service';
@@ -55,16 +54,15 @@ export class CustomerAuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
-  @ApiOperation({ summary: 'Log in with phone + password (feature 008: with lockout per FR-022)' })
+  @ApiOperation({ summary: 'Log in with email + password (feature 008: with lockout per FR-022)' })
   async login(
     @Body() body: CustomerLoginRequestDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.mobile.loginWithLockout({
-      phone: body.phone,
+      email: body.email,
       password: body.password,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));
   }
@@ -76,11 +74,10 @@ export class CustomerAuthController {
   async refresh(
     @Body() body: CustomerRefreshRequestDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.svc.refresh({
       refreshToken: body.refreshToken,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));
   }
@@ -93,13 +90,12 @@ export class CustomerAuthController {
   async logout(
     @Body() body: CustomerLogoutRequestDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<void> {
     const customerId = this.requireCustomer(req);
     await this.svc.logout({
       refreshToken: body.refreshToken,
       customerId,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
   }
 
@@ -129,12 +125,11 @@ export class CustomerAuthController {
   async signupPhoneStart(
     @Body() body: CustomerSignupPhoneStartDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.signupPhoneStart({
       phone: body.phone,
       locale: body.locale,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(result);
   }
@@ -148,12 +143,11 @@ export class CustomerAuthController {
   async signupPhoneVerify(
     @Body() body: CustomerSignupPhoneVerifyDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.mobile.signupPhoneVerify({
       verifiedMobileToken: body.verifiedMobileToken,
       locale: body.locale,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));
   }
@@ -170,7 +164,6 @@ export class CustomerAuthController {
   async completeProfile(
     @Body() body: CustomerCompleteProfileDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const customerId = this.requireCustomer(req);
     const result = await this.mobile.completeProfile({
@@ -180,7 +173,7 @@ export class CustomerAuthController {
       birthday: body.birthday,
       email: body.email,
       password: body.password,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));
   }
@@ -192,13 +185,12 @@ export class CustomerAuthController {
   async otpRequest(
     @Body() body: OtpRequestDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.requestOtp({
       phone: body.phone,
       purpose: body.purpose as OtpPurpose,
       locale: body.locale,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(result);
   }
@@ -210,13 +202,12 @@ export class CustomerAuthController {
   async otpVerify(
     @Body() body: OtpVerifyDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.verifyOtp({
       otpId: body.otpId,
       code: body.code,
       purpose: body.purpose as OtpPurpose,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(result);
   }
@@ -230,12 +221,11 @@ export class CustomerAuthController {
   async socialGoogle(
     @Body() body: SocialGoogleSignInDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.socialSignIn({
       provider: SocialProvider.GOOGLE,
       idToken: body.idToken,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(this.normalizeSocialResult(result));
   }
@@ -247,13 +237,12 @@ export class CustomerAuthController {
   async socialApple(
     @Body() body: SocialAppleSignInDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.mobile.socialSignIn({
       provider: SocialProvider.APPLE,
       idToken: body.idToken,
       userInfo: body.userInfo,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(this.normalizeSocialResult(result));
   }
@@ -265,11 +254,10 @@ export class CustomerAuthController {
   async socialLogin(
     @Body() body: SocialLoginDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.mobile.socialLogin({
       socialSessionId: body.socialSessionId,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));
   }
@@ -283,14 +271,13 @@ export class CustomerAuthController {
   async profileMobileRequestOtp(
     @Body() body: ProfileMobileRequestOtpDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const customerId = this.requireCustomer(req);
     const result = await this.mobile.profileMobileRequestOtp({
       customerId,
       phone: body.phone,
       locale: 'ar',
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(result);
   }
@@ -304,14 +291,13 @@ export class CustomerAuthController {
   async profileMobileVerifyOtp(
     @Body() body: ProfileMobileVerifyOtpDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<void> {
     const customerId = this.requireCustomer(req);
     await this.mobile.profileMobileVerifyOtp({
       customerId,
       otpId: body.otpId,
       code: body.code,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
   }
 
@@ -322,12 +308,11 @@ export class CustomerAuthController {
   async passwordReset(
     @Body() body: PasswordResetDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
     const result = await this.mobile.resetPassword({
       passwordResetToken: body.passwordResetToken,
       newPassword: body.newPassword,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));
   }
@@ -341,14 +326,13 @@ export class CustomerAuthController {
   async passwordChange(
     @Body() body: PasswordChangeDto,
     @Req() req: MobileRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<void> {
     const customerId = this.requireCustomer(req);
     await this.mobile.changePassword({
       customerId,
       currentPassword: body.currentPassword,
       newPassword: body.newPassword,
-      ctx: this.buildContext(req, correlationId),
+      ctx: this.buildContext(req),
     });
   }
 
@@ -378,11 +362,10 @@ export class CustomerAuthController {
     };
   }
 
-  private buildContext(req: MobileRequest, correlationId: string): CustomerRequestContext {
+  private buildContext(req: MobileRequest): CustomerRequestContext {
     return {
       sourceIp: this.readClientIp(req),
       userAgent: this.truncatedUa(req),
-      correlationId,
     };
   }
 

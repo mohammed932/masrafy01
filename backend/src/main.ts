@@ -28,11 +28,9 @@ async function bootstrap(): Promise<void> {
     allowedHeaders: [
       'Authorization',
       'Content-Type',
-      'X-Correlation-Id',
       'Idempotency-Key',
       'X-Confirm-Program-Code',
     ],
-    exposedHeaders: ['X-Correlation-Id'],
     maxAge: 600,
   });
   logger.log(

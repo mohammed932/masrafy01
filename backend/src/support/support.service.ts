@@ -12,7 +12,6 @@ import type { SupportContactResponseDto, SupportRequestResponseDto } from './dto
 
 export interface SupportRequestContext {
   sourceIp: string | null;
-  correlationId: string;
 }
 
 @Injectable()
@@ -52,7 +51,6 @@ export class SupportService {
       targetId: row.id,
       eventType: AuditEventType.SUPPORT_REQUEST_CREATED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: {
         supportRequestId: row.id,
         channel: row.channel,
@@ -100,7 +98,6 @@ export class SupportService {
       targetId: args.id,
       eventType: AuditEventType.SUPPORT_REQUEST_ASSIGNED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { supportRequestId: args.id, assignedStaffId: args.staffId },
     });
     return this.toDto(row);
@@ -122,7 +119,6 @@ export class SupportService {
       targetId: args.id,
       eventType: AuditEventType.SUPPORT_REQUEST_RESOLVED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { supportRequestId: args.id, applicationId: existing.applicationId },
     });
     return this.toDto(row);
@@ -149,7 +145,6 @@ export class SupportService {
       targetId: null,
       eventType: AuditEventType.SUPPORT_CONFIG_UPDATED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { fields: Object.keys(args.patch) },
     });
     return {

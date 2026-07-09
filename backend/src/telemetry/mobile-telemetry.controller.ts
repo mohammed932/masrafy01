@@ -6,7 +6,6 @@ import { AuditEventType } from '@/common/audit/audit-event-types';
 import { IsIn, IsOptional, IsString, Length } from 'class-validator';
 import type { Request } from 'express';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { TelemetryEventNotAllowedException } from '@/common/errors/domain.exceptions';
 import { ok } from '@/common/pagination/paginated.response.dto';
@@ -53,7 +52,6 @@ export class MobileTelemetryController {
   async event(
     @Body() body: TelemetryEventDto,
     @Req() req: MobileTelemetryRequest,
-    @CorrelationId() correlationId: string,
   ) {
     if (!(ALLOWED_EVENTS as readonly string[]).includes(body.eventCode)) {
       throw new TelemetryEventNotAllowedException({
@@ -68,7 +66,6 @@ export class MobileTelemetryController {
       targetId: body.applicationId ?? null,
       eventType: body.eventCode as AuditEventType,
       sourceIp: req.ip ?? null,
-      correlationId,
       payload: {
         customerId,
         applicationId: body.applicationId ?? null,

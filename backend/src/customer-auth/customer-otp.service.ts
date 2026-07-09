@@ -45,7 +45,6 @@ export class CustomerOtpService {
     purpose: OtpPurpose;
     locale: 'ar' | 'en';
     customerId?: string | null;
-    correlationId: string;
   }): Promise<{
     otpId: string;
     expiresInSeconds: number;
@@ -108,14 +107,12 @@ export class CustomerOtpService {
       code,
       locale: args.locale,
       purpose: args.purpose,
-      correlationId: args.correlationId,
     });
 
     this.logger.log({
       msg: 'otp_issued',
       otpId: row.id,
       purpose: args.purpose,
-      correlationId: args.correlationId,
     });
 
     return {

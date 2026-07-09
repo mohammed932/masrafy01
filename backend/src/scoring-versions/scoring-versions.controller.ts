@@ -14,7 +14,6 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ScoringEngineVersionService } from './scoring-versions.service';
 
 @ApiTags('Admin · Scoring')
@@ -48,12 +47,10 @@ export class ScoringVersionsController {
     @Param('version') version: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     const result = await this.service.activate(version, {
       id: user.sub,
       sourceIp: (req.ip ?? null) as string | null,
-      correlationId,
     });
     return { success: true, data: result };
   }

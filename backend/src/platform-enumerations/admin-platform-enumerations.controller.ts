@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Ip,
   Param,
   Patch,
@@ -11,7 +10,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { randomUUID } from 'node:crypto';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
@@ -53,15 +51,11 @@ export class AdminPlatformEnumerationsController {
   async create(
     @Body() body: CreateEnumerationDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('x-correlation-id') correlationIdHeader: string | undefined,
     @Ip() ip: string,
   ) {
-    const correlationId =
-      correlationIdHeader && correlationIdHeader.length > 0 ? correlationIdHeader : randomUUID();
     const created = await this.service.create(body, {
       staffId: user.sub,
       sourceIp: ip ?? null,
-      correlationId,
     });
     return { success: true, data: this.project(created) };
   }
@@ -72,15 +66,11 @@ export class AdminPlatformEnumerationsController {
     @Param('id') id: string,
     @Body() body: UpdateEnumerationDto,
     @CurrentUser() user: JwtPayload,
-    @Headers('x-correlation-id') correlationIdHeader: string | undefined,
     @Ip() ip: string,
   ) {
-    const correlationId =
-      correlationIdHeader && correlationIdHeader.length > 0 ? correlationIdHeader : randomUUID();
     const updated = await this.service.update(id, body, {
       staffId: user.sub,
       sourceIp: ip ?? null,
-      correlationId,
     });
     return { success: true, data: this.project(updated) };
   }

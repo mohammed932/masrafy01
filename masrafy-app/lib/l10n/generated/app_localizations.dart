@@ -920,7 +920,7 @@ abstract class AppLocalizations {
   /// No description provided for @login_identifier_label.
   ///
   /// In ar, this message translates to:
-  /// **'البريد أو الهاتف'**
+  /// **'البريد الإلكتروني'**
   String get login_identifier_label;
 
   /// No description provided for @login_identifier_hint.

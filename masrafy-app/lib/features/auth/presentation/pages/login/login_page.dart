@@ -1,7 +1,7 @@
 part of 'login.imports.dart';
 
 /// Login screen (Figma `77:1032`). Gradient hero header over a white sheet
-/// holding the email/phone + password form, the gradient Sign-in CTA, social
+/// holding the email + password form, the gradient Sign-in CTA, social
 /// providers, and create-account link. Wraps the form in [BlocProvider] so
 /// [LoginCubit] is available before the fields mount (Principle XXXVI:
 /// one route-level widget; private leaf helpers live below).

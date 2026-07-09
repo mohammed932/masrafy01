@@ -14,7 +14,6 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
@@ -54,9 +53,8 @@ export class UsersController {
     @Body() body: CreateStaffRequestDto,
     @CurrentUser() actor: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ) {
-    const created = await this.users.create(body, this.ctx(actor, req, correlationId));
+    const created = await this.users.create(body, this.ctx(actor, req));
     return ok(toStaffSummaryDto(created));
   }
 
@@ -74,9 +72,8 @@ export class UsersController {
     @Body() body: UpdateStaffRequestDto,
     @CurrentUser() actor: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ) {
-    const updated = await this.users.update(id, body, this.ctx(actor, req, correlationId));
+    const updated = await this.users.update(id, body, this.ctx(actor, req));
     return ok(toStaffSummaryDto(updated));
   }
 
@@ -88,18 +85,16 @@ export class UsersController {
     @Body() body: ResetPasswordRequestDto,
     @CurrentUser() actor: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<void> {
-    await this.users.resetPassword(id, body.newPassword, this.ctx(actor, req, correlationId));
+    await this.users.resetPassword(id, body.newPassword, this.ctx(actor, req));
   }
 
   // ---- Internals ----------------------------------------------------------
 
-  private ctx(actor: JwtPayload, req: Request, correlationId: string): ActionContext {
+  private ctx(actor: JwtPayload, req: Request): ActionContext {
     return {
       actorId: actor.sub,
       sourceIp: this.readClientIp(req),
-      correlationId,
     };
   }
 

@@ -16,7 +16,6 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { CustomerNotFoundException } from '@/common/errors/domain.exceptions';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { CustomerAccountRepository } from './customer-account.repository';
@@ -118,13 +117,11 @@ export class AdminCustomerAccountsController {
     @Param('id') id: string,
     @Body() body: UpdateCustomerStatusDto,
     @CurrentUser() actor: JwtPayload,
-    @CorrelationId() correlationId: string,
     @Req() req: Request,
   ) {
     const result = await this.admin.setActive(id, body.isActive, {
       actorId: actor.sub,
       sourceIp: this.readClientIp(req),
-      correlationId,
     });
     return ok(result);
   }

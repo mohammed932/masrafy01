@@ -18,7 +18,6 @@ import { ListBanksQuery } from './dto/list-banks.query';
 export interface ActorCtx {
   id: string;
   sourceIp: string | null;
-  correlationId: string;
 }
 
 const LOGO_KEY_PREFIX = 'bank-logos';
@@ -81,7 +80,7 @@ export class BanksService {
       actorId: actor.id,
       targetId: null,
       sourceIp: actor.sourceIp,
-      correlationId: actor.correlationId,
+
       payload: { id: created.id, nameEnglish: created.nameEnglish },
     });
 
@@ -117,7 +116,7 @@ export class BanksService {
       actorId: actor.id,
       targetId: null,
       sourceIp: actor.sourceIp,
-      correlationId: actor.correlationId,
+
       payload: { id, before: { version: existing.version }, after: { version: updated.version } },
     });
 
@@ -145,7 +144,7 @@ export class BanksService {
       actorId: actor.id,
       targetId: null,
       sourceIp: actor.sourceIp,
-      correlationId: actor.correlationId,
+
       payload: { id, isActive: dto.isActive },
     });
 
@@ -168,7 +167,7 @@ export class BanksService {
       actorId: actor.id,
       targetId: null,
       sourceIp: actor.sourceIp,
-      correlationId: actor.correlationId,
+
       payload: { id, nameEnglish: existing.nameEnglish },
     });
   }
@@ -208,7 +207,7 @@ export class BanksService {
       actorId: actor.id,
       targetId: null,
       sourceIp: actor.sourceIp,
-      correlationId: actor.correlationId,
+
       payload: { id, key },
     });
 

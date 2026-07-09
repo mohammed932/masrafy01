@@ -26,7 +26,6 @@ import type { JwtPayload } from '@/common/decorators/current-user.decorator';
 export interface RequestContext {
   sourceIp: string;
   userAgent: string | null;
-  correlationId: string;
 }
 
 export interface LoginOk {
@@ -73,14 +72,12 @@ export class AuthService {
         outcome: AttemptOutcome.LOCKED_OUT,
         sourceIp: ctx.sourceIp,
         userAgent: ctx.userAgent,
-        correlationId: ctx.correlationId,
       });
       await this.audit.write({
         actorId: null,
         targetId: null,
         eventType: AuditEventType.AUTH_LOGIN_FAILURE,
         sourceIp: ctx.sourceIp,
-        correlationId: ctx.correlationId,
         payload: { outcome: 'LOCKED_OUT' },
       });
       throw new RateLimitedException();
@@ -118,14 +115,12 @@ export class AuthService {
       outcome: AttemptOutcome.SUCCESS,
       sourceIp: ctx.sourceIp,
       userAgent: ctx.userAgent,
-      correlationId: ctx.correlationId,
     });
     await this.audit.write({
       actorId: row.id,
       targetId: null,
       eventType: AuditEventType.AUTH_LOGIN_SUCCESS,
       sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
     });
 
     const refresh = await this.refreshTokens.issueForUser({
@@ -161,14 +156,12 @@ export class AuthService {
       outcome,
       sourceIp: ctx.sourceIp,
       userAgent: ctx.userAgent,
-      correlationId: ctx.correlationId,
     });
     await this.audit.write({
       actorId: userId,
       targetId: null,
       eventType: AuditEventType.AUTH_LOGIN_FAILURE,
       sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
       payload: { outcome },
     });
   }
@@ -198,7 +191,6 @@ export class AuthService {
       targetId: null,
       eventType: AuditEventType.AUTH_TOKEN_REFRESHED,
       sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
     });
 
     return {
@@ -225,7 +217,6 @@ export class AuthService {
       targetId: null,
       eventType: AuditEventType.AUTH_LOGOUT,
       sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
       payload: { tokenHashPrefix: tokenHash.slice(0, 8) },
     });
   }
@@ -289,7 +280,6 @@ export class AuthService {
       targetId: null,
       eventType: AuditEventType.AUTH_PASSWORD_CHANGED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { forcedChange: args.jwt.mcp },
     });
     if (args.jwt.mcp) {
@@ -298,7 +288,6 @@ export class AuthService {
         targetId: null,
         eventType: AuditEventType.AUTH_PASSWORD_FORCED_CHANGE_COMPLETED,
         sourceIp: args.ctx.sourceIp,
-        correlationId: args.ctx.correlationId,
       });
     }
 

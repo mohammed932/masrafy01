@@ -13,7 +13,6 @@ import type { Request } from 'express';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { DocumentsService } from './documents.service';
 import {
@@ -68,7 +67,6 @@ export class CustomerProfileDocumentsController {
   async confirmDocUpload(
     @Param('documentId') documentId: string,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: unknown }> {
     const customerId = this.requireCustomerId(req);
     const result = await this.service.confirmCustomerProfileDocUpload({
@@ -80,7 +78,6 @@ export class CustomerProfileDocumentsController {
       targetId: null,
       eventType: AuditEventType.DOCUMENT_UPLOADED,
       sourceIp: req.ip ?? null,
-      correlationId,
       payload: { documentId: result.documentId, uploadedByCustomerId: customerId, scope: 'profile' },
     });
     return ok(result);

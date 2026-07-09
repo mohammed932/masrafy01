@@ -15,7 +15,6 @@ import type {
 
 export interface OnboardingRequestContext {
   sourceIp: string | null;
-  correlationId: string;
 }
 
 @Injectable()
@@ -55,7 +54,6 @@ export class OnboardingService {
         targetId: row.id,
         eventType: AuditEventType.ONBOARDING_SCREEN_CREATED,
         sourceIp: args.ctx.sourceIp,
-        correlationId: args.ctx.correlationId,
         payload: { onboardingScreenId: row.id, order: row.order },
       });
       return this.toDto(row);
@@ -89,7 +87,6 @@ export class OnboardingService {
       targetId: row.id,
       eventType: AuditEventType.ONBOARDING_SCREEN_UPDATED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { onboardingScreenId: row.id, fields: Object.keys(args.body) },
     });
     return this.toDto(row);
@@ -108,7 +105,6 @@ export class OnboardingService {
       targetId: args.id,
       eventType: AuditEventType.ONBOARDING_SCREEN_DELETED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { onboardingScreenId: args.id, order: existing.order },
     });
   }
@@ -125,7 +121,6 @@ export class OnboardingService {
         targetId: null,
         eventType: AuditEventType.ONBOARDING_SCREEN_REORDERED,
         sourceIp: args.ctx.sourceIp,
-        correlationId: args.ctx.correlationId,
         payload: { items: args.body.items },
       });
       return rows.map((r) => this.toDto(r));

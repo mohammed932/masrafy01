@@ -22,7 +22,6 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ApplicationRepository } from './application.repository';
 import { AdminApplicationsService } from './admin-applications.service';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
@@ -88,12 +87,10 @@ export class AdminApplicationsController {
     @Body() body: UpdateLeadStatusDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<unknown> {
     await this.service.setLeadStatus(id, body.leadStatus, {
       id: user.sub,
       sourceIp: this.readClientIp(req),
-      correlationId,
     });
     return { success: true };
   }

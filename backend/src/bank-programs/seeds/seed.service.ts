@@ -29,14 +29,13 @@ export class SeedService {
   async seedAbk(actor: {
     id: string;
     sourceIp: string | null;
-    correlationId: string;
   }): Promise<SeedRunResult> {
     return this.runCatalog(abkEgypt2026, actor);
   }
 
   async seedCompetitor(
     name: CompetitorCatalogName,
-    actor: { id: string; sourceIp: string | null; correlationId: string },
+    actor: { id: string; sourceIp: string | null },
   ): Promise<SeedRunResult> {
     const catalog = name === 'bank-nxt-2026' ? bankNxt2026 : salesfloorEgp2026;
     return this.runCatalog(catalog, actor);
@@ -48,7 +47,7 @@ export class SeedService {
    */
   private async runCatalog(
     catalog: SeedCatalog,
-    actor: { id: string; sourceIp: string | null; correlationId: string },
+    actor: { id: string; sourceIp: string | null },
   ): Promise<SeedRunResult> {
     if (!(await this.enums.isAvailable())) {
       throw new EnumerationRegistryUnavailableException();
@@ -102,7 +101,7 @@ export class SeedService {
             bankProgramId: created.id,
             eventType: AuditEventType.BANK_PROGRAM_CREATED,
             sourceIp: actor.sourceIp,
-            correlationId: actor.correlationId,
+
             payload: {
               programCode: created.programCode,
               friendlyName: created.friendlyName,

@@ -12,7 +12,6 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { SupportService } from './support.service';
@@ -50,7 +49,6 @@ export class MobileSupportController {
   async create(
     @Body() body: CreateSupportRequestDto,
     @Req() req: MobileSupportRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: SupportRequestResponseDto }> {
     const user = (req as Request & { user?: { sub?: string } }).user;
     const customerId = user?.sub;
@@ -62,7 +60,7 @@ export class MobileSupportController {
       applicationId: body.applicationId,
       note: body.note,
       customerId,
-      ctx: { sourceIp: req.ip ?? null, correlationId },
+      ctx: { sourceIp: req.ip ?? null },
     });
     return ok(data);
   }

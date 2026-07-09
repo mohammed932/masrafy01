@@ -155,7 +155,7 @@
 
   "login_title": "Sign in to your Account",
   "login_subtitle": "Sign in to explore your best loan offers",
-  "login_identifier_label": "Email or Phone",
+  "login_identifier_label": "Email",
   "login_identifier_hint": "ahmed@masrafy.io",
   "login_password_label": "Password",
   "login_password_hint": "Enter your password",

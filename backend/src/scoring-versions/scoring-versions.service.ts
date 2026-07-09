@@ -67,7 +67,7 @@ export class ScoringEngineVersionService implements OnModuleInit {
 
   async activate(
     targetVersion: string,
-    actor: { id: string; sourceIp: string | null; correlationId: string },
+    actor: { id: string; sourceIp: string | null },
   ): Promise<ActivationResult> {
     if (!SEMVER_PATTERN.test(targetVersion)) {
       throw new ScoringVersionNotFoundException(targetVersion);
@@ -86,7 +86,6 @@ export class ScoringEngineVersionService implements OnModuleInit {
               targetId: null,
               eventType: AuditEventType.SCORING_ENGINE_VERSION_PROMOTED,
               sourceIp: actor.sourceIp,
-              correlationId: actor.correlationId,
               payload: {
                 previousVersion: prev?.version ?? null,
                 newVersion: nxt.version,

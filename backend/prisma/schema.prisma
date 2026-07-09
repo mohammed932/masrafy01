@@ -232,7 +232,6 @@ model SignInAttempt {
   outcome        AttemptOutcome
   sourceIp       String         @db.Inet
   userAgent      String?        @db.VarChar(500)
-  correlationId  String         @db.VarChar(36)
 
   user StaffAccount? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -254,7 +253,6 @@ model AuditEvent {
   bankProgramId String?        @db.VarChar(30)
   eventType     AuditEventType
   sourceIp      String?        @db.Inet
-  correlationId String         @db.VarChar(36)
   payload       Json           @default("{}")
 
   actor       StaffAccount? @relation("AuditEventActor", fields: [actorId], references: [id], onDelete: SetNull)

@@ -10,7 +10,6 @@ import { CustomerRefreshTokenRepository } from './customer-refresh-token.reposit
 export interface AdminActionContext {
   actorId: string;
   sourceIp: string | null;
-  correlationId: string;
 }
 
 export interface CustomerStatusResult {
@@ -63,7 +62,6 @@ export class AdminCustomerAccountsService {
             ? AuditEventType.CUSTOMER_REACTIVATED
             : AuditEventType.CUSTOMER_DEACTIVATED,
           sourceIp: ctx.sourceIp,
-          correlationId: ctx.correlationId,
           payload: { customerId: id, isActive },
         },
         tx,

@@ -9,7 +9,7 @@
  */
 export interface SmsGateway {
   /**
-   * Dispatches an OTP code. `correlationId` is logged with the request.
+   * Dispatches an OTP code.
    * Returns the provider's message identifier (or `null` for the mock impl).
    */
   sendOtp(input: SmsGatewaySendInput): Promise<SmsGatewaySendResult>;
@@ -20,7 +20,6 @@ export interface SmsGatewaySendInput {
   code: string;
   locale: 'ar' | 'en';
   purpose: string;
-  correlationId: string;
 }
 
 export interface SmsGatewaySendResult {

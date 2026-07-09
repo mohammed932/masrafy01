@@ -65,7 +65,7 @@ export class BankProgramsService {
 
   async create(
     dto: CreateBankProgramDto,
-    actor: { id: string; sourceIp: string | null; correlationId: string },
+    actor: { id: string; sourceIp: string | null },
   ): Promise<BankProgramResponseDto> {
     // Fail-closed registry availability check.
     if (!(await this.enums.isAvailable())) {
@@ -122,7 +122,7 @@ export class BankProgramsService {
           bankProgramId: created.id,
           eventType: AuditEventType.BANK_PROGRAM_CREATED,
           sourceIp: actor.sourceIp,
-          correlationId: actor.correlationId,
+
           payload: {
             programCode: created.programCode,
             friendlyName: created.friendlyName,
@@ -355,7 +355,7 @@ export class BankProgramsService {
   async update(
     programCode: string,
     dto: UpdateBankProgramDto,
-    actor: { id: string; sourceIp: string | null; correlationId: string },
+    actor: { id: string; sourceIp: string | null },
   ): Promise<BankProgramResponseDto> {
     if (!(await this.enums.isAvailable())) {
       throw new EnumerationRegistryUnavailableException();
@@ -412,7 +412,7 @@ export class BankProgramsService {
           bankProgramId: next.id,
           eventType: AuditEventType.BANK_PROGRAM_UPDATED,
           sourceIp: actor.sourceIp,
-          correlationId: actor.correlationId,
+
           payload: {
             programCode: next.programCode,
             diff,
@@ -446,7 +446,7 @@ export class BankProgramsService {
             bankProgramId: next.id,
             eventType: AuditEventType.BANK_PROGRAM_RATE_UPDATED,
             sourceIp: actor.sourceIp,
-            correlationId: actor.correlationId,
+  
             payload: {
               programCode: next.programCode,
               beforeEffectiveRate: beforeRate ?? null,
@@ -471,7 +471,7 @@ export class BankProgramsService {
     programCode: string,
     active: boolean,
     version: number,
-    actor: { id: string; sourceIp: string | null; correlationId: string },
+    actor: { id: string; sourceIp: string | null },
   ): Promise<BankProgramResponseDto> {
     const existing = await this.repo.findByProgramCode(programCode);
     if (!existing) {
@@ -494,7 +494,7 @@ export class BankProgramsService {
           bankProgramId: next.id,
           eventType: AuditEventType.BANK_PROGRAM_TOGGLED,
           sourceIp: actor.sourceIp,
-          correlationId: actor.correlationId,
+
           payload: {
             programCode: next.programCode,
             before: before ? 'active' : 'inactive',
@@ -513,7 +513,7 @@ export class BankProgramsService {
 
   async deleteByCode(
     programCode: string,
-    actor: { id: string; sourceIp: string | null; correlationId: string },
+    actor: { id: string; sourceIp: string | null },
   ): Promise<void> {
     const program = await this.repo.findByProgramCode(programCode);
     if (!program) {
@@ -531,7 +531,7 @@ export class BankProgramsService {
           bankProgramId: null,
           eventType: AuditEventType.BANK_PROGRAM_DELETED,
           sourceIp: actor.sourceIp,
-          correlationId: actor.correlationId,
+
           payload: {
             programCode: program.programCode,
             friendlyName: program.friendlyName,

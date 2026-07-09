@@ -16,7 +16,6 @@ export interface CreateAuditInput {
   bankProgramId?: string | null;
   eventType: AuditEventType;
   sourceIp: string | null;
-  correlationId: string;
   payload: AuditPayload;
 }
 
@@ -36,7 +35,6 @@ export class AuditEventRepository {
         // repository (Constitution Principle X).
         eventType: toPrismaAuditEventType(input.eventType),
         sourceIp: input.sourceIp ?? undefined,
-        correlationId: input.correlationId,
         payload: input.payload as Prisma.JsonObject,
       },
     });

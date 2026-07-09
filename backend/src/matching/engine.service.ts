@@ -29,7 +29,6 @@ export interface EngineInput {
   profile: ApplicantProfile;
   programs: BankProgramSnapshot[];
   scoringConfig: ScoringConfig;
-  correlationId: string;
   /**
    * MVP simplification: when true, eligibility gating is dropped — every active
    * program yields an offer and NO program is rejected on the eligibility check

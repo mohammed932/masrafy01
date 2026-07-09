@@ -15,7 +15,6 @@ import type { UpdateStaffRequestDto } from './dto/update-staff.request.dto';
 export interface ActionContext {
   actorId: string;
   sourceIp: string | null;
-  correlationId: string;
 }
 
 export interface ListArgs {
@@ -48,7 +47,6 @@ export class UsersService {
       targetId: created.id,
       eventType: AuditEventType.ADMIN_USER_CREATED,
       sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
       payload: { targetEmail: created.email, targetRole: created.role },
     });
     return created;
@@ -107,8 +105,7 @@ export class UsersService {
         targetId,
         eventType: AuditEventType.ADMIN_USER_UPDATED,
         sourceIp: ctx.sourceIp,
-        correlationId: ctx.correlationId,
-        payload: { changedFields },
+          payload: { changedFields },
       });
     }
 
@@ -118,8 +115,7 @@ export class UsersService {
         targetId,
         eventType: AuditEventType.ADMIN_USER_ROLE_CHANGED,
         sourceIp: ctx.sourceIp,
-        correlationId: ctx.correlationId,
-        payload: { fromRole: before.role, toRole: patch.role },
+          payload: { fromRole: before.role, toRole: patch.role },
       });
     }
     if (patch.isActive === false && before.isActive) {
@@ -128,8 +124,7 @@ export class UsersService {
         targetId,
         eventType: AuditEventType.ADMIN_USER_DEACTIVATED,
         sourceIp: ctx.sourceIp,
-        correlationId: ctx.correlationId,
-      });
+        });
     }
 
     return updated;
@@ -154,7 +149,6 @@ export class UsersService {
       targetId,
       eventType: AuditEventType.ADMIN_USER_PASSWORD_RESET,
       sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
     });
   }
 }

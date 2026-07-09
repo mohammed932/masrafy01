@@ -146,7 +146,6 @@ export class ApplicationsService {
             targetId: app.id,
             eventType: AuditEventType.APPLICATION_USER_PROCEEDED,
             sourceIp: input.sourceIp,
-            correlationId,
             payload: {
               applicationId: app.id,
               bankOfferId: offer.id,
@@ -201,7 +200,6 @@ export class ApplicationsService {
       profile,
       programs: snapshots,
       scoringConfig,
-      correlationId,
       skipEligibility: true,
     });
 
@@ -273,7 +271,6 @@ export class ApplicationsService {
             targetId: null,
             eventType: AuditEventType.APPLICATION_CREATED,
             sourceIp: ctx.sourceIp ?? null,
-            correlationId,
             payload: {
               applicationId: applicationIdInTx,
               customerId: ctx.customerId,
@@ -291,7 +288,6 @@ export class ApplicationsService {
             targetId: null,
             eventType: AuditEventType.MATCHING_ENGINE_RUN,
             sourceIp: ctx.sourceIp ?? null,
-            correlationId,
             payload: {
               applicationId: applicationIdInTx,
               programsCheckedCount: result.programsChecked,
@@ -313,7 +309,6 @@ export class ApplicationsService {
                 ? AuditEventType.APPLICATION_MATCHED
                 : AuditEventType.APPLICATION_NO_MATCH,
             sourceIp: ctx.sourceIp ?? null,
-            correlationId,
             payload: {
               applicationId: applicationIdInTx,
               status: result.status,

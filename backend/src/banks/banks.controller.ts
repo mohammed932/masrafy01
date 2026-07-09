@@ -16,7 +16,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '../common/decorators/current-user.decorator';
-import { CorrelationId } from '../common/decorators/correlation-id.decorator';
 import { ok, okPaginated } from '../common/pagination/paginated.response.dto';
 import { BanksService, type ActorCtx } from './banks.service';
 import { CreateBankDto } from './dto/create-bank.dto';
@@ -37,11 +36,10 @@ class LogoUploadConfirmDto {
 export class BanksController {
   constructor(private readonly service: BanksService) {}
 
-  private actor(user: JwtPayload, req: Request, correlationId: string): ActorCtx {
+  private actor(user: JwtPayload, req: Request): ActorCtx {
     return {
       id: user.sub,
       sourceIp: req.ip ?? null,
-      correlationId,
     };
   }
 
@@ -73,10 +71,9 @@ export class BanksController {
   async create(
     @Body() dto: CreateBankDto,
     @CurrentUser() user: JwtPayload,
-    @CorrelationId() correlationId: string,
     @Req() req: Request,
   ) {
-    const bank = await this.service.create(dto, this.actor(user, req, correlationId));
+    const bank = await this.service.create(dto, this.actor(user, req));
     return ok(bank);
   }
 
@@ -87,10 +84,9 @@ export class BanksController {
     @Param('id') id: string,
     @Body() dto: UpdateBankDto,
     @CurrentUser() user: JwtPayload,
-    @CorrelationId() correlationId: string,
     @Req() req: Request,
   ) {
-    const bank = await this.service.update(id, dto, this.actor(user, req, correlationId));
+    const bank = await this.service.update(id, dto, this.actor(user, req));
     return ok(bank);
   }
 
@@ -101,10 +97,9 @@ export class BanksController {
     @Param('id') id: string,
     @Body() dto: ToggleBankDto,
     @CurrentUser() user: JwtPayload,
-    @CorrelationId() correlationId: string,
     @Req() req: Request,
   ) {
-    const bank = await this.service.toggle(id, dto, this.actor(user, req, correlationId));
+    const bank = await this.service.toggle(id, dto, this.actor(user, req));
     return ok(bank);
   }
 
@@ -114,10 +109,9 @@ export class BanksController {
   async remove(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
-    @CorrelationId() correlationId: string,
     @Req() req: Request,
   ) {
-    await this.service.remove(id, this.actor(user, req, correlationId));
+    await this.service.remove(id, this.actor(user, req));
     return ok({ id });
   }
 
@@ -136,10 +130,9 @@ export class BanksController {
     @Param('id') id: string,
     @Body() dto: LogoUploadConfirmDto,
     @CurrentUser() user: JwtPayload,
-    @CorrelationId() correlationId: string,
     @Req() req: Request,
   ) {
-    const bank = await this.service.confirmLogoUpload(id, dto.key, this.actor(user, req, correlationId));
+    const bank = await this.service.confirmLogoUpload(id, dto.key, this.actor(user, req));
     return ok(bank);
   }
 }

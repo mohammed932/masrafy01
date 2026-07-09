@@ -9,7 +9,6 @@ export interface RecordSignInAttemptInput {
   outcome: AttemptOutcome;
   sourceIp: string;
   userAgent: string | null;
-  correlationId: string;
 }
 
 @Injectable()
@@ -28,7 +27,6 @@ export class SignInAttemptRepository {
         outcome: input.outcome as unknown as PrismaAttemptOutcome,
         sourceIp: input.sourceIp,
         userAgent: input.userAgent ?? null,
-        correlationId: input.correlationId,
       },
     });
   }

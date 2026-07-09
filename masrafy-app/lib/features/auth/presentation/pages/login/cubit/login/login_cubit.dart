@@ -11,7 +11,7 @@ import 'package:app/features/auth/domain/usecases/auth_usecase.dart';
 part 'login_cubit.freezed.dart';
 part 'login_state.dart';
 
-/// Phone/email + password login (Figma `77:1032`). Routes through
+/// Email + password login (Figma `77:1032`). Routes through
 /// [AuthUseCase] so the customer-JWT tokens are persisted to
 /// `flutter_secure_storage` on success (Principle XXVIII). The backend
 /// applies the FR-022 lockout server-side, so no client lockout logic.
@@ -38,7 +38,7 @@ class LoginCubit extends Cubit<LoginState> {
     if (!state.canSubmit) return;
     emit(state.copyWith(status: RequestState.loading, error: null));
     final res = await _auth.login(
-      LoginRequest(phone: state.identifier.trim(), password: state.password),
+      LoginRequest(email: state.identifier.trim(), password: state.password),
     );
     res.fold(
       (err) => emit(state.copyWith(status: RequestState.error, error: err)),

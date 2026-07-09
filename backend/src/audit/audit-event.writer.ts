@@ -34,7 +34,6 @@ export class AuditEventWriter {
       bankProgramId?: string | null;
       eventType: AuditEventType;
       sourceIp: string | null;
-      correlationId: string;
       payload?: Record<string, unknown>;
     },
     tx?: Prisma.TransactionClient,
@@ -47,7 +46,6 @@ export class AuditEventWriter {
         bankProgramId: args.bankProgramId ?? null,
         eventType: args.eventType,
         sourceIp: args.sourceIp,
-        correlationId: args.correlationId,
         payload: safePayload as Prisma.JsonObject,
       },
       tx,

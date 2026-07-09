@@ -14,7 +14,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { AuthRefreshInvalidException } from '@/common/errors/domain.exceptions';
 import { AuthService, type RequestContext } from './auth.service';
@@ -43,9 +42,8 @@ export class AuthController {
     @Body() body: LoginRequestDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @CorrelationId() correlationId: string,
   ) {
-    const ctx = this.buildContext(req, correlationId);
+    const ctx = this.buildContext(req);
     const result = await this.auth.login(body.email, body.password, ctx);
     this.refresh.setCookie(res, result.refresh.rawToken);
     return ok({
@@ -63,14 +61,13 @@ export class AuthController {
   async refreshToken(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @CorrelationId() correlationId: string,
   ) {
     const raw = this.readRefreshCookie(req);
     if (!raw) {
       this.refresh.clearCookie(res);
       throw new AuthRefreshInvalidException();
     }
-    const ctx = this.buildContext(req, correlationId);
+    const ctx = this.buildContext(req);
     try {
       const result = await this.auth.refresh(raw, ctx);
       this.refresh.setCookie(res, result.refresh.rawToken);
@@ -91,10 +88,9 @@ export class AuthController {
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @CorrelationId() correlationId: string,
   ): Promise<void> {
     const raw = this.readRefreshCookie(req);
-    const ctx = this.buildContext(req, correlationId);
+    const ctx = this.buildContext(req);
     await this.auth.logout(raw, ctx);
     this.refresh.clearCookie(res);
   }
@@ -117,9 +113,8 @@ export class AuthController {
     @Body() body: PasswordChangeRequestDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
-    @CorrelationId() correlationId: string,
   ) {
-    const ctx = this.buildContext(req, correlationId);
+    const ctx = this.buildContext(req);
     const result = await this.auth.changePassword({
       jwt,
       currentPassword: body.currentPassword,
@@ -136,11 +131,10 @@ export class AuthController {
 
   // ---- Internals ---------------------------------------------------------
 
-  private buildContext(req: Request, correlationId: string): RequestContext {
+  private buildContext(req: Request): RequestContext {
     return {
       sourceIp: this.readClientIp(req),
       userAgent: this.truncatedUa(req),
-      correlationId,
     };
   }
 

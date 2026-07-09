@@ -433,7 +433,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get login_subtitle => 'Sign in to explore your best loan offers';
 
   @override
-  String get login_identifier_label => 'Email or Phone';
+  String get login_identifier_label => 'Email';
 
   @override
   String get login_identifier_hint => 'ahmed@masrafy.io';

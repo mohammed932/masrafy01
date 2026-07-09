@@ -15,7 +15,6 @@ import type { ErrorCode } from '../auth/auth.types';
  */
 export interface ErrorReportContext {
   code?: ErrorCode;
-  correlationId?: string;
   route?: string;
   /** Free-form structured context. MUST NOT contain PII or credentials. */
   extras?: Record<string, string | number | boolean>;

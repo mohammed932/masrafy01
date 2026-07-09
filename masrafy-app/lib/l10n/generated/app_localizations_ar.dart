@@ -436,7 +436,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get login_subtitle => 'سجّل الدخول لاكتشاف أفضل عروض القروض';
 
   @override
-  String get login_identifier_label => 'البريد أو الهاتف';
+  String get login_identifier_label => 'البريد الإلكتروني';
 
   @override
   String get login_identifier_hint => 'ahmed@masrafy.io';

@@ -99,14 +99,12 @@ export class CustomerAuthMobileService {
       phone,
       purpose: OtpPurpose.SIGNUP,
       locale: args.locale,
-      correlationId: args.ctx.correlationId,
     });
     await this.audit.write({
       actorId: null,
       targetId: null,
       eventType: AuditEventType.CUSTOMER_OTP_REQUESTED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { purpose: 'SIGNUP', otpId: challenge.otpId },
     });
     return challenge;
@@ -144,7 +142,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_SIGNUP_PHONE_COMPLETED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: created.id },
     });
 
@@ -230,7 +227,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_PROFILE_COMPLETED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: args.customerId, registrationPath: state.registrationPath },
     });
 
@@ -255,14 +251,12 @@ export class CustomerAuthMobileService {
       phone,
       purpose: args.purpose,
       locale: args.locale,
-      correlationId: args.ctx.correlationId,
     });
     await this.audit.write({
       actorId: null,
       targetId: null,
       eventType: AuditEventType.CUSTOMER_OTP_REQUESTED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { purpose: args.purpose, otpId: challenge.otpId },
     });
     return challenge;
@@ -284,7 +278,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_OTP_VERIFIED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { purpose: args.purpose, otpId: args.otpId },
     });
 
@@ -389,7 +382,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_SIGNUP_SOCIAL_COMPLETED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: created.id, provider: args.provider },
     });
 
@@ -452,14 +444,12 @@ export class CustomerAuthMobileService {
       purpose: OtpPurpose.PROFILE_MOBILE,
       locale: args.locale,
       customerId: args.customerId,
-      correlationId: args.ctx.correlationId,
     });
     await this.audit.write({
       actorId: null,
       targetId: null,
       eventType: AuditEventType.CUSTOMER_OTP_REQUESTED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { purpose: 'PROFILE_MOBILE', otpId: challenge.otpId },
     });
     return challenge;
@@ -503,7 +493,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_PROFILE_MOBILE_BOUND,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: args.customerId },
     });
   }
@@ -533,7 +522,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_PASSWORD_RESET,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId },
     });
     await this.audit.write({
@@ -541,7 +529,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_TOKENS_REVOKED_OTHERS,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId, reason: 'password_reset' },
     });
     return this.issueSession({ customerId, ctx: args.ctx });
@@ -579,7 +566,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_PASSWORD_CHANGED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: args.customerId },
     });
     await this.audit.write({
@@ -587,7 +573,6 @@ export class CustomerAuthMobileService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_TOKENS_REVOKED_OTHERS,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: args.customerId, reason: 'password_change' },
     });
   }
@@ -597,22 +582,21 @@ export class CustomerAuthMobileService {
   // -------------------------------------------------------------------------
 
   async loginWithLockout(args: {
-    phone: string;
+    email: string;
     password: string;
     ctx: CustomerRequestContext;
   }): Promise<CustomerAuthResult> {
-    const phone = canonicalisePhone(args.phone);
-    await this.lockout.assertNotLocked(phone);
+    const email = args.email.trim().toLowerCase();
+    await this.lockout.assertNotLocked(email);
 
-    const row = await this.accounts.findByPhone(phone);
+    const row = await this.accounts.findByEmail(email);
     if (!row || row.passwordHash === null) {
-      await this.lockout.recordFailure(phone);
+      await this.lockout.recordFailure(email);
       await this.audit.write({
         actorId: null,
         targetId: null,
         eventType: AuditEventType.CUSTOMER_LOGIN_FAILED,
         sourceIp: args.ctx.sourceIp,
-        correlationId: args.ctx.correlationId,
         payload: { reason: 'unknown_or_social' },
       });
       throw new CustomerInvalidCredentialsException();
@@ -620,27 +604,25 @@ export class CustomerAuthMobileService {
 
     const ok = await this.password.verify(args.password, row.passwordHash);
     if (!ok) {
-      await this.lockout.recordFailure(phone);
+      await this.lockout.recordFailure(email);
       await this.audit.write({
         actorId: null,
         targetId: null,
         eventType: AuditEventType.CUSTOMER_LOGIN_FAILED,
         sourceIp: args.ctx.sourceIp,
-        correlationId: args.ctx.correlationId,
         payload: { customerId: row.id, reason: 'bad_password' },
       });
       throw new CustomerInvalidCredentialsException();
     }
     if (!row.isActive) throw new CustomerAccountInactiveException();
 
-    await this.lockout.clearOnSuccess(phone);
+    await this.lockout.clearOnSuccess(email);
     await this.accounts.updateLastLogin(row.id);
     await this.audit.write({
       actorId: null,
       targetId: null,
       eventType: AuditEventType.CUSTOMER_LOGGED_IN,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: row.id },
     });
     return this.issueSession({ customerId: row.id, ctx: args.ctx });

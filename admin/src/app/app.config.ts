@@ -14,7 +14,6 @@ import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzDrawerService } from 'ng-zorro-antd/drawer';
 
 import { APP_ROUTES } from './app.routes';
-import { correlationIdInterceptor } from './core/interceptors/correlation-id.interceptor';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
 import { toastInterceptor } from './core/interceptors/toast.interceptor';
@@ -44,7 +43,7 @@ function bootstrapAuth(auth: AuthService): () => Promise<void> {
 
 /**
  * Functional-DI application config (Constitution Principles XVII, XX).
- * Interceptors run in registration order: correlation → auth → error → toast.
+ * Interceptors run in registration order: auth → error → toast.
  */
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -52,7 +51,6 @@ export const appConfig: ApplicationConfig = {
     provideRouter(APP_ROUTES, withComponentInputBinding()),
     provideHttpClient(
       withInterceptors([
-        correlationIdInterceptor,
         authInterceptor,
         errorInterceptor,
         toastInterceptor,

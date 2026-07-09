@@ -16,7 +16,6 @@ import type { CreateEnumerationDto, UpdateEnumerationDto } from './dto/enumerati
 export interface AdminActor {
   staffId: string;
   sourceIp: string | null;
-  correlationId: string;
 }
 
 @Injectable()
@@ -56,7 +55,6 @@ export class PlatformEnumerationsAdminService {
       targetId: null,
       eventType: AuditEventType.PLATFORM_ENUMERATION_CREATED,
       sourceIp: actor.sourceIp,
-      correlationId: actor.correlationId,
       payload: { type: created.type, key: created.key, id: created.id },
     });
     return created;
@@ -100,7 +98,6 @@ export class PlatformEnumerationsAdminService {
       targetId: null,
       eventType,
       sourceIp: actor.sourceIp,
-      correlationId: actor.correlationId,
       payload: {
         type: existing.type,
         key: existing.key,

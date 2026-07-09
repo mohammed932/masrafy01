@@ -19,7 +19,6 @@ import {
 export interface CustomerRequestContext {
   sourceIp: string;
   userAgent: string | null;
-  correlationId: string;
 }
 
 export interface CustomerAuthResult {
@@ -83,7 +82,6 @@ export class CustomerAuthService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_LOGGED_IN,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: row.id },
     });
 
@@ -111,7 +109,6 @@ export class CustomerAuthService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_TOKEN_REFRESHED,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: account.id },
     });
     return {
@@ -137,7 +134,6 @@ export class CustomerAuthService {
       targetId: null,
       eventType: AuditEventType.CUSTOMER_LOGGED_OUT,
       sourceIp: args.ctx.sourceIp,
-      correlationId: args.ctx.correlationId,
       payload: { customerId: args.customerId },
     });
   }

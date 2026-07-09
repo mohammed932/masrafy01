@@ -13,7 +13,6 @@ import { AuditEventType } from '@/common/audit/audit-event-types';
 import type { Request } from 'express';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { DocumentsService } from './documents.service';
 import {
@@ -82,7 +81,6 @@ export class MobileDocumentsController {
     @Param('applicationId') applicationId: string,
     @Param('documentId') documentId: string,
     @Req() req: MobileAuthedRequest,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: MobileConfirmUploadResponseDto }> {
     const customerId = this.requireCustomerId(req);
     const result = await this.service.confirmCustomerUpload({
@@ -95,7 +93,6 @@ export class MobileDocumentsController {
       targetId: applicationId,
       eventType: AuditEventType.DOCUMENT_UPLOADED,
       sourceIp: req.ip ?? null,
-      correlationId,
       payload: {
         documentId: result.documentId,
         applicationId,

@@ -11,7 +11,6 @@ import type { ErrorCode } from './error-codes';
  */
 export interface BackendErrorContext {
   code?: ErrorCode;
-  correlationId?: string;
   actorId?: string | null;
   /** Free-form structured context. Constitution VI: no PII or credentials. */
   extras?: Record<string, string | number | boolean>;
@@ -31,7 +30,6 @@ export class ErrorReporter {
     this.log.error({
       msg: 'error_reported',
       code: ctx.code,
-      correlationId: ctx.correlationId,
       actorId: ctx.actorId,
       extras: ctx.extras,
       // Stack only — message could contain leaked context. Truncate.

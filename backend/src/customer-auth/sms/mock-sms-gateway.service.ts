@@ -19,7 +19,6 @@ export class MockSmsGateway implements SmsGateway {
       phone: maskPhone(input.phone),
       purpose: input.purpose,
       locale: input.locale,
-      correlationId: input.correlationId,
       // Raw code emitted at TRACE only — never visible at info/debug.
       code: '••••••',
     });

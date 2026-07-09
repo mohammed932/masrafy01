@@ -1,9 +1,8 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
-import { CorrelationIdMiddleware } from '@/common/middleware/correlation-id.middleware';
 import { HttpExceptionFilter } from '@/common/errors/http-exception.filter';
 import { InfraModule } from '@/infra/infra.module';
 import { BootstrapModule } from '@/infra/bootstrap/bootstrap.module';
@@ -67,8 +66,4 @@ import { pinoOptions } from '@/common/pino/pino.config';
   ],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
-  }
-}
+export class AppModule {}

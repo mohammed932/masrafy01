@@ -5,7 +5,6 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '../../common/decorators/current-user.decorator';
-import { CorrelationId } from '../../common/decorators/correlation-id.decorator';
 import { ok } from '../../common/pagination/paginated.response.dto';
 import { SeedService } from './seed.service';
 import { BankProgramNotFoundException } from '../../common/errors/domain.exceptions';
@@ -27,7 +26,6 @@ export class SeedCompetitorController {
     @Param('catalogName') catalogName: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ) {
     if (!ALLOWED.includes(catalogName as Allowed)) {
       throw new BankProgramNotFoundException({ programCode: catalogName });
@@ -35,7 +33,6 @@ export class SeedCompetitorController {
     const result = await this.seeds.seedCompetitor(catalogName as Allowed, {
       id: user.sub,
       sourceIp: (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.ip ?? null,
-      correlationId,
     });
     return ok(result);
   }

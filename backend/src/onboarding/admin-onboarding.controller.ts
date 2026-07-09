@@ -14,7 +14,6 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -49,12 +48,11 @@ export class AdminOnboardingController {
     @Body() body: CreateOnboardingScreenDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: OnboardingScreenResponseDto }> {
     const data = await this.svc.create({
       body,
       actorStaffId: user.sub,
-      ctx: { sourceIp: req.ip ?? null, correlationId },
+      ctx: { sourceIp: req.ip ?? null },
     });
     return ok(data);
   }
@@ -66,13 +64,12 @@ export class AdminOnboardingController {
     @Body() body: UpdateOnboardingScreenDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: OnboardingScreenResponseDto }> {
     const data = await this.svc.update({
       id,
       body,
       actorStaffId: user.sub,
-      ctx: { sourceIp: req.ip ?? null, correlationId },
+      ctx: { sourceIp: req.ip ?? null },
     });
     return ok(data);
   }
@@ -84,12 +81,11 @@ export class AdminOnboardingController {
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<void> {
     await this.svc.delete({
       id,
       actorStaffId: user.sub,
-      ctx: { sourceIp: req.ip ?? null, correlationId },
+      ctx: { sourceIp: req.ip ?? null },
     });
   }
 
@@ -100,12 +96,11 @@ export class AdminOnboardingController {
     @Body() body: ReorderOnboardingScreensDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: OnboardingScreenResponseDto[] }> {
     const data = await this.svc.reorder({
       body,
       actorStaffId: user.sub,
-      ctx: { sourceIp: req.ip ?? null, correlationId },
+      ctx: { sourceIp: req.ip ?? null },
     });
     return ok(data);
   }

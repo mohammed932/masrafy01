@@ -13,7 +13,6 @@ import { normalizeWeights } from '@/matching/scoring/approval-probability.scorer
 
 export interface ScoringRequestContext {
   sourceIp: string | null;
-  correlationId: string;
 }
 
 /** Bank + program identity surfaced to the admin so weights are labelled, not raw IDs. */
@@ -125,7 +124,6 @@ export class ScoringService {
       bankProgramId: programId,
       eventType: AuditEventType.SCORING_WEIGHTS_SAVED,
       sourceIp: ctx.sourceIp,
-      correlationId: ctx.correlationId,
       payload: { bankProgramId: programId, weightSetId: saved.id, versionNumber },
     });
     return saved;

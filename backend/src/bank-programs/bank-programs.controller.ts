@@ -17,7 +17,6 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '../common/decorators/current-user.decorator';
-import { CorrelationId } from '../common/decorators/correlation-id.decorator';
 import { ok, okPaginated } from '../common/pagination/paginated.response.dto';
 import { CreateBankProgramDto } from './dto/create-bank-program.dto';
 import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
@@ -29,7 +28,6 @@ import { BankProgramNotFoundException } from '../common/errors/domain.exceptions
 interface ActorCtx {
   id: string;
   sourceIp: string | null;
-  correlationId: string;
 }
 
 @ApiTags('bank-programs-admin')
@@ -76,9 +74,8 @@ export class BankProgramsController {
     @Body() body: CreateBankProgramDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ) {
-    const program = await this.service.create(body, this.actor(user, req, correlationId));
+    const program = await this.service.create(body, this.actor(user, req));
     return ok(program);
   }
 
@@ -89,12 +86,11 @@ export class BankProgramsController {
     @Body() body: UpdateBankProgramDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ) {
     const program = await this.service.update(
       programCode,
       body,
-      this.actor(user, req, correlationId),
+      this.actor(user, req),
     );
     return ok(program);
   }
@@ -109,13 +105,12 @@ export class BankProgramsController {
     @Body() body: ToggleBankProgramDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ) {
     const program = await this.service.toggle(
       programCode,
       body.active,
       body.version,
-      this.actor(user, req, correlationId),
+      this.actor(user, req),
     );
     return ok(program);
   }
@@ -131,19 +126,17 @@ export class BankProgramsController {
     @Headers('x-confirm-program-code') confirmHeader: string | undefined,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<void> {
     if (!confirmHeader || confirmHeader !== programCode) {
       throw new BankProgramNotFoundException({ programCode });
     }
-    await this.service.deleteByCode(programCode, this.actor(user, req, correlationId));
+    await this.service.deleteByCode(programCode, this.actor(user, req));
   }
 
-  private actor(user: JwtPayload, req: Request, correlationId: string): ActorCtx {
+  private actor(user: JwtPayload, req: Request): ActorCtx {
     return {
       id: user.sub,
       sourceIp: this.readClientIp(req),
-      correlationId,
     };
   }
 

@@ -15,7 +15,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SupportChannel, SupportStatus } from './dto/enums';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -77,13 +76,12 @@ export class AdminSupportController {
     @Body() body: AssignSupportRequestDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: SupportRequestResponseDto }> {
     const data = await this.svc.assignAdmin({
       id,
       staffId: body.staffId,
       actorStaffId: user.sub,
-      ctx: { sourceIp: req.ip ?? null, correlationId },
+      ctx: { sourceIp: req.ip ?? null },
     });
     return ok(data);
   }
@@ -95,12 +93,11 @@ export class AdminSupportController {
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: SupportRequestResponseDto }> {
     const data = await this.svc.resolveAdmin({
       id,
       actorStaffId: user.sub,
-      ctx: { sourceIp: req.ip ?? null, correlationId },
+      ctx: { sourceIp: req.ip ?? null },
     });
     return ok(data);
   }
@@ -120,7 +117,6 @@ export class AdminSupportController {
     @Body() body: UpdateSupportConfigDto,
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,
-    @CorrelationId() correlationId: string,
   ): Promise<{ success: true; data: SupportContactResponseDto }> {
     const data = await this.svc.updateConfigAdmin({
       actorStaffId: user.sub,
@@ -131,7 +127,7 @@ export class AdminSupportController {
         hoursAr: body.hoursAr,
         hoursEn: body.hoursEn,
       },
-      ctx: { sourceIp: req.ip ?? null, correlationId },
+      ctx: { sourceIp: req.ip ?? null },
     });
     return ok(data);
   }

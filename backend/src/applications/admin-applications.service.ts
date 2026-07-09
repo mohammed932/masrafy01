@@ -16,7 +16,6 @@ import { LeadStatus } from './dto/enums';
 interface ActorCtx {
   id: string;
   sourceIp: string | null;
-  correlationId: string;
 }
 
 @Injectable()
@@ -42,7 +41,7 @@ export class AdminApplicationsService {
           targetId: null,
           eventType: AuditEventType.APPLICATION_LEAD_STATUS_CHANGED,
           sourceIp: actor.sourceIp,
-          correlationId: actor.correlationId,
+
           payload: {
             applicationId: id,
             from: current.leadStatus,

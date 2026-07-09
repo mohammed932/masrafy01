@@ -4,7 +4,6 @@ import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
-import { CorrelationId } from '@/common/decorators/correlation-id.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { ScoringService } from './scoring.service';
 import { parseCategory } from '@/questionnaire/category.util';
@@ -41,13 +40,11 @@ export class AdminScoringController {
     @Param('programId') programId: string,
     @Body() dto: SaveWeightsDto,
     @CurrentUser() user: JwtPayload,
-    @CorrelationId() correlationId: string,
     @Ip() ip: string,
   ) {
     return ok(
       await this.service.saveWeights(programId, dto, user.sub, {
         sourceIp: ip ?? null,
-        correlationId,
       }),
     );
   }

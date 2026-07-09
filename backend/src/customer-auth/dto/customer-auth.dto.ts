@@ -1,4 +1,4 @@
-import { IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Length, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { RegistrationPath, SocialProvider } from '@prisma/client';
 import { deriveAge } from '../age.util';
@@ -12,9 +12,8 @@ const PHONE_REGEX = /^[+\d][\d\s\-]{8,19}$/;
 
 export class CustomerLoginRequestDto {
   @ApiProperty()
-  @IsString()
-  @Matches(PHONE_REGEX)
-  phone!: string;
+  @IsEmail()
+  email!: string;
 
   @ApiProperty()
   @IsString()

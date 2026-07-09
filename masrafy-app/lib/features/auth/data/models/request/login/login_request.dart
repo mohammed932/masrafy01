@@ -2,13 +2,13 @@
 /// — typed `*Request` end-to-end; the cubit constructs this DTO, the
 /// repository forwards it, the datasource calls `.toJson()` at the wire.
 class LoginRequest {
-  const LoginRequest({required this.phone, required this.password});
+  const LoginRequest({required this.email, required this.password});
 
-  final String phone;
+  final String email;
   final String password;
 
   Map<String, dynamic> toJson() => {
-        'phone': phone,
+        'email': email,
         'password': password,
       };
 }

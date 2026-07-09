@@ -29,7 +29,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const req = ctx.getRequest<Request>();
     const res = ctx.getResponse<Response>();
-    const correlationId = (req as Request & { correlationId?: string }).correlationId;
 
     const body = this.toBody(exception);
     const status = ERROR_HTTP_STATUS[body.code] ?? HttpStatus.INTERNAL_SERVER_ERROR;
@@ -39,7 +38,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       msg: 'http_error_emitted',
       code: body.code,
       status,
-      correlationId,
       path: req.url,
       method: req.method,
       meta: body.meta,
