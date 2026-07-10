@@ -36,6 +36,11 @@ import 'package:app/features/questionnaire/presentation/pages/car/cubit/car_ques
 import 'package:app/features/questionnaire/presentation/pages/mortgage/cubit/mortgage_questionnaire/mortgage_questionnaire_cubit.dart';
 import 'package:app/features/onboarding/presentation/pages/onboarding/cubit/onboarding/onboarding_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile/profile_cubit.dart';
+import 'package:app/features/applications/data/datasources/applications_remote_datasource.dart';
+import 'package:app/features/applications/data/repositories/applications_repository_impl.dart';
+import 'package:app/features/applications/domain/repositories/applications_repository.dart';
+import 'package:app/features/applications/domain/usecases/applications_usecase.dart';
+import 'package:app/features/applications/presentation/pages/previous_applications/cubit/previous_applications/previous_applications_cubit.dart';
 import 'package:app/features/saved_offers/data/datasources/saved_offers_remote_datasource.dart';
 import 'package:app/features/saved_offers/data/repositories/saved_offers_repository_impl.dart';
 import 'package:app/features/saved_offers/domain/repositories/saved_offers_repository.dart';
@@ -46,6 +51,7 @@ import 'package:app/features/matching/data/repositories/matching_repository_impl
 import 'package:app/features/matching/domain/repositories/matching_repository.dart';
 import 'package:app/features/matching/domain/usecases/matching_usecase.dart';
 import 'package:app/features/offers/presentation/pages/results/cubit/matching_results/matching_results_cubit.dart';
+import 'package:app/features/offers/presentation/pages/offer_details/cubit/save_offer/save_offer_cubit.dart';
 import 'package:app/features/offers/presentation/pages/offer_details/cubit/select_offer/select_offer_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_contact/profile_edit_contact_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_personal/profile_edit_personal_cubit.dart';
@@ -164,7 +170,7 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   getIt.registerFactory(() => ProfileEditPersonalCubit());
   getIt.registerFactory(() => ProfileEditContactCubit());
 
-  // saved offers — list + unsave (backend-wired). Screen-scoped cubit.
+  // saved offers — list + save + unsave (backend-wired). Screen-scoped cubits.
   getIt.registerLazySingleton(
     () => SavedOffersRemoteDataSource(getIt<BaseNetwork>()),
   );
@@ -175,6 +181,21 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     () => SavedOffersUseCase(getIt<SavedOffersRepository>()),
   );
   getIt.registerFactory(() => SavedOffersCubit(getIt<SavedOffersUseCase>()));
+  getIt.registerFactory(() => SaveOfferCubit(getIt<SavedOffersUseCase>()));
+
+  // applications — "Applications" screen list (backend-wired). Screen-scoped cubit.
+  getIt.registerLazySingleton(
+    () => ApplicationsRemoteDataSource(getIt<BaseNetwork>()),
+  );
+  getIt.registerLazySingleton<ApplicationsRepository>(
+    () => ApplicationsRepositoryImpl(getIt<ApplicationsRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(
+    () => ApplicationsUseCase(getIt<ApplicationsRepository>()),
+  );
+  getIt.registerFactory(
+    () => PreviousApplicationsCubit(getIt<ApplicationsUseCase>()),
+  );
 
   // matching — apply (real offers) + select-offer (proceed). Data-layer
   // lazySingletons; screen-scoped cubits (Principle XXXI). MatchingResultsCubit

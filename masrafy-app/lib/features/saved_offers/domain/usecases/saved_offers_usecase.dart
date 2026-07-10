@@ -13,6 +13,9 @@ class SavedOffersUseCase extends BaseUseCase<SavedOffersRepository> {
 
   Future<Either<Failure, List<SavedOfferEntity>>> list() => repository.list();
 
+  Future<Either<Failure, Unit>> save(String bankOfferId) =>
+      repository.save(bankOfferId);
+
   Future<Either<Failure, Unit>> remove(String bankOfferId) =>
       repository.remove(bankOfferId);
 }

@@ -43,7 +43,7 @@ import { CustomerProfileCompletenessService } from '@/customer-auth/customer-pro
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
-import type { LoanCategory } from '@prisma/client';
+import type { LoanCategory, DecisionOutcome } from '@prisma/client';
 import type {
   ApplicantProfile,
   BankProgramSnapshot,
@@ -56,6 +56,11 @@ import type {
   ApprovalProbabilityResponseDto,
   ApprovalTierLiteral,
 } from './dto/apply-response.dto';
+import type {
+  ApplicationDecisionStatus,
+  ApplicationOfferDto,
+  ApplicationsListResponse,
+} from './dto/applications-list-response.dto';
 import { ApplicationStatus } from './dto/enums';
 
 export interface ApplyContext {
@@ -143,7 +148,10 @@ export class ApplicationsService {
         await this.audit.write(
           {
             actorId: null,
-            targetId: app.id,
+            // AuditEvent.targetId FKs to StaffAccount, not Application — the
+            // application id goes in the payload instead (see APPLICATION_CREATED
+            // / APPLICATION_MATCHED / APPLICATION_NO_MATCH above).
+            targetId: null,
             eventType: AuditEventType.APPLICATION_USER_PROCEEDED,
             sourceIp: input.sourceIp,
             payload: {
@@ -164,6 +172,30 @@ export class ApplicationsService {
       },
       { isolationLevel: IsolationLevel.Serializable },
     );
+  }
+
+  /**
+   * The "Applications" screen: every application the customer has proceeded
+   * with (Feature 008 user-intent gate), newest first, with the selected
+   * offer's current bank decision projected to a display status.
+   */
+  async listMine(customerId: string): Promise<ApplicationsListResponse> {
+    const rows = await this.repo.findAppliedByCustomer(customerId);
+    const applications = rows.flatMap((row) => {
+      const offer = row.bankOffers.find((o) => o.id === row.userSelectedBankOfferId);
+      if (!offer || !row.userProceededAt) return [];
+      return [
+        {
+          applicationId: row.id,
+          category: row.category,
+          requestedAmountEGP: row.requestedAmountEGP.toFixed(2),
+          status: this.projectApplicationStatus(offer.decision?.outcome),
+          proceededAt: row.userProceededAt.toISOString(),
+          offer: this.toOfferDto(offer),
+        },
+      ];
+    });
+    return { success: true, data: { applications } };
   }
 
   async apply(dto: ApplyRequestDto, ctx: ApplyContext): Promise<ApplyResponse> {
@@ -347,29 +379,7 @@ export class ApplicationsService {
             bestInstallmentEGP: best ? best.monthlyInstallmentEGP.toFixed(2) : '0.00',
             bestRatePercent: best ? best.effectiveRatePercent.toFixed(4) : '0.0000',
           },
-          matchedOffers: sorted.map((o) => ({
-            bankOfferId: o.id,
-            programCode: o.programCode,
-            programVersion: o.programVersion,
-            bankName: o.bankName,
-            bankIsFeatured: o.bankIsFeatured,
-            programFriendlyName: o.programFriendlyName,
-            currency: o.currency,
-            effectiveRatePercent: o.effectiveRatePercent.toFixed(4),
-            monthlyInstallmentEGP: o.monthlyInstallmentEGP.toFixed(2),
-            requestedLoanAmountEGP: o.requestedLoanAmountEGP.toFixed(2),
-            effectiveLoanAmountEGP: o.effectiveLoanAmountEGP.toFixed(2),
-            requestedTenorMonths: o.requestedTenorMonths,
-            effectiveTenorMonths: o.effectiveTenorMonths,
-            approvalProbability: this.projectApprovalProbability(o),
-            requiredDocuments: o.requiredDocuments,
-            matchReasons: o.matchReasons,
-            feesBreakdown: o.feesBreakdown,
-            cascadeTrace: o.cascadeTrace,
-            qualitativeReviewBadge: o.qualitativeReviewBadge,
-            selfDeclared: o.selfDeclared,
-            maxLoanAvailableEGP: o.maxLoanAvailableEGP?.toFixed(2),
-          })),
+          matchedOffers: sorted.map((o) => this.toOfferDto(o)),
         },
       };
     }
@@ -489,6 +499,74 @@ export class ApplicationsService {
       },
       engineVersion: row.engineVersion,
     };
+  }
+
+  /**
+   * Project a persisted BankOffer row into the wire shape shared by the apply
+   * response's `matchedOffers[]` and the Applications-list `offer` field —
+   * one mapper, two callers (Principle X keeps this the only place that reads
+   * these BankOffer columns for a response).
+   */
+  private toOfferDto(o: {
+    id: string;
+    programCode: string;
+    programVersion: number;
+    bankName: string;
+    bankIsFeatured: boolean;
+    programFriendlyName: string;
+    currency: string;
+    effectiveRatePercent: Decimal;
+    monthlyInstallmentEGP: Decimal;
+    requestedLoanAmountEGP: Decimal;
+    effectiveLoanAmountEGP: Decimal;
+    requestedTenorMonths: number;
+    effectiveTenorMonths: number;
+    approvalScore: number;
+    approvalTier: string;
+    approvalFactors: unknown;
+    engineVersion: string;
+    requiredDocuments: string[];
+    matchReasons: string[];
+    feesBreakdown: unknown;
+    cascadeTrace: unknown;
+    qualitativeReviewBadge: boolean;
+    selfDeclared: boolean;
+    maxLoanAvailableEGP: Decimal | null;
+  }): ApplicationOfferDto {
+    return {
+      bankOfferId: o.id,
+      programCode: o.programCode,
+      programVersion: o.programVersion,
+      bankName: o.bankName,
+      bankIsFeatured: o.bankIsFeatured,
+      programFriendlyName: o.programFriendlyName,
+      currency: o.currency,
+      effectiveRatePercent: o.effectiveRatePercent.toFixed(4),
+      monthlyInstallmentEGP: o.monthlyInstallmentEGP.toFixed(2),
+      requestedLoanAmountEGP: o.requestedLoanAmountEGP.toFixed(2),
+      effectiveLoanAmountEGP: o.effectiveLoanAmountEGP.toFixed(2),
+      requestedTenorMonths: o.requestedTenorMonths,
+      effectiveTenorMonths: o.effectiveTenorMonths,
+      approvalProbability: this.projectApprovalProbability(o),
+      requiredDocuments: o.requiredDocuments,
+      matchReasons: o.matchReasons,
+      feesBreakdown: o.feesBreakdown,
+      cascadeTrace: o.cascadeTrace,
+      qualitativeReviewBadge: o.qualitativeReviewBadge,
+      selfDeclared: o.selfDeclared,
+      maxLoanAvailableEGP: o.maxLoanAvailableEGP?.toFixed(2),
+    };
+  }
+
+  /** No decision row yet → still pending with the bank ("applied"). A
+   *  `withdrawn` outcome reads as "rejected" — there is no separate pill for
+   *  it on the Applications screen. */
+  private projectApplicationStatus(
+    outcome: DecisionOutcome | undefined,
+  ): ApplicationDecisionStatus {
+    if (outcome === 'approved') return 'approved';
+    if (outcome === 'rejected' || outcome === 'withdrawn') return 'rejected';
+    return 'applied';
   }
 
   /**

@@ -20,6 +20,7 @@
     "seed:demo": "tsx prisma/seed-demo.ts",
     "seed:apps": "tsx prisma/seed-applications.ts",
     "seed:customers": "tsx prisma/seed-customers.ts",
+    "seed:weights": "tsx prisma/seed-scoring-weights.ts",
     "check:codes": "tsx scripts/check-error-codes-parity.ts"
   },
   "dependencies": {

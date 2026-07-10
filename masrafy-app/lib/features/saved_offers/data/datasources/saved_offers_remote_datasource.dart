@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:app/core/architecture/base_remote_data_source.dart';
 import 'package:app/core/network/api_strings.dart';
 import 'package:app/core/network/endpoint.dart';
+import '../models/request/save_offer_request.dart';
 import '../models/saved_offer_model.dart';
 
 /// Saved-offers datasource. Routes to the masrafy `/api/v1/saved-offers`
@@ -16,6 +17,13 @@ class SavedOffersRemoteDataSource extends BaseRemoteDataSource {
       MasrafyEndpoint(endpoint: ApiStrings.savedOffers),
     );
     return SavedOffersListModel.fromJson(_unwrap(json));
+  }
+
+  Future<void> saveOffer(String bankOfferId) async {
+    await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.savedOffers),
+      data: SaveOfferRequest(bankOfferId: bankOfferId).toJson(),
+    );
   }
 
   Future<void> removeOffer(String bankOfferId) async {

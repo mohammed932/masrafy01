@@ -4,8 +4,11 @@ part of 'offer_details.imports.dart';
 /// collapsing gradient sliver hero ("{type} Loan" + "{pct}% Approval", per
 /// Principle XXXIII / A35) over a rounded sheet: loan-summary card, a 2×3 stat
 /// grid, a fees table, and the Apply / Save CTAs. The single route-level widget
-/// for this file (Principle XXXVI); UI-only — Apply / Save are placeholders
-/// (no backend this iteration).
+/// for this file (Principle XXXVI). Apply proceeds with the offer and lands on
+/// Applications; Save bookmarks it and lands on Saved Offers — both backend-
+/// wired for real offers (`offer.applicationId`/`offer.bankOfferId` set) and
+/// inert placeholders otherwise (saved-offer / past-application / mock views
+/// with nothing new to proceed on or save).
 @RoutePage()
 class OfferDetailsPage extends StatelessWidget {
   const OfferDetailsPage({
@@ -174,6 +177,13 @@ class OfferDetailsPage extends StatelessWidget {
                                   if (state.isSuccess) {
                                     MasrafyToast.success(
                                         ctx, l.offer_proceed_success);
+                                    // One-way gate: the backend blocks
+                                    // re-selecting once proceeded, so clear the
+                                    // now-stale wizard/results/details stack.
+                                    ctx.router.replaceAll([
+                                      const HomeRoute(),
+                                      const PreviousApplicationsRoute(),
+                                    ]);
                                   } else if (state.isError) {
                                     MasrafyToast.error(
                                         ctx, l.offer_proceed_error);
@@ -194,10 +204,34 @@ class OfferDetailsPage extends StatelessWidget {
                               ),
                             ),
                       Gap(12.h),
-                      _SaveOfferButton(
-                        label: l.offer_save_later,
-                        onTap: comingSoon,
-                      ),
+                      offer.bankOfferId.isEmpty
+                          ? _SaveOfferButton(
+                              label: l.offer_save_later,
+                              onTap: comingSoon,
+                            )
+                          : BlocProvider<SaveOfferCubit>(
+                              create: (_) => getIt<SaveOfferCubit>(),
+                              child:
+                                  BlocConsumer<SaveOfferCubit, SaveOfferState>(
+                                listener: (ctx, state) {
+                                  if (state.isSuccess) {
+                                    MasrafyToast.success(
+                                        ctx, l.offer_save_success);
+                                    ctx.router.push(SavedOffersRoute());
+                                  } else if (state.isError) {
+                                    MasrafyToast.error(ctx, l.offer_save_error);
+                                  }
+                                },
+                                builder: (ctx, state) => _SaveOfferButton(
+                                  label: l.offer_save_later,
+                                  onTap: state.isLoading
+                                      ? () {}
+                                      : () => ctx
+                                          .read<SaveOfferCubit>()
+                                          .save(offer.bankOfferId),
+                                ),
+                              ),
+                            ),
                     ],
                   ),
                 ),

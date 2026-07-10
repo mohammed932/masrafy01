@@ -663,6 +663,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get previous_applications_title => 'Applications';
 
   @override
+  String get previous_applications_empty_title => 'No applications yet';
+
+  @override
+  String get previous_applications_empty_body => 'Apply for an offer and it will show up here.';
+
+  @override
   String get previous_applications_status_applied => 'Applied';
 
   @override
@@ -1677,6 +1683,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offer_proceed_error => 'Something went wrong. Please try again.';
+
+  @override
+  String get offer_save_success => 'Offer saved. Find it later in Saved Offers.';
+
+  @override
+  String get offer_save_error => 'Could not save this offer. Please try again.';
 
   @override
   String get settings_security_title => 'Settings & Security';

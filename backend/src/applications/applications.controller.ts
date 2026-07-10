@@ -5,6 +5,7 @@
 
 import {
   Controller,
+  Get,
   Post,
   Body,
   Headers,
@@ -85,6 +86,19 @@ export class ApplicationsController {
       sourceIp: req.ip ?? null,
     });
     return { success: true, data };
+  }
+
+  @Get('applications')
+  @UseGuards(CustomerProfileCompleteGuard)
+  @ApiOperation({ summary: "List the customer's own applications (Applications screen)" })
+  @ApiResponse({
+    status: 200,
+    description: 'Applications the customer has proceeded with, newest first',
+  })
+  @ApiResponse({ status: 401, description: 'Customer JWT missing or invalid' })
+  async listMine(@Req() req: MobileAuthedRequest): Promise<unknown> {
+    const customerId = this.requireCustomerId(req);
+    return this.service.listMine(customerId);
   }
 
   private requireCustomerId(req: MobileAuthedRequest): string {

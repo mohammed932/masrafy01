@@ -13,5 +13,7 @@ abstract class SavedOffersRepository
 
   Future<Either<Failure, List<SavedOfferEntity>>> list();
 
+  Future<Either<Failure, Unit>> save(String bankOfferId);
+
   Future<Either<Failure, Unit>> remove(String bankOfferId);
 }

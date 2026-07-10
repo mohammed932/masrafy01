@@ -666,6 +666,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get previous_applications_title => 'الطلبات';
 
   @override
+  String get previous_applications_empty_title => 'لا توجد طلبات بعد';
+
+  @override
+  String get previous_applications_empty_body => 'تقدم بطلب لعرض وسيظهر هنا.';
+
+  @override
   String get previous_applications_status_applied => 'تم التقديم';
 
   @override
@@ -1680,6 +1686,12 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get offer_proceed_error => 'حدث خطأ ما. حاول مرة أخرى.';
+
+  @override
+  String get offer_save_success => 'تم حفظ العرض. يمكنك إيجاده في العروض المحفوظة.';
+
+  @override
+  String get offer_save_error => 'لم نتمكن من حفظ هذا العرض. حاول مرة أخرى.';
 
   @override
   String get settings_security_title => 'الإعدادات والأمان';

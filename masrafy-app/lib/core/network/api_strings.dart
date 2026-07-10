@@ -35,6 +35,7 @@ class ApiStrings {
   static const String matchingPreview = '/api/v1/matching/preview';
 
   // --- Applications ---
+  static const String applications = '/api/v1/applications';
   static String applicationSelectOffer(String applicationId) =>
       '/api/v1/applications/$applicationId/select-offer';
 

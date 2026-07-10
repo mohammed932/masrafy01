@@ -1361,6 +1361,18 @@ abstract class AppLocalizations {
   /// **'الطلبات'**
   String get previous_applications_title;
 
+  /// No description provided for @previous_applications_empty_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد طلبات بعد'**
+  String get previous_applications_empty_title;
+
+  /// No description provided for @previous_applications_empty_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدم بطلب لعرض وسيظهر هنا.'**
+  String get previous_applications_empty_body;
+
   /// No description provided for @previous_applications_status_applied.
   ///
   /// In ar, this message translates to:
@@ -3352,6 +3364,18 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'حدث خطأ ما. حاول مرة أخرى.'**
   String get offer_proceed_error;
+
+  /// No description provided for @offer_save_success.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم حفظ العرض. يمكنك إيجاده في العروض المحفوظة.'**
+  String get offer_save_success;
+
+  /// No description provided for @offer_save_error.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نتمكن من حفظ هذا العرض. حاول مرة أخرى.'**
+  String get offer_save_error;
 
   /// No description provided for @settings_security_title.
   ///

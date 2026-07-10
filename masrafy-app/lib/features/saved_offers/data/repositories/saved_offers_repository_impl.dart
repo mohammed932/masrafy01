@@ -21,6 +21,13 @@ class SavedOffersRepositoryImpl extends SavedOffersRepository {
   }
 
   @override
+  Future<Either<Failure, Unit>> save(String bankOfferId) async {
+    final result =
+        await ApiHandler.callApi(() => remoteDataSource.saveOffer(bankOfferId));
+    return result.map((_) => unit);
+  }
+
+  @override
   Future<Either<Failure, Unit>> remove(String bankOfferId) async {
     final result =
         await ApiHandler.callApi(() => remoteDataSource.removeOffer(bankOfferId));

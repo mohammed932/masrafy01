@@ -6,8 +6,10 @@
  *
  * What it creates (in order):
  *   1.  8 bank programs (ABK + competitor mix; minimal but realistic)
- *   2.  1 sales_manager + 3 sales_agent + 1 analyst (dev passwords)
- *   3. 23 applications (matched, with masked applicant profiles)
+ *   2.  active scoring weight sets for every program (Principle V) so /apply
+ *       returns non-zero, answer-dependent approval scores
+ *   3.  1 sales_manager + 3 sales_agent + 1 analyst (dev passwords)
+ *   4. 23 applications (matched, with masked applicant profiles)
  *
  * Re-running is safe — every step checks for existing rows first.
  */
@@ -16,6 +18,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 import { seedCustomers } from './seed-customers';
+import { seedScoringWeights } from './seed-scoring-weights';
 
 const prisma = new PrismaClient();
 
@@ -493,6 +496,7 @@ async function main(): Promise<void> {
   const superAdminId = await ensureSuperAdminId();
 
   await seedBankPrograms(superAdminId);
+  await seedScoringWeights(prisma, superAdminId);
 
   for (const s of DEMO_STAFF) {
     await findOrCreateStaff(s);

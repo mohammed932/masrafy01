@@ -180,7 +180,38 @@ export class ApplicationRepository {
   async findById(id: string) {
     return this.prisma.application.findUnique({
       where: { id },
-      include: { bankOffers: { where: { erasedAt: null }, orderBy: { createdAt: 'asc' } } },
+      // All offers for one application are created in the same transaction, so
+      // `createdAt` (Postgres `now()`) is identical across rows and cannot rank
+      // them — order by the engine's own score, matching the original ranking.
+      include: {
+        bankOffers: {
+          where: { erasedAt: null },
+          orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
+        },
+      },
+    });
+  }
+
+  /**
+   * Customer's own "applied" applications — those where the user proceeded
+   * with a specific offer (Feature 008 user-intent gate). Includes the
+   * selected offer's bank decision (if any) so the caller can derive an
+   * Applied/Approved/Rejected status without a second query.
+   */
+  async findAppliedByCustomer(customerId: string) {
+    return this.prisma.application.findMany({
+      where: {
+        applicantUserId: customerId,
+        userSelectedBankOfferId: { not: null },
+        status: { not: 'erased' as PrismaApplicationStatus },
+      },
+      orderBy: { userProceededAt: 'desc' },
+      include: {
+        bankOffers: {
+          where: { erasedAt: null },
+          include: { decision: true },
+        },
+      },
     });
   }
 
@@ -204,7 +235,12 @@ export class ApplicationRepository {
   async findByIdempotencyKey(applicantUserId: string, idempotencyKey: string) {
     return this.prisma.application.findFirst({
       where: { applicantUserId, idempotencyKey },
-      include: { bankOffers: { where: { erasedAt: null } } },
+      include: {
+        bankOffers: {
+          where: { erasedAt: null },
+          orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
+        },
+      },
     });
   }
 
@@ -246,7 +282,11 @@ export class ApplicationRepository {
       take: params.limit ?? 25,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
       include: {
-        bankOffers: { where: { erasedAt: null }, include: { decision: true } },
+        bankOffers: {
+          where: { erasedAt: null },
+          orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
+          include: { decision: true },
+        },
       },
     });
   }
