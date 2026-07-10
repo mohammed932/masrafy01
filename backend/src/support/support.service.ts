@@ -48,7 +48,7 @@ export class SupportService {
     });
     await this.audit.write({
       actorId: null,
-      targetId: row.id,
+      targetId: null,
       eventType: AuditEventType.SUPPORT_REQUEST_CREATED,
       sourceIp: args.ctx.sourceIp,
       payload: {
@@ -95,7 +95,7 @@ export class SupportService {
     const row = await this.repo.assign(args.id, args.staffId);
     await this.audit.write({
       actorId: args.actorStaffId,
-      targetId: args.id,
+      targetId: null,
       eventType: AuditEventType.SUPPORT_REQUEST_ASSIGNED,
       sourceIp: args.ctx.sourceIp,
       payload: { supportRequestId: args.id, assignedStaffId: args.staffId },
@@ -116,7 +116,7 @@ export class SupportService {
     const row = await this.repo.resolve(args.id);
     await this.audit.write({
       actorId: args.actorStaffId,
-      targetId: args.id,
+      targetId: null,
       eventType: AuditEventType.SUPPORT_REQUEST_RESOLVED,
       sourceIp: args.ctx.sourceIp,
       payload: { supportRequestId: args.id, applicationId: existing.applicationId },

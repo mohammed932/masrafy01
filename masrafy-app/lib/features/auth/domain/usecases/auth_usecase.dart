@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
 
@@ -50,8 +52,11 @@ class AuthUseCase extends BaseUseCase<AuthRepository> {
 
   Future<Either<Failure, Unit>> logout() async {
     final refresh = await _session.readRefreshToken();
-    final result = await repository.logout(LogoutRequest(refreshToken: refresh));
+    // Local clear is authoritative and must not wait on the network — fire
+    // the remote revoke in the background so a slow/unreachable server
+    // can't stall sign-out.
+    unawaited(repository.logout(LogoutRequest(refreshToken: refresh)));
     await _session.clear();
-    return result;
+    return const Right(unit);
   }
 }

@@ -13,4 +13,8 @@ class SelectOfferState with _$SelectOfferState {
   bool get isLoading => status.isLoading;
   bool get isSuccess => status.isLoaded;
   bool get isError => status.isError;
+
+  /// A gate rather than a transient failure — the profile must be finished.
+  bool get needsProfile =>
+      error?.code == 'PROFILE_INCOMPLETE' || error?.code == 'NATIONAL_ID_REQUIRED';
 }

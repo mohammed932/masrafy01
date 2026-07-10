@@ -63,7 +63,7 @@ export class MobileTelemetryController {
     const customerId = user?.sub ?? null;
     await this.audit.write({
       actorId: null,
-      targetId: body.applicationId ?? null,
+      targetId: null,
       eventType: body.eventCode as AuditEventType,
       sourceIp: req.ip ?? null,
       payload: {

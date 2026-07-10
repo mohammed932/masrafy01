@@ -51,7 +51,7 @@ export class OnboardingService {
       });
       await this.audit.write({
         actorId: args.actorStaffId,
-        targetId: row.id,
+        targetId: null,
         eventType: AuditEventType.ONBOARDING_SCREEN_CREATED,
         sourceIp: args.ctx.sourceIp,
         payload: { onboardingScreenId: row.id, order: row.order },
@@ -84,7 +84,7 @@ export class OnboardingService {
     });
     await this.audit.write({
       actorId: args.actorStaffId,
-      targetId: row.id,
+      targetId: null,
       eventType: AuditEventType.ONBOARDING_SCREEN_UPDATED,
       sourceIp: args.ctx.sourceIp,
       payload: { onboardingScreenId: row.id, fields: Object.keys(args.body) },
@@ -102,7 +102,7 @@ export class OnboardingService {
     await this.repo.delete(args.id);
     await this.audit.write({
       actorId: args.actorStaffId,
-      targetId: args.id,
+      targetId: null,
       eventType: AuditEventType.ONBOARDING_SCREEN_DELETED,
       sourceIp: args.ctx.sourceIp,
       payload: { onboardingScreenId: args.id, order: existing.order },

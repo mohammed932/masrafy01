@@ -15,6 +15,21 @@ class AccountPage extends StatelessWidget {
     final l = AppLocalizations.of(context);
     void soon() => MasrafyToast.info(context, l.common_coming_soon);
 
+    Future<void> logout() async {
+      final confirmed = await MasrafyConfirmDialog.show(
+        context,
+        title: l.account_logout_confirm_title,
+        message: l.account_logout_confirm_message,
+        cancelLabel: l.account_logout_confirm_cancel,
+        confirmLabel: l.account_logout_confirm_action,
+        isDestructive: true,
+      );
+      if (!confirmed) return;
+      await getIt<AuthUseCase>().logout();
+      if (!context.mounted) return;
+      await context.router.replaceAll([const LoginRoute()]);
+    }
+
     final rows = <_AccountMenuItem>[
       _AccountMenuItem(
         icon: Icons.person,
@@ -39,6 +54,12 @@ class AccountPage extends StatelessWidget {
         color: colors.success.main,
         title: l.account_row_previous_applications,
         onTap: () => context.router.push(const PreviousApplicationsRoute()),
+      ),
+      _AccountMenuItem(
+        icon: Icons.logout,
+        color: colors.error.main,
+        title: l.account_row_logout,
+        onTap: logout,
       ),
     ];
 

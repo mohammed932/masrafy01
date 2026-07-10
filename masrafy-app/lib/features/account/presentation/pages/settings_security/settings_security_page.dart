@@ -15,7 +15,7 @@ class SettingsSecurityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<SettingsSecurityCubit>(
-      create: (_) => getIt<SettingsSecurityCubit>(),
+      create: (_) => getIt<SettingsSecurityCubit>()..load(),
       child: const _SettingsSecurityView(),
     );
   }
@@ -60,76 +60,87 @@ class _SettingsSecurityView extends StatelessWidget {
               Gap(15.h),
               Padding(
                 padding: EdgeInsetsDirectional.symmetric(horizontal: 24.w),
-                child: BlocBuilder<SettingsSecurityCubit, SettingsSecurityState>(
-                  builder: (context, state) {
-                    return Column(
-                      children: [
-                        SettingsSection(
-                          label: l.settings_section_privacy_security,
-                          children: [
-                            SettingsTile(
-                              icon: Icons.fingerprint,
-                              iconColor: colors.error.main,
-                              title: l.settings_biometric_title,
-                              subtitle: l.settings_biometric_subtitle,
-                              trailing: MasrafySwitch(
-                                value: state.biometricEnabled,
-                                onChanged: (v) => cubit.updateField(
-                                  SettingsSecurityField.biometric,
-                                  v,
+                child: BlocListener<SettingsSecurityCubit, SettingsSecurityState>(
+                  listenWhen: (previous, current) =>
+                      !previous.biometricUnavailable &&
+                      current.biometricUnavailable,
+                  listener: (context, state) => MasrafyToast.error(
+                    context,
+                    l.settings_biometric_unavailable,
+                  ),
+                  child: BlocBuilder<SettingsSecurityCubit, SettingsSecurityState>(
+                    builder: (context, state) {
+                      return Column(
+                        children: [
+                          SettingsSection(
+                            label: l.settings_section_privacy_security,
+                            children: [
+                              SettingsTile(
+                                icon: Icons.fingerprint,
+                                iconColor: colors.error.main,
+                                title: l.settings_biometric_title,
+                                subtitle: l.settings_biometric_subtitle,
+                                trailing: MasrafySwitch(
+                                  value: state.biometricEnabled,
+                                  onChanged: (v) => cubit.setBiometricEnabled(
+                                    v,
+                                    l.settings_biometric_confirm_reason,
+                                  ),
                                 ),
                               ),
-                            ),
-                            SettingsTile(
-                              icon: Icons.shield,
-                              iconColor: colors.primary.main,
-                              title: l.settings_privacy_policies_title,
-                              subtitle: l.settings_privacy_policies_subtitle,
-                              onTap: soon,
-                            ),
-                          ],
-                        ),
-                        Gap(25.h),
-                        SettingsSection(
-                          label: l.settings_section_notification_center,
-                          children: [
-                            SettingsTile(
-                              icon: Icons.notifications,
-                              iconColor: colors.success.main,
-                              title: l.settings_notifications_title,
-                              subtitle: l.settings_notifications_subtitle,
-                              trailing: MasrafySwitch(
-                                value: state.notificationsEnabled,
-                                onChanged: (v) => cubit.updateField(
-                                  SettingsSecurityField.notifications,
-                                  v,
+                              SettingsTile(
+                                icon: Icons.shield,
+                                iconColor: colors.primary.main,
+                                title: l.settings_privacy_policies_title,
+                                subtitle: l.settings_privacy_policies_subtitle,
+                                onTap: soon,
+                              ),
+                            ],
+                          ),
+                          Gap(25.h),
+                          SettingsSection(
+                            label: l.settings_section_notification_center,
+                            children: [
+                              SettingsTile(
+                                icon: Icons.notifications,
+                                iconColor: colors.success.main,
+                                title: l.settings_notifications_title,
+                                subtitle: l.settings_notifications_subtitle,
+                                trailing: MasrafySwitch(
+                                  value: state.notificationsEnabled,
+                                  onChanged: (v) => cubit.updateField(
+                                    SettingsSecurityField.notifications,
+                                    v,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        Gap(25.h),
-                        SettingsSection(
-                          label: l.settings_section_languages,
-                          children: [
-                            BlocBuilder<LocaleCubit, LocaleState>(
-                              builder: (context, locale) => SettingsTile(
-                                icon: Icons.language,
-                                iconColor: colors.info.main,
-                                title: l.settings_change_language_title,
-                                subtitle: locale.languageCode == 'en'
-                                    ? l.settings_language_english
-                                    : l.settings_language_arabic,
-                                onTap: () =>
-                                    _pickLanguage(context, locale.languageCode),
+                            ],
+                          ),
+                          Gap(25.h),
+                          SettingsSection(
+                            label: l.settings_section_languages,
+                            children: [
+                              BlocBuilder<LocaleCubit, LocaleState>(
+                                builder: (context, locale) => SettingsTile(
+                                  icon: Icons.language,
+                                  iconColor: colors.info.main,
+                                  title: l.settings_change_language_title,
+                                  subtitle: locale.languageCode == 'en'
+                                      ? l.settings_language_english
+                                      : l.settings_language_arabic,
+                                  onTap: () => _pickLanguage(
+                                    context,
+                                    locale.languageCode,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        Gap(24.h),
-                      ],
-                    );
-                  },
+                            ],
+                          ),
+                          Gap(24.h),
+                        ],
+                      );
+                    },
+                  ),
                 ),
               ),
             ],

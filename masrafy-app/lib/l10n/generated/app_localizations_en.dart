@@ -645,6 +645,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get account_row_previous_applications => 'Previous Applications';
 
   @override
+  String get account_row_logout => 'Log out';
+
+  @override
+  String get account_logout_confirm_title => 'Sign out of Masrafy?';
+
+  @override
+  String get account_logout_confirm_message => 'You\'ll be returned to the login screen.';
+
+  @override
+  String get account_logout_confirm_action => 'Sign out';
+
+  @override
+  String get account_logout_confirm_cancel => 'Cancel';
+
+  @override
   String get saved_offers_empty_title => 'No saved offers yet';
 
   @override
@@ -1685,6 +1700,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_proceed_error => 'Something went wrong. Please try again.';
 
   @override
+  String get offer_national_id_required_title => 'National ID Required';
+
+  @override
+  String get offer_national_id_required_body => 'Upload the front and back of your National ID to continue with this application.';
+
+  @override
+  String get offer_national_id_required_cta => 'Complete Profile';
+
+  @override
   String get offer_save_success => 'Offer saved. Find it later in Saved Offers.';
 
   @override
@@ -1701,6 +1725,24 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_biometric_subtitle => 'Face ID / Fingerprint';
+
+  @override
+  String get settings_biometric_confirm_reason => 'Confirm your fingerprint or Face ID to turn on biometric login';
+
+  @override
+  String get settings_biometric_unavailable => 'Biometric login isn\'t set up on this device yet';
+
+  @override
+  String get biometric_lock_title => 'Unlock Masrafy with Face ID or your fingerprint';
+
+  @override
+  String get biometric_lock_reason => 'Unlock Masrafy';
+
+  @override
+  String get biometric_lock_retry => 'Try again';
+
+  @override
+  String get biometric_lock_logout => 'Log out';
 
   @override
   String get settings_privacy_policies_title => 'Privacy Policies';

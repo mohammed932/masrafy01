@@ -90,7 +90,7 @@ export class MobileDocumentsController {
     });
     await this.audit.write({
       actorId: null,
-      targetId: applicationId,
+      targetId: null,
       eventType: AuditEventType.DOCUMENT_UPLOADED,
       sourceIp: req.ip ?? null,
       payload: {

@@ -648,6 +648,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String get account_row_previous_applications => 'الطلبات السابقة';
 
   @override
+  String get account_row_logout => 'تسجيل الخروج';
+
+  @override
+  String get account_logout_confirm_title => 'تسجيل الخروج من مصرفي؟';
+
+  @override
+  String get account_logout_confirm_message => 'سيتم إعادتك إلى شاشة تسجيل الدخول.';
+
+  @override
+  String get account_logout_confirm_action => 'تسجيل الخروج';
+
+  @override
+  String get account_logout_confirm_cancel => 'إلغاء';
+
+  @override
   String get saved_offers_empty_title => 'لا توجد عروض محفوظة بعد';
 
   @override
@@ -1688,6 +1703,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_proceed_error => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
+  String get offer_national_id_required_title => 'الرقم القومي مطلوب';
+
+  @override
+  String get offer_national_id_required_body => 'قم برفع صورة الرقم القومي من الأمام والخلف للمتابعة في هذا الطلب.';
+
+  @override
+  String get offer_national_id_required_cta => 'إكمال الملف الشخصي';
+
+  @override
   String get offer_save_success => 'تم حفظ العرض. يمكنك إيجاده في العروض المحفوظة.';
 
   @override
@@ -1704,6 +1728,24 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settings_biometric_subtitle => 'بصمة الوجه / بصمة الإصبع';
+
+  @override
+  String get settings_biometric_confirm_reason => 'أكّد ببصمة الوجه أو الإصبع لتفعيل تسجيل الدخول بالبصمة';
+
+  @override
+  String get settings_biometric_unavailable => 'تسجيل الدخول بالبصمة غير مُعد على هذا الجهاز بعد';
+
+  @override
+  String get biometric_lock_title => 'افتح تطبيق مصرفي ببصمة الوجه أو الإصبع';
+
+  @override
+  String get biometric_lock_reason => 'فتح تطبيق مصرفي';
+
+  @override
+  String get biometric_lock_retry => 'حاول مرة أخرى';
+
+  @override
+  String get biometric_lock_logout => 'تسجيل الخروج';
 
   @override
   String get settings_privacy_policies_title => 'سياسات الخصوصية';

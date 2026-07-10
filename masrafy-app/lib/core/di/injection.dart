@@ -1,11 +1,15 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../cache/shared_prefs_service.dart';
 import '../environments/app_env.dart';
 import '../environments/base_environment.dart';
 import '../environments/dev_environment.dart';
+import '../features/biometric/data/biometric_storage.dart';
+import '../features/biometric/domain/biometric_service.dart';
+import '../features/biometric/presentation/cubit/biometric_gate_cubit.dart';
 import '../locale/locale_cubit/locale_cubit.dart';
 import '../network/app_network.dart';
 import '../network/dio_factory.dart';
@@ -81,6 +85,21 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerLazySingleton<CustomerSessionStorage>(
     () => CustomerSessionStorage(getIt<FlutterSecureStorage>()),
+  );
+
+  // -- Biometric login (Face ID / fingerprint) ----------------------------
+  getIt.registerLazySingleton<LocalAuthentication>(() => LocalAuthentication());
+  getIt.registerLazySingleton<BiometricStorage>(
+    () => BiometricStorage(getIt<FlutterSecureStorage>()),
+  );
+  getIt.registerLazySingleton<BiometricService>(
+    () => BiometricService(getIt<LocalAuthentication>(), getIt<BiometricStorage>()),
+  );
+  getIt.registerLazySingleton<BiometricGateCubit>(
+    () => BiometricGateCubit(
+      getIt<BiometricService>(),
+      getIt<CustomerSessionStorage>(),
+    ),
   );
 
   // -- Network -----------------------------------------------------------
@@ -216,5 +235,5 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
 
   // account — settings & security (UI-only mock; toggles flip local state).
   // Screen-scoped (Principle XXXI).
-  getIt.registerFactory(() => SettingsSecurityCubit());
+  getIt.registerFactory(() => SettingsSecurityCubit(getIt<BiometricService>()));
 }

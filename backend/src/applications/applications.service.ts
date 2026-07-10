@@ -104,6 +104,11 @@ export class ApplicationsService {
     userProceededAt: string;
     correlationId: string;
   }> {
+    // National ID may have been missing or rejected after the original apply()
+    // check — re-assert it here too, since proceeding with a bank offer is its
+    // own commitment point.
+    await this.completeness.assertNationalId(input.customerId);
+
     const correlationId = randomUUID();
     return this.prisma.$transaction(
       async (tx) => {

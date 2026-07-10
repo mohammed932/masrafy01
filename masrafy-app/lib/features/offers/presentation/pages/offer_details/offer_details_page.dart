@@ -173,7 +173,7 @@ class OfferDetailsPage extends StatelessWidget {
                               create: (_) => getIt<SelectOfferCubit>(),
                               child: BlocConsumer<SelectOfferCubit,
                                   SelectOfferState>(
-                                listener: (ctx, state) {
+                                listener: (ctx, state) async {
                                   if (state.isSuccess) {
                                     MasrafyToast.success(
                                         ctx, l.offer_proceed_success);
@@ -184,6 +184,19 @@ class OfferDetailsPage extends StatelessWidget {
                                       const HomeRoute(),
                                       const PreviousApplicationsRoute(),
                                     ]);
+                                  } else if (state.needsProfile) {
+                                    await MasrafyInfoDialog.show(
+                                      ctx,
+                                      title: l.offer_national_id_required_title,
+                                      message:
+                                          l.offer_national_id_required_body,
+                                      actionLabel:
+                                          l.offer_national_id_required_cta,
+                                      barrierDismissible: false,
+                                    );
+                                    if (ctx.mounted) {
+                                      ctx.router.push(CompleteProfileRoute());
+                                    }
                                   } else if (state.isError) {
                                     MasrafyToast.error(
                                         ctx, l.offer_proceed_error);

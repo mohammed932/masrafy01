@@ -1325,6 +1325,36 @@ abstract class AppLocalizations {
   /// **'الطلبات السابقة'**
   String get account_row_previous_applications;
 
+  /// No description provided for @account_row_logout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get account_row_logout;
+
+  /// No description provided for @account_logout_confirm_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج من مصرفي؟'**
+  String get account_logout_confirm_title;
+
+  /// No description provided for @account_logout_confirm_message.
+  ///
+  /// In ar, this message translates to:
+  /// **'سيتم إعادتك إلى شاشة تسجيل الدخول.'**
+  String get account_logout_confirm_message;
+
+  /// No description provided for @account_logout_confirm_action.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get account_logout_confirm_action;
+
+  /// No description provided for @account_logout_confirm_cancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get account_logout_confirm_cancel;
+
   /// No description provided for @saved_offers_empty_title.
   ///
   /// In ar, this message translates to:
@@ -3365,6 +3395,24 @@ abstract class AppLocalizations {
   /// **'حدث خطأ ما. حاول مرة أخرى.'**
   String get offer_proceed_error;
 
+  /// No description provided for @offer_national_id_required_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'الرقم القومي مطلوب'**
+  String get offer_national_id_required_title;
+
+  /// No description provided for @offer_national_id_required_body.
+  ///
+  /// In ar, this message translates to:
+  /// **'قم برفع صورة الرقم القومي من الأمام والخلف للمتابعة في هذا الطلب.'**
+  String get offer_national_id_required_body;
+
+  /// No description provided for @offer_national_id_required_cta.
+  ///
+  /// In ar, this message translates to:
+  /// **'إكمال الملف الشخصي'**
+  String get offer_national_id_required_cta;
+
   /// No description provided for @offer_save_success.
   ///
   /// In ar, this message translates to:
@@ -3400,6 +3448,42 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'بصمة الوجه / بصمة الإصبع'**
   String get settings_biometric_subtitle;
+
+  /// No description provided for @settings_biometric_confirm_reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكّد ببصمة الوجه أو الإصبع لتفعيل تسجيل الدخول بالبصمة'**
+  String get settings_biometric_confirm_reason;
+
+  /// No description provided for @settings_biometric_unavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الدخول بالبصمة غير مُعد على هذا الجهاز بعد'**
+  String get settings_biometric_unavailable;
+
+  /// No description provided for @biometric_lock_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'افتح تطبيق مصرفي ببصمة الوجه أو الإصبع'**
+  String get biometric_lock_title;
+
+  /// No description provided for @biometric_lock_reason.
+  ///
+  /// In ar, this message translates to:
+  /// **'فتح تطبيق مصرفي'**
+  String get biometric_lock_reason;
+
+  /// No description provided for @biometric_lock_retry.
+  ///
+  /// In ar, this message translates to:
+  /// **'حاول مرة أخرى'**
+  String get biometric_lock_retry;
+
+  /// No description provided for @biometric_lock_logout.
+  ///
+  /// In ar, this message translates to:
+  /// **'تسجيل الخروج'**
+  String get biometric_lock_logout;
 
   /// No description provided for @settings_privacy_policies_title.
   ///

@@ -12,6 +12,7 @@ import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/widgets/buttons/masrafy_gradient_button.dart';
 import 'package:app/core/widgets/common/masrafy_gradient_header.dart';
 import 'package:app/core/widgets/common/masrafy_toast.dart';
+import 'package:app/core/widgets/dialogs/masrafy_info_dialog.dart';
 import 'package:app/core/widgets/slivers/masrafy_sliver_gradient_header_delegate.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 

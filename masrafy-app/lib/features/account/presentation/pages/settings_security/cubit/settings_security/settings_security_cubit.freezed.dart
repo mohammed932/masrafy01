@@ -18,6 +18,7 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$SettingsSecurityState {
   bool get biometricEnabled => throw _privateConstructorUsedError;
   bool get notificationsEnabled => throw _privateConstructorUsedError;
+  bool get biometricUnavailable => throw _privateConstructorUsedError;
 
   /// Create a copy of SettingsSecurityState
   /// with the given fields replaced by the non-null parameter values.
@@ -32,7 +33,10 @@ abstract class $SettingsSecurityStateCopyWith<$Res> {
           $Res Function(SettingsSecurityState) then) =
       _$SettingsSecurityStateCopyWithImpl<$Res, SettingsSecurityState>;
   @useResult
-  $Res call({bool biometricEnabled, bool notificationsEnabled});
+  $Res call(
+      {bool biometricEnabled,
+      bool notificationsEnabled,
+      bool biometricUnavailable});
 }
 
 /// @nodoc
@@ -53,6 +57,7 @@ class _$SettingsSecurityStateCopyWithImpl<$Res,
   $Res call({
     Object? biometricEnabled = null,
     Object? notificationsEnabled = null,
+    Object? biometricUnavailable = null,
   }) {
     return _then(_value.copyWith(
       biometricEnabled: null == biometricEnabled
@@ -62,6 +67,10 @@ class _$SettingsSecurityStateCopyWithImpl<$Res,
       notificationsEnabled: null == notificationsEnabled
           ? _value.notificationsEnabled
           : notificationsEnabled // ignore: cast_nullable_to_non_nullable
+              as bool,
+      biometricUnavailable: null == biometricUnavailable
+          ? _value.biometricUnavailable
+          : biometricUnavailable // ignore: cast_nullable_to_non_nullable
               as bool,
     ) as $Val);
   }
@@ -76,7 +85,10 @@ abstract class _$$SettingsSecurityStateImplCopyWith<$Res>
       __$$SettingsSecurityStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({bool biometricEnabled, bool notificationsEnabled});
+  $Res call(
+      {bool biometricEnabled,
+      bool notificationsEnabled,
+      bool biometricUnavailable});
 }
 
 /// @nodoc
@@ -95,6 +107,7 @@ class __$$SettingsSecurityStateImplCopyWithImpl<$Res>
   $Res call({
     Object? biometricEnabled = null,
     Object? notificationsEnabled = null,
+    Object? biometricUnavailable = null,
   }) {
     return _then(_$SettingsSecurityStateImpl(
       biometricEnabled: null == biometricEnabled
@@ -105,6 +118,10 @@ class __$$SettingsSecurityStateImplCopyWithImpl<$Res>
           ? _value.notificationsEnabled
           : notificationsEnabled // ignore: cast_nullable_to_non_nullable
               as bool,
+      biometricUnavailable: null == biometricUnavailable
+          ? _value.biometricUnavailable
+          : biometricUnavailable // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -113,7 +130,9 @@ class __$$SettingsSecurityStateImplCopyWithImpl<$Res>
 
 class _$SettingsSecurityStateImpl implements _SettingsSecurityState {
   const _$SettingsSecurityStateImpl(
-      {this.biometricEnabled = true, this.notificationsEnabled = true});
+      {this.biometricEnabled = false,
+      this.notificationsEnabled = true,
+      this.biometricUnavailable = false});
 
   @override
   @JsonKey()
@@ -121,10 +140,13 @@ class _$SettingsSecurityStateImpl implements _SettingsSecurityState {
   @override
   @JsonKey()
   final bool notificationsEnabled;
+  @override
+  @JsonKey()
+  final bool biometricUnavailable;
 
   @override
   String toString() {
-    return 'SettingsSecurityState(biometricEnabled: $biometricEnabled, notificationsEnabled: $notificationsEnabled)';
+    return 'SettingsSecurityState(biometricEnabled: $biometricEnabled, notificationsEnabled: $notificationsEnabled, biometricUnavailable: $biometricUnavailable)';
   }
 
   @override
@@ -135,12 +157,14 @@ class _$SettingsSecurityStateImpl implements _SettingsSecurityState {
             (identical(other.biometricEnabled, biometricEnabled) ||
                 other.biometricEnabled == biometricEnabled) &&
             (identical(other.notificationsEnabled, notificationsEnabled) ||
-                other.notificationsEnabled == notificationsEnabled));
+                other.notificationsEnabled == notificationsEnabled) &&
+            (identical(other.biometricUnavailable, biometricUnavailable) ||
+                other.biometricUnavailable == biometricUnavailable));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, biometricEnabled, notificationsEnabled);
+  int get hashCode => Object.hash(runtimeType, biometricEnabled,
+      notificationsEnabled, biometricUnavailable);
 
   /// Create a copy of SettingsSecurityState
   /// with the given fields replaced by the non-null parameter values.
@@ -155,12 +179,15 @@ class _$SettingsSecurityStateImpl implements _SettingsSecurityState {
 abstract class _SettingsSecurityState implements SettingsSecurityState {
   const factory _SettingsSecurityState(
       {final bool biometricEnabled,
-      final bool notificationsEnabled}) = _$SettingsSecurityStateImpl;
+      final bool notificationsEnabled,
+      final bool biometricUnavailable}) = _$SettingsSecurityStateImpl;
 
   @override
   bool get biometricEnabled;
   @override
   bool get notificationsEnabled;
+  @override
+  bool get biometricUnavailable;
 
   /// Create a copy of SettingsSecurityState
   /// with the given fields replaced by the non-null parameter values.

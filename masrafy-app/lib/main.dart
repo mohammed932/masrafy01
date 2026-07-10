@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injection.dart';
 import 'core/environments/base_environment.dart';
+import 'core/features/biometric/presentation/biometric_cold_start_observer.dart';
+import 'core/features/biometric/presentation/biometric_gate_observer.dart';
 import 'core/locale/locale_cubit/locale_cubit.dart';
 import 'core/router/router.dart';
 import 'core/theme/colors/masrafy_color_theme.dart';
@@ -46,7 +48,9 @@ class MasrafyApp extends StatelessWidget {
                 theme: _buildTheme(const MasrafyLightTheme()),
                 darkTheme: _buildTheme(const MasrafyDarkTheme()),
                 themeMode: _materialThemeMode(state.mode),
-                routerConfig: router.config(),
+                routerConfig: router.config(
+                  navigatorObservers: () => [BiometricColdStartObserver()],
+                ),
                 builder: (context, child) {
                 MasrafyUiKitInitializer.update(context);
                 // Resolve the active theme for the InheritedWidget so
@@ -58,7 +62,9 @@ class MasrafyApp extends StatelessWidget {
                 );
                 return MasrafyColorThemeProvider(
                   theme: colors,
-                  child: child ?? const SizedBox.shrink(),
+                  child: BiometricGateObserver(
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 );
               },
               ),
