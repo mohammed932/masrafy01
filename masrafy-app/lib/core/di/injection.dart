@@ -36,7 +36,6 @@ import 'package:app/features/questionnaire/data/repositories/questionnaire_repos
 import 'package:app/features/questionnaire/domain/repositories/questionnaire_repository.dart';
 import 'package:app/features/questionnaire/domain/usecases/questionnaire_usecase.dart';
 import 'package:app/features/questionnaire/presentation/pages/dynamic/questionnaire_cubit.dart';
-import 'package:app/features/questionnaire/presentation/pages/business/cubit/business_questionnaire/business_questionnaire_cubit.dart';
 import 'package:app/features/onboarding/presentation/pages/onboarding/cubit/onboarding/onboarding_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile/profile_cubit.dart';
 import 'package:app/features/applications/data/datasources/applications_remote_datasource.dart';
@@ -181,7 +180,6 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     () => QuestionnaireUseCase(getIt<QuestionnaireRepository>()),
   );
   getIt.registerFactory(() => QuestionnaireCubit(getIt<QuestionnaireUseCase>()));
-  getIt.registerFactory(() => BusinessQuestionnaireCubit());
 
   // profile — view + two edit screens (UI-only mock; no datasource/repo yet,
   // see plan). Screen-scoped (Principle XXXI).

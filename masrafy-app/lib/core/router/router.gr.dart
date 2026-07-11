@@ -45,7 +45,7 @@ import 'package:app/features/profile/presentation/models/profile_data.dart'
     as _i27;
 import 'package:app/features/profile/presentation/pages/profile/profile.imports.dart'
     as _i16;
-import 'package:app/features/questionnaire/presentation/pages/business/business.imports.dart'
+import 'package:app/features/questionnaire/presentation/pages/business/business_questionnaire_page.dart'
     as _i4;
 import 'package:app/features/questionnaire/presentation/pages/car/car_questionnaire_page.dart'
     as _i5;
