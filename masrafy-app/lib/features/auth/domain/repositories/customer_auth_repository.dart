@@ -11,6 +11,7 @@ import '../../data/models/request/signup/signup_phone_start_request.dart';
 import '../../data/models/request/social/social_signin_request.dart';
 import '../entities/customer_entity.dart';
 import '../entities/otp_challenge_entity.dart';
+import '../entities/profile_documents_status_entity.dart';
 import '../entities/social_session_entity.dart';
 
 /// Methods with more than two parameters take a typed `*Request` DTO
@@ -57,6 +58,10 @@ abstract class CustomerAuthRepository {
   Future<Either<Failure, CustomerSessionEntity>> completeProfile(
     CompleteProfileRequest body,
   );
+
+  /// Which apply-time documents (photo + National ID sides) are already on
+  /// file — pre-checks the apply-documents screen (Constitution v9.0.1).
+  Future<Either<Failure, ProfileDocumentsStatusEntity>> profileDocumentsStatus();
 }
 
 /// Discriminated outcome of `verifyOtp`. SIGNUP/MOBILE_CHANGE → `verifiedMobileToken`;

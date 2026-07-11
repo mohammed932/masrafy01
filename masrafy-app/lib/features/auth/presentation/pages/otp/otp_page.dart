@@ -75,10 +75,16 @@ class _OtpView extends StatelessWidget {
         listenWhen: (p, c) => p.status != c.status,
         listener: (ctx, state) {
           if (state.isSuccess) {
-            // LITE account created — finish the mandatory profile-completion
-            // step (photo required, National ID optional), prefilled from the
-            // carried draft.
-            ctx.router.replaceAll([CompleteProfileRoute(draft: state.draft)]);
+            // Profile completion already ran silently in OtpCubit. Land on
+            // Home when it succeeded; otherwise fall back to the
+            // Complete-Profile screen (prefilled from the same draft) so the
+            // user isn't stranded — mirrors LoginPage's complete/incomplete
+            // branch (Principle XXXVII, narrowed v9.0.0: photo/National ID
+            // are optional, never block reaching Home).
+            final complete = state.session!.customer.profileComplete;
+            ctx.router.replaceAll([
+              if (complete) const HomeRoute() else CompleteProfileRoute(draft: state.draft),
+            ]);
           } else if (state.isFailure) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));
           }

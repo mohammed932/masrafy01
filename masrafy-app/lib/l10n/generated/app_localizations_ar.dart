@@ -1712,6 +1712,27 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_national_id_required_cta => 'إكمال الملف الشخصي';
 
   @override
+  String get apply_docs_title => 'أكمل مستنداتك';
+
+  @override
+  String get apply_docs_subtitle => 'أضف صورتك والرقم القومي لإرسال هذا الطلب إلى البنك.';
+
+  @override
+  String get apply_docs_photo_section => 'الصورة الشخصية';
+
+  @override
+  String get apply_docs_photo_hint => 'مطلوبة';
+
+  @override
+  String get apply_docs_cta => 'متابعة الطلب';
+
+  @override
+  String get apply_docs_upload_error => 'تعذّر رفع الملف. حاول مرة أخرى.';
+
+  @override
+  String get auth_profile_photo_required => 'ارفع صورتك الشخصية قبل التقديم على القرض.';
+
+  @override
   String get offer_save_success => 'تم حفظ العرض. يمكنك إيجاده في العروض المحفوظة.';
 
   @override

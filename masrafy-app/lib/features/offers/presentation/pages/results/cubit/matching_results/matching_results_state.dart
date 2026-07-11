@@ -21,6 +21,7 @@ class MatchingResultsState with _$MatchingResultsState {
   bool get isEmpty => status.isLoaded && offers.isEmpty;
 
   /// A gate rather than a transient failure — the profile must be finished.
-  bool get needsProfile =>
-      error?.code == 'PROFILE_INCOMPLETE' || error?.code == 'NATIONAL_ID_REQUIRED';
+  /// Documents (photo/National ID) are NOT gated on the matching call anymore
+  /// (Constitution v9.0.1); they surface only at select-offer.
+  bool get needsProfile => error?.code == 'PROFILE_INCOMPLETE';
 }

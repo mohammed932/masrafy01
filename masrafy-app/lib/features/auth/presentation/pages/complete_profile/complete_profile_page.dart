@@ -138,10 +138,11 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SignupPhotoUpload(
+                          MasrafyPhotoUpload(
                             label: l.signup_photo_upload,
                             imageBytes: state.photoBytes,
                             uploading: state.photoUploading,
+                            uploaded: state.photoUploaded,
                             onTap: cubit.pickAndUploadPhoto,
                           ),
                           Gap(20.h),

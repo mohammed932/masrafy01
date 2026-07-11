@@ -25,6 +25,6 @@ import 'package:app/features/auth/domain/enums/otp_purpose.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import 'cubit/signup/signup_cubit.dart';
-import 'widgets/signup_photo_upload.dart';
+import 'package:app/core/widgets/input_controls/masrafy_photo_upload.dart';
 
 part 'signup_page.dart';

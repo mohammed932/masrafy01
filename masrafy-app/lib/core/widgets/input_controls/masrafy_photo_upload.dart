@@ -9,15 +9,20 @@ import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
 /// Profile-photo upload affordance (Figma `91:349`): a 128px dashed-border
 /// circle with a camera glyph + "Upload" label. When [imageBytes] is provided
-/// the picked photo fills the circle; [uploading] shows a spinner overlay.
-/// [onTap] picks/uploads (or surfaces a coming-soon hint where deferred).
-class SignupPhotoUpload extends StatelessWidget {
-  const SignupPhotoUpload({
+/// the just-picked photo fills the circle; [uploading] shows a spinner overlay;
+/// [uploaded] (without bytes) renders a done state for a photo already on file
+/// (e.g. fetched from the documents-status pre-check). [onTap] picks/uploads.
+///
+/// Shared core widget (Principle XXXIII) — used by signup, complete-profile,
+/// and the apply-documents screen.
+class MasrafyPhotoUpload extends StatelessWidget {
+  const MasrafyPhotoUpload({
     super.key,
     required this.label,
     this.onTap,
     this.imageBytes,
     this.uploading = false,
+    this.uploaded = false,
   });
 
   final String label;
@@ -29,18 +34,25 @@ class SignupPhotoUpload extends StatelessWidget {
   /// Shows a progress overlay while the upload is in flight.
   final bool uploading;
 
+  /// Renders a done state when the photo is already on file but no local
+  /// bytes are held (pre-checked from the backend).
+  final bool uploaded;
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final hasImage = imageBytes != null;
+    final isDone = uploaded && !hasImage;
 
     return Center(
       child: GestureDetector(
         onTap: uploading ? null : onTap,
         behavior: HitTestBehavior.opaque,
         child: CustomPaint(
-          painter: _DashedCirclePainter(color: colors.secondary.main),
+          painter: _DashedCirclePainter(
+            color: isDone ? colors.success.main : colors.secondary.main,
+          ),
           child: Container(
             width: 128.r,
             height: 128.r,
@@ -84,15 +96,21 @@ class SignupPhotoUpload extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            Icons.add_a_photo_outlined,
+                            isDone
+                                ? Icons.check_circle
+                                : Icons.add_a_photo_outlined,
                             size: 26.r,
-                            color: colors.secondary.main,
+                            color: isDone
+                                ? colors.success.main
+                                : colors.secondary.main,
                           ),
                           Gap(4.h),
                           Text(
                             label,
                             style: text.caption.medium().copyWith(
-                                  color: colors.secondary.main,
+                                  color: isDone
+                                      ? colors.success.main
+                                      : colors.secondary.main,
                                 ),
                           ),
                         ],

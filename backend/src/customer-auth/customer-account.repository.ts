@@ -63,7 +63,6 @@ export interface CustomerProfileState {
   firstName: string;
   lastName: string;
   birthday: Date | null;
-  profilePhotoKey: string | null;
   passwordHash: string | null;
 }
 
@@ -248,10 +247,23 @@ export class CustomerAccountRepository {
         firstName: true,
         lastName: true,
         birthday: true,
-        profilePhotoKey: true,
         passwordHash: true,
       },
     });
+  }
+
+  /**
+   * Lightweight photo-presence read for the select-offer document gate and the
+   * profile-documents status endpoint — avoids dragging the full `loginShape`
+   * projection into the completeness service. Returns null for a missing
+   * customer too (an authenticated caller always exists).
+   */
+  async findProfilePhotoKey(customerId: string): Promise<string | null> {
+    const row = await this.prisma.customerAccount.findUnique({
+      where: { id: customerId },
+      select: { profilePhotoKey: true },
+    });
+    return row?.profilePhotoKey ?? null;
   }
 
   /**

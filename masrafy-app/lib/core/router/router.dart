@@ -39,6 +39,7 @@ class AppRouter extends RootStackRouter {
           transitionsBuilder: TransitionsBuilders.fadeIn,
           durationInMilliseconds: _fadeMs,
         ),
+        AutoRoute(page: ApplyDocumentsRoute.page),
         CustomRoute(
           page: HomeRoute.page,
           initial: true,

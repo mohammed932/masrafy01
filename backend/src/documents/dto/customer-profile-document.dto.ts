@@ -47,3 +47,23 @@ export class ProfilePhotoConfirmDto {
   @Length(10, 256)
   s3Key!: string;
 }
+
+/** GET /v1/profile/documents/status payload — which apply documents are already in place. */
+export class ProfileDocumentsStatusDto {
+  @ApiProperty({ description: 'Profile photo confirmed (customerAccount.profilePhotoKey set).' })
+  profilePhoto!: boolean;
+
+  @ApiProperty({ description: 'Usable NATIONAL_ID_FRONT document exists (uploaded/verified, not erased).' })
+  nationalIdFront!: boolean;
+
+  @ApiProperty({ description: 'Usable NATIONAL_ID_BACK document exists (uploaded/verified, not erased).' })
+  nationalIdBack!: boolean;
+}
+
+export class ProfileDocumentsStatusResponseDto {
+  @ApiProperty()
+  success!: true;
+
+  @ApiProperty({ type: ProfileDocumentsStatusDto })
+  data!: ProfileDocumentsStatusDto;
+}

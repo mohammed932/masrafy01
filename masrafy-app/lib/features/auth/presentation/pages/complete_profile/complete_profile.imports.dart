@@ -22,7 +22,7 @@ import 'package:app/core/widgets/slivers/masrafy_sliver_gradient_header_delegate
 import 'package:app/features/auth/domain/entities/signup_draft.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
-import '../signup/widgets/signup_photo_upload.dart';
+import 'package:app/core/widgets/input_controls/masrafy_photo_upload.dart';
 import 'cubit/complete_profile/complete_profile_cubit.dart';
 
 part 'complete_profile_page.dart';

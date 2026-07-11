@@ -150,11 +150,15 @@ export class CustomerAuthMobileService {
 
   /**
    * Principle XXXVII — mandatory profile-completion step for BOTH paths.
-   * Requires the profile photo persisted (via the profile-photo presign
-   * endpoint). National ID is OPTIONAL here ("add later") and enforced only at
-   * loan-apply time. Optional `email` is persisted when supplied. PHONE
-   * customers set a password here; SOCIAL customers must NOT send one. Returns a
-   * refreshed auth result (with `profileComplete`).
+   * Collects firstName/lastName/birthday (+password for PHONE). Profile
+   * photo and National ID are OPTIONAL (narrowed v9.0.0) — a customer may
+   * upload either at any time via the profile-document/photo presign
+   * endpoints, and neither blocks completion. National ID remains enforced
+   * separately at the select-offer commitment point
+   * (`assertSelectOfferDocuments`). Optional `email` is
+   * persisted when supplied. PHONE customers set a password here; SOCIAL
+   * customers must NOT send one. Returns a refreshed auth result (with
+   * `profileComplete`).
    */
   async completeProfile(args: {
     customerId: string;
@@ -180,12 +184,8 @@ export class CustomerAuthMobileService {
       throw new DomainException(ERROR_CODES.PROFILE_FIELD_IMMUTABLE);
     }
 
-    // Profile photo must already be persisted (set at photo-confirm).
-    if (state.profilePhotoKey === null) {
-      throw new DomainException(ERROR_CODES.PROFILE_INCOMPLETE);
-    }
-
-    // National ID is optional at signup (enforced later at loan-apply time).
+    // Profile photo and National ID are optional here (Principle XXXVII,
+    // narrowed v9.0.0) — nothing to check.
 
     // Optional email — persisted when supplied; must not collide with another account.
     const email = args.email?.trim().toLowerCase();

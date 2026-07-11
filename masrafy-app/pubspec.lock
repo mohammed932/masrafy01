@@ -1339,7 +1339,7 @@ packages:
     source: hosted
     version: "3.3.0+3"
   talker:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: talker
       sha256: f1a14d623f1d1bec42bb3bb77674eb766ffe8d26e5f79af652d85cb097c3e757

@@ -159,7 +159,7 @@ export class CustomerAuthController {
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
   @ApiOperation({
     summary:
-      'Mandatory profile completion (Principle XXXVII) — firstName/lastName/birthday (+password for PHONE). Requires profile photo + National ID front/back already uploaded.',
+      'Mandatory profile completion (Principle XXXVII) — firstName/lastName/birthday (+password for PHONE). Profile photo + National ID front/back are optional and independent of this call.',
   })
   async completeProfile(
     @Body() body: CustomerCompleteProfileDto,

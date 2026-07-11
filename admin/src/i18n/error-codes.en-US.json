@@ -94,6 +94,7 @@
   "PROFILE_FIELD_IMMUTABLE": "This field cannot be changed once set.",
   "PROFILE_ID_DOCS_MISSING": "Upload both National ID front and back before completing your profile.",
   "NATIONAL_ID_REQUIRED": "Upload your National ID (front and back) before applying for a loan.",
+  "PROFILE_PHOTO_REQUIRED": "Upload your profile photo before applying for a loan.",
   "PASSWORD_REQUIRED_FOR_PHONE_PROFILE": "A password is required to complete your profile.",
   "PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE": "Accounts using Google or Apple sign-in do not set a password.",
   "PHONE_MUTATION_ON_PHONE_CUSTOMER_FORBIDDEN": "Mobile number is already set on this account.",

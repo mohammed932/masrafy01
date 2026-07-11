@@ -14,6 +14,7 @@ import 'package:app/features/auth/data/models/request/signup/signup_phone_start_
 import 'package:app/features/auth/data/models/request/social/social_signin_request.dart';
 import 'package:app/features/auth/domain/entities/customer_entity.dart';
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart';
+import 'package:app/features/auth/domain/entities/profile_documents_status_entity.dart';
 import 'package:app/features/auth/domain/entities/social_session_entity.dart';
 import 'package:app/features/auth/domain/repositories/customer_auth_repository.dart';
 
@@ -159,6 +160,14 @@ class CustomerAuthRepositoryImpl implements CustomerAuthRepository {
     CompleteProfileRequest body,
   ) async {
     final result = await ApiHandler.callApi(() => _ds.completeProfile(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, ProfileDocumentsStatusEntity>>
+      profileDocumentsStatus() async {
+    final result =
+        await ApiHandler.callApi(() => _ds.profileDocumentsStatus());
     return result.map((m) => m.toEntity());
   }
 }

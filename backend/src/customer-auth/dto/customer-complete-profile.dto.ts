@@ -3,8 +3,9 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * Principle XXXVII — mandatory profile completion (both registration paths).
- * The profile photo is uploaded BEFORE this call via the customer-scoped
- * presign endpoint; National ID is optional at signup (enforced at apply time).
+ * Profile photo and National ID are optional (narrowed v9.0.0) — neither is
+ * required before or after this call; both are uploadable at any time via
+ * their own customer-scoped presign endpoints, independent of this DTO.
  * This DTO carries only the scalar profile fields. `password` is required for
  * PHONE customers (first completion) and MUST be omitted for SOCIAL customers.
  */

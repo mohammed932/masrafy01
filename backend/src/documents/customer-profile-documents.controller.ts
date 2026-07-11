@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Param,
@@ -8,14 +9,17 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { CustomerJwtGuard } from '@/customer-auth/guards/customer-jwt.guard';
+import { CustomerProfileCompletenessService } from '@/customer-auth/customer-profile-completeness.service';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { DocumentsService } from './documents.service';
 import {
+  ProfileDocumentsStatusDto,
+  ProfileDocumentsStatusResponseDto,
   ProfileDocUploadUrlDto,
   ProfilePhotoConfirmDto,
   ProfilePhotoUploadUrlDto,
@@ -35,6 +39,7 @@ export class CustomerProfileDocumentsController {
   constructor(
     private readonly service: DocumentsService,
     private readonly audit: AuditEventWriter,
+    private readonly completeness: CustomerProfileCompletenessService,
   ) {}
 
   @Post('documents/upload-url')
@@ -117,6 +122,24 @@ export class CustomerProfileDocumentsController {
       customer: { id: customerId },
     });
     return ok(result);
+  }
+
+  @Get('documents/status')
+  @ApiOperation({
+    summary: 'Which profile documents are already uploaded (photo + National ID front/back)',
+  })
+  @ApiResponse({
+    status: 200,
+    type: ProfileDocumentsStatusResponseDto,
+    description: 'Per-document upload state',
+  })
+  @ApiResponse({ status: 401, description: 'Customer JWT missing or invalid' })
+  async documentsStatus(
+    @Req() req: Request,
+  ): Promise<{ success: true; data: ProfileDocumentsStatusDto }> {
+    const customerId = this.requireCustomerId(req);
+    const status = await this.completeness.getProfileDocumentsStatus(customerId);
+    return ok(status);
   }
 
   private requireCustomerId(req: Request): string {

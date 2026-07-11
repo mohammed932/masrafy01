@@ -6,7 +6,7 @@ import 'package:app/l10n/generated/app_localizations.dart';
 ///
 /// Each option's `value` is a stable, language-neutral id that maps to the
 /// backend business `QuestionOption.code`; the `label` is localized at call
-/// time. Mirrors [MortgageLookups].
+/// time.
 class BusinessLookups {
   BusinessLookups._();
 

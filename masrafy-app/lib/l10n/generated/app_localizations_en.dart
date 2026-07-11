@@ -1709,6 +1709,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_national_id_required_cta => 'Complete Profile';
 
   @override
+  String get apply_docs_title => 'Complete your documents';
+
+  @override
+  String get apply_docs_subtitle => 'Add your photo and National ID to send this application to the bank.';
+
+  @override
+  String get apply_docs_photo_section => 'Profile photo';
+
+  @override
+  String get apply_docs_photo_hint => 'required';
+
+  @override
+  String get apply_docs_cta => 'Continue application';
+
+  @override
+  String get apply_docs_upload_error => 'Couldn\'t upload that file. Please try again.';
+
+  @override
+  String get auth_profile_photo_required => 'Upload your profile photo before applying for a loan.';
+
+  @override
   String get offer_save_success => 'Offer saved. Find it later in Saved Offers.';
 
   @override

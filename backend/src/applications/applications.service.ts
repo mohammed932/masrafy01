@@ -91,7 +91,9 @@ export class ApplicationsService {
    * Mobile user picks one of the matched offers and proceeds. This is the
    * user-intent gate: until it fires, an application is invisible in the
    * admin triage dashboard. Idempotent for the same (application, offer):
-   * a repeat call surfaces ALREADY_PROCEEDED rather than overwriting.
+   * a repeat call surfaces ALREADY_PROCEEDED rather than overwriting. It is
+   * also the document commitment point: profile photo + National ID are
+   * asserted here, not at apply().
    */
   async selectOffer(input: {
     applicationId: string;
@@ -104,10 +106,12 @@ export class ApplicationsService {
     userProceededAt: string;
     correlationId: string;
   }> {
-    // National ID may have been missing or rejected after the original apply()
-    // check — re-assert it here too, since proceeding with a bank offer is its
-    // own commitment point.
-    await this.completeness.assertNationalId(input.customerId);
+    // Document commitment gate (constitution v9.0.1): profile photo + National
+    // ID front/back are required exactly here — proceeding with a bank offer —
+    // never at the matching call (`apply()`), which stays document-free so
+    // customers can browse matched offers first. The docs screen pre-checks
+    // via GET /v1/profile/documents/status (same predicate).
+    await this.completeness.assertSelectOfferDocuments(input.customerId);
 
     const correlationId = randomUUID();
     return this.prisma.$transaction(
@@ -206,8 +210,9 @@ export class ApplicationsService {
   async apply(dto: ApplyRequestDto, ctx: ApplyContext): Promise<ApplyResponse> {
     const correlationId = randomUUID();
 
-    // National ID is optional at signup but required to submit a loan application.
-    await this.completeness.assertNationalId(ctx.customerId);
+    // No document gate here (constitution v9.0.1): matched offers browse freely.
+    // Profile photo + National ID are asserted only at the select-offer
+    // commitment point (`selectOffer` → `assertSelectOfferDocuments`).
 
     if (ctx.idempotencyKey) {
       const existing = await this.repo.findByIdempotencyKey(ctx.customerId, ctx.idempotencyKey);

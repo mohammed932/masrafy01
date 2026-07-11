@@ -25,6 +25,7 @@ import 'package:app/features/auth/domain/repositories/auth_repository.dart';
 import 'package:app/features/auth/domain/repositories/customer_auth_repository.dart';
 import 'package:app/features/auth/domain/usecases/auth_usecase.dart';
 import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
+import 'package:app/features/auth/presentation/pages/apply_documents/cubit/apply_documents/apply_documents_cubit.dart';
 import 'package:app/features/auth/presentation/pages/complete_profile/cubit/complete_profile/complete_profile_cubit.dart';
 import 'package:app/features/auth/presentation/pages/login/cubit/login/login_cubit.dart';
 import 'package:app/features/auth/presentation/pages/otp/cubit/otp/otp_cubit.dart';
@@ -36,8 +37,6 @@ import 'package:app/features/questionnaire/domain/repositories/questionnaire_rep
 import 'package:app/features/questionnaire/domain/usecases/questionnaire_usecase.dart';
 import 'package:app/features/questionnaire/presentation/pages/dynamic/questionnaire_cubit.dart';
 import 'package:app/features/questionnaire/presentation/pages/business/cubit/business_questionnaire/business_questionnaire_cubit.dart';
-import 'package:app/features/questionnaire/presentation/pages/car/cubit/car_questionnaire/car_questionnaire_cubit.dart';
-import 'package:app/features/questionnaire/presentation/pages/mortgage/cubit/mortgage_questionnaire/mortgage_questionnaire_cubit.dart';
 import 'package:app/features/onboarding/presentation/pages/onboarding/cubit/onboarding/onboarding_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile/profile_cubit.dart';
 import 'package:app/features/applications/data/datasources/applications_remote_datasource.dart';
@@ -150,6 +149,9 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
       getIt<CustomerAuthUseCase>(),
     ),
   );
+  getIt.registerFactory(
+    () => ApplyDocumentsCubit(getIt<CustomerAuthUseCase>()),
+  );
 
   // splash gate + onboarding
   getIt.registerFactory(
@@ -165,9 +167,9 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   // home
   getIt.registerFactory(() => HomeCubit());
 
-  // questionnaire — personal is backend-driven via the generic dynamic renderer
-  // (QuestionnaireCubit fetches the published snapshot); car / mortgage /
-  // business still use their bespoke static-lookup cubits until migrated.
+  // questionnaire — personal + mortgage + car are backend-driven via the generic
+  // dynamic renderer (QuestionnaireCubit fetches the published snapshot); only
+  // business still uses its bespoke static-lookup cubit until migrated.
   // Screen-scoped cubits (Principle XXXI).
   getIt.registerLazySingleton(
     () => QuestionnaireRemoteDataSource(getIt<BaseNetwork>()),
@@ -179,8 +181,6 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     () => QuestionnaireUseCase(getIt<QuestionnaireRepository>()),
   );
   getIt.registerFactory(() => QuestionnaireCubit(getIt<QuestionnaireUseCase>()));
-  getIt.registerFactory(() => MortgageQuestionnaireCubit());
-  getIt.registerFactory(() => CarQuestionnaireCubit());
   getIt.registerFactory(() => BusinessQuestionnaireCubit());
 
   // profile — view + two edit screens (UI-only mock; no datasource/repo yet,

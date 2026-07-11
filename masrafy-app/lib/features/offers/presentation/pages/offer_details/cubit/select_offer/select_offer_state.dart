@@ -14,7 +14,12 @@ class SelectOfferState with _$SelectOfferState {
   bool get isSuccess => status.isLoaded;
   bool get isError => status.isError;
 
-  /// A gate rather than a transient failure — the profile must be finished.
-  bool get needsProfile =>
-      error?.code == 'PROFILE_INCOMPLETE' || error?.code == 'NATIONAL_ID_REQUIRED';
+  /// Core profile (name/birthday/…) still incomplete — route to Complete-Profile.
+  bool get needsProfile => error?.code == 'PROFILE_INCOMPLETE';
+
+  /// Apply-time documents missing (Constitution v9.0.1) — route to the
+  /// apply-documents screen to collect photo + National ID, then auto-resume.
+  bool get needsDocuments =>
+      error?.code == 'NATIONAL_ID_REQUIRED' ||
+      error?.code == 'PROFILE_PHOTO_REQUIRED';
 }

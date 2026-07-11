@@ -46,7 +46,6 @@ dependencies:
   internet_connection_checker: ^1.0.0+1
   connectivity_plus: ^6.0.5
   curl_logger_dio_interceptor: ^1.0.1
-  talker: ^5.1.17
   talker_dio_logger: ^5.1.17
 
   # Responsive / UI utilities

@@ -18,6 +18,7 @@ import '../models/response/customer_auth_envelope_model.dart';
 import '../models/response/customer_model.dart';
 import '../models/response/otp_challenge_model.dart';
 import '../models/response/otp_verify_outcome_model.dart';
+import '../models/response/profile_documents_status_model.dart';
 import '../models/response/profile_upload_ticket_model.dart';
 import '../models/response/social_session_model.dart';
 
@@ -190,6 +191,13 @@ class AuthRemoteDataSource extends BaseRemoteDataSource {
     await appNetwork.post(
       MasrafyEndpoint(endpoint: ApiStrings.profileDocConfirmUpload(documentId)),
     );
+  }
+
+  Future<ProfileDocumentsStatusModel> profileDocumentsStatus() async {
+    final json = await appNetwork.get(
+      MasrafyEndpoint(endpoint: ApiStrings.profileDocumentsStatus),
+    );
+    return ProfileDocumentsStatusModel.fromJson(_unwrap(json));
   }
 
   /// Raw binary PUT to the presigned S3 URL (bare client; see [BaseNetwork]).

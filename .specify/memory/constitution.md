@@ -322,14 +322,17 @@ mandatory profile-completion step (see Principle XXXVII):
 - **PHONE-signup:** mobile + OTP verified first → a lite customer row is
   created (`registrationPath = PHONE`, `mobileVerifiedAt` set) → the
   mandatory profile-completion step then collects firstName, lastName,
-  birthday, profile photo, National ID front + back, and a password.
-  `passwordHash` is non-null for PHONE.
+  birthday, and a password. `passwordHash` is non-null for PHONE.
 - **SOCIAL sign-in (Google / Apple):** provider-token verification creates
   a lite customer row (`registrationPath = SOCIAL`, name seeded from the
   provider, `passwordHash = NULL`) → the same mandatory profile-completion
-  step collects mobile + OTP, firstName, lastName, birthday, profile photo,
-  and National ID front + back. SOCIAL customers never have a password and
-  recover access via their provider.
+  step collects mobile + OTP, firstName, lastName, and birthday. SOCIAL
+  customers never have a password and recover access via their provider.
+
+Profile photo and National ID front + back are OPTIONAL for both paths
+(Principle XXXVII, v9.0.0) — a customer MAY upload either at any time via
+the existing customer-scoped presign endpoints; neither is required to
+finish profile completion or to reach any gated surface.
 
 There is **no "upfront full registration" and no "loan-request popup"**
 model — profile completion is a first-class, post-OTP step gating the
@@ -1454,19 +1457,28 @@ deferred to apply time.
    - mobile + `mobileVerifiedAt` (OTP-verified; non-null)
    - `firstName` AND `lastName` (both non-empty)
    - `birthday` (a `DateTime`; age is DERIVED from it, NEVER stored — see Rule 4)
-   - `profilePhotoKey` (an S3 object key under Principle VI)
-   - National ID FRONT + BACK — two `Document` rows of type
-     `NATIONAL_ID_FRONT` / `NATIONAL_ID_BACK` linked to the customer
    - PHONE customers additionally: `passwordHash` (non-null). SOCIAL
      customers have `passwordHash = NULL` and complete via their provider.
+
+   `profilePhotoKey` and the National ID FRONT/BACK `Document` rows are NOT
+   part of this contract (narrowed v9.0.0) — see Rule 3.
 2. **Hard gate.** Backend MUST reject questionnaire-submit, matching, and
-   `/applications/apply` for any customer whose profile is incomplete with
-   `PROFILE_INCOMPLETE`. The mobile app MUST route an incomplete customer
-   into the profile-completion flow and MUST NOT render the gated surfaces.
-3. **National ID is collected at profile completion, NOT at apply.** The two
-   National ID Document rows are created and linked to the CUSTOMER during
-   profile completion. Apply binds the already-present documents to the
-   application; apply MUST NOT be the first point National ID is requested.
+   `/applications/apply` for any customer whose profile is incomplete per
+   Rule 1 with `PROFILE_INCOMPLETE`. The mobile app MUST route an incomplete
+   customer into the profile-completion flow and MUST NOT render the gated
+   surfaces. A missing profile photo or National ID is NEVER a reason to
+   reject under this gate (Rule 3).
+3. **Profile photo and National ID are optional, not gating.** Neither
+   `profilePhotoKey` nor the two National ID `Document` rows are required to
+   reach COMPLETE (Rule 1), to pass the hard gate (Rule 2), or to reach any
+   part of the app including Home. A customer MAY upload either at any time,
+   before or after profile completion, via the existing customer-scoped
+   presign endpoints — uploading is never itself a precondition of anything
+   in this Principle. (A separate, non-XXXVII business rule requires the
+   profile photo and National ID front+back at the select-offer commitment
+   point — when the customer proceeds with a bank offer, never at the
+   matching call; that rule lives with the application flow, not with profile
+   completeness.)
 4. **Age is always derived from `birthday`.** No `age` column, no persisted
    `age` DTO field on the customer. Validation (18–80) runs against the value
    derived from `birthday` at write time and at apply time.
@@ -1484,14 +1496,25 @@ apply-time popup, and lets the questionnaire/matching/apply gates check a
 single boolean instead of path-specific field sets. Storing `birthday` and
 deriving age eliminates the stale-age bug class (an age integer is wrong the
 day after it is written) and matches how National ID birthdate is verified.
-Collecting National ID at completion (not apply) means a complete customer
-can apply to any matched program with zero extra document steps.
+Profile photo and National ID are PII-heavy, camera-driven uploads that
+meaningfully slow first-run onboarding for no identity-assurance benefit at
+the Home/browse/questionnaire stage; narrowing the mandatory gate to the
+handful of fields that genuinely identify and secure the account (name,
+birthday, and — for PHONE — a password) lets a PHONE-signup customer reach
+Home immediately after OTP verification instead of stalling on a document
+step. Both remain fully available to upload at any time via the existing
+profile-document endpoints, and this Principle takes no position on whether
+a later step (e.g. offer selection) chooses to require them
+independently.
 
 ### Enforcement
 
-Citing Principle XXXVII (or Anti-Patterns A30 / A31 / A32) blocks PRs that
-collect National ID at apply, store an `age` value instead of deriving from
-`birthday`, or allow any gated surface to proceed past an incomplete profile.
+Citing Principle XXXVII (or Anti-Patterns A31 / A32) blocks PRs that store
+an `age` value instead of deriving from `birthday`, reintroduce
+`profilePhotoKey` or National ID as a mandatory field of the Rule 1
+completeness contract, or allow any gated surface to proceed past a profile
+missing mobile+`mobileVerifiedAt` / firstName / lastName / birthday / (PHONE)
+`passwordHash`.
 
 ---
 
@@ -1626,14 +1649,16 @@ Any datasource, repository, usecase, or cubit method on the Flutter client that 
 ## A29. Multiple Route-Level Widgets in One Page File (Principle XXXVI, v3.1.0)
 Any `*_page.dart` / `*_pages.dart` / `*_dialog.dart` / `*_sheet.dart` / `*_picker.dart` file containing MORE THAN ONE public route-level widget = review block. Each route / navigable destination ships in its own file named after the widget. Private `_`-prefixed leaf helpers used by exactly one screen MAY co-exist below the page class in the same file. Helpers reused by 2+ screens MUST be promoted to the feature's `widgets/` or `core/widgets/` per Principle XXXIII. Existing pre-v3.1.0 multi-class page files (e.g. `phone_signup_pages.dart`, `forgot_password_pages.dart`, `complete_profile_pages.dart`) are technical debt; new PRs MUST NOT extend them.
 
-## A30. National ID Collected at Apply Instead of Profile Completion (Principle XXXVII, v4.0.0)
-Requesting, uploading, or first-linking National ID FRONT/BACK inside the loan-application / apply flow = review block. National ID is collected during the mandatory profile-completion step and linked to the CUSTOMER; apply only binds pre-existing Document rows to the Application.
+## A30. Reserved (was: National ID Collected at Apply Instead of Profile Completion — retired v9.0.0)
+National ID timing is no longer gated by Principle XXXVII (photo/National ID
+are optional and non-blocking — see Rule 3, v9.0.0). Slot reserved to keep
+downstream anti-pattern IDs stable.
 
 ## A31. Storing Age Instead of Deriving From Birthday (Principle XXXVII, v4.0.0)
 Any `age` column, persisted `age` field, or DTO that writes a customer's age to the database = review block. Store `birthday` (`DateTime`); derive age on read and validate the 18–80 range against the derived value.
 
-## A32. Proceeding Past an Incomplete Profile (Principle XXXVII, v4.0.0)
-Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for a customer missing any completeness field (mobile+verified, firstName, lastName, birthday, profilePhotoKey, National ID front+back; PHONE also passwordHash) = review block. Backend returns `PROFILE_INCOMPLETE`; mobile routes into the completion flow instead of rendering the gated surface.
+## A32. Proceeding Past an Incomplete Profile (Principle XXXVII, v4.0.0; narrowed v9.0.0)
+Allowing questionnaire-submit, matching, or `/applications/apply` to succeed for a customer missing any completeness field (mobile+verified, firstName, lastName, birthday; PHONE also passwordHash) = review block. Profile photo and National ID are NOT completeness fields (Rule 1/3) and MUST NOT be added back into this gate. Backend returns `PROFILE_INCOMPLETE`; mobile routes into the completion flow instead of rendering the gated surface.
 
 ## A33. Hardcoded Scores / Hand-Typed Questionnaire Codes / Reintroduced Eligibility (Principle V, v6.0.0; two-level weights v8.0.0)
 Mutating an ACTIVE `ScoringWeightSet` in place instead of archiving it and activating a new versioned set = review block. Hardcoding a program's question weights or answer scores in the engine instead of reading the admin-set `ScoringWeightSet.weights`, or typing questionnaire question/option `code`s by hand instead of auto-generating + freezing them, = review block. Adding a scoring or eligibility field back onto `Question`/`QuestionOption` (they are pure content), reintroducing hard eligibility gates (salary / age / DBR / loan-amount / max-loan) into the preview or apply flow, or computing approval probability by any formula other than `Σ_question(questionWeight ÷ 100 × pickedAnswerScore ÷ 100)`, = review block. Only the formula + tiers live in code; per-program question weights + answer scores are admin DATA. Per program, the **question weights MUST sum to 100** and each **answer score is 0–100**; a save violating either is rejected (`WEIGHTS_QUESTION_WEIGHT_SUM_INVALID` / `WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE`). (Weight saves are direct — no maker-checker — editor ID audited.)
@@ -1660,6 +1685,8 @@ Selecting a value for a form field with an inline / floating / overlay dropdown,
 
 | Version | Date | Type | Summary |
 |---|---|---|---|
+| 9.0.1 | 2026-07-11 | PATCH | Principle XXXVII Rule 3 parenthetical updated to the now-ratified select-offer document gate (non-XXXVII): profile photo + National ID front/back are required when the customer proceeds with a bank offer — `selectOffer()` calls `assertSelectOfferDocuments` (409 `NATIONAL_ID_REQUIRED` checked first, then new `PROFILE_PHOTO_REQUIRED`) — and `POST /v1/apply` NO LONGER requires any document (pre-9.0.1 apply-time `assertNationalId` removed; matched offers browse freely). `hasNationalId`/`assertNationalId` absorbed into `getProfileDocumentsStatus()` + `assertSelectOfferDocuments()`; lightweight `CustomerAccountRepository.findProfilePhotoKey()` added. New `GET /v1/profile/documents/status` → `{ profilePhoto, nationalIdFront, nationalIdBack }` for the mobile docs-screen pre-check. Completeness contract untouched (Rules 1/2 unchanged). Same-PR i18n: `PROFILE_PHOTO_REQUIRED` in admin en-US/ar-EG error JSONs + Flutter ARB `auth_profile_photo_required`. |
+| 9.0.0 | 2026-07-11 | MAJOR | Principle XXXVII narrowed: profile photo (`profilePhotoKey`) and National ID FRONT/BACK are REMOVED from the mandatory completeness contract — COMPLETE now requires only mobile+`mobileVerifiedAt`, firstName, lastName, birthday, and (PHONE only) `passwordHash`. `CustomerProfileCompletenessService.evaluate()` drops the `profilePhotoKey` check; `customer-auth-mobile.service.ts#completeProfile()` no longer throws `PROFILE_INCOMPLETE` for a missing photo. A PHONE-signup customer can reach Home / the gated surfaces as soon as firstName+lastName+birthday+password are set, without ever uploading a photo or National ID. Photo + National ID upload endpoints (`CustomerProfileDocumentsController`) are UNCHANGED; the separate apply-time National ID requirement (`assertNationalId`/`NATIONAL_ID_REQUIRED`) is unaffected and stays outside this Principle. Rule 3 rewritten (was "National ID collected at completion, not apply" — now "photo/National ID optional, not gating"); Rules 1/2 narrowed; Rationale + Enforcement reworded. Principle XIII registration-path prose updated to drop photo/National ID from the mandatory profile-completion step. Anti-Pattern A30 retired (slot reserved, mirrors A9); A32 reworded to the narrowed field list. |
 | 8.1.0 | 2026-06-27 | MINOR | Principle XXXIII extended: the **bottom sheet is the default value-selection control** on mobile. Inline / floating / overlay / accordion dropdowns (incl. the removed `MasrafyExpandableSelect`), native `DropdownButton` / `DropdownMenu`, and value-picking `PopupMenuButton`s are banned for form-field selection; use a `MasrafySelectField<T>` trigger opening the shared **instant tap-to-select** `showMasrafySingleSelectSheet` / `showMasrafyMultiSelectSheet`, with one `MasrafySelectOption<T>` model. The 33 questionnaire selects + the profile governorate picker migrated; per-cubit `openField` / `toggleField` accordion plumbing removed. Kebab / filter / period controls exempt. New Anti-Pattern A36. |
 | 8.0.0 | 2026-06-17 | MAJOR | Principle V switched to a TWO-LEVEL model: per bank program, each QUESTION has a weight and all question weights sum to **100**, each ANSWER has a **score 0–100**; `probability = Σ_question(questionWeight ÷ 100 × pickedAnswerScore ÷ 100)` (max achievable = 100% by construction). Reverses v7.0.0's per-question ≤100 single-level points. `ScoringWeightSet.weights` shape → `{ questionWeights, answerScores }` (legacy rows upgrade on read with equal weights; no DB migration). Error codes `WEIGHTS_POINTS_OUT_OF_RANGE` + `WEIGHTS_QUESTION_OVER_BUDGET` removed; `WEIGHTS_QUESTION_WEIGHT_SUM_INVALID` + `WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE` added. A33 reworded. |
 | 7.0.0 | 2026-06-17 | MAJOR | Principle V: per-bank-program answer points are now capped **per question** — the points across one question's options must sum to **≤ 100** (a percentage budget; each answer 1–100). Reverses the v6.0.0 "no sum constraint". The scoring formula is UNCHANGED (`probability = Σ(picked points) ÷ maxAchievablePoints`); only the editable-data rule changes. New error code `WEIGHTS_QUESTION_OVER_BUDGET` (422); the admin weights editor validates per-question totals and blocks save when over; pre-existing weight sets exceeding the cap surface as over-budget and must be adjusted. Anti-Pattern A33 extended. |

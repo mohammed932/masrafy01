@@ -54,12 +54,9 @@ class CompleteProfileState with _$CompleteProfileState {
       !requiresPassword || Validators.strongPassword(password) == null;
   bool get _emailOk => email.trim().isEmpty || Validators.email(email) == null;
 
-  /// Profile photo is mandatory (Principle VI/XXXVII); National ID is optional
-  /// at signup ("add later") and enforced only at loan-apply time.
-  bool get _photoReady => photoUploaded;
-
-  /// True once both National ID sides are uploaded (purely informational —
-  /// not required to submit).
+  /// Profile photo + National ID are OPTIONAL for profile completion
+  /// (Constitution v9.0.0) — both are collected later, at the select-offer
+  /// commitment point. They remain uploadable here but never block submit.
   bool get nationalIdComplete => idFrontUploaded && idBackUploaded;
 
   bool get _anyUploading =>
@@ -72,7 +69,6 @@ class CompleteProfileState with _$CompleteProfileState {
       _ageOk &&
       _emailOk &&
       _passwordOk &&
-      _photoReady &&
       !_anyUploading &&
       !status.isLoading;
 }

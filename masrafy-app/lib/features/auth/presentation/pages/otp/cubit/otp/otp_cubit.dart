@@ -8,6 +8,7 @@ import 'package:app/core/enums/request_state.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/features/auth/data/models/request/otp/otp_request.dart';
 import 'package:app/features/auth/data/models/request/otp/otp_verify_request.dart';
+import 'package:app/features/auth/data/models/request/profile/complete_profile_request.dart';
 import 'package:app/features/auth/data/models/request/signup/signup_phone_verify_request.dart';
 import 'package:app/features/auth/domain/entities/customer_entity.dart';
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart';
@@ -86,9 +87,13 @@ class OtpCubit extends Cubit<OtpState> {
     );
   }
 
-  /// Creates the LITE account from the OTP-verified token. The collected
-  /// [SignupDraft] is kept in state so the OTP page can forward it to the
-  /// Complete-Profile screen (name / birthday / email / password prefill).
+  /// Creates the LITE account from the OTP-verified token, then silently
+  /// finishes profile completion with the already-collected [SignupDraft]
+  /// (name/birthday/email/password) — no separate user-facing form. Lands
+  /// straight on Home when that succeeds; falls back to the Complete-Profile
+  /// screen (prefilled from the same draft) if it doesn't, so the user is
+  /// never stranded (Principle XXXVII, narrowed v9.0.0 — photo/National ID
+  /// are optional and never part of this chain).
   Future<void> _completeSignup(OtpVerifyOutcome outcome) async {
     final draft = state.draft;
     final token = outcome.verifiedMobileToken;
@@ -99,17 +104,34 @@ class OtpCubit extends Cubit<OtpState> {
       ));
       return;
     }
-    final res = await _auth.signupPhoneVerify(
+    final verifyRes = await _auth.signupPhoneVerify(
       SignupPhoneVerifyRequest(verifiedMobileToken: token),
     );
-    res.fold(
-      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
-      (session) => emit(state.copyWith(
-        status: RequestState.loaded,
-        session: session,
-        error: null,
-      )),
+    await verifyRes.fold(
+      (err) async =>
+          emit(state.copyWith(status: RequestState.error, error: err)),
+      (liteSession) => _completeProfileSilently(draft, liteSession),
     );
+  }
+
+  Future<void> _completeProfileSilently(
+    SignupDraft draft,
+    CustomerSessionEntity liteSession,
+  ) async {
+    final res = await _auth.completeProfile(
+      CompleteProfileRequest(
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        birthday: draft.birthday,
+        email: draft.email,
+        password: draft.password,
+      ),
+    );
+    emit(state.copyWith(
+      status: RequestState.loaded,
+      session: res.fold((_) => liteSession, (completed) => completed),
+      error: null,
+    ));
   }
 
   /// Re-issues the SMS code. [locale] is the active app language code.

@@ -3413,6 +3413,48 @@ abstract class AppLocalizations {
   /// **'إكمال الملف الشخصي'**
   String get offer_national_id_required_cta;
 
+  /// No description provided for @apply_docs_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أكمل مستنداتك'**
+  String get apply_docs_title;
+
+  /// No description provided for @apply_docs_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف صورتك والرقم القومي لإرسال هذا الطلب إلى البنك.'**
+  String get apply_docs_subtitle;
+
+  /// No description provided for @apply_docs_photo_section.
+  ///
+  /// In ar, this message translates to:
+  /// **'الصورة الشخصية'**
+  String get apply_docs_photo_section;
+
+  /// No description provided for @apply_docs_photo_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'مطلوبة'**
+  String get apply_docs_photo_hint;
+
+  /// No description provided for @apply_docs_cta.
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة الطلب'**
+  String get apply_docs_cta;
+
+  /// No description provided for @apply_docs_upload_error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر رفع الملف. حاول مرة أخرى.'**
+  String get apply_docs_upload_error;
+
+  /// Backend PROFILE_PHOTO_REQUIRED error code
+  ///
+  /// In ar, this message translates to:
+  /// **'ارفع صورتك الشخصية قبل التقديم على القرض.'**
+  String get auth_profile_photo_required;
+
   /// No description provided for @offer_save_success.
   ///
   /// In ar, this message translates to:

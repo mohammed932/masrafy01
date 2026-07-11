@@ -10,6 +10,7 @@ import '../../data/models/request/signup/signup_phone_verify_request.dart';
 import '../../data/models/request/signup/signup_phone_start_request.dart';
 import '../entities/customer_entity.dart';
 import '../entities/otp_challenge_entity.dart';
+import '../entities/profile_documents_status_entity.dart';
 import '../repositories/customer_auth_repository.dart';
 
 /// Orchestrates the PHONE two-path registration (Principle XIII): start →
@@ -74,4 +75,8 @@ class CustomerAuthUseCase {
     );
     return result;
   }
+
+  Future<Either<Failure, ProfileDocumentsStatusEntity>>
+      profileDocumentsStatus() =>
+          _repo.profileDocumentsStatus();
 }

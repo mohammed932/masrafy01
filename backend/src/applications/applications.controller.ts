@@ -32,12 +32,12 @@ interface MobileAuthedRequest extends Request {
 @ApiTags('Applications')
 @ApiBearerAuth('CustomerBearerAuth')
 @Controller('v1')
-@UseGuards(CustomerJwtGuard, MobileRateLimitGuard)
+@UseGuards(CustomerJwtGuard)
 export class ApplicationsController {
   constructor(private readonly service: ApplicationsService) {}
 
   @Post('apply')
-  @UseGuards(CustomerProfileCompleteGuard)
+  @UseGuards(MobileRateLimitGuard, CustomerProfileCompleteGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Submit loan-match application (gated on a complete profile — Principle XXXVII)' })
   @ApiResponse({ status: 200, description: 'Match result envelope' })
@@ -61,7 +61,7 @@ export class ApplicationsController {
   }
 
   @Post('applications/:applicationId/select-offer')
-  @UseGuards(CustomerProfileCompleteGuard)
+  @UseGuards(MobileRateLimitGuard, CustomerProfileCompleteGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Applicant selects one matched offer and proceeds' })
   @ApiResponse({ status: 200, description: 'User-proceed gate recorded' })
@@ -71,7 +71,8 @@ export class ApplicationsController {
   @ApiResponse({ status: 404, description: 'Application or bank offer not found' })
   @ApiResponse({
     status: 409,
-    description: 'Already proceeded, status mismatch, or offer not for application',
+    description:
+      'Already proceeded, status mismatch, offer not for application, or required documents missing (NATIONAL_ID_REQUIRED / PROFILE_PHOTO_REQUIRED)',
   })
   async selectOffer(
     @Param('applicationId') applicationId: string,

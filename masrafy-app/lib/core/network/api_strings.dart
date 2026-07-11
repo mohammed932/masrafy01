@@ -77,4 +77,8 @@ class ApiStrings {
   static const String profileDocUploadUrl = '/api/v1/profile/documents/upload-url';
   static String profileDocConfirmUpload(String documentId) =>
       '/api/v1/profile/documents/$documentId/confirm-upload';
+
+  /// Which apply documents are already uploaded (photo + National ID sides) —
+  /// pre-checks the apply-time document screen (Constitution v9.0.1).
+  static const String profileDocumentsStatus = '/api/v1/profile/documents/status';
 }

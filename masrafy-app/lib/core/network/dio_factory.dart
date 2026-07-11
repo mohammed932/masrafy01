@@ -1,7 +1,6 @@
 import 'package:curl_logger_dio_interceptor/curl_logger_dio_interceptor.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:talker/talker.dart';
 import 'package:talker_dio_logger/talker_dio_logger.dart';
 
 import '../environments/base_environment.dart';
@@ -17,8 +16,7 @@ import 'interceptors/customer_jwt_refresh_interceptor.dart';
 ///   3. CurlLoggerDioInterceptor        — debug-only, prints each request as
 ///      a copy-pasteable curl command (+ response).
 ///   4. TalkerDioLogger                 — debug-only, structured req/res
-///      log (colors off — ANSI codes render garbled on iOS sim console);
-///      last so both loggers see final headers + retried requests.
+///      log; last so both loggers see final headers + retried requests.
 class DioFactory {
   static Dio create({
     required BaseEnvironment env,
@@ -45,11 +43,6 @@ class DioFactory {
       dio.interceptors.add(CurlLoggerDioInterceptor(printOnSuccess: true));
       dio.interceptors.add(
         TalkerDioLogger(
-          talker: Talker(
-            logger: TalkerLogger(
-              settings: TalkerLoggerSettings(enableColors: false),
-            ),
-          ),
           settings: const TalkerDioLoggerSettings(
             printRequestHeaders: true,
             printResponseHeaders: false,

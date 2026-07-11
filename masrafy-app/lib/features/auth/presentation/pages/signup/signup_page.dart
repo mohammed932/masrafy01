@@ -138,7 +138,7 @@ class _SignupViewState extends State<_SignupView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          SignupPhotoUpload(
+                          MasrafyPhotoUpload(
                             label: l.signup_photo_upload,
                             onTap: () =>
                                 MasrafyToast.info(ctx, l.common_coming_soon),

@@ -13,6 +13,13 @@ import {
   hasUsableIdDoc,
 } from './customer-profile-document.repository';
 
+/** Per-document upload state — shared by GET /v1/profile/documents/status and the select-offer gate. */
+export interface CustomerProfileDocumentsStatus {
+  profilePhoto: boolean;
+  nationalIdFront: boolean;
+  nationalIdBack: boolean;
+}
+
 /**
  * Principle XXXVII — single source of truth for the profile-completeness
  * contract. Used by the `/me` projection (to surface `profileComplete`) and by
@@ -27,9 +34,13 @@ export class CustomerProfileCompletenessService {
 
   /**
    * Pure predicate — true when every account-completeness field is present.
-   * National ID is intentionally NOT part of account completeness: it is
-   * optional at signup ("add later") and enforced only at loan-apply time via
-   * {@link assertNationalId}.
+   * Profile photo and National ID are intentionally NOT part of account
+   * completeness (Principle XXXVII, narrowed v9.0.0): both are optional and
+   * uploadable at any time via the profile-document endpoints. Profile photo
+   * + National ID are separately enforced at the select-offer commitment
+   * point via {@link assertSelectOfferDocuments} (NATIONAL_ID_REQUIRED /
+   * PROFILE_PHOTO_REQUIRED) — an independent, non-XXXVII gate, not part of
+   * this completeness contract.
    */
   static evaluate(state: CustomerProfileState | null): boolean {
     if (!state) return false;
@@ -38,7 +49,6 @@ export class CustomerProfileCompletenessService {
       state.firstName.trim().length > 0 &&
       state.lastName.trim().length > 0 &&
       state.birthday !== null &&
-      state.profilePhotoKey !== null &&
       (state.registrationPath !== RegistrationPath.PHONE || state.passwordHash !== null)
     );
   }
@@ -54,21 +64,41 @@ export class CustomerProfileCompletenessService {
     if (!complete) throw new DomainException(ERROR_CODES.PROFILE_INCOMPLETE);
   }
 
-  /** True when both National ID sides are uploaded/verified (loan-eligibility gate). */
-  async hasNationalId(customerId: string): Promise<boolean> {
-    const docs = await this.idDocs.findIdDocuments(customerId);
-    return (
-      hasUsableIdDoc(docs, NATIONAL_ID_FRONT) && hasUsableIdDoc(docs, NATIONAL_ID_BACK)
-    );
+  /**
+   * Per-document upload state. Single source of truth for BOTH the mobile
+   * docs-screen pre-check (GET /v1/profile/documents/status) and
+   * {@link assertSelectOfferDocuments} — the two can never drift.
+   */
+  async getProfileDocumentsStatus(
+    customerId: string,
+  ): Promise<CustomerProfileDocumentsStatus> {
+    const [profilePhotoKey, docs] = await Promise.all([
+      this.accounts.findProfilePhotoKey(customerId),
+      this.idDocs.findIdDocuments(customerId),
+    ]);
+    return {
+      profilePhoto: profilePhotoKey !== null,
+      nationalIdFront: hasUsableIdDoc(docs, NATIONAL_ID_FRONT),
+      nationalIdBack: hasUsableIdDoc(docs, NATIONAL_ID_BACK),
+    };
   }
 
   /**
-   * Apply-time gate: National ID front + back are required before submitting a
-   * loan application (optional at signup). Throws NATIONAL_ID_REQUIRED.
+   * Select-offer commitment gate (non-XXXVII business rule, constitution
+   * v9.0.1): profile photo AND National ID front+back are required when the
+   * customer proceeds with a bank offer — never at the matching call
+   * (`apply()`), so matched offers stay freely browsable. First-missing wins,
+   * National ID checked first (NATIONAL_ID_REQUIRED predates the photo code
+   * and is already handled by shipped mobile builds); both codes route the
+   * app to the same documents screen.
    */
-  async assertNationalId(customerId: string): Promise<void> {
-    if (!(await this.hasNationalId(customerId))) {
+  async assertSelectOfferDocuments(customerId: string): Promise<void> {
+    const status = await this.getProfileDocumentsStatus(customerId);
+    if (!status.nationalIdFront || !status.nationalIdBack) {
       throw new DomainException(ERROR_CODES.NATIONAL_ID_REQUIRED);
+    }
+    if (!status.profilePhoto) {
+      throw new DomainException(ERROR_CODES.PROFILE_PHOTO_REQUIRED);
     }
   }
 }
