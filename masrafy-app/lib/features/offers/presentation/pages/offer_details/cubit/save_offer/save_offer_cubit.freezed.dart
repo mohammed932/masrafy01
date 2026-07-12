@@ -17,6 +17,8 @@ final _privateConstructorUsedError = UnsupportedError(
 /// @nodoc
 mixin _$SaveOfferState {
   RequestState get status => throw _privateConstructorUsedError;
+  RequestState get checkStatus => throw _privateConstructorUsedError;
+  bool get isSaved => throw _privateConstructorUsedError;
   Failure? get error => throw _privateConstructorUsedError;
 
   /// Create a copy of SaveOfferState
@@ -32,7 +34,11 @@ abstract class $SaveOfferStateCopyWith<$Res> {
           SaveOfferState value, $Res Function(SaveOfferState) then) =
       _$SaveOfferStateCopyWithImpl<$Res, SaveOfferState>;
   @useResult
-  $Res call({RequestState status, Failure? error});
+  $Res call(
+      {RequestState status,
+      RequestState checkStatus,
+      bool isSaved,
+      Failure? error});
 }
 
 /// @nodoc
@@ -51,6 +57,8 @@ class _$SaveOfferStateCopyWithImpl<$Res, $Val extends SaveOfferState>
   @override
   $Res call({
     Object? status = null,
+    Object? checkStatus = null,
+    Object? isSaved = null,
     Object? error = freezed,
   }) {
     return _then(_value.copyWith(
@@ -58,6 +66,14 @@ class _$SaveOfferStateCopyWithImpl<$Res, $Val extends SaveOfferState>
           ? _value.status
           : status // ignore: cast_nullable_to_non_nullable
               as RequestState,
+      checkStatus: null == checkStatus
+          ? _value.checkStatus
+          : checkStatus // ignore: cast_nullable_to_non_nullable
+              as RequestState,
+      isSaved: null == isSaved
+          ? _value.isSaved
+          : isSaved // ignore: cast_nullable_to_non_nullable
+              as bool,
       error: freezed == error
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
@@ -74,7 +90,11 @@ abstract class _$$SaveOfferStateImplCopyWith<$Res>
       __$$SaveOfferStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({RequestState status, Failure? error});
+  $Res call(
+      {RequestState status,
+      RequestState checkStatus,
+      bool isSaved,
+      Failure? error});
 }
 
 /// @nodoc
@@ -91,6 +111,8 @@ class __$$SaveOfferStateImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? status = null,
+    Object? checkStatus = null,
+    Object? isSaved = null,
     Object? error = freezed,
   }) {
     return _then(_$SaveOfferStateImpl(
@@ -98,6 +120,14 @@ class __$$SaveOfferStateImplCopyWithImpl<$Res>
           ? _value.status
           : status // ignore: cast_nullable_to_non_nullable
               as RequestState,
+      checkStatus: null == checkStatus
+          ? _value.checkStatus
+          : checkStatus // ignore: cast_nullable_to_non_nullable
+              as RequestState,
+      isSaved: null == isSaved
+          ? _value.isSaved
+          : isSaved // ignore: cast_nullable_to_non_nullable
+              as bool,
       error: freezed == error
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
@@ -109,18 +139,28 @@ class __$$SaveOfferStateImplCopyWithImpl<$Res>
 /// @nodoc
 
 class _$SaveOfferStateImpl extends _SaveOfferState {
-  const _$SaveOfferStateImpl({this.status = RequestState.initial, this.error})
+  const _$SaveOfferStateImpl(
+      {this.status = RequestState.initial,
+      this.checkStatus = RequestState.initial,
+      this.isSaved = false,
+      this.error})
       : super._();
 
   @override
   @JsonKey()
   final RequestState status;
   @override
+  @JsonKey()
+  final RequestState checkStatus;
+  @override
+  @JsonKey()
+  final bool isSaved;
+  @override
   final Failure? error;
 
   @override
   String toString() {
-    return 'SaveOfferState(status: $status, error: $error)';
+    return 'SaveOfferState(status: $status, checkStatus: $checkStatus, isSaved: $isSaved, error: $error)';
   }
 
   @override
@@ -129,11 +169,15 @@ class _$SaveOfferStateImpl extends _SaveOfferState {
         (other.runtimeType == runtimeType &&
             other is _$SaveOfferStateImpl &&
             (identical(other.status, status) || other.status == status) &&
+            (identical(other.checkStatus, checkStatus) ||
+                other.checkStatus == checkStatus) &&
+            (identical(other.isSaved, isSaved) || other.isSaved == isSaved) &&
             (identical(other.error, error) || other.error == error));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, status, error);
+  int get hashCode =>
+      Object.hash(runtimeType, status, checkStatus, isSaved, error);
 
   /// Create a copy of SaveOfferState
   /// with the given fields replaced by the non-null parameter values.
@@ -147,11 +191,18 @@ class _$SaveOfferStateImpl extends _SaveOfferState {
 
 abstract class _SaveOfferState extends SaveOfferState {
   const factory _SaveOfferState(
-      {final RequestState status, final Failure? error}) = _$SaveOfferStateImpl;
+      {final RequestState status,
+      final RequestState checkStatus,
+      final bool isSaved,
+      final Failure? error}) = _$SaveOfferStateImpl;
   const _SaveOfferState._() : super._();
 
   @override
   RequestState get status;
+  @override
+  RequestState get checkStatus;
+  @override
+  bool get isSaved;
   @override
   Failure? get error;
 

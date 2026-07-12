@@ -15,13 +15,15 @@ import 'package:app/core/widgets/common/masrafy_gradient_header.dart';
 /// because slivers measure in layout pixels — the delegate must not re-apply
 /// flutter_screenutil scaling. The header is painted at the current (shrinking)
 /// extent so its bottom-aligned title rises into the compact bar.
-class MasrafySliverGradientHeaderDelegate extends SliverPersistentHeaderDelegate {
+class MasrafySliverGradientHeaderDelegate
+    extends SliverPersistentHeaderDelegate {
   const MasrafySliverGradientHeaderDelegate({
     required this.title,
     required this.subtitle,
     required this.expandedHeight,
     required this.collapsedHeight,
     this.onBack,
+    this.action,
     this.bottom,
   });
 
@@ -36,6 +38,10 @@ class MasrafySliverGradientHeaderDelegate extends SliverPersistentHeaderDelegate
   final double collapsedHeight;
 
   final VoidCallback? onBack;
+
+  /// Optional trailing affordance pinned top-end over the gradient (forwarded to
+  /// [MasrafyGradientHeader.action]).
+  final Widget? action;
 
   /// Optional widget rendered under the subtitle inside the gradient (e.g. the
   /// questionnaire's segmented progress bar). It lives in the header's expanded
@@ -59,13 +65,15 @@ class MasrafySliverGradientHeaderDelegate extends SliverPersistentHeaderDelegate
   ) {
     final range = maxExtent - minExtent;
     final t = range <= 0 ? 0.0 : (shrinkOffset / range).clamp(0.0, 1.0);
-    final currentHeight = (maxExtent - shrinkOffset).clamp(minExtent, maxExtent);
+    final currentHeight =
+        (maxExtent - shrinkOffset).clamp(minExtent, maxExtent);
 
     return ClipRect(
       child: MasrafyGradientHeader(
         title: title,
         subtitle: subtitle,
         onBack: onBack,
+        action: action,
         bottom: bottom,
         heightInPixels: currentHeight,
         collapseProgress: t,
@@ -82,6 +90,7 @@ class MasrafySliverGradientHeaderDelegate extends SliverPersistentHeaderDelegate
         oldDelegate.expandedHeight != expandedHeight ||
         oldDelegate.collapsedHeight != collapsedHeight ||
         oldDelegate.onBack != onBack ||
+        oldDelegate.action != action ||
         oldDelegate.bottom != bottom;
   }
 }

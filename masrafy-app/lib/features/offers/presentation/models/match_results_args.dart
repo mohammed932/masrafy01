@@ -127,6 +127,7 @@ class MatchOffer {
     this.feesBreakdown,
     this.isBestMatch = false,
     this.alreadyApplied = false,
+    this.isSaved = false,
   });
 
   final int approvalPct;
@@ -171,6 +172,10 @@ class MatchOffer {
   /// Offer Details screen — you can't re-apply to an already-applied offer.
   final bool alreadyApplied;
 
+  /// True when the authenticated customer has already saved this offer — seeds
+  /// the offer-details save/heart toggle on open (backend `isSaved` flag).
+  final bool isSaved;
+
   /// Build a display offer from a domain [OfferEntity]. Totals are derived on
   /// the entity (installment × term); [isBestMatch] marks the top-ranked row.
   factory MatchOffer.fromEntity(
@@ -199,6 +204,7 @@ class MatchOffer {
       feesBreakdown: e.feesBreakdown,
       isBestMatch: isBestMatch,
       alreadyApplied: alreadyApplied,
+      isSaved: e.isSaved,
     );
   }
 }

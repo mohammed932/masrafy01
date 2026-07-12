@@ -111,6 +111,8 @@ class _SavedOffersView extends StatelessWidget {
       totalLabel: e.totalLabel,
       totalInterest: e.totalInterest,
       totalLoan: e.totalLoan,
+      bankOfferId: e.bankOfferId,
+      isSaved: true,
     );
     final summary = MatchResultsArgs(
       loanTypeKey: e.loanTypeKey,

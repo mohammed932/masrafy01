@@ -27,6 +27,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_otp_purpose_login_forbidden => 'لا حاجة لرمز SMS لتسجيل الدخول. استخدم كلمة المرور.';
 
   @override
+  String get auth_phone_already_registered => 'هذا الرقم مسجل بالفعل. برجاء تسجيل الدخول.';
+
+  @override
   String get auth_verified_mobile_token_invalid => 'رمز التحقق غير صالح. ابدأ التسجيل من جديد.';
 
   @override
@@ -1739,6 +1742,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_save_error => 'لم نتمكن من حفظ هذا العرض. حاول مرة أخرى.';
 
   @override
+  String get offer_saved => 'تم الحفظ';
+
+  @override
+  String get offer_removed_success => 'تمت الإزالة من المحفوظات.';
+
+  @override
+  String get offer_remove_error => 'لم نتمكن من إزالة هذا العرض. حاول مرة أخرى.';
+
+  @override
   String get settings_security_title => 'الإعدادات والأمان';
 
   @override
@@ -1797,4 +1809,55 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get settings_language_arabic => 'العربية';
+
+  @override
+  String get settings_change_password_title => 'تغيير كلمة المرور';
+
+  @override
+  String get settings_change_password_subtitle => 'تحديث كلمة مرور حسابك';
+
+  @override
+  String get change_password_title => 'تغيير كلمة المرور';
+
+  @override
+  String get change_password_hint => 'أدخل كلمة المرور الحالية، ثم اختر كلمة مرور جديدة لا تقل عن ١٢ حرفًا وتحتوي على حرف كبير وحرف صغير ورقم ورمز.';
+
+  @override
+  String get change_password_current_label => 'كلمة المرور الحالية';
+
+  @override
+  String get change_password_current_hint => 'أدخل كلمة المرور الحالية';
+
+  @override
+  String get change_password_new_label => 'كلمة المرور الجديدة';
+
+  @override
+  String get change_password_new_hint => 'أدخل كلمة المرور الجديدة';
+
+  @override
+  String get change_password_confirm_label => 'تأكيد كلمة المرور الجديدة';
+
+  @override
+  String get change_password_confirm_hint => 'أعد إدخال كلمة المرور الجديدة';
+
+  @override
+  String get change_password_action => 'حفظ';
+
+  @override
+  String get change_password_success => 'تم تغيير كلمة المرور. الرجاء تسجيل الدخول بكلمة المرور الجديدة.';
+
+  @override
+  String get change_password_error_current_incorrect => 'كلمة المرور الحالية غير صحيحة.';
+
+  @override
+  String get change_password_error_same_as_old => 'يجب أن تختلف كلمة المرور الجديدة عن الحالية.';
+
+  @override
+  String get change_password_error_social_forbidden => 'تغيير كلمة المرور غير متاح لحسابات تسجيل الدخول عبر مواقع التواصل.';
+
+  @override
+  String get change_password_error_policy => 'يجب أن تتكون كلمة المرور من ١٢ حرفًا على الأقل وتشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.';
+
+  @override
+  String get change_password_error_mismatch => 'كلمتا المرور غير متطابقتين';
 }

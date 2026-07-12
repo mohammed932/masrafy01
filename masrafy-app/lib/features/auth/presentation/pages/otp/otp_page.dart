@@ -75,16 +75,14 @@ class _OtpView extends StatelessWidget {
         listenWhen: (p, c) => p.status != c.status,
         listener: (ctx, state) {
           if (state.isSuccess) {
-            // Profile completion already ran silently in OtpCubit. Land on
-            // Home when it succeeded; otherwise fall back to the
-            // Complete-Profile screen (prefilled from the same draft) so the
-            // user isn't stranded — mirrors LoginPage's complete/incomplete
-            // branch (Principle XXXVII, narrowed v9.0.0: photo/National ID
-            // are optional, never block reaching Home).
-            final complete = state.session!.customer.profileComplete;
-            ctx.router.replaceAll([
-              if (complete) const HomeRoute() else CompleteProfileRoute(draft: state.draft),
-            ]);
+            // Profile completion already ran silently in OtpCubit and only
+            // reaches success once it actually completed — so the account is
+            // valid (profileComplete) and Home is always correct. A failed
+            // completion surfaces via isFailure below (toast + stay on OTP to
+            // retry), never landing an incomplete account on Home (Principle
+            // XXXVII, narrowed v9.0.0: photo/National ID are optional and
+            // collected later at loan-apply time).
+            ctx.router.replaceAll([const HomeRoute()]);
           } else if (state.isFailure) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));
           }

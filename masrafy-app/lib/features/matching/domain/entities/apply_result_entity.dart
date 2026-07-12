@@ -52,6 +52,7 @@ class OfferEntity extends Equatable {
     required this.matchReasons,
     this.feesBreakdown,
     this.maxLoanAvailableEGP,
+    this.isSaved = false,
   });
 
   final String bankOfferId;
@@ -74,6 +75,9 @@ class OfferEntity extends Equatable {
   final List<String> matchReasons;
   final Map<String, dynamic>? feesBreakdown;
   final double? maxLoanAvailableEGP;
+
+  /// True when the authenticated customer has already saved this offer.
+  final bool isSaved;
 
   /// Total repayable over the effective term = installment × months.
   double get totalRepayableEGP => monthlyInstallmentEGP * effectiveTenorMonths;
@@ -106,6 +110,7 @@ class OfferEntity extends Equatable {
         matchReasons,
         feesBreakdown,
         maxLoanAvailableEGP,
+        isSaved,
       ];
 }
 

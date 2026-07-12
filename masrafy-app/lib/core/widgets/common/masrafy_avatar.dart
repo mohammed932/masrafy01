@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:app/core/utils/masrafy_assets.dart';
+import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/widgets/images/masrafy_network_image.dart';
 
 /// Circular profile avatar.
 ///
-/// Mirrors the Angular `app-rank-avatar` fallback contract: when [imageUrl]
-/// is null/empty (or fails to load), the widget renders [MasrafyAssets.kDefaultAvatar].
-/// Image loading is delegated to [MasrafyNetworkImage] (the shared
-/// `CachedNetworkImage` wrapper).
+/// When [imageUrl] is null/empty (or fails to load), the widget renders a
+/// themed person-glyph fallback (no bundled asset — avoids a missing-asset
+/// crash and works in both light and dark). Image loading is delegated to
+/// [MasrafyNetworkImage] (the shared `CachedNetworkImage` wrapper).
 class MasrafyAvatar extends StatelessWidget {
   const MasrafyAvatar({
     super.key,
@@ -58,11 +58,17 @@ class _DefaultAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      MasrafyAssets.kDefaultAvatar,
+    final colors = MasrafyColorTheme.of(context);
+    return Container(
       width: size,
       height: size,
-      fit: BoxFit.cover,
+      color: colors.bg.containerDisabled,
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.person_rounded,
+        size: size * 0.56,
+        color: colors.secondary.main.withValues(alpha: 0.55),
+      ),
     );
   }
 }

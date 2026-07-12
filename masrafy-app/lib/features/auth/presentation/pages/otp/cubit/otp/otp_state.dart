@@ -12,6 +12,9 @@ class OtpState with _$OtpState {
     @Default(RequestState.initial) RequestState status,
     Failure? error,
     CustomerSessionEntity? session,
+    // Single-use OTP result, retained so a retry after a later-step failure
+    // resumes from signup/complete instead of re-verifying the consumed OTP.
+    String? verifiedMobileToken,
   }) = _OtpState;
 
   const OtpState._();

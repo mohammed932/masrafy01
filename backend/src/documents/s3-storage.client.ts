@@ -42,6 +42,14 @@ export class S3StorageClient implements OnModuleInit {
       region,
       credentials: { accessKeyId, secretAccessKey },
       forcePathStyle,
+      // AWS SDK v3 (>=3.729) bakes a default CRC32 checksum into presigned PUT
+      // URLs (`x-amz-checksum-crc32` + `x-amz-sdk-checksum-algorithm`). A plain
+      // byte upload from the mobile client can't reproduce that signed header,
+      // so MinIO rejects it (SignatureDoesNotMatch / checksum mismatch). Only
+      // add checksums when an operation actually requires one — restores classic
+      // presigned uploads that any HTTP client can PUT to.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     };
     if (endpoint) s3Config.endpoint = endpoint;
     this.client = new S3Client(s3Config);

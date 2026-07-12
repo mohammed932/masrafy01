@@ -59,6 +59,8 @@ export interface ApplyMatchedResponse {
       cascadeTrace: unknown;
       qualitativeReviewBadge: boolean;
       selfDeclared: boolean;
+      /** True when the authenticated customer has already saved this offer. */
+      isSaved: boolean;
       maxLoanAvailableEGP?: string;
     }>;
   };

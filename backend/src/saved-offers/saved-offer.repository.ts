@@ -75,6 +75,17 @@ export class SavedOfferRepository {
     }));
   }
 
+  /** The set of bankOfferIds the customer has saved — for projecting an
+   *  `isSaved` flag onto offer payloads (apply results / applications list).
+   *  A lean id-only read; membership is all the caller needs. */
+  async findSavedBankOfferIds(customerId: string): Promise<Set<string>> {
+    const rows = await this.prisma.savedOffer.findMany({
+      where: { customerId },
+      select: { bankOfferId: true },
+    });
+    return new Set(rows.map((r) => r.bankOfferId));
+  }
+
   /** Resolve a BankOffer for the save guard — exists, not erased, and which
    *  customer owns its application. Returns null when the offer is unknown. */
   async findOfferTarget(

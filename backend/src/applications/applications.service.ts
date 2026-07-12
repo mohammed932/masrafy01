@@ -28,6 +28,7 @@ import {
 } from './application.repository';
 import { EngineService } from '../matching/engine.service';
 import { BankProgramRepository } from '../bank-programs/bank-programs.repository';
+import { SavedOfferRepository } from '../saved-offers/saved-offer.repository';
 import { AuditEventWriter } from '../audit/audit-event.writer';
 import {
   IdempotencyKeyMismatchException,
@@ -85,6 +86,7 @@ export class ApplicationsService {
     private readonly questionnaire: QuestionnaireService,
     private readonly weightedScoring: WeightedApprovalScoringService,
     private readonly completeness: CustomerProfileCompletenessService,
+    private readonly savedOffers: SavedOfferRepository,
   ) {}
 
   /**
@@ -190,6 +192,9 @@ export class ApplicationsService {
    */
   async listMine(customerId: string): Promise<ApplicationsListResponse> {
     const rows = await this.repo.findAppliedByCustomer(customerId);
+    const savedOfferIds = await this.savedOffers.findSavedBankOfferIds(
+      customerId,
+    );
     const applications = rows.flatMap((row) => {
       const offer = row.bankOffers.find((o) => o.id === row.userSelectedBankOfferId);
       if (!offer || !row.userProceededAt) return [];
@@ -200,7 +205,7 @@ export class ApplicationsService {
           requestedAmountEGP: row.requestedAmountEGP.toFixed(2),
           status: this.projectApplicationStatus(offer.decision?.outcome),
           proceededAt: row.userProceededAt.toISOString(),
-          offer: this.toOfferDto(offer),
+          offer: this.toOfferDto(offer, savedOfferIds),
         },
       ];
     });
@@ -209,6 +214,9 @@ export class ApplicationsService {
 
   async apply(dto: ApplyRequestDto, ctx: ApplyContext): Promise<ApplyResponse> {
     const correlationId = randomUUID();
+    const savedOfferIds = await this.savedOffers.findSavedBankOfferIds(
+      ctx.customerId,
+    );
 
     // No document gate here (constitution v9.0.1): matched offers browse freely.
     // Profile photo + National ID are asserted only at the select-offer
@@ -220,7 +228,12 @@ export class ApplicationsService {
         if (existing.payloadHash && ctx.payloadHash && existing.payloadHash !== ctx.payloadHash) {
           throw new IdempotencyKeyMismatchException({ idempotencyKey: ctx.idempotencyKey });
         }
-        return this.toResponse(existing.id, existing, correlationId);
+        return this.toResponse(
+          existing.id,
+          existing,
+          correlationId,
+          savedOfferIds,
+        );
       }
     }
 
@@ -364,13 +377,14 @@ export class ApplicationsService {
     });
 
     const fresh = await this.repo.findById(applicationId);
-    return this.toResponse(applicationId, fresh, correlationId);
+    return this.toResponse(applicationId, fresh, correlationId, savedOfferIds);
   }
 
   private toResponse(
     applicationId: string,
     row: Awaited<ReturnType<ApplicationRepository['findById']>>,
     correlationId: string,
+    savedOfferIds: Set<string>,
   ): ApplyResponse {
     if (!row) {
       throw new Error('Application row missing after persist');
@@ -389,7 +403,7 @@ export class ApplicationsService {
             bestInstallmentEGP: best ? best.monthlyInstallmentEGP.toFixed(2) : '0.00',
             bestRatePercent: best ? best.effectiveRatePercent.toFixed(4) : '0.0000',
           },
-          matchedOffers: sorted.map((o) => this.toOfferDto(o)),
+          matchedOffers: sorted.map((o) => this.toOfferDto(o, savedOfferIds)),
         },
       };
     }
@@ -542,9 +556,10 @@ export class ApplicationsService {
     qualitativeReviewBadge: boolean;
     selfDeclared: boolean;
     maxLoanAvailableEGP: Decimal | null;
-  }): ApplicationOfferDto {
+  }, savedOfferIds: Set<string>): ApplicationOfferDto {
     return {
       bankOfferId: o.id,
+      isSaved: savedOfferIds.has(o.id),
       programCode: o.programCode,
       programVersion: o.programVersion,
       bankName: o.bankName,

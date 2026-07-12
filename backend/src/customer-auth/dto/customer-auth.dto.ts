@@ -43,6 +43,10 @@ export class CustomerProfileResponseDto {
   @ApiProperty() lastName!: string;
   @ApiPropertyOptional({ description: 'Derived from birthday — never stored (Principle XXXVII).' })
   age?: number;
+  @ApiPropertyOptional({ description: 'ISO date (yyyy-mm-dd) of birth; undefined until set.' })
+  birthday?: string;
+  @ApiPropertyOptional({ description: 'Presigned GET URL for the profile photo; undefined when none uploaded.' })
+  photoUrl?: string;
   @ApiProperty() locale!: string;
   @ApiProperty() isVerified!: boolean;
   @ApiProperty({ description: 'True once the mandatory profile is complete (Principle XXXVII).' })
@@ -79,6 +83,7 @@ export interface CustomerProfileRow {
   firstName: string;
   lastName: string;
   birthday: Date | null;
+  profilePhotoKey?: string | null;
   locale: string;
   isVerified: boolean;
   registrationPath: RegistrationPath;
@@ -97,6 +102,7 @@ export interface CustomerProfileRow {
 export function mapCustomerProfile(
   row: CustomerProfileRow,
   profileComplete: boolean,
+  photoUrl?: string,
 ): CustomerProfileResponseDto {
   const age = deriveAge(row.birthday);
   return {
@@ -106,6 +112,8 @@ export function mapCustomerProfile(
     firstName: row.firstName,
     lastName: row.lastName,
     age: age ?? undefined,
+    birthday: row.birthday ? row.birthday.toISOString().slice(0, 10) : undefined,
+    photoUrl,
     locale: row.locale,
     isVerified: row.isVerified,
     profileComplete,

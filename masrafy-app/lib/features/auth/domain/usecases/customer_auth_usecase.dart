@@ -5,6 +5,7 @@ import '../../../../core/result/failure.dart';
 import '../../../../core/storage/customer_session_storage.dart';
 import '../../data/models/request/otp/otp_request.dart';
 import '../../data/models/request/otp/otp_verify_request.dart';
+import '../../data/models/request/password/password_reset_request.dart';
 import '../../data/models/request/profile/complete_profile_request.dart';
 import '../../data/models/request/signup/signup_phone_verify_request.dart';
 import '../../data/models/request/signup/signup_phone_start_request.dart';
@@ -79,4 +80,15 @@ class CustomerAuthUseCase {
   Future<Either<Failure, ProfileDocumentsStatusEntity>>
       profileDocumentsStatus() =>
           _repo.profileDocumentsStatus();
+
+  /// Changes the authenticated customer's password. The backend revokes ALL
+  /// sessions on success and returns no new tokens, so the local session is
+  /// cleared here — the caller must route the user back to Login.
+  Future<Either<Failure, Unit>> changePassword(
+    PasswordChangeRequest request,
+  ) async {
+    final result = await _repo.changePassword(request);
+    await result.fold((_) async {}, (_) => _session.clear());
+    return result.map((_) => unit);
+  }
 }

@@ -10,6 +10,7 @@ import { CustomerAccountRepository } from './customer-account.repository';
 import { CustomerJwtTokenService } from './customer-jwt-token.service';
 import { CustomerIssueResult, CustomerRefreshTokenService } from './customer-refresh-token.service';
 import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
+import { S3StorageClient } from '@/documents/s3-storage.client';
 import {
   mapCustomerProfile,
   type CustomerProfileResponseDto,
@@ -55,6 +56,7 @@ export class CustomerAuthService {
     private readonly password: PasswordService,
     private readonly audit: AuditEventWriter,
     private readonly completeness: CustomerProfileCompletenessService,
+    private readonly s3: S3StorageClient,
   ) {}
 
   // ---- Login ---------------------------------------------------------------
@@ -143,7 +145,20 @@ export class CustomerAuthService {
   async me(customerId: string): Promise<CustomerProfileResponseDto> {
     const row = await this.accounts.findById(customerId);
     if (!row || !row.isActive) throw new CustomerAccountInactiveException();
-    return this.buildProfile(row);
+    const photoUrl = await this.presignProfilePhoto(row.profilePhotoKey ?? null);
+    return this.buildProfile(row, photoUrl);
+  }
+
+  /** Presigns a GET URL for the profile photo, or undefined when none uploaded. */
+  private async presignProfilePhoto(key: string | null): Promise<string | undefined> {
+    if (!key) return undefined;
+    try {
+      const { downloadUrl } = await this.s3.getPresignedGetUrl(key);
+      return downloadUrl;
+    } catch (err) {
+      this.logger.warn(`profile photo presign failed: ${(err as Error).message}`);
+      return undefined;
+    }
   }
 
   // ---- Internals -----------------------------------------------------------
@@ -168,8 +183,11 @@ export class CustomerAuthService {
     };
   }
 
-  private async buildProfile(row: CustomerProfileRow & { id: string }): Promise<CustomerProfileResponseDto> {
+  private async buildProfile(
+    row: CustomerProfileRow & { id: string },
+    photoUrl?: string,
+  ): Promise<CustomerProfileResponseDto> {
     const profileComplete = await this.completeness.isComplete(row.id);
-    return mapCustomerProfile(row, profileComplete);
+    return mapCustomerProfile(row, profileComplete, photoUrl);
   }
 }

@@ -37,6 +37,7 @@ class MasrafyGradientHeader extends StatelessWidget {
     required this.subtitle,
     this.height = 282,
     this.onBack,
+    this.action,
     this.bottom,
     this.collapseProgress = 0,
     this.heightInPixels,
@@ -46,6 +47,12 @@ class MasrafyGradientHeader extends StatelessWidget {
   final String subtitle;
   final double height;
   final VoidCallback? onBack;
+
+  /// Optional trailing affordance rendered top-end over the gradient, vertically
+  /// centred in the same toolbar band as [onBack] and pinned across collapse
+  /// (e.g. the offer-details save/heart toggle). Default `null` leaves every
+  /// existing call site visually unchanged.
+  final Widget? action;
   final Widget? bottom;
   final double collapseProgress;
   final double? heightInPixels;
@@ -87,8 +94,7 @@ class MasrafyGradientHeader extends StatelessWidget {
     final subH = measure(subtitle, text.bodySmall);
     // When there's a back button, reserve its toolbar band PLUS a clear gap so
     // the (bottom-aligned) title never rides up into / under the back button.
-    final top =
-        media.viewPadding.top + (hasBack ? kToolbarHeight + 48.h : 8.h);
+    final top = media.viewPadding.top + (hasBack ? kToolbarHeight + 48.h : 8.h);
     final content = top + titleH + 6.h + subH + bottomExtent + 36.h;
     return content < minHeight ? minHeight : content;
   }
@@ -214,6 +220,25 @@ class MasrafyGradientHeader extends StatelessWidget {
                   child: Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: _GlassBackButton(onTap: onBack!),
+                  ),
+                ),
+              ),
+            ),
+          // 4. Trailing action — vertically centred in the same toolbar band,
+          //    pinned top-end across the whole collapse range (mirrors the back
+          //    button on the opposite side).
+          if (action != null)
+            Align(
+              alignment: AlignmentDirectional.topEnd,
+              child: Padding(
+                padding: EdgeInsetsDirectional.only(
+                  top: MediaQuery.of(context).viewPadding.top,
+                ),
+                child: SizedBox(
+                  height: kToolbarHeight,
+                  child: Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: action!,
                   ),
                 ),
               ),

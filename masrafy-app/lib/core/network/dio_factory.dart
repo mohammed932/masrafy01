@@ -1,4 +1,3 @@
-import 'package:curl_logger_dio_interceptor/curl_logger_dio_interceptor.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:talker_dio_logger/talker_dio_logger.dart';
@@ -13,10 +12,8 @@ import 'interceptors/customer_jwt_refresh_interceptor.dart';
 ///      \<accessToken\>` for `/api/v1/*` calls (Principle XIII v3.0.0).
 ///   2. CustomerJwtRefreshInterceptor   — on 401, silently rotates the JWT
 ///      via `/api/v1/auth/refresh` and retries once (Principle XXVIII).
-///   3. CurlLoggerDioInterceptor        — debug-only, prints each request as
-///      a copy-pasteable curl command (+ response).
-///   4. TalkerDioLogger                 — debug-only, structured req/res
-///      log; last so both loggers see final headers + retried requests.
+///   3. TalkerDioLogger                 — debug-only, structured req/res
+///      log; last so it sees final headers + retried requests.
 class DioFactory {
   static Dio create({
     required BaseEnvironment env,
@@ -40,7 +37,6 @@ class DioFactory {
       ),
     );
     if (kDebugMode) {
-      dio.interceptors.add(CurlLoggerDioInterceptor(printOnSuccess: true));
       dio.interceptors.add(
         TalkerDioLogger(
           settings: const TalkerDioLoggerSettings(

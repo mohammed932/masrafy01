@@ -24,7 +24,10 @@ mixin _$OtpState {
   int get attemptsLeft => throw _privateConstructorUsedError;
   RequestState get status => throw _privateConstructorUsedError;
   Failure? get error => throw _privateConstructorUsedError;
-  CustomerSessionEntity? get session => throw _privateConstructorUsedError;
+  CustomerSessionEntity? get session =>
+      throw _privateConstructorUsedError; // Single-use OTP result, retained so a retry after a later-step failure
+// resumes from signup/complete instead of re-verifying the consumed OTP.
+  String? get verifiedMobileToken => throw _privateConstructorUsedError;
 
   /// Create a copy of OtpState
   /// with the given fields replaced by the non-null parameter values.
@@ -47,7 +50,8 @@ abstract class $OtpStateCopyWith<$Res> {
       int attemptsLeft,
       RequestState status,
       Failure? error,
-      CustomerSessionEntity? session});
+      CustomerSessionEntity? session,
+      String? verifiedMobileToken});
 }
 
 /// @nodoc
@@ -74,6 +78,7 @@ class _$OtpStateCopyWithImpl<$Res, $Val extends OtpState>
     Object? status = null,
     Object? error = freezed,
     Object? session = freezed,
+    Object? verifiedMobileToken = freezed,
   }) {
     return _then(_value.copyWith(
       code: null == code
@@ -112,6 +117,10 @@ class _$OtpStateCopyWithImpl<$Res, $Val extends OtpState>
           ? _value.session
           : session // ignore: cast_nullable_to_non_nullable
               as CustomerSessionEntity?,
+      verifiedMobileToken: freezed == verifiedMobileToken
+          ? _value.verifiedMobileToken
+          : verifiedMobileToken // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -133,7 +142,8 @@ abstract class _$$OtpStateImplCopyWith<$Res>
       int attemptsLeft,
       RequestState status,
       Failure? error,
-      CustomerSessionEntity? session});
+      CustomerSessionEntity? session,
+      String? verifiedMobileToken});
 }
 
 /// @nodoc
@@ -158,6 +168,7 @@ class __$$OtpStateImplCopyWithImpl<$Res>
     Object? status = null,
     Object? error = freezed,
     Object? session = freezed,
+    Object? verifiedMobileToken = freezed,
   }) {
     return _then(_$OtpStateImpl(
       code: null == code
@@ -196,6 +207,10 @@ class __$$OtpStateImplCopyWithImpl<$Res>
           ? _value.session
           : session // ignore: cast_nullable_to_non_nullable
               as CustomerSessionEntity?,
+      verifiedMobileToken: freezed == verifiedMobileToken
+          ? _value.verifiedMobileToken
+          : verifiedMobileToken // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -212,7 +227,8 @@ class _$OtpStateImpl extends _OtpState {
       this.attemptsLeft = 3,
       this.status = RequestState.initial,
       this.error,
-      this.session})
+      this.session,
+      this.verifiedMobileToken})
       : super._();
 
   @override
@@ -237,10 +253,14 @@ class _$OtpStateImpl extends _OtpState {
   final Failure? error;
   @override
   final CustomerSessionEntity? session;
+// Single-use OTP result, retained so a retry after a later-step failure
+// resumes from signup/complete instead of re-verifying the consumed OTP.
+  @override
+  final String? verifiedMobileToken;
 
   @override
   String toString() {
-    return 'OtpState(code: $code, challenge: $challenge, purpose: $purpose, draft: $draft, secondsRemaining: $secondsRemaining, attemptsLeft: $attemptsLeft, status: $status, error: $error, session: $session)';
+    return 'OtpState(code: $code, challenge: $challenge, purpose: $purpose, draft: $draft, secondsRemaining: $secondsRemaining, attemptsLeft: $attemptsLeft, status: $status, error: $error, session: $session, verifiedMobileToken: $verifiedMobileToken)';
   }
 
   @override
@@ -259,12 +279,24 @@ class _$OtpStateImpl extends _OtpState {
                 other.attemptsLeft == attemptsLeft) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.error, error) || other.error == error) &&
-            (identical(other.session, session) || other.session == session));
+            (identical(other.session, session) || other.session == session) &&
+            (identical(other.verifiedMobileToken, verifiedMobileToken) ||
+                other.verifiedMobileToken == verifiedMobileToken));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, code, challenge, purpose, draft,
-      secondsRemaining, attemptsLeft, status, error, session);
+  int get hashCode => Object.hash(
+      runtimeType,
+      code,
+      challenge,
+      purpose,
+      draft,
+      secondsRemaining,
+      attemptsLeft,
+      status,
+      error,
+      session,
+      verifiedMobileToken);
 
   /// Create a copy of OtpState
   /// with the given fields replaced by the non-null parameter values.
@@ -285,7 +317,8 @@ abstract class _OtpState extends OtpState {
       final int attemptsLeft,
       final RequestState status,
       final Failure? error,
-      final CustomerSessionEntity? session}) = _$OtpStateImpl;
+      final CustomerSessionEntity? session,
+      final String? verifiedMobileToken}) = _$OtpStateImpl;
   const _OtpState._() : super._();
 
   @override
@@ -305,7 +338,11 @@ abstract class _OtpState extends OtpState {
   @override
   Failure? get error;
   @override
-  CustomerSessionEntity? get session;
+  CustomerSessionEntity?
+      get session; // Single-use OTP result, retained so a retry after a later-step failure
+// resumes from signup/complete instead of re-verifying the consumed OTP.
+  @override
+  String? get verifiedMobileToken;
 
   /// Create a copy of OtpState
   /// with the given fields replaced by the non-null parameter values.

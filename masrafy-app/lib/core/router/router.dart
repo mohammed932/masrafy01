@@ -57,6 +57,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: ProfileEditContactRoute.page),
         AutoRoute(page: AccountRoute.page),
         AutoRoute(page: SettingsSecurityRoute.page),
+        AutoRoute(page: ChangePasswordRoute.page),
         AutoRoute(page: PreviousApplicationsRoute.page),
         AutoRoute(page: SavedOffersRoute.page),
         AutoRoute(page: BiometricLockRoute.page),

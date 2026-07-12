@@ -131,6 +131,12 @@ abstract class AppLocalizations {
   /// **'لا حاجة لرمز SMS لتسجيل الدخول. استخدم كلمة المرور.'**
   String get auth_otp_purpose_login_forbidden;
 
+  /// Backend CUSTOMER_PHONE_ALREADY_REGISTERED error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الرقم مسجل بالفعل. برجاء تسجيل الدخول.'**
+  String get auth_phone_already_registered;
+
   /// Backend VERIFIED_MOBILE_TOKEN_INVALID error code
   ///
   /// In ar, this message translates to:
@@ -3467,6 +3473,24 @@ abstract class AppLocalizations {
   /// **'لم نتمكن من حفظ هذا العرض. حاول مرة أخرى.'**
   String get offer_save_error;
 
+  /// No description provided for @offer_saved.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الحفظ'**
+  String get offer_saved;
+
+  /// No description provided for @offer_removed_success.
+  ///
+  /// In ar, this message translates to:
+  /// **'تمت الإزالة من المحفوظات.'**
+  String get offer_removed_success;
+
+  /// No description provided for @offer_remove_error.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم نتمكن من إزالة هذا العرض. حاول مرة أخرى.'**
+  String get offer_remove_error;
+
   /// No description provided for @settings_security_title.
   ///
   /// In ar, this message translates to:
@@ -3586,6 +3610,108 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'العربية'**
   String get settings_language_arabic;
+
+  /// No description provided for @settings_change_password_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير كلمة المرور'**
+  String get settings_change_password_title;
+
+  /// No description provided for @settings_change_password_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحديث كلمة مرور حسابك'**
+  String get settings_change_password_subtitle;
+
+  /// No description provided for @change_password_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير كلمة المرور'**
+  String get change_password_title;
+
+  /// No description provided for @change_password_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور الحالية، ثم اختر كلمة مرور جديدة لا تقل عن ١٢ حرفًا وتحتوي على حرف كبير وحرف صغير ورقم ورمز.'**
+  String get change_password_hint;
+
+  /// No description provided for @change_password_current_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور الحالية'**
+  String get change_password_current_label;
+
+  /// No description provided for @change_password_current_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور الحالية'**
+  String get change_password_current_hint;
+
+  /// No description provided for @change_password_new_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور الجديدة'**
+  String get change_password_new_label;
+
+  /// No description provided for @change_password_new_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل كلمة المرور الجديدة'**
+  String get change_password_new_hint;
+
+  /// No description provided for @change_password_confirm_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأكيد كلمة المرور الجديدة'**
+  String get change_password_confirm_label;
+
+  /// No description provided for @change_password_confirm_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أعد إدخال كلمة المرور الجديدة'**
+  String get change_password_confirm_hint;
+
+  /// No description provided for @change_password_action.
+  ///
+  /// In ar, this message translates to:
+  /// **'حفظ'**
+  String get change_password_action;
+
+  /// No description provided for @change_password_success.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تغيير كلمة المرور. الرجاء تسجيل الدخول بكلمة المرور الجديدة.'**
+  String get change_password_success;
+
+  /// No description provided for @change_password_error_current_incorrect.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور الحالية غير صحيحة.'**
+  String get change_password_error_current_incorrect;
+
+  /// No description provided for @change_password_error_same_as_old.
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب أن تختلف كلمة المرور الجديدة عن الحالية.'**
+  String get change_password_error_same_as_old;
+
+  /// No description provided for @change_password_error_social_forbidden.
+  ///
+  /// In ar, this message translates to:
+  /// **'تغيير كلمة المرور غير متاح لحسابات تسجيل الدخول عبر مواقع التواصل.'**
+  String get change_password_error_social_forbidden;
+
+  /// No description provided for @change_password_error_policy.
+  ///
+  /// In ar, this message translates to:
+  /// **'يجب أن تتكون كلمة المرور من ١٢ حرفًا على الأقل وتشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.'**
+  String get change_password_error_policy;
+
+  /// No description provided for @change_password_error_mismatch.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمتا المرور غير متطابقتين'**
+  String get change_password_error_mismatch;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

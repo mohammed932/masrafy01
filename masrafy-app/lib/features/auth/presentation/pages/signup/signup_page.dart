@@ -45,6 +45,8 @@ class _SignupViewState extends State<_SignupView> {
 
   String _errorMessage(AppLocalizations l, Failure f) {
     switch (f.code) {
+      case 'CUSTOMER_PHONE_ALREADY_REGISTERED':
+        return l.auth_phone_already_registered;
       case 'OTP_RATE_LIMITED':
         return l.auth_otp_rate_limited;
       case 'NETWORK_UNREACHABLE':

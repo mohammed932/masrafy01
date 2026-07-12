@@ -16,6 +16,7 @@ import { MobileRateLimitGuard } from './guards/mobile-rate-limit.guard';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
 import { ScoringModule } from '@/scoring/scoring.module';
+import { SavedOffersModule } from '../saved-offers/saved-offers.module';
 
 /**
  * Imports `CustomerAuthModule` so the apply endpoint can require a valid
@@ -31,6 +32,7 @@ import { ScoringModule } from '@/scoring/scoring.module';
     CustomerAuthModule,
     QuestionnaireModule,
     ScoringModule,
+    SavedOffersModule,
   ],
   controllers: [ApplicationsController, AdminApplicationsController],
   providers: [

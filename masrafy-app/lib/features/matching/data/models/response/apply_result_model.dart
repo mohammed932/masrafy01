@@ -85,6 +85,7 @@ class OfferModel {
     required this.matchReasons,
     this.feesBreakdown,
     this.maxLoanAvailableEGP,
+    this.isSaved = false,
   });
 
   final String bankOfferId;
@@ -107,6 +108,7 @@ class OfferModel {
   final List<String> matchReasons;
   final Map<String, dynamic>? feesBreakdown;
   final double? maxLoanAvailableEGP;
+  final bool isSaved;
 
   factory OfferModel.fromJson(Map<String, dynamic> json) {
     final approval =
@@ -136,6 +138,7 @@ class OfferModel {
       maxLoanAvailableEGP: json['maxLoanAvailableEGP'] == null
           ? null
           : _toDouble(json['maxLoanAvailableEGP']),
+      isSaved: json['isSaved'] == true,
     );
   }
 
@@ -160,6 +163,7 @@ class OfferModel {
         matchReasons: matchReasons,
         feesBreakdown: feesBreakdown,
         maxLoanAvailableEGP: maxLoanAvailableEGP,
+        isSaved: isSaved,
       );
 }
 

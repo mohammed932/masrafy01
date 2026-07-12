@@ -89,6 +89,14 @@ class _SettingsSecurityView extends StatelessWidget {
                                 ),
                               ),
                               SettingsTile(
+                                icon: Icons.lock_outline,
+                                iconColor: colors.secondary.main,
+                                title: l.settings_change_password_title,
+                                subtitle: l.settings_change_password_subtitle,
+                                onTap: () => context.router
+                                    .push(const ChangePasswordRoute()),
+                              ),
+                              SettingsTile(
                                 icon: Icons.shield,
                                 iconColor: colors.primary.main,
                                 title: l.settings_privacy_policies_title,

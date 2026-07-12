@@ -27,6 +27,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_otp_purpose_login_forbidden => 'Login does not require an SMS code. Use your password.';
 
   @override
+  String get auth_phone_already_registered => 'This number is already registered. Please log in instead.';
+
+  @override
   String get auth_verified_mobile_token_invalid => 'Verification token is invalid. Restart the signup.';
 
   @override
@@ -1736,6 +1739,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_save_error => 'Could not save this offer. Please try again.';
 
   @override
+  String get offer_saved => 'Saved';
+
+  @override
+  String get offer_removed_success => 'Removed from saved.';
+
+  @override
+  String get offer_remove_error => 'Could not remove this offer. Please try again.';
+
+  @override
   String get settings_security_title => 'Settings & Security';
 
   @override
@@ -1794,4 +1806,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settings_language_arabic => 'Arabic';
+
+  @override
+  String get settings_change_password_title => 'Change Password';
+
+  @override
+  String get settings_change_password_subtitle => 'Update your account password';
+
+  @override
+  String get change_password_title => 'Change Password';
+
+  @override
+  String get change_password_hint => 'Enter your current password, then choose a new one with at least 12 characters including uppercase, lowercase, a number and a symbol.';
+
+  @override
+  String get change_password_current_label => 'Current Password';
+
+  @override
+  String get change_password_current_hint => 'Enter current password';
+
+  @override
+  String get change_password_new_label => 'New Password';
+
+  @override
+  String get change_password_new_hint => 'Enter new password';
+
+  @override
+  String get change_password_confirm_label => 'Confirm New Password';
+
+  @override
+  String get change_password_confirm_hint => 'Re-enter new password';
+
+  @override
+  String get change_password_action => 'Save';
+
+  @override
+  String get change_password_success => 'Password changed. Please sign in with your new password.';
+
+  @override
+  String get change_password_error_current_incorrect => 'Current password is incorrect.';
+
+  @override
+  String get change_password_error_same_as_old => 'New password must be different from the current one.';
+
+  @override
+  String get change_password_error_social_forbidden => 'Password change isn\'t available for social sign-in accounts.';
+
+  @override
+  String get change_password_error_policy => 'Password must be at least 12 characters and include uppercase, lowercase, a number and a symbol.';
+
+  @override
+  String get change_password_error_mismatch => 'Passwords do not match';
 }

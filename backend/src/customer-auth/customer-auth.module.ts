@@ -33,6 +33,10 @@ import { GoogleVerifyService } from './social/google-verify.service';
 import { AppleVerifyService } from './social/apple-verify.service';
 import { SMS_GATEWAY } from './sms/sms-gateway.interface';
 import { MockSmsGateway } from './sms/mock-sms-gateway.service';
+// S3 presign for the profile photo on GET /me. Registered directly (not via
+// DocumentsModule) to avoid a circular import — DocumentsModule imports this
+// module. S3StorageClient only depends on the global ConfigService.
+import { S3StorageClient } from '@/documents/s3-storage.client';
 
 /**
  * Customer-facing mobile auth (Constitution v3.0.0 / Principle XIII).
@@ -85,6 +89,7 @@ import { MockSmsGateway } from './sms/mock-sms-gateway.service';
     AppleVerifyService,
     { provide: SMS_GATEWAY, useClass: MockSmsGateway },
     CustomerAuthMobileService,
+    S3StorageClient,
   ],
   exports: [
     CustomerAuthService,

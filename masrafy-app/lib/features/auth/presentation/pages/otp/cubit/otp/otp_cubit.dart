@@ -14,7 +14,6 @@ import 'package:app/features/auth/domain/entities/customer_entity.dart';
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart';
 import 'package:app/features/auth/domain/entities/signup_draft.dart';
 import 'package:app/features/auth/domain/enums/otp_purpose.dart';
-import 'package:app/features/auth/domain/repositories/customer_auth_repository.dart';
 import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
 
 part 'otp_cubit.freezed.dart';
@@ -65,16 +64,35 @@ class OtpCubit extends Cubit<OtpState> {
     emit(state.copyWith(code: trimmed, error: null));
   }
 
+  /// Verifies the SMS code and drives the signup pipeline
+  /// (`otp/verify` → `signup/phone/verify` → `completeProfile`) to Home.
+  ///
+  /// The pipeline is **resumable**: the OTP is single-use, so after it has been
+  /// verified once, re-running `otp/verify` would fail `OTP_CONSUMED`. If a
+  /// later step fails and the user taps Verify again, we resume from the failed
+  /// step using the retained [OtpState.verifiedMobileToken] / lite
+  /// [OtpState.session] instead of re-verifying the OTP.
   Future<void> verify() async {
-    final challenge = state.challenge;
     final purpose = state.purpose;
-    if (challenge == null || purpose == null || !state.canVerify) return;
+    final draft = state.draft;
+    if (purpose == null || draft == null || !state.canVerify) return;
 
     emit(state.copyWith(status: RequestState.loading, error: null));
+
+    // Resume: lite account already created → only profile completion remains.
+    final lite = state.session;
+    if (lite != null) return _completeProfileSilently(draft, lite);
+
+    // Resume: OTP already verified → create lite account, then complete.
+    final token = state.verifiedMobileToken;
+    if (token != null) return _signupThenComplete(token, draft);
+
+    // First attempt: verify the single-use OTP.
+    final challenge = state.challenge;
+    if (challenge == null) return;
     final res = await _auth.verifyOtp(
       OtpVerifyRequest(otpId: challenge.otpId, code: state.code, purpose: purpose),
     );
-
     await res.fold(
       (err) async => emit(state.copyWith(
         status: RequestState.error,
@@ -83,40 +101,48 @@ class OtpCubit extends Cubit<OtpState> {
             ? (state.attemptsLeft - 1).clamp(0, 99)
             : state.attemptsLeft,
       )),
-      (outcome) => _completeSignup(outcome),
+      (outcome) async {
+        final verifiedToken = outcome.verifiedMobileToken;
+        if (verifiedToken == null) {
+          emit(state.copyWith(
+            status: RequestState.error,
+            error: const UnknownFailure(),
+          ));
+          return;
+        }
+        // Retain the single-use token so a retry skips re-verification.
+        emit(state.copyWith(verifiedMobileToken: verifiedToken));
+        await _signupThenComplete(verifiedToken, draft);
+      },
     );
   }
 
   /// Creates the LITE account from the OTP-verified token, then silently
   /// finishes profile completion with the already-collected [SignupDraft]
   /// (name/birthday/email/password) — no separate user-facing form. Lands
-  /// straight on Home when that succeeds; falls back to the Complete-Profile
-  /// screen (prefilled from the same draft) if it doesn't, so the user is
-  /// never stranded (Principle XXXVII, narrowed v9.0.0 — photo/National ID
-  /// are optional and never part of this chain).
-  Future<void> _completeSignup(OtpVerifyOutcome outcome) async {
-    final draft = state.draft;
-    final token = outcome.verifiedMobileToken;
-    if (token == null || draft == null) {
-      emit(state.copyWith(
-        status: RequestState.error,
-        error: const UnknownFailure(),
-      ));
-      return;
-    }
+  /// straight on Home when that succeeds; surfaces the error (staying on the
+  /// OTP screen to retry) if it doesn't, so the account is never left
+  /// incomplete behind Home (Principle XXXVII, narrowed v9.0.0 — photo/National
+  /// ID are optional and never part of this chain).
+  Future<void> _signupThenComplete(String token, SignupDraft draft) async {
     final verifyRes = await _auth.signupPhoneVerify(
       SignupPhoneVerifyRequest(verifiedMobileToken: token),
     );
     await verifyRes.fold(
       (err) async =>
           emit(state.copyWith(status: RequestState.error, error: err)),
-      (liteSession) => _completeProfileSilently(draft, liteSession),
+      (liteSession) async {
+        // Retain the lite session (status stays loading → no premature nav) so
+        // a retry resumes at completeProfile, not the consumed OTP.
+        emit(state.copyWith(session: liteSession));
+        await _completeProfileSilently(draft, liteSession);
+      },
     );
   }
 
   Future<void> _completeProfileSilently(
     SignupDraft draft,
-    CustomerSessionEntity liteSession,
+    CustomerSessionEntity lite,
   ) async {
     final res = await _auth.completeProfile(
       CompleteProfileRequest(
@@ -127,11 +153,18 @@ class OtpCubit extends Cubit<OtpState> {
         password: draft.password,
       ),
     );
-    emit(state.copyWith(
-      status: RequestState.loaded,
-      session: res.fold((_) => liteSession, (completed) => completed),
-      error: null,
-    ));
+    res.fold(
+      (err) => emit(state.copyWith(
+        status: RequestState.error,
+        error: err,
+        session: lite,
+      )),
+      (completed) => emit(state.copyWith(
+        status: RequestState.loaded,
+        session: completed,
+        error: null,
+      )),
+    );
   }
 
   /// Re-issues the SMS code. [locale] is the active app language code.

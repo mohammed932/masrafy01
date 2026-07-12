@@ -26,6 +26,7 @@ import 'package:app/features/auth/domain/repositories/customer_auth_repository.d
 import 'package:app/features/auth/domain/usecases/auth_usecase.dart';
 import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
 import 'package:app/features/auth/presentation/pages/apply_documents/cubit/apply_documents/apply_documents_cubit.dart';
+import 'package:app/features/auth/presentation/pages/change_password/cubit/change_password/change_password_cubit.dart';
 import 'package:app/features/auth/presentation/pages/complete_profile/cubit/complete_profile/complete_profile_cubit.dart';
 import 'package:app/features/auth/presentation/pages/login/cubit/login/login_cubit.dart';
 import 'package:app/features/auth/presentation/pages/otp/cubit/otp/otp_cubit.dart';
@@ -37,6 +38,10 @@ import 'package:app/features/questionnaire/domain/repositories/questionnaire_rep
 import 'package:app/features/questionnaire/domain/usecases/questionnaire_usecase.dart';
 import 'package:app/features/questionnaire/presentation/pages/dynamic/questionnaire_cubit.dart';
 import 'package:app/features/onboarding/presentation/pages/onboarding/cubit/onboarding/onboarding_cubit.dart';
+import 'package:app/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:app/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:app/features/profile/domain/repositories/profile_repository.dart';
+import 'package:app/features/profile/domain/usecases/profile_usecase.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile/profile_cubit.dart';
 import 'package:app/features/applications/data/datasources/applications_remote_datasource.dart';
 import 'package:app/features/applications/data/repositories/applications_repository_impl.dart';
@@ -142,6 +147,7 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerFactory(() => SignupCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(() => OtpCubit(getIt<CustomerAuthUseCase>()));
+  getIt.registerFactory(() => ChangePasswordCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(
     () => CompleteProfileCubit(
       getIt<AuthUseCase>(),
@@ -181,9 +187,18 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerFactory(() => QuestionnaireCubit(getIt<QuestionnaireUseCase>()));
 
-  // profile — view + two edit screens (UI-only mock; no datasource/repo yet,
-  // see plan). Screen-scoped (Principle XXXI).
-  getIt.registerFactory(() => ProfileCubit());
+  // profile — view (backend-wired via GET /api/v1/auth/me) + two edit screens.
+  // Screen-scoped (Principle XXXI).
+  getIt.registerLazySingleton(
+    () => ProfileRemoteDataSource(getIt<BaseNetwork>()),
+  );
+  getIt.registerLazySingleton<ProfileRepository>(
+    () => ProfileRepositoryImpl(getIt<ProfileRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(
+    () => ProfileUseCase(getIt<ProfileRepository>()),
+  );
+  getIt.registerFactory(() => ProfileCubit(getIt<ProfileUseCase>()));
   getIt.registerFactory(() => ProfileEditPersonalCubit());
   getIt.registerFactory(() => ProfileEditContactCubit());
 
