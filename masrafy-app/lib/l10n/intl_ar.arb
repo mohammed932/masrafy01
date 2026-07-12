@@ -812,5 +812,9 @@
   "change_password_error_same_as_old": "يجب أن تختلف كلمة المرور الجديدة عن الحالية.",
   "change_password_error_social_forbidden": "تغيير كلمة المرور غير متاح لحسابات تسجيل الدخول عبر مواقع التواصل.",
   "change_password_error_policy": "يجب أن تتكون كلمة المرور من ١٢ حرفًا على الأقل وتشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.",
-  "change_password_error_mismatch": "كلمتا المرور غير متطابقتين"
+  "change_password_error_mismatch": "كلمتا المرور غير متطابقتين",
+  "photo_source_title": "صورة الملف الشخصي",
+  "photo_source_camera": "التقاط صورة",
+  "photo_source_gallery": "اختيار من المعرض",
+  "profile_photo_upload_failed": "تعذّر رفع الصورة. حاول مرة أخرى."
 }

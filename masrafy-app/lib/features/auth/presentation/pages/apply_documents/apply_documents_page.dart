@@ -1,10 +1,11 @@
 part of 'apply_documents.imports.dart';
 
-/// Apply-time document gate (Constitution v9.0.1). Reached when the user taps
-/// "Apply" on an offer and the profile photo + National ID front/back aren't
-/// all on file yet. Pre-checks already-uploaded documents, lets the user add
-/// the missing ones, and pops `true` once all three are present so the offer
-/// screen auto-resumes select-offer. A collapsing gradient sliver hero over a
+/// Apply-time document gate (Constitution v9.1.0). Reached when the user taps
+/// "Apply" on an offer and the National ID front/back aren't both on file yet.
+/// Profile photo is optional (v9.1.0) and not collected here. Pre-checks
+/// already-uploaded documents, lets the user add the missing ones, and pops
+/// `true` once both ID sides are present so the offer screen auto-resumes
+/// select-offer. A collapsing gradient sliver hero over a
 /// rounded sheet (Principle XXXIII / A35); the single route-level widget for
 /// this file (Principle XXXVI).
 @RoutePage()
@@ -109,42 +110,11 @@ class _ApplyDocumentsForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final text = MasrafyTextTheme.of(context);
     final l = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Text(
-              l.apply_docs_photo_section.toUpperCase(),
-              style: text.caption.semiBold().copyWith(
-                    color: colors.primary.main,
-                    letterSpacing: 0.66,
-                  ),
-            ),
-            Gap(6.w),
-            Text(
-              l.apply_docs_photo_hint,
-              style: text.caption
-                  .regular()
-                  .copyWith(color: colors.text.placeholder),
-            ),
-          ],
-        ),
-        Gap(16.h),
-        MasrafyPhotoUpload(
-          label: l.signup_photo_upload,
-          imageBytes: state.photoBytes,
-          uploading: state.photoUploading,
-          uploaded: state.photoUploaded,
-          onTap: cubit.pickAndUploadPhoto,
-        ),
-        Gap(24.h),
-        Divider(height: 1.h, color: colors.border.secondary),
-        Gap(16.h),
         MasrafyNationalIdUploader(
           sectionLabel: l.signup_national_id_label,
           sectionHint: l.signup_national_id_hint,
@@ -174,7 +144,7 @@ class _ApplyDocumentsForm extends StatelessWidget {
   }
 }
 
-/// Shape-matched shimmer (Principle XXXIV): the photo circle + a two-card
+/// Shape-matched shimmer (Principle XXXIV): the section label + a two-card
 /// National ID row + the CTA bar.
 class _ApplyDocumentsShimmer extends StatelessWidget {
   const _ApplyDocumentsShimmer();
@@ -185,10 +155,6 @@ class _ApplyDocumentsShimmer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          MasrafyShimmerBox(width: 140, height: 12, radius: 6),
-          Gap(20.h),
-          Center(child: MasrafyShimmerCircle(diameter: 128)),
-          Gap(28.h),
           MasrafyShimmerBox(width: 160, height: 12, radius: 6),
           Gap(12.h),
           Row(

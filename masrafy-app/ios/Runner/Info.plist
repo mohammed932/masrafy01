@@ -47,5 +47,9 @@
 	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Masrafy uses Face ID to let you sign in quickly and securely.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Masrafy needs access to your photos so you can set a profile picture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Masrafy needs access to your camera so you can take a profile picture.</string>
 </dict>
 </plist>

@@ -13,11 +13,12 @@ import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
 part 'apply_documents_cubit.freezed.dart';
 part 'apply_documents_state.dart';
 
-/// Apply-time document gate (Constitution v9.0.1). Fetches which documents are
-/// already on file (pre-checks the tiles) then lets the user upload the profile
-/// photo + National ID front/back through the customer-scoped presign endpoints
-/// (each: presign → S3 PUT → confirm). When all three are present the screen
-/// pops `true` and the offer page auto-resumes select-offer. Orchestration only
+/// Apply-time document gate (Constitution v9.1.0). Fetches which documents are
+/// already on file (pre-checks the tiles) then lets the user upload the
+/// National ID front/back through the customer-scoped presign endpoints
+/// (each: presign → S3 PUT → confirm). When both ID sides are present the
+/// screen pops `true` and the offer page auto-resumes select-offer. Profile
+/// photo is optional (v9.1.0) and not collected here. Orchestration only
 /// — derivations live on [ApplyDocumentsState] (Principle XXXI).
 @injectable
 class ApplyDocumentsCubit extends Cubit<ApplyDocumentsState> {
@@ -36,27 +37,8 @@ class ApplyDocumentsCubit extends Cubit<ApplyDocumentsState> {
       (err) => emit(state.copyWith(loadStatus: RequestState.error, error: err)),
       (status) => emit(state.copyWith(
         loadStatus: RequestState.loaded,
-        photoUploaded: status.profilePhoto,
         idFrontUploaded: status.nationalIdFront,
         idBackUploaded: status.nationalIdBack,
-      )),
-    );
-  }
-
-  Future<void> pickAndUploadPhoto() async {
-    if (state.photoUploading) return;
-    final picked = await _pick();
-    if (picked == null) return;
-    emit(state.copyWith(photoUploading: true, error: null));
-    final res = await _auth.uploadProfilePhoto(
-      UploadAssetRequest(bytes: picked.bytes, contentType: picked.contentType),
-    );
-    res.fold(
-      (err) => emit(state.copyWith(photoUploading: false, error: err)),
-      (_) => emit(state.copyWith(
-        photoUploading: false,
-        photoUploaded: true,
-        photoBytes: picked.bytes,
       )),
     );
   }

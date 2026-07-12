@@ -121,6 +121,7 @@ class _ProfileBody extends StatelessWidget {
             child: MasrafyAvatar(
               size: 104.r,
               imageUrl: data.photoUrl,
+              imageBytes: data.photoBytes,
               borderColor: colors.secondary.main.withValues(alpha: 0.4),
               borderWidth: 2,
             ),

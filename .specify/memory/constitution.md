@@ -1475,10 +1475,11 @@ deferred to apply time.
    before or after profile completion, via the existing customer-scoped
    presign endpoints — uploading is never itself a precondition of anything
    in this Principle. (A separate, non-XXXVII business rule requires the
-   profile photo and National ID front+back at the select-offer commitment
-   point — when the customer proceeds with a bank offer, never at the
-   matching call; that rule lives with the application flow, not with profile
-   completeness.)
+   National ID front+back at the select-offer commitment point — when the
+   customer proceeds with a bank offer, never at the matching call; that rule
+   lives with the application flow, not with profile completeness. Profile
+   photo is NO LONGER part of that gate as of v9.1.0 — it is optional
+   everywhere.)
 4. **Age is always derived from `birthday`.** No `age` column, no persisted
    `age` DTO field on the customer. Validation (18–80) runs against the value
    derived from `birthday` at write time and at apply time.
@@ -1685,6 +1686,7 @@ Selecting a value for a form field with an inline / floating / overlay dropdown,
 
 | Version | Date | Type | Summary |
 |---|---|---|---|
+| 9.1.0 | 2026-07-13 | MINOR | Select-offer document gate (non-XXXVII, v9.0.1) narrowed: **profile photo dropped from the gate — only National ID front+back are required at the select-offer commitment point.** `assertSelectOfferDocuments()` no longer throws `PROFILE_PHOTO_REQUIRED` (National ID check only); profile photo is now optional EVERYWHERE (completeness + select-offer). `getProfileDocumentsStatus()` still returns `profilePhoto` (informational). Mobile apply-documents screen (`ApplyDocumentsPage`/`ApplyDocumentsCubit`) drops the photo tile + `photo*` state fields; CTA unlocks on both National ID sides. `SelectOfferState.needsDocuments` no longer matches `PROFILE_PHOTO_REQUIRED`. `PROFILE_PHOTO_REQUIRED` error code + ARB/JSON strings retained but unused (no cross-surface removal). Principle XXXVII Rule 3 parenthetical reworded. A32 unchanged. |
 | 9.0.1 | 2026-07-11 | PATCH | Principle XXXVII Rule 3 parenthetical updated to the now-ratified select-offer document gate (non-XXXVII): profile photo + National ID front/back are required when the customer proceeds with a bank offer — `selectOffer()` calls `assertSelectOfferDocuments` (409 `NATIONAL_ID_REQUIRED` checked first, then new `PROFILE_PHOTO_REQUIRED`) — and `POST /v1/apply` NO LONGER requires any document (pre-9.0.1 apply-time `assertNationalId` removed; matched offers browse freely). `hasNationalId`/`assertNationalId` absorbed into `getProfileDocumentsStatus()` + `assertSelectOfferDocuments()`; lightweight `CustomerAccountRepository.findProfilePhotoKey()` added. New `GET /v1/profile/documents/status` → `{ profilePhoto, nationalIdFront, nationalIdBack }` for the mobile docs-screen pre-check. Completeness contract untouched (Rules 1/2 unchanged). Same-PR i18n: `PROFILE_PHOTO_REQUIRED` in admin en-US/ar-EG error JSONs + Flutter ARB `auth_profile_photo_required`. |
 | 9.0.0 | 2026-07-11 | MAJOR | Principle XXXVII narrowed: profile photo (`profilePhotoKey`) and National ID FRONT/BACK are REMOVED from the mandatory completeness contract — COMPLETE now requires only mobile+`mobileVerifiedAt`, firstName, lastName, birthday, and (PHONE only) `passwordHash`. `CustomerProfileCompletenessService.evaluate()` drops the `profilePhotoKey` check; `customer-auth-mobile.service.ts#completeProfile()` no longer throws `PROFILE_INCOMPLETE` for a missing photo. A PHONE-signup customer can reach Home / the gated surfaces as soon as firstName+lastName+birthday+password are set, without ever uploading a photo or National ID. Photo + National ID upload endpoints (`CustomerProfileDocumentsController`) are UNCHANGED; the separate apply-time National ID requirement (`assertNationalId`/`NATIONAL_ID_REQUIRED`) is unaffected and stays outside this Principle. Rule 3 rewritten (was "National ID collected at completion, not apply" — now "photo/National ID optional, not gating"); Rules 1/2 narrowed; Rationale + Enforcement reworded. Principle XIII registration-path prose updated to drop photo/National ID from the mandatory profile-completion step. Anti-Pattern A30 retired (slot reserved, mirrors A9); A32 reworded to the narrowed field list. |
 | 8.1.0 | 2026-06-27 | MINOR | Principle XXXIII extended: the **bottom sheet is the default value-selection control** on mobile. Inline / floating / overlay / accordion dropdowns (incl. the removed `MasrafyExpandableSelect`), native `DropdownButton` / `DropdownMenu`, and value-picking `PopupMenuButton`s are banned for form-field selection; use a `MasrafySelectField<T>` trigger opening the shared **instant tap-to-select** `showMasrafySingleSelectSheet` / `showMasrafyMultiSelectSheet`, with one `MasrafySelectOption<T>` model. The 33 questionnaire selects + the profile governorate picker migrated; per-cubit `openField` / `toggleField` accordion plumbing removed. Kebab / filter / period controls exempt. New Anti-Pattern A36. |
@@ -1715,4 +1717,4 @@ Selecting a value for a form field with an inline / floating / overlay dropdown,
 
 ---
 
-**Version**: 8.1.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-06-27
+**Version**: 9.1.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-07-13

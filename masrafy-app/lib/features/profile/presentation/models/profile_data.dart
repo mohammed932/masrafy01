@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'profile_data.freezed.dart';
@@ -18,6 +20,7 @@ class ProfileData with _$ProfileData {
     required DateTime birthday,
     required String nationalId,
     String? photoUrl,
+    Uint8List? photoBytes,
     required String dialCode,
     required String phone,
     required String email,
@@ -43,6 +46,7 @@ class ProfileData with _$ProfileData {
         firstName: firstName,
         lastName: lastName,
         birthday: birthday,
+        photoUrl: photoUrl,
         frontUploaded: true,
         backUploaded: true,
       );
@@ -75,14 +79,16 @@ class ProfileData with _$ProfileData {
 }
 
 /// Personal-info edit result (returned from the Edit Personal screen to the
-/// Profile view via the route result). [newPassword] empty means "unchanged".
+/// Profile view via the route result). Password is changed on its own
+/// dedicated screen, not here.
 @freezed
 class ProfilePersonalDraft with _$ProfilePersonalDraft {
   const factory ProfilePersonalDraft({
     required String firstName,
     required String lastName,
     required DateTime birthday,
-    @Default('') String newPassword,
+    String? photoUrl,
+    Uint8List? photoBytes,
     @Default(false) bool frontUploaded,
     @Default(false) bool backUploaded,
   }) = _ProfilePersonalDraft;

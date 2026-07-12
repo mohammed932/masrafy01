@@ -72,7 +72,7 @@ export class ApplicationsController {
   @ApiResponse({
     status: 409,
     description:
-      'Already proceeded, status mismatch, offer not for application, or required documents missing (NATIONAL_ID_REQUIRED / PROFILE_PHOTO_REQUIRED)',
+      'Already proceeded, status mismatch, offer not for application, or National ID missing (NATIONAL_ID_REQUIRED)',
   })
   async selectOffer(
     @Param('applicationId') applicationId: string,

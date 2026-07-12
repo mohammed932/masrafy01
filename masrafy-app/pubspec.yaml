@@ -97,6 +97,23 @@ dev_dependencies:
   injectable_generator: ^2.6.2
   auto_route_generator: ^9.0.0
   json_serializable: ^6.8.0
+  flutter_launcher_icons: ^0.14.3
+
+# App launcher icon (mirrors pilot100 setup). logo.png = full-bleed 1024²+ PNG.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "resources/logo.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#12208A"
+  adaptive_icon_foreground: "resources/logo.png"
+  web:
+    generate: false
+  windows:
+    generate: false
+  macos:
+    generate: false
 
 flutter:
   uses-material-design: true

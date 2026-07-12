@@ -17,9 +17,6 @@ final _privateConstructorUsedError = UnsupportedError(
 /// @nodoc
 mixin _$ApplyDocumentsState {
   RequestState get loadStatus => throw _privateConstructorUsedError;
-  Uint8List? get photoBytes => throw _privateConstructorUsedError;
-  bool get photoUploaded => throw _privateConstructorUsedError;
-  bool get photoUploading => throw _privateConstructorUsedError;
   bool get idFrontUploaded => throw _privateConstructorUsedError;
   bool get idFrontUploading => throw _privateConstructorUsedError;
   bool get idBackUploaded => throw _privateConstructorUsedError;
@@ -41,9 +38,6 @@ abstract class $ApplyDocumentsStateCopyWith<$Res> {
   @useResult
   $Res call(
       {RequestState loadStatus,
-      Uint8List? photoBytes,
-      bool photoUploaded,
-      bool photoUploading,
       bool idFrontUploaded,
       bool idFrontUploading,
       bool idBackUploaded,
@@ -67,9 +61,6 @@ class _$ApplyDocumentsStateCopyWithImpl<$Res, $Val extends ApplyDocumentsState>
   @override
   $Res call({
     Object? loadStatus = null,
-    Object? photoBytes = freezed,
-    Object? photoUploaded = null,
-    Object? photoUploading = null,
     Object? idFrontUploaded = null,
     Object? idFrontUploading = null,
     Object? idBackUploaded = null,
@@ -81,18 +72,6 @@ class _$ApplyDocumentsStateCopyWithImpl<$Res, $Val extends ApplyDocumentsState>
           ? _value.loadStatus
           : loadStatus // ignore: cast_nullable_to_non_nullable
               as RequestState,
-      photoBytes: freezed == photoBytes
-          ? _value.photoBytes
-          : photoBytes // ignore: cast_nullable_to_non_nullable
-              as Uint8List?,
-      photoUploaded: null == photoUploaded
-          ? _value.photoUploaded
-          : photoUploaded // ignore: cast_nullable_to_non_nullable
-              as bool,
-      photoUploading: null == photoUploading
-          ? _value.photoUploading
-          : photoUploading // ignore: cast_nullable_to_non_nullable
-              as bool,
       idFrontUploaded: null == idFrontUploaded
           ? _value.idFrontUploaded
           : idFrontUploaded // ignore: cast_nullable_to_non_nullable
@@ -127,9 +106,6 @@ abstract class _$$ApplyDocumentsStateImplCopyWith<$Res>
   @useResult
   $Res call(
       {RequestState loadStatus,
-      Uint8List? photoBytes,
-      bool photoUploaded,
-      bool photoUploading,
       bool idFrontUploaded,
       bool idFrontUploading,
       bool idBackUploaded,
@@ -151,9 +127,6 @@ class __$$ApplyDocumentsStateImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? loadStatus = null,
-    Object? photoBytes = freezed,
-    Object? photoUploaded = null,
-    Object? photoUploading = null,
     Object? idFrontUploaded = null,
     Object? idFrontUploading = null,
     Object? idBackUploaded = null,
@@ -165,18 +138,6 @@ class __$$ApplyDocumentsStateImplCopyWithImpl<$Res>
           ? _value.loadStatus
           : loadStatus // ignore: cast_nullable_to_non_nullable
               as RequestState,
-      photoBytes: freezed == photoBytes
-          ? _value.photoBytes
-          : photoBytes // ignore: cast_nullable_to_non_nullable
-              as Uint8List?,
-      photoUploaded: null == photoUploaded
-          ? _value.photoUploaded
-          : photoUploaded // ignore: cast_nullable_to_non_nullable
-              as bool,
-      photoUploading: null == photoUploading
-          ? _value.photoUploading
-          : photoUploading // ignore: cast_nullable_to_non_nullable
-              as bool,
       idFrontUploaded: null == idFrontUploaded
           ? _value.idFrontUploaded
           : idFrontUploaded // ignore: cast_nullable_to_non_nullable
@@ -206,9 +167,6 @@ class __$$ApplyDocumentsStateImplCopyWithImpl<$Res>
 class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
   const _$ApplyDocumentsStateImpl(
       {this.loadStatus = RequestState.initial,
-      this.photoBytes,
-      this.photoUploaded = false,
-      this.photoUploading = false,
       this.idFrontUploaded = false,
       this.idFrontUploading = false,
       this.idBackUploaded = false,
@@ -219,14 +177,6 @@ class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
   @override
   @JsonKey()
   final RequestState loadStatus;
-  @override
-  final Uint8List? photoBytes;
-  @override
-  @JsonKey()
-  final bool photoUploaded;
-  @override
-  @JsonKey()
-  final bool photoUploading;
   @override
   @JsonKey()
   final bool idFrontUploaded;
@@ -244,7 +194,7 @@ class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
 
   @override
   String toString() {
-    return 'ApplyDocumentsState(loadStatus: $loadStatus, photoBytes: $photoBytes, photoUploaded: $photoUploaded, photoUploading: $photoUploading, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idBackUploading: $idBackUploading, error: $error)';
+    return 'ApplyDocumentsState(loadStatus: $loadStatus, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idBackUploading: $idBackUploading, error: $error)';
   }
 
   @override
@@ -254,12 +204,6 @@ class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
             other is _$ApplyDocumentsStateImpl &&
             (identical(other.loadStatus, loadStatus) ||
                 other.loadStatus == loadStatus) &&
-            const DeepCollectionEquality()
-                .equals(other.photoBytes, photoBytes) &&
-            (identical(other.photoUploaded, photoUploaded) ||
-                other.photoUploaded == photoUploaded) &&
-            (identical(other.photoUploading, photoUploading) ||
-                other.photoUploading == photoUploading) &&
             (identical(other.idFrontUploaded, idFrontUploaded) ||
                 other.idFrontUploaded == idFrontUploaded) &&
             (identical(other.idFrontUploading, idFrontUploading) ||
@@ -272,17 +216,8 @@ class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      loadStatus,
-      const DeepCollectionEquality().hash(photoBytes),
-      photoUploaded,
-      photoUploading,
-      idFrontUploaded,
-      idFrontUploading,
-      idBackUploaded,
-      idBackUploading,
-      error);
+  int get hashCode => Object.hash(runtimeType, loadStatus, idFrontUploaded,
+      idFrontUploading, idBackUploaded, idBackUploading, error);
 
   /// Create a copy of ApplyDocumentsState
   /// with the given fields replaced by the non-null parameter values.
@@ -297,9 +232,6 @@ class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
 abstract class _ApplyDocumentsState extends ApplyDocumentsState {
   const factory _ApplyDocumentsState(
       {final RequestState loadStatus,
-      final Uint8List? photoBytes,
-      final bool photoUploaded,
-      final bool photoUploading,
       final bool idFrontUploaded,
       final bool idFrontUploading,
       final bool idBackUploaded,
@@ -309,12 +241,6 @@ abstract class _ApplyDocumentsState extends ApplyDocumentsState {
 
   @override
   RequestState get loadStatus;
-  @override
-  Uint8List? get photoBytes;
-  @override
-  bool get photoUploaded;
-  @override
-  bool get photoUploading;
   @override
   bool get idFrontUploaded;
   @override

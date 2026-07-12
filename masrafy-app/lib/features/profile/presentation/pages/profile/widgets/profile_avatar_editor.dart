@@ -1,21 +1,27 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/widgets/common/masrafy_avatar.dart';
 
 /// Editable avatar (Figma `4028:4573`): the circular profile photo with an
-/// azure camera badge pinned to its bottom edge. Photo pick is a coming-soon
-/// stub for now (like signup) — [onTap] surfaces the hint from the page.
-/// Flow-local (Principle XXXII).
+/// azure camera badge pinned to its bottom edge. Tapping picks + uploads a new
+/// photo; [imageBytes] shows the freshly-picked image and [uploading] overlays
+/// a spinner while the upload runs. Flow-local (Principle XXXII).
 class ProfileAvatarEditor extends StatelessWidget {
   const ProfileAvatarEditor({
     super.key,
     this.imageUrl,
+    this.imageBytes,
+    this.uploading = false,
     required this.onTap,
     this.size = 104,
   });
 
   final String? imageUrl;
+  final Uint8List? imageBytes;
+  final bool uploading;
   final VoidCallback onTap;
   final double size;
 
@@ -25,7 +31,7 @@ class ProfileAvatarEditor extends StatelessWidget {
 
     return Center(
       child: GestureDetector(
-        onTap: onTap,
+        onTap: uploading ? null : onTap,
         behavior: HitTestBehavior.opaque,
         child: Stack(
           clipBehavior: Clip.none,
@@ -33,9 +39,28 @@ class ProfileAvatarEditor extends StatelessWidget {
             MasrafyAvatar(
               size: size.r,
               imageUrl: imageUrl,
+              imageBytes: imageBytes,
               borderColor: colors.secondary.main.withValues(alpha: 0.4),
               borderWidth: 2,
             ),
+            if (uploading)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: colors.bg.mask.withValues(alpha: 0.45),
+                  ),
+                  alignment: Alignment.center,
+                  child: SizedBox(
+                    width: 26.r,
+                    height: 26.r,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: colors.white,
+                    ),
+                  ),
+                ),
+              ),
             PositionedDirectional(
               bottom: 0,
               end: 0,

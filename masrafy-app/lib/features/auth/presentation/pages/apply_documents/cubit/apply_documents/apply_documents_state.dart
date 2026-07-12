@@ -4,9 +4,6 @@ part of 'apply_documents_cubit.dart';
 class ApplyDocumentsState with _$ApplyDocumentsState {
   const factory ApplyDocumentsState({
     @Default(RequestState.initial) RequestState loadStatus,
-    Uint8List? photoBytes,
-    @Default(false) bool photoUploaded,
-    @Default(false) bool photoUploading,
     @Default(false) bool idFrontUploaded,
     @Default(false) bool idFrontUploading,
     @Default(false) bool idBackUploaded,
@@ -20,12 +17,12 @@ class ApplyDocumentsState with _$ApplyDocumentsState {
       loadStatus.isInitial || loadStatus.isLoading;
   bool get isStatusError => loadStatus.isError;
 
-  bool get anyUploading =>
-      photoUploading || idFrontUploading || idBackUploading;
+  bool get anyUploading => idFrontUploading || idBackUploading;
 
-  /// All three apply-time documents are on file — the CTA unlocks and the
-  /// screen can pop `true` to auto-resume select-offer.
-  bool get allDone => photoUploaded && idFrontUploaded && idBackUploaded;
+  /// Both National ID sides are on file — the CTA unlocks and the screen can
+  /// pop `true` to auto-resume select-offer. Profile photo is optional
+  /// (v9.1.0) and never gates apply.
+  bool get allDone => idFrontUploaded && idBackUploaded;
 
   bool get canSubmit => allDone && !anyUploading;
 }

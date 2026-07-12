@@ -45,8 +45,7 @@ class ProfileCubit extends Cubit<ProfileState> {
         firstName: d.firstName,
         lastName: d.lastName,
         birthday: d.birthday,
-        lastPasswordChange:
-            d.newPassword.isEmpty ? current.lastPasswordChange : DateTime.now(),
+        photoBytes: d.photoBytes ?? current.photoBytes,
       ),
     ));
   }

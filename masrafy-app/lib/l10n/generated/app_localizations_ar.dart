@@ -1860,4 +1860,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get change_password_error_mismatch => 'كلمتا المرور غير متطابقتين';
+
+  @override
+  String get photo_source_title => 'صورة الملف الشخصي';
+
+  @override
+  String get photo_source_camera => 'التقاط صورة';
+
+  @override
+  String get photo_source_gallery => 'اختيار من المعرض';
+
+  @override
+  String get profile_photo_upload_failed => 'تعذّر رفع الصورة. حاول مرة أخرى.';
 }

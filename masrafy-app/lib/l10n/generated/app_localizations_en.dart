@@ -1857,4 +1857,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get change_password_error_mismatch => 'Passwords do not match';
+
+  @override
+  String get photo_source_title => 'Profile Photo';
+
+  @override
+  String get photo_source_camera => 'Take Photo';
+
+  @override
+  String get photo_source_gallery => 'Choose from Gallery';
+
+  @override
+  String get profile_photo_upload_failed => 'Couldn\'t upload the photo. Please try again.';
 }

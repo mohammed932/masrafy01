@@ -31,7 +31,6 @@ class _ProfileEditPersonalView extends StatefulWidget {
 class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
   late final TextEditingController _firstName;
   late final TextEditingController _lastName;
-  late final TextEditingController _password;
 
   @override
   void initState() {
@@ -39,14 +38,12 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
     final s = context.read<ProfileEditPersonalCubit>().state;
     _firstName = TextEditingController(text: s.firstName);
     _lastName = TextEditingController(text: s.lastName);
-    _password = TextEditingController(text: s.password);
   }
 
   @override
   void dispose() {
     _firstName.dispose();
     _lastName.dispose();
-    _password.dispose();
     super.dispose();
   }
 
@@ -69,6 +66,21 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
     );
   }
 
+  Future<void> _pickPhoto(
+    BuildContext context,
+    ProfileEditPersonalCubit cubit,
+  ) async {
+    final l = AppLocalizations.of(context);
+    final source = await MasrafyPhotoSourceSheet.show(
+      context,
+      title: l.photo_source_title,
+      cameraLabel: l.photo_source_camera,
+      galleryLabel: l.photo_source_gallery,
+    );
+    if (source == null) return;
+    await cubit.pickAndUploadPhoto(source);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
@@ -87,7 +99,10 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
         onHome: () => context.router.replaceAll([const HomeRoute()]),
         onMenu: () => context.router.maybePop(),
       ),
-      body: BlocBuilder<ProfileEditPersonalCubit, ProfileEditPersonalState>(
+      body: BlocConsumer<ProfileEditPersonalCubit, ProfileEditPersonalState>(
+        listenWhen: (p, c) => p.photoError != c.photoError && c.photoError != null,
+        listener: (ctx, state) =>
+            MasrafyToast.error(ctx, l.profile_photo_upload_failed),
         builder: (ctx, state) {
           final cubit = ctx.read<ProfileEditPersonalCubit>();
 
@@ -108,7 +123,14 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Center(child: ProfileAvatarEditor(onTap: soon)),
+                        Center(
+                          child: ProfileAvatarEditor(
+                            imageUrl: state.photoUrl,
+                            imageBytes: state.photoBytes,
+                            uploading: state.photoUploading,
+                            onTap: () => _pickPhoto(ctx, cubit),
+                          ),
+                        ),
                         Gap(24.h),
                         ProfileFormSection(
                           title: l.profile_section_personal,
@@ -143,18 +165,6 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                               value: state.birthday,
                               onTap: () =>
                                   _pickBirthday(ctx, cubit, state.birthday),
-                            ),
-                            MasrafyLabeledField(
-                              label: l.profile_password,
-                              controller: _password,
-                              hint: l.profile_password_hint,
-                              obscure: state.obscurePassword,
-                              onChanged: (v) => cubit.updateField(
-                                  ProfileEditPersonalField.password, v),
-                              suffix: _ObscureToggle(
-                                obscured: state.obscurePassword,
-                                onTap: cubit.toggleObscure,
-                              ),
                             ),
                           ],
                         ),
@@ -197,28 +207,6 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
           );
         },
       ),
-    );
-  }
-}
-
-/// Eye toggle suffix for the password input.
-class _ObscureToggle extends StatelessWidget {
-  const _ObscureToggle({required this.obscured, required this.onTap});
-
-  final bool obscured;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    return IconButton(
-      splashRadius: 20.r,
-      icon: Icon(
-        obscured ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-        size: 20.r,
-        color: colors.icon.main,
-      ),
-      onPressed: onTap,
     );
   }
 }

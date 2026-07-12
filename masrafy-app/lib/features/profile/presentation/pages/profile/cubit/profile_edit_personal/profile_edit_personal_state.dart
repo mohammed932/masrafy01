@@ -8,26 +8,30 @@ class ProfileEditPersonalState with _$ProfileEditPersonalState {
     @Default('') String firstName,
     @Default('') String lastName,
     DateTime? birthday,
-    @Default('') String password,
-    @Default(true) bool obscurePassword,
+    String? photoUrl,
+    Uint8List? photoBytes,
+    @Default(false) bool photoUploading,
+    Failure? photoError,
     @Default(false) bool frontUploaded,
     @Default(false) bool backUploaded,
   }) = _ProfileEditPersonalState;
 
   const ProfileEditPersonalState._();
 
-  /// Name + birthday are required; a new password is optional (empty keeps the
-  /// existing one). National-ID re-upload is optional when editing.
+  /// Name + birthday are required. National-ID re-upload is optional when
+  /// editing. (Password is changed on its own dedicated screen.)
   bool get canSave =>
       firstName.trim().isNotEmpty &&
       lastName.trim().isNotEmpty &&
-      birthday != null;
+      birthday != null &&
+      !photoUploading;
 
   ProfilePersonalDraft toDraft() => ProfilePersonalDraft(
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         birthday: birthday!,
-        newPassword: password,
+        photoUrl: photoUrl,
+        photoBytes: photoBytes,
         frontUploaded: frontUploaded,
         backUploaded: backUploaded,
       );

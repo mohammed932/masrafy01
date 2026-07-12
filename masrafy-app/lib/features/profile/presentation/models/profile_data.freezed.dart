@@ -22,6 +22,7 @@ mixin _$ProfileData {
   DateTime get birthday => throw _privateConstructorUsedError;
   String get nationalId => throw _privateConstructorUsedError;
   String? get photoUrl => throw _privateConstructorUsedError;
+  Uint8List? get photoBytes => throw _privateConstructorUsedError;
   String get dialCode => throw _privateConstructorUsedError;
   String get phone => throw _privateConstructorUsedError;
   String get email => throw _privateConstructorUsedError;
@@ -49,6 +50,7 @@ abstract class $ProfileDataCopyWith<$Res> {
       DateTime birthday,
       String nationalId,
       String? photoUrl,
+      Uint8List? photoBytes,
       String dialCode,
       String phone,
       String email,
@@ -78,6 +80,7 @@ class _$ProfileDataCopyWithImpl<$Res, $Val extends ProfileData>
     Object? birthday = null,
     Object? nationalId = null,
     Object? photoUrl = freezed,
+    Object? photoBytes = freezed,
     Object? dialCode = null,
     Object? phone = null,
     Object? email = null,
@@ -110,6 +113,10 @@ class _$ProfileDataCopyWithImpl<$Res, $Val extends ProfileData>
           ? _value.photoUrl
           : photoUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      photoBytes: freezed == photoBytes
+          ? _value.photoBytes
+          : photoBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       dialCode: null == dialCode
           ? _value.dialCode
           : dialCode // ignore: cast_nullable_to_non_nullable
@@ -153,6 +160,7 @@ abstract class _$$ProfileDataImplCopyWith<$Res>
       DateTime birthday,
       String nationalId,
       String? photoUrl,
+      Uint8List? photoBytes,
       String dialCode,
       String phone,
       String email,
@@ -180,6 +188,7 @@ class __$$ProfileDataImplCopyWithImpl<$Res>
     Object? birthday = null,
     Object? nationalId = null,
     Object? photoUrl = freezed,
+    Object? photoBytes = freezed,
     Object? dialCode = null,
     Object? phone = null,
     Object? email = null,
@@ -212,6 +221,10 @@ class __$$ProfileDataImplCopyWithImpl<$Res>
           ? _value.photoUrl
           : photoUrl // ignore: cast_nullable_to_non_nullable
               as String?,
+      photoBytes: freezed == photoBytes
+          ? _value.photoBytes
+          : photoBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       dialCode: null == dialCode
           ? _value.dialCode
           : dialCode // ignore: cast_nullable_to_non_nullable
@@ -250,6 +263,7 @@ class _$ProfileDataImpl extends _ProfileData {
       required this.birthday,
       required this.nationalId,
       this.photoUrl,
+      this.photoBytes,
       required this.dialCode,
       required this.phone,
       required this.email,
@@ -271,6 +285,8 @@ class _$ProfileDataImpl extends _ProfileData {
   @override
   final String? photoUrl;
   @override
+  final Uint8List? photoBytes;
+  @override
   final String dialCode;
   @override
   final String phone;
@@ -285,7 +301,7 @@ class _$ProfileDataImpl extends _ProfileData {
 
   @override
   String toString() {
-    return 'ProfileData(firstName: $firstName, lastName: $lastName, lastPasswordChange: $lastPasswordChange, birthday: $birthday, nationalId: $nationalId, photoUrl: $photoUrl, dialCode: $dialCode, phone: $phone, email: $email, governorate: $governorate, city: $city, address: $address)';
+    return 'ProfileData(firstName: $firstName, lastName: $lastName, lastPasswordChange: $lastPasswordChange, birthday: $birthday, nationalId: $nationalId, photoUrl: $photoUrl, photoBytes: $photoBytes, dialCode: $dialCode, phone: $phone, email: $email, governorate: $governorate, city: $city, address: $address)';
   }
 
   @override
@@ -305,6 +321,8 @@ class _$ProfileDataImpl extends _ProfileData {
                 other.nationalId == nationalId) &&
             (identical(other.photoUrl, photoUrl) ||
                 other.photoUrl == photoUrl) &&
+            const DeepCollectionEquality()
+                .equals(other.photoBytes, photoBytes) &&
             (identical(other.dialCode, dialCode) ||
                 other.dialCode == dialCode) &&
             (identical(other.phone, phone) || other.phone == phone) &&
@@ -324,6 +342,7 @@ class _$ProfileDataImpl extends _ProfileData {
       birthday,
       nationalId,
       photoUrl,
+      const DeepCollectionEquality().hash(photoBytes),
       dialCode,
       phone,
       email,
@@ -348,6 +367,7 @@ abstract class _ProfileData extends ProfileData {
       required final DateTime birthday,
       required final String nationalId,
       final String? photoUrl,
+      final Uint8List? photoBytes,
       required final String dialCode,
       required final String phone,
       required final String email,
@@ -368,6 +388,8 @@ abstract class _ProfileData extends ProfileData {
   String get nationalId;
   @override
   String? get photoUrl;
+  @override
+  Uint8List? get photoBytes;
   @override
   String get dialCode;
   @override
@@ -394,7 +416,8 @@ mixin _$ProfilePersonalDraft {
   String get firstName => throw _privateConstructorUsedError;
   String get lastName => throw _privateConstructorUsedError;
   DateTime get birthday => throw _privateConstructorUsedError;
-  String get newPassword => throw _privateConstructorUsedError;
+  String? get photoUrl => throw _privateConstructorUsedError;
+  Uint8List? get photoBytes => throw _privateConstructorUsedError;
   bool get frontUploaded => throw _privateConstructorUsedError;
   bool get backUploaded => throw _privateConstructorUsedError;
 
@@ -415,7 +438,8 @@ abstract class $ProfilePersonalDraftCopyWith<$Res> {
       {String firstName,
       String lastName,
       DateTime birthday,
-      String newPassword,
+      String? photoUrl,
+      Uint8List? photoBytes,
       bool frontUploaded,
       bool backUploaded});
 }
@@ -439,7 +463,8 @@ class _$ProfilePersonalDraftCopyWithImpl<$Res,
     Object? firstName = null,
     Object? lastName = null,
     Object? birthday = null,
-    Object? newPassword = null,
+    Object? photoUrl = freezed,
+    Object? photoBytes = freezed,
     Object? frontUploaded = null,
     Object? backUploaded = null,
   }) {
@@ -456,10 +481,14 @@ class _$ProfilePersonalDraftCopyWithImpl<$Res,
           ? _value.birthday
           : birthday // ignore: cast_nullable_to_non_nullable
               as DateTime,
-      newPassword: null == newPassword
-          ? _value.newPassword
-          : newPassword // ignore: cast_nullable_to_non_nullable
-              as String,
+      photoUrl: freezed == photoUrl
+          ? _value.photoUrl
+          : photoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      photoBytes: freezed == photoBytes
+          ? _value.photoBytes
+          : photoBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       frontUploaded: null == frontUploaded
           ? _value.frontUploaded
           : frontUploaded // ignore: cast_nullable_to_non_nullable
@@ -484,7 +513,8 @@ abstract class _$$ProfilePersonalDraftImplCopyWith<$Res>
       {String firstName,
       String lastName,
       DateTime birthday,
-      String newPassword,
+      String? photoUrl,
+      Uint8List? photoBytes,
       bool frontUploaded,
       bool backUploaded});
 }
@@ -505,7 +535,8 @@ class __$$ProfilePersonalDraftImplCopyWithImpl<$Res>
     Object? firstName = null,
     Object? lastName = null,
     Object? birthday = null,
-    Object? newPassword = null,
+    Object? photoUrl = freezed,
+    Object? photoBytes = freezed,
     Object? frontUploaded = null,
     Object? backUploaded = null,
   }) {
@@ -522,10 +553,14 @@ class __$$ProfilePersonalDraftImplCopyWithImpl<$Res>
           ? _value.birthday
           : birthday // ignore: cast_nullable_to_non_nullable
               as DateTime,
-      newPassword: null == newPassword
-          ? _value.newPassword
-          : newPassword // ignore: cast_nullable_to_non_nullable
-              as String,
+      photoUrl: freezed == photoUrl
+          ? _value.photoUrl
+          : photoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      photoBytes: freezed == photoBytes
+          ? _value.photoBytes
+          : photoBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       frontUploaded: null == frontUploaded
           ? _value.frontUploaded
           : frontUploaded // ignore: cast_nullable_to_non_nullable
@@ -545,7 +580,8 @@ class _$ProfilePersonalDraftImpl implements _ProfilePersonalDraft {
       {required this.firstName,
       required this.lastName,
       required this.birthday,
-      this.newPassword = '',
+      this.photoUrl,
+      this.photoBytes,
       this.frontUploaded = false,
       this.backUploaded = false});
 
@@ -556,8 +592,9 @@ class _$ProfilePersonalDraftImpl implements _ProfilePersonalDraft {
   @override
   final DateTime birthday;
   @override
-  @JsonKey()
-  final String newPassword;
+  final String? photoUrl;
+  @override
+  final Uint8List? photoBytes;
   @override
   @JsonKey()
   final bool frontUploaded;
@@ -567,7 +604,7 @@ class _$ProfilePersonalDraftImpl implements _ProfilePersonalDraft {
 
   @override
   String toString() {
-    return 'ProfilePersonalDraft(firstName: $firstName, lastName: $lastName, birthday: $birthday, newPassword: $newPassword, frontUploaded: $frontUploaded, backUploaded: $backUploaded)';
+    return 'ProfilePersonalDraft(firstName: $firstName, lastName: $lastName, birthday: $birthday, photoUrl: $photoUrl, photoBytes: $photoBytes, frontUploaded: $frontUploaded, backUploaded: $backUploaded)';
   }
 
   @override
@@ -581,8 +618,10 @@ class _$ProfilePersonalDraftImpl implements _ProfilePersonalDraft {
                 other.lastName == lastName) &&
             (identical(other.birthday, birthday) ||
                 other.birthday == birthday) &&
-            (identical(other.newPassword, newPassword) ||
-                other.newPassword == newPassword) &&
+            (identical(other.photoUrl, photoUrl) ||
+                other.photoUrl == photoUrl) &&
+            const DeepCollectionEquality()
+                .equals(other.photoBytes, photoBytes) &&
             (identical(other.frontUploaded, frontUploaded) ||
                 other.frontUploaded == frontUploaded) &&
             (identical(other.backUploaded, backUploaded) ||
@@ -590,8 +629,15 @@ class _$ProfilePersonalDraftImpl implements _ProfilePersonalDraft {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, firstName, lastName, birthday,
-      newPassword, frontUploaded, backUploaded);
+  int get hashCode => Object.hash(
+      runtimeType,
+      firstName,
+      lastName,
+      birthday,
+      photoUrl,
+      const DeepCollectionEquality().hash(photoBytes),
+      frontUploaded,
+      backUploaded);
 
   /// Create a copy of ProfilePersonalDraft
   /// with the given fields replaced by the non-null parameter values.
@@ -609,7 +655,8 @@ abstract class _ProfilePersonalDraft implements ProfilePersonalDraft {
       {required final String firstName,
       required final String lastName,
       required final DateTime birthday,
-      final String newPassword,
+      final String? photoUrl,
+      final Uint8List? photoBytes,
       final bool frontUploaded,
       final bool backUploaded}) = _$ProfilePersonalDraftImpl;
 
@@ -620,7 +667,9 @@ abstract class _ProfilePersonalDraft implements ProfilePersonalDraft {
   @override
   DateTime get birthday;
   @override
-  String get newPassword;
+  String? get photoUrl;
+  @override
+  Uint8List? get photoBytes;
   @override
   bool get frontUploaded;
   @override

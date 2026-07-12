@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
@@ -14,12 +16,17 @@ class MasrafyAvatar extends StatelessWidget {
     super.key,
     required this.size,
     this.imageUrl,
+    this.imageBytes,
     this.borderColor,
     this.borderWidth,
   });
 
   final double size;
   final String? imageUrl;
+
+  /// Locally-picked image bytes. When set, rendered in place of [imageUrl]
+  /// (e.g. an instant preview right after the user picks a new photo).
+  final Uint8List? imageBytes;
   final Color? borderColor;
   final double? borderWidth;
 
@@ -28,16 +35,27 @@ class MasrafyAvatar extends StatelessWidget {
     final hasBorder = borderColor != null;
     final effectiveBorderWidth = borderWidth ?? 2.r;
 
-    final avatar = MasrafyNetworkImage(
-      imageUrl: imageUrl,
-      width: size,
-      height: size,
-      borderRadius: BorderRadius.circular(size / 2),
-      placeholder: (_) => _DefaultAvatar(size: size),
-      errorWidget: (_) => _DefaultAvatar(size: size),
-    );
+    final bytes = imageBytes;
+    final Widget avatar = bytes != null
+        ? Image.memory(
+            bytes,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          )
+        : MasrafyNetworkImage(
+            imageUrl: imageUrl,
+            width: size,
+            height: size,
+            borderRadius: BorderRadius.circular(size / 2),
+            placeholder: (_) => _DefaultAvatar(size: size),
+            errorWidget: (_) => _DefaultAvatar(size: size),
+          );
 
-    if (!hasBorder) return avatar;
+    if (!hasBorder) {
+      return bytes != null ? ClipOval(child: avatar) : avatar;
+    }
 
     return Container(
       width: size + effectiveBorderWidth * 2,

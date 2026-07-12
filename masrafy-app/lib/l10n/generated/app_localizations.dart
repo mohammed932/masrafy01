@@ -3712,6 +3712,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'كلمتا المرور غير متطابقتين'**
   String get change_password_error_mismatch;
+
+  /// No description provided for @photo_source_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'صورة الملف الشخصي'**
+  String get photo_source_title;
+
+  /// No description provided for @photo_source_camera.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقاط صورة'**
+  String get photo_source_camera;
+
+  /// No description provided for @photo_source_gallery.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختيار من المعرض'**
+  String get photo_source_gallery;
+
+  /// No description provided for @profile_photo_upload_failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر رفع الصورة. حاول مرة أخرى.'**
+  String get profile_photo_upload_failed;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

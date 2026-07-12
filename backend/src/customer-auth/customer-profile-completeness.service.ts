@@ -36,11 +36,11 @@ export class CustomerProfileCompletenessService {
    * Pure predicate — true when every account-completeness field is present.
    * Profile photo and National ID are intentionally NOT part of account
    * completeness (Principle XXXVII, narrowed v9.0.0): both are optional and
-   * uploadable at any time via the profile-document endpoints. Profile photo
-   * + National ID are separately enforced at the select-offer commitment
-   * point via {@link assertSelectOfferDocuments} (NATIONAL_ID_REQUIRED /
-   * PROFILE_PHOTO_REQUIRED) — an independent, non-XXXVII gate, not part of
-   * this completeness contract.
+   * uploadable at any time via the profile-document endpoints. Only National
+   * ID front+back are separately enforced at the select-offer commitment
+   * point via {@link assertSelectOfferDocuments} (NATIONAL_ID_REQUIRED) — an
+   * independent, non-XXXVII gate, not part of this completeness contract.
+   * Profile photo is no longer gated anywhere (v9.1.0).
    */
   static evaluate(state: CustomerProfileState | null): boolean {
     if (!state) return false;
@@ -85,20 +85,16 @@ export class CustomerProfileCompletenessService {
 
   /**
    * Select-offer commitment gate (non-XXXVII business rule, constitution
-   * v9.0.1): profile photo AND National ID front+back are required when the
-   * customer proceeds with a bank offer — never at the matching call
-   * (`apply()`), so matched offers stay freely browsable. First-missing wins,
-   * National ID checked first (NATIONAL_ID_REQUIRED predates the photo code
-   * and is already handled by shipped mobile builds); both codes route the
-   * app to the same documents screen.
+   * v9.1.0): only National ID front+back are required when the customer
+   * proceeds with a bank offer — never at the matching call (`apply()`), so
+   * matched offers stay freely browsable. Profile photo is fully optional and
+   * no longer gated here (v9.1.0). NATIONAL_ID_REQUIRED routes the app to the
+   * documents screen.
    */
   async assertSelectOfferDocuments(customerId: string): Promise<void> {
     const status = await this.getProfileDocumentsStatus(customerId);
     if (!status.nationalIdFront || !status.nationalIdBack) {
       throw new DomainException(ERROR_CODES.NATIONAL_ID_REQUIRED);
-    }
-    if (!status.profilePhoto) {
-      throw new DomainException(ERROR_CODES.PROFILE_PHOTO_REQUIRED);
     }
   }
 }

@@ -19,8 +19,10 @@ mixin _$ProfileEditPersonalState {
   String get firstName => throw _privateConstructorUsedError;
   String get lastName => throw _privateConstructorUsedError;
   DateTime? get birthday => throw _privateConstructorUsedError;
-  String get password => throw _privateConstructorUsedError;
-  bool get obscurePassword => throw _privateConstructorUsedError;
+  String? get photoUrl => throw _privateConstructorUsedError;
+  Uint8List? get photoBytes => throw _privateConstructorUsedError;
+  bool get photoUploading => throw _privateConstructorUsedError;
+  Failure? get photoError => throw _privateConstructorUsedError;
   bool get frontUploaded => throw _privateConstructorUsedError;
   bool get backUploaded => throw _privateConstructorUsedError;
 
@@ -41,8 +43,10 @@ abstract class $ProfileEditPersonalStateCopyWith<$Res> {
       {String firstName,
       String lastName,
       DateTime? birthday,
-      String password,
-      bool obscurePassword,
+      String? photoUrl,
+      Uint8List? photoBytes,
+      bool photoUploading,
+      Failure? photoError,
       bool frontUploaded,
       bool backUploaded});
 }
@@ -66,8 +70,10 @@ class _$ProfileEditPersonalStateCopyWithImpl<$Res,
     Object? firstName = null,
     Object? lastName = null,
     Object? birthday = freezed,
-    Object? password = null,
-    Object? obscurePassword = null,
+    Object? photoUrl = freezed,
+    Object? photoBytes = freezed,
+    Object? photoUploading = null,
+    Object? photoError = freezed,
     Object? frontUploaded = null,
     Object? backUploaded = null,
   }) {
@@ -84,14 +90,22 @@ class _$ProfileEditPersonalStateCopyWithImpl<$Res,
           ? _value.birthday
           : birthday // ignore: cast_nullable_to_non_nullable
               as DateTime?,
-      password: null == password
-          ? _value.password
-          : password // ignore: cast_nullable_to_non_nullable
-              as String,
-      obscurePassword: null == obscurePassword
-          ? _value.obscurePassword
-          : obscurePassword // ignore: cast_nullable_to_non_nullable
+      photoUrl: freezed == photoUrl
+          ? _value.photoUrl
+          : photoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      photoBytes: freezed == photoBytes
+          ? _value.photoBytes
+          : photoBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
+      photoUploading: null == photoUploading
+          ? _value.photoUploading
+          : photoUploading // ignore: cast_nullable_to_non_nullable
               as bool,
+      photoError: freezed == photoError
+          ? _value.photoError
+          : photoError // ignore: cast_nullable_to_non_nullable
+              as Failure?,
       frontUploaded: null == frontUploaded
           ? _value.frontUploaded
           : frontUploaded // ignore: cast_nullable_to_non_nullable
@@ -117,8 +131,10 @@ abstract class _$$ProfileEditPersonalStateImplCopyWith<$Res>
       {String firstName,
       String lastName,
       DateTime? birthday,
-      String password,
-      bool obscurePassword,
+      String? photoUrl,
+      Uint8List? photoBytes,
+      bool photoUploading,
+      Failure? photoError,
       bool frontUploaded,
       bool backUploaded});
 }
@@ -141,8 +157,10 @@ class __$$ProfileEditPersonalStateImplCopyWithImpl<$Res>
     Object? firstName = null,
     Object? lastName = null,
     Object? birthday = freezed,
-    Object? password = null,
-    Object? obscurePassword = null,
+    Object? photoUrl = freezed,
+    Object? photoBytes = freezed,
+    Object? photoUploading = null,
+    Object? photoError = freezed,
     Object? frontUploaded = null,
     Object? backUploaded = null,
   }) {
@@ -159,14 +177,22 @@ class __$$ProfileEditPersonalStateImplCopyWithImpl<$Res>
           ? _value.birthday
           : birthday // ignore: cast_nullable_to_non_nullable
               as DateTime?,
-      password: null == password
-          ? _value.password
-          : password // ignore: cast_nullable_to_non_nullable
-              as String,
-      obscurePassword: null == obscurePassword
-          ? _value.obscurePassword
-          : obscurePassword // ignore: cast_nullable_to_non_nullable
+      photoUrl: freezed == photoUrl
+          ? _value.photoUrl
+          : photoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      photoBytes: freezed == photoBytes
+          ? _value.photoBytes
+          : photoBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
+      photoUploading: null == photoUploading
+          ? _value.photoUploading
+          : photoUploading // ignore: cast_nullable_to_non_nullable
               as bool,
+      photoError: freezed == photoError
+          ? _value.photoError
+          : photoError // ignore: cast_nullable_to_non_nullable
+              as Failure?,
       frontUploaded: null == frontUploaded
           ? _value.frontUploaded
           : frontUploaded // ignore: cast_nullable_to_non_nullable
@@ -186,8 +212,10 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
       {this.firstName = '',
       this.lastName = '',
       this.birthday,
-      this.password = '',
-      this.obscurePassword = true,
+      this.photoUrl,
+      this.photoBytes,
+      this.photoUploading = false,
+      this.photoError,
       this.frontUploaded = false,
       this.backUploaded = false})
       : super._();
@@ -201,11 +229,14 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
   @override
   final DateTime? birthday;
   @override
-  @JsonKey()
-  final String password;
+  final String? photoUrl;
+  @override
+  final Uint8List? photoBytes;
   @override
   @JsonKey()
-  final bool obscurePassword;
+  final bool photoUploading;
+  @override
+  final Failure? photoError;
   @override
   @JsonKey()
   final bool frontUploaded;
@@ -215,7 +246,7 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
 
   @override
   String toString() {
-    return 'ProfileEditPersonalState(firstName: $firstName, lastName: $lastName, birthday: $birthday, password: $password, obscurePassword: $obscurePassword, frontUploaded: $frontUploaded, backUploaded: $backUploaded)';
+    return 'ProfileEditPersonalState(firstName: $firstName, lastName: $lastName, birthday: $birthday, photoUrl: $photoUrl, photoBytes: $photoBytes, photoUploading: $photoUploading, photoError: $photoError, frontUploaded: $frontUploaded, backUploaded: $backUploaded)';
   }
 
   @override
@@ -229,10 +260,14 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
                 other.lastName == lastName) &&
             (identical(other.birthday, birthday) ||
                 other.birthday == birthday) &&
-            (identical(other.password, password) ||
-                other.password == password) &&
-            (identical(other.obscurePassword, obscurePassword) ||
-                other.obscurePassword == obscurePassword) &&
+            (identical(other.photoUrl, photoUrl) ||
+                other.photoUrl == photoUrl) &&
+            const DeepCollectionEquality()
+                .equals(other.photoBytes, photoBytes) &&
+            (identical(other.photoUploading, photoUploading) ||
+                other.photoUploading == photoUploading) &&
+            (identical(other.photoError, photoError) ||
+                other.photoError == photoError) &&
             (identical(other.frontUploaded, frontUploaded) ||
                 other.frontUploaded == frontUploaded) &&
             (identical(other.backUploaded, backUploaded) ||
@@ -240,8 +275,17 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, firstName, lastName, birthday,
-      password, obscurePassword, frontUploaded, backUploaded);
+  int get hashCode => Object.hash(
+      runtimeType,
+      firstName,
+      lastName,
+      birthday,
+      photoUrl,
+      const DeepCollectionEquality().hash(photoBytes),
+      photoUploading,
+      photoError,
+      frontUploaded,
+      backUploaded);
 
   /// Create a copy of ProfileEditPersonalState
   /// with the given fields replaced by the non-null parameter values.
@@ -258,8 +302,10 @@ abstract class _ProfileEditPersonalState extends ProfileEditPersonalState {
       {final String firstName,
       final String lastName,
       final DateTime? birthday,
-      final String password,
-      final bool obscurePassword,
+      final String? photoUrl,
+      final Uint8List? photoBytes,
+      final bool photoUploading,
+      final Failure? photoError,
       final bool frontUploaded,
       final bool backUploaded}) = _$ProfileEditPersonalStateImpl;
   const _ProfileEditPersonalState._() : super._();
@@ -271,9 +317,13 @@ abstract class _ProfileEditPersonalState extends ProfileEditPersonalState {
   @override
   DateTime? get birthday;
   @override
-  String get password;
+  String? get photoUrl;
   @override
-  bool get obscurePassword;
+  Uint8List? get photoBytes;
+  @override
+  bool get photoUploading;
+  @override
+  Failure? get photoError;
   @override
   bool get frontUploaded;
   @override
