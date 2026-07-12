@@ -1,4 +1,5 @@
 import '../../../di/injection.dart';
+import '../../../environments/app_env.dart';
 import '../../../router/router.dart';
 import '../../../router/router.gr.dart';
 import 'cubit/biometric_gate_cubit.dart';
@@ -12,6 +13,8 @@ bool _lockPushed = false;
 /// pushed" guard lives here, not duplicated per-caller, to prevent a double
 /// push if both fire close together.
 Future<void> maybeShowBiometricLock() async {
+  // Master feature flag — off in dev/test (see BaseEnvironment.biometricEnabled).
+  if (!getIt<AppEnv>().environment.biometricEnabled) return;
   final cubit = getIt<BiometricGateCubit>();
   if (!await cubit.shouldLock()) return;
   if (_lockPushed) return;

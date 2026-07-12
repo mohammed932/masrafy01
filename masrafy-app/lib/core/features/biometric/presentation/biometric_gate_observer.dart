@@ -66,16 +66,23 @@ class _BiometricGateObserverState extends State<BiometricGateObserver>
           _selfPaused = true;
         } else {
           _wasBackgrounded = true;
+          // Push the (opaque) lock route WHILE backgrounding, so it already
+          // covers the last screen on the next foreground — no flash of
+          // sensitive content before the lock. The route only paints here;
+          // its biometric prompt is deferred until it's actually foregrounded
+          // (see [BiometricLockPage]), so this never fires the OS dialog in
+          // the background. `_lockPushed` (in the trigger) dedupes against the
+          // cold-start observer.
+          maybeShowBiometricLock();
         }
       case AppLifecycleState.resumed:
         if (_selfPaused) {
           _selfPaused = false;
           return;
         }
-        if (_wasBackgrounded) {
-          _wasBackgrounded = false;
-          maybeShowBiometricLock();
-        }
+        // Nothing to push here: if we backgrounded genuinely the lock route is
+        // already on top (pushed above) and drives its own prompt on resume.
+        _wasBackgrounded = false;
       case AppLifecycleState.inactive:
         break;
     }

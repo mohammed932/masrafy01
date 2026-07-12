@@ -13,4 +13,8 @@ class DevEnvironment extends BaseEnvironment {
 
   @override
   bool get onboardingEnabled => true;
+
+  // Disabled for now to unblock end-to-end testing (no biometric lock in dev).
+  @override
+  bool get biometricEnabled => false;
 }

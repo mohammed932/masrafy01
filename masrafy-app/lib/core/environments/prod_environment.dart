@@ -9,4 +9,7 @@ class ProdEnvironment extends BaseEnvironment {
 
   @override
   bool get onboardingEnabled => false;
+
+  @override
+  bool get biometricEnabled => true;
 }

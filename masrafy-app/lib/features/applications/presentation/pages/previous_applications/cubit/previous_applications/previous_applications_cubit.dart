@@ -46,6 +46,10 @@ class PreviousApplicationsCubit extends Cubit<PreviousApplicationsState> {
         e.offer,
         applicationId: e.applicationId,
         isBestMatch: false,
+        // Every row here is an application the customer already proceeded with
+        // (applied / approved / rejected) — the Offer Details Apply CTA is
+        // hidden for all of them.
+        alreadyApplied: true,
       ),
     );
   }

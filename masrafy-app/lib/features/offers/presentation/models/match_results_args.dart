@@ -126,6 +126,7 @@ class MatchOffer {
     this.requiredDocuments = const [],
     this.feesBreakdown,
     this.isBestMatch = false,
+    this.alreadyApplied = false,
   });
 
   final int approvalPct;
@@ -165,12 +166,18 @@ class MatchOffer {
 
   final bool isBestMatch;
 
+  /// True when this offer belongs to an application the customer already
+  /// proceeded with (Applications screen). Hides the Apply CTA on the shared
+  /// Offer Details screen — you can't re-apply to an already-applied offer.
+  final bool alreadyApplied;
+
   /// Build a display offer from a domain [OfferEntity]. Totals are derived on
   /// the entity (installment × term); [isBestMatch] marks the top-ranked row.
   factory MatchOffer.fromEntity(
     OfferEntity e, {
     required String applicationId,
     required bool isBestMatch,
+    bool alreadyApplied = false,
   }) {
     return MatchOffer(
       approvalPct: e.approvalScore,
@@ -191,6 +198,7 @@ class MatchOffer {
       requiredDocuments: e.requiredDocuments,
       feesBreakdown: e.feesBreakdown,
       isBestMatch: isBestMatch,
+      alreadyApplied: alreadyApplied,
     );
   }
 }

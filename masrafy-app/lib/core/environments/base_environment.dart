@@ -13,4 +13,8 @@ abstract class BaseEnvironment {
 
   bool get isProduction;
   bool get onboardingEnabled;
+
+  /// Master switch for the biometric app-lock gate. When false the lock is
+  /// never shown (cold start or resume) — used to disable it in dev/test.
+  bool get biometricEnabled;
 }

@@ -160,11 +160,15 @@ class OfferDetailsPage extends StatelessWidget {
                         ],
                       ),
                       Gap(25.h),
-                      // Real offers (from apply) proceed via select-offer;
-                      // saved-offer / past-application summaries have no
-                      // application to proceed on, so keep the placeholder and
-                      // avoid touching DI (widget tests pump this page directly).
-                      offer.applicationId.isEmpty
+                      // Already-applied offers (opened from the Applications
+                      // screen) can't be re-applied — hide the Apply CTA
+                      // entirely; only the Save CTA below remains.
+                      if (!offer.alreadyApplied) ...[
+                        // Real offers (from apply) proceed via select-offer;
+                        // saved-offer / past-application summaries have no
+                        // application to proceed on, so keep the placeholder and
+                        // avoid touching DI (widget tests pump this page directly).
+                        offer.applicationId.isEmpty
                           ? MasrafyGradientButton(
                               label: l.offer_apply,
                               onPressed: comingSoon,
@@ -218,7 +222,8 @@ class OfferDetailsPage extends StatelessWidget {
                                 ),
                               ),
                             ),
-                      Gap(12.h),
+                        Gap(12.h),
+                      ],
                       offer.bankOfferId.isEmpty
                           ? _SaveOfferButton(
                               label: l.offer_save_later,
