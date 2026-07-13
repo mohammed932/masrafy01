@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
@@ -81,10 +82,11 @@ class LoginCubit extends Cubit<LoginState> {
           error: null,
         )),
       );
-    } catch (_) {
+    } catch (e) {
       // Native Google-side failure (e.g. PlatformException DEVELOPER_ERROR when
       // the SHA-1 / client id is misregistered). Surface as a typed error so the
       // page shows a toast instead of the spinner hanging.
+      if (kDebugMode) debugPrint('Google sign-in failed: $e');
       emit(state.copyWith(
         status: RequestState.error,
         error: const ServerFailure(code: 'SOCIAL_SIGN_IN_FAILED'),

@@ -3,8 +3,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 /// Thin platform wrapper over `google_sign_in` (v6.x API) that yields a raw
 /// Google **ID token** for the masrafy customer-auth social flow
 /// (`POST /api/v1/auth/social/google`). The backend verifies the token
-/// directly via `google-auth-library`, so — unlike the legacy
-/// [FirebaseAuthService] — this does NOT round-trip through Firebase Auth.
+/// directly via `google-auth-library`, so this does NOT round-trip through
+/// Firebase Auth.
 ///
 /// [serverClientId] sets the token `aud` (must match the backend
 /// `GOOGLE_OAUTH_CLIENT_IDS` allow-list) and is what makes Android emit an ID
