@@ -1522,6 +1522,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profile_id_tap_to_upload => 'اضغط للرفع';
 
   @override
+  String get profile_id_uploading => 'جارٍ الرفع…';
+
+  @override
+  String get profile_id_upload_failed => 'تعذّر رفع البطاقة. حاول مرة أخرى.';
+
+  @override
+  String get profile_save_failed => 'تعذّر حفظ الملف الشخصي. حاول مرة أخرى.';
+
+  @override
   String get profile_phone => 'الهاتف';
 
   @override

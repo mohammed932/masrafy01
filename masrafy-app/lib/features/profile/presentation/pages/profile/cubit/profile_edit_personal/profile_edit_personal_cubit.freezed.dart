@@ -25,6 +25,12 @@ mixin _$ProfileEditPersonalState {
   Failure? get photoError => throw _privateConstructorUsedError;
   bool get frontUploaded => throw _privateConstructorUsedError;
   bool get backUploaded => throw _privateConstructorUsedError;
+  bool get frontUploading => throw _privateConstructorUsedError;
+  bool get backUploading => throw _privateConstructorUsedError;
+  Failure? get docError => throw _privateConstructorUsedError;
+  bool get saving => throw _privateConstructorUsedError;
+  Failure? get saveError => throw _privateConstructorUsedError;
+  bool get saved => throw _privateConstructorUsedError;
 
   /// Create a copy of ProfileEditPersonalState
   /// with the given fields replaced by the non-null parameter values.
@@ -48,7 +54,13 @@ abstract class $ProfileEditPersonalStateCopyWith<$Res> {
       bool photoUploading,
       Failure? photoError,
       bool frontUploaded,
-      bool backUploaded});
+      bool backUploaded,
+      bool frontUploading,
+      bool backUploading,
+      Failure? docError,
+      bool saving,
+      Failure? saveError,
+      bool saved});
 }
 
 /// @nodoc
@@ -76,6 +88,12 @@ class _$ProfileEditPersonalStateCopyWithImpl<$Res,
     Object? photoError = freezed,
     Object? frontUploaded = null,
     Object? backUploaded = null,
+    Object? frontUploading = null,
+    Object? backUploading = null,
+    Object? docError = freezed,
+    Object? saving = null,
+    Object? saveError = freezed,
+    Object? saved = null,
   }) {
     return _then(_value.copyWith(
       firstName: null == firstName
@@ -114,6 +132,30 @@ class _$ProfileEditPersonalStateCopyWithImpl<$Res,
           ? _value.backUploaded
           : backUploaded // ignore: cast_nullable_to_non_nullable
               as bool,
+      frontUploading: null == frontUploading
+          ? _value.frontUploading
+          : frontUploading // ignore: cast_nullable_to_non_nullable
+              as bool,
+      backUploading: null == backUploading
+          ? _value.backUploading
+          : backUploading // ignore: cast_nullable_to_non_nullable
+              as bool,
+      docError: freezed == docError
+          ? _value.docError
+          : docError // ignore: cast_nullable_to_non_nullable
+              as Failure?,
+      saving: null == saving
+          ? _value.saving
+          : saving // ignore: cast_nullable_to_non_nullable
+              as bool,
+      saveError: freezed == saveError
+          ? _value.saveError
+          : saveError // ignore: cast_nullable_to_non_nullable
+              as Failure?,
+      saved: null == saved
+          ? _value.saved
+          : saved // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -136,7 +178,13 @@ abstract class _$$ProfileEditPersonalStateImplCopyWith<$Res>
       bool photoUploading,
       Failure? photoError,
       bool frontUploaded,
-      bool backUploaded});
+      bool backUploaded,
+      bool frontUploading,
+      bool backUploading,
+      Failure? docError,
+      bool saving,
+      Failure? saveError,
+      bool saved});
 }
 
 /// @nodoc
@@ -163,6 +211,12 @@ class __$$ProfileEditPersonalStateImplCopyWithImpl<$Res>
     Object? photoError = freezed,
     Object? frontUploaded = null,
     Object? backUploaded = null,
+    Object? frontUploading = null,
+    Object? backUploading = null,
+    Object? docError = freezed,
+    Object? saving = null,
+    Object? saveError = freezed,
+    Object? saved = null,
   }) {
     return _then(_$ProfileEditPersonalStateImpl(
       firstName: null == firstName
@@ -201,6 +255,30 @@ class __$$ProfileEditPersonalStateImplCopyWithImpl<$Res>
           ? _value.backUploaded
           : backUploaded // ignore: cast_nullable_to_non_nullable
               as bool,
+      frontUploading: null == frontUploading
+          ? _value.frontUploading
+          : frontUploading // ignore: cast_nullable_to_non_nullable
+              as bool,
+      backUploading: null == backUploading
+          ? _value.backUploading
+          : backUploading // ignore: cast_nullable_to_non_nullable
+              as bool,
+      docError: freezed == docError
+          ? _value.docError
+          : docError // ignore: cast_nullable_to_non_nullable
+              as Failure?,
+      saving: null == saving
+          ? _value.saving
+          : saving // ignore: cast_nullable_to_non_nullable
+              as bool,
+      saveError: freezed == saveError
+          ? _value.saveError
+          : saveError // ignore: cast_nullable_to_non_nullable
+              as Failure?,
+      saved: null == saved
+          ? _value.saved
+          : saved // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -217,7 +295,13 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
       this.photoUploading = false,
       this.photoError,
       this.frontUploaded = false,
-      this.backUploaded = false})
+      this.backUploaded = false,
+      this.frontUploading = false,
+      this.backUploading = false,
+      this.docError,
+      this.saving = false,
+      this.saveError,
+      this.saved = false})
       : super._();
 
   @override
@@ -243,10 +327,26 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
   @override
   @JsonKey()
   final bool backUploaded;
+  @override
+  @JsonKey()
+  final bool frontUploading;
+  @override
+  @JsonKey()
+  final bool backUploading;
+  @override
+  final Failure? docError;
+  @override
+  @JsonKey()
+  final bool saving;
+  @override
+  final Failure? saveError;
+  @override
+  @JsonKey()
+  final bool saved;
 
   @override
   String toString() {
-    return 'ProfileEditPersonalState(firstName: $firstName, lastName: $lastName, birthday: $birthday, photoUrl: $photoUrl, photoBytes: $photoBytes, photoUploading: $photoUploading, photoError: $photoError, frontUploaded: $frontUploaded, backUploaded: $backUploaded)';
+    return 'ProfileEditPersonalState(firstName: $firstName, lastName: $lastName, birthday: $birthday, photoUrl: $photoUrl, photoBytes: $photoBytes, photoUploading: $photoUploading, photoError: $photoError, frontUploaded: $frontUploaded, backUploaded: $backUploaded, frontUploading: $frontUploading, backUploading: $backUploading, docError: $docError, saving: $saving, saveError: $saveError, saved: $saved)';
   }
 
   @override
@@ -271,7 +371,17 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
             (identical(other.frontUploaded, frontUploaded) ||
                 other.frontUploaded == frontUploaded) &&
             (identical(other.backUploaded, backUploaded) ||
-                other.backUploaded == backUploaded));
+                other.backUploaded == backUploaded) &&
+            (identical(other.frontUploading, frontUploading) ||
+                other.frontUploading == frontUploading) &&
+            (identical(other.backUploading, backUploading) ||
+                other.backUploading == backUploading) &&
+            (identical(other.docError, docError) ||
+                other.docError == docError) &&
+            (identical(other.saving, saving) || other.saving == saving) &&
+            (identical(other.saveError, saveError) ||
+                other.saveError == saveError) &&
+            (identical(other.saved, saved) || other.saved == saved));
   }
 
   @override
@@ -285,7 +395,13 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
       photoUploading,
       photoError,
       frontUploaded,
-      backUploaded);
+      backUploaded,
+      frontUploading,
+      backUploading,
+      docError,
+      saving,
+      saveError,
+      saved);
 
   /// Create a copy of ProfileEditPersonalState
   /// with the given fields replaced by the non-null parameter values.
@@ -307,7 +423,13 @@ abstract class _ProfileEditPersonalState extends ProfileEditPersonalState {
       final bool photoUploading,
       final Failure? photoError,
       final bool frontUploaded,
-      final bool backUploaded}) = _$ProfileEditPersonalStateImpl;
+      final bool backUploaded,
+      final bool frontUploading,
+      final bool backUploading,
+      final Failure? docError,
+      final bool saving,
+      final Failure? saveError,
+      final bool saved}) = _$ProfileEditPersonalStateImpl;
   const _ProfileEditPersonalState._() : super._();
 
   @override
@@ -328,6 +450,18 @@ abstract class _ProfileEditPersonalState extends ProfileEditPersonalState {
   bool get frontUploaded;
   @override
   bool get backUploaded;
+  @override
+  bool get frontUploading;
+  @override
+  bool get backUploading;
+  @override
+  Failure? get docError;
+  @override
+  bool get saving;
+  @override
+  Failure? get saveError;
+  @override
+  bool get saved;
 
   /// Create a copy of ProfileEditPersonalState
   /// with the given fields replaced by the non-null parameter values.

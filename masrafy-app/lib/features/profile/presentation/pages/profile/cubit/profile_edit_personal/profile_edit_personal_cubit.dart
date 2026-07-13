@@ -74,8 +74,66 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
     );
   }
 
-  void markFront() => emit(state.copyWith(frontUploaded: true));
-  void markBack() => emit(state.copyWith(backUploaded: true));
+  /// Pre-checks the National-ID tiles from the server's document status so they
+  /// reflect what is already on file (mirrors `ApplyDocumentsCubit.load`). A
+  /// failure is swallowed — the user can still upload; tiles just stay unmarked.
+  Future<void> loadDocumentsStatus() async {
+    final res = await _customerAuth.profileDocumentsStatus();
+    res.fold(
+      (_) {},
+      (status) => emit(state.copyWith(
+        frontUploaded: status.nationalIdFront,
+        backUploaded: status.nationalIdBack,
+      )),
+    );
+  }
+
+  /// Picks a National-ID image and uploads one side through the customer-scoped
+  /// pipeline (presign → S3 PUT → confirm). Emits onto the per-side uploading
+  /// flag + [docError]; on success flips the side's uploaded flag.
+  Future<void> pickAndUploadNationalId({required bool front}) async {
+    if (front ? state.frontUploading : state.backUploading) return;
+    final picked = await _pickDocument();
+    if (picked == null) return;
+    emit(front
+        ? state.copyWith(frontUploading: true, docError: null)
+        : state.copyWith(backUploading: true, docError: null));
+    final res = await _customerAuth.uploadNationalIdSide(
+      UploadNationalIdRequest(
+        documentType: front ? 'NATIONAL_ID_FRONT' : 'NATIONAL_ID_BACK',
+        bytes: picked.bytes,
+        contentType: picked.contentType,
+        filename: picked.filename,
+      ),
+    );
+    res.fold(
+      (err) => emit(front
+          ? state.copyWith(frontUploading: false, docError: err)
+          : state.copyWith(backUploading: false, docError: err)),
+      (_) => emit(front
+          ? state.copyWith(frontUploading: false, frontUploaded: true)
+          : state.copyWith(backUploading: false, backUploaded: true)),
+    );
+  }
+
+  /// Persists the scalar fields via `POST /auth/profile/complete` (the only
+  /// customer write path; overwrites first/last name, birthday immutable once
+  /// set). On success flips [saved] so the page pops the draft back.
+  Future<void> save() async {
+    if (!state.canSave) return;
+    emit(state.copyWith(saving: true, saveError: null));
+    final res = await _customerAuth.completeProfile(
+      CompleteProfileRequest(
+        firstName: state.firstName.trim(),
+        lastName: state.lastName.trim(),
+        birthday: state.birthday!,
+      ),
+    );
+    res.fold(
+      (err) => emit(state.copyWith(saving: false, saveError: err)),
+      (_) => emit(state.copyWith(saving: false, saved: true)),
+    );
+  }
 
   Future<_PickedImage?> _pick(PhotoPickSource source) async {
     final file = await _picker.pickImage(
@@ -90,6 +148,22 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
     return _PickedImage(
       bytes: bytes,
       contentType: file.mimeType ?? _mimeFromName(file.name),
+      filename: file.name,
+    );
+  }
+
+  Future<_PickedImage?> _pickDocument() async {
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 2000,
+    );
+    if (file == null) return null;
+    final bytes = await file.readAsBytes();
+    return _PickedImage(
+      bytes: bytes,
+      contentType: file.mimeType ?? _mimeFromName(file.name),
+      filename: file.name,
     );
   }
 
@@ -103,8 +177,13 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
 
 /// Picked-image transport (cubit-local).
 class _PickedImage {
-  const _PickedImage({required this.bytes, required this.contentType});
+  const _PickedImage({
+    required this.bytes,
+    required this.contentType,
+    required this.filename,
+  });
 
   final Uint8List bytes;
   final String contentType;
+  final String filename;
 }

@@ -14,7 +14,9 @@ class ProfileEditPersonalPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<ProfileEditPersonalCubit>(
-      create: (_) => getIt<ProfileEditPersonalCubit>()..seed(initial),
+      create: (_) => getIt<ProfileEditPersonalCubit>()
+        ..seed(initial)
+        ..loadDocumentsStatus(),
       child: const _ProfileEditPersonalView(),
     );
   }
@@ -85,7 +87,6 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final l = AppLocalizations.of(context);
-    void soon() => MasrafyToast.info(context, l.common_coming_soon);
 
     return Scaffold(
       backgroundColor: colors.bg.layout,
@@ -100,9 +101,22 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
         onMenu: () => context.router.maybePop(),
       ),
       body: BlocConsumer<ProfileEditPersonalCubit, ProfileEditPersonalState>(
-        listenWhen: (p, c) => p.photoError != c.photoError && c.photoError != null,
-        listener: (ctx, state) =>
-            MasrafyToast.error(ctx, l.profile_photo_upload_failed),
+        listenWhen: (p, c) =>
+            (p.photoError != c.photoError && c.photoError != null) ||
+            (p.docError != c.docError && c.docError != null) ||
+            (p.saveError != c.saveError && c.saveError != null) ||
+            (!p.saved && c.saved),
+        listener: (ctx, state) {
+          if (state.photoError != null) {
+            MasrafyToast.error(ctx, l.profile_photo_upload_failed);
+          } else if (state.docError != null) {
+            MasrafyToast.error(ctx, l.profile_id_upload_failed);
+          } else if (state.saveError != null) {
+            MasrafyToast.error(ctx, l.profile_save_failed);
+          } else if (state.saved) {
+            ctx.router.maybePop(ctx.read<ProfileEditPersonalCubit>().state.toDraft());
+          }
+        },
         builder: (ctx, state) {
           final cubit = ctx.read<ProfileEditPersonalCubit>();
 
@@ -176,16 +190,22 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                               sectionHint: l.profile_national_id_hint,
                               frontLabel: l.profile_id_front,
                               backLabel: l.profile_id_back,
-                              frontSubtitle: state.frontUploaded
-                                  ? l.profile_id_uploaded
-                                  : l.profile_id_tap_to_upload,
-                              backSubtitle: state.backUploaded
-                                  ? l.profile_id_uploaded
-                                  : l.profile_id_tap_to_upload,
+                              frontSubtitle: state.frontUploading
+                                  ? l.profile_id_uploading
+                                  : state.frontUploaded
+                                      ? l.profile_id_uploaded
+                                      : l.profile_id_tap_to_upload,
+                              backSubtitle: state.backUploading
+                                  ? l.profile_id_uploading
+                                  : state.backUploaded
+                                      ? l.profile_id_uploaded
+                                      : l.profile_id_tap_to_upload,
                               frontUploaded: state.frontUploaded,
                               backUploaded: state.backUploaded,
-                              onTapFront: soon,
-                              onTapBack: soon,
+                              onTapFront: () =>
+                                  cubit.pickAndUploadNationalId(front: true),
+                              onTapBack: () =>
+                                  cubit.pickAndUploadNationalId(front: false),
                             ),
                           ],
                         ),
@@ -197,9 +217,8 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                   padding: EdgeInsetsDirectional.fromSTEB(20.w, 8.h, 20.w, 12.h),
                   child: MasrafyGradientButton(
                     label: l.profile_save,
-                    onPressed: state.canSave
-                        ? () => ctx.router.maybePop(cubit.state.toDraft())
-                        : null,
+                    isLoading: state.saving,
+                    onPressed: state.canSave ? cubit.save : null,
                   ),
                 ),
               ],

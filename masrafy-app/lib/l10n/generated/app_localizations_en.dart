@@ -1519,6 +1519,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile_id_tap_to_upload => 'Tap to upload';
 
   @override
+  String get profile_id_uploading => 'Uploading…';
+
+  @override
+  String get profile_id_upload_failed => 'Couldn\'t upload the ID. Please try again.';
+
+  @override
+  String get profile_save_failed => 'Couldn\'t save your profile. Please try again.';
+
+  @override
   String get profile_phone => 'Phone';
 
   @override

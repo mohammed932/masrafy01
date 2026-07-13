@@ -3053,6 +3053,24 @@ abstract class AppLocalizations {
   /// **'اضغط للرفع'**
   String get profile_id_tap_to_upload;
 
+  /// No description provided for @profile_id_uploading.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ الرفع…'**
+  String get profile_id_uploading;
+
+  /// No description provided for @profile_id_upload_failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر رفع البطاقة. حاول مرة أخرى.'**
+  String get profile_id_upload_failed;
+
+  /// No description provided for @profile_save_failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ الملف الشخصي. حاول مرة أخرى.'**
+  String get profile_save_failed;
+
   /// No description provided for @profile_phone.
   ///
   /// In ar, this message translates to:
