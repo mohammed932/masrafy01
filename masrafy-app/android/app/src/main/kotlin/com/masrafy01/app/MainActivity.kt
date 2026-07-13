@@ -1,4 +1,4 @@
-package com.masrafy.app
+package com.masrafy01.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

@@ -51,5 +51,18 @@
 	<string>Masrafy needs access to your photos so you can set a profile picture.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Masrafy needs access to your camera so you can take a profile picture.</string>
+	<key>GIDClientID</key>
+	<string>541863670328-ohvcqa1qat08rmfa8dd72mp7hmfml3ee.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.541863670328-ohvcqa1qat08rmfa8dd72mp7hmfml3ee</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

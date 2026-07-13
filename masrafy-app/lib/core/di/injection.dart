@@ -15,6 +15,7 @@ import '../network/app_network.dart';
 import '../network/dio_factory.dart';
 import '../network/network_interface.dart';
 import '../router/router.dart';
+import '../services/google_signin_service.dart';
 import '../storage/customer_session_storage.dart';
 import '../theme/theme_bloc/theme_bloc.dart';
 
@@ -133,7 +134,18 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   getIt.registerLazySingleton(
     () => AuthUseCase(getIt<AuthRepository>(), getIt<CustomerSessionStorage>()),
   );
-  getIt.registerFactory(() => LoginCubit(getIt<AuthUseCase>()));
+  getIt.registerLazySingleton<GoogleSignInService>(
+    () => GoogleSignInService(
+      serverClientId: getIt<AppEnv>().environment.googleServerClientId,
+    ),
+  );
+  getIt.registerFactory(
+    () => LoginCubit(
+      getIt<AuthUseCase>(),
+      getIt<CustomerAuthUseCase>(),
+      getIt<GoogleSignInService>(),
+    ),
+  );
 
   // customer auth (PHONE two-path registration: start → OTP → complete)
   getIt.registerLazySingleton<CustomerAuthRepository>(

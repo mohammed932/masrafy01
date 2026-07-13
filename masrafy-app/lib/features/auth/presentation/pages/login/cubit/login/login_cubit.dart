@@ -4,9 +4,12 @@ import 'package:injectable/injectable.dart';
 
 import 'package:app/core/enums/request_state.dart';
 import 'package:app/core/result/failure.dart';
+import 'package:app/core/services/google_signin_service.dart';
 import 'package:app/features/auth/data/models/request/login/login_request.dart';
+import 'package:app/features/auth/data/models/request/social/social_signin_request.dart';
 import 'package:app/features/auth/domain/entities/customer_entity.dart';
 import 'package:app/features/auth/domain/usecases/auth_usecase.dart';
+import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
 
 part 'login_cubit.freezed.dart';
 part 'login_state.dart';
@@ -17,9 +20,12 @@ part 'login_state.dart';
 /// applies the FR-022 lockout server-side, so no client lockout logic.
 @injectable
 class LoginCubit extends Cubit<LoginState> {
-  LoginCubit(this._auth) : super(const LoginState());
+  LoginCubit(this._auth, this._customerAuth, this._google)
+      : super(const LoginState());
 
   final AuthUseCase _auth;
+  final CustomerAuthUseCase _customerAuth;
+  final GoogleSignInService _google;
 
   void updateField(LoginField field, Object value) {
     switch (field) {
@@ -48,6 +54,42 @@ class LoginCubit extends Cubit<LoginState> {
         error: null,
       )),
     );
+  }
+
+  /// Google SOCIAL sign-in. Emits the same loading/loaded(session)/error
+  /// transitions as [submit], so the login page's [BlocConsumer] routes on
+  /// `session.customer.profileComplete` (Home vs Complete-Profile) unchanged.
+  /// A cancelled account chooser returns to idle silently (no error toast).
+  Future<void> signInWithGoogle() async {
+    if (state.isBusy) return;
+    emit(state.copyWith(status: RequestState.loading, error: null));
+    try {
+      final idToken = await _google.obtainIdToken();
+      if (idToken == null) {
+        // User dismissed the Google account chooser — back to idle, no toast.
+        emit(state.copyWith(status: RequestState.initial));
+        return;
+      }
+      final res = await _customerAuth.signInWithGoogle(
+        SocialGoogleSignInRequest(idToken: idToken),
+      );
+      res.fold(
+        (err) => emit(state.copyWith(status: RequestState.error, error: err)),
+        (session) => emit(state.copyWith(
+          status: RequestState.loaded,
+          session: session,
+          error: null,
+        )),
+      );
+    } catch (_) {
+      // Native Google-side failure (e.g. PlatformException DEVELOPER_ERROR when
+      // the SHA-1 / client id is misregistered). Surface as a typed error so the
+      // page shows a toast instead of the spinner hanging.
+      emit(state.copyWith(
+        status: RequestState.error,
+        error: const ServerFailure(code: 'SOCIAL_SIGN_IN_FAILED'),
+      ));
+    }
   }
 
   void reset() => emit(const LoginState());

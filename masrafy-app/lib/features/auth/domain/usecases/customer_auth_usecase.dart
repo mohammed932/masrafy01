@@ -9,6 +9,7 @@ import '../../data/models/request/password/password_reset_request.dart';
 import '../../data/models/request/profile/complete_profile_request.dart';
 import '../../data/models/request/signup/signup_phone_verify_request.dart';
 import '../../data/models/request/signup/signup_phone_start_request.dart';
+import '../../data/models/request/social/social_signin_request.dart';
 import '../entities/customer_entity.dart';
 import '../entities/otp_challenge_entity.dart';
 import '../entities/profile_documents_status_entity.dart';
@@ -50,6 +51,51 @@ class CustomerAuthUseCase {
       ),
     );
     return result;
+  }
+
+  /// SOCIAL sign-in (Google). Verifies the ID token server-side, then:
+  /// - new customer → the backend issued tokens inline (`newCustomerSession`);
+  /// - existing customer → exchange the short-lived `socialSessionId` for
+  ///   tokens via `/social/login`.
+  /// Either way the fresh session is persisted to secure storage here (same
+  /// side-effect convention as [signupPhoneVerify]) so the repo stays a pure
+  /// forwarder.
+  Future<Either<Failure, CustomerSessionEntity>> signInWithGoogle(
+    SocialGoogleSignInRequest request,
+  ) async {
+    final social = await _repo.socialGoogle(request);
+    return social.fold<Future<Either<Failure, CustomerSessionEntity>>>(
+      (f) async => Left(f),
+      (s) async {
+        // New lite-SOCIAL customer: tokens issued inline, no second call.
+        final fresh = s.newCustomerSession;
+        if (fresh != null) {
+          await _session.save(
+            accessToken: fresh.accessToken,
+            refreshToken: fresh.refreshToken,
+            customerId: fresh.customer.id,
+          );
+          return Right(fresh);
+        }
+        // Returning customer: exchange the social session for tokens.
+        final sid = s.socialSessionId;
+        if (sid != null) {
+          final login =
+              await _repo.socialLogin(SocialLoginRequest(socialSessionId: sid));
+          await login.fold(
+            (_) async {},
+            (session) => _session.save(
+              accessToken: session.accessToken,
+              refreshToken: session.refreshToken,
+              customerId: session.customer.id,
+            ),
+          );
+          return login;
+        }
+        // Neither branch present — treat as an invalid social response.
+        return const Left(ServerFailure(code: 'SOCIAL_TOKEN_INVALID'));
+      },
+    );
   }
 
   // --- Profile completion (Principle XXXVII) ---

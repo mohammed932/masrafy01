@@ -44,6 +44,9 @@ class _LoginViewState extends State<_LoginView> {
         return l.error_invalid_credentials;
       case 'NETWORK_UNREACHABLE':
         return l.error_network;
+      case 'SOCIAL_SIGN_IN_FAILED':
+      case 'SOCIAL_TOKEN_INVALID':
+        return l.auth_social_token_invalid;
       default:
         return l.error_generic;
     }
@@ -165,8 +168,9 @@ class _LoginViewState extends State<_LoginView> {
                                 child: MasrafySocialButton(
                                   icon: Icons.g_mobiledata_rounded,
                                   label: l.login_google,
-                                  onTap: () =>
-                                      MasrafyToast.info(ctx, l.common_coming_soon),
+                                  onTap: () {
+                                    if (!state.isBusy) cubit.signInWithGoogle();
+                                  },
                                 ),
                               ),
                               Gap(15.w),
