@@ -83,6 +83,27 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
     await cubit.pickAndUploadPhoto(source);
   }
 
+  /// Maps a save [Failure] code to a localized message (Principle III — never
+  /// show a raw backend string). Mirrors the change-password error mapper.
+  String _saveError(AppLocalizations l, Failure f) {
+    switch (f.code) {
+      case 'CUSTOMER_EMAIL_ALREADY_REGISTERED':
+        return l.profile_email_taken;
+      case 'PROFILE_FIELD_IMMUTABLE':
+        return l.auth_profile_field_immutable;
+      case 'AGE_INVALID':
+        return l.auth_age_invalid;
+      case 'NETWORK_UNREACHABLE':
+        return l.error_network;
+      default:
+        return l.profile_save_failed;
+    }
+  }
+
+  /// Upload errors: distinguish offline from the generic per-asset fallback.
+  String _uploadError(AppLocalizations l, Failure f, String fallback) =>
+      f.code == 'NETWORK_UNREACHABLE' ? l.error_network : fallback;
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
@@ -108,12 +129,13 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
             (!p.saved && c.saved),
         listener: (ctx, state) {
           if (state.photoError != null) {
-            MasrafyToast.error(ctx, l.profile_photo_upload_failed);
+            MasrafyToast.error(ctx, _uploadError(l, state.photoError!, l.profile_photo_upload_failed));
           } else if (state.docError != null) {
-            MasrafyToast.error(ctx, l.profile_id_upload_failed);
+            MasrafyToast.error(ctx, _uploadError(l, state.docError!, l.profile_id_upload_failed));
           } else if (state.saveError != null) {
-            MasrafyToast.error(ctx, l.profile_save_failed);
+            MasrafyToast.error(ctx, _saveError(l, state.saveError!));
           } else if (state.saved) {
+            MasrafyToast.success(ctx, l.profile_save_success);
             ctx.router.maybePop(ctx.read<ProfileEditPersonalCubit>().state.toDraft());
           }
         },
@@ -177,6 +199,12 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                               label: l.profile_dob,
                               hint: l.profile_dob_hint,
                               value: state.birthday,
+                              // Birthday is immutable once set (Principle
+                              // XXXVII) — lock it when already present.
+                              enabled: state.birthday == null,
+                              ageVerifiedText: state.birthday != null
+                                  ? l.profile_dob_locked
+                                  : null,
                               onTap: () =>
                                   _pickBirthday(ctx, cubit, state.birthday),
                             ),

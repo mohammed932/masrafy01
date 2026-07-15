@@ -102,6 +102,7 @@ enum AuditEventType {
   CUSTOMER_TOKENS_REVOKED_OTHERS
   CUSTOMER_PASSWORD_RESET
   CUSTOMER_PROFILE_COMPLETED
+  CUSTOMER_PROFILE_UPDATED
   APPLICATION_SUBMITTED
   // --- Admin-initiated customer account status (super_admin only) ---
   CUSTOMER_DEACTIVATED
@@ -628,6 +629,9 @@ model CustomerAccount {
   birthday             DateTime?        @db.Date
   profilePhotoKey      String?          @db.VarChar(256)
   nationalIdHash       String?          @db.Char(64)
+  governorate          String?          @db.VarChar(60)
+  city                 String?          @db.VarChar(120)
+  address              String?          @db.VarChar(255)
   isVerified           Boolean          @default(false)
   isActive             Boolean          @default(true)
   createdAt            DateTime         @default(now()) @db.Timestamptz(6)

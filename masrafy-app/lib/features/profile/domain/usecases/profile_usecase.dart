@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:app/core/architecture/base_usecase.dart';
 import 'package:app/core/result/failure.dart';
+import 'package:app/features/profile/data/models/request/update_profile_request.dart';
 import 'package:app/features/profile/domain/entities/customer_profile_entity.dart';
 import 'package:app/features/profile/domain/repositories/profile_repository.dart';
 
@@ -12,4 +13,9 @@ class ProfileUseCase extends BaseUseCase<ProfileRepository> {
   ProfileUseCase(super.repository);
 
   Future<Either<Failure, CustomerProfileEntity>> getMe() => repository.getMe();
+
+  Future<Either<Failure, CustomerProfileEntity>> updateProfile(
+    UpdateProfileRequest request,
+  ) =>
+      repository.updateProfile(request);
 }

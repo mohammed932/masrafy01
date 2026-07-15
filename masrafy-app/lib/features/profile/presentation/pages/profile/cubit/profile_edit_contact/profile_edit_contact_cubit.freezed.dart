@@ -22,6 +22,9 @@ mixin _$ProfileEditContactState {
   String? get governorate => throw _privateConstructorUsedError;
   String get city => throw _privateConstructorUsedError;
   String get address => throw _privateConstructorUsedError;
+  bool get saving => throw _privateConstructorUsedError;
+  Failure? get saveError => throw _privateConstructorUsedError;
+  bool get saved => throw _privateConstructorUsedError;
 
   /// Create a copy of ProfileEditContactState
   /// with the given fields replaced by the non-null parameter values.
@@ -42,7 +45,10 @@ abstract class $ProfileEditContactStateCopyWith<$Res> {
       String email,
       String? governorate,
       String city,
-      String address});
+      String address,
+      bool saving,
+      Failure? saveError,
+      bool saved});
 }
 
 /// @nodoc
@@ -67,6 +73,9 @@ class _$ProfileEditContactStateCopyWithImpl<$Res,
     Object? governorate = freezed,
     Object? city = null,
     Object? address = null,
+    Object? saving = null,
+    Object? saveError = freezed,
+    Object? saved = null,
   }) {
     return _then(_value.copyWith(
       dialCode: null == dialCode
@@ -93,6 +102,18 @@ class _$ProfileEditContactStateCopyWithImpl<$Res,
           ? _value.address
           : address // ignore: cast_nullable_to_non_nullable
               as String,
+      saving: null == saving
+          ? _value.saving
+          : saving // ignore: cast_nullable_to_non_nullable
+              as bool,
+      saveError: freezed == saveError
+          ? _value.saveError
+          : saveError // ignore: cast_nullable_to_non_nullable
+              as Failure?,
+      saved: null == saved
+          ? _value.saved
+          : saved // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -112,7 +133,10 @@ abstract class _$$ProfileEditContactStateImplCopyWith<$Res>
       String email,
       String? governorate,
       String city,
-      String address});
+      String address,
+      bool saving,
+      Failure? saveError,
+      bool saved});
 }
 
 /// @nodoc
@@ -136,6 +160,9 @@ class __$$ProfileEditContactStateImplCopyWithImpl<$Res>
     Object? governorate = freezed,
     Object? city = null,
     Object? address = null,
+    Object? saving = null,
+    Object? saveError = freezed,
+    Object? saved = null,
   }) {
     return _then(_$ProfileEditContactStateImpl(
       dialCode: null == dialCode
@@ -162,6 +189,18 @@ class __$$ProfileEditContactStateImplCopyWithImpl<$Res>
           ? _value.address
           : address // ignore: cast_nullable_to_non_nullable
               as String,
+      saving: null == saving
+          ? _value.saving
+          : saving // ignore: cast_nullable_to_non_nullable
+              as bool,
+      saveError: freezed == saveError
+          ? _value.saveError
+          : saveError // ignore: cast_nullable_to_non_nullable
+              as Failure?,
+      saved: null == saved
+          ? _value.saved
+          : saved // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -175,7 +214,10 @@ class _$ProfileEditContactStateImpl extends _ProfileEditContactState {
       this.email = '',
       this.governorate,
       this.city = '',
-      this.address = ''})
+      this.address = '',
+      this.saving = false,
+      this.saveError,
+      this.saved = false})
       : super._();
 
   @override
@@ -195,10 +237,18 @@ class _$ProfileEditContactStateImpl extends _ProfileEditContactState {
   @override
   @JsonKey()
   final String address;
+  @override
+  @JsonKey()
+  final bool saving;
+  @override
+  final Failure? saveError;
+  @override
+  @JsonKey()
+  final bool saved;
 
   @override
   String toString() {
-    return 'ProfileEditContactState(dialCode: $dialCode, phone: $phone, email: $email, governorate: $governorate, city: $city, address: $address)';
+    return 'ProfileEditContactState(dialCode: $dialCode, phone: $phone, email: $email, governorate: $governorate, city: $city, address: $address, saving: $saving, saveError: $saveError, saved: $saved)';
   }
 
   @override
@@ -213,12 +263,16 @@ class _$ProfileEditContactStateImpl extends _ProfileEditContactState {
             (identical(other.governorate, governorate) ||
                 other.governorate == governorate) &&
             (identical(other.city, city) || other.city == city) &&
-            (identical(other.address, address) || other.address == address));
+            (identical(other.address, address) || other.address == address) &&
+            (identical(other.saving, saving) || other.saving == saving) &&
+            (identical(other.saveError, saveError) ||
+                other.saveError == saveError) &&
+            (identical(other.saved, saved) || other.saved == saved));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, dialCode, phone, email, governorate, city, address);
+  int get hashCode => Object.hash(runtimeType, dialCode, phone, email,
+      governorate, city, address, saving, saveError, saved);
 
   /// Create a copy of ProfileEditContactState
   /// with the given fields replaced by the non-null parameter values.
@@ -237,7 +291,10 @@ abstract class _ProfileEditContactState extends ProfileEditContactState {
       final String email,
       final String? governorate,
       final String city,
-      final String address}) = _$ProfileEditContactStateImpl;
+      final String address,
+      final bool saving,
+      final Failure? saveError,
+      final bool saved}) = _$ProfileEditContactStateImpl;
   const _ProfileEditContactState._() : super._();
 
   @override
@@ -252,6 +309,12 @@ abstract class _ProfileEditContactState extends ProfileEditContactState {
   String get city;
   @override
   String get address;
+  @override
+  bool get saving;
+  @override
+  Failure? get saveError;
+  @override
+  bool get saved;
 
   /// Create a copy of ProfileEditContactState
   /// with the given fields replaced by the non-null parameter values.

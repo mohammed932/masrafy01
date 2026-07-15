@@ -234,9 +234,12 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     () => ProfileUseCase(getIt<ProfileRepository>()),
   );
   getIt.registerFactory(() => ProfileCubit(getIt<ProfileUseCase>()));
+  getIt.registerFactory(() => ProfileEditPersonalCubit(
+        getIt<CustomerAuthUseCase>(),
+        getIt<ProfileUseCase>(),
+      ));
   getIt.registerFactory(
-      () => ProfileEditPersonalCubit(getIt<CustomerAuthUseCase>()));
-  getIt.registerFactory(() => ProfileEditContactCubit());
+      () => ProfileEditContactCubit(getIt<ProfileUseCase>()));
 
   // saved offers — list + save + unsave (backend-wired). Screen-scoped cubits.
   getIt.registerLazySingleton(

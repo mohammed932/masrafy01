@@ -394,6 +394,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get error_generic => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
+  String get error_rate_limited => 'محاولات كثيرة. انتظر قليلاً وحاول مجددًا.';
+
+  @override
   String get onboarding_slide1_title => 'اكتشف عروض قروض مصمّمة لك.';
 
   @override
@@ -1538,6 +1541,18 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profile_save_failed => 'تعذّر حفظ الملف الشخصي. حاول مرة أخرى.';
+
+  @override
+  String get profile_save_success => 'تم تحديث ملفك الشخصي.';
+
+  @override
+  String get profile_email_taken => 'هذا البريد الإلكتروني مستخدم بالفعل في حساب آخر.';
+
+  @override
+  String get profile_dob_locked => 'لا يمكن تغيير تاريخ الميلاد بعد ضبطه.';
+
+  @override
+  String get profile_phone_readonly => 'لا يمكن تغيير رقم هاتفك.';
 
   @override
   String get profile_phone => 'الهاتف';

@@ -49,6 +49,18 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
     super.dispose();
   }
 
+  /// Maps a save [Failure] code to a localized message (Principle III).
+  String _saveError(AppLocalizations l, Failure f) {
+    switch (f.code) {
+      case 'CUSTOMER_EMAIL_ALREADY_REGISTERED':
+        return l.profile_email_taken;
+      case 'NETWORK_UNREACHABLE':
+        return l.error_network;
+      default:
+        return l.profile_save_failed;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
@@ -66,7 +78,18 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
         onHome: () => context.router.replaceAll([const HomeRoute()]),
         onMenu: () => context.router.maybePop(),
       ),
-      body: BlocBuilder<ProfileEditContactCubit, ProfileEditContactState>(
+      body: BlocConsumer<ProfileEditContactCubit, ProfileEditContactState>(
+        listenWhen: (p, c) =>
+            (p.saveError != c.saveError && c.saveError != null) ||
+            (!p.saved && c.saved),
+        listener: (ctx, state) {
+          if (state.saveError != null) {
+            MasrafyToast.error(ctx, _saveError(l, state.saveError!));
+          } else if (state.saved) {
+            MasrafyToast.success(ctx, l.profile_save_success);
+            ctx.router.maybePop(ctx.read<ProfileEditContactCubit>().state.toDraft());
+          }
+        },
         builder: (ctx, state) {
           final cubit = ctx.read<ProfileEditContactCubit>();
           final isArabic = l.localeName.startsWith('ar');
@@ -88,17 +111,10 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                     child: ProfileFormSection(
                       title: l.profile_section_contact,
                       children: [
-                        MasrafyPhoneField(
-                          dialCode: state.dialCode,
-                          onDialCodeChanged: (c) => cubit.updateField(
-                              ProfileEditContactField.dialCode, c),
-                          phoneNumber: state.phone,
-                          onPhoneNumberChanged: (p) => cubit.updateField(
-                              ProfileEditContactField.phone, p),
-                          phoneCodeLabel: ' ',
-                          phoneNumberLabel: l.profile_phone,
-                          phoneNumberPlaceholder: l.profile_phone_hint,
-                          uppercaseLabels: true,
+                        _ReadOnlyPhoneField(
+                          label: l.profile_phone,
+                          value: '${state.dialCode} ${state.phone}'.trim(),
+                          lockedHint: l.profile_phone_readonly,
                         ),
                         MasrafyLabeledField(
                           label: l.profile_email,
@@ -158,9 +174,8 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                   padding: EdgeInsetsDirectional.fromSTEB(20.w, 8.h, 20.w, 12.h),
                   child: MasrafyGradientButton(
                     label: l.profile_save,
-                    onPressed: state.canSave
-                        ? () => ctx.router.maybePop(cubit.state.toDraft())
-                        : null,
+                    isLoading: state.saving,
+                    onPressed: state.canSave ? cubit.save : null,
                   ),
                 ),
               ],
@@ -168,6 +183,76 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Read-only phone display for the contact editor — the phone number is
+/// immutable for PHONE accounts (Principle XIII), so it is shown locked with a
+/// short hint rather than an editable field. Private leaf helper (Principle XXXVI).
+class _ReadOnlyPhoneField extends StatelessWidget {
+  const _ReadOnlyPhoneField({
+    required this.label,
+    required this.value,
+    required this.lockedHint,
+  });
+
+  final String label;
+  final String value;
+  final String lockedHint;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    final text = MasrafyTextTheme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: text.caption.semiBold().copyWith(
+                color: colors.primary.main,
+                letterSpacing: 0.66,
+              ),
+        ),
+        Gap(8.h),
+        Container(
+          height: 44.h,
+          padding: EdgeInsetsDirectional.symmetric(horizontal: 12.w),
+          decoration: BoxDecoration(
+            color: colors.bg.containerDisabled,
+            border: Border.all(color: colors.border.main),
+            borderRadius: BorderRadius.circular(14.r),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: text.body.copyWith(color: colors.text.secondary),
+                ),
+              ),
+              Gap(8.w),
+              Icon(
+                Icons.lock_outline_rounded,
+                size: 20.r,
+                color: colors.text.tertiary,
+              ),
+            ],
+          ),
+        ),
+        Gap(4.h),
+        Padding(
+          padding: EdgeInsetsDirectional.only(start: 2.w),
+          child: Text(
+            lockedHint,
+            style: text.bodySmall.regular().copyWith(color: colors.text.tertiary),
+          ),
+        ),
+      ],
     );
   }
 }

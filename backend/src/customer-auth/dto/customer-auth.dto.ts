@@ -47,6 +47,12 @@ export class CustomerProfileResponseDto {
   birthday?: string;
   @ApiPropertyOptional({ description: 'Presigned GET URL for the profile photo; undefined when none uploaded.' })
   photoUrl?: string;
+  @ApiPropertyOptional({ description: 'Egyptian governorate slug; undefined when not set.' })
+  governorate?: string;
+  @ApiPropertyOptional({ description: 'City; undefined when not set.' })
+  city?: string;
+  @ApiPropertyOptional({ description: 'Address line; undefined when not set.' })
+  address?: string;
   @ApiProperty() locale!: string;
   @ApiProperty() isVerified!: boolean;
   @ApiProperty({ description: 'True once the mandatory profile is complete (Principle XXXVII).' })
@@ -84,6 +90,9 @@ export interface CustomerProfileRow {
   lastName: string;
   birthday: Date | null;
   profilePhotoKey?: string | null;
+  governorate?: string | null;
+  city?: string | null;
+  address?: string | null;
   locale: string;
   isVerified: boolean;
   registrationPath: RegistrationPath;
@@ -114,6 +123,9 @@ export function mapCustomerProfile(
     age: age ?? undefined,
     birthday: row.birthday ? row.birthday.toISOString().slice(0, 10) : undefined,
     photoUrl,
+    governorate: row.governorate ?? undefined,
+    city: row.city ?? undefined,
+    address: row.address ?? undefined,
     locale: row.locale,
     isVerified: row.isVerified,
     profileComplete,

@@ -75,6 +75,9 @@ class ApiStrings {
 
   // --- Profile completion (Principle XXXVII) ---
   static const String authProfileComplete = '/api/v1/auth/profile/complete';
+
+  /// Post-completion scalar edit (name/email/governorate/city/address).
+  static const String authProfile = '/api/v1/auth/profile';
   static const String profilePhotoUploadUrl = '/api/v1/profile/photo/upload-url';
   static const String profilePhotoConfirm = '/api/v1/profile/photo/confirm-upload';
   static const String profileDocUploadUrl = '/api/v1/profile/documents/upload-url';

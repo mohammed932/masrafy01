@@ -233,6 +233,74 @@ export class CustomerAuthMobileService {
     return this.issueSession({ customerId: args.customerId, ctx: args.ctx });
   }
 
+  /**
+   * Post-completion scalar edit (`PATCH /v1/auth/profile`). Partial update of
+   * firstName/lastName/email/governorate/city/address for an authenticated
+   * customer. NEVER touches phone (immutable for PHONE accounts), birthday
+   * (immutable — Principle XXXVII), or password (dedicated flow). Email must be
+   * unique across accounts. Does NOT re-issue tokens. The controller returns the
+   * fresh profile via `me()`.
+   */
+  async updateProfile(args: {
+    customerId: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    governorate?: string;
+    city?: string;
+    address?: string;
+    ctx: CustomerRequestContext;
+  }): Promise<void> {
+    const account = await this.accounts.findById(args.customerId);
+    if (!account || !account.isActive) throw new CustomerAccountInactiveException();
+
+    const email = args.email?.trim().toLowerCase();
+    if (email) {
+      const existing = await this.accounts.findByEmail(email);
+      if (existing && existing.id !== args.customerId) {
+        throw new DomainException(ERROR_CODES.CUSTOMER_EMAIL_ALREADY_REGISTERED);
+      }
+    }
+
+    const trimmed = (v: string | undefined): string | undefined =>
+      v === undefined ? undefined : v.trim();
+
+    try {
+      await this.accounts.updateProfileScalars({
+        customerId: args.customerId,
+        firstName: trimmed(args.firstName),
+        lastName: trimmed(args.lastName),
+        ...(email !== undefined ? { email } : {}),
+        governorate: trimmed(args.governorate),
+        city: trimmed(args.city),
+        address: trimmed(args.address),
+      });
+    } catch (err) {
+      if (err instanceof CustomerAccountUniqueConflictError) {
+        throw new DomainException(ERROR_CODES.CUSTOMER_EMAIL_ALREADY_REGISTERED);
+      }
+      throw err;
+    }
+
+    await this.audit.write({
+      actorId: null,
+      targetId: null,
+      eventType: AuditEventType.CUSTOMER_PROFILE_UPDATED,
+      sourceIp: args.ctx.sourceIp,
+      payload: {
+        customerId: args.customerId,
+        fields: Object.keys({
+          ...(args.firstName !== undefined ? { firstName: true } : {}),
+          ...(args.lastName !== undefined ? { lastName: true } : {}),
+          ...(email !== undefined ? { email: true } : {}),
+          ...(args.governorate !== undefined ? { governorate: true } : {}),
+          ...(args.city !== undefined ? { city: true } : {}),
+          ...(args.address !== undefined ? { address: true } : {}),
+        }),
+      },
+    });
+  }
+
   // -------------------------------------------------------------------------
   // OTP generic endpoints
   // -------------------------------------------------------------------------

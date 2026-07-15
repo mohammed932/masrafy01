@@ -14,6 +14,9 @@ class CustomerProfileEntity extends Equatable {
     this.email,
     this.birthday,
     this.photoUrl,
+    this.governorate,
+    this.city,
+    this.address,
   });
 
   final String id;
@@ -31,6 +34,16 @@ class CustomerProfileEntity extends Equatable {
   /// Presigned GET URL for the profile photo; null when none uploaded.
   final String? photoUrl;
 
+  /// Egyptian governorate slug; null when not set.
+  final String? governorate;
+
+  /// City; null when not set.
+  final String? city;
+
+  /// Address line; null when not set.
+  final String? address;
+
   @override
-  List<Object?> get props => [id, firstName, lastName, phone, email, birthday, photoUrl];
+  List<Object?> get props =>
+      [id, firstName, lastName, phone, email, birthday, photoUrl, governorate, city, address];
 }

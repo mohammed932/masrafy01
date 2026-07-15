@@ -391,6 +391,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_generic => 'Something went wrong. Please try again.';
 
   @override
+  String get error_rate_limited => 'Too many attempts. Please wait a moment and try again.';
+
+  @override
   String get onboarding_slide1_title => 'Discover tailored loan offers.';
 
   @override
@@ -1535,6 +1538,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profile_save_failed => 'Couldn\'t save your profile. Please try again.';
+
+  @override
+  String get profile_save_success => 'Your profile has been updated.';
+
+  @override
+  String get profile_email_taken => 'This email is already in use by another account.';
+
+  @override
+  String get profile_dob_locked => 'Date of birth can\'t be changed once set.';
+
+  @override
+  String get profile_phone_readonly => 'Your phone number can\'t be changed.';
 
   @override
   String get profile_phone => 'Phone';

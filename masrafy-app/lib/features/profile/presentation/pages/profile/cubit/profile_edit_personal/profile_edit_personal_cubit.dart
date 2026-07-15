@@ -9,6 +9,8 @@ import 'package:app/core/result/failure.dart';
 import 'package:app/core/widgets/bottom_sheets/masrafy_photo_source_sheet.dart';
 import 'package:app/features/auth/data/models/request/profile/complete_profile_request.dart';
 import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
+import 'package:app/features/profile/data/models/request/update_profile_request.dart';
+import 'package:app/features/profile/domain/usecases/profile_usecase.dart';
 import 'package:app/features/profile/presentation/models/profile_data.dart';
 
 part 'profile_edit_personal_cubit.freezed.dart';
@@ -24,10 +26,11 @@ enum ProfileEditPersonalField { firstName, lastName }
 /// live on the state (Principle XXXI).
 @injectable
 class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
-  ProfileEditPersonalCubit(this._customerAuth)
+  ProfileEditPersonalCubit(this._customerAuth, this._profile)
       : super(const ProfileEditPersonalState());
 
   final CustomerAuthUseCase _customerAuth;
+  final ProfileUseCase _profile;
   final ImagePicker _picker = ImagePicker();
 
   /// Seed from the current profile slice (called once in the page's provider).
@@ -116,17 +119,16 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
     );
   }
 
-  /// Persists the scalar fields via `POST /auth/profile/complete` (the only
-  /// customer write path; overwrites first/last name, birthday immutable once
-  /// set). On success flips [saved] so the page pops the draft back.
+  /// Persists first/last name via `PATCH /auth/profile` (partial scalar edit;
+  /// birthday is locked/never sent — immutable once set, Principle XXXVII). On
+  /// success flips [saved] so the page pops the draft back.
   Future<void> save() async {
     if (!state.canSave) return;
     emit(state.copyWith(saving: true, saveError: null));
-    final res = await _customerAuth.completeProfile(
-      CompleteProfileRequest(
+    final res = await _profile.updateProfile(
+      UpdateProfileRequest(
         firstName: state.firstName.trim(),
         lastName: state.lastName.trim(),
-        birthday: state.birthday!,
       ),
     );
     res.fold(

@@ -140,6 +140,7 @@
   "error_invalid_credentials": "Incorrect phone or password.",
   "error_network": "No connection. Check your network and try again.",
   "error_generic": "Something went wrong. Please try again.",
+  "error_rate_limited": "Too many attempts. Please wait a moment and try again.",
 
   "onboarding_slide1_title": "Discover tailored loan offers.",
   "onboarding_slide1_body": "We scan multiple top-tier banks to find the best rates and terms specifically for your profile.",
@@ -585,6 +586,10 @@
   "profile_id_uploading": "Uploading…",
   "profile_id_upload_failed": "Couldn't upload the ID. Please try again.",
   "profile_save_failed": "Couldn't save your profile. Please try again.",
+  "profile_save_success": "Your profile has been updated.",
+  "profile_email_taken": "This email is already in use by another account.",
+  "profile_dob_locked": "Date of birth can't be changed once set.",
+  "profile_phone_readonly": "Your phone number can't be changed.",
   "profile_phone": "Phone",
   "profile_phone_hint": "Phone number",
   "profile_email": "Email",

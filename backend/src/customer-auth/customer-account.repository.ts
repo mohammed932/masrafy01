@@ -98,11 +98,25 @@ export interface CustomerForLogin {
   mobileVerifiedAt: Date | null;
   birthday: Date | null;
   profilePhotoKey: string | null;
+  governorate: string | null;
+  city: string | null;
+  address: string | null;
   isActive: boolean;
   isVerified: boolean;
   providers: { provider: SocialProvider }[];
   createdAt: Date;
   lastLoginAt: Date | null;
+}
+
+/** Post-completion partial scalar edit (PATCH /v1/auth/profile). Only supplied fields are written. */
+export interface UpdateProfileScalarsInput {
+  customerId: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  governorate?: string;
+  city?: string;
+  address?: string;
 }
 
 export interface CustomerListQuery {
@@ -227,6 +241,32 @@ export class CustomerAccountRepository {
         ...(input.passwordHash !== undefined ? { passwordHash: input.passwordHash } : {}),
       },
     });
+  }
+
+  /**
+   * Post-completion scalar edit (PATCH /v1/auth/profile). Writes ONLY the
+   * supplied fields; never touches phone/birthday/password. Maps a unique
+   * conflict on `email` to the shared sentinel so the service can surface
+   * `CUSTOMER_EMAIL_ALREADY_REGISTERED`.
+   */
+  async updateProfileScalars(input: UpdateProfileScalarsInput): Promise<void> {
+    const data: Prisma.CustomerAccountUpdateInput = {};
+    if (input.firstName !== undefined) data.firstName = input.firstName;
+    if (input.lastName !== undefined) data.lastName = input.lastName;
+    if (input.email !== undefined) data.email = input.email;
+    if (input.governorate !== undefined) data.governorate = input.governorate;
+    if (input.city !== undefined) data.city = input.city;
+    if (input.address !== undefined) data.address = input.address;
+    try {
+      await this.prisma.customerAccount.update({
+        where: { id: input.customerId },
+        data,
+      });
+    } catch (err) {
+      const conflict = detectUniqueConflict(err);
+      if (conflict) throw conflict;
+      throw err;
+    }
   }
 
   /** Persists the S3 object key for the customer's profile photo (Principle VI/XXXVII). */
@@ -429,6 +469,9 @@ export class CustomerAccountRepository {
       mobileVerifiedAt: true,
       birthday: true,
       profilePhotoKey: true,
+      governorate: true,
+      city: true,
+      address: true,
       isActive: true,
       isVerified: true,
       providers: { select: { provider: true } },

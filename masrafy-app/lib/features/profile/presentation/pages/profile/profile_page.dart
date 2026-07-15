@@ -29,7 +29,10 @@ class _ProfileView extends StatelessWidget {
     final draft = await ctx.router.push<ProfilePersonalDraft>(
       ProfileEditPersonalRoute(initial: data.toPersonalDraft()),
     );
-    if (draft != null) cubit.applyPersonal(draft);
+    if (draft != null) {
+      cubit.applyPersonal(draft); // instant local merge…
+      await cubit.load(); // …then re-pull /me for canonical server state (fresh photo URL).
+    }
   }
 
   Future<void> _editContact(
@@ -40,7 +43,10 @@ class _ProfileView extends StatelessWidget {
     final draft = await ctx.router.push<ProfileContactDraft>(
       ProfileEditContactRoute(initial: data.toContactDraft()),
     );
-    if (draft != null) cubit.applyContact(draft);
+    if (draft != null) {
+      cubit.applyContact(draft); // instant local merge…
+      await cubit.load(); // …then re-pull /me for canonical server state.
+    }
   }
 
   @override

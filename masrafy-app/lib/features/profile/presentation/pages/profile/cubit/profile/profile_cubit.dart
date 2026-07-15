@@ -83,9 +83,11 @@ class ProfileCubit extends Cubit<ProfileState> {
       dialCode: phone.$1,
       phone: phone.$2,
       email: c.email ?? '',
-      governorate: null,
-      city: '',
-      address: '',
+      governorate: (c.governorate != null && c.governorate!.isNotEmpty)
+          ? c.governorate
+          : null,
+      city: c.city ?? '',
+      address: c.address ?? '',
     );
   }
 

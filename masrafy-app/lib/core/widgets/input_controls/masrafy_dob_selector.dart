@@ -24,6 +24,7 @@ class MasrafyDobSelector extends StatelessWidget {
     this.value,
     this.hint,
     this.ageVerifiedText,
+    this.enabled = true,
   });
 
   final String label;
@@ -31,6 +32,10 @@ class MasrafyDobSelector extends StatelessWidget {
   final DateTime? value;
   final String? hint;
   final String? ageVerifiedText;
+
+  /// When false the field is locked (no tap, lock icon shown) — used where the
+  /// value is immutable once set (e.g. birthday post-completion, Principle XXXVII).
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +57,7 @@ class MasrafyDobSelector extends StatelessWidget {
         ),
         Gap(8.h),
         GestureDetector(
-          onTap: onTap,
+          onTap: enabled ? onTap : null,
           behavior: HitTestBehavior.opaque,
           child: Container(
             height: 44.h,
@@ -82,9 +87,9 @@ class MasrafyDobSelector extends StatelessWidget {
                 ),
                 Gap(8.w),
                 Icon(
-                  Icons.calendar_today_rounded,
+                  enabled ? Icons.calendar_today_rounded : Icons.lock_outline_rounded,
                   size: 20.r,
-                  color: colors.icon.main,
+                  color: enabled ? colors.icon.main : colors.text.tertiary,
                 ),
               ],
             ),

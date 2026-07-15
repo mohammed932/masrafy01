@@ -58,6 +58,8 @@ class _ChangePasswordViewState extends State<_ChangePasswordView> {
         return l.change_password_error_policy;
       case 'CUSTOMER_ACCOUNT_INACTIVE':
         return l.change_password_error_account_inactive;
+      case 'RATE_LIMITED':
+        return l.error_rate_limited;
       case 'NETWORK_UNREACHABLE':
         return l.error_network;
       default:

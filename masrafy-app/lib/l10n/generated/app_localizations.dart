@@ -833,6 +833,12 @@ abstract class AppLocalizations {
   /// **'حدث خطأ ما. حاول مرة أخرى.'**
   String get error_generic;
 
+  /// No description provided for @error_rate_limited.
+  ///
+  /// In ar, this message translates to:
+  /// **'محاولات كثيرة. انتظر قليلاً وحاول مجددًا.'**
+  String get error_rate_limited;
+
   /// No description provided for @onboarding_slide1_title.
   ///
   /// In ar, this message translates to:
@@ -3088,6 +3094,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر حفظ الملف الشخصي. حاول مرة أخرى.'**
   String get profile_save_failed;
+
+  /// No description provided for @profile_save_success.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم تحديث ملفك الشخصي.'**
+  String get profile_save_success;
+
+  /// No description provided for @profile_email_taken.
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البريد الإلكتروني مستخدم بالفعل في حساب آخر.'**
+  String get profile_email_taken;
+
+  /// No description provided for @profile_dob_locked.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تغيير تاريخ الميلاد بعد ضبطه.'**
+  String get profile_dob_locked;
+
+  /// No description provided for @profile_phone_readonly.
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تغيير رقم هاتفك.'**
+  String get profile_phone_readonly;
 
   /// No description provided for @profile_phone.
   ///

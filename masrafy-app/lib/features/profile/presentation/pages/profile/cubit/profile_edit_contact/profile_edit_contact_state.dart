@@ -11,14 +11,17 @@ class ProfileEditContactState with _$ProfileEditContactState {
     String? governorate,
     @Default('') String city,
     @Default('') String address,
+    @Default(false) bool saving,
+    Failure? saveError,
+    @Default(false) bool saved,
   }) = _ProfileEditContactState;
 
   const ProfileEditContactState._();
 
-  /// Phone is required; email must be valid. Governorate / city / address are
-  /// optional address detail.
+  /// Email must be valid (empty is allowed — email is optional). Phone is
+  /// read-only and not part of the save. Blocked while a save is in flight.
   bool get canSave =>
-      phone.trim().isNotEmpty && Validators.email(email) == null;
+      (email.trim().isEmpty || Validators.email(email) == null) && !saving;
 
   ProfileContactDraft toDraft() => ProfileContactDraft(
         dialCode: dialCode,

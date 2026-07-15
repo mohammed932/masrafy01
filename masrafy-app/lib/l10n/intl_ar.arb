@@ -259,6 +259,7 @@
   "error_invalid_credentials": "رقم الهاتف أو كلمة المرور غير صحيحة.",
   "error_network": "لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.",
   "error_generic": "حدث خطأ ما. حاول مرة أخرى.",
+  "error_rate_limited": "محاولات كثيرة. انتظر قليلاً وحاول مجددًا.",
 
   "onboarding_slide1_title": "اكتشف عروض قروض مصمّمة لك.",
   "onboarding_slide1_body": "نبحث في عدة بنوك رائدة لإيجاد أفضل الأسعار والشروط المناسبة لملفك تحديدًا.",
@@ -700,6 +701,10 @@
   "profile_id_uploading": "جارٍ الرفع…",
   "profile_id_upload_failed": "تعذّر رفع البطاقة. حاول مرة أخرى.",
   "profile_save_failed": "تعذّر حفظ الملف الشخصي. حاول مرة أخرى.",
+  "profile_save_success": "تم تحديث ملفك الشخصي.",
+  "profile_email_taken": "هذا البريد الإلكتروني مستخدم بالفعل في حساب آخر.",
+  "profile_dob_locked": "لا يمكن تغيير تاريخ الميلاد بعد ضبطه.",
+  "profile_phone_readonly": "لا يمكن تغيير رقم هاتفك.",
   "profile_phone": "الهاتف",
   "profile_phone_hint": "رقم الهاتف",
   "profile_email": "البريد الإلكتروني",

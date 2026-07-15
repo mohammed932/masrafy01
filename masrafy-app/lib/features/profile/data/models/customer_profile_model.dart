@@ -12,6 +12,9 @@ class CustomerProfileModel {
     this.email,
     this.birthday,
     this.photoUrl,
+    this.governorate,
+    this.city,
+    this.address,
   });
 
   final String id;
@@ -21,6 +24,9 @@ class CustomerProfileModel {
   final String? email;
   final String? birthday;
   final String? photoUrl;
+  final String? governorate;
+  final String? city;
+  final String? address;
 
   factory CustomerProfileModel.fromJson(Map<String, dynamic> json) {
     return CustomerProfileModel(
@@ -31,6 +37,9 @@ class CustomerProfileModel {
       email: json['email'] as String?,
       birthday: json['birthday'] as String?,
       photoUrl: json['photoUrl'] as String?,
+      governorate: json['governorate'] as String?,
+      city: json['city'] as String?,
+      address: json['address'] as String?,
     );
   }
 
@@ -42,6 +51,9 @@ class CustomerProfileModel {
         email: email,
         birthday: _parseDate(birthday),
         photoUrl: (photoUrl != null && photoUrl!.isNotEmpty) ? photoUrl : null,
+        governorate: governorate,
+        city: city,
+        address: address,
       );
 
   /// Parses `birthday` as a pure calendar date. The backend sends it either as

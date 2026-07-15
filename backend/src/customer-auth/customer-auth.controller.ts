@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
@@ -19,6 +19,7 @@ import {
   CustomerSignupPhoneVerifyDto,
 } from './dto/customer-signup-phone.dto';
 import { CustomerCompleteProfileDto } from './dto/customer-complete-profile.dto';
+import { UpdateCustomerProfileDto } from './dto/customer-update-profile.dto';
 import {
   SocialAppleSignInDto,
   SocialGoogleSignInDto,
@@ -176,6 +177,34 @@ export class CustomerAuthController {
       ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));
+  }
+
+  @Patch('profile')
+  @UseGuards(CustomerJwtGuard)
+  @ApiBearerAuth('CustomerBearerAuth')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 20, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({
+    summary:
+      'Edit profile scalars (firstName/lastName/email/governorate/city/address). Never phone, birthday, or password. Returns the fresh profile.',
+  })
+  async updateProfile(
+    @Body() body: UpdateCustomerProfileDto,
+    @Req() req: MobileRequest,
+  ): Promise<{ success: true; data: CustomerProfileResponseDto }> {
+    const customerId = this.requireCustomer(req);
+    await this.mobile.updateProfile({
+      customerId,
+      firstName: body.firstName,
+      lastName: body.lastName,
+      email: body.email,
+      governorate: body.governorate,
+      city: body.city,
+      address: body.address,
+      ctx: this.buildContext(req),
+    });
+    const profile = await this.svc.me(customerId);
+    return ok(profile);
   }
 
   @Post('otp/request')
