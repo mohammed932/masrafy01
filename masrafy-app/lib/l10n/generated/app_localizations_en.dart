@@ -1874,6 +1874,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get change_password_error_policy => 'Password must be at least 12 characters and include uppercase, lowercase, a number and a symbol.';
 
   @override
+  String get change_password_error_breached => 'This password appeared in a known data breach. Please choose a different one.';
+
+  @override
+  String get change_password_error_common => 'This password is too common. Please choose a stronger one.';
+
+  @override
+  String get change_password_error_breach_check_unavailable => 'We couldn\'t verify your password right now. Please try again in a moment.';
+
+  @override
+  String get change_password_error_account_inactive => 'Your account is not active. Please contact support.';
+
+  @override
   String get change_password_error_mismatch => 'Passwords do not match';
 
   @override

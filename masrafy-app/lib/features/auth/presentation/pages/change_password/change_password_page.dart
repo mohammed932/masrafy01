@@ -47,11 +47,17 @@ class _ChangePasswordViewState extends State<_ChangePasswordView> {
         return l.change_password_error_same_as_old;
       case 'PASSWORD_CHANGE_FORBIDDEN_FOR_SOCIAL':
         return l.change_password_error_social_forbidden;
+      case 'PASSWORD_BREACHED':
+        return l.change_password_error_breached;
+      case 'PASSWORD_ON_COMMON_LIST':
+        return l.change_password_error_common;
+      case 'PASSWORD_BREACH_CHECK_UNAVAILABLE':
+        return l.change_password_error_breach_check_unavailable;
       case 'PASSWORD_TOO_SHORT':
       case 'PASSWORD_TOO_LONG':
-      case 'PASSWORD_BREACHED':
-      case 'PASSWORD_ON_COMMON_LIST':
         return l.change_password_error_policy;
+      case 'CUSTOMER_ACCOUNT_INACTIVE':
+        return l.change_password_error_account_inactive;
       case 'NETWORK_UNREACHABLE':
         return l.error_network;
       default:

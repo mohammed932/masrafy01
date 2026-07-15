@@ -40,6 +40,10 @@ class CustomerJwtRefreshInterceptor extends Interceptor {
     ApiStrings.authRefresh,
     ApiStrings.authLogin,
     ApiStrings.authSignup,
+    // Fire-and-forget logout must never trigger a refresh-retry: a 401 here
+    // would otherwise re-enter the refresh path and could re-save a session
+    // the user just cleared.
+    ApiStrings.authLogout,
   };
 
   @override

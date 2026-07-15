@@ -8,4 +8,5 @@ enum StorageKeys {
   onboardingCompleted,
   masrafyColorTheme,
   communityGuidelinesSeen,
+  installInitialized,
 }

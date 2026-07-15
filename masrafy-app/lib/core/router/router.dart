@@ -19,6 +19,7 @@ class AppRouter extends RootStackRouter {
   List<AutoRoute> get routes => [
         CustomRoute(
           page: SplashRoute.page,
+          initial: true,
           transitionsBuilder: TransitionsBuilders.fadeIn,
           durationInMilliseconds: _fadeMs,
         ),
@@ -43,7 +44,6 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: ApplyDocumentsRoute.page),
         CustomRoute(
           page: HomeRoute.page,
-          initial: true,
           transitionsBuilder: TransitionsBuilders.fadeIn,
           durationInMilliseconds: _fadeMs,
         ),

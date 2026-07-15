@@ -3743,6 +3743,30 @@ abstract class AppLocalizations {
   /// **'يجب أن تتكون كلمة المرور من ١٢ حرفًا على الأقل وتشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.'**
   String get change_password_error_policy;
 
+  /// No description provided for @change_password_error_breached.
+  ///
+  /// In ar, this message translates to:
+  /// **'ظهرت كلمة المرور هذه في تسريب بيانات معروف. يرجى اختيار كلمة مرور مختلفة.'**
+  String get change_password_error_breached;
+
+  /// No description provided for @change_password_error_common.
+  ///
+  /// In ar, this message translates to:
+  /// **'كلمة المرور هذه شائعة جدًا. يرجى اختيار كلمة مرور أقوى.'**
+  String get change_password_error_common;
+
+  /// No description provided for @change_password_error_breach_check_unavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر التحقق من كلمة المرور الآن. يرجى المحاولة بعد قليل.'**
+  String get change_password_error_breach_check_unavailable;
+
+  /// No description provided for @change_password_error_account_inactive.
+  ///
+  /// In ar, this message translates to:
+  /// **'حسابك غير نشط. يرجى التواصل مع الدعم.'**
+  String get change_password_error_account_inactive;
+
   /// No description provided for @change_password_error_mismatch.
   ///
   /// In ar, this message translates to:

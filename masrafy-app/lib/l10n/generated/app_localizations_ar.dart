@@ -1877,6 +1877,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get change_password_error_policy => 'يجب أن تتكون كلمة المرور من ١٢ حرفًا على الأقل وتشمل حرفًا كبيرًا وصغيرًا ورقمًا ورمزًا.';
 
   @override
+  String get change_password_error_breached => 'ظهرت كلمة المرور هذه في تسريب بيانات معروف. يرجى اختيار كلمة مرور مختلفة.';
+
+  @override
+  String get change_password_error_common => 'كلمة المرور هذه شائعة جدًا. يرجى اختيار كلمة مرور أقوى.';
+
+  @override
+  String get change_password_error_breach_check_unavailable => 'تعذر التحقق من كلمة المرور الآن. يرجى المحاولة بعد قليل.';
+
+  @override
+  String get change_password_error_account_inactive => 'حسابك غير نشط. يرجى التواصل مع الدعم.';
+
+  @override
   String get change_password_error_mismatch => 'كلمتا المرور غير متطابقتين';
 
   @override

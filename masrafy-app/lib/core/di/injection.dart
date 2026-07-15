@@ -4,6 +4,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../cache/shared_prefs_service.dart';
+import '../enums/storage_keys.dart';
 import '../environments/app_env.dart';
 import '../environments/base_environment.dart';
 import '../environments/dev_environment.dart';
@@ -86,6 +87,12 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   getIt.registerLazySingleton<FlutterSecureStorage>(
     () => const FlutterSecureStorage(
       aOptions: AndroidOptions(encryptedSharedPreferences: true),
+      // Device-bound so customer JWTs are excluded from iCloud sync and
+      // encrypted backups — a restored / new device won't inherit a prior
+      // user's session. Matches SecureStorage (device-id) accessibility.
+      iOptions: IOSOptions(
+        accessibility: KeychainAccessibility.first_unlock_this_device,
+      ),
     ),
   );
   getIt.registerLazySingleton<CustomerSessionStorage>(
@@ -117,6 +124,20 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   // -- Theme -------------------------------------------------------------
   final prefs = await SharedPreferences.getInstance();
   getIt.registerSingleton<SharedPrefsService>(SharedPrefsService(prefs));
+
+  // Fresh-install guard: the iOS keychain survives app uninstall, so a
+  // reinstall (or a backup-restored device) can still hold a previous user's
+  // customer JWTs and silently drop them onto Home. SharedPreferences IS
+  // cleared on uninstall, so its emptiness marks a genuine first run — wipe
+  // the stale session + biometric opt-in once so a first launch starts clean
+  // at the Splash → Login gate.
+  final prefsService = getIt<SharedPrefsService>();
+  if (prefsService.getString(StorageKeys.installInitialized.name) != 'true') {
+    await getIt<CustomerSessionStorage>().clear();
+    await getIt<BiometricStorage>().setEnabled(false);
+    await prefsService.setString(StorageKeys.installInitialized.name, 'true');
+  }
+
   getIt.registerFactory<ThemeBloc>(() => ThemeBloc(getIt<SharedPrefsService>()));
 
   // -- Locale (app-wide UI language; same instance feeds MaterialApp + settings)
