@@ -33,11 +33,14 @@ interface DemoCustomer {
   nameSplitNeedsReview: boolean;
   daysAgoCreated: number;
   daysAgoLastLogin: number | null; // null = never logged in
+  // → seeds NATIONAL_ID_FRONT + NATIONAL_ID_BACK Document rows (status
+  // 'uploaded') so the account clears the select-offer gate (v9.1.0).
+  hasNationalId?: boolean;
 }
 
 const DEMO_CUSTOMERS: readonly DemoCustomer[] = [
   // ── PHONE path — fully onboarded, verified, active ───────────────────────
-  { registrationPath: 'PHONE', phone: '+201112000001', email: 'nour.ibrahim@masrafy.local', firstName: 'Nour', lastName: 'Ibrahim', birthday: '1992-03-14', locale: 'ar-EG', isVerified: true, isActive: true, mobileVerified: true, hasPhoto: true, nameSplitNeedsReview: false, daysAgoCreated: 1, daysAgoLastLogin: 0 },
+  { registrationPath: 'PHONE', phone: '+201112000001', email: 'nour.ibrahim@masrafy.local', firstName: 'Nour', lastName: 'Ibrahim', birthday: '1992-03-14', locale: 'ar-EG', isVerified: true, isActive: true, mobileVerified: true, hasPhoto: true, nameSplitNeedsReview: false, daysAgoCreated: 1, daysAgoLastLogin: 0, hasNationalId: true },
   { registrationPath: 'PHONE', phone: '+201112000002', email: 'kareem.mansour@masrafy.local', firstName: 'Kareem', lastName: 'Mansour', birthday: '1988-11-02', locale: 'ar-EG', isVerified: true, isActive: true, mobileVerified: true, hasPhoto: true, nameSplitNeedsReview: false, daysAgoCreated: 4, daysAgoLastLogin: 1 },
   { registrationPath: 'PHONE', phone: '+201112000003', email: null, firstName: 'Salma', lastName: 'Fahmy', birthday: '1996-06-21', locale: 'ar-EG', isVerified: true, isActive: true, mobileVerified: true, hasPhoto: false, nameSplitNeedsReview: false, daysAgoCreated: 9, daysAgoLastLogin: 3 },
   // ── PHONE path — verified phone but profile not finished (unverified) ─────
@@ -90,16 +93,58 @@ export async function seedCustomers(prisma: PrismaClient): Promise<void> {
     // SOCIAL lite rows may have a null phone, so they can only be keyed by email.
     const where = c.phone ? { phone: c.phone } : { email: c.email! };
     const existing = await prisma.customerAccount.findFirst({ where });
+    const customer =
+      existing ?? (await prisma.customerAccount.create({ data: createData }));
     if (existing) {
       skipped += 1;
-      continue;
+    } else {
+      created += 1;
     }
-    await prisma.customerAccount.create({ data: createData });
-    created += 1;
+
+    if (c.hasNationalId) {
+      await seedNationalId(prisma, customer.id, c.firstName);
+    }
   }
 
   log(`customers: created ${created}, skipped ${skipped} (already present) of ${DEMO_CUSTOMERS.length}`);
   log(`  PHONE customers password = ${DEV_CUSTOMER_PASSWORD}`);
+}
+
+/**
+ * Idempotently seeds the two National-ID Document rows (front + back) for a
+ * customer with status `uploaded`, so `hasUsableIdDoc` treats them as present
+ * and the account clears the select-offer gate. Keyed on the deterministic
+ * `s3Key` so re-runs never duplicate.
+ */
+async function seedNationalId(
+  prisma: PrismaClient,
+  customerId: string,
+  firstName: string,
+): Promise<void> {
+  const slug = firstName.toLowerCase();
+  const sides: ReadonlyArray<{ type: string; file: string }> = [
+    { type: 'NATIONAL_ID_FRONT', file: 'front' },
+    { type: 'NATIONAL_ID_BACK', file: 'back' },
+  ];
+  for (const side of sides) {
+    const s3Key = `customers/${slug}/national-id/${side.file}-seed.jpg`;
+    const existingDoc = await prisma.document.findUnique({ where: { s3Key } });
+    if (existingDoc) continue;
+    await prisma.document.create({
+      data: {
+        customerId,
+        documentType: side.type,
+        s3Key,
+        status: 'uploaded',
+        uploadedByContext: 'user',
+        uploadedBySource: 'mobile_app',
+        uploadedByCustomerId: customerId,
+        originalFilename: `national-id-${side.file}.jpg`,
+        mimeType: 'image/jpeg',
+        sizeBytes: 245_000,
+      },
+    });
+  }
 }
 
 function log(msg: string): void {

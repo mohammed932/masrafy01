@@ -164,8 +164,11 @@ class _ResultsContent extends StatelessWidget {
   }
 }
 
-/// Shape-matched shimmer mirroring the summary card + three offer cards
+/// Shape-matched shimmer mirroring the summary card + ranked offer cards
 /// (Principle XXXIV — re-fires on every reload, never a centered spinner).
+/// `Shimmer.fromColors` masks every opaque pixel, so cards use a transparent
+/// fill + border and only the inner placeholders sweep — reading as content
+/// loading, not solid slabs.
 class _ResultsSkeleton extends StatelessWidget {
   const _ResultsSkeleton();
 
@@ -174,10 +177,115 @@ class _ResultsSkeleton extends StatelessWidget {
     return MasrafyShimmer(
       child: Column(
         children: [
-          MasrafyShimmerBox(height: 120, radius: 18),
+          const _SummaryCardSkeleton(),
           for (var i = 0; i < 3; i++) ...[
             Gap(25.h),
-            MasrafyShimmerBox(height: 150, radius: 18),
+            _OfferCardSkeleton(best: i == 0),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Skeleton for [MatchSummaryCard] — three label/value rows in a card outline.
+class _SummaryCardSkeleton extends StatelessWidget {
+  const _SummaryCardSkeleton();
+
+  static const _valueWidths = <double>[88, 116, 96];
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    return Container(
+      padding: EdgeInsets.all(15.r),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14.r),
+        border: Border.all(color: colors.secondary.border),
+      ),
+      child: Column(
+        children: [
+          for (var i = 0; i < 3; i++) ...[
+            Padding(
+              padding: EdgeInsetsDirectional.symmetric(vertical: 9.h),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const MasrafyShimmerBox(width: 82, height: 12, radius: 6),
+                  MasrafyShimmerBox(
+                    width: _valueWidths[i % _valueWidths.length],
+                    height: 13,
+                    radius: 6,
+                  ),
+                ],
+              ),
+            ),
+            if (i < 2) Divider(height: 1.h, color: colors.border.secondary),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Skeleton for [MatchOfferCard]. The [best] card mirrors the azure-tinted
+/// best-match variant (title + "Best Match" pill + KPI row + View-offer CTA);
+/// regular cards drop the pill and CTA.
+class _OfferCardSkeleton extends StatelessWidget {
+  const _OfferCardSkeleton({required this.best});
+
+  final bool best;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsetsDirectional.fromSTEB(17.w, 23.h, 17.w, 17.h),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18.r),
+        border: Border.all(
+          color: best ? colors.secondary.main : colors.border.secondary,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const MasrafyShimmerBox(width: 168, height: 18, radius: 8),
+                    Gap(8.h),
+                    const MasrafyShimmerBox(width: 120, height: 12, radius: 6),
+                  ],
+                ),
+              ),
+              if (best) ...[
+                Gap(8.w),
+                const MasrafyShimmerBox(width: 92, height: 26, radius: 999),
+              ],
+            ],
+          ),
+          Gap(16.h),
+          Row(
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                if (i > 0) Gap(8.w),
+                const Expanded(
+                  child: MasrafyShimmerBox(height: 56, radius: 12),
+                ),
+              ],
+            ],
+          ),
+          if (best) ...[
+            Gap(16.h),
+            const MasrafyShimmerBox(height: 48, radius: 12),
           ],
         ],
       ),

@@ -222,26 +222,49 @@ class _ShimmerCard extends StatelessWidget {
 
   final int rows;
 
+  /// Per-row value widths so the skeleton reads as varied content rather than
+  /// identical bars.
+  static const _valueWidths = <double>[172, 128, 150, 140];
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
+    // Transparent fill: `Shimmer.fromColors` masks every opaque pixel of its
+    // subtree, so a filled card background would sweep as one solid blob and
+    // swallow the inner placeholders. Keeping only the border + placeholder
+    // boxes opaque lets the sweep read as content loading in a card outline.
     return Container(
       padding: EdgeInsetsDirectional.all(17.w),
       decoration: BoxDecoration(
-        color: colors.bg.container,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(15.r),
         border: Border.all(color: colors.border.secondary),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          MasrafyShimmerBox(width: 160, height: 14, radius: 6),
-          Gap(18.h),
+          // Header — section title + "Edit" pill, mirroring ProfileInfoCard.
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              MasrafyShimmerBox(width: 148, height: 15, radius: 7),
+              MasrafyShimmerBox(width: 42, height: 13, radius: 7),
+            ],
+          ),
+          Gap(20.h),
           for (var i = 0; i < rows; i++) ...[
-            MasrafyShimmerBox(width: 90, height: 11, radius: 6),
-            Gap(8.h),
-            MasrafyShimmerBox(width: 180, height: 14, radius: 6),
-            if (i < rows - 1) Gap(16.h),
+            MasrafyShimmerBox(width: 78, height: 10, radius: 5),
+            Gap(9.h),
+            MasrafyShimmerBox(
+              width: _valueWidths[i % _valueWidths.length],
+              height: 15,
+              radius: 7,
+            ),
+            if (i < rows - 1) ...[
+              Gap(15.h),
+              Divider(height: 1.h, color: colors.border.secondary),
+              Gap(15.h),
+            ],
           ],
         ],
       ),

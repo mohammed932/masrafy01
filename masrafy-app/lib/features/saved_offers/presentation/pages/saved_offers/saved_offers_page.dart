@@ -149,7 +149,11 @@ class _SavedOffersShimmer extends StatelessWidget {
         itemBuilder: (_, __) => Container(
           padding: EdgeInsetsDirectional.all(17.w),
           decoration: BoxDecoration(
-            color: colors.bg.container,
+            // Transparent fill: `Shimmer.fromColors` masks every opaque pixel,
+            // so a filled card background sweeps as one solid blob and swallows
+            // the inner placeholders. Border + boxes only → reads as a card
+            // outline loading its content.
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(15.r),
             border: Border.all(color: colors.border.secondary),
           ),

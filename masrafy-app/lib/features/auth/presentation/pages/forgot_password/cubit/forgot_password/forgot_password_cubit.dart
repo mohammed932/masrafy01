@@ -130,19 +130,30 @@ class ForgotPasswordCubit extends Cubit<ForgotPasswordState> {
       ),
     );
     res.fold(
-      (err) => emit(state.copyWith(
-        status: RequestState.error,
-        error: err,
-        attemptsLeft: err.code == 'OTP_INVALID'
-            ? (state.attemptsLeft - 1).clamp(0, 99)
-            : state.attemptsLeft,
-      )),
+      (err) {
+        // A consumed / expired single-use code can't be retried — free the
+        // Resend action immediately so the user isn't stuck on a dead
+        // countdown waiting for a code they can no longer use.
+        final spent = err.code == 'OTP_CONSUMED' || err.code == 'OTP_EXPIRED';
+        emit(state.copyWith(
+          status: RequestState.error,
+          error: err,
+          secondsRemaining: spent ? 0 : state.secondsRemaining,
+          attemptsLeft: err.code == 'OTP_INVALID'
+              ? (state.attemptsLeft - 1).clamp(0, 99)
+              : state.attemptsLeft,
+        ));
+      },
       (outcome) {
         final token = outcome.passwordResetToken;
         if (token == null) {
+          // Verifying consumed the single-use OTP but no reset token came back
+          // (unknown / SOCIAL number, no-enumeration). The code is now spent —
+          // free Resend so the user can request a fresh one.
           emit(state.copyWith(
             status: RequestState.error,
             error: const ServerFailure(code: 'RESET_UNAVAILABLE'),
+            secondsRemaining: 0,
           ));
           return;
         }
