@@ -116,6 +116,29 @@ class AuthRemoteDataSource extends BaseRemoteDataSource {
     return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));
   }
 
+  /// Dedicated one-call Google sign-in — backend issues tokens directly for
+  /// both new and returning users (no `socialSessionId` round-trip).
+  Future<CustomerAuthEnvelopeModel> googleSignin(
+    SocialGoogleSignInRequest body,
+  ) async {
+    final json = await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.authGoogleSignin),
+      data: body.toJson(),
+    );
+    return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));
+  }
+
+  /// Dedicated one-call Apple login — tokens returned directly.
+  Future<CustomerAuthEnvelopeModel> appleLogin(
+    SocialAppleSignInRequest body,
+  ) async {
+    final json = await appNetwork.post(
+      MasrafyEndpoint(endpoint: ApiStrings.authAppleLogin),
+      data: body.toJson(),
+    );
+    return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));
+  }
+
   Future<OtpChallengeModel> profileMobileRequestOtp(
     ProfileMobileRequestOtpRequest body,
   ) async {

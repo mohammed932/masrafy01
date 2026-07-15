@@ -564,6 +564,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup_sign_in => 'Sign in';
 
   @override
+  String get social_phone_title => 'Add your phone number';
+
+  @override
+  String get social_phone_subtitle => 'We need your phone to secure your account. We\'ll send you a verification code.';
+
+  @override
+  String get social_phone_cta => 'Send verification code';
+
+  @override
   String get otp_title => 'Verify your phone number';
 
   @override

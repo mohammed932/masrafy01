@@ -320,6 +320,9 @@
   "signup_have_account": "لديك حساب بالفعل؟",
   "signup_sign_in": "تسجيل الدخول",
 
+  "social_phone_title": "أضف رقم هاتفك",
+  "social_phone_subtitle": "نحتاج رقم هاتفك لتأمين حسابك. سنرسل لك رمز تحقق.",
+  "social_phone_cta": "إرسال رمز التحقق",
   "otp_title": "تحقّق من رقم هاتفك",
   "otp_subtitle": "أرسلنا رمزًا من 6 أرقام إلى {destination}. أدخله بالأسفل.",
   "otp_enter_code": "أدخل رمز التحقق",

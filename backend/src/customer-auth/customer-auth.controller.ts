@@ -262,6 +262,43 @@ export class CustomerAuthController {
     return ok(this.toEnvelope(result));
   }
 
+  @Post('google/signin')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({
+    summary: 'Sign in with Google — verify ID token + issue tokens directly (new or returning)',
+  })
+  async googleSignin(
+    @Body() body: SocialGoogleSignInDto,
+    @Req() req: MobileRequest,
+  ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
+    const result = await this.mobile.socialAuthDirect({
+      provider: SocialProvider.GOOGLE,
+      idToken: body.idToken,
+      ctx: this.buildContext(req),
+    });
+    return ok(this.toEnvelope(result));
+  }
+
+  @Post('apple/login')
+  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({
+    summary: 'Log in with Apple — verify ID token + issue tokens directly (new or returning)',
+  })
+  async appleLogin(
+    @Body() body: SocialAppleSignInDto,
+    @Req() req: MobileRequest,
+  ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
+    const result = await this.mobile.socialAuthDirect({
+      provider: SocialProvider.APPLE,
+      idToken: body.idToken,
+      userInfo: body.userInfo,
+      ctx: this.buildContext(req),
+    });
+    return ok(this.toEnvelope(result));
+  }
+
   @Post('profile/mobile-request-otp')
   @UseGuards(CustomerJwtGuard)
   @ApiBearerAuth('CustomerBearerAuth')

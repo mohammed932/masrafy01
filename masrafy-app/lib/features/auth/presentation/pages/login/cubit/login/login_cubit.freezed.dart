@@ -164,7 +164,7 @@ class __$$LoginStateImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$LoginStateImpl extends _LoginState {
+class _$LoginStateImpl extends _LoginState with DiagnosticableTreeMixin {
   const _$LoginStateImpl(
       {this.identifier = '',
       this.password = '',
@@ -192,8 +192,21 @@ class _$LoginStateImpl extends _LoginState {
   final CustomerSessionEntity? session;
 
   @override
-  String toString() {
+  String toString({DiagnosticLevel minLevel = DiagnosticLevel.info}) {
     return 'LoginState(identifier: $identifier, password: $password, obscure: $obscure, status: $status, error: $error, session: $session)';
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(DiagnosticsProperty('type', 'LoginState'))
+      ..add(DiagnosticsProperty('identifier', identifier))
+      ..add(DiagnosticsProperty('password', password))
+      ..add(DiagnosticsProperty('obscure', obscure))
+      ..add(DiagnosticsProperty('status', status))
+      ..add(DiagnosticsProperty('error', error))
+      ..add(DiagnosticsProperty('session', session));
   }
 
   @override

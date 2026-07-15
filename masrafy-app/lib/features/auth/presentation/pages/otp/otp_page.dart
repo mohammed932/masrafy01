@@ -12,17 +12,27 @@ class OtpPage extends StatelessWidget {
     required this.challenge,
     required this.purpose,
     this.draft,
+    this.phone,
   });
 
   final OtpChallengeEntity challenge;
   final OtpPurpose purpose;
   final SignupDraft? draft;
 
+  /// Raw mobile number for the SOCIAL PROFILE_MOBILE flow (carries resend
+  /// context when there is no [SignupDraft]).
+  final String? phone;
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider<OtpCubit>(
       create: (_) => getIt<OtpCubit>()
-        ..start(challenge: challenge, purpose: purpose, draft: draft),
+        ..start(
+          challenge: challenge,
+          purpose: purpose,
+          draft: draft,
+          phone: phone,
+        ),
       child: const _OtpView(),
     );
   }
@@ -74,10 +84,15 @@ class _OtpView extends StatelessWidget {
       body: BlocConsumer<OtpCubit, OtpState>(
         listenWhen: (p, c) => p.status != c.status,
         listener: (ctx, state) {
-          if (state.isSuccess) {
-            // Profile completion already ran silently in OtpCubit and only
-            // reaches success once it actually completed — so the account is
-            // valid (profileComplete) and Home is always correct. A failed
+          if (state.mobileBound) {
+            // SOCIAL flow: mobile is now verified/bound. The profile is still
+            // missing a birthday, so route to the Complete-Profile step (name
+            // prefills from the Google identity) rather than Home.
+            ctx.router.replace(CompleteProfileRoute());
+          } else if (state.isSuccess) {
+            // SIGNUP: profile completion already ran silently in OtpCubit and
+            // only reaches success once it actually completed — so the account
+            // is valid (profileComplete) and Home is always correct. A failed
             // completion surfaces via isFailure below (toast + stay on OTP to
             // retry), never landing an incomplete account on Home (Principle
             // XXXVII, narrowed v9.0.0: photo/National ID are optional and

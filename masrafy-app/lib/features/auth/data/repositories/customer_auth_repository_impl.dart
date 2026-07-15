@@ -84,6 +84,22 @@ class CustomerAuthRepositoryImpl implements CustomerAuthRepository {
   }
 
   @override
+  Future<Either<Failure, CustomerSessionEntity>> googleSignin(
+    SocialGoogleSignInRequest body,
+  ) async {
+    final result = await ApiHandler.callApi(() => _ds.googleSignin(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
+  Future<Either<Failure, CustomerSessionEntity>> appleLogin(
+    SocialAppleSignInRequest body,
+  ) async {
+    final result = await ApiHandler.callApi(() => _ds.appleLogin(body));
+    return result.map((m) => m.toEntity());
+  }
+
+  @override
   Future<Either<Failure, OtpChallengeEntity>> profileMobileRequestOtp(
     ProfileMobileRequestOtpRequest body,
   ) async {

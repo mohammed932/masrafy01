@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:dartz/dartz.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
@@ -9,6 +10,7 @@ import 'package:app/core/result/failure.dart';
 import 'package:app/features/auth/data/models/request/otp/otp_request.dart';
 import 'package:app/features/auth/data/models/request/otp/otp_verify_request.dart';
 import 'package:app/features/auth/data/models/request/profile/complete_profile_request.dart';
+import 'package:app/features/auth/data/models/request/profile/profile_completion_request.dart';
 import 'package:app/features/auth/data/models/request/signup/signup_phone_verify_request.dart';
 import 'package:app/features/auth/domain/entities/customer_entity.dart';
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart';
@@ -35,11 +37,13 @@ class OtpCubit extends Cubit<OtpState> {
     required OtpChallengeEntity challenge,
     required OtpPurpose purpose,
     SignupDraft? draft,
+    String? phone,
   }) {
     emit(state.copyWith(
       challenge: challenge,
       purpose: purpose,
       draft: draft,
+      phone: phone,
       secondsRemaining: challenge.resendAvailableInSeconds,
       code: '',
       error: null,
@@ -74,8 +78,15 @@ class OtpCubit extends Cubit<OtpState> {
   /// [OtpState.session] instead of re-verifying the OTP.
   Future<void> verify() async {
     final purpose = state.purpose;
+    if (purpose == null || !state.canVerify) return;
+
+    // SOCIAL PROFILE_MOBILE binding: verify the OTP, then let the page route on
+    // to the birthday step of profile completion (mobile is now bound, so
+    // `completeProfile` will succeed). No SignupDraft / signup pipeline here.
+    if (purpose == OtpPurpose.profileMobile) return _verifyProfileMobile();
+
     final draft = state.draft;
-    if (purpose == null || draft == null || !state.canVerify) return;
+    if (draft == null) return;
 
     emit(state.copyWith(status: RequestState.loading, error: null));
 
@@ -114,6 +125,29 @@ class OtpCubit extends Cubit<OtpState> {
         emit(state.copyWith(verifiedMobileToken: verifiedToken));
         await _signupThenComplete(verifiedToken, draft);
       },
+    );
+  }
+
+  /// SOCIAL PROFILE_MOBILE: verifies the mobile-binding OTP. On success the
+  /// backend persists the phone + `mobileVerifiedAt`; the page then routes to
+  /// the birthday step (Complete-Profile). No session is issued here — the
+  /// caller keeps its existing Google-issued session.
+  Future<void> _verifyProfileMobile() async {
+    final challenge = state.challenge;
+    if (challenge == null) return;
+    emit(state.copyWith(status: RequestState.loading, error: null));
+    final res = await _auth.profileMobileVerifyOtp(
+      ProfileMobileVerifyOtpRequest(otpId: challenge.otpId, code: state.code),
+    );
+    res.fold(
+      (err) => emit(state.copyWith(
+        status: RequestState.error,
+        error: err,
+        attemptsLeft: err.code == 'OTP_INVALID'
+            ? (state.attemptsLeft - 1).clamp(0, 99)
+            : state.attemptsLeft,
+      )),
+      (_) => emit(state.copyWith(status: RequestState.loaded, error: null)),
     );
   }
 
@@ -169,13 +203,27 @@ class OtpCubit extends Cubit<OtpState> {
 
   /// Re-issues the SMS code. [locale] is the active app language code.
   Future<void> resend(String locale) async {
-    final draft = state.draft;
     final purpose = state.purpose;
-    if (draft == null || purpose == null || !state.canResend) return;
+    if (purpose == null || !state.canResend) return;
 
-    final res = await _auth.requestOtp(
-      OtpRequestRequest(phone: draft.phone, purpose: purpose, locale: locale),
-    );
+    // SOCIAL PROFILE_MOBILE re-issues via the authenticated binding endpoint
+    // (there is no SignupDraft on this path — the phone is carried in state).
+    final Future<Either<Failure, OtpChallengeEntity>> request;
+    if (purpose == OtpPurpose.profileMobile) {
+      final phone = state.phone;
+      if (phone == null) return;
+      request = _auth.profileMobileRequestOtp(
+        ProfileMobileRequestOtpRequest(phone: phone),
+      );
+    } else {
+      final draft = state.draft;
+      if (draft == null) return;
+      request = _auth.requestOtp(
+        OtpRequestRequest(phone: draft.phone, purpose: purpose, locale: locale),
+      );
+    }
+
+    final res = await request;
     res.fold(
       (err) => emit(state.copyWith(error: err)),
       (challenge) {

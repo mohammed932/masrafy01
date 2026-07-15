@@ -399,6 +399,57 @@ export class CustomerAuthMobileService {
     };
   }
 
+  /**
+   * One-call social auth for the dedicated `/google/signin` + `/apple/login`
+   * endpoints. Unlike {@link socialSignIn}, this issues JWT tokens directly for
+   * BOTH returning and first-time users — no intermediate `SocialSession` /
+   * `social/login` round-trip. First-time users get a lite SOCIAL account
+   * (profile-incomplete; mobile + birthday collected client-side afterwards).
+   */
+  async socialAuthDirect(args: {
+    provider: SocialProvider;
+    idToken: string;
+    userInfo?: { email?: string; fullName?: string };
+    ctx: CustomerRequestContext;
+  }): Promise<CustomerAuthResult> {
+    const identity = await this.verifyProviderToken(args.provider, args.idToken, args.userInfo);
+
+    const link = await this.providers.findByProviderSubject(args.provider, identity.providerUserId);
+    if (link) {
+      // Returning social user — issue tokens directly.
+      return this.issueSession({ customerId: link.customerId, ctx: args.ctx });
+    }
+
+    // First-time social — create a lite SOCIAL customer + provider link, then tokens.
+    const { firstName, lastName } = splitFullName(identity.fullName);
+    const created = await this.prisma.$transaction(async (tx) => {
+      const customer = await this.accounts.createSocialLite(
+        { firstName, lastName, email: identity.email },
+        tx,
+      );
+      await this.providers.link(
+        {
+          customerId: customer.id,
+          provider: args.provider,
+          providerUserId: identity.providerUserId,
+          email: identity.email ?? null,
+        },
+        tx,
+      );
+      return customer;
+    });
+
+    await this.audit.write({
+      actorId: null,
+      targetId: null,
+      eventType: AuditEventType.CUSTOMER_SIGNUP_SOCIAL_COMPLETED,
+      sourceIp: args.ctx.sourceIp,
+      payload: { customerId: created.id, provider: args.provider },
+    });
+
+    return this.issueSession({ customerId: created.id, ctx: args.ctx });
+  }
+
   async socialLogin(args: {
     socialSessionId: string;
     ctx: CustomerRequestContext;

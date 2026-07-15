@@ -19,7 +19,10 @@ mixin _$OtpState {
   String get code => throw _privateConstructorUsedError;
   OtpChallengeEntity? get challenge => throw _privateConstructorUsedError;
   OtpPurpose? get purpose => throw _privateConstructorUsedError;
-  SignupDraft? get draft => throw _privateConstructorUsedError;
+  SignupDraft? get draft =>
+      throw _privateConstructorUsedError; // Raw mobile number, carried for the SOCIAL PROFILE_MOBILE flow so resend
+// can re-issue via `profile/mobile-request-otp` (no SignupDraft there).
+  String? get phone => throw _privateConstructorUsedError;
   int get secondsRemaining => throw _privateConstructorUsedError;
   int get attemptsLeft => throw _privateConstructorUsedError;
   RequestState get status => throw _privateConstructorUsedError;
@@ -46,6 +49,7 @@ abstract class $OtpStateCopyWith<$Res> {
       OtpChallengeEntity? challenge,
       OtpPurpose? purpose,
       SignupDraft? draft,
+      String? phone,
       int secondsRemaining,
       int attemptsLeft,
       RequestState status,
@@ -73,6 +77,7 @@ class _$OtpStateCopyWithImpl<$Res, $Val extends OtpState>
     Object? challenge = freezed,
     Object? purpose = freezed,
     Object? draft = freezed,
+    Object? phone = freezed,
     Object? secondsRemaining = null,
     Object? attemptsLeft = null,
     Object? status = null,
@@ -97,6 +102,10 @@ class _$OtpStateCopyWithImpl<$Res, $Val extends OtpState>
           ? _value.draft
           : draft // ignore: cast_nullable_to_non_nullable
               as SignupDraft?,
+      phone: freezed == phone
+          ? _value.phone
+          : phone // ignore: cast_nullable_to_non_nullable
+              as String?,
       secondsRemaining: null == secondsRemaining
           ? _value.secondsRemaining
           : secondsRemaining // ignore: cast_nullable_to_non_nullable
@@ -138,6 +147,7 @@ abstract class _$$OtpStateImplCopyWith<$Res>
       OtpChallengeEntity? challenge,
       OtpPurpose? purpose,
       SignupDraft? draft,
+      String? phone,
       int secondsRemaining,
       int attemptsLeft,
       RequestState status,
@@ -163,6 +173,7 @@ class __$$OtpStateImplCopyWithImpl<$Res>
     Object? challenge = freezed,
     Object? purpose = freezed,
     Object? draft = freezed,
+    Object? phone = freezed,
     Object? secondsRemaining = null,
     Object? attemptsLeft = null,
     Object? status = null,
@@ -187,6 +198,10 @@ class __$$OtpStateImplCopyWithImpl<$Res>
           ? _value.draft
           : draft // ignore: cast_nullable_to_non_nullable
               as SignupDraft?,
+      phone: freezed == phone
+          ? _value.phone
+          : phone // ignore: cast_nullable_to_non_nullable
+              as String?,
       secondsRemaining: null == secondsRemaining
           ? _value.secondsRemaining
           : secondsRemaining // ignore: cast_nullable_to_non_nullable
@@ -223,6 +238,7 @@ class _$OtpStateImpl extends _OtpState {
       this.challenge,
       this.purpose,
       this.draft,
+      this.phone,
       this.secondsRemaining = 0,
       this.attemptsLeft = 3,
       this.status = RequestState.initial,
@@ -240,6 +256,10 @@ class _$OtpStateImpl extends _OtpState {
   final OtpPurpose? purpose;
   @override
   final SignupDraft? draft;
+// Raw mobile number, carried for the SOCIAL PROFILE_MOBILE flow so resend
+// can re-issue via `profile/mobile-request-otp` (no SignupDraft there).
+  @override
+  final String? phone;
   @override
   @JsonKey()
   final int secondsRemaining;
@@ -260,7 +280,7 @@ class _$OtpStateImpl extends _OtpState {
 
   @override
   String toString() {
-    return 'OtpState(code: $code, challenge: $challenge, purpose: $purpose, draft: $draft, secondsRemaining: $secondsRemaining, attemptsLeft: $attemptsLeft, status: $status, error: $error, session: $session, verifiedMobileToken: $verifiedMobileToken)';
+    return 'OtpState(code: $code, challenge: $challenge, purpose: $purpose, draft: $draft, phone: $phone, secondsRemaining: $secondsRemaining, attemptsLeft: $attemptsLeft, status: $status, error: $error, session: $session, verifiedMobileToken: $verifiedMobileToken)';
   }
 
   @override
@@ -273,6 +293,7 @@ class _$OtpStateImpl extends _OtpState {
                 other.challenge == challenge) &&
             (identical(other.purpose, purpose) || other.purpose == purpose) &&
             (identical(other.draft, draft) || other.draft == draft) &&
+            (identical(other.phone, phone) || other.phone == phone) &&
             (identical(other.secondsRemaining, secondsRemaining) ||
                 other.secondsRemaining == secondsRemaining) &&
             (identical(other.attemptsLeft, attemptsLeft) ||
@@ -291,6 +312,7 @@ class _$OtpStateImpl extends _OtpState {
       challenge,
       purpose,
       draft,
+      phone,
       secondsRemaining,
       attemptsLeft,
       status,
@@ -313,6 +335,7 @@ abstract class _OtpState extends OtpState {
       final OtpChallengeEntity? challenge,
       final OtpPurpose? purpose,
       final SignupDraft? draft,
+      final String? phone,
       final int secondsRemaining,
       final int attemptsLeft,
       final RequestState status,
@@ -328,7 +351,11 @@ abstract class _OtpState extends OtpState {
   @override
   OtpPurpose? get purpose;
   @override
-  SignupDraft? get draft;
+  SignupDraft?
+      get draft; // Raw mobile number, carried for the SOCIAL PROFILE_MOBILE flow so resend
+// can re-issue via `profile/mobile-request-otp` (no SignupDraft there).
+  @override
+  String? get phone;
   @override
   int get secondsRemaining;
   @override

@@ -65,10 +65,17 @@ class _LoginViewState extends State<_LoginView> {
         listenWhen: (p, c) => p.status != c.status,
         listener: (ctx, state) {
           if (state.isSuccess) {
-            final complete = state.session!.customer.profileComplete;
-            ctx.router.replaceAll(
-              [complete ? const HomeRoute() : CompleteProfileRoute()],
-            );
+            final customer = state.session!.customer;
+            // SOCIAL onboarding gate: an incomplete account with no verified
+            // mobile goes to the phone → OTP flow first; once the mobile is
+            // bound it drops straight to the Complete-Profile birthday step.
+            if (customer.profileComplete) {
+              ctx.router.replaceAll([const HomeRoute()]);
+            } else if (customer.mobileVerifiedAt == null) {
+              ctx.router.replaceAll([const SocialPhoneRoute()]);
+            } else {
+              ctx.router.replaceAll([CompleteProfileRoute()]);
+            }
           } else if (state.isFailure) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));
           }

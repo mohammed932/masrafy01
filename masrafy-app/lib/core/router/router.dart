@@ -33,6 +33,7 @@ class AppRouter extends RootStackRouter {
           durationInMilliseconds: _fadeMs,
         ),
         AutoRoute(page: SignupRoute.page),
+        AutoRoute(page: SocialPhoneRoute.page),
         AutoRoute(page: OtpRoute.page),
         CustomRoute(
           page: CompleteProfileRoute.page,

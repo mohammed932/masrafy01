@@ -35,6 +35,13 @@ abstract class CustomerAuthRepository {
 
   Future<Either<Failure, CustomerSessionEntity>> socialLogin(SocialLoginRequest body);
 
+  /// Dedicated one-call Google sign-in — returns a session (tokens) directly
+  /// for both new and returning users.
+  Future<Either<Failure, CustomerSessionEntity>> googleSignin(SocialGoogleSignInRequest body);
+
+  /// Dedicated one-call Apple login — returns a session (tokens) directly.
+  Future<Either<Failure, CustomerSessionEntity>> appleLogin(SocialAppleSignInRequest body);
+
   Future<Either<Failure, OtpChallengeEntity>> profileMobileRequestOtp(
     ProfileMobileRequestOtpRequest body,
   );

@@ -1175,6 +1175,24 @@ abstract class AppLocalizations {
   /// **'تسجيل الدخول'**
   String get signup_sign_in;
 
+  /// No description provided for @social_phone_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'أضف رقم هاتفك'**
+  String get social_phone_title;
+
+  /// No description provided for @social_phone_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'نحتاج رقم هاتفك لتأمين حسابك. سنرسل لك رمز تحقق.'**
+  String get social_phone_subtitle;
+
+  /// No description provided for @social_phone_cta.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال رمز التحقق'**
+  String get social_phone_cta;
+
   /// No description provided for @otp_title.
   ///
   /// In ar, this message translates to:

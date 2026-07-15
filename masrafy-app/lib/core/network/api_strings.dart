@@ -65,6 +65,9 @@ class ApiStrings {
   static const String authSocialGoogle = '/api/v1/auth/social/google';
   static const String authSocialApple = '/api/v1/auth/social/apple';
   static const String authSocialLogin = '/api/v1/auth/social/login';
+  // Dedicated one-call social endpoints (tokens returned directly).
+  static const String authGoogleSignin = '/api/v1/auth/google/signin';
+  static const String authAppleLogin = '/api/v1/auth/apple/login';
   static const String authProfileMobileRequestOtp = '/api/v1/auth/profile/mobile-request-otp';
   static const String authProfileMobileVerifyOtp = '/api/v1/auth/profile/mobile-verify-otp';
   static const String authPasswordReset = '/api/v1/auth/password/reset';

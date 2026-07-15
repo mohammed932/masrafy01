@@ -32,6 +32,7 @@ import 'package:app/features/auth/presentation/pages/complete_profile/cubit/comp
 import 'package:app/features/auth/presentation/pages/login/cubit/login/login_cubit.dart';
 import 'package:app/features/auth/presentation/pages/otp/cubit/otp/otp_cubit.dart';
 import 'package:app/features/auth/presentation/pages/signup/cubit/signup/signup_cubit.dart';
+import 'package:app/features/auth/presentation/pages/social_phone/cubit/social_phone/social_phone_cubit.dart';
 import 'package:app/features/home/presentation/pages/home/cubit/home/home_cubit.dart';
 import 'package:app/features/questionnaire/data/datasources/questionnaire_remote_datasource.dart';
 import 'package:app/features/questionnaire/data/repositories/questionnaire_repository_impl.dart';
@@ -158,6 +159,7 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     ),
   );
   getIt.registerFactory(() => SignupCubit(getIt<CustomerAuthUseCase>()));
+  getIt.registerFactory(() => SocialPhoneCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(() => OtpCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(() => ChangePasswordCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(
