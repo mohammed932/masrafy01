@@ -150,7 +150,8 @@ class _LoginViewState extends State<_LoginView> {
                           Align(
                             alignment: AlignmentDirectional.centerEnd,
                             child: GestureDetector(
-                              onTap: () => MasrafyToast.info(ctx, l.common_coming_soon),
+                              onTap: () =>
+                                  ctx.router.push(const ForgotPasswordRoute()),
                               child: Text(
                                 l.login_forgot,
                                 style: MasrafyTextTheme.of(ctx)

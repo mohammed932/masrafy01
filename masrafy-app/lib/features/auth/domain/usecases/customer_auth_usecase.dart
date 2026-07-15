@@ -143,4 +143,16 @@ class CustomerAuthUseCase {
     await result.fold((_) async {}, (_) => _session.clear());
     return result.map((_) => unit);
   }
+
+  /// Resets the password via the OTP-issued reset token (forgot-password flow).
+  /// The backend revokes all prior sessions and returns a fresh auto-login
+  /// session, but the flow sends the user back to Login to sign in with the new
+  /// password — so that session is discarded and any local one is cleared here.
+  Future<Either<Failure, Unit>> resetPassword(
+    PasswordResetRequest request,
+  ) async {
+    final result = await _repo.resetPassword(request);
+    await result.fold((_) async {}, (_) => _session.clear());
+    return result.map((_) => unit);
+  }
 }

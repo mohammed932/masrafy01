@@ -3803,6 +3803,72 @@ abstract class AppLocalizations {
   /// **'كلمتا المرور غير متطابقتين'**
   String get change_password_error_mismatch;
 
+  /// No description provided for @forgot_password_phone_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة تعيين كلمة المرور'**
+  String get forgot_password_phone_title;
+
+  /// No description provided for @forgot_password_phone_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رقم هاتفك وسنرسل لك رمز تحقق.'**
+  String get forgot_password_phone_subtitle;
+
+  /// No description provided for @forgot_password_phone_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'سنرسل رمزًا من 6 أرقام إلى هاتفك للتأكد من هويتك.'**
+  String get forgot_password_phone_hint;
+
+  /// No description provided for @forgot_password_send_cta.
+  ///
+  /// In ar, this message translates to:
+  /// **'إرسال الرمز'**
+  String get forgot_password_send_cta;
+
+  /// No description provided for @forgot_password_otp_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقق من رقم هاتفك'**
+  String get forgot_password_otp_title;
+
+  /// No description provided for @forgot_password_new_title.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر كلمة مرور جديدة'**
+  String get forgot_password_new_title;
+
+  /// No description provided for @forgot_password_new_subtitle.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر كلمة مرور قوية جديدة لحسابك.'**
+  String get forgot_password_new_subtitle;
+
+  /// No description provided for @forgot_password_new_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر كلمة مرور جديدة لا تقل عن 12 حرفًا وتشمل حروفًا كبيرة وصغيرة ورقمًا ورمزًا.'**
+  String get forgot_password_new_hint;
+
+  /// No description provided for @forgot_password_reset_cta.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة تعيين كلمة المرور'**
+  String get forgot_password_reset_cta;
+
+  /// No description provided for @forgot_password_success.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إعادة تعيين كلمة المرور. الرجاء تسجيل الدخول بكلمة المرور الجديدة.'**
+  String get forgot_password_success;
+
+  /// No description provided for @forgot_password_error_unavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر إعادة تعيين كلمة المرور لهذا الرقم. حاول مرة أخرى أو تواصل مع الدعم.'**
+  String get forgot_password_error_unavailable;
+
   /// No description provided for @photo_source_title.
   ///
   /// In ar, this message translates to:

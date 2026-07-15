@@ -8,6 +8,9 @@ import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 /// Boxed OTP entry (Figma `137:2708`): [length] cells rendered over a single
 /// transparent [TextField] that captures the keyboard input. The active cell
 /// shows an accent border + caret; filled cells show a success border.
+///
+/// Feature-shared across the OTP verify + forgot-password flows (Principle
+/// XXXII — shared widgets live under `pages/widgets/`).
 class OtpCodeField extends StatefulWidget {
   const OtpCodeField({
     super.key,

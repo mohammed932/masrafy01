@@ -30,6 +30,7 @@ import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
 import 'package:app/features/auth/presentation/pages/apply_documents/cubit/apply_documents/apply_documents_cubit.dart';
 import 'package:app/features/auth/presentation/pages/change_password/cubit/change_password/change_password_cubit.dart';
 import 'package:app/features/auth/presentation/pages/complete_profile/cubit/complete_profile/complete_profile_cubit.dart';
+import 'package:app/features/auth/presentation/pages/forgot_password/cubit/forgot_password/forgot_password_cubit.dart';
 import 'package:app/features/auth/presentation/pages/login/cubit/login/login_cubit.dart';
 import 'package:app/features/auth/presentation/pages/otp/cubit/otp/otp_cubit.dart';
 import 'package:app/features/auth/presentation/pages/signup/cubit/signup/signup_cubit.dart';
@@ -183,6 +184,8 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   getIt.registerFactory(() => SocialPhoneCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(() => OtpCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(() => ChangePasswordCubit(getIt<CustomerAuthUseCase>()));
+  getIt.registerFactory(
+      () => ForgotPasswordCubit(getIt<CustomerAuthUseCase>()));
   getIt.registerFactory(
     () => CompleteProfileCubit(
       getIt<AuthUseCase>(),

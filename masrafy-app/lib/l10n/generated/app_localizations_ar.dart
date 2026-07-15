@@ -1907,6 +1907,39 @@ class AppLocalizationsAr extends AppLocalizations {
   String get change_password_error_mismatch => 'كلمتا المرور غير متطابقتين';
 
   @override
+  String get forgot_password_phone_title => 'إعادة تعيين كلمة المرور';
+
+  @override
+  String get forgot_password_phone_subtitle => 'أدخل رقم هاتفك وسنرسل لك رمز تحقق.';
+
+  @override
+  String get forgot_password_phone_hint => 'سنرسل رمزًا من 6 أرقام إلى هاتفك للتأكد من هويتك.';
+
+  @override
+  String get forgot_password_send_cta => 'إرسال الرمز';
+
+  @override
+  String get forgot_password_otp_title => 'تحقق من رقم هاتفك';
+
+  @override
+  String get forgot_password_new_title => 'اختر كلمة مرور جديدة';
+
+  @override
+  String get forgot_password_new_subtitle => 'اختر كلمة مرور قوية جديدة لحسابك.';
+
+  @override
+  String get forgot_password_new_hint => 'اختر كلمة مرور جديدة لا تقل عن 12 حرفًا وتشمل حروفًا كبيرة وصغيرة ورقمًا ورمزًا.';
+
+  @override
+  String get forgot_password_reset_cta => 'إعادة تعيين كلمة المرور';
+
+  @override
+  String get forgot_password_success => 'تم إعادة تعيين كلمة المرور. الرجاء تسجيل الدخول بكلمة المرور الجديدة.';
+
+  @override
+  String get forgot_password_error_unavailable => 'تعذّر إعادة تعيين كلمة المرور لهذا الرقم. حاول مرة أخرى أو تواصل مع الدعم.';
+
+  @override
   String get photo_source_title => 'صورة الملف الشخصي';
 
   @override

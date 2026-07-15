@@ -1904,6 +1904,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get change_password_error_mismatch => 'Passwords do not match';
 
   @override
+  String get forgot_password_phone_title => 'Reset your password';
+
+  @override
+  String get forgot_password_phone_subtitle => 'Enter your phone number and we\'ll send you a verification code.';
+
+  @override
+  String get forgot_password_phone_hint => 'We\'ll send a 6-digit code to your phone to confirm it\'s you.';
+
+  @override
+  String get forgot_password_send_cta => 'Send code';
+
+  @override
+  String get forgot_password_otp_title => 'Verify your phone number';
+
+  @override
+  String get forgot_password_new_title => 'Set a new password';
+
+  @override
+  String get forgot_password_new_subtitle => 'Choose a strong new password for your account.';
+
+  @override
+  String get forgot_password_new_hint => 'Choose a new password with at least 12 characters including uppercase, lowercase, a number and a symbol.';
+
+  @override
+  String get forgot_password_reset_cta => 'Reset password';
+
+  @override
+  String get forgot_password_success => 'Password reset. Please sign in with your new password.';
+
+  @override
+  String get forgot_password_error_unavailable => 'We couldn\'t reset the password for this number. Please try again or contact support.';
+
+  @override
   String get photo_source_title => 'Profile Photo';
 
   @override

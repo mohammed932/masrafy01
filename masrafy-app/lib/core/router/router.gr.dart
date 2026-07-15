@@ -14,65 +14,67 @@ import 'package:app/core/features/biometric/presentation/biometric_lock_page.dar
 import 'package:app/features/account/presentation/pages/account/account.imports.dart'
     as _i1;
 import 'package:app/features/account/presentation/pages/settings_security/settings_security.imports.dart'
-    as _i19;
+    as _i20;
 import 'package:app/features/applications/presentation/pages/previous_applications/previous_applications.imports.dart'
-    as _i16;
+    as _i17;
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart'
-    as _i27;
-import 'package:app/features/auth/domain/entities/signup_draft.dart' as _i25;
-import 'package:app/features/auth/domain/enums/otp_purpose.dart' as _i28;
+    as _i28;
+import 'package:app/features/auth/domain/entities/signup_draft.dart' as _i26;
+import 'package:app/features/auth/domain/enums/otp_purpose.dart' as _i29;
 import 'package:app/features/auth/presentation/pages/apply_documents/apply_documents.imports.dart'
     as _i2;
 import 'package:app/features/auth/presentation/pages/change_password/change_password.imports.dart'
     as _i6;
 import 'package:app/features/auth/presentation/pages/complete_profile/complete_profile.imports.dart'
     as _i7;
-import 'package:app/features/auth/presentation/pages/login/login.imports.dart'
-    as _i9;
-import 'package:app/features/auth/presentation/pages/otp/otp.imports.dart'
-    as _i14;
-import 'package:app/features/auth/presentation/pages/signup/signup.imports.dart'
-    as _i20;
-import 'package:app/features/auth/presentation/pages/social_phone/social_phone.imports.dart'
-    as _i21;
-import 'package:app/features/home/presentation/pages/home/home.imports.dart'
+import 'package:app/features/auth/presentation/pages/forgot_password/forgot_password.imports.dart'
     as _i8;
-import 'package:app/features/offers/presentation/models/match_results_args.dart'
-    as _i26;
-import 'package:app/features/offers/presentation/pages/offer_details/offer_details.imports.dart'
-    as _i12;
-import 'package:app/features/offers/presentation/pages/results/results.imports.dart'
+import 'package:app/features/auth/presentation/pages/login/login.imports.dart'
     as _i10;
-import 'package:app/features/onboarding/presentation/pages/onboarding/onboarding.imports.dart'
+import 'package:app/features/auth/presentation/pages/otp/otp.imports.dart'
+    as _i15;
+import 'package:app/features/auth/presentation/pages/signup/signup.imports.dart'
+    as _i21;
+import 'package:app/features/auth/presentation/pages/social_phone/social_phone.imports.dart'
+    as _i22;
+import 'package:app/features/home/presentation/pages/home/home.imports.dart'
+    as _i9;
+import 'package:app/features/offers/presentation/models/match_results_args.dart'
+    as _i27;
+import 'package:app/features/offers/presentation/pages/offer_details/offer_details.imports.dart'
     as _i13;
+import 'package:app/features/offers/presentation/pages/results/results.imports.dart'
+    as _i11;
+import 'package:app/features/onboarding/presentation/pages/onboarding/onboarding.imports.dart'
+    as _i14;
 import 'package:app/features/profile/presentation/models/profile_data.dart'
-    as _i29;
+    as _i30;
 import 'package:app/features/profile/presentation/pages/profile/profile.imports.dart'
-    as _i17;
+    as _i18;
 import 'package:app/features/questionnaire/presentation/pages/business/business_questionnaire_page.dart'
     as _i4;
 import 'package:app/features/questionnaire/presentation/pages/car/car_questionnaire_page.dart'
     as _i5;
 import 'package:app/features/questionnaire/presentation/pages/mortgage/mortgage_questionnaire_page.dart'
-    as _i11;
+    as _i12;
 import 'package:app/features/questionnaire/presentation/pages/personal/personal_questionnaire_page.dart'
-    as _i15;
+    as _i16;
 import 'package:app/features/saved_offers/presentation/pages/saved_offers/saved_offers.imports.dart'
-    as _i18;
+    as _i19;
 import 'package:app/features/splash/presentation/pages/splash/splash.imports.dart'
-    as _i22;
-import 'package:auto_route/auto_route.dart' as _i23;
-import 'package:flutter/material.dart' as _i24;
+    as _i23;
+import 'package:auto_route/auto_route.dart' as _i24;
+import 'package:flutter/material.dart' as _i25;
 
 /// generated route for
 /// [_i1.AccountPage]
-class AccountRoute extends _i23.PageRouteInfo<void> {
-  const AccountRoute({List<_i23.PageRouteInfo>? children})
+class AccountRoute extends _i24.PageRouteInfo<void> {
+  const AccountRoute({List<_i24.PageRouteInfo>? children})
     : super(AccountRoute.name, initialChildren: children);
 
   static const String name = 'AccountRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       return const _i1.AccountPage();
@@ -82,13 +84,13 @@ class AccountRoute extends _i23.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i2.ApplyDocumentsPage]
-class ApplyDocumentsRoute extends _i23.PageRouteInfo<void> {
-  const ApplyDocumentsRoute({List<_i23.PageRouteInfo>? children})
+class ApplyDocumentsRoute extends _i24.PageRouteInfo<void> {
+  const ApplyDocumentsRoute({List<_i24.PageRouteInfo>? children})
     : super(ApplyDocumentsRoute.name, initialChildren: children);
 
   static const String name = 'ApplyDocumentsRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       return const _i2.ApplyDocumentsPage();
@@ -98,13 +100,13 @@ class ApplyDocumentsRoute extends _i23.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i3.BiometricLockPage]
-class BiometricLockRoute extends _i23.PageRouteInfo<void> {
-  const BiometricLockRoute({List<_i23.PageRouteInfo>? children})
+class BiometricLockRoute extends _i24.PageRouteInfo<void> {
+  const BiometricLockRoute({List<_i24.PageRouteInfo>? children})
     : super(BiometricLockRoute.name, initialChildren: children);
 
   static const String name = 'BiometricLockRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       return const _i3.BiometricLockPage();
@@ -114,13 +116,13 @@ class BiometricLockRoute extends _i23.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i4.BusinessQuestionnairePage]
-class BusinessQuestionnaireRoute extends _i23.PageRouteInfo<void> {
-  const BusinessQuestionnaireRoute({List<_i23.PageRouteInfo>? children})
+class BusinessQuestionnaireRoute extends _i24.PageRouteInfo<void> {
+  const BusinessQuestionnaireRoute({List<_i24.PageRouteInfo>? children})
     : super(BusinessQuestionnaireRoute.name, initialChildren: children);
 
   static const String name = 'BusinessQuestionnaireRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       return const _i4.BusinessQuestionnairePage();
@@ -130,13 +132,13 @@ class BusinessQuestionnaireRoute extends _i23.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i5.CarQuestionnairePage]
-class CarQuestionnaireRoute extends _i23.PageRouteInfo<void> {
-  const CarQuestionnaireRoute({List<_i23.PageRouteInfo>? children})
+class CarQuestionnaireRoute extends _i24.PageRouteInfo<void> {
+  const CarQuestionnaireRoute({List<_i24.PageRouteInfo>? children})
     : super(CarQuestionnaireRoute.name, initialChildren: children);
 
   static const String name = 'CarQuestionnaireRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       return const _i5.CarQuestionnairePage();
@@ -146,13 +148,13 @@ class CarQuestionnaireRoute extends _i23.PageRouteInfo<void> {
 
 /// generated route for
 /// [_i6.ChangePasswordPage]
-class ChangePasswordRoute extends _i23.PageRouteInfo<void> {
-  const ChangePasswordRoute({List<_i23.PageRouteInfo>? children})
+class ChangePasswordRoute extends _i24.PageRouteInfo<void> {
+  const ChangePasswordRoute({List<_i24.PageRouteInfo>? children})
     : super(ChangePasswordRoute.name, initialChildren: children);
 
   static const String name = 'ChangePasswordRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       return const _i6.ChangePasswordPage();
@@ -163,11 +165,11 @@ class ChangePasswordRoute extends _i23.PageRouteInfo<void> {
 /// generated route for
 /// [_i7.CompleteProfilePage]
 class CompleteProfileRoute
-    extends _i23.PageRouteInfo<CompleteProfileRouteArgs> {
+    extends _i24.PageRouteInfo<CompleteProfileRouteArgs> {
   CompleteProfileRoute({
-    _i24.Key? key,
-    _i25.SignupDraft? draft,
-    List<_i23.PageRouteInfo>? children,
+    _i25.Key? key,
+    _i26.SignupDraft? draft,
+    List<_i24.PageRouteInfo>? children,
   }) : super(
          CompleteProfileRoute.name,
          args: CompleteProfileRouteArgs(key: key, draft: draft),
@@ -176,7 +178,7 @@ class CompleteProfileRoute
 
   static const String name = 'CompleteProfileRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<CompleteProfileRouteArgs>(
@@ -190,9 +192,9 @@ class CompleteProfileRoute
 class CompleteProfileRouteArgs {
   const CompleteProfileRouteArgs({this.key, this.draft});
 
-  final _i24.Key? key;
+  final _i25.Key? key;
 
-  final _i25.SignupDraft? draft;
+  final _i26.SignupDraft? draft;
 
   @override
   String toString() {
@@ -201,44 +203,60 @@ class CompleteProfileRouteArgs {
 }
 
 /// generated route for
-/// [_i8.HomePage]
-class HomeRoute extends _i23.PageRouteInfo<void> {
-  const HomeRoute({List<_i23.PageRouteInfo>? children})
+/// [_i8.ForgotPasswordPage]
+class ForgotPasswordRoute extends _i24.PageRouteInfo<void> {
+  const ForgotPasswordRoute({List<_i24.PageRouteInfo>? children})
+    : super(ForgotPasswordRoute.name, initialChildren: children);
+
+  static const String name = 'ForgotPasswordRoute';
+
+  static _i24.PageInfo page = _i24.PageInfo(
+    name,
+    builder: (data) {
+      return const _i8.ForgotPasswordPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i9.HomePage]
+class HomeRoute extends _i24.PageRouteInfo<void> {
+  const HomeRoute({List<_i24.PageRouteInfo>? children})
     : super(HomeRoute.name, initialChildren: children);
 
   static const String name = 'HomeRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i8.HomePage();
+      return const _i9.HomePage();
     },
   );
 }
 
 /// generated route for
-/// [_i9.LoginPage]
-class LoginRoute extends _i23.PageRouteInfo<void> {
-  const LoginRoute({List<_i23.PageRouteInfo>? children})
+/// [_i10.LoginPage]
+class LoginRoute extends _i24.PageRouteInfo<void> {
+  const LoginRoute({List<_i24.PageRouteInfo>? children})
     : super(LoginRoute.name, initialChildren: children);
 
   static const String name = 'LoginRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i9.LoginPage();
+      return const _i10.LoginPage();
     },
   );
 }
 
 /// generated route for
-/// [_i10.MatchResultsPage]
-class MatchResultsRoute extends _i23.PageRouteInfo<MatchResultsRouteArgs> {
+/// [_i11.MatchResultsPage]
+class MatchResultsRoute extends _i24.PageRouteInfo<MatchResultsRouteArgs> {
   MatchResultsRoute({
-    _i24.Key? key,
-    required _i26.MatchResultsArgs args,
-    List<_i23.PageRouteInfo>? children,
+    _i25.Key? key,
+    required _i27.MatchResultsArgs args,
+    List<_i24.PageRouteInfo>? children,
   }) : super(
          MatchResultsRoute.name,
          args: MatchResultsRouteArgs(key: key, args: args),
@@ -247,11 +265,11 @@ class MatchResultsRoute extends _i23.PageRouteInfo<MatchResultsRouteArgs> {
 
   static const String name = 'MatchResultsRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<MatchResultsRouteArgs>();
-      return _i10.MatchResultsPage(key: args.key, args: args.args);
+      return _i11.MatchResultsPage(key: args.key, args: args.args);
     },
   );
 }
@@ -259,9 +277,9 @@ class MatchResultsRoute extends _i23.PageRouteInfo<MatchResultsRouteArgs> {
 class MatchResultsRouteArgs {
   const MatchResultsRouteArgs({this.key, required this.args});
 
-  final _i24.Key? key;
+  final _i25.Key? key;
 
-  final _i26.MatchResultsArgs args;
+  final _i27.MatchResultsArgs args;
 
   @override
   String toString() {
@@ -270,29 +288,29 @@ class MatchResultsRouteArgs {
 }
 
 /// generated route for
-/// [_i11.MortgageQuestionnairePage]
-class MortgageQuestionnaireRoute extends _i23.PageRouteInfo<void> {
-  const MortgageQuestionnaireRoute({List<_i23.PageRouteInfo>? children})
+/// [_i12.MortgageQuestionnairePage]
+class MortgageQuestionnaireRoute extends _i24.PageRouteInfo<void> {
+  const MortgageQuestionnaireRoute({List<_i24.PageRouteInfo>? children})
     : super(MortgageQuestionnaireRoute.name, initialChildren: children);
 
   static const String name = 'MortgageQuestionnaireRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i11.MortgageQuestionnairePage();
+      return const _i12.MortgageQuestionnairePage();
     },
   );
 }
 
 /// generated route for
-/// [_i12.OfferDetailsPage]
-class OfferDetailsRoute extends _i23.PageRouteInfo<OfferDetailsRouteArgs> {
+/// [_i13.OfferDetailsPage]
+class OfferDetailsRoute extends _i24.PageRouteInfo<OfferDetailsRouteArgs> {
   OfferDetailsRoute({
-    _i24.Key? key,
-    required _i26.MatchOffer offer,
-    required _i26.MatchResultsArgs summary,
-    List<_i23.PageRouteInfo>? children,
+    _i25.Key? key,
+    required _i27.MatchOffer offer,
+    required _i27.MatchResultsArgs summary,
+    List<_i24.PageRouteInfo>? children,
   }) : super(
          OfferDetailsRoute.name,
          args: OfferDetailsRouteArgs(key: key, offer: offer, summary: summary),
@@ -301,11 +319,11 @@ class OfferDetailsRoute extends _i23.PageRouteInfo<OfferDetailsRouteArgs> {
 
   static const String name = 'OfferDetailsRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OfferDetailsRouteArgs>();
-      return _i12.OfferDetailsPage(
+      return _i13.OfferDetailsPage(
         key: args.key,
         offer: args.offer,
         summary: args.summary,
@@ -321,11 +339,11 @@ class OfferDetailsRouteArgs {
     required this.summary,
   });
 
-  final _i24.Key? key;
+  final _i25.Key? key;
 
-  final _i26.MatchOffer offer;
+  final _i27.MatchOffer offer;
 
-  final _i26.MatchResultsArgs summary;
+  final _i27.MatchResultsArgs summary;
 
   @override
   String toString() {
@@ -334,31 +352,31 @@ class OfferDetailsRouteArgs {
 }
 
 /// generated route for
-/// [_i13.OnboardingPage]
-class OnboardingRoute extends _i23.PageRouteInfo<void> {
-  const OnboardingRoute({List<_i23.PageRouteInfo>? children})
+/// [_i14.OnboardingPage]
+class OnboardingRoute extends _i24.PageRouteInfo<void> {
+  const OnboardingRoute({List<_i24.PageRouteInfo>? children})
     : super(OnboardingRoute.name, initialChildren: children);
 
   static const String name = 'OnboardingRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i13.OnboardingPage();
+      return const _i14.OnboardingPage();
     },
   );
 }
 
 /// generated route for
-/// [_i14.OtpPage]
-class OtpRoute extends _i23.PageRouteInfo<OtpRouteArgs> {
+/// [_i15.OtpPage]
+class OtpRoute extends _i24.PageRouteInfo<OtpRouteArgs> {
   OtpRoute({
-    _i24.Key? key,
-    required _i27.OtpChallengeEntity challenge,
-    required _i28.OtpPurpose purpose,
-    _i25.SignupDraft? draft,
+    _i25.Key? key,
+    required _i28.OtpChallengeEntity challenge,
+    required _i29.OtpPurpose purpose,
+    _i26.SignupDraft? draft,
     String? phone,
-    List<_i23.PageRouteInfo>? children,
+    List<_i24.PageRouteInfo>? children,
   }) : super(
          OtpRoute.name,
          args: OtpRouteArgs(
@@ -373,11 +391,11 @@ class OtpRoute extends _i23.PageRouteInfo<OtpRouteArgs> {
 
   static const String name = 'OtpRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OtpRouteArgs>();
-      return _i14.OtpPage(
+      return _i15.OtpPage(
         key: args.key,
         challenge: args.challenge,
         purpose: args.purpose,
@@ -397,13 +415,13 @@ class OtpRouteArgs {
     this.phone,
   });
 
-  final _i24.Key? key;
+  final _i25.Key? key;
 
-  final _i27.OtpChallengeEntity challenge;
+  final _i28.OtpChallengeEntity challenge;
 
-  final _i28.OtpPurpose purpose;
+  final _i29.OtpPurpose purpose;
 
-  final _i25.SignupDraft? draft;
+  final _i26.SignupDraft? draft;
 
   final String? phone;
 
@@ -414,45 +432,45 @@ class OtpRouteArgs {
 }
 
 /// generated route for
-/// [_i15.PersonalQuestionnairePage]
-class PersonalQuestionnaireRoute extends _i23.PageRouteInfo<void> {
-  const PersonalQuestionnaireRoute({List<_i23.PageRouteInfo>? children})
+/// [_i16.PersonalQuestionnairePage]
+class PersonalQuestionnaireRoute extends _i24.PageRouteInfo<void> {
+  const PersonalQuestionnaireRoute({List<_i24.PageRouteInfo>? children})
     : super(PersonalQuestionnaireRoute.name, initialChildren: children);
 
   static const String name = 'PersonalQuestionnaireRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i15.PersonalQuestionnairePage();
+      return const _i16.PersonalQuestionnairePage();
     },
   );
 }
 
 /// generated route for
-/// [_i16.PreviousApplicationsPage]
-class PreviousApplicationsRoute extends _i23.PageRouteInfo<void> {
-  const PreviousApplicationsRoute({List<_i23.PageRouteInfo>? children})
+/// [_i17.PreviousApplicationsPage]
+class PreviousApplicationsRoute extends _i24.PageRouteInfo<void> {
+  const PreviousApplicationsRoute({List<_i24.PageRouteInfo>? children})
     : super(PreviousApplicationsRoute.name, initialChildren: children);
 
   static const String name = 'PreviousApplicationsRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i16.PreviousApplicationsPage();
+      return const _i17.PreviousApplicationsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i17.ProfileEditContactPage]
+/// [_i18.ProfileEditContactPage]
 class ProfileEditContactRoute
-    extends _i23.PageRouteInfo<ProfileEditContactRouteArgs> {
+    extends _i24.PageRouteInfo<ProfileEditContactRouteArgs> {
   ProfileEditContactRoute({
-    _i24.Key? key,
-    required _i29.ProfileContactDraft initial,
-    List<_i23.PageRouteInfo>? children,
+    _i25.Key? key,
+    required _i30.ProfileContactDraft initial,
+    List<_i24.PageRouteInfo>? children,
   }) : super(
          ProfileEditContactRoute.name,
          args: ProfileEditContactRouteArgs(key: key, initial: initial),
@@ -461,11 +479,11 @@ class ProfileEditContactRoute
 
   static const String name = 'ProfileEditContactRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ProfileEditContactRouteArgs>();
-      return _i17.ProfileEditContactPage(key: args.key, initial: args.initial);
+      return _i18.ProfileEditContactPage(key: args.key, initial: args.initial);
     },
   );
 }
@@ -473,9 +491,9 @@ class ProfileEditContactRoute
 class ProfileEditContactRouteArgs {
   const ProfileEditContactRouteArgs({this.key, required this.initial});
 
-  final _i24.Key? key;
+  final _i25.Key? key;
 
-  final _i29.ProfileContactDraft initial;
+  final _i30.ProfileContactDraft initial;
 
   @override
   String toString() {
@@ -484,13 +502,13 @@ class ProfileEditContactRouteArgs {
 }
 
 /// generated route for
-/// [_i17.ProfileEditPersonalPage]
+/// [_i18.ProfileEditPersonalPage]
 class ProfileEditPersonalRoute
-    extends _i23.PageRouteInfo<ProfileEditPersonalRouteArgs> {
+    extends _i24.PageRouteInfo<ProfileEditPersonalRouteArgs> {
   ProfileEditPersonalRoute({
-    _i24.Key? key,
-    required _i29.ProfilePersonalDraft initial,
-    List<_i23.PageRouteInfo>? children,
+    _i25.Key? key,
+    required _i30.ProfilePersonalDraft initial,
+    List<_i24.PageRouteInfo>? children,
   }) : super(
          ProfileEditPersonalRoute.name,
          args: ProfileEditPersonalRouteArgs(key: key, initial: initial),
@@ -499,11 +517,11 @@ class ProfileEditPersonalRoute
 
   static const String name = 'ProfileEditPersonalRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ProfileEditPersonalRouteArgs>();
-      return _i17.ProfileEditPersonalPage(key: args.key, initial: args.initial);
+      return _i18.ProfileEditPersonalPage(key: args.key, initial: args.initial);
     },
   );
 }
@@ -511,9 +529,9 @@ class ProfileEditPersonalRoute
 class ProfileEditPersonalRouteArgs {
   const ProfileEditPersonalRouteArgs({this.key, required this.initial});
 
-  final _i24.Key? key;
+  final _i25.Key? key;
 
-  final _i29.ProfilePersonalDraft initial;
+  final _i30.ProfilePersonalDraft initial;
 
   @override
   String toString() {
@@ -522,28 +540,28 @@ class ProfileEditPersonalRouteArgs {
 }
 
 /// generated route for
-/// [_i17.ProfilePage]
-class ProfileRoute extends _i23.PageRouteInfo<void> {
-  const ProfileRoute({List<_i23.PageRouteInfo>? children})
+/// [_i18.ProfilePage]
+class ProfileRoute extends _i24.PageRouteInfo<void> {
+  const ProfileRoute({List<_i24.PageRouteInfo>? children})
     : super(ProfileRoute.name, initialChildren: children);
 
   static const String name = 'ProfileRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i17.ProfilePage();
+      return const _i18.ProfilePage();
     },
   );
 }
 
 /// generated route for
-/// [_i18.SavedOffersPage]
-class SavedOffersRoute extends _i23.PageRouteInfo<SavedOffersRouteArgs> {
+/// [_i19.SavedOffersPage]
+class SavedOffersRoute extends _i24.PageRouteInfo<SavedOffersRouteArgs> {
   SavedOffersRoute({
-    _i24.Key? key,
+    _i25.Key? key,
     bool fromTab = false,
-    List<_i23.PageRouteInfo>? children,
+    List<_i24.PageRouteInfo>? children,
   }) : super(
          SavedOffersRoute.name,
          args: SavedOffersRouteArgs(key: key, fromTab: fromTab),
@@ -552,13 +570,13 @@ class SavedOffersRoute extends _i23.PageRouteInfo<SavedOffersRouteArgs> {
 
   static const String name = 'SavedOffersRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<SavedOffersRouteArgs>(
         orElse: () => const SavedOffersRouteArgs(),
       );
-      return _i18.SavedOffersPage(key: args.key, fromTab: args.fromTab);
+      return _i19.SavedOffersPage(key: args.key, fromTab: args.fromTab);
     },
   );
 }
@@ -566,7 +584,7 @@ class SavedOffersRoute extends _i23.PageRouteInfo<SavedOffersRouteArgs> {
 class SavedOffersRouteArgs {
   const SavedOffersRouteArgs({this.key, this.fromTab = false});
 
-  final _i24.Key? key;
+  final _i25.Key? key;
 
   final bool fromTab;
 
@@ -577,65 +595,65 @@ class SavedOffersRouteArgs {
 }
 
 /// generated route for
-/// [_i19.SettingsSecurityPage]
-class SettingsSecurityRoute extends _i23.PageRouteInfo<void> {
-  const SettingsSecurityRoute({List<_i23.PageRouteInfo>? children})
+/// [_i20.SettingsSecurityPage]
+class SettingsSecurityRoute extends _i24.PageRouteInfo<void> {
+  const SettingsSecurityRoute({List<_i24.PageRouteInfo>? children})
     : super(SettingsSecurityRoute.name, initialChildren: children);
 
   static const String name = 'SettingsSecurityRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i19.SettingsSecurityPage();
+      return const _i20.SettingsSecurityPage();
     },
   );
 }
 
 /// generated route for
-/// [_i20.SignupPage]
-class SignupRoute extends _i23.PageRouteInfo<void> {
-  const SignupRoute({List<_i23.PageRouteInfo>? children})
+/// [_i21.SignupPage]
+class SignupRoute extends _i24.PageRouteInfo<void> {
+  const SignupRoute({List<_i24.PageRouteInfo>? children})
     : super(SignupRoute.name, initialChildren: children);
 
   static const String name = 'SignupRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i20.SignupPage();
+      return const _i21.SignupPage();
     },
   );
 }
 
 /// generated route for
-/// [_i21.SocialPhonePage]
-class SocialPhoneRoute extends _i23.PageRouteInfo<void> {
-  const SocialPhoneRoute({List<_i23.PageRouteInfo>? children})
+/// [_i22.SocialPhonePage]
+class SocialPhoneRoute extends _i24.PageRouteInfo<void> {
+  const SocialPhoneRoute({List<_i24.PageRouteInfo>? children})
     : super(SocialPhoneRoute.name, initialChildren: children);
 
   static const String name = 'SocialPhoneRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i21.SocialPhonePage();
+      return const _i22.SocialPhonePage();
     },
   );
 }
 
 /// generated route for
-/// [_i22.SplashPage]
-class SplashRoute extends _i23.PageRouteInfo<void> {
-  const SplashRoute({List<_i23.PageRouteInfo>? children})
+/// [_i23.SplashPage]
+class SplashRoute extends _i24.PageRouteInfo<void> {
+  const SplashRoute({List<_i24.PageRouteInfo>? children})
     : super(SplashRoute.name, initialChildren: children);
 
   static const String name = 'SplashRoute';
 
-  static _i23.PageInfo page = _i23.PageInfo(
+  static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i22.SplashPage();
+      return const _i23.SplashPage();
     },
   );
 }
