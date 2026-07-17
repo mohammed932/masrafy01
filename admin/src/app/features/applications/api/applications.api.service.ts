@@ -31,6 +31,7 @@ export interface AdminApplicationRow {
   createdAt: string;
   eligibleProgramsCount: number;
   programsCheckedCount: number;
+  applicant: { firstName: string; lastName: string } | null;
   maskedApplicant: Record<string, unknown>;
   bestOffer: BestOfferSummary | null;
   userProceededAt?: string | null;
@@ -55,6 +56,50 @@ export interface AdminApplicationOffer {
   selfDeclared: boolean;
 }
 
+/** Applicant identity + contact, joined from the owning customer account. */
+export interface ApplicantIdentity {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  email: string | null;
+  age: number | null;
+  governorate: string | null;
+  city: string | null;
+  address: string | null;
+  locale: string;
+  registrationPath: 'PHONE' | 'SOCIAL';
+  isVerified: boolean;
+  isActive: boolean;
+  mobileVerifiedAt: string | null;
+  memberSince: string;
+  lastLoginAt: string | null;
+  hasProfilePhoto: boolean;
+}
+
+/** One answered question in the applicant's questionnaire (bilingual labels). */
+export interface ApplicantAnswerItem {
+  questionCode: string;
+  questionAr: string;
+  questionEn: string;
+  answerAr: string | null;
+  answerEn: string | null;
+}
+
+export interface ApplicantAnswerGroup {
+  code: string;
+  titleAr: string;
+  titleEn: string;
+  items: ApplicantAnswerItem[];
+}
+
+/** The applicant's real questionnaire responses, from the frozen version snapshot. */
+export interface ApplicantQuestionnaire {
+  category: string;
+  versionNumber: number;
+  groups: ApplicantAnswerGroup[];
+}
+
 export interface AdminApplicationDetail {
   id: string;
   status: string;
@@ -72,8 +117,28 @@ export interface AdminApplicationDetail {
   eligibleProgramsCount: number;
   summary: unknown;
   noMatchSummary: unknown;
+  applicant: ApplicantIdentity | null;
+  // Real user-submitted questionnaire responses. `applicantProfile` is kept only
+  // for the masked National ID number the documents card reads — not shown as data.
+  questionnaire: ApplicantQuestionnaire | null;
   applicantProfile: Record<string, unknown>;
   offers: AdminApplicationOffer[];
+}
+
+/** One National ID side in the applicant-documents view. */
+export interface ApplicantDocumentSide {
+  id: string;
+  status: string;
+  uploadedAt: string;
+}
+
+/** Applicant document binaries: profile photo (presigned) + National ID sides. */
+export interface ApplicantDocuments {
+  profilePhoto: { url: string; expiresAt: string } | null;
+  nationalId: {
+    front: ApplicantDocumentSide | null;
+    back: ApplicantDocumentSide | null;
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -121,10 +186,36 @@ export class ApplicationsApiService {
   /** Set the sales pipeline status of an application (lead). */
   async updateLeadStatus(id: string, leadStatus: LeadStatus): Promise<void> {
     await firstValueFrom(
-      this.http.patch<SuccessEnvelope<unknown>>(
-        `${this.base()}/applications/${id}/lead-status`,
-        { leadStatus },
+      this.http.patch<SuccessEnvelope<unknown>>(`${this.base()}/applications/${id}/lead-status`, {
+        leadStatus,
+      }),
+    );
+  }
+
+  /**
+   * Applicant document binaries — profile photo (presigned) + National ID side
+   * metadata. Restricted to super_admin / sales_manager / sales_agent server-
+   * side; analysts receive 403 (the UI hides the section for them).
+   */
+  async getApplicantDocuments(id: string): Promise<ApplicantDocuments> {
+    const res = await firstValueFrom(
+      this.http.get<SuccessEnvelope<ApplicantDocuments>>(
+        `${this.base()}/applications/${id}/documents`,
       ),
     );
+    return res.data;
+  }
+
+  /** Reveal one National ID image — returns a short-lived presigned URL (audited). */
+  async revealApplicantDocument(
+    id: string,
+    documentId: string,
+  ): Promise<{ url: string; expiresAt: string }> {
+    const res = await firstValueFrom(
+      this.http.get<SuccessEnvelope<{ url: string; expiresAt: string }>>(
+        `${this.base()}/applications/${id}/documents/${documentId}/reveal`,
+      ),
+    );
+    return res.data;
   }
 }

@@ -11,8 +11,8 @@ class UatEnvironment extends BaseEnvironment {
   bool get isProduction => false;
 
   @override
-  bool get onboardingEnabled => false;
+  bool get onboardingEnabled => true;
 
   @override
-  bool get biometricEnabled => true;
+  bool get biometricEnabled => false;
 }

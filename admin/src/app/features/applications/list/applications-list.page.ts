@@ -490,6 +490,11 @@ export class ApplicationsListPage implements OnInit {
   }
 
   protected applicantName(row: AdminApplicationRow): string {
+    const a = row.applicant;
+    if (a) {
+      const name = `${a.firstName ?? ''} ${a.lastName ?? ''}`.replace(/\s+/g, ' ').trim();
+      if (name.length > 0) return name;
+    }
     const masked = row.maskedApplicant as { alias?: string; nationalId?: string };
     if (masked.alias) return masked.alias;
     return $localize`:@@apps.applicant.anonymous:Applicant`;

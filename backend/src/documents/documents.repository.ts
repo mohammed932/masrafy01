@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { Document, Prisma } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
+import {
+  NATIONAL_ID_BACK,
+  NATIONAL_ID_FRONT,
+} from '@/customer-auth/customer-profile-document.repository';
 
 export interface CreateDocumentInput {
   id: string;
@@ -44,6 +48,26 @@ export class DocumentsRepository {
   async findManyByApplication(applicationId: string): Promise<Document[]> {
     return this.prisma.document.findMany({
       where: { applicationId, erasedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Non-erased National ID documents owned by a customer (front/back), for the
+   * admin applicant-documents view. NID images are customer-scoped rows
+   * (`applicationId` is null, keyed `customers/{id}/id/...`), so they are looked
+   * up by `customerId`, not by application.
+   */
+  async findIdDocumentsByCustomer(
+    customerId: string,
+  ): Promise<Array<Pick<Document, 'id' | 'documentType' | 'status' | 's3Key' | 'createdAt'>>> {
+    return this.prisma.document.findMany({
+      where: {
+        customerId,
+        documentType: { in: [NATIONAL_ID_FRONT, NATIONAL_ID_BACK] },
+        erasedAt: null,
+      },
+      select: { id: true, documentType: true, status: true, s3Key: true, createdAt: true },
       orderBy: { createdAt: 'desc' },
     });
   }

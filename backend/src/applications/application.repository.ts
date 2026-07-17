@@ -188,6 +188,37 @@ export class ApplicationRepository {
           where: { erasedAt: null },
           orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
         },
+        // Identity + contact of the applicant behind this application, surfaced
+        // to admins on the detail page. Only the fields already exposed by
+        // GET /admin/customers/:id are read; `profilePhotoKey` drives a
+        // `hasProfilePhoto` flag (the image is served via the presigned
+        // applicant-documents route, never as a raw key).
+        applicantCustomer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+            birthday: true,
+            governorate: true,
+            city: true,
+            address: true,
+            locale: true,
+            registrationPath: true,
+            isVerified: true,
+            isActive: true,
+            mobileVerifiedAt: true,
+            createdAt: true,
+            lastLoginAt: true,
+            profilePhotoKey: true,
+          },
+        },
+        // The applicant's real questionnaire responses (Feature 009). Labels are
+        // resolved from the frozen version snapshot via `questionnaireVersionId`;
+        // these rows carry the picked codes. Surfaced on the admin detail page in
+        // place of the derived `applicantProfile` blob.
+        dynamicAnswers: true,
       },
     });
   }
@@ -287,6 +318,8 @@ export class ApplicationRepository {
           orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
           include: { decision: true },
         },
+        // Applicant name for the admin list rows (no longer anonymous).
+        applicantCustomer: { select: { firstName: true, lastName: true } },
       },
     });
   }

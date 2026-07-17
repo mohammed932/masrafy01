@@ -12,6 +12,10 @@ import { AuditEventType } from '../common/audit/audit-event-types';
 import { NotFoundException } from '../common/errors/domain.exceptions';
 import { ApplicationRepository } from './application.repository';
 import { LeadStatus } from './dto/enums';
+import {
+  QuestionnaireService,
+  type ApplicantQuestionnaireView,
+} from '@/questionnaire/questionnaire.service';
 
 interface ActorCtx {
   id: string;
@@ -24,7 +28,30 @@ export class AdminApplicationsService {
     private readonly prisma: PrismaService,
     private readonly repo: ApplicationRepository,
     private readonly audit: AuditEventRepository,
+    private readonly questionnaire: QuestionnaireService,
   ) {}
+
+  /**
+   * The applicant's real questionnaire responses (question → chosen answer),
+   * resolved to labels from the frozen version snapshot. Returns null for
+   * legacy applications with no dynamic questionnaire (pre-Feature 009). This is
+   * the authoritative "collected from the user" data — the `applicantProfile`
+   * blob is a derived offer-math approximation and is not shown as answers.
+   */
+  async buildApplicantQuestionnaire(
+    row: NonNullable<Awaited<ReturnType<ApplicationRepository['findById']>>>,
+  ): Promise<ApplicantQuestionnaireView | null> {
+    if (!row.category || row.dynamicAnswers.length === 0) {
+      return null;
+    }
+    return this.questionnaire.buildAnswersView(
+      { versionId: row.questionnaireVersionId, category: row.category },
+      row.dynamicAnswers.map((a) => ({
+        questionCode: a.questionCode,
+        selectedOptionCode: a.selectedOptionCode,
+      })),
+    );
+  }
 
   async setLeadStatus(id: string, leadStatus: LeadStatus, actor: ActorCtx): Promise<void> {
     const current = await this.repo.findLeadStatus(id);

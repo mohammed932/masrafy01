@@ -27,6 +27,22 @@ import {
   NATIONAL_ID_FRONT,
 } from '@/customer-auth/customer-profile-document.repository';
 import type { StaffRole } from '@/common/enums/staff-role.enum';
+import { AuditEventWriter } from '@/audit/audit-event.writer';
+import { AuditEventType } from '@/common/audit/audit-event-types';
+
+/** Admin applicant-documents view — profile photo + National ID sides. */
+export interface ApplicantDocumentSide {
+  id: string;
+  status: string;
+  uploadedAt: string;
+}
+export interface ApplicantDocumentsView {
+  profilePhoto: { url: string; expiresAt: string } | null;
+  nationalId: {
+    front: ApplicantDocumentSide | null;
+    back: ApplicantDocumentSide | null;
+  };
+}
 
 const PROFILE_ID_DOCUMENT_TYPES: readonly string[] = [NATIONAL_ID_FRONT, NATIONAL_ID_BACK];
 
@@ -63,6 +79,7 @@ export class DocumentsService {
     private readonly enumerations: PlatformEnumerationsRepository,
     private readonly applications: ApplicationRepository,
     private readonly customers: CustomerAccountRepository,
+    private readonly audit: AuditEventWriter,
   ) {}
 
   /**
@@ -338,6 +355,96 @@ export class DocumentsService {
 
   async listForApplication(applicationId: string) {
     return this.repo.findManyByApplication(applicationId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Admin applicant-documents view (application detail page). Resolves the
+  // application's owning customer, then returns the profile photo (presigned,
+  // short-TTL) + National ID side metadata. NID images are revealed on demand
+  // via `revealApplicantDocument` (audited, Constitution Principle VI).
+  // -------------------------------------------------------------------------
+
+  async getApplicantDocuments(
+    applicationId: string,
+    requester: { role: StaffRole },
+  ): Promise<ApplicantDocumentsView> {
+    const customerId = await this.resolveApplicationOwner(applicationId);
+
+    // Profile photo is a PII binary — analysts never receive binaries (VI).
+    let profilePhoto: ApplicantDocumentsView['profilePhoto'] = null;
+    if (requester.role !== 'analyst') {
+      const photoKey = await this.customers.findProfilePhotoKey(customerId);
+      if (photoKey) {
+        const { downloadUrl, expiresAt } = await this.s3.getPresignedGetUrl(photoKey);
+        profilePhoto = { url: downloadUrl, expiresAt: expiresAt.toISOString() };
+      }
+    }
+
+    const idDocs = await this.repo.findIdDocumentsByCustomer(customerId);
+    const pickSide = (documentType: string): ApplicantDocumentSide | null => {
+      // `idDocs` is newest-first; the first usable row per side wins.
+      const doc = idDocs.find(
+        (d) => d.documentType === documentType && d.status !== 'pending_upload',
+      );
+      return doc
+        ? { id: doc.id, status: doc.status, uploadedAt: doc.createdAt.toISOString() }
+        : null;
+    };
+
+    return {
+      profilePhoto,
+      nationalId: { front: pickSide(NATIONAL_ID_FRONT), back: pickSide(NATIONAL_ID_BACK) },
+    };
+  }
+
+  /**
+   * Reveal a single applicant National ID image — returns a short-lived
+   * presigned URL and writes a CUSTOMER_DOCUMENT_REVEALED audit event
+   * (Constitution Principle VI: NID access is audited). Analysts are refused.
+   */
+  async revealApplicantDocument(input: {
+    applicationId: string;
+    documentId: string;
+    requester: { staffId: string; role: StaffRole };
+    sourceIp: string | null;
+  }): Promise<{ url: string; expiresAt: string }> {
+    if (input.requester.role === 'analyst') {
+      // Analysts cannot fetch document binaries (Principle VI + FR-014).
+      throw new NotFoundException();
+    }
+    const customerId = await this.resolveApplicationOwner(input.applicationId);
+    const doc = await this.repo.findById(input.documentId);
+    if (
+      !doc ||
+      doc.erasedAt !== null ||
+      doc.customerId !== customerId ||
+      (doc.documentType !== NATIONAL_ID_FRONT && doc.documentType !== NATIONAL_ID_BACK)
+    ) {
+      throw new NotFoundException();
+    }
+
+    const { downloadUrl, expiresAt } = await this.s3.getPresignedGetUrl(doc.s3Key);
+    // `targetId` FKs to StaffAccount — the revealed document goes in the payload,
+    // not there. The acting admin is `actorId`.
+    await this.audit.write({
+      actorId: input.requester.staffId,
+      targetId: null,
+      eventType: AuditEventType.CUSTOMER_DOCUMENT_REVEALED,
+      sourceIp: input.sourceIp,
+      payload: {
+        documentId: doc.id,
+        applicationId: input.applicationId,
+        customerId,
+        documentType: doc.documentType,
+      },
+    });
+    return { url: downloadUrl, expiresAt: expiresAt.toISOString() };
+  }
+
+  private async resolveApplicationOwner(applicationId: string): Promise<string> {
+    const app = await this.applications.findOwnershipById(applicationId);
+    if (!app) throw new NotFoundException();
+    return app.applicantUserId;
   }
 
   /**

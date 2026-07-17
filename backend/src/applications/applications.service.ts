@@ -382,7 +382,10 @@ export class ApplicationsService {
 
   private toResponse(
     applicationId: string,
-    row: Awaited<ReturnType<ApplicationRepository['findById']>>,
+    // Only bankOffers + scalar fields are read here, so type against the
+    // narrower idempotency-key shape — decoupled from the admin `findById`
+    // include (which additionally joins `applicantCustomer`).
+    row: Awaited<ReturnType<ApplicationRepository['findByIdempotencyKey']>>,
     correlationId: string,
     savedOfferIds: Set<string>,
   ): ApplyResponse {

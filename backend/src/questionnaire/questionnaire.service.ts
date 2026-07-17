@@ -354,6 +354,57 @@ export class QuestionnaireService {
     return resolved;
   }
 
+  /**
+   * Resolve an application's stored answers into a grouped, labelled view using
+   * the FROZEN version snapshot (submit-time-correct content). Input carries the
+   * picked codes (`ApplicationAnswer.questionCode` + `selectedOptionCode`); this
+   * maps them to question/option labels (bilingual) grouped and ordered exactly
+   * as the questionnaire was presented. Returns null if the version is gone.
+   */
+  async buildAnswersView(
+    source: { versionId: string | null; category: LoanCategory },
+    answers: ReadonlyArray<{ questionCode: string; selectedOptionCode: string | null }>,
+  ): Promise<ApplicantQuestionnaireView | null> {
+    // Prefer the exact submit-time snapshot; fall back to the category's active
+    // published version when the application did not record a version id (the
+    // codes on the answer rows are stable across versions).
+    const version = source.versionId
+      ? await this.repo.versionById(source.versionId)
+      : await this.repo.activeVersion(source.category);
+    if (!version) return null;
+    const snap = version.snapshot as unknown as StoredSnapshot;
+    const picked = new Map(answers.map((a) => [a.questionCode, a.selectedOptionCode]));
+
+    const orderOf = (x: unknown): number =>
+      Number((x as Record<string, unknown>)['displayOrder'] ?? 0);
+
+    const groups: ApplicantAnswerGroup[] = [];
+    for (const g of [...(snap.groups ?? [])].sort((a, b) => orderOf(a) - orderOf(b))) {
+      const items: ApplicantAnswerItem[] = [];
+      for (const q of [...(g.questions ?? [])].sort((a, b) => orderOf(a) - orderOf(b))) {
+        if (!picked.has(q.code)) continue;
+        const optCode = picked.get(q.code) ?? null;
+        const opt = optCode ? (q.options ?? []).find((o) => o.code === optCode) : undefined;
+        items.push({
+          questionCode: q.code,
+          questionAr: String(q['questionAr'] ?? q.code),
+          questionEn: String(q['questionEn'] ?? q.code),
+          answerAr: opt ? opt.labelAr : null,
+          answerEn: opt ? opt.labelEn : null,
+        });
+      }
+      if (items.length > 0) {
+        groups.push({ code: g.code, titleAr: g.titleAr, titleEn: g.titleEn, items });
+      }
+    }
+
+    return {
+      category: String(snap.category ?? ''),
+      versionNumber: Number(snap.versionNumber ?? version.versionNumber),
+      groups,
+    };
+  }
+
   // ---- Internals ----------------------------------------------------------
   private async assertEnabledWhenValid(
     category: LoanCategory,
@@ -397,6 +448,26 @@ interface StoredSnapshot {
   category?: unknown;
   versionNumber?: unknown;
   groups?: StoredGroup[];
+}
+
+// ---- Applicant answers view (admin detail) --------------------------------
+export interface ApplicantAnswerItem {
+  questionCode: string;
+  questionAr: string;
+  questionEn: string;
+  answerAr: string | null;
+  answerEn: string | null;
+}
+export interface ApplicantAnswerGroup {
+  code: string;
+  titleAr: string;
+  titleEn: string;
+  items: ApplicantAnswerItem[];
+}
+export interface ApplicantQuestionnaireView {
+  category: string;
+  versionNumber: number;
+  groups: ApplicantAnswerGroup[];
 }
 
 /**

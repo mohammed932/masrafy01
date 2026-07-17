@@ -7,6 +7,7 @@ import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { InfraModule } from '@/infra/infra.module';
 import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 import { DocumentsController } from './documents.controller';
+import { AdminApplicantDocumentsController } from './admin-applicant-documents.controller';
 import { MobileDocumentsController } from './mobile-documents.controller';
 import { CustomerProfileDocumentsController } from './customer-profile-documents.controller';
 import { DocumentsRepository } from './documents.repository';
@@ -23,7 +24,12 @@ import { S3StorageClient } from './s3-storage.client';
     InfraModule,
     PlatformEnumerationsModule,
   ],
-  controllers: [DocumentsController, MobileDocumentsController, CustomerProfileDocumentsController],
+  controllers: [
+    DocumentsController,
+    AdminApplicantDocumentsController,
+    MobileDocumentsController,
+    CustomerProfileDocumentsController,
+  ],
   providers: [S3StorageClient, DocumentsRepository, DocumentsService],
   exports: [DocumentsService, DocumentsRepository, S3StorageClient],
 })

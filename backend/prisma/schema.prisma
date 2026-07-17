@@ -107,6 +107,8 @@ enum AuditEventType {
   // --- Admin-initiated customer account status (super_admin only) ---
   CUSTOMER_DEACTIVATED
   CUSTOMER_REACTIVATED
+  // Admin revealed a customer PII document binary (National ID). Principle VI.
+  CUSTOMER_DOCUMENT_REVEALED
 }
 
 enum SupportChannel {

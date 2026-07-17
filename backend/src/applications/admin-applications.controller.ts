@@ -27,6 +27,7 @@ import { AdminApplicationsService } from './admin-applications.service';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { NotFoundException } from '@/common/errors/domain.exceptions';
 import { maskApplicantProfile, type RawApplicantProfileJson } from './pii-masker';
+import { deriveAge } from '@/customer-auth/age.util';
 
 @ApiTags('Admin · Applications')
 @ApiBearerAuth()
@@ -72,7 +73,8 @@ export class AdminApplicationsController {
   async findById(@Param('id') id: string): Promise<unknown> {
     const row = await this.repo.findById(id);
     if (!row) throw new NotFoundException();
-    return { success: true, data: this.projectDetail(row) };
+    const questionnaire = await this.service.buildApplicantQuestionnaire(row);
+    return { success: true, data: { ...this.projectDetail(row), questionnaire } };
   }
 
   @Patch(':id/lead-status')
@@ -135,6 +137,9 @@ export class AdminApplicationsController {
       createdAt: row.createdAt.toISOString(),
       eligibleProgramsCount: row.eligibleProgramsCount,
       programsCheckedCount: row.programsCheckedCount,
+      applicant: row.applicantCustomer
+        ? { firstName: row.applicantCustomer.firstName, lastName: row.applicantCustomer.lastName }
+        : null,
       maskedApplicant: maskApplicantProfile(profile),
       bestOffer,
       userProceededAt: row.userProceededAt ? row.userProceededAt.toISOString() : null,
@@ -161,6 +166,7 @@ export class AdminApplicationsController {
       eligibleProgramsCount: row.eligibleProgramsCount,
       summary: row.summary,
       noMatchSummary: row.noMatchSummary,
+      applicant: this.projectApplicant(row.applicantCustomer),
       applicantProfile: maskApplicantProfile(row.applicantProfile as RawApplicantProfileJson),
       offers: row.bankOffers.map((o) => ({
         programCode: o.programCode,
@@ -183,6 +189,38 @@ export class AdminApplicationsController {
         selfDeclared: o.selfDeclared,
         maxLoanAvailableEGP: o.maxLoanAvailableEGP?.toFixed(2),
       })),
+    };
+  }
+
+  /**
+   * Applicant identity + contact for the detail page. Mirrors the field set
+   * already blessed by GET /admin/customers/:id (name, phone, email, derived
+   * age, verification/active flags, timestamps) plus the applicant's location.
+   * `age` is DERIVED from birthday (Principle XXXVII — never stored). The raw
+   * `profilePhotoKey` never crosses the boundary; only a boolean flag does.
+   */
+  private projectApplicant(
+    c: NonNullable<Awaited<ReturnType<ApplicationRepository['findById']>>>['applicantCustomer'] | null,
+  ) {
+    if (!c) return null;
+    return {
+      id: c.id,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      phone: c.phone,
+      email: c.email,
+      age: deriveAge(c.birthday),
+      governorate: c.governorate,
+      city: c.city,
+      address: c.address,
+      locale: c.locale,
+      registrationPath: c.registrationPath,
+      isVerified: c.isVerified,
+      isActive: c.isActive,
+      mobileVerifiedAt: c.mobileVerifiedAt ? c.mobileVerifiedAt.toISOString() : null,
+      memberSince: c.createdAt.toISOString(),
+      lastLoginAt: c.lastLoginAt ? c.lastLoginAt.toISOString() : null,
+      hasProfilePhoto: c.profilePhotoKey !== null,
     };
   }
 

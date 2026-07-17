@@ -14,6 +14,7 @@ import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { ArrowLeftOutline } from '@ant-design/icons-angular/icons';
 import { StatusPillComponent } from '@shared/ui';
+import { CanDirective } from '@shared/can.directive';
 import {
   ApplicationsApiService,
   type AdminApplicationDetail,
@@ -26,6 +27,9 @@ import {
 } from '../shared/lead-status';
 import { ApprovalPillComponent } from '../list/components/approval-pill.component';
 import { WhyThisScorePanelComponent } from './components/why-this-score-panel.component';
+import { ApplicantCardComponent } from './components/applicant-card.component';
+import { ApplicantQuestionnaireComponent } from './components/applicant-questionnaire.component';
+import { ApplicantDocumentsComponent } from './components/applicant-documents.component';
 
 /**
  * Application detail page. A calm, read-only view of one application: header
@@ -43,8 +47,12 @@ import { WhyThisScorePanelComponent } from './components/why-this-score-panel.co
     NzSelectModule,
     NzIconModule,
     StatusPillComponent,
+    CanDirective,
     ApprovalPillComponent,
     WhyThisScorePanelComponent,
+    ApplicantCardComponent,
+    ApplicantQuestionnaireComponent,
+    ApplicantDocumentsComponent,
   ],
   providers: [provideNzIconsPatch([ArrowLeftOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -103,6 +111,21 @@ import { WhyThisScorePanelComponent } from './components/why-this-score-panel.co
             </div>
           </dl>
         </header>
+
+        @if (d.applicant) {
+          <app-applicant-card [applicant]="d.applicant" />
+        }
+
+        @if (d.questionnaire) {
+          <app-applicant-questionnaire [data]="d.questionnaire" />
+        }
+
+        <div *can="['super_admin', 'sales_manager', 'sales_agent']">
+          <app-applicant-documents
+            [applicationId]="d.id"
+            [maskedNationalId]="maskedNationalId(d)"
+          />
+        </div>
 
         <section class="offers">
           <h2 i18n="@@applications.detail.offers">Matched offers</h2>
@@ -434,6 +457,12 @@ export class ApplicationDetailPage implements OnInit {
 
   shortId(id: string): string {
     return id.length > 8 ? id.slice(0, 8) : id;
+  }
+
+  /** Masked National ID number (last 4) from the applicant profile, if declared. */
+  maskedNationalId(d: AdminApplicationDetail): string | null {
+    const nid = d.applicantProfile['nationalId'];
+    return typeof nid === 'string' && nid.length > 0 ? nid : null;
   }
 
   formatAmount(raw: string | number): string {

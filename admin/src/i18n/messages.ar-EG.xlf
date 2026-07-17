@@ -379,6 +379,33 @@
       <trans-unit id="customers.action.deactivate.title" datatype="html"><source>Deactivate this customer?</source><target>تعطيل هذا العميل؟</target></trans-unit>
       <trans-unit id="customers.action.activated" datatype="html"><source>Customer reactivated.</source><target>تم إعادة تنشيط العميل.</target></trans-unit>
       <trans-unit id="customers.action.deactivated" datatype="html"><source>Customer deactivated.</source><target>تم تعطيل العميل.</target></trans-unit>
+      <!-- Application detail — applicant identity card -->
+      <trans-unit id="applications.applicant.title" datatype="html"><source>Applicant</source><target>مقدّم الطلب</target></trans-unit>
+      <trans-unit id="applications.applicant.unnamed" datatype="html"><source>Unnamed applicant</source><target>مقدّم طلب بدون اسم</target></trans-unit>
+      <trans-unit id="applications.applicant.verified" datatype="html"><source>Verified</source><target>موثّق</target></trans-unit>
+      <trans-unit id="applications.applicant.unverified" datatype="html"><source>Unverified</source><target>غير موثّق</target></trans-unit>
+      <trans-unit id="applications.applicant.inactive" datatype="html"><source>Inactive</source><target>غير نشط</target></trans-unit>
+      <trans-unit id="applications.applicant.regSocial" datatype="html"><source>Social sign-in</source><target>تسجيل عبر حساب اجتماعي</target></trans-unit>
+      <trans-unit id="applications.applicant.regPhone" datatype="html"><source>Phone sign-up</source><target>تسجيل عبر الهاتف</target></trans-unit>
+      <trans-unit id="applications.applicant.meta.phone" datatype="html"><source>Phone</source><target>الهاتف</target></trans-unit>
+      <trans-unit id="applications.applicant.meta.email" datatype="html"><source>Email</source><target>البريد الإلكتروني</target></trans-unit>
+      <trans-unit id="applications.applicant.meta.age" datatype="html"><source>Age</source><target>العمر</target></trans-unit>
+      <trans-unit id="applications.applicant.meta.location" datatype="html"><source>Location</source><target>الموقع</target></trans-unit>
+      <trans-unit id="applications.applicant.meta.address" datatype="html"><source>Address</source><target>العنوان</target></trans-unit>
+      <trans-unit id="applications.applicant.meta.memberSince" datatype="html"><source>Member since</source><target>عضو منذ</target></trans-unit>
+      <trans-unit id="applications.applicant.meta.lastLogin" datatype="html"><source>Last login</source><target>آخر تسجيل دخول</target></trans-unit>
+      <!-- Application detail — questionnaire responses (real user-submitted answers) -->
+      <trans-unit id="applications.responses.title" datatype="html"><source>Questionnaire responses</source><target>إجابات الاستبيان</target></trans-unit>
+      <!-- Application detail — applicant documents -->
+      <trans-unit id="applications.documents.title" datatype="html"><source>Documents</source><target>المستندات</target></trans-unit>
+      <trans-unit id="applications.documents.loading" datatype="html"><source>Loading documents</source><target>جارٍ تحميل المستندات</target></trans-unit>
+      <trans-unit id="applications.documents.photo" datatype="html"><source>Profile photo</source><target>الصورة الشخصية</target></trans-unit>
+      <trans-unit id="applications.documents.none" datatype="html"><source>Not uploaded</source><target>لم يُرفع</target></trans-unit>
+      <trans-unit id="applications.documents.nationalId" datatype="html"><source>National ID</source><target>الرقم القومي</target></trans-unit>
+      <trans-unit id="applications.documents.reveal" datatype="html"><source>Reveal</source><target>إظهار</target></trans-unit>
+      <trans-unit id="applications.documents.front" datatype="html"><source>Front</source><target>الوجه الأمامي</target></trans-unit>
+      <trans-unit id="applications.documents.back" datatype="html"><source>Back</source><target>الوجه الخلفي</target></trans-unit>
+      <trans-unit id="applications.documents.empty" datatype="html"><source>No documents are available for this applicant.</source><target>لا توجد مستندات متاحة لمقدّم الطلب.</target></trans-unit>
     </body>
   </file>
 </xliff>
