@@ -80,9 +80,24 @@ docker image prune -f
 
 ---
 
-## 4. Optional: self-hosted object storage (MinIO)
+## 4. Object storage (DigitalOcean Spaces)
 
-Default is AWS S3 (set `S3_*` in `backend/.env`). To self-host instead:
+Default is **DigitalOcean Spaces** (S3-compatible). Create a Space + a Spaces key
+pair (DO → API → Spaces Keys), then set in `backend/.env`:
+```bash
+S3_ENDPOINT_URL=https://fra1.digitaloceanspaces.com   # REGION host — no bucket in it
+S3_REGION=fra1
+S3_ACCESS_KEY_ID=<spaces access key id>
+S3_SECRET_ACCESS_KEY=<spaces secret>
+S3_BUCKET=masrafy-storage
+S3_FORCE_PATH_STYLE=false                              # → masrafy-storage.fra1.digitaloceanspaces.com/<key>
+```
+CORS: in the Space settings allow the app origins + `PUT`/`GET`/`HEAD` so
+presigned upload/download URLs work from the mobile client and admin.
+
+### Self-hosted object storage (MinIO) — alternative
+
+To self-host instead of Spaces:
 ```bash
 # backend/.env:
 #   S3_HOST=s3.example.com

@@ -103,7 +103,7 @@ import type { BankProgramResponse } from '../bank-programs.types';
           <a
             *can="['super_admin', 'sales_manager']"
             nz-button
-            [routerLink]="['/scoring', 'weights', p.productCategory.toLowerCase(), p.id]"
+            [routerLink]="['/scoring', 'weights', p.id]"
           >
             <span nz-icon nzType="sliders" nzTheme="outline" aria-hidden="true"></span>
             <span i18n="@@bank_programs.action.scoring_weights">Scoring weights</span>

@@ -8,10 +8,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { map } from 'rxjs';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
@@ -22,47 +19,23 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { EditOutline, DeleteOutline, EllipsisOutline, DownOutline } from '@ant-design/icons-angular/icons';
 import {
-  EditOutline,
-  DeleteOutline,
-  EllipsisOutline,
-  UserOutline,
-  CarOutline,
-  HomeOutline,
-  ShopOutline,
-} from '@ant-design/icons-angular/icons';
-import {
-  LOAN_CATEGORIES,
   QuestionnaireApiService,
-  categoryLabel,
   type GroupTreeRow,
   type OptionRow,
   type QuestionRow,
-  type LoanCategory,
 } from './questionnaire.api.service';
 
 type Mode = null | 'group' | 'question' | 'option';
 
-/** Presentation-only accent + icon per category (Principle II: keyed by data, no branches). */
-interface CategoryMeta {
-  /** CSS custom-property reference into the shared category palette in _tokens.scss. */
-  accent: string;
-  /** ng-zorro icon nzType. */
-  icon: string;
-}
-const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
-  personal: { accent: 'var(--color-cat-personal)', icon: 'user' },
-  car: { accent: 'var(--color-cat-car)', icon: 'car' },
-  mortgage: { accent: 'var(--color-cat-mortgage)', icon: 'home' },
-  business: { accent: 'var(--color-cat-business)', icon: 'shop' },
-};
-
 /**
- * Questionnaire authoring (Constitution V v4.1.0 — questions are admin DATA).
- * Codes are auto-generated server-side (read-only here, A33). Tree on the left,
- * a contextual inspector on the right; Publish snapshots the active draft.
+ * GLOBAL question-pool authoring (Constitution V, Feature 010 — questions are
+ * admin DATA with NO category). One pool feeds one global questionnaire; codes
+ * are auto-generated server-side (read-only here, A33). Groups are sections used
+ * only to organise the pool. Tree on the left, a contextual inspector drawer on
+ * the right; every edit auto-publishes a new global version.
  */
 @Component({
   standalone: true,
@@ -71,7 +44,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
   imports: [
     CommonModule,
     ReactiveFormsModule,
-    RouterLink,
     NzButtonModule,
     NzInputModule,
     NzInputNumberModule,
@@ -81,35 +53,25 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
     NzIconModule,
     NzDropDownModule,
     NzToolTipModule,
-    NzTabsModule,
   ],
-  providers: [
-    provideNzIconsPatch([
-      EditOutline,
-      DeleteOutline,
-      EllipsisOutline,
-      UserOutline,
-      CarOutline,
-      HomeOutline,
-      ShopOutline,
-    ]),
-  ],
+  providers: [provideNzIconsPatch([EditOutline, DeleteOutline, EllipsisOutline, DownOutline])],
   template: `
-    <section class="page" [style.--cat]="accent()">
-      <!-- Hero — category-tinted wash + accent rail; the whole page recolors to
-           the active category via the --cat custom property bound above. -->
+    <section class="page">
+      <!-- Hero — quiet surface card; brand azure accent lives in the eyebrow +
+           counts. No category dimension: this is the single global pool. -->
       <header class="hero">
-        <span class="hero-rail" aria-hidden="true"></span>
         <div class="hero-inner">
           <div class="hero-lead">
-            <a routerLink="/questionnaire" class="back" i18n="@@qedit.back">‹ Questionnaires</a>
-            <div class="title-row">
-              <span class="cat-icon" aria-hidden="true">
-                <span nz-icon [nzType]="meta(category()).icon" nzTheme="outline"></span>
-              </span>
-              <div class="title-text">
-                <p class="eyebrow" i18n="@@qedit.eyebrow">Matching engine</p>
-                <h1 i18n="@@qedit.title">Questionnaire builder</h1>
+            <div class="title-text">
+              <p class="eyebrow" i18n="@@qedit.eyebrow">Matching engine</p>
+              <div class="title-row">
+                <h1 i18n="@@qedit.title">Question pool</h1>
+                @if (published()) {
+                  <span class="live-chip" title="A version is published" i18n-title="@@qedit.live_title">
+                    <span class="live-dot" aria-hidden="true"></span>
+                    <span i18n="@@qedit.live">Live</span>
+                  </span>
+                }
               </div>
             </div>
             <p class="stats">
@@ -119,7 +81,7 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
               <span i18n="@@qedit.stat_questions">questions</span>
               <span class="dot">·</span>
               <span class="muted" i18n="@@qedit.stat_autosave"
-                >changes save &amp; publish automatically</span
+                >one global questionnaire · saves &amp; publishes automatically</span
               >
             </p>
           </div>
@@ -131,29 +93,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         </div>
       </header>
 
-      <!-- Category tab strip — flip categories in place; URL stays /edit/:category
-           (link-router → deep-linkable + keyboard a11y + animated ink bar). -->
-      <nav class="cat-tabs" aria-label="Loan categories" i18n-aria-label="@@qedit.tabs_aria">
-        <nz-tabset nzLinkRouter [nzAnimated]="true">
-          @for (cat of categories; track cat) {
-            <nz-tab>
-              <a *nzTabLink nz-tab-link [routerLink]="['/questionnaire/edit', cat]" class="cat-tab">
-                <span class="cat-name">{{ label(cat) }}</span>
-                @if (tabMeta()[cat].live) {
-                  <span
-                    class="live-dot"
-                    title="Live"
-                    i18n-title="@@qedit.tab_live"
-                    aria-hidden="true"
-                  ></span>
-                }
-                <span class="cat-count">{{ tabMeta()[cat].count }}</span>
-              </a>
-            </nz-tab>
-          }
-        </nz-tabset>
-      </nav>
-
       <!-- Master-detail workbench: outline rail (left) + editing canvas (right). -->
       <div class="tree">
         @if (loading()) {
@@ -161,7 +100,7 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         } @else if (groups().length === 0) {
           <div class="empty-card">
             <nz-empty
-              nzNotFoundContent="No groups yet — add your first group to start building"
+              nzNotFoundContent="No groups yet — add your first group to start building the pool"
               i18n-nzNotFoundContent="@@qedit.empty"
             />
             <button nz-button nzType="primary" (click)="startGroup()" i18n="@@qedit.empty_cta">
@@ -169,253 +108,228 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
             </button>
           </div>
         } @else {
-          <!-- Keyed by category so the workbench re-creates on tab switch → re-fires
-               the fade (qe-fade); cheap because all four trees are cached client-side. -->
-          @for (activeCat of [category()]; track activeCat) {
-            <div class="workbench">
-              <!-- LEFT: group outline (master) — pure navigation; CRUD lives in the
-                   canvas header so the rail stays scannable. -->
-              <aside
-                class="outline"
-                aria-label="Question groups"
-                i18n-aria-label="@@qedit.outline_aria"
-              >
-                <p class="outline-head" i18n="@@qedit.outline_head">Groups</p>
-                <ul class="grp-list">
-                  @for (g of groups(); track g.id) {
-                    <li>
-                      <button
-                        type="button"
-                        class="grp-row"
-                        [class.active]="g.id === selectedGroup()?.id"
-                        [attr.aria-current]="g.id === selectedGroup()?.id ? 'true' : null"
+          <div class="workbench">
+            <!-- LEFT: group outline (master) — pure navigation. -->
+            <aside class="outline" aria-label="Question groups" i18n-aria-label="@@qedit.outline_aria">
+              <div class="outline-head">
+                <span i18n="@@qedit.outline_head">Groups</span>
+                <span class="head-total">{{ groups().length }}</span>
+              </div>
+              <ul class="grp-list">
+                @for (g of groups(); track g.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="grp-row"
+                      [class.active]="g.id === selectedGroup()?.id"
+                      [attr.aria-current]="g.id === selectedGroup()?.id ? 'true' : null"
+                      nz-tooltip
+                      [nzTooltipTitle]="isAr ? g.titleAr : g.titleEn"
+                      nzTooltipPlacement="right"
+                      (click)="selectGroup(g)"
+                    >
+                      <span class="grp-name" [dir]="isAr ? 'rtl' : 'ltr'">{{
+                        isAr ? g.titleAr : g.titleEn
+                      }}</span>
+                      <span
+                        class="count-pill"
                         nz-tooltip
-                        [nzTooltipTitle]="isAr ? g.titleAr : g.titleEn"
-                        nzTooltipPlacement="right"
-                        (click)="selectGroup(g)"
+                        nzTooltipTitle="Questions in this group"
+                        i18n-nzTooltipTitle="@@qedit.grp_qcount_tip"
+                        >{{ g.questions.length }}</span
                       >
-                        <span class="grp-name" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                          isAr ? g.titleAr : g.titleEn
-                        }}</span>
-                        <span class="count-pill">{{ g.questions.length }}</span>
-                      </button>
-                    </li>
-                  }
-                </ul>
-                <button
-                  class="add-grp"
-                  nz-button
-                  nzType="text"
-                  (click)="startGroup()"
-                  i18n="@@qedit.add_group"
-                >
-                  ＋ Group
-                </button>
-              </aside>
+                    </button>
+                  </li>
+                }
+              </ul>
+              <button
+                class="add-grp"
+                nz-button
+                nzType="text"
+                (click)="startGroup()"
+                i18n="@@qedit.add_group"
+              >
+                ＋ Group
+              </button>
+            </aside>
 
-              <!-- RIGHT: editing canvas (detail) — only the selected group. -->
-              <section class="canvas">
-                @if (selectedGroup(); as g) {
-                  <header class="canvas-head">
-                    <div class="ch-title">
-                      <h2 [dir]="isAr ? 'rtl' : 'ltr'">{{ isAr ? g.titleAr : g.titleEn }}</h2>
-                      <span class="count-pill">{{ g.questions.length }}</span>
-                    </div>
-                    <div class="ch-actions">
-                      <button
-                        nz-button
-                        nzSize="small"
-                        (click)="startQuestion(g)"
-                        i18n="@@qedit.add_question"
-                      >
-                        ＋ Question
-                      </button>
-                      <button
-                        type="button"
-                        class="kebab"
-                        nz-button
-                        nzType="text"
-                        nzShape="circle"
-                        nz-dropdown
-                        [nzDropdownMenu]="gMenu"
-                        nzTrigger="click"
-                        nzPlacement="bottomRight"
-                        aria-label="Group actions"
-                        i18n-aria-label="@@qedit.group_actions_aria"
-                      >
-                        <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
-                      </button>
-                      <nz-dropdown-menu #gMenu="nzDropdownMenu">
-                        <ul nz-menu class="row-menu">
-                          <li nz-menu-item (click)="editGroup(g)">
-                            <span
-                              nz-icon
-                              nzType="edit"
-                              nzTheme="outline"
-                              style="margin-inline-end: 8px"
-                            ></span>
-                            <span i18n="@@qedit.menu_edit">Edit</span>
-                          </li>
-                          <li nz-menu-item (click)="confirmDeleteGroup(g)">
-                            <span
-                              nz-icon
-                              nzType="delete"
-                              nzTheme="outline"
-                              style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
-                            ></span>
-                            <span
-                              style="color: var(--ant-error-color, #d4380d)"
-                              i18n="@@qedit.menu_delete"
-                              >Delete</span
-                            >
-                          </li>
-                        </ul>
-                      </nz-dropdown-menu>
-                    </div>
-                  </header>
-
-                  @if (g.questions.length === 0) {
-                    <p class="empty-line" i18n="@@qedit.group_empty">
-                      No questions yet — add the first one.
-                    </p>
-                  }
-
-                  <div class="q-grid">
-                    @for (q of g.questions; track q.id) {
-                      <div class="q-card">
-                        <div class="q-top">
-                          <span class="q-text" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                            isAr ? q.questionAr : q.questionEn
-                          }}</span>
-                          @if (q.isRequired) {
-                            <span class="req" i18n="@@qedit.required_chip">required</span>
-                          }
-                          <button
-                            type="button"
-                            class="kebab"
-                            nz-button
-                            nzType="text"
-                            nzShape="circle"
-                            nz-dropdown
-                            [nzDropdownMenu]="qMenu"
-                            nzTrigger="click"
-                            nzPlacement="bottomRight"
-                            aria-label="Question actions"
-                            i18n-aria-label="@@qedit.question_actions_aria"
-                          >
-                            <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
-                          </button>
-                          <nz-dropdown-menu #qMenu="nzDropdownMenu">
-                            <ul nz-menu class="row-menu">
-                              <li nz-menu-item (click)="editQuestion(q)">
-                                <span
-                                  nz-icon
-                                  nzType="edit"
-                                  nzTheme="outline"
-                                  style="margin-inline-end: 8px"
-                                ></span>
-                                <span i18n="@@qedit.menu_edit">Edit</span>
-                              </li>
-                              <li nz-menu-item (click)="confirmDeleteQuestion(q)">
-                                <span
-                                  nz-icon
-                                  nzType="delete"
-                                  nzTheme="outline"
-                                  style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
-                                ></span>
-                                <span
-                                  style="color: var(--ant-error-color, #d4380d)"
-                                  i18n="@@qedit.menu_delete"
-                                  >Delete</span
-                                >
-                              </li>
-                            </ul>
-                          </nz-dropdown-menu>
-                        </div>
-                        @if (q.options.length > 0) {
-                          <ul class="opts">
-                            @for (o of q.options; track o.id) {
-                              <li class="opt">
-                                <span class="opt-label" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                                  isAr ? o.labelAr : o.labelEn
-                                }}</span>
-                                <button
-                                  type="button"
-                                  class="kebab"
-                                  nz-button
-                                  nzType="text"
-                                  nzShape="circle"
-                                  nzSize="small"
-                                  nz-dropdown
-                                  [nzDropdownMenu]="oMenu"
-                                  nzTrigger="click"
-                                  nzPlacement="bottomRight"
-                                  aria-label="Option actions"
-                                  i18n-aria-label="@@qedit.option_actions_aria"
-                                >
-                                  <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
-                                </button>
-                                <nz-dropdown-menu #oMenu="nzDropdownMenu">
-                                  <ul nz-menu class="row-menu">
-                                    <li nz-menu-item (click)="editOption(o)">
-                                      <span
-                                        nz-icon
-                                        nzType="edit"
-                                        nzTheme="outline"
-                                        style="margin-inline-end: 8px"
-                                      ></span>
-                                      <span i18n="@@qedit.menu_edit">Edit</span>
-                                    </li>
-                                    <li nz-menu-item (click)="confirmDeleteOption(o)">
-                                      <span
-                                        nz-icon
-                                        nzType="delete"
-                                        nzTheme="outline"
-                                        style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
-                                      ></span>
-                                      <span
-                                        style="color: var(--ant-error-color, #d4380d)"
-                                        i18n="@@qedit.menu_delete"
-                                        >Delete</span
-                                      >
-                                    </li>
-                                  </ul>
-                                </nz-dropdown-menu>
-                              </li>
-                            }
-                          </ul>
-                        } @else {
-                          <p class="empty-line tiny" i18n="@@qedit.q_empty">No options.</p>
-                        }
-                        <button
-                          class="add-opt"
-                          nz-button
-                          nzSize="small"
-                          nzType="text"
-                          (click)="startOption(q.id)"
-                          i18n="@@qedit.add_option"
-                        >
-                          ＋ option
-                        </button>
-                      </div>
-                    }
+            <!-- RIGHT: editing canvas (detail) — only the selected group. -->
+            <section class="canvas">
+              @if (selectedGroup(); as g) {
+                <header class="canvas-head">
+                  <div class="ch-title">
+                    <h2 [dir]="isAr ? 'rtl' : 'ltr'">{{ isAr ? g.titleAr : g.titleEn }}</h2>
+                    <span class="count-pill">{{ g.questions.length }}</span>
                   </div>
-                } @else {
-                  <p class="empty-line" i18n="@@qedit.canvas_empty">
-                    Select a group to edit its questions.
+                  <div class="ch-actions">
+                    <button
+                      nz-button
+                      nzSize="small"
+                      (click)="startQuestion(g)"
+                      i18n="@@qedit.add_question"
+                    >
+                      ＋ Question
+                    </button>
+                    <button
+                      type="button"
+                      class="kebab"
+                      nz-button
+                      nzType="text"
+                      nzShape="circle"
+                      nz-dropdown
+                      [nzDropdownMenu]="gMenu"
+                      nzTrigger="click"
+                      nzPlacement="bottomRight"
+                      aria-label="Group actions"
+                      i18n-aria-label="@@qedit.group_actions_aria"
+                    >
+                      <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
+                    </button>
+                    <nz-dropdown-menu #gMenu="nzDropdownMenu">
+                      <ul nz-menu class="row-menu">
+                        <li nz-menu-item (click)="editGroup(g)">
+                          <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
+                          <span i18n="@@qedit.menu_edit">Edit</span>
+                        </li>
+                        <li nz-menu-item (click)="confirmDeleteGroup(g)">
+                          <span
+                            nz-icon
+                            nzType="delete"
+                            nzTheme="outline"
+                            style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
+                          ></span>
+                          <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete"
+                            >Delete</span
+                          >
+                        </li>
+                      </ul>
+                    </nz-dropdown-menu>
+                  </div>
+                </header>
+
+                @if (g.questions.length === 0) {
+                  <p class="empty-line" i18n="@@qedit.group_empty">
+                    No questions yet — add the first one.
                   </p>
                 }
-              </section>
-            </div>
-          }
+
+                <div class="q-grid">
+                  @for (q of g.questions; track q.id; let i = $index) {
+                    <div class="q-card">
+                      <div class="q-top">
+                        <span class="q-ord" aria-hidden="true">{{ i + 1 }}</span>
+                        <span class="q-text" [dir]="isAr ? 'rtl' : 'ltr'">{{
+                          isAr ? q.questionAr : q.questionEn
+                        }}</span>
+                        @if (q.isRequired) {
+                          <span class="req" i18n="@@qedit.required_chip">required</span>
+                        }
+                        <button
+                          type="button"
+                          class="kebab"
+                          nz-button
+                          nzType="text"
+                          nzShape="circle"
+                          nz-dropdown
+                          [nzDropdownMenu]="qMenu"
+                          nzTrigger="click"
+                          nzPlacement="bottomRight"
+                          aria-label="Question actions"
+                          i18n-aria-label="@@qedit.question_actions_aria"
+                        >
+                          <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
+                        </button>
+                        <nz-dropdown-menu #qMenu="nzDropdownMenu">
+                          <ul nz-menu class="row-menu">
+                            <li nz-menu-item (click)="editQuestion(q)">
+                              <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
+                              <span i18n="@@qedit.menu_edit">Edit</span>
+                            </li>
+                            <li nz-menu-item (click)="confirmDeleteQuestion(q)">
+                              <span
+                                nz-icon
+                                nzType="delete"
+                                nzTheme="outline"
+                                style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
+                              ></span>
+                              <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete"
+                                >Delete</span
+                              >
+                            </li>
+                          </ul>
+                        </nz-dropdown-menu>
+                      </div>
+                      @if (q.options.length > 0) {
+                        <p class="opt-meta">
+                          {{ q.options.length }}<span i18n="@@qedit.opt_count"> options</span>
+                        </p>
+                      }
+                      <ul class="opts">
+                        @for (o of q.options; track o.id) {
+                          <li>
+                            <button
+                              type="button"
+                              class="opt-chip"
+                              nz-dropdown
+                              [nzDropdownMenu]="oMenu"
+                              nzTrigger="click"
+                              nzPlacement="bottomLeft"
+                              aria-label="Option actions"
+                              i18n-aria-label="@@qedit.option_actions_aria"
+                            >
+                              <span class="opt-label" [dir]="isAr ? 'rtl' : 'ltr'">{{
+                                isAr ? o.labelAr : o.labelEn
+                              }}</span>
+                              <span class="opt-caret" nz-icon nzType="down" nzTheme="outline" aria-hidden="true"></span>
+                            </button>
+                            <nz-dropdown-menu #oMenu="nzDropdownMenu">
+                              <ul nz-menu class="row-menu">
+                                <li nz-menu-item (click)="editOption(o)">
+                                  <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
+                                  <span i18n="@@qedit.menu_edit">Edit</span>
+                                </li>
+                                <li nz-menu-item (click)="confirmDeleteOption(o)">
+                                  <span
+                                    nz-icon
+                                    nzType="delete"
+                                    nzTheme="outline"
+                                    style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
+                                  ></span>
+                                  <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete"
+                                    >Delete</span
+                                  >
+                                </li>
+                              </ul>
+                            </nz-dropdown-menu>
+                          </li>
+                        }
+                        <li>
+                          <button
+                            type="button"
+                            class="add-opt-chip"
+                            (click)="startOption(q.id)"
+                            i18n="@@qedit.add_option"
+                          >
+                            ＋ option
+                          </button>
+                        </li>
+                      </ul>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="empty-line" i18n="@@qedit.canvas_empty">
+                  Select a group to edit its questions.
+                </p>
+              }
+            </section>
+          </div>
         }
       </div>
     </section>
 
     <!-- Inspector drawer — rendered OUTSIDE section.page so position:fixed
-         resolves against the viewport. section.page runs the app-page-rise
-         transform, which makes it the containing block for fixed descendants
-         and would otherwise trap the scrim/blur inside the content area. -->
+         resolves against the viewport (A34). -->
     @if (mode() !== null) {
       <div class="scrim" (click)="cancel()" aria-hidden="true"></div>
       <aside class="drawer" role="dialog" aria-modal="true">
@@ -464,27 +378,15 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
               </label>
               <label class="field">
                 <span class="lbl" i18n="@@qedit.title_ar">العنوان (عربي)</span>
-                <input
-                  nz-input
-                  formControlName="titleAr"
-                  dir="rtl"
-                  placeholder="مثال: تفاصيل التمويل"
-                />
+                <input nz-input formControlName="titleAr" dir="rtl" placeholder="مثال: تفاصيل التمويل" />
               </label>
               <label class="field">
                 <span class="lbl" i18n="@@qedit.order">Display order</span>
                 <nz-input-number formControlName="displayOrder" [nzMin]="0" />
               </label>
               <div class="form-actions">
-                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">
-                  Cancel
-                </button>
-                <button
-                  nz-button
-                  nzType="primary"
-                  [disabled]="groupForm.invalid"
-                  i18n="@@qedit.save"
-                >
+                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
+                <button nz-button nzType="primary" [disabled]="groupForm.invalid" i18n="@@qedit.save">
                   Save group
                 </button>
               </div>
@@ -494,20 +396,11 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
               <p class="section-lbl" i18n="@@qedit.sec_content">Content</p>
               <label class="field">
                 <span class="lbl" i18n="@@qedit.q_en">Question (English)</span>
-                <input
-                  nz-input
-                  formControlName="questionEn"
-                  placeholder="e.g. What is your monthly income?"
-                />
+                <input nz-input formControlName="questionEn" placeholder="e.g. What is your monthly income?" />
               </label>
               <label class="field">
                 <span class="lbl" i18n="@@qedit.q_ar">السؤال (عربي)</span>
-                <input
-                  nz-input
-                  formControlName="questionAr"
-                  dir="rtl"
-                  placeholder="مثال: ما هو دخلك الشهري؟"
-                />
+                <input nz-input formControlName="questionAr" dir="rtl" placeholder="مثال: ما هو دخلك الشهري؟" />
               </label>
 
               <p class="section-lbl" i18n="@@qedit.sec_behaviour">Behaviour</p>
@@ -523,15 +416,8 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
               </div>
 
               <div class="form-actions">
-                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">
-                  Cancel
-                </button>
-                <button
-                  nz-button
-                  nzType="primary"
-                  [disabled]="questionForm.invalid"
-                  i18n="@@qedit.save_q"
-                >
+                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
+                <button nz-button nzType="primary" [disabled]="questionForm.invalid" i18n="@@qedit.save_q">
                   Save question
                 </button>
               </div>
@@ -544,12 +430,7 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
               </label>
               <label class="field">
                 <span class="lbl" i18n="@@qedit.label_ar">التسمية (عربي)</span>
-                <input
-                  nz-input
-                  formControlName="labelAr"
-                  dir="rtl"
-                  placeholder="مثال: ٢٠٬٠٠٠ – ٤٠٬٠٠٠"
-                />
+                <input nz-input formControlName="labelAr" dir="rtl" placeholder="مثال: ٢٠٬٠٠٠ – ٤٠٬٠٠٠" />
               </label>
               <label class="field">
                 <span class="lbl" i18n="@@qedit.order">Display order</span>
@@ -557,15 +438,8 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
               </label>
 
               <div class="form-actions">
-                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">
-                  Cancel
-                </button>
-                <button
-                  nz-button
-                  nzType="primary"
-                  [disabled]="optionForm.invalid"
-                  i18n="@@qedit.save_o"
-                >
+                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
+                <button nz-button nzType="primary" [disabled]="optionForm.invalid" i18n="@@qedit.save_o">
                   Save option
                 </button>
               </div>
@@ -578,10 +452,8 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
   styles: [
     `
       :host {
-        /* --cat is bound per active category on .page; default to brand azure.
-           Accent is used sparingly (icon chip, tab indicator, counts) so the
-           page stays calm — surfaces and rails lean on warm neutral tokens. */
-        --cat: var(--color-cat-personal, var(--ant-primary-color, #0869c3));
+        /* Global pool → single brand azure accent (no per-category tint). */
+        --cat: var(--primary, var(--ant-primary-color, #0869c3));
         --qe-line: var(--color-border-subtle, #efeae5);
         --qe-line-strong: var(--color-border-default, #ddd8d3);
         --qe-muted: var(--color-text-tertiary, #8c7e75);
@@ -598,16 +470,13 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         min-block-size: 100%;
       }
 
-      /* Hero — quiet surface card; the accent lives only in the icon chip. */
+      /* Hero — quiet surface card. */
       .hero {
         position: relative;
         background: var(--qe-surface);
         border: 1px solid var(--qe-line);
         border-radius: var(--qe-radius);
         margin-block-end: var(--space-6, 32px);
-      }
-      .hero-rail {
-        display: none;
       }
       .hero-inner {
         display: flex;
@@ -617,38 +486,17 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         flex-wrap: wrap;
         padding: var(--space-5, 24px) var(--space-6, 32px);
       }
-      .back {
-        display: inline-block;
-        color: var(--qe-muted);
-        font-size: var(--text-sm, 13px);
-        margin-block-end: var(--space-3, 12px);
-        transition: color var(--motion-duration-fast, 120ms) ease;
-      }
-      .back:hover {
-        color: var(--cat);
-      }
-      .title-row {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3, 12px);
-      }
-      .cat-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        inline-size: 42px;
-        block-size: 42px;
-        flex-shrink: 0;
-        border-radius: var(--radius-md, 8px);
-        background: color-mix(in srgb, var(--cat) 10%, transparent);
-        color: var(--cat);
-        font-size: var(--text-xl, 22px);
-      }
       .title-text {
         display: flex;
         flex-direction: column;
         gap: 2px;
         min-inline-size: 0;
+      }
+      .title-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3, 12px);
+        flex-wrap: wrap;
       }
       .eyebrow {
         margin: 0;
@@ -666,6 +514,24 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         letter-spacing: -0.015em;
         line-height: var(--leading-tight, 1.2);
         color: var(--qe-text);
+      }
+      .live-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: var(--text-xs, 12px);
+        font-weight: 600;
+        color: var(--color-success, #2d5f3f);
+        background: color-mix(in srgb, var(--color-success, #2d5f3f) 12%, transparent);
+        padding: 2px 10px;
+        border-radius: var(--radius-pill, 999px);
+      }
+      .live-dot {
+        inline-size: 8px;
+        block-size: 8px;
+        border-radius: var(--radius-pill, 999px);
+        background: var(--color-success, #2d5f3f);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success, #2d5f3f) 18%, transparent);
       }
       .stats {
         margin: var(--space-3, 12px) 0 0;
@@ -691,61 +557,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         flex-wrap: wrap;
       }
 
-      /* Category tab strip — segmented nav over the four loan categories.
-         Built on nz-tabset (link-router) so a11y + ink bar come for free;
-         restyled with brand tokens for an impec segmented feel. */
-      .cat-tabs {
-        margin-block-end: var(--space-5, 24px);
-      }
-      .cat-tabs ::ng-deep .ant-tabs-nav {
-        margin: 0;
-      }
-      .cat-tabs ::ng-deep .ant-tabs-nav::before {
-        border-block-end-color: var(--qe-line);
-      }
-      .cat-tabs ::ng-deep .ant-tabs-ink-bar {
-        background: var(--cat);
-        block-size: 3px;
-        border-radius: var(--radius-pill, 999px);
-      }
-      .cat-tab {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2, 8px);
-        font-size: var(--text-sm, 14px);
-        font-weight: 600;
-        color: var(--qe-muted);
-        transition: color var(--motion-duration-base, 160ms) ease;
-      }
-      .cat-tabs ::ng-deep .ant-tabs-tab:hover .cat-tab {
-        color: var(--cat);
-      }
-      .cat-tabs ::ng-deep .ant-tabs-tab-active .cat-tab {
-        color: var(--cat);
-      }
-      .live-dot {
-        inline-size: 8px;
-        block-size: 8px;
-        border-radius: var(--radius-pill, 999px);
-        background: var(--color-success, #2d5f3f);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success, #2d5f3f) 18%, transparent);
-      }
-      .cat-count {
-        min-inline-size: 22px;
-        text-align: center;
-        font-size: var(--text-xs, 12px);
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-        color: var(--cat);
-        background: color-mix(in srgb, var(--cat) 12%, transparent);
-        padding: 1px 8px;
-        border-radius: var(--radius-pill, 999px);
-      }
-      .cat-tabs ::ng-deep .ant-tabs-tab:not(.ant-tabs-tab-active) .cat-count {
-        color: var(--qe-muted);
-        background: var(--qe-surface-muted);
-      }
-
       /* Layout — master-detail: outline rail (left) + editing canvas (right). */
       .tree {
         min-inline-size: 0;
@@ -764,8 +575,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         }
       }
 
-      /* Outline rail — sticky group navigator. Quiet surface; the active row is
-         the only accented element (inline-start rail + faint tint). */
       .outline {
         position: sticky;
         inset-block-start: var(--space-5, 24px);
@@ -780,13 +589,27 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         border-radius: var(--qe-radius);
       }
       .outline-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2, 8px);
         margin: 0;
         padding-inline: var(--space-2, 8px);
+        padding-block-end: var(--space-2, 8px);
+        border-block-end: 1px solid var(--qe-line);
         font-size: var(--text-xs, 12px);
         font-weight: 700;
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--qe-muted);
+      }
+      .head-total {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0;
+        color: var(--cat);
+        background: color-mix(in srgb, var(--cat) 12%, transparent);
+        padding: 2px 8px;
+        border-radius: var(--radius-pill, 999px);
       }
       .grp-list {
         list-style: none;
@@ -832,9 +655,8 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
       .grp-name {
         flex: 1;
         min-inline-size: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
+        white-space: normal;
       }
       .add-grp {
         margin-block-start: var(--space-2, 8px);
@@ -845,7 +667,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         color: var(--cat);
       }
 
-      /* Canvas — the selected group's questions. Warm surface card. */
       .canvas {
         min-inline-size: 0;
         background: var(--qe-surface);
@@ -926,9 +747,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         border-radius: var(--qe-radius);
       }
 
-      /* Overflow kebab (⋮) — always visible, one per group / question / option
-         row, inline beside the row content. Quiet muted dot; azure on hover.
-         Opens a small Edit · Delete menu. */
       .kebab {
         flex-shrink: 0;
         color: var(--qe-muted);
@@ -938,7 +756,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
       .kebab:focus-visible {
         color: var(--cat);
       }
-      /* ellipsis is horizontal by default → rotate to a vertical kebab */
       .kebab span[nz-icon] {
         transform: rotate(90deg);
       }
@@ -953,7 +770,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         padding: 2px 8px;
         border-radius: var(--radius-pill, 999px);
       }
-      /* Question card grid — fills the canvas; reflows 2→1 col as it narrows. */
       .q-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -983,18 +799,27 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         min-inline-size: 0;
         color: var(--qe-text);
       }
-      .add-opt {
-        margin-block-start: var(--space-2, 8px);
-        padding-inline: 0;
-        color: var(--qe-muted);
-      }
-      .add-opt:hover {
+      .q-ord {
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        inline-size: 22px;
+        block-size: 22px;
+        border-radius: var(--radius-pill, 999px);
+        font-size: 11px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
         color: var(--cat);
+        background: color-mix(in srgb, var(--cat) 12%, transparent);
       }
-      .q-ar {
-        font-size: var(--text-xs, 12px);
+      .opt-meta {
+        margin: var(--space-3, 12px) 0 6px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
         color: var(--qe-muted);
-        margin-block-start: 2px;
+        font-variant-numeric: tabular-nums;
       }
       .req {
         font-size: 11px;
@@ -1006,31 +831,70 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
       }
       .opts {
         list-style: none;
-        margin: 6px 0 0;
+        margin: 0;
         padding: 0;
         display: flex;
-        flex-direction: column;
-        gap: 2px;
+        flex-wrap: wrap;
+        gap: 6px;
       }
-      .opt {
-        position: relative;
-        display: flex;
+      .opt-chip {
+        display: inline-flex;
         align-items: center;
-        justify-content: space-between;
-        gap: var(--space-3, 12px);
+        gap: 6px;
+        max-inline-size: 100%;
+        padding: 4px 8px 4px 12px;
         font-size: 13px;
-        padding: 4px 8px;
-        border-radius: 8px;
+        color: var(--qe-text-2);
+        background: var(--qe-surface);
+        border: 1px solid var(--qe-line);
+        border-radius: var(--radius-pill, 999px);
+        cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast, 120ms) ease,
+          color var(--motion-duration-fast, 120ms) ease,
+          background var(--motion-duration-fast, 120ms) ease;
       }
-      .opt:hover {
-        background: var(--qe-surface-muted);
+      .opt-chip:hover,
+      .opt-chip:focus-visible {
+        color: var(--qe-text);
+        border-color: var(--cat);
+        background: color-mix(in srgb, var(--cat) 6%, transparent);
       }
       .opt-label {
-        flex: 1;
         min-inline-size: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      .opt-caret {
+        flex-shrink: 0;
+        font-size: 10px;
+        color: var(--qe-muted);
+        transition: color var(--motion-duration-fast, 120ms) ease;
+      }
+      .opt-chip:hover .opt-caret,
+      .opt-chip:focus-visible .opt-caret {
+        color: var(--cat);
+      }
+      .add-opt-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--qe-muted);
+        background: transparent;
+        border: 1px dashed var(--qe-line-strong);
+        border-radius: var(--radius-pill, 999px);
+        cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast, 120ms) ease,
+          color var(--motion-duration-fast, 120ms) ease;
+      }
+      .add-opt-chip:hover,
+      .add-opt-chip:focus-visible {
+        color: var(--cat);
+        border-color: var(--cat);
       }
       .empty-line {
         color: var(--qe-muted);
@@ -1043,10 +907,8 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         margin-block-start: 4px;
       }
 
-      /* Inspector — docked to the inline-end side so the tree stays visible
-         while editing (the "drawer hides context" fix). On desktop the scrim is
-         a transparent click-capture layer only (no dim); on mobile it becomes a
-         real backdrop dimming the full viewport (A34). */
+      /* Inspector drawer — docked inline-end; scrim is click-capture on desktop,
+         a real dimming backdrop on mobile (A34). */
       .scrim {
         position: fixed;
         inset: 0;
@@ -1065,8 +927,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         overflow-y: auto;
         animation: qe-slide 200ms var(--motion-easing-standard, cubic-bezier(0.2, 0, 0, 1));
       }
-      /* <960px: the rail stacks above the canvas, so dim the viewport like a
-         standard modal and let the panel breathe full-width. */
       @media (max-width: 960px) {
         .scrim {
           background: var(--color-overlay-backdrop, rgba(16, 24, 40, 0.45));
@@ -1082,7 +942,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
           opacity: 1;
         }
       }
-      /* Direction-neutral settle (no horizontal flip → safe in LTR + RTL). */
       @keyframes qe-slide {
         from {
           opacity: 0;
@@ -1100,9 +959,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         }
         .q-card {
           transition: none;
-        }
-        .q-card:hover {
-          transform: none;
         }
       }
       .ins-card {
@@ -1154,10 +1010,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         font-weight: 600;
         color: var(--qe-text);
       }
-      .hlp {
-        font-size: 11px;
-        color: var(--qe-muted);
-      }
       .switch-field {
         display: flex;
         align-items: center;
@@ -1176,16 +1028,6 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
         align-items: center;
         gap: 8px;
       }
-      .opt-tag {
-        text-transform: none;
-        letter-spacing: 0;
-        font-weight: 500;
-        font-size: 10px;
-        color: var(--qe-muted);
-        background: var(--qe-surface-muted);
-        padding: 1px 6px;
-        border-radius: var(--radius-pill, 999px);
-      }
       .form-actions {
         display: flex;
         justify-content: flex-end;
@@ -1203,36 +1045,16 @@ const CATEGORY_META: Record<LoanCategory, CategoryMeta> = {
 })
 export class QuestionnaireEditorPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
-  private readonly route = inject(ActivatedRoute);
   private readonly message = inject(NzMessageService);
   private readonly modal = inject(NzModalService);
 
   /** Active admin locale drives label language (ar build → Arabic, else English). */
   readonly isAr = inject(LOCALE_ID).startsWith('ar');
-  readonly categories = LOAN_CATEGORIES;
-  /** Friendly localized category name for the tab strip ("car" → "Auto Loan"). */
-  readonly label = categoryLabel;
-  /** Active category — reactive so routed tab switches re-render in place. */
-  readonly category = toSignal(
-    this.route.paramMap.pipe(map((p) => (p.get('category') ?? 'personal') as LoanCategory)),
-    { initialValue: (this.route.snapshot.paramMap.get('category') ?? 'personal') as LoanCategory },
-  );
-  /** Accent + icon for a category — template helper (shared shape with the overview). */
-  meta(category: LoanCategory): CategoryMeta {
-    return CATEGORY_META[category];
-  }
-  /** Active category's accent token — drives the page-wide --cat custom property. */
-  readonly accent = computed(() => CATEGORY_META[this.category()].accent);
-  /** All four trees cached client-side → instant, spinner-free tab switching. */
-  private readonly treesByCat = signal<Partial<Record<LoanCategory, GroupTreeRow[]>>>({});
-  /** Per-tab badge data: LIVE (published version) + question count. */
-  readonly tabMeta = signal<Record<LoanCategory, { live: boolean; count: number }>>(
-    LOAN_CATEGORIES.reduce(
-      (acc, c) => ({ ...acc, [c]: { live: false, count: 0 } }),
-      {} as Record<LoanCategory, { live: boolean; count: number }>,
-    ),
-  );
-  readonly groups = computed<GroupTreeRow[]>(() => this.treesByCat()[this.category()] ?? []);
+
+  /** The single global pool of groups (each with its questions + options). */
+  readonly groups = signal<GroupTreeRow[]>([]);
+  /** Whether a questionnaire version is currently published (LIVE chip). */
+  readonly published = signal(false);
   readonly loading = signal(true);
   readonly mode = signal<Mode>(null);
   /** true → drawer is editing an existing node; false → creating a new one. */
@@ -1241,10 +1063,7 @@ export class QuestionnaireEditorPage implements OnInit {
     this.groups().reduce((sum, g) => sum + g.questions.length, 0),
   );
 
-  /** Master-detail selection: which group the canvas (right pane) is editing.
-   *  Holds the last-clicked id; the resolved `selectedGroup` falls back to the
-   *  first group so a category switch (ids no longer match) re-anchors cleanly
-   *  without an explicit reset. */
+  /** Master-detail selection: which group the canvas is editing (falls back to first). */
   readonly selectedGroupId = signal<string>('');
   readonly selectedGroup = computed<GroupTreeRow | null>(() => {
     const list = this.groups();
@@ -1345,20 +1164,20 @@ export class QuestionnaireEditorPage implements OnInit {
       });
       this.message.success($localize`:@@qedit.group_saved:Group saved`);
     } else {
-      const created = await this.api.createGroup({ category: this.category(), ...v });
+      const created = await this.api.createGroup(v);
       // Jump the canvas to the group just created.
       this.selectedGroupId.set(created.id);
       this.message.success($localize`:@@qedit.group_added:Group added`);
     }
     this.mode.set(null);
-    await this.refreshActive();
+    await this.reload();
   }
 
   async submitQuestion(): Promise<void> {
     if (this.questionForm.invalid) return;
     const v = this.questionForm.getRawValue();
     if (this.editing()) {
-      // `code` and `category` are immutable (A33) — never sent.
+      // `code` is immutable (A33) — never sent.
       await this.api.updateQuestion(this.editingId, {
         questionEn: v.questionEn,
         questionAr: v.questionAr,
@@ -1369,7 +1188,6 @@ export class QuestionnaireEditorPage implements OnInit {
     } else {
       await this.api.createQuestion({
         groupId: this.activeGroupId,
-        category: this.category(),
         questionEn: v.questionEn,
         questionAr: v.questionAr,
         displayOrder: v.displayOrder,
@@ -1378,7 +1196,7 @@ export class QuestionnaireEditorPage implements OnInit {
       this.message.success($localize`:@@qedit.question_added:Question added`);
     }
     this.mode.set(null);
-    await this.refreshActive();
+    await this.reload();
   }
 
   async submitOption(): Promise<void> {
@@ -1400,7 +1218,7 @@ export class QuestionnaireEditorPage implements OnInit {
       this.message.success($localize`:@@qedit.option_added:Option added`);
     }
     this.mode.set(null);
-    await this.refreshActive();
+    await this.reload();
   }
 
   // ---- Deletes (soft-delete server-side; typed-error toasts via interceptor) --
@@ -1417,7 +1235,7 @@ export class QuestionnaireEditorPage implements OnInit {
         try {
           await this.api.deleteGroup(g.id);
           this.message.success($localize`:@@qedit.group_deleted:Group deleted`);
-          await this.refreshActive();
+          await this.reload();
         } catch {
           /* blocked / failed — localized toast already shown by the interceptor */
         }
@@ -1438,7 +1256,7 @@ export class QuestionnaireEditorPage implements OnInit {
         try {
           await this.api.deleteQuestion(q.id);
           this.message.success($localize`:@@qedit.question_deleted:Question deleted`);
-          await this.refreshActive();
+          await this.reload();
         } catch {
           /* blocked / failed — localized toast already shown by the interceptor */
         }
@@ -1459,7 +1277,7 @@ export class QuestionnaireEditorPage implements OnInit {
         try {
           await this.api.deleteOption(o.id);
           this.message.success($localize`:@@qedit.option_deleted:Option deleted`);
-          await this.refreshActive();
+          await this.reload();
         } catch {
           /* blocked / failed — localized toast already shown by the interceptor */
         }
@@ -1467,43 +1285,22 @@ export class QuestionnaireEditorPage implements OnInit {
     });
   }
 
-  /** First load: fetch all four trees + version histories in parallel so tab
-   *  switching is instant (cache) and every tab shows its LIVE badge + count. */
+  /** Load the global tree + published state. */
   private async loadAll(): Promise<void> {
     this.loading.set(true);
     try {
-      const [trees, histories] = await Promise.all([
-        Promise.all(LOAN_CATEGORIES.map((c) => this.api.tree(c))),
-        Promise.all(LOAN_CATEGORIES.map((c) => this.api.versionHistory(c))),
-      ]);
-      const byCat: Partial<Record<LoanCategory, GroupTreeRow[]>> = {};
-      const meta = {} as Record<LoanCategory, { live: boolean; count: number }>;
-      LOAN_CATEGORIES.forEach((c, i) => {
-        const tree = trees[i] ?? [];
-        byCat[c] = tree;
-        meta[c] = {
-          live: (histories[i] ?? []).some((v) => v.isActive),
-          count: questionCount(tree),
-        };
-      });
-      this.treesByCat.set(byCat);
-      this.tabMeta.set(meta);
+      const [tree, history] = await Promise.all([this.api.tree(), this.api.versionHistory()]);
+      this.groups.set(tree ?? []);
+      this.published.set((history ?? []).some((v) => v.isActive));
     } finally {
       this.loading.set(false);
     }
   }
 
-  /** After a mutation, re-fetch only the active category's tree + count. */
-  private async refreshActive(): Promise<void> {
-    const cat = this.category();
-    const tree = await this.api.tree(cat);
-    this.treesByCat.update((m) => ({ ...m, [cat]: tree }));
-    // Every mutation auto-publishes server-side → the category is now LIVE.
-    this.tabMeta.update((m) => ({ ...m, [cat]: { ...m[cat], count: questionCount(tree), live: true } }));
+  /** After a mutation, re-fetch the tree. Every mutation auto-publishes server-side. */
+  private async reload(): Promise<void> {
+    const tree = await this.api.tree();
+    this.groups.set(tree ?? []);
+    this.published.set(true);
   }
-}
-
-/** Sum of active questions across a category's groups. */
-function questionCount(tree: GroupTreeRow[]): number {
-  return tree.reduce((sum, g) => sum + g.questions.length, 0);
 }

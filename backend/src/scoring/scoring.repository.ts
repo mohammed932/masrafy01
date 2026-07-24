@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LoanCategory, Prisma, ScoringWeightSetStatus } from '@prisma/client';
+import { Prisma, ScoringWeightSetStatus } from '@prisma/client';
 import type { ScoringWeightSet } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 
@@ -7,17 +7,6 @@ import { PrismaService } from '@/infra/prisma/prisma.service';
 @Injectable()
 export class ScoringRepository {
   constructor(private readonly prisma: PrismaService) {}
-
-  // ---- Bank program lookup ------------------------------------------------
-  async programCategory(programId: string): Promise<LoanCategory | null> {
-    const row = await this.prisma.bankProgram.findUnique({
-      where: { id: programId },
-      select: { productCategory: true },
-    });
-    if (!row) return null;
-    const v = row.productCategory.toLowerCase();
-    return (Object.values(LoanCategory) as string[]).includes(v) ? (v as LoanCategory) : null;
-  }
 
   // ---- Weight sets --------------------------------------------------------
   activeSet(programId: string): Promise<ScoringWeightSet | null> {

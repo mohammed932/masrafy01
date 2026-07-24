@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LoanCategory, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type {
   Question,
   QuestionGroup,
@@ -10,22 +10,20 @@ import { PrismaService } from '@/infra/prisma/prisma.service';
 
 /**
  * Questionnaire repository (Constitution Principle X). All Prisma access for the
- * admin-editable questionnaire + published version snapshots lives here.
+ * admin-editable GLOBAL question pool + published version snapshots lives here.
+ * Feature 010: questions carry no category — there is one global questionnaire.
  */
 @Injectable()
 export class QuestionnaireRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   // ---- Groups -------------------------------------------------------------
-  groupsByCategory(category: LoanCategory): Promise<QuestionGroup[]> {
-    return this.prisma.questionGroup.findMany({
-      where: { category },
-      orderBy: { displayOrder: 'asc' },
-    });
+  groups(): Promise<QuestionGroup[]> {
+    return this.prisma.questionGroup.findMany({ orderBy: { displayOrder: 'asc' } });
   }
 
-  groupCodes(category: LoanCategory): Promise<{ code: string }[]> {
-    return this.prisma.questionGroup.findMany({ where: { category }, select: { code: true } });
+  groupCodes(): Promise<{ code: string }[]> {
+    return this.prisma.questionGroup.findMany({ select: { code: true } });
   }
 
   createGroup(data: Prisma.QuestionGroupUncheckedCreateInput): Promise<QuestionGroup> {
@@ -49,23 +47,20 @@ export class QuestionnaireRepository {
     return this.prisma.question.findUnique({ where: { id } });
   }
 
-  questionsByCategory(category: LoanCategory): Promise<Question[]> {
-    return this.prisma.question.findMany({
-      where: { category },
-      orderBy: { displayOrder: 'asc' },
-    });
+  questions(): Promise<Question[]> {
+    return this.prisma.question.findMany({ orderBy: { displayOrder: 'asc' } });
   }
 
-  questionCodes(category: LoanCategory): Promise<{ code: string }[]> {
-    return this.prisma.question.findMany({ where: { category }, select: { code: true } });
+  questionCodes(): Promise<{ code: string }[]> {
+    return this.prisma.question.findMany({ select: { code: true } });
   }
 
   /**
-   * Active questions of a category with their active options (code + labels),
-   * ordered. Feeds both the admin weights editor (points per answer) and the
-   * `maxPoints` normaliser in the scorer.
+   * All active questions with their active options (code + labels), ordered.
+   * Feeds both the admin per-program scoring editor (assign + weight + score) and
+   * the `maxPoints` normaliser in the scorer.
    */
-  questionsWithOptions(category: LoanCategory): Promise<
+  questionsWithOptions(): Promise<
     {
       code: string;
       questionAr: string;
@@ -74,7 +69,7 @@ export class QuestionnaireRepository {
     }[]
   > {
     return this.prisma.question.findMany({
-      where: { category, isActive: true },
+      where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
       select: {
         code: true,
@@ -94,10 +89,9 @@ export class QuestionnaireRepository {
   }
 
   /** Active questions whose enabledWhen references the given question code (delete guard). */
-  async dependentsOf(category: LoanCategory, questionCode: string): Promise<string[]> {
+  async dependentsOf(questionCode: string): Promise<string[]> {
     const rows = await this.prisma.question.findMany({
       where: {
-        category,
         isActive: true,
         enabledWhen: { path: ['questionCode'], equals: questionCode },
       },
@@ -112,14 +106,9 @@ export class QuestionnaireRepository {
    * optionCode so deleting an unreferenced option of a referenced question is
    * still allowed.
    */
-  async optionDependentsOf(
-    category: LoanCategory,
-    questionCode: string,
-    optionCode: string,
-  ): Promise<string[]> {
+  async optionDependentsOf(questionCode: string, optionCode: string): Promise<string[]> {
     const rows = await this.prisma.question.findMany({
       where: {
-        category,
         isActive: true,
         AND: [
           { enabledWhen: { path: ['questionCode'], equals: questionCode } },
@@ -155,25 +144,21 @@ export class QuestionnaireRepository {
     return this.prisma.questionOption.update({ where: { id }, data });
   }
 
-  // ---- Versions -----------------------------------------------------------
-  activeVersion(category: LoanCategory): Promise<QuestionnaireVersion | null> {
-    return this.prisma.questionnaireVersion.findFirst({ where: { category, isActive: true } });
+  // ---- Versions (one global questionnaire) --------------------------------
+  activeVersion(): Promise<QuestionnaireVersion | null> {
+    return this.prisma.questionnaireVersion.findFirst({ where: { isActive: true } });
   }
 
   versionById(id: string): Promise<QuestionnaireVersion | null> {
     return this.prisma.questionnaireVersion.findUnique({ where: { id } });
   }
 
-  versionHistory(category: LoanCategory): Promise<QuestionnaireVersion[]> {
-    return this.prisma.questionnaireVersion.findMany({
-      where: { category },
-      orderBy: { versionNumber: 'desc' },
-    });
+  versionHistory(): Promise<QuestionnaireVersion[]> {
+    return this.prisma.questionnaireVersion.findMany({ orderBy: { versionNumber: 'desc' } });
   }
 
-  async nextVersionNumber(category: LoanCategory): Promise<number> {
+  async nextVersionNumber(): Promise<number> {
     const last = await this.prisma.questionnaireVersion.findFirst({
-      where: { category },
       orderBy: { versionNumber: 'desc' },
       select: { versionNumber: true },
     });
@@ -182,19 +167,17 @@ export class QuestionnaireRepository {
 
   /** Publish atomically: deactivate prior active, insert new active snapshot. */
   publishVersion(args: {
-    category: LoanCategory;
     versionNumber: number;
     snapshot: Prisma.InputJsonValue;
     publishedBy: string;
   }): Promise<QuestionnaireVersion> {
     return this.prisma.$transaction(async (tx) => {
       await tx.questionnaireVersion.updateMany({
-        where: { category: args.category, isActive: true },
+        where: { isActive: true },
         data: { isActive: false },
       });
       return tx.questionnaireVersion.create({
         data: {
-          category: args.category,
           versionNumber: args.versionNumber,
           isActive: true,
           publishedAt: new Date(),
@@ -205,10 +188,10 @@ export class QuestionnaireRepository {
     });
   }
 
-  activateExisting(category: LoanCategory, versionId: string): Promise<QuestionnaireVersion> {
+  activateExisting(versionId: string): Promise<QuestionnaireVersion> {
     return this.prisma.$transaction(async (tx) => {
       await tx.questionnaireVersion.updateMany({
-        where: { category, isActive: true },
+        where: { isActive: true },
         data: { isActive: false },
       });
       return tx.questionnaireVersion.update({

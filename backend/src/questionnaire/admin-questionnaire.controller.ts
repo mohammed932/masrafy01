@@ -16,7 +16,6 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { QuestionnaireService } from './questionnaire.service';
-import { parseCategory } from './category.util';
 import {
   CreateGroupDto,
   CreateOptionDto,
@@ -44,10 +43,10 @@ import {
 export class AdminQuestionnaireController {
   constructor(private readonly service: QuestionnaireService) {}
 
-  @Get('tree/:category')
-  @ApiOperation({ summary: 'Editable working tree (groups → questions → options)' })
-  async tree(@Param('category') category: string) {
-    return ok(await this.service.draftTree(parseCategory(category)));
+  @Get('tree')
+  @ApiOperation({ summary: 'Editable working tree of the global pool (groups → questions → options)' })
+  async tree() {
+    return ok(await this.service.draftTree());
   }
 
   @Post('groups')
@@ -79,7 +78,7 @@ export class AdminQuestionnaireController {
   }
 
   @Patch('questions/:id')
-  @ApiOperation({ summary: 'Edit a question (code/category immutable)' })
+  @ApiOperation({ summary: 'Edit a question (code immutable)' })
   async updateQuestion(
     @Param('id') id: string,
     @Body() dto: UpdateQuestionDto,
@@ -126,21 +125,21 @@ export class AdminQuestionnaireController {
     return ok(await this.service.softDeleteOption(optionId, user.sub));
   }
 
-  @Post('versions/:category/publish')
-  @ApiOperation({ summary: 'Snapshot the active draft → new active version' })
-  async publish(@Param('category') category: string, @CurrentUser() user: JwtPayload) {
-    return ok(await this.service.publish(parseCategory(category), user.sub));
+  @Post('versions/publish')
+  @ApiOperation({ summary: 'Snapshot the active draft → new active version (global)' })
+  async publish(@CurrentUser() user: JwtPayload) {
+    return ok(await this.service.publish(user.sub));
   }
 
-  @Get('versions/:category/history')
-  @ApiOperation({ summary: 'List published versions for a category' })
-  async history(@Param('category') category: string) {
-    return ok(await this.service.history(parseCategory(category)));
+  @Get('versions/history')
+  @ApiOperation({ summary: 'List published questionnaire versions (global)' })
+  async history() {
+    return ok(await this.service.history());
   }
 
-  @Post('versions/:category/rollback/:versionId')
+  @Post('versions/rollback/:versionId')
   @ApiOperation({ summary: 'Re-activate an older published version' })
-  async rollback(@Param('category') category: string, @Param('versionId') versionId: string) {
-    return ok(await this.service.rollback(parseCategory(category), versionId));
+  async rollback(@Param('versionId') versionId: string) {
+    return ok(await this.service.rollback(versionId));
   }
 }

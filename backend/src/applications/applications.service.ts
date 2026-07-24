@@ -237,11 +237,11 @@ export class ApplicationsService {
       }
     }
 
-    // Feature 009 — resolve + validate dynamic questionnaire answers (if sent)
-    // against the live questions for the category, for atomic persistence.
+    // Feature 009/010 — resolve + validate dynamic questionnaire answers (if
+    // sent) against the live GLOBAL questions, for atomic persistence.
     const dynamicAnswers =
       dto.category && dto.questionnaireAnswers && dto.questionnaireAnswers.length > 0
-        ? await this.questionnaire.resolveAnswers(dto.category, dto.questionnaireAnswers)
+        ? await this.questionnaire.resolveAnswers(dto.questionnaireAnswers)
         : undefined;
 
     const activePrograms = await this.programsRepo.findAllActive();

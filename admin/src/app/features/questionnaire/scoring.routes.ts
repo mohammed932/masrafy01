@@ -7,7 +7,7 @@ import type { Routes } from '@angular/router';
  */
 export const SCORING_ROUTES: Routes = [
   {
-    path: 'weights/:category/:programId',
+    path: 'weights/:programId',
     loadComponent: () =>
       import('./scoring-weights-editor.page').then((m) => m.ScoringWeightsEditorPage),
   },

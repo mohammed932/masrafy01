@@ -51,16 +51,13 @@ export class MatchingPreviewService {
   ) {}
 
   async preview(args: { category: LoanCategory; answers: SubmittedAnswerDto[] }) {
-    const answers = await this.resolveSelectedOptions(args.category, args.answers);
+    const answers = await this.resolveSelectedOptions(args.answers);
     return this.runAndAssemble(args.category, answers);
   }
 
-  /** Validate answers against the active snapshot; return the {questionCode, optionCode} pairs. */
-  private async resolveSelectedOptions(
-    category: LoanCategory,
-    answers: SubmittedAnswerDto[],
-  ): Promise<SelectedAnswer[]> {
-    const version = await this.questionnaire.activeVersion(category);
+  /** Validate answers against the active GLOBAL snapshot; return the {questionCode, optionCode} pairs. */
+  private async resolveSelectedOptions(answers: SubmittedAnswerDto[]): Promise<SelectedAnswer[]> {
+    const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     const snapshot = version.snapshot as unknown as Snapshot;
     const questions: SnapshotQuestion[] = [];

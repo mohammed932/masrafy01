@@ -603,113 +603,157 @@ const BUSINESS: CategoryConfig = {
 
 const CONFIGS: CategoryConfig[] = [PERSONAL, MORTGAGE, CAR, BUSINESS];
 
-export async function seedQuestionnaire(): Promise<void> {
-  for (const cfg of CONFIGS) {
-    await seedCategory(cfg);
-  }
-  console.log('seed-questionnaire: done for', CONFIGS.map((c) => c.category).join(', '));
+interface MergedQuestion {
+  code: string;
+  groupCode: string;
+  questionEn: string;
+  questionAr: string;
+  isRequired: boolean;
+  options: { code: string; labelEn: string; labelAr: string }[];
 }
 
-async function seedCategory(cfg: CategoryConfig): Promise<void> {
-  const { category } = cfg;
-
-  // Groups + questions + options. Track config codes so stale rows from a
-  // previous seed (renamed labels → new slugs) get deactivated, not duplicated.
-  // `pointsByAnswer` collects each option's seed desirability, nested
-  // questionCode → optionCode → points, for the per-program weight sets.
-  const groupCodes: string[] = [];
-  const questionCodes: string[] = [];
+export async function seedQuestionnaire(): Promise<void> {
+  // ---- 1. Merge all four category configs into ONE global deduped pool ------
+  // Feature 010: questions carry no category. Groups + questions dedupe by code
+  // (first config wins for content; option sets are UNIONed by code). Each
+  // question remembers which categories it appeared in, so a program can be
+  // pre-assigned exactly its own category's questions (the migration's rule).
+  const groupOrder: string[] = [];
+  const groupByCode = new Map<string, SeedGroup>();
+  const questionOrder: string[] = [];
+  const questionByCode = new Map<string, MergedQuestion>();
   const pointsByAnswer: Record<string, Record<string, number>> = {};
-  let gOrder = 0;
-  let qOrder = 0;
-  for (const g of cfg.groups) {
-    gOrder += 1;
-    groupCodes.push(g.code);
-    const group = await prisma.questionGroup.upsert({
-      where: { uniq_question_group_category_code: { category, code: g.code } },
-      update: { titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: gOrder, isActive: true },
-      create: { category, code: g.code, titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: gOrder },
-    });
-    for (const q of g.questions) {
-      qOrder += 1;
-      questionCodes.push(q.code);
-      const question = await prisma.question.upsert({
-        where: { uniq_question_category_code: { category, code: q.code } },
-        update: {
-          groupId: group.id, questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder,
-          isRequired: q.isRequired ?? true, isActive: true,
-        },
-        create: {
-          groupId: group.id, category, code: q.code, type: 'SINGLE_SELECT',
-          questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder, isRequired: q.isRequired ?? true,
-        },
-      });
-      const optionCodes: string[] = [];
-      let oOrder = 0;
-      const optionList = q.optionsFromEnum ? await enumOptions(q.optionsFromEnum) : q.options;
-      for (const o of optionList) {
-        oOrder += 1;
-        const code = o.code ?? slug(o.labelEn);
-        optionCodes.push(code);
-        // Every answer gets a score: its desirability hint, or a neutral default
-        // for content answers with no natural good/bad. None is ever left at 0.
-        (pointsByAnswer[q.code] ??= {})[code] = o.points ?? NEUTRAL_SCORE;
-        await prisma.questionOption.upsert({
-          where: { uniq_question_option_question_code: { questionId: question.id, code } },
-          update: { labelEn: o.labelEn, labelAr: o.labelAr, displayOrder: oOrder, isActive: true },
-          create: { questionId: question.id, code, labelEn: o.labelEn, labelAr: o.labelAr, displayOrder: oOrder },
-        });
+  const categoriesByQuestion: Record<string, Set<Category>> = {};
+
+  for (const cfg of CONFIGS) {
+    for (const g of cfg.groups) {
+      if (!groupByCode.has(g.code)) {
+        groupByCode.set(g.code, g);
+        groupOrder.push(g.code);
       }
-      // Deactivate stale options under this question (dropped from config).
-      await prisma.questionOption.updateMany({
-        where: { questionId: question.id, code: { notIn: optionCodes } },
-        data: { isActive: false },
-      });
+      for (const q of g.questions) {
+        (categoriesByQuestion[q.code] ??= new Set()).add(cfg.category);
+        const optionList = q.optionsFromEnum ? await enumOptions(q.optionsFromEnum) : q.options;
+        let mq = questionByCode.get(q.code);
+        if (!mq) {
+          mq = {
+            code: q.code,
+            groupCode: g.code,
+            questionEn: q.questionEn,
+            questionAr: q.questionAr,
+            isRequired: q.isRequired ?? true,
+            options: [],
+          };
+          questionByCode.set(q.code, mq);
+          questionOrder.push(q.code);
+        }
+        for (const o of optionList) {
+          const code = o.code ?? slug(o.labelEn);
+          // First-seen points win; every answer keeps a non-zero score.
+          (pointsByAnswer[q.code] ??= {})[code] ??= o.points ?? NEUTRAL_SCORE;
+          if (!mq.options.some((x) => x.code === code)) {
+            mq.options.push({ code, labelEn: o.labelEn, labelAr: o.labelAr });
+          }
+        }
+      }
     }
   }
-  // Deactivate stale questions + groups (dropped/renamed) for this category.
-  await prisma.question.updateMany({ where: { category, code: { notIn: questionCodes } }, data: { isActive: false } });
-  await prisma.questionGroup.updateMany({ where: { category, code: { notIn: groupCodes } }, data: { isActive: false } });
 
-  // Publish snapshot
-  await publishVersion(category);
+  // ---- 2. Upsert the global groups / questions / options (unique by code) ---
+  const groupIdByCode = new Map<string, string>();
+  let gOrder = 0;
+  for (const code of groupOrder) {
+    const g = groupByCode.get(code)!;
+    gOrder += 1;
+    const group = await prisma.questionGroup.upsert({
+      where: { code },
+      update: { titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: gOrder, isActive: true },
+      create: { code, titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: gOrder },
+    });
+    groupIdByCode.set(code, group.id);
+  }
+  let qOrder = 0;
+  for (const code of questionOrder) {
+    const q = questionByCode.get(code)!;
+    qOrder += 1;
+    const question = await prisma.question.upsert({
+      where: { code },
+      update: {
+        groupId: groupIdByCode.get(q.groupCode)!, questionEn: q.questionEn, questionAr: q.questionAr,
+        displayOrder: qOrder, isRequired: q.isRequired, isActive: true,
+      },
+      create: {
+        groupId: groupIdByCode.get(q.groupCode)!, code, type: 'SINGLE_SELECT',
+        questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder, isRequired: q.isRequired,
+      },
+    });
+    const optionCodes: string[] = [];
+    let oOrder = 0;
+    for (const o of q.options) {
+      oOrder += 1;
+      optionCodes.push(o.code);
+      await prisma.questionOption.upsert({
+        where: { uniq_question_option_question_code: { questionId: question.id, code: o.code } },
+        update: { labelEn: o.labelEn, labelAr: o.labelAr, displayOrder: oOrder, isActive: true },
+        create: { questionId: question.id, code: o.code, labelEn: o.labelEn, labelAr: o.labelAr, displayOrder: oOrder },
+      });
+    }
+    await prisma.questionOption.updateMany({
+      where: { questionId: question.id, code: { notIn: optionCodes } },
+      data: { isActive: false },
+    });
+  }
+  // Deactivate stale questions + groups (dropped/renamed across the whole pool).
+  await prisma.question.updateMany({ where: { code: { notIn: questionOrder } }, data: { isActive: false } });
+  await prisma.questionGroup.updateMany({ where: { code: { notIn: groupOrder } }, data: { isActive: false } });
 
-  // Simple model: every question gets an EQUAL weight (auto, sums 100, never 0).
-  // No per-question tuning — only the per-answer scores differ.
-  const questionWeights = equalWeights(questionCodes);
+  // ---- 3. Publish ONE global snapshot ---------------------------------------
+  await publishVersion();
 
-  // ACTIVE weight set per active program: shared equal question weights + per-answer
-  // scores (1–100) scaled by the program multiplier so programs rank differently.
-  const programs = await prisma.bankProgram.findMany({ where: { active: true, productCategory: category }, select: { id: true } });
+  // ---- 4. Per-program weight sets: each active program is pre-assigned the
+  //         questions from its OWN category (equal weights sum 100 + per-answer
+  //         scores scaled by a multiplier). Assignment = questionWeights keys. --
+  const programs = await prisma.bankProgram.findMany({
+    where: { active: true },
+    select: { id: true, productCategory: true },
+  });
+  let setCount = 0;
   for (let i = 0; i < programs.length; i++) {
     const p = programs[i]!;
+    const cat = p.productCategory.toLowerCase() as Category;
+    const assigned = questionOrder.filter((qc) => categoriesByQuestion[qc]?.has(cat));
+    if (assigned.length === 0) continue; // no questions for this category → scores 0
     const mult = PROGRAM_POINT_MULTIPLIERS[i % PROGRAM_POINT_MULTIPLIERS.length]!;
+    const questionWeights = equalWeights(assigned);
     const answerScores: Record<string, Record<string, number>> = {};
-    for (const [qCode, byOption] of Object.entries(pointsByAnswer)) {
-      answerScores[qCode] = {};
-      for (const [oCode, pts] of Object.entries(byOption)) {
+    for (const qc of assigned) {
+      answerScores[qc] = {};
+      for (const [oCode, pts] of Object.entries(pointsByAnswer[qc] ?? {})) {
         // Floor at 1 so a low base × low multiplier never rounds down to 0.
-        answerScores[qCode][oCode] = Math.min(100, Math.max(1, Math.round(pts * mult)));
+        answerScores[qc][oCode] = Math.min(100, Math.max(1, Math.round(pts * mult)));
       }
     }
     const weights = { questionWeights, answerScores };
     const existingActive = await prisma.scoringWeightSet.findFirst({ where: { bankProgramId: p.id, status: 'ACTIVE' } });
     if (existingActive) {
       await prisma.scoringWeightSet.update({ where: { id: existingActive.id }, data: { weights } });
+      setCount += 1;
       continue;
     }
     const last = await prisma.scoringWeightSet.findFirst({ where: { bankProgramId: p.id }, orderBy: { versionNumber: 'desc' }, select: { versionNumber: true } });
     await prisma.scoringWeightSet.create({
       data: { bankProgramId: p.id, status: 'ACTIVE', versionNumber: (last?.versionNumber ?? 0) + 1, weights, createdBy: SEED_ACTOR, approvedBy: SEED_ACTOR, approvedAt: new Date() },
     });
+    setCount += 1;
   }
 
-  const pointedAnswers = Object.values(pointsByAnswer).reduce((n, m) => n + Object.keys(m).length, 0);
-  console.log(`  ${category}: ${cfg.groups.length} groups, ${pointedAnswers} pointed answers, ${programs.length} weight sets.`);
+  console.log(
+    `seed-questionnaire: ${groupOrder.length} groups, ${questionOrder.length} questions (global), ${setCount} program weight sets.`,
+  );
 }
 
-async function publishVersion(category: Category): Promise<void> {
-  const groups = await prisma.questionGroup.findMany({ where: { category, isActive: true }, orderBy: { displayOrder: 'asc' } });
+async function publishVersion(): Promise<void> {
+  const groups = await prisma.questionGroup.findMany({ where: { isActive: true }, orderBy: { displayOrder: 'asc' } });
   const snapshotGroups = [];
   for (const g of groups) {
     const questions = await prisma.question.findMany({ where: { groupId: g.id, isActive: true }, orderBy: { displayOrder: 'asc' } });
@@ -727,11 +771,11 @@ async function publishVersion(category: Category): Promise<void> {
     }
     snapshotGroups.push({ code: g.code, titleAr: g.titleAr, titleEn: g.titleEn, displayOrder: g.displayOrder, questions: qOut });
   }
-  const last = await prisma.questionnaireVersion.findFirst({ where: { category }, orderBy: { versionNumber: 'desc' }, select: { versionNumber: true } });
+  const last = await prisma.questionnaireVersion.findFirst({ orderBy: { versionNumber: 'desc' }, select: { versionNumber: true } });
   const versionNumber = (last?.versionNumber ?? 0) + 1;
-  await prisma.questionnaireVersion.updateMany({ where: { category, isActive: true }, data: { isActive: false } });
+  await prisma.questionnaireVersion.updateMany({ where: { isActive: true }, data: { isActive: false } });
   await prisma.questionnaireVersion.create({
-    data: { category, versionNumber, isActive: true, publishedAt: new Date(), publishedBy: SEED_ACTOR, snapshot: { category, versionNumber, groups: snapshotGroups } },
+    data: { versionNumber, isActive: true, publishedAt: new Date(), publishedBy: SEED_ACTOR, snapshot: { versionNumber, groups: snapshotGroups } },
   });
 }
 

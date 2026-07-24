@@ -876,10 +876,12 @@ enum ScoringWeightSetStatus {
   REJECTED
 }
 
+// Feature 010 — questions are GLOBAL (no category). A single question pool feeds
+// one global questionnaire; per-program scoring picks which questions it uses via
+// `ScoringWeightSet.weights.questionWeights` (checkbox = weight-set membership).
 model QuestionGroup {
   id           String       @id @default(cuid()) @db.VarChar(30)
-  category     LoanCategory
-  code         String       @db.VarChar(64)
+  code         String       @unique(map: "uniq_question_group_code") @db.VarChar(64)
   titleAr      String       @db.VarChar(160)
   titleEn      String       @db.VarChar(160)
   displayOrder Int
@@ -889,16 +891,14 @@ model QuestionGroup {
 
   questions Question[] @relation("QuestionGroupQuestions")
 
-  @@unique([category, code], name: "uniq_question_group_category_code")
-  @@index([category, displayOrder], name: "idx_question_group_category_order")
+  @@index([displayOrder], name: "idx_question_group_order")
   @@map("question_group")
 }
 
 model Question {
   id           String              @id @default(cuid()) @db.VarChar(30)
   groupId      String              @db.VarChar(30)
-  category     LoanCategory
-  code         String              @db.VarChar(64) // auto-generated slug, immutable
+  code         String              @unique(map: "uniq_question_code") @db.VarChar(64) // auto-generated slug, immutable, GLOBALLY unique
   type         QuestionType        @default(SINGLE_SELECT)
   questionAr   String              @db.VarChar(500)
   questionEn   String              @db.VarChar(500)
@@ -915,8 +915,7 @@ model Question {
   options QuestionOption[]    @relation("QuestionOptions")
   answers ApplicationAnswer[] @relation("QuestionAnswers")
 
-  @@unique([category, code], name: "uniq_question_category_code")
-  @@index([groupId, displayOrder], name: "idx_question_group_order")
+  @@index([groupId, displayOrder], name: "idx_question_group_question_order")
   @@map("question")
 }
 
@@ -938,18 +937,18 @@ model QuestionOption {
   @@map("question_option")
 }
 
+// Feature 010 — ONE global questionnaire (no category). Exactly one active
+// version drives every applicant's questionnaire regardless of loan category.
 model QuestionnaireVersion {
   id            String       @id @default(cuid()) @db.VarChar(30)
-  category      LoanCategory
-  versionNumber Int
-  isActive      Boolean      @default(false) // exactly one active per category
+  versionNumber Int          @unique(map: "uniq_questionnaire_version_number")
+  isActive      Boolean      @default(false) // exactly one active globally
   publishedAt   DateTime?    @db.Timestamptz(6)
   publishedBy   String?      @db.VarChar(30) // staff id
   snapshot      Json // frozen groups+questions+options blob
   createdAt     DateTime     @default(now()) @db.Timestamptz(6)
 
-  @@unique([category, versionNumber], name: "uniq_questionnaire_version_category_number")
-  @@index([category, isActive], name: "idx_questionnaire_version_category_active")
+  @@index([isActive], name: "idx_questionnaire_version_active")
   @@map("questionnaire_version")
 }
 

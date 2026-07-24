@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LoanCategory, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { QuestionnaireRepository } from './questionnaire.repository';
@@ -19,28 +19,29 @@ export class QuestionnaireService {
 
   // ---- Public read --------------------------------------------------------
   /**
-   * Customer-facing snapshot. Questions/answers are now pure content (MVP) — the
-   * per-program per-answer points live in `ScoringWeightSet`, never in the
-   * snapshot — so this is a shape passthrough with no IP left to strip.
+   * Customer-facing snapshot of the single GLOBAL questionnaire. Questions/answers
+   * are pure content (MVP) — per-program per-answer scores live in
+   * `ScoringWeightSet`, never in the snapshot — so this is a shape passthrough
+   * with no IP left to strip. The chosen loan category only filters which
+   * programs get matched; every applicant answers the same questionnaire.
    */
-  async activeSnapshot(category: LoanCategory): Promise<unknown> {
-    const version = await this.repo.activeVersion(category);
+  async activeSnapshot(): Promise<unknown> {
+    const version = await this.repo.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     return toCustomerSnapshot(version.snapshot);
   }
 
   // ---- Groups -------------------------------------------------------------
   async createGroup(dto: CreateGroupDto, actor: string) {
-    const existing = new Set((await this.repo.groupCodes(dto.category)).map((g) => g.code));
+    const existing = new Set((await this.repo.groupCodes()).map((g) => g.code));
     const code = uniqueSlug(dto.titleEn, existing);
     const created = await this.repo.createGroup({
-      category: dto.category,
       code,
       titleAr: dto.titleAr,
       titleEn: dto.titleEn,
       displayOrder: dto.displayOrder,
     });
-    await this.publish(dto.category, actor);
+    await this.publish(actor);
     return created;
   }
 
@@ -49,9 +50,7 @@ export class QuestionnaireService {
     if (!group) throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
     // Deactivating a group is a delete in effect — block while it holds questions.
     if (dto.isActive === false && group.isActive) {
-      const active = (await this.repo.questionsByCategory(group.category)).filter(
-        (q) => q.groupId === id && q.isActive,
-      );
+      const active = (await this.repo.questions()).filter((q) => q.groupId === id && q.isActive);
       if (active.length > 0) {
         throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_EMPTY, {
           questionCount: active.length,
@@ -64,7 +63,7 @@ export class QuestionnaireService {
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
     });
-    await this.publish(group.category, actor);
+    await this.publish(actor);
     return updated;
   }
 
@@ -72,36 +71,34 @@ export class QuestionnaireService {
   async softDeleteGroup(id: string, actor: string) {
     const group = await this.repo.findGroup(id);
     if (!group) throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
-    const questions = await this.repo.questionsByCategory(group.category);
-    const active = questions.filter((q) => q.groupId === id && q.isActive);
+    const active = (await this.repo.questions()).filter((q) => q.groupId === id && q.isActive);
     if (active.length > 0) {
       throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_EMPTY, {
         questionCount: active.length,
       });
     }
     const deleted = await this.repo.updateGroup(id, { isActive: false });
-    await this.publish(group.category, actor);
+    await this.publish(actor);
     return deleted;
   }
 
-  listGroups(category: LoanCategory) {
-    return this.repo.groupsByCategory(category);
+  listGroups() {
+    return this.repo.groups();
   }
 
   // ---- Questions ----------------------------------------------------------
   async createQuestion(dto: CreateQuestionDto, actor: string) {
     const group = await this.repo.findGroup(dto.groupId);
-    if (!group || group.category !== dto.category) {
+    if (!group) {
       throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
     }
     if (dto.enabledWhen) {
-      await this.assertEnabledWhenValid(dto.category, dto.displayOrder, dto.enabledWhen);
+      await this.assertEnabledWhenValid(dto.displayOrder, dto.enabledWhen);
     }
-    const existing = new Set((await this.repo.questionCodes(dto.category)).map((q) => q.code));
+    const existing = new Set((await this.repo.questionCodes()).map((q) => q.code));
     const code = uniqueSlug(dto.questionEn, existing);
     const created = await this.repo.createQuestion({
       groupId: dto.groupId,
-      category: dto.category,
       code,
       type: dto.type ?? 'SINGLE_SELECT',
       questionAr: dto.questionAr,
@@ -112,7 +109,7 @@ export class QuestionnaireService {
       displayOrder: dto.displayOrder,
       enabledWhen: dto.enabledWhen ? (dto.enabledWhen as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
     });
-    await this.publish(dto.category, actor);
+    await this.publish(actor);
     return created;
   }
 
@@ -120,15 +117,11 @@ export class QuestionnaireService {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     if (dto.enabledWhen) {
-      await this.assertEnabledWhenValid(
-        question.category,
-        dto.displayOrder ?? question.displayOrder,
-        dto.enabledWhen,
-      );
+      await this.assertEnabledWhenValid(dto.displayOrder ?? question.displayOrder, dto.enabledWhen);
     }
     // Deactivation must honour the same branch-integrity guard as delete (A33).
     if (dto.isActive === false && question.isActive) {
-      const dependents = (await this.repo.dependentsOf(question.category, question.code)).filter(
+      const dependents = (await this.repo.dependentsOf(question.code)).filter(
         (c) => c !== question.code,
       );
       if (dependents.length > 0) {
@@ -150,27 +143,27 @@ export class QuestionnaireService {
           ? Prisma.DbNull
           : (dto.enabledWhen as unknown as Prisma.InputJsonValue);
     }
-    // `code` and `category` are immutable post-creation (A33).
+    // `code` is immutable post-creation (A33).
     const updated = await this.repo.updateQuestion(id, data);
-    await this.publish(question.category, actor);
+    await this.publish(actor);
     return updated;
   }
 
   async softDeleteQuestion(id: string, actor: string) {
     const question = await this.repo.findQuestion(id);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
-    const dependents = await this.repo.dependentsOf(question.category, question.code);
+    const dependents = await this.repo.dependentsOf(question.code);
     const others = dependents.filter((c) => c !== question.code);
     if (others.length > 0) {
       throw new DomainException(ERROR_CODES.QUESTION_IN_USE, { dependents: others });
     }
     const deleted = await this.repo.updateQuestion(id, { isActive: false });
-    await this.publish(question.category, actor);
+    await this.publish(actor);
     return deleted;
   }
 
-  listQuestions(category: LoanCategory) {
-    return this.repo.questionsByCategory(category);
+  listQuestions() {
+    return this.repo.questions();
   }
 
   // ---- Options ------------------------------------------------------------
@@ -186,7 +179,7 @@ export class QuestionnaireService {
       labelEn: dto.labelEn,
       displayOrder: dto.displayOrder,
     });
-    await this.publish(question.category, actor);
+    await this.publish(actor);
     return created;
   }
 
@@ -197,11 +190,7 @@ export class QuestionnaireService {
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
     // Deactivating an option must honour the same branch guard as delete (A33).
     if (dto.isActive === false && option.isActive) {
-      const dependents = await this.repo.optionDependentsOf(
-        question.category,
-        question.code,
-        option.code,
-      );
+      const dependents = await this.repo.optionDependentsOf(question.code, option.code);
       if (dependents.length > 0) {
         throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
       }
@@ -212,7 +201,7 @@ export class QuestionnaireService {
       displayOrder: dto.displayOrder,
       isActive: dto.isActive,
     });
-    await this.publish(question.category, actor);
+    await this.publish(actor);
     return updated;
   }
 
@@ -222,16 +211,12 @@ export class QuestionnaireService {
     if (!option) throw new DomainException(ERROR_CODES.QUESTION_OPTION_NOT_FOUND);
     const question = await this.repo.findQuestion(option.questionId);
     if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
-    const dependents = await this.repo.optionDependentsOf(
-      question.category,
-      question.code,
-      option.code,
-    );
+    const dependents = await this.repo.optionDependentsOf(question.code, option.code);
     if (dependents.length > 0) {
       throw new DomainException(ERROR_CODES.QUESTION_OPTION_IN_USE, { dependents });
     }
     const deleted = await this.repo.updateOption(id, { isActive: false });
-    await this.publish(question.category, actor);
+    await this.publish(actor);
     return deleted;
   }
 
@@ -239,10 +224,10 @@ export class QuestionnaireService {
     return this.repo.optionsByQuestion(questionId);
   }
 
-  // ---- Versioning ---------------------------------------------------------
-  async publish(category: LoanCategory, publishedBy: string) {
-    const groups = (await this.repo.groupsByCategory(category)).filter((g) => g.isActive);
-    const questions = (await this.repo.questionsByCategory(category)).filter((q) => q.isActive);
+  // ---- Versioning (one global questionnaire) ------------------------------
+  async publish(publishedBy: string) {
+    const groups = (await this.repo.groups()).filter((g) => g.isActive);
+    const questions = (await this.repo.questions()).filter((q) => q.isActive);
 
     const snapshotGroups = [];
     for (const g of groups) {
@@ -277,10 +262,9 @@ export class QuestionnaireService {
       });
     }
 
-    const versionNumber = await this.repo.nextVersionNumber(category);
-    const snapshot = { category, versionNumber, groups: snapshotGroups };
+    const versionNumber = await this.repo.nextVersionNumber();
+    const snapshot = { versionNumber, groups: snapshotGroups };
     return this.repo.publishVersion({
-      category,
       versionNumber,
       snapshot: snapshot as unknown as Prisma.InputJsonValue,
       publishedBy,
@@ -292,9 +276,9 @@ export class QuestionnaireService {
    * returned — soft-deleted groups/questions/options are excluded so a delete
    * visibly removes the row, consistent with what `publish` snapshots.
    */
-  async draftTree(category: LoanCategory) {
-    const groups = (await this.repo.groupsByCategory(category)).filter((g) => g.isActive);
-    const questions = (await this.repo.questionsByCategory(category)).filter((q) => q.isActive);
+  async draftTree() {
+    const groups = (await this.repo.groups()).filter((g) => g.isActive);
+    const questions = (await this.repo.questions()).filter((q) => q.isActive);
     const result = [];
     for (const g of groups) {
       const gQuestions = [];
@@ -307,25 +291,24 @@ export class QuestionnaireService {
     return result;
   }
 
-  history(category: LoanCategory) {
-    return this.repo.versionHistory(category);
+  history() {
+    return this.repo.versionHistory();
   }
 
-  async rollback(category: LoanCategory, versionId: string) {
+  async rollback(versionId: string) {
     const version = await this.repo.versionById(versionId);
-    if (!version || version.category !== category) {
+    if (!version) {
       throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     }
-    return this.repo.activateExisting(category, versionId);
+    return this.repo.activateExisting(versionId);
   }
 
   /**
-   * Validate submitted answers against the LIVE questions/options for a category
-   * and resolve stable ids for persistence as `application_answer` rows. Throws
+   * Validate submitted answers against the LIVE global questions/options and
+   * resolve stable ids for persistence as `application_answer` rows. Throws
    * UNKNOWN_QUESTION_CODE / UNKNOWN_OPTION_CODE. Used by the apply transaction.
    */
   async resolveAnswers(
-    category: LoanCategory,
     answers: ReadonlyArray<{ questionCode: string; optionCode: string }>,
   ): Promise<
     Array<{
@@ -335,7 +318,7 @@ export class QuestionnaireService {
       selectedOptionCode: string;
     }>
   > {
-    const questions = await this.repo.questionsByCategory(category);
+    const questions = await this.repo.questions();
     const byCode = new Map(questions.map((q) => [q.code, q]));
     const resolved = [];
     for (const a of answers) {
@@ -359,18 +342,20 @@ export class QuestionnaireService {
    * the FROZEN version snapshot (submit-time-correct content). Input carries the
    * picked codes (`ApplicationAnswer.questionCode` + `selectedOptionCode`); this
    * maps them to question/option labels (bilingual) grouped and ordered exactly
-   * as the questionnaire was presented. Returns null if the version is gone.
+   * as the questionnaire was presented. `category` is echoed into the view for
+   * display only (the questionnaire itself is global). Returns null if the
+   * version is gone.
    */
   async buildAnswersView(
-    source: { versionId: string | null; category: LoanCategory },
+    source: { versionId: string | null; category: string },
     answers: ReadonlyArray<{ questionCode: string; selectedOptionCode: string | null }>,
   ): Promise<ApplicantQuestionnaireView | null> {
-    // Prefer the exact submit-time snapshot; fall back to the category's active
-    // published version when the application did not record a version id (the
-    // codes on the answer rows are stable across versions).
+    // Prefer the exact submit-time snapshot; fall back to the active published
+    // version when the application did not record a version id (the codes on the
+    // answer rows are stable across versions).
     const version = source.versionId
       ? await this.repo.versionById(source.versionId)
-      : await this.repo.activeVersion(source.category);
+      : await this.repo.activeVersion();
     if (!version) return null;
     const snap = version.snapshot as unknown as StoredSnapshot;
     const picked = new Map(answers.map((a) => [a.questionCode, a.selectedOptionCode]));
@@ -399,7 +384,7 @@ export class QuestionnaireService {
     }
 
     return {
-      category: String(snap.category ?? ''),
+      category: source.category,
       versionNumber: Number(snap.versionNumber ?? version.versionNumber),
       groups,
     };
@@ -407,11 +392,10 @@ export class QuestionnaireService {
 
   // ---- Internals ----------------------------------------------------------
   private async assertEnabledWhenValid(
-    category: LoanCategory,
     selfOrder: number,
     rule: { questionCode: string; operator: string; optionCode: string },
   ): Promise<void> {
-    const questions = await this.repo.questionsByCategory(category);
+    const questions = await this.repo.questions();
     const ref = questions.find((q) => q.code === rule.questionCode);
     if (!ref) {
       throw new DomainException(ERROR_CODES.ENABLED_WHEN_INVALID, { reason: 'unknown_question' });
@@ -445,7 +429,6 @@ interface StoredGroup {
   questions?: StoredQuestion[];
 }
 interface StoredSnapshot {
-  category?: unknown;
   versionNumber?: unknown;
   groups?: StoredGroup[];
 }
@@ -477,7 +460,6 @@ export interface ApplicantQuestionnaireView {
 function toCustomerSnapshot(raw: unknown): unknown {
   const snap = raw as StoredSnapshot;
   return {
-    category: snap.category,
     versionNumber: snap.versionNumber,
     groups: (snap.groups ?? []).map((g) => ({
       code: g.code,

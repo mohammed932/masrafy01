@@ -6,13 +6,14 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { ok } from '@/common/pagination/paginated.response.dto';
 import { ScoringService } from './scoring.service';
-import { parseCategory } from '@/questionnaire/category.util';
 import { SaveWeightsDto } from './dto/scoring.dto';
 
 /**
- * Admin approval-scoring: per-bank-program per-answer points, saved directly
- * (Constitution V — no maker-checker). Weights are keyed by `optionCode` with no
- * sum constraint; saving atomically archives the prior ACTIVE set.
+ * Admin approval-scoring: per-bank-program two-level weights, saved directly
+ * (Constitution V — no maker-checker). The admin ticks which global questions a
+ * program scores on (assignment = weight-set membership, Feature 010), gives
+ * each a weight (sum 100) + per-answer scores (0–100); saving atomically
+ * archives the prior ACTIVE set.
  */
 @ApiTags('Admin · Scoring weights')
 @ApiBearerAuth()
@@ -22,10 +23,10 @@ import { SaveWeightsDto } from './dto/scoring.dto';
 export class AdminScoringController {
   constructor(private readonly service: ScoringService) {}
 
-  @Get('questions/:category')
-  @ApiOperation({ summary: 'List the category questions with their answers (points per answer)' })
-  async questions(@Param('category') category: string) {
-    return ok(await this.service.listWeightableOptions(parseCategory(category)));
+  @Get('questions')
+  @ApiOperation({ summary: 'List the global question pool with answers (for assign + score)' })
+  async questions() {
+    return ok(await this.service.listWeightableOptions());
   }
 
   @Get('programs/:programId/weights')

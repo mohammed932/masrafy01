@@ -11,13 +11,13 @@ import {
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzSliderModule } from 'ng-zorro-antd/slider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import {
   QuestionnaireApiService,
-  type LoanCategory,
   type ProgramMeta,
   type ProgramScoringWeights,
   type WeightableOption,
@@ -49,11 +49,15 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
 }
 
 /**
- * Scoring weights editor (Constitution V — direct save, v8.0.0).
- * TWO levels, per program: each QUESTION has an importance **weight** (all summing to 100,
- * tracked by the sticky budget strip) and each ANSWER a **score 0–100** —
- * `probability = Σ(questionWeight÷100 × pickedScore÷100)`. Questions render as an
- * accordion (first open). Save is blocked until the weights total exactly 100.
+ * Per-program scoring editor (Constitution V — direct save, v8.0.0; Feature 010).
+ *
+ * ONE unified screen. Every question in the GLOBAL pool has a checkbox — ticking
+ * it ASSIGNS the question to this program (it joins the program's scoring),
+ * unticking removes it. Only assigned questions carry a weight + answer scores;
+ * the assigned weights must total 100 (sticky budget strip), and each assigned
+ * answer a score 0–100 — `probability = Σ(questionWeight÷100 × pickedScore÷100)`.
+ * The set of assigned questions IS the persisted `questionWeights` map, so
+ * assignment and weighting are the same save.
  */
 @Component({
   standalone: true,
@@ -65,6 +69,7 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
     FormsModule,
     RouterLink,
     NzButtonModule,
+    NzCheckboxModule,
     NzSliderModule,
     NzEmptyModule,
     NzSpinModule,
@@ -74,7 +79,7 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
       <header class="hero">
         <span class="hero-accent" aria-hidden="true"></span>
         <a routerLink="/banks" class="back" i18n="@@scoring.editor.back">← Banks</a>
-        <h1 class="hero-title" i18n="@@scoring.editor.title">Approval scoring weights</h1>
+        <h1 class="hero-title" i18n="@@scoring.editor.title">Approval scoring</h1>
         @if (program(); as p) {
           <p class="prog-line">
             <span class="bank">{{ p.bankName }}</span>
@@ -83,19 +88,26 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
             <span class="cat-chip">{{ p.category }}</span>
           </p>
         }
+        <p class="hero-sub" i18n="@@scoring.editor.subtitle">
+          Tick the questions this program should score on, then set each one's weight and how
+          favorable every answer is.
+        </p>
       </header>
 
       @if (loading()) {
         <div class="panel center"><nz-spin nzSimple /></div>
       } @else if (questions().length === 0) {
-        <div class="panel">
+        <div class="panel center-col">
           <nz-empty
             i18n-nzNotFoundContent="@@scoring.editor.no_questions"
-            nzNotFoundContent="No questions for this category yet. Add questions and answers in the questionnaire editor first."
+            nzNotFoundContent="No questions in the pool yet."
           />
+          <a routerLink="/questionnaire" nz-button nzType="primary" i18n="@@scoring.editor.go_build"
+            >Build the question pool</a
+          >
         </div>
       } @else {
-        <!-- Governor: question weights must total exactly 100 -->
+        <!-- Governor: assigned-question weights must total exactly 100 -->
         <div class="budget-strip" [class.is-bad]="!weightSumOk()">
           <span class="budget-label" i18n="@@scoring.editor.weight_budget">Question weights</span>
           <span class="budget-val"
@@ -104,39 +116,68 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
           <div class="budget-bar">
             <span class="budget-fill" [style.inline-size.%]="weightBarPct()"></span>
           </div>
+          <span class="assigned-count"
+            >{{ assignedCount() }}<span i18n="@@scoring.editor.assigned_suffix"> assigned</span></span
+          >
+          <button
+            nz-button
+            nzSize="small"
+            type="button"
+            class="balance-btn"
+            [disabled]="assignedCount() === 0"
+            (click)="balance()"
+            i18n="@@scoring.editor.balance"
+          >
+            Distribute evenly
+          </button>
           @if (!weightSumOk()) {
             <span class="budget-hint" aria-live="polite" i18n="@@scoring.editor.weight_sum_bad"
-              >All question weights must total exactly 100%.</span
+              >Assigned question weights must total exactly 100%.</span
             >
           }
         </div>
 
         <form class="workbench" [formGroup]="form">
-          <!-- Left rail: every question + its live weight; one click to edit -->
+          <!-- Left rail: every question with an assign checkbox + its live weight -->
           <aside class="qlist" aria-label="Questions" i18n-aria-label="@@scoring.editor.qlist_aria">
-            <p class="qlist-head" i18n="@@scoring.editor.qlist_head">Questions</p>
+            <p class="qlist-head" i18n="@@scoring.editor.qlist_head">Question pool</p>
             @for (q of questions(); track q.code) {
-              <button
-                type="button"
+              <div
                 class="q-row"
+                [class.assigned]="isAssigned(q.code)"
                 [class.active]="selected() === q.code"
-                [attr.aria-current]="selected() === q.code"
-                (click)="selected.set(q.code)"
               >
-                <span class="q-name">{{ questionLabel(q) }}</span>
-                @if (questionIncomplete(q)) {
-                  <span
-                    class="attn"
-                    title="Needs a weight and answer scores above 0"
-                    i18n-title="@@scoring.editor.attn"
-                  ></span>
-                }
-                <span class="q-weight">{{ weightOf(q.code) | number: '1.0-0' }}%</span>
-              </button>
+                <label
+                  nz-checkbox
+                  class="q-check"
+                  [ngModel]="isAssigned(q.code)"
+                  [ngModelOptions]="{ standalone: true }"
+                  (ngModelChange)="toggleAssign(q.code, $event)"
+                  [attr.aria-label]="assignAria(q)"
+                ></label>
+                <button
+                  type="button"
+                  class="q-open"
+                  [attr.aria-current]="selected() === q.code"
+                  (click)="selected.set(q.code)"
+                >
+                  <span class="q-name">{{ questionLabel(q) }}</span>
+                  @if (isAssigned(q.code) && questionIncomplete(q)) {
+                    <span
+                      class="attn"
+                      title="Needs a weight and answer scores above 0"
+                      i18n-title="@@scoring.editor.attn"
+                    ></span>
+                  }
+                  @if (isAssigned(q.code)) {
+                    <span class="q-weight">{{ weightOf(q.code) | number: '1.0-0' }}%</span>
+                  }
+                </button>
+              </div>
             }
           </aside>
 
-          <!-- Right canvas: the selected question's weight + answer scores -->
+          <!-- Right canvas: the selected question — assign CTA, or weight + answer scores -->
           @if (selectedQuestion(); as q) {
             <section class="canvas">
               <header class="canvas-head">
@@ -144,77 +185,103 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
                 <span class="qcode mono">{{ q.code }}</span>
               </header>
 
-              <!-- Level 1: question weight (importance) — slider + live % readout -->
-              <div class="qweight-block">
-                <div class="qweight-head">
-                  <span class="qweight-name" i18n="@@scoring.editor.q_weight"
-                    >Question weight (importance)</span
+              @if (!isAssigned(q.code)) {
+                <div class="assign-cta">
+                  <span class="assign-cta-mark" aria-hidden="true"></span>
+                  <p class="assign-cta-title" i18n="@@scoring.editor.not_scored">
+                    Not scored by this program
+                  </p>
+                  <p class="assign-cta-sub" i18n="@@scoring.editor.not_scored_sub">
+                    Assign this question to give it a weight and score its answers.
+                  </p>
+                  <button
+                    nz-button
+                    nzType="primary"
+                    type="button"
+                    (click)="toggleAssign(q.code, true)"
+                    i18n="@@scoring.editor.assign_cta"
                   >
-                  <span class="qweight-readout">{{ weightOf(q.code) | number: '1.0-0'
-                    }}<span class="qweight-unit">%</span></span
-                  >
+                    Assign to this program
+                  </button>
                 </div>
-                <nz-slider
-                  class="qweight-slider"
-                  [ngModel]="weightOf(q.code)"
-                  [ngModelOptions]="{ standalone: true }"
-                  (ngModelChange)="setWeight(q.code, $event)"
-                  [nzMin]="0"
-                  [nzMax]="100"
-                  [nzStep]="1"
-                  aria-label="question weight"
-                  i18n-aria-label="@@scoring.editor.q_weight_aria"
-                />
-              </div>
-
-              <!-- Level 2: answer scores — one row each: label (+Top) · slider · readout -->
-              <p class="ascore-head" i18n="@@scoring.editor.answer_scores">
-                Answer scores — how favorable each answer is (0–100)
-              </p>
-              <div class="answers">
-                @for (o of q.options; track o.code) {
-                  <div class="answer-row">
-                    <span class="answer-label"
-                      >{{ optionLabel(o) }}
-                      @if (isTop(q.code, o.code)) {
-                        <span class="top-pill" i18n="@@scoring.editor.top">★ Top</span>
-                      }
-                    </span>
-                    <nz-slider
-                      class="pts-slider"
-                      [ngModel]="scoreOf(q.code, o.code)"
-                      [ngModelOptions]="{ standalone: true }"
-                      (ngModelChange)="setScore(q.code, o.code, $event)"
-                      [nzMin]="0"
-                      [nzMax]="100"
-                      [nzStep]="1"
-                    />
-                    <span
-                      class="pts-readout"
-                      [class.is-top]="isTop(q.code, o.code)"
-                      aria-hidden="true"
-                      >{{ scoreOf(q.code, o.code) | number: '1.0-0'
-                      }}<span class="pts-unit">%</span></span
+              } @else {
+                <!-- Level 1: question weight (importance) — slider + live % readout -->
+                <div class="qweight-block">
+                  <div class="qweight-head">
+                    <span class="qweight-name" i18n="@@scoring.editor.q_weight"
+                      >Question weight (importance)</span
+                    >
+                    <span class="qweight-readout"
+                      >{{ weightOf(q.code) | number: '1.0-0'
+                      }}<span class="qweight-unit">%</span></span
                     >
                   </div>
-                }
-              </div>
+                  <nz-slider
+                    class="qweight-slider"
+                    [ngModel]="weightOf(q.code)"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="setWeight(q.code, $event)"
+                    [nzMin]="0"
+                    [nzMax]="100"
+                    [nzStep]="1"
+                    aria-label="question weight"
+                    i18n-aria-label="@@scoring.editor.q_weight_aria"
+                  />
+                </div>
+
+                <!-- Level 2: answer scores — one row each: label (+Top) · slider · readout -->
+                <p class="ascore-head" i18n="@@scoring.editor.answer_scores">
+                  Answer scores — how favorable each answer is (0–100)
+                </p>
+                <div class="answers">
+                  @for (o of q.options; track o.code) {
+                    <div class="answer-row">
+                      <span class="answer-label"
+                        >{{ optionLabel(o) }}
+                        @if (isTop(q.code, o.code)) {
+                          <span class="top-pill" i18n="@@scoring.editor.top">★ Top</span>
+                        }
+                      </span>
+                      <nz-slider
+                        class="pts-slider"
+                        [ngModel]="scoreOf(q.code, o.code)"
+                        [ngModelOptions]="{ standalone: true }"
+                        (ngModelChange)="setScore(q.code, o.code, $event)"
+                        [nzMin]="0"
+                        [nzMax]="100"
+                        [nzStep]="1"
+                      />
+                      <span
+                        class="pts-readout"
+                        [class.is-top]="isTop(q.code, o.code)"
+                        aria-hidden="true"
+                        >{{ scoreOf(q.code, o.code) | number: '1.0-0'
+                        }}<span class="pts-unit">%</span></span
+                      >
+                    </div>
+                  }
+                </div>
+              }
             </section>
           }
         </form>
 
         <div class="savebar">
-          @if (!weightSumOk()) {
+          @if (assignedCount() === 0) {
+            <span class="savebar-error" i18n="@@scoring.editor.fix_none_assigned"
+              >Assign at least one question to score this program.</span
+            >
+          } @else if (!weightSumOk()) {
             <span class="savebar-error" i18n="@@scoring.editor.fix_weights"
-              >Question weights must total 100% to save.</span
+              >Assigned question weights must total 100% to save.</span
             >
           } @else if (!allWeightsPositive()) {
             <span class="savebar-error" i18n="@@scoring.editor.fix_zero_weight"
-              >Every question needs a weight above 0%.</span
+              >Every assigned question needs a weight above 0%.</span
             >
           } @else if (!allScoresPositive()) {
             <span class="savebar-error" i18n="@@scoring.editor.fix_zero_score"
-              >Every answer needs a score above 0.</span
+              >Every answer of an assigned question needs a score above 0.</span
             >
           } @else if (form.dirty && !saving()) {
             <span class="dirty" i18n="@@scoring.editor.unsaved">Unsaved changes</span>
@@ -228,7 +295,7 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
             (click)="save()"
             i18n="@@scoring.editor.save"
           >
-            Save weights
+            Save scoring
           </button>
         </div>
       }
@@ -241,9 +308,7 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
         block-size: 100%;
       }
       /* Full-height column: hero + governor + workbench (fills) + save bar.
-         The PAGE never scrolls — the rail and canvas scroll inside themselves.
-         No own padding: the shell's <main class="content"> already gutters us, and
-         a second pad on top of block-size:100% would overflow and re-add a scroll. */
+         The PAGE never scrolls — the rail and canvas scroll inside themselves. */
       .page {
         box-sizing: border-box;
         display: flex;
@@ -314,6 +379,13 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
         padding-inline: var(--space-3);
         border-radius: var(--radius-pill);
       }
+      .hero-sub {
+        margin: var(--space-2) 0 0;
+        max-inline-size: 68ch;
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--text-secondary);
+      }
       .mono {
         font-family: var(--font-mono);
       }
@@ -328,6 +400,12 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
       .panel.center {
         display: flex;
         justify-content: center;
+      }
+      .panel.center-col {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-4);
       }
 
       /* ── Weight governor — always-visible, flex-none top of the column ── */
@@ -390,6 +468,15 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
       .budget-strip.is-bad .budget-fill {
         background: var(--error);
       }
+      .assigned-count {
+        font-size: var(--text-sm);
+        font-weight: var(--font-semibold);
+        color: var(--text-secondary);
+        white-space: nowrap;
+        font-feature-settings:
+          'tnum' 1,
+          'lnum' 1;
+      }
       .budget-hint {
         flex-basis: 100%;
         margin: 0;
@@ -403,7 +490,7 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
         flex: 1 1 auto;
         min-block-size: 0;
         display: grid;
-        grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+        grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
         gap: var(--space-5);
       }
 
@@ -429,15 +516,34 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
         text-transform: uppercase;
         color: var(--text-tertiary);
       }
+      /* Row = assign checkbox + open button. Active border on the row itself. */
       .q-row {
-        inline-size: 100%;
         display: flex;
         align-items: flex-start;
         gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        border: 0;
+        padding-inline-start: var(--space-2);
         border-inline-start: 3px solid transparent;
         border-radius: var(--radius-md);
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .q-row:hover {
+        background: var(--bg-subtle);
+      }
+      .q-row.active {
+        border-inline-start-color: var(--primary);
+        background: color-mix(in srgb, var(--primary) 8%, transparent);
+      }
+      .q-check {
+        margin-block-start: var(--space-2);
+      }
+      .q-open {
+        flex: 1;
+        min-inline-size: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-2);
+        border: 0;
         background: transparent;
         color: var(--text-secondary);
         font-size: var(--text-sm);
@@ -445,22 +551,27 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
         text-align: start;
         cursor: pointer;
         transition:
-          background var(--motion-duration-fast) var(--motion-easing-standard),
-          color var(--motion-duration-fast) var(--motion-easing-standard);
+          color var(--motion-duration-fast) var(--motion-easing-standard),
+          opacity var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .q-row:hover {
-        background: var(--bg-subtle);
+      /* Unassigned rows read quieter — they aren't part of this program's score. */
+      .q-row:not(.assigned) .q-open {
+        opacity: 0.6;
+      }
+      .q-row:not(.assigned):hover .q-open {
+        opacity: 0.85;
+      }
+      .q-row.assigned .q-open {
         color: var(--text-primary);
       }
-      .q-row:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
-      }
-      .q-row.active {
-        border-inline-start-color: var(--primary);
-        background: color-mix(in srgb, var(--primary) 8%, transparent);
+      .q-row.active .q-open {
         color: var(--text-primary);
         font-weight: var(--font-semibold);
+      }
+      .q-open:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-halo);
+        border-radius: var(--radius-sm);
       }
       .q-name {
         flex: 1;
@@ -472,6 +583,7 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
       /* Amber dot = this question still blocks Save (no weight, or a 0 answer). */
       .attn {
         flex: none;
+        margin-block-start: 5px;
         inline-size: 7px;
         block-size: 7px;
         border-radius: var(--radius-pill);
@@ -518,7 +630,39 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
         border-radius: var(--radius-sm);
       }
 
-      /* Narrow: stack panes, rail becomes a horizontal chip scroller, page scrolls. */
+      /* Assign call-to-action (shown when the selected question isn't scored) */
+      .assign-cta {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: var(--space-2);
+        padding: var(--space-7) var(--space-4);
+        border: 1px dashed var(--border-default);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+      }
+      .assign-cta-mark {
+        inline-size: 40px;
+        block-size: 40px;
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+        margin-block-end: var(--space-1);
+      }
+      .assign-cta-title {
+        margin: 0;
+        font-size: var(--text-base);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+      .assign-cta-sub {
+        margin: 0 0 var(--space-2);
+        max-inline-size: 42ch;
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+      }
+
+      /* Narrow: stack panes, rail becomes a vertical list, page scrolls. */
       @media (max-width: 960px) {
         .page {
           block-size: auto;
@@ -528,25 +672,7 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
           min-block-size: auto;
         }
         .qlist {
-          flex-direction: row;
-          flex-wrap: nowrap;
-          overflow-x: auto;
-          overflow-y: hidden;
-        }
-        .qlist-head {
-          display: none;
-        }
-        .q-row {
-          inline-size: auto;
-          flex: 0 0 auto;
-          border-inline-start: 0;
-          border-block-end: 3px solid transparent;
-        }
-        .q-row.active {
-          border-block-end-color: var(--primary);
-        }
-        .q-name {
-          white-space: nowrap;
+          max-block-size: 320px;
         }
         .canvas {
           overflow: visible;
@@ -588,7 +714,6 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
         margin-inline-start: 1px;
         color: color-mix(in srgb, var(--primary) 65%, transparent);
       }
-      /* Weight slider reads heavier than the answer sliders — it's the level-1 control. */
       .qweight-slider {
         margin-block-start: var(--space-3);
       }
@@ -635,8 +760,6 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
         text-transform: uppercase;
         color: var(--text-tertiary);
       }
-      /* Grid lives on the container so every row's label/slider/readout share
-         the same columns (subgrid) — sliders + readouts align down the panel. */
       .answers {
         display: grid;
         grid-template-columns: minmax(12ch, 18ch) 1fr auto;
@@ -696,8 +819,6 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
       .pts-slider {
         margin: 0;
       }
-      /* Drop ant's tall default block margin so answer rows stay dense;
-         keep a little inline margin so the handle never clips at 0 / 100%. */
       .pts-slider ::ng-deep .ant-slider {
         margin-block: 0;
         margin-inline: var(--space-2);
@@ -758,6 +879,8 @@ function equalSplit(codes: readonly string[]): Record<string, number> {
       @media (prefers-reduced-motion: reduce) {
         .budget-strip,
         .budget-fill,
+        .q-row,
+        .q-open,
         .answer-row,
         .pts-readout,
         .pts-slider ::ng-deep .ant-slider-handle,
@@ -775,7 +898,6 @@ export class ScoringWeightsEditorPage implements OnInit {
   /** Active admin locale picks the label language (ar build → Arabic). */
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
-  readonly category = this.route.snapshot.paramMap.get('category') as LoanCategory;
   readonly programId = this.route.snapshot.paramMap.get('programId') ?? '';
 
   readonly weightKey = weightKey;
@@ -785,8 +907,14 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly program = signal<ProgramMeta | null>(null);
   readonly loading = signal(true);
   readonly saving = signal(false);
-  /** Master–detail: the question being edited (by code); the first opens on load. */
+  /** Master–detail: the question being edited (by code). */
   readonly selected = signal<string | null>(null);
+  /**
+   * The set of ASSIGNED question codes — the checkbox state. This IS the
+   * program's `questionWeights` domain: assigned → scored, unassigned → excluded.
+   * Stored as an immutable Set (replaced on every toggle) so signal reads react.
+   */
+  readonly assigned = signal<ReadonlySet<string>>(new Set());
   /** The question object for the selected code — drives the right-hand editor pane. */
   readonly selectedQuestion = computed<WeightableQuestion | null>(
     () => this.questions().find((q) => q.code === this.selected()) ?? null,
@@ -794,28 +922,31 @@ export class ScoringWeightsEditorPage implements OnInit {
 
   readonly form = new FormGroup<Record<string, FormControl<number>>>({});
   /**
-   * Explicit revision counter, bumped by every `setWeight`/`setScore` (the sole
-   * mutation points now the sliders use `ngModel`+`ngModelChange`). All derived
-   * signals depend on it, so they recompute deterministically on each drag —
-   * NOT via `form.valueChanges`, whose signal bridge proved unreliable here.
+   * Explicit revision counter, bumped by every weight/score/assign mutation. All
+   * derived signals depend on it, so they recompute deterministically on each
+   * drag — NOT via `form.valueChanges`, whose signal bridge proved unreliable.
    */
   private readonly rev = signal(0);
   private touch(): void {
     this.rev.update((n) => n + 1);
   }
 
-  /** Live two-level scoring rebuilt from the form on every change. */
+  /** Live two-level scoring rebuilt from the form (assigned questions only). */
   readonly scoring = computed<ProgramScoringWeights>(() => {
     this.rev();
     return this.scoringNow();
   });
 
-  /** Question weights, rounded to 1 decimal — drives the header chips + budget. */
   readonly weightValues = computed<Record<string, number>>(() => this.scoring().questionWeights);
   readonly scoreValues = computed<Record<string, Record<string, number>>>(
     () => this.scoring().answerScores,
   );
-  /** Sum of all question weights (1-decimal). Must equal 100 to save. */
+  /** How many questions this program scores on. */
+  readonly assignedCount = computed<number>(() => {
+    this.rev();
+    return this.assigned().size;
+  });
+  /** Sum of ASSIGNED question weights (1-decimal). Must equal 100 to save. */
   readonly weightSum = computed<number>(() => {
     const total = Object.values(this.weightValues()).reduce((a, b) => a + b, 0);
     return Math.round(total * 10) / 10;
@@ -823,26 +954,35 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly weightSumOk = computed<boolean>(() => this.weightSum() === 100);
   readonly weightBarPct = computed<number>(() => Math.min(100, Math.max(0, this.weightSum())));
 
-  /** No question may be left at 0% weight. */
+  /** Assigned questions only. */
+  private readonly assignedQuestions = computed<WeightableQuestion[]>(() => {
+    const a = this.assigned();
+    return this.questions().filter((q) => a.has(q.code));
+  });
+  /** No assigned question may be left at 0% weight. */
   readonly allWeightsPositive = computed<boolean>(() =>
-    this.questions().every((q) => (this.weightValues()[q.code] ?? 0) > 0),
+    this.assignedQuestions().every((q) => (this.weightValues()[q.code] ?? 0) > 0),
   );
-  /** No answer may be left at 0 score. */
+  /** No answer of an assigned question may be left at 0 score. */
   readonly allScoresPositive = computed<boolean>(() =>
-    this.questions().every((q) =>
+    this.assignedQuestions().every((q) =>
       q.options.every((o) => (this.scoreValues()[q.code]?.[o.code] ?? 0) > 0),
     ),
   );
-  /** Save is allowed only when weights total 100 and nothing is left at zero. */
+  /** Save is allowed only when ≥1 assigned, weights total 100, nothing at zero. */
   readonly canSave = computed<boolean>(
-    () => this.weightSumOk() && this.allWeightsPositive() && this.allScoresPositive(),
+    () =>
+      this.assignedCount() > 0 &&
+      this.weightSumOk() &&
+      this.allWeightsPositive() &&
+      this.allScoresPositive(),
   );
 
   /** Per-question highest-scoring option — feeds the "Top" marker. */
   readonly bestByQuestion = computed<Record<string, string>>(() => {
     const scores = this.scoreValues();
     const out: Record<string, string> = {};
-    for (const q of this.questions()) {
+    for (const q of this.assignedQuestions()) {
       let best = -Infinity;
       let code = '';
       for (const o of q.options) {
@@ -860,32 +1000,32 @@ export class ScoringWeightsEditorPage implements OnInit {
   async ngOnInit(): Promise<void> {
     try {
       const [questions, weights] = await Promise.all([
-        this.api.weightableQuestions(this.category),
+        this.api.weightableQuestions(),
         this.api.programWeights(this.programId),
       ]);
       this.questions.set(questions);
-      this.selected.set(questions[0]?.code ?? null);
       this.program.set(weights.program);
 
       const active = weights.active?.weights;
       const seedWeights = active?.questionWeights ?? {};
       const seedScores = active?.answerScores ?? {};
-      // equalSplit ONLY seeds a brand-new program with no saved set. When a set
-      // exists its weights are authoritative (already sum 100); questions it
-      // doesn't cover default to 0 — never equalSplit-of-all, which would stack
-      // on top of the saved 100 and blow the budget past 100.
-      const hasActiveWeights = Object.keys(seedWeights).length > 0;
-      const fallbackWeights = hasActiveWeights ? {} : equalSplit(questions.map((q) => q.code));
+      // Assignment = the keys already in the saved weight set. A program with no
+      // saved set starts with nothing assigned — the admin ticks what matters.
+      const assignedCodes = Object.keys(seedWeights).filter((c) =>
+        questions.some((q) => q.code === c),
+      );
+      this.assigned.set(new Set(assignedCodes));
+      // Open the first assigned question (or the first in the pool) by default.
+      this.selected.set(assignedCodes[0] ?? questions[0]?.code ?? null);
 
       for (const q of questions) {
-        const w = clampPct(Number(seedWeights[q.code] ?? fallbackWeights[q.code] ?? 0));
+        const w = clampPct(Number(seedWeights[q.code] ?? 0));
         this.form.addControl(weightKey(q.code), this.numberControl(w));
         for (const o of q.options) {
           const s = clampPct(Number(seedScores[q.code]?.[o.code] ?? 0));
           this.form.addControl(scoreKey(q.code, o.code), this.numberControl(s));
         }
       }
-      // Controls now seeded — recompute the derived signals off the initial values.
       this.touch();
     } finally {
       this.loading.set(false);
@@ -898,7 +1038,7 @@ export class ScoringWeightsEditorPage implements OnInit {
     try {
       await this.api.saveWeights(this.programId, this.scoringNow());
       this.form.markAsPristine();
-      this.message.success($localize`:@@scoring.editor.saved:Weights saved`);
+      this.message.success($localize`:@@scoring.editor.saved:Scoring saved`);
     } finally {
       this.saving.set(false);
     }
@@ -927,31 +1067,54 @@ export class ScoringWeightsEditorPage implements OnInit {
     return (this.isAr ? o.labelAr : o.labelEn) || o.labelEn;
   }
 
+  assignAria(q: WeightableQuestion): string {
+    return $localize`:@@scoring.editor.assign_aria:Assign question` + `: ${this.questionLabel(q)}`;
+  }
+
+  isAssigned(code: string): boolean {
+    this.rev();
+    return this.assigned().has(code);
+  }
+
   /**
-   * Live question weight (for the header chip). Reads the SAME control the
-   * slider binds to (not the derived split map), so readout ≡ slider always;
-   * `formTick()` keeps it reactive to drags.
+   * Tick / untick a question for this program. Ticking adds it to the scoring
+   * (starts at its current weight, 0 for a fresh assignment — the admin sets it
+   * or hits "Distribute evenly"); unticking removes it from the budget entirely.
    */
+  toggleAssign(code: string, checked: boolean): void {
+    this.assigned.update((s) => {
+      const next = new Set(s);
+      if (checked) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+    if (checked) this.selected.set(code);
+    this.form.markAsDirty();
+    this.touch();
+  }
+
+  /** Spread 100% evenly across the assigned questions (leaves answer scores untouched). */
+  balance(): void {
+    const codes = [...this.assigned()];
+    if (codes.length === 0) return;
+    const split = equalSplit(codes);
+    for (const c of codes) {
+      this.form.controls[weightKey(c)]?.setValue(split[c] ?? 0);
+    }
+    this.form.markAsDirty();
+    this.touch();
+  }
+
   weightOf(questionCode: string): number {
     this.rev();
     return this.form.controls[weightKey(questionCode)]?.value ?? 0;
   }
 
-  /**
-   * Live answer score (for the read-only readout). Reads the SAME control the
-   * slider binds to, so the label can never diverge from the handle.
-   */
   scoreOf(questionCode: string, optionCode: string): number {
     this.rev();
     return this.form.controls[scoreKey(questionCode, optionCode)]?.value ?? 0;
   }
 
-  /**
-   * Write a dragged question weight back into its control. The slider uses a
-   * standalone `ngModel` + this `(ngModelChange)` handler (NOT `formControlName`)
-   * so the write is a parent-template event — it reliably schedules change
-   * detection so every readout/validation refreshes on each drag.
-   */
   setWeight(questionCode: string, value: number): void {
     const ctrl = this.form.controls[weightKey(questionCode)];
     if (!ctrl) return;
@@ -961,7 +1124,6 @@ export class ScoringWeightsEditorPage implements OnInit {
     this.touch();
   }
 
-  /** Write a dragged answer score back into its control (see {@link setWeight}). */
   setScore(questionCode: string, optionCode: string, value: number): void {
     const ctrl = this.form.controls[scoreKey(questionCode, optionCode)];
     if (!ctrl) return;
@@ -976,7 +1138,7 @@ export class ScoringWeightsEditorPage implements OnInit {
     return this.bestByQuestion()[questionCode] === optionCode;
   }
 
-  /** A question still needs work: no weight yet, or some answer left at 0 — flags the rail row. */
+  /** An assigned question still needs work: no weight yet, or some answer at 0. */
   questionIncomplete(q: WeightableQuestion): boolean {
     if ((this.weightValues()[q.code] ?? 0) <= 0) return true;
     const scores = this.scoreValues()[q.code] ?? {};
@@ -984,15 +1146,16 @@ export class ScoringWeightsEditorPage implements OnInit {
   }
 
   /**
-   * Build the two-level scoring payload by reading each control by its EXACT
-   * key off the known questions/options — never by splitting composite control
-   * names. Immune to any code content (incl. non-slug enum-backed option codes)
-   * and keeps save/validation reading the identical source as the sliders.
+   * Build the two-level scoring payload from the ASSIGNED questions only,
+   * reading each control by its EXACT key. Unassigned questions are omitted, so
+   * the saved `questionWeights` map doubles as the assignment record.
    */
   private scoringNow(): ProgramScoringWeights {
     const questionWeights: Record<string, number> = {};
     const answerScores: Record<string, Record<string, number>> = {};
+    const assigned = this.assigned();
     for (const q of this.questions()) {
+      if (!assigned.has(q.code)) continue;
       questionWeights[q.code] = Number(this.form.controls[weightKey(q.code)]?.value ?? 0);
       const scores: Record<string, number> = {};
       for (const o of q.options) {

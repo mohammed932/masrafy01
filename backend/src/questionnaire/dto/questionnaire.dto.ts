@@ -23,7 +23,6 @@ export class EnabledWhenDto {
 }
 
 export class CreateGroupDto {
-  @ApiProperty({ enum: LoanCategory }) @IsEnum(LoanCategory) category!: LoanCategory;
   @ApiProperty() @IsString() @Length(1, 160) titleAr!: string;
   @ApiProperty() @IsString() @Length(1, 160) titleEn!: string;
   @ApiProperty() @IsInt() @Min(0) displayOrder!: number;
@@ -38,7 +37,6 @@ export class UpdateGroupDto {
 
 export class CreateQuestionDto {
   @ApiProperty() @IsString() @Length(1, 30) groupId!: string;
-  @ApiProperty({ enum: LoanCategory }) @IsEnum(LoanCategory) category!: LoanCategory;
   @ApiPropertyOptional({ enum: QuestionType, default: 'SINGLE_SELECT' })
   @IsOptional()
   @IsEnum(QuestionType)

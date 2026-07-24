@@ -332,11 +332,12 @@ export class MatchingSimulatorPage {
     void this.loadTree();
   }
 
-  async pickCategory(c: LoanCategory): Promise<void> {
+  pickCategory(c: LoanCategory): void {
     if (c === this.category()) return;
     this.category.set(c);
-    this.reset();
-    await this.loadTree();
+    // Questions are global (Feature 010) — only the program set being simulated
+    // changes with the category, so keep the answers and just drop a stale result.
+    this.result.set(null);
   }
 
   /** Pick an option, then auto-advance for a guided flow. */
@@ -403,7 +404,7 @@ export class MatchingSimulatorPage {
   private async loadTree(): Promise<void> {
     this.loadingTree.set(true);
     try {
-      this.tree.set(await this.api.tree(this.category()));
+      this.tree.set(await this.api.tree());
     } finally {
       this.loadingTree.set(false);
     }

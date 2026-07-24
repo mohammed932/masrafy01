@@ -68,7 +68,6 @@ export interface ProgramWeights {
 
 export interface QuestionnaireVersionRow {
   id: string;
-  category: LoanCategory;
   versionNumber: number;
   isActive: boolean;
   publishedAt: string | null;
@@ -98,7 +97,6 @@ export interface QuestionRow {
 export interface GroupTreeRow {
   id: string;
   code: string;
-  category: LoanCategory;
   titleAr: string;
   titleEn: string;
   displayOrder: number;
@@ -136,14 +134,12 @@ export interface SimulationResult {
 }
 
 export interface CreateGroupBody {
-  category: LoanCategory;
   titleAr: string;
   titleEn: string;
   displayOrder: number;
 }
 export interface CreateQuestionBody {
   groupId: string;
-  category: LoanCategory;
   questionAr: string;
   questionEn: string;
   displayOrder: number;
@@ -185,10 +181,10 @@ export class QuestionnaireApiService {
     return environment.apiBaseUrl;
   }
 
-  // ---- Scoring weights (direct save, per-answer points) ------------------
-  /** Category questions WITH their answer options (the per-answer weighting grid). */
-  weightableQuestions(category: LoanCategory): Promise<WeightableQuestion[]> {
-    return this.get<WeightableQuestion[]>(`/scoring/questions/${category}`);
+  // ---- Scoring weights (direct save, assign + score) ---------------------
+  /** The GLOBAL question pool WITH answer options (the assign + per-answer scoring grid). */
+  weightableQuestions(): Promise<WeightableQuestion[]> {
+    return this.get<WeightableQuestion[]>(`/scoring/questions`);
   }
 
   programWeights(programId: string): Promise<ProgramWeights> {
@@ -204,9 +200,9 @@ export class QuestionnaireApiService {
     return this.get<ScoringWeightSet[]>(`/scoring/programs/${programId}/weights/history`);
   }
 
-  // ---- Questionnaire authoring ------------------------------------------
-  tree(category: LoanCategory): Promise<GroupTreeRow[]> {
-    return this.get<GroupTreeRow[]>(`/questionnaire/tree/${category}`);
+  // ---- Questionnaire authoring (one global pool) ------------------------
+  tree(): Promise<GroupTreeRow[]> {
+    return this.get<GroupTreeRow[]>(`/questionnaire/tree`);
   }
 
   // ---- Matching simulator (admin) ---------------------------------------
@@ -254,12 +250,12 @@ export class QuestionnaireApiService {
     return this.del<OptionRow>(`/questionnaire/options/${optionId}`);
   }
 
-  versionHistory(category: LoanCategory): Promise<QuestionnaireVersionRow[]> {
-    return this.get<QuestionnaireVersionRow[]>(`/questionnaire/versions/${category}/history`);
+  versionHistory(): Promise<QuestionnaireVersionRow[]> {
+    return this.get<QuestionnaireVersionRow[]>(`/questionnaire/versions/history`);
   }
 
-  publish(category: LoanCategory): Promise<QuestionnaireVersionRow> {
-    return this.post<QuestionnaireVersionRow>(`/questionnaire/versions/${category}/publish`, {});
+  publish(): Promise<QuestionnaireVersionRow> {
+    return this.post<QuestionnaireVersionRow>(`/questionnaire/versions/publish`, {});
   }
 
   // ---- HTTP helpers ------------------------------------------------------

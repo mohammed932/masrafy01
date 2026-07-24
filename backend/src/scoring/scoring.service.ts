@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LoanCategory, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import { DomainException } from '@/common/errors/domain.exceptions';
@@ -53,10 +53,14 @@ export class ScoringService {
     private readonly questionnaire: QuestionnaireRepository,
   ) {}
 
-  // ---- Weightable answers (points-per-answer editor) ----------------------
-  /** The category's questions with their answer options — each option a points input. */
-  async listWeightableOptions(category: LoanCategory): Promise<WeightableQuestionView[]> {
-    const questions = await this.questionnaire.questionsWithOptions(category);
+  // ---- Weightable answers (assign + score editor) -------------------------
+  /**
+   * Every question in the GLOBAL pool with its answer options. The admin ticks
+   * which questions this program scores on (assignment) and sets a weight +
+   * per-answer scores for each ticked one. Feature 010: no category filter.
+   */
+  async listWeightableOptions(): Promise<WeightableQuestionView[]> {
+    const questions = await this.questionnaire.questionsWithOptions();
     return questions.map((q) => ({
       code: q.code,
       labelAr: q.questionAr,
@@ -93,9 +97,11 @@ export class ScoringService {
 
   /**
    * Save a program's two-level scoring (direct, no maker-checker): per-question
-   * weights summing to 100 + per-answer scores 0..100. Validates the codes
-   * exist, scores are in range, and weights sum to 100, then atomically archives
-   * the prior ACTIVE set and activates the new versioned one.
+   * weights summing to 100 + per-answer scores 0..100. The set of questions in
+   * `questionWeights` IS the program's assignment (checkbox → weight-set
+   * membership, Feature 010). Validates the codes exist in the global pool,
+   * scores are in range, and weights sum to 100, then atomically archives the
+   * prior ACTIVE set and activates the new versioned one.
    */
   async saveWeights(
     programId: string,
@@ -103,9 +109,9 @@ export class ScoringService {
     editorId: string,
     ctx: ScoringRequestContext,
   ): Promise<ScoringWeightSet> {
-    const category = await this.repo.programCategory(programId);
-    if (!category) throw new DomainException(ERROR_CODES.BANK_PROGRAM_INVALID);
-    await this.assertKnownStructure(category, dto.weights);
+    const program = await this.programs.findById(programId);
+    if (!program) throw new DomainException(ERROR_CODES.BANK_PROGRAM_INVALID);
+    await this.assertKnownStructure(dto.weights);
     this.assertAnswerScoresInRange(dto.weights);
     this.assertQuestionWeightsSumTo100(dto.weights);
 
@@ -134,12 +140,9 @@ export class ScoringService {
   }
 
   // ---- Validation ---------------------------------------------------------
-  /** Every question/option code referenced by the weights + scores must exist in the category. */
-  private async assertKnownStructure(
-    category: LoanCategory,
-    weights: SaveWeightsDto['weights'],
-  ): Promise<void> {
-    const questions = await this.questionnaire.questionsWithOptions(category);
+  /** Every question/option code referenced by the weights + scores must exist in the global pool. */
+  private async assertKnownStructure(weights: SaveWeightsDto['weights']): Promise<void> {
+    const questions = await this.questionnaire.questionsWithOptions();
     const valid = new Map(questions.map((q) => [q.code, new Set(q.options.map((o) => o.code))]));
     for (const questionCode of Object.keys(weights.questionWeights)) {
       if (!valid.has(questionCode)) {
