@@ -14,6 +14,7 @@ import {
   FormOutline,
   AuditOutline,
   ExperimentOutline,
+  AppstoreOutline,
 } from '@ant-design/icons-angular/icons';
 import { AuthService } from '@core/auth/auth.service';
 import { CanDirective } from '../../shared/can.directive';
@@ -40,6 +41,7 @@ import { CanDirective } from '../../shared/can.directive';
       FormOutline,
       AuditOutline,
       ExperimentOutline,
+      AppstoreOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -105,6 +107,10 @@ import { CanDirective } from '../../shared/can.directive';
           <a routerLink="/lookups" routerLinkActive="active" class="item">
             <span nz-icon nzType="control" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
             <span class="item-label" i18n="@@sidebar.lookups">Manage values</span>
+          </a>
+          <a routerLink="/program-catalog" routerLinkActive="active" class="item">
+            <span nz-icon nzType="appstore" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+            <span class="item-label" i18n="@@sidebar.program_catalog">Program catalog</span>
           </a>
         </nav>
       }

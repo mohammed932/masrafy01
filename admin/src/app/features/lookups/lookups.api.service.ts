@@ -14,6 +14,7 @@ export interface EnumerationRow {
   deprecatedAt: string | null;
   systemOnly: boolean;
   parentKey: string | null;
+  categories: string[];
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -32,12 +33,15 @@ export interface CreateEnumerationRequest {
   labelAr: string;
   labelEn: string;
   parentKey?: string;
+  categories?: string[];
   sortOrder?: number;
 }
 
 export interface UpdateEnumerationRequest {
   labelAr?: string;
   labelEn?: string;
+  parentKey?: string;
+  categories?: string[];
   active?: boolean;
   deprecate?: boolean;
   sortOrder?: number;

@@ -73,6 +73,16 @@ export const APP_ROUTES: Routes = [
       import('./features/lookups/lookups.routes').then((m) => m.LOOKUPS_ROUTES),
   },
   {
+    // Program catalog — CRUD for predefined loan program names (program_name enum).
+    path: 'program-catalog',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
+    loadChildren: () =>
+      import('./features/program-catalog/program-catalog.routes').then(
+        (m) => m.PROGRAM_CATALOG_ROUTES,
+      ),
+  },
+  {
     // Feature 009 — dynamic questionnaire (overview + tree editor).
     path: 'questionnaire',
     canActivate: [authGuardFn],

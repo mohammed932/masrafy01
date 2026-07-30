@@ -21,13 +21,18 @@ export type EnumerationType =
   | 'company_type'
   | 'required_document'
   | 'currency'
-  | 'governorate';
+  | 'governorate'
+  | 'program_name';
 
 export interface EnumerationMember {
   type: EnumerationType;
   key: string;
   labelAr: string;
   labelEn: string;
+  /** Optional single scoping parent key (generic; unused by `program_name` — see `categories`). */
+  parentKey: string | null;
+  /** Multi-category scoping for `program_name` members (e.g. `['personal','car']`); empty otherwise. */
+  categories: string[];
   active: boolean;
   deprecated: boolean;
 }

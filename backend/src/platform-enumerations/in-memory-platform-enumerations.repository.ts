@@ -61,6 +61,8 @@ export class InMemoryPlatformEnumerationsRepository
       key,
       labelAr,
       labelEn,
+      parentKey: null,
+      categories: [],
       active: true,
       deprecated: false,
     });

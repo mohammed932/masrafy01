@@ -573,6 +573,10 @@ model PlatformEnumeration {
   deprecatedAt DateTime? @db.Timestamptz(6)
   systemOnly   Boolean   @default(false)
   parentKey    String?   @db.VarChar(64)
+  // Multi-category scoping for `program_name` members: a predefined program
+  // (e.g. Doctor, Pharmacy) may serve several loan categories, not just one.
+  // Empty for enumeration types that are not category-scoped.
+  categories   String[]  @default([])
   sortOrder    Int       @default(0)
   createdAt    DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(6)

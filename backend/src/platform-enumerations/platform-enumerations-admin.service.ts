@@ -46,6 +46,7 @@ export class PlatformEnumerationsAdminService {
       labelAr: input.labelAr,
       labelEn: input.labelEn,
       parentKey: input.parentKey ?? null,
+      categories: input.categories ?? [],
       sortOrder: input.sortOrder ?? 0,
       createdBy: actor.staffId,
     });
@@ -81,6 +82,8 @@ export class PlatformEnumerationsAdminService {
 
     if (patch.labelAr !== undefined) repoPatch.labelAr = patch.labelAr;
     if (patch.labelEn !== undefined) repoPatch.labelEn = patch.labelEn;
+    if (patch.parentKey !== undefined) repoPatch.parentKey = patch.parentKey;
+    if (patch.categories !== undefined) repoPatch.categories = patch.categories;
     if (patch.sortOrder !== undefined) repoPatch.sortOrder = patch.sortOrder;
 
     if (patch.deprecate === true && existing.deprecatedAt === null) {
@@ -121,6 +124,15 @@ export class PlatformEnumerationsAdminService {
     }
     if (patch.active !== undefined && patch.active !== existing.active) {
       changes.active = { from: existing.active, to: patch.active };
+    }
+    if (patch.parentKey !== undefined && patch.parentKey !== existing.parentKey) {
+      changes.parentKey = { from: existing.parentKey, to: patch.parentKey };
+    }
+    if (
+      patch.categories !== undefined &&
+      JSON.stringify(patch.categories) !== JSON.stringify(existing.categories)
+    ) {
+      changes.categories = { from: existing.categories, to: patch.categories };
     }
     if (patch.sortOrder !== undefined && patch.sortOrder !== existing.sortOrder) {
       changes.sortOrder = { from: existing.sortOrder, to: patch.sortOrder };

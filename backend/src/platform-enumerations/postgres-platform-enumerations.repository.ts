@@ -13,6 +13,7 @@ export interface CreateEnumerationInput {
   labelAr: string;
   labelEn: string;
   parentKey?: string | null;
+  categories?: string[];
   sortOrder?: number;
   createdBy: string;
 }
@@ -39,6 +40,7 @@ export interface EnumerationRow {
   systemOnly: boolean;
   deprecatedAt: Date | null;
   parentKey: string | null;
+  categories: string[];
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +50,8 @@ export interface EnumerationRow {
 export interface EnumerationUpdatePatch {
   labelAr?: string;
   labelEn?: string;
+  parentKey?: string | null;
+  categories?: string[];
   sortOrder?: number;
   active?: boolean;
   /** When `true` AND `deprecatedAt` is currently null, the repository stamps `deprecatedAt = now`
@@ -72,6 +76,7 @@ const ALL_TYPES: readonly EnumerationType[] = [
   'required_document',
   'currency',
   'governorate',
+  'program_name',
 ];
 
 interface CacheEntry {
@@ -141,6 +146,8 @@ export class PostgresPlatformEnumerationsRepository
       key: r.key,
       labelAr: r.labelAr,
       labelEn: r.labelEn,
+      parentKey: r.parentKey,
+      categories: r.categories,
       active: r.active,
       deprecated: r.deprecatedAt !== null,
     }));
@@ -206,6 +213,7 @@ export class PostgresPlatformEnumerationsRepository
         labelAr: input.labelAr,
         labelEn: input.labelEn,
         parentKey: input.parentKey ?? null,
+        categories: input.categories ?? [],
         sortOrder: input.sortOrder ?? 0,
         active: true,
         systemOnly: false,
@@ -220,6 +228,8 @@ export class PostgresPlatformEnumerationsRepository
     const data: Prisma.PlatformEnumerationUpdateInput = { updatedBy: patch.updatedBy };
     if (patch.labelAr !== undefined) data.labelAr = patch.labelAr;
     if (patch.labelEn !== undefined) data.labelEn = patch.labelEn;
+    if (patch.parentKey !== undefined) data.parentKey = patch.parentKey;
+    if (patch.categories !== undefined) data.categories = patch.categories;
     if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
 
     if (patch.deprecate === true) {
@@ -249,6 +259,7 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
     systemOnly: row.systemOnly,
     deprecatedAt: row.deprecatedAt,
     parentKey: row.parentKey,
+    categories: row.categories,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

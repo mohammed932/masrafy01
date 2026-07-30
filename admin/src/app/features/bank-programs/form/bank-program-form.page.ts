@@ -5,6 +5,7 @@ import {
   computed,
   effect,
   inject,
+  LOCALE_ID,
   OnInit,
   signal,
 } from '@angular/core';
@@ -244,7 +245,18 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               <nz-form-item class="span-2">
                 <nz-form-label [nzFor]="'friendlyName'" nzRequired i18n="@@bank_programs.field.friendly_name">Program name</nz-form-label>
                 <nz-form-control [nzErrorTip]="friendlyNameErrorTpl">
-                  <input nz-input id="friendlyName" formControlName="friendlyName" />
+                  <nz-select
+                    id="friendlyName"
+                    formControlName="friendlyName"
+                    nzShowSearch
+                    [nzDropdownStyle]="dropdownStyle"
+                    nzPlaceHolder="Select a program"
+                    i18n-nzPlaceHolder="@@bank_programs.field.friendly_name.placeholder"
+                  >
+                    @for (opt of programNameOptions(); track opt.value) {
+                      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+                    }
+                  </nz-select>
                   <ng-template #friendlyNameErrorTpl let-control>
                     @if (control.hasError('required')) {
                       <span i18n="@@bank_programs.err.friendly_name_required">Program name is required.</span>
@@ -1183,6 +1195,7 @@ export class BankProgramFormPage implements OnInit {
   private readonly errorsService = inject(ErrorCodeService);
   readonly enums = inject(PlatformEnumerationsService);
   private readonly banksApi = inject(BanksApiService);
+  private readonly localeIsAr = inject(LOCALE_ID).toLowerCase().startsWith('ar');
 
   readonly busy = signal(false);
   readonly advancedFeesOpen = signal(false);
@@ -1528,6 +1541,31 @@ export class BankProgramFormPage implements OnInit {
     return c === 'car' || c === 'mortgage';
   });
 
+  /** Reactive view of identity.friendlyName so the option list keeps a legacy/edit value visible. */
+  readonly friendlyNameSignal = toSignal(
+    this.form.controls.identity.controls.friendlyName.valueChanges,
+    { initialValue: this.form.controls.identity.controls.friendlyName.value },
+  );
+
+  /**
+   * Program-name options for the picked product category, sourced from the live
+   * `program_name` registry (Principle II — names are DATA, no hardcoded list).
+   * The currently-bound name is kept visible even when it isn't (yet) a catalog
+   * member, so edit mode + legacy free-text programs still render.
+   */
+  readonly programNameOptions = computed(() => {
+    const cat = this.productCategorySignal();
+    const opts = this.enums
+      .membersFor('program_name')()
+      .filter((m) => m.active && !m.deprecated && m.categories?.includes(cat))
+      .map((m) => ({ value: m.labelEn, label: this.localeIsAr ? m.labelAr : m.labelEn }));
+    const current = this.friendlyNameSignal();
+    if (current && !opts.some((o) => o.value === current)) {
+      opts.unshift({ value: current, label: current });
+    }
+    return opts;
+  });
+
   constructor() {
     // Bank picker valueChanges → mirror into identity.bankName.
     // Guard inside onBankPicked prevents setValue recursion.
@@ -1594,6 +1632,31 @@ export class BankProgramFormPage implements OnInit {
         );
       }
     });
+
+    // Program-name picker: fill the Arabic name from the chosen catalog member.
+    this.form.controls.identity.controls.friendlyName.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe((name) => {
+        const cat = this.form.controls.identity.controls.productCategory.value;
+        const match = this.enums
+          .membersFor('program_name')()
+          .find((m) => m.labelEn === name && m.categories?.includes(cat));
+        if (match) {
+          this.form.controls.identity.controls.friendlyNameAr.setValue(match.labelAr, {
+            emitEvent: false,
+          });
+        }
+      });
+    // Clear an out-of-category pick when the product category changes.
+    this.form.controls.identity.controls.productCategory.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        const current = this.form.controls.identity.controls.friendlyName.value;
+        if (current && !this.programNameOptions().some((o) => o.value === current)) {
+          this.form.controls.identity.controls.friendlyName.setValue('');
+          this.form.controls.identity.controls.friendlyNameAr.setValue(null, { emitEvent: false });
+        }
+      });
   }
 
   ngOnInit(): void {
@@ -1608,6 +1671,7 @@ export class BankProgramFormPage implements OnInit {
       'currency',
       'required_document',
       'customer_program_tier',
+      'program_name',
     ]);
 
     // Mirror the currencies FormArray into a signal for read-only consumers.
@@ -1703,6 +1767,7 @@ export class BankProgramFormPage implements OnInit {
       'currency',
       'required_document',
       'customer_program_tier',
+      'program_name',
     ]);
   }
 

@@ -12,13 +12,18 @@ export type EnumerationType =
   | 'performance_tier'
   | 'company_type'
   | 'required_document'
-  | 'currency';
+  | 'currency'
+  | 'program_name';
 
 export interface EnumerationMember {
   type: EnumerationType;
   key: string;
   labelAr: string;
   labelEn: string;
+  /** Optional single scoping parent (generic; unused by `program_name` — see `categories`). */
+  parentKey: string | null;
+  /** Loan categories a `program_name` member serves (e.g. `['personal','car']`); empty otherwise. */
+  categories: string[];
   active: boolean;
   deprecated: boolean;
 }

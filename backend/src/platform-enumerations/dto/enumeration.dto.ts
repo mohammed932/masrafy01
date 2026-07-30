@@ -1,5 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Length, Matches, Min } from 'class-validator';
+import {
+  ArrayUnique,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+  Min,
+} from 'class-validator';
 
 const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
@@ -35,6 +46,17 @@ export class CreateEnumerationDto {
   @Length(0, 64)
   parentKey?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Loan categories a `program_name` member serves (e.g. ["personal","car"]).',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Length(1, 64, { each: true })
+  @ArrayUnique()
+  categories?: string[];
+
   @ApiPropertyOptional({ minimum: 0, default: 0 })
   @IsOptional()
   @IsInt()
@@ -54,6 +76,23 @@ export class UpdateEnumerationDto {
   @IsString()
   @Length(1, 160)
   labelEn?: string;
+
+  @ApiPropertyOptional({ maxLength: 64 })
+  @IsOptional()
+  @IsString()
+  @Length(0, 64)
+  parentKey?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Loan categories a `program_name` member serves (e.g. ["personal","car"]).',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @Length(1, 64, { each: true })
+  @ArrayUnique()
+  categories?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -82,6 +121,7 @@ export class EnumerationRowDto {
   @ApiProperty({ nullable: true }) deprecatedAt!: string | null;
   @ApiProperty() systemOnly!: boolean;
   @ApiProperty({ nullable: true }) parentKey!: string | null;
+  @ApiProperty({ type: [String] }) categories!: string[];
   @ApiProperty() sortOrder!: number;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;

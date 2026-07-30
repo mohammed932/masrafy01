@@ -85,6 +85,7 @@ export class AdminPlatformEnumerationsController {
     deprecatedAt: Date | null;
     systemOnly: boolean;
     parentKey: string | null;
+    categories: string[];
     sortOrder: number;
     createdAt: Date;
     updatedAt: Date;
@@ -99,6 +100,7 @@ export class AdminPlatformEnumerationsController {
       deprecatedAt: row.deprecatedAt?.toISOString() ?? null,
       systemOnly: row.systemOnly,
       parentKey: row.parentKey,
+      categories: row.categories,
       sortOrder: row.sortOrder,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
