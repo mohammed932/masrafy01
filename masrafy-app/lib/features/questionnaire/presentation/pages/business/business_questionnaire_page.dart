@@ -20,10 +20,7 @@ class BusinessQuestionnairePage extends StatelessWidget {
     return QuestionnaireView(
       category: LoanCategory.business,
       buildRequest: (QuestionnaireState state) =>
-          mapBusinessAnswersToApplyRequest(
-        state.visibleAnswers,
-        versionNumber: state.snapshot?.versionNumber,
-      ),
+          mapBusinessAnswersToApplyRequest(state.visibleAnswers),
     );
   }
 }

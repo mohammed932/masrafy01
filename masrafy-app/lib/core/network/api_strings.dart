@@ -30,8 +30,9 @@ class ApiStrings {
   static const String apply = '/api/v1/apply';
 
   // --- Feature 009 — Dynamic questionnaire + matching preview ---
-  static String questionnaireByCategory(String category) =>
-      '/api/v1/questionnaire/$category';
+  /// One GLOBAL questionnaire since feature 010 / constitution v10.0.0 — the
+  /// category filters which programs match, never which questions are asked.
+  static const String questionnaire = '/api/v1/questionnaire';
   static const String matchingPreview = '/api/v1/matching/preview';
 
   // --- Applications ---

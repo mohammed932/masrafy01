@@ -4,20 +4,18 @@ import 'package:app/core/architecture/base_remote_data_source.dart';
 import 'package:app/core/network/api_strings.dart';
 import 'package:app/core/network/endpoint.dart';
 import 'package:app/features/questionnaire/data/models/response/questionnaire_snapshot_model.dart';
-import 'package:app/features/questionnaire/domain/enums/loan_category.dart';
 
-/// Questionnaire datasource — fetches the active published snapshot for a
-/// category via `appNetwork` (Principle XXX — no `package:dio` here). JWT +
-/// profile-complete gated on the backend.
+/// Questionnaire datasource — fetches the single active published snapshot via
+/// `appNetwork` (Principle XXX — no `package:dio` here). JWT +
+/// profile-complete gated on the backend. No category parameter: the pool is
+/// global (feature 010).
 @injectable
 class QuestionnaireRemoteDataSource extends BaseRemoteDataSource {
   QuestionnaireRemoteDataSource(super.appNetwork);
 
-  Future<QuestionnaireSnapshotModel> getByCategory(LoanCategory category) async {
+  Future<QuestionnaireSnapshotModel> getActive() async {
     final json = await appNetwork.get(
-      MasrafyEndpoint(
-        endpoint: ApiStrings.questionnaireByCategory(category.code),
-      ),
+      MasrafyEndpoint(endpoint: ApiStrings.questionnaire),
     );
     return QuestionnaireSnapshotModel.fromJson(_unwrap(json));
   }

@@ -4,26 +4,23 @@
  */
 
 import { Injectable } from '@nestjs/common';
-import { Decimal } from '@prisma/client/runtime/library';
 import type {
   ApplicantProfile,
   ApprovalProbabilityResult,
   BankProgramSnapshot,
-  CascadeTrace,
+  FiguresUnavailableReason,
   MatchResult,
   NoMatchDetail,
   Offer,
+  Quote,
   ScoringConfig,
   Suggestion,
 } from './types';
 import { checkEligibility } from './pipeline/eligibility-checker';
 import { resolveAssumedIncome } from './pipeline/income-resolver';
-import { calculateMonthlyInstallment, calculateEffectiveLoanAmount } from './pipeline/pmt';
-import { calculateDbr, calculateMaxLoanFromDbr } from './pipeline/dbr';
-import { calculateFees } from './pipeline/fees';
 import { calculateApprovalProbability } from './pipeline/approval-probability';
 import { rankOffers } from './pipeline/ranking';
-import { runCascade } from './pipeline/cascade-adapter';
+import { quoteProgram } from './pipeline/quote';
 
 export interface EngineInput {
   profile: ApplicantProfile;
@@ -122,148 +119,32 @@ export class EngineService {
       };
     }
 
-    const cascade = runCascade(program, profile);
-    const ratePercent = new Decimal(cascade.pricing.effectiveRatePercent);
-    const effectiveTenor = Math.min(profile.preferredTenorMonths, cascade.tenor.maxMonths);
-
-    let requested = profile.requestedAmountEGP;
-    const maxFromCascade = new Decimal(cascade.loanLimit.maxAmount);
-    if (requested.greaterThan(maxFromCascade)) {
-      requested = maxFromCascade;
-    }
-
-    const feesFirst = calculateFees(program.fees, {
-      requestedAmountEGP: requested,
-      effectiveLoanAmountEGP: requested,
-      annualRatePercent: ratePercent,
-      tenorMonths: effectiveTenor,
-      loanPurpose: profile.loanPurpose,
-      collateralized: program.eligibility.requiresCollateral,
-    });
-
-    const effectiveLoanAmount = calculateEffectiveLoanAmount(
-      requested,
-      feesFirst.totalFinancedFeesEGP,
-    );
-    const ratePostPenalties = feesFirst.effectiveRateAfterPenaltiesPercent;
-    const monthlyInstallment = calculateMonthlyInstallment(
-      effectiveLoanAmount,
-      ratePostPenalties,
-      effectiveTenor,
-    );
-
-    const dbr = calculateDbr(
-      {
-        monthlyIncomeEGP: assumedIncome,
-        existingMonthlyObligationsEGP: profile.obligations.existingMonthlyObligationsEGP,
-        newMonthlyInstallmentEGP: monthlyInstallment,
-      },
-      program.eligibility.dbrCapPercent,
-    );
-
-    if (!dbr.withinCap && !program.eligibility.skipDbrCheck && !skipEligibility) {
-      const amountStep = program.loanLimits.amountStepEGP
-        ? new Decimal(program.loanLimits.amountStepEGP)
-        : undefined;
-      const maxLoan = calculateMaxLoanFromDbr({
-        monthlyIncomeEGP: assumedIncome,
-        existingMonthlyObligationsEGP: profile.obligations.existingMonthlyObligationsEGP,
-        dbrCapPercent: program.eligibility.dbrCapPercent,
-        annualRatePercent: ratePostPenalties,
-        tenorMonths: effectiveTenor,
-        applicantRequestedEGP: requested,
-        amountStepEGP: amountStep,
-      });
-
-      const minAmount = new Decimal(
-        program.loanLimits.perCurrency[profile.requestedCurrency]?.minAmount ?? '0',
-      );
-      if (maxLoan.lessThanOrEqualTo(minAmount)) {
-        return {
-          programCode: program.programCode,
-          programVersion: program.version,
-          eligible: false,
-          passedChecks: eligibility.passedChecks,
-          failedChecks: ['dbr_exceeded'],
-        };
-      }
-
-      const feesAdjusted = calculateFees(program.fees, {
-        requestedAmountEGP: maxLoan,
-        effectiveLoanAmountEGP: maxLoan,
-        annualRatePercent: ratePercent,
-        tenorMonths: effectiveTenor,
-        loanPurpose: profile.loanPurpose,
-        collateralized: program.eligibility.requiresCollateral,
-      });
-      const adjustedEffective = calculateEffectiveLoanAmount(
-        maxLoan,
-        feesAdjusted.totalFinancedFeesEGP,
-      );
-      const adjustedEmi = calculateMonthlyInstallment(
-        adjustedEffective,
-        feesAdjusted.effectiveRateAfterPenaltiesPercent,
-        effectiveTenor,
-      );
-
-      const offer = this.buildOffer({
-        profile,
-        program,
-        scoringConfig,
-        ratePercent: feesAdjusted.effectiveRateAfterPenaltiesPercent,
-        monthlyInstallment: adjustedEmi,
-        requestedAmount: maxLoan,
-        effectiveLoanAmount: adjustedEffective,
-        effectiveTenor,
-        feesBreakdown: feesAdjusted.breakdown,
-        assumedIncome,
-        dbrPercent: dbr.dbrPercent,
-        cascadeTrace: this.buildCascadeTrace(cascade),
-        maxLoanAvailableEGP: maxLoan,
-      });
-
+    // All money math lives in `quoteProgram` — the one implementation shared by
+    // matching preview, apply, the admin draft preview and the calculator. That
+    // sharing is what makes FR-025 preview/apply parity structural.
+    const outcome = quoteProgram({ profile, program, skipDbrCheck: skipEligibility });
+    if (!outcome.ok) {
       return {
         programCode: program.programCode,
         programVersion: program.version,
-        eligible: true,
-        passedChecks: [...eligibility.passedChecks, 'dbr_adjusted'],
-        failedChecks: [],
-        offer,
+        eligible: false,
+        passedChecks: eligibility.passedChecks,
+        failedChecks: [reasonToCheckCode(outcome.unavailable.reason)],
       };
     }
 
-    const offer = this.buildOffer({
-      profile,
-      program,
-      scoringConfig,
-      ratePercent: ratePostPenalties,
-      monthlyInstallment,
-      requestedAmount: requested,
-      effectiveLoanAmount,
-      effectiveTenor,
-      feesBreakdown: feesFirst.breakdown,
-      assumedIncome,
-      dbrPercent: dbr.dbrPercent,
-      cascadeTrace: this.buildCascadeTrace(cascade),
-    });
-
+    const { quote } = outcome;
     return {
       programCode: program.programCode,
       programVersion: program.version,
       eligible: true,
-      passedChecks: eligibility.passedChecks,
+      passedChecks:
+        quote.bindingConstraint === 'dbr_affordability'
+          ? [...eligibility.passedChecks, 'dbr_adjusted']
+          : eligibility.passedChecks,
       failedChecks: [],
-      offer,
-    };
-  }
-
-  private buildCascadeTrace(cascade: ReturnType<typeof runCascade>): CascadeTrace {
-    return {
-      matchedPricingLevel: cascade.pricing.matchedLevel,
-      matchedTenorLevel: cascade.tenor.matchedLevel,
-      matchedLoanLimitLevel: cascade.loanLimit.matchedLevel,
-      pricingDerivation: cascade.pricing.derivationChain,
-      steps: cascade.steps,
+      offer: this.buildOffer({ profile, program, scoringConfig, quote }),
+      quote,
     };
   }
 
@@ -271,22 +152,14 @@ export class EngineService {
     profile: ApplicantProfile;
     program: BankProgramSnapshot;
     scoringConfig: ScoringConfig;
-    ratePercent: Decimal;
-    monthlyInstallment: Decimal;
-    requestedAmount: Decimal;
-    effectiveLoanAmount: Decimal;
-    effectiveTenor: number;
-    feesBreakdown: Offer['feesBreakdown'];
-    assumedIncome: Decimal;
-    dbrPercent: Decimal;
-    cascadeTrace: CascadeTrace;
-    maxLoanAvailableEGP?: Decimal;
+    quote: Quote;
   }): Offer {
+    const { quote } = args;
     const approvalProbability: ApprovalProbabilityResult = calculateApprovalProbability({
       profile: args.profile,
       program: args.program,
-      assumedMonthlyIncomeEGP: args.assumedIncome,
-      dbrPercent: args.dbrPercent,
+      assumedMonthlyIncomeEGP: quote.recognisedIncomeEGP,
+      dbrPercent: quote.dbrPercent,
       scoringConfig: args.scoringConfig,
     });
 
@@ -297,23 +170,27 @@ export class EngineService {
       programFriendlyName: args.program.friendlyName,
       programCode: args.program.programCode,
       programVersion: args.program.version,
-      effectiveRatePercent: args.ratePercent,
-      monthlyInstallmentEGP: args.monthlyInstallment,
-      requestedLoanAmountEGP: args.requestedAmount,
-      effectiveLoanAmountEGP: args.effectiveLoanAmount,
+      effectiveRatePercent: quote.effectiveRatePercent,
+      monthlyInstallmentEGP: quote.monthlyInstallmentEGP,
+      // `requestedLoanAmountEGP` is the cash the customer receives; the booked
+      // principal (cash + financed fees) is `effectiveLoanAmountEGP`.
+      requestedLoanAmountEGP: quote.cashToCustomerEGP,
+      effectiveLoanAmountEGP: quote.offeredAmountEGP,
       requestedTenorMonths: args.profile.preferredTenorMonths,
-      effectiveTenorMonths: args.effectiveTenor,
-      feesBreakdown: args.feesBreakdown,
+      effectiveTenorMonths: quote.effectiveTenorMonths,
+      feesBreakdown: quote.feesBreakdown,
       approvalProbabilityPercent: approvalProbability.score,
       approvalProbability,
       requiredDocuments: args.program.requiredDocuments,
       matchReasons: buildMatchReasons(args.profile, args.program),
-      cascadeTrace: args.cascadeTrace,
-      currency: args.profile.requestedCurrency,
+      cascadeTrace: quote.cascadeTrace,
+      currency: quote.currency,
       qualitativeReviewBadge: args.program.eligibility.requiresQualitativeReview,
       selfDeclared: args.program.programType === 'income_surrogate',
-      maxLoanAvailableEGP: args.maxLoanAvailableEGP,
-      dbrPercent: args.dbrPercent,
+      // Only meaningful when DBR is what reduced the amount.
+      maxLoanAvailableEGP:
+        quote.bindingConstraint === 'dbr_affordability' ? quote.cashToCustomerEGP : undefined,
+      dbrPercent: quote.dbrPercent,
     };
   }
 
@@ -361,6 +238,26 @@ export class EngineService {
     }
 
     return suggestions.sort((a, b) => b.magnitude - a.magnitude);
+  }
+}
+
+/**
+ * Map a quote-unavailable reason onto the legacy failed-check vocabulary, so
+ * `generateSuggestions` and `pickPrimaryReason` keep working unchanged.
+ */
+function reasonToCheckCode(reason: FiguresUnavailableReason): string {
+  switch (reason) {
+    case 'OBLIGATIONS_EXCEED_ALLOWANCE':
+    case 'BELOW_PROGRAM_MIN_AMOUNT':
+      return 'dbr_exceeded';
+    case 'NO_RECOGNISED_INCOME':
+      return 'monthly_income';
+    case 'CURRENCY_NOT_OFFERED':
+      return 'currency';
+    case 'AGE_AT_MATURITY':
+      return 'age';
+    case 'PROGRAM_MISCONFIGURED':
+      return 'program_misconfigured';
   }
 }
 

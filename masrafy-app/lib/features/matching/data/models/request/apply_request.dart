@@ -93,21 +93,57 @@ class ApplyRequest {
       };
 }
 
-/// A single picked questionnaire answer sent to `/api/v1/apply`
-/// (`SubmittedAnswerDto` on the backend). Co-located with [ApplyRequest] on
-/// purpose; do not split per-class.
+/// A single questionnaire answer sent to `/api/v1/apply`
+/// (`SubmittedAnswerDto` on the backend). The DTO requires **exactly one** of
+/// `optionCode | optionCodes | textValue | numericValue`, so this model is only
+/// constructible through the four named constructors and `toJson` emits exactly
+/// the one key that was set. Numeric values stay decimal STRINGS (Principle I /
+/// A3). Co-located with [ApplyRequest] on purpose; do not split per-class.
 class QuestionnaireAnswer {
-  const QuestionnaireAnswer({
+  const QuestionnaireAnswer._({
     required this.questionCode,
-    required this.optionCode,
+    this.optionCode,
+    this.optionCodes,
+    this.textValue,
+    this.numericValue,
   });
 
+  /// `SINGLE_SELECT`.
+  const QuestionnaireAnswer.single({
+    required String questionCode,
+    required String optionCode,
+  }) : this._(questionCode: questionCode, optionCode: optionCode);
+
+  /// `MULTI_SELECT`.
+  const QuestionnaireAnswer.multi({
+    required String questionCode,
+    required List<String> optionCodes,
+  }) : this._(questionCode: questionCode, optionCodes: optionCodes);
+
+  /// `NUMERIC` — [value] is a decimal string, never a JS number.
+  const QuestionnaireAnswer.number({
+    required String questionCode,
+    required String value,
+  }) : this._(questionCode: questionCode, numericValue: value);
+
+  /// `TEXT`.
+  const QuestionnaireAnswer.text({
+    required String questionCode,
+    required String value,
+  }) : this._(questionCode: questionCode, textValue: value);
+
   final String questionCode;
-  final String optionCode;
+  final String? optionCode;
+  final List<String>? optionCodes;
+  final String? textValue;
+  final String? numericValue;
 
   Map<String, dynamic> toJson() => {
         'questionCode': questionCode,
-        'optionCode': optionCode,
+        if (optionCode != null) 'optionCode': optionCode,
+        if (optionCodes != null) 'optionCodes': optionCodes,
+        if (textValue != null) 'textValue': textValue,
+        if (numericValue != null) 'numericValue': numericValue,
       };
 }
 

@@ -132,7 +132,8 @@ export interface EligibilityConfig {
   minMonthsInJob: number;
   acceptedLoanPurposes: string[];
   acceptedSalaryTransferTypes: string[];
-  dbrCapPercent: number;
+  /** Decimal string (0…100). Arrives from JSONB as a string — never a float. */
+  dbrCapPercent: string;
   skipDbrCheck: boolean;
   requiresCD: boolean;
   requiresAutoLoanAtABK: boolean;
@@ -216,11 +217,18 @@ export interface FeesConfig {
   adminFeePercent: string;
   adminFeeMinEGP?: string;
   adminFeeMaxEGP?: string;
-  stampDutyEGP: string;
+  /**
+   * Flat stamp duty in EGP. Optional because no writer has ever set it — the
+   * admin DTO writes `stampDutyPercent`, which is why stamp duty read `0.00` on
+   * every offer produced before feature 010. Both are now honoured; see
+   * `calculateFees`.
+   */
+  stampDutyEGP?: string;
+  /** Stamp duty as a percent of the REQUESTED principal (never the fee-inflated one). */
+  stampDutyPercent?: string;
   lifeInsurancePercent?: string;
   lifeInsuranceMinLoanEGP?: string;
   latePaymentFeePercent?: string;
-  earlyPayoffFeePercent?: string;
   collateralFeeEGP?: string;
   feeWaiverEnabledAtRatePercent?: string;
   feeWaiverMinTenorMonths?: number;
@@ -330,6 +338,12 @@ export interface MatchResult {
   passedChecks: string[];
   failedChecks: string[];
   offer?: Offer;
+  /**
+   * The quote the offer was built from (feature 010). Carried so the apply path
+   * can persist the resolved DBR band + cap without recomputing them, and so
+   * preview can serialise figures without a second engine pass.
+   */
+  quote?: Quote;
 }
 
 export interface Suggestion {

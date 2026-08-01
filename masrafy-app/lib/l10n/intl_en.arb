@@ -464,6 +464,46 @@
   "q_dyn_error_message": "We couldn't load the questionnaire. Please try again.",
   "q_dyn_retry": "Try again",
   "q_dyn_empty": "No questions are available right now.",
+  "q_dyn_select_many_hint": "Select one or more",
+  "q_dyn_text_hint": "Type your answer",
+  "q_dyn_number_hint": "Enter a number",
+  "q_dyn_number_invalid": "Enter a valid number.",
+  "q_dyn_number_range": "Enter a value between {min} and {max}.",
+  "@q_dyn_number_range": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_number_min": "Enter {min} or more.",
+  "@q_dyn_number_min": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_number_max": "Enter {max} or less.",
+  "@q_dyn_number_max": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_number_step": "Enter a value in steps of {step}.",
+  "@q_dyn_number_step": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_money_missing": "Fill in the amount, repayment period, income and current installments to see your offers.",
   "q_personal_years": "{years} years",
   "q_personal_step1_title": "Financing Details",
   "q_personal_step2_title": "Employment & Income",

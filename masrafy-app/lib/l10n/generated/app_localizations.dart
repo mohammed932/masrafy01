@@ -2591,6 +2591,60 @@ abstract class AppLocalizations {
   /// **'لا توجد أسئلة متاحة حالياً.'**
   String get q_dyn_empty;
 
+  /// No description provided for @q_dyn_select_many_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر واحداً أو أكثر'**
+  String get q_dyn_select_many_hint;
+
+  /// No description provided for @q_dyn_text_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'اكتب إجابتك'**
+  String get q_dyn_text_hint;
+
+  /// No description provided for @q_dyn_number_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رقماً'**
+  String get q_dyn_number_hint;
+
+  /// No description provided for @q_dyn_number_invalid.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل رقماً صحيحاً.'**
+  String get q_dyn_number_invalid;
+
+  /// No description provided for @q_dyn_number_range.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل قيمة بين {min} و {max}.'**
+  String q_dyn_number_range(String min, String max);
+
+  /// No description provided for @q_dyn_number_min.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل {min} أو أكثر.'**
+  String q_dyn_number_min(String min);
+
+  /// No description provided for @q_dyn_number_max.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل {max} أو أقل.'**
+  String q_dyn_number_max(String max);
+
+  /// No description provided for @q_dyn_number_step.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل قيمة بمضاعفات {step}.'**
+  String q_dyn_number_step(String step);
+
+  /// No description provided for @q_dyn_money_missing.
+  ///
+  /// In ar, this message translates to:
+  /// **'أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.'**
+  String get q_dyn_money_missing;
+
   /// No description provided for @q_personal_years.
   ///
   /// In ar, this message translates to:

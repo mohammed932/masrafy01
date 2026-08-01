@@ -19,10 +19,8 @@ class CarQuestionnairePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return QuestionnaireView(
       category: LoanCategory.car,
-      buildRequest: (QuestionnaireState state) => mapCarAnswersToApplyRequest(
-        state.visibleAnswers,
-        versionNumber: state.snapshot?.versionNumber,
-      ),
+      buildRequest: (QuestionnaireState state) =>
+          mapCarAnswersToApplyRequest(state.visibleAnswers),
     );
   }
 }

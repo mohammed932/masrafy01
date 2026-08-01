@@ -791,6 +791,46 @@
   "q_dyn_error_message": "تعذّر تحميل الاستبيان. يرجى المحاولة مرة أخرى.",
   "q_dyn_retry": "إعادة المحاولة",
   "q_dyn_empty": "لا توجد أسئلة متاحة حالياً.",
+  "q_dyn_select_many_hint": "اختر واحداً أو أكثر",
+  "q_dyn_text_hint": "اكتب إجابتك",
+  "q_dyn_number_hint": "أدخل رقماً",
+  "q_dyn_number_invalid": "أدخل رقماً صحيحاً.",
+  "q_dyn_number_range": "أدخل قيمة بين {min} و {max}.",
+  "@q_dyn_number_range": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_number_min": "أدخل {min} أو أكثر.",
+  "@q_dyn_number_min": {
+    "placeholders": {
+      "min": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_number_max": "أدخل {max} أو أقل.",
+  "@q_dyn_number_max": {
+    "placeholders": {
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_number_step": "أدخل قيمة بمضاعفات {step}.",
+  "@q_dyn_number_step": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_money_missing": "أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.",
   "q_personal_years": "{years} سنة",
   "q_personal_step1_title": "بيانات التمويل",
   "q_personal_step2_title": "العمل والدخل",

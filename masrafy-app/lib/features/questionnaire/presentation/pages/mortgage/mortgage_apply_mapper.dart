@@ -1,68 +1,64 @@
 import 'package:app/features/matching/data/models/request/apply_request.dart';
+import 'package:app/features/questionnaire/domain/entities/question_answer.dart';
 import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.dart';
 
-/// Maps the mortgage-loan questionnaire answers (backend `{questionCode →
-/// optionCode}`) to `ApplyRequest`. Mirrors [mapPersonalAnswersToApplyRequest]:
-/// the backend `apply` DTO still needs the economic fields for offer math, so
-/// the picked buckets are translated to representative values via the maps below
-/// (documented MVP approximations, like `apply_mapping.dart`). The full picked
-/// answers also ride along as `questionnaireAnswers` so the engine applies
-/// per-bank weighted scoring (Principle V). `age` stays null — the results cubit
-/// fills it from the profile (`/auth/me`).
+/// Maps the questionnaire answers to a mortgage `ApplyRequest`.
 ///
-/// Codes mirror `backend/prisma/seed-questionnaire.ts` (mortgage category); the
-/// mortgage income / property-value / down-payment buckets differ from personal.
+/// Amount, tenor, income and current installments come from the bound NUMERIC
+/// questions via [MoneyFigures] (feature 010 — no bucket midpoints). Property
+/// value and down-payment percentage are still choice answers with no NUMERIC
+/// binding, so they keep their documented representative values and feed
+/// `mortgageDetails` only; the financed principal is the amount the applicant
+/// actually asked for. The full answer set rides along as `questionnaireAnswers`
+/// so the engine applies per-bank weighted scoring (Principle V). `age` stays
+/// null — the results cubit fills it from the profile (`/auth/me`).
+///
+/// Codes mirror `backend/prisma/seed-questionnaire.ts`.
 ApplyRequest mapMortgageAnswersToApplyRequest(
-  Map<String, String> answers, {
-  int? versionNumber,
-}) {
-  final employmentType = _employmentType[answers['employment_status']] ??
-      answers['employment_status'] ??
-      'salaried';
-  final hasCurrentLoan = answers['current_loans'] == 'yes';
+  Map<String, QuestionAnswer> answers,
+) {
+  final money = MoneyFigures.fromAnswers(answers);
+  final employmentCode = pickedOption(answers, 'employment_status');
+  final employmentType =
+      _employmentType[employmentCode] ?? employmentCode ?? 'salaried';
 
-  final propertyValue = _propertyValueEgp[answers['property_value']] ?? 0;
-  final downPayment =
-      propertyValue * (_downPaymentPct[answers['down_payment']] ?? 0);
+  final propertyValue =
+      _propertyValueEgp[pickedOption(answers, 'property_value')] ?? 0;
+  final downPayment = propertyValue *
+      (_downPaymentPct[pickedOption(answers, 'down_payment')] ?? 0);
 
   return ApplyRequest(
     loanPurpose: 'mortgage',
-    // Financed principal = property value − down payment.
-    requestedAmountEGP: amountEgp(propertyValue - downPayment),
-    preferredTenorMonths: _tenorMonths(answers['repayment_period']),
-    priority: _priority(answers['priority_factor']),
+    requestedAmountEGP: money.requestedAmountEGP,
+    preferredTenorMonths: money.tenorMonths,
+    priority: _priority(pickedOption(answers, 'priority_factor')),
     employment: EmploymentPayload(
       employmentType: employmentType,
-      monthlyNetSalaryEGP: egp(_incomeEgp[answers['monthly_income']] ?? 0),
-      // Mortgage snapshot doesn't ask job tenure — use the shared fallback.
+      monthlyNetSalaryEGP: money.monthlyIncomeEGP,
+      // Mortgage questions don't ask job tenure — use the shared fallback.
       monthsInJob: monthsFromTenure(null),
-      salaryTransferType:
-          salaryTransferType(transfers: answers['salary_transfer'] == 'yes'),
+      salaryTransferType: salaryTransferType(
+        transfers: pickedOption(answers, 'salary_transfer') == 'yes',
+      ),
       companyName: 'N/A',
       companyType: companyTypeFor(employmentType),
     ),
     obligations: ObligationsPayload(
-      existingMonthlyObligationsEGP: egp(
-        hasCurrentLoan
-            ? (_installmentsEgp[answers['current_installments']] ?? 0)
-            : 0,
-      ),
-      hasCurrentLoan: hasCurrentLoan,
-      hasPreviousRejection: answers['prior_rejection'] == 'yes',
+      existingMonthlyObligationsEGP: money.existingObligationsEGP,
+      hasCurrentLoan: money.hasCurrentLoan,
+      hasPreviousRejection: pickedOption(answers, 'prior_rejection') == 'yes',
     ),
     assets: const AssetsPayload(),
     mortgageDetails: MortgageDetailsPayload(
       propertyValueEGP: egp(propertyValue),
       downPaymentEGP: egp(downPayment),
-      propertyType: _propertyType(answers['property_type']),
-      isCompound: answers['in_compound'] == 'yes',
-      constructionStage: _constructionStage(answers['registration_status']),
+      propertyType: _propertyType(pickedOption(answers, 'property_type')),
+      isCompound: pickedOption(answers, 'in_compound') == 'yes',
+      constructionStage:
+          _constructionStage(pickedOption(answers, 'registration_status')),
     ),
     category: 'mortgage',
-    questionnaireAnswers: [
-      for (final entry in answers.entries)
-        QuestionnaireAnswer(questionCode: entry.key, optionCode: entry.value),
-    ],
+    questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }
 
@@ -82,24 +78,6 @@ const Map<String, double> _downPaymentPct = {
   'more_than_30': 0.35,
 };
 
-/// Representative monthly net salary (EGP) per mortgage `monthly_income` bucket
-/// (differs from the personal bands — starts at "Less than EGP 15,000").
-const Map<String, double> _incomeEgp = {
-  'less_than_egp_15000': 12000,
-  'egp_15000_30000': 22000,
-  'egp_30000_60000': 45000,
-  'more_than_egp_60000': 80000,
-};
-
-/// Representative existing installment (EGP) per mortgage `current_installments`
-/// bucket.
-const Map<String, double> _installmentsEgp = {
-  'less_than_egp_5000': 3000,
-  'egp_5000_15000': 10000,
-  'egp_15000_30000': 22000,
-  'more_than_egp_30000': 40000,
-};
-
 /// `employment_status` seed code → the engine's `employmentType` token
 /// (the engine keys on the shorter legacy tokens for bank-employee programs).
 const Map<String, String> _employmentType = {
@@ -109,18 +87,6 @@ const Map<String, String> _employmentType = {
   'freelancer': 'freelancer',
   'retired': 'retired',
 };
-
-/// `repayment_period` bucket → months, clamped to the backend's 6–360 band.
-int _tenorMonths(String? bucket) {
-  final months = switch (bucket) {
-    'less_than_10_years' => 96,
-    '10_15_years' => 144,
-    '15_20_years' => 216,
-    'more_than_20_years' => 300,
-    _ => 240,
-  };
-  return months.clamp(6, 360);
-}
 
 /// Questionnaire `property_type` code → matching-registry `property_type` key.
 /// The registry accepts only `apartment | twin_house | villa`, so the richer

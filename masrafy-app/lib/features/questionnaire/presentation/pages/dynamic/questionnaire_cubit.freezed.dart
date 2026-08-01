@@ -20,7 +20,7 @@ mixin _$QuestionnaireState {
   QuestionnaireSnapshotEntity? get snapshot =>
       throw _privateConstructorUsedError;
   Failure? get failure => throw _privateConstructorUsedError;
-  Map<String, String> get answers => throw _privateConstructorUsedError;
+  Map<String, QuestionAnswer> get answers => throw _privateConstructorUsedError;
   int get currentStep => throw _privateConstructorUsedError;
   bool get submitted => throw _privateConstructorUsedError;
 
@@ -41,7 +41,7 @@ abstract class $QuestionnaireStateCopyWith<$Res> {
       {RequestState status,
       QuestionnaireSnapshotEntity? snapshot,
       Failure? failure,
-      Map<String, String> answers,
+      Map<String, QuestionAnswer> answers,
       int currentStep,
       bool submitted});
 }
@@ -84,7 +84,7 @@ class _$QuestionnaireStateCopyWithImpl<$Res, $Val extends QuestionnaireState>
       answers: null == answers
           ? _value.answers
           : answers // ignore: cast_nullable_to_non_nullable
-              as Map<String, String>,
+              as Map<String, QuestionAnswer>,
       currentStep: null == currentStep
           ? _value.currentStep
           : currentStep // ignore: cast_nullable_to_non_nullable
@@ -109,7 +109,7 @@ abstract class _$$QuestionnaireStateImplCopyWith<$Res>
       {RequestState status,
       QuestionnaireSnapshotEntity? snapshot,
       Failure? failure,
-      Map<String, String> answers,
+      Map<String, QuestionAnswer> answers,
       int currentStep,
       bool submitted});
 }
@@ -150,7 +150,7 @@ class __$$QuestionnaireStateImplCopyWithImpl<$Res>
       answers: null == answers
           ? _value._answers
           : answers // ignore: cast_nullable_to_non_nullable
-              as Map<String, String>,
+              as Map<String, QuestionAnswer>,
       currentStep: null == currentStep
           ? _value.currentStep
           : currentStep // ignore: cast_nullable_to_non_nullable
@@ -170,7 +170,8 @@ class _$QuestionnaireStateImpl extends _QuestionnaireState {
       {this.status = RequestState.initial,
       this.snapshot,
       this.failure,
-      final Map<String, String> answers = const <String, String>{},
+      final Map<String, QuestionAnswer> answers =
+          const <String, QuestionAnswer>{},
       this.currentStep = 0,
       this.submitted = false})
       : _answers = answers,
@@ -183,10 +184,10 @@ class _$QuestionnaireStateImpl extends _QuestionnaireState {
   final QuestionnaireSnapshotEntity? snapshot;
   @override
   final Failure? failure;
-  final Map<String, String> _answers;
+  final Map<String, QuestionAnswer> _answers;
   @override
   @JsonKey()
-  Map<String, String> get answers {
+  Map<String, QuestionAnswer> get answers {
     if (_answers is EqualUnmodifiableMapView) return _answers;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableMapView(_answers);
@@ -239,7 +240,7 @@ abstract class _QuestionnaireState extends QuestionnaireState {
       {final RequestState status,
       final QuestionnaireSnapshotEntity? snapshot,
       final Failure? failure,
-      final Map<String, String> answers,
+      final Map<String, QuestionAnswer> answers,
       final int currentStep,
       final bool submitted}) = _$QuestionnaireStateImpl;
   const _QuestionnaireState._() : super._();
@@ -251,7 +252,7 @@ abstract class _QuestionnaireState extends QuestionnaireState {
   @override
   Failure? get failure;
   @override
-  Map<String, String> get answers;
+  Map<String, QuestionAnswer> get answers;
   @override
   int get currentStep;
   @override

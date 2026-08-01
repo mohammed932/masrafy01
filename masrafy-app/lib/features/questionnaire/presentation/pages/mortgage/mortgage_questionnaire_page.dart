@@ -20,10 +20,7 @@ class MortgageQuestionnairePage extends StatelessWidget {
     return QuestionnaireView(
       category: LoanCategory.mortgage,
       buildRequest: (QuestionnaireState state) =>
-          mapMortgageAnswersToApplyRequest(
-        state.visibleAnswers,
-        versionNumber: state.snapshot?.versionNumber,
-      ),
+          mapMortgageAnswersToApplyRequest(state.visibleAnswers),
     );
   }
 }

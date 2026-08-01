@@ -4,6 +4,7 @@ import {
   Component,
   computed,
   effect,
+  ElementRef,
   inject,
   LOCALE_ID,
   OnInit,
@@ -32,13 +33,15 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import {
   ArrowLeftOutline,
+  ArrowRightOutline,
+  CheckOutline,
+  ExclamationCircleOutline,
   PlusOutline,
   SaveOutline,
   ReloadOutline,
   CloudOutline,
   DownOutline,
   UpOutline,
-  ThunderboltOutline,
   DeleteOutline,
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -61,10 +64,32 @@ import { IncomeAssumptionSectionComponent } from './sections/income-assumption-s
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import type { DbrBand, PrefillOrigin } from '../bank-programs.types';
-import { DbrBandsEditorComponent } from '@shared/ui';
 
 /** The one remaining genuine opt-in — see `BankProgramFormPage.toggles`. */
 type ToggleKey = 'tieredRates';
+
+/** Wizard steps, in order. `review` owns no controls — it reads the form back. */
+type StepId = 'program' | 'terms' | 'pricing' | 'eligibility' | 'documents' | 'review';
+
+interface WizardStep {
+  readonly id: StepId;
+  readonly label: string;
+  /** Top-level form-group names validated when this step is left. */
+  readonly groups: readonly string[];
+}
+
+/** One label/value line on the review step. */
+interface ReviewRow {
+  readonly label: string;
+  readonly value: string;
+}
+
+interface ReviewGroup {
+  /** Step index the "Edit" affordance jumps to. */
+  readonly step: number;
+  readonly title: string;
+  readonly rows: readonly ReviewRow[];
+}
 
 /**
  * Cross-field guard for the tenor group: maximum duration must be ≥ minimum.
@@ -98,19 +123,20 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
     NzSwitchModule,
     IncomeAssumptionSectionComponent,
     MoneyInputDirective,
-    DbrBandsEditorComponent,
   ],
   providers: [
     provideNzIconsPatch([
       ArrowLeftOutline,
+      ArrowRightOutline,
+      CheckOutline,
+      ExclamationCircleOutline,
       PlusOutline,
       SaveOutline,
       ReloadOutline,
       CloudOutline,
       DownOutline,
       UpOutline,
-      ThunderboltOutline,
-      DeleteOutline,
+          DeleteOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -124,7 +150,8 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         <div class="title-block">
           <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
           <p class="page-subtitle" i18n="@@bank_programs.form.subtitle">
-            Most programs need only the Core section. Advanced features stay hidden until you turn them on.
+            Six short steps. Every field is pre-filled where we can infer it, and nothing is saved until you
+            confirm on the last step.
           </p>
         </div>
       </header>
@@ -164,6 +191,58 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="form-body">
 
+          <!-- ═══ STEP RAIL ═══════════════════════════════════════════════════
+               Navigation, not decoration: every step is reachable the moment it
+               has been visited, and a step that failed validation keeps a red
+               marker so the admin can always see WHERE the blocker is. -->
+          <div class="wizard-rail">
+          <ol class="steps" [attr.aria-label]="stepsAria">
+            @for (s of steps; track s.id; let i = $index, last = $last) {
+              <li class="steps-item" [class.is-last]="last">
+                <button
+                  type="button"
+                  class="step"
+                  [class.active]="stepIndex() === i"
+                  [class.done]="isStepComplete(i)"
+                  [class.invalid]="isStepInvalidTouched(i)"
+                  [attr.aria-current]="stepIndex() === i ? 'step' : null"
+                  [disabled]="!canJumpTo(i)"
+                  (click)="goTo(i)"
+                >
+                  <span class="step-num" aria-hidden="true">
+                    @if (isStepComplete(i)) {
+                      <span nz-icon nzType="check" nzTheme="outline"></span>
+                    } @else {
+                      {{ i + 1 }}
+                    }
+                  </span>
+                  <span class="step-label">{{ s.label }}</span>
+                  <!-- Done / needs-attention is carried by colour AND by a word,
+                       so the rail is not a colour-only signal. -->
+                  @if (isStepInvalidTouched(i)) {
+                    <span class="step-state">{{ stepNeedsAttentionLabel }}</span>
+                  } @else if (isStepComplete(i)) {
+                    <span class="step-state">{{ stepDoneLabel }}</span>
+                  }
+                </button>
+                @if (!last) {
+                  <span class="step-sep" aria-hidden="true"></span>
+                }
+              </li>
+            }
+          </ol>
+          <p class="step-caption">{{ stepCaption() }}</p>
+
+          @if (showStepIssues() && stepIssueCount() > 0) {
+            <div class="step-alert" role="alert">
+              <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+              <span>{{ stepIssueLabel() }}</span>
+            </div>
+          }
+          </div>
+
+          <!-- ═══ STEP 1 — PROGRAM ════════════════════════════════════════════ -->
+          @if (stepIndex() === 0) {
           @if (!isEditMode() && preselectedBank; as b) {
             <div class="bank-chip">
               <span class="bank-chip-avatar" aria-hidden="true">{{ initialsOf(b.nameEnglish) }}</span>
@@ -177,13 +256,12 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             </div>
           }
 
-          <!-- ═══ CORE ════════════════════════════════════════════════════════ -->
           <section class="card" formGroupName="identity">
             <header class="card-head">
               <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.core.title">Core</h2>
+                <h2 class="card-title" i18n="@@bank_programs.form.core.title">Program</h2>
                 <p class="card-sub" i18n="@@bank_programs.form.core.sub">
-                  Identity, money, eligibility — the fields every program needs.
+                  Which bank, which product, which name customers will see.
                 </p>
               </div>
             </header>
@@ -268,22 +346,13 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                   </ng-template>
                 </nz-form-control>
               </nz-form-item>
-              <nz-form-item class="span-2">
-                <label
-                  nz-checkbox
-                  formControlName="isShariaCompliant"
-                  i18n="@@bank_programs.field.is_sharia_compliant"
-                  >Sharia-compliant (Islamic finance)</label
-                >
-                <p class="field-hint" i18n="@@bank_programs.field.is_sharia_compliant.hint">
-                  Shown to customers as a badge on this program's offers and usable as a filter.
-                  Rate fields are read as profit rates.
-                </p>
-              </nz-form-item>
             </div>
           </section>
 
-          <!-- Loan amounts -->
+          }
+
+          <!-- ═══ STEP 2 — AMOUNT & DURATION ══════════════════════════════════ -->
+          @if (stepIndex() === 1) {
           <section class="card" formGroupName="loanLimits">
             <header class="card-head">
               <div>
@@ -342,32 +411,147 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             </div>
           </section>
 
-          <!-- Interest rate (flat single — tier maps live behind tieredRates toggle) -->
+          <!-- Optional on this step. Nothing REQUIRED ever hides behind a
+               disclosure — that was the failure mode of the old wizard. -->
+          <section class="card disclosure" [class.open]="termsExtrasOpen()">
+            <button type="button" class="disclosure-head" (click)="termsExtrasOpen.set(!termsExtrasOpen())" [attr.aria-expanded]="termsExtrasOpen()">
+              <div>
+                <h2 class="card-title" i18n="@@bank_programs.form.terms_extras.title">Optional ceilings</h2>
+                <p class="card-sub" i18n="@@bank_programs.form.terms_extras.sub">Only needed for programs that grant a qualitative-review uplift.</p>
+              </div>
+              <span class="chevron" nz-icon [nzType]="termsExtrasOpen() ? 'up' : 'down'" nzTheme="outline" aria-hidden="true"></span>
+            </button>
+            @if (termsExtrasOpen()) {
+              <div class="disclosure-body">
+                <div class="grid" formGroupName="loanLimits">
+                  <nz-form-item class="span-2">
+                    <nz-form-label i18n="@@bank_programs.field.qr_max">Qualitative-review uplift ceiling</nz-form-label>
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnBefore="EGP" class="money-group">
+                        <input nz-input appMoneyInput formControlName="qualitativeReviewMaxEGP" inputmode="numeric" placeholder="Only with Special Eligibility → requiresQualitativeReview" />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                </div>
+              </div>
+            }
+          </section>
+          }
+
+          <!-- ═══ STEP 3 — PRICING & FEES ═════════════════════════════════════ -->
+          @if (stepIndex() === 2) {
           <section class="card" formGroupName="pricing">
             <header class="card-head">
               <div>
                 <h2 class="card-title" i18n="@@bank_programs.form.rate.title">Interest rate</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.rate.sub">Single annual rate. Tier overrides live under the "Tiered rates" toggle.</p>
+                <p class="card-sub" i18n="@@bank_programs.form.rate.sub">One annual rate. Switch to a band table below if the rate depends on loan size.</p>
               </div>
             </header>
             <div class="grid">
-              <nz-form-item>
-                <nz-form-label [nzFor]="'baseRatePercent'" nzRequired i18n="@@bank_programs.field.base_rate">Base rate</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="%" class="rate-group">
-                    <input nz-input id="baseRatePercent" formControlName="baseRatePercent" inputmode="decimal" placeholder="24.0000" />
-                  </nz-input-group>
-                </nz-form-control>
+              @if (!isVariableRateSignal()) {
+                <nz-form-item>
+                  <nz-form-label [nzFor]="'baseRatePercent'" nzRequired i18n="@@bank_programs.field.base_rate">Base rate</nz-form-label>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                    <nz-input-group nzAddOnAfter="%" class="rate-group">
+                      <input nz-input id="baseRatePercent" formControlName="baseRatePercent" inputmode="decimal" placeholder="24.0000" />
+                    </nz-input-group>
+                  </nz-form-control>
+                </nz-form-item>
+              }
+              <nz-form-item class="span-2">
+                <label nz-checkbox formControlName="isVariableRate" i18n="@@bank_programs.field.is_variable_rate">Variable rate (CBE-linked, quarterly reset)</label>
               </nz-form-item>
+              @if (isVariableRateSignal()) {
+                <nz-form-item>
+                  <nz-form-label i18n="@@bank_programs.field.current_effective_rate">Current effective rate</nz-form-label>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                    <nz-input-group nzAddOnAfter="%" class="rate-group">
+                      <input nz-input formControlName="currentEffectiveRatePercent" inputmode="decimal" placeholder="26.5500" />
+                    </nz-input-group>
+                  </nz-form-control>
+                </nz-form-item>
+                <nz-form-item class="span-2">
+                  <nz-form-label i18n="@@bank_programs.field.variable_rate_note">Disclosure note</nz-form-label>
+                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                    <textarea nz-input formControlName="variableRateNote" rows="2" placeholder="CBE policy rate + 3%, reviewed quarterly"></textarea>
+                  </nz-form-control>
+                </nz-form-item>
+              }
             </div>
           </section>
 
-          <!-- Admin fee + eligibility basics (eligibility group) -->
+          <!-- Tiered rates: a real shape change (single rate → band table), so it
+               stays an opt-in rather than a hidden field. -->
+          <section class="card" formGroupName="pricing">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title" i18n="@@bank_programs.section.tiered_rates">Tiered interest rates</h2>
+                <p class="card-sub" i18n="@@bank_programs.section.tiered_rates_sub">
+                  Rate by loan-amount band. Enter each band's lowest amount and its rate; the engine
+                  applies the highest band at or below the applicant's loan amount. Start the first band at 0.
+                </p>
+              </div>
+            </header>
+            <label
+              nz-checkbox
+              [nzChecked]="toggles.tieredRates()"
+              (nzCheckedChange)="setToggle('tieredRates', $event)"
+              i18n="@@bank_programs.toggle.tiered_rates"
+              >Tiered interest rates (by loan amount)</label
+            >
+
+            @if (toggles.tieredRates()) {
+              <div class="bands" formArrayName="rateByLoanAmountBands">
+                @if (rateBandsArray.length === 0) {
+                  <p class="bands-empty" i18n="@@bank_programs.bands.empty">
+                    No bands yet. Add the first threshold to start.
+                  </p>
+                } @else {
+                  <div class="bands-head" aria-hidden="true">
+                    <span i18n="@@bank_programs.bands.col_min">Loan amount from (EGP)</span>
+                    <span i18n="@@bank_programs.bands.col_rate">Rate</span>
+                    <span></span>
+                  </div>
+                  @for (band of rateBandsArray.controls; track band; let i = $index) {
+                    <div class="band-row" [formGroupName]="i">
+                      <nz-form-item class="band-cell">
+                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                          <nz-input-group nzAddOnBefore="EGP" class="money-group">
+                            <input nz-input appMoneyInput formControlName="minAmountEGP" inputmode="numeric"
+                              [attr.aria-label]="bandAriaMin" placeholder="0" />
+                          </nz-input-group>
+                        </nz-form-control>
+                      </nz-form-item>
+                      <nz-form-item class="band-cell">
+                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                          <nz-input-group nzAddOnAfter="%" class="rate-group">
+                            <input nz-input formControlName="ratePercent" inputmode="decimal"
+                              [attr.aria-label]="bandAriaRate" placeholder="28.0000" />
+                          </nz-input-group>
+                        </nz-form-control>
+                      </nz-form-item>
+                      <button type="button" class="band-remove" (click)="removeRateBand(i)"
+                        [attr.aria-label]="bandAriaRemove">
+                        <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                  }
+                }
+
+                <button type="button" nz-button nzType="dashed" class="bands-add" (click)="addRateBand()">
+                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@bank_programs.bands.add">Add band</span>
+                </button>
+              </div>
+            }
+          </section>
+
+          <!-- Every fee the backend requires is on this step, in the open. -->
           <section class="card" formGroupName="fees">
             <header class="card-head">
               <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.fees_core.title">Admin fee</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.fees_core.sub">Up-front fee charged on disbursement.</p>
+                <h2 class="card-title" i18n="@@bank_programs.form.fees_core.title">Fees</h2>
+                <p class="card-sub" i18n="@@bank_programs.form.fees_core.sub">Pre-filled with platform defaults — change only what this program charges differently.</p>
               </div>
             </header>
             <div class="grid">
@@ -379,9 +563,55 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                   </nz-input-group>
                 </nz-form-control>
               </nz-form-item>
+              <nz-form-item>
+                <nz-form-label nzRequired i18n="@@bank_programs.field.stamp_duty">Stamp duty</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                  <nz-input-group nzAddOnAfter="%" class="rate-group">
+                    <input nz-input formControlName="stampDutyPercent" inputmode="decimal" placeholder="0.5000" />
+                  </nz-input-group>
+                </nz-form-control>
+              </nz-form-item>
+              <nz-form-item>
+                <nz-form-label nzRequired i18n="@@bank_programs.field.life_insurance">Life insurance</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                  <nz-input-group nzAddOnAfter="%" class="rate-group">
+                    <input nz-input formControlName="lifeInsurancePercent" inputmode="decimal" placeholder="0.5000" />
+                  </nz-input-group>
+                </nz-form-control>
+              </nz-form-item>
+              <nz-form-item>
+                <nz-form-label nzRequired i18n="@@bank_programs.field.late_fee">Late payment fee</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                  <nz-input-group nzAddOnAfter="%" class="rate-group">
+                    <input nz-input formControlName="latePaymentFeePercent" inputmode="decimal" placeholder="4.0000" />
+                  </nz-input-group>
+                </nz-form-control>
+              </nz-form-item>
+              <nz-form-item>
+                <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_cash">Payoff (cash)</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                  <nz-input-group nzAddOnAfter="%" class="rate-group">
+                    <input nz-input formControlName="payoffCashPercent" inputmode="decimal" placeholder="12.0000" />
+                  </nz-input-group>
+                </nz-form-control>
+              </nz-form-item>
+              <nz-form-item>
+                <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_buyout">Payoff (buyout)</nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                  <nz-input-group nzAddOnAfter="%" class="rate-group">
+                    <input nz-input formControlName="payoffBuyoutPercent" inputmode="decimal" placeholder="15.0000" />
+                  </nz-input-group>
+                </nz-form-control>
+              </nz-form-item>
+              <nz-form-item class="span-2">
+                <label nz-checkbox formControlName="lifeInsuranceMandatory" i18n="@@bank_programs.field.life_insurance_mandatory">Life insurance mandatory</label>
+              </nz-form-item>
             </div>
           </section>
+          }
 
+          <!-- ═══ STEP 4 — ELIGIBILITY ════════════════════════════════════════ -->
+          @if (stepIndex() === 3) {
           <section class="card" formGroupName="eligibility">
             <header class="card-head">
               <div>
@@ -439,7 +669,54 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             </div>
           </section>
 
-          <!-- Documents + notes -->
+          <!-- Debt burden: cap is REQUIRED, so it is visible on the step that
+               owns eligibility rather than buried in an "advanced" panel. -->
+          <section class="card" formGroupName="eligibility">
+            <header class="card-head">
+              <div>
+                <h2 class="card-title" i18n="@@bank_programs.form.dbr.title">Debt burden</h2>
+                <p class="card-sub" i18n="@@bank_programs.form.dbr.sub">
+                  Share of monthly income that may go to instalments.
+                </p>
+              </div>
+            </header>
+            <!-- One number, one switch: stacked rather than side-by-side, so the
+                 cap keeps a hand-sized field instead of stretching half the card,
+                 and the toggle that overrides it reads as the wider decision. -->
+            <div class="dbr-grid">
+              <nz-form-item class="dbr-cap" [class.is-muted]="skipDbr">
+                <nz-form-label [nzFor]="'dbrCapPercent'" nzRequired>
+                  <span i18n="@@bank_programs.field.dbr_cap">DBR cap</span>
+                  <ng-container *ngTemplateOutlet="originTpl; context: { $implicit: 'eligibility.dbrCapPercent' }" />
+                </nz-form-label>
+                <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                  <nz-input-group nzAddOnAfter="%" class="rate-group">
+                    <input nz-input id="dbrCapPercent" formControlName="dbrCapPercent" inputmode="decimal" placeholder="50.0000" />
+                  </nz-input-group>
+                  <p class="field-hint" i18n="@@bank_programs.field.dbr_cap.hint">
+                    Counts every instalment the customer already carries.
+                  </p>
+                </nz-form-control>
+              </nz-form-item>
+
+              <label class="option-row" [class.is-on]="skipDbr" nz-checkbox formControlName="skipDbrCheck">
+                <span class="option-text">
+                  <span class="option-title" i18n="@@bank_programs.field.skip_dbr">Skip DBR check</span>
+                  <span class="option-hint" i18n="@@bank_programs.field.skip_dbr.hint">
+                    Secured loans only. The cap above is ignored while matching.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </section>
+
+          @if (incomeSurrogateActive()) {
+            <app-income-assumption-section [group]="incomeAssumptionGroup"></app-income-assumption-section>
+          }
+          }
+
+          <!-- ═══ STEP 5 — DOCUMENTS & NOTES ══════════════════════════════════ -->
+          @if (stepIndex() === 4) {
           <section class="card" formGroupName="documents">
             <header class="card-head">
               <div>
@@ -466,229 +743,41 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               </nz-form-item>
             </div>
           </section>
+          }
 
-          <!-- ═══ ADVANCED (FR-011: one disclosure, closed by default) ══════ -->
-          <section class="card advanced">
-            <button
-              type="button"
-              class="disclosure-head"
-              (click)="advancedOpen.set(!advancedOpen())"
-              [attr.aria-expanded]="advancedOpen()"
-            >
+          <!-- ═══ STEP 6 — REVIEW ═════════════════════════════════════════════
+               A read-back, not a form: every row is a value the admin typed, and
+               every group jumps straight back to the step that owns it. -->
+          @if (stepIndex() === 5) {
+          <section class="card review">
+            <header class="card-head">
               <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.advanced.title">Advanced</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.advanced.sub">
-                  Everything else. Pre-filled with sensible values — nothing here is required.
+                <h2 class="card-title" i18n="@@bank_programs.form.review.title">Review</h2>
+                <p class="card-sub" i18n="@@bank_programs.form.review.sub">
+                  Last look before this program starts producing offers. Any row can be corrected in place.
                 </p>
               </div>
-              <span
-                class="chevron"
-                nz-icon
-                [nzType]="advancedOpen() ? 'up' : 'down'"
-                nzTheme="outline"
-                aria-hidden="true"
-              ></span>
-            </button>
-          </section>
+            </header>
 
-          @if (advancedOpen()) {
-          <!-- ═══ ADVANCED FEES & LIMITS (collapsed) ═════════════════════════ -->
-          <section class="card disclosure" [class.open]="advancedFeesOpen()">
-            <button type="button" class="disclosure-head" (click)="advancedFeesOpen.set(!advancedFeesOpen())" [attr.aria-expanded]="advancedFeesOpen()">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.advanced_fees.title">Advanced fees &amp; limits</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.advanced_fees.sub">Pre-filled with platform defaults — expand only if a value differs.</p>
-              </div>
-              <span class="chevron" nz-icon [nzType]="advancedFeesOpen() ? 'up' : 'down'" nzTheme="outline" aria-hidden="true"></span>
-            </button>
-            @if (advancedFeesOpen()) {
-              <div class="disclosure-body">
-                <div class="grid" formGroupName="fees">
-                  <nz-form-item>
-                    <nz-form-label nzRequired i18n="@@bank_programs.field.stamp_duty">Stamp duty</nz-form-label>
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnAfter="%" class="rate-group">
-                        <input nz-input formControlName="stampDutyPercent" inputmode="decimal" placeholder="0.5000" />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                  <nz-form-item>
-                    <nz-form-label nzRequired i18n="@@bank_programs.field.life_insurance">Life insurance</nz-form-label>
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnAfter="%" class="rate-group">
-                        <input nz-input formControlName="lifeInsurancePercent" inputmode="decimal" placeholder="0.5000" />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                  <nz-form-item class="span-2">
-                    <label nz-checkbox formControlName="lifeInsuranceMandatory" i18n="@@bank_programs.field.life_insurance_mandatory">Life insurance mandatory</label>
-                  </nz-form-item>
-                  <nz-form-item>
-                    <nz-form-label nzRequired i18n="@@bank_programs.field.late_fee">Late payment fee</nz-form-label>
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnAfter="%" class="rate-group">
-                        <input nz-input formControlName="latePaymentFeePercent" inputmode="decimal" placeholder="4.0000" />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                  <nz-form-item>
-                    <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_cash">Payoff (cash)</nz-form-label>
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnAfter="%" class="rate-group">
-                        <input nz-input formControlName="payoffCashPercent" inputmode="decimal" placeholder="12.0000" />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                  <nz-form-item>
-                    <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_buyout">Payoff (buyout)</nz-form-label>
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnAfter="%" class="rate-group">
-                        <input nz-input formControlName="payoffBuyoutPercent" inputmode="decimal" placeholder="15.0000" />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
+            @for (g of reviewGroups(); track g.step) {
+              <div class="review-group">
+                <div class="review-group-head">
+                  <h3 class="review-group-title">{{ g.title }}</h3>
+                  <button type="button" class="review-edit" (click)="goTo(g.step)">
+                    <span i18n="@@bank_programs.form.review.edit">Edit</span>
+                  </button>
                 </div>
-                <div class="grid" formGroupName="eligibility">
-                  <nz-form-item>
-                    <nz-form-label nzRequired i18n="@@bank_programs.field.dbr_cap">DBR cap</nz-form-label>
-                    <ng-container *ngTemplateOutlet="originTpl; context: { $implicit: 'eligibility.dbrCapPercent' }" />
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnAfter="%" class="rate-group">
-                        <input nz-input formControlName="dbrCapPercent" inputmode="decimal" placeholder="50.0000" />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                  <nz-form-item>
-                    <label nz-checkbox formControlName="skipDbrCheck" i18n="@@bank_programs.field.skip_dbr">Skip DBR check (secured loans only)</label>
-                  </nz-form-item>
-                  <div class="span-2">
-                    <app-dbr-bands-editor
-                      [bands]="dbrBands()"
-                      (bandsChange)="dbrBands.set($event)"
-                      [flatCapPercent]="eligibilityGroup.get('dbrCapPercent')?.value || '50.0000'"
-                    />
-                  </div>
-                </div>
-                <div class="grid" formGroupName="loanLimits">
-                  <nz-form-item class="span-2">
-                    <nz-form-label i18n="@@bank_programs.field.qr_max">Qualitative-review uplift ceiling</nz-form-label>
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                        <input nz-input appMoneyInput formControlName="qualitativeReviewMaxEGP" inputmode="numeric" placeholder="Only with Special Eligibility → requiresQualitativeReview" />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                </div>
+                <dl class="review-list">
+                  @for (r of g.rows; track r.label) {
+                    <div class="review-row">
+                      <dt>{{ r.label }}</dt>
+                      <dd [class.is-empty]="!r.value">{{ r.value || emptyValueLabel }}</dd>
+                    </div>
+                  }
+                </dl>
               </div>
             }
           </section>
-
-          <!-- ═══ VARIABLE RATE ═════════════════════════════════════════════ -->
-          @if (isVariableRateSignal()) {
-            <section class="card" formGroupName="pricing">
-              <header class="card-head">
-                <div>
-                  <h2 class="card-title" i18n="@@bank_programs.section.variable_rate">Variable rate</h2>
-                  <p class="card-sub" i18n="@@bank_programs.section.variable_rate_sub">CBE-linked or quarterly-reset programs.</p>
-                </div>
-              </header>
-              <div class="grid">
-                <nz-form-item class="span-2">
-                  <label nz-checkbox formControlName="isVariableRate" i18n="@@bank_programs.field.is_variable_rate">Variable rate (CBE-linked, quarterly reset)</label>
-                </nz-form-item>
-                <nz-form-item>
-                  <nz-form-label i18n="@@bank_programs.field.current_effective_rate">Current effective rate</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-input-group nzAddOnAfter="%" class="rate-group">
-                      <input nz-input formControlName="currentEffectiveRatePercent" inputmode="decimal" placeholder="26.5500" />
-                    </nz-input-group>
-                  </nz-form-control>
-                </nz-form-item>
-                <nz-form-item class="span-2">
-                  <nz-form-label i18n="@@bank_programs.field.variable_rate_note">Disclosure note</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <textarea nz-input formControlName="variableRateNote" rows="2" placeholder="CBE policy rate + 3%, reviewed quarterly"></textarea>
-                  </nz-form-control>
-                </nz-form-item>
-              </div>
-            </section>
-          }
-
-          <!-- ═══ INCOME-SURROGATE ══════════════════════════════════════════ -->
-          @if (incomeSurrogateActive()) {
-            <app-income-assumption-section [group]="incomeAssumptionGroup"></app-income-assumption-section>
-          }
-
-          <!-- ═══ TIERED RATES (by loan amount band) ═══════════════════════ -->
-          <!-- The one surviving opt-in: it swaps a single rate for a band table,
-               so it changes the SHAPE of pricing rather than gating a dead field. -->
-          <section class="card tiering-opt-in">
-            <label
-              nz-checkbox
-              [nzChecked]="toggles.tieredRates()"
-              (nzCheckedChange)="setToggle('tieredRates', $event)"
-              i18n="@@bank_programs.toggle.tiered_rates"
-              >Tiered interest rates (by loan amount)</label
-            >
-          </section>
-
-          @if (toggles.tieredRates()) {
-            <section class="card" formGroupName="pricing">
-              <header class="card-head">
-                <div>
-                  <h2 class="card-title" i18n="@@bank_programs.section.tiered_rates">Tiered interest rates</h2>
-                  <p class="card-sub" i18n="@@bank_programs.section.tiered_rates_sub">
-                    Rate by loan-amount band. Enter each band's lowest amount and its rate; the engine
-                    applies the highest band at or below the applicant's loan amount. Start the first band at 0.
-                  </p>
-                </div>
-              </header>
-
-              <div class="bands" formArrayName="rateByLoanAmountBands">
-                @if (rateBandsArray.length === 0) {
-                  <p class="bands-empty" i18n="@@bank_programs.bands.empty">
-                    No bands yet. Add the first threshold to start.
-                  </p>
-                } @else {
-                  <div class="bands-head" aria-hidden="true">
-                    <span i18n="@@bank_programs.bands.col_min">Loan amount from (EGP)</span>
-                    <span i18n="@@bank_programs.bands.col_rate">Rate</span>
-                    <span></span>
-                  </div>
-                  @for (band of rateBandsArray.controls; track band; let i = $index) {
-                    <div class="band-row" [formGroupName]="i">
-                      <nz-form-item class="band-cell">
-                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                          <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                            <input nz-input appMoneyInput formControlName="minAmountEGP" inputmode="numeric"
-                              [attr.aria-label]="bandAriaMin" placeholder="0" />
-                          </nz-input-group>
-                        </nz-form-control>
-                      </nz-form-item>
-                      <nz-form-item class="band-cell">
-                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                          <nz-input-group nzAddOnAfter="%" class="rate-group">
-                            <input nz-input formControlName="ratePercent" inputmode="decimal"
-                              [attr.aria-label]="bandAriaRate" placeholder="28.0000" />
-                          </nz-input-group>
-                        </nz-form-control>
-                      </nz-form-item>
-                      <button type="button" class="band-remove" (click)="removeRateBand(i)"
-                        [attr.aria-label]="bandAriaRemove">
-                        <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
-                      </button>
-                    </div>
-                  }
-                }
-
-                <button type="button" nz-button nzType="dashed" class="bands-add" (click)="addRateBand()">
-                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                  <span i18n="@@bank_programs.bands.add">Add band</span>
-                </button>
-              </div>
-            </section>
-          }
-
           }
           <!-- FR-010: per-field provenance. Tone carries a hint, the WORD carries
                the meaning — colour alone would fail both contrast and RTL review. -->
@@ -714,29 +803,47 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             }
           </ng-template>
 
+          <!-- Sticky so the next action is always one glance away, whatever the
+               step's height. Submit stays enabled and REPORTS what is missing
+               instead of going dead with no explanation. -->
           <footer class="form-footer">
             <button nz-button type="button" (click)="cancel()" [disabled]="busy()">
               <span i18n="@@bank_programs.form.cancel">Cancel</span>
             </button>
             <span class="footer-spacer"></span>
-            <button
-              nz-button
-              nzType="primary"
-              type="button"
-              (click)="submit()"
-              [disabled]="form.invalid || busy() || enums.unavailable()"
-              [nzLoading]="busy()"
-            >
-              @if (!busy()) {
-                <span
-                  nz-icon
-                  [nzType]="isEditMode() ? 'save' : 'plus'"
-                  nzTheme="outline"
-                  aria-hidden="true"
-                ></span>
-              }
-              <span>{{ isEditMode() ? saveLabel() : createLabel() }}</span>
-            </button>
+            @if (stepIndex() > 0) {
+              <button nz-button type="button" (click)="prev()" [disabled]="busy()">
+                <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
+                <!-- "Previous", not "Back": the header link already means
+                     "leave this form", and two Backs is one too many. -->
+                <span i18n="@@bank_programs.form.back_step">Previous</span>
+              </button>
+            }
+            @if (!isLastStep()) {
+              <button nz-button nzType="primary" type="button" (click)="next()" [disabled]="busy()">
+                <span i18n="@@bank_programs.form.next_step">Continue</span>
+                <span nz-icon nzType="arrow-right" nzTheme="outline" aria-hidden="true"></span>
+              </button>
+            } @else {
+              <button
+                nz-button
+                nzType="primary"
+                type="button"
+                (click)="submit()"
+                [disabled]="busy() || enums.unavailable()"
+                [nzLoading]="busy()"
+              >
+                @if (!busy()) {
+                  <span
+                    nz-icon
+                    [nzType]="isEditMode() ? 'save' : 'plus'"
+                    nzTheme="outline"
+                    aria-hidden="true"
+                  ></span>
+                }
+                <span>{{ isEditMode() ? saveLabel() : createLabel() }}</span>
+              </button>
+            }
           </footer>
         </form>
       }
@@ -771,14 +878,85 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         background: var(--color-warning-bg);
         color: var(--color-warning);
       }
+      /* ── Debt burden card ─────────────────────────────────────────────────
+         A percentage never needs half a card's width, and the toggle that
+         overrides it is a decision, not a stray tick-box — so it gets a row of
+         its own with the consequence spelled out under the label. */
+      .dbr-grid {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+      .dbr-cap {
+        max-inline-size: 16rem;
+        transition: opacity 160ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      /* Dimmed, never disabled: the value still submits and still validates —
+         the fade only says "this is not what decides the match right now". */
+      .dbr-cap.is-muted {
+        opacity: 0.55;
+      }
+      label.option-row {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        margin: 0;
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--border-default, var(--color-border-default));
+        border-radius: var(--radius-lg);
+        background: var(--bg-subtle, var(--color-surface-row-hover));
+        transition:
+          border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
+          background-color 160ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      label.option-row:hover {
+        border-color: color-mix(
+          in oklab,
+          var(--primary, var(--color-brand-primary)) 38%,
+          var(--border-default, var(--color-border-default))
+        );
+      }
+      label.option-row:focus-within {
+        border-color: var(--primary, var(--color-brand-primary));
+        box-shadow: var(--focus-halo);
+      }
+      label.option-row.is-on {
+        border-color: color-mix(
+          in oklab,
+          var(--primary, var(--color-brand-primary)) 55%,
+          transparent
+        );
+        background: var(--accent-subtle, var(--color-tonal-accent-bg));
+      }
+      .option-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        max-inline-size: 64ch;
+        white-space: normal;
+      }
+      .option-title {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary, var(--color-text-primary));
+      }
+      .option-hint {
+        font-size: var(--text-xs);
+        line-height: var(--line-height-base);
+        color: var(--text-secondary, var(--color-text-secondary));
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .dbr-cap,
+        label.option-row {
+          transition: none;
+        }
+      }
+
       .field-hint {
         margin: var(--space-1) 0 0;
         font-size: var(--text-xs);
         line-height: var(--line-height-base);
         color: var(--color-text-tertiary);
-      }
-      .tiering-opt-in {
-        padding: var(--space-4);
       }
 
       :host {
@@ -962,79 +1140,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         color: var(--color-error);
       }
 
-      .flag-grid {
-        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-2) var(--space-4);
-      }
-      .toggle-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-3);
-      }
-      @media (max-width: 720px) {
-        .toggle-grid { grid-template-columns: minmax(0, 1fr); }
-      }
-
-      /* Each ng-zorro checkbox wrapper becomes a clickable tile. */
-      .toggle-grid :where(.ant-checkbox-wrapper) {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        margin: 0;
-        padding: 14px 16px;
-        background: var(--bg-surface, var(--color-surface-default));
-        border: 1px solid var(--border-default, var(--color-border-default));
-        border-radius: var(--radius-lg, 12px);
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-        color: var(--text-primary, var(--color-text-primary));
-        transition:
-          background-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
-          border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
-          box-shadow 160ms cubic-bezier(0.4, 0, 0.2, 1),
-          transform 160ms cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .toggle-grid :where(.ant-checkbox-wrapper):hover {
-        border-color: color-mix(in oklab, var(--primary, var(--color-brand-primary)) 50%, var(--border-default));
-        background: var(--bg-subtle, var(--color-surface-row-hover));
-        transform: translateY(-1px);
-        box-shadow: 0 1px 3px color-mix(in oklab, var(--primary, var(--color-brand-primary)) 10%, transparent);
-      }
-      .toggle-grid :where(.ant-checkbox-wrapper):focus-within {
-        border-color: var(--primary, var(--color-brand-primary));
-        box-shadow: var(--focus-halo);
-      }
-      .toggle-grid :where(.ant-checkbox-wrapper-checked) {
-        border-color: var(--primary, var(--color-brand-primary));
-        background: color-mix(in oklab, var(--primary, var(--color-brand-primary)) 7%, var(--bg-surface));
-        color: var(--primary, var(--color-brand-primary));
-        font-weight: 600;
-      }
-      .toggle-grid :where(.ant-checkbox-wrapper-checked):hover {
-        background: color-mix(in oklab, var(--primary, var(--color-brand-primary)) 11%, var(--bg-surface));
-      }
-      .toggle-grid :where(.ant-checkbox-wrapper) :where(.ant-checkbox) {
-        margin: 0;
-        flex-shrink: 0;
-        top: 0;
-      }
-      .toggle-grid :where(.ant-checkbox-wrapper) :where(.ant-checkbox + span) {
-        padding: 0;
-        line-height: 1.3;
-      }
-      .toggle-grid :where(.ant-checkbox-inner) {
-        inline-size: 18px;
-        block-size: 18px;
-        border-radius: 5px;
-        border-color: var(--border-strong, var(--border-default));
-        transition: background-color 140ms cubic-bezier(0.4, 0, 0.2, 1),
-          border-color 140ms cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .toggle-grid :where(.ant-checkbox-wrapper) { transition: none !important; }
-        .toggle-grid :where(.ant-checkbox-wrapper):hover { transform: none !important; }
-      }
       .disclosure { padding: 0; }
       .disclosure-head {
         appearance: none;
@@ -1060,28 +1165,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         border-block-start: 1px solid var(--border-default, var(--color-border-default));
         padding-block-start: var(--space-4);
       }
-      .template-card .tpl-grid {
-        display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: var(--space-3);
-      }
-      .tpl {
-        appearance: none; cursor: pointer;
-        background: var(--bg-subtle, var(--color-surface-row-hover));
-        border: 1px solid var(--border-default, var(--color-border-default));
-        border-radius: var(--radius-md);
-        padding: var(--space-3) var(--space-4);
-        display: flex; flex-direction: column; gap: 4px;
-        text-align: start;
-        transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
-      }
-      .tpl:hover { border-color: var(--primary, var(--color-brand-primary)); transform: translateY(-1px); }
-      .tpl.selected {
-        border-color: var(--primary, var(--color-brand-primary));
-        background: var(--accent-subtle, var(--color-tonal-accent-bg));
-      }
-      .tpl-name { font-weight: 700; color: var(--text-primary, var(--color-text-primary)); font-size: var(--text-sm); }
-      .tpl-desc { color: var(--text-tertiary, var(--color-text-tertiary)); font-size: var(--text-xs); }
-      .placeholder { background: var(--bg-subtle, var(--color-surface-row-hover)); }
       .form-footer {
         display: flex; align-items: center; justify-content: flex-end;
         gap: var(--space-3); padding: var(--space-4);
@@ -1153,6 +1236,205 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
       @media (max-width: 720px) {
         .bands-head { display: none; }
       }
+
+      /* ── Wizard: rail semantics, step caption, issue banner ─────── */
+      /* The rail, its caption and the issue banner pin together as ONE block
+         parked flush under the app top bar (sticky, 64px, z-20).
+         The wrapper — not the <ol> — is the sticky element so the flex gaps
+         between the three carry an opaque backdrop; a bare sticky <ol> lets the
+         step content scroll visibly through those gaps. The backdrop bleeds out
+         past the host's inline padding so nothing peeks at the edges either. */
+      .wizard-rail {
+        position: sticky;
+        inset-block-start: var(--topbar-height);
+        z-index: 3;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        background: var(--bg-base, var(--color-surface-page));
+        margin-inline: calc(var(--space-6) * -1);
+        padding-inline: var(--space-6);
+        padding-block: var(--space-3);
+        margin-block: calc(var(--space-3) * -1);
+        scroll-margin-block-start: var(--topbar-height);
+      }
+      .steps {
+        list-style: none;
+        margin: 0;
+      }
+      .steps-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex: 1 1 auto;
+        min-inline-size: 0;
+      }
+      .steps-item.is-last { flex: 0 0 auto; }
+      .step { position: relative; }
+      .step:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      .step:disabled:hover { background: transparent; }
+      .step.done .step-num .anticon { font-size: var(--text-xs); }
+      /* Error state carries a tinted chip + the error hue on TEXT, not white on
+         mid-red — that pairing fails contrast at this type size in both themes. */
+      .step.invalid .step-num {
+        background: color-mix(in oklab, var(--color-error) 18%, var(--bg-surface));
+        box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-error) 45%, transparent);
+        color: var(--error-500);
+      }
+      .step.invalid .step-label { color: var(--error-500); }
+      /* Visible on the active/hovered step, always present for assistive tech. */
+      .step-state {
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .step.invalid .step-state { color: var(--error-500); }
+      .step.done .step-state { color: var(--success, var(--color-success)); }
+      @media (max-width: 900px) {
+        .step-state {
+          position: absolute;
+          inline-size: 1px;
+          block-size: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
+        }
+      }
+      .step-caption {
+        margin: 0;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      /* Labels compete for width on narrow screens; only the current step keeps
+         its name so the rail never overflows into a horizontal scroll. */
+      @media (max-width: 720px) {
+        .step-label { display: none; }
+        .step.active .step-label { display: inline; }
+      }
+      .step-alert {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-lg);
+        border: 1px solid color-mix(in oklab, var(--color-error) 32%, transparent);
+        background: var(--color-error-bg);
+        color: var(--error-500);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+      }
+
+      /* Cards are re-created on every step change, so the entry animation plays
+         once per step — a directional cue, not decoration. */
+      .form-body > .card,
+      .form-body > app-income-assumption-section,
+      .form-body > .bank-chip {
+        animation: step-enter var(--motion-duration-base) var(--motion-easing-standard) both;
+      }
+      .form-body > section.card:nth-of-type(2) { animation-delay: 30ms; }
+      .form-body > section.card:nth-of-type(3) { animation-delay: 60ms; }
+      @keyframes step-enter {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: none; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .form-body > .card,
+        .form-body > app-income-assumption-section,
+        .form-body > .bank-chip { animation: none; }
+      }
+
+      /* ── Review step ────────────────────────────────────────────── */
+      .review-group + .review-group {
+        border-block-start: 1px solid var(--border-default, var(--color-border-default));
+        padding-block-start: var(--space-4);
+      }
+      .review-group-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-3);
+        margin-block-end: var(--space-2);
+      }
+      .review-group-title {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .review-edit {
+        appearance: none;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: var(--space-1) var(--space-2);
+        border-radius: var(--radius-pill);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--primary, var(--color-brand-primary));
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .review-edit:hover { background: var(--accent-subtle, var(--color-tonal-accent-bg)); }
+      .review-edit:focus-visible {
+        outline: var(--focus-ring-width) solid var(--primary, var(--color-brand-primary));
+        outline-offset: var(--focus-ring-offset);
+      }
+      .review-list {
+        margin: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-2) var(--space-5);
+      }
+      .review-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-3);
+        padding-block: var(--space-1);
+        border-block-end: 1px dotted var(--border-default, var(--color-border-default));
+      }
+      .review-row dt {
+        font-size: var(--text-sm);
+        color: var(--text-secondary, var(--color-text-secondary));
+      }
+      .review-row dd {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-primary, var(--color-text-primary));
+        text-align: end;
+        font-variant-numeric: tabular-nums;
+      }
+      .review-row dd.is-empty {
+        font-weight: var(--font-weight-regular);
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      @media (max-width: 720px) {
+        .review-list { grid-template-columns: minmax(0, 1fr); }
+      }
+
+      /* Sticky action bar: the next step is always reachable without scrolling
+         back to the bottom of a long panel. */
+      .form-footer {
+        position: sticky;
+        inset-block-end: 0;
+        z-index: 2;
+      }
+      /* Direction arrows are glyphs, not logical properties — flip them in RTL
+         so "Back" and "Continue" keep pointing the way the reader travels. */
+      :host-context([dir='rtl']) .form-footer .anticon-arrow-left,
+      :host-context([dir='rtl']) .form-footer .anticon-arrow-right {
+        transform: scaleX(-1);
+      }
     `,
   ],
 })
@@ -1168,8 +1450,9 @@ export class BankProgramFormPage implements OnInit {
   private readonly banksApi = inject(BanksApiService);
   private readonly localeIsAr = inject(LOCALE_ID).toLowerCase().startsWith('ar');
 
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
   readonly busy = signal(false);
-  readonly advancedFeesOpen = signal(false);
   readonly dropdownStyle: Record<string, string> = { 'max-height': '360px', 'min-height': '120px' };
   readonly activeBanks = signal<BankWithProgramCount[]>([]);
   /** Typed Reactive Form control backing the bank picker (UI-side; not part of the
@@ -1187,17 +1470,174 @@ export class BankProgramFormPage implements OnInit {
     return id ? ['/banks', id] : ['/banks'];
   });
 
+  // ── Wizard (FR-011 revisited) ────────────────────────────────────────────
   /**
-   * Feature 010 (FR-011): the 4-step wizard is gone. Everything the engine needs
-   * to produce an offer lives in one always-visible Essentials block; every other
-   * setting sits behind ONE disclosure, closed by default (FR-012 — nothing in
-   * Advanced is required, so a program saves without ever opening it, FR-015).
-   *
-   * The wizard was actively harmful here: required fee and DBR controls rendered
-   * only inside a collapsed panel on the last step, so an admin could be blocked
-   * by a field they had never been shown.
+   * The form is a 6-step wizard again, with the defect that killed the previous
+   * one designed out: **no required control lives behind a disclosure.** Every
+   * fee, the DBR cap and the rate all render in the open on the step that owns
+   * them, so an admin can never be blocked by a field they were never shown.
+   * Disclosures now hold optional-only fields, and the rail marks the exact step
+   * that still needs attention.
    */
-  readonly advancedOpen = signal(false);
+  readonly steps: readonly WizardStep[] = [
+    {
+      id: 'program',
+      label: $localize`:@@bank_programs.step.program:Program`,
+      groups: ['identity'],
+    },
+    {
+      id: 'terms',
+      label: $localize`:@@bank_programs.step.terms:Amount & duration`,
+      groups: ['loanLimits', 'tenor'],
+    },
+    {
+      id: 'pricing',
+      label: $localize`:@@bank_programs.step.pricing:Pricing & fees`,
+      groups: ['pricing', 'fees'],
+    },
+    {
+      id: 'eligibility',
+      label: $localize`:@@bank_programs.step.eligibility:Eligibility`,
+      groups: ['eligibility', 'incomeAssumption'],
+    },
+    {
+      id: 'documents',
+      label: $localize`:@@bank_programs.step.documents:Documents`,
+      groups: ['documents'],
+    },
+    { id: 'review', label: $localize`:@@bank_programs.step.review:Review`, groups: [] },
+  ];
+  readonly stepsAria = $localize`:@@bank_programs.steps.aria:Program setup steps`;
+  readonly stepDoneLabel = $localize`:@@bank_programs.steps.done:done`;
+  readonly stepNeedsAttentionLabel = $localize`:@@bank_programs.steps.needs_attention:needs attention`;
+  readonly stepIndex = signal(0);
+  /** Highest step reached — the rail only lets an admin jump to what they've seen. */
+  readonly furthestStep = signal(0);
+  /** Set when Continue / Create is refused, cleared on every step change. */
+  readonly showStepIssues = signal(false);
+  /** Optional-only disclosure on the amount step (qualitative-review ceiling). */
+  readonly termsExtrasOpen = signal(false);
+
+  readonly isLastStep = computed(() => this.stepIndex() === this.steps.length - 1);
+  readonly stepCaption = computed(() => {
+    const current = this.stepIndex() + 1;
+    const total = this.steps.length;
+    const label = this.steps[this.stepIndex()]?.label ?? '';
+    return $localize`:@@bank_programs.step.caption:Step ${current}:current: of ${total}:total: · ${label}:label:`;
+  });
+
+  private stepControls(index: number): AbstractControl[] {
+    const step = this.steps[index];
+    if (!step) return [];
+    return step.groups
+      .map((name) => this.form.get(name))
+      .filter((c): c is AbstractControl => c !== null);
+  }
+
+  isStepValid(index: number): boolean {
+    return this.stepControls(index).every((c) => c.valid);
+  }
+
+  /** Green check: a step already visited, left behind, and holding valid values. */
+  isStepComplete(index: number): boolean {
+    const step = this.steps[index];
+    if (!step || step.groups.length === 0) return false;
+    return index !== this.stepIndex() && index <= this.furthestStep() && this.isStepValid(index);
+  }
+
+  /** Red marker: a visited step the admin still has to come back to. */
+  isStepInvalidTouched(index: number): boolean {
+    if (index === this.stepIndex()) return false;
+    return this.stepControls(index).some((c) => c.touched && c.invalid);
+  }
+
+  canJumpTo(index: number): boolean {
+    return index <= this.furthestStep();
+  }
+
+  goTo(index: number): void {
+    if (index === this.stepIndex() || !this.canJumpTo(index)) return;
+    // Jumping forward through the rail passes the same gate as Continue.
+    if (index > this.stepIndex() && !this.commitStep()) return;
+    this.showStepIssues.set(false);
+    this.stepIndex.set(index);
+    this.revealStepStart();
+  }
+
+  next(): void {
+    if (this.isLastStep() || !this.commitStep()) return;
+    const target = this.stepIndex() + 1;
+    this.stepIndex.set(target);
+    this.furthestStep.update((max) => Math.max(max, target));
+    this.showStepIssues.set(false);
+    this.revealStepStart();
+  }
+
+  prev(): void {
+    if (this.stepIndex() === 0) return;
+    this.showStepIssues.set(false);
+    this.stepIndex.update((i) => i - 1);
+    this.revealStepStart();
+  }
+
+  /**
+   * Validates the step being left. On failure it marks the step's controls so the
+   * inline errors appear, surfaces the count, and focuses the first bad field —
+   * the admin never has to hunt for what blocked them.
+   */
+  private commitStep(): boolean {
+    const controls = this.stepControls(this.stepIndex());
+    if (controls.every((c) => c.valid)) {
+      this.showStepIssues.set(false);
+      return true;
+    }
+    for (const c of controls) revealErrors(c);
+    this.showStepIssues.set(true);
+    this.focusFirstInvalid();
+    return false;
+  }
+
+  /** Number of fields on the current step that still fail validation. */
+  stepIssueCount(): number {
+    return this.stepControls(this.stepIndex()).reduce(
+      (sum, c) => sum + countInvalidLeaves(c),
+      0,
+    );
+  }
+
+  stepIssueLabel(): string {
+    const count = this.stepIssueCount();
+    return count === 1
+      ? $localize`:@@bank_programs.step.issue_one:1 field on this step needs a value before you continue.`
+      : $localize`:@@bank_programs.step.issue_many:${count}:count: fields on this step need a value before you continue.`;
+  }
+
+  private get prefersReducedMotion(): boolean {
+    return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+  }
+
+  private revealStepStart(): void {
+    const rail = this.host.nativeElement.querySelector('.wizard-rail');
+    rail?.scrollIntoView({
+      block: 'start',
+      behavior: this.prefersReducedMotion ? 'auto' : 'smooth',
+    });
+  }
+
+  private focusFirstInvalid(): void {
+    // One tick out so ng-zorro has stamped `.ant-form-item-has-error`.
+    setTimeout(() => {
+      const el = this.host.nativeElement.querySelector<HTMLElement>(
+        '.ant-form-item-has-error input:not([disabled]), .ant-form-item-has-error textarea, .ant-form-item-has-error .ant-select-selector',
+      );
+      if (!el) return;
+      el.focus();
+      el.scrollIntoView({
+        block: 'center',
+        behavior: this.prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    });
+  }
 
   clearBank(): void {
     this.bankIdControl.setValue(null);
@@ -1313,7 +1753,14 @@ export class BankProgramFormPage implements OnInit {
         validators: [Validators.required],
       }),
       currencies: this.fb.nonNullable.array<string>(['EGP'], { validators: [Validators.required] }),
-      /** Islamic-finance program. A plain program attribute, not a "feature". */
+      /**
+       * Islamic-finance program. HIDDEN from the form UI — the customer-facing
+       * half (offer badge, Islamic-only filter, "profit rate" wording) was never
+       * built, so the checkbox let admins set a flag nobody could see. The
+       * control stays so an existing program's stored value round-trips through
+       * edit unchanged; the API field, DB column and offer snapshot are intact.
+       * Re-expose the checkbox when the customer-facing surfaces ship.
+       */
       isShariaCompliant: new FormControl(false, { nonNullable: true }),
     }),
     tenor: this.fb.nonNullable.group(
@@ -1443,6 +1890,8 @@ export class BankProgramFormPage implements OnInit {
   get loanLimitsGroup(): FormGroup { return this.form.controls.loanLimits as FormGroup; }
   get pricingGroup(): FormGroup { return this.form.controls.pricing as FormGroup; }
   get eligibilityGroup(): FormGroup { return this.form.controls.eligibility as FormGroup; }
+  /** Drives the dimmed cap field + the lit toggle row on the Debt burden card. */
+  get skipDbr(): boolean { return this.eligibilityGroup.get('skipDbrCheck')?.value === true; }
   get incomeAssumptionGroup(): FormGroup { return this.form.controls.incomeAssumption as FormGroup; }
   get feesGroup(): FormGroup { return this.form.controls.fees as FormGroup; }
   get documentsGroup(): FormGroup { return this.form.controls.documents as FormGroup; }
@@ -1494,11 +1943,176 @@ export class BankProgramFormPage implements OnInit {
     { initialValue: this.form.controls.pricing.controls.isVariableRate.value },
   );
 
+  // ── Review step (read-back) ──────────────────────────────────────────────
+  /** Any-value mirror of the form so the review rows recompute as fields change. */
+  private readonly formValue = toSignal(this.form.valueChanges, {
+    initialValue: this.form.value,
+  });
+  readonly emptyValueLabel = $localize`:@@bank_programs.review.empty:Not set`;
+
   /**
-   * Income-banded DBR table (FR-016). Held as a signal rather than a FormArray
-   * because the shared `DbrBandsEditorComponent` is the single validator for it
-   * across all three hosts (FR-021a) — duplicating those rules as Angular
-   * validators here would be the drift this feature exists to remove.
+   * The review step is a read-back of what the admin typed — no new inputs, no
+   * derived numbers the engine would disagree with. Percentages are trimmed as
+   * STRINGS (never parsed to a float, Principle I) and money is grouped digit-wise.
+   */
+  readonly reviewGroups = computed<ReviewGroup[]>(() => {
+    this.formValue();
+    const v = this.form.getRawValue();
+    const id = v.identity;
+    const bands = this.dbrBands().length;
+    const rateRows: ReviewRow[] = v.pricing.isVariableRate
+      ? [
+          {
+            label: $localize`:@@bank_programs.review.rate_variable:Rate (variable)`,
+            value: pct(v.pricing.currentEffectiveRatePercent),
+          },
+        ]
+      : [
+          {
+            label: $localize`:@@bank_programs.review.rate_base:Base rate`,
+            value: pct(v.pricing.baseRatePercent),
+          },
+        ];
+    if (this.toggles.tieredRates() && this.rateBandsArray.length > 0) {
+      rateRows.push({
+        label: $localize`:@@bank_programs.review.rate_bands:Rate bands`,
+        value: this.countLabel(this.rateBandsArray.length),
+      });
+    }
+
+    return [
+      {
+        step: 0,
+        title: this.steps[0]?.label ?? '',
+        rows: [
+          { label: $localize`:@@bank_programs.review.bank:Bank`, value: id.bankName },
+          { label: $localize`:@@bank_programs.review.name:Program name`, value: id.friendlyName },
+          {
+            label: $localize`:@@bank_programs.review.product:Product`,
+            value: isLoanCategory(id.productCategory)
+              ? categoryLabel(id.productCategory)
+              : id.productCategory,
+          },
+          {
+            label: $localize`:@@bank_programs.review.program_type:Program type`,
+            value:
+              id.programType === 'income_surrogate'
+                ? $localize`:@@program_type.surrogate:Income-surrogate`
+                : $localize`:@@program_type.proof:Income-proof`,
+          },
+        ],
+      },
+      {
+        step: 1,
+        title: this.steps[1]?.label ?? '',
+        rows: [
+          {
+            label: $localize`:@@bank_programs.review.amount:Loan amount`,
+            value: `${money(v.loanLimits.minAmountEGP)} – ${money(v.loanLimits.maxAmountEGP)} EGP`,
+          },
+          {
+            label: $localize`:@@bank_programs.review.duration:Duration`,
+            value: `${this.formatMonths(v.tenor.minMonths)} – ${this.formatMonths(v.tenor.maxMonths)}`,
+          },
+          {
+            label: $localize`:@@bank_programs.review.qr_ceiling:Uplift ceiling`,
+            value: v.loanLimits.qualitativeReviewMaxEGP
+              ? `${money(v.loanLimits.qualitativeReviewMaxEGP)} EGP`
+              : '',
+          },
+        ],
+      },
+      {
+        step: 2,
+        title: this.steps[2]?.label ?? '',
+        rows: [
+          ...rateRows,
+          { label: $localize`:@@bank_programs.review.admin_fee:Admin fee`, value: pct(v.fees.adminFeePercent) },
+          { label: $localize`:@@bank_programs.review.stamp_duty:Stamp duty`, value: pct(v.fees.stampDutyPercent) },
+          {
+            label: $localize`:@@bank_programs.review.life_insurance:Life insurance`,
+            value: v.fees.lifeInsuranceMandatory
+              ? $localize`:@@bank_programs.review.life_insurance_mandatory:${pct(v.fees.lifeInsurancePercent)}:rate: · mandatory`
+              : pct(v.fees.lifeInsurancePercent),
+          },
+          { label: $localize`:@@bank_programs.review.late_fee:Late payment fee`, value: pct(v.fees.latePaymentFeePercent) },
+          { label: $localize`:@@bank_programs.review.payoff:Payoff (cash / buyout)`, value: `${pct(v.fees.payoffCashPercent)} / ${pct(v.fees.payoffBuyoutPercent)}` },
+        ],
+      },
+      {
+        step: 3,
+        title: this.steps[3]?.label ?? '',
+        rows: [
+          {
+            label: $localize`:@@bank_programs.review.age:Age`,
+            value: `${v.eligibility.ageMin} – ${v.eligibility.ageMax}`,
+          },
+          {
+            label: $localize`:@@bank_programs.review.min_income:Minimum income`,
+            value: `${money(v.eligibility.minMonthlyIncomeEGP)} EGP`,
+          },
+          {
+            label: $localize`:@@bank_programs.review.min_job:Minimum months in job`,
+            value: String(v.eligibility.minMonthsInJob),
+          },
+          {
+            label: $localize`:@@bank_programs.review.employment:Employment types`,
+            value: this.labelsFor('employment_type', v.eligibility.acceptedEmploymentTypes),
+          },
+          {
+            label: $localize`:@@bank_programs.review.transfer:Transfer types`,
+            value: this.labelsFor('transfer_type', v.eligibility.acceptedTransferTypes),
+          },
+          {
+            label: $localize`:@@bank_programs.review.dbr:DBR cap`,
+            value: v.eligibility.skipDbrCheck
+              ? $localize`:@@bank_programs.review.dbr_skipped:Check skipped`
+              : bands > 0
+                ? $localize`:@@bank_programs.review.dbr_banded:${pct(v.eligibility.dbrCapPercent)}:cap: · ${bands}:bands: income bands`
+                : pct(v.eligibility.dbrCapPercent),
+          },
+        ],
+      },
+      {
+        step: 4,
+        title: this.steps[4]?.label ?? '',
+        rows: [
+          {
+            label: $localize`:@@bank_programs.review.documents:Required documents`,
+            value: this.labelsFor('required_document', v.documents.requiredDocuments),
+          },
+          {
+            label: $localize`:@@bank_programs.review.notes:Notes`,
+            value: v.documents.operatorNotes ?? '',
+          },
+        ],
+      },
+    ];
+  });
+
+  /** Enum keys → their registry labels, joined for a review row. */
+  private labelsFor(registry: string, keys: readonly string[]): string {
+    if (keys.length === 0) return '';
+    const members = this.enums.membersFor(registry as never)();
+    return keys
+      .map((k) => members.find((m) => m.key === k)?.labelEn ?? k)
+      .join(', ');
+  }
+
+  private countLabel(n: number): string {
+    return n === 1
+      ? $localize`:@@bank_programs.review.count_one:1 band`
+      : $localize`:@@bank_programs.review.count_many:${n}:count: bands`;
+  }
+
+  /**
+   * Income-banded DBR table (FR-016) — NOT editable here any more: the flat
+   * `eligibility.dbrCapPercent` field is the only cap an admin sets on this form.
+   *
+   * The signal survives as a CARRIER: bands resolved from bank policy on create,
+   * or already stored on the program being edited, are read in and written back
+   * out unchanged. Dropping it would make every save silently wipe a program's
+   * existing bands.
    */
   readonly dbrBands = signal<DbrBand[]>([]);
 
@@ -1908,8 +2522,19 @@ export class BankProgramFormPage implements OnInit {
   }
 
   async submit(): Promise<void> {
-    if (this.form.invalid || this.busy()) {
-      this.form.markAllAsTouched();
+    if (this.busy()) return;
+    // A dead Create button explains nothing. Instead, land the admin on the first
+    // step that still has a problem, with the field focused.
+    if (this.form.invalid) {
+      revealErrors(this.form);
+      const blocked = this.steps.findIndex((_, i) => !this.isStepValid(i));
+      if (blocked >= 0) {
+        this.stepIndex.set(blocked);
+        this.furthestStep.update((max) => Math.max(max, blocked));
+        this.showStepIssues.set(true);
+        this.revealStepStart();
+        this.focusFirstInvalid();
+      }
       return;
     }
     this.busy.set(true);
@@ -1945,17 +2570,17 @@ export class BankProgramFormPage implements OnInit {
   }
 
   /**
-   * On edit, open Advanced only when it actually holds something — otherwise the
-   * disclosure stays closed and the form reads as the 8-field task it usually is.
+   * On edit the program already exists, so every step is reachable immediately —
+   * an admin fixing one fee should not have to walk the wizard to get to it.
+   * Optional disclosures open only when they actually hold a value.
    */
   private autodetectToggles(d: BankProgramResponse): void {
     this.toggles.tieredRates.set(
       d.pricing.rateByLoanAmountBand != null &&
         Object.keys(d.pricing.rateByLoanAmountBand).length > 0,
     );
-    if (this.toggles.tieredRates() || (d.eligibility.dbrBands?.length ?? 0) > 0) {
-      this.advancedOpen.set(true);
-    }
+    this.termsExtrasOpen.set(d.loanLimits.qualitativeReviewMaxEGP != null);
+    this.furthestStep.set(this.steps.length - 1);
   }
 
   private buildCreatePayload(): BankProgramCreatePayload {
@@ -2157,6 +2782,66 @@ export class BankProgramFormPage implements OnInit {
       void this.loadForEdit(this.currentProgramCode);
     }
   }
+}
+
+/**
+ * Marks every leaf under `control` touched + dirty AND re-runs its validity so a
+ * `statusChanges` event fires. `markAllAsTouched()` alone is silent, and every
+ * `nz-form-control` is OnPush — it only repaints on that event, which is why the
+ * inline `[nzErrorTip]` text never appeared under the offending field.
+ */
+function revealErrors(control: AbstractControl): void {
+  if (control instanceof FormGroup) {
+    for (const child of Object.values(control.controls)) revealErrors(child);
+    control.markAsTouched({ onlySelf: true });
+    control.markAsDirty({ onlySelf: true });
+    control.updateValueAndValidity({ onlySelf: true });
+    return;
+  }
+  if (control instanceof FormArray) {
+    for (const child of control.controls) revealErrors(child);
+    control.markAsTouched({ onlySelf: true });
+    control.markAsDirty({ onlySelf: true });
+    control.updateValueAndValidity({ onlySelf: true });
+    return;
+  }
+  control.markAsTouched({ onlySelf: true });
+  control.markAsDirty({ onlySelf: true });
+  control.updateValueAndValidity({ onlySelf: true });
+}
+
+/**
+ * Invalid LEAF controls under `control`, plus the group's own cross-field errors
+ * (e.g. the tenor min/max guard), so the step banner counts what a human counts.
+ */
+function countInvalidLeaves(control: AbstractControl): number {
+  if (control instanceof FormGroup) {
+    const own = control.errors ? 1 : 0;
+    return (
+      own +
+      Object.values(control.controls).reduce((sum, c) => sum + countInvalidLeaves(c), 0)
+    );
+  }
+  if (control instanceof FormArray) {
+    const own = control.errors ? 1 : 0;
+    return own + control.controls.reduce((sum, c) => sum + countInvalidLeaves(c), 0);
+  }
+  return control.invalid ? 1 : 0;
+}
+
+/** `'24.0000'` → `'24%'`, `'1.5000'` → `'1.5%'`. String-only — never parsed to a float. */
+function pct(raw: string | null | undefined): string {
+  if (raw == null || raw === '') return '';
+  const trimmed = raw.includes('.') ? raw.replace(/0+$/, '').replace(/\.$/, '') : raw;
+  return `${trimmed}%`;
+}
+
+/** `'1500000'` → `'1,500,000'`. Digit grouping on the string, so no precision loss. */
+function money(raw: string | null | undefined): string {
+  if (raw == null || raw === '') return '';
+  const [int = '', frac] = raw.split('.');
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return frac ? `${grouped}.${frac}` : grouped;
 }
 
 /** Drops undefined keys so a partial prefill never clears a field the layers didn't supply. */

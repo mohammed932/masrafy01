@@ -1284,6 +1284,41 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_dyn_empty => 'No questions are available right now.';
 
   @override
+  String get q_dyn_select_many_hint => 'Select one or more';
+
+  @override
+  String get q_dyn_text_hint => 'Type your answer';
+
+  @override
+  String get q_dyn_number_hint => 'Enter a number';
+
+  @override
+  String get q_dyn_number_invalid => 'Enter a valid number.';
+
+  @override
+  String q_dyn_number_range(String min, String max) {
+    return 'Enter a value between $min and $max.';
+  }
+
+  @override
+  String q_dyn_number_min(String min) {
+    return 'Enter $min or more.';
+  }
+
+  @override
+  String q_dyn_number_max(String max) {
+    return 'Enter $max or less.';
+  }
+
+  @override
+  String q_dyn_number_step(String step) {
+    return 'Enter a value in steps of $step.';
+  }
+
+  @override
+  String get q_dyn_money_missing => 'Fill in the amount, repayment period, income and current installments to see your offers.';
+
+  @override
   String q_personal_years(Object years) {
     return '$years years';
   }

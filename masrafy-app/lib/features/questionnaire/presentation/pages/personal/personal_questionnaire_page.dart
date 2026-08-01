@@ -19,10 +19,8 @@ class PersonalQuestionnairePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return QuestionnaireView(
       category: LoanCategory.personal,
-      buildRequest: (QuestionnaireState state) => mapPersonalAnswersToApplyRequest(
-        state.visibleAnswers,
-        versionNumber: state.snapshot?.versionNumber,
-      ),
+      buildRequest: (QuestionnaireState state) =>
+          mapPersonalAnswersToApplyRequest(state.visibleAnswers),
     );
   }
 }

@@ -4,9 +4,13 @@
  *
  * `calculateMaxLoanFromDbr` floors to ≤ applicant-requested amount (FR-008o.1)
  * and rounds DOWN to the program's amount-step multiple (FR-008p.1).
+ *
+ * Caps are `Decimal`, never `number`: the value arrives from JSONB as a decimal
+ * string, and a `number` annotation reads as float money math (Principle I).
  */
 
 import { Decimal } from '@prisma/client/runtime/library';
+import type { DbrBand, DbrSetting } from '../types';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -21,7 +25,70 @@ export interface DbrResult {
   withinCap: boolean;
 }
 
-export function calculateDbr(input: DbrInput, dbrCapPercent: number): DbrResult {
+export interface DbrCapResolution {
+  capPercent: Decimal;
+  /** Index of the band that matched; `null` when the scalar cap was used. */
+  bandIndex: number | null;
+}
+
+/**
+ * Resolve the applicable DBR cap for a recognised income (FR-016 … FR-020).
+ *
+ * MUST be called with RECOGNISED income (declared × the program's income
+ * assumption), never declared income — resolving on declared is the ordering
+ * bug this feature exists to prevent: declared 20 400 at an 85% assumption is
+ * recognised 17 340, which sits in the ≤20 000 band (40%), not the ≤30 000 one.
+ *
+ * Upper bounds are INCLUSIVE, so an income of exactly 10 000 against
+ * `[≤5 000: 30, ≤10 000: 35, open: 50]` resolves band 1 at 35%.
+ *
+ * Never throws (Principle V — the engine cannot fail a match on bad config).
+ * A missing, empty, or malformed band table falls back to the scalar cap with
+ * `bandIndex: null`, which is exactly the pre-feature behaviour (FR-020).
+ * Well-formed tables are guaranteed by `validateDbrBands` at write time; this
+ * tolerance only covers legacy or hand-edited rows.
+ */
+export function resolveDbrCap(setting: DbrSetting, recognisedIncomeEGP: Decimal): DbrCapResolution {
+  const scalar = toDecimalOrNull(setting.dbrCapPercent) ?? new Decimal(0);
+  const bands = setting.dbrBands;
+  if (!bands || bands.length === 0) return { capPercent: scalar, bandIndex: null };
+
+  for (const [index, band] of bands.entries()) {
+    const cap = toDecimalOrNull(band.capPercent);
+    if (cap === null) continue;
+
+    // The open-ended band terminates the table and matches any remaining income.
+    if (band.upToIncomeEGP === null || band.upToIncomeEGP === undefined) {
+      return { capPercent: cap, bandIndex: index };
+    }
+
+    const bound = toDecimalOrNull(band.upToIncomeEGP);
+    if (bound === null) continue;
+    if (recognisedIncomeEGP.lessThanOrEqualTo(bound)) {
+      return { capPercent: cap, bandIndex: index };
+    }
+  }
+
+  // Fell off the end — the table has no open-ended band (rejected on write, so
+  // only reachable for legacy rows). Treat it as "no usable table".
+  return { capPercent: scalar, bandIndex: null };
+}
+
+/** Tolerant parse: a bad decimal string yields null instead of throwing. */
+function toDecimalOrNull(value: string | number | null | undefined): Decimal | null {
+  if (value === null || value === undefined) return null;
+  try {
+    const parsed = new Decimal(value);
+    return parsed.isFinite() ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Re-exported so callers can type band tables without reaching into `../types`. */
+export type { DbrBand, DbrSetting };
+
+export function calculateDbr(input: DbrInput, dbrCapPercent: Decimal): DbrResult {
   if (input.monthlyIncomeEGP.lessThanOrEqualTo(0)) {
     return { dbrPercent: new Decimal(999), withinCap: false };
   }
@@ -36,7 +103,7 @@ export function calculateDbr(input: DbrInput, dbrCapPercent: number): DbrResult 
 export function calculateMaxLoanFromDbr(args: {
   monthlyIncomeEGP: Decimal;
   existingMonthlyObligationsEGP: Decimal;
-  dbrCapPercent: number;
+  dbrCapPercent: Decimal;
   annualRatePercent: Decimal;
   tenorMonths: number;
   applicantRequestedEGP: Decimal;

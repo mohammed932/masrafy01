@@ -20,8 +20,9 @@ import 'package:app/l10n/generated/app_localizations.dart';
 
 /// Backend-driven questionnaire renderer shared by every loan category
 /// (Principle II — the questionnaire is DATA). Creates the [QuestionnaireCubit],
-/// loads the snapshot for [category], and renders one step per group with a
-/// gradient Next/Finish CTA. On finish it maps the picked answers to an
+/// loads the ONE global snapshot (feature 010 — [category] decides which
+/// programs match, not which questions are asked), and renders one step per
+/// group with a gradient Next/Finish CTA. On finish it maps the answers to an
 /// [ApplyRequest] via [buildRequest] and pushes the match results (which runs
 /// `/api/v1/apply`). Shimmer while loading, retry on error (Principle XXXIV).
 /// Not a route itself — a per-category `*QuestionnairePage` hosts it (XXXVI).
@@ -40,7 +41,7 @@ class QuestionnaireView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<QuestionnaireCubit>(
-      create: (_) => getIt<QuestionnaireCubit>()..load(category),
+      create: (_) => getIt<QuestionnaireCubit>()..load(),
       child: _QuestionnaireBody(category: category, buildRequest: buildRequest),
     );
   }
@@ -102,8 +103,7 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
             RequestState.initial ||
             RequestState.loading =>
               const QuestionnaireShimmer(),
-            RequestState.error =>
-              _MessageView(onRetry: () => cubit.load(widget.category)),
+            RequestState.error => _MessageView(onRetry: cubit.load),
             RequestState.loaded => state.groups.isEmpty
                 ? const _MessageView()
                 : _LoadedView(state: state, controller: _controller),
@@ -124,6 +124,9 @@ class _LoadedView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final cubit = context.read<QuestionnaireCubit>();
+    // The last step additionally requires every money binding to resolve.
+    final canProceed = state.isLastStep ? state.canFinish : state.canAdvance;
+    final blocked = state.isLastStep && state.missingMoneyFigures.isNotEmpty;
 
     return PopScope(
       canPop: state.isFirstStep,
@@ -152,9 +155,27 @@ class _LoadedView extends StatelessWidget {
             padding: EdgeInsetsDirectional.fromSTEB(24.w, 8.h, 24.w, 12.h),
             child: SafeArea(
               top: false,
-              child: MasrafyGradientButton(
-                label: state.isLastStep ? l.q_dyn_finish : l.q_dyn_next,
-                onPressed: state.canAdvance ? cubit.next : null,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // A money-bound question left unanswered is never defaulted
+                  // (FR-044) — say why Finish is locked instead of submitting a
+                  // fabricated figure.
+                  if (blocked) ...[
+                    Text(
+                      l.q_dyn_money_missing,
+                      textAlign: TextAlign.center,
+                      style: MasrafyTextTheme.of(context).caption.regular().copyWith(
+                            color: MasrafyColorTheme.of(context).text.secondary,
+                          ),
+                    ),
+                    Gap(8.h),
+                  ],
+                  MasrafyGradientButton(
+                    label: state.isLastStep ? l.q_dyn_finish : l.q_dyn_next,
+                    onPressed: canProceed ? cubit.next : null,
+                  ),
+                ],
               ),
             ),
           ),

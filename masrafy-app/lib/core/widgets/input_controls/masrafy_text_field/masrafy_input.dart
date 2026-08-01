@@ -28,14 +28,18 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
   // updated `initialValue` from the parent re-seeds the controller only
   // while the field is still pristine — never overwriting typed input.
   bool _userHasTyped = false;
+  // Last message the validator produced, so [handleChanged] only rebuilds
+  // when the error actually appears, changes, or clears.
+  String? _lastError;
 
   TextEditingController get controller => _controller;
   FocusNode get focusNode => _focusNode;
   bool get isFocused => _focused;
   bool get isObscured => _obscured;
-  // Error styling only kicks in after the user has interacted with the field
-  // (first blur after a focus). This keeps fields in a neutral state on first
-  // render; Form.validate() / explicit touch is what turns them red.
+  // Error styling kicks in as soon as the user interacts — the first keystroke
+  // ([handleChanged]) or the first blur — and then tracks every keystroke
+  // live. Fields stay neutral on first render; Form.validate() also touches an
+  // untyped field via [wrappedValidator].
   bool get hasError =>
       _touched && widget.validator?.call(controller.text) != null;
   bool get showObscureToggle =>
@@ -70,12 +74,27 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
     }
   }
 
-  /// Wrap the caller-provided `onChanged` so we can note the first keystroke.
-  /// `buildField` must call this via `handleChanged` instead of forwarding
-  /// `widget.onChanged` directly.
+  /// Wrap the caller-provided `onChanged` so we can note the first keystroke
+  /// and re-validate live. `buildField` must call this via `handleChanged`
+  /// instead of forwarding `widget.onChanged` directly.
+  ///
+  /// Typing is what makes the field "touched" — the error text appears and
+  /// clears on every keystroke, with no blur / submit / `Form.validate()`
+  /// needed. The rebuild is skipped while the message is unchanged, so typing
+  /// inside a valid range costs nothing.
   void handleChanged(String value) {
     _userHasTyped = true;
     widget.onChanged?.call(value);
+
+    final validator = widget.validator;
+    if (validator == null) return;
+
+    final error = validator(value);
+    if (_touched && error == _lastError) return;
+    setState(() {
+      _touched = true;
+      _lastError = error;
+    });
   }
 
   /// Wrapper passed to `TextFormField.validator` instead of `widget.validator`
@@ -88,7 +107,11 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
       final error = widget.validator!(v);
       if (error != null && !_userHasTyped && !_touched) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _touched = true);
+          if (!mounted) return;
+          setState(() {
+            _touched = true;
+            _lastError = error;
+          });
         });
       }
       return error;
@@ -113,8 +136,12 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
     setState(() {
       _focused = _focusNode.hasFocus;
       // First blur marks the field as touched — from then on validation
-      // drives the border / label color.
-      if (!_focused) _touched = true;
+      // drives the border / label color. Keep `_lastError` in step so the
+      // next keystroke's change-detection compares against what's on screen.
+      if (!_focused) {
+        _touched = true;
+        _lastError = widget.validator?.call(_controller.text);
+      }
     });
   }
 

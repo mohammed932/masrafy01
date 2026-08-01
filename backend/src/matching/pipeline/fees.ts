@@ -45,7 +45,17 @@ export function calculateFees(config: FeesConfig, input: FeesInput): FeesOutput 
     input.tenorMonths >= config.feeWaiverMinTenorMonths;
   if (adminFeeWaived) adminFee = new Decimal(0);
 
-  const stampDuty = new Decimal(config.stampDutyEGP ?? 0).toDecimalPlaces(2, ROUND_BANKERS);
+  // Stamp duty = flat EGP + a percent of the REQUESTED principal.
+  //
+  // Before feature 010 only `stampDutyEGP` was read while every writer set
+  // `stampDutyPercent`, so stamp duty was 0.00 on every offer ever produced.
+  // Both keys are honoured now. The percent applies to the requested amount and
+  // never to the fee-inflated principal, so the fee cannot feed back on itself.
+  const stampDutyFlat = new Decimal(config.stampDutyEGP ?? 0);
+  const stampDutyFromPercent = config.stampDutyPercent
+    ? input.requestedAmountEGP.mul(config.stampDutyPercent).div(100)
+    : new Decimal(0);
+  const stampDuty = stampDutyFlat.plus(stampDutyFromPercent).toDecimalPlaces(2, ROUND_BANKERS);
 
   // Life insurance — % of effective loan, with optional minimum-base floor.
   let lifeInsuranceEGP = new Decimal(0);
