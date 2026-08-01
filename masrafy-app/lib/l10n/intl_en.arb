@@ -1,6 +1,5 @@
 {
   "@@locale": "en",
-
   "auth_otp_invalid": "Incorrect code. Please try again.",
   "auth_otp_expired": "This code expired. Request a new one.",
   "auth_otp_consumed": "This code has already been used.",
@@ -8,23 +7,21 @@
   "auth_otp_rate_limited": "Too many code requests. Please wait and try again.",
   "auth_otp_purpose_login_forbidden": "Login does not require an SMS code. Use your password.",
   "auth_phone_already_registered": "This number is already registered. Please log in instead.",
-  "@auth_phone_already_registered": { "description": "Backend CUSTOMER_PHONE_ALREADY_REGISTERED error code" },
-
+  "@auth_phone_already_registered": {
+    "description": "Backend CUSTOMER_PHONE_ALREADY_REGISTERED error code"
+  },
   "auth_verified_mobile_token_invalid": "Verification token is invalid. Restart the signup.",
   "auth_verified_mobile_token_expired": "Verification token expired. Restart the signup.",
   "auth_verified_mobile_token_consumed": "Verification token was already used.",
-
   "auth_social_token_invalid": "Sign-in failed. Please try again.",
   "auth_social_token_expired": "Sign-in session expired. Please try again.",
   "auth_social_provider_unavailable": "The sign-in provider is temporarily unavailable.",
   "auth_social_session_invalid": "Sign-in session is invalid.",
   "auth_social_session_expired": "Sign-in session expired. Tap the provider button again.",
   "auth_social_session_consumed": "Sign-in session was already used.",
-
   "auth_account_locked": "Account temporarily locked after too many failed attempts. Try again later.",
   "auth_password_not_set": "This account has no password. Sign in with Google or Apple.",
   "auth_password_same_as_old": "Pick a new password different from the current one.",
-
   "auth_profile_incomplete": "Complete your profile to continue.",
   "auth_profile_field_immutable": "This field cannot be changed once set.",
   "auth_profile_id_docs_missing": "Upload both National ID front and back before completing your profile.",
@@ -33,24 +30,20 @@
   "auth_password_forbidden_for_social_profile": "Accounts using Google or Apple sign-in do not set a password.",
   "auth_phone_mutation_on_phone_customer_forbidden": "Mobile number is already set on this account.",
   "auth_password_change_forbidden_for_social": "Password change is not available for accounts using Google or Apple sign-in.",
-
   "auth_age_invalid": "Age must be between 18 and 80.",
   "auth_documents_missing": "Both National ID front and back are required.",
   "auth_documents_not_owned": "These documents are not associated with your account.",
   "auth_bank_program_invalid": "This offer is no longer available for your profile.",
-
   "auth_landing_brand": "Masrafy",
   "auth_landing_action_phone_signup": "Sign Up with Phone",
   "auth_landing_action_google": "Continue with Google",
   "auth_landing_action_apple": "Continue with Apple",
   "auth_landing_action_login": "Log In",
-
   "auth_login_title": "Log in",
   "auth_login_field_mobile": "Mobile number",
   "auth_login_field_password": "Password",
   "auth_login_action_submit": "Log in",
   "auth_login_action_forgot": "Forgot password?",
-
   "auth_forgot_password_title_request": "Forgot password",
   "auth_forgot_password_title_verify": "Verify code",
   "auth_forgot_password_title_reset": "New password",
@@ -65,7 +58,6 @@
   "auth_forgot_password_validation_password_letter": "need a letter",
   "auth_forgot_password_validation_password_digit": "need a digit",
   "auth_forgot_password_validation_password_mismatch": "does not match",
-
   "auth_phone_signup_title_phone": "Sign up — Mobile",
   "auth_phone_signup_title_verify": "Verify code",
   "auth_phone_signup_title_details": "Your details",
@@ -87,12 +79,10 @@
   "auth_phone_signup_validation_password_digit": "need a digit",
   "auth_phone_signup_validation_password_mismatch": "does not match",
   "auth_phone_signup_validation_age_range": "18–80",
-
   "auth_complete_profile_title": "Complete your profile",
   "auth_complete_profile_body": "We need a few more details before you can apply. This is required by the bank.",
   "auth_complete_profile_action_cancel": "Cancel",
   "auth_complete_profile_action_complete": "Complete Profile",
-
   "auth_complete_profile_title_mobile": "Complete profile — mobile",
   "auth_complete_profile_title_verify": "Verify code",
   "auth_complete_profile_title_email": "Email",
@@ -131,17 +121,26 @@
   "match_preview_adjust_answers": "Adjust my answers",
   "questionnaire_form_submit_hint": "Answer all required questions to see your matches.",
   "match_amount_egp": "{value} EGP",
-  "@match_amount_egp": { "placeholders": { "value": { "type": "String" } } },
+  "@match_amount_egp": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "match_rate_percent": "{value}%",
-  "@match_rate_percent": { "placeholders": { "value": { "type": "String" } } },
-
+  "@match_rate_percent": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "common_coming_soon": "Coming soon",
-
   "error_invalid_credentials": "Incorrect phone or password.",
   "error_network": "No connection. Check your network and try again.",
   "error_generic": "Something went wrong. Please try again.",
   "error_rate_limited": "Too many attempts. Please wait a moment and try again.",
-
   "onboarding_slide1_title": "Discover tailored loan offers.",
   "onboarding_slide1_body": "We scan multiple top-tier banks to find the best rates and terms specifically for your profile.",
   "onboarding_slide2_title": "Compare offers in seconds.",
@@ -155,7 +154,6 @@
   "onboarding_google": "Google",
   "onboarding_apple": "Apple",
   "onboarding_lang_toggle": "العربية",
-
   "login_title": "Sign in to your Account",
   "login_subtitle": "Sign in to explore your best loan offers",
   "login_identifier_label": "Email",
@@ -170,7 +168,6 @@
   "login_no_account": "Don't have an account?",
   "login_create_account": "Create account",
   "login_terms": "By signing up, you agree to the Terms of Service",
-
   "signup_title": "Create your Account",
   "signup_subtitle": "Sign up to explore your best loan offers",
   "signup_photo_upload": "Upload",
@@ -188,7 +185,13 @@
   "signup_dob_year": "Year",
   "signup_dob_hint": "Select date of birth",
   "signup_age_verified": "Age verified — {years} years old",
-  "@signup_age_verified": { "placeholders": { "years": { "type": "int" } } },
+  "@signup_age_verified": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
   "signup_password_label": "Password",
   "signup_password_hint": "Create a password",
   "signup_confirm_password_label": "Confirm password",
@@ -202,25 +205,41 @@
   "signup_cta": "Create Account",
   "signup_have_account": "Already have an account?",
   "signup_sign_in": "Sign in",
-
   "social_phone_title": "Add your phone number",
   "social_phone_subtitle": "We need your phone to secure your account. We'll send you a verification code.",
   "social_phone_cta": "Send verification code",
   "otp_title": "Verify your phone number",
   "otp_subtitle": "We sent a 6-digit code to {destination}. Enter it below.",
-  "@otp_subtitle": { "placeholders": { "destination": { "type": "String" } } },
+  "@otp_subtitle": {
+    "placeholders": {
+      "destination": {
+        "type": "String"
+      }
+    }
+  },
   "otp_enter_code": "Enter verification code",
   "otp_attempts_left": "{count} attempts left",
-  "@otp_attempts_left": { "placeholders": { "count": { "type": "int" } } },
+  "@otp_attempts_left": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "otp_resend_in": "Resend code in",
   "otp_resend_action": "Resend code",
   "otp_expiry_notice": "This code expires in {minutes} minutes. Never share it with anyone — Masrafy will never ask for it.",
-  "@otp_expiry_notice": { "placeholders": { "minutes": { "type": "int" } } },
+  "@otp_expiry_notice": {
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
   "otp_verify_cta": "Verify & continue",
   "otp_didnt_receive": "DIDN'T RECEIVE IT?",
   "otp_wrong_number": "Wrong number?",
   "otp_change_phone": "Change phone",
-
   "home_title": "What type of loan are you looking for?",
   "home_subtitle": "Your loan advisor is ready",
   "home_loan_types": "Loan types",
@@ -246,7 +265,9 @@
   "saved_offers_remove": "Remove",
   "saved_offers_remove_failed": "Couldn't remove the offer. Please try again.",
   "error_saved_offer_not_found": "This offer is not in your saved offers.",
-  "@error_saved_offer_not_found": { "description": "Backend SAVED_OFFER_NOT_FOUND error code" },
+  "@error_saved_offer_not_found": {
+    "description": "Backend SAVED_OFFER_NOT_FOUND error code"
+  },
   "previous_applications_title": "Applications",
   "previous_applications_empty_title": "No applications yet",
   "previous_applications_empty_body": "Apply for an offer and it will show up here.",
@@ -265,28 +286,23 @@
   "home_apr_mortgage": "From 9.5% APR",
   "home_apr_car": "From 10.2% APR",
   "home_apr_business": "From 12% APR",
-
   "q_common_yes": "Yes",
   "q_common_no": "No",
   "q_common_currency_egp": "EGP",
   "q_common_save": "Save",
   "q_common_cancel": "Cancel",
   "q_common_search": "Search",
-
   "q_mortgage_title": "Mortgage application",
   "q_mortgage_subtitle": "We'll match you with banks that specialise in your needs",
   "q_mortgage_next": "Next",
   "q_mortgage_finish": "Finish",
   "q_mortgage_submitted": "Your answers have been saved",
-
   "q_mortgage_step1_title": "Property & Financing Details",
   "q_mortgage_step2_title": "Employment & Income",
   "q_mortgage_step3_title": "Credit Profile",
   "q_mortgage_step4_title": "Preferences",
-
   "q_mortgage_select_hint": "Select an option",
   "q_mortgage_years": "{years} years",
-
   "q_mortgage_q_property_type": "What type of property would you like to finance?",
   "q_mortgage_hint_property_type": "Select property type",
   "q_opt_property_apartment": "Apartment",
@@ -295,20 +311,16 @@
   "q_opt_property_commercial": "Commercial shop",
   "q_opt_property_office": "Administrative office",
   "q_opt_property_other": "Other",
-
   "q_mortgage_q_in_compound": "Is the property located within a residential compound?",
-
   "q_mortgage_q_registration_status": "What is the property's registration status?",
   "q_opt_reg_registered": "Officially registered",
   "q_opt_reg_eligible": "Eligible for registration",
   "q_opt_reg_not_registered": "Not registered",
   "q_opt_reg_unsure": "Not sure",
-
   "q_mortgage_q_address": "What is the property address?",
   "q_mortgage_hint_governorate": "Select governorate",
   "q_mortgage_address_label": "Address",
   "q_mortgage_address_hint": "Street, building, area",
-
   "q_mortgage_q_property_value": "What is the approximate property value?",
   "q_mortgage_q_down_payment": "How much down payment do you currently have? (%)",
   "q_mortgage_hint_down_payment": "Down payment",
@@ -316,17 +328,14 @@
   "q_opt_dp_10_20": "10% – 20%",
   "q_opt_dp_20_30": "20% – 30%",
   "q_opt_dp_over30": "More than 30%",
-
   "q_mortgage_q_repayment_period": "What repayment period suits you?",
   "q_mortgage_repayment_label": "Repayment period",
-
   "q_mortgage_q_employment": "What is your employment status?",
   "q_opt_emp_government": "Government employee",
   "q_opt_emp_private": "Private sector employee",
   "q_opt_emp_business_owner": "Business owner",
   "q_opt_emp_freelancer": "Freelancer",
   "q_opt_emp_retired": "Retired",
-
   "q_mortgage_q_income": "What is your average monthly income?",
   "q_mortgage_hint_income": "Monthly income",
   "q_opt_income_b1": "Less than EGP 50,000",
@@ -335,25 +344,20 @@
   "q_opt_income_b4": "EGP 300,000 – 600,000",
   "q_opt_income_b5": "EGP 600,000 – 1,000,000",
   "q_opt_income_b6": "More than EGP 1,000,000",
-
   "q_mortgage_q_salary_transfer": "Is your salary transferred to a bank account?",
   "q_mortgage_q_additional_income": "Do you have additional sources of income?",
-
   "q_mortgage_q_current_loans": "Do you currently have any loans or financial obligations?",
   "q_mortgage_q_installments": "What is the total amount of your monthly installments?",
   "q_mortgage_installments_label": "Monthly installments",
   "q_mortgage_installments_hint": "Monthly installment amount",
   "q_mortgage_q_prior_rejection": "Have you ever had a mortgage application rejected?",
-
   "q_mortgage_q_priority": "What is most important to you in mortgage financing?",
   "q_opt_priority_lowest_installment": "Lowest monthly installment",
   "q_opt_priority_longest_period": "Longest repayment period",
   "q_opt_priority_lowest_down_payment": "Lowest down payment",
   "q_opt_priority_fastest_approval": "Fastest approval",
   "q_opt_priority_lowest_fees": "Lowest administrative fees",
-
   "q_mortgage_q_assistance": "Do you need assistance preparing documents and completing procedures?",
-
   "q_business_title": "Business Loan Application",
   "q_business_subtitle": "We'll match you with banks that specialise in your needs",
   "q_business_next": "Next",
@@ -361,12 +365,10 @@
   "q_business_submitted": "Your answers have been saved",
   "q_business_select_hint": "Select an option",
   "q_business_years": "{years} years",
-
   "q_business_step1_title": "Business & Financing Details",
   "q_business_step2_title": "Financial Information",
   "q_business_step3_title": "Obligations & Credit Status",
   "q_business_step4_title": "Preferences & Support",
-
   "q_business_q_activity": "What type of business or project do you operate?",
   "q_business_hint_activity": "Select business type",
   "q_opt_biz_activity_trade": "Trading",
@@ -375,13 +377,10 @@
   "q_opt_biz_activity_manufacturing": "Manufacturing",
   "q_opt_biz_activity_technology": "Technology",
   "q_opt_biz_activity_other": "Other",
-
   "q_business_q_business_age": "How long has the business been operating?",
   "q_business_business_age_hint": "No. of years",
-
   "q_business_q_financing_amount": "What is the approximate financing amount required?",
   "q_business_financing_amount_hint": "Financing amount required",
-
   "q_business_q_purpose": "What is the primary purpose of the financing?",
   "q_business_hint_purpose": "Select purpose",
   "q_opt_biz_purpose_expansion": "Expansion",
@@ -390,21 +389,17 @@
   "q_opt_biz_purpose_new_branch": "Opening a New Branch",
   "q_opt_biz_purpose_settle_obligations": "Debt Settlement",
   "q_opt_biz_purpose_other": "Other",
-
   "q_business_repayment_label": "Repayment period",
-
   "q_business_q_revenue": "What is the average monthly business revenue?",
   "q_business_q_bank_account": "Do you have a business bank account?",
   "q_business_q_registered": "Is the business officially registered?",
   "q_opt_biz_registration_in_progress": "Registration in Progress",
   "q_business_q_tax": "Do you have a tax registration or commercial registration?",
-
   "q_business_q_current_facilities": "Does the business currently have any loans or financing facilities?",
   "q_business_q_installments": "What is the total amount of current monthly obligations?",
   "q_business_installments_label": "Monthly obligations",
   "q_business_installments_hint": "Monthly Installment",
   "q_business_q_prior_rejection": "Has the business ever been declined for financing?",
-
   "q_business_q_priority": "What is most important to you in business financing?",
   "q_opt_biz_priority_fast_approval": "Fast Approval",
   "q_opt_biz_priority_flexible_repayment": "Flexible Repayment",
@@ -412,64 +407,50 @@
   "q_opt_biz_priority_lowest_interest": "Lowest Interest Rate",
   "q_opt_biz_priority_least_paperwork": "Minimum Documentation",
   "q_business_q_consultation": "Would you like to consult with a business financing expert?",
-
   "q_car_subtitle": "We'll match you with banks that specialise in your needs",
   "q_car_next": "Next",
   "q_car_finish": "Finish",
   "q_car_submitted": "Your answers have been saved",
   "q_car_select_hint": "Select an option",
   "q_car_years": "{years} years",
-
   "q_car_step1_title": "Vehicle & Financing Information",
   "q_car_step2_title": "Employment & Income",
   "q_car_step3_title": "Financial Status",
   "q_car_step4_title": "Preferences",
-
   "q_car_q_condition": "Is the vehicle new or used?",
   "q_opt_car_cond_new": "New",
   "q_opt_car_cond_used": "Used",
-
   "q_car_q_model_year": "What is the vehicle model year?",
   "q_opt_car_year_current": "Current year model",
   "q_opt_car_year_last3": "Within the last 3 years",
   "q_opt_car_year_3_5": "3 to 5 years old",
   "q_opt_car_year_over5": "More than 5 years old",
-
   "q_car_q_price": "What is the approximate vehicle price?",
-
   "q_car_q_down_payment": "How much down payment do you have available?",
   "q_opt_car_dp_none": "No down payment",
   "q_opt_car_dp_under20": "Less than 20%",
   "q_opt_car_dp_20_40": "20% – 40%",
   "q_opt_car_dp_over40": "More than 40%",
-
   "q_car_repayment_label": "Repayment period",
-
   "q_car_q_employment": "What is your employment status?",
-
   "q_car_q_income": "What is your average monthly income?",
   "q_opt_car_income_b1": "Less than EGP 10,000",
   "q_opt_car_income_b2": "EGP 10,000 – 25,000",
   "q_opt_car_income_b3": "EGP 25,000 – 50,000",
   "q_opt_car_income_b4": "More than EGP 50,000",
-
   "q_car_q_salary_transfer": "Is your salary transferred to a bank account?",
-
   "q_car_q_employer_approved": "Is your employer approved by banks?",
   "q_opt_car_emp_yes": "Yes",
   "q_opt_car_emp_no": "No",
   "q_opt_car_emp_unsure": "Not sure",
-
   "q_car_q_current_loans": "Do you currently have obligations or loans?",
   "q_car_installments_label": "Monthly installments",
   "q_car_installments_hint": "Monthly installment amount",
   "q_car_q_credit_card": "Do you have active credit cards?",
-
   "q_car_q_priority": "Primary priority when choosing a car loan?",
   "q_opt_priority_lowest_interest": "Lowest interest rate",
   "q_opt_priority_no_guarantor": "Financing without a guarantor",
   "q_car_q_insurance": "Would you like vehicle insurance offers?",
-
   "q_personal_subtitle": "We'll match you with banks that specialise in your needs",
   "q_personal_next": "Next",
   "q_personal_finish": "Finish",
@@ -484,19 +465,15 @@
   "q_dyn_retry": "Try again",
   "q_dyn_empty": "No questions are available right now.",
   "q_personal_years": "{years} years",
-
   "q_personal_step1_title": "Financing Details",
   "q_personal_step2_title": "Employment & Income",
   "q_personal_step3_title": "Banking Commitments",
   "q_personal_step4_title": "Preferences & Qualifications",
-
   "q_personal_q_amount": "What is the approximate amount you need?",
   "q_personal_amount_label": "Loan amount",
   "q_personal_amount_hint": "Approximate amount you need",
-
   "q_personal_q_repayment": "What repayment period suits you?",
   "q_personal_repayment_label": "Repayment period",
-
   "q_personal_q_purpose": "What is the purpose of the loan?",
   "q_personal_hint_purpose": "Purpose of the loan",
   "q_opt_personal_purpose_home_finishing": "Home finishing / Renovation",
@@ -506,30 +483,24 @@
   "q_opt_personal_purpose_debt_consolidation": "Debt consolidation",
   "q_opt_personal_purpose_personal_project": "Personal project",
   "q_opt_personal_purpose_other": "Other",
-
   "q_personal_q_employment": "What is your employment status?",
-
   "q_personal_q_job_tenure": "How long have you been in your current job?",
   "q_personal_hint_job_tenure": "Current job",
   "q_opt_personal_tenure_under6m": "Less than 6 months",
   "q_opt_personal_tenure_6m_1y": "6 months – 1 year",
   "q_opt_personal_tenure_1_3y": "1–3 years",
   "q_opt_personal_tenure_over3y": "More than 3 years",
-
   "q_personal_q_income": "What is your average monthly income?",
   "q_opt_personal_income_b1": "Start from EGP 10,000",
   "q_opt_personal_income_b2": "EGP 10,000 – 20,000",
   "q_opt_personal_income_b3": "EGP 20,000 – 50,000",
   "q_opt_personal_income_b4": "EGP 50,000 – 80,000",
   "q_opt_personal_income_b5": "More than EGP 100,000",
-
   "q_personal_q_salary_transfer": "Is your salary transferred to a bank account?",
-
   "q_personal_q_employer_approved": "Is your employer approved by banks?",
   "q_opt_personal_emp_yes": "Yes",
   "q_opt_personal_emp_no": "No",
   "q_opt_personal_emp_unsure": "Not sure",
-
   "q_personal_q_obligations": "Do you currently have any loans or financial obligations?",
   "q_personal_hint_obligations": "Loans or financial obligations",
   "q_opt_personal_obligation_none": "None",
@@ -538,28 +509,22 @@
   "q_opt_personal_obligation_mortgage": "Mortgage",
   "q_opt_personal_obligation_credit_cards": "Credit Cards",
   "q_opt_personal_obligation_other": "Other",
-
   "q_personal_q_installment": "What is your approximate total monthly installment amount?",
   "q_personal_installment_label": "Monthly installment",
   "q_personal_installment_hint": "Monthly installment",
-
   "q_personal_q_credit_card": "Do you have a credit card?",
-
   "q_personal_q_credit_card_usage": "If yes, what is your average monthly credit card usage?",
   "q_opt_personal_cc_usage_b1": "Less than EGP 10,000",
   "q_opt_personal_cc_usage_b2": "EGP 10,000 – 30,000",
   "q_opt_personal_cc_usage_b3": "EGP 30,000 – 50,000",
   "q_opt_personal_cc_usage_b4": "More than EGP 50,000",
-
   "q_personal_q_priority": "What is the most important factor when choosing financing?",
   "q_opt_personal_priority_lowest_installment": "Lowest Monthly Installment",
   "q_opt_personal_priority_lowest_interest": "Lowest Interest Rate",
   "q_opt_personal_priority_minimum_docs": "Minimum Documentation",
   "q_opt_personal_priority_flexible_repayment": "Flexible Repayment",
-
   "q_personal_q_prior_rejection": "Have you ever had a financing application rejected?",
   "q_personal_q_assistance": "Do you need assistance preparing documents and completing procedures?",
-
   "profile_title": "Profile",
   "profile_section_personal": "Personal Information",
   "profile_section_contact": "Contact Details",
@@ -569,7 +534,11 @@
   "profile_password": "Password",
   "profile_password_changed": "Last changed {count} months ago",
   "@profile_password_changed": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "profile_password_hint": "New password",
   "profile_dob": "Date of Birth",
@@ -599,7 +568,6 @@
   "profile_save": "Save",
   "profile_cancel": "Cancel",
   "profile_search_hint": "Search",
-
   "results_title": "Your top matches are ready",
   "results_subtitle": "Your loan advisor is ready",
   "results_empty_title": "No offers yet",
@@ -618,12 +586,10 @@
   "results_monthly": "Monthly",
   "results_total": "Total",
   "results_view_offer": "View Offer",
-
   "offer_type_personal": "Personal",
   "offer_type_car": "Car",
   "offer_type_mortgage": "Mortgage",
   "offer_type_business": "Business",
-
   "offer_title": "{type} Loan",
   "offer_approval": "{pct}% Approval",
   "offer_interest_rate": "Interest rate",
@@ -661,7 +627,9 @@
   "apply_docs_cta": "Continue application",
   "apply_docs_upload_error": "Couldn't upload that file. Please try again.",
   "auth_profile_photo_required": "Upload your profile photo before applying for a loan.",
-  "@auth_profile_photo_required": { "description": "Backend PROFILE_PHOTO_REQUIRED error code" },
+  "@auth_profile_photo_required": {
+    "description": "Backend PROFILE_PHOTO_REQUIRED error code"
+  },
   "offer_save_success": "Offer saved. Find it later in Saved Offers.",
   "offer_save_error": "Could not save this offer. Please try again.",
   "offer_saved": "Saved",
@@ -722,5 +690,19 @@
   "photo_source_title": "Profile Photo",
   "photo_source_camera": "Take Photo",
   "photo_source_gallery": "Choose from Gallery",
-  "profile_photo_upload_failed": "Couldn't upload the photo. Please try again."
+  "profile_photo_upload_failed": "Couldn't upload the photo. Please try again.",
+  "error_answer_type_mismatch": "This answer doesn't match the question type.",
+  "error_answer_out_of_range": "This number is outside the allowed range.",
+  "error_answer_too_long": "This answer is too long.",
+  "error_answer_required": "Please answer this question.",
+  "error_money_figure_missing": "A figure needed for the estimate is missing. Please review your answers.",
+  "error_calculator_input_invalid": "Please check the amount, term, income and existing payments.",
+  "error_calculator_program_inactive": "This program is not available right now.",
+  "reason_no_recognised_income": "We couldn't recognise a monthly income for this program.",
+  "reason_obligations_exceed_allowance": "Your current monthly payments already use up the allowed limit.",
+  "reason_below_program_min_amount": "The affordable amount is below this program's minimum.",
+  "reason_age_at_maturity": "No available term keeps you within this program's age limit.",
+  "reason_currency_not_offered": "This program doesn't offer the requested currency.",
+  "reason_program_misconfigured": "This program can't be priced right now.",
+  "disclaimer_indicative_estimate": "Indicative estimate — not a binding offer. Final figures come from the bank."
 }

@@ -21,14 +21,28 @@ import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { EditOutline, DeleteOutline, EllipsisOutline, DownOutline } from '@ant-design/icons-angular/icons';
+import { NzAlertModule } from 'ng-zorro-antd/alert';
+import { A11yModule } from '@angular/cdk/a11y';
 import {
   QuestionnaireApiService,
+  isChoiceQuestionType,
   type GroupTreeRow,
   type OptionRow,
+  type PublishWarning,
   type QuestionRow,
+  type QuestionType,
 } from './questionnaire.api.service';
+import { ErrorCodeService } from '@core/errors/error-code.service';
 
 type Mode = null | 'group' | 'question' | 'option';
+
+/** Ordered for the segmented control: the two choice types, then the two value types. */
+const TYPE_ORDER: readonly QuestionType[] = [
+  'SINGLE_SELECT',
+  'MULTI_SELECT',
+  'NUMERIC',
+  'TEXT',
+];
 
 /**
  * GLOBAL question-pool authoring (Constitution V, Feature 010 — questions are
@@ -53,6 +67,8 @@ type Mode = null | 'group' | 'question' | 'option';
     NzIconModule,
     NzDropDownModule,
     NzToolTipModule,
+    NzAlertModule,
+    A11yModule,
   ],
   providers: [provideNzIconsPatch([EditOutline, DeleteOutline, EllipsisOutline, DownOutline])],
   template: `
@@ -92,6 +108,36 @@ type Mode = null | 'group' | 'question' | 'option';
           </div>
         </div>
       </header>
+
+      <!-- Money-binding banner. A standing condition, not a save event: the four
+           bound number questions are what the engine prices on, so an unclaimed
+           binding means affected applicants get MONEY_FIGURE_MISSING instead of a
+           quote (FR-044/FR-048). Rendered from the backend code via the shared
+           error-code catalog — no per-component message mapping (A22). -->
+      @if (bindingWarnings().length > 0) {
+        <nz-alert
+          class="binding-alert"
+          nzType="warning"
+          [nzMessage]="bindingWarningTitle"
+          [nzDescription]="bindingWarningBody"
+          nzShowIcon
+        />
+        <ng-template #bindingWarningTitle>
+          <span i18n="@@qedit.binding_warn_title"
+            >Some figures the engine prices on are not being collected</span
+          >
+        </ng-template>
+        <ng-template #bindingWarningBody>
+          <ul class="binding-list">
+            @for (w of bindingWarnings(); track w.code + bindingOf(w)) {
+              <li>
+                <code>{{ bindingOf(w) }}</code>
+                <span>{{ warningMessage(w) }}</span>
+              </li>
+            }
+          </ul>
+        </ng-template>
+      }
 
       <!-- Master-detail workbench: outline rail (left) + editing canvas (right). -->
       <div class="tree">
@@ -196,9 +242,9 @@ type Mode = null | 'group' | 'question' | 'option';
                             nz-icon
                             nzType="delete"
                             nzTheme="outline"
-                            style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
+                            style="margin-inline-end: 8px; color: var(--color-error, var(--ant-error-color))"
                           ></span>
-                          <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete"
+                          <span style="color: var(--color-error, var(--ant-error-color))" i18n="@@qedit.menu_delete"
                             >Delete</span
                           >
                         </li>
@@ -221,6 +267,13 @@ type Mode = null | 'group' | 'question' | 'option';
                         <span class="q-text" [dir]="isAr ? 'rtl' : 'ltr'">{{
                           isAr ? q.questionAr : q.questionEn
                         }}</span>
+                        <span
+                          class="type-chip"
+                          [class.value-type]="!isChoice(q.type)"
+                          nz-tooltip
+                          [nzTooltipTitle]="typeHint(q.type)"
+                          >{{ typeLabel(q.type) }}</span
+                        >
                         @if (q.isRequired) {
                           <span class="req" i18n="@@qedit.required_chip">required</span>
                         }
@@ -250,20 +303,32 @@ type Mode = null | 'group' | 'question' | 'option';
                                 nz-icon
                                 nzType="delete"
                                 nzTheme="outline"
-                                style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
+                                style="margin-inline-end: 8px; color: var(--color-error, var(--ant-error-color))"
                               ></span>
-                              <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete"
+                              <span style="color: var(--color-error, var(--ant-error-color))" i18n="@@qedit.menu_delete"
                                 >Delete</span
                               >
                             </li>
                           </ul>
                         </nz-dropdown-menu>
                       </div>
-                      @if (q.options.length > 0) {
-                        <p class="opt-meta">
-                          {{ q.options.length }}<span i18n="@@qedit.opt_count"> options</span>
-                        </p>
+                      <!-- Value types have nothing to pick: showing an option list
+                           would invite the admin into a state the server rejects
+                           with QUESTION_TYPE_RULES_INVALID. Show the rule instead. -->
+                      @if (isChoice(q.type)) {
+                        @if (q.options.length > 0) {
+                          <p class="opt-meta">
+                            {{ q.options.length }}<span i18n="@@qedit.opt_count"> options</span>
+                          </p>
+                        } @else {
+                          <p class="rule-line warn" i18n="@@qedit.needs_options">
+                            Needs at least 2 options before this can be published.
+                          </p>
+                        }
+                      } @else {
+                        <p class="rule-line">{{ ruleSummary(q) }}</p>
                       }
+                      @if (isChoice(q.type)) {
                       <ul class="opts">
                         @for (o of q.options; track o.id) {
                           <li>
@@ -293,9 +358,9 @@ type Mode = null | 'group' | 'question' | 'option';
                                     nz-icon
                                     nzType="delete"
                                     nzTheme="outline"
-                                    style="margin-inline-end: 8px; color: var(--ant-error-color, #d4380d)"
+                                    style="margin-inline-end: 8px; color: var(--color-error, var(--ant-error-color))"
                                   ></span>
-                                  <span style="color: var(--ant-error-color, #d4380d)" i18n="@@qedit.menu_delete"
+                                  <span style="color: var(--color-error, var(--ant-error-color))" i18n="@@qedit.menu_delete"
                                     >Delete</span
                                   >
                                 </li>
@@ -314,6 +379,7 @@ type Mode = null | 'group' | 'question' | 'option';
                           </button>
                         </li>
                       </ul>
+                      }
                     </div>
                   }
                 </div>
@@ -332,10 +398,21 @@ type Mode = null | 'group' | 'question' | 'option';
          resolves against the viewport (A34). -->
     @if (mode() !== null) {
       <div class="scrim" (click)="cancel()" aria-hidden="true"></div>
-      <aside class="drawer" role="dialog" aria-modal="true">
+      <!-- role="dialog" is a promise: Escape closes it and the heading names it.
+           cdkTrapFocus + cdkTrapFocusAutoCapture keep Tab inside the drawer and
+           move focus into it on open, so it is not a mouse-only surface. -->
+      <aside
+        class="drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+        cdkTrapFocus
+        [cdkTrapFocusAutoCapture]="true"
+        (keydown.escape)="cancel()"
+      >
         <div class="ins-card">
           <header class="ins-head">
-            <h3>
+            <h3 id="drawer-title">
               @switch (mode()) {
                 @case ('group') {
                   @if (editing()) {
@@ -360,7 +437,14 @@ type Mode = null | 'group' | 'question' | 'option';
                 }
               }
             </h3>
-            <button nz-button nzType="text" nzShape="circle" (click)="cancel()" aria-label="Close">
+            <button
+              nz-button
+              nzType="text"
+              nzShape="circle"
+              (click)="cancel()"
+              aria-label="Close"
+              i18n-aria-label="@@qedit.close_aria"
+            >
               ✕
             </button>
           </header>
@@ -402,6 +486,99 @@ type Mode = null | 'group' | 'question' | 'option';
                 <span class="lbl" i18n="@@qedit.q_ar">السؤال (عربي)</span>
                 <input nz-input formControlName="questionAr" dir="rtl" placeholder="مثال: ما هو دخلك الشهري؟" />
               </label>
+
+              <p class="section-lbl" i18n="@@qedit.sec_answer">Answer</p>
+              <div class="field">
+                <span class="lbl" id="type-lbl" i18n="@@qedit.answer_type">Answer type</span>
+                <!-- Typed reactive control, not ngModel (Principle XXII / A16).
+                     A radiogroup rather than a dropdown: four options are worth
+                     showing at once, and the choice changes the rest of the form. -->
+                <div class="type-group" role="radiogroup" aria-labelledby="type-lbl">
+                  @for (t of types; track t) {
+                    <button
+                      type="button"
+                      role="radio"
+                      class="type-btn"
+                      [class.on]="selectedType() === t"
+                      [attr.aria-checked]="selectedType() === t"
+                      [disabled]="typeLocked()"
+                      (click)="pickType(t)"
+                    >
+                      {{ typeLabel(t) }}
+                    </button>
+                  }
+                </div>
+                <p class="hint">{{ typeHint(selectedType()) }}</p>
+                @if (typeLocked()) {
+                  <p class="hint warn" i18n="@@qedit.type_locked">
+                    The answer type can't change once applicants have answered this question —
+                    their stored answers would no longer match it. Add a new question instead.
+                  </p>
+                }
+              </div>
+
+              <!-- Per-type rules. Only the owning type's block is rendered, so the
+                   form cannot express a combination the server rejects with
+                   QUESTION_TYPE_RULES_INVALID. -->
+              @if (selectedType() === 'NUMERIC') {
+                <div formGroupName="numeric" class="rule-box">
+                  <div class="field-row">
+                    <label class="field grow">
+                      <span class="lbl" i18n="@@qedit.num_min">Minimum</span>
+                      <input nz-input formControlName="minValue" inputmode="decimal" placeholder="1000" />
+                    </label>
+                    <label class="field grow">
+                      <span class="lbl" i18n="@@qedit.num_max">Maximum</span>
+                      <input nz-input formControlName="maxValue" inputmode="decimal" placeholder="20000000" />
+                    </label>
+                  </div>
+                  <div class="field-row">
+                    <label class="field grow">
+                      <span class="lbl" i18n="@@qedit.num_step">Step</span>
+                      <input nz-input formControlName="step" inputmode="decimal" placeholder="1000" />
+                    </label>
+                    <label class="field grow">
+                      <span class="lbl" i18n="@@qedit.num_unit_en">Unit (English)</span>
+                      <input nz-input formControlName="unitEn" placeholder="EGP" />
+                    </label>
+                    <label class="field grow">
+                      <span class="lbl" i18n="@@qedit.num_unit_ar">الوحدة (عربي)</span>
+                      <input nz-input formControlName="unitAr" dir="rtl" placeholder="جنيه" />
+                    </label>
+                  </div>
+                  @if (numericRangeInverted()) {
+                    <p class="hint error" i18n="@@qedit.num_inverted">
+                      The maximum must be greater than or equal to the minimum.
+                    </p>
+                  }
+                  <p class="hint" i18n="@@qedit.num_hint">
+                    Bounds are inclusive, and the step counts up from the minimum. Leave a field
+                    empty for no limit.
+                  </p>
+                </div>
+              } @else if (selectedType() === 'TEXT') {
+                <div formGroupName="text" class="rule-box">
+                  <label class="field">
+                    <span class="lbl" i18n="@@qedit.text_max">Maximum length</span>
+                    <nz-input-number formControlName="maxLength" [nzMin]="1" [nzMax]="2000" />
+                  </label>
+                  <p class="hint" i18n="@@qedit.text_hint">
+                    Free text is never written to logs, because applicants may type personal
+                    details into it.
+                  </p>
+                </div>
+              } @else {
+                <p class="hint" i18n="@@qedit.choice_hint">
+                  Add the answer options on the question card after saving — at least two are
+                  needed before this question can be published.
+                </p>
+              }
+              @if (!isChoice(selectedType())) {
+                <p class="hint warn" i18n="@@qedit.not_scoreable">
+                  Only single-choice questions carry scoring weights, so this question won't
+                  affect approval probability.
+                </p>
+              }
 
               <p class="section-lbl" i18n="@@qedit.sec_behaviour">Behaviour</p>
               <div class="field-row">
@@ -1040,6 +1217,115 @@ type Mode = null | 'group' | 'question' | 'option';
       nz-select {
         inline-size: 100%;
       }
+
+      /* ---- Feature 010: answer types ---------------------------------- */
+      .binding-alert {
+        margin-block-end: var(--space-5, 24px);
+      }
+      .binding-list {
+        margin: 0;
+        padding-inline-start: var(--space-4, 16px);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: var(--text-sm, 14px);
+      }
+      .binding-list code {
+        margin-inline-end: var(--space-2, 8px);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .type-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 3px;
+        background: var(--qe-surface-muted);
+        border-radius: var(--radius-md, 8px);
+      }
+      .type-btn {
+        flex: 1 1 auto;
+        /* 44px floor so the control is not a mobile-hostile tap target. */
+        min-block-size: 44px;
+        padding-inline: var(--space-3, 12px);
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm, 6px);
+        background: transparent;
+        color: var(--qe-text-2);
+        font-size: var(--text-sm, 14px);
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast, 120ms) ease,
+          color var(--motion-duration-fast, 120ms) ease;
+      }
+      .type-btn:hover:not(:disabled) {
+        color: var(--qe-text);
+      }
+      .type-btn:focus-visible {
+        outline: 2px solid var(--cat);
+        outline-offset: -2px;
+      }
+      .type-btn.on {
+        background: var(--qe-surface);
+        border-color: var(--cat);
+        color: var(--cat);
+      }
+      .type-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.55;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .type-btn {
+          transition: none;
+        }
+      }
+
+      .type-chip {
+        flex-shrink: 0;
+        font-size: var(--text-xs, 12px);
+        font-weight: 600;
+        color: var(--cat);
+        background: color-mix(in srgb, var(--cat) 12%, transparent);
+        padding: 1px 8px;
+        border-radius: var(--radius-pill, 999px);
+      }
+      /* Value types read as neutral: they carry no scoring weight, so they should
+         not wear the brand accent that marks a scoreable question. */
+      .type-chip.value-type {
+        color: var(--qe-text-2);
+        background: var(--qe-surface-muted);
+      }
+
+      .rule-box {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3, 12px);
+        padding: var(--space-3, 12px);
+        background: var(--qe-surface-muted);
+        border-radius: var(--radius-md, 8px);
+      }
+      .rule-line {
+        margin: var(--space-3, 12px) 0 0;
+        font-size: var(--text-sm, 14px);
+        color: var(--qe-text-2);
+        font-variant-numeric: tabular-nums;
+      }
+      .rule-line.warn {
+        color: var(--color-warning, var(--ant-warning-color));
+      }
+      .hint {
+        margin: 0;
+        font-size: var(--text-xs, 12px);
+        line-height: var(--leading-normal, 1.5);
+        color: var(--qe-muted);
+      }
+      .hint.warn {
+        color: var(--color-warning, var(--ant-warning-color));
+      }
+      .hint.error {
+        color: var(--color-error, var(--ant-error-color));
+      }
     `,
   ],
 })
@@ -1047,6 +1333,7 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly api = inject(QuestionnaireApiService);
   private readonly message = inject(NzMessageService);
   private readonly modal = inject(NzModalService);
+  private readonly errorCodes = inject(ErrorCodeService);
 
   /** Active admin locale drives label language (ar build → Arabic, else English). */
   readonly isAr = inject(LOCALE_ID).startsWith('ar');
@@ -1078,6 +1365,88 @@ export class QuestionnaireEditorPage implements OnInit {
   /** Id of the node being edited (empty in create mode). */
   private editingId = '';
 
+  // ---- Feature 010: answer types ------------------------------------------
+  readonly types = TYPE_ORDER;
+  /** Mirrors `questionForm.controls.type` so the template can react to it. */
+  readonly selectedType = signal<QuestionType>('SINGLE_SELECT');
+  /** Standing money-binding warnings for the whole pool (FR-048/FR-049). */
+  readonly bindingWarnings = signal<PublishWarning[]>([]);
+  /**
+   * A question that already carries answers cannot change type: the stored
+   * answers would no longer match their question's shape.
+   */
+  readonly typeLocked = signal(false);
+
+  isChoice(type: QuestionType): boolean {
+    return isChoiceQuestionType(type);
+  }
+
+  typeLabel(type: QuestionType): string {
+    switch (type) {
+      case 'SINGLE_SELECT':
+        return $localize`:@@qedit.type_single:One choice`;
+      case 'MULTI_SELECT':
+        return $localize`:@@qedit.type_multi:Several choices`;
+      case 'NUMERIC':
+        return $localize`:@@qedit.type_numeric:Number`;
+      case 'TEXT':
+        return $localize`:@@qedit.type_text:Text`;
+    }
+  }
+
+  typeHint(type: QuestionType): string {
+    switch (type) {
+      case 'SINGLE_SELECT':
+        return $localize`:@@qedit.type_single_hint:The applicant picks exactly one option. This is the only type that carries scoring weights.`;
+      case 'MULTI_SELECT':
+        return $localize`:@@qedit.type_multi_hint:The applicant can pick more than one option.`;
+      case 'NUMERIC':
+        return $localize`:@@qedit.type_numeric_hint:The applicant types a number, within the bounds you set.`;
+      case 'TEXT':
+        return $localize`:@@qedit.type_text_hint:The applicant types free text.`;
+    }
+  }
+
+  /** One line summarising a value type's rules, shown where options would be. */
+  ruleSummary(q: QuestionRow): string {
+    if (q.type === 'TEXT') {
+      const max = q.textMaxLength ?? 500;
+      return $localize`:@@qedit.rule_text:Free text, up to ${max}:max: characters`;
+    }
+    if (q.type === 'NUMERIC') {
+      const unit = (this.isAr ? q.numericUnitAr : q.numericUnitEn) ?? '';
+      const min = q.numericMinValue ?? '—';
+      const max = q.numericMaxValue ?? '—';
+      return $localize`:@@qedit.rule_numeric:Number from ${min}:min: to ${max}:max: ${unit}:unit:`;
+    }
+    return '';
+  }
+
+  pickType(type: QuestionType): void {
+    if (this.typeLocked()) return;
+    this.questionForm.controls.type.setValue(type);
+    this.selectedType.set(type);
+  }
+
+  /** Live guard mirroring the server's `numeric.maxValue` rule, for fast feedback. */
+  numericRangeInverted(): boolean {
+    const { minValue, maxValue } = this.questionForm.controls.numeric.getRawValue();
+    if (!minValue || !maxValue) return false;
+    const min = Number(minValue);
+    const max = Number(maxValue);
+    return Number.isFinite(min) && Number.isFinite(max) && max < min;
+  }
+
+  /** `meta.binding` names which of the four money figures is unclaimed. */
+  bindingOf(w: PublishWarning): string {
+    return String(w.meta['binding'] ?? w.meta['questionCode'] ?? '');
+  }
+
+  /** Localized via the shared error-code catalog — no per-component mapping (A22). */
+  warningMessage(w: PublishWarning): string {
+    return this.errorCodes.toLocalizedMessage(w.code as never, w.meta);
+  }
+
   readonly groupForm = new FormGroup({
     titleEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     titleAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -1088,6 +1457,20 @@ export class QuestionnaireEditorPage implements OnInit {
     questionAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     displayOrder: new FormControl(0, { nonNullable: true }),
     isRequired: new FormControl(true, { nonNullable: true }),
+    /** Typed reactive control (Principle XXII) — the radiogroup writes to this. */
+    type: new FormControl<QuestionType>('SINGLE_SELECT', { nonNullable: true }),
+    // Money crosses as decimal STRINGS even here, where these are bounds rather
+    // than amounts: the server stores them as Decimal(18,2) (Principle I).
+    numeric: new FormGroup({
+      minValue: new FormControl('', { nonNullable: true }),
+      maxValue: new FormControl('', { nonNullable: true }),
+      step: new FormControl('', { nonNullable: true }),
+      unitEn: new FormControl('', { nonNullable: true }),
+      unitAr: new FormControl('', { nonNullable: true }),
+    }),
+    text: new FormGroup({
+      maxLength: new FormControl<number | null>(null),
+    }),
   });
   readonly optionForm = new FormGroup({
     labelEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -1120,17 +1503,39 @@ export class QuestionnaireEditorPage implements OnInit {
     this.activeGroupId = g.id;
     this.editingId = '';
     this.editing.set(false);
-    this.questionForm.reset({ displayOrder: g.questions.length, isRequired: true } as never);
+    this.typeLocked.set(false);
+    this.selectedType.set('SINGLE_SELECT');
+    this.questionForm.reset({
+      displayOrder: g.questions.length,
+      isRequired: true,
+      type: 'SINGLE_SELECT',
+      numeric: { minValue: '', maxValue: '', step: '', unitEn: '', unitAr: '' },
+      text: { maxLength: null },
+    } as never);
     this.mode.set('question');
   }
   editQuestion(q: QuestionRow): void {
     this.editingId = q.id;
     this.editing.set(true);
+    // Changing the type of an answered question would orphan those answers, so
+    // the picker locks. Options are the admin's signal that answers may exist;
+    // the server is the authority and rejects the change regardless.
+    this.typeLocked.set(true);
+    this.selectedType.set(q.type);
     this.questionForm.reset({
       questionEn: q.questionEn,
       questionAr: q.questionAr,
       displayOrder: q.displayOrder,
       isRequired: q.isRequired,
+      type: q.type,
+      numeric: {
+        minValue: q.numericMinValue ?? '',
+        maxValue: q.numericMaxValue ?? '',
+        step: q.numericStep ?? '',
+        unitEn: q.numericUnitEn ?? '',
+        unitAr: q.numericUnitAr ?? '',
+      },
+      text: { maxLength: q.textMaxLength },
     } as never);
     this.mode.set('question');
   }
@@ -1174,15 +1579,26 @@ export class QuestionnaireEditorPage implements OnInit {
   }
 
   async submitQuestion(): Promise<void> {
-    if (this.questionForm.invalid) return;
+    if (this.questionForm.invalid || this.numericRangeInverted()) return;
     const v = this.questionForm.getRawValue();
+    // Send only the rule block the chosen type owns. Sending both would fail the
+    // server's QUESTION_TYPE_RULES_INVALID check; sending `null` clears the other.
+    const rules = {
+      numeric: v.type === 'NUMERIC' ? blankToNull(v.numeric) : null,
+      text:
+        v.type === 'TEXT'
+          ? { maxLength: v.text.maxLength ?? undefined }
+          : null,
+    };
     if (this.editing()) {
-      // `code` is immutable (A33) — never sent.
+      // `code` is immutable (A33) — never sent. `type` is not sent either: it is
+      // locked in edit mode, because answers already reference this shape.
       await this.api.updateQuestion(this.editingId, {
         questionEn: v.questionEn,
         questionAr: v.questionAr,
         displayOrder: v.displayOrder,
         isRequired: v.isRequired,
+        ...rules,
       });
       this.message.success($localize`:@@qedit.question_saved:Question saved`);
     } else {
@@ -1192,6 +1608,8 @@ export class QuestionnaireEditorPage implements OnInit {
         questionAr: v.questionAr,
         displayOrder: v.displayOrder,
         isRequired: v.isRequired,
+        type: v.type,
+        ...rules,
       });
       this.message.success($localize`:@@qedit.question_added:Question added`);
     }
@@ -1225,7 +1643,11 @@ export class QuestionnaireEditorPage implements OnInit {
   confirmDeleteGroup(g: GroupTreeRow): void {
     this.modal.confirm({
       nzTitle: $localize`:@@qedit.del_group_title:Delete this group?`,
-      nzContent: this.isAr ? g.titleAr : g.titleEn,
+      // Name the target AND the consequence: the delete is a deactivation, and it
+      // is refused while the group still holds questions.
+      nzContent: $localize`:@@qedit.del_group_body:"${
+        this.isAr ? g.titleAr : g.titleEn
+      }:name:" will be hidden from the questionnaire. Answers already given are kept. Move or delete its questions first — a group that still holds questions can't be deleted.`,
       nzCentered: true,
       nzIconType: 'delete',
       nzOkText: $localize`:@@qedit.del_ok:Delete`,
@@ -1246,7 +1668,9 @@ export class QuestionnaireEditorPage implements OnInit {
   confirmDeleteQuestion(q: QuestionRow): void {
     this.modal.confirm({
       nzTitle: $localize`:@@qedit.del_question_title:Delete this question?`,
-      nzContent: this.isAr ? q.questionAr : q.questionEn,
+      nzContent: $localize`:@@qedit.del_question_body:"${
+        this.isAr ? q.questionAr : q.questionEn
+      }:name:" will stop being asked and a new version publishes immediately. Answers already given are kept. If another question branches on this one, the delete is refused.`,
       nzCentered: true,
       nzIconType: 'delete',
       nzOkText: $localize`:@@qedit.del_ok:Delete`,
@@ -1267,7 +1691,9 @@ export class QuestionnaireEditorPage implements OnInit {
   confirmDeleteOption(o: OptionRow): void {
     this.modal.confirm({
       nzTitle: $localize`:@@qedit.del_option_title:Delete this option?`,
-      nzContent: this.isAr ? o.labelAr : o.labelEn,
+      nzContent: $localize`:@@qedit.del_option_body:"${
+        this.isAr ? o.labelAr : o.labelEn
+      }:name:" will no longer be offered. Answers that already picked it are kept, and any per-program score for it is dropped.`,
       nzCentered: true,
       nzIconType: 'delete',
       nzOkText: $localize`:@@qedit.del_ok:Delete`,
@@ -1289,9 +1715,14 @@ export class QuestionnaireEditorPage implements OnInit {
   private async loadAll(): Promise<void> {
     this.loading.set(true);
     try {
-      const [tree, history] = await Promise.all([this.api.tree(), this.api.versionHistory()]);
+      const [tree, history, warnings] = await Promise.all([
+        this.api.tree(),
+        this.api.versionHistory(),
+        this.api.bindingWarnings(),
+      ]);
       this.groups.set(tree ?? []);
       this.published.set((history ?? []).some((v) => v.isActive));
+      this.bindingWarnings.set(warnings ?? []);
     } finally {
       this.loading.set(false);
     }
@@ -1299,8 +1730,33 @@ export class QuestionnaireEditorPage implements OnInit {
 
   /** After a mutation, re-fetch the tree. Every mutation auto-publishes server-side. */
   private async reload(): Promise<void> {
-    const tree = await this.api.tree();
+    const [tree, warnings] = await Promise.all([this.api.tree(), this.api.bindingWarnings()]);
     this.groups.set(tree ?? []);
     this.published.set(true);
+    this.bindingWarnings.set(warnings ?? []);
   }
+}
+
+/**
+ * An empty text input means "no bound", not "zero" — a blank minimum must not
+ * become 0, which would be a real (and wrong) lower bound.
+ */
+function blankToNull(numeric: {
+  minValue: string;
+  maxValue: string;
+  step: string;
+  unitEn: string;
+  unitAr: string;
+}): Record<string, string | undefined> {
+  const clean = (v: string): string | undefined => {
+    const t = v.trim();
+    return t === '' ? undefined : t;
+  };
+  return {
+    minValue: clean(numeric.minValue),
+    maxValue: clean(numeric.maxValue),
+    step: clean(numeric.step),
+    unitEn: clean(numeric.unitEn),
+    unitAr: clean(numeric.unitAr),
+  };
 }

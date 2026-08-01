@@ -445,14 +445,21 @@ export class ApplicationsService {
   private async applyPerBankScoring(
     offers: Offer[],
     category: LoanCategory,
-    answers: ReadonlyArray<{ questionCode: string; selectedOptionCode: string }>,
+    answers: ReadonlyArray<{ questionCode: string; selectedOptionCode: string | null }>,
     snapshots: BankProgramSnapshot[],
   ): Promise<void> {
     if (offers.length === 0) return;
-    const selectedAnswers = answers.map((a) => ({
-      questionCode: a.questionCode,
-      optionCode: a.selectedOptionCode,
-    }));
+    // Only SINGLE_SELECT answers are scoreable (R9 / A33): multi-pick has no one
+    // "picked answer score", and text/number have no options to score. Feeding a
+    // non-single-choice answer here would silently invent a new formula.
+    const selectedAnswers = answers
+      .filter((a): a is { questionCode: string; selectedOptionCode: string } =>
+        a.selectedOptionCode !== null,
+      )
+      .map((a) => ({
+        questionCode: a.questionCode,
+        optionCode: a.selectedOptionCode,
+      }));
     const idByCode = new Map(snapshots.map((s) => [s.programCode, s.id]));
 
     for (const offer of offers) {
@@ -472,6 +479,7 @@ export class ApplicationsService {
       programVersion: offer.programVersion,
       bankName: offer.bankName,
       bankIsFeatured: offer.bankIsFeatured,
+      isShariaCompliant: offer.isShariaCompliant,
       programFriendlyName: offer.programFriendlyName,
       currency: offer.currency,
       effectiveRatePercent: new Decimal(offer.effectiveRatePercent.toString()),
@@ -540,6 +548,7 @@ export class ApplicationsService {
     programVersion: number;
     bankName: string;
     bankIsFeatured: boolean;
+    isShariaCompliant: boolean;
     programFriendlyName: string;
     currency: string;
     effectiveRatePercent: Decimal;
@@ -567,6 +576,7 @@ export class ApplicationsService {
       programVersion: o.programVersion,
       bankName: o.bankName,
       bankIsFeatured: o.bankIsFeatured,
+      isShariaCompliant: o.isShariaCompliant,
       programFriendlyName: o.programFriendlyName,
       currency: o.currency,
       effectiveRatePercent: o.effectiveRatePercent.toFixed(4),
@@ -638,6 +648,7 @@ export class ApplicationsService {
       productCategory: p.productCategory,
       currencies: (p.currencies as string[]) ?? [],
       active: p.active,
+      isShariaCompliant: p.isShariaCompliant,
       version: p.version,
       requiredDocuments: (p.requiredDocuments as string[]) ?? [],
       createdAt: p.createdAt,

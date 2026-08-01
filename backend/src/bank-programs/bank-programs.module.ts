@@ -4,6 +4,7 @@ import { AuditModule } from '../audit/audit.module';
 import { CustomerAuthModule } from '../customer-auth/customer-auth.module';
 import { PlatformEnumerationsModule } from '../platform-enumerations/platform-enumerations.module';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PrefillService } from './prefill/prefill.service';
 import { BankProgramsController } from './bank-programs.controller';
 import { BankProgramsMobileController } from './bank-programs.mobile.controller';
 import { BankProgramsService } from './bank-programs.service';
@@ -26,6 +27,7 @@ import { SeedCompetitorController } from './seeds/seed-competitor.controller';
     BankProgramsService,
     BankProgramsMobileService,
     BankProgramRepository,
+    PrefillService,
     SeedService,
   ],
   exports: [BankProgramsService, BankProgramRepository],

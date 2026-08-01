@@ -70,6 +70,7 @@ export class BankProgramsMobileService {
       friendlyName: program.friendlyName,
       bankName: program.bankName,
       productCategory: program.productCategory,
+      isShariaCompliant: program.isShariaCompliant,
       currencies: program.currencies,
       displayRateRange: {
         minPercent: minRate,

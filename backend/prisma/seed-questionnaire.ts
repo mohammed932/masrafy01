@@ -13,7 +13,8 @@
  *    program gets those points scaled by a per-program multiplier so programs
  *    differ; the banking expert tunes them later in the admin editor.
  */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type QuestionType } from '@prisma/client';
+import { MONEY_FIELD_BINDINGS } from '../src/matching/pipeline/money-field-bindings';
 
 const prisma = new PrismaClient();
 const SEED_ACTOR = 'seed-system';
@@ -73,8 +74,19 @@ interface SeedOption {
   /** Seed-only desirability hint (0..100). Becomes the program's per-answer points. */
   points?: number;
 }
+interface SeedNumericRules {
+  minValue: string;
+  maxValue: string;
+  step?: string;
+  unitEn: string;
+  unitAr: string;
+}
 interface SeedQuestion {
   code: string;
+  /** Defaults to SINGLE_SELECT. Feature 010: all four types are real. */
+  type?: QuestionType;
+  /** NUMERIC only — CONTENT bounds + display unit, never scoring (A33). */
+  numeric?: SeedNumericRules;
   questionEn: string;
   questionAr: string;
   isRequired?: boolean; // default true
@@ -126,6 +138,81 @@ const SALARY_TRANSFER_Q: SeedQuestion = {
     { labelEn: 'No', labelAr: 'لا', points: 20 },
   ],
 };
+
+// ── Feature 010: the four bound money questions ─────────────────────────────
+// These carry the real figures the engine prices on. Until now the app mapped a
+// bucket answer to a representative midpoint, so a customer asking for 500 000
+// was quoted on 300 000. The codes are the ones `MONEY_FIELD_BINDINGS` names —
+// the binding lives in code, never on the question (A33).
+//
+// They are NUMERIC and therefore NOT scoreable (R9): only single choice carries
+// answer scores, so these are excluded from every program's weight set below.
+const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion; categories: readonly Category[] }> = [
+  {
+    groupCode: 'financing_info',
+    categories: ['personal', 'mortgage', 'car', 'business'],
+    question: {
+      code: MONEY_FIELD_BINDINGS.requested_amount, // amount_requested
+      type: 'NUMERIC',
+      questionEn: 'How much do you need?',
+      questionAr: 'ما المبلغ الذي تحتاجه؟',
+      numeric: { minValue: '1000', maxValue: '20000000', step: '1000', unitEn: 'EGP', unitAr: 'جنيه' },
+      options: [],
+    },
+  },
+  {
+    groupCode: 'financing_info',
+    categories: ['personal', 'mortgage', 'car', 'business'],
+    question: {
+      code: MONEY_FIELD_BINDINGS.tenor_months, // repayment_period_months
+      type: 'NUMERIC',
+      questionEn: 'Over how many months do you want to repay?',
+      questionAr: 'على كم شهر تريد السداد؟',
+      numeric: { minValue: '6', maxValue: '120', step: '6', unitEn: 'months', unitAr: 'شهر' },
+      options: [],
+    },
+  },
+  {
+    groupCode: 'employment_income',
+    categories: ['personal', 'mortgage', 'car', 'business'],
+    question: {
+      code: MONEY_FIELD_BINDINGS.monthly_income, // monthly_income
+      type: 'NUMERIC',
+      questionEn: 'What is your monthly income?',
+      questionAr: 'ما دخلك الشهري؟',
+      numeric: { minValue: '1000', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
+      options: [],
+    },
+  },
+  {
+    groupCode: 'commitments',
+    categories: ['personal', 'mortgage', 'car', 'business'],
+    question: {
+      code: MONEY_FIELD_BINDINGS.existing_obligations, // current_installments
+      type: 'NUMERIC',
+      // Zero is a legitimate answer, so this must not be a bucket with a
+      // "less than X" floor — hence minValue 0.
+      questionEn: 'What do your current monthly loan payments total?',
+      questionAr: 'ما إجمالي أقساطك الشهرية الحالية؟',
+      numeric: { minValue: '0', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
+      options: [],
+    },
+  },
+];
+
+/**
+ * Bucket questions superseded by a MONEY_QUESTIONS entry. Three share the bound
+ * code and are therefore REPLACED in place (same code, now NUMERIC, options
+ * deactivated); `repayment_period` is superseded by the differently-named
+ * `repayment_period_months` and is dropped from the pool, which deactivates it.
+ * Answers already stored against any of them stay readable (FR-045).
+ */
+const SUPERSEDED_BUCKET_CODES: ReadonlySet<string> = new Set([
+  MONEY_FIELD_BINDINGS.requested_amount,
+  MONEY_FIELD_BINDINGS.monthly_income,
+  MONEY_FIELD_BINDINGS.existing_obligations,
+  'repayment_period',
+]);
 
 // ── PERSONAL ────────────────────────────────────────────────────────────────
 const PERSONAL: CategoryConfig = {
@@ -606,6 +693,8 @@ const CONFIGS: CategoryConfig[] = [PERSONAL, MORTGAGE, CAR, BUSINESS];
 interface MergedQuestion {
   code: string;
   groupCode: string;
+  type: QuestionType;
+  numeric?: SeedNumericRules;
   questionEn: string;
   questionAr: string;
   isRequired: boolean;
@@ -632,6 +721,9 @@ export async function seedQuestionnaire(): Promise<void> {
         groupOrder.push(g.code);
       }
       for (const q of g.questions) {
+        // Feature 010: a bucket question superseded by a bound NUMERIC question
+        // never enters the pool. The four money figures come from real numbers.
+        if (SUPERSEDED_BUCKET_CODES.has(q.code)) continue;
         (categoriesByQuestion[q.code] ??= new Set()).add(cfg.category);
         const optionList = q.optionsFromEnum ? await enumOptions(q.optionsFromEnum) : q.options;
         let mq = questionByCode.get(q.code);
@@ -639,6 +731,8 @@ export async function seedQuestionnaire(): Promise<void> {
           mq = {
             code: q.code,
             groupCode: g.code,
+            type: q.type ?? 'SINGLE_SELECT',
+            ...(q.numeric ? { numeric: q.numeric } : {}),
             questionEn: q.questionEn,
             questionAr: q.questionAr,
             isRequired: q.isRequired ?? true,
@@ -659,6 +753,30 @@ export async function seedQuestionnaire(): Promise<void> {
     }
   }
 
+  // ---- 1b. Inject the four bound NUMERIC money questions --------------------
+  // Added after the merge so they cannot be shadowed by a bucket question of the
+  // same code, and so they sort to the front of their group (the amount and term
+  // are the first things a customer is asked).
+  for (const { groupCode, question, categories } of MONEY_QUESTIONS) {
+    if (!groupByCode.has(groupCode)) {
+      throw new Error(
+        `seed-questionnaire: money question '${question.code}' targets unknown group '${groupCode}'`,
+      );
+    }
+    categoriesByQuestion[question.code] = new Set(categories);
+    questionByCode.set(question.code, {
+      code: question.code,
+      groupCode,
+      type: question.type ?? 'NUMERIC',
+      ...(question.numeric ? { numeric: question.numeric } : {}),
+      questionEn: question.questionEn,
+      questionAr: question.questionAr,
+      isRequired: question.isRequired ?? true,
+      options: [],
+    });
+    questionOrder.unshift(question.code);
+  }
+
   // ---- 2. Upsert the global groups / questions / options (unique by code) ---
   const groupIdByCode = new Map<string, string>();
   let gOrder = 0;
@@ -676,15 +794,28 @@ export async function seedQuestionnaire(): Promise<void> {
   for (const code of questionOrder) {
     const q = questionByCode.get(code)!;
     qOrder += 1;
+    // Per-type rule columns: only the owning type keeps them, so a bucket
+    // question converted to NUMERIC does not carry stale text rules (and vice versa).
+    const typeColumns = {
+      type: q.type,
+      numericMinValue: q.type === 'NUMERIC' ? (q.numeric?.minValue ?? null) : null,
+      numericMaxValue: q.type === 'NUMERIC' ? (q.numeric?.maxValue ?? null) : null,
+      numericStep: q.type === 'NUMERIC' ? (q.numeric?.step ?? null) : null,
+      numericUnitEn: q.type === 'NUMERIC' ? (q.numeric?.unitEn ?? null) : null,
+      numericUnitAr: q.type === 'NUMERIC' ? (q.numeric?.unitAr ?? null) : null,
+      textMaxLength: null,
+    };
     const question = await prisma.question.upsert({
       where: { code },
       update: {
         groupId: groupIdByCode.get(q.groupCode)!, questionEn: q.questionEn, questionAr: q.questionAr,
         displayOrder: qOrder, isRequired: q.isRequired, isActive: true,
+        ...typeColumns,
       },
       create: {
-        groupId: groupIdByCode.get(q.groupCode)!, code, type: 'SINGLE_SELECT',
+        groupId: groupIdByCode.get(q.groupCode)!, code,
         questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder, isRequired: q.isRequired,
+        ...typeColumns,
       },
     });
     const optionCodes: string[] = [];
@@ -721,7 +852,14 @@ export async function seedQuestionnaire(): Promise<void> {
   for (let i = 0; i < programs.length; i++) {
     const p = programs[i]!;
     const cat = p.productCategory.toLowerCase() as Category;
-    const assigned = questionOrder.filter((qc) => categoriesByQuestion[qc]?.has(cat));
+    // Only SINGLE_SELECT questions are assignable (R9 / A33): the formula needs
+    // one picked answer score per question, which NUMERIC/TEXT/MULTI_SELECT
+    // cannot supply. Weights still sum to 100 over the assigned set.
+    const assigned = questionOrder.filter(
+      (qc) =>
+        categoriesByQuestion[qc]?.has(cat) &&
+        (questionByCode.get(qc)?.type ?? 'SINGLE_SELECT') === 'SINGLE_SELECT',
+    );
     if (assigned.length === 0) continue; // no questions for this category → scores 0
     const mult = PROGRAM_POINT_MULTIPLIERS[i % PROGRAM_POINT_MULTIPLIERS.length]!;
     const questionWeights = equalWeights(assigned);
@@ -764,6 +902,21 @@ async function publishVersion(): Promise<void> {
         code: q.code, type: q.type, questionAr: q.questionAr, questionEn: q.questionEn,
         helperTextAr: q.helperTextAr, helperTextEn: q.helperTextEn, isRequired: q.isRequired,
         displayOrder: q.displayOrder, enabledWhen: q.enabledWhen ?? null,
+        // Feature 010 — rule blocks, emitted only for the type that owns them.
+        ...(q.type === 'NUMERIC'
+          ? {
+              numeric: {
+                minValue: q.numericMinValue?.toFixed(2) ?? null,
+                maxValue: q.numericMaxValue?.toFixed(2) ?? null,
+                step: q.numericStep?.toFixed(2) ?? null,
+                unitAr: q.numericUnitAr,
+                unitEn: q.numericUnitEn,
+              },
+            }
+          : {}),
+        ...(q.type === 'TEXT' && q.textMaxLength !== null
+          ? { text: { maxLength: q.textMaxLength } }
+          : {}),
         options: options.map((o) => ({
           code: o.code, labelAr: o.labelAr, labelEn: o.labelEn, displayOrder: o.displayOrder,
         })),

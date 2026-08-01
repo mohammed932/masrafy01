@@ -62,19 +62,13 @@ export interface PricingConfig {
   rateByCustomerProgramTier?: RateBandMap;
   rateByAssetValueBand?: RateBandMap;
   rateByLoanAmountBand?: RateBandMap;
-  buyoutRateDeltaPercent?: string;
-  buyoutRateMinFloorPercent?: string;
   feeWaiverEnabledAtRatePercent?: string;
   feeWaiverMinTenorMonths?: number;
   feeWaiverPenaltyRatePercent?: string;
   feeWaiverPenaltyMinTenorMonths?: number;
   insuranceWaiverPenaltyRatePercent?: string;
   insuranceWaiverPenaltyMinTenorMonths?: number;
-  shariaContractType?: ShariaContractType;
 }
-
-export const SHARIA_CONTRACT_TYPES = ['murabaha', 'ijara', 'tawarruq'] as const;
-export type ShariaContractType = (typeof SHARIA_CONTRACT_TYPES)[number];
 
 export interface EligibilityConfig {
   acceptedEmploymentTypes: string[];
@@ -88,6 +82,11 @@ export interface EligibilityConfig {
   minMonthsInJobBySalaryCategory?: Record<string, number>;
   acceptedLoanPurposes: string[];
   dbrCapPercent: string;
+  /**
+   * Feature 010 (FR-016) — optional income-band table that overrides the flat
+   * cap. Ordered, inclusive upper bounds, final band open-ended (`null`).
+   */
+  dbrBands?: DbrBand[];
   skipDbrCheck: boolean;
   acceptedTransferTypes: string[];
   requiresCD: boolean;
@@ -256,4 +255,69 @@ export interface ListBankProgramsQuery {
   active?: boolean;
   productCategory?: string;
   employmentType?: string;
+  /** Filter to Islamic-finance programs, or explicitly to conventional ones. */
+  isShariaCompliant?: boolean;
+}
+
+// --- Feature 010: banded DBR, prefill, duplicate ---------------------------
+
+/** One row of the income-banded DBR table (FR-016). */
+export interface DbrBand {
+  /** Inclusive upper bound on recognised monthly income; `null` = open-ended final band. */
+  upToIncomeEGP: string | null;
+  /** Decimal string, 1…100. */
+  capPercent: string;
+}
+
+/**
+ * Partial program shape shared by both prefill layers (FR-001, FR-005) and the
+ * prefill response (FR-008). Every leaf optional (FR-003).
+ */
+export interface ProgramDefaults {
+  tenor?: { minMonths?: number; maxMonths?: number };
+  loanLimits?: { perCurrency?: Record<string, { minAmount?: string; maxAmount?: string }> };
+  eligibility?: {
+    ageMin?: number;
+    ageMax?: number;
+    minMonthlyIncomeEGP?: string;
+    dbrCapPercent?: string;
+    dbrBands?: DbrBand[];
+    skipDbrCheck?: boolean;
+    requiresCollateral?: boolean;
+    commercialBankIncomePercent?: string;
+    publicBankIncomePercent?: string;
+  };
+  pricing?: {
+    isVariableRate?: boolean;
+    baseRatePercent?: string;
+    currentEffectiveRatePercent?: string;
+  };
+  fees?: {
+    adminFeePercent?: string;
+    stampDutyPercent?: string;
+    lifeInsurancePercent?: string;
+    lifeInsuranceMinLoanEGP?: string;
+  };
+  requiredDocuments?: string[];
+}
+
+/** Where a prefilled leaf came from (FR-010). `EDITED` is client-side only. */
+export type PrefillOrigin = 'CATALOG' | 'BANK_POLICY' | 'EMPTY' | 'EDITED';
+
+export interface PrefillResponse {
+  values: ProgramDefaults;
+  /** Keyed by leaf dot-path, e.g. `tenor.maxMonths`. */
+  origin: Record<string, Exclude<PrefillOrigin, 'EDITED'>>;
+}
+
+export interface PrefillQuery {
+  category: string;
+  bankId?: string;
+  programNameKey?: string;
+}
+
+export interface DuplicateBankProgramPayload {
+  programCode?: string;
+  friendlyName: string;
+  friendlyNameAr?: string;
 }

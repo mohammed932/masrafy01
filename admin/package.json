@@ -12,6 +12,8 @@
     "build": "ng build",
     "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint \"src/**/*.ts\" \"src/**/*.html\"",
     "format": "prettier --write \"src/**/*.{ts,html,scss,json}\""
   },
@@ -51,6 +53,8 @@
     "openapi-typescript": "^7.4.0",
     "playwright": "^1.61.1",
     "prettier": "^3.3.3",
-    "typescript": "~5.5.0"
+    "typescript": "~5.5.0",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.9"
   }
 }

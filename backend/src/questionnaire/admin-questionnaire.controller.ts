@@ -126,9 +126,23 @@ export class AdminQuestionnaireController {
   }
 
   @Post('versions/publish')
-  @ApiOperation({ summary: 'Snapshot the active draft → new active version (global)' })
+  @ApiOperation({
+    summary: 'Snapshot the active draft → new active version (global)',
+    description:
+      'Succeeds even when it returns warnings[]: a missing money-field binding is reported, not fatal (FR-049).',
+  })
   async publish(@CurrentUser() user: JwtPayload) {
     return ok(await this.service.publish(user.sub));
+  }
+
+  @Get('binding-warnings')
+  @ApiOperation({
+    summary: 'Money-field binding warnings for the current pool',
+    description:
+      'Which of the four code-declared money bindings resolve to no active NUMERIC question. Read-only: publishes nothing. Feature 010, FR-048/FR-049.',
+  })
+  async bindingWarnings() {
+    return ok(await this.service.bindingWarnings());
   }
 
   @Get('versions/history')

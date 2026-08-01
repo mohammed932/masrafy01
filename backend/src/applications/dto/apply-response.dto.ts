@@ -44,6 +44,7 @@ export interface ApplyMatchedResponse {
       bankName: string;
       /** Phase-1 partner-bank flag. Mobile renders a FEATURED chip when true. */
       bankIsFeatured: boolean;
+      isShariaCompliant: boolean;
       programFriendlyName: string;
       currency: string;
       effectiveRatePercent: string;

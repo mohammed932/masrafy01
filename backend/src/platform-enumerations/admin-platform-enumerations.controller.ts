@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -16,8 +17,10 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.service';
 import {
+  CatalogDefaultsResponseDto,
   CreateEnumerationDto,
   EnumerationRowDto,
+  UpdateCatalogDefaultsDto,
   UpdateEnumerationDto,
 } from './dto/enumeration.dto';
 
@@ -44,6 +47,39 @@ export class AdminPlatformEnumerationsController {
       success: true,
       data: rows.map((r) => this.project(r)),
     };
+  }
+
+  // --- Feature 010: predefined-program catalog defaults (FR-001 … FR-004) ---
+  // Declared before `@Patch(':id')` / `@Post()` so the literal `program_name`
+  // segment is never swallowed by a parameterised route.
+  // Contract path is `/admin/platform-enumerations/...`; this controller has
+  // always been mounted at `/admin/enumerations`, so that prefix is kept.
+
+  @Get('program_name/:key/defaults')
+  @Roles('super_admin', 'analyst')
+  @ApiOperation({ summary: 'Read a predefined program’s per-category lending defaults' })
+  async getCatalogDefaults(
+    @Param('key') key: string,
+  ): Promise<{ success: true; data: CatalogDefaultsResponseDto }> {
+    const data = await this.service.getCatalogDefaults(key);
+    return { success: true, data: data as CatalogDefaultsResponseDto };
+  }
+
+  @Put('program_name/:key/defaults')
+  @ApiOperation({
+    summary: 'Replace a predefined program’s per-category lending defaults (prefill only)',
+  })
+  async updateCatalogDefaults(
+    @Param('key') key: string,
+    @Body() body: UpdateCatalogDefaultsDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ): Promise<{ success: true; data: CatalogDefaultsResponseDto }> {
+    const data = await this.service.updateCatalogDefaults(key, body, {
+      staffId: user.sub,
+      sourceIp: ip ?? null,
+    });
+    return { success: true, data };
   }
 
   @Post()
@@ -86,6 +122,7 @@ export class AdminPlatformEnumerationsController {
     systemOnly: boolean;
     parentKey: string | null;
     categories: string[];
+    defaults: Record<string, unknown>;
     sortOrder: number;
     createdAt: Date;
     updatedAt: Date;
@@ -101,6 +138,7 @@ export class AdminPlatformEnumerationsController {
       systemOnly: row.systemOnly,
       parentKey: row.parentKey,
       categories: row.categories,
+      defaults: row.defaults,
       sortOrder: row.sortOrder,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

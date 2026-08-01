@@ -8,9 +8,12 @@ import {
   BankProgramHasOffersException,
   BankProgramNotFoundException,
   ConflictStaleDataException,
+  DbrBandCapOutOfRangeException,
+  DbrBandsInvalidException,
   DeprecatedEnumerationKeyException,
   DerivationArithmeticMismatchException,
   EnumerationRegistryUnavailableException,
+  ProgramRangeInvalidException,
   InvalidQualitativeReviewCeilingException,
   InvalidVariableRateConfigurationException,
   NoneTransferUnsafeException,
@@ -35,8 +38,11 @@ import { BankProgramRepository, type JsonBlob } from './bank-programs.repository
 import {
   validateAgainstRegistry,
   validateDerivationArithmetic,
+  validateRanges,
   ValidationContext,
 } from './validation/cross-config.validators';
+import { validateDbrBands } from './validation/dbr-bands.validator';
+import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 
 /**
  * Bank-program orchestration service.
@@ -99,6 +105,7 @@ export class BankProgramsService {
           productCategory: dto.productCategory,
           currencies: dto.currencies,
           active: true,
+          isShariaCompliant: dto.isShariaCompliant ?? false,
           operatorNotes: dto.operatorNotes,
           operatorTips: dto.operatorTips,
           requiredDocuments: dto.requiredDocuments,
@@ -140,13 +147,103 @@ export class BankProgramsService {
     return this.toResponse(program, []);
   }
 
+  // --- DUPLICATE (feature 010, FR-013) -------------------------------------
+
+  /**
+   * Copy an existing program into a new INACTIVE draft. Every configuration blob
+   * is carried verbatim; only the identity fields the admin supplies differ.
+   *
+   * The copy is created inactive so a half-edited duplicate can never reach the
+   * matching engine — the admin activates it from the detail page once reviewed.
+   * No cross-config revalidation runs: the source already passed it and nothing
+   * that validation looks at changes.
+   */
+  async duplicate(
+    sourceProgramCode: string,
+    dto: DuplicateBankProgramDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<BankProgramResponseDto> {
+    const source = await this.repo.findByProgramCode(sourceProgramCode);
+    if (!source) {
+      throw new BankProgramNotFoundException({ programCode: sourceProgramCode });
+    }
+
+    const programCode =
+      dto.programCode ??
+      (await this.generateProgramCode({
+        bankName: source.bankName,
+        productCategory: source.productCategory,
+      }));
+
+    const existing = await this.repo.findByProgramCode(programCode);
+    if (existing) {
+      throw new ProgramCodeAlreadyInUseException(programCode);
+    }
+
+    const program = await this.prisma.$transaction(async (tx) => {
+      const created = await this.repo.create(
+        {
+          programCode,
+          bankName: source.bankName,
+          bankId: source.bankId,
+          friendlyName: dto.friendlyName,
+          friendlyNameAr: dto.friendlyNameAr ?? null,
+          programType: source.programType,
+          productCategory: source.productCategory,
+          currencies: source.currencies,
+          active: false,
+          isShariaCompliant: source.isShariaCompliant,
+          operatorNotes: source.operatorNotes,
+          operatorTips: source.operatorTips,
+          requiredDocuments: source.requiredDocuments,
+          tenor: source.tenor as JsonBlob,
+          loanLimits: source.loanLimits as JsonBlob,
+          pricing: source.pricing as JsonBlob,
+          eligibility: source.eligibility as JsonBlob,
+          performanceCriteria: (source.performanceCriteria as JsonBlob) ?? null,
+          incomeAssumption: source.incomeAssumption as JsonBlob,
+          fees: source.fees as JsonBlob,
+          createdBy: actor.id,
+          updatedBy: actor.id,
+        },
+        tx,
+      );
+
+      await this.audit.create(
+        {
+          actorId: actor.id,
+          targetId: null,
+          bankProgramId: created.id,
+          eventType: AuditEventType.BANK_PROGRAM_CREATED,
+          sourceIp: actor.sourceIp,
+          payload: {
+            programCode: created.programCode,
+            friendlyName: created.friendlyName,
+            bankName: created.bankName,
+            productCategory: created.productCategory,
+            active: created.active,
+            duplicatedFrom: source.programCode,
+          },
+        },
+        tx,
+      );
+
+      return created;
+    });
+
+    return this.toResponse(program, []);
+  }
+
   /**
    * Build a readable, unique program code from bank + category, e.g.
    * `ABK-PERSONAL-A3F9`. Retries the random suffix until the code is free;
    * falls back to a timestamp suffix in the (practically impossible) event
    * every attempt collides.
    */
-  private async generateProgramCode(dto: CreateBankProgramDto): Promise<string> {
+  private async generateProgramCode(dto: {
+    bankName: string;
+    productCategory: string;
+  }): Promise<string> {
     const base = buildProgramCodeBase(dto.bankName, dto.productCategory);
     for (let i = 0; i < 50; i++) {
       const candidate = composeProgramCode(base, randomCodeSuffix());
@@ -211,6 +308,27 @@ export class BankProgramsService {
           maxEGP: baseMax,
         });
       }
+    }
+
+    // FR-014 (feature 010) — no inverted or empty amount / tenor / age range.
+    const rangeViolation = validateRanges(dto);
+    if (rangeViolation) {
+      throw new ProgramRangeInvalidException(rangeViolation);
+    }
+
+    // FR-016 … FR-019 (feature 010) — banded DBR table, when the program uses one.
+    const bandViolation = validateDbrBands(dto.eligibility.dbrBands);
+    if (bandViolation?.kind === 'capOutOfRange') {
+      throw new DbrBandCapOutOfRangeException({
+        index: bandViolation.index,
+        capPercent: bandViolation.capPercent,
+      });
+    }
+    if (bandViolation?.kind === 'invalid') {
+      throw new DbrBandsInvalidException({
+        reason: bandViolation.reason,
+        index: bandViolation.index,
+      });
     }
 
     // FR-008s — derivation arithmetic.
@@ -303,6 +421,7 @@ export class BankProgramsService {
       bankName: query.bankName,
       active: query.active,
       productCategory: query.productCategory,
+      isShariaCompliant: query.isShariaCompliant,
       acceptedEmploymentType: query.employmentType,
     });
 
@@ -383,6 +502,7 @@ export class BankProgramsService {
           programType: dto.programType,
           productCategory: dto.productCategory,
           currencies: dto.currencies,
+          isShariaCompliant: dto.isShariaCompliant ?? false,
           operatorNotes: dto.operatorNotes ?? null,
           operatorTips: dto.operatorTips ?? [],
           requiredDocuments: dto.requiredDocuments ?? [],

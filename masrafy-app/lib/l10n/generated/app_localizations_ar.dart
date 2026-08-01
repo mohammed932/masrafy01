@@ -1950,4 +1950,46 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get profile_photo_upload_failed => 'تعذّر رفع الصورة. حاول مرة أخرى.';
+
+  @override
+  String get error_answer_type_mismatch => 'هذه الإجابة لا تطابق نوع السؤال.';
+
+  @override
+  String get error_answer_out_of_range => 'هذا الرقم خارج النطاق المسموح.';
+
+  @override
+  String get error_answer_too_long => 'هذه الإجابة أطول من المسموح.';
+
+  @override
+  String get error_answer_required => 'من فضلك أجب على هذا السؤال.';
+
+  @override
+  String get error_money_figure_missing => 'تنقص قيمة لازمة للتقدير. من فضلك راجع إجاباتك.';
+
+  @override
+  String get error_calculator_input_invalid => 'من فضلك تحقق من المبلغ والمدة والدخل والأقساط الحالية.';
+
+  @override
+  String get error_calculator_program_inactive => 'هذا البرنامج غير متاح حاليًا.';
+
+  @override
+  String get reason_no_recognised_income => 'تعذّر الاعتراف بدخل شهري لهذا البرنامج.';
+
+  @override
+  String get reason_obligations_exceed_allowance => 'أقساطك الشهرية الحالية تستهلك الحد المسموح بالكامل.';
+
+  @override
+  String get reason_below_program_min_amount => 'المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.';
+
+  @override
+  String get reason_age_at_maturity => 'لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.';
+
+  @override
+  String get reason_currency_not_offered => 'هذا البرنامج لا يوفر العملة المطلوبة.';
+
+  @override
+  String get reason_program_misconfigured => 'لا يمكن تسعير هذا البرنامج حاليًا.';
+
+  @override
+  String get disclaimer_indicative_estimate => 'تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.';
 }

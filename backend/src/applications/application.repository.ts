@@ -49,6 +49,7 @@ export interface CreateBankOfferInput {
   programVersion: number;
   bankName: string;
   bankIsFeatured: boolean;
+  isShariaCompliant: boolean;
   programFriendlyName: string;
   currency: string;
   effectiveRatePercent: Decimal;
@@ -84,12 +85,21 @@ export interface PersistMatchInput {
   /**
    * Feature 009 — dynamic questionnaire answers persisted as `application_answer`
    * rows in the SAME apply transaction (atomic with the application + offers).
+   *
+   * Feature 010 — typed: `selectedOptionCodes` is canonical for both choice types,
+   * while `selectedOptionId`/`selectedOptionCode` stay populated for single choice
+   * so the scorer and the admin answer views are untouched (FR-045). `textValue`
+   * and `numericValue` carry the two value types.
    */
   dynamicAnswers?: Array<{
     questionId: string;
     questionCode: string;
-    selectedOptionId: string;
-    selectedOptionCode: string;
+    selectedOptionCodes: string[];
+    selectedOptionId: string | null;
+    selectedOptionCode: string | null;
+    textValue: string | null;
+    /** Decimal string — never a JS number (Principle I). */
+    numericValue: string | null;
   }>;
   txCallback?: (tx: Prisma.TransactionClient, applicationId: string) => Promise<void>;
 }
@@ -165,8 +175,11 @@ export class ApplicationRepository {
             applicationId: created.id,
             questionId: a.questionId,
             questionCode: a.questionCode,
+            selectedOptionCodes: a.selectedOptionCodes,
             selectedOptionId: a.selectedOptionId,
             selectedOptionCode: a.selectedOptionCode,
+            textValue: a.textValue,
+            numericValue: a.numericValue === null ? null : new Prisma.Decimal(a.numericValue),
           })),
         });
       }

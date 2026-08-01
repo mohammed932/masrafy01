@@ -1947,4 +1947,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profile_photo_upload_failed => 'Couldn\'t upload the photo. Please try again.';
+
+  @override
+  String get error_answer_type_mismatch => 'This answer doesn\'t match the question type.';
+
+  @override
+  String get error_answer_out_of_range => 'This number is outside the allowed range.';
+
+  @override
+  String get error_answer_too_long => 'This answer is too long.';
+
+  @override
+  String get error_answer_required => 'Please answer this question.';
+
+  @override
+  String get error_money_figure_missing => 'A figure needed for the estimate is missing. Please review your answers.';
+
+  @override
+  String get error_calculator_input_invalid => 'Please check the amount, term, income and existing payments.';
+
+  @override
+  String get error_calculator_program_inactive => 'This program is not available right now.';
+
+  @override
+  String get reason_no_recognised_income => 'We couldn\'t recognise a monthly income for this program.';
+
+  @override
+  String get reason_obligations_exceed_allowance => 'Your current monthly payments already use up the allowed limit.';
+
+  @override
+  String get reason_below_program_min_amount => 'The affordable amount is below this program\'s minimum.';
+
+  @override
+  String get reason_age_at_maturity => 'No available term keeps you within this program\'s age limit.';
+
+  @override
+  String get reason_currency_not_offered => 'This program doesn\'t offer the requested currency.';
+
+  @override
+  String get reason_program_misconfigured => 'This program can\'t be priced right now.';
+
+  @override
+  String get disclaimer_indicative_estimate => 'Indicative estimate — not a binding offer. Final figures come from the bank.';
 }

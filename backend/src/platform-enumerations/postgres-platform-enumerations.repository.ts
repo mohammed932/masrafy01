@@ -41,6 +41,8 @@ export interface EnumerationRow {
   deprecatedAt: Date | null;
   parentKey: string | null;
   categories: string[];
+  /** Feature 010 — per-category prefill defaults; `{}` for non-`program_name` types. */
+  defaults: Record<string, unknown>;
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
@@ -57,6 +59,8 @@ export interface EnumerationUpdatePatch {
   /** When `true` AND `deprecatedAt` is currently null, the repository stamps `deprecatedAt = now`
    *  and forces `active = false`. */
   deprecate?: true;
+  /** Feature 010 — full replace of the per-category prefill defaults (FR-001). */
+  defaults?: Record<string, unknown>;
   updatedBy: string;
 }
 
@@ -141,18 +145,16 @@ export class PostgresPlatformEnumerationsRepository
       where: { type, active: true, deprecatedAt: null },
       orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
     });
-    const members: EnumerationMember[] = rows.map((r) => ({
-      type: r.type as EnumerationType,
-      key: r.key,
-      labelAr: r.labelAr,
-      labelEn: r.labelEn,
-      parentKey: r.parentKey,
-      categories: r.categories,
-      active: r.active,
-      deprecated: r.deprecatedAt !== null,
-    }));
+    const members: EnumerationMember[] = rows.map(toEnumerationMember);
     this.cache.set(type, { members, expiresAt: Date.now() + CACHE_TTL_MS });
     return members;
+  }
+
+  async findMember(type: EnumerationType, key: string): Promise<EnumerationMember | null> {
+    const row = await this.prisma.platformEnumeration.findUnique({
+      where: { idx_platform_enumeration_type_key: { type, key } },
+    });
+    return row ? toEnumerationMember(row) : null;
   }
 
   invalidateCache(type?: EnumerationType): void {
@@ -231,6 +233,9 @@ export class PostgresPlatformEnumerationsRepository
     if (patch.parentKey !== undefined) data.parentKey = patch.parentKey;
     if (patch.categories !== undefined) data.categories = patch.categories;
     if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
+    if (patch.defaults !== undefined) {
+      data.defaults = patch.defaults as Prisma.InputJsonValue;
+    }
 
     if (patch.deprecate === true) {
       data.deprecatedAt = new Date();
@@ -260,8 +265,29 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
     deprecatedAt: row.deprecatedAt,
     parentKey: row.parentKey,
     categories: row.categories,
+    defaults: toDefaultsRecord(row.defaults),
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+function toEnumerationMember(row: PlatformEnumeration): EnumerationMember {
+  return {
+    type: row.type as EnumerationType,
+    key: row.key,
+    labelAr: row.labelAr,
+    labelEn: row.labelEn,
+    parentKey: row.parentKey,
+    categories: row.categories,
+    defaults: toDefaultsRecord(row.defaults),
+    active: row.active,
+    deprecated: row.deprecatedAt !== null,
+  };
+}
+
+/** `Json` widens to arrays/scalars/null in Prisma's type; only an object is meaningful here. */
+function toDefaultsRecord(value: Prisma.JsonValue): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
 }

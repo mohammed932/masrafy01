@@ -25,6 +25,7 @@ export interface PreviewMatch {
   programCode: string;
   bankName: string;
   bankIsFeatured: boolean;
+  isShariaCompliant: boolean;
   programFriendlyName: string;
   eligible: boolean;
   monthlyInstallmentEGP: string | null;
@@ -92,6 +93,7 @@ export class MatchingPreviewService {
         programCode: p.programCode,
         bankName: p.bankName,
         bankIsFeatured: p.bank?.isFeatured ?? false,
+        isShariaCompliant: p.isShariaCompliant,
         programFriendlyName: p.friendlyName,
         eligible: true,
         monthlyInstallmentEGP: null,

@@ -476,3 +476,40 @@ export class TelemetryEventNotAllowedException extends DomainException {
     super(ERROR_CODES.TELEMETRY_EVENT_NOT_ALLOWED, meta);
   }
 }
+
+// --- Feature 010: simple program setup, banded DBR & prefill ---------------
+
+/** FR-017 — band table is empty, unordered, duplicated, or not open-ended-terminated. */
+export class DbrBandsInvalidException extends DomainException {
+  constructor(meta: { reason: string; index: number | null }) {
+    super(ERROR_CODES.DBR_BANDS_INVALID, meta);
+  }
+}
+
+/** FR-019 — a band's cap percentage falls outside 1…100. */
+export class DbrBandCapOutOfRangeException extends DomainException {
+  constructor(meta: { index: number; capPercent: string }) {
+    super(ERROR_CODES.DBR_BAND_CAP_OUT_OF_RANGE, meta);
+  }
+}
+
+/** FR-014 — an amount / tenor / age range is inverted or empty. `field` names the offender. */
+export class ProgramRangeInvalidException extends DomainException {
+  constructor(meta: { field: string; min: string | number | null; max: string | number | null }) {
+    super(ERROR_CODES.PROGRAM_RANGE_INVALID, meta);
+  }
+}
+
+/** FR-008 — prefill asked for an unknown bank / catalog member, or an unserved category. */
+export class PrefillTargetInvalidException extends DomainException {
+  constructor(meta: { reason: string; bankId?: string; programNameKey?: string; category?: string }) {
+    super(ERROR_CODES.PREFILL_TARGET_INVALID, meta);
+  }
+}
+
+/** FR-001 — catalog defaults keyed by a category the predefined program does not serve. */
+export class CatalogDefaultsCategoryUnknownException extends DomainException {
+  constructor(meta: { category: string; served: string[] }) {
+    super(ERROR_CODES.CATALOG_DEFAULTS_CATEGORY_UNKNOWN, meta);
+  }
+}

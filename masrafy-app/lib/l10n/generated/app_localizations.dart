@@ -3892,6 +3892,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر رفع الصورة. حاول مرة أخرى.'**
   String get profile_photo_upload_failed;
+
+  /// Backend ANSWER_TYPE_MISMATCH error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الإجابة لا تطابق نوع السؤال.'**
+  String get error_answer_type_mismatch;
+
+  /// Backend ANSWER_OUT_OF_RANGE error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا الرقم خارج النطاق المسموح.'**
+  String get error_answer_out_of_range;
+
+  /// Backend ANSWER_TOO_LONG error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الإجابة أطول من المسموح.'**
+  String get error_answer_too_long;
+
+  /// Backend ANSWER_REQUIRED error code
+  ///
+  /// In ar, this message translates to:
+  /// **'من فضلك أجب على هذا السؤال.'**
+  String get error_answer_required;
+
+  /// Backend MONEY_FIGURE_MISSING error code
+  ///
+  /// In ar, this message translates to:
+  /// **'تنقص قيمة لازمة للتقدير. من فضلك راجع إجاباتك.'**
+  String get error_money_figure_missing;
+
+  /// Backend CALCULATOR_INPUT_INVALID error code
+  ///
+  /// In ar, this message translates to:
+  /// **'من فضلك تحقق من المبلغ والمدة والدخل والأقساط الحالية.'**
+  String get error_calculator_input_invalid;
+
+  /// Backend CALCULATOR_PROGRAM_INACTIVE error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البرنامج غير متاح حاليًا.'**
+  String get error_calculator_program_inactive;
+
+  /// Backend NO_RECOGNISED_INCOME reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر الاعتراف بدخل شهري لهذا البرنامج.'**
+  String get reason_no_recognised_income;
+
+  /// Backend OBLIGATIONS_EXCEED_ALLOWANCE reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'أقساطك الشهرية الحالية تستهلك الحد المسموح بالكامل.'**
+  String get reason_obligations_exceed_allowance;
+
+  /// Backend BELOW_PROGRAM_MIN_AMOUNT reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.'**
+  String get reason_below_program_min_amount;
+
+  /// Backend AGE_AT_MATURITY reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.'**
+  String get reason_age_at_maturity;
+
+  /// Backend CURRENCY_NOT_OFFERED reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البرنامج لا يوفر العملة المطلوبة.'**
+  String get reason_currency_not_offered;
+
+  /// Backend PROGRAM_MISCONFIGURED reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يمكن تسعير هذا البرنامج حاليًا.'**
+  String get reason_program_misconfigured;
+
+  /// Backend INDICATIVE_ESTIMATE_NOT_AN_OFFER disclaimer code
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.'**
+  String get disclaimer_indicative_estimate;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

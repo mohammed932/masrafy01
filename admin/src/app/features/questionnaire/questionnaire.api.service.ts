@@ -74,6 +74,22 @@ export interface QuestionnaireVersionRow {
   publishedBy: string | null;
 }
 
+/**
+ * Feature 010 — a non-blocking publish warning (FR-049). Publishing SUCCEEDS with
+ * warnings: blocking it would strand the admin while a money binding is renamed.
+ * The consequence of ignoring one is that quotes for affected applicants return
+ * `MONEY_FIGURE_MISSING` instead of a defaulted zero (FR-044).
+ *
+ * `code` is a backend error code, so it renders through the same
+ * `error-codes.{ar-EG,en-US}.json` files as any typed error (Principle III).
+ */
+export interface PublishWarning {
+  code: string;
+  meta: Record<string, unknown>;
+}
+
+export type PublishResult = QuestionnaireVersionRow & { warnings?: PublishWarning[] };
+
 export interface OptionRow {
   id: string;
   code: string;
@@ -82,16 +98,53 @@ export interface OptionRow {
   displayOrder: number;
   isActive: boolean;
 }
+
+/**
+ * Feature 010 — the four question types are all real. Only `SINGLE_SELECT` is
+ * scoreable (R9 / A33): the approval formula needs one picked answer score per
+ * question, which multi-pick, text and number cannot supply.
+ */
+export const QUESTION_TYPES = ['SINGLE_SELECT', 'MULTI_SELECT', 'TEXT', 'NUMERIC'] as const;
+export type QuestionType = (typeof QUESTION_TYPES)[number];
+
+export const CHOICE_QUESTION_TYPES: readonly QuestionType[] = ['SINGLE_SELECT', 'MULTI_SELECT'];
+
+export function isChoiceQuestionType(type: QuestionType): boolean {
+  return CHOICE_QUESTION_TYPES.includes(type);
+}
+
+/** NUMERIC rules — CONTENT bounds + display unit. Money crosses as decimal strings. */
+export interface NumericRules {
+  minValue: string | null;
+  maxValue: string | null;
+  step: string | null;
+  unitAr: string | null;
+  unitEn: string | null;
+}
+
+/** TEXT rules. Free text may carry PII (Principle VI) — never logged. */
+export interface TextRules {
+  maxLength: number;
+}
+
 export interface QuestionRow {
   id: string;
   groupId: string;
   code: string;
+  /** A question stored before feature 010 reads as SINGLE_SELECT (FR-045). */
+  type: QuestionType;
   questionAr: string;
   questionEn: string;
   isRequired: boolean;
   displayOrder: number;
   isActive: boolean;
   enabledWhen: { questionCode: string; operator: string; optionCode: string } | null;
+  numericMinValue: string | null;
+  numericMaxValue: string | null;
+  numericStep: string | null;
+  numericUnitAr: string | null;
+  numericUnitEn: string | null;
+  textMaxLength: number | null;
   options: OptionRow[];
 }
 export interface GroupTreeRow {
@@ -144,6 +197,12 @@ export interface CreateQuestionBody {
   questionEn: string;
   displayOrder: number;
   isRequired?: boolean;
+  /** Defaults to SINGLE_SELECT server-side when omitted. */
+  type?: QuestionType;
+  /** Sent only for NUMERIC; the server rejects rules on the wrong type. */
+  numeric?: Partial<NumericRules> | null;
+  /** Sent only for TEXT. No binding field exists — money bindings are code constants (A33). */
+  text?: Partial<TextRules> | null;
 }
 export interface CreateOptionBody {
   labelAr: string;
@@ -164,6 +223,9 @@ export interface UpdateQuestionBody {
   displayOrder?: number;
   isRequired?: boolean;
   isActive?: boolean;
+  type?: QuestionType;
+  numeric?: Partial<NumericRules> | null;
+  text?: Partial<TextRules> | null;
 }
 /** Option edits — `code` is immutable (A33). */
 export interface UpdateOptionBody {
@@ -203,6 +265,15 @@ export class QuestionnaireApiService {
   // ---- Questionnaire authoring (one global pool) ------------------------
   tree(): Promise<GroupTreeRow[]> {
     return this.get<GroupTreeRow[]>(`/questionnaire/tree`);
+  }
+
+  /**
+   * Which of the four money bindings currently resolve to no active NUMERIC
+   * question. Read-only — publishes nothing, so the editor can poll it after any
+   * edit and render a standing banner rather than a per-save toast.
+   */
+  bindingWarnings(): Promise<PublishWarning[]> {
+    return this.get<PublishWarning[]>(`/questionnaire/binding-warnings`);
   }
 
   // ---- Matching simulator (admin) ---------------------------------------
@@ -254,8 +325,12 @@ export class QuestionnaireApiService {
     return this.get<QuestionnaireVersionRow[]>(`/questionnaire/versions/history`);
   }
 
-  publish(): Promise<QuestionnaireVersionRow> {
-    return this.post<QuestionnaireVersionRow>(`/questionnaire/versions/publish`, {});
+  /**
+   * Publish the pool. Succeeds even when it returns `warnings[]` — the caller
+   * surfaces them as a non-blocking notice, never as a failure.
+   */
+  publish(): Promise<PublishResult> {
+    return this.post<PublishResult>(`/questionnaire/versions/publish`, {});
   }
 
   // ---- HTTP helpers ------------------------------------------------------

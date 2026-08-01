@@ -4,6 +4,7 @@ import type {
   Question,
   QuestionGroup,
   QuestionOption,
+  QuestionType,
   QuestionnaireVersion,
 } from '@prisma/client';
 import { PrismaService } from '@/infra/prisma/prisma.service';
@@ -63,6 +64,7 @@ export class QuestionnaireRepository {
   questionsWithOptions(): Promise<
     {
       code: string;
+      type: QuestionType;
       questionAr: string;
       questionEn: string;
       options: { code: string; labelAr: string; labelEn: string }[];
@@ -73,6 +75,7 @@ export class QuestionnaireRepository {
       orderBy: { displayOrder: 'asc' },
       select: {
         code: true,
+        type: true,
         questionAr: true,
         questionEn: true,
         options: {

@@ -85,6 +85,7 @@ export interface ListFilters {
   bankName?: string;
   active?: boolean;
   productCategory?: string;
+  isShariaCompliant?: boolean;
   acceptedEmploymentType?: string;
   page: number;
   pageSize: number;
@@ -116,6 +117,9 @@ export class BankProgramRepository {
         : {}),
       ...(filters.active !== undefined ? { active: filters.active } : {}),
       ...(filters.productCategory ? { productCategory: filters.productCategory } : {}),
+      ...(filters.isShariaCompliant !== undefined
+        ? { isShariaCompliant: filters.isShariaCompliant }
+        : {}),
       ...(filters.acceptedEmploymentType
         ? {
             eligibility: {
@@ -158,6 +162,19 @@ export class BankProgramRepository {
    * Return all active programs (used by matching engine).
    * No pagination — the engine needs the full set.
    */
+  /**
+   * Existence check for a bank id (feature 010 prefill).
+   *
+   * Read here rather than through `BanksRepository` on purpose: importing
+   * `BanksModule` from `BankProgramsModule` closes the cycle
+   * BanksModule -> DocumentsModule -> ApplicationsModule -> BankProgramsModule,
+   * which Nest resolves as `undefined`. This repository already reads `Bank`
+   * (see the `isFeatured` join below), so the projection stays here.
+   */
+  async findBankById(bankId: string): Promise<{ id: string } | null> {
+    return this.prisma.bank.findUnique({ where: { id: bankId }, select: { id: true } });
+  }
+
   async findAllActive(): Promise<Array<BankProgram & { bank: { isFeatured: boolean } | null }>> {
     return this.prisma.bankProgram.findMany({
       where: { active: true },

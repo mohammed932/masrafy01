@@ -13,14 +13,18 @@
     "start:prod": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "tsx prisma/seed.ts",
     "seed:demo": "tsx prisma/seed-demo.ts",
+    "seed:banks": "tsx prisma/seed-banks.ts",
     "seed:apps": "tsx prisma/seed-applications.ts",
     "seed:customers": "tsx prisma/seed-customers.ts",
     "seed:weights": "tsx prisma/seed-scoring-weights.ts",
+    "seed:catalog-defaults": "tsx prisma/seed-program-catalog-defaults.ts",
     "check:codes": "tsx scripts/check-error-codes-parity.ts"
   },
   "dependencies": {
@@ -72,7 +76,9 @@
     "prettier": "^3.3.3",
     "prisma": "^5.18.0",
     "tsx": "^4.17.0",
-    "typescript": "^5.6.2"
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.9",
+    "@vitest/coverage-v8": "^2.1.9"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

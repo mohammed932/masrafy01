@@ -5,6 +5,8 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzMessageService } from 'ng-zorro-antd/message';
+import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import {
   ArrowLeftOutline,
   EditOutline,
@@ -108,6 +110,18 @@ import type { BankProgramResponse } from '../bank-programs.types';
             <span nz-icon nzType="sliders" nzTheme="outline" aria-hidden="true"></span>
             <span i18n="@@bank_programs.action.scoring_weights">Scoring weights</span>
           </a>
+          <button
+            *can="['super_admin']"
+            nz-button
+            [nzLoading]="duplicating()"
+            [disabled]="duplicating()"
+            (click)="duplicate()"
+          >
+            @if (!duplicating()) {
+              <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
+            }
+            <span i18n="@@bank_programs.action.duplicate">Duplicate</span>
+          </button>
           <button
             *can="['super_admin']"
             nz-button
@@ -583,6 +597,8 @@ export class BankProgramDetailPage {
   private readonly router = inject(Router);
   private readonly api = inject(BankProgramsApiService);
   private readonly modal = inject(NzModalService);
+  private readonly message = inject(NzMessageService);
+  private readonly errors = inject(ErrorCodeService);
 
   readonly programCode = toSignal(
     this.route.paramMap.pipe(map((p) => p.get('programCode') ?? '')),
@@ -621,6 +637,36 @@ export class BankProgramDetailPage {
     if (!code) return;
     const res = await this.api.getByCode(code);
     this.program.set(res.data);
+  }
+
+  readonly duplicating = signal(false);
+
+  /**
+   * FR-013 — copy this program into a new INACTIVE draft and open it for editing.
+   * The copy carries every configuration value; only the name and code differ,
+   * which is the whole point when a bank runs 12–14 near-identical programs.
+   */
+  async duplicate(): Promise<void> {
+    const p = this.program();
+    if (!p || this.duplicating()) return;
+    this.duplicating.set(true);
+    try {
+      const res = await this.api.duplicate(p.programCode, {
+        friendlyName: $localize`:@@bank_programs.duplicate.name:${p.friendlyName}:name: (copy)`,
+        friendlyNameAr: p.friendlyNameAr ?? undefined,
+      });
+      this.message.success(
+        $localize`:@@bank_programs.duplicate.created:Draft copy created — review and activate it.`,
+        { nzDuration: 5000 },
+      );
+      void this.router.navigate(['/banks/programs', res.data.programCode, 'edit']);
+    } catch (err: unknown) {
+      const code =
+        (err as { error?: { code?: string } }).error?.code ?? 'INTERNAL_ERROR';
+      this.message.error(this.errors.toLocalizedMessage(code as never));
+    } finally {
+      this.duplicating.set(false);
+    }
   }
 
   openDelete(): void {

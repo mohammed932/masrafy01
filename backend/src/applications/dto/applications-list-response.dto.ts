@@ -16,6 +16,8 @@ export interface ApplicationOfferDto {
   programVersion: number;
   bankName: string;
   bankIsFeatured: boolean;
+  /** Islamic-finance program, frozen at match time. */
+  isShariaCompliant: boolean;
   programFriendlyName: string;
   currency: string;
   effectiveRatePercent: string;

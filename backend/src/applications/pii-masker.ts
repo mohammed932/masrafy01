@@ -37,3 +37,44 @@ export function maskApplicantProfile<T extends RawApplicantProfileJson>(profile:
   }
   return masked as T;
 }
+
+// ---------------------------------------------------------------------------
+// Feature 010 — free-text answers
+// ---------------------------------------------------------------------------
+
+/**
+ * A TEXT question is free-form, so its answer may contain anything the customer
+ * typed — an employer, an address, a phone number. Principle VI / A4: it must
+ * never reach a log line or a calc trace.
+ *
+ * Note the asymmetry, and that it is deliberate:
+ *   - `stripTextAnswers` is for LOGS and CALC TRACES — the value is dropped.
+ *   - An authorised admin reading an application still sees the answer; that is
+ *     the point of collecting it. Masking happens on the way OUT to logs, not on
+ *     the way in to the admin UI.
+ */
+export const TEXT_ANSWER_REDACTED = '[redacted]';
+
+export type LoggableAnswer = {
+  questionCode: string;
+  textValue?: string | null;
+} & Record<string, unknown>;
+
+/** Drop `textValue` from every answer before the collection is logged or traced. */
+export function stripTextAnswers<T extends LoggableAnswer>(
+  answers: ReadonlyArray<T>,
+): Array<Omit<T, 'textValue'>> {
+  return answers.map((a) => {
+    const { textValue: _dropped, ...rest } = a;
+    return rest;
+  });
+}
+
+/**
+ * Same guarantee for a single value, when the surrounding object must keep its
+ * shape (e.g. a fixed-shape trace row): the presence of an answer is recorded,
+ * the content is not.
+ */
+export function redactTextValue(textValue: string | null | undefined): string | null {
+  return textValue == null || textValue === '' ? null : TEXT_ANSWER_REDACTED;
+}

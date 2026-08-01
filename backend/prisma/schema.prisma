@@ -109,6 +109,9 @@ enum AuditEventType {
   CUSTOMER_REACTIVATED
   // Admin revealed a customer PII document binary (National ID). Principle VI.
   CUSTOMER_DOCUMENT_REVEALED
+  // --- Feature 010 — prefill layers (Bank.policyDefaults, program_name defaults) ---
+  BANK_POLICY_UPDATED
+  PROGRAM_CATALOG_DEFAULTS_UPDATED
 }
 
 enum SupportChannel {
@@ -425,6 +428,10 @@ model BankOffer {
   /// here so a bank toggling its featured state later doesn't rewrite
   /// history). Surfaced to mobile so the FEATURED chip never goes stale.
   bankIsFeatured             Boolean      @default(false)
+  /// Snapshot of the program's Sharia-compliance flag at match time. Frozen on
+  /// the offer for the same reason as `bankIsFeatured` (Principle I — BankOffer
+  /// is immutable): a program later re-flagged must not rewrite past offers.
+  isShariaCompliant          Boolean      @default(false)
   effectiveRatePercent       Decimal      @db.Decimal(7, 4)
   monthlyInstallmentEGP      Decimal      @db.Decimal(13, 2)
   requestedLoanAmountEGP     Decimal      @db.Decimal(13, 2)
@@ -577,6 +584,12 @@ model PlatformEnumeration {
   // (e.g. Doctor, Pharmacy) may serve several loan categories, not just one.
   // Empty for enumeration types that are not category-scoped.
   categories   String[]  @default([])
+  // Feature 010 (FR-001..FR-004): per-category lending defaults for `program_name`
+  // members. Shape: { "<loanCategory>": { tenor?, loanLimits?, eligibility?,
+  // pricing?, fees?, requiredDocuments? } } — all leaves optional (FR-003).
+  // PREFILL ONLY: copied into the bank program on save (FR-009) and never
+  // consulted at match time (FR-021b). Empty `{}` for every other enumeration type.
+  defaults     Json      @default("{}")
   sortOrder    Int       @default(0)
   createdAt    DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
@@ -865,11 +878,14 @@ enum LoanCategory {
   business
 }
 
+// Feature 010: all four values are renderable end to end. Only SINGLE_SELECT is
+// scoreable — the approval formula needs one picked answer score per question,
+// and any aggregate over multiple picks would be a new formula (A33 / R9).
 enum QuestionType {
-  SINGLE_SELECT // Phase 1: the only renderable type
-  MULTI_SELECT // reserved (Phase 2)
-  TEXT // reserved (Phase 2)
-  NUMERIC // reserved (Phase 2)
+  SINGLE_SELECT
+  MULTI_SELECT
+  TEXT
+  NUMERIC
 }
 
 enum ScoringWeightSetStatus {
@@ -884,14 +900,14 @@ enum ScoringWeightSetStatus {
 // one global questionnaire; per-program scoring picks which questions it uses via
 // `ScoringWeightSet.weights.questionWeights` (checkbox = weight-set membership).
 model QuestionGroup {
-  id           String       @id @default(cuid()) @db.VarChar(30)
-  code         String       @unique(map: "uniq_question_group_code") @db.VarChar(64)
-  titleAr      String       @db.VarChar(160)
-  titleEn      String       @db.VarChar(160)
+  id           String   @id @default(cuid()) @db.VarChar(30)
+  code         String   @unique(map: "uniq_question_group_code") @db.VarChar(64)
+  titleAr      String   @db.VarChar(160)
+  titleEn      String   @db.VarChar(160)
   displayOrder Int
-  isActive     Boolean      @default(true)
-  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
 
   questions Question[] @relation("QuestionGroupQuestions")
 
@@ -900,20 +916,32 @@ model QuestionGroup {
 }
 
 model Question {
-  id           String              @id @default(cuid()) @db.VarChar(30)
-  groupId      String              @db.VarChar(30)
-  code         String              @unique(map: "uniq_question_code") @db.VarChar(64) // auto-generated slug, immutable, GLOBALLY unique
-  type         QuestionType        @default(SINGLE_SELECT)
-  questionAr   String              @db.VarChar(500)
-  questionEn   String              @db.VarChar(500)
-  helperTextAr String?             @db.VarChar(500)
-  helperTextEn String?             @db.VarChar(500)
-  isRequired   Boolean             @default(true)
+  id           String       @id @default(cuid()) @db.VarChar(30)
+  groupId      String       @db.VarChar(30)
+  code         String       @unique(map: "uniq_question_code") @db.VarChar(64) // auto-generated slug, immutable, GLOBALLY unique
+  type         QuestionType @default(SINGLE_SELECT)
+  questionAr   String       @db.VarChar(500)
+  questionEn   String       @db.VarChar(500)
+  helperTextAr String?      @db.VarChar(500)
+  helperTextEn String?      @db.VarChar(500)
+  isRequired   Boolean      @default(true)
   displayOrder Int
-  isActive     Boolean             @default(true)
+  isActive     Boolean      @default(true)
   enabledWhen  Json? // { questionCode, operator: equals|not_equals, optionCode }
-  createdAt    DateTime            @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime            @updatedAt @db.Timestamptz(6)
+
+  // Feature 010 — per-type CONTENT rules (bounds, unit, length). Deliberately NOT
+  // scoring or eligibility fields: A33 forbids those on Question/QuestionOption,
+  // and which answer feeds which economic input is a code constant
+  // (matching/pipeline/money-field-bindings.ts), never a column here.
+  numericMinValue Decimal? @db.Decimal(18, 2) // NUMERIC only
+  numericMaxValue Decimal? @db.Decimal(18, 2) // NUMERIC only; >= min
+  numericStep     Decimal? @db.Decimal(18, 2) // NUMERIC only; > 0
+  numericUnitAr   String?  @db.VarChar(24) // display unit, e.g. "جنيه"
+  numericUnitEn   String?  @db.VarChar(24) // display unit, e.g. "EGP"
+  textMaxLength   Int? // TEXT only; 1…2000
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
   group   QuestionGroup       @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
   options QuestionOption[]    @relation("QuestionOptions")
@@ -944,28 +972,33 @@ model QuestionOption {
 // Feature 010 — ONE global questionnaire (no category). Exactly one active
 // version drives every applicant's questionnaire regardless of loan category.
 model QuestionnaireVersion {
-  id            String       @id @default(cuid()) @db.VarChar(30)
-  versionNumber Int          @unique(map: "uniq_questionnaire_version_number")
-  isActive      Boolean      @default(false) // exactly one active globally
-  publishedAt   DateTime?    @db.Timestamptz(6)
-  publishedBy   String?      @db.VarChar(30) // staff id
+  id            String    @id @default(cuid()) @db.VarChar(30)
+  versionNumber Int       @unique(map: "uniq_questionnaire_version_number")
+  isActive      Boolean   @default(false) // exactly one active globally
+  publishedAt   DateTime? @db.Timestamptz(6)
+  publishedBy   String?   @db.VarChar(30) // staff id
   snapshot      Json // frozen groups+questions+options blob
-  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
 
   @@index([isActive], name: "idx_questionnaire_version_active")
   @@map("questionnaire_version")
 }
 
 model ApplicationAnswer {
-  id                 String   @id @default(cuid()) @db.VarChar(30)
-  applicationId      String   @db.VarChar(30)
-  questionId         String   @db.VarChar(30)
-  questionCode       String   @db.VarChar(64) // denormalised, stable across edits
-  selectedOptionId   String?  @db.VarChar(30)
-  selectedOptionCode String?  @db.VarChar(64) // denormalised
-  textValue          String?  @db.VarChar(2000) // Phase 2
-  numericValue       Decimal? @db.Decimal(18, 2) // Phase 2
-  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  id                  String   @id @default(cuid()) @db.VarChar(30)
+  applicationId       String   @db.VarChar(30)
+  questionId          String   @db.VarChar(30)
+  questionCode        String   @db.VarChar(64) // denormalised, stable across edits
+  selectedOptionId    String?  @db.VarChar(30)
+  selectedOptionCode  String?  @db.VarChar(64) // denormalised; single choice only
+  // Feature 010 — canonical pick list for BOTH choice types; single choice writes
+  // one element and still populates selectedOptionId/Code so the scorer and the
+  // existing admin answer views keep working unchanged (FR-045 / R8). The
+  // @@unique([applicationId, questionId]) below is what makes an array necessary.
+  selectedOptionCodes String[] @default([])
+  textValue           String?  @db.VarChar(2000) // TEXT answers; never logged (Principle VI)
+  numericValue        Decimal? @db.Decimal(18, 2) // NUMERIC answers; source of the four money figures
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
 
   application Application @relation("ApplicationDynamicAnswers", fields: [applicationId], references: [id], onDelete: Cascade)
   question    Question    @relation("QuestionAnswers", fields: [questionId], references: [id], onDelete: Restrict)

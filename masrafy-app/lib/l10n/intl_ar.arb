@@ -1,266 +1,501 @@
 {
   "@@locale": "ar",
-
   "auth_otp_invalid": "الرمز غير صحيح. حاول مرة أخرى.",
-  "@auth_otp_invalid": { "description": "Backend OTP_INVALID error code" },
+  "@auth_otp_invalid": {
+    "description": "Backend OTP_INVALID error code"
+  },
   "auth_otp_expired": "انتهت صلاحية الرمز. اطلب رمزًا جديدًا.",
-  "@auth_otp_expired": { "description": "Backend OTP_EXPIRED error code" },
+  "@auth_otp_expired": {
+    "description": "Backend OTP_EXPIRED error code"
+  },
   "auth_otp_consumed": "تم استخدام هذا الرمز بالفعل.",
-  "@auth_otp_consumed": { "description": "Backend OTP_CONSUMED error code" },
+  "@auth_otp_consumed": {
+    "description": "Backend OTP_CONSUMED error code"
+  },
   "auth_otp_attempts_exceeded": "عدد المحاولات الخاطئة كبير. اطلب رمزًا جديدًا.",
-  "@auth_otp_attempts_exceeded": { "description": "Backend OTP_ATTEMPTS_EXCEEDED error code" },
+  "@auth_otp_attempts_exceeded": {
+    "description": "Backend OTP_ATTEMPTS_EXCEEDED error code"
+  },
   "auth_otp_rate_limited": "طلبات كثيرة. انتظر قليلاً وحاول مجددًا.",
-  "@auth_otp_rate_limited": { "description": "Backend OTP_RATE_LIMITED error code" },
+  "@auth_otp_rate_limited": {
+    "description": "Backend OTP_RATE_LIMITED error code"
+  },
   "auth_otp_purpose_login_forbidden": "لا حاجة لرمز SMS لتسجيل الدخول. استخدم كلمة المرور.",
-  "@auth_otp_purpose_login_forbidden": { "description": "Backend OTP_PURPOSE_LOGIN_FORBIDDEN error code" },
+  "@auth_otp_purpose_login_forbidden": {
+    "description": "Backend OTP_PURPOSE_LOGIN_FORBIDDEN error code"
+  },
   "auth_phone_already_registered": "هذا الرقم مسجل بالفعل. برجاء تسجيل الدخول.",
-  "@auth_phone_already_registered": { "description": "Backend CUSTOMER_PHONE_ALREADY_REGISTERED error code" },
-
+  "@auth_phone_already_registered": {
+    "description": "Backend CUSTOMER_PHONE_ALREADY_REGISTERED error code"
+  },
   "auth_verified_mobile_token_invalid": "رمز التحقق غير صالح. ابدأ التسجيل من جديد.",
-  "@auth_verified_mobile_token_invalid": { "description": "Backend VERIFIED_MOBILE_TOKEN_INVALID error code" },
+  "@auth_verified_mobile_token_invalid": {
+    "description": "Backend VERIFIED_MOBILE_TOKEN_INVALID error code"
+  },
   "auth_verified_mobile_token_expired": "انتهت صلاحية رمز التحقق. ابدأ التسجيل من جديد.",
-  "@auth_verified_mobile_token_expired": { "description": "Backend VERIFIED_MOBILE_TOKEN_EXPIRED error code" },
+  "@auth_verified_mobile_token_expired": {
+    "description": "Backend VERIFIED_MOBILE_TOKEN_EXPIRED error code"
+  },
   "auth_verified_mobile_token_consumed": "تم استخدام رمز التحقق بالفعل.",
-  "@auth_verified_mobile_token_consumed": { "description": "Backend VERIFIED_MOBILE_TOKEN_CONSUMED error code" },
-
+  "@auth_verified_mobile_token_consumed": {
+    "description": "Backend VERIFIED_MOBILE_TOKEN_CONSUMED error code"
+  },
   "auth_social_token_invalid": "فشل تسجيل الدخول. حاول مرة أخرى.",
-  "@auth_social_token_invalid": { "description": "Backend SOCIAL_TOKEN_INVALID error code" },
+  "@auth_social_token_invalid": {
+    "description": "Backend SOCIAL_TOKEN_INVALID error code"
+  },
   "auth_social_token_expired": "انتهت جلسة تسجيل الدخول. حاول مرة أخرى.",
-  "@auth_social_token_expired": { "description": "Backend SOCIAL_TOKEN_EXPIRED error code" },
+  "@auth_social_token_expired": {
+    "description": "Backend SOCIAL_TOKEN_EXPIRED error code"
+  },
   "auth_social_provider_unavailable": "خدمة تسجيل الدخول غير متاحة مؤقتًا.",
-  "@auth_social_provider_unavailable": { "description": "Backend SOCIAL_PROVIDER_UNAVAILABLE error code" },
+  "@auth_social_provider_unavailable": {
+    "description": "Backend SOCIAL_PROVIDER_UNAVAILABLE error code"
+  },
   "auth_social_session_invalid": "جلسة تسجيل الدخول غير صالحة.",
-  "@auth_social_session_invalid": { "description": "Backend SOCIAL_SESSION_INVALID error code" },
+  "@auth_social_session_invalid": {
+    "description": "Backend SOCIAL_SESSION_INVALID error code"
+  },
   "auth_social_session_expired": "انتهت جلسة تسجيل الدخول. اضغط زر مزود الخدمة مجددًا.",
-  "@auth_social_session_expired": { "description": "Backend SOCIAL_SESSION_EXPIRED error code" },
+  "@auth_social_session_expired": {
+    "description": "Backend SOCIAL_SESSION_EXPIRED error code"
+  },
   "auth_social_session_consumed": "تم استخدام جلسة تسجيل الدخول بالفعل.",
-  "@auth_social_session_consumed": { "description": "Backend SOCIAL_SESSION_CONSUMED error code" },
-
+  "@auth_social_session_consumed": {
+    "description": "Backend SOCIAL_SESSION_CONSUMED error code"
+  },
   "auth_account_locked": "تم قفل الحساب مؤقتًا بسبب محاولات فاشلة كثيرة. حاول لاحقًا.",
-  "@auth_account_locked": { "description": "Backend ACCOUNT_LOCKED error code" },
+  "@auth_account_locked": {
+    "description": "Backend ACCOUNT_LOCKED error code"
+  },
   "auth_password_not_set": "لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google أو Apple.",
-  "@auth_password_not_set": { "description": "Backend PASSWORD_NOT_SET error code" },
+  "@auth_password_not_set": {
+    "description": "Backend PASSWORD_NOT_SET error code"
+  },
   "auth_password_same_as_old": "اختر كلمة مرور مختلفة عن الحالية.",
-  "@auth_password_same_as_old": { "description": "Backend PASSWORD_SAME_AS_OLD error code" },
-
+  "@auth_password_same_as_old": {
+    "description": "Backend PASSWORD_SAME_AS_OLD error code"
+  },
   "auth_profile_incomplete": "أكمل بيانات حسابك للمتابعة.",
-  "@auth_profile_incomplete": { "description": "Backend PROFILE_INCOMPLETE error code" },
+  "@auth_profile_incomplete": {
+    "description": "Backend PROFILE_INCOMPLETE error code"
+  },
   "auth_profile_field_immutable": "لا يمكن تعديل هذا الحقل بعد ضبطه.",
-  "@auth_profile_field_immutable": { "description": "Backend PROFILE_FIELD_IMMUTABLE error code" },
+  "@auth_profile_field_immutable": {
+    "description": "Backend PROFILE_FIELD_IMMUTABLE error code"
+  },
   "auth_profile_id_docs_missing": "ارفع وجهي بطاقة الرقم القومي قبل إكمال ملفك.",
-  "@auth_profile_id_docs_missing": { "description": "Backend PROFILE_ID_DOCS_MISSING error code" },
+  "@auth_profile_id_docs_missing": {
+    "description": "Backend PROFILE_ID_DOCS_MISSING error code"
+  },
   "auth_national_id_required": "ارفع بطاقة الرقم القومي (الوجه والظهر) قبل التقديم على القرض.",
-  "@auth_national_id_required": { "description": "Backend NATIONAL_ID_REQUIRED error code" },
+  "@auth_national_id_required": {
+    "description": "Backend NATIONAL_ID_REQUIRED error code"
+  },
   "auth_password_required_for_phone_profile": "كلمة المرور مطلوبة لإكمال ملفك.",
-  "@auth_password_required_for_phone_profile": { "description": "Backend PASSWORD_REQUIRED_FOR_PHONE_PROFILE error code" },
+  "@auth_password_required_for_phone_profile": {
+    "description": "Backend PASSWORD_REQUIRED_FOR_PHONE_PROFILE error code"
+  },
   "auth_password_forbidden_for_social_profile": "حسابات Google أو Apple لا تستخدم كلمة مرور.",
-  "@auth_password_forbidden_for_social_profile": { "description": "Backend PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE error code" },
+  "@auth_password_forbidden_for_social_profile": {
+    "description": "Backend PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE error code"
+  },
   "auth_phone_mutation_on_phone_customer_forbidden": "رقم الجوال مضبوط بالفعل على هذا الحساب.",
-  "@auth_phone_mutation_on_phone_customer_forbidden": { "description": "Backend PHONE_MUTATION_ON_PHONE_CUSTOMER_FORBIDDEN error code" },
+  "@auth_phone_mutation_on_phone_customer_forbidden": {
+    "description": "Backend PHONE_MUTATION_ON_PHONE_CUSTOMER_FORBIDDEN error code"
+  },
   "auth_password_change_forbidden_for_social": "تغيير كلمة المرور غير متاح لحسابات Google أو Apple.",
-  "@auth_password_change_forbidden_for_social": { "description": "Backend PASSWORD_CHANGE_FORBIDDEN_FOR_SOCIAL error code" },
-
+  "@auth_password_change_forbidden_for_social": {
+    "description": "Backend PASSWORD_CHANGE_FORBIDDEN_FOR_SOCIAL error code"
+  },
   "auth_age_invalid": "العمر يجب أن يكون بين 18 و80 سنة.",
-  "@auth_age_invalid": { "description": "Backend AGE_INVALID error code" },
+  "@auth_age_invalid": {
+    "description": "Backend AGE_INVALID error code"
+  },
   "auth_documents_missing": "كلا وجهي بطاقة الرقم القومي مطلوبان.",
-  "@auth_documents_missing": { "description": "Backend DOCUMENTS_MISSING error code" },
+  "@auth_documents_missing": {
+    "description": "Backend DOCUMENTS_MISSING error code"
+  },
   "auth_documents_not_owned": "هذه المستندات لا تخص حسابك.",
-  "@auth_documents_not_owned": { "description": "Backend DOCUMENTS_NOT_OWNED error code" },
+  "@auth_documents_not_owned": {
+    "description": "Backend DOCUMENTS_NOT_OWNED error code"
+  },
   "auth_bank_program_invalid": "هذا العرض لم يعد متاحًا لملفك.",
-  "@auth_bank_program_invalid": { "description": "Backend BANK_PROGRAM_INVALID error code" },
-
+  "@auth_bank_program_invalid": {
+    "description": "Backend BANK_PROGRAM_INVALID error code"
+  },
   "auth_landing_brand": "مصرفي",
-  "@auth_landing_brand": { "description": "App brand name shown on the landing screen" },
+  "@auth_landing_brand": {
+    "description": "App brand name shown on the landing screen"
+  },
   "auth_landing_action_phone_signup": "إنشاء حساب بالهاتف",
-  "@auth_landing_action_phone_signup": { "description": "Landing CTA — phone signup" },
+  "@auth_landing_action_phone_signup": {
+    "description": "Landing CTA — phone signup"
+  },
   "auth_landing_action_google": "المتابعة باستخدام Google",
-  "@auth_landing_action_google": { "description": "Landing CTA — Google sign-in" },
+  "@auth_landing_action_google": {
+    "description": "Landing CTA — Google sign-in"
+  },
   "auth_landing_action_apple": "المتابعة باستخدام Apple",
-  "@auth_landing_action_apple": { "description": "Landing CTA — Apple sign-in (iOS only)" },
+  "@auth_landing_action_apple": {
+    "description": "Landing CTA — Apple sign-in (iOS only)"
+  },
   "auth_landing_action_login": "تسجيل الدخول",
-  "@auth_landing_action_login": { "description": "Landing — existing-user log in link" },
-
+  "@auth_landing_action_login": {
+    "description": "Landing — existing-user log in link"
+  },
   "auth_login_title": "تسجيل الدخول",
-  "@auth_login_title": { "description": "Login screen — app bar title" },
+  "@auth_login_title": {
+    "description": "Login screen — app bar title"
+  },
   "auth_login_field_mobile": "رقم الموبايل",
-  "@auth_login_field_mobile": { "description": "Login — mobile number field label" },
+  "@auth_login_field_mobile": {
+    "description": "Login — mobile number field label"
+  },
   "auth_login_field_password": "كلمة المرور",
-  "@auth_login_field_password": { "description": "Login — password field label" },
+  "@auth_login_field_password": {
+    "description": "Login — password field label"
+  },
   "auth_login_action_submit": "تسجيل الدخول",
-  "@auth_login_action_submit": { "description": "Login — submit button" },
+  "@auth_login_action_submit": {
+    "description": "Login — submit button"
+  },
   "auth_login_action_forgot": "نسيت كلمة المرور؟",
-  "@auth_login_action_forgot": { "description": "Login — forgot-password link" },
-
+  "@auth_login_action_forgot": {
+    "description": "Login — forgot-password link"
+  },
   "auth_forgot_password_title_request": "استرداد كلمة المرور",
-  "@auth_forgot_password_title_request": { "description": "Forgot-password — phone-entry app bar title" },
+  "@auth_forgot_password_title_request": {
+    "description": "Forgot-password — phone-entry app bar title"
+  },
   "auth_forgot_password_title_verify": "التحقق من الكود",
-  "@auth_forgot_password_title_verify": { "description": "Forgot-password — OTP app bar title" },
+  "@auth_forgot_password_title_verify": {
+    "description": "Forgot-password — OTP app bar title"
+  },
   "auth_forgot_password_title_reset": "كلمة مرور جديدة",
-  "@auth_forgot_password_title_reset": { "description": "Forgot-password — new-password app bar title" },
+  "@auth_forgot_password_title_reset": {
+    "description": "Forgot-password — new-password app bar title"
+  },
   "auth_forgot_password_field_mobile": "رقم الموبايل",
-  "@auth_forgot_password_field_mobile": { "description": "Forgot-password — mobile field label" },
+  "@auth_forgot_password_field_mobile": {
+    "description": "Forgot-password — mobile field label"
+  },
   "auth_forgot_password_field_otp": "كود مكون من 6 أرقام",
-  "@auth_forgot_password_field_otp": { "description": "Forgot-password — OTP field label" },
+  "@auth_forgot_password_field_otp": {
+    "description": "Forgot-password — OTP field label"
+  },
   "auth_forgot_password_field_new_password": "كلمة مرور جديدة",
-  "@auth_forgot_password_field_new_password": { "description": "Forgot-password — new-password field label" },
+  "@auth_forgot_password_field_new_password": {
+    "description": "Forgot-password — new-password field label"
+  },
   "auth_forgot_password_field_confirm_password": "تأكيد كلمة المرور الجديدة",
-  "@auth_forgot_password_field_confirm_password": { "description": "Forgot-password — confirm-password field label" },
+  "@auth_forgot_password_field_confirm_password": {
+    "description": "Forgot-password — confirm-password field label"
+  },
   "auth_forgot_password_action_send": "إرسال الكود",
-  "@auth_forgot_password_action_send": { "description": "Forgot-password — send-OTP button" },
+  "@auth_forgot_password_action_send": {
+    "description": "Forgot-password — send-OTP button"
+  },
   "auth_forgot_password_action_verify": "تحقق",
-  "@auth_forgot_password_action_verify": { "description": "Forgot-password — verify-OTP button" },
+  "@auth_forgot_password_action_verify": {
+    "description": "Forgot-password — verify-OTP button"
+  },
   "auth_forgot_password_action_reset": "إعادة تعيين كلمة المرور",
-  "@auth_forgot_password_action_reset": { "description": "Forgot-password — reset password button" },
+  "@auth_forgot_password_action_reset": {
+    "description": "Forgot-password — reset password button"
+  },
   "auth_forgot_password_validation_password_min": "8 أحرف على الأقل",
-  "@auth_forgot_password_validation_password_min": { "description": "Password validation — minimum length" },
+  "@auth_forgot_password_validation_password_min": {
+    "description": "Password validation — minimum length"
+  },
   "auth_forgot_password_validation_password_letter": "حرف واحد على الأقل",
-  "@auth_forgot_password_validation_password_letter": { "description": "Password validation — at least one letter" },
+  "@auth_forgot_password_validation_password_letter": {
+    "description": "Password validation — at least one letter"
+  },
   "auth_forgot_password_validation_password_digit": "رقم واحد على الأقل",
-  "@auth_forgot_password_validation_password_digit": { "description": "Password validation — at least one digit" },
+  "@auth_forgot_password_validation_password_digit": {
+    "description": "Password validation — at least one digit"
+  },
   "auth_forgot_password_validation_password_mismatch": "غير متطابقة",
-  "@auth_forgot_password_validation_password_mismatch": { "description": "Password validation — confirm does not match" },
-
+  "@auth_forgot_password_validation_password_mismatch": {
+    "description": "Password validation — confirm does not match"
+  },
   "auth_phone_signup_title_phone": "إنشاء حساب — الموبايل",
-  "@auth_phone_signup_title_phone": { "description": "Phone signup — step 1 app bar title" },
+  "@auth_phone_signup_title_phone": {
+    "description": "Phone signup — step 1 app bar title"
+  },
   "auth_phone_signup_title_verify": "التحقق من الكود",
-  "@auth_phone_signup_title_verify": { "description": "Phone signup — OTP step app bar title" },
+  "@auth_phone_signup_title_verify": {
+    "description": "Phone signup — OTP step app bar title"
+  },
   "auth_phone_signup_title_details": "بياناتك",
-  "@auth_phone_signup_title_details": { "description": "Phone signup — profile step app bar title" },
+  "@auth_phone_signup_title_details": {
+    "description": "Phone signup — profile step app bar title"
+  },
   "auth_phone_signup_field_mobile": "رقم الموبايل",
-  "@auth_phone_signup_field_mobile": { "description": "Phone signup — mobile field label" },
+  "@auth_phone_signup_field_mobile": {
+    "description": "Phone signup — mobile field label"
+  },
   "auth_phone_signup_field_mobile_hint": "01001234567",
-  "@auth_phone_signup_field_mobile_hint": { "description": "Phone signup — mobile field hint (E.164 example)" },
+  "@auth_phone_signup_field_mobile_hint": {
+    "description": "Phone signup — mobile field hint (E.164 example)"
+  },
   "auth_phone_signup_field_otp": "كود مكون من 6 أرقام",
-  "@auth_phone_signup_field_otp": { "description": "Phone signup — OTP field label" },
+  "@auth_phone_signup_field_otp": {
+    "description": "Phone signup — OTP field label"
+  },
   "auth_phone_signup_field_name": "الاسم بالكامل",
-  "@auth_phone_signup_field_name": { "description": "Phone signup — full-name field label" },
+  "@auth_phone_signup_field_name": {
+    "description": "Phone signup — full-name field label"
+  },
   "auth_phone_signup_field_email": "البريد الإلكتروني",
-  "@auth_phone_signup_field_email": { "description": "Phone signup — email field label" },
+  "@auth_phone_signup_field_email": {
+    "description": "Phone signup — email field label"
+  },
   "auth_phone_signup_field_password": "كلمة المرور",
-  "@auth_phone_signup_field_password": { "description": "Phone signup — password field label" },
+  "@auth_phone_signup_field_password": {
+    "description": "Phone signup — password field label"
+  },
   "auth_phone_signup_field_password_confirm": "تأكيد كلمة المرور",
-  "@auth_phone_signup_field_password_confirm": { "description": "Phone signup — confirm-password field label" },
+  "@auth_phone_signup_field_password_confirm": {
+    "description": "Phone signup — confirm-password field label"
+  },
   "auth_phone_signup_field_age": "العمر",
-  "@auth_phone_signup_field_age": { "description": "Phone signup — age field label" },
+  "@auth_phone_signup_field_age": {
+    "description": "Phone signup — age field label"
+  },
   "auth_phone_signup_action_send": "إرسال الكود",
-  "@auth_phone_signup_action_send": { "description": "Phone signup — send-OTP button" },
+  "@auth_phone_signup_action_send": {
+    "description": "Phone signup — send-OTP button"
+  },
   "auth_phone_signup_action_verify": "تحقق",
-  "@auth_phone_signup_action_verify": { "description": "Phone signup — verify-OTP button" },
+  "@auth_phone_signup_action_verify": {
+    "description": "Phone signup — verify-OTP button"
+  },
   "auth_phone_signup_action_create": "إنشاء الحساب",
-  "@auth_phone_signup_action_create": { "description": "Phone signup — create-account button" },
+  "@auth_phone_signup_action_create": {
+    "description": "Phone signup — create-account button"
+  },
   "auth_phone_signup_validation_required": "مطلوب",
-  "@auth_phone_signup_validation_required": { "description": "Validation — field is required" },
+  "@auth_phone_signup_validation_required": {
+    "description": "Validation — field is required"
+  },
   "auth_phone_signup_validation_email_invalid": "بريد إلكتروني غير صالح",
-  "@auth_phone_signup_validation_email_invalid": { "description": "Validation — email format invalid" },
+  "@auth_phone_signup_validation_email_invalid": {
+    "description": "Validation — email format invalid"
+  },
   "auth_phone_signup_validation_password_min": "8 أحرف على الأقل",
-  "@auth_phone_signup_validation_password_min": { "description": "Password validation — minimum length" },
+  "@auth_phone_signup_validation_password_min": {
+    "description": "Password validation — minimum length"
+  },
   "auth_phone_signup_validation_password_letter": "حرف واحد على الأقل",
-  "@auth_phone_signup_validation_password_letter": { "description": "Password validation — at least one letter" },
+  "@auth_phone_signup_validation_password_letter": {
+    "description": "Password validation — at least one letter"
+  },
   "auth_phone_signup_validation_password_digit": "رقم واحد على الأقل",
-  "@auth_phone_signup_validation_password_digit": { "description": "Password validation — at least one digit" },
+  "@auth_phone_signup_validation_password_digit": {
+    "description": "Password validation — at least one digit"
+  },
   "auth_phone_signup_validation_password_mismatch": "غير متطابقة",
-  "@auth_phone_signup_validation_password_mismatch": { "description": "Password validation — confirm does not match" },
+  "@auth_phone_signup_validation_password_mismatch": {
+    "description": "Password validation — confirm does not match"
+  },
   "auth_phone_signup_validation_age_range": "من 18 إلى 80",
-  "@auth_phone_signup_validation_age_range": { "description": "Age validation — must be 18..80" },
-
+  "@auth_phone_signup_validation_age_range": {
+    "description": "Age validation — must be 18..80"
+  },
   "auth_complete_profile_title": "أكمل ملفك الشخصي",
-  "@auth_complete_profile_title": { "description": "Complete-profile gate — dialog title" },
+  "@auth_complete_profile_title": {
+    "description": "Complete-profile gate — dialog title"
+  },
   "auth_complete_profile_body": "نحتاج لبعض البيانات الإضافية قبل التقديم. هذه البيانات مطلوبة من البنك.",
-  "@auth_complete_profile_body": { "description": "Complete-profile gate — dialog body" },
+  "@auth_complete_profile_body": {
+    "description": "Complete-profile gate — dialog body"
+  },
   "auth_complete_profile_action_cancel": "إلغاء",
-  "@auth_complete_profile_action_cancel": { "description": "Complete-profile gate — cancel apply flow" },
+  "@auth_complete_profile_action_cancel": {
+    "description": "Complete-profile gate — cancel apply flow"
+  },
   "auth_complete_profile_action_complete": "إكمال الملف",
-  "@auth_complete_profile_action_complete": { "description": "Complete-profile gate — continue to complete profile" },
-
+  "@auth_complete_profile_action_complete": {
+    "description": "Complete-profile gate — continue to complete profile"
+  },
   "auth_complete_profile_title_mobile": "إكمال الملف — الموبايل",
-  "@auth_complete_profile_title_mobile": { "description": "Complete-profile step 1 — mobile entry app bar title" },
+  "@auth_complete_profile_title_mobile": {
+    "description": "Complete-profile step 1 — mobile entry app bar title"
+  },
   "auth_complete_profile_title_verify": "التحقق من الكود",
-  "@auth_complete_profile_title_verify": { "description": "Complete-profile step 2 — OTP app bar title" },
+  "@auth_complete_profile_title_verify": {
+    "description": "Complete-profile step 2 — OTP app bar title"
+  },
   "auth_complete_profile_title_email": "البريد الإلكتروني",
-  "@auth_complete_profile_title_email": { "description": "Complete-profile step 3 — email app bar title" },
+  "@auth_complete_profile_title_email": {
+    "description": "Complete-profile step 3 — email app bar title"
+  },
   "auth_complete_profile_title_age": "العمر",
-  "@auth_complete_profile_title_age": { "description": "Complete-profile step 4 — age app bar title" },
+  "@auth_complete_profile_title_age": {
+    "description": "Complete-profile step 4 — age app bar title"
+  },
   "auth_complete_profile_field_mobile": "رقم الموبايل",
-  "@auth_complete_profile_field_mobile": { "description": "Complete-profile — mobile field label" },
+  "@auth_complete_profile_field_mobile": {
+    "description": "Complete-profile — mobile field label"
+  },
   "auth_complete_profile_field_otp": "كود مكون من 6 أرقام",
-  "@auth_complete_profile_field_otp": { "description": "Complete-profile — OTP field label" },
+  "@auth_complete_profile_field_otp": {
+    "description": "Complete-profile — OTP field label"
+  },
   "auth_complete_profile_field_email": "البريد الإلكتروني",
-  "@auth_complete_profile_field_email": { "description": "Complete-profile — email field label" },
+  "@auth_complete_profile_field_email": {
+    "description": "Complete-profile — email field label"
+  },
   "auth_complete_profile_field_age": "العمر (18–80)",
-  "@auth_complete_profile_field_age": { "description": "Complete-profile — age field label with valid range" },
+  "@auth_complete_profile_field_age": {
+    "description": "Complete-profile — age field label with valid range"
+  },
   "auth_complete_profile_action_send": "إرسال الكود",
-  "@auth_complete_profile_action_send": { "description": "Complete-profile — send-OTP button" },
+  "@auth_complete_profile_action_send": {
+    "description": "Complete-profile — send-OTP button"
+  },
   "auth_complete_profile_action_verify": "تحقق",
-  "@auth_complete_profile_action_verify": { "description": "Complete-profile — verify-OTP button" },
+  "@auth_complete_profile_action_verify": {
+    "description": "Complete-profile — verify-OTP button"
+  },
   "auth_complete_profile_action_continue": "متابعة",
-  "@auth_complete_profile_action_continue": { "description": "Complete-profile — continue to next step" },
+  "@auth_complete_profile_action_continue": {
+    "description": "Complete-profile — continue to next step"
+  },
   "match_questionnaire_not_published": "الاستبيان غير متاح حاليًا. حاول لاحقًا.",
-  "@match_questionnaire_not_published": { "description": "Backend QUESTIONNAIRE_NOT_PUBLISHED error code" },
+  "@match_questionnaire_not_published": {
+    "description": "Backend QUESTIONNAIRE_NOT_PUBLISHED error code"
+  },
   "match_unknown_question_code": "إجاباتك قديمة. أعد بدء الاستبيان.",
-  "@match_unknown_question_code": { "description": "Backend UNKNOWN_QUESTION_CODE error code" },
+  "@match_unknown_question_code": {
+    "description": "Backend UNKNOWN_QUESTION_CODE error code"
+  },
   "match_unknown_option_code": "إجاباتك قديمة. أعد بدء الاستبيان.",
-  "@match_unknown_option_code": { "description": "Backend UNKNOWN_OPTION_CODE error code" },
+  "@match_unknown_option_code": {
+    "description": "Backend UNKNOWN_OPTION_CODE error code"
+  },
   "match_program_no_longer_matches": "هذا العرض لم يعد متاحًا لإجاباتك.",
-  "@match_program_no_longer_matches": { "description": "Backend PROGRAM_NO_LONGER_MATCHES error code" },
+  "@match_program_no_longer_matches": {
+    "description": "Backend PROGRAM_NO_LONGER_MATCHES error code"
+  },
   "questionnaire_form_title": "أخبرنا عن قرضك",
-  "@questionnaire_form_title": { "description": "Dynamic questionnaire form — app bar title" },
+  "@questionnaire_form_title": {
+    "description": "Dynamic questionnaire form — app bar title"
+  },
   "questionnaire_form_action_submit": "عرض النتائج المطابقة",
-  "@questionnaire_form_action_submit": { "description": "Dynamic questionnaire form — submit button that triggers the matching preview" },
+  "@questionnaire_form_action_submit": {
+    "description": "Dynamic questionnaire form — submit button that triggers the matching preview"
+  },
   "match_preview_title": "النتائج المطابقة لك",
-  "@match_preview_title": { "description": "Matching preview — app bar title" },
+  "@match_preview_title": {
+    "description": "Matching preview — app bar title"
+  },
   "match_preview_no_matches": "لا توجد برامج تطابق إجاباتك بعد. حاول تعديلها.",
-  "@match_preview_no_matches": { "description": "Matching preview — empty-state message when no programs match" },
+  "@match_preview_no_matches": {
+    "description": "Matching preview — empty-state message when no programs match"
+  },
   "match_preview_section_suggestions": "طرق لفتح المزيد من العروض",
-  "@match_preview_section_suggestions": { "description": "Matching preview — suggestions section header" },
+  "@match_preview_section_suggestions": {
+    "description": "Matching preview — suggestions section header"
+  },
   "match_preview_required_documents": "المستندات المطلوبة",
-  "@match_preview_required_documents": { "description": "Match card — required-documents list header" },
+  "@match_preview_required_documents": {
+    "description": "Match card — required-documents list header"
+  },
   "match_preview_rejection_reasons": "سبب عدم الأهلية",
-  "@match_preview_rejection_reasons": { "description": "Match card — rejection-reasons list header for an ineligible program" },
+  "@match_preview_rejection_reasons": {
+    "description": "Match card — rejection-reasons list header for an ineligible program"
+  },
   "match_preview_monthly_installment": "القسط الشهري",
-  "@match_preview_monthly_installment": { "description": "Match card — monthly installment metric label" },
+  "@match_preview_monthly_installment": {
+    "description": "Match card — monthly installment metric label"
+  },
   "match_preview_effective_rate": "الفائدة الفعلية",
-  "@match_preview_effective_rate": { "description": "Match card — effective interest rate metric label" },
+  "@match_preview_effective_rate": {
+    "description": "Match card — effective interest rate metric label"
+  },
   "match_preview_suggestion_unlock": "{count, plural, =0{قد يساعد تعديل هذه الإجابة} =1{يفتح برنامجًا إضافيًا واحدًا} =2{يفتح برنامجين إضافيين} few{يفتح {count} برامج إضافية} many{يفتح {count} برنامجًا إضافيًا} other{يفتح {count} برنامج إضافي}}",
   "@match_preview_suggestion_unlock": {
     "description": "Suggestion tile — how many more programs an answer change unlocks",
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "match_featured_badge": "مميز",
-  "@match_featured_badge": { "description": "Match card — featured-program badge" },
+  "@match_featured_badge": {
+    "description": "Match card — featured-program badge"
+  },
   "match_tier_excellent": "فرصة ممتازة",
-  "@match_tier_excellent": { "description": "Match card — approval tier: excellent" },
+  "@match_tier_excellent": {
+    "description": "Match card — approval tier: excellent"
+  },
   "match_tier_good": "فرصة جيدة",
-  "@match_tier_good": { "description": "Match card — approval tier: good" },
+  "@match_tier_good": {
+    "description": "Match card — approval tier: good"
+  },
   "match_tier_moderate": "فرصة متوسطة",
-  "@match_tier_moderate": { "description": "Match card — approval tier: moderate" },
+  "@match_tier_moderate": {
+    "description": "Match card — approval tier: moderate"
+  },
   "match_tier_low": "فرصة منخفضة",
-  "@match_tier_low": { "description": "Match card — approval tier: low" },
+  "@match_tier_low": {
+    "description": "Match card — approval tier: low"
+  },
   "match_tier_very_low": "فرصة منخفضة جدًا",
-  "@match_tier_very_low": { "description": "Match card — approval tier: very low" },
+  "@match_tier_very_low": {
+    "description": "Match card — approval tier: very low"
+  },
   "match_tier_unknown": "تقدير غير محدد",
-  "@match_tier_unknown": { "description": "Match card — approval tier: unknown/estimated" },
+  "@match_tier_unknown": {
+    "description": "Match card — approval tier: unknown/estimated"
+  },
   "match_action_retry": "إعادة المحاولة",
-  "@match_action_retry": { "description": "Generic retry action" },
+  "@match_action_retry": {
+    "description": "Generic retry action"
+  },
   "match_generic_error": "حدث خطأ ما. حاول مرة أخرى.",
-  "@match_generic_error": { "description": "Generic non-specific failure message" },
+  "@match_generic_error": {
+    "description": "Generic non-specific failure message"
+  },
   "match_network_error": "لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.",
-  "@match_network_error": { "description": "Network-unreachable failure message" },
+  "@match_network_error": {
+    "description": "Network-unreachable failure message"
+  },
   "match_preview_adjust_answers": "تعديل إجاباتي",
-  "@match_preview_adjust_answers": { "description": "Empty-result action — go back to edit answers" },
+  "@match_preview_adjust_answers": {
+    "description": "Empty-result action — go back to edit answers"
+  },
   "questionnaire_form_submit_hint": "أجب عن جميع الأسئلة المطلوبة لعرض العروض.",
-  "@questionnaire_form_submit_hint": { "description": "Hint shown when submit is disabled" },
+  "@questionnaire_form_submit_hint": {
+    "description": "Hint shown when submit is disabled"
+  },
   "match_amount_egp": "{value} ج.م",
-  "@match_amount_egp": { "description": "Money amount with EGP currency suffix", "placeholders": { "value": { "type": "String" } } },
+  "@match_amount_egp": {
+    "description": "Money amount with EGP currency suffix",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "match_rate_percent": "{value}٪",
-  "@match_rate_percent": { "description": "Percentage value", "placeholders": { "value": { "type": "String" } } },
-
+  "@match_rate_percent": {
+    "description": "Percentage value",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
   "common_coming_soon": "قريبًا",
-
   "error_invalid_credentials": "رقم الهاتف أو كلمة المرور غير صحيحة.",
   "error_network": "لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.",
   "error_generic": "حدث خطأ ما. حاول مرة أخرى.",
   "error_rate_limited": "محاولات كثيرة. انتظر قليلاً وحاول مجددًا.",
-
   "onboarding_slide1_title": "اكتشف عروض قروض مصمّمة لك.",
   "onboarding_slide1_body": "نبحث في عدة بنوك رائدة لإيجاد أفضل الأسعار والشروط المناسبة لملفك تحديدًا.",
   "onboarding_slide2_title": "قارن العروض في ثوانٍ.",
@@ -274,7 +509,6 @@
   "onboarding_google": "Google",
   "onboarding_apple": "Apple",
   "onboarding_lang_toggle": "English",
-
   "login_title": "سجّل الدخول إلى حسابك",
   "login_subtitle": "سجّل الدخول لاكتشاف أفضل عروض القروض",
   "login_identifier_label": "البريد الإلكتروني",
@@ -289,7 +523,6 @@
   "login_no_account": "ليس لديك حساب؟",
   "login_create_account": "إنشاء حساب",
   "login_terms": "بالتسجيل، أنت توافق على شروط الخدمة",
-
   "signup_title": "أنشئ حسابك",
   "signup_subtitle": "سجّل لاكتشاف أفضل عروض القروض",
   "signup_photo_upload": "رفع",
@@ -320,7 +553,6 @@
   "signup_cta": "إنشاء الحساب",
   "signup_have_account": "لديك حساب بالفعل؟",
   "signup_sign_in": "تسجيل الدخول",
-
   "social_phone_title": "أضف رقم هاتفك",
   "social_phone_subtitle": "نحتاج رقم هاتفك لتأمين حسابك. سنرسل لك رمز تحقق.",
   "social_phone_cta": "إرسال رمز التحقق",
@@ -335,7 +567,6 @@
   "otp_didnt_receive": "لم يصلك الرمز؟",
   "otp_wrong_number": "رقم خاطئ؟",
   "otp_change_phone": "تغيير الرقم",
-
   "home_title": "ما نوع القرض الذي تبحث عنه؟",
   "home_subtitle": "مستشار القروض جاهز لمساعدتك",
   "home_loan_types": "أنواع القروض",
@@ -361,7 +592,9 @@
   "saved_offers_remove": "إزالة",
   "saved_offers_remove_failed": "تعذّر إزالة العرض. حاول مرة أخرى.",
   "error_saved_offer_not_found": "هذا العرض ليس ضمن عروضك المحفوظة.",
-  "@error_saved_offer_not_found": { "description": "Backend SAVED_OFFER_NOT_FOUND error code" },
+  "@error_saved_offer_not_found": {
+    "description": "Backend SAVED_OFFER_NOT_FOUND error code"
+  },
   "previous_applications_title": "الطلبات",
   "previous_applications_empty_title": "لا توجد طلبات بعد",
   "previous_applications_empty_body": "تقدم بطلب لعرض وسيظهر هنا.",
@@ -380,28 +613,23 @@
   "home_apr_mortgage": "من ٩٫٥٪ سنويًا",
   "home_apr_car": "من ١٠٫٢٪ سنويًا",
   "home_apr_business": "من ١٢٪ سنويًا",
-
   "q_common_yes": "نعم",
   "q_common_no": "لا",
   "q_common_currency_egp": "ج.م",
   "q_common_save": "حفظ",
   "q_common_cancel": "إلغاء",
   "q_common_search": "بحث",
-
   "q_mortgage_title": "طلب تمويل عقاري",
   "q_mortgage_subtitle": "سنطابقك مع البنوك المتخصصة في احتياجاتك",
   "q_mortgage_next": "التالي",
   "q_mortgage_finish": "إنهاء",
   "q_mortgage_submitted": "تم حفظ إجاباتك",
-
   "q_mortgage_step1_title": "بيانات العقار والتمويل",
   "q_mortgage_step2_title": "الوظيفة والدخل",
   "q_mortgage_step3_title": "السجل الائتماني",
   "q_mortgage_step4_title": "التفضيلات",
-
   "q_mortgage_select_hint": "اختر",
   "q_mortgage_years": "{years} سنة",
-
   "q_mortgage_q_property_type": "ما نوع العقار الذي ترغب في تمويله؟",
   "q_mortgage_hint_property_type": "اختر نوع العقار",
   "q_opt_property_apartment": "شقة",
@@ -410,20 +638,16 @@
   "q_opt_property_commercial": "محل تجاري",
   "q_opt_property_office": "مكتب إداري",
   "q_opt_property_other": "أخرى",
-
   "q_mortgage_q_in_compound": "هل يقع العقار داخل كمبوند سكني؟",
-
   "q_mortgage_q_registration_status": "ما حالة تسجيل العقار؟",
   "q_opt_reg_registered": "مسجل رسميًا",
   "q_opt_reg_eligible": "قابل للتسجيل",
   "q_opt_reg_not_registered": "غير مسجل",
   "q_opt_reg_unsure": "غير متأكد",
-
   "q_mortgage_q_address": "ما هو عنوان العقار؟",
   "q_mortgage_hint_governorate": "اختر المحافظة",
   "q_mortgage_address_label": "العنوان",
   "q_mortgage_address_hint": "الشارع، المبنى، المنطقة",
-
   "q_mortgage_q_property_value": "ما هي القيمة التقريبية للعقار؟",
   "q_mortgage_q_down_payment": "كم نسبة المقدم المتوفر لديك حاليًا؟ (٪)",
   "q_mortgage_hint_down_payment": "المقدم",
@@ -431,17 +655,14 @@
   "q_opt_dp_10_20": "١٠٪ – ٢٠٪",
   "q_opt_dp_20_30": "٢٠٪ – ٣٠٪",
   "q_opt_dp_over30": "أكثر من ٣٠٪",
-
   "q_mortgage_q_repayment_period": "ما مدة السداد المناسبة لك؟",
   "q_mortgage_repayment_label": "مدة السداد",
-
   "q_mortgage_q_employment": "ما هي حالتك الوظيفية؟",
   "q_opt_emp_government": "موظف حكومي",
   "q_opt_emp_private": "موظف قطاع خاص",
   "q_opt_emp_business_owner": "صاحب عمل",
   "q_opt_emp_freelancer": "عمل حر",
   "q_opt_emp_retired": "متقاعد",
-
   "q_mortgage_q_income": "ما متوسط دخلك الشهري؟",
   "q_mortgage_hint_income": "الدخل الشهري",
   "q_opt_income_b1": "أقل من ٥٠٬٠٠٠ ج.م",
@@ -450,25 +671,20 @@
   "q_opt_income_b4": "٣٠٠٬٠٠٠ – ٦٠٠٬٠٠٠ ج.م",
   "q_opt_income_b5": "٦٠٠٬٠٠٠ – ١٬٠٠٠٬٠٠٠ ج.م",
   "q_opt_income_b6": "أكثر من ١٬٠٠٠٬٠٠٠ ج.م",
-
   "q_mortgage_q_salary_transfer": "هل يتم تحويل راتبك إلى حساب بنكي؟",
   "q_mortgage_q_additional_income": "هل لديك مصادر دخل إضافية؟",
-
   "q_mortgage_q_current_loans": "هل لديك حاليًا أي قروض أو التزامات مالية؟",
   "q_mortgage_q_installments": "ما إجمالي قيمة أقساطك الشهرية؟",
   "q_mortgage_installments_label": "الأقساط الشهرية",
   "q_mortgage_installments_hint": "قيمة القسط الشهري",
   "q_mortgage_q_prior_rejection": "هل سبق ورُفض لك طلب تمويل عقاري؟",
-
   "q_mortgage_q_priority": "ما الأهم بالنسبة لك في التمويل العقاري؟",
   "q_opt_priority_lowest_installment": "أقل قسط شهري",
   "q_opt_priority_longest_period": "أطول مدة سداد",
   "q_opt_priority_lowest_down_payment": "أقل مقدم",
   "q_opt_priority_fastest_approval": "أسرع موافقة",
   "q_opt_priority_lowest_fees": "أقل مصاريف إدارية",
-
   "q_mortgage_q_assistance": "هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟",
-
   "q_business_title": "طلب تمويل تجاري",
   "q_business_subtitle": "سنطابقك مع البنوك المتخصصة في احتياجاتك",
   "q_business_next": "التالي",
@@ -476,12 +692,10 @@
   "q_business_submitted": "تم حفظ إجاباتك",
   "q_business_select_hint": "اختر",
   "q_business_years": "{years} سنة",
-
   "q_business_step1_title": "بيانات النشاط والتمويل",
   "q_business_step2_title": "المعلومات المالية",
   "q_business_step3_title": "الالتزامات والوضع الائتماني",
   "q_business_step4_title": "التفضيلات والدعم",
-
   "q_business_q_activity": "ما نوع النشاط أو المشروع الذي تديره؟",
   "q_business_hint_activity": "اختر نوع النشاط",
   "q_opt_biz_activity_trade": "تجارة",
@@ -490,13 +704,10 @@
   "q_opt_biz_activity_manufacturing": "تصنيع",
   "q_opt_biz_activity_technology": "تكنولوجيا",
   "q_opt_biz_activity_other": "أخرى",
-
   "q_business_q_business_age": "منذ متى يعمل النشاط؟",
   "q_business_business_age_hint": "عدد السنوات",
-
   "q_business_q_financing_amount": "ما قيمة التمويل التقريبية المطلوبة؟",
   "q_business_financing_amount_hint": "قيمة التمويل المطلوبة",
-
   "q_business_q_purpose": "ما الغرض الأساسي من التمويل؟",
   "q_business_hint_purpose": "اختر الغرض",
   "q_opt_biz_purpose_expansion": "توسعة",
@@ -505,21 +716,17 @@
   "q_opt_biz_purpose_new_branch": "افتتاح فرع جديد",
   "q_opt_biz_purpose_settle_obligations": "سداد التزامات",
   "q_opt_biz_purpose_other": "أخرى",
-
   "q_business_repayment_label": "مدة السداد",
-
   "q_business_q_revenue": "ما متوسط الإيراد الشهري للنشاط؟",
   "q_business_q_bank_account": "هل لديك حساب بنكي للنشاط؟",
   "q_business_q_registered": "هل النشاط مسجل رسميًا؟",
   "q_opt_biz_registration_in_progress": "التسجيل قيد التنفيذ",
   "q_business_q_tax": "هل لديك سجل ضريبي أو سجل تجاري؟",
-
   "q_business_q_current_facilities": "هل لدى النشاط حاليًا أي قروض أو تسهيلات تمويلية؟",
   "q_business_q_installments": "ما إجمالي قيمة الالتزامات الشهرية الحالية؟",
   "q_business_installments_label": "الالتزامات الشهرية",
   "q_business_installments_hint": "قيمة القسط الشهري",
   "q_business_q_prior_rejection": "هل سبق ورُفض للنشاط طلب تمويل؟",
-
   "q_business_q_priority": "ما الأهم بالنسبة لك في تمويل الأعمال؟",
   "q_opt_biz_priority_fast_approval": "أسرع موافقة",
   "q_opt_biz_priority_flexible_repayment": "سداد مرن",
@@ -527,64 +734,50 @@
   "q_opt_biz_priority_lowest_interest": "أقل سعر فائدة",
   "q_opt_biz_priority_least_paperwork": "أقل مستندات مطلوبة",
   "q_business_q_consultation": "هل ترغب في استشارة خبير تمويل الأعمال؟",
-
   "q_car_subtitle": "سنطابقك مع البنوك المتخصصة في احتياجاتك",
   "q_car_next": "التالي",
   "q_car_finish": "إنهاء",
   "q_car_submitted": "تم حفظ إجاباتك",
   "q_car_select_hint": "اختر",
   "q_car_years": "{years} سنة",
-
   "q_car_step1_title": "معلومات السيارة والتمويل",
   "q_car_step2_title": "العمل والدخل",
   "q_car_step3_title": "الحالة المالية",
   "q_car_step4_title": "التفضيلات",
-
   "q_car_q_condition": "هل السيارة جديدة أم مستعملة؟",
   "q_opt_car_cond_new": "جديدة",
   "q_opt_car_cond_used": "مستعملة",
-
   "q_car_q_model_year": "ما سنة موديل السيارة؟",
   "q_opt_car_year_current": "موديل السنة الحالية",
   "q_opt_car_year_last3": "خلال آخر 3 سنوات",
   "q_opt_car_year_3_5": "من 3 إلى 5 سنوات",
   "q_opt_car_year_over5": "أكثر من 5 سنوات",
-
   "q_car_q_price": "ما السعر التقريبي للسيارة؟",
-
   "q_car_q_down_payment": "ما حجم الدفعة المقدمة المتاحة لديك؟",
   "q_opt_car_dp_none": "بدون دفعة مقدمة",
   "q_opt_car_dp_under20": "أقل من 20%",
   "q_opt_car_dp_20_40": "20% – 40%",
   "q_opt_car_dp_over40": "أكثر من 40%",
-
   "q_car_repayment_label": "مدة السداد",
-
   "q_car_q_employment": "ما هي حالتك الوظيفية؟",
-
   "q_car_q_income": "ما متوسط دخلك الشهري؟",
   "q_opt_car_income_b1": "أقل من 10,000 جنيه",
   "q_opt_car_income_b2": "10,000 – 25,000 جنيه",
   "q_opt_car_income_b3": "25,000 – 50,000 جنيه",
   "q_opt_car_income_b4": "أكثر من 50,000 جنيه",
-
   "q_car_q_salary_transfer": "هل يتم تحويل راتبك إلى حساب بنكي؟",
-
   "q_car_q_employer_approved": "هل جهة عملك معتمدة لدى البنوك؟",
   "q_opt_car_emp_yes": "نعم",
   "q_opt_car_emp_no": "لا",
   "q_opt_car_emp_unsure": "غير متأكد",
-
   "q_car_q_current_loans": "هل لديك التزامات أو قروض حالية؟",
   "q_car_installments_label": "القسط الشهري",
   "q_car_installments_hint": "قيمة القسط الشهري",
   "q_car_q_credit_card": "هل لديك بطاقات ائتمان نشطة؟",
-
   "q_car_q_priority": "أهم أولوية عند اختيار تمويل السيارة؟",
   "q_opt_priority_lowest_interest": "أقل سعر فائدة",
   "q_opt_priority_no_guarantor": "تمويل بدون ضامن",
   "q_car_q_insurance": "هل ترغب في عروض تأمين السيارة؟",
-
   "q_personal_subtitle": "سنطابقك مع البنوك المتخصصة في احتياجاتك",
   "q_personal_next": "التالي",
   "q_personal_finish": "إنهاء",
@@ -599,19 +792,15 @@
   "q_dyn_retry": "إعادة المحاولة",
   "q_dyn_empty": "لا توجد أسئلة متاحة حالياً.",
   "q_personal_years": "{years} سنة",
-
   "q_personal_step1_title": "بيانات التمويل",
   "q_personal_step2_title": "العمل والدخل",
   "q_personal_step3_title": "الالتزامات البنكية",
   "q_personal_step4_title": "التفضيلات والمؤهلات",
-
   "q_personal_q_amount": "ما المبلغ التقريبي الذي تحتاجه؟",
   "q_personal_amount_label": "قيمة القرض",
   "q_personal_amount_hint": "المبلغ التقريبي الذي تحتاجه",
-
   "q_personal_q_repayment": "ما مدة السداد المناسبة لك؟",
   "q_personal_repayment_label": "مدة السداد",
-
   "q_personal_q_purpose": "ما الغرض من القرض؟",
   "q_personal_hint_purpose": "الغرض من القرض",
   "q_opt_personal_purpose_home_finishing": "تشطيب / تجديد المنزل",
@@ -621,30 +810,24 @@
   "q_opt_personal_purpose_debt_consolidation": "سداد ديون",
   "q_opt_personal_purpose_personal_project": "مشروع شخصي",
   "q_opt_personal_purpose_other": "أخرى",
-
   "q_personal_q_employment": "ما هي حالتك الوظيفية؟",
-
   "q_personal_q_job_tenure": "منذ متى وأنت في وظيفتك الحالية؟",
   "q_personal_hint_job_tenure": "الوظيفة الحالية",
   "q_opt_personal_tenure_under6m": "أقل من 6 أشهر",
   "q_opt_personal_tenure_6m_1y": "6 أشهر – سنة",
   "q_opt_personal_tenure_1_3y": "1 – 3 سنوات",
   "q_opt_personal_tenure_over3y": "أكثر من 3 سنوات",
-
   "q_personal_q_income": "ما متوسط دخلك الشهري؟",
   "q_opt_personal_income_b1": "بدءًا من 10,000 جنيه",
   "q_opt_personal_income_b2": "10,000 – 20,000 جنيه",
   "q_opt_personal_income_b3": "20,000 – 50,000 جنيه",
   "q_opt_personal_income_b4": "50,000 – 80,000 جنيه",
   "q_opt_personal_income_b5": "أكثر من 100,000 جنيه",
-
   "q_personal_q_salary_transfer": "هل يتم تحويل راتبك إلى حساب بنكي؟",
-
   "q_personal_q_employer_approved": "هل جهة عملك معتمدة لدى البنوك؟",
   "q_opt_personal_emp_yes": "نعم",
   "q_opt_personal_emp_no": "لا",
   "q_opt_personal_emp_unsure": "غير متأكد",
-
   "q_personal_q_obligations": "هل لديك حاليًا أي قروض أو التزامات مالية؟",
   "q_personal_hint_obligations": "قروض أو التزامات مالية",
   "q_opt_personal_obligation_none": "لا يوجد",
@@ -653,28 +836,22 @@
   "q_opt_personal_obligation_mortgage": "تمويل عقاري",
   "q_opt_personal_obligation_credit_cards": "بطاقات ائتمان",
   "q_opt_personal_obligation_other": "أخرى",
-
   "q_personal_q_installment": "ما إجمالي قيمة قسطك الشهري التقريبي؟",
   "q_personal_installment_label": "القسط الشهري",
   "q_personal_installment_hint": "القسط الشهري",
-
   "q_personal_q_credit_card": "هل لديك بطاقة ائتمان؟",
-
   "q_personal_q_credit_card_usage": "إذا نعم، ما متوسط استخدامك الشهري لبطاقة الائتمان؟",
   "q_opt_personal_cc_usage_b1": "أقل من 10,000 جنيه",
   "q_opt_personal_cc_usage_b2": "10,000 – 30,000 جنيه",
   "q_opt_personal_cc_usage_b3": "30,000 – 50,000 جنيه",
   "q_opt_personal_cc_usage_b4": "أكثر من 50,000 جنيه",
-
   "q_personal_q_priority": "ما العامل الأهم عند اختيار التمويل؟",
   "q_opt_personal_priority_lowest_installment": "أقل قسط شهري",
   "q_opt_personal_priority_lowest_interest": "أقل سعر فائدة",
   "q_opt_personal_priority_minimum_docs": "أقل مستندات مطلوبة",
   "q_opt_personal_priority_flexible_repayment": "سداد مرن",
-
   "q_personal_q_prior_rejection": "هل سبق ورُفض لك طلب تمويل؟",
   "q_personal_q_assistance": "هل تحتاج إلى مساعدة في تجهيز المستندات وإتمام الإجراءات؟",
-
   "profile_title": "الملف الشخصي",
   "profile_section_personal": "المعلومات الشخصية",
   "profile_section_contact": "بيانات التواصل",
@@ -684,7 +861,11 @@
   "profile_password": "كلمة المرور",
   "profile_password_changed": "آخر تغيير منذ {count} أشهر",
   "@profile_password_changed": {
-    "placeholders": { "count": { "type": "int" } }
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   },
   "profile_password_hint": "كلمة مرور جديدة",
   "profile_dob": "تاريخ الميلاد",
@@ -714,7 +895,6 @@
   "profile_save": "حفظ",
   "profile_cancel": "إلغاء",
   "profile_search_hint": "بحث",
-
   "results_title": "أفضل العروض المطابقة جاهزة",
   "results_subtitle": "مستشار القروض جاهز",
   "results_empty_title": "لا توجد عروض بعد",
@@ -725,27 +905,55 @@
   "results_loan_type": "نوع القرض",
   "results_amount": "المبلغ",
   "results_amount_egp": "{amount} ج.م",
-  "@results_amount_egp": { "placeholders": { "amount": { "type": "String" } } },
+  "@results_amount_egp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "results_duration": "مدة القرض",
   "results_months": "{count} شهرًا",
-  "@results_months": { "placeholders": { "count": { "type": "int" } } },
+  "@results_months": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "results_guarantee_approval": "ضمان الموافقة {pct}%",
-  "@results_guarantee_approval": { "placeholders": { "pct": { "type": "int" } } },
+  "@results_guarantee_approval": {
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
   "results_best_match": "أفضل تطابق",
   "results_rate": "الفائدة",
   "results_monthly": "شهريًا",
   "results_total": "الإجمالي",
   "results_view_offer": "عرض العرض",
-
   "offer_type_personal": "شخصي",
   "offer_type_car": "سيارة",
   "offer_type_mortgage": "عقاري",
   "offer_type_business": "أعمال",
-
   "offer_title": "قرض {type}",
-  "@offer_title": { "placeholders": { "type": { "type": "String" } } },
+  "@offer_title": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "offer_approval": "موافقة {pct}%",
-  "@offer_approval": { "placeholders": { "pct": { "type": "int" } } },
+  "@offer_approval": {
+    "placeholders": {
+      "pct": {
+        "type": "int"
+      }
+    }
+  },
   "offer_interest_rate": "سعر الفائدة",
   "offer_fixed_apr": "فائدة ثابتة",
   "offer_monthly": "شهريًا",
@@ -781,7 +989,9 @@
   "apply_docs_cta": "متابعة الطلب",
   "apply_docs_upload_error": "تعذّر رفع الملف. حاول مرة أخرى.",
   "auth_profile_photo_required": "ارفع صورتك الشخصية قبل التقديم على القرض.",
-  "@auth_profile_photo_required": { "description": "Backend PROFILE_PHOTO_REQUIRED error code" },
+  "@auth_profile_photo_required": {
+    "description": "Backend PROFILE_PHOTO_REQUIRED error code"
+  },
   "offer_save_success": "تم حفظ العرض. يمكنك إيجاده في العروض المحفوظة.",
   "offer_save_error": "لم نتمكن من حفظ هذا العرض. حاول مرة أخرى.",
   "offer_saved": "تم الحفظ",
@@ -842,5 +1052,61 @@
   "photo_source_title": "صورة الملف الشخصي",
   "photo_source_camera": "التقاط صورة",
   "photo_source_gallery": "اختيار من المعرض",
-  "profile_photo_upload_failed": "تعذّر رفع الصورة. حاول مرة أخرى."
+  "profile_photo_upload_failed": "تعذّر رفع الصورة. حاول مرة أخرى.",
+  "error_answer_type_mismatch": "هذه الإجابة لا تطابق نوع السؤال.",
+  "@error_answer_type_mismatch": {
+    "description": "Backend ANSWER_TYPE_MISMATCH error code"
+  },
+  "error_answer_out_of_range": "هذا الرقم خارج النطاق المسموح.",
+  "@error_answer_out_of_range": {
+    "description": "Backend ANSWER_OUT_OF_RANGE error code"
+  },
+  "error_answer_too_long": "هذه الإجابة أطول من المسموح.",
+  "@error_answer_too_long": {
+    "description": "Backend ANSWER_TOO_LONG error code"
+  },
+  "error_answer_required": "من فضلك أجب على هذا السؤال.",
+  "@error_answer_required": {
+    "description": "Backend ANSWER_REQUIRED error code"
+  },
+  "error_money_figure_missing": "تنقص قيمة لازمة للتقدير. من فضلك راجع إجاباتك.",
+  "@error_money_figure_missing": {
+    "description": "Backend MONEY_FIGURE_MISSING error code"
+  },
+  "error_calculator_input_invalid": "من فضلك تحقق من المبلغ والمدة والدخل والأقساط الحالية.",
+  "@error_calculator_input_invalid": {
+    "description": "Backend CALCULATOR_INPUT_INVALID error code"
+  },
+  "error_calculator_program_inactive": "هذا البرنامج غير متاح حاليًا.",
+  "@error_calculator_program_inactive": {
+    "description": "Backend CALCULATOR_PROGRAM_INACTIVE error code"
+  },
+  "reason_no_recognised_income": "تعذّر الاعتراف بدخل شهري لهذا البرنامج.",
+  "@reason_no_recognised_income": {
+    "description": "Backend NO_RECOGNISED_INCOME reason code"
+  },
+  "reason_obligations_exceed_allowance": "أقساطك الشهرية الحالية تستهلك الحد المسموح بالكامل.",
+  "@reason_obligations_exceed_allowance": {
+    "description": "Backend OBLIGATIONS_EXCEED_ALLOWANCE reason code"
+  },
+  "reason_below_program_min_amount": "المبلغ الممكن تحمله أقل من الحد الأدنى لهذا البرنامج.",
+  "@reason_below_program_min_amount": {
+    "description": "Backend BELOW_PROGRAM_MIN_AMOUNT reason code"
+  },
+  "reason_age_at_maturity": "لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.",
+  "@reason_age_at_maturity": {
+    "description": "Backend AGE_AT_MATURITY reason code"
+  },
+  "reason_currency_not_offered": "هذا البرنامج لا يوفر العملة المطلوبة.",
+  "@reason_currency_not_offered": {
+    "description": "Backend CURRENCY_NOT_OFFERED reason code"
+  },
+  "reason_program_misconfigured": "لا يمكن تسعير هذا البرنامج حاليًا.",
+  "@reason_program_misconfigured": {
+    "description": "Backend PROGRAM_MISCONFIGURED reason code"
+  },
+  "disclaimer_indicative_estimate": "تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.",
+  "@disclaimer_indicative_estimate": {
+    "description": "Backend INDICATIVE_ESTIMATE_NOT_AN_OFFER disclaimer code"
+  }
 }

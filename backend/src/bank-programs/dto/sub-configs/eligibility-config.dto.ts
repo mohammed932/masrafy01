@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
@@ -8,8 +9,10 @@ import {
   IsString,
   Max,
   Min,
+  ValidateNested,
 } from 'class-validator';
 import { DecimalRange } from '../../../common/decorators/decimal-range.decorator';
+import { DbrBandDto } from '../program-defaults.dto';
 
 /**
  * Spec anchors: FR-005, FR-005c (wealth gates), FR-005c.1 (AND combination),
@@ -48,6 +51,19 @@ export class EligibilityConfigDto {
 
   @DecimalRange({ min: '0', max: '100', precision: 7, scale: 4 })
   dbrCapPercent!: string;
+
+  /**
+   * Feature 010 (FR-016) — optional income-band table that overrides the flat
+   * `dbrCapPercent` when present. Ordered, inclusive upper bounds, final band
+   * open-ended (`upToIncomeEGP: null`). Programs without one keep working
+   * unchanged (FR-020). Structure validated by `validateDbrBands` at the
+   * service layer, which is where the typed error codes live.
+   */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DbrBandDto)
+  dbrBands?: DbrBandDto[];
 
   @IsBoolean()
   skipDbrCheck!: boolean;

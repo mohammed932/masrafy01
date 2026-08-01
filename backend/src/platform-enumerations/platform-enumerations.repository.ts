@@ -33,6 +33,12 @@ export interface EnumerationMember {
   parentKey: string | null;
   /** Multi-category scoping for `program_name` members (e.g. `['personal','car']`); empty otherwise. */
   categories: string[];
+  /**
+   * Feature 010 (FR-001): per-category lending defaults for `program_name` members,
+   * shape `{ "<loanCategory>": <partial program> }`. Empty `{}` for every other type.
+   * PREFILL ONLY — copied into the program on save (FR-009), never read at match time (FR-021b).
+   */
+  defaults: Record<string, unknown>;
   active: boolean;
   deprecated: boolean;
 }
@@ -49,4 +55,11 @@ export abstract class PlatformEnumerationsRepository {
 
   /** Active members of a given type — used to populate tier-key pickers in the admin form. */
   abstract getActiveMembers(type: EnumerationType): Promise<EnumerationMember[]>;
+
+  /**
+   * Single member lookup regardless of active/deprecated state (feature 010).
+   * The prefill service needs one member's `categories` + `defaults` without
+   * pulling the whole type. Returns `null` when the key is unknown.
+   */
+  abstract findMember(type: EnumerationType, key: string): Promise<EnumerationMember | null>;
 }

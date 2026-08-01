@@ -120,6 +120,52 @@ function pushKeys(
   }
 }
 
+// --- FR-014 range sanity (feature 010) ------------------------------------
+
+export interface RangeViolation {
+  /** Dot path of the offending range, e.g. `loanLimits.perCurrency.EGP`, `tenor`, `eligibility`. */
+  field: string;
+  min: string | number | null;
+  max: string | number | null;
+}
+
+interface RangeCheckable {
+  tenor: { minMonths: number; maxMonths: number };
+  loanLimits: { perCurrency: Record<string, { minAmount: string; maxAmount: string }> };
+  eligibility: { ageMin: number; ageMax: number };
+}
+
+/**
+ * FR-014 — a program MUST NOT save with an inverted or empty amount, tenor, or age range.
+ * Returns the FIRST offending range so the client can name one field (`meta.field`).
+ *
+ * "Inverted" is `min > max`. "Empty" is an amount ceiling of zero — a program that can
+ * never lend. Single-point ranges (`min === max`) are legitimate and pass.
+ */
+export function validateRanges(dto: RangeCheckable): RangeViolation | undefined {
+  if (dto.tenor.minMonths > dto.tenor.maxMonths) {
+    return { field: 'tenor', min: dto.tenor.minMonths, max: dto.tenor.maxMonths };
+  }
+  if (dto.eligibility.ageMin > dto.eligibility.ageMax) {
+    return { field: 'eligibility', min: dto.eligibility.ageMin, max: dto.eligibility.ageMax };
+  }
+  for (const [currency, range] of Object.entries(dto.loanLimits.perCurrency ?? {})) {
+    const field = `loanLimits.perCurrency.${currency}`;
+    let min: Prisma.Decimal;
+    let max: Prisma.Decimal;
+    try {
+      min = new Prisma.Decimal(range.minAmount);
+      max = new Prisma.Decimal(range.maxAmount);
+    } catch {
+      return { field, min: range.minAmount ?? null, max: range.maxAmount ?? null };
+    }
+    if (max.lessThanOrEqualTo(0) || min.greaterThan(max)) {
+      return { field, min: range.minAmount, max: range.maxAmount };
+    }
+  }
+  return undefined;
+}
+
 // --- FR-008s derivation arithmetic --------------------------------------
 
 export interface DerivationMismatch {

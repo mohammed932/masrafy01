@@ -7,6 +7,7 @@ import { ERROR_CODES } from '@/common/errors/error-codes';
 import { ScoringRepository } from './scoring.repository';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
+import { isScoreableType } from '@/questionnaire/validation/question-type-rules';
 import type { ScoringWeightSet } from '@prisma/client';
 import type { SaveWeightsDto } from './dto/scoring.dto';
 import { normalizeWeights } from '@/matching/scoring/approval-probability.scorer';
@@ -61,12 +62,18 @@ export class ScoringService {
    */
   async listWeightableOptions(): Promise<WeightableQuestionView[]> {
     const questions = await this.questionnaire.questionsWithOptions();
-    return questions.map((q) => ({
-      code: q.code,
-      labelAr: q.questionAr,
-      labelEn: q.questionEn,
-      options: q.options.map((o) => ({ code: o.code, labelAr: o.labelAr, labelEn: o.labelEn })),
-    }));
+    // Feature 010 / R9: SINGLE_SELECT only. The formula is
+    // Σ(questionWeight ÷ 100 × pickedAnswerScore ÷ 100); with two picks there is
+    // no single "picked answer score", and number/text have no options to score.
+    // Any aggregate would be a NEW formula, which A33 makes an amendment.
+    return questions
+      .filter((q) => isScoreableType(q.type))
+      .map((q) => ({
+        code: q.code,
+        labelAr: q.questionAr,
+        labelEn: q.questionEn,
+        options: q.options.map((o) => ({ code: o.code, labelAr: o.labelAr, labelEn: o.labelEn })),
+      }));
   }
 
   // ---- Weight sets (direct save, v5.0.0) ----------------------------------
@@ -144,16 +151,29 @@ export class ScoringService {
   private async assertKnownStructure(weights: SaveWeightsDto['weights']): Promise<void> {
     const questions = await this.questionnaire.questionsWithOptions();
     const valid = new Map(questions.map((q) => [q.code, new Set(q.options.map((o) => o.code))]));
+    const typeByCode = new Map(questions.map((q) => [q.code, q.type]));
+    // Feature 010 / R9: a weight set may only name SINGLE_SELECT questions.
+    const assertScoreable = (questionCode: string): void => {
+      const type = typeByCode.get(questionCode);
+      if (type !== undefined && !isScoreableType(type)) {
+        throw new DomainException(ERROR_CODES.QUESTION_TYPE_NOT_SCOREABLE, {
+          questionCode,
+          type,
+        });
+      }
+    };
     for (const questionCode of Object.keys(weights.questionWeights)) {
       if (!valid.has(questionCode)) {
         throw new DomainException(ERROR_CODES.WEIGHTS_UNKNOWN_OPTION, { questionCode });
       }
+      assertScoreable(questionCode);
     }
     for (const [questionCode, byOption] of Object.entries(weights.answerScores)) {
       const options = valid.get(questionCode);
       if (!options) {
         throw new DomainException(ERROR_CODES.WEIGHTS_UNKNOWN_OPTION, { questionCode });
       }
+      assertScoreable(questionCode);
       for (const optionCode of Object.keys(byOption)) {
         if (!options.has(optionCode)) {
           throw new DomainException(ERROR_CODES.WEIGHTS_UNKNOWN_OPTION, { questionCode, optionCode });

@@ -17,6 +17,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
+import { seedBanks } from './seed-banks';
 import { seedCustomers } from './seed-customers';
 import { seedScoringWeights } from './seed-scoring-weights';
 
@@ -316,6 +317,14 @@ async function seedBankPrograms(superAdminId: string): Promise<void> {
     log(`bank programs: ${existing} already seeded — skipping`);
     return;
   }
+  // Resolve Bank rows once so each program is linked at creation rather than
+  // relying on a later backfill (seedBanks() runs before this).
+  const bankIdByName = new Map(
+    (await prisma.bank.findMany({ select: { id: true, nameEnglish: true } })).map((b) => [
+      b.nameEnglish,
+      b.id,
+    ]),
+  );
   let created = 0;
   for (const p of DEMO_PROGRAMS) {
     const dupe = await prisma.bankProgram.findUnique({ where: { programCode: p.programCode } });
@@ -324,6 +333,7 @@ async function seedBankPrograms(superAdminId: string): Promise<void> {
       data: {
         programCode: p.programCode,
         bankName: p.bankName,
+        bankId: bankIdByName.get(p.bankName) ?? null,
         friendlyName: p.friendlyName,
         friendlyNameAr: p.friendlyNameAr,
         programType: p.programType,
@@ -495,6 +505,9 @@ async function main(): Promise<void> {
 
   const superAdminId = await ensureSuperAdminId();
 
+  // Banks BEFORE programs: a program's `bankId` FK needs the Bank row to exist,
+  // otherwise the programs land orphaned and the admin banks list reads empty.
+  await seedBanks(superAdminId);
   await seedBankPrograms(superAdminId);
   await seedScoringWeights(prisma, superAdminId);
 

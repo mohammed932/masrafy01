@@ -100,8 +100,6 @@ export interface PricingConfig {
   rateByCustomerProgramTier?: RateBandMap;
   rateByAssetValueBand?: RateBandMap;
   rateByLoanAmountBand?: RateBandMap;
-  buyoutRateDeltaPercent?: string;
-  buyoutRateMinFloorPercent?: string;
 }
 
 export interface LoanLimitsConfig {
@@ -154,6 +152,29 @@ export interface EligibilityConfig {
   companyType?: string[];
   minimumCreditCardHoldingMonths?: number;
   competitorCardMustBeUnsecured?: boolean;
+  /** Feature 010 — optional income-band table resolved against RECOGNISED income. */
+  dbrBands?: DbrBand[];
+}
+
+/**
+ * Feature 010 — banded debt-burden ratio.
+ *
+ * Sits beside the scalar `dbrCapPercent`, never replacing it: a program with no
+ * `dbrBands` keeps behaving exactly as before (FR-020). Upper bounds are
+ * INCLUSIVE and the final band carries `upToIncomeEGP: null` (open-ended).
+ * Attachable to `Bank.policyDefaults` and `PlatformEnumeration.defaults[category]`
+ * as prefill data, but only `bank_program.eligibility` is read at match time.
+ */
+export interface DbrBand {
+  /** Inclusive upper bound of the band; `null` marks the open-ended final band. */
+  upToIncomeEGP: string | null;
+  /** Decimal string, 1…100. */
+  capPercent: string;
+}
+
+export interface DbrSetting {
+  dbrCapPercent: string;
+  dbrBands?: DbrBand[];
 }
 
 export interface PerformanceCriteriaConfig {
@@ -226,6 +247,8 @@ export interface BankProgramSnapshot {
   productCategory: string;
   currencies: string[];
   active: boolean;
+  /** Islamic-finance program. Carried onto every offer so the badge cannot go stale. */
+  isShariaCompliant: boolean;
   version: number;
   requiredDocuments: string[];
   createdAt: Date;
@@ -270,6 +293,9 @@ export interface Offer {
   /** Mirror of the snapshot's `bankIsFeatured` — surfaced on the offer DTO so
    *  the mobile app can render a "FEATURED" chip without a second lookup. */
   bankIsFeatured: boolean;
+  /** Mirror of the snapshot's `isShariaCompliant`, frozen at match time so the
+   *  Islamic-finance chip on an old offer reflects the program as it then was. */
+  isShariaCompliant: boolean;
   programFriendlyName: string;
   programCode: string;
   programVersion: number;
@@ -317,6 +343,88 @@ export interface NoMatchDetail {
   programCode: string;
   failedChecks: string[];
 }
+
+// ---------------------------------------------------------------------------
+// Feature 010 — Quote (one program + one applicant → the figures a customer sees)
+// ---------------------------------------------------------------------------
+
+/**
+ * Why the offered amount / tenor is what it is (FR-023). `requested_amount`
+ * means nothing reduced the ask.
+ */
+export const BINDING_CONSTRAINTS = [
+  'requested_amount',
+  'program_max',
+  'dbr_affordability',
+  'tenor_max',
+  'age_at_maturity',
+] as const;
+
+export type BindingConstraint = (typeof BINDING_CONSTRAINTS)[number];
+
+/**
+ * Why a listed program carries no figures (FR-024). Returned inside a 200
+ * response — the program is still listed and still scored. Mirrors the reason
+ * codes in `common/errors/error-codes.ts`.
+ */
+export const FIGURES_UNAVAILABLE_REASONS = [
+  'NO_RECOGNISED_INCOME',
+  'OBLIGATIONS_EXCEED_ALLOWANCE',
+  'BELOW_PROGRAM_MIN_AMOUNT',
+  'AGE_AT_MATURITY',
+  'CURRENCY_NOT_OFFERED',
+  'PROGRAM_MISCONFIGURED',
+] as const;
+
+export type FiguresUnavailableReason = (typeof FIGURES_UNAVAILABLE_REASONS)[number];
+
+/**
+ * Pure return value of `quoteProgram()`. Never persisted as-is: the apply path
+ * copies it onto an immutable `BankOffer` (Principle I), preview and the
+ * calculator serialise it as decimal strings at the API boundary.
+ */
+export interface Quote {
+  /** After program max + DBR affordability. */
+  offeredAmountEGP: Decimal;
+  /** Offered amount − financed fees: what the customer actually receives. */
+  cashToCustomerEGP: Decimal;
+  /** Admin + insurance + stamp duty (+ collateral). */
+  totalFeesEGP: Decimal;
+  /** Computed on offered amount PLUS financed fees (FR-022a). */
+  monthlyInstallmentEGP: Decimal;
+  /** After the program tenor cap and age-at-maturity shortening. */
+  effectiveTenorMonths: number;
+  /** After fee / insurance waiver penalties. */
+  effectiveRatePercent: Decimal;
+  /** installment × effectiveTenorMonths. */
+  totalPayableEGP: Decimal;
+  /** totalPayable − cashToCustomer. */
+  totalCostOfCreditEGP: Decimal;
+  /** (installment + existing obligations) ÷ recognised income × 100. */
+  dbrPercent: Decimal;
+  /** Resolved cap — scalar or the band that matched. */
+  dbrCapPercent: Decimal;
+  /** Which band resolved; `null` when the program uses the scalar cap. */
+  dbrBandIndex: number | null;
+  bindingConstraint: BindingConstraint;
+  /** Declared income after the program's income assumption. */
+  recognisedIncomeEGP: Decimal;
+  /** Itemised, always — fees are never folded in silently (FR-031). */
+  feesBreakdown: FeesBreakdown;
+  currency: string;
+  cascadeTrace: CascadeTrace;
+}
+
+/** A program that could not be quoted, with the reason. */
+export interface QuoteUnavailable {
+  reason: FiguresUnavailableReason;
+  /** Populated when `reason` is `PROGRAM_MISCONFIGURED`: the missing setting paths. */
+  missing?: string[];
+}
+
+export type QuoteOutcome =
+  | { ok: true; quote: Quote }
+  | { ok: false; unavailable: QuoteUnavailable };
 
 export const APPLICATION_PRIORITIES = [
   'lowest_installment',

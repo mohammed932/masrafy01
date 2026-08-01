@@ -463,9 +463,13 @@ textarea.ant-input {
   border: 1px solid var(--border-default, var(--color-border-default)) !important;
   border-radius: 10px !important;
   min-height: 44px !important;
-  height: 44px !important;
   padding: 0 14px !important;
   transition: border-color 200ms ease, box-shadow 200ms ease !important;
+}
+// Locked 44px belongs to SINGLE mode only. Multi/tags is content-sized (below)
+// so wrapped chip rows grow the control instead of spilling past its border.
+.ant-select-single:not(.ant-select-customize-input) .ant-select-selector {
+  height: 44px !important;
 }
 .ant-select-single .ant-select-selector .ant-select-selection-item,
 .ant-select-single .ant-select-selector .ant-select-selection-placeholder {
@@ -481,10 +485,6 @@ textarea.ant-input {
 .ant-select-single:not(.ant-select-customize-input) .ant-select-selector .ant-select-selection-search {
   inset-inline-start: 14px !important;
   inset-inline-end: 14px !important;
-}
-.ant-select-multiple .ant-select-selector {
-  padding: 4px 8px !important;
-  min-height: 44px !important;
 }
 .ant-select:not(.ant-select-disabled):hover .ant-select-selector {
   border-color: var(--primary, var(--color-brand-primary)) !important;
@@ -605,9 +605,33 @@ textarea.ant-input {
   opacity: 1 !important;
 }
 .ant-select-multiple .ant-select-selection-item-remove svg { font-size: 11px !important; }
-.ant-select-multiple .ant-select-selector {
-  padding: 4px 8px !important;
+
+// Multi / tags control is CONTENT-SIZED: chips wrap onto new rows and the
+// control grows with them. 5px block padding + the chip's own 2px margins put
+// a single row at exactly 44px, so it matches single-mode inputs on the grid.
+// Specificity (0,3,0) to match the shared `.ant-select:not(...)` base rule.
+.ant-select-multiple:not(.ant-select-customize-input) .ant-select-selector {
+  height: auto !important;
+  min-block-size: 44px !important;
+  padding-block: 5px !important;
+  padding-inline: 8px !important;
   align-items: center !important;
+}
+// Arrow / clear icon sits inset-inline-end — keep chips from running under it.
+.ant-select-multiple.ant-select-show-arrow:not(.ant-select-customize-input) .ant-select-selector,
+.ant-select-multiple.ant-select-allow-clear:not(.ant-select-customize-input) .ant-select-selector {
+  padding-inline-end: 28px !important;
+}
+// Search caret row matches chip height so an empty caret never adds a tall row.
+.ant-select-multiple .ant-select-selection-search-input,
+.ant-select-multiple .ant-select-selection-search-mirror {
+  height: 28px !important;
+  line-height: 28px !important;
+}
+// Placeholder is absolutely positioned (top 50% / translateY) — align its inline
+// inset to the selector padding so it doesn't shift when the first chip lands.
+.ant-select-multiple .ant-select-selection-placeholder {
+  inset-inline: 10px !important;
 }
 
 // Dropdown panel sizing — show 5-6 options without clipping

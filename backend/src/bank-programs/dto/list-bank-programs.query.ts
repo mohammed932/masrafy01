@@ -27,4 +27,16 @@ export class ListBankProgramsQuery {
 
   @IsOptional() @IsString() productCategory?: string;
   @IsOptional() @IsString() employmentType?: string;
+
+  /** Filter to Islamic-finance programs (or explicitly to conventional ones). */
+  @IsOptional()
+  @Transform(({ value }) =>
+    value === 'true' || value === true
+      ? true
+      : value === 'false' || value === false
+        ? false
+        : value,
+  )
+  @IsBoolean()
+  isShariaCompliant?: boolean;
 }

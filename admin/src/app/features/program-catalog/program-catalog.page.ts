@@ -29,6 +29,7 @@ import {
   AppstoreOutline,
   CheckCircleOutline,
   PoweroffOutline,
+  SlidersOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -41,6 +42,10 @@ import {
   EnumerationEditDialogComponent,
   type EnumerationEditDialogData,
 } from '../lookups/components/enumeration-edit.dialog';
+import {
+  CatalogDefaultsDialogComponent,
+  type CatalogDefaultsDialogData,
+} from './components/catalog-defaults.dialog';
 
 /** One category "lane" on the board. `category === null` is the fallback bucket. */
 interface CatalogLane {
@@ -97,6 +102,7 @@ const ENUM_TYPE = 'program_name';
       AppstoreOutline,
       CheckCircleOutline,
       PoweroffOutline,
+      SlidersOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -203,6 +209,17 @@ const ENUM_TYPE = 'program_name';
                             [attr.aria-label]="editLabel"
                           >
                             <span nz-icon nzType="edit" nzTheme="outline"></span>
+                          </button>
+                          <button
+                            class="icon-action"
+                            type="button"
+                            [class.has-defaults]="hasDefaults(r)"
+                            (click)="editDefaults(r)"
+                            nz-tooltip
+                            [nzTooltipTitle]="hasDefaults(r) ? defaultsSetLabel : defaultsLabel"
+                            [attr.aria-label]="hasDefaults(r) ? defaultsSetLabel : defaultsLabel"
+                          >
+                            <span nz-icon nzType="sliders" nzTheme="outline"></span>
                           </button>
                           <button
                             class="icon-action"
@@ -544,6 +561,12 @@ const ENUM_TYPE = 'program_name';
       .icon-action.danger:hover {
         color: var(--color-error);
       }
+      /* Tinted only when this program actually contributes prefill, so the board
+         shows at a glance which archetypes are configured. */
+      .icon-action.has-defaults {
+        color: var(--color-info);
+        background: var(--color-info-bg);
+      }
       .icon-action:active {
         background: var(--color-tonal-accent-bg);
       }
@@ -614,6 +637,8 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly activateLabel = $localize`:@@program_catalog.activate:Activate`;
   protected readonly deactivateLabel = $localize`:@@program_catalog.deactivate:Deactivate`;
   protected readonly deprecateLabel = $localize`:@@program_catalog.deprecate:Deprecate`;
+  protected readonly defaultsLabel = $localize`:@@program_catalog.defaults:Set default lending values`;
+  protected readonly defaultsSetLabel = $localize`:@@program_catalog.defaults.set:Edit default lending values (set)`;
   private readonly otherLabel = $localize`:@@program_catalog.other:Other`;
 
   /** Category lanes over the (search-filtered) rows; a program tagged with several
@@ -703,6 +728,38 @@ export class ProgramCatalogPage implements OnInit {
 
   edit(row: EnumerationRow): void {
     this.openDialog({ mode: 'edit', type: ENUM_TYPE, row });
+  }
+
+  /** True once this predefined program contributes prefill for at least one category. */
+  hasDefaults(row: EnumerationRow): boolean {
+    return Object.keys(row.defaults ?? {}).length > 0;
+  }
+
+  /**
+   * Per-category default lending values (FR-001). Prefill only — saved bank
+   * programs are never touched by an edit here (FR-007 / SC-008).
+   */
+  editDefaults(row: EnumerationRow): void {
+    const categories = row.categories?.length ? row.categories : [...LOAN_CATEGORIES];
+    const ref = this.modal.create<
+      CatalogDefaultsDialogComponent,
+      CatalogDefaultsDialogData,
+      boolean
+    >({
+      nzContent: CatalogDefaultsDialogComponent,
+      nzData: {
+        key: row.key,
+        labelEn: row.labelEn,
+        labelAr: row.labelAr,
+        categories,
+      },
+      nzWidth: 'min(760px, calc(100vw - 48px))',
+      nzFooter: null,
+      nzMaskClosable: false,
+    });
+    ref.afterClose.subscribe((saved: boolean | undefined) => {
+      if (saved) void this.reload({ silent: true });
+    });
   }
 
   async toggleActive(row: EnumerationRow, next: boolean): Promise<void> {

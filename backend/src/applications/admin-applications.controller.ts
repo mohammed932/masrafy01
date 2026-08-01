@@ -172,6 +172,7 @@ export class AdminApplicationsController {
         programCode: o.programCode,
         programVersion: o.programVersion,
         bankName: o.bankName,
+        isShariaCompliant: o.isShariaCompliant,
         programFriendlyName: o.programFriendlyName,
         currency: o.currency,
         effectiveRatePercent: o.effectiveRatePercent.toFixed(4),

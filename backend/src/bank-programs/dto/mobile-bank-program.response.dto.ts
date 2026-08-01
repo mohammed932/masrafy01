@@ -8,6 +8,8 @@ export class MobileBankProgramResponseDto {
   friendlyName!: string;
   bankName!: string;
   productCategory!: string;
+  /** Islamic-finance program — drives the Sharia chip on the catalog card. */
+  isShariaCompliant!: boolean;
   currencies!: string[];
   displayRateRange!: { minPercent: string; maxPercent: string };
   displayMinEGP!: string;

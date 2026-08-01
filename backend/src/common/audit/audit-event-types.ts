@@ -113,4 +113,9 @@ export enum AuditEventType {
   // Feature 00X — questionnaire + scoring weights (v5.0.0: direct save)
   QUESTIONNAIRE_PUBLISHED = 'QUESTIONNAIRE_PUBLISHED',
   SCORING_WEIGHTS_SAVED = 'SCORING_WEIGHTS_SAVED',
+
+  // Feature 010 — prefill layers. Both are PREFILL ONLY: editing either leaves
+  // every already-saved bank program untouched (FR-007, FR-009, SC-008).
+  BANK_POLICY_UPDATED = 'BANK_POLICY_UPDATED',
+  PROGRAM_CATALOG_DEFAULTS_UPDATED = 'PROGRAM_CATALOG_DEFAULTS_UPDATED',
 }

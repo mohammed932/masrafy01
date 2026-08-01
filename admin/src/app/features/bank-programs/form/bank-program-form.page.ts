@@ -43,7 +43,7 @@ import {
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { map } from 'rxjs';
+import { map, merge } from 'rxjs';
 import { MoneyInputDirective } from '../../../core/directives/money-input.directive';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
@@ -60,14 +60,11 @@ import type {
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
+import type { DbrBand, PrefillOrigin } from '../bank-programs.types';
+import { DbrBandsEditorComponent } from '@shared/ui';
 
-type ToggleKey =
-  | 'tieredRates'
-  | 'incomeSurrogate'
-  | 'variableRate'
-  | 'buyout'
-  | 'downPayment'
-  | 'shariaCompliant';
+/** The one remaining genuine opt-in — see `BankProgramFormPage.toggles`. */
+type ToggleKey = 'tieredRates';
 
 /**
  * Cross-field guard for the tenor group: maximum duration must be ≥ minimum.
@@ -101,6 +98,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
     NzSwitchModule,
     IncomeAssumptionSectionComponent,
     MoneyInputDirective,
+    DbrBandsEditorComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -166,26 +164,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="form-body">
 
-          <!-- ═══ WIZARD STEP BAR ════════════════════════════════════════════ -->
-          <nav class="steps" aria-label="Form steps">
-            @for (s of steps; track s.id; let i = $index) {
-              <button
-                type="button"
-                class="step"
-                [class.active]="currentStep() === s.id"
-                [class.done]="currentStep() > s.id"
-                (click)="goTo(s.id)"
-                [attr.aria-current]="currentStep() === s.id ? 'step' : null"
-              >
-                <span class="step-num">{{ currentStep() > s.id ? '✓' : i + 1 }}</span>
-                <span class="step-label">{{ s.label }}</span>
-              </button>
-              @if (i < steps.length - 1) {
-                <span class="step-sep" aria-hidden="true"></span>
-              }
-            }
-          </nav>
-
           @if (!isEditMode() && preselectedBank; as b) {
             <div class="bank-chip">
               <span class="bank-chip-avatar" aria-hidden="true">{{ initialsOf(b.nameEnglish) }}</span>
@@ -199,7 +177,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             </div>
           }
 
-          @if (currentStep() === 1) {
           <!-- ═══ CORE ════════════════════════════════════════════════════════ -->
           <section class="card" formGroupName="identity">
             <header class="card-head">
@@ -291,11 +268,21 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                   </ng-template>
                 </nz-form-control>
               </nz-form-item>
+              <nz-form-item class="span-2">
+                <label
+                  nz-checkbox
+                  formControlName="isShariaCompliant"
+                  i18n="@@bank_programs.field.is_sharia_compliant"
+                  >Sharia-compliant (Islamic finance)</label
+                >
+                <p class="field-hint" i18n="@@bank_programs.field.is_sharia_compliant.hint">
+                  Shown to customers as a badge on this program's offers and usable as a filter.
+                  Rate fields are read as profit rates.
+                </p>
+              </nz-form-item>
             </div>
           </section>
-          }
 
-          @if (currentStep() === 2) {
           <!-- Loan amounts -->
           <section class="card" formGroupName="loanLimits">
             <header class="card-head">
@@ -394,9 +381,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               </nz-form-item>
             </div>
           </section>
-          }
 
-          @if (currentStep() === 3) {
           <section class="card" formGroupName="eligibility">
             <header class="card-head">
               <div>
@@ -481,9 +466,32 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               </nz-form-item>
             </div>
           </section>
-          }
 
-          @if (currentStep() === 4) {
+          <!-- ═══ ADVANCED (FR-011: one disclosure, closed by default) ══════ -->
+          <section class="card advanced">
+            <button
+              type="button"
+              class="disclosure-head"
+              (click)="advancedOpen.set(!advancedOpen())"
+              [attr.aria-expanded]="advancedOpen()"
+            >
+              <div>
+                <h2 class="card-title" i18n="@@bank_programs.form.advanced.title">Advanced</h2>
+                <p class="card-sub" i18n="@@bank_programs.form.advanced.sub">
+                  Everything else. Pre-filled with sensible values — nothing here is required.
+                </p>
+              </div>
+              <span
+                class="chevron"
+                nz-icon
+                [nzType]="advancedOpen() ? 'up' : 'down'"
+                nzTheme="outline"
+                aria-hidden="true"
+              ></span>
+            </button>
+          </section>
+
+          @if (advancedOpen()) {
           <!-- ═══ ADVANCED FEES & LIMITS (collapsed) ═════════════════════════ -->
           <section class="card disclosure" [class.open]="advancedFeesOpen()">
             <button type="button" class="disclosure-head" (click)="advancedFeesOpen.set(!advancedFeesOpen())" [attr.aria-expanded]="advancedFeesOpen()">
@@ -543,6 +551,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                 <div class="grid" formGroupName="eligibility">
                   <nz-form-item>
                     <nz-form-label nzRequired i18n="@@bank_programs.field.dbr_cap">DBR cap</nz-form-label>
+                    <ng-container *ngTemplateOutlet="originTpl; context: { $implicit: 'eligibility.dbrCapPercent' }" />
                     <nz-form-control [nzErrorTip]="fieldErrorTpl">
                       <nz-input-group nzAddOnAfter="%" class="rate-group">
                         <input nz-input formControlName="dbrCapPercent" inputmode="decimal" placeholder="50.0000" />
@@ -552,6 +561,13 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                   <nz-form-item>
                     <label nz-checkbox formControlName="skipDbrCheck" i18n="@@bank_programs.field.skip_dbr">Skip DBR check (secured loans only)</label>
                   </nz-form-item>
+                  <div class="span-2">
+                    <app-dbr-bands-editor
+                      [bands]="dbrBands()"
+                      (bandsChange)="dbrBands.set($event)"
+                      [flatCapPercent]="eligibilityGroup.get('dbrCapPercent')?.value || '50.0000'"
+                    />
+                  </div>
                 </div>
                 <div class="grid" formGroupName="loanLimits">
                   <nz-form-item class="span-2">
@@ -567,28 +583,8 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             }
           </section>
 
-          <!-- ═══ TOGGLE BAR ═════════════════════════════════════════════════ -->
-          <section class="card toggles">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.toggles.title">Optional features</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.toggles.sub">Turn on only what this program uses. Hidden fields submit as defaults.</p>
-              </div>
-            </header>
-            <div class="toggle-grid">
-              <label nz-checkbox [nzChecked]="toggles.variableRate()" (nzCheckedChange)="setToggle('variableRate', $event)" i18n="@@bank_programs.toggle.variable_rate">Variable-rate program</label>
-              <label nz-checkbox [nzChecked]="toggles.incomeSurrogate()" (nzCheckedChange)="setToggle('incomeSurrogate', $event)" i18n="@@bank_programs.toggle.income_surrogate">Income-surrogate program</label>
-              <label nz-checkbox [nzChecked]="toggles.tieredRates()" (nzCheckedChange)="setToggle('tieredRates', $event)" i18n="@@bank_programs.toggle.tiered_rates">Tiered interest rates (by loan amount)</label>
-              <label nz-checkbox [nzChecked]="toggles.buyout()" (nzCheckedChange)="setToggle('buyout', $event)" i18n="@@bank_programs.toggle.buyout">Buyout / refinance program</label>
-              @if (downPaymentApplicable()) {
-                <label nz-checkbox [nzChecked]="toggles.downPayment()" (nzCheckedChange)="setToggle('downPayment', $event)" i18n="@@bank_programs.toggle.down_payment">Requires down payment</label>
-              }
-              <label nz-checkbox [nzChecked]="toggles.shariaCompliant()" (nzCheckedChange)="setToggle('shariaCompliant', $event)" i18n="@@bank_programs.toggle.sharia">Sharia-compliant (Islamic)</label>
-            </div>
-          </section>
-
           <!-- ═══ VARIABLE RATE ═════════════════════════════════════════════ -->
-          @if (toggles.variableRate()) {
+          @if (isVariableRateSignal()) {
             <section class="card" formGroupName="pricing">
               <header class="card-head">
                 <div>
@@ -619,11 +615,23 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
           }
 
           <!-- ═══ INCOME-SURROGATE ══════════════════════════════════════════ -->
-          @if (toggles.incomeSurrogate()) {
+          @if (incomeSurrogateActive()) {
             <app-income-assumption-section [group]="incomeAssumptionGroup"></app-income-assumption-section>
           }
 
           <!-- ═══ TIERED RATES (by loan amount band) ═══════════════════════ -->
+          <!-- The one surviving opt-in: it swaps a single rate for a band table,
+               so it changes the SHAPE of pricing rather than gating a dead field. -->
+          <section class="card tiering-opt-in">
+            <label
+              nz-checkbox
+              [nzChecked]="toggles.tieredRates()"
+              (nzCheckedChange)="setToggle('tieredRates', $event)"
+              i18n="@@bank_programs.toggle.tiered_rates"
+              >Tiered interest rates (by loan amount)</label
+            >
+          </section>
+
           @if (toggles.tieredRates()) {
             <section class="card" formGroupName="pricing">
               <header class="card-head">
@@ -681,128 +689,54 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             </section>
           }
 
-          <!-- ═══ BUYOUT / REFINANCE ═══════════════════════════════════════ -->
-          @if (toggles.buyout()) {
-            <section class="card" formGroupName="pricing">
-              <header class="card-head">
-                <div>
-                  <h2 class="card-title" i18n="@@bank_programs.section.buyout">Buyout / refinance</h2>
-                  <p class="card-sub" i18n="@@bank_programs.section.buyout_sub">Closing out a loan at another bank. Applies a delta vs the base rate, bounded by a floor.</p>
-                </div>
-              </header>
-              <div class="grid">
-                <nz-form-item>
-                  <nz-form-label i18n="@@bank_programs.field.buyout_delta">Buyout rate delta</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-input-group nzAddOnAfter="%" class="rate-group">
-                      <input nz-input formControlName="buyoutRateDeltaPercent" inputmode="decimal" placeholder="-1.5000" />
-                    </nz-input-group>
-                  </nz-form-control>
-                </nz-form-item>
-                <nz-form-item>
-                  <nz-form-label i18n="@@bank_programs.field.buyout_floor">Minimum floor rate</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-input-group nzAddOnAfter="%" class="rate-group">
-                      <input nz-input formControlName="buyoutRateMinFloorPercent" inputmode="decimal" placeholder="22.0000" />
-                    </nz-input-group>
-                  </nz-form-control>
-                </nz-form-item>
-              </div>
-            </section>
           }
-
-          <!-- ═══ DOWN PAYMENT ═════════════════════════════════════════════ -->
-          @if (toggles.downPayment() && downPaymentApplicable()) {
-            <section class="card" formGroupName="loanLimits">
-              <header class="card-head">
-                <div>
-                  <h2 class="card-title" i18n="@@bank_programs.section.down_payment">Down payment</h2>
-                  <p class="card-sub" i18n="@@bank_programs.section.down_payment_sub">Mandatory for auto + mortgage programs. LTV ceiling caps the financed share of asset value.</p>
-                </div>
-              </header>
-              <div class="grid">
-                <nz-form-item>
-                  <nz-form-label i18n="@@bank_programs.field.min_down_payment">Minimum down payment</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-input-group nzAddOnAfter="%" class="rate-group">
-                      <input nz-input formControlName="minDownPaymentPercent" inputmode="decimal" placeholder="20.00" />
-                    </nz-input-group>
-                  </nz-form-control>
-                </nz-form-item>
-                <nz-form-item>
-                  <nz-form-label i18n="@@bank_programs.field.max_ltv">Maximum LTV</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-input-group nzAddOnAfter="%" class="rate-group">
-                      <input nz-input formControlName="ltvCeilingPercent" inputmode="decimal" placeholder="80.0000" />
-                    </nz-input-group>
-                  </nz-form-control>
-                </nz-form-item>
-              </div>
-            </section>
-          }
-
-          <!-- ═══ SHARIA / ISLAMIC ═════════════════════════════════════════ -->
-          @if (toggles.shariaCompliant()) {
-            <section class="card" formGroupName="pricing">
-              <header class="card-head">
-                <div>
-                  <h2 class="card-title" i18n="@@bank_programs.section.sharia">Sharia-compliant (Islamic)</h2>
-                  <p class="card-sub" i18n="@@bank_programs.section.sharia_sub">Profit-rate pricing under an Islamic contract. Rate fields above are interpreted as profit rates, not interest.</p>
-                </div>
-              </header>
-              <div class="grid">
-                <nz-form-item>
-                  <nz-form-label i18n="@@bank_programs.field.sharia_contract_type">Contract type</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-select formControlName="shariaContractType" [nzDropdownStyle]="dropdownStyle">
-                      <nz-option nzValue="murabaha" nzLabel="Murabaha" i18n-nzLabel="@@bank_programs.contract.murabaha"></nz-option>
-                      <nz-option nzValue="ijara" nzLabel="Ijara" i18n-nzLabel="@@bank_programs.contract.ijara"></nz-option>
-                      <nz-option nzValue="tawarruq" nzLabel="Tawarruq" i18n-nzLabel="@@bank_programs.contract.tawarruq"></nz-option>
-                    </nz-select>
-                  </nz-form-control>
-                </nz-form-item>
-              </div>
-            </section>
-          }
-          }
+          <!-- FR-010: per-field provenance. Tone carries a hint, the WORD carries
+               the meaning — colour alone would fail both contrast and RTL review. -->
+          <ng-template #originTpl let-path>
+            @if (originOf(path); as origin) {
+              @switch (origin) {
+                @case ('CATALOG') {
+                  <span class="origin origin--catalog" i18n="@@bank_programs.origin.catalog"
+                    >from program</span
+                  >
+                }
+                @case ('BANK_POLICY') {
+                  <span class="origin origin--policy" i18n="@@bank_programs.origin.bankPolicy"
+                    >from bank policy</span
+                  >
+                }
+                @case ('EDITED') {
+                  <span class="origin origin--edited" i18n="@@bank_programs.origin.edited"
+                    >edited</span
+                  >
+                }
+              }
+            }
+          </ng-template>
 
           <footer class="form-footer">
             <button nz-button type="button" (click)="cancel()" [disabled]="busy()">
               <span i18n="@@bank_programs.form.cancel">Cancel</span>
             </button>
             <span class="footer-spacer"></span>
-            @if (currentStep() > 1) {
-              <button nz-button type="button" (click)="back()" [disabled]="busy()">
-                <span i18n="@@bank_programs.form.back">Back</span>
-              </button>
-            }
-            @if (currentStep() < steps.length) {
-              <button
-                nz-button
-                nzType="primary"
-                type="button"
-                (click)="next()"
-                [disabled]="busy() || enums.unavailable()"
-              >
-                <span i18n="@@bank_programs.form.next">Next</span>
-              </button>
-            } @else {
-              <button
-                nz-button
-                nzType="primary"
-                type="button"
-                (click)="submit()"
-                [disabled]="form.invalid || busy() || enums.unavailable()"
-                [nzLoading]="busy()"
-              >
-                @if (!busy()) {
-                  <span nz-icon [nzType]="isEditMode() ? 'save' : 'plus'" nzTheme="outline" aria-hidden="true"></span>
-                  <span>{{ isEditMode() ? saveLabel() : createLabel() }}</span>
-                } @else {
-                  <span i18n="@@bank_programs.form.saving">Saving…</span>
-                }
-              </button>
-            }
+            <button
+              nz-button
+              nzType="primary"
+              type="button"
+              (click)="submit()"
+              [disabled]="form.invalid || busy() || enums.unavailable()"
+              [nzLoading]="busy()"
+            >
+              @if (!busy()) {
+                <span
+                  nz-icon
+                  [nzType]="isEditMode() ? 'save' : 'plus'"
+                  nzTheme="outline"
+                  aria-hidden="true"
+                ></span>
+              }
+              <span>{{ isEditMode() ? saveLabel() : createLabel() }}</span>
+            </button>
           </footer>
         </form>
       }
@@ -810,6 +744,43 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
   `,
   styles: [
     `
+      /* --- FR-010 origin badges ------------------------------------------- */
+      .origin {
+        display: inline-block;
+        margin-inline-start: var(--space-2);
+        padding-block: 0;
+        padding-inline: var(--space-2);
+        border-radius: var(--radius-pill);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-medium);
+        /* Fixed box so the badge never shifts the label's baseline as its text
+           swaps between "from program" and the longer "from bank policy". */
+        line-height: 1.25rem;
+        vertical-align: middle;
+        white-space: nowrap;
+      }
+      .origin--catalog {
+        background: var(--color-info-bg);
+        color: var(--color-info);
+      }
+      .origin--policy {
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+      }
+      .origin--edited {
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+      }
+      .field-hint {
+        margin: var(--space-1) 0 0;
+        font-size: var(--text-xs);
+        line-height: var(--line-height-base);
+        color: var(--color-text-tertiary);
+      }
+      .tiering-opt-in {
+        padding: var(--space-4);
+      }
+
       :host {
         display: block;
         padding: var(--space-6);
@@ -1216,54 +1187,18 @@ export class BankProgramFormPage implements OnInit {
     return id ? ['/banks', id] : ['/banks'];
   });
 
-  // Wizard state
-  readonly currentStep = signal<number>(1);
-  readonly steps: ReadonlyArray<{ id: number; label: string }> = [
-    { id: 1, label: 'Identity' },
-    { id: 2, label: 'Money' },
-    { id: 3, label: 'Eligibility' },
-    { id: 4, label: 'Features' },
-  ];
+  /**
+   * Feature 010 (FR-011): the 4-step wizard is gone. Everything the engine needs
+   * to produce an offer lives in one always-visible Essentials block; every other
+   * setting sits behind ONE disclosure, closed by default (FR-012 — nothing in
+   * Advanced is required, so a program saves without ever opening it, FR-015).
+   *
+   * The wizard was actively harmful here: required fee and DBR controls rendered
+   * only inside a collapsed panel on the last step, so an admin could be blocked
+   * by a field they had never been shown.
+   */
+  readonly advancedOpen = signal(false);
 
-  next(): void {
-    if (this.currentStep() >= this.steps.length) return;
-    if (!this.isCurrentStepValid()) {
-      this.flushCurrentStepErrors();
-      return;
-    }
-    this.currentStep.set(this.currentStep() + 1);
-  }
-
-  /** Form groups that must be valid before leaving the current step. */
-  private currentStepGroups(): FormGroup[] {
-    const s = this.currentStep();
-    if (s === 1) return [this.identityGroup];
-    if (s === 2) return [this.loanLimitsGroup, this.tenorGroup, this.pricingGroup, this.feesGroup];
-    if (s === 3) return [this.eligibilityGroup];
-    return [];
-  }
-  private isCurrentStepValid(): boolean {
-    return this.currentStepGroups().every((g) => g.valid);
-  }
-  private flushCurrentStepErrors(): void {
-    for (const g of this.currentStepGroups()) {
-      g.markAllAsTouched();
-      // Walk each child control + force a status emission so nz-form-control
-      // re-renders its tip.
-      for (const ctrl of Object.values(g.controls)) {
-        ctrl.markAsTouched();
-        ctrl.markAsDirty();
-        ctrl.updateValueAndValidity({ onlySelf: true });
-      }
-      g.updateValueAndValidity();
-    }
-  }
-  back(): void {
-    if (this.currentStep() > 1) this.currentStep.set(this.currentStep() - 1);
-  }
-  goTo(step: number): void {
-    if (step >= 1 && step <= this.steps.length) this.currentStep.set(step);
-  }
   clearBank(): void {
     this.bankIdControl.setValue(null);
     this.identityGroup.patchValue({ bankName: '' });
@@ -1274,14 +1209,29 @@ export class BankProgramFormPage implements OnInit {
     return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
   }
 
+  /**
+   * Feature 010: the "Optional features" checkbox grid is gone. Five of its six
+   * switches gated fields the matching engine never read (buyout rate delta +
+   * floor, Sharia contract type, down-payment percent + LTV ceiling) or merely
+   * duplicated a field that already existed:
+   *   - variable rate      -> `pricing.isVariableRate`, a checkbox beside the rate
+   *   - income surrogate   -> derived from `identity.programType`
+   *   - Sharia-compliant   -> `identity.isShariaCompliant`, a program attribute
+   * Only tiered-by-amount rates remain a real opt-in, because it swaps a single
+   * rate for a band table. It lives in Advanced.
+   */
   readonly toggles = {
     tieredRates: signal(false),
-    incomeSurrogate: signal(false),
-    variableRate: signal(false),
-    buyout: signal(false),
-    downPayment: signal(false),
-    shariaCompliant: signal(false),
   } as const;
+
+  /**
+   * Income-assumption fields follow the program TYPE rather than a separate
+   * switch — an `income_surrogate` program by definition estimates income, and
+   * having two controls that had to agree was a standing source of bad data.
+   */
+  readonly incomeSurrogateActive = computed(
+    () => this.programTypeSignal() === 'income_surrogate',
+  );
 
 
   readonly mode = toSignal(
@@ -1363,6 +1313,8 @@ export class BankProgramFormPage implements OnInit {
         validators: [Validators.required],
       }),
       currencies: this.fb.nonNullable.array<string>(['EGP'], { validators: [Validators.required] }),
+      /** Islamic-finance program. A plain program attribute, not a "feature". */
+      isShariaCompliant: new FormControl(false, { nonNullable: true }),
     }),
     tenor: this.fb.nonNullable.group(
       {
@@ -1387,17 +1339,12 @@ export class BankProgramFormPage implements OnInit {
         validators: [Validators.required],
       }),
       qualitativeReviewMaxEGP: new FormControl<string | null>(null),
-      minDownPaymentPercent: new FormControl<string | null>(null),
-      ltvCeilingPercent: new FormControl<string | null>(null),
     }),
     pricing: this.fb.nonNullable.group({
       isVariableRate: new FormControl(false, { nonNullable: true }),
       baseRatePercent: new FormControl<string | null>('24.0000'),
       currentEffectiveRatePercent: new FormControl<string | null>(null),
       variableRateNote: new FormControl<string | null>(null),
-      buyoutRateDeltaPercent: new FormControl<string | null>(null),
-      buyoutRateMinFloorPercent: new FormControl<string | null>(null),
-      shariaContractType: new FormControl<string | null>(null),
       rateByLoanAmountBands: new FormArray<FormGroup>([]),
     }),
     eligibility: this.fb.nonNullable.group({
@@ -1535,11 +1482,140 @@ export class BankProgramFormPage implements OnInit {
     this.form.controls.identity.controls.productCategory.valueChanges,
     { initialValue: this.form.controls.identity.controls.productCategory.value },
   );
-  /** Down-payment toggle only applies to auto + mortgage. Personal loans never have one. */
-  readonly downPaymentApplicable = computed(() => {
-    const c = this.productCategorySignal();
-    return c === 'car' || c === 'mortgage';
-  });
+  /** Reactive view of identity.programType — drives the income-assumption block. */
+  readonly programTypeSignal = toSignal(
+    this.form.controls.identity.controls.programType.valueChanges,
+    { initialValue: this.form.controls.identity.controls.programType.value },
+  );
+
+  /** Reactive view of pricing.isVariableRate — decides which rate key ships. */
+  readonly isVariableRateSignal = toSignal(
+    this.form.controls.pricing.controls.isVariableRate.valueChanges,
+    { initialValue: this.form.controls.pricing.controls.isVariableRate.value },
+  );
+
+  /**
+   * Income-banded DBR table (FR-016). Held as a signal rather than a FormArray
+   * because the shared `DbrBandsEditorComponent` is the single validator for it
+   * across all three hosts (FR-021a) — duplicating those rules as Angular
+   * validators here would be the drift this feature exists to remove.
+   */
+  readonly dbrBands = signal<DbrBand[]>([]);
+
+  // ── Prefill (FR-008, FR-010) ─────────────────────────────────────────────
+  /**
+   * Per-leaf provenance of the currently-shown values. `EDITED` is set locally
+   * the moment an admin overrides an inherited value, so the badge answers
+   * "is this the bank's number or mine?" without another round trip.
+   *
+   * Prefill is CREATE-ONLY: an existing program is self-contained (FR-009), so
+   * re-resolving inherited values on edit would silently reprice it.
+   */
+  readonly prefillOrigin = signal<Record<string, PrefillOrigin>>({});
+  readonly prefillBusy = signal(false);
+
+  originOf(path: string): PrefillOrigin | null {
+    return this.prefillOrigin()[path] ?? null;
+  }
+
+  /** Called on (change) of every prefillable control — flips its badge to EDITED. */
+  markEdited(path: string): void {
+    const current = this.prefillOrigin()[path];
+    if (!current || current === 'EDITED' || current === 'EMPTY') return;
+    this.prefillOrigin.set({ ...this.prefillOrigin(), [path]: 'EDITED' });
+  }
+
+  /**
+   * Resolves bank policy → catalog defaults for the chosen bank + program name +
+   * category and drops the merged values into the form. Only leaves the layers
+   * actually supplied are written, so an admin's own edits survive a re-resolve.
+   */
+  private async refreshPrefill(): Promise<void> {
+    if (this.isEditMode()) return;
+    const category = this.identityGroup.controls['productCategory']?.value as string | undefined;
+    if (!category) return;
+
+    this.prefillBusy.set(true);
+    try {
+      const res = await this.api.prefill({
+        category,
+        bankId: this.selectedBankId() ?? undefined,
+        programNameKey: this.selectedProgramNameKey() ?? undefined,
+      });
+      this.applyPrefill(res.values);
+      this.prefillOrigin.set({ ...res.origin });
+    } catch {
+      // Prefill is a convenience, never a gate: a failure leaves the form on its
+      // built-in defaults rather than blocking program creation.
+      this.prefillOrigin.set({});
+    } finally {
+      this.prefillBusy.set(false);
+    }
+  }
+
+  private applyPrefill(v: import('../bank-programs.types').ProgramDefaults): void {
+    if (v.tenor) {
+      this.tenorGroup.patchValue(
+        pruneUndefined({ minMonths: v.tenor.minMonths, maxMonths: v.tenor.maxMonths }),
+      );
+    }
+    const egp = v.loanLimits?.perCurrency?.['EGP'];
+    if (egp) {
+      this.loanLimitsGroup.patchValue(
+        pruneUndefined({ minAmountEGP: egp.minAmount, maxAmountEGP: egp.maxAmount }),
+      );
+    }
+    if (v.pricing) {
+      this.pricingGroup.patchValue(
+        pruneUndefined({
+          isVariableRate: v.pricing.isVariableRate,
+          baseRatePercent: v.pricing.baseRatePercent,
+          currentEffectiveRatePercent: v.pricing.currentEffectiveRatePercent,
+        }),
+      );
+    }
+    if (v.eligibility) {
+      this.eligibilityGroup.patchValue(
+        pruneUndefined({
+          ageMin: v.eligibility.ageMin,
+          ageMax: v.eligibility.ageMax,
+          minMonthlyIncomeEGP: v.eligibility.minMonthlyIncomeEGP,
+          dbrCapPercent: v.eligibility.dbrCapPercent,
+          skipDbrCheck: v.eligibility.skipDbrCheck,
+          requiresCollateral: v.eligibility.requiresCollateral,
+        }),
+      );
+      if (v.eligibility.dbrBands) this.dbrBands.set(v.eligibility.dbrBands);
+    }
+    if (v.fees) {
+      this.feesGroup.patchValue(
+        pruneUndefined({
+          adminFeePercent: v.fees.adminFeePercent,
+          stampDutyPercent: v.fees.stampDutyPercent,
+          lifeInsurancePercent: v.fees.lifeInsurancePercent,
+        }),
+      );
+    }
+    if (v.requiredDocuments?.length) {
+      this.setArr('documents.requiredDocuments', v.requiredDocuments);
+    }
+  }
+
+  /**
+   * The catalog member whose defaults should win. The friendly-name control holds
+   * the member's English LABEL (legacy free-text is still allowed), so the key is
+   * resolved back through the registry; an unmatched name simply means no catalog
+   * layer, which prefill handles as `EMPTY`.
+   */
+  private selectedProgramNameKey(): string | null {
+    const name = this.identityGroup.controls['friendlyName']?.value as string | undefined;
+    const category = this.identityGroup.controls['productCategory']?.value as string | undefined;
+    if (!name || !category) return null;
+    const match = this.enums
+      .membersFor('program_name')()
+      .find((m) => m.labelEn === name && m.categories?.includes(category));
+    return match?.key ?? null;
+  }
 
   /** Reactive view of identity.friendlyName so the option list keeps a legacy/edit value visible. */
   readonly friendlyNameSignal = toSignal(
@@ -1573,17 +1649,22 @@ export class BankProgramFormPage implements OnInit {
       .pipe(takeUntilDestroyed())
       .subscribe((id) => this.onBankPicked(id ?? null));
 
-    // Reset hidden sections when toggle flips off — keeps payload clean per requirement
+    // A single rate input drives both rate keys; which one the payload carries is
+    // decided by `isVariableRate`. Clearing the unused key here keeps the payload
+    // free of a stale value the backend's variable-rate consistency check rejects.
     effect(() => {
-      if (!this.toggles.variableRate()) {
+      if (this.isVariableRateSignal()) {
+        this.pricingGroup.patchValue({ baseRatePercent: null }, { emitEvent: false });
+      } else {
         this.pricingGroup.patchValue(
-          { isVariableRate: false, currentEffectiveRatePercent: null, variableRateNote: null },
+          { currentEffectiveRatePercent: null, variableRateNote: null },
           { emitEvent: false },
         );
       }
     });
+    // A program that no longer estimates income must not keep surrogate settings.
     effect(() => {
-      if (!this.toggles.incomeSurrogate()) {
+      if (!this.incomeSurrogateActive()) {
         this.incomeAssumptionGroup.patchValue(
           {
             strategy: 'declared',
@@ -1597,39 +1678,8 @@ export class BankProgramFormPage implements OnInit {
       }
     });
     effect(() => {
-      if (!this.toggles.buyout()) {
-        this.pricingGroup.patchValue(
-          { buyoutRateDeltaPercent: null, buyoutRateMinFloorPercent: null },
-          { emitEvent: false },
-        );
-      }
-    });
-    effect(() => {
-      if (!this.toggles.downPayment()) {
-        this.loanLimitsGroup.patchValue(
-          { minDownPaymentPercent: null, ltvCeilingPercent: null },
-          { emitEvent: false },
-        );
-      }
-    });
-    // Auto-disable down-payment toggle when productCategory switches to
-    // personal — personal loans never carry a down payment.
-    effect(() => {
-      if (!this.downPaymentApplicable() && this.toggles.downPayment()) {
-        this.toggles.downPayment.set(false);
-      }
-    });
-    effect(() => {
       if (!this.toggles.tieredRates()) {
         this.rateBandsArray.clear();
-      }
-    });
-    effect(() => {
-      if (!this.toggles.shariaCompliant()) {
-        this.pricingGroup.patchValue(
-          { shariaContractType: null },
-          { emitEvent: false },
-        );
       }
     });
 
@@ -1657,6 +1707,16 @@ export class BankProgramFormPage implements OnInit {
           this.form.controls.identity.controls.friendlyNameAr.setValue(null, { emitEvent: false });
         }
       });
+
+    // FR-008: re-resolve prefill whenever one of its three inputs changes.
+    // Create mode only — `refreshPrefill` no-ops on edit (FR-009).
+    merge(
+      this.bankIdControl.valueChanges,
+      this.form.controls.identity.controls.productCategory.valueChanges,
+      this.form.controls.identity.controls.friendlyName.valueChanges,
+    )
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => void this.refreshPrefill());
   }
 
   ngOnInit(): void {
@@ -1773,6 +1833,8 @@ export class BankProgramFormPage implements OnInit {
 
   setToggle(key: ToggleKey, value: boolean): void {
     this.toggles[key].set(value);
+    // Switching tiering on with no rows would render an empty table with no
+    // affordance, so seed the first band.
     if (key === 'tieredRates' && value && this.rateBandsArray.length === 0) {
       this.addRateBand();
     }
@@ -1882,20 +1944,18 @@ export class BankProgramFormPage implements OnInit {
     }
   }
 
+  /**
+   * On edit, open Advanced only when it actually holds something — otherwise the
+   * disclosure stays closed and the form reads as the 8-field task it usually is.
+   */
   private autodetectToggles(d: BankProgramResponse): void {
-    this.toggles.variableRate.set(d.pricing.isVariableRate);
-    this.toggles.incomeSurrogate.set(d.incomeAssumption.strategy !== 'declared');
-    this.toggles.shariaCompliant.set(d.isShariaCompliant === true);
     this.toggles.tieredRates.set(
       d.pricing.rateByLoanAmountBand != null &&
         Object.keys(d.pricing.rateByLoanAmountBand).length > 0,
     );
-    this.toggles.buyout.set(
-      d.pricing.buyoutRateDeltaPercent != null || d.pricing.buyoutRateMinFloorPercent != null,
-    );
-    this.toggles.downPayment.set(
-      d.loanLimits.minDownPaymentPercent != null || d.loanLimits.ltvCeilingPercent != null,
-    );
+    if (this.toggles.tieredRates() || (d.eligibility.dbrBands?.length ?? 0) > 0) {
+      this.advancedOpen.set(true);
+    }
   }
 
   private buildCreatePayload(): BankProgramCreatePayload {
@@ -1924,7 +1984,7 @@ export class BankProgramFormPage implements OnInit {
       programType: id.programType,
       productCategory: id.productCategory,
       currencies: id.currencies,
-      isShariaCompliant: this.toggles.shariaCompliant(),
+      isShariaCompliant: id.isShariaCompliant,
       operatorNotes: dc.operatorNotes ?? undefined,
       operatorTips: dc.operatorTips,
       requiredDocuments: dc.requiredDocuments,
@@ -1932,19 +1992,12 @@ export class BankProgramFormPage implements OnInit {
       loanLimits: {
         perCurrency: { EGP: { minAmount: ll.minAmountEGP, maxAmount: ll.maxAmountEGP } },
         qualitativeReviewMaxEGP: ll.qualitativeReviewMaxEGP ?? undefined,
-        minDownPaymentPercent: this.toggles.downPayment() ? (ll.minDownPaymentPercent ?? undefined) : undefined,
-        ltvCeilingPercent: this.toggles.downPayment() ? (ll.ltvCeilingPercent ?? undefined) : undefined,
       },
       pricing: {
         isVariableRate: pr.isVariableRate,
         baseRatePercent: pr.isVariableRate ? undefined : (pr.baseRatePercent ?? undefined),
         currentEffectiveRatePercent: pr.isVariableRate ? (pr.currentEffectiveRatePercent ?? undefined) : undefined,
         variableRateNote: pr.variableRateNote ?? undefined,
-        buyoutRateDeltaPercent: this.toggles.buyout() ? (pr.buyoutRateDeltaPercent ?? undefined) : undefined,
-        buyoutRateMinFloorPercent: this.toggles.buyout() ? (pr.buyoutRateMinFloorPercent ?? undefined) : undefined,
-        shariaContractType: this.toggles.shariaCompliant()
-          ? ((pr.shariaContractType as 'murabaha' | 'ijara' | 'tawarruq' | null) ?? undefined)
-          : undefined,
         ...(this.toggles.tieredRates() && this.rateBandsArray.length > 0
           ? { rateByLoanAmountBand: this.serializeRateBands() }
           : {}),
@@ -1957,6 +2010,9 @@ export class BankProgramFormPage implements OnInit {
         minMonthsInJob: el.minMonthsInJob,
         acceptedLoanPurposes: el.acceptedLoanPurposes,
         dbrCapPercent: el.dbrCapPercent,
+        // Omitted entirely when empty so a program that never used bands keeps
+        // resolving against its flat cap exactly as before (FR-020).
+        ...(this.dbrBands().length > 0 ? { dbrBands: this.dbrBands() } : {}),
         skipDbrCheck: el.skipDbrCheck,
         acceptedTransferTypes: el.acceptedTransferTypes,
         requiresCD: el.requiresCD,
@@ -2002,6 +2058,7 @@ export class BankProgramFormPage implements OnInit {
       friendlyNameAr: initial.friendlyNameAr ?? null,
       programType: initial.programType,
       productCategory: initial.productCategory,
+      isShariaCompliant: initial.isShariaCompliant === true,
     });
     // programCode is immutable on edit — show it read-only.
     this.identityGroup.controls.programCode?.disable();
@@ -2056,6 +2113,7 @@ export class BankProgramFormPage implements OnInit {
       minBankStatementBalanceEGP: initial.eligibility.minBankStatementBalanceEGP ?? null,
       minAssetsValueEGP: initial.eligibility.minAssetsValueEGP ?? null,
     });
+    this.dbrBands.set(initial.eligibility.dbrBands ?? []);
     this.setArr('eligibility.acceptedEmploymentTypes', initial.eligibility.acceptedEmploymentTypes);
     this.setArr('eligibility.acceptedTransferTypes', initial.eligibility.acceptedTransferTypes);
 
@@ -2099,4 +2157,13 @@ export class BankProgramFormPage implements OnInit {
       void this.loadForEdit(this.currentProgramCode);
     }
   }
+}
+
+/** Drops undefined keys so a partial prefill never clears a field the layers didn't supply. */
+function pruneUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v;
+  }
+  return out;
 }

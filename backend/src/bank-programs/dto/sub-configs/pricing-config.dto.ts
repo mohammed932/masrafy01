@@ -1,10 +1,6 @@
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
 import { DecimalRange } from '../../../common/decorators/decimal-range.decorator';
 
-/** Sharia-compliant contract types (Islamic finance instruments). */
-export const SHARIA_CONTRACT_TYPES = ['murabaha', 'ijara', 'tawarruq'] as const;
-export type ShariaContractType = (typeof SHARIA_CONTRACT_TYPES)[number];
-
 /**
  * Spec anchors: FR-004, FR-008b (frozen cascade order), FR-008o + FR-008o.1 (down-payment band floor-≤),
  *   FR-008p + FR-008p.1 (asset-value / loan-amount band floor-≤), FR-008q (customer program tier),
@@ -49,14 +45,10 @@ export class PricingConfigDto {
   @IsOptional() @IsObject() rateByAssetValueBand?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByLoanAmountBand?: Record<string, RateBandLike>;
 
-  // Buyout rate computation (FR-008m).
-  @IsOptional()
-  @DecimalRange({ min: '-999.9999', max: '999.9999', precision: 7, scale: 4, nullable: true })
-  buyoutRateDeltaPercent?: string;
-
-  @IsOptional()
-  @DecimalRange({ min: '0', max: '999.9999', precision: 7, scale: 4, nullable: true })
-  buyoutRateMinFloorPercent?: string;
+  // Buyout / refinance pricing was removed with feature 010: `buyoutRateDeltaPercent`
+  // and `buyoutRateMinFloorPercent` had zero readers in the engine, and buyout is
+  // explicitly out of scope (spec 010 §Out of scope). Do not reintroduce without a
+  // cascade level that consumes them.
 
   // Fee-waiver mechanics (FR-008j + FR-008k).
   @IsOptional()
@@ -87,13 +79,10 @@ export class PricingConfigDto {
   @Min(0)
   insuranceWaiverPenaltyMinTenorMonths?: number;
 
-  // Sharia / Islamic banking (feature 008). When the parent program's
-  // `isShariaCompliant=true`, the contract instrument is specified here.
-  // Pricing semantics shift from interest-rate → profit-rate, but the
-  // numeric fields stay identical so the matching engine remains generic.
-  @IsOptional()
-  @IsIn(SHARIA_CONTRACT_TYPES as unknown as string[])
-  shariaContractType?: ShariaContractType;
+  // Sharia compliance is the top-level `BankProgram.isShariaCompliant` flag, which
+  // now rides the snapshot onto every offer. The per-contract instrument
+  // (`shariaContractType`: murabaha / ijara / tawarruq) was dropped with feature
+  // 010 — nothing read it, and pricing semantics are identical either way.
 }
 
 /** Loose shape — the service layer enforces RateBandValueDto + ValidDerivationChain. */
