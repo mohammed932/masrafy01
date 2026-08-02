@@ -38,7 +38,7 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
       monthlyNetSalaryEGP: money.monthlyIncomeEGP,
       monthsInJob: _monthsInJob[pickedOption(answers, 'job_tenure')] ?? 24,
       salaryTransferType: salaryTransferType(
-        transfers: pickedOption(answers, 'salary_transfer') == 'yes',
+        answerCode: pickedOption(answers, 'salary_transfer'),
       ),
       companyName: 'N/A',
       companyType: companyTypeFor(employmentType),

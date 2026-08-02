@@ -21,6 +21,5 @@ export class MobileBankProgramResponseDto {
   lifeInsuranceMandatory!: boolean;
   stampDutyDisplay!: string;
   acceptedEmploymentTypes!: string[];
-  acceptedLoanPurposes!: string[];
   ageRangeDisplay!: string;
 }

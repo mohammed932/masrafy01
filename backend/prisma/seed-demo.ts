@@ -111,49 +111,10 @@ interface DemoProgram {
   programType: 'income_proof' | 'income_surrogate';
 }
 
+// ABK's personal line is intentionally a single program (Doctor Loans, created
+// through the admin UI). The old Payroll Cat A / Cat B / Self-Employed demo
+// programs were retired 2026-08-02 and must not be re-seeded here.
 const DEMO_PROGRAMS: DemoProgram[] = [
-  {
-    programCode: 'ABK-PAYROLL-CAT-A',
-    bankName: 'ABK Egypt',
-    friendlyName: 'Payroll — Category A',
-    friendlyNameAr: 'الرواتب — الفئة أ',
-    productCategory: 'personal',
-    baseRatePercent: '22.5000',
-    minAmount: '50000',
-    maxAmount: '2000000',
-    minMonthlyIncomeEGP: '15000',
-    ageMin: 21,
-    ageMax: 60,
-    programType: 'income_proof',
-  },
-  {
-    programCode: 'ABK-PAYROLL-CAT-B',
-    bankName: 'ABK Egypt',
-    friendlyName: 'Payroll — Category B',
-    friendlyNameAr: 'الرواتب — الفئة ب',
-    productCategory: 'personal',
-    baseRatePercent: '24.5000',
-    minAmount: '50000',
-    maxAmount: '1500000',
-    minMonthlyIncomeEGP: '10000',
-    ageMin: 21,
-    ageMax: 60,
-    programType: 'income_proof',
-  },
-  {
-    programCode: 'ABK-SELF-EMP',
-    bankName: 'ABK Egypt',
-    friendlyName: 'Self-Employed & Professionals',
-    friendlyNameAr: 'العمل الحر والمهنيون',
-    productCategory: 'personal',
-    baseRatePercent: '28.5000',
-    minAmount: '50000',
-    maxAmount: '1000000',
-    minMonthlyIncomeEGP: '20000',
-    ageMin: 25,
-    ageMax: 60,
-    programType: 'income_surrogate',
-  },
   {
     programCode: 'ABK-AUTO-PRIME',
     bankName: 'ABK Egypt',
@@ -358,7 +319,6 @@ async function seedBankPrograms(superAdminId: string): Promise<void> {
           ageMax: p.ageMax,
           minMonthlyIncomeEGP: p.minMonthlyIncomeEGP,
           minMonthsInJob: 6,
-          acceptedLoanPurposes: [p.productCategory],
           dbrCapPercent: '50.0000',
           skipDbrCheck: false,
           acceptedTransferTypes: ['payroll_cat_a', 'payroll_cat_b', 'payroll_cat_c'],

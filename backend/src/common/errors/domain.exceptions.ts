@@ -507,9 +507,9 @@ export class PrefillTargetInvalidException extends DomainException {
   }
 }
 
-/** FR-001 — catalog defaults keyed by a category the predefined program does not serve. */
+/** FR-001 — catalog defaults keyed by something that is not a retail loan category. */
 export class CatalogDefaultsCategoryUnknownException extends DomainException {
-  constructor(meta: { category: string; served: string[] }) {
+  constructor(meta: { category: string; allowed: string[] }) {
     super(ERROR_CODES.CATALOG_DEFAULTS_CATEGORY_UNKNOWN, meta);
   }
 }

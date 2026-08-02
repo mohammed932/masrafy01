@@ -147,11 +147,18 @@ const CURRENT_LOANS_Q: SeedQuestion = {
   ],
 };
 
+// Asks HOW, not just whether. A yes/no could only ever produce `payroll` or
+// `none`, which left every bank rule written against a salary/income transfer
+// letter unmatchable. Option codes are slugged from the English label, so they
+// land exactly on the `transfer_type` registry keys the programs are configured
+// with — see `TRANSFER_TYPE_BY_ANSWER` on the mobile side.
 const SALARY_TRANSFER_Q: SeedQuestion = {
-  code: 'salary_transfer', questionEn: 'Is your salary transferred to a bank account?', questionAr: 'هل يتم تحويل راتبك إلى حساب بنكي؟',
+  code: 'salary_transfer', questionEn: 'How does your salary reach the bank?', questionAr: 'كيف يصل راتبك إلى البنك؟',
   options: [
-    { labelEn: 'Yes', labelAr: 'نعم', points: 100 },
-    { labelEn: 'No', labelAr: 'لا', points: 20 },
+    { labelEn: 'Payroll', labelAr: 'تحويل راتب', points: 100 },
+    { labelEn: 'Salary transfer letter', labelAr: 'خطاب تحويل راتب', points: 80 },
+    { labelEn: 'Income transfer letter', labelAr: 'خطاب تحويل دخل', points: 60 },
+    { labelEn: 'No salary transfer', labelAr: 'بدون تحويل راتب', points: 20 },
   ],
 };
 

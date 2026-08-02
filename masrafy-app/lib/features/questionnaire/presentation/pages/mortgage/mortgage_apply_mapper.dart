@@ -38,7 +38,7 @@ ApplyRequest mapMortgageAnswersToApplyRequest(
       // Mortgage questions don't ask job tenure — use the shared fallback.
       monthsInJob: monthsFromTenure(null),
       salaryTransferType: salaryTransferType(
-        transfers: pickedOption(answers, 'salary_transfer') == 'yes',
+        answerCode: pickedOption(answers, 'salary_transfer'),
       ),
       companyName: 'N/A',
       companyType: companyTypeFor(employmentType),

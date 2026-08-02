@@ -27,7 +27,6 @@ export function skeletonProgram(
       ageMax: 60,
       minMonthlyIncomeEGP: '6000',
       minMonthsInJob: 6,
-      acceptedLoanPurposes: ['personal'],
       dbrCapPercent: '50.0000',
       skipDbrCheck: false,
       acceptedTransferTypes: ['payroll'],

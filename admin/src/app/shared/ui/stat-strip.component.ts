@@ -30,7 +30,7 @@ const COUNT_UP_DURATION_MS = 600;
   imports: [CommonModule, NzIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <dl class="strip" [attr.aria-label]="ariaLabel()">
+    <dl class="strip" [attr.data-layout]="layout()" [attr.aria-label]="ariaLabel()">
       @for (s of items(); track s.label; let i = $index) {
         <div class="card" [attr.data-tone]="s.tone ?? 'default'">
           <div class="head">
@@ -60,8 +60,17 @@ const COUNT_UP_DURATION_MS = 600;
         gap: var(--space-4);
         margin: 0;
       }
+      /* Single row of content-sized cards — for narrow slots (e.g. a page-header
+         aside) where auto-fit would collapse the cards into a stack. */
+      .strip[data-layout='row'] {
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(140px, max-content);
+        grid-template-columns: none;
+      }
       @media (max-width: 540px) {
-        .strip {
+        .strip,
+        .strip[data-layout='row'] {
+          grid-auto-flow: row;
           grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
           gap: var(--space-3);
         }
@@ -168,6 +177,8 @@ const COUNT_UP_DURATION_MS = 600;
 export class StatStripComponent {
   readonly items = input.required<readonly StatStripItem[]>();
   readonly ariaLabel = input<string>('Statistics');
+  /** `auto` fills the available width; `row` keeps one horizontal line of cards. */
+  readonly layout = input<'auto' | 'row'>('auto');
 
   private readonly zone = inject(NgZone);
   private readonly displayed = signal<readonly number[]>([]);

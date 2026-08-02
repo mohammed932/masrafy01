@@ -1,0 +1,12 @@
+-- Predefined program names are category-agnostic.
+--
+-- A catalog entry ("Doctor Loans", "Pharmacy", "New Car") is a reusable NAME, not
+-- a per-loan-type record: the same name may be picked when creating a bank program
+-- under any of the four retail categories. `categories[]` scoped each name to a
+-- subset of loan types, which forced duplicate names and hid valid picks in the
+-- bank-program builder. Prefill defaults stay keyed by loan category inside
+-- `defaults` (JSONB) — only the *name → category* binding is removed.
+--
+-- DESTRUCTIVE: the per-name loan-type tags are dropped and cannot be recovered.
+-- `defaults` is untouched, so every saved default value survives.
+ALTER TABLE "platform_enumeration" DROP COLUMN "categories";

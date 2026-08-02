@@ -22,6 +22,10 @@ mixin _$ProfileEditContactState {
   String? get governorate => throw _privateConstructorUsedError;
   String get city => throw _privateConstructorUsedError;
   String get address => throw _privateConstructorUsedError;
+
+  /// Governorate list from the operator-managed registry, not a hardcoded copy.
+  List<PlatformEnumerationEntity> get governorates =>
+      throw _privateConstructorUsedError;
   bool get saving => throw _privateConstructorUsedError;
   Failure? get saveError => throw _privateConstructorUsedError;
   bool get saved => throw _privateConstructorUsedError;
@@ -46,6 +50,7 @@ abstract class $ProfileEditContactStateCopyWith<$Res> {
       String? governorate,
       String city,
       String address,
+      List<PlatformEnumerationEntity> governorates,
       bool saving,
       Failure? saveError,
       bool saved});
@@ -73,6 +78,7 @@ class _$ProfileEditContactStateCopyWithImpl<$Res,
     Object? governorate = freezed,
     Object? city = null,
     Object? address = null,
+    Object? governorates = null,
     Object? saving = null,
     Object? saveError = freezed,
     Object? saved = null,
@@ -102,6 +108,10 @@ class _$ProfileEditContactStateCopyWithImpl<$Res,
           ? _value.address
           : address // ignore: cast_nullable_to_non_nullable
               as String,
+      governorates: null == governorates
+          ? _value.governorates
+          : governorates // ignore: cast_nullable_to_non_nullable
+              as List<PlatformEnumerationEntity>,
       saving: null == saving
           ? _value.saving
           : saving // ignore: cast_nullable_to_non_nullable
@@ -134,6 +144,7 @@ abstract class _$$ProfileEditContactStateImplCopyWith<$Res>
       String? governorate,
       String city,
       String address,
+      List<PlatformEnumerationEntity> governorates,
       bool saving,
       Failure? saveError,
       bool saved});
@@ -160,6 +171,7 @@ class __$$ProfileEditContactStateImplCopyWithImpl<$Res>
     Object? governorate = freezed,
     Object? city = null,
     Object? address = null,
+    Object? governorates = null,
     Object? saving = null,
     Object? saveError = freezed,
     Object? saved = null,
@@ -189,6 +201,10 @@ class __$$ProfileEditContactStateImplCopyWithImpl<$Res>
           ? _value.address
           : address // ignore: cast_nullable_to_non_nullable
               as String,
+      governorates: null == governorates
+          ? _value._governorates
+          : governorates // ignore: cast_nullable_to_non_nullable
+              as List<PlatformEnumerationEntity>,
       saving: null == saving
           ? _value.saving
           : saving // ignore: cast_nullable_to_non_nullable
@@ -215,10 +231,13 @@ class _$ProfileEditContactStateImpl extends _ProfileEditContactState {
       this.governorate,
       this.city = '',
       this.address = '',
+      final List<PlatformEnumerationEntity> governorates =
+          const <PlatformEnumerationEntity>[],
       this.saving = false,
       this.saveError,
       this.saved = false})
-      : super._();
+      : _governorates = governorates,
+        super._();
 
   @override
   @JsonKey()
@@ -237,6 +256,19 @@ class _$ProfileEditContactStateImpl extends _ProfileEditContactState {
   @override
   @JsonKey()
   final String address;
+
+  /// Governorate list from the operator-managed registry, not a hardcoded copy.
+  final List<PlatformEnumerationEntity> _governorates;
+
+  /// Governorate list from the operator-managed registry, not a hardcoded copy.
+  @override
+  @JsonKey()
+  List<PlatformEnumerationEntity> get governorates {
+    if (_governorates is EqualUnmodifiableListView) return _governorates;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_governorates);
+  }
+
   @override
   @JsonKey()
   final bool saving;
@@ -248,7 +280,7 @@ class _$ProfileEditContactStateImpl extends _ProfileEditContactState {
 
   @override
   String toString() {
-    return 'ProfileEditContactState(dialCode: $dialCode, phone: $phone, email: $email, governorate: $governorate, city: $city, address: $address, saving: $saving, saveError: $saveError, saved: $saved)';
+    return 'ProfileEditContactState(dialCode: $dialCode, phone: $phone, email: $email, governorate: $governorate, city: $city, address: $address, governorates: $governorates, saving: $saving, saveError: $saveError, saved: $saved)';
   }
 
   @override
@@ -264,6 +296,8 @@ class _$ProfileEditContactStateImpl extends _ProfileEditContactState {
                 other.governorate == governorate) &&
             (identical(other.city, city) || other.city == city) &&
             (identical(other.address, address) || other.address == address) &&
+            const DeepCollectionEquality()
+                .equals(other._governorates, _governorates) &&
             (identical(other.saving, saving) || other.saving == saving) &&
             (identical(other.saveError, saveError) ||
                 other.saveError == saveError) &&
@@ -271,8 +305,18 @@ class _$ProfileEditContactStateImpl extends _ProfileEditContactState {
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, dialCode, phone, email,
-      governorate, city, address, saving, saveError, saved);
+  int get hashCode => Object.hash(
+      runtimeType,
+      dialCode,
+      phone,
+      email,
+      governorate,
+      city,
+      address,
+      const DeepCollectionEquality().hash(_governorates),
+      saving,
+      saveError,
+      saved);
 
   /// Create a copy of ProfileEditContactState
   /// with the given fields replaced by the non-null parameter values.
@@ -292,6 +336,7 @@ abstract class _ProfileEditContactState extends ProfileEditContactState {
       final String? governorate,
       final String city,
       final String address,
+      final List<PlatformEnumerationEntity> governorates,
       final bool saving,
       final Failure? saveError,
       final bool saved}) = _$ProfileEditContactStateImpl;
@@ -309,6 +354,10 @@ abstract class _ProfileEditContactState extends ProfileEditContactState {
   String get city;
   @override
   String get address;
+
+  /// Governorate list from the operator-managed registry, not a hardcoded copy.
+  @override
+  List<PlatformEnumerationEntity> get governorates;
   @override
   bool get saving;
   @override

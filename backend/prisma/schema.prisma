@@ -580,13 +580,12 @@ model PlatformEnumeration {
   deprecatedAt DateTime? @db.Timestamptz(6)
   systemOnly   Boolean   @default(false)
   parentKey    String?   @db.VarChar(64)
-  // Multi-category scoping for `program_name` members: a predefined program
-  // (e.g. Doctor, Pharmacy) may serve several loan categories, not just one.
-  // Empty for enumeration types that are not category-scoped.
-  categories   String[]  @default([])
   // Feature 010 (FR-001..FR-004): per-category lending defaults for `program_name`
   // members. Shape: { "<loanCategory>": { tenor?, loanLimits?, eligibility?,
   // pricing?, fees?, requiredDocuments? } } — all leaves optional (FR-003).
+  // A predefined program name is category-agnostic: every program name is
+  // offerable under any loan category, so any of the four categories may carry
+  // defaults here.
   // PREFILL ONLY: copied into the bank program on save (FR-009) and never
   // consulted at match time (FR-021b). Empty `{}` for every other enumeration type.
   defaults     Json      @default("{}")

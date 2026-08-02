@@ -43,12 +43,6 @@ export class EligibilityConfigDto {
   @Min(0)
   minMonthsInJob!: number;
 
-  @IsOptional() @IsObject() minMonthsInJobBySalaryCategory?: Record<string, number>;
-
-  @IsArray()
-  @IsString({ each: true })
-  acceptedLoanPurposes!: string[];
-
   @DecimalRange({ min: '0', max: '100', precision: 7, scale: 4 })
   dbrCapPercent!: string;
 

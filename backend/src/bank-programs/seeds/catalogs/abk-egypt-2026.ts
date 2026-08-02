@@ -2,21 +2,17 @@ import type { SeedCatalog } from '../catalog.types';
 import { skeletonProgram } from './base';
 
 /**
- * ABK Egypt 20-program reference catalog.
+ * ABK Egypt 17-program reference catalog.
  * Rates verified against FR-033c at seed time.
  * Built from configuration only — Principle II (banks-are-data, not code).
+ *
+ * ABK-SELF-EMP, ABK-PAYROLL-CAT-A and ABK-PAYROLL-CAT-B were retired
+ * 2026-08-02 (removed from the DB, not deactivated) and must not be re-added
+ * here — re-seeding would resurrect them.
  */
 export const abkEgypt2026: SeedCatalog = {
   name: 'abk-egypt-2026',
   programs: [
-    skeletonProgram({
-      programCode: 'ABK-SELF-EMP',
-      friendlyName: 'Self-Employed & Professionals',
-      programType: 'income_surrogate',
-      pricing: { isVariableRate: false, baseRatePercent: '28.5000' },
-      eligibility: skeletonEligibility('self_employed'),
-      incomeAssumption: { strategy: 'byBankStatementPercent', bankStatementPercent: '30.0' },
-    }),
     skeletonProgram({
       programCode: 'ABK-COMPOUND-OWNER',
       friendlyName: 'Compound Owner',
@@ -129,18 +125,6 @@ export const abkEgypt2026: SeedCatalog = {
       },
     }),
     skeletonProgram({
-      programCode: 'ABK-PAYROLL-CAT-A',
-      friendlyName: 'Payroll — Cat A',
-      pricing: { isVariableRate: false, baseRatePercent: '22.5000' },
-      eligibility: { ...skeletonEligibility('salaried'), acceptedTransferTypes: ['payroll_cat_a'] },
-    }),
-    skeletonProgram({
-      programCode: 'ABK-PAYROLL-CAT-B',
-      friendlyName: 'Payroll — Cat B',
-      pricing: { isVariableRate: false, baseRatePercent: '23.0000' },
-      eligibility: { ...skeletonEligibility('salaried'), acceptedTransferTypes: ['payroll_cat_b'] },
-    }),
-    skeletonProgram({
       programCode: 'ABK-PAYROLL-CAT-C',
       friendlyName: 'Payroll — Cat C',
       pricing: { isVariableRate: false, baseRatePercent: '24.0000' },
@@ -195,7 +179,6 @@ export const abkEgypt2026: SeedCatalog = {
     }),
   ],
   expectedRates: {
-    'ABK-SELF-EMP': '28.5000',
     'ABK-COMPOUND-OWNER': '25.5000',
     'ABK-CD-HOLDERS': '24.0000',
     'ABK-AUTO-XSELL-OTHER': '26.0000',
@@ -208,8 +191,6 @@ export const abkEgypt2026: SeedCatalog = {
     'ABK-MILITARY': '25.0000',
     'ABK-SALARIED-NO-XFER': '27.0000',
     'ABK-WEALTH': '23.0000',
-    'ABK-PAYROLL-CAT-A': '22.5000',
-    'ABK-PAYROLL-CAT-B': '23.0000',
     'ABK-PAYROLL-CAT-C': '24.0000',
     'ABK-STL': '24.0000',
     'ABK-ITL': '25.0000',
@@ -227,7 +208,6 @@ function skeletonEligibility(emp: 'salaried' | 'self_employed') {
     ageMax: 60,
     minMonthlyIncomeEGP: '6000',
     minMonthsInJob: emp === 'self_employed' ? 24 : 6,
-    acceptedLoanPurposes: ['personal'],
     dbrCapPercent: '50.0000',
     skipDbrCheck: false,
     acceptedTransferTypes: ['payroll'],

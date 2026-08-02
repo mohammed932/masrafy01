@@ -1239,14 +1239,20 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
 
       /* ── Wizard: rail semantics, step caption, issue banner ─────── */
       /* The rail, its caption and the issue banner pin together as ONE block
-         parked flush under the app top bar (sticky, 64px, z-20).
+         parked flush at the top of the page scrollport.
+         The scroll container is <main class="content"> in app.component (it owns
+         overflow-y, the app top bar is its SIBLING and never scrolls) — so the
+         sticky offset is 0, not --topbar-height: a 64px offset would park the
+         rail 64px down inside the scrollport and let step content scroll
+         visibly through the band above it.
          The wrapper — not the <ol> — is the sticky element so the flex gaps
          between the three carry an opaque backdrop; a bare sticky <ol> lets the
          step content scroll visibly through those gaps. The backdrop bleeds out
-         past the host's inline padding so nothing peeks at the edges either. */
+         past the host's inline padding, and up over the host's block padding, so
+         nothing peeks at the edges either. */
       .wizard-rail {
         position: sticky;
-        inset-block-start: var(--topbar-height);
+        inset-block-start: 0;
         z-index: 3;
         display: flex;
         flex-direction: column;
@@ -1256,7 +1262,19 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         padding-inline: var(--space-6);
         padding-block: var(--space-3);
         margin-block: calc(var(--space-3) * -1);
-        scroll-margin-block-start: var(--topbar-height);
+        scroll-margin-block-start: 0;
+      }
+      /* Hairline under the pinned block so cards sliding beneath it read as
+         passing UNDER the rail rather than colliding with it. */
+      .wizard-rail::after {
+        content: '';
+        position: absolute;
+        inset-inline: 0;
+        inset-block-end: 0;
+        block-size: 1px;
+        background: var(--border-subtle, var(--color-border-default));
+        opacity: 0.6;
+        pointer-events: none;
       }
       .steps {
         list-style: none;
@@ -1799,11 +1817,11 @@ export class BankProgramFormPage implements OnInit {
         nonNullable: true,
         validators: [Validators.required],
       }),
-      acceptedLoanPurposes: this.fb.nonNullable.array<string>(['personal'], {
-        validators: [Validators.required],
-      }),
+      // Defaults to the transfer types an applicant can actually answer. The old
+      // default was the three bank-internal payroll grades, which no applicant
+      // can ever produce — every new program rejected everyone on this check.
       acceptedTransferTypes: new FormControl<string[]>(
-        ['payroll_cat_a', 'payroll_cat_b', 'payroll_cat_c'],
+        ['payroll', 'salary_transfer_letter', 'income_transfer_letter'],
         { nonNullable: true, validators: [Validators.required] },
       ),
       ageMin: new FormControl(21, {
@@ -2223,11 +2241,8 @@ export class BankProgramFormPage implements OnInit {
    */
   private selectedProgramNameKey(): string | null {
     const name = this.identityGroup.controls['friendlyName']?.value as string | undefined;
-    const category = this.identityGroup.controls['productCategory']?.value as string | undefined;
-    if (!name || !category) return null;
-    const match = this.enums
-      .membersFor('program_name')()
-      .find((m) => m.labelEn === name && m.categories?.includes(category));
+    if (!name) return null;
+    const match = this.enums.membersFor('program_name')().find((m) => m.labelEn === name);
     return match?.key ?? null;
   }
 
@@ -2238,16 +2253,17 @@ export class BankProgramFormPage implements OnInit {
   );
 
   /**
-   * Program-name options for the picked product category, sourced from the live
-   * `program_name` registry (Principle II — names are DATA, no hardcoded list).
-   * The currently-bound name is kept visible even when it isn't (yet) a catalog
+   * Program-name options, sourced from the live `program_name` registry
+   * (Principle II — names are DATA, no hardcoded list). The catalog is
+   * category-agnostic: every active name is offerable under any product
+   * category, so the list is NOT filtered by the picked category. The
+   * currently-bound name is kept visible even when it isn't (yet) a catalog
    * member, so edit mode + legacy free-text programs still render.
    */
   readonly programNameOptions = computed(() => {
-    const cat = this.productCategorySignal();
     const opts = this.enums
       .membersFor('program_name')()
-      .filter((m) => m.active && !m.deprecated && m.categories?.includes(cat))
+      .filter((m) => m.active && !m.deprecated)
       .map((m) => ({ value: m.labelEn, label: this.localeIsAr ? m.labelAr : m.labelEn }));
     const current = this.friendlyNameSignal();
     if (current && !opts.some((o) => o.value === current)) {
@@ -2301,26 +2317,15 @@ export class BankProgramFormPage implements OnInit {
     this.form.controls.identity.controls.friendlyName.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((name) => {
-        const cat = this.form.controls.identity.controls.productCategory.value;
-        const match = this.enums
-          .membersFor('program_name')()
-          .find((m) => m.labelEn === name && m.categories?.includes(cat));
+        const match = this.enums.membersFor('program_name')().find((m) => m.labelEn === name);
         if (match) {
           this.form.controls.identity.controls.friendlyNameAr.setValue(match.labelAr, {
             emitEvent: false,
           });
         }
       });
-    // Clear an out-of-category pick when the product category changes.
-    this.form.controls.identity.controls.productCategory.valueChanges
-      .pipe(takeUntilDestroyed())
-      .subscribe(() => {
-        const current = this.form.controls.identity.controls.friendlyName.value;
-        if (current && !this.programNameOptions().some((o) => o.value === current)) {
-          this.form.controls.identity.controls.friendlyName.setValue('');
-          this.form.controls.identity.controls.friendlyNameAr.setValue(null, { emitEvent: false });
-        }
-      });
+    // No category-change reset: a program name serves every category, so a pick
+    // stays valid when the product category changes (only its prefill re-resolves).
 
     // FR-008: re-resolve prefill whenever one of its three inputs changes.
     // Create mode only — `refreshPrefill` no-ops on edit (FR-009).
@@ -2335,16 +2340,12 @@ export class BankProgramFormPage implements OnInit {
 
   ngOnInit(): void {
     this.enums.preload([
-      'salary_category',
       'transfer_type',
       'employment_type',
-      'loan_purpose',
       'property_type',
-      'city_tier',
       'product_category',
       'currency',
       'required_document',
-      'customer_program_tier',
       'program_name',
     ]);
 
@@ -2433,14 +2434,12 @@ export class BankProgramFormPage implements OnInit {
   retryEnums(): void {
     this.enums.clear();
     this.enums.preload([
-      'salary_category',
       'transfer_type',
       'employment_type',
-      'loan_purpose',
+      'property_type',
       'product_category',
       'currency',
       'required_document',
-      'customer_program_tier',
       'program_name',
     ]);
   }
@@ -2633,7 +2632,6 @@ export class BankProgramFormPage implements OnInit {
         ageMax: el.ageMax,
         minMonthlyIncomeEGP: el.minMonthlyIncomeEGP,
         minMonthsInJob: el.minMonthsInJob,
-        acceptedLoanPurposes: el.acceptedLoanPurposes,
         dbrCapPercent: el.dbrCapPercent,
         // Omitted entirely when empty so a program that never used bands keeps
         // resolving against its flat cap exactly as before (FR-020).

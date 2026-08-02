@@ -60,12 +60,13 @@ export function calculateApprovalProbability(
     apply(ratio.lessThan('1.2'), 'INCOME_NEAR_MIN');
   }
 
-  apply(profile.employment.companyType !== 'cat_a', 'NOT_CAT_A');
+  // Factors below fire on REAL registry keys only. `NOT_CAT_A` (compared a
+  // company_type value to a salary_category key, so it hit every applicant),
+  // `BANKERS_PROGRAM` and `PENSIONS_PROGRAM` (product categories that never
+  // existed) were removed — their weight rows are now inert.
   apply(profile.assets.cdAtABKValueEGP?.greaterThan(0) ?? false, 'HAS_CD_AT_ABK');
   apply(profile.employment.monthsInJob > 36, 'LONG_TENURE');
-  apply(profile.employment.salaryTransferType === 'payroll_transfer', 'PAYROLL_TRANSFER');
-  apply(program.productCategory === 'bankers', 'BANKERS_PROGRAM');
-  apply(program.productCategory === 'pensions', 'PENSIONS_PROGRAM');
+  apply(profile.employment.salaryTransferType === 'payroll', 'PAYROLL_TRANSFER');
 
   const rawSum =
     base + positive.reduce((s, f) => s + f.impact, 0) + negative.reduce((s, f) => s + f.impact, 0);

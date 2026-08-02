@@ -14,7 +14,6 @@ export interface FeesInput {
   effectiveLoanAmountEGP: Decimal;
   annualRatePercent: Decimal;
   tenorMonths: number;
-  loanPurpose: string;
   collateralized: boolean;
 }
 

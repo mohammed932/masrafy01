@@ -17,7 +17,7 @@ export class SeedAbkController {
   @Post()
   @Roles('super_admin')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Seed the ABK Egypt 20-program catalog (super_admin only)' })
+  @ApiOperation({ summary: 'Seed the ABK Egypt 17-program catalog (super_admin only)' })
   async seed(
     @CurrentUser() user: JwtPayload,
     @Req() req: Request,

@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 
 import 'package:app/core/di/injection.dart';
+import 'package:app/core/features/platform_enumerations/domain/usecases/platform_enumerations_usecase.dart';
 import 'package:app/core/router/router.gr.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
@@ -23,3 +24,4 @@ import 'widgets/offer_fees_card.dart';
 import 'widgets/offer_stat_tile.dart';
 
 part 'offer_details_page.dart';
+part 'widgets/offer_required_documents_card.dart';

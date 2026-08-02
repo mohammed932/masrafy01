@@ -137,10 +137,10 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                                 searchHint: l.profile_search_hint,
                                 value: state.governorate,
                                 options: [
-                                  for (final g in EgyptGovernorates.all)
+                                  for (final g in state.governorates)
                                     MasrafySelectOption(
-                                      value: g.slug,
-                                      label: g.label(isArabic),
+                                      value: g.key,
+                                      label: g.label(isArabic: isArabic),
                                     ),
                                 ],
                                 onSelected: (v) => cubit.updateField(

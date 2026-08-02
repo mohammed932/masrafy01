@@ -248,10 +248,6 @@ import type { BankProgramResponse } from '../bank-programs.types';
               </dd>
             </div>
             <div class="row">
-              <dt i18n="@@bank_programs.field.accepted_loan_purposes">Purposes</dt>
-              <dd>{{ p.eligibility.acceptedLoanPurposes | humanize }}</dd>
-            </div>
-            <div class="row">
               <dt i18n="@@bank_programs.field.age_min">Age</dt>
               <dd class="numeric">{{ p.eligibility.ageMin }}–{{ p.eligibility.ageMax }}</dd>
             </div>

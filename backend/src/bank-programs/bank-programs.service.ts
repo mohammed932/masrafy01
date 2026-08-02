@@ -685,18 +685,8 @@ export class BankProgramsService {
     }> = [];
 
     const tenor = program.tenor as {
-      maxMonthsBySalaryCategory?: Record<string, number>;
       maxMonthsByEmploymentType?: Record<string, number>;
     } | null;
-    if (tenor?.maxMonthsBySalaryCategory) {
-      for (const k of Object.keys(tenor.maxMonthsBySalaryCategory)) {
-        checks.push({
-          fieldPath: `tenor.maxMonthsBySalaryCategory.${k}`,
-          key: k,
-          type: 'salary_category',
-        });
-      }
-    }
     if (tenor?.maxMonthsByEmploymentType) {
       for (const k of Object.keys(tenor.maxMonthsByEmploymentType)) {
         checks.push({
@@ -711,9 +701,7 @@ export class BankProgramsService {
     if (ll && typeof ll === 'object') {
       for (const dim of [
         'maxByPropertyType',
-        'maxByCityTier',
         'maxByTransferType',
-        'maxBySalaryCategory',
         'maxByEmploymentType',
       ] as const) {
         const map = ll[dim] as Record<string, string> | undefined;
@@ -721,9 +709,7 @@ export class BankProgramsService {
         const type = (
           {
             maxByPropertyType: 'property_type',
-            maxByCityTier: 'city_tier',
             maxByTransferType: 'transfer_type',
-            maxBySalaryCategory: 'salary_category',
             maxByEmploymentType: 'employment_type',
           } as const
         )[dim];

@@ -15,7 +15,6 @@ export interface EnumerationRow {
   deprecatedAt: string | null;
   systemOnly: boolean;
   parentKey: string | null;
-  categories: string[];
   /** Feature 010 — per-category prefill defaults; `{}` for non-`program_name` members. */
   defaults: Record<string, ProgramDefaults>;
   sortOrder: number;
@@ -25,7 +24,6 @@ export interface EnumerationRow {
 
 /** Response of the catalog-defaults endpoints (FR-001). */
 export interface CatalogDefaultsResponse {
-  categories: string[];
   defaults: Record<string, ProgramDefaults>;
 }
 
@@ -42,7 +40,6 @@ export interface CreateEnumerationRequest {
   labelAr: string;
   labelEn: string;
   parentKey?: string;
-  categories?: string[];
   sortOrder?: number;
 }
 
@@ -50,7 +47,6 @@ export interface UpdateEnumerationRequest {
   labelAr?: string;
   labelEn?: string;
   parentKey?: string;
-  categories?: string[];
   active?: boolean;
   deprecate?: boolean;
   sortOrder?: number;

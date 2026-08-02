@@ -66,7 +66,6 @@ export class InMemoryPlatformEnumerationsRepository
       labelAr,
       labelEn,
       parentKey: null,
-      categories: [],
       // The stub carries no catalog defaults (feature 010) — prefill against it
       // simply resolves every leaf to `EMPTY`.
       defaults: {},
@@ -84,17 +83,9 @@ export class InMemoryPlatformEnumerationsRepository
   }
 
   private seed(): void {
-    // salary categories
-    this.add('salary_category', 'cat_a', 'الفئة أ', 'Cat-A');
-    this.add('salary_category', 'cat_b', 'الفئة ب', 'Cat-B');
-    this.add('salary_category', 'cat_c', 'الفئة ج', 'Cat-C');
-    this.add('salary_category', 'outsource', 'متعاقد خارجي', 'Outsource');
-
-    // transfer types
+    // transfer types — the four an applicant can actually answer. Bank-internal
+    // payroll grades (Cat-A/B/C) were dropped: nothing could ever produce them.
     this.add('transfer_type', 'payroll', 'تحويل راتب', 'Payroll');
-    this.add('transfer_type', 'payroll_cat_a', 'تحويل راتب — الفئة أ', 'Payroll · Cat-A');
-    this.add('transfer_type', 'payroll_cat_b', 'تحويل راتب — الفئة ب', 'Payroll · Cat-B');
-    this.add('transfer_type', 'payroll_cat_c', 'تحويل راتب — الفئة ج', 'Payroll · Cat-C');
     this.add(
       'transfer_type',
       'salary_transfer_letter',
@@ -104,31 +95,21 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('transfer_type', 'income_transfer_letter', 'خطاب تحويل دخل', 'Income Transfer Letter');
     this.add('transfer_type', 'none', 'بدون تحويل راتب', 'No salary transfer');
 
-    // employment types — Phase 1 spec asks for four distinct keys.
-    // Legacy `salaried` / `self_employed` stay active so bank programs that
-    // listed them in their `eligibility.acceptedEmploymentTypes` keep
-    // resolving until operators migrate program configs.
+    // employment types — the applicant answers a DETAILED key; bank programs
+    // underwrite in the coarse buckets `salaried` / `self_employed` / `retired`.
+    // `coarseEmploymentType()` bridges the two at match time.
     this.add('employment_type', 'salaried', 'موظف', 'Salaried');
     this.add('employment_type', 'self_employed', 'صاحب عمل حر', 'Self-Employed');
     this.add('employment_type', 'government_employee', 'موظف حكومي', 'Government employee');
     this.add('employment_type', 'private_employee', 'موظف قطاع خاص', 'Private-sector employee');
     this.add('employment_type', 'business_owner', 'صاحب عمل', 'Business owner');
     this.add('employment_type', 'freelancer', 'مستقل', 'Freelancer');
-
-    // loan purposes — Constitution v1.7.0 / Principle II scope-lock: only 4.
-    this.add('loan_purpose', 'personal', 'قرض شخصي', 'Personal');
-    this.add('loan_purpose', 'car', 'قرض سيارة', 'Car');
-    this.add('loan_purpose', 'mortgage', 'قرض عقاري', 'Mortgage');
-    this.add('loan_purpose', 'business', 'قرض الأعمال', 'Business');
+    this.add('employment_type', 'retired', 'متقاعد', 'Retired');
 
     // property types (mortgage / compound)
     this.add('property_type', 'apartment', 'شقة', 'Apartment');
     this.add('property_type', 'twin_house', 'توين هاوس', 'Twin House');
     this.add('property_type', 'villa', 'فيلا', 'Villa');
-
-    // city tiers
-    this.add('city_tier', 'main_cities', 'المدن الرئيسية', 'Main Cities');
-    this.add('city_tier', 'other_cities', 'مدن أخرى', 'Other Cities');
 
     // professor ranks
     this.add('professor_rank', 'lecturer', 'مدرس', 'Lecturer');
@@ -149,17 +130,6 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('product_category', 'mortgage', 'قرض عقاري', 'Mortgage');
     this.add('product_category', 'car', 'قرض سيارة', 'Car');
     this.add('product_category', 'business', 'قرض الأعمال', 'Business');
-
-    // customer program tiers (Blue / Plus / Wealth — FR-008q)
-    this.add('customer_program_tier', 'blue', 'بلو', 'Blue');
-    this.add('customer_program_tier', 'plus', 'بلس', 'Plus');
-    this.add('customer_program_tier', 'wealth', 'ثروات', 'Wealth');
-
-    // performance tiers (MOB bands for buyout / cross-sell)
-    this.add('performance_tier', 'mob_6', '6 أشهر تعاملات', '6 months on book');
-    this.add('performance_tier', 'mob_12', '12 شهر تعاملات', '12 months on book');
-    this.add('performance_tier', 'mob_18', '18 شهر تعاملات', '18 months on book');
-    this.add('performance_tier', 'mob_24', '24 شهر تعاملات', '24 months on book');
 
     // company types (Bankers program)
     this.add('company_type', 'commercial_bank', 'بنك تجاري', 'Commercial Bank');
@@ -183,10 +153,8 @@ export class InMemoryPlatformEnumerationsRepository
 
   private verify(): void {
     const required: EnumerationType[] = [
-      'salary_category',
       'transfer_type',
       'employment_type',
-      'loan_purpose',
       'product_category',
       'currency',
     ];

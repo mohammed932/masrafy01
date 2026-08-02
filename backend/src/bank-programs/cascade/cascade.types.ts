@@ -31,7 +31,6 @@ export const PRICING_CASCADE_ORDER = [
   'rateByTenor',
   'rateByTransferType',
   'rateByDownPaymentPercent',
-  'rateByCustomerProgramTier',
   'rateByAssetValueBand',
   'rateByLoanAmountBand',
   'rateBySeniority',
@@ -45,18 +44,13 @@ export type PricingCascadeLevel =
 export const LOAN_LIMIT_CASCADE_ORDER = [
   'maxByCDTier',
   'maxByPropertyType',
-  'maxByCityTier',
   'maxByTransferType',
-  'maxBySalaryCategory',
   'maxByEmploymentType',
 ] as const;
 
 export type LoanLimitCascadeLevel = (typeof LOAN_LIMIT_CASCADE_ORDER)[number] | 'maxEGP';
 
-export const TENOR_CASCADE_ORDER = [
-  'maxMonthsBySalaryCategory',
-  'maxMonthsByEmploymentType',
-] as const;
+export const TENOR_CASCADE_ORDER = ['maxMonthsByEmploymentType'] as const;
 
 export type TenorCascadeLevel = (typeof TENOR_CASCADE_ORDER)[number] | 'maxMonths';
 
@@ -78,12 +72,7 @@ export interface RateBandValue {
 export interface ApplicantContext {
   employmentType?: string;
   transferType?: string;
-  salaryCategory?: string;
-  loanPurpose?: string;
   propertyType?: string;
-  cityTier?: string;
-  customerProgramTier?: string;
-  performanceTier?: string;
   seniorityYears?: number;
   tenorMonths?: number;
   downPaymentPercent?: number;

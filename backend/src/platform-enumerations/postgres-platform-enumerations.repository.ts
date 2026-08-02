@@ -13,7 +13,6 @@ export interface CreateEnumerationInput {
   labelAr: string;
   labelEn: string;
   parentKey?: string | null;
-  categories?: string[];
   sortOrder?: number;
   createdBy: string;
 }
@@ -40,7 +39,6 @@ export interface EnumerationRow {
   systemOnly: boolean;
   deprecatedAt: Date | null;
   parentKey: string | null;
-  categories: string[];
   /** Feature 010 — per-category prefill defaults; `{}` for non-`program_name` types. */
   defaults: Record<string, unknown>;
   sortOrder: number;
@@ -53,7 +51,6 @@ export interface EnumerationUpdatePatch {
   labelAr?: string;
   labelEn?: string;
   parentKey?: string | null;
-  categories?: string[];
   sortOrder?: number;
   active?: boolean;
   /** When `true` AND `deprecatedAt` is currently null, the repository stamps `deprecatedAt = now`
@@ -65,17 +62,12 @@ export interface EnumerationUpdatePatch {
 }
 
 const ALL_TYPES: readonly EnumerationType[] = [
-  'salary_category',
   'transfer_type',
   'employment_type',
-  'loan_purpose',
   'property_type',
-  'city_tier',
   'professor_rank',
   'military_grade',
   'product_category',
-  'customer_program_tier',
-  'performance_tier',
   'company_type',
   'required_document',
   'currency',
@@ -215,7 +207,6 @@ export class PostgresPlatformEnumerationsRepository
         labelAr: input.labelAr,
         labelEn: input.labelEn,
         parentKey: input.parentKey ?? null,
-        categories: input.categories ?? [],
         sortOrder: input.sortOrder ?? 0,
         active: true,
         systemOnly: false,
@@ -231,7 +222,6 @@ export class PostgresPlatformEnumerationsRepository
     if (patch.labelAr !== undefined) data.labelAr = patch.labelAr;
     if (patch.labelEn !== undefined) data.labelEn = patch.labelEn;
     if (patch.parentKey !== undefined) data.parentKey = patch.parentKey;
-    if (patch.categories !== undefined) data.categories = patch.categories;
     if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
     if (patch.defaults !== undefined) {
       data.defaults = patch.defaults as Prisma.InputJsonValue;
@@ -264,7 +254,6 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
     systemOnly: row.systemOnly,
     deprecatedAt: row.deprecatedAt,
     parentKey: row.parentKey,
-    categories: row.categories,
     defaults: toDefaultsRecord(row.defaults),
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
@@ -279,7 +268,6 @@ function toEnumerationMember(row: PlatformEnumeration): EnumerationMember {
     labelAr: row.labelAr,
     labelEn: row.labelEn,
     parentKey: row.parentKey,
-    categories: row.categories,
     defaults: toDefaultsRecord(row.defaults),
     active: row.active,
     deprecated: row.deprecatedAt !== null,

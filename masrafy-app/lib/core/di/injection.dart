@@ -9,6 +9,10 @@ import '../environments/app_env.dart';
 import '../environments/base_environment.dart';
 import '../environments/dev_environment.dart';
 import '../features/biometric/data/biometric_storage.dart';
+import '../features/platform_enumerations/data/datasources/platform_enumerations_remote_datasource.dart';
+import '../features/platform_enumerations/data/repositories/platform_enumerations_repository_impl.dart';
+import '../features/platform_enumerations/domain/repositories/platform_enumerations_repository.dart';
+import '../features/platform_enumerations/domain/usecases/platform_enumerations_usecase.dart';
 import '../features/biometric/domain/biometric_service.dart';
 import '../features/biometric/presentation/cubit/biometric_gate_cubit.dart';
 import '../locale/locale_cubit/locale_cubit.dart';
@@ -225,6 +229,20 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerFactory(() => QuestionnaireCubit(getIt<QuestionnaireUseCase>()));
 
+  // platform enumerations — operator-managed lookup lists (governorates,
+  // required documents). Singleton so the per-type cache is shared app-wide.
+  getIt.registerLazySingleton(
+    () => PlatformEnumerationsRemoteDataSource(getIt<BaseNetwork>()),
+  );
+  getIt.registerLazySingleton<PlatformEnumerationsRepository>(
+    () => PlatformEnumerationsRepositoryImpl(
+      getIt<PlatformEnumerationsRemoteDataSource>(),
+    ),
+  );
+  getIt.registerLazySingleton(
+    () => PlatformEnumerationsUseCase(getIt<PlatformEnumerationsRepository>()),
+  );
+
   // profile — view (backend-wired via GET /api/v1/auth/me) + two edit screens.
   // Screen-scoped (Principle XXXI).
   getIt.registerLazySingleton(
@@ -241,8 +259,10 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
         getIt<CustomerAuthUseCase>(),
         getIt<ProfileUseCase>(),
       ));
-  getIt.registerFactory(
-      () => ProfileEditContactCubit(getIt<ProfileUseCase>()));
+  getIt.registerFactory(() => ProfileEditContactCubit(
+        getIt<ProfileUseCase>(),
+        getIt<PlatformEnumerationsUseCase>(),
+      ));
 
   // saved offers — list + save + unsave (backend-wired). Screen-scoped cubits.
   getIt.registerLazySingleton(

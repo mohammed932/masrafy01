@@ -13,7 +13,7 @@ Findings from the current implementation. This feature extends what exists; it d
 |---|---|---|
 | **Banks** | Full issuer management (Arabic/English name, logo, website, featured flag, display order, notes). | No bank-level lending policy, so every program re-enters the same bank-wide numbers by hand. |
 | **Bank programs** | One record per bank offering, carrying seven configuration blocks (identity, tenor, loan limits, pricing, eligibility, performance criteria, income assumption, fees) — roughly 80 configurable fields on one very long create/edit form. | Program setup is a long data-entry exercise. A handful of fields actually change an offer; the rest are refinements presented with equal weight. No prefill, no duplicate, no "essentials only" path. |
-| **Predefined programs** | A Program Catalog of predefined program **names**, each tagged with the loan categories it serves, replacing free-text naming. | Names only — no default numbers. Picking "Doctors" or "Payroll" prefills nothing. |
+| **Predefined programs** | A Program Catalog of predefined program **names**, category-agnostic (one name is pickable under any loan category), replacing free-text naming. | Names only — no default numbers. Picking "Doctors" or "Payroll" prefills nothing. |
 | **DBR** | One flat cap percentage per program, plus a "skip DBR" toggle. Matching computes the debt-burden ratio and, when the requested amount breaks the cap, derives the largest affordable amount instead of rejecting. | Real bank policy sets the cap **by income band** (e.g. 30% under 5K rising to 50% above 30K). One flat number overstates affordability at low incomes and understates it at high ones. |
 | **Loan calculator** | Installment, affordability (largest amount within DBR), fees and total-cost math already exist and run when an applicant submits an application. | Nothing exposes that math on its own. The matching **preview** returns approval likelihood with a blank installment and no amount, so customers see a ranked list with no money in it. The admin simulator likewise returns likelihood only — no figures, no explanation of how a figure was reached. |
 | **Question types** | Four types are defined (single choice, multiple choice, text, number) and answer storage already has unused text and number columns. Only **single choice** works end to end: the admin builder has no type picker, answer submission accepts exactly one option code, and scoring awards points per option code only. | Multiple choice, text and number questions cannot be built, answered, stored or scored. Because no question can hold a real number, the money figures come from **hard-coded guesses per bucket** in the app (a "150k–500k" answer becomes 300,000), so a customer asking for 500,000 is quoted the payment for 300,000. |
@@ -185,7 +185,7 @@ An admin enters a sample applicant (income, obligations, requested amount, tenor
 
 **Predefined programs (catalog with defaults)**
 
-- **FR-001**: Each predefined program name MUST be able to carry default lending values per loan category it serves — interest rate, tenor range, amount range, minimum income, minimum months in job, age range, DBR setting, fee percentages, and required documents.
+- **FR-001**: Each predefined program name MUST be able to carry default lending values per loan category (all four are offered; a category left empty prefills nothing) — interest rate, tenor range, amount range, minimum income, minimum months in job, age range, DBR setting, fee percentages, and required documents.
 - **FR-002**: Predefined program defaults MUST be editable by an admin with catalog permission, and every edit MUST be audited with the editor's identity.
 - **FR-003**: Predefined program defaults MUST be optional per field; a name with no defaults MUST behave exactly as the name-only catalog behaves today.
 - **FR-004**: The system MUST ship seeded defaults for the archetypes already in use (payroll, salaried, self-employed with income proof, doctors, university professors, affluent, secured-by-deposit, property-related, membership and mobile-bill surrogates, educational, bankers), so a fresh install has usable prefill.
@@ -266,7 +266,7 @@ An admin enters a sample applicant (income, obligations, requested amount, tenor
 
 ### Key Entities
 
-- **Predefined Program (catalog entry)**: A reusable program archetype — name (Arabic/English), the loan categories it serves, and optional per-category default lending values used only as prefill.
+- **Predefined Program (catalog entry)**: A reusable program archetype — name (Arabic/English), usable under any loan category, plus optional per-category default lending values used only as prefill.
 - **Bank Lending Policy**: One optional record per bank holding the bank's general lending numbers; used only as prefill and as the lower-priority layer of the merge.
 - **Bank Program**: An individual bank's offering. Role unchanged; gains an income-banded DBR option and self-contained copied values, and its settings are regrouped into Essentials and Advanced for editing purposes only.
 - **DBR Setting**: Either one cap percentage or an ordered set of (income upper bound, cap percentage) bands with an open-ended final band. Attachable to a bank policy, a predefined program default, or a bank program.

@@ -11,11 +11,6 @@ export class TenorConfigDto {
   @Max(480)
   maxMonths!: number;
 
-  /** Keys validated against `salary_category` enumeration at service layer. */
-  @IsOptional()
-  @IsObject()
-  maxMonthsBySalaryCategory?: Record<string, number>;
-
   /** Keys validated against `employment_type` enumeration at service layer. */
   @IsOptional()
   @IsObject()

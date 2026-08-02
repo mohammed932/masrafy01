@@ -263,7 +263,7 @@ function reasonToCheckCode(reason: FiguresUnavailableReason): string {
 
 function buildMatchReasons(profile: ApplicantProfile, program: BankProgramSnapshot): string[] {
   const reasons: string[] = [];
-  if (profile.employment.salaryTransferType === 'payroll_transfer') {
+  if (profile.employment.salaryTransferType === 'payroll') {
     reasons.push('payroll_transfer_verified');
   }
   if (profile.assets.cdAtABKValueEGP?.greaterThan(0)) {

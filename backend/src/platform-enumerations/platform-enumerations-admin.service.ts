@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { LoanCategory } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
@@ -22,6 +23,12 @@ import type {
 
 /** Feature 010 — catalog defaults only exist on predefined-program members. */
 const CATALOG_DEFAULTS_TYPE = 'program_name';
+
+/**
+ * The four constitution-locked retail categories (Principle II / A26). A program
+ * name serves all of them; only the DEFAULTS inside it are keyed per category.
+ */
+const LOAN_CATEGORIES: ReadonlySet<string> = new Set<string>(Object.values(LoanCategory));
 
 export interface AdminActor {
   staffId: string;
@@ -56,7 +63,6 @@ export class PlatformEnumerationsAdminService {
       labelAr: input.labelAr,
       labelEn: input.labelEn,
       parentKey: input.parentKey ?? null,
-      categories: input.categories ?? [],
       sortOrder: input.sortOrder ?? 0,
       createdBy: actor.staffId,
     });
@@ -93,7 +99,6 @@ export class PlatformEnumerationsAdminService {
     if (patch.labelAr !== undefined) repoPatch.labelAr = patch.labelAr;
     if (patch.labelEn !== undefined) repoPatch.labelEn = patch.labelEn;
     if (patch.parentKey !== undefined) repoPatch.parentKey = patch.parentKey;
-    if (patch.categories !== undefined) repoPatch.categories = patch.categories;
     if (patch.sortOrder !== undefined) repoPatch.sortOrder = patch.sortOrder;
 
     if (patch.deprecate === true && existing.deprecatedAt === null) {
@@ -124,20 +129,20 @@ export class PlatformEnumerationsAdminService {
   // --- Feature 010: predefined-program catalog defaults (FR-001 … FR-004) ---
 
   /** Read the per-category defaults of one `program_name` member. */
-  async getCatalogDefaults(
-    key: string,
-  ): Promise<{ categories: string[]; defaults: Record<string, unknown> }> {
+  async getCatalogDefaults(key: string): Promise<{ defaults: Record<string, unknown> }> {
     const row = await this.repo.findByTypeAndKey(CATALOG_DEFAULTS_TYPE, key);
     if (!row) throw new NotFoundException();
-    return { categories: row.categories, defaults: row.defaults };
+    return { defaults: row.defaults };
   }
 
   /**
    * Full replace of a predefined program's defaults (FR-001, FR-002).
    *
-   * Every category key MUST be one the member already serves — otherwise the
-   * defaults would be unreachable by prefill. Each per-category value is validated
-   * in partial mode, so an admin can supply just a rate or just a tenor (FR-003).
+   * A program name is category-agnostic — it may be picked under any of the four
+   * retail categories — so every key is accepted as long as it IS one of them; a
+   * typo'd key would otherwise sit in the row unreachable by prefill. Each
+   * per-category value is validated in partial mode, so an admin can supply just
+   * a rate or just a tenor (FR-003).
    *
    * FR-007/SC-008: this NEVER touches an already-saved bank program. Programs copy
    * these values on save and are self-contained thereafter (FR-009).
@@ -146,22 +151,22 @@ export class PlatformEnumerationsAdminService {
     key: string,
     body: UpdateCatalogDefaultsDto,
     actor: AdminActor,
-  ): Promise<{ categories: string[]; defaults: Record<string, ProgramDefaultsDto> }> {
+  ): Promise<{ defaults: Record<string, ProgramDefaultsDto> }> {
     const row = await this.repo.findByTypeAndKey(CATALOG_DEFAULTS_TYPE, key);
     if (!row) throw new NotFoundException();
 
     const validated: Record<string, ProgramDefaultsDto> = {};
     for (const [category, partial] of Object.entries(body.defaults)) {
-      if (!row.categories.includes(category)) {
+      if (!LOAN_CATEGORIES.has(category)) {
         throw new CatalogDefaultsCategoryUnknownException({
           category,
-          served: row.categories,
+          allowed: [...LOAN_CATEGORIES],
         });
       }
       validated[category] = await validateProgramDefaults(partial, `defaults.${category}`);
     }
 
-    const updated = await this.repo.updateById(row.id, {
+    await this.repo.updateById(row.id, {
       defaults: validated,
       updatedBy: actor.staffId,
     });
@@ -179,7 +184,7 @@ export class PlatformEnumerationsAdminService {
         after: validated,
       },
     });
-    return { categories: updated.categories, defaults: validated };
+    return { defaults: validated };
   }
 
   private diffChanges(
@@ -198,12 +203,6 @@ export class PlatformEnumerationsAdminService {
     }
     if (patch.parentKey !== undefined && patch.parentKey !== existing.parentKey) {
       changes.parentKey = { from: existing.parentKey, to: patch.parentKey };
-    }
-    if (
-      patch.categories !== undefined &&
-      JSON.stringify(patch.categories) !== JSON.stringify(existing.categories)
-    ) {
-      changes.categories = { from: existing.categories, to: patch.categories };
     }
     if (patch.sortOrder !== undefined && patch.sortOrder !== existing.sortOrder) {
       changes.sortOrder = { from: existing.sortOrder, to: patch.sortOrder };

@@ -178,7 +178,6 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       effectiveLoanAmountEGP: amount,
       annualRatePercent: ratePercent,
       tenorMonths,
-      loanPurpose: profile.loanPurpose,
       collateralized: program.eligibility?.requiresCollateral ?? false,
     });
     const booked = calculateEffectiveLoanAmount(amount, fees.totalFinancedFeesEGP);

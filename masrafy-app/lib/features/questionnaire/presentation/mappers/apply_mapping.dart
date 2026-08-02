@@ -40,9 +40,23 @@ int tenorMonths(double years) =>
 /// Midpoint of a range-slider's two bounds.
 double midpoint(double start, double end) => (start + end) / 2;
 
-/// Wizard `salaryTransfer` yes/no → backend `salaryTransferType` enum value.
-String salaryTransferType({required bool? transfers}) =>
-    transfers == true ? 'payroll' : 'none';
+/// Wizard `salary_transfer` answer code → backend `transfer_type` registry key.
+///
+/// The question asks HOW the salary arrives, so every key a bank program can be
+/// configured with is reachable. Option codes are slugged from the English label
+/// by the questionnaire seed; only "No salary transfer" needs renaming, since the
+/// registry key for it is `none`.
+const Map<String, String> _transferTypeByAnswer = {
+  'payroll': 'payroll',
+  'salary_transfer_letter': 'salary_transfer_letter',
+  'income_transfer_letter': 'income_transfer_letter',
+  'no_salary_transfer': 'none',
+};
+
+/// Unanswered (the question is optional per category) falls back to `none` —
+/// the honest reading of "the applicant did not claim a salary transfer".
+String salaryTransferType({required String? answerCode}) =>
+    _transferTypeByAnswer[answerCode] ?? 'none';
 
 /// Derive `companyType` from the employment id (never collected by the wizard;
 /// the engine only reads it for bank-employee programs).

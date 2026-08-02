@@ -50,7 +50,7 @@ Validation: same validators as the program sub-configs, in partial mode; `dbrBan
 }
 ```
 
-Rules: every top-level key MUST be one of the member's `categories`; each sub-object validated by the matching sub-config DTO in partial mode; unknown keys rejected (`whitelist` + `forbidNonWhitelisted`). Audited as `program_catalog_defaults_updated`.
+Rules: a program name is category-agnostic, so every top-level key MUST be one of the four retail loan categories (`personal` / `car` / `mortgage` / `business`); each sub-object validated by the matching sub-config DTO in partial mode; unknown keys rejected (`whitelist` + `forbidNonWhitelisted`). Audited as `program_catalog_defaults_updated`.
 
 ### Seed
 

@@ -90,14 +90,10 @@ export class PrefillService {
     if (!member) {
       throw new PrefillTargetInvalidException({ reason: 'PROGRAM_NAME_NOT_FOUND', programNameKey });
     }
-    if (!member.categories.includes(category)) {
-      throw new PrefillTargetInvalidException({
-        reason: 'PROGRAM_NAME_DOES_NOT_SERVE_CATEGORY',
-        programNameKey,
-        category,
-      });
-    }
 
+    // A predefined program name is category-agnostic: it is offerable under any
+    // retail category. Only its DEFAULTS are per category — a category with no
+    // stored defaults simply contributes no CATALOG layer.
     const forCategory = (member.defaults as Record<string, unknown>)[category];
     if (forCategory === undefined || forCategory === null) return null;
     // Stored rows are validated on write; re-validating on read keeps a hand-edited

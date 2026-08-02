@@ -194,6 +194,12 @@ class OfferDetailsPage extends StatelessWidget {
                               ),
                             ],
                           ),
+                          if (offer.requiredDocuments.isNotEmpty) ...[
+                            Gap(20.h),
+                            OfferRequiredDocumentsCard(
+                              documentKeys: offer.requiredDocuments,
+                            ),
+                          ],
                           Gap(25.h),
                           // Already-applied offers (opened from the Applications
                           // screen) can't be re-applied — hide the Apply CTA

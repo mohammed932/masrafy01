@@ -21,10 +21,6 @@ import {
   MinusCircleOutline,
   SearchOutline,
   HistoryOutline,
-  IdcardOutline,
-  CarOutline,
-  HomeOutline,
-  ShopOutline,
   InboxOutline,
   AppstoreOutline,
   CheckCircleOutline,
@@ -36,7 +32,6 @@ import {
   StatStripComponent,
   type StatStripItem,
 } from '@shared/ui';
-import { LOAN_CATEGORIES, categoryLabel, isLoanCategory } from '@core/loan-category';
 import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.service';
 import {
   EnumerationEditDialogComponent,
@@ -47,31 +42,15 @@ import {
   type CatalogDefaultsDialogData,
 } from './components/catalog-defaults.dialog';
 
-/** One category "lane" on the board. `category === null` is the fallback bucket. */
-interface CatalogLane {
-  category: string | null;
-  label: string;
-  icon: string;
-  live: EnumerationRow[];
-  deprecated: EnumerationRow[];
-}
-
-/** ng-zorro icon per loan category (differentiates lanes without rainbow fills). */
-const CATEGORY_ICON: Record<string, string> = {
-  personal: 'idcard',
-  car: 'car',
-  mortgage: 'home',
-  business: 'shop',
-};
-
 const ENUM_TYPE = 'program_name';
 
 /**
- * Program catalog — a dedicated, category-laned CRUD board for the predefined
- * loan program names that feed the bank-program builder's "Program name" picker.
- * Names are DATA (Principle II); each is a `program_name` enumeration member
- * scoped to one or more loan categories via `categories` — a shared program
- * (Doctor, Pharmacy) appears in every lane it serves. Super-admin only (route-guarded).
+ * Program catalog — the CRUD board for the predefined loan program names that
+ * feed the bank-program builder's "Program name" picker. Names are DATA
+ * (Principle II) and CATEGORY-AGNOSTIC: one `program_name` enumeration member
+ * ("Doctor Loans", "Pharmacy") is pickable under every loan category, so the
+ * board is a single flat list rather than per-category lanes. Only the prefill
+ * DEFAULTS behind a name are keyed per category. Super-admin only (route-guarded).
  */
 @Component({
   selector: 'app-program-catalog-page',
@@ -94,10 +73,6 @@ const ENUM_TYPE = 'program_name';
       MinusCircleOutline,
       SearchOutline,
       HistoryOutline,
-      IdcardOutline,
-      CarOutline,
-      HomeOutline,
-      ShopOutline,
       InboxOutline,
       AppstoreOutline,
       CheckCircleOutline,
@@ -113,7 +88,7 @@ const ENUM_TYPE = 'program_name';
         i18n-eyebrow="@@program_catalog.eyebrow"
         title="Program catalog"
         i18n-title="@@program_catalog.title"
-        subtitle="Curated loan program names — Doctor, Military, New Car — grouped by loan type. Pick these in the bank-program builder instead of free-typing."
+        subtitle="Curated loan program names — Doctor, Military, New Car. Pick these in the bank-program builder instead of free-typing; every name works under any loan type."
         i18n-subtitle="@@program_catalog.subtitle"
       ></app-page-header>
 
@@ -139,153 +114,127 @@ const ENUM_TYPE = 'program_name';
         <ng-template #searchIcon>
           <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
         </ng-template>
+        <span class="toolbar-spacer"></span>
+        <button nz-button nzType="primary" class="add-btn" (click)="add()">
+          <span nz-icon nzType="plus" nzTheme="outline"></span>
+          <span i18n="@@program_catalog.add">Add program</span>
+        </button>
       </div>
 
       @if (loading()) {
-        <div class="lanes" aria-hidden="true">
-          @for (l of skeletonLanes; track l) {
-            <section class="lane">
-              <div class="sk-head">
-                <span class="sk sk-chip"></span>
-                <span class="sk sk-title"></span>
-              </div>
-              <div class="cards">
-                @for (c of skeletonCards; track c) {
-                  <span class="sk sk-card"></span>
-                }
-              </div>
-            </section>
+        <div class="cards" aria-hidden="true">
+          @for (c of skeletonCards; track c) {
+            <span class="sk sk-card"></span>
           }
         </div>
-      } @else if (grouped().length === 0) {
-        <div class="board-empty">
-          <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
-          <p i18n="@@program_catalog.no_matches">No programs match “{{ search() }}”.</p>
-        </div>
+      } @else if (live().length === 0 && deprecated().length === 0) {
+        @if (search().trim()) {
+          <div class="board-empty">
+            <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
+            <p i18n="@@program_catalog.no_matches">No programs match “{{ search() }}”.</p>
+          </div>
+        } @else {
+          <div class="board-empty">
+            <span nz-icon nzType="inbox" nzTheme="outline" aria-hidden="true"></span>
+            <p i18n="@@program_catalog.empty">No programs here yet — add the first one.</p>
+          </div>
+        }
       } @else {
-        <div class="lanes">
-          @for (lane of grouped(); track lane.category) {
-            <section class="lane">
-              <header class="lane-head">
-                <span class="lane-icon" aria-hidden="true">
-                  <span nz-icon [nzType]="lane.icon" nzTheme="outline"></span>
+        <ul class="cards" role="list">
+          @for (r of live(); track r.id) {
+            <li class="card" [class.muted]="!r.active">
+              <div class="card-main">
+                <span class="name-en">{{ r.labelEn }}</span>
+                <span class="name-ar" dir="rtl">{{ r.labelAr }}</span>
+              </div>
+              <div class="card-side">
+                <span class="status" [class.inactive]="!r.active">
+                  {{ r.active ? activeLabel : inactiveLabel }}
                 </span>
-                <h2 class="lane-title">{{ lane.label }}</h2>
-                <span class="lane-count" [attr.aria-label]="lane.live.length + ' active'">
-                  {{ lane.live.length }}
-                </span>
-                <span class="lane-spacer"></span>
-                <button nz-button nzType="default" class="lane-add" (click)="add(lane.category)">
-                  <span nz-icon nzType="plus" nzTheme="outline"></span>
-                  <span i18n="@@program_catalog.add">Add program</span>
-                </button>
-              </header>
-
-              @if (lane.live.length === 0 && lane.deprecated.length === 0) {
-                <div class="lane-empty">
-                  <span nz-icon nzType="inbox" nzTheme="outline" aria-hidden="true"></span>
-                  <p i18n="@@program_catalog.empty">No programs here yet — add the first one.</p>
+                <div class="row-actions">
+                  <button
+                    class="icon-action"
+                    type="button"
+                    (click)="edit(r)"
+                    nz-tooltip
+                    nzTooltipTitle="Edit"
+                    i18n-nzTooltipTitle="@@program_catalog.edit"
+                    [attr.aria-label]="editLabel"
+                  >
+                    <span nz-icon nzType="edit" nzTheme="outline"></span>
+                  </button>
+                  <button
+                    class="icon-action"
+                    type="button"
+                    [class.has-defaults]="hasDefaults(r)"
+                    (click)="editDefaults(r)"
+                    nz-tooltip
+                    [nzTooltipTitle]="hasDefaults(r) ? defaultsSetLabel : defaultsLabel"
+                    [attr.aria-label]="hasDefaults(r) ? defaultsSetLabel : defaultsLabel"
+                  >
+                    <span nz-icon nzType="sliders" nzTheme="outline"></span>
+                  </button>
+                  <button
+                    class="icon-action"
+                    type="button"
+                    (click)="toggleActive(r, !r.active)"
+                    nz-tooltip
+                    [nzTooltipTitle]="r.active ? deactivateLabel : activateLabel"
+                    [attr.aria-label]="r.active ? deactivateLabel : activateLabel"
+                  >
+                    <span nz-icon nzType="poweroff" nzTheme="outline"></span>
+                  </button>
+                  <button
+                    class="icon-action danger"
+                    type="button"
+                    nz-popconfirm
+                    nzPopconfirmTitle="Deprecate this program? It stops appearing in the picker."
+                    i18n-nzPopconfirmTitle="@@program_catalog.deprecate.confirm"
+                    nzPopconfirmPlacement="topRight"
+                    (nzOnConfirm)="deprecate(r)"
+                    nz-tooltip
+                    nzTooltipTitle="Deprecate"
+                    i18n-nzTooltipTitle="@@program_catalog.deprecate"
+                    [attr.aria-label]="deprecateLabel"
+                  >
+                    <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
+                  </button>
                 </div>
-              } @else {
-                <ul class="cards" role="list">
-                  @for (r of lane.live; track r.id) {
-                    <li class="card" [class.muted]="!r.active">
-                      <div class="card-main">
-                        <span class="name-en">{{ r.labelEn }}</span>
-                        <span class="name-ar" dir="rtl">{{ r.labelAr }}</span>
-                      </div>
-                      <div class="card-side">
-                        <span class="status" [class.inactive]="!r.active">
-                          {{ r.active ? activeLabel : inactiveLabel }}
-                        </span>
-                        <div class="row-actions">
-                          <button
-                            class="icon-action"
-                            type="button"
-                            (click)="edit(r)"
-                            nz-tooltip
-                            nzTooltipTitle="Edit"
-                            i18n-nzTooltipTitle="@@program_catalog.edit"
-                            [attr.aria-label]="editLabel"
-                          >
-                            <span nz-icon nzType="edit" nzTheme="outline"></span>
-                          </button>
-                          <button
-                            class="icon-action"
-                            type="button"
-                            [class.has-defaults]="hasDefaults(r)"
-                            (click)="editDefaults(r)"
-                            nz-tooltip
-                            [nzTooltipTitle]="hasDefaults(r) ? defaultsSetLabel : defaultsLabel"
-                            [attr.aria-label]="hasDefaults(r) ? defaultsSetLabel : defaultsLabel"
-                          >
-                            <span nz-icon nzType="sliders" nzTheme="outline"></span>
-                          </button>
-                          <button
-                            class="icon-action"
-                            type="button"
-                            (click)="toggleActive(r, !r.active)"
-                            nz-tooltip
-                            [nzTooltipTitle]="r.active ? deactivateLabel : activateLabel"
-                            [attr.aria-label]="r.active ? deactivateLabel : activateLabel"
-                          >
-                            <span nz-icon nzType="poweroff" nzTheme="outline"></span>
-                          </button>
-                          <button
-                            class="icon-action danger"
-                            type="button"
-                            nz-popconfirm
-                            nzPopconfirmTitle="Deprecate this program? It stops appearing in the picker."
-                            i18n-nzPopconfirmTitle="@@program_catalog.deprecate.confirm"
-                            nzPopconfirmPlacement="topRight"
-                            (nzOnConfirm)="deprecate(r)"
-                            nz-tooltip
-                            nzTooltipTitle="Deprecate"
-                            i18n-nzTooltipTitle="@@program_catalog.deprecate"
-                            [attr.aria-label]="deprecateLabel"
-                          >
-                            <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  }
-
-                  @if (lane.deprecated.length > 0) {
-                    <li class="cards-divider" aria-hidden="true">
-                      <span nz-icon nzType="history" nzTheme="outline"></span>
-                      <span i18n="@@program_catalog.deprecated">Deprecated</span>
-                    </li>
-                    @for (r of lane.deprecated; track r.id) {
-                      <li class="card deprecated">
-                        <div class="card-main">
-                          <span class="name-en">{{ r.labelEn }}</span>
-                          <span class="name-ar" dir="rtl">{{ r.labelAr }}</span>
-                        </div>
-                        <div class="card-side">
-                          <span class="status dep">{{ deprecatedLabel }}</span>
-                          <div class="row-actions">
-                            <button
-                              class="icon-action"
-                              type="button"
-                              (click)="edit(r)"
-                              nz-tooltip
-                              nzTooltipTitle="Edit"
-                              i18n-nzTooltipTitle="@@program_catalog.edit"
-                              [attr.aria-label]="editLabel"
-                            >
-                              <span nz-icon nzType="edit" nzTheme="outline"></span>
-                            </button>
-                          </div>
-                        </div>
-                      </li>
-                    }
-                  }
-                </ul>
-              }
-            </section>
+              </div>
+            </li>
           }
-        </div>
+
+          @if (deprecated().length > 0) {
+            <li class="cards-divider" aria-hidden="true">
+              <span nz-icon nzType="history" nzTheme="outline"></span>
+              <span i18n="@@program_catalog.deprecated">Deprecated</span>
+            </li>
+            @for (r of deprecated(); track r.id) {
+              <li class="card deprecated">
+                <div class="card-main">
+                  <span class="name-en">{{ r.labelEn }}</span>
+                  <span class="name-ar" dir="rtl">{{ r.labelAr }}</span>
+                </div>
+                <div class="card-side">
+                  <span class="status dep">{{ deprecatedLabel }}</span>
+                  <div class="row-actions">
+                    <button
+                      class="icon-action"
+                      type="button"
+                      (click)="edit(r)"
+                      nz-tooltip
+                      nzTooltipTitle="Edit"
+                      i18n-nzTooltipTitle="@@program_catalog.edit"
+                      [attr.aria-label]="editLabel"
+                    >
+                      <span nz-icon nzType="edit" nzTheme="outline"></span>
+                    </button>
+                  </div>
+                </div>
+              </li>
+            }
+          }
+        </ul>
       }
     </section>
   `,
@@ -304,83 +253,20 @@ const ENUM_TYPE = 'program_name';
       }
       .toolbar {
         display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-3);
       }
       .search {
         max-inline-size: 420px;
         inline-size: 100%;
+        flex: 1 1 240px;
       }
-      .lanes {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-6);
-      }
-      .lane {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3);
-      }
-      .lane-head {
-        display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: var(--space-3);
-        padding-block-end: var(--space-2);
-        border-block-end: 1px solid var(--color-border-default);
-      }
-      .lane-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        inline-size: 34px;
-        block-size: 34px;
-        border-radius: var(--radius-md);
-        font-size: var(--text-lg);
-        background: var(--color-tonal-accent-bg);
-        color: var(--color-brand-primary);
-        flex-shrink: 0;
-      }
-      .lane-title {
-        margin: 0;
-        font-size: var(--text-base);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .lane-count {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-inline-size: 22px;
-        block-size: 22px;
-        padding-inline: 6px;
-        border-radius: var(--radius-pill);
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        font-variant-numeric: tabular-nums;
-        background: var(--color-surface-muted);
-        color: var(--color-text-secondary);
-      }
-      .lane-spacer {
+      .toolbar-spacer {
         flex: 1;
       }
-      .lane-add [nz-icon] {
+      .add-btn [nz-icon] {
         margin-inline-end: var(--space-1);
-      }
-      .lane-empty {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-6);
-        color: var(--color-text-tertiary);
-        text-align: center;
-      }
-      .lane-empty [nz-icon] {
-        font-size: 28px;
-        opacity: 0.7;
-      }
-      .lane-empty p {
-        margin: 0;
-        font-size: var(--text-sm);
       }
       .board-empty {
         display: flex;
@@ -399,13 +285,6 @@ const ENUM_TYPE = 'program_name';
         margin: 0;
         font-size: var(--text-sm);
       }
-      .sk-head {
-        display: flex;
-        align-items: center;
-        gap: var(--space-3);
-        padding-block-end: var(--space-2);
-        border-block-end: 1px solid var(--color-border-default);
-      }
       .sk {
         display: block;
         border-radius: var(--radius-sm);
@@ -417,15 +296,6 @@ const ENUM_TYPE = 'program_name';
         );
         background-size: 200% 100%;
         animation: catalog-shimmer 1.2s ease-in-out infinite;
-      }
-      .sk-chip {
-        inline-size: 34px;
-        block-size: 34px;
-        border-radius: var(--radius-md);
-      }
-      .sk-title {
-        inline-size: 168px;
-        block-size: 16px;
       }
       .sk-card {
         block-size: 64px;
@@ -623,8 +493,7 @@ export class ProgramCatalogPage implements OnInit {
   private readonly rows = signal<EnumerationRow[]>([]);
 
   /** Fixed-length placeholders for the shape-matched loading skeleton. */
-  protected readonly skeletonLanes = [0, 1];
-  protected readonly skeletonCards = [0, 1, 2];
+  protected readonly skeletonCards = [0, 1, 2, 3, 4, 5];
 
   protected readonly searchControl = new FormControl<string>('', { nonNullable: true });
   protected readonly search = toSignal(this.searchControl.valueChanges, { initialValue: '' });
@@ -639,39 +508,22 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly deprecateLabel = $localize`:@@program_catalog.deprecate:Deprecate`;
   protected readonly defaultsLabel = $localize`:@@program_catalog.defaults:Set default lending values`;
   protected readonly defaultsSetLabel = $localize`:@@program_catalog.defaults.set:Edit default lending values (set)`;
-  private readonly otherLabel = $localize`:@@program_catalog.other:Other`;
 
-  /** Category lanes over the (search-filtered) rows; a program tagged with several
-   *  categories appears in each of their lanes. A fallback lane holds any row with
-   *  no categories, so nothing hides. */
-  protected readonly grouped = computed<CatalogLane[]>(() => {
+  /** Search-filtered rows — one flat list, since a program name belongs to no
+   *  single loan type. Deprecated names sit in their own tail section. */
+  private readonly filtered = computed<EnumerationRow[]>(() => {
     const q = this.search().trim().toLowerCase();
-    const matches = (r: EnumerationRow): boolean =>
-      !q ||
-      r.labelEn.toLowerCase().includes(q) ||
-      r.labelAr.toLowerCase().includes(q) ||
-      r.key.toLowerCase().includes(q);
-    const rows = this.rows().filter(matches);
-
-    const lanes: CatalogLane[] = LOAN_CATEGORIES.map((cat) =>
-      this.buildLane(
-        cat,
-        categoryLabel(cat),
-        CATEGORY_ICON[cat] ?? 'appstore',
-        rows.filter((r) => r.categories?.includes(cat)),
-      ),
+    if (!q) return this.rows();
+    return this.rows().filter(
+      (r) =>
+        r.labelEn.toLowerCase().includes(q) ||
+        r.labelAr.toLowerCase().includes(q) ||
+        r.key.toLowerCase().includes(q),
     );
-    const known = new Set<string>(LOAN_CATEGORIES);
-    const others = rows.filter(
-      (r) => !r.categories?.length || !r.categories.some((c) => known.has(c)),
-    );
-    if (others.length > 0) {
-      lanes.push(this.buildLane(null, this.otherLabel, 'appstore', others));
-    }
-    // While searching, collapse to lanes that actually have matches — no stale
-    // "add the first one" copy under a category that simply didn't match.
-    return q ? lanes.filter((l) => l.live.length + l.deprecated.length > 0) : lanes;
   });
+
+  protected readonly live = computed(() => this.filtered().filter((r) => !r.deprecatedAt));
+  protected readonly deprecated = computed(() => this.filtered().filter((r) => r.deprecatedAt));
 
   protected readonly stats = computed<StatStripItem[]>(() => {
     const all = this.rows();
@@ -703,27 +555,8 @@ export class ProgramCatalogPage implements OnInit {
     void this.reload();
   }
 
-  private buildLane(
-    category: string | null,
-    label: string,
-    icon: string,
-    rows: EnumerationRow[],
-  ): CatalogLane {
-    return {
-      category,
-      label,
-      icon,
-      live: rows.filter((r) => !r.deprecatedAt),
-      deprecated: rows.filter((r) => r.deprecatedAt),
-    };
-  }
-
-  add(category: string | null): void {
-    this.openDialog({
-      mode: 'create',
-      type: ENUM_TYPE,
-      categories: isLoanCategory(category) ? [category] : undefined,
-    });
+  add(): void {
+    this.openDialog({ mode: 'create', type: ENUM_TYPE });
   }
 
   edit(row: EnumerationRow): void {
@@ -740,7 +573,6 @@ export class ProgramCatalogPage implements OnInit {
    * programs are never touched by an edit here (FR-007 / SC-008).
    */
   editDefaults(row: EnumerationRow): void {
-    const categories = row.categories?.length ? row.categories : [...LOAN_CATEGORIES];
     const ref = this.modal.create<
       CatalogDefaultsDialogComponent,
       CatalogDefaultsDialogData,
@@ -751,7 +583,6 @@ export class ProgramCatalogPage implements OnInit {
         key: row.key,
         labelEn: row.labelEn,
         labelAr: row.labelAr,
-        categories,
       },
       nzWidth: 'min(760px, calc(100vw - 48px))',
       nzFooter: null,

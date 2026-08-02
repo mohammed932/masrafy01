@@ -12,6 +12,7 @@ import type {
   EligibilityConfig,
   PerformanceCriteriaConfig,
 } from '../types';
+import { coarseEmploymentType, isSelfEmployedBucket } from './employment-type';
 
 export interface EligibilityCheckResult {
   passed: boolean;
@@ -36,16 +37,16 @@ export function checkEligibility(
   const accepts = (list: readonly string[] | undefined | null, value: string): boolean =>
     !list || list.length === 0 || list.includes(value);
 
-  push(accepts(elig.acceptedEmploymentTypes, profile.employment.employmentType), 'employment_type');
+  // Bank rules are written in coarse buckets (salaried / self_employed / retired);
+  // the applicant answers in detailed ones (government_employee, freelancer, …).
+  const employmentBucket = coarseEmploymentType(profile.employment.employmentType);
+  push(accepts(elig.acceptedEmploymentTypes, employmentBucket), 'employment_type');
 
   if (elig.companyType?.length) {
     push(elig.companyType.includes(profile.employment.companyType), 'company_type');
   }
 
-  const isSelfEmployed =
-    profile.employment.employmentType !== 'salaried' &&
-    profile.employment.employmentType !== 'government' &&
-    profile.employment.employmentType !== 'pension';
+  const isSelfEmployed = isSelfEmployedBucket(profile.employment.employmentType);
   const minAge =
     isSelfEmployed && elig.selfEmployedMinAge != null
       ? Math.max(elig.minAge, elig.selfEmployedMinAge)
@@ -61,8 +62,10 @@ export function checkEligibility(
   push(assumedIncomeEGP.greaterThanOrEqualTo(minIncomeRaw), 'monthly_income');
 
   push(profile.employment.monthsInJob >= elig.minMonthsInJob, 'months_in_job');
-  push(accepts(elig.acceptedLoanPurposes, profile.loanPurpose), 'loan_purpose');
-  push(accepts(elig.acceptedSalaryTransferTypes, profile.employment.salaryTransferType), 'salary_transfer_type');
+  push(
+    accepts(elig.acceptedSalaryTransferTypes, profile.employment.salaryTransferType),
+    'salary_transfer_type',
+  );
   push(accepts(program.currencies, profile.requestedCurrency), 'currency');
 
   const minAmount = new Decimal(

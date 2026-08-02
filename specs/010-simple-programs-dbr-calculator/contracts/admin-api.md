@@ -40,7 +40,7 @@ Audit: `bank_policy_updated` with a before/after diff. Existing programs untouch
 ### `GET /admin/platform-enumerations/program_name/:key/defaults`
 
 ```jsonc
-{ "success": true, "data": { "categories": ["personal","car"],
+{ "success": true, "data": {
   "defaults": { "personal": { "tenor": { "minMonths": 6, "maxMonths": 72 }, … } } } }
 ```
 

@@ -41,7 +41,6 @@ export class PricingConfigDto {
   @IsOptional() @IsObject() rateByTenor?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByTenorAndCustomerType?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByDownPaymentPercent?: Record<string, RateBandLike>;
-  @IsOptional() @IsObject() rateByCustomerProgramTier?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByAssetValueBand?: Record<string, RateBandLike>;
   @IsOptional() @IsObject() rateByLoanAmountBand?: Record<string, RateBandLike>;
 

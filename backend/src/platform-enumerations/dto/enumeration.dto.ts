@@ -1,7 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  ArrayUnique,
-  IsArray,
   IsBoolean,
   IsInt,
   IsNotEmpty,
@@ -48,17 +46,6 @@ export class CreateEnumerationDto {
   @Length(0, 64)
   parentKey?: string;
 
-  @ApiPropertyOptional({
-    type: [String],
-    description: 'Loan categories a `program_name` member serves (e.g. ["personal","car"]).',
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  @Length(1, 64, { each: true })
-  @ArrayUnique()
-  categories?: string[];
-
   @ApiPropertyOptional({ minimum: 0, default: 0 })
   @IsOptional()
   @IsInt()
@@ -84,17 +71,6 @@ export class UpdateEnumerationDto {
   @IsString()
   @Length(0, 64)
   parentKey?: string;
-
-  @ApiPropertyOptional({
-    type: [String],
-    description: 'Loan categories a `program_name` member serves (e.g. ["personal","car"]).',
-  })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  @Length(1, 64, { each: true })
-  @ArrayUnique()
-  categories?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -123,7 +99,6 @@ export class EnumerationRowDto {
   @ApiProperty({ nullable: true }) deprecatedAt!: string | null;
   @ApiProperty() systemOnly!: boolean;
   @ApiProperty({ nullable: true }) parentKey!: string | null;
-  @ApiProperty({ type: [String] }) categories!: string[];
   /** Feature 010 — per-category prefill defaults; `{}` for non-`program_name` members. */
   @ApiProperty() defaults!: Record<string, unknown>;
   @ApiProperty() sortOrder!: number;
@@ -137,16 +112,14 @@ export class EnumerationRowDto {
  * Body of `PUT /admin/enumerations/program_name/:key/defaults`.
  *
  * FULL REPLACE, not a patch, so removing a category or a leaf is expressible.
- * Each key MUST be a loan category the member already serves (`categories[]`) —
- * otherwise `CATALOG_DEFAULTS_CATEGORY_UNKNOWN` (validated at the service layer,
- * which is where the member row is available).
+ * A program name is category-agnostic, so any of the four retail loan categories
+ * may carry defaults; anything else is `CATALOG_DEFAULTS_CATEGORY_UNKNOWN`.
  */
 export class UpdateCatalogDefaultsDto {
   /**
    * Validated per category at the service layer (`validateProgramDefaults`) rather
    * than with `@ValidateNested({ each: true })` — `each` iterates arrays and Sets,
-   * not the string-keyed record this is. The service layer is also where the
-   * member's `categories[]` is available for the unknown-category check.
+   * not the string-keyed record this is.
    */
   @ApiProperty({
     description: 'Per-category partial program values. Every leaf optional (FR-003).',
@@ -157,6 +130,5 @@ export class UpdateCatalogDefaultsDto {
 }
 
 export class CatalogDefaultsResponseDto {
-  @ApiProperty({ type: [String] }) categories!: string[];
   @ApiProperty() defaults!: Record<string, ProgramDefaultsDto>;
 }

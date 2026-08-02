@@ -26,7 +26,6 @@ export interface PerCurrencyBounds {
 export interface TenorConfig {
   minMonths: number;
   maxMonths: number;
-  maxMonthsBySalaryCategory?: Record<string, number>;
   maxMonthsByEmploymentType?: Record<string, number>;
 }
 
@@ -34,11 +33,8 @@ export interface LoanLimitsConfig {
   perCurrency: Record<string, PerCurrencyBounds>;
   maxByCDTier?: Array<{ minCDValueEGP: string; maxAmountEGP: string }>;
   maxByPropertyType?: Record<string, string>;
-  maxByCityTier?: Record<string, string>;
   maxByTransferType?: Record<string, string>;
-  maxBySalaryCategory?: Record<string, string>;
   maxByEmploymentType?: Record<string, string>;
-  maxByPerformanceTier?: Record<string, string>;
   maxTopUpEGP?: string;
   ltvCeilingPercent?: string;
   minDownPaymentPercent?: string;
@@ -59,7 +55,6 @@ export interface PricingConfig {
   rateByTenor?: RateBandMap;
   rateByTenorAndCustomerType?: RateBandMap;
   rateByDownPaymentPercent?: RateBandMap;
-  rateByCustomerProgramTier?: RateBandMap;
   rateByAssetValueBand?: RateBandMap;
   rateByLoanAmountBand?: RateBandMap;
   feeWaiverEnabledAtRatePercent?: string;
@@ -79,8 +74,6 @@ export interface EligibilityConfig {
   minMonthlyIncomeEGP: string;
   minMonthlyIncomeSelfEmployedEGP?: string;
   minMonthsInJob: number;
-  minMonthsInJobBySalaryCategory?: Record<string, number>;
-  acceptedLoanPurposes: string[];
   dbrCapPercent: string;
   /**
    * Feature 010 (FR-016) — optional income-band table that overrides the flat

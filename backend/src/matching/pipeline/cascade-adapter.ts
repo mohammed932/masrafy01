@@ -21,14 +21,13 @@ import {
   evaluateTenor,
   type BankProgramConfig,
 } from '../../bank-programs/cascade/cascade.evaluator';
+import { coarseEmploymentType } from './employment-type';
 
 export function buildApplicantContext(profile: ApplicantProfile): ApplicantContext {
   const downPaymentPercent = computeDownPaymentPercent(profile);
   return {
-    employmentType: profile.employment.employmentType,
+    employmentType: coarseEmploymentType(profile.employment.employmentType),
     transferType: profile.employment.salaryTransferType,
-    salaryCategory: profile.employment.companyType,
-    loanPurpose: profile.loanPurpose,
     propertyType: profile.mortgageDetails?.propertyType,
     seniorityYears: Math.floor(profile.employment.monthsInJob / 12),
     tenorMonths: profile.preferredTenorMonths,

@@ -57,16 +57,6 @@ import {
 
         <app-brand-select
           class="span-2"
-          [options]="loanPurposeOptions()"
-          [multiple]="true"
-          [value]="currentLoanPurposes"
-          (valueChange)="onArrChange('acceptedLoanPurposes', $event)"
-          i18n-label="@@bank_programs.field.accepted_loan_purposes"
-          label="Accepted loan purposes"
-        ></app-brand-select>
-
-        <app-brand-select
-          class="span-2"
           [options]="transferTypeOptions()"
           [multiple]="true"
           [value]="currentTransferTypes"
@@ -296,29 +286,21 @@ export class EligibilitySectionComponent {
   @Input({ required: true }) group!: FormGroup;
 
   readonly employmentTypes = this.enums.membersFor('employment_type');
-  readonly loanPurposes = this.enums.membersFor('loan_purpose');
   readonly transferTypes = this.enums.membersFor('transfer_type');
 
   readonly employmentTypeOptions = computed<BrandSelectOption[]>(() =>
     this.employmentTypes().map((m) => ({ value: m.key, label: m.labelEn })),
   );
-  readonly loanPurposeOptions = computed<BrandSelectOption[]>(() =>
-    this.loanPurposes().map((m) => ({ value: m.key, label: m.labelEn })),
-  );
-  // Filter out generic 'payroll' from program-config — it's an applicant-side
-  // choice; operator MUST declare specific cat(s). Backend resolves applicant's
-  // 'payroll' → cat via employer whitelist before matching against this list.
+  // Every transfer type is listed, `payroll` included: it is exactly what the
+  // wizard's most common answer produces. It used to be filtered out on the
+  // theory that an employer whitelist mapped it to a payroll grade — no such
+  // resolver ever existed, so hiding it just made programs unmatchable.
   readonly transferTypeOptions = computed<BrandSelectOption[]>(() =>
-    this.transferTypes()
-      .filter((m) => m.key !== 'payroll')
-      .map((m) => ({ value: m.key, label: m.labelEn })),
+    this.transferTypes().map((m) => ({ value: m.key, label: m.labelEn })),
   );
 
   get currentAcceptedEmployment(): string[] {
     return this.readArr('acceptedEmploymentTypes');
-  }
-  get currentLoanPurposes(): string[] {
-    return this.readArr('acceptedLoanPurposes');
   }
   get currentTransferTypes(): string[] {
     return this.readArr('acceptedTransferTypes');

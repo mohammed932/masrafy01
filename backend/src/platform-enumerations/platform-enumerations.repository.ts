@@ -7,17 +7,12 @@
  */
 
 export type EnumerationType =
-  | 'salary_category'
   | 'transfer_type'
   | 'employment_type'
-  | 'loan_purpose'
   | 'property_type'
-  | 'city_tier'
   | 'professor_rank'
   | 'military_grade'
   | 'product_category'
-  | 'customer_program_tier'
-  | 'performance_tier'
   | 'company_type'
   | 'required_document'
   | 'currency'
@@ -29,13 +24,12 @@ export interface EnumerationMember {
   key: string;
   labelAr: string;
   labelEn: string;
-  /** Optional single scoping parent key (generic; unused by `program_name` — see `categories`). */
+  /** Optional single scoping parent key (generic; unused by `program_name`). */
   parentKey: string | null;
-  /** Multi-category scoping for `program_name` members (e.g. `['personal','car']`); empty otherwise. */
-  categories: string[];
   /**
    * Feature 010 (FR-001): per-category lending defaults for `program_name` members,
    * shape `{ "<loanCategory>": <partial program> }`. Empty `{}` for every other type.
+   * A program name itself is category-agnostic — any category may carry defaults.
    * PREFILL ONLY — copied into the program on save (FR-009), never read at match time (FR-021b).
    */
   defaults: Record<string, unknown>;
@@ -58,8 +52,8 @@ export abstract class PlatformEnumerationsRepository {
 
   /**
    * Single member lookup regardless of active/deprecated state (feature 010).
-   * The prefill service needs one member's `categories` + `defaults` without
-   * pulling the whole type. Returns `null` when the key is unknown.
+   * The prefill service needs one member's `defaults` without pulling the whole
+   * type. Returns `null` when the key is unknown.
    */
   abstract findMember(type: EnumerationType, key: string): Promise<EnumerationMember | null>;
 }

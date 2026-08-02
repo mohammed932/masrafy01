@@ -23,7 +23,6 @@ export const salesfloorEgp2026: SeedCatalog = {
         ageMax: 60,
         minMonthlyIncomeEGP: '0',
         minMonthsInJob: 0,
-        acceptedLoanPurposes: ['personal'],
         dbrCapPercent: '50.0000',
         skipDbrCheck: false,
         acceptedTransferTypes: [
@@ -73,7 +72,6 @@ export const salesfloorEgp2026: SeedCatalog = {
         ageMax: 60,
         minMonthlyIncomeEGP: '10000',
         minMonthsInJob: 24,
-        acceptedLoanPurposes: ['personal'],
         dbrCapPercent: '50.0000',
         skipDbrCheck: false,
         acceptedTransferTypes: ['none'],
@@ -107,7 +105,6 @@ export const salesfloorEgp2026: SeedCatalog = {
         ageMax: 65,
         minMonthlyIncomeEGP: '50000',
         minMonthsInJob: 36,
-        acceptedLoanPurposes: ['personal'],
         dbrCapPercent: '50.0000',
         skipDbrCheck: false,
         acceptedTransferTypes: ['none'],
@@ -169,7 +166,6 @@ export const salesfloorEgp2026: SeedCatalog = {
         ageMax: 65,
         minMonthlyIncomeEGP: '10000',
         minMonthsInJob: 6,
-        acceptedLoanPurposes: ['car'],
         dbrCapPercent: '50.0000',
         skipDbrCheck: false,
         acceptedTransferTypes: [

@@ -38,6 +38,8 @@ import {
 } from './dto/customer-auth.dto';
 import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
 import { CustomerProfileDocumentRepository } from './customer-profile-document.repository';
+import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
+import { UnknownEnumerationKeyException } from '@/common/errors/domain.exceptions';
 import { RegistrationPath } from '@prisma/client';
 import { splitFullName } from './name.util';
 import { deriveAge } from './age.util';
@@ -73,6 +75,7 @@ export class CustomerAuthMobileService {
     private readonly prisma: PrismaService,
     private readonly completeness: CustomerProfileCompletenessService,
     private readonly idDocs: CustomerProfileDocumentRepository,
+    private readonly enumerations: PlatformEnumerationsRepository,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -265,13 +268,30 @@ export class CustomerAuthMobileService {
     const trimmed = (v: string | undefined): string | undefined =>
       v === undefined ? undefined : v.trim();
 
+    // The governorate list is admin-editable data (Principle II), and the app
+    // now reads it from the registry — so a value that is not a live registry
+    // key is a client bug, not a free-text address line. Reject it rather than
+    // storing a slug no screen can ever label.
+    const governorate = trimmed(args.governorate);
+    if (governorate) {
+      const known = await this.enumerations.isActiveMember('governorate', governorate);
+      if (!known) {
+        const active = await this.enumerations.getActiveMembers('governorate');
+        throw new UnknownEnumerationKeyException({
+          enumerationType: 'governorate',
+          offendingKey: governorate,
+          activeMembers: active.map((m) => m.key),
+        });
+      }
+    }
+
     try {
       await this.accounts.updateProfileScalars({
         customerId: args.customerId,
         firstName: trimmed(args.firstName),
         lastName: trimmed(args.lastName),
         ...(email !== undefined ? { email } : {}),
-        governorate: trimmed(args.governorate),
+        governorate,
         city: trimmed(args.city),
         address: trimmed(args.address),
       });

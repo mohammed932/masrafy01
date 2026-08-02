@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -37,6 +37,7 @@ import { MockSmsGateway } from './sms/mock-sms-gateway.service';
 // DocumentsModule) to avoid a circular import — DocumentsModule imports this
 // module. S3StorageClient only depends on the global ConfigService.
 import { S3StorageClient } from '@/documents/s3-storage.client';
+import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 
 /**
  * Customer-facing mobile auth (Constitution v3.0.0 / Principle XIII).
@@ -53,6 +54,9 @@ import { S3StorageClient } from '@/documents/s3-storage.client';
     AuthModule,
     InfraModule,
     PassportModule,
+    // Governorate keys on a profile update are validated against the registry.
+    // forwardRef: platform-enumerations imports this module for CustomerJwtGuard.
+    forwardRef(() => PlatformEnumerationsModule),
     JwtModule.registerAsync({
       inject: [ConfigService],
       imports: [ConfigModule],

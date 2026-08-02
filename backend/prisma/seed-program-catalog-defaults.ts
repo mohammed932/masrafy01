@@ -99,9 +99,9 @@ function extend(base: CatalogDefaults, override: CatalogDefaults): CatalogDefaul
 }
 
 /**
- * `program_name` key → per-category defaults. Keys and their `categories` come
- * from the `program_name_enumeration` / `program_name_multi_category` migrations;
- * a category not served by the member is skipped rather than written.
+ * `program_name` key → per-category defaults. Keys come from the
+ * `program_name_enumeration` migration. The name itself is category-agnostic —
+ * the categories listed per key are simply the ones with meaningful defaults.
  */
 const CATALOG: Record<string, Record<string, CatalogDefaults>> = {
   // --- personal ------------------------------------------------------------
@@ -369,15 +369,9 @@ async function main(): Promise<void> {
       continue;
     }
 
-    // Never write a category the member does not serve — prefill could not reach it.
-    const defaults: Record<string, CatalogDefaults> = {};
-    for (const [category, values] of Object.entries(byCategory)) {
-      if (!member.categories.includes(category)) {
-        console.warn(`  ! ${key}: does not serve '${category}' — that category skipped`);
-        continue;
-      }
-      defaults[category] = values;
-    }
+    // Program names are category-agnostic: every category listed for the key is
+    // reachable by prefill, so all of them are written as-is.
+    const defaults: Record<string, CatalogDefaults> = { ...byCategory };
     if (Object.keys(defaults).length === 0) {
       skipped++;
       continue;

@@ -46,7 +46,6 @@ export class BankProgramsMobileService {
     };
     const eligibility = program.eligibility as {
       acceptedEmploymentTypes: string[];
-      acceptedLoanPurposes: string[];
       ageMin: number;
       ageMax: number;
     };
@@ -85,7 +84,6 @@ export class BankProgramsMobileService {
       lifeInsuranceMandatory: fees.lifeInsuranceMandatory,
       stampDutyDisplay: `${new Decimal(fees.stampDutyPercent).toString()}%`,
       acceptedEmploymentTypes: eligibility.acceptedEmploymentTypes,
-      acceptedLoanPurposes: eligibility.acceptedLoanPurposes,
       ageRangeDisplay: `${eligibility.ageMin}–${eligibility.ageMax}`,
     };
   }

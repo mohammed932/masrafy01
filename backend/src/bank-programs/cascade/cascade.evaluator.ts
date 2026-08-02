@@ -3,7 +3,6 @@ import {
   ApplicantContext,
   CascadeTraceStep,
   DerivationChain,
-  LOAN_LIMIT_CASCADE_ORDER,
   LoanLimitCascadeLevel,
   LoanLimitResult,
   PRICING_CASCADE_ORDER,
@@ -135,8 +134,6 @@ function selectFromTierMap(
       return ctx.transferType ? exactKey(map, ctx.transferType) : null;
     case 'rateByTenor':
       return ctx.tenorMonths !== undefined ? exactKey(map, String(ctx.tenorMonths)) : null;
-    case 'rateByCustomerProgramTier':
-      return ctx.customerProgramTier ? exactKey(map, ctx.customerProgramTier) : null;
     case 'rateByDownPaymentPercent':
       return ctx.downPaymentPercent !== undefined ? floorBand(map, ctx.downPaymentPercent) : null;
     case 'rateByAssetValueBand':
@@ -189,9 +186,7 @@ export function evaluateLoanLimit(
   }> = [
     { level: 'maxByCDTier', key: undefined, map: ll.maxByCDTier },
     { level: 'maxByPropertyType', key: ctx.propertyType, map: ll.maxByPropertyType },
-    { level: 'maxByCityTier', key: ctx.cityTier, map: ll.maxByCityTier },
     { level: 'maxByTransferType', key: ctx.transferType, map: ll.maxByTransferType },
-    { level: 'maxBySalaryCategory', key: ctx.salaryCategory, map: ll.maxBySalaryCategory },
     { level: 'maxByEmploymentType', key: ctx.employmentType, map: ll.maxByEmploymentType },
   ];
 
@@ -275,12 +270,7 @@ export function evaluateTenor(config: BankProgramConfig, ctx: ApplicantContext):
       trace.push({ level, matched: false, reason: 'not configured' });
       continue;
     }
-    const key =
-      level === 'maxMonthsBySalaryCategory'
-        ? ctx.salaryCategory
-        : level === 'maxMonthsByEmploymentType'
-          ? ctx.employmentType
-          : undefined;
+    const key = level === 'maxMonthsByEmploymentType' ? ctx.employmentType : undefined;
     if (key && map[key] !== undefined) {
       trace.push({ level, matched: true, value: String(map[key]), reason: `key=${key}` });
       return {

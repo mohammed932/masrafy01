@@ -9,7 +9,7 @@ import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
 import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { InfoCircleOutline, LoadingOutline } from '@ant-design/icons-angular/icons';
-import { categoryLabel, isLoanCategory } from '@core/loan-category';
+import { LOAN_CATEGORIES, categoryLabel, isLoanCategory } from '@core/loan-category';
 import { DbrBandsEditorComponent } from '@shared/ui';
 import type { DbrBand, ProgramDefaults } from '../../bank-programs/bank-programs.types';
 import { LookupsApiService } from '../../lookups/lookups.api.service';
@@ -19,8 +19,6 @@ export interface CatalogDefaultsDialogData {
   key: string;
   labelEn: string;
   labelAr: string;
-  /** Loan categories this predefined program serves. One tab each. */
-  categories: string[];
 }
 
 /**
@@ -117,7 +115,7 @@ const EMPTY_FORM: CategoryForm = {
         </p>
       } @else {
         <nz-tabset [(nzSelectedIndex)]="activeTab" nzSize="small">
-          @for (category of data.categories; track category) {
+          @for (category of categories; track category) {
             <nz-tab [nzTitle]="tabTitle(category)">
               @if (formFor(category); as f) {
                 <div class="grid">
@@ -542,11 +540,19 @@ export class CatalogDefaultsDialogComponent {
   readonly saving = signal(false);
   activeTab = 0;
 
-  /** One form model per served category, keyed by category. */
+  /**
+   * All four retail categories get a tab: a predefined program name is
+   * category-agnostic, so the same name may be picked for a personal loan and a
+   * mortgage, each needing its own starting numbers. A tab left empty simply
+   * contributes no prefill for that category.
+   */
+  readonly categories: readonly string[] = LOAN_CATEGORIES;
+
+  /** One form model per category, keyed by category. */
   private readonly forms = signal<Record<string, CategoryForm>>({});
 
-  /** `categoryLabel` is typed to `LoanCategory`; served categories arrive as plain
-   *  strings, so unknown values fall back to the raw key rather than throwing. */
+  /** `categoryLabel` is typed to `LoanCategory`; tab keys arrive as plain strings,
+   *  so unknown values fall back to the raw key rather than throwing. */
   tabTitle(category: string): string {
     return isLoanCategory(category) ? categoryLabel(category) : category;
   }
@@ -580,7 +586,7 @@ export class CatalogDefaultsDialogComponent {
     this.saving.set(true);
     try {
       const defaults: Record<string, ProgramDefaults> = {};
-      for (const category of this.data.categories) {
+      for (const category of this.categories) {
         const form = this.forms()[category];
         if (!form) continue;
         const payload = toProgramDefaults(form);
@@ -599,7 +605,7 @@ export class CatalogDefaultsDialogComponent {
     try {
       const res = await this.api.getCatalogDefaults(this.data.key);
       const forms: Record<string, CategoryForm> = {};
-      for (const category of this.data.categories) {
+      for (const category of this.categories) {
         forms[category] = fromProgramDefaults(res.defaults[category]);
       }
       this.forms.set(forms);

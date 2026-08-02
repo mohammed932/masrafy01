@@ -97,7 +97,6 @@ export interface PricingConfig {
   rateByTransferType?: RateBandMap;
   rateByTenor?: RateBandMap;
   rateByDownPaymentPercent?: RateBandMap;
-  rateByCustomerProgramTier?: RateBandMap;
   rateByAssetValueBand?: RateBandMap;
   rateByLoanAmountBand?: RateBandMap;
 }
@@ -107,9 +106,7 @@ export interface LoanLimitsConfig {
   amountStepEGP?: string;
   maxByCDTier?: Array<{ minCDValueEGP: string; maxAmountEGP: string }>;
   maxByPropertyType?: Record<string, string>;
-  maxByCityTier?: Record<string, string>;
   maxByTransferType?: Record<string, string>;
-  maxBySalaryCategory?: Record<string, string>;
   maxByEmploymentType?: Record<string, string>;
   qualitativeReviewMaxEGP?: string;
 }
@@ -117,7 +114,6 @@ export interface LoanLimitsConfig {
 export interface TenorConfig {
   minMonths: number;
   maxMonths: number;
-  maxMonthsBySalaryCategory?: Record<string, number>;
   maxMonthsByEmploymentType?: Record<string, number>;
 }
 
@@ -130,7 +126,6 @@ export interface EligibilityConfig {
   minMonthlyIncomeEGP: string;
   selfEmployedMinMonthlyIncomeEGP?: string;
   minMonthsInJob: number;
-  acceptedLoanPurposes: string[];
   acceptedSalaryTransferTypes: string[];
   /** Decimal string (0…100). Arrives from JSONB as a string — never a float. */
   dbrCapPercent: string;

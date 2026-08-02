@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AuthModule } from '@/auth/auth.module';
 import { AuditModule } from '@/audit/audit.module';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
@@ -21,7 +21,9 @@ import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.
  * v3.0.0 / Principle XIII — JWT-only).
  */
 @Module({
-  imports: [AuthModule, AuditModule, CustomerAuthModule, InfraModule],
+  // Cycle by design: this module needs `CustomerJwtGuard` from customer-auth,
+  // and customer-auth needs this registry to validate a profile's governorate.
+  imports: [AuthModule, AuditModule, forwardRef(() => CustomerAuthModule), InfraModule],
   controllers: [
     PlatformEnumerationsController,
     AdminPlatformEnumerationsController,

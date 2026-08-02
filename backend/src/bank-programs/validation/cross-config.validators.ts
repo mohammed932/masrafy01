@@ -42,11 +42,6 @@ export async function validateAgainstRegistry(
   }
 
   // Tenor overrides
-  if (dto.tenor.maxMonthsBySalaryCategory) {
-    for (const k of Object.keys(dto.tenor.maxMonthsBySalaryCategory)) {
-      checks.push({ enumerationType: 'salary_category', key: k });
-    }
-  }
   if (dto.tenor.maxMonthsByEmploymentType) {
     for (const k of Object.keys(dto.tenor.maxMonthsByEmploymentType)) {
       checks.push({ enumerationType: 'employment_type', key: k });
@@ -55,23 +50,16 @@ export async function validateAgainstRegistry(
 
   // Loan-limits tier maps
   pushKeys(checks, dto.loanLimits.maxByPropertyType, 'property_type');
-  pushKeys(checks, dto.loanLimits.maxByCityTier, 'city_tier');
   pushKeys(checks, dto.loanLimits.maxByTransferType, 'transfer_type');
-  pushKeys(checks, dto.loanLimits.maxBySalaryCategory, 'salary_category');
   pushKeys(checks, dto.loanLimits.maxByEmploymentType, 'employment_type');
-  pushKeys(checks, dto.loanLimits.maxByPerformanceTier, 'performance_tier');
 
   // Pricing tier maps
   pushKeys(checks, dto.pricing.rateByEmploymentType, 'employment_type');
   pushKeys(checks, dto.pricing.rateByTransferType, 'transfer_type');
-  pushKeys(checks, dto.pricing.rateByCustomerProgramTier, 'customer_program_tier');
 
   // Eligibility
   for (const t of dto.eligibility.acceptedEmploymentTypes) {
     checks.push({ enumerationType: 'employment_type', key: t });
-  }
-  for (const t of dto.eligibility.acceptedLoanPurposes) {
-    checks.push({ enumerationType: 'loan_purpose', key: t });
   }
   for (const t of dto.eligibility.acceptedTransferTypes) {
     checks.push({ enumerationType: 'transfer_type', key: t });
@@ -179,7 +167,6 @@ const DERIVATION_BEARING_TIER_MAPS: Array<keyof PricingConfigDto> = [
   'rateByDownPaymentPercent',
   'rateByAssetValueBand',
   'rateByLoanAmountBand',
-  'rateByCustomerProgramTier',
 ];
 
 /**

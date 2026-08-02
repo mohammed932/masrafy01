@@ -20,23 +20,11 @@ export class LoanLimitsConfigDto {
 
   @IsOptional()
   @IsObject()
-  maxByCityTier?: Record<string, string>;
-
-  @IsOptional()
-  @IsObject()
   maxByTransferType?: Record<string, string>;
 
   @IsOptional()
   @IsObject()
-  maxBySalaryCategory?: Record<string, string>;
-
-  @IsOptional()
-  @IsObject()
   maxByEmploymentType?: Record<string, string>;
-
-  @IsOptional()
-  @IsObject()
-  maxByPerformanceTier?: Record<string, string>;
 
   @IsOptional()
   @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2, nullable: true })

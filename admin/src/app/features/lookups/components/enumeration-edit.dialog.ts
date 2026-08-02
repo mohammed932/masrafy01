@@ -5,29 +5,25 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
 import { CloseCircleOutline } from '@ant-design/icons-angular/icons';
-import { LOAN_CATEGORIES, categoryLabel } from '@core/loan-category';
+import { ErrorCodeService } from '@core/errors/error-code.service';
+import type { ErrorCode } from '@core/auth/auth.types';
 import { LookupsApiService, type EnumerationRow } from '../lookups.api.service';
+import { lookupType } from '../lookups.constants';
 
 /**
- * Enumeration type whose members are scoped to one or more loan categories via
- * `categories`. For this type the dialog swaps the machine-key field for a
- * multi-select "Loan types" picker (a predefined program like Doctor/Pharmacy may
- * serve several categories) and auto-derives the key from the English label.
+ * Enumeration type edited by business name only: the dialog hides the machine-key
+ * field and derives the key from the English label. Predefined program names are
+ * curated by non-technical staff and are category-agnostic — one name is offerable
+ * under every loan category — so there is nothing to pick beyond the two labels.
  */
-const CATEGORY_SCOPED_TYPE = 'program_name';
+const AUTO_KEY_TYPE = 'program_name';
 
 export interface EnumerationEditDialogData {
   mode: 'create' | 'edit';
   type: string;
   row?: EnumerationRow;
-  /**
-   * Preselected loan categories for category-scoped types — e.g. the program
-   * catalog's per-lane "Add program" action passes the lane's category.
-   */
-  categories?: string[];
 }
 
 @Component({
@@ -40,7 +36,6 @@ export interface EnumerationEditDialogData {
     NzInputModule,
     NzFormModule,
     NzIconModule,
-    NzSelectModule,
   ],
   providers: [provideNzIconsPatch([CloseCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,40 +47,11 @@ export interface EnumerationEditDialogData {
         } @else {
           <span i18n="@@lookups.dialog.titleEdit">Edit value</span>
         }
-        <span class="type-chip">{{ data.type }}</span>
+        <span class="type-chip">{{ typeLabel }}</span>
       </h2>
 
       <form nz-form nzLayout="vertical" [formGroup]="form" class="form">
-        @if (categoryScoped) {
-          <nz-form-item>
-            <nz-form-label nzFor="lk-categories" nzRequired i18n="@@lookups.field.loanTypes"
-              >Loan types</nz-form-label
-            >
-            <nz-form-control [nzErrorTip]="categoriesErrTpl" [nzExtra]="categoriesHintTpl">
-              <nz-select
-                id="lk-categories"
-                nzMode="multiple"
-                formControlName="categories"
-                nzPlaceHolder="Select one or more loan types"
-                i18n-nzPlaceHolder="@@lookups.field.loanTypes.placeholder"
-              >
-                @for (opt of categoryOptions; track opt.value) {
-                  <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
-                }
-              </nz-select>
-              <ng-template #categoriesErrTpl let-control>
-                @if (control.errors?.['required']) {
-                  <span i18n="@@lookups.field.loanTypes.required">Select at least one</span>
-                }
-              </ng-template>
-              <ng-template #categoriesHintTpl>
-                <span i18n="@@lookups.field.loanTypesHint"
-                  >the program appears under every loan type you pick</span
-                >
-              </ng-template>
-            </nz-form-control>
-          </nz-form-item>
-        } @else {
+        @if (!autoKey) {
           <nz-form-item>
             <nz-form-label nzFor="lk-key" nzRequired i18n="@@lookups.field.key"
               >Key (machine-readable)</nz-form-label
@@ -109,8 +75,8 @@ export interface EnumerationEditDialogData {
         }
 
         <nz-form-item>
-          <nz-form-label nzFor="lk-label" nzRequired i18n="@@lookups.field.labelEn"
-            >Label</nz-form-label
+          <nz-form-label nzFor="lk-label" nzRequired i18n="@@lookups.field.labelEnglish"
+            >English label</nz-form-label
           >
           <nz-form-control [nzErrorTip]="labelErrTpl">
             <input nz-input id="lk-label" formControlName="labelEn" [attr.maxlength]="labelMax" />
@@ -152,10 +118,10 @@ export interface EnumerationEditDialogData {
           </nz-form-control>
         </nz-form-item>
 
-        @if (errorCode()) {
+        @if (errorMessage(); as message) {
           <p class="error" role="alert">
-            <span nz-icon nzType="close-circle" nzTheme="outline"></span>
-            <span>{{ errorCode() }}</span>
+            <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
+            <span>{{ message }}</span>
           </p>
         }
       </form>
@@ -239,43 +205,37 @@ export interface EnumerationEditDialogData {
 })
 export class EnumerationEditDialogComponent {
   private readonly api = inject(LookupsApiService);
+  private readonly errorCodes = inject(ErrorCodeService);
   private readonly dialogRef = inject(NzModalRef<EnumerationEditDialogComponent, boolean>);
   protected readonly data = inject<EnumerationEditDialogData>(NZ_MODAL_DATA);
 
-  /** True for category-scoped types (program_name): loan-type picker + auto-derived key. */
-  protected readonly categoryScoped = this.data.type === CATEGORY_SCOPED_TYPE;
-  /** Label length cap — scoped names must fit the bank_program.friendlyName column (120). */
-  protected readonly labelMax = this.categoryScoped ? 120 : 160;
-  protected readonly categoryOptions = LOAN_CATEGORIES.map((c) => ({
-    value: c as string,
-    label: categoryLabel(c),
-  }));
+  /** Human category name in the header chip; falls back to the raw type key. */
+  protected readonly typeLabel = lookupType(this.data.type).label;
+
+  /** True for program names: no machine-key field, key derived from the English label. */
+  protected readonly autoKey = this.data.type === AUTO_KEY_TYPE;
+  /** Label length cap — program names must fit the bank_program.friendlyName column (120). */
+  protected readonly labelMax = this.autoKey ? 120 : 160;
 
   protected readonly submitting = signal(false);
-  protected readonly errorCode = signal<string | null>(null);
+  /** Localized failure text — mapping goes through ErrorCodeService (Principle III, A22). */
+  protected readonly errorMessage = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
     key: new FormControl<string>(this.data.row?.key ?? '', {
       nonNullable: true,
-      validators: this.categoryScoped
+      validators: this.autoKey
         ? []
         : [Validators.required, Validators.pattern(/^[A-Za-z0-9][A-Za-z0-9_-]*$/)],
     }),
     labelEn: new FormControl<string>(this.data.row?.labelEn ?? '', {
       nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(this.categoryScoped ? 120 : 160)],
+      validators: [Validators.required, Validators.maxLength(this.labelMax)],
     }),
     labelAr: new FormControl<string>(this.data.row?.labelAr ?? '', {
       nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(this.categoryScoped ? 120 : 160)],
+      validators: [Validators.required, Validators.maxLength(this.labelMax)],
     }),
-    categories: new FormControl<string[]>(
-      this.data.row?.categories ?? this.data.categories ?? [],
-      {
-        nonNullable: true,
-        validators: this.categoryScoped ? [Validators.required] : [],
-      },
-    ),
     sortOrder: new FormControl<number>(this.data.row?.sortOrder ?? 0, {
       nonNullable: true,
       validators: [Validators.min(0)],
@@ -287,15 +247,14 @@ export class EnumerationEditDialogComponent {
   }
 
   async save(): Promise<void> {
-    this.errorCode.set(null);
+    this.errorMessage.set(null);
     this.submitting.set(true);
     try {
       const v = this.form.getRawValue();
-      const categories = this.categoryScoped ? v.categories : undefined;
       if (this.data.mode === 'create') {
-        const key = this.categoryScoped ? this.slugify(v.labelEn) : v.key;
+        const key = this.autoKey ? this.slugify(v.labelEn) : v.key;
         if (!key) {
-          this.errorCode.set('INVALID_KEY');
+          this.fail('VALIDATION_FAILED');
           return;
         }
         await this.api.create({
@@ -303,24 +262,26 @@ export class EnumerationEditDialogComponent {
           key,
           labelEn: v.labelEn,
           labelAr: v.labelAr,
-          categories,
           sortOrder: v.sortOrder,
         });
       } else if (this.data.row) {
         await this.api.update(this.data.row.id, {
           labelEn: v.labelEn,
           labelAr: v.labelAr,
-          categories,
           sortOrder: v.sortOrder,
         });
       }
       this.dialogRef.close(true);
     } catch (err) {
       const code = (err as { error?: { code?: string } }).error?.code;
-      this.errorCode.set(code ?? 'INTERNAL_ERROR');
+      this.fail(code ?? 'INTERNAL_ERROR');
     } finally {
       this.submitting.set(false);
     }
+  }
+
+  private fail(code: string): void {
+    this.errorMessage.set(this.errorCodes.toLocalizedMessage(code as ErrorCode));
   }
 
   /** Machine key derived from an English label — lowercase, non-alnum → `_`, trimmed, ≤64. */
