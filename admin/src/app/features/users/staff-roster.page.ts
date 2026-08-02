@@ -384,6 +384,9 @@ export class StaffRosterPage {
   // Two-way bound page index for nz-table (1-based — same as our page signal)
   protected pageIndex = 1;
 
+  /** Tick seen at construction — a remount must not replay an earlier click. */
+  private lastCreateTick = this.store.createStaffTick();
+
   constructor() {
     // Shared search term. Also does the initial load; a new query restarts at
     // page 1 so the operator never lands on an out-of-range page.
@@ -402,8 +405,10 @@ export class StaffRosterPage {
 
     // The directory header hosts "Create user"; the dialog belongs here.
     effect(() => {
-      if (this.store.createStaffTick() === 0) return;
-      void this.openCreate();
+      const tick = this.store.createStaffTick();
+      if (tick === this.lastCreateTick) return;
+      this.lastCreateTick = tick;
+      untracked(() => void this.openCreate());
     });
   }
 
@@ -506,9 +511,12 @@ export class StaffRosterPage {
   }
 
   private async reload(): Promise<void> {
+    const query = this.store.query();
     this.loading.set(true);
     try {
-      const res = await this.api.list(this.page(), this.pageSize(), this.store.query());
+      const res = await this.api.list(this.page(), this.pageSize(), query);
+      // Drop late responses — a newer search term is already on screen.
+      if (this.store.query() !== query) return;
       this.rows.set(res.rows);
       this.total.set(res.total);
       this.store.reportCount('staff', res.total);

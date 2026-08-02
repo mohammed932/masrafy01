@@ -410,13 +410,16 @@ export class CustomerRosterPage {
   }
 
   private async load(): Promise<void> {
+    const query = this.store.query();
     this.loading.set(true);
     try {
       const result = await this.api.list({
-        q: this.store.query(),
+        q: query,
         pageIndex: this.pageIndex(),
         pageSize: this.pageSize(),
       });
+      // Drop late responses — a newer search term is already on screen.
+      if (this.store.query() !== query) return;
       this.rows.set(result.data);
       this.total.set(result.pagination.total);
       this.store.reportCount('customers', result.pagination.total);

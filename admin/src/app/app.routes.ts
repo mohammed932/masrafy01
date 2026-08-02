@@ -33,11 +33,17 @@ export const APP_ROUTES: Routes = [
       ),
   },
   {
-    path: 'users',
+    // People — Staff + Customers under one nav entry, one search box, two
+    // cohort segments (`/people/staff`, `/people/customers`). Per-cohort role
+    // gates live in PEOPLE_ROUTES; this gate is the union of the two.
+    path: 'people',
     canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
-    loadChildren: () => import('./features/users/users.routes').then((m) => m.USERS_ROUTES),
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
+    loadChildren: () => import('./features/people/people.routes').then((m) => m.PEOPLE_ROUTES),
   },
+  // Legacy paths — the two rosters merged into the People directory.
+  { path: 'users', pathMatch: 'full', redirectTo: 'people/staff' },
+  { path: 'customers', pathMatch: 'full', redirectTo: 'people/customers' },
   // Legacy paths — the flat program list is gone; programs live under their bank.
   // Bare list → registry; deep program links → the kept flat program pages.
   { path: 'bank-programs', pathMatch: 'full', redirectTo: 'banks' },
@@ -52,25 +58,16 @@ export const APP_ROUTES: Routes = [
       import('./features/applications/applications.routes').then((m) => m.APPLICATIONS_ROUTES),
   },
   {
-    path: 'customers',
-    canActivate: [authGuardFn],
-    canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
-    loadChildren: () =>
-      import('./features/customers/customers.routes').then((m) => m.CUSTOMERS_ROUTES),
-  },
-  {
     path: 'banks',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'sales_agent', 'analyst'])],
-    loadChildren: () =>
-      import('./features/banks/banks.routes').then((m) => m.BANKS_ROUTES),
+    loadChildren: () => import('./features/banks/banks.routes').then((m) => m.BANKS_ROUTES),
   },
   {
     path: 'lookups',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
-    loadChildren: () =>
-      import('./features/lookups/lookups.routes').then((m) => m.LOOKUPS_ROUTES),
+    loadChildren: () => import('./features/lookups/lookups.routes').then((m) => m.LOOKUPS_ROUTES),
   },
   {
     // Program catalog — CRUD for predefined loan program names (program_name enum).
@@ -104,7 +101,9 @@ export const APP_ROUTES: Routes = [
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager', 'analyst'])],
     loadComponent: () =>
-      import('./features/questionnaire/matching-simulator.page').then((m) => m.MatchingSimulatorPage),
+      import('./features/questionnaire/matching-simulator.page').then(
+        (m) => m.MatchingSimulatorPage,
+      ),
   },
   {
     // Throwaway: NG-ZORRO install verification. Removed in PR 2 (shell migration).

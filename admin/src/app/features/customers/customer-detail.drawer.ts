@@ -23,7 +23,7 @@ export interface CustomerDetailDrawerData {
 /**
  * Read-only customer detail, rendered inside an NzDrawer (portaled to body —
  * full-viewport backdrop, satisfies A34). Identity meta + the customer's
- * applications and support history. Opened from CustomersListPage.
+ * applications and support history. Opened from CustomerRosterPage.
  */
 @Component({
   selector: 'app-customer-detail-drawer',

@@ -36,7 +36,7 @@
       <trans-unit id="topBar.signOut" datatype="html"><source>Sign out</source><target>تسجيل الخروج</target></trans-unit>
 
       <trans-unit id="sidebar.dashboard" datatype="html"><source>Dashboard</source><target>لوحة التحكم</target></trans-unit>
-      <trans-unit id="sidebar.users" datatype="html"><source>Staff</source><target>الموظفون</target></trans-unit>
+      <trans-unit id="sidebar.people" datatype="html"><source>People</source><target>الأشخاص</target></trans-unit>
       <trans-unit id="sidebar.banks" datatype="html"><source>Banks</source><target>البنوك</target></trans-unit>
       <trans-unit id="bank_detail.back" datatype="html"><source>Banks</source><target>البنوك</target></trans-unit>
       <trans-unit id="bank_detail.eyebrow" datatype="html"><source>Bank</source><target>بنك</target></trans-unit>
@@ -61,7 +61,19 @@
       <trans-unit id="bank_detail.program.delete" datatype="html"><source>Delete program</source><target>حذف البرنامج</target></trans-unit>
       <trans-unit id="bank_detail.not_found" datatype="html"><source>Bank not found.</source><target>البنك غير موجود.</target></trans-unit>
 
-      <trans-unit id="users.title" datatype="html"><source>Users</source><target>المستخدمون</target></trans-unit>
+      <trans-unit id="people.eyebrow" datatype="html"><source>Directory</source><target>الدليل</target></trans-unit>
+      <trans-unit id="people.title" datatype="html"><source>People</source><target>الأشخاص</target></trans-unit>
+      <trans-unit id="people.subtitle.staff" datatype="html"><source>Internal staff accounts — roles, access, and passwords.</source><target>حسابات الموظفين الداخليين — الأدوار والوصول وكلمات المرور.</target></trans-unit>
+      <trans-unit id="people.subtitle.customers" datatype="html"><source>Mobile end-users who signed up for the Masrafy app.</source><target>المستخدمون النهائيون الذين سجّلوا عبر تطبيق مصرفي.</target></trans-unit>
+      <trans-unit id="people.search.label" datatype="html"><source>Search people</source><target>البحث في الأشخاص</target></trans-unit>
+      <trans-unit id="people.search.placeholder" datatype="html"><source>Search name, email, or phone</source><target>ابحث بالاسم أو البريد الإلكتروني أو الهاتف</target></trans-unit>
+      <trans-unit id="people.search.clear" datatype="html"><source>Clear search</source><target>مسح البحث</target></trans-unit>
+      <trans-unit id="people.cohort.aria" datatype="html"><source>People cohort</source><target>فئة الأشخاص</target></trans-unit>
+      <trans-unit id="people.cohort.staff" datatype="html"><source>Staff</source><target>الموظفون</target></trans-unit>
+      <trans-unit id="people.cohort.customers" datatype="html"><source>Customers</source><target>العملاء</target></trans-unit>
+      <trans-unit id="people.bridge.staff" datatype="html"><source>Your search also matches {$count} in Staff</source><target>يطابق بحثك أيضاً {$count} في الموظفين</target></trans-unit>
+      <trans-unit id="people.bridge.customers" datatype="html"><source>Your search also matches {$count} in Customers</source><target>يطابق بحثك أيضاً {$count} في العملاء</target></trans-unit>
+
       <trans-unit id="users.create" datatype="html"><source>Create user</source><target>إنشاء مستخدم</target></trans-unit>
       <trans-unit id="users.col.name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
       <trans-unit id="users.col.email" datatype="html"><source>Email</source><target>البريد الإلكتروني</target></trans-unit>
@@ -78,6 +90,8 @@
       <trans-unit id="users.created" datatype="html"><source>User created.</source><target>تم إنشاء المستخدم.</target></trans-unit>
       <trans-unit id="users.updated" datatype="html"><source>User updated.</source><target>تم تحديث المستخدم.</target></trans-unit>
       <trans-unit id="users.passwordReset" datatype="html"><source>Password reset. The user must change it on next sign-in.</source><target>تمت إعادة تعيين كلمة المرور. سيُطلب من المستخدم تغييرها عند الدخول التالي.</target></trans-unit>
+      <trans-unit id="users.empty.search.title" datatype="html"><source>No staff match this search</source><target>لا يوجد موظفون مطابقون لهذا البحث</target></trans-unit>
+      <trans-unit id="users.empty.search.subtitle" datatype="html"><source>Staff are matched on name and email. Clear the search to see everyone.</source><target>يُطابَق الموظفون بالاسم والبريد الإلكتروني. امسح البحث لعرض الجميع.</target></trans-unit>
 
       <trans-unit id="userForm.titleCreate" datatype="html"><source>Create user</source><target>إنشاء مستخدم</target></trans-unit>
       <trans-unit id="userForm.titleEdit" datatype="html"><source>Edit user</source><target>تعديل المستخدم</target></trans-unit>
@@ -120,7 +134,7 @@
       <trans-unit id="lead.status.cancelled" datatype="html"><source>Cancelled</source><target>ملغي</target></trans-unit>
       <trans-unit id="app.detail.status.change" datatype="html"><source>Change application status</source><target>تغيير حالة الطلب</target></trans-unit>
       <trans-unit id="applications.col.created" datatype="html"><source>Created</source><target>تاريخ الإنشاء</target></trans-unit>
-      <trans-unit id="applications.action.detail" datatype="html"><source>Open application <x id="INTERPOLATION"/></source><target>افتح الطلب <x id="INTERPOLATION"/></target></trans-unit>
+      <trans-unit id="applications.action.detail" datatype="html"><source>Open application <x id="PH"/></source><target>افتح الطلب <x id="PH"/></target></trans-unit>
       <trans-unit id="applications.detail.back" datatype="html"><source>Back to applications</source><target>العودة إلى الطلبات</target></trans-unit>
       <trans-unit id="applications.detail.offers" datatype="html"><source>Matched offers</source><target>العروض المطابقة</target></trans-unit>
       <trans-unit id="applications.detail.noOffers" datatype="html"><source>No matched offers.</source><target>لا توجد عروض مطابقة.</target></trans-unit>
@@ -134,9 +148,9 @@
       <trans-unit id="applications.detail.loadingFactors" datatype="html"><source>Loading factor labels…</source><target>جارٍ تحميل تسميات العوامل…</target></trans-unit>
       <trans-unit id="applications.detail.noFactors" datatype="html"><source>Score reflects the base model only — no profile-specific adjustments applied.</source><target>النتيجة تعتمد على النموذج الأساسي فقط — لم تُطبَّق أي تعديلات خاصة بالملف الشخصي.</target></trans-unit>
       <trans-unit id="applications.detail.deprecatedBadge" datatype="html"><source>Deprecated</source><target>متوقف</target></trans-unit>
-      <trans-unit id="applications.detail.deprecatedTooltip" datatype="html"><source>Deprecated in v<x id="INTERPOLATION"/></source><target>متوقف في الإصدار <x id="INTERPOLATION"/></target></trans-unit>
+      <trans-unit id="applications.detail.deprecatedTooltip" datatype="html"><source>Deprecated in v<x id="PH"/></source><target>متوقف في الإصدار <x id="PH"/></target></trans-unit>
       <trans-unit id="applications.detail.deprecatedGeneric" datatype="html"><source>Deprecated in the active engine</source><target>متوقف في الإصدار النشط للمحرك</target></trans-unit>
-      <trans-unit id="applications.detail.scoredUnder" datatype="html"><source>Scored under engine v<x id="INTERPOLATION"/></source><target>تم التقييم بإصدار المحرك v<x id="INTERPOLATION"/></target></trans-unit>
+      <trans-unit id="applications.detail.scoredUnder" datatype="html"><source>Scored under engine v<x id="PH"/></source><target>تم التقييم بإصدار المحرك v<x id="PH"/></target></trans-unit>
       <trans-unit id="applications.filter.tier.aria" datatype="html"><source>Filter applications by approval probability</source><target>تصفية الطلبات حسب احتمالية الموافقة</target></trans-unit>
       <trans-unit id="applications.filter.tier.high" datatype="html"><source>High probability leads</source><target>طلبات عالية الاحتمالية</target></trans-unit>
       <trans-unit id="applications.filter.tier.medium" datatype="html"><source>Medium probability</source><target>احتمالية متوسطة</target></trans-unit>
@@ -328,10 +342,6 @@
       <trans-unit id="questionnaire.overview.subtitle" datatype="html"><source>One published version per loan category drives the mobile questionnaire.</source><target>تُشغّل نسخة منشورة واحدة لكل فئة قرض استبيانَ التطبيق.</target></trans-unit>
       <trans-unit id="questionnaire.overview.published_prefix" datatype="html"><source>Published</source><target>نُشِر</target></trans-unit>
       <trans-unit id="questionnaire.overview.never_published" datatype="html"><source>Never published</source><target>لم يُنشر مطلقاً</target></trans-unit>
-      <trans-unit id="sidebar.customers" datatype="html"><source>Customers</source><target>العملاء</target></trans-unit>
-      <trans-unit id="customers.title" datatype="html"><source>Customers</source><target>العملاء</target></trans-unit>
-      <trans-unit id="customers.subtitle" datatype="html"><source>Mobile end-users who signed up for the Masrafy app.</source><target>المستخدمون النهائيون الذين سجّلوا عبر تطبيق مصرفي.</target></trans-unit>
-      <trans-unit id="customers.search.placeholder" datatype="html"><source>Search phone, email, or name</source><target>ابحث بالهاتف أو البريد الإلكتروني أو الاسم</target></trans-unit>
       <trans-unit id="customers.col.name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
       <trans-unit id="customers.col.phone" datatype="html"><source>Phone</source><target>الهاتف</target></trans-unit>
       <trans-unit id="customers.col.email" datatype="html"><source>Email</source><target>البريد الإلكتروني</target></trans-unit>
@@ -345,8 +355,8 @@
       <trans-unit id="customers.status.inactive" datatype="html"><source>Inactive</source><target>غير نشط</target></trans-unit>
       <trans-unit id="customers.empty" datatype="html"><source>Mobile signups will appear here once people register in the app.</source><target>ستظهر تسجيلات التطبيق هنا بمجرد تسجيل المستخدمين.</target></trans-unit>
       <trans-unit id="customers.empty.title" datatype="html"><source>No customers yet</source><target>لا يوجد عملاء بعد</target></trans-unit>
-      <trans-unit id="customers.empty.search" datatype="html"><source>No customers match your search.</source><target>لا يوجد عملاء مطابقون لبحثك.</target></trans-unit>
-      <trans-unit id="customers.empty.search.title" datatype="html"><source>No matches</source><target>لا توجد نتائج</target></trans-unit>
+      <trans-unit id="customers.empty.search" datatype="html"><source>Customers are matched on name, email, and phone. Clear the search to see everyone.</source><target>يُطابَق العملاء بالاسم والبريد الإلكتروني والهاتف. امسح البحث لعرض الجميع.</target></trans-unit>
+      <trans-unit id="customers.empty.search.title" datatype="html"><source>No customers match this search</source><target>لا يوجد عملاء مطابقون لهذا البحث</target></trans-unit>
       <trans-unit id="customers.stat.aria" datatype="html"><source>Customer totals</source><target>إجماليات العملاء</target></trans-unit>
       <trans-unit id="customers.stat.total" datatype="html"><source>Total</source><target>الإجمالي</target></trans-unit>
       <trans-unit id="customers.stat.total.hint" datatype="html"><source>registered customers</source><target>عملاء مسجّلون</target></trans-unit>

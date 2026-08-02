@@ -249,7 +249,7 @@ export class DashboardPlaceholderComponent {
       icon: 'team',
       title: $localize`:@@dash.action.manageUsers:Manage staff`,
       description: $localize`:@@dash.action.manageUsersDesc:Create, edit, or deactivate sales managers, sales agents, and analysts.`,
-      action: () => this.router.navigateByUrl('/users'),
+      action: () => this.router.navigateByUrl('/people/staff'),
       roles: ['super_admin'],
     },
     {

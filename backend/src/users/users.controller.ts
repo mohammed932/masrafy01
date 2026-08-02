@@ -19,8 +19,8 @@ import { RolesGuard } from '@/common/guards/roles.guard';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { McpGuard } from '@/auth/guards/mcp.guard';
 import { ok, okPaginated } from '@/common/pagination/paginated.response.dto';
-import { PaginationQueryDto } from '@/common/pagination/pagination.query.dto';
 import { UsersService, type ActionContext } from './users.service';
+import { ListStaffQueryDto } from './dto/list-staff.query.dto';
 import { CreateStaffRequestDto } from './dto/create-staff.request.dto';
 import { UpdateStaffRequestDto } from './dto/update-staff.request.dto';
 import { ResetPasswordRequestDto } from './dto/reset-password.request.dto';
@@ -35,9 +35,13 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List staff accounts (super_admin)' })
-  async list(@Query() query: PaginationQueryDto) {
-    const result = await this.users.list({ page: query.page, pageSize: query.pageSize });
+  @ApiOperation({ summary: 'List staff accounts (super_admin, searchable)' })
+  async list(@Query() query: ListStaffQueryDto) {
+    const result = await this.users.list({
+      page: query.page,
+      pageSize: query.pageSize,
+      q: query.q,
+    });
     return okPaginated(
       result.rows.map(toStaffSummaryDto),
       query.page,

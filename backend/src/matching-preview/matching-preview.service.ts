@@ -7,13 +7,18 @@ import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.serv
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import type { SelectedAnswer } from '@/matching/scoring/approval-probability.scorer';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
+import { validateAnswer } from '@/questionnaire/validation/answer-validation';
 
 interface SnapshotOption {
   code: string;
 }
 interface SnapshotQuestion {
   code: string;
+  /** Absent on a pre-010 snapshot — read as SINGLE_SELECT (FR-045). */
+  type?: string | null;
   options: SnapshotOption[];
+  numeric?: { minValue?: string | null; maxValue?: string | null; step?: string | null } | null;
+  text?: { maxLength?: number | null } | null;
 }
 interface Snapshot {
   category: string;
@@ -56,7 +61,19 @@ export class MatchingPreviewService {
     return this.runAndAssemble(args.category, answers);
   }
 
-  /** Validate answers against the active GLOBAL snapshot; return the {questionCode, optionCode} pairs. */
+  /**
+   * Validate answers against the active GLOBAL snapshot and return the pairs the
+   * scorer consumes.
+   *
+   * Feature 010: the pool holds all four question types, so every answer is
+   * validated through the shared `validateAnswer` (same rules as apply — type,
+   * bounds, option membership). Only SINGLE_SELECT carries an answer score (R9),
+   * so multi-pick / text / number answers are validated and then dropped from
+   * the scoring input rather than rejected — they exist to feed the figures.
+   *
+   * `isRequired` is forced off: preview and the admin simulator accept a PARTIAL
+   * answer set by design; required-question enforcement belongs to apply.
+   */
   private async resolveSelectedOptions(answers: SubmittedAnswerDto[]): Promise<SelectedAnswer[]> {
     const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
@@ -67,10 +84,22 @@ export class MatchingPreviewService {
     const selected: SelectedAnswer[] = [];
     for (const ans of answers) {
       const q = byCode.get(ans.questionCode);
-      if (!q) throw new DomainException(ERROR_CODES.UNKNOWN_QUESTION_CODE, { code: ans.questionCode });
-      const opt = q.options.find((o) => o.code === ans.optionCode);
-      if (!opt) throw new DomainException(ERROR_CODES.UNKNOWN_OPTION_CODE, { code: ans.optionCode });
-      selected.push({ questionCode: q.code, optionCode: opt.code });
+      if (!q)
+        throw new DomainException(ERROR_CODES.UNKNOWN_QUESTION_CODE, { code: ans.questionCode });
+      const normalised = validateAnswer(
+        {
+          code: q.code,
+          type: q.type,
+          isRequired: false,
+          optionCodes: (q.options ?? []).map((o) => o.code),
+          numeric: q.numeric ?? null,
+          text: q.text ?? null,
+        },
+        ans,
+      );
+      if (normalised?.selectedOptionCode) {
+        selected.push({ questionCode: q.code, optionCode: normalised.selectedOptionCode });
+      }
     }
     return selected;
   }

@@ -186,6 +186,18 @@ export interface SimulationResult {
   suggestions: SimulationSuggestion[];
 }
 
+/**
+ * One simulated answer. Exactly one value key is populated, matching the
+ * question's type — the API rejects any other combination (feature 010, R8).
+ */
+export interface SimulatedAnswer {
+  questionCode: string;
+  optionCode?: string;
+  optionCodes?: string[];
+  textValue?: string;
+  numericValue?: string;
+}
+
 export interface CreateGroupBody {
   titleAr: string;
   titleEn: string;
@@ -278,10 +290,7 @@ export class QuestionnaireApiService {
 
   // ---- Matching simulator (admin) ---------------------------------------
   /** Run the full engine + per-bank approval scoring for a sample applicant. */
-  simulateMatching(
-    category: LoanCategory,
-    answers: { questionCode: string; optionCode: string }[],
-  ): Promise<SimulationResult> {
+  simulateMatching(category: LoanCategory, answers: SimulatedAnswer[]): Promise<SimulationResult> {
     return this.post<SimulationResult>(`/matching/simulate`, { category, answers });
   }
 

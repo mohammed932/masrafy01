@@ -5,7 +5,7 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import {
   DashboardOutline,
   TeamOutline,
-  IdcardOutline,
+  ContactsOutline,
   BankOutline,
   FileTextOutline,
   FundOutline,
@@ -32,7 +32,7 @@ import { CanDirective } from '../../shared/can.directive';
     provideNzIconsPatch([
       DashboardOutline,
       TeamOutline,
-      IdcardOutline,
+      ContactsOutline,
       BankOutline,
       FileTextOutline,
       FundOutline,
@@ -51,13 +51,30 @@ import { CanDirective } from '../../shared/can.directive';
 
       <nav class="nav">
         <a routerLink="/dashboard" routerLinkActive="active" class="item">
-          <span nz-icon nzType="dashboard" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span
+            nz-icon
+            nzType="dashboard"
+            nzTheme="outline"
+            class="item-icon"
+            aria-hidden="true"
+          ></span>
           <span class="item-label" i18n="@@sidebar.dashboard">Dashboard</span>
         </a>
 
-        <a *can="['super_admin']" routerLink="/users" routerLinkActive="active" class="item">
-          <span nz-icon nzType="team" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
-          <span class="item-label" i18n="@@sidebar.users">Staff</span>
+        <a
+          *can="['super_admin', 'sales_manager', 'analyst']"
+          routerLink="/people"
+          routerLinkActive="active"
+          class="item"
+        >
+          <span
+            nz-icon
+            nzType="contacts"
+            nzTheme="outline"
+            class="item-icon"
+            aria-hidden="true"
+          ></span>
+          <span class="item-label" i18n="@@sidebar.people">People</span>
         </a>
 
         <a routerLink="/banks" routerLinkActive="active" class="item">
@@ -66,18 +83,14 @@ import { CanDirective } from '../../shared/can.directive';
         </a>
 
         <a routerLink="/applications" routerLinkActive="active" class="item">
-          <span nz-icon nzType="file-text" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span
+            nz-icon
+            nzType="file-text"
+            nzTheme="outline"
+            class="item-icon"
+            aria-hidden="true"
+          ></span>
           <span class="item-label" i18n="@@sidebar.applications">Applications</span>
-        </a>
-
-        <a
-          *can="['super_admin', 'sales_manager', 'analyst']"
-          routerLink="/customers"
-          routerLinkActive="active"
-          class="item"
-        >
-          <span nz-icon nzType="idcard" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
-          <span class="item-label" i18n="@@sidebar.customers">Customers</span>
         </a>
 
         <a
@@ -96,7 +109,13 @@ import { CanDirective } from '../../shared/can.directive';
           routerLinkActive="active"
           class="item"
         >
-          <span nz-icon nzType="experiment" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+          <span
+            nz-icon
+            nzType="experiment"
+            nzTheme="outline"
+            class="item-icon"
+            aria-hidden="true"
+          ></span>
           <span class="item-label" i18n="@@sidebar.matching_simulator">Matching simulator</span>
         </a>
       </nav>
@@ -105,11 +124,23 @@ import { CanDirective } from '../../shared/can.directive';
         <p class="section-label" i18n="@@sidebar.section.lookups">Lookups</p>
         <nav class="nav" aria-label="Lookups">
           <a routerLink="/lookups" routerLinkActive="active" class="item">
-            <span nz-icon nzType="control" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+            <span
+              nz-icon
+              nzType="control"
+              nzTheme="outline"
+              class="item-icon"
+              aria-hidden="true"
+            ></span>
             <span class="item-label" i18n="@@sidebar.lookups">Manage values</span>
           </a>
           <a routerLink="/program-catalog" routerLinkActive="active" class="item">
-            <span nz-icon nzType="appstore" nzTheme="outline" class="item-icon" aria-hidden="true"></span>
+            <span
+              nz-icon
+              nzType="appstore"
+              nzTheme="outline"
+              class="item-icon"
+              aria-hidden="true"
+            ></span>
             <span class="item-label" i18n="@@sidebar.program_catalog">Program catalog</span>
           </a>
         </nav>

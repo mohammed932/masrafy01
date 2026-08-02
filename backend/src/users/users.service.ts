@@ -20,6 +20,8 @@ export interface ActionContext {
 export interface ListArgs {
   page: number;
   pageSize: number;
+  /** Free-text match on name / email. Omitted or blank = unfiltered. */
+  q?: string;
 }
 
 @Injectable()
@@ -55,7 +57,7 @@ export class UsersService {
   // ---- Read ---------------------------------------------------------------
 
   async list(args: ListArgs): Promise<{ rows: readonly StaffAccountSummary[]; total: number }> {
-    return this.accounts.list(args.page, args.pageSize);
+    return this.accounts.list(args.page, args.pageSize, args.q);
   }
 
   async getById(id: string): Promise<StaffAccountSummary> {
@@ -105,7 +107,7 @@ export class UsersService {
         targetId,
         eventType: AuditEventType.ADMIN_USER_UPDATED,
         sourceIp: ctx.sourceIp,
-          payload: { changedFields },
+        payload: { changedFields },
       });
     }
 
@@ -115,7 +117,7 @@ export class UsersService {
         targetId,
         eventType: AuditEventType.ADMIN_USER_ROLE_CHANGED,
         sourceIp: ctx.sourceIp,
-          payload: { fromRole: before.role, toRole: patch.role },
+        payload: { fromRole: before.role, toRole: patch.role },
       });
     }
     if (patch.isActive === false && before.isActive) {
@@ -124,7 +126,7 @@ export class UsersService {
         targetId,
         eventType: AuditEventType.ADMIN_USER_DEACTIVATED,
         sourceIp: ctx.sourceIp,
-        });
+      });
     }
 
     return updated;

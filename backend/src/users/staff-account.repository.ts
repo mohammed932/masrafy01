@@ -116,15 +116,25 @@ export class StaffAccountRepository {
     return row ? { id: row.id, role: row.role, isActive: row.isActive } : null;
   }
 
-  async list(page: number, pageSize: number): Promise<PaginatedStaff> {
+  async list(page: number, pageSize: number, q?: string): Promise<PaginatedStaff> {
     const skip = (page - 1) * pageSize;
+    const term = q?.trim();
+    const where: Prisma.StaffAccountWhereInput = term
+      ? {
+          OR: [
+            { name: { contains: term, mode: 'insensitive' } },
+            { emailDisplay: { contains: term, mode: 'insensitive' } },
+          ],
+        }
+      : {};
     const [rows, total] = await Promise.all([
       this.prisma.staffAccount.findMany({
+        where,
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
       }),
-      this.prisma.staffAccount.count(),
+      this.prisma.staffAccount.count({ where }),
     ]);
     return { rows: rows.map(stripPassword), total };
   }

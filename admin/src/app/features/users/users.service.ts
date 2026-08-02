@@ -26,10 +26,12 @@ export class UsersService {
     return `${environment.apiBaseUrl}/users${suffix}`;
   }
 
-  async list(page: number, pageSize: number): Promise<ListPage> {
+  /** `q` matches name + email server-side; blank or omitted = unfiltered. */
+  async list(page: number, pageSize: number, q = ''): Promise<ListPage> {
+    const term = q.trim();
     const res = await firstValueFrom(
       this.http.get<PaginatedEnvelope<StaffAccountSummary>>(this.url(), {
-        params: { page, pageSize },
+        params: term.length > 0 ? { page, pageSize, q: term } : { page, pageSize },
         withCredentials: true,
       }),
     );

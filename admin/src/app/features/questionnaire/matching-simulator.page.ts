@@ -1,9 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, LOCALE_ID, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  LOCALE_ID,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import {
   LOAN_CATEGORIES,
   QuestionnaireApiService,
@@ -11,19 +23,72 @@ import {
   type LoanCategory,
   type OptionRow,
   type QuestionRow,
+  type SimulatedAnswer,
   type SimulationResult,
 } from './questionnaire.api.service';
 
+/** One applicant answer held by the wizard — exactly one value key is populated. */
+interface AnswerValue {
+  optionCode?: string;
+  optionCodes?: string[];
+  textValue?: string;
+  numericValue?: string;
+}
+
+/** Money-bearing NUMERIC questions get the thousands-grouping input (A27). */
+const MONEY_UNITS: ReadonlySet<string> = new Set(['EGP', 'egp', 'جنيه', 'ج.م']);
+
+/**
+ * Thousands grouping for bounds, steps and review values, so the hint under a
+ * money field reads in the same shape as the field itself (1,000 — not 1000).
+ * `en-US` digits deliberately: it is what `MoneyInputDirective` renders, and a
+ * hint that groups differently from the input reads as a different number.
+ */
+function grouped(value: number | string): string {
+  const numeric = typeof value === 'string' ? Number(value) : value;
+  if (!Number.isFinite(numeric)) return String(value);
+  return numeric.toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
+/**
+ * A question is visible when it has no branch rule, or when the rule's source
+ * question was answered with (or without, for `not_equals`) the named option.
+ * Mirrors `isQuestionVisible` in the backend questionnaire service — an answer
+ * to a hidden question is neither collected nor sent.
+ */
+function isVisible(
+  q: QuestionRow,
+  answers: Record<string, AnswerValue>,
+  byCode: ReadonlyMap<string, QuestionRow>,
+): boolean {
+  const rule = q.enabledWhen;
+  if (!rule?.questionCode || !rule.optionCode) return true;
+  if (!byCode.has(rule.questionCode)) return true; // dangling rule: never hide
+  const source = answers[rule.questionCode];
+  const picked = [...(source?.optionCodes ?? []), ...(source?.optionCode ? [source.optionCode] : [])];
+  const matches = picked.includes(rule.optionCode);
+  return rule.operator === 'not_equals' ? !matches : matches;
+}
+
 /**
  * Admin matching simulator (read-only). A guided one-question-per-step flow
- * runs the SAME full engine + per-bank approval scoring the mobile app uses —
- * eligibility, installment, approval % — without creating an application.
+ * runs the SAME per-bank approval scoring the mobile app uses — without creating
+ * an application. All four question types (single pick, multi pick, text,
+ * number) are answerable; only single pick carries an answer score (R9), the
+ * rest are validated and carried for the figures work.
  */
 @Component({
   standalone: true,
   selector: 'mf-matching-simulator',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, NzButtonModule, NzSpinModule, NzEmptyModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    MoneyInputDirective,
+    NzButtonModule,
+    NzSpinModule,
+    NzEmptyModule,
+  ],
   template: `
     <section class="page">
       <header class="head">
@@ -78,12 +143,22 @@ import {
                       <span class="tag warn" i18n="@@sim.default_weights">default weights</span>
                     }
                   </div>
-                  @if (m.eligible) {
+                  <!-- Figures are additive: rendered only once the quote pipeline
+                       supplies them, never as a "null EGP" placeholder. -->
+                  @if (m.effectiveRatePercent !== null || m.monthlyInstallmentEGP !== null) {
                     <dl class="m-figs">
-                      <div><dt i18n="@@sim.rate">Rate</dt><dd class="numeric">{{ m.effectiveRatePercent }}%</dd></div>
-                      <div><dt i18n="@@sim.installment">Installment</dt><dd class="numeric">{{ m.monthlyInstallmentEGP }} EGP</dd></div>
+                      @if (m.effectiveRatePercent !== null) {
+                        <div><dt i18n="@@sim.rate">Rate</dt><dd class="numeric">{{ m.effectiveRatePercent }}%</dd></div>
+                      }
+                      @if (m.monthlyInstallmentEGP !== null) {
+                        <div>
+                          <dt i18n="@@sim.installment">Installment</dt>
+                          <dd class="numeric">{{ m.monthlyInstallmentEGP }} EGP</dd>
+                        </div>
+                      }
                     </dl>
-                  } @else if (m.rejectionReasons.length > 0) {
+                  }
+                  @if (m.rejectionReasons.length > 0) {
                     <div class="reasons">
                       @for (r of m.rejectionReasons; track r) {
                         <span class="reason">{{ humanizeReason(r) }}</span>
@@ -96,7 +171,7 @@ import {
           }
         </div>
       } @else if (total() === 0) {
-        <p class="muted" i18n="@@sim.no_questions">No published questions for this category yet.</p>
+        <p class="muted" i18n="@@sim.no_questions">No published questions yet.</p>
       } @else {
         <!-- ── Wizard ────────────────────────────────────────── -->
         <div class="wizard">
@@ -112,33 +187,88 @@ import {
           </div>
 
           @if (current(); as q) {
-            <div class="step-card" [class.reduce]="false">
+            <div class="step-card">
               <h2 class="q-text">
                 {{ questionText(q) }}
                 @if (!q.isRequired) { <span class="opt-tag" i18n="@@sim.optional">optional</span> }
               </h2>
-              <div class="opts">
-                @for (o of q.options; track o.code) {
-                  <button
-                    type="button"
-                    class="opt"
-                    [class.sel]="answers()[q.code] === o.code"
-                    (click)="choose(q.code, o.code)"
-                  >
-                    <span class="opt-mark" aria-hidden="true"></span>
-                    <span class="opt-label">{{ optionText(o) }}</span>
-                  </button>
+
+              @switch (q.type) {
+                @case ('MULTI_SELECT') {
+                  <div class="opts">
+                    @for (o of q.options; track o.code) {
+                      <button
+                        type="button"
+                        class="opt multi"
+                        [class.sel]="isPicked(q, o.code)"
+                        [attr.aria-pressed]="isPicked(q, o.code)"
+                        (click)="toggle(q, o.code)"
+                      >
+                        <span class="opt-mark box" aria-hidden="true"></span>
+                        <span class="opt-label">{{ optionText(o) }}</span>
+                      </button>
+                    }
+                  </div>
                 }
-              </div>
+                @case ('NUMERIC') {
+                  <div class="field">
+                    @if (isMoney(q)) {
+                      <input
+                        class="ctl"
+                        type="text"
+                        inputmode="numeric"
+                        appMoneyInput
+                        [formControl]="numericCtrl"
+                        [attr.aria-label]="questionText(q)"
+                      />
+                    } @else {
+                      <!-- Text input, not type="number": NumberValueAccessor would
+                           push a number into a string control. Bounds are checked
+                           by numericError, the same rules the API applies. -->
+                      <input
+                        class="ctl"
+                        type="text"
+                        inputmode="decimal"
+                        [formControl]="numericCtrl"
+                        [attr.aria-label]="questionText(q)"
+                      />
+                    }
+                    @if (unitText(q); as u) { <span class="unit">{{ u }}</span> }
+                  </div>
+                  @if (numericHint(q); as h) { <p class="hint">{{ h }}</p> }
+                  @if (numericError(); as e) { <p class="err">{{ e }}</p> }
+                }
+                @case ('TEXT') {
+                  <div class="field">
+                    <input
+                      class="ctl"
+                      type="text"
+                      [formControl]="textCtrl"
+                      [attr.maxlength]="q.textMaxLength"
+                      [attr.aria-label]="questionText(q)"
+                    />
+                  </div>
+                }
+                @default {
+                  <div class="opts">
+                    @for (o of q.options; track o.code) {
+                      <button
+                        type="button"
+                        class="opt"
+                        [class.sel]="answers()[q.code]?.optionCode === o.code"
+                        (click)="choose(q.code, o.code)"
+                      >
+                        <span class="opt-mark" aria-hidden="true"></span>
+                        <span class="opt-label">{{ optionText(o) }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+              }
+
               <div class="wiz-foot">
                 <button nz-button (click)="back()" [disabled]="step() === 0" i18n="@@sim.back">Back</button>
-                <button
-                  nz-button
-                  nzType="primary"
-                  (click)="next()"
-                  [disabled]="q.isRequired && !answers()[q.code]"
-                  i18n="@@sim.next"
-                >
+                <button nz-button nzType="primary" (click)="next()" [disabled]="!canAdvance()" i18n="@@sim.next">
                   Next
                 </button>
               </div>
@@ -151,7 +281,7 @@ import {
                 @for (q of questions(); track q.code; let i = $index) {
                   <li class="review-row" (click)="goTo(i)">
                     <span class="r-q">{{ questionText(q) }}</span>
-                    <span class="r-a" [class.empty]="!answers()[q.code]">{{ answerLabel(q) }}</span>
+                    <span class="r-a" [class.empty]="!isAnswered(q)">{{ answerLabel(q) }}</span>
                   </li>
                 }
               </ul>
@@ -238,6 +368,7 @@ import {
         border: 2px solid var(--color-border-strong, #c7ccd4); position: relative;
         transition: border-color 120ms ease;
       }
+      .opt-mark.box { border-radius: var(--radius-sm, 6px); }
       .opt.sel {
         border-color: var(--ant-primary-color, #0869c3);
         background: color-mix(in srgb, var(--ant-primary-color, #0869c3) 7%, var(--bg-surface, #fff));
@@ -247,7 +378,20 @@ import {
         content: ''; position: absolute; inset: 3px; border-radius: 50%;
         background: var(--ant-primary-color, #0869c3);
       }
-      .opt-label { font-weight: 500; }
+      .opt.sel .opt-mark.box::after { border-radius: 2px; inset: 3px; }
+
+      /* ── Typed inputs ── */
+      .field { display: flex; align-items: center; gap: var(--space-3, 12px); }
+      .ctl {
+        flex: 1; min-block-size: 52px; padding: 12px 16px; font-size: 15px;
+        border: 1.5px solid var(--color-border-default, #e5e7eb);
+        border-radius: var(--radius-md, 10px); background: var(--bg-surface, #fff);
+        color: var(--color-text-primary, #1a2433); font-variant-numeric: tabular-nums lining-nums;
+      }
+      .ctl:focus { outline: none; border-color: var(--ant-primary-color, #0869c3); }
+      .unit { font-size: 14px; font-weight: 600; color: var(--color-text-secondary, #6b7280); }
+      .hint { margin: var(--space-2, 8px) 0 0; font-size: 12px; color: var(--color-text-secondary, #6b7280); }
+      .err { margin: var(--space-2, 8px) 0 0; font-size: 12px; font-weight: 600; color: var(--ant-error-color, #c1666b); }
 
       .wiz-foot { display: flex; justify-content: space-between; gap: var(--space-3, 12px); margin-block-start: var(--space-6, 24px); }
       .count {
@@ -308,28 +452,93 @@ export class MatchingSimulatorPage {
   readonly category = signal<LoanCategory>('personal');
   readonly tree = signal<GroupTreeRow[]>([]);
   readonly loadingTree = signal(false);
-  readonly answers = signal<Record<string, string>>({});
+  readonly answers = signal<Record<string, AnswerValue>>({});
   readonly running = signal(false);
   readonly result = signal<SimulationResult | null>(null);
   readonly step = signal(0);
 
-  /** Flat, ordered list of active questions across all groups. */
-  readonly questions = computed<QuestionRow[]>(() =>
-    this.tree()
+  /** Typed controls for the two free-entry types (Principle XXII — no ngModel). */
+  readonly numericCtrl = new FormControl<string>('', { nonNullable: true });
+  readonly textCtrl = new FormControl<string>('', { nonNullable: true });
+
+  /** Active questions across all groups, minus the ones a branch rule hides. */
+  readonly questions = computed<QuestionRow[]>(() => {
+    const active = this.tree()
       .flatMap((g) => g.questions)
-      .filter((q) => q.isActive),
-  );
+      .filter((q) => q.isActive);
+    const byCode = new Map(active.map((q) => [q.code, q]));
+    const answers = this.answers();
+    return active.filter((q) => isVisible(q, answers, byCode));
+  });
   readonly total = computed(() => this.questions().length);
-  /** null on the review step (step === total). */
+  /** null on the review step (step >= total). */
   readonly current = computed<QuestionRow | null>(() => this.questions()[this.step()] ?? null);
   readonly onReview = computed(() => this.total() > 0 && this.step() >= this.total());
   readonly progressPct = computed(() =>
     this.total() === 0 ? 0 : Math.round((Math.min(this.step(), this.total()) / this.total()) * 100),
   );
-  readonly answeredCount = computed(() => Object.values(this.answers()).filter(Boolean).length);
+  readonly answeredCount = computed(() => this.questions().filter((q) => this.isAnswered(q)).length);
+
+  /** Client-side mirror of the backend's `ANSWER_OUT_OF_RANGE` rules. */
+  readonly numericError = computed<string | null>(() => {
+    const q = this.current();
+    if (!q || q.type !== 'NUMERIC') return null;
+    const raw = this.answers()[q.code]?.numericValue ?? '';
+    if (raw === '') return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return $localize`:@@sim.err_number:Enter a number`;
+    const min = q.numericMinValue === null ? null : Number(q.numericMinValue);
+    const max = q.numericMaxValue === null ? null : Number(q.numericMaxValue);
+    const step = q.numericStep === null ? null : Number(q.numericStep);
+    if ((min !== null && value < min) || (max !== null && value > max)) {
+      return this.rangeMessage(min, max);
+    }
+    // Steps are measured from the minimum (or zero), exactly as the API checks.
+    if (step !== null && step > 0) {
+      const offset = value - (min ?? 0);
+      // Integer-cent arithmetic: floats cannot represent a 0.01 step remainder.
+      const remainder = Math.round(offset * 100) % Math.round(step * 100);
+      if (remainder !== 0) {
+        return $localize`:@@sim.err_step:Must be a multiple of ${grouped(step)}:step:`;
+      }
+    }
+    return null;
+  });
+
+  /** Blocks Next on an unanswered required question or an invalid number. */
+  readonly canAdvance = computed(() => {
+    const q = this.current();
+    if (!q) return true;
+    if (this.numericError() !== null) return false;
+    return !q.isRequired || this.isAnswered(q);
+  });
 
   constructor() {
     void this.loadTree();
+
+    // Seed the free-entry controls when the step changes. `answers` is read
+    // untracked so typing does not reset the field being typed into.
+    effect(() => {
+      const q = this.current();
+      untracked(() => {
+        const value = q ? this.answers()[q.code] : undefined;
+        this.numericCtrl.setValue(value?.numericValue ?? '', { emitEvent: false });
+        this.textCtrl.setValue(value?.textValue ?? '', { emitEvent: false });
+      });
+    });
+
+    this.numericCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe((raw) => {
+      const q = this.current();
+      if (!q) return;
+      const trimmed = raw.trim();
+      this.setAnswer(q.code, trimmed === '' ? null : { numericValue: trimmed });
+    });
+    this.textCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe((raw) => {
+      const q = this.current();
+      if (!q) return;
+      const trimmed = raw.trim();
+      this.setAnswer(q.code, trimmed === '' ? null : { textValue: trimmed });
+    });
   }
 
   pickCategory(c: LoanCategory): void {
@@ -340,10 +549,23 @@ export class MatchingSimulatorPage {
     this.result.set(null);
   }
 
-  /** Pick an option, then auto-advance for a guided flow. */
+  /** Pick a single-select option, then auto-advance for a guided flow. */
   choose(questionCode: string, optionCode: string): void {
-    this.answers.update((a) => ({ ...a, [questionCode]: optionCode }));
+    this.setAnswer(questionCode, { optionCode });
     this.next();
+  }
+
+  isPicked(q: QuestionRow, optionCode: string): boolean {
+    return (this.answers()[q.code]?.optionCodes ?? []).includes(optionCode);
+  }
+
+  /** Multi-select has no auto-advance — the admin picks, then presses Next. */
+  toggle(q: QuestionRow, optionCode: string): void {
+    const picked = this.answers()[q.code]?.optionCodes ?? [];
+    const next = picked.includes(optionCode)
+      ? picked.filter((c) => c !== optionCode)
+      : [...picked, optionCode];
+    this.setAnswer(q.code, next.length === 0 ? null : { optionCodes: next });
   }
 
   next(): void {
@@ -360,18 +582,29 @@ export class MatchingSimulatorPage {
   }
 
   async run(): Promise<void> {
-    const answers = Object.entries(this.answers())
-      .filter(([, v]) => Boolean(v))
-      .map(([questionCode, optionCode]) => ({ questionCode, optionCode }));
-    if (answers.length === 0) return;
+    const payload = this.payload();
+    if (payload.length === 0) return;
     this.running.set(true);
     try {
-      this.result.set(await this.api.simulateMatching(this.category(), answers));
+      this.result.set(await this.api.simulateMatching(this.category(), payload));
     } catch {
       this.message.error($localize`:@@sim.failed:Simulation failed`);
     } finally {
       this.running.set(false);
     }
+  }
+
+  isMoney(q: QuestionRow): boolean {
+    return MONEY_UNITS.has((q.numericUnitEn ?? '').trim()) || MONEY_UNITS.has((q.numericUnitAr ?? '').trim());
+  }
+  unitText(q: QuestionRow): string | null {
+    return (this.isAr ? q.numericUnitAr : q.numericUnitEn) || q.numericUnitEn;
+  }
+  numericHint(q: QuestionRow): string | null {
+    const min = q.numericMinValue;
+    const max = q.numericMaxValue;
+    if (min === null && max === null) return null;
+    return this.rangeMessage(min === null ? null : Number(min), max === null ? null : Number(max));
   }
 
   questionText(q: QuestionRow): string {
@@ -380,11 +613,35 @@ export class MatchingSimulatorPage {
   optionText(o: Pick<OptionRow, 'labelAr' | 'labelEn'>): string {
     return (this.isAr ? o.labelAr : o.labelEn) || o.labelEn;
   }
-  answerLabel(q: QuestionRow): string {
-    const code = this.answers()[q.code];
-    const opt = q.options.find((o) => o.code === code);
-    return opt ? this.optionText(opt) : '—';
+
+  isAnswered(q: QuestionRow): boolean {
+    const value = this.answers()[q.code];
+    if (!value) return false;
+    return Boolean(
+      value.optionCode ||
+        (value.optionCodes && value.optionCodes.length > 0) ||
+        value.textValue ||
+        value.numericValue,
+    );
   }
+
+  answerLabel(q: QuestionRow): string {
+    const value = this.answers()[q.code];
+    if (!value) return '—';
+    if (value.numericValue) {
+      const shown = grouped(value.numericValue);
+      const unit = this.unitText(q);
+      return unit ? `${shown} ${unit}` : shown;
+    }
+    if (value.textValue) return value.textValue;
+    const codes = value.optionCode ? [value.optionCode] : (value.optionCodes ?? []);
+    const labels = codes
+      .map((c) => q.options.find((o) => o.code === c))
+      .filter((o): o is OptionRow => o !== undefined)
+      .map((o) => this.optionText(o));
+    return labels.length > 0 ? labels.join('، ') : '—';
+  }
+
   pct(p: number): number {
     return Math.round(p * 100);
   }
@@ -395,10 +652,29 @@ export class MatchingSimulatorPage {
     return code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
-  private reset(): void {
-    this.answers.set({});
-    this.result.set(null);
-    this.step.set(0);
+  /** Only VISIBLE, answered questions are sent — a hidden answer must not score. */
+  private payload(): SimulatedAnswer[] {
+    const answers = this.answers();
+    return this.questions()
+      .filter((q) => this.isAnswered(q))
+      .map((q) => ({ questionCode: q.code, ...answers[q.code] }));
+  }
+
+  private setAnswer(questionCode: string, value: AnswerValue | null): void {
+    this.answers.update((current) => {
+      const next = { ...current };
+      if (value === null) delete next[questionCode];
+      else next[questionCode] = value;
+      return next;
+    });
+  }
+
+  private rangeMessage(min: number | null, max: number | null): string {
+    if (min !== null && max !== null) {
+      return $localize`:@@sim.range:Between ${grouped(min)}:min: and ${grouped(max)}:max:`;
+    }
+    if (min !== null) return $localize`:@@sim.range_min:${grouped(min)}:min: or more`;
+    return $localize`:@@sim.range_max:${grouped(max ?? 0)}:max: or less`;
   }
 
   private async loadTree(): Promise<void> {
