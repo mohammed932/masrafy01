@@ -82,14 +82,27 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
       emit(state.copyWith(submitted: true));
       return;
     }
-    emit(state.copyWith(currentStep: state.currentStep + 1));
+    // Stepped from the CLAMPED index: an answer can hide a whole group and
+    // shorten the wizard while the cursor sits past its new end.
+    emit(state.copyWith(currentStep: state.stepIndex + 1));
+  }
+
+  /// Disarm the submit flag once the page has routed to the results.
+  ///
+  /// [submitted] is a ONE-SHOT signal, not a "has submitted" record. Left
+  /// standing it breaks the wizard on return from the results: re-pressing
+  /// Finish emits an identical state, which the cubit drops, so nothing
+  /// navigates — and any later step change re-fires the results push.
+  void submissionHandled() {
+    if (!state.submitted) return;
+    emit(state.copyWith(submitted: false));
   }
 
   /// Step backward. Returns `false` when already on the first step so the page
   /// can pop the route instead.
   bool back() {
     if (state.isFirstStep) return false;
-    emit(state.copyWith(currentStep: state.currentStep - 1));
+    emit(state.copyWith(currentStep: state.stepIndex - 1));
     return true;
   }
 

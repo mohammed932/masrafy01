@@ -1316,6 +1316,21 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String q_dyn_number_step_nearest(String step, String lower, String upper) {
+    return 'Values go up in ${step}s — nearest valid are $lower and $upper.';
+  }
+
+  @override
+  String q_dyn_number_step_nearest_one(String step, String value) {
+    return 'Values go up in ${step}s — nearest valid is $value.';
+  }
+
+  @override
+  String q_dyn_number_step_helper(String step) {
+    return 'In steps of $step';
+  }
+
+  @override
   String get q_dyn_money_missing => 'Fill in the amount, repayment period, income and current installments to see your offers.';
 
   @override

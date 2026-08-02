@@ -4,7 +4,9 @@ import 'package:app/features/questionnaire/domain/constants/money_field_bindings
 import 'package:app/features/questionnaire/domain/entities/question_answer.dart';
 import 'package:app/features/questionnaire/domain/entities/questionnaire_snapshot_entity.dart';
 import 'package:app/features/questionnaire/domain/enums/enabled_when_operator.dart';
+import 'package:app/features/questionnaire/domain/enums/question_type.dart';
 import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.dart';
+import 'package:app/features/questionnaire/presentation/pages/dynamic/questionnaire_cubit.dart';
 
 /// Feature 010 regressions: the four money figures must reach the engine as the
 /// applicant stated them (the bucket→midpoint maps quoted a 500 000 request on
@@ -107,6 +109,53 @@ void main() {
     test('accepts anything when no rule is set', () {
       expect(const NumericRulesEntity().accepts(7.5), isTrue);
     });
+
+    test('separates a bounds break from an off-step figure', () {
+      // The field picks its message from these two, so a `step: 6` tenor typed
+      // as 9 no longer reads "enter a value between 6 and 120".
+      expect(rules.withinBounds(1500), isTrue);
+      expect(rules.onStep(1500), isFalse);
+      expect(rules.withinBounds(999), isFalse);
+    });
+  });
+
+  group('NumericRulesEntity step neighbours', () {
+    const tenor = NumericRulesEntity(
+      minValue: '6.00',
+      maxValue: '120.00',
+      step: '6.00',
+      unitEn: 'months',
+      unitAr: 'شهر',
+    );
+
+    test('names the grid point either side of an off-step figure', () {
+      expect(tenor.stepBelowDisplay(9), '6');
+      expect(tenor.stepAboveDisplay(9), '12');
+    });
+
+    test('groups thousands the way the bounds hint does', () {
+      const amount = NumericRulesEntity(
+        minValue: '1000.00',
+        maxValue: '20000000.00',
+        step: '1000.00',
+      );
+      expect(amount.stepBelowDisplay(1500), '1,000');
+      expect(amount.stepAboveDisplay(1500), '2,000');
+    });
+
+    test('drops a neighbour that would leave the band', () {
+      // A max that is not itself on the grid: 118 snaps up to 120, past the cap.
+      const capped =
+          NumericRulesEntity(minValue: '6', maxValue: '119', step: '6');
+      expect(capped.stepAboveDisplay(118), isNull);
+      expect(capped.stepBelowDisplay(118), '114');
+    });
+
+    test('is null when the question declares no step', () {
+      const free = NumericRulesEntity(minValue: '0', maxValue: '5000000');
+      expect(free.stepBelowDisplay(1234), isNull);
+      expect(free.stepAboveDisplay(1234), isNull);
+    });
   });
 
   group('enabledWhen', () {
@@ -138,6 +187,112 @@ void main() {
         inverse.isSatisfied({'has_loan': const SingleChoiceAnswer('yes')}),
         isFalse,
       );
+    });
+  });
+
+  group('QuestionnaireState.steps', () {
+    QuestionEntity question(String code, {QuestionEnabledWhenEntity? when}) =>
+        QuestionEntity(
+          code: code,
+          type: QuestionType.singleSelect,
+          questionAr: code,
+          questionEn: code,
+          isRequired: true,
+          displayOrder: 1,
+          enabledWhen: when,
+          options: const [
+            QuestionOptionEntity(
+              code: 'yes',
+              labelAr: 'نعم',
+              labelEn: 'Yes',
+              displayOrder: 1,
+            ),
+          ],
+        );
+
+    QuestionGroupEntity group(String code, List<QuestionEntity> questions) =>
+        QuestionGroupEntity(
+          code: code,
+          titleAr: code,
+          titleEn: code,
+          displayOrder: 1,
+          questions: questions,
+        );
+
+    QuestionnaireState stateOf(
+      List<QuestionGroupEntity> groups, {
+      Map<String, QuestionAnswer> answers = const {},
+      int currentStep = 0,
+    }) =>
+        QuestionnaireState(
+          snapshot: QuestionnaireSnapshotEntity(
+            versionNumber: 1,
+            groups: groups,
+          ),
+          answers: answers,
+          currentStep: currentStep,
+        );
+
+    test('drops a group the snapshot left with no questions', () {
+      // The global pool merges a question into the first group claiming its
+      // code, so later groups (`credit_status`, `financial_status`) arrive
+      // empty — they must not occupy a blank step.
+      final state = stateOf([
+        group('financing_info', [question('amount')]),
+        group('credit_status', const []),
+        group('preferences', [question('priority')]),
+      ]);
+
+      expect(state.steps.map((g) => g.code), ['financing_info', 'preferences']);
+      expect(state.totalSteps, 2);
+      expect(state.currentGroup?.code, 'financing_info');
+    });
+
+    test('drops a group whose last question is hidden by a branch rule', () {
+      final groups = [
+        group('a', [question('has_loan')]),
+        group('b', [
+          question(
+            'loan_kind',
+            when: const QuestionEnabledWhenEntity(
+              questionCode: 'has_loan',
+              operator: EnabledWhenOperator.equals,
+              optionCode: 'yes',
+            ),
+          ),
+        ]),
+      ];
+
+      expect(stateOf(groups).steps.length, 1);
+      expect(
+        stateOf(
+          groups,
+          answers: {'has_loan': const SingleChoiceAnswer('yes')},
+        ).steps.length,
+        2,
+      );
+    });
+
+    test('clamps the cursor when the wizard shortens under it', () {
+      final state = stateOf(
+        [
+          group('a', [question('q1')]),
+          group('b', const []),
+        ],
+        currentStep: 1,
+      );
+
+      expect(state.stepIndex, 0);
+      expect(state.isLastStep, isTrue);
+      expect(state.currentGroup?.code, 'a');
+    });
+
+    test('reports no steps when every group is empty', () {
+      final state = stateOf([group('a', const []), group('b', const [])]);
+
+      expect(state.steps, isEmpty);
+      expect(state.currentGroup, isNull);
+      expect(state.progress, 0);
     });
   });
 }

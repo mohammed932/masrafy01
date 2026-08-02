@@ -503,6 +503,39 @@
       }
     }
   },
+  "q_dyn_number_step_nearest": "Values go up in {step}s — nearest valid are {lower} and {upper}.",
+  "@q_dyn_number_step_nearest": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      },
+      "lower": {
+        "type": "String"
+      },
+      "upper": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_number_step_nearest_one": "Values go up in {step}s — nearest valid is {value}.",
+  "@q_dyn_number_step_nearest_one": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      },
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "q_dyn_number_step_helper": "In steps of {step}",
+  "@q_dyn_number_step_helper": {
+    "placeholders": {
+      "step": {
+        "type": "String"
+      }
+    }
+  },
   "q_dyn_money_missing": "Fill in the amount, repayment period, income and current installments to see your offers.",
   "q_personal_years": "{years} years",
   "q_personal_step1_title": "Financing Details",

@@ -10,6 +10,11 @@ import 'package:flutter/services.dart';
 abstract class MasrafyBaseInput extends StatefulWidget {
   final String label;  // empty string → no floating label, use external label
   final String? hint;
+
+  /// Standing rule shown under the field (e.g. "In steps of 6"), so the
+  /// applicant knows the constraint before typing. Replaced by the error text
+  /// while the field is invalid.
+  final String? helperText;
   final String? initialValue;
 
   final TextEditingController? controller;
@@ -51,6 +56,7 @@ abstract class MasrafyBaseInput extends StatefulWidget {
     super.key,
     this.label = '',
     this.hint,
+    this.helperText,
     this.initialValue,
     this.controller,
     this.focusNode,

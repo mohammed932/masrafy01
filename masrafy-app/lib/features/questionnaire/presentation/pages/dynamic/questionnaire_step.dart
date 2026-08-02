@@ -1,12 +1,12 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/utils/grouped_number_input_formatter.dart';
 import 'package:app/core/widgets/input_controls/masrafy_multi_select_field.dart';
 import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/core/widgets/input_controls/masrafy_text_field/masrafy_text_field.dart';
@@ -219,8 +219,12 @@ class _NumericField extends StatefulWidget {
 }
 
 class _NumericFieldState extends State<_NumericField> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initialValue);
+  // A saved answer arrives ungrouped (`1000000`), so it is formatted once on
+  // seed; every later keystroke is grouped by the input formatter.
+  late final TextEditingController _controller = TextEditingController(
+    text: GroupedNumberInputFormatter.format(widget.initialValue) ??
+        widget.initialValue,
+  );
 
   @override
   void dispose() {
@@ -230,21 +234,47 @@ class _NumericFieldState extends State<_NumericField> {
 
   /// Local mirror of the server's numeric rule. Returns null when the value is
   /// acceptable (or empty — "required" is the wizard's gate, not this field's).
+  ///
+  /// The message names the rule that actually failed: a bounds violation reads
+  /// as a range, an OFF-STEP figure reads as a step. Reporting the range for
+  /// both told a `step: 6` tenor typed as `9` to "enter 6 – 120", which it
+  /// already had.
   String? _validate(String? raw, AppLocalizations l) {
-    final value = (raw ?? '').trim();
+    // `raw` carries the grouped display text — the separators come off before
+    // the bounds are checked.
+    final value = GroupedNumberInputFormatter.unformat((raw ?? '').trim());
     if (value.isEmpty) return null;
     final parsed = num.tryParse(value);
     if (parsed == null) return l.q_dyn_number_invalid;
 
     final rules = widget.question.numeric;
     if (rules == null || rules.accepts(parsed)) return null;
+    if (!rules.withinBounds(parsed)) return _boundsError(rules, l);
+    return _stepError(rules, parsed, l);
+  }
 
+  /// Value outside [min, max].
+  String _boundsError(NumericRulesEntity rules, AppLocalizations l) {
     final min = rules.minDisplay;
     final max = rules.maxDisplay;
     if (min != null && max != null) return l.q_dyn_number_range(min, max);
     if (min != null) return l.q_dyn_number_min(min);
     if (max != null) return l.q_dyn_number_max(max);
-    return l.q_dyn_number_step(rules.stepDisplay ?? '');
+    return l.q_dyn_number_invalid;
+  }
+
+  /// Value inside the band but off the step grid — the two grid points either
+  /// side are named, so the fix is a tap away instead of a guess.
+  String _stepError(NumericRulesEntity rules, num parsed, AppLocalizations l) {
+    final step = rules.stepDisplay ?? '';
+    final below = rules.stepBelowDisplay(parsed);
+    final above = rules.stepAboveDisplay(parsed);
+    if (below != null && above != null) {
+      return l.q_dyn_number_step_nearest(step, below, above);
+    }
+    final only = below ?? above;
+    if (only != null) return l.q_dyn_number_step_nearest_one(step, only);
+    return l.q_dyn_number_step(step);
   }
 
   @override
@@ -260,15 +290,34 @@ class _NumericFieldState extends State<_NumericField> {
       title: widget.question.label(widget.isAr),
       child: MasrafyTextField(
         hint: _boundsHint(rules, l),
+        // The step rule is invisible in a `6 – 120` hint, so it stands under the
+        // field until the value breaks it.
+        helperText: _stepHelper(rules, l),
         suffixIcon: unit == null || unit.isEmpty ? null : _UnitSuffix(unit),
         controller: _controller,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        // Digits + one separator only; the server takes a 2-dp decimal string.
-        inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+        // Digits + one decimal point only, grouped in thousands for reading
+        // (`1,000,000`); the cubit and the server take the ungrouped 2-dp
+        // decimal string.
+        inputFormatters: [
+          GroupedNumberInputFormatter.allowedCharacters,
+          const GroupedNumberInputFormatter(),
+        ],
         validator: (raw) => _validate(raw, l),
-        onChanged: (raw) => cubit.setNumber(widget.question.code, raw),
+        onChanged: (raw) => cubit.setNumber(
+          widget.question.code,
+          GroupedNumberInputFormatter.unformat(raw),
+        ),
       ),
     );
+  }
+
+  /// Standing note about the step grid, or null when any figure in the band is
+  /// acceptable.
+  String? _stepHelper(NumericRulesEntity? rules, AppLocalizations l) {
+    final step = rules?.stepNum;
+    if (step == null || step <= 0) return null;
+    return l.q_dyn_number_step_helper(rules!.stepDisplay ?? '');
   }
 
   /// Placeholder describing the accepted band, e.g. `1000 – 20000000`.

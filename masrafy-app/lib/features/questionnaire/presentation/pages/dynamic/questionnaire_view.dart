@@ -76,19 +76,20 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
           (!prev.submitted && curr.submitted),
       listener: (ctx, state) {
         if (state.submitted) {
-          ctx.router.push(
-            MatchResultsRoute(
-              args: MatchResultsArgs.fromRequest(
-                request: widget.buildRequest(state),
-                loanTypeKey: widget.category.code,
-              ),
-            ),
+          final args = MatchResultsArgs.fromRequest(
+            request: widget.buildRequest(state),
+            loanTypeKey: widget.category.code,
           );
+          // Disarmed BEFORE routing: the flag is a one-shot, so coming back and
+          // pressing Finish again submits afresh instead of emitting the same
+          // state (which the cubit drops, leaving the CTA dead).
+          ctx.read<QuestionnaireCubit>().submissionHandled();
+          ctx.router.push(MatchResultsRoute(args: args));
           return;
         }
         if (_controller.hasClients) {
           _controller.animateToPage(
-            state.currentStep,
+            state.stepIndex,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeInOut,
           );
@@ -104,7 +105,8 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
             RequestState.loading =>
               const QuestionnaireShimmer(),
             RequestState.error => _MessageView(onRetry: cubit.load),
-            RequestState.loaded => state.groups.isEmpty
+            // No step with a question left = nothing to ask, not a blank wizard.
+            RequestState.loaded => state.steps.isEmpty
                 ? const _MessageView()
                 : _LoadedView(state: state, controller: _controller),
           },
@@ -142,10 +144,10 @@ class _LoadedView extends StatelessWidget {
               controller: controller,
               physics: const NeverScrollableScrollPhysics(),
               children: [
-                for (var i = 0; i < state.groups.length; i++)
+                for (var i = 0; i < state.steps.length; i++)
                   QuestionnaireStep(
                     state: state,
-                    group: state.groups[i],
+                    group: state.steps[i],
                     stepIndex: i,
                   ),
               ],

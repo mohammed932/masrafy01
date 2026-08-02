@@ -14,6 +14,7 @@ class MasrafyTextField extends MasrafyBaseInput {
     super.key,
     super.label,
     super.hint,
+    super.helperText,
     super.initialValue,
     super.controller,
     super.focusNode,

@@ -18,18 +18,35 @@ class QuestionnaireState with _$QuestionnaireState {
 
   const QuestionnaireState._();
 
+  /// Every group in the snapshot — the pool the branch rules resolve against.
+  /// Not the wizard's step list; see [steps].
   List<QuestionGroupEntity> get groups => snapshot?.groups ?? const [];
-  int get totalSteps => groups.length;
-  bool get isFirstStep => currentStep == 0;
-  bool get isLastStep => totalSteps == 0 || currentStep >= totalSteps - 1;
+
+  /// The groups that actually have something to ask, in snapshot order — the
+  /// wizard's steps. A group can hold nothing: the global pool (feature 010)
+  /// merges a question into the FIRST group claiming its code, so a later group
+  /// arrives empty, and `enabledWhen` can hide a group's last question for THIS
+  /// applicant. Either way it must not occupy a blank step with a live Next.
+  List<QuestionGroupEntity> get steps {
+    final byCode = _questionsByCode;
+    return groups.where((g) => _visible(g, byCode).isNotEmpty).toList();
+  }
+
+  int get totalSteps => steps.length;
+
+  /// [currentStep] clamped into [steps] — answering a question can hide a whole
+  /// group and shorten the wizard under the cursor.
+  int get stepIndex =>
+      totalSteps == 0 ? 0 : currentStep.clamp(0, totalSteps - 1);
+
+  bool get isFirstStep => stepIndex == 0;
+  bool get isLastStep => totalSteps == 0 || stepIndex >= totalSteps - 1;
 
   /// 1-based fill ratio for the segmented progress bar.
-  double get progress => totalSteps == 0 ? 0 : (currentStep + 1) / totalSteps;
+  double get progress => totalSteps == 0 ? 0 : (stepIndex + 1) / totalSteps;
 
   QuestionGroupEntity? get currentGroup =>
-      (currentStep >= 0 && currentStep < groups.length)
-          ? groups[currentStep]
-          : null;
+      totalSteps == 0 ? null : steps[stepIndex];
 
   /// Every question in the snapshot, keyed by code — used to spot a branch rule
   /// that points at a question the pool no longer has.
@@ -42,8 +59,15 @@ class QuestionnaireState with _$QuestionnaireState {
   /// rule against the current [answers]. A rule whose source question is not in
   /// the pool is DANGLING and never hides its target — mirrors the server's
   /// `isQuestionVisible`.
-  List<QuestionEntity> visibleQuestions(QuestionGroupEntity group) {
-    final byCode = _questionsByCode;
+  List<QuestionEntity> visibleQuestions(QuestionGroupEntity group) =>
+      _visible(group, _questionsByCode);
+
+  /// [visibleQuestions] with the pool index passed in, so [steps] resolves every
+  /// group against one index instead of rebuilding it per group.
+  List<QuestionEntity> _visible(
+    QuestionGroupEntity group,
+    Map<String, QuestionEntity> byCode,
+  ) {
     return group.questions.where((q) {
       final rule = q.enabledWhen;
       if (rule == null) return true;

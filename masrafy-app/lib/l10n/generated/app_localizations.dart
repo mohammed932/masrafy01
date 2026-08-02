@@ -2639,6 +2639,24 @@ abstract class AppLocalizations {
   /// **'أدخل قيمة بمضاعفات {step}.'**
   String q_dyn_number_step(String step);
 
+  /// No description provided for @q_dyn_number_step_nearest.
+  ///
+  /// In ar, this message translates to:
+  /// **'القيم تتزايد بمقدار {step} — أقرب قيمة صحيحة {lower} أو {upper}.'**
+  String q_dyn_number_step_nearest(String step, String lower, String upper);
+
+  /// No description provided for @q_dyn_number_step_nearest_one.
+  ///
+  /// In ar, this message translates to:
+  /// **'القيم تتزايد بمقدار {step} — أقرب قيمة صحيحة {value}.'**
+  String q_dyn_number_step_nearest_one(String step, String value);
+
+  /// No description provided for @q_dyn_number_step_helper.
+  ///
+  /// In ar, this message translates to:
+  /// **'بمضاعفات {step}'**
+  String q_dyn_number_step_helper(String step);
+
   /// No description provided for @q_dyn_money_missing.
   ///
   /// In ar, this message translates to:

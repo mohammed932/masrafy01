@@ -138,20 +138,56 @@ class NumericRulesEntity {
   /// Whether [value] satisfies the bounds. Mirrors the server's rule exactly:
   /// inclusive min/max, and the step counted UP FROM the minimum (0 when no
   /// minimum is set).
-  bool accepts(num value) {
+  bool accepts(num value) => withinBounds(value) && onStep(value);
+
+  /// Inclusive min/max check only — separated from [onStep] so a field can tell
+  /// the applicant WHICH rule the figure broke instead of always naming the
+  /// range (a step-6 tenor rejected `9`, yet read "enter 6 – 120").
+  bool withinBounds(num value) {
     final min = minNum;
     final max = maxNum;
-    final step = stepNum;
     if (min != null && value < min) return false;
     if (max != null && value > max) return false;
-    if (step != null && step > 0) {
-      final offset = value - (min ?? 0);
-      // Tolerant remainder: the values are 2-dp decimals typed as doubles, so a
-      // strict `% == 0` would reject e.g. 3000 against a 1000 step.
-      final remainder = (offset / step - (offset / step).roundToDouble()).abs();
-      if (remainder > 1e-6) return false;
-    }
     return true;
+  }
+
+  /// Whether [value] sits on the step grid counted up from the minimum (from 0
+  /// when no minimum is set). True when the question declares no usable step.
+  bool onStep(num value) {
+    final step = stepNum;
+    if (step == null || step <= 0) return true;
+    final offset = value - (minNum ?? 0);
+    // Tolerant remainder: the values are 2-dp decimals typed as doubles, so a
+    // strict `% == 0` would reject e.g. 3000 against a 1000 step.
+    final remainder = (offset / step - (offset / step).roundToDouble()).abs();
+    return remainder <= 1e-6;
+  }
+
+  /// Nearest step-aligned value at or BELOW [value], as a display string —
+  /// null when there is no step, or when the grid point falls outside the
+  /// bounds. Names a concrete alternative in the off-step error message.
+  String? stepBelowDisplay(num value) => _display(_rawOf(_aligned(value, up: false)));
+
+  /// Nearest step-aligned value at or ABOVE [value]; see [stepBelowDisplay].
+  String? stepAboveDisplay(num value) => _display(_rawOf(_aligned(value, up: true)));
+
+  /// Snaps [value] onto the grid in one direction, then drops it if the result
+  /// leaves the accepted band.
+  num? _aligned(num value, {required bool up}) {
+    final step = stepNum;
+    if (step == null || step <= 0) return null;
+    final base = minNum ?? 0;
+    final multiples = (value - base) / step;
+    final snapped = base + (up ? multiples.ceil() : multiples.floor()) * step;
+    if (!withinBounds(snapped)) return null;
+    return snapped;
+  }
+
+  /// A [num] in the same 2-dp decimal-string form the wire uses, so it can go
+  /// through [_display] with the bounds.
+  static String? _rawOf(num? value) {
+    if (value == null) return null;
+    return value.toStringAsFixed(value == value.roundToDouble() ? 0 : 2);
   }
 }
 

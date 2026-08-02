@@ -131,6 +131,22 @@ const AGE_Q: SeedQuestion = {
     { labelEn: 'More than 60', labelAr: 'أكثر من 60', points: 35 },
   ],
 };
+// A customer can carry several obligations at once, so this is MULTI_SELECT.
+// Shared across categories so the global merge never unions a Yes/No variant
+// into the loan-kind list.
+const CURRENT_LOANS_Q: SeedQuestion = {
+  code: 'current_loans', type: 'MULTI_SELECT',
+  questionEn: 'Do you currently have any loans or obligations?', questionAr: 'هل لديك قروض أو التزامات حالية؟',
+  options: [
+    { labelEn: 'None', labelAr: 'لا يوجد', points: 100 },
+    { labelEn: 'Personal loan', labelAr: 'قرض شخصي', points: 55 },
+    { labelEn: 'Car loan', labelAr: 'قرض سيارة', points: 55 },
+    { labelEn: 'Mortgage', labelAr: 'قرض عقاري', points: 50 },
+    { labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان', points: 60 },
+    { labelEn: 'Other', labelAr: 'أخرى', points: 50 },
+  ],
+};
+
 const SALARY_TRANSFER_Q: SeedQuestion = {
   code: 'salary_transfer', questionEn: 'Is your salary transferred to a bank account?', questionAr: 'هل يتم تحويل راتبك إلى حساب بنكي؟',
   options: [
@@ -302,17 +318,7 @@ const PERSONAL: CategoryConfig = {
     {
       code: 'commitments', titleEn: 'Banking Commitments', titleAr: 'الالتزامات البنكية',
       questions: [
-        {
-          code: 'current_loans', questionEn: 'Do you currently have any loans or obligations?', questionAr: 'هل لديك قروض أو التزامات حالية؟',
-          options: [
-            { labelEn: 'None', labelAr: 'لا يوجد', points: 100 },
-            { labelEn: 'Personal loan', labelAr: 'قرض شخصي', points: 55 },
-            { labelEn: 'Car loan', labelAr: 'قرض سيارة', points: 55 },
-            { labelEn: 'Mortgage', labelAr: 'قرض عقاري', points: 50 },
-            { labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان', points: 60 },
-            { labelEn: 'Other', labelAr: 'أخرى', points: 50 },
-          ],
-        },
+        CURRENT_LOANS_Q,
         {
           code: 'current_installments', questionEn: 'Total approximate current monthly installments?', questionAr: 'إجمالي الأقساط الشهرية الحالية تقريبًا؟',
           options: [
@@ -439,7 +445,7 @@ const MORTGAGE: CategoryConfig = {
     {
       code: 'credit_status', titleEn: 'Credit Status', titleAr: 'الحالة الائتمانية',
       questions: [
-        { code: 'current_loans', questionEn: 'Do you currently have any loans or obligations?', questionAr: 'هل لديك قروض أو التزامات حالية؟', options: YESNO(40, 100) },
+        CURRENT_LOANS_Q,
         {
           code: 'current_installments', questionEn: 'What is your total current monthly installment amount?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
           options: [
@@ -545,7 +551,7 @@ const CAR: CategoryConfig = {
     {
       code: 'financial_status', titleEn: 'Financial Status', titleAr: 'الحالة المالية',
       questions: [
-        { code: 'current_loans', questionEn: 'Do you currently have obligations or loans?', questionAr: 'هل لديك التزامات أو قروض حالية؟', options: YESNO(40, 100) },
+        CURRENT_LOANS_Q,
         {
           code: 'current_installments', questionEn: 'What is your total current monthly installment amount?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
           options: [
@@ -922,6 +928,10 @@ async function publishVersion(): Promise<void> {
         })),
       });
     }
+    // Same rule as `QuestionnaireService.publish` — a group whose questions all
+    // merged into an earlier group by code carries nothing to ask and would
+    // render as a blank wizard step.
+    if (qOut.length === 0) continue;
     snapshotGroups.push({ code: g.code, titleAr: g.titleAr, titleEn: g.titleEn, displayOrder: g.displayOrder, questions: qOut });
   }
   const last = await prisma.questionnaireVersion.findFirst({ orderBy: { versionNumber: 'desc' }, select: { versionNumber: true } });

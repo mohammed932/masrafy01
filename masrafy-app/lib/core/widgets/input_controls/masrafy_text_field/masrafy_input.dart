@@ -227,16 +227,24 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
     final text = MasrafyTextTheme.of(context);
     final currentError = resolvedErrorText;
 
+    // One line under the field: the error while invalid, otherwise the standing
+    // rule (`helperText`) — never both, so the field height stays stable.
+    final belowField = currentError ?? widget.helperText;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         buildField(context, buildDecoration(context)),
-        if (currentError != null) ...[
+        if (belowField != null) ...[
           Gap(4.h),
           Text(
-            currentError,
-            style: text.caption.regular().copyWith(color: colors.error.main),
+            belowField,
+            style: text.caption.regular().copyWith(
+                  color: currentError != null
+                      ? colors.error.main
+                      : colors.text.tertiary,
+                ),
           ),
         ],
       ],

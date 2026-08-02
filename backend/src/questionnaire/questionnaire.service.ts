@@ -313,6 +313,14 @@ export class QuestionnaireService {
           })),
         });
       }
+      // A group with nothing to ask never reaches the applicant: the mobile
+      // wizard renders one step per snapshot group, so an empty one is a blank
+      // screen with a live Next button. Feature 010 makes this reachable — the
+      // global pool merges a question into the FIRST group that claims its code,
+      // leaving later groups (e.g. `credit_status`, `financial_status`) empty —
+      // and an admin deleting a group's last question does the same. The group
+      // row stays ACTIVE and editable in the admin tree.
+      if (qOut.length === 0) continue;
       snapshotGroups.push({
         code: g.code,
         titleAr: g.titleAr,
