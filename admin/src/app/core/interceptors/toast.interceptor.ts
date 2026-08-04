@@ -1,9 +1,19 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpContextToken, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { catchError, throwError } from 'rxjs';
 import { ErrorCodeService } from '../errors/error-code.service';
 import type { ErrorCode, ErrorEnvelope } from '../auth/auth.types';
+
+/**
+ * Opt out of the toast for a single request, mirroring `SKIP_ERROR_INTERCEPTOR`.
+ *
+ * For speculative reads only — a probe the caller expects to fail sometimes and
+ * degrades on its own (the dashboard's dry run against an unpublished
+ * questionnaire). Never set it on a request a user explicitly triggered: they
+ * would get silence instead of a reason.
+ */
+export const SKIP_TOAST_INTERCEPTOR = new HttpContextToken<boolean>(() => false);
 
 /**
  * Surfaces localized toasts for error codes the error-interceptor routes
@@ -28,6 +38,9 @@ const SILENT_CODES: ReadonlySet<ErrorCode> = new Set<ErrorCode>([
 ]);
 
 export const toastInterceptor: HttpInterceptorFn = (req, next) => {
+  if (req.context.get(SKIP_TOAST_INTERCEPTOR)) {
+    return next(req);
+  }
   const notification = inject(NzNotificationService);
   const errorCodes = inject(ErrorCodeService);
 

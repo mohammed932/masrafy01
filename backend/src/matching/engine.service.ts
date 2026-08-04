@@ -27,14 +27,22 @@ export interface EngineInput {
   programs: BankProgramSnapshot[];
   scoringConfig: ScoringConfig;
   /**
-   * MVP simplification: when true, eligibility gating is dropped — every active
-   * program yields an offer and NO program is rejected on the eligibility check
-   * or the DBR cap (the requested-amount path is used, as if `skipDbrCheck` were
-   * on per program). Money math (PMT/installment, fees, effective rate, income
-   * resolution, max-loan) is unchanged. `passedChecks`/`failedChecks` stay
-   * populated for transparency. Defaults to false to preserve existing behavior.
+   * MVP simplification (Principle V): when true, the eligibility checks are
+   * evaluated for transparency but never reject a program — every active program
+   * is quoted. `passedChecks`/`failedChecks` stay populated. Defaults to false.
+   *
+   * This says NOTHING about DBR. Affordability shapes the AMOUNT offered, which
+   * is a different concern from whether a program is listed; conflating the two
+   * is what previously left the apply path quoting amounts the applicant's
+   * income could not carry. Use `skipDbrCheck` for that.
    */
   skipEligibility?: boolean;
+  /**
+   * Disable the DBR affordability reduction, quoting the requested amount as-is.
+   * The program's own `eligibility.skipDbrCheck` is honoured independently —
+   * either one disables it. Defaults to false: DBR shapes the amount everywhere.
+   */
+  skipDbrCheck?: boolean;
 }
 
 export interface EngineOutput {
@@ -46,6 +54,12 @@ export interface EngineOutput {
   noMatchDetails?: NoMatchDetail[];
   suggestions?: Suggestion[];
   primaryReason?: string;
+  /**
+   * Every program evaluated, in input order — including the ones that produced
+   * no offer, each carrying `unavailable.reason`. Callers list from here so a
+   * program is never silently dropped for being unaffordable (A33).
+   */
+  results: MatchResult[];
 }
 
 @Injectable()
@@ -54,12 +68,16 @@ export class EngineService {
     const t0 = Date.now();
     const { profile, programs, scoringConfig } = input;
     const skipEligibility = input.skipEligibility ?? false;
+    const skipDbrCheck = input.skipDbrCheck ?? false;
     const results: MatchResult[] = [];
     const noMatchDetails: NoMatchDetail[] = [];
 
     for (const program of programs) {
       if (!program.active) continue;
-      const result = this.evaluateProgram(profile, program, scoringConfig, skipEligibility);
+      const result = this.evaluateProgram(profile, program, scoringConfig, {
+        skipEligibility,
+        skipDbrCheck,
+      });
       results.push(result);
       if (!result.eligible) {
         noMatchDetails.push({
@@ -84,6 +102,7 @@ export class EngineService {
         noMatchDetails,
         suggestions,
         primaryReason: pickPrimaryReason(noMatchDetails),
+        results,
       };
     }
 
@@ -93,6 +112,7 @@ export class EngineService {
       programsChecked: results.length,
       eligibleCount: ranked.length,
       engineDurationMs,
+      results,
     };
   }
 
@@ -100,8 +120,9 @@ export class EngineService {
     profile: ApplicantProfile,
     program: BankProgramSnapshot,
     scoringConfig: ScoringConfig,
-    skipEligibility = false,
+    flags: { skipEligibility: boolean; skipDbrCheck: boolean },
   ): MatchResult {
+    const { skipEligibility, skipDbrCheck } = flags;
     const assumedIncome = resolveAssumedIncome(
       profile,
       program.incomeAssumption,
@@ -122,7 +143,7 @@ export class EngineService {
     // All money math lives in `quoteProgram` — the one implementation shared by
     // matching preview, apply, the admin draft preview and the calculator. That
     // sharing is what makes FR-025 preview/apply parity structural.
-    const outcome = quoteProgram({ profile, program, skipDbrCheck: skipEligibility });
+    const outcome = quoteProgram({ profile, program, skipDbrCheck });
     if (!outcome.ok) {
       return {
         programCode: program.programCode,
@@ -130,6 +151,10 @@ export class EngineService {
         eligible: false,
         passedChecks: eligibility.passedChecks,
         failedChecks: [reasonToCheckCode(outcome.unavailable.reason)],
+        // Carried so callers can list the program with its reason instead of
+        // dropping it — an unaffordable program is still an offer-less program,
+        // not a filtered-out one (A33).
+        unavailable: outcome.unavailable,
       };
     }
 
@@ -187,10 +212,14 @@ export class EngineService {
       currency: quote.currency,
       qualitativeReviewBadge: args.program.eligibility.requiresQualitativeReview,
       selfDeclared: args.program.programType === 'income_surrogate',
-      // Only meaningful when DBR is what reduced the amount.
-      maxLoanAvailableEGP:
-        quote.bindingConstraint === 'dbr_affordability' ? quote.cashToCustomerEGP : undefined,
+      // The applicant's ceiling at this program, always — not only when DBR
+      // happened to bind. Someone who asked for 100k needs to know the same
+      // salary supports 668k just as much as someone who asked for too much
+      // needs to know it was cut.
+      maxLoanAvailableEGP: quote.maxAffordableAmountEGP,
       dbrPercent: quote.dbrPercent,
+      dbrCapPercent: quote.dbrCapPercent,
+      dbrBandIndex: quote.dbrBandIndex,
     };
   }
 

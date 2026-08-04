@@ -28,4 +28,11 @@ export class DuplicateBankProgramDto {
   @IsString()
   @Length(1, 120)
   friendlyNameAr?: string;
+
+  /** Re-classify the copy. Inherited from the source when omitted. */
+  @ApiPropertyOptional({ maxLength: 64 })
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  programNameKey?: string;
 }

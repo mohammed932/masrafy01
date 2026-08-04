@@ -25,7 +25,6 @@ import {
   AppstoreOutline,
   CheckCircleOutline,
   PoweroffOutline,
-  SlidersOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -37,20 +36,17 @@ import {
   EnumerationEditDialogComponent,
   type EnumerationEditDialogData,
 } from '../lookups/components/enumeration-edit.dialog';
-import {
-  CatalogDefaultsDialogComponent,
-  type CatalogDefaultsDialogData,
-} from './components/catalog-defaults.dialog';
 
 const ENUM_TYPE = 'program_name';
 
 /**
  * Program catalog — the CRUD board for the predefined loan program names that
- * feed the bank-program builder's "Program name" picker. Names are DATA
- * (Principle II) and CATEGORY-AGNOSTIC: one `program_name` enumeration member
- * ("Doctor Loans", "Pharmacy") is pickable under every loan category, so the
- * board is a single flat list rather than per-category lanes. Only the prefill
- * DEFAULTS behind a name are keyed per category. Super-admin only (route-guarded).
+ * feed the bank-program builder's "Program name" picker. A name is JUST A NAME:
+ * it carries no lending values of its own — every bank program authors its own
+ * specs. Names are DATA (Principle II) and CATEGORY-AGNOSTIC: one `program_name`
+ * enumeration member ("Doctor Loans", "Pharmacy") is pickable under every loan
+ * category, so the board is a single flat list rather than per-category lanes.
+ * Super-admin only (route-guarded).
  */
 @Component({
   selector: 'app-program-catalog-page',
@@ -77,7 +73,6 @@ const ENUM_TYPE = 'program_name';
       AppstoreOutline,
       CheckCircleOutline,
       PoweroffOutline,
-      SlidersOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -147,6 +142,17 @@ const ENUM_TYPE = 'program_name';
                 <span class="name-en">{{ r.labelEn }}</span>
                 <span class="name-ar" dir="rtl">{{ r.labelAr }}</span>
               </div>
+
+              <!-- Does any bank actually sell this program? The row actions are
+                   hover-only, so the board has to answer it at rest. -->
+              <span class="usage" [class.zero]="usageOf(r).programs === 0">
+                @if (usageOf(r).programs === 0) {
+                  <span i18n="@@program_catalog.usage.none">Not offered yet</span>
+                } @else {
+                  {{ usageLabel(r) }}
+                }
+              </span>
+
               <div class="card-side">
                 <span class="status" [class.inactive]="!r.active">
                   {{ r.active ? activeLabel : inactiveLabel }}
@@ -162,17 +168,6 @@ const ENUM_TYPE = 'program_name';
                     [attr.aria-label]="editLabel"
                   >
                     <span nz-icon nzType="edit" nzTheme="outline"></span>
-                  </button>
-                  <button
-                    class="icon-action"
-                    type="button"
-                    [class.has-defaults]="hasDefaults(r)"
-                    (click)="editDefaults(r)"
-                    nz-tooltip
-                    [nzTooltipTitle]="hasDefaults(r) ? defaultsSetLabel : defaultsLabel"
-                    [attr.aria-label]="hasDefaults(r) ? defaultsSetLabel : defaultsLabel"
-                  >
-                    <span nz-icon nzType="sliders" nzTheme="outline"></span>
                   </button>
                   <button
                     class="icon-action"
@@ -298,7 +293,7 @@ const ENUM_TYPE = 'program_name';
         animation: catalog-shimmer 1.2s ease-in-out infinite;
       }
       .sk-card {
-        block-size: 64px;
+        block-size: 104px;
         border-radius: var(--radius-md);
       }
       @keyframes catalog-shimmer {
@@ -323,10 +318,13 @@ const ENUM_TYPE = 'program_name';
         grid-template-columns: repeat(auto-fill, minmax(268px, 1fr));
         gap: var(--space-3);
       }
+      /* Column layout so the program name owns the card's full width — the
+         status pill + hover actions used to reserve ~130px inline and squeeze
+         longer names ("Government Employees") into an ellipsis. */
       .card {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        flex-direction: column;
+        align-items: stretch;
         gap: var(--space-3);
         padding: var(--space-3) var(--space-4);
         background: var(--color-surface-elevated);
@@ -357,26 +355,46 @@ const ENUM_TYPE = 'program_name';
         gap: 2px;
         min-inline-size: 0;
       }
+      /* Names wrap in full — never truncated (they are the card's whole point). */
       .name-en {
         font-size: var(--text-base);
         font-weight: var(--font-weight-semibold);
+        line-height: var(--leading-snug);
         color: var(--color-text-primary);
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        text-wrap: balance;
+        overflow-wrap: break-word;
       }
       .name-ar {
         font-size: var(--text-xs);
+        line-height: var(--leading-snug);
         color: var(--color-text-tertiary);
+        overflow-wrap: break-word;
+      }
+      /* Usage line: whether any bank actually sells this program. */
+      .usage {
+        min-inline-size: 0;
+        font-size: var(--text-xxs);
+        color: var(--color-text-secondary);
+        font-variant-numeric: tabular-nums lining-nums;
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
       }
+      /* No italics — Arabic has no italic tradition and synthesised slant is ugly
+         at this size (Principle IV). Tone alone carries the "unused" signal, and
+         the card border stays solid: dashed is reserved for deprecated, the one
+         destructive state on this board. */
+      .usage.zero {
+        color: var(--color-text-disabled);
+      }
+      /* Pinned to the card floor so the status + action rows align across a grid
+         row regardless of how many lines each name takes. */
       .card-side {
         display: flex;
         align-items: center;
+        justify-content: space-between;
         gap: var(--space-2);
-        flex-shrink: 0;
+        margin-block-start: auto;
       }
       .status {
         font-size: var(--text-xxs);
@@ -430,12 +448,6 @@ const ENUM_TYPE = 'program_name';
       }
       .icon-action.danger:hover {
         color: var(--color-error);
-      }
-      /* Tinted only when this program actually contributes prefill, so the board
-         shows at a glance which archetypes are configured. */
-      .icon-action.has-defaults {
-        color: var(--color-info);
-        background: var(--color-info-bg);
       }
       .icon-action:active {
         background: var(--color-tonal-accent-bg);
@@ -506,8 +518,6 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly activateLabel = $localize`:@@program_catalog.activate:Activate`;
   protected readonly deactivateLabel = $localize`:@@program_catalog.deactivate:Deactivate`;
   protected readonly deprecateLabel = $localize`:@@program_catalog.deprecate:Deprecate`;
-  protected readonly defaultsLabel = $localize`:@@program_catalog.defaults:Set default lending values`;
-  protected readonly defaultsSetLabel = $localize`:@@program_catalog.defaults.set:Edit default lending values (set)`;
 
   /** Search-filtered rows — one flat list, since a program name belongs to no
    *  single loan type. Deprecated names sit in their own tail section. */
@@ -563,34 +573,16 @@ export class ProgramCatalogPage implements OnInit {
     this.openDialog({ mode: 'edit', type: ENUM_TYPE, row });
   }
 
-  /** True once this predefined program contributes prefill for at least one category. */
-  hasDefaults(row: EnumerationRow): boolean {
-    return Object.keys(row.defaults ?? {}).length > 0;
+  // --- Card meta: real-world usage ------------------------------------------
+
+  /** Server omits `usage` for non-`program_name` types; treat that as unused. */
+  usageOf(row: EnumerationRow): { programs: number; banks: number } {
+    return row.usage ?? { programs: 0, banks: 0 };
   }
 
-  /**
-   * Per-category default lending values (FR-001). Prefill only — saved bank
-   * programs are never touched by an edit here (FR-007 / SC-008).
-   */
-  editDefaults(row: EnumerationRow): void {
-    const ref = this.modal.create<
-      CatalogDefaultsDialogComponent,
-      CatalogDefaultsDialogData,
-      boolean
-    >({
-      nzContent: CatalogDefaultsDialogComponent,
-      nzData: {
-        key: row.key,
-        labelEn: row.labelEn,
-        labelAr: row.labelAr,
-      },
-      nzWidth: 'min(760px, calc(100vw - 48px))',
-      nzFooter: null,
-      nzMaskClosable: false,
-    });
-    ref.afterClose.subscribe((saved: boolean | undefined) => {
-      if (saved) void this.reload({ silent: true });
-    });
+  usageLabel(row: EnumerationRow): string {
+    const u = this.usageOf(row);
+    return $localize`:@@program_catalog.usage.value:${u.programs}:PROGRAMS: programs · ${u.banks}:BANKS: banks`;
   }
 
   async toggleActive(row: EnumerationRow, next: boolean): Promise<void> {

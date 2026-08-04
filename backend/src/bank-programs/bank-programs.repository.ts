@@ -38,6 +38,7 @@ export interface BankProgramCreate {
   bankId?: string | null;
   friendlyName: string;
   friendlyNameAr?: string | null;
+  programNameKey: string;
   programType: string;
   productCategory: string;
   currencies: readonly string[];
@@ -63,6 +64,7 @@ export interface BankProgramUpdate {
   bankId?: string | null;
   friendlyName?: string;
   friendlyNameAr?: string | null;
+  programNameKey?: string;
   programType?: string;
   productCategory?: string;
   currencies?: readonly string[];
@@ -85,6 +87,7 @@ export interface ListFilters {
   bankName?: string;
   active?: boolean;
   productCategory?: string;
+  programNameKey?: string;
   isShariaCompliant?: boolean;
   acceptedEmploymentType?: string;
   page: number;
@@ -117,6 +120,7 @@ export class BankProgramRepository {
         : {}),
       ...(filters.active !== undefined ? { active: filters.active } : {}),
       ...(filters.productCategory ? { productCategory: filters.productCategory } : {}),
+      ...(filters.programNameKey ? { programNameKey: filters.programNameKey } : {}),
       ...(filters.isShariaCompliant !== undefined
         ? { isShariaCompliant: filters.isShariaCompliant }
         : {}),
@@ -162,19 +166,6 @@ export class BankProgramRepository {
    * Return all active programs (used by matching engine).
    * No pagination — the engine needs the full set.
    */
-  /**
-   * Existence check for a bank id (feature 010 prefill).
-   *
-   * Read here rather than through `BanksRepository` on purpose: importing
-   * `BanksModule` from `BankProgramsModule` closes the cycle
-   * BanksModule -> DocumentsModule -> ApplicationsModule -> BankProgramsModule,
-   * which Nest resolves as `undefined`. This repository already reads `Bank`
-   * (see the `isFeatured` join below), so the projection stays here.
-   */
-  async findBankById(bankId: string): Promise<{ id: string } | null> {
-    return this.prisma.bank.findUnique({ where: { id: bankId }, select: { id: true } });
-  }
-
   async findAllActive(): Promise<Array<BankProgram & { bank: { isFeatured: boolean } | null }>> {
     return this.prisma.bankProgram.findMany({
       where: { active: true },
@@ -194,6 +185,7 @@ export class BankProgramRepository {
         bankId: input.bankId ?? null,
         friendlyName: input.friendlyName,
         friendlyNameAr: input.friendlyNameAr ?? null,
+        programNameKey: input.programNameKey,
         programType: input.programType as BankProgramType,
         productCategory: input.productCategory,
         currencies: [...input.currencies] as Prisma.BankProgramCreateInput['currencies'],
@@ -239,6 +231,7 @@ export class BankProgramRepository {
     if (data.bankId !== undefined) prismaData.bankId = data.bankId;
     if (data.friendlyName !== undefined) prismaData.friendlyName = data.friendlyName;
     if (data.friendlyNameAr !== undefined) prismaData.friendlyNameAr = data.friendlyNameAr;
+    if (data.programNameKey !== undefined) prismaData.programNameKey = data.programNameKey;
     if (data.programType !== undefined) {
       prismaData.programType = data.programType as BankProgramType;
     }

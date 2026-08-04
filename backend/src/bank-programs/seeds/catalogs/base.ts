@@ -2,11 +2,16 @@ import type { CreateBankProgramDto } from '../../dto/create-bank-program.dto';
 
 /**
  * Minimal-but-valid skeleton for catalog entries. Specific catalogs spread + override.
+ *
+ * `programNameKey` is deliberately NOT defaulted: a default would be a real
+ * archetype, so every entry that forgot to choose would silently claim to be an
+ * instance of it — counted as such on the catalog board and renamed with it.
+ * Requiring it here makes the compiler name each gap instead.
  */
 export function skeletonProgram(
-  overrides: Partial<CreateBankProgramDto> & { programCode: string },
+  overrides: Partial<CreateBankProgramDto> & { programCode: string; programNameKey: string },
 ): CreateBankProgramDto & { programCode: string } {
-  const base: CreateBankProgramDto = {
+  const base: Omit<CreateBankProgramDto, 'programNameKey'> = {
     programCode: 'PLACEHOLDER',
     bankName: 'ABK Egypt',
     friendlyName: 'Placeholder',

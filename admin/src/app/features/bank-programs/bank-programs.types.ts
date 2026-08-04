@@ -170,6 +170,8 @@ export interface BankProgramCreatePayload {
   bankId?: string;
   friendlyName: string;
   friendlyNameAr?: string;
+  /** Predefined `program_name` catalog key — required; `friendlyName` derives from it. */
+  programNameKey: string;
   programType: ProgramType;
   productCategory: string;
   currencies: string[];
@@ -201,6 +203,7 @@ export interface BankProgramResponse {
   programCode: string;
   friendlyName: string;
   friendlyNameAr?: string | null;
+  programNameKey?: string | null;
   bankName: string;
   bankId?: string | null;
   programType: ProgramType;
@@ -228,6 +231,7 @@ export interface BankProgramListRow {
   id: string;
   programCode: string;
   friendlyName: string;
+  programNameKey?: string | null;
   bankName: string;
   productCategory: string;
   active: boolean;
@@ -252,7 +256,7 @@ export interface ListBankProgramsQuery {
   isShariaCompliant?: boolean;
 }
 
-// --- Feature 010: banded DBR, prefill, duplicate ---------------------------
+// --- Feature 010: banded DBR, duplicate ------------------------------------
 
 /** One row of the income-banded DBR table (FR-016). */
 export interface DbrBand {
@@ -260,53 +264,6 @@ export interface DbrBand {
   upToIncomeEGP: string | null;
   /** Decimal string, 1…100. */
   capPercent: string;
-}
-
-/**
- * Partial program shape shared by both prefill layers (FR-001, FR-005) and the
- * prefill response (FR-008). Every leaf optional (FR-003).
- */
-export interface ProgramDefaults {
-  tenor?: { minMonths?: number; maxMonths?: number };
-  loanLimits?: { perCurrency?: Record<string, { minAmount?: string; maxAmount?: string }> };
-  eligibility?: {
-    ageMin?: number;
-    ageMax?: number;
-    minMonthlyIncomeEGP?: string;
-    dbrCapPercent?: string;
-    dbrBands?: DbrBand[];
-    skipDbrCheck?: boolean;
-    requiresCollateral?: boolean;
-    commercialBankIncomePercent?: string;
-    publicBankIncomePercent?: string;
-  };
-  pricing?: {
-    isVariableRate?: boolean;
-    baseRatePercent?: string;
-    currentEffectiveRatePercent?: string;
-  };
-  fees?: {
-    adminFeePercent?: string;
-    stampDutyPercent?: string;
-    lifeInsurancePercent?: string;
-    lifeInsuranceMinLoanEGP?: string;
-  };
-  requiredDocuments?: string[];
-}
-
-/** Where a prefilled leaf came from (FR-010). `EDITED` is client-side only. */
-export type PrefillOrigin = 'CATALOG' | 'BANK_POLICY' | 'EMPTY' | 'EDITED';
-
-export interface PrefillResponse {
-  values: ProgramDefaults;
-  /** Keyed by leaf dot-path, e.g. `tenor.maxMonths`. */
-  origin: Record<string, Exclude<PrefillOrigin, 'EDITED'>>;
-}
-
-export interface PrefillQuery {
-  category: string;
-  bankId?: string;
-  programNameKey?: string;
 }
 
 export interface DuplicateBankProgramPayload {

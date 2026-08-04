@@ -244,10 +244,14 @@ export const WEIGHTS_BY_CATEGORY: Record<string, CategoryWeights> = {
  * `questionWeights` sums to 100; every `answerScores` value is 0–100
  * (Principle V / A33). Programs not listed here fall back to
  * `WEIGHTS_BY_CATEGORY`.
+ *
+ * Keyed by the deterministic codes `seed-bank-programs.ts` mints
+ * (`<BANK>-<CAT>-<CATALOG_KEY>`), so a scheme stays attached to the same
+ * bank × archetype pairing across reseeds.
  */
 export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
   // ── personal ──────────────────────────────────────────────────────────
-  'BANK-NXT-PERSONAL': {
+  'NXT-PER-PRIVATE_SECTOR': {
     questionWeights: {
       monthly_income: 20,
       employment_status: 10,
@@ -298,7 +302,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
       needs_consultant: { yes: 65, no: 100 },
     },
   },
-  'BDC-PERSONAL-FLEX': {
+  'BDC-PER-GOVT_EMPLOYEE': {
     questionWeights: {
       monthly_income: 15,
       employment_status: 10,
@@ -349,7 +353,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
       needs_consultant: { yes: 70, no: 100 },
     },
   },
-  'CIB-PRIME-PERSONAL': {
+  'CIB-PER-PROFESSIONAL': {
     questionWeights: {
       monthly_income: 30,
       employment_status: 20,
@@ -400,7 +404,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
       needs_consultant: { yes: 55, no: 100 },
     },
   },
-  'HSBC-PERSONAL-PREMIER': {
+  'HSBC-PER-BANKERS': {
     questionWeights: {
       monthly_income: 25,
       employment_status: 15,
@@ -451,7 +455,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
       needs_consultant: { yes: 60, no: 100 },
     },
   },
-  'NBE-PAYROLL-PRIME': {
+  'NBE-PER-ARMED_FORCES': {
     questionWeights: {
       monthly_income: 20,
       employment_status: 25,
@@ -503,7 +507,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
     },
   },
   // ── car ───────────────────────────────────────────────────────────────
-  'ABK-AUTO-PRIME': {
+  'ABK-CAR-NEW_CAR': {
     questionWeights: {
       monthly_income: 25,
       employment_status: 15,
@@ -549,7 +553,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
       wants_insurance: { yes: 100, no: 75 },
     },
   },
-  'ADIB-AUTO-ISLAMIC': {
+  'ADIB-CAR-NEW_CAR': {
     questionWeights: {
       monthly_income: 20,
       employment_status: 15,
@@ -595,7 +599,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
       wants_insurance: { yes: 100, no: 60 },
     },
   },
-  'BM-AUTO-CLASSIC': {
+  'BM-CAR-NEW_CAR': {
     questionWeights: {
       monthly_income: 20,
       employment_status: 15,
@@ -642,7 +646,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
     },
   },
   // ── mortgage ──────────────────────────────────────────────────────────
-  'ABK-MORTGAGE-CIB-COMPOUND': {
+  'ABK-MTG-HOME_PURCHASE': {
     questionWeights: {
       monthly_income: 20,
       employment_status: 12,
@@ -686,7 +690,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
       },
     },
   },
-  'HDB-MORTGAGE-FIRST-HOME': {
+  'HDB-MTG-HOME_PURCHASE': {
     questionWeights: {
       monthly_income: 20,
       employment_status: 15,
@@ -730,7 +734,7 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
       },
     },
   },
-  'QNB-MORTGAGE-FAMILY': {
+  'QNB-MTG-HOME_PURCHASE': {
     questionWeights: {
       monthly_income: 28,
       employment_status: 20,

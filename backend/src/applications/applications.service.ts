@@ -28,6 +28,7 @@ import {
 } from './application.repository';
 import { EngineService } from '../matching/engine.service';
 import { BankProgramRepository } from '../bank-programs/bank-programs.repository';
+import { toBankProgramSnapshot } from '../bank-programs/bank-program-snapshot.mapper';
 import { SavedOfferRepository } from '../saved-offers/saved-offer.repository';
 import { AuditEventWriter } from '../audit/audit-event.writer';
 import {
@@ -245,12 +246,15 @@ export class ApplicationsService {
         : undefined;
 
     const activePrograms = await this.programsRepo.findAllActive();
-    const snapshots: BankProgramSnapshot[] = activePrograms.map((p) => this.toSnapshot(p));
+    const snapshots: BankProgramSnapshot[] = activePrograms.map(toBankProgramSnapshot);
 
     const scoringConfig: ScoringConfig = await loadActiveScoringConfig(this.scoringVersions);
     const profile = this.buildProfile(dto);
     // MVP simplification: eligibility gating is dropped on apply — every active
     // program yields an offer, ranked purely by the per-bank approval score.
+    // DBR is NOT part of that: affordability shapes the amount offered, so it
+    // stays on here. Leaving it off persisted immutable offers at installments
+    // the applicant's declared income could never carry.
     const result = this.engine.run({
       profile,
       programs: snapshots,
@@ -502,6 +506,8 @@ export class ApplicationsService {
       maxLoanAvailableEGP: offer.maxLoanAvailableEGP
         ? new Decimal(offer.maxLoanAvailableEGP.toString())
         : null,
+      dbrPercent: new Decimal(offer.dbrPercent.toString()),
+      dbrCapPercent: new Decimal(offer.dbrCapPercent.toString()),
     };
   }
 
@@ -568,6 +574,8 @@ export class ApplicationsService {
     qualitativeReviewBadge: boolean;
     selfDeclared: boolean;
     maxLoanAvailableEGP: Decimal | null;
+    dbrPercent: Decimal | null;
+    dbrCapPercent: Decimal | null;
   }, savedOfferIds: Set<string>): ApplicationOfferDto {
     return {
       bankOfferId: o.id,
@@ -593,6 +601,8 @@ export class ApplicationsService {
       qualitativeReviewBadge: o.qualitativeReviewBadge,
       selfDeclared: o.selfDeclared,
       maxLoanAvailableEGP: o.maxLoanAvailableEGP?.toFixed(2),
+      dbrPercent: o.dbrPercent?.toFixed(2),
+      dbrCapPercent: o.dbrCapPercent?.toFixed(4),
     };
   }
 
@@ -633,51 +643,6 @@ export class ApplicationsService {
     return JSON.parse(
       JSON.stringify(profile, (_k, v) => (v instanceof Decimal ? v.toString() : v)),
     ) as JsonValueInput;
-  }
-
-  private toSnapshot(
-    p: Awaited<ReturnType<BankProgramRepository['findAllActive']>>[number],
-  ): BankProgramSnapshot {
-    return {
-      id: p.id,
-      programCode: p.programCode,
-      bankName: p.bankName,
-      bankIsFeatured: p.bank?.isFeatured ?? false,
-      friendlyName: p.friendlyName,
-      programType: p.programType,
-      productCategory: p.productCategory,
-      currencies: (p.currencies as string[]) ?? [],
-      active: p.active,
-      isShariaCompliant: p.isShariaCompliant,
-      version: p.version,
-      requiredDocuments: (p.requiredDocuments as string[]) ?? [],
-      createdAt: p.createdAt,
-      tenor: p.tenor as unknown as BankProgramSnapshot['tenor'],
-      loanLimits: p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
-      pricing: p.pricing as unknown as BankProgramSnapshot['pricing'],
-      eligibility: this.normalizeEligibility(p.eligibility),
-      incomeAssumption: p.incomeAssumption as unknown as BankProgramSnapshot['incomeAssumption'],
-      fees: p.fees as unknown as BankProgramSnapshot['fees'],
-      performanceCriteria: p.performanceCriteria as unknown as
-        | BankProgramSnapshot['performanceCriteria']
-        | undefined,
-    };
-  }
-
-  /**
-   * Reconcile feature-002 bank-program eligibility JSON with the feature-003
-   * engine shape: `ageMin`/`ageMax` → `minAge`/`maxAge`, `acceptedTransferTypes`
-   * → `acceptedSalaryTransferTypes`. Without this the age + transfer checks read
-   * undefined and reject everyone.
-   */
-  private normalizeEligibility(raw: unknown): BankProgramSnapshot['eligibility'] {
-    const e = (raw ?? {}) as Record<string, unknown>;
-    return {
-      ...e,
-      minAge: e['minAge'] ?? e['ageMin'],
-      maxAge: e['maxAge'] ?? e['ageMax'],
-      acceptedSalaryTransferTypes: e['acceptedSalaryTransferTypes'] ?? e['acceptedTransferTypes'],
-    } as unknown as BankProgramSnapshot['eligibility'];
   }
 
   private buildProfile(dto: ApplyRequestDto): ApplicantProfile {

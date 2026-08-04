@@ -62,7 +62,16 @@ export interface ApplyMatchedResponse {
       selfDeclared: boolean;
       /** True when the authenticated customer has already saved this offer. */
       isSaved: boolean;
+      /**
+       * The applicant's borrowing ceiling at this program — income × cap ÷ 100
+       * minus obligations, present-valued over the tenor. Present on every
+       * offer: compare with `effectiveLoanAmountEGP` to tell "this is your
+       * limit" from "you asked for less than you could have had".
+       */
       maxLoanAvailableEGP?: string;
+      /** The ratio this offer lands at, and the cap it was measured against. */
+      dbrPercent?: string;
+      dbrCapPercent?: string;
     }>;
   };
 }

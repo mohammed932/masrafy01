@@ -14,8 +14,7 @@ No English strings cross the API boundary; clients render from the code.
 | `DBR_BANDS_INVALID` | 422 | band table not ascending, has a gap, has no open-ended final band, duplicate bound, or a cap outside 1–100 | `{ index, reason }` | admin |
 | `DBR_BAND_CAP_OUT_OF_RANGE` | 422 | a single cap outside 1–100 (also covers the scalar) | `{ index, capPercent }` | admin |
 | `PROGRAM_RANGE_INVALID` | 422 | amount / tenor / age range inverted or empty (FR-014) | `{ field }` | admin |
-| `PREFILL_TARGET_INVALID` | 400 | prefill asked for a category the `program_name` member does not serve, or an unknown bank / member | `{ field }` | admin |
-| `CATALOG_DEFAULTS_CATEGORY_UNKNOWN` | 422 | defaults contain a key that is not one of the four retail loan categories | `{ category, allowed }` | admin |
+| `PREFILL_TARGET_INVALID` | 400 | prefill asked for an unknown bank, an unknown `program_name` member, or a loan category the platform does not serve | `{ reason, bankId?, programNameKey?, category? }` | admin |
 | `ANSWER_TYPE_MISMATCH` | 400 | submitted value shape does not match the question's type | `{ questionCode, expectedType }` | mobile + admin |
 | `ANSWER_OUT_OF_RANGE` | 400 | number answer outside `[min,max]` or off `step` | `{ questionCode, min, max, step }` | mobile + admin |
 | `ANSWER_TOO_LONG` | 400 | text answer over `textMaxLength` | `{ questionCode, maxLength }` | mobile |

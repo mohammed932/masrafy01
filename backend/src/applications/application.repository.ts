@@ -70,6 +70,9 @@ export interface CreateBankOfferInput {
   qualitativeReviewBadge: boolean;
   selfDeclared: boolean;
   maxLoanAvailableEGP?: Decimal | null;
+  /** The DBR verdict, frozen with the offer (see `BankOffer.dbrPercent`). */
+  dbrPercent?: Decimal | null;
+  dbrCapPercent?: Decimal | null;
 }
 
 export interface PersistMatchInput {

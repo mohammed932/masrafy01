@@ -477,7 +477,7 @@ export class TelemetryEventNotAllowedException extends DomainException {
   }
 }
 
-// --- Feature 010: simple program setup, banded DBR & prefill ---------------
+// --- Feature 010: simple program setup, banded DBR & calculator ------------
 
 /** FR-017 — band table is empty, unordered, duplicated, or not open-ended-terminated. */
 export class DbrBandsInvalidException extends DomainException {
@@ -500,16 +500,12 @@ export class ProgramRangeInvalidException extends DomainException {
   }
 }
 
-/** FR-008 — prefill asked for an unknown bank / catalog member, or an unserved category. */
-export class PrefillTargetInvalidException extends DomainException {
-  constructor(meta: { reason: string; bankId?: string; programNameKey?: string; category?: string }) {
-    super(ERROR_CODES.PREFILL_TARGET_INVALID, meta);
-  }
-}
-
-/** FR-001 — catalog defaults keyed by something that is not a retail loan category. */
-export class CatalogDefaultsCategoryUnknownException extends DomainException {
-  constructor(meta: { category: string; allowed: string[] }) {
-    super(ERROR_CODES.CATALOG_DEFAULTS_CATEGORY_UNKNOWN, meta);
+/**
+ * A bank program must instantiate a predefined `program_name` catalog archetype;
+ * the submitted key names none of them.
+ */
+export class ProgramNameKeyUnknownException extends DomainException {
+  constructor(meta: { programNameKey: string; activeKeys: string[] }) {
+    super(ERROR_CODES.PROGRAM_NAME_KEY_UNKNOWN, meta);
   }
 }

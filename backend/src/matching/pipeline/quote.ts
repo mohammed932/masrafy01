@@ -121,14 +121,21 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     return { ok: false, unavailable: { reason: 'PROGRAM_MISCONFIGURED', missing: problems } };
   }
 
-  // ── 3. Recognised income ────────────────────────────────────────────────
-  // Declared income after the program's income assumption. Every downstream
-  // figure keys off this, NOT off declared income.
-  const recognisedIncomeEGP = resolveAssumedIncome(
-    profile,
-    program.incomeAssumption,
-    program.eligibility,
-  );
+  // ── 3. Income ───────────────────────────────────────────────────────────
+  // The DECLARED monthly salary, as typed by the applicant. Programs may only
+  // recognise a fraction of a declared salary for their own credit policy, but
+  // the customer-facing figures deliberately do NOT apply that haircut: two
+  // screens quoting the same person must show the same number, and the
+  // affordability answer is "what your salary supports", not "what this bank
+  // would concede". `resolveAssumedIncome` remains the fallback for
+  // `income_surrogate` programs, where the applicant declares no salary at all
+  // and the income is derived from deposits / car installment / card limit —
+  // without it those programs would fail `NO_RECOGNISED_INCOME` outright.
+  const declaredIncomeEGP = profile.employment?.monthlyNetSalaryEGP;
+  const recognisedIncomeEGP =
+    declaredIncomeEGP && declaredIncomeEGP.greaterThan(0)
+      ? declaredIncomeEGP
+      : resolveAssumedIncome(profile, program.incomeAssumption, program.eligibility);
   if (recognisedIncomeEGP.lessThanOrEqualTo(0)) {
     return { ok: false, unavailable: { reason: 'NO_RECOGNISED_INCOME' } };
   }
@@ -209,6 +216,31 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   let priced = priceAt(cash);
   let dbr = dbrAt(priced.installment);
 
+  // The headroom figure: the largest principal this income supports at this
+  // tenor and rate, INDEPENDENT of what was asked for. Bounded by the program
+  // ceiling — a bank cannot lend past its own maximum however much the income
+  // would carry. Priced off the rate at the requested amount, the same rate the
+  // affordability loop below starts from.
+  const uncappedMax = calculateMaxLoanFromDbr({
+    monthlyIncomeEGP: recognisedIncomeEGP,
+    existingMonthlyObligationsEGP: obligations,
+    dbrCapPercent,
+    annualRatePercent: priced.fees.effectiveRateAfterPenaltiesPercent,
+    tenorMonths,
+    amountStepEGP,
+  });
+  const maxAffordableAmountEGP = uncappedMax.greaterThan(programMax)
+    ? round2(programMax)
+    : uncappedMax;
+
+  /** Context carried on every "no figures" exit so the program stays listed. */
+  const unavailableContext = {
+    maxAffordableAmountEGP,
+    dbrCapPercent,
+    dbrBandIndex,
+    recognisedIncomeEGP,
+  };
+
   // ── 7. Affordability (FR-022b) ──────────────────────────────────────────
   //
   // The check must use the SAME installment the customer is shown, so a quote
@@ -225,7 +257,10 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       .div(100)
       .minus(obligations);
     if (maxAffordableInstallment.lessThanOrEqualTo(0)) {
-      return { ok: false, unavailable: { reason: 'OBLIGATIONS_EXCEED_ALLOWANCE' } };
+      return {
+        ok: false,
+        unavailable: { reason: 'OBLIGATIONS_EXCEED_ALLOWANCE', ...unavailableContext },
+      };
     }
 
     let next = calculateMaxLoanFromDbr({
@@ -240,10 +275,16 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
 
     for (let pass = 0; ; pass++) {
       if (next.lessThanOrEqualTo(0)) {
-        return { ok: false, unavailable: { reason: 'OBLIGATIONS_EXCEED_ALLOWANCE' } };
+        return {
+          ok: false,
+          unavailable: { reason: 'OBLIGATIONS_EXCEED_ALLOWANCE', ...unavailableContext },
+        };
       }
       if (next.lessThanOrEqualTo(minAmount)) {
-        return { ok: false, unavailable: { reason: 'BELOW_PROGRAM_MIN_AMOUNT' } };
+        return {
+          ok: false,
+          unavailable: { reason: 'BELOW_PROGRAM_MIN_AMOUNT', ...unavailableContext },
+        };
       }
 
       cash = next;
@@ -287,6 +328,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       dbrPercent: dbr.dbrPercent,
       dbrCapPercent,
       dbrBandIndex,
+      maxAffordableAmountEGP,
       bindingConstraint: binding,
       recognisedIncomeEGP,
       feesBreakdown: priced.fees.breakdown,

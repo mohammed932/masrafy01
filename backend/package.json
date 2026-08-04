@@ -22,9 +22,12 @@
     "seed:demo": "tsx prisma/seed-demo.ts",
     "seed:banks": "tsx prisma/seed-banks.ts",
     "seed:apps": "tsx prisma/seed-applications.ts",
+    "seed:apps:demo": "tsx prisma/seed-demo-applications.ts",
+    "seed:support:demo": "tsx prisma/seed-demo-support.ts",
+    "seed:programs": "tsx prisma/seed-bank-programs.ts",
+    "seed:questionnaire": "tsx prisma/seed-questionnaire.ts",
     "seed:customers": "tsx prisma/seed-customers.ts",
     "seed:weights": "tsx prisma/seed-scoring-weights.ts",
-    "seed:catalog-defaults": "tsx prisma/seed-program-catalog-defaults.ts",
     "check:codes": "tsx scripts/check-error-codes-parity.ts"
   },
   "dependencies": {

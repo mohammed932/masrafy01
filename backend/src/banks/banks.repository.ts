@@ -88,11 +88,30 @@ export class BanksRepository {
     return this.prisma.bankProgram.count({ where: { bankId } });
   }
 
-  async listPrograms(bankId: string): Promise<{ id: string; programCode: string; friendlyName: string; productCategory: string; active: boolean; version: number }[]> {
+  /**
+   * Programs on a bank's shelf. The JSONB blobs come back whole — the service
+   * flattens the handful of headline figures the list renders (rate / ceiling /
+   * tenor) so the page needs no per-program detail call.
+   */
+  async listPrograms(bankId: string) {
     return this.prisma.bankProgram.findMany({
       where: { bankId },
-      select: { id: true, programCode: true, friendlyName: true, productCategory: true, active: true, version: true },
-      orderBy: { programCode: 'asc' },
+      select: {
+        id: true,
+        programCode: true,
+        friendlyName: true,
+        friendlyNameAr: true,
+        programNameKey: true,
+        productCategory: true,
+        active: true,
+        isShariaCompliant: true,
+        version: true,
+        pricing: true,
+        loanLimits: true,
+        tenor: true,
+        updatedAt: true,
+      },
+      orderBy: [{ productCategory: 'asc' }, { friendlyName: 'asc' }],
     });
   }
 }

@@ -2,8 +2,12 @@ import type { CreateBankProgramDto } from '../dto/create-bank-program.dto';
 
 export interface SeedCatalog {
   name: string;
-  /** Seeds always pin an explicit, stable programCode (optional on the API DTO). */
-  programs: (CreateBankProgramDto & { programCode: string })[];
+  /**
+   * Seeds always pin an explicit, stable programCode (optional on the API DTO)
+   * and an explicit `program_name` archetype — the entry's claim about which
+   * catalog name it instantiates is never inherited from a skeleton.
+   */
+  programs: (CreateBankProgramDto & { programCode: string; programNameKey: string })[];
   expectedRates: Record<string, string>;
 }
 

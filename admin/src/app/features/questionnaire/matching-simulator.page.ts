@@ -156,7 +156,36 @@ function isVisible(
                           <dd class="numeric">{{ m.monthlyInstallmentEGP }} EGP</dd>
                         </div>
                       }
+                      @if (m.maxAffordableAmountEGP !== null) {
+                        <div>
+                          <dt i18n="@@sim.max_loan">Max loan</dt>
+                          <dd class="numeric">{{ m.maxAffordableAmountEGP }} EGP</dd>
+                        </div>
+                      }
+                      @if (m.figures; as f) {
+                        <div>
+                          <dt i18n="@@sim.dbr">DBR</dt>
+                          <dd class="numeric">{{ f.dbrPercent }}% / {{ f.dbrCapPercent }}%</dd>
+                        </div>
+                        <div>
+                          <dt i18n="@@sim.binding">Binding</dt>
+                          <dd>{{ humanizeReason(f.bindingConstraint) }}</dd>
+                        </div>
+                        @if (f.dbrBandIndex !== null) {
+                          <div>
+                            <dt i18n="@@sim.dbr_band">DBR band</dt>
+                            <dd class="numeric">#{{ f.dbrBandIndex }}</dd>
+                          </div>
+                        }
+                      }
                     </dl>
+                  }
+                  <!-- An unquotable program stays listed with its reason: DBR
+                       shapes the amount, never whether a program appears (A33). -->
+                  @if (m.figuresUnavailableReason !== null) {
+                    <div class="reasons">
+                      <span class="reason">{{ humanizeReason(m.figuresUnavailableReason) }}</span>
+                    </div>
                   }
                   @if (m.rejectionReasons.length > 0) {
                     <div class="reasons">

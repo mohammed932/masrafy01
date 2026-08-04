@@ -12,6 +12,8 @@
   --font-primary: var(--font-sans);
 
   // ─── Font sizes (base 16px, ratio 1.25) ───────────────────────────────────
+  // Below the scale: eyebrows, timestamps, axis labels — never body copy.
+  --text-nano: 0.625rem;
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;

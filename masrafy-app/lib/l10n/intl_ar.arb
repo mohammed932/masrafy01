@@ -1007,6 +1007,15 @@
   "results_monthly": "شهريًا",
   "results_total": "الإجمالي",
   "results_view_offer": "عرض العرض",
+  "results_max_borrow": "تقدر تقترض حتى",
+  "results_max_borrow_value": "{amount} جنيه",
+  "@results_max_borrow_value": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "offer_type_personal": "شخصي",
   "offer_type_car": "سيارة",
   "offer_type_mortgage": "عقاري",
@@ -1040,11 +1049,41 @@
   "offer_personal_id": "إثبات الهوية",
   "offer_total_loan": "إجمالي القرض",
   "offer_total_loan_caption": "شامل الفائدة + الأصل",
+  "offer_max_borrow": "أقصى مبلغ تقدر تقترضه",
+  "offer_max_borrow_caption": "بحد أقصى {pct}% لنسبة الالتزامات",
+  "@offer_max_borrow_caption": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "offer_dbr": "نسبة الالتزامات",
+  "offer_dbr_caption": "من دخلك الشهري",
+  "offer_headroom_hint": "طلبت أقل من المبلغ اللي تقدر تاخده.",
   "offer_fees_title": "الرسوم والمصاريف",
   "offer_admin_fees": "رسوم إدارية",
   "offer_admin_fees_value": "1% (1,500 ج.م)",
   "offer_interest_charge": "12% - 15% من أصل المبلغ",
   "offer_interest_charge_value": "12.5% سنويًا",
+  "offer_interest_charge_value_rate": "{pct}% سنويًا",
+  "@offer_interest_charge_value_rate": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "offer_stamp_duty": "الدمغة",
+  "offer_life_insurance": "تأمين الحياة",
+  "offer_fee_egp": "{amount} جنيه",
+  "@offer_fee_egp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "offer_early_settlement": "السداد المبكر",
   "offer_early_settlement_value": "مجاني بعد 12 شهرًا",
   "offer_apply": "تقدم بطلب لهذا العرض",

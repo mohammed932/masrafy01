@@ -16,12 +16,18 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-COMPOUND-OWNER',
       friendlyName: 'Compound Owner',
+      // Really a salaried personal loan qualified by owning a compound unit;
+      // the catalog has no property-owner archetype.
+      programNameKey: 'private_sector',
       pricing: { isVariableRate: false, baseRatePercent: '25.5000' },
       eligibility: { ...skeletonEligibility('salaried'), requiresCompoundProperty: true },
     }),
     skeletonProgram({
       programCode: 'ABK-CD-HOLDERS',
       friendlyName: 'CD Holders',
+      // Really a salaried personal loan secured by a certificate of deposit;
+      // the catalog has no deposit-secured archetype.
+      programNameKey: 'private_sector',
       pricing: { isVariableRate: false, baseRatePercent: '24.0000' },
       fees: skeletonFees('0.0000'), // 0 admin fee for CD holders
       eligibility: { ...skeletonEligibility('salaried'), requiresCD: true },
@@ -29,6 +35,9 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-AUTO-XSELL-OTHER',
       friendlyName: 'Auto Cross-Sell — Other Bank',
+      // Really a salaried personal loan cross-sold to customers already running
+      // a car loan elsewhere — it finances nothing automotive.
+      programNameKey: 'private_sector',
       productCategory: 'auto_cross_sell',
       pricing: { isVariableRate: false, baseRatePercent: '26.0000' },
       eligibility: { ...skeletonEligibility('salaried'), requiresAutoLoanAtOtherBank: true },
@@ -36,6 +45,8 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-AUTO-XSELL-ABK',
       friendlyName: 'Auto Cross-Sell — At ABK',
+      // Same cross-sell as ABK-AUTO-XSELL-OTHER, for a car loan already at ABK.
+      programNameKey: 'private_sector',
       productCategory: 'auto_cross_sell',
       pricing: { isVariableRate: false, baseRatePercent: '25.0000' },
       eligibility: { ...skeletonEligibility('salaried'), requiresAutoLoanAtABK: true },
@@ -43,6 +54,9 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-CC-XSELL',
       friendlyName: 'Credit Card Cross-Sell',
+      // Really a salaried personal loan cross-sold against a competitor's credit
+      // card; the catalog has no card-holder archetype.
+      programNameKey: 'private_sector',
       productCategory: 'credit_card_cross_sell',
       pricing: { isVariableRate: false, baseRatePercent: '27.0000' },
       eligibility: {
@@ -55,12 +69,14 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-DOCTORS-CLINIC',
       friendlyName: 'Doctors — Clinic Owners',
+      programNameKey: 'doctor',
       pricing: { isVariableRate: false, baseRatePercent: '26.5000' },
       eligibility: skeletonEligibility('self_employed'),
     }),
     skeletonProgram({
       programCode: 'ABK-DOCTORS-PRACTICE',
       friendlyName: 'Doctors — In Practice',
+      programNameKey: 'doctor',
       pricing: { isVariableRate: false, baseRatePercent: '30.0000' },
       eligibility: skeletonEligibility('self_employed'),
       incomeAssumption: {
@@ -74,6 +90,7 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-BANKERS',
       friendlyName: 'Bankers',
+      programNameKey: 'bankers',
       pricing: { isVariableRate: false, baseRatePercent: '22.0000' },
       eligibility: {
         ...skeletonEligibility('salaried'),
@@ -85,6 +102,7 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-PROFESSORS',
       friendlyName: 'University Professors',
+      programNameKey: 'professional',
       pricing: { isVariableRate: false, baseRatePercent: '25.5000' },
       eligibility: skeletonEligibility('salaried'),
       incomeAssumption: {
@@ -95,6 +113,7 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-MILITARY',
       friendlyName: 'Egyptian Armed Forces',
+      programNameKey: 'armed_forces',
       pricing: { isVariableRate: false, baseRatePercent: '25.0000' },
       eligibility: skeletonEligibility('salaried'),
       incomeAssumption: {
@@ -105,6 +124,7 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-SALARIED-NO-XFER',
       friendlyName: 'Salaried Without Salary Transfer',
+      programNameKey: 'private_sector',
       pricing: { isVariableRate: false, baseRatePercent: '27.0000' },
       eligibility: {
         ...skeletonEligibility('salaried'),
@@ -114,6 +134,9 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-WEALTH',
       friendlyName: 'Wealth Program',
+      // Really an affluent / high-net-worth tier. No wealth archetype exists;
+      // `professional` is the nearest high-income, large-ticket name.
+      programNameKey: 'professional',
       productCategory: 'wealth',
       pricing: { isVariableRate: false, baseRatePercent: '23.0000' },
       loanLimits: { perCurrency: { EGP: { minAmount: '500000', maxAmount: '5000000' } } },
@@ -127,12 +150,14 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-PAYROLL-CAT-C',
       friendlyName: 'Payroll — Cat C',
+      programNameKey: 'private_sector',
       pricing: { isVariableRate: false, baseRatePercent: '24.0000' },
       eligibility: { ...skeletonEligibility('salaried'), acceptedTransferTypes: ['payroll_cat_c'] },
     }),
     skeletonProgram({
       programCode: 'ABK-STL',
       friendlyName: 'Salary Transfer Letter',
+      programNameKey: 'private_sector',
       pricing: { isVariableRate: false, baseRatePercent: '24.0000' },
       eligibility: {
         ...skeletonEligibility('salaried'),
@@ -142,6 +167,7 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-ITL',
       friendlyName: 'Income Transfer Letter',
+      programNameKey: 'private_sector',
       pricing: { isVariableRate: false, baseRatePercent: '25.0000' },
       eligibility: {
         ...skeletonEligibility('salaried'),
@@ -151,6 +177,7 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-CLUBS',
       friendlyName: 'Clubs Membership',
+      programNameKey: 'private_sector',
       productCategory: 'clubs',
       pricing: {
         isVariableRate: false,
@@ -170,6 +197,7 @@ export const abkEgypt2026: SeedCatalog = {
     skeletonProgram({
       programCode: 'ABK-FOOTBALL',
       friendlyName: 'Football Player',
+      programNameKey: 'professional',
       pricing: { isVariableRate: false, baseRatePercent: '31.0000' },
       eligibility: {
         ...skeletonEligibility('self_employed'),

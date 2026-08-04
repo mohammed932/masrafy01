@@ -250,9 +250,11 @@ describe('quoteProgram', () => {
       expect(quote.dbrBandIndex).toBe(1);
     });
 
-    it('bands against income AFTER the income assumption, not declared income', () => {
-      // Declared 20 400 → recognised 17 340 at 85%, which is the ≤20 000 band
-      // (40%). Banding on declared would wrongly grant the 50% band.
+    it('bands against the DECLARED salary, ignoring the income assumption', () => {
+      // Declared 20 400 sits in the ≤30 000 band (45%). The program's 85%
+      // assumption would pull it to 17 340 and the ≤20 000 band (40%) — the
+      // customer-facing figures deliberately do not apply that haircut, so two
+      // screens quoting the same salary can never disagree.
       const quote = expectQuoted(
         quoteProgram({
           profile: profileFixture({
@@ -268,15 +270,44 @@ describe('quoteProgram', () => {
           }),
           program: programFixture({
             eligibility: eligibilityFixture({
-              dbrBands: [...BANDS, { upToIncomeEGP: '30000', capPercent: '45.0000' }],
+              dbrBands: [
+                { upToIncomeEGP: '10000', capPercent: '35.0000' },
+                { upToIncomeEGP: '20000', capPercent: '40.0000' },
+                { upToIncomeEGP: '30000', capPercent: '45.0000' },
+                { upToIncomeEGP: null, capPercent: '50.0000' },
+              ],
               commercialBankIncomePercent: '85',
             }),
           }),
         }),
       );
-      expect(quote.recognisedIncomeEGP.toFixed(2)).toBe('17340.00');
-      expect(quote.dbrCapPercent.toFixed(4)).toBe('40.0000');
-      expect(quote.dbrBandIndex).toBe(1);
+      expect(quote.recognisedIncomeEGP.toFixed(2)).toBe('20400.00');
+      expect(quote.dbrCapPercent.toFixed(4)).toBe('45.0000');
+      expect(quote.dbrBandIndex).toBe(2);
+    });
+
+    it('falls back to the income assumption when no salary was declared', () => {
+      // `income_surrogate` programs: the applicant declares no salary, so the
+      // figure comes from the surrogate instead of failing NO_RECOGNISED_INCOME.
+      const quote = expectQuoted(
+        quoteProgram({
+          profile: profileFixture({
+            employment: {
+              employmentType: 'self_employed',
+              monthlyNetSalaryEGP: new Decimal('0'),
+              monthsInJob: 48,
+              salaryTransferType: 'payroll_cat_a',
+              companyName: 'Acme',
+              companyType: 'private',
+            },
+            assets: { creditCardLimitEGP: new Decimal('200000') },
+          }),
+          program: programFixture({
+            incomeAssumption: { strategy: 'byCreditCardLimit', creditCardLimitMultiplier: '0.1' },
+          }),
+        }),
+      );
+      expect(quote.recognisedIncomeEGP.toFixed(2)).toBe('20000.00');
     });
 
     it('reports the scalar cap with a null band index when no table is set', () => {

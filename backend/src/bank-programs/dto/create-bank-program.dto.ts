@@ -38,6 +38,18 @@ export class CreateBankProgramDto {
   @IsString() @MinLength(1) @MaxLength(120) friendlyName!: string;
   @IsOptional() @IsString() @MaxLength(120) friendlyNameAr?: string;
 
+  /**
+   * Predefined program-name catalog key (`program_name` enumeration). Every
+   * program is an instance of a curated archetype — `friendlyName` is that
+   * archetype's label, not free text. Membership is checked at the service
+   * layer (`PROGRAM_NAME_KEY_UNKNOWN`).
+   */
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  @Matches(/^[a-z0-9_]+$/, { message: 'programNameKey must match ^[a-z0-9_]+$' })
+  programNameKey!: string;
+
   @IsIn(PROGRAM_TYPES) programType!: ProgramType;
 
   /** Resolves to `product_category` enumeration; validated at service layer. */

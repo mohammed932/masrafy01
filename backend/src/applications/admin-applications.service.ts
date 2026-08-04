@@ -46,9 +46,14 @@ export class AdminApplicationsService {
     }
     return this.questionnaire.buildAnswersView(
       { versionId: row.questionnaireVersionId, category: row.category },
+      // Every value column travels: NUMERIC / TEXT / MULTI_SELECT answers carry
+      // no `selectedOptionCode`, and sending only that rendered them blank.
       row.dynamicAnswers.map((a) => ({
         questionCode: a.questionCode,
         selectedOptionCode: a.selectedOptionCode,
+        selectedOptionCodes: a.selectedOptionCodes,
+        textValue: a.textValue,
+        numericValue: a.numericValue === null ? null : a.numericValue.toFixed(2),
       })),
     );
   }

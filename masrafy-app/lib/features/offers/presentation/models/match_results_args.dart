@@ -125,6 +125,9 @@ class MatchOffer {
     this.bankIsFeatured = false,
     this.requiredDocuments = const [],
     this.feesBreakdown,
+    this.maxLoan,
+    this.dbrPct,
+    this.dbrCapPct,
     this.isBestMatch = false,
     this.alreadyApplied = false,
     this.isSaved = false,
@@ -165,6 +168,23 @@ class MatchOffer {
   /// Raw engine fee breakdown (shape TBD) — carried for the details screen.
   final Map<String, dynamic>? feesBreakdown;
 
+  /// Most this customer could borrow here (EGP): salary × DBR cap − existing
+  /// obligations, present-valued over the term. Null on mock / legacy offers.
+  final int? maxLoan;
+
+  /// Debt-burden ratio this offer lands at, and the cap it was measured
+  /// against — e.g. `48.9` against `60.0`.
+  final double? dbrPct;
+  final double? dbrCapPct;
+
+  /// True when the customer asked for less than they could have had. The only
+  /// case where the ceiling tells them something the offer itself doesn't.
+  bool get hasUnusedHeadroom => maxLoan != null && maxLoan! > totalLoanPrincipal;
+
+  /// Financed principal (total repayable minus interest), for the comparison
+  /// above — [totalLoan] includes interest and would never be under the cap.
+  int get totalLoanPrincipal => totalLoan - totalInterest;
+
   final bool isBestMatch;
 
   /// True when this offer belongs to an application the customer already
@@ -202,6 +222,9 @@ class MatchOffer {
       bankIsFeatured: e.bankIsFeatured,
       requiredDocuments: e.requiredDocuments,
       feesBreakdown: e.feesBreakdown,
+      maxLoan: e.maxLoanAvailableEGP?.round(),
+      dbrPct: e.dbrPercent,
+      dbrCapPct: e.dbrCapPercent,
       isBestMatch: isBestMatch,
       alreadyApplied: alreadyApplied,
       isSaved: e.isSaved,

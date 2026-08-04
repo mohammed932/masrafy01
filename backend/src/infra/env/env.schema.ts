@@ -62,6 +62,12 @@ export const envSchema = z.object({
   MOBILE_RATE_LIMIT_PER_CLIENT_PER_HOUR: z.coerce.number().int().positive().default(30),
   MOBILE_RATE_LIMIT_PER_APPLICANT_PER_HOUR: z.coerce.number().int().positive().default(5),
 
+  // Feature 010 — the rate the calculator quotes when no bank program is chosen
+  // (FR-030). Deliberately a platform-wide representative figure, NOT an average
+  // of live programs: an average moves every time a bank is edited, so the same
+  // inputs would silently return different answers day to day.
+  CALCULATOR_REPRESENTATIVE_RATE_PERCENT: z.string().min(1).default('24.0000'),
+
   // S3-compatible object storage (feature 005). MinIO in dev, AWS S3 in prod.
   S3_ENDPOINT_URL: z.string().url(),
   S3_REGION: z.string().min(1).default('us-east-1'),

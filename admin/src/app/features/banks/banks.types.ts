@@ -22,9 +22,21 @@ export interface BankProgramSummary {
   id: string;
   programCode: string;
   friendlyName: string;
+  friendlyNameAr?: string | null;
+  /** Predefined catalog archetype this program instantiates. */
+  programNameKey?: string | null;
   productCategory: string;
   active: boolean;
+  isShariaCompliant: boolean;
   version: number;
+  /** Headline rate — fixed base rate, or current effective rate when variable. */
+  ratePercent?: string | null;
+  isVariableRate: boolean;
+  minAmountEGP?: string | null;
+  maxAmountEGP?: string | null;
+  minMonths?: number | null;
+  maxMonths?: number | null;
+  updatedAt: string;
 }
 
 export interface BankCreatePayload {

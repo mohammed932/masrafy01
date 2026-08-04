@@ -109,7 +109,9 @@ enum AuditEventType {
   CUSTOMER_REACTIVATED
   // Admin revealed a customer PII document binary (National ID). Principle VI.
   CUSTOMER_DOCUMENT_REVEALED
-  // --- Feature 010 — prefill layers (Bank.policyDefaults, program_name defaults) ---
+  // --- RETIRED: no writer remains. Kept because `audit_event` rows are
+  // append-only (Principle VI) and a Postgres enum value cannot be dropped in
+  // place without recreating the type. Do not emit these.
   BANK_POLICY_UPDATED
   PROGRAM_CATALOG_DEFAULTS_UPDATED
 }
@@ -286,6 +288,13 @@ model BankProgram {
   bank              Bank?           @relation(fields: [bankId], references: [id], onDelete: Restrict)
   friendlyName      String          @db.VarChar(120)
   friendlyNameAr    String?         @db.VarChar(120)
+  /// Predefined program-name catalog key (`platform_enumeration` where
+  /// `type = 'program_name'`). Nullable for legacy rows only — REQUIRED on every
+  /// create/update through the API, which rejects unknown keys with
+  /// `PROGRAM_NAME_KEY_UNKNOWN`. No FK: the catalog's unique key is the composite
+  /// (type, key), so validation lives in the service layer like every other
+  /// enumeration-backed field on this model.
+  programNameKey    String?         @db.VarChar(64)
   programType       BankProgramType
   productCategory   String          @db.VarChar(64)
   currencies        String[]        @db.VarChar(3)
@@ -321,6 +330,7 @@ model BankProgram {
   @@index([bankId], name: "idx_bank_program_bank_id")
   @@index([productCategory], name: "idx_bank_program_product_category")
   @@index([isShariaCompliant], name: "idx_bank_program_sharia")
+  @@index([programNameKey], name: "idx_bank_program_program_name_key")
   @@map("bank_program")
 }
 
@@ -449,7 +459,16 @@ model BankOffer {
   cascadeTrace               Json
   qualitativeReviewBadge     Boolean      @default(false)
   selfDeclared               Boolean      @default(false)
+  /// The applicant's borrowing ceiling at this program, frozen at match time:
+  /// income × dbrCapPercent ÷ 100 − obligations, present-valued over the tenor.
+  /// Independent of what was requested — compare with `effectiveLoanAmountEGP`
+  /// to tell "this is your limit" from "you asked for less than you could have".
   maxLoanAvailableEGP        Decimal?     @db.Decimal(13, 2)
+  /// (installment + existing obligations) ÷ income × 100 for THIS offer, and the
+  /// cap it was measured against (scalar or the resolved band). Frozen with the
+  /// offer so a later policy change cannot rewrite why an amount was what it was.
+  dbrPercent                 Decimal?     @db.Decimal(6, 2)
+  dbrCapPercent              Decimal?     @db.Decimal(7, 4)
   createdAt                  DateTime     @default(now()) @db.Timestamptz(6)
   erasedAt                   DateTime?    @db.Timestamptz(6)
 
@@ -580,15 +599,6 @@ model PlatformEnumeration {
   deprecatedAt DateTime? @db.Timestamptz(6)
   systemOnly   Boolean   @default(false)
   parentKey    String?   @db.VarChar(64)
-  // Feature 010 (FR-001..FR-004): per-category lending defaults for `program_name`
-  // members. Shape: { "<loanCategory>": { tenor?, loanLimits?, eligibility?,
-  // pricing?, fees?, requiredDocuments? } } — all leaves optional (FR-003).
-  // A predefined program name is category-agnostic: every program name is
-  // offerable under any loan category, so any of the four categories may carry
-  // defaults here.
-  // PREFILL ONLY: copied into the bank program on save (FR-009) and never
-  // consulted at match time (FR-021b). Empty `{}` for every other enumeration type.
-  defaults     Json      @default("{}")
   sortOrder    Int       @default(0)
   createdAt    DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(6)

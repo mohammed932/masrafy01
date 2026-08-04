@@ -85,6 +85,8 @@ class OfferModel {
     required this.matchReasons,
     this.feesBreakdown,
     this.maxLoanAvailableEGP,
+    this.dbrPercent,
+    this.dbrCapPercent,
     this.isSaved = false,
   });
 
@@ -107,7 +109,15 @@ class OfferModel {
   final List<String> requiredDocuments;
   final List<String> matchReasons;
   final Map<String, dynamic>? feesBreakdown;
+
+  /// Borrowing ceiling at this program: income × DBR cap − obligations,
+  /// present-valued over the term. Independent of what was requested.
   final double? maxLoanAvailableEGP;
+
+  /// Where this offer's installment lands on the debt-burden scale, and the cap
+  /// it was measured against. Null on offers written before the fields existed.
+  final double? dbrPercent;
+  final double? dbrCapPercent;
   final bool isSaved;
 
   factory OfferModel.fromJson(Map<String, dynamic> json) {
@@ -138,6 +148,10 @@ class OfferModel {
       maxLoanAvailableEGP: json['maxLoanAvailableEGP'] == null
           ? null
           : _toDouble(json['maxLoanAvailableEGP']),
+      dbrPercent:
+          json['dbrPercent'] == null ? null : _toDouble(json['dbrPercent']),
+      dbrCapPercent:
+          json['dbrCapPercent'] == null ? null : _toDouble(json['dbrCapPercent']),
       isSaved: json['isSaved'] == true,
     );
   }
@@ -163,6 +177,8 @@ class OfferModel {
         matchReasons: matchReasons,
         feesBreakdown: feesBreakdown,
         maxLoanAvailableEGP: maxLoanAvailableEGP,
+        dbrPercent: dbrPercent,
+        dbrCapPercent: dbrCapPercent,
         isSaved: isSaved,
       );
 }

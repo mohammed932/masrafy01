@@ -1,0 +1,16 @@
+-- A predefined program is JUST A NAME.
+--
+-- A `program_name` entry ("Doctor Loans", "New Car") carries nothing but its
+-- labels, its active flag and its sort order. It never carried lending policy in
+-- practice: tenor, limits, eligibility, pricing, fees and required documents are
+-- authored per BANK PROGRAM on the bank-program form, because two banks offering
+-- the same name lend on different terms — which is the whole point of the
+-- marketplace. `defaults` (JSONB) duplicated those fields one layer up and fed a
+-- prefill step that copied them down on save, so the same values lived in two
+-- places with no owner. The prefill layer is gone; the column goes with it.
+--
+-- DESTRUCTIVE: every stored default set is dropped and cannot be recovered.
+-- Bank programs already carry their own copy of these fields, so no bank program
+-- loses a value. The name → bank-program link (`bank_program.programNameKey`)
+-- and the rest of the registry row are untouched.
+ALTER TABLE "platform_enumeration" DROP COLUMN "defaults";

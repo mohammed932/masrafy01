@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { SuccessEnvelope } from '@core/auth/auth.types';
+import { SKIP_TOAST_INTERCEPTOR } from '@core/interceptors/toast.interceptor';
 
 // Loan-category set + labels now live in @core/loan-category (shared across
 // questionnaire, banks, and the bank-program form). Imported locally (this file
@@ -167,11 +168,39 @@ export interface SimulationMatch {
   eligible: boolean;
   monthlyInstallmentEGP: string | null;
   effectiveRatePercent: string | null;
+  /**
+   * Borrowing ceiling for the simulated applicant: income × DBR cap − existing
+   * obligations, present-valued over the term. Independent of the amount asked
+   * for. Populated even when the program could not be quoted, in which case it
+   * reads `0.00` alongside `OBLIGATIONS_EXCEED_ALLOWANCE`.
+   */
+  maxAffordableAmountEGP: string | null;
+  figures: SimulationFigures | null;
+  /** Why `figures` is null — `MONEY_FIGURE_MISSING` while answers are partial. */
+  figuresUnavailableReason: string | null;
   approvalProbability: number; // 0..1
   approvalTier: string;
   rejectionReasons: string[];
   requiredDocuments: string[];
   usedDefaultWeights: boolean;
+}
+
+/** Full money block for one simulated program. Decimal strings, never floats. */
+export interface SimulationFigures {
+  offeredAmountEGP: string;
+  cashToCustomerEGP: string;
+  totalFeesEGP: string;
+  monthlyInstallmentEGP: string;
+  effectiveTenorMonths: number;
+  effectiveRatePercent: string;
+  totalPayableEGP: string;
+  totalCostOfCreditEGP: string;
+  dbrPercent: string;
+  dbrCapPercent: string;
+  dbrBandIndex: number | null;
+  maxAffordableAmountEGP: string;
+  bindingConstraint: string;
+  fees: { adminFeeEGP: string; stampDutyEGP: string; lifeInsuranceEGP: string };
 }
 
 export interface SimulationSuggestion {
@@ -289,9 +318,25 @@ export class QuestionnaireApiService {
   }
 
   // ---- Matching simulator (admin) ---------------------------------------
-  /** Run the full engine + per-bank approval scoring for a sample applicant. */
-  simulateMatching(category: LoanCategory, answers: SimulatedAnswer[]): Promise<SimulationResult> {
-    return this.post<SimulationResult>(`/matching/simulate`, { category, answers });
+  /**
+   * Run the full engine + per-bank approval scoring for a sample applicant.
+   *
+   * `answers: []` is a legal empty-answer run: the preview path forces
+   * `isRequired: false`, so it returns every active program in the category with
+   * its `usedDefaultWeights` flag — and a probability of 0 that callers must not
+   * render. `silent` suppresses the toast for speculative probes (the dashboard
+   * dry run against an instance whose questionnaire is not published yet).
+   */
+  simulateMatching(
+    category: LoanCategory,
+    answers: SimulatedAnswer[],
+    opts: { silent?: boolean } = {},
+  ): Promise<SimulationResult> {
+    return this.post<SimulationResult>(
+      `/matching/simulate`,
+      { category, answers },
+      opts.silent === true ? new HttpContext().set(SKIP_TOAST_INTERCEPTOR, true) : undefined,
+    );
   }
 
   createGroup(body: CreateGroupBody): Promise<GroupTreeRow> {
@@ -347,9 +392,9 @@ export class QuestionnaireApiService {
     const res = await firstValueFrom(this.http.get<SuccessEnvelope<T>>(`${this.base()}${path}`));
     return res.data;
   }
-  private async post<T>(path: string, body: unknown): Promise<T> {
+  private async post<T>(path: string, body: unknown, context?: HttpContext): Promise<T> {
     const res = await firstValueFrom(
-      this.http.post<SuccessEnvelope<T>>(`${this.base()}${path}`, body),
+      this.http.post<SuccessEnvelope<T>>(`${this.base()}${path}`, body, { context }),
     );
     return res.data;
   }

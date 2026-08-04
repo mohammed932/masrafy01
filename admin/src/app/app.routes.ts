@@ -5,8 +5,8 @@ import { roleGuardFn } from './core/guards/role.guard.fn';
 
 /**
  * Lazy-only route table (Principle XXV). US1 fills in /login, /auth/change-password,
- * /auth/self-password. /dashboard is a placeholder until the first dashboard
- * widget lands (a later spec). /users lands in US3.
+ * /auth/self-password. /dashboard is the operations desk (features/shell/dashboard).
+ * /users lands in US3.
  */
 export const APP_ROUTES: Routes = [
   {
@@ -28,9 +28,7 @@ export const APP_ROUTES: Routes = [
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn],
     loadComponent: () =>
-      import('./features/shell/dashboard-placeholder.component').then(
-        (m) => m.DashboardPlaceholderComponent,
-      ),
+      import('./features/shell/dashboard/dashboard.page').then((m) => m.DashboardPage),
   },
   {
     // People — Staff + Customers under one nav entry, one search box, two

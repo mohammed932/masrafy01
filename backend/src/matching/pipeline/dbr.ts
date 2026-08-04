@@ -2,8 +2,10 @@
  * Debt Burden Ratio — pure functions.
  * DBR = (existing obligations + new EMI) / monthly income × 100
  *
- * `calculateMaxLoanFromDbr` floors to ≤ applicant-requested amount (FR-008o.1)
- * and rounds DOWN to the program's amount-step multiple (FR-008p.1).
+ * `calculateMaxLoanFromDbr` rounds DOWN to the program's amount-step multiple
+ * (FR-008p.1), and floors to ≤ the applicant-requested amount (FR-008o.1) only
+ * when a requested amount is supplied — omitting it yields the uncapped
+ * affordability ceiling the calculator and the offer cards report.
  *
  * Caps are `Decimal`, never `number`: the value arrives from JSONB as a decimal
  * string, and a `number` annotation reads as float money math (Principle I).
@@ -34,10 +36,11 @@ export interface DbrCapResolution {
 /**
  * Resolve the applicable DBR cap for a recognised income (FR-016 … FR-020).
  *
- * MUST be called with RECOGNISED income (declared × the program's income
- * assumption), never declared income — resolving on declared is the ordering
- * bug this feature exists to prevent: declared 20 400 at an 85% assumption is
- * recognised 17 340, which sits in the ≤20 000 band (40%), not the ≤30 000 one.
+ * MUST be called with the SAME income figure every other quote figure keys off
+ * (`quoteProgram` step 3 — the declared salary, or a surrogate when none was
+ * declared). Resolving the band on one income and the ratio on another is the
+ * ordering bug this feature exists to prevent: it hands the applicant a cap
+ * belonging to an income they were never measured against.
  *
  * Upper bounds are INCLUSIVE, so an income of exactly 10 000 against
  * `[≤5 000: 30, ≤10 000: 35, open: 50]` resolves band 1 at 35%.
@@ -106,7 +109,12 @@ export function calculateMaxLoanFromDbr(args: {
   dbrCapPercent: Decimal;
   annualRatePercent: Decimal;
   tenorMonths: number;
-  applicantRequestedEGP: Decimal;
+  /**
+   * Omit to get the UNCAPPED affordability ceiling (`Quote.maxAffordableAmountEGP`
+   * — "the most this person could borrow"). Pass it when shrinking an offer back
+   * under the cap, where the result must never grow past what was asked for.
+   */
+  applicantRequestedEGP?: Decimal;
   amountStepEGP?: Decimal;
 }): Decimal {
   const maxEmi = args.monthlyIncomeEGP
@@ -127,8 +135,8 @@ export function calculateMaxLoanFromDbr(args: {
     maxPrincipal = maxEmi.mul(factor.minus(one)).div(monthlyRate.mul(factor));
   }
 
-  // Floor to ≤ applicant-requested amount (FR-008o.1).
-  if (maxPrincipal.greaterThan(args.applicantRequestedEGP)) {
+  // Floor to ≤ applicant-requested amount (FR-008o.1), when one was supplied.
+  if (args.applicantRequestedEGP && maxPrincipal.greaterThan(args.applicantRequestedEGP)) {
     maxPrincipal = args.applicantRequestedEGP;
   }
 

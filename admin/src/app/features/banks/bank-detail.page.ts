@@ -16,7 +16,6 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
-import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import {
   AppstoreOutline,
@@ -106,7 +105,6 @@ interface PortfolioHealth {
     NzIconModule,
     NzSpinModule,
     NzSwitchModule,
-    NzTableModule,
     NzToolTipModule,
     CanDirective,
   ],
@@ -298,6 +296,7 @@ interface PortfolioHealth {
                   [class.is-empty]="section.items.length === 0"
                   [style.--i]="i"
                   [style.--rail]="catColor(section.cat)"
+                  [style.--cat]="catColor(section.cat)"
                   [nzActive]="section.cat === firstOpenCat()"
                   [nzHeader]="catHeaderTpl"
                   [nzExtra]="catExtraTpl"
@@ -340,11 +339,17 @@ interface PortfolioHealth {
                       <span class="cat-empty-icon" aria-hidden="true">
                         <span nz-icon [nzType]="catIcon(section.cat)" nzTheme="outline"></span>
                       </span>
-                      <p class="empty-text" i18n="@@bank_detail.programs.cat_empty">
-                        No programs in this category yet.
-                      </p>
+                      <span class="cat-empty-copy">
+                        <span class="cat-empty-title" i18n="@@bank_detail.programs.cat_empty">
+                          No {{ section.label }} programs yet
+                        </span>
+                        <span class="cat-empty-sub" i18n="@@bank_detail.programs.cat_empty_hint">
+                          Add the first one to make it available to applicants.
+                        </span>
+                      </span>
                       <a
                         *can="['super_admin', 'sales_manager']"
+                        class="cat-empty-cta"
                         nz-button
                         nzType="primary"
                         nzSize="small"
@@ -356,55 +361,82 @@ interface PortfolioHealth {
                       </a>
                     </div>
                   } @else {
-                    <nz-table
-                      #t
-                      [nzData]="section.items"
-                      [nzFrontPagination]="false"
-                      [nzShowPagination]="false"
-                    >
-                      <thead>
-                        <tr>
-                          <th i18n="@@bank_detail.col.name">Name</th>
-                          <th i18n="@@bank_detail.col.code">Code</th>
-                          <th i18n="@@bank_detail.col.status">Status</th>
-                          <th></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        @for (p of t.data; track p.programCode) {
-                          <tr>
-                            <td>
-                              <a
-                                [routerLink]="['/banks/programs', p.programCode]"
-                                class="row-link"
-                                >{{ p.friendlyName }}</a
+                    <ul class="prog-grid">
+                      @for (p of section.items; track p.programCode; let j = $index) {
+                        <li
+                          class="prog"
+                          [class.is-off]="!p.active"
+                          [style.--j]="j"
+                          [style.--cat]="catColor(section.cat)"
+                        >
+                          <a
+                            class="prog-hit"
+                            [routerLink]="['/banks/programs', p.programCode]"
+                            [attr.aria-label]="p.friendlyName"
+                          ></a>
+
+                          <header class="prog-head">
+                            <span class="prog-name">{{ p.friendlyName }}</span>
+                            @if (p.isShariaCompliant) {
+                              <span
+                                class="tag sharia"
+                                nz-tooltip
+                                i18n-nzTooltipTitle="@@bank_detail.program.sharia"
+                                nzTooltipTitle="Sharia-compliant"
+                                i18n="@@bank_detail.program.sharia_short"
+                                >Islamic</span
                               >
-                            </td>
-                            <td><code class="code-cell">{{ p.programCode }}</code></td>
-                            <td>
+                            }
+                          </header>
+
+                          <p class="prog-sub">
+                            <code class="code-cell">{{ p.programCode }}</code>
+                          </p>
+
+                          <dl class="specs">
+                            <div class="spec">
+                              <dt i18n="@@bank_detail.spec.rate">Rate</dt>
+                              <dd class="num">
+                                {{ rateLabel(p) }}
+                                @if (p.isVariableRate) {
+                                  <span class="spec-flag" i18n="@@bank_detail.spec.variable"
+                                    >var.</span
+                                  >
+                                }
+                              </dd>
+                            </div>
+                            <div class="spec">
+                              <dt i18n="@@bank_detail.spec.amount">Amount</dt>
+                              <dd class="num">{{ amountLabel(p) }}</dd>
+                            </div>
+                            <div class="spec">
+                              <dt i18n="@@bank_detail.spec.tenor">Tenor</dt>
+                              <dd class="num">{{ tenorLabel(p) }}</dd>
+                            </div>
+                          </dl>
+
+                          <footer class="prog-foot">
+                            <span class="live">
                               <nz-switch
                                 *can="['super_admin', 'sales_manager']"
+                                nzSize="small"
                                 [formControl]="rowActiveControl(p)"
                               ></nz-switch>
-                              <span
-                                *can="['sales_agent', 'analyst']"
-                                class="status-chip"
-                                [class.active]="p.active"
-                                [class.inactive]="!p.active"
-                              >
+                              <span class="live-label">
                                 @if (p.active) {
                                   <span i18n="@@bank_detail.status.active">Active</span>
                                 } @else {
                                   <span i18n="@@bank_detail.status.inactive">Inactive</span>
                                 }
                               </span>
-                            </td>
-                            <td class="actions">
+                            </span>
+                            <span class="prog-actions">
                               <a
                                 *can="['super_admin', 'sales_manager']"
                                 nz-button
                                 nzType="text"
                                 nzShape="circle"
+                                nzSize="small"
                                 nz-tooltip
                                 i18n-nzTooltipTitle="@@bank_detail.program.edit"
                                 nzTooltipTitle="Edit program"
@@ -422,6 +454,7 @@ interface PortfolioHealth {
                                 nz-button
                                 nzType="text"
                                 nzShape="circle"
+                                nzSize="small"
                                 nz-tooltip
                                 i18n-nzTooltipTitle="@@bank_detail.program.delete"
                                 nzTooltipTitle="Delete program"
@@ -434,11 +467,11 @@ interface PortfolioHealth {
                                   aria-hidden="true"
                                 ></span>
                               </button>
-                            </td>
-                          </tr>
-                        }
-                      </tbody>
-                    </nz-table>
+                            </span>
+                          </footer>
+                        </li>
+                      }
+                    </ul>
                   }
                 </nz-collapse-panel>
               }
@@ -937,34 +970,231 @@ interface PortfolioHealth {
         background: var(--color-surface-muted);
         color: var(--color-text-tertiary);
       }
+      /* Compact single-row empty state — no dead vertical space, no hatch texture. */
       .cat-empty {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: var(--space-3);
-        margin: var(--space-3) var(--space-5) var(--space-5);
-        padding: var(--space-6) var(--space-5);
-        text-align: center;
-        border: 1.5px dashed var(--color-border-strong);
+        gap: var(--space-4);
+        margin: 0 var(--space-5) var(--space-5);
+        padding: var(--space-4) var(--space-5);
+        border: 1px dashed
+          color-mix(in srgb, var(--cat, var(--color-brand-primary)) 28%, var(--color-border-default));
         border-radius: var(--radius-md);
-        background: repeating-linear-gradient(
-          45deg,
-          transparent,
-          transparent 10px,
-          color-mix(in srgb, var(--color-text-primary) 2%, transparent) 10px,
-          color-mix(in srgb, var(--color-text-primary) 2%, transparent) 20px
-        );
+        background: color-mix(in srgb, var(--cat, var(--color-brand-primary)) 4%, transparent);
       }
       .cat-empty-icon {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        inline-size: 48px;
-        block-size: 48px;
-        border-radius: var(--radius-pill);
-        background: var(--color-surface-muted);
+        inline-size: 40px;
+        block-size: 40px;
+        flex: none;
+        border-radius: var(--radius-md);
+        background: color-mix(in srgb, var(--cat, var(--color-brand-primary)) 12%, transparent);
+        color: var(--cat, var(--color-brand-primary));
+        font-size: var(--text-lg);
+      }
+      .cat-empty-copy {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        flex: 1 1 auto;
+        min-inline-size: 0;
+      }
+      .cat-empty-title {
+        color: var(--color-text-primary);
+        font-weight: var(--font-weight-medium);
+      }
+      .cat-empty-sub {
         color: var(--color-text-tertiary);
-        font-size: var(--text-xl);
+        font-size: var(--text-sm);
+      }
+      .cat-empty-cta {
+        flex: none;
+      }
+      @media (max-width: 560px) {
+        .cat-empty {
+          align-items: flex-start;
+          flex-wrap: wrap;
+        }
+        .cat-empty-cta {
+          inline-size: 100%;
+        }
+      }
+      /* ===== Program shelf — one card per program, specs on the face ===== */
+      .prog-grid {
+        list-style: none;
+        margin: 0 var(--space-5) var(--space-5);
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: var(--space-3);
+      }
+      .prog {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-default);
+        opacity: 0;
+        transform: translateY(6px);
+        animation: cat-rise var(--motion-duration-base) var(--motion-easing-standard) forwards;
+        animation-delay: calc(var(--j, 0) * var(--motion-stagger));
+        transition:
+          box-shadow var(--motion-duration-base) var(--motion-easing-standard),
+          border-color var(--motion-duration-base) var(--motion-easing-standard),
+          transform var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      /* Category hue arrives on hover only, so a dense grid stays calm at rest. */
+      .prog:hover,
+      .prog:focus-within {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: color-mix(in srgb, var(--cat, var(--color-brand-primary)) 45%, transparent);
+      }
+      .prog.is-off {
+        background: var(--color-surface-muted);
+      }
+      .prog.is-off .prog-name {
+        color: var(--color-text-secondary);
+      }
+      /* Whole card is the link target; controls above it stay clickable. */
+      .prog-hit {
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        z-index: 0;
+      }
+      .prog-hit:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+      }
+      .prog-head,
+      .prog-sub,
+      .specs,
+      .prog-foot {
+        position: relative;
+        z-index: 1;
+        pointer-events: none;
+      }
+      /* Re-armed above the card-wide link: controls must click, and the program
+         code must stay selectable — operators paste it into tickets. */
+      .prog-foot,
+      .prog-head .tag,
+      .prog-sub .code-cell {
+        pointer-events: auto;
+      }
+      .prog-sub .code-cell {
+        user-select: text;
+      }
+      .prog-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-inline-size: 0;
+      }
+      .prog-name {
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .tag.sharia {
+        flex: none;
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--color-success-bg);
+        color: var(--color-success);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .prog-sub {
+        margin: 0;
+      }
+      /* Three figures on one baseline — the actual comparison surface. */
+      .specs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-2);
+        margin: var(--space-1) 0 0;
+        padding-block-start: var(--space-3);
+        border-block-start: 1px solid var(--color-border-default);
+      }
+      .spec {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-inline-size: 0;
+      }
+      .spec dt {
+        font-size: var(--text-xxs);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-text-tertiary);
+      }
+      .spec dd {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .spec dd.num {
+        font-family: var(--data-font);
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .spec-flag {
+        margin-inline-start: var(--space-1);
+        font-family: var(--font-family-base);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-regular);
+        color: var(--color-text-tertiary);
+      }
+      .prog-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        margin-block-start: var(--space-2);
+      }
+      .live {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
+      .live-label {
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+      .prog-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        opacity: 0;
+        transition: opacity var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .prog:hover .prog-actions,
+      .prog:focus-within .prog-actions {
+        opacity: 1;
+      }
+      /* Touch devices never hover — keep the actions reachable, at a real tap size. */
+      @media (hover: none) {
+        .prog-actions {
+          opacity: 1;
+          gap: var(--space-2);
+        }
+        .prog-actions ::ng-deep .ant-btn {
+          inline-size: 40px;
+          block-size: 40px;
+        }
       }
       .row-link {
         color: var(--color-text-primary);
@@ -984,29 +1214,20 @@ interface PortfolioHealth {
         white-space: nowrap;
         text-align: end;
       }
-      .status-chip {
-        display: inline-block;
-        padding: 2px var(--space-2);
-        border-radius: var(--radius-sm);
-        font-size: var(--text-xs);
-      }
-      .status-chip.active {
-        background: var(--color-success-bg);
-        color: var(--color-success);
-      }
-      .status-chip.inactive {
-        background: var(--color-surface-muted);
-        color: var(--color-text-tertiary);
-      }
       .empty-text {
         margin: 0;
         color: var(--color-text-tertiary);
       }
       @media (prefers-reduced-motion: reduce) {
-        .cat-panel {
+        .cat-panel,
+        .prog {
           opacity: 1;
           transform: none;
           animation: none;
+        }
+        .prog:hover,
+        .prog:focus-within {
+          transform: none;
         }
         .panel,
         .panel:hover {
@@ -1095,6 +1316,49 @@ export class BankDetailPage implements OnInit {
 
   catColor(cat: LoanCategory | 'other'): string {
     return BankDetailPage.CAT_COLORS[cat] ?? 'var(--color-cat-other)';
+  }
+
+  // --- Card spec formatting -------------------------------------------------
+  // Programs across banks share a name, so the three figures below are what
+  // actually distinguishes them on the shelf. Compact notation keeps a 3-up card
+  // grid readable ("3M" not "3,000,000") — the exact figures live on the detail
+  // page.
+
+  private static readonly EM_DASH = '—';
+
+  /** Compact EGP, e.g. `3M` / `750K`. Falls back to a dash on missing config. */
+  private compactEgp(value: string | null | undefined): string | null {
+    if (!value) return null;
+    const n = Number(value);
+    if (!Number.isFinite(n)) return null;
+    return new Intl.NumberFormat(undefined, {
+      notation: 'compact',
+      maximumFractionDigits: 1,
+    }).format(n);
+  }
+
+  /** Headline rate, trailing zeros trimmed (`21.5%`, not `21.5000%`). */
+  rateLabel(p: BankProgramSummary): string {
+    if (!p.ratePercent) return BankDetailPage.EM_DASH;
+    const n = Number(p.ratePercent);
+    if (!Number.isFinite(n)) return BankDetailPage.EM_DASH;
+    return `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n)}%`;
+  }
+
+  amountLabel(p: BankProgramSummary): string {
+    const min = this.compactEgp(p.minAmountEGP);
+    const max = this.compactEgp(p.maxAmountEGP);
+    if (!min && !max) return BankDetailPage.EM_DASH;
+    if (!min) return `≤ ${max}`;
+    if (!max) return `≥ ${min}`;
+    return `${min}–${max}`;
+  }
+
+  tenorLabel(p: BankProgramSummary): string {
+    if (p.minMonths == null && p.maxMonths == null) return BankDetailPage.EM_DASH;
+    const min = p.minMonths ?? p.maxMonths;
+    const max = p.maxMonths ?? p.minMonths;
+    return $localize`:@@bank_detail.spec.tenor_value:${min}:MIN:–${max}:MAX: mo`;
   }
 
   /** First non-empty category — the only accordion panel open by default. */

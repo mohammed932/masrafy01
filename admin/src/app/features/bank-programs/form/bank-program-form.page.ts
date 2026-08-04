@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,6 +8,8 @@ import {
   LOCALE_ID,
   OnInit,
   signal,
+  untracked,
+  viewChild,
 } from '@angular/core';
 import {
   AbstractControl,
@@ -29,7 +30,6 @@ import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import {
   ArrowLeftOutline,
@@ -46,7 +46,7 @@ import {
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { map, merge } from 'rxjs';
+import { map } from 'rxjs';
 import { MoneyInputDirective } from '../../../core/directives/money-input.directive';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
@@ -56,6 +56,7 @@ import type {
   BankProgramCreatePayload,
   BankProgramResponse,
   BankProgramUpdatePayload,
+  DbrBand,
   IncomeAssumptionStrategy,
   ProgramType,
   RateBandMap,
@@ -63,7 +64,7 @@ import type {
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
-import type { DbrBand, PrefillOrigin } from '../bank-programs.types';
+import { DbrBandsEditorComponent, dbrBandsErrorFor, type DbrBandsError } from '@shared/ui';
 
 /** The one remaining genuine opt-in — see `BankProgramFormPage.toggles`. */
 type ToggleKey = 'tieredRates';
@@ -109,7 +110,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
   selector: 'app-bank-program-form-page',
   standalone: true,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
@@ -119,8 +119,8 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
     NzInputModule,
     NzInputNumberModule,
     NzSelectModule,
-    NzSpinModule,
     NzSwitchModule,
+    DbrBandsEditorComponent,
     IncomeAssumptionSectionComponent,
     MoneyInputDirective,
   ],
@@ -150,7 +150,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         <div class="title-block">
           <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
           <p class="page-subtitle" i18n="@@bank_programs.form.subtitle">
-            Six short steps. Every field is pre-filled where we can infer it, and nothing is saved until you
+            Six short steps. Every number belongs to this program alone, and nothing is saved until you
             confirm on the last step.
           </p>
         </div>
@@ -298,11 +298,11 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                 </nz-form-item>
               }
               <nz-form-item class="span-2">
-                <nz-form-label [nzFor]="'friendlyName'" nzRequired i18n="@@bank_programs.field.friendly_name">Program name</nz-form-label>
+                <nz-form-label [nzFor]="'programNameKey'" nzRequired i18n="@@bank_programs.field.friendly_name">Program name</nz-form-label>
                 <nz-form-control [nzErrorTip]="friendlyNameErrorTpl">
                   <nz-select
-                    id="friendlyName"
-                    formControlName="friendlyName"
+                    id="programNameKey"
+                    formControlName="programNameKey"
                     nzShowSearch
                     [nzDropdownStyle]="dropdownStyle"
                     nzPlaceHolder="Select a program"
@@ -312,11 +312,11 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                       <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
                     }
                   </nz-select>
+                  <!-- Required is the only reachable error: the value comes from
+                       a fixed option list, so it cannot overflow the key length. -->
                   <ng-template #friendlyNameErrorTpl let-control>
                     @if (control.hasError('required')) {
                       <span i18n="@@bank_programs.err.friendly_name_required">Program name is required.</span>
-                    } @else if (control.hasError('maxlength')) {
-                      <span i18n="@@bank_programs.err.friendly_name_length">Must be 120 characters or fewer.</span>
                     }
                   </ng-template>
                 </nz-form-control>
@@ -687,7 +687,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               <nz-form-item class="dbr-cap" [class.is-muted]="skipDbr">
                 <nz-form-label [nzFor]="'dbrCapPercent'" nzRequired>
                   <span i18n="@@bank_programs.field.dbr_cap">DBR cap</span>
-                  <ng-container *ngTemplateOutlet="originTpl; context: { $implicit: 'eligibility.dbrCapPercent' }" />
                 </nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-group nzAddOnAfter="%" class="rate-group">
@@ -707,6 +706,20 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                   </span>
                 </span>
               </label>
+            </div>
+
+            <!-- The cap above is this program's floor for every income; the table
+                 below refines it per income band. Dimmed — never disabled — while
+                 the DBR check is skipped, exactly like the cap field. -->
+            <div class="dbr-bands" [class.is-muted]="skipDbr">
+              <h3 class="dbr-bands-title" i18n="@@bank_programs.eligibility.dbr_bands">
+                Caps by income band
+              </h3>
+              <app-dbr-bands-editor
+                [bands]="dbrBands()"
+                (bandsChange)="dbrBands.set($event)"
+                [flatCapPercent]="dbrFlatCap()"
+              ></app-dbr-bands-editor>
             </div>
           </section>
 
@@ -779,29 +792,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             }
           </section>
           }
-          <!-- FR-010: per-field provenance. Tone carries a hint, the WORD carries
-               the meaning — colour alone would fail both contrast and RTL review. -->
-          <ng-template #originTpl let-path>
-            @if (originOf(path); as origin) {
-              @switch (origin) {
-                @case ('CATALOG') {
-                  <span class="origin origin--catalog" i18n="@@bank_programs.origin.catalog"
-                    >from program</span
-                  >
-                }
-                @case ('BANK_POLICY') {
-                  <span class="origin origin--policy" i18n="@@bank_programs.origin.bankPolicy"
-                    >from bank policy</span
-                  >
-                }
-                @case ('EDITED') {
-                  <span class="origin origin--edited" i18n="@@bank_programs.origin.edited"
-                    >edited</span
-                  >
-                }
-              }
-            }
-          </ng-template>
 
           <!-- Sticky so the next action is always one glance away, whatever the
                step's height. Submit stays enabled and REPORTS what is missing
@@ -851,33 +841,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
   `,
   styles: [
     `
-      /* --- FR-010 origin badges ------------------------------------------- */
-      .origin {
-        display: inline-block;
-        margin-inline-start: var(--space-2);
-        padding-block: 0;
-        padding-inline: var(--space-2);
-        border-radius: var(--radius-pill);
-        font-size: var(--text-xxs);
-        font-weight: var(--font-weight-medium);
-        /* Fixed box so the badge never shifts the label's baseline as its text
-           swaps between "from program" and the longer "from bank policy". */
-        line-height: 1.25rem;
-        vertical-align: middle;
-        white-space: nowrap;
-      }
-      .origin--catalog {
-        background: var(--color-info-bg);
-        color: var(--color-info);
-      }
-      .origin--policy {
-        background: var(--color-surface-muted);
-        color: var(--color-text-secondary);
-      }
-      .origin--edited {
-        background: var(--color-warning-bg);
-        color: var(--color-warning);
-      }
       /* ── Debt burden card ─────────────────────────────────────────────────
          A percentage never needs half a card's width, and the toggle that
          overrides it is a decision, not a stray tick-box — so it gets a row of
@@ -945,8 +908,29 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         line-height: var(--line-height-base);
         color: var(--text-secondary, var(--color-text-secondary));
       }
+      /* The band table is a second act inside the same card, so it gets a rule
+         and an eyebrow rather than a card of its own — the cap and the bands are
+         one decision read top to bottom. */
+      .dbr-bands {
+        margin-block-start: var(--space-4);
+        padding-block-start: var(--space-4);
+        border-block-start: 1px solid var(--border-default, var(--color-border-default));
+        transition: opacity var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .dbr-bands.is-muted {
+        opacity: 0.55;
+      }
+      .dbr-bands-title {
+        margin: 0 0 var(--space-3);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
       @media (prefers-reduced-motion: reduce) {
         .dbr-cap,
+        .dbr-bands,
         label.option-row {
           transition: none;
         }
@@ -1553,7 +1537,12 @@ export class BankProgramFormPage implements OnInit {
   }
 
   isStepValid(index: number): boolean {
-    return this.stepControls(index).every((c) => c.valid);
+    if (!this.stepControls(index).every((c) => c.valid)) return false;
+    // The DBR band table lives in a signal, not a control, so step validity has
+    // to ask it directly — otherwise a broken table would sail past Continue and
+    // only fail on the server (`DBR_BANDS_INVALID`).
+    if (this.steps[index]?.id === 'eligibility' && this.dbrBandsError() !== null) return false;
+    return true;
   }
 
   /** Green check: a step already visited, left behind, and holding valid values. */
@@ -1754,6 +1743,15 @@ export class BankProgramFormPage implements OnInit {
       bankName: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, Validators.maxLength(80)],
+      }),
+      /**
+       * The predefined catalog archetype this program instantiates. This is what
+       * the picker binds and what the API persists; `friendlyName` below is
+       * derived from it (the member's English label) and never typed by hand.
+       */
+      programNameKey: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.maxLength(64)],
       }),
       friendlyName: new FormControl('', {
         nonNullable: true,
@@ -2124,148 +2122,57 @@ export class BankProgramFormPage implements OnInit {
   }
 
   /**
-   * Income-banded DBR table (FR-016) — NOT editable here any more: the flat
-   * `eligibility.dbrCapPercent` field is the only cap an admin sets on this form.
+   * Income-banded DBR caps (FR-016), authored on this form by the DBR-bands
+   * editor: the flat `eligibility.dbrCapPercent` is the program's floor for
+   * every income and each band refines it above a salary threshold.
    *
-   * The signal survives as a CARRIER: bands resolved from bank policy on create,
-   * or already stored on the program being edited, are read in and written back
-   * out unchanged. Dropping it would make every save silently wipe a program's
-   * existing bands.
+   * Held in a signal rather than a FormArray because the editor owns its own
+   * row-level validation and emits whole, already-sorted band lists. On edit the
+   * program's stored bands are read in here and written straight back out, so a
+   * save never silently wipes bands the admin did not touch.
    */
   readonly dbrBands = signal<DbrBand[]>([]);
 
-  // ── Prefill (FR-008, FR-010) ─────────────────────────────────────────────
   /**
-   * Per-leaf provenance of the currently-shown values. `EDITED` is set locally
-   * the moment an admin overrides an inherited value, so the badge answers
-   * "is this the bank's number or mine?" without another round trip.
-   *
-   * Prefill is CREATE-ONLY: an existing program is self-contained (FR-009), so
-   * re-resolving inherited values on edit would silently reprice it.
+   * The flat cap, live, so the editor seeds new rows with what the admin just
+   * typed above rather than a value read once at construction.
    */
-  readonly prefillOrigin = signal<Record<string, PrefillOrigin>>({});
-  readonly prefillBusy = signal(false);
-
-  originOf(path: string): PrefillOrigin | null {
-    return this.prefillOrigin()[path] ?? null;
-  }
-
-  /** Called on (change) of every prefillable control — flips its badge to EDITED. */
-  markEdited(path: string): void {
-    const current = this.prefillOrigin()[path];
-    if (!current || current === 'EDITED' || current === 'EMPTY') return;
-    this.prefillOrigin.set({ ...this.prefillOrigin(), [path]: 'EDITED' });
-  }
+  private readonly dbrCapValue = toSignal(
+    this.form.controls.eligibility.controls.dbrCapPercent.valueChanges,
+    { initialValue: this.form.controls.eligibility.controls.dbrCapPercent.value },
+  );
+  readonly dbrFlatCap = computed(() => {
+    const cap = this.dbrCapValue();
+    return typeof cap === 'string' && cap.trim() !== '' ? cap : '50.0000';
+  });
 
   /**
-   * Resolves bank policy → catalog defaults for the chosen bank + program name +
-   * category and drops the merged values into the form. Only leaves the layers
-   * actually supplied are written, so an admin's own edits survive a re-resolve.
+   * Same verdict the editor renders inline, computed from the shared rule so the
+   * wizard can refuse a broken band table even from a step where the editor is
+   * not on screen. The backend re-validates on save (`DBR_BANDS_INVALID`).
    */
-  private async refreshPrefill(): Promise<void> {
-    if (this.isEditMode()) return;
-    const category = this.identityGroup.controls['productCategory']?.value as string | undefined;
-    if (!category) return;
+  readonly dbrBandsError = computed<DbrBandsError>(() => dbrBandsErrorFor(this.dbrBands()));
 
-    this.prefillBusy.set(true);
-    try {
-      const res = await this.api.prefill({
-        category,
-        bankId: this.selectedBankId() ?? undefined,
-        programNameKey: this.selectedProgramNameKey() ?? undefined,
-      });
-      this.applyPrefill(res.values);
-      this.prefillOrigin.set({ ...res.origin });
-    } catch {
-      // Prefill is a convenience, never a gate: a failure leaves the form on its
-      // built-in defaults rather than blocking program creation.
-      this.prefillOrigin.set({});
-    } finally {
-      this.prefillBusy.set(false);
-    }
-  }
-
-  private applyPrefill(v: import('../bank-programs.types').ProgramDefaults): void {
-    if (v.tenor) {
-      this.tenorGroup.patchValue(
-        pruneUndefined({ minMonths: v.tenor.minMonths, maxMonths: v.tenor.maxMonths }),
-      );
-    }
-    const egp = v.loanLimits?.perCurrency?.['EGP'];
-    if (egp) {
-      this.loanLimitsGroup.patchValue(
-        pruneUndefined({ minAmountEGP: egp.minAmount, maxAmountEGP: egp.maxAmount }),
-      );
-    }
-    if (v.pricing) {
-      this.pricingGroup.patchValue(
-        pruneUndefined({
-          isVariableRate: v.pricing.isVariableRate,
-          baseRatePercent: v.pricing.baseRatePercent,
-          currentEffectiveRatePercent: v.pricing.currentEffectiveRatePercent,
-        }),
-      );
-    }
-    if (v.eligibility) {
-      this.eligibilityGroup.patchValue(
-        pruneUndefined({
-          ageMin: v.eligibility.ageMin,
-          ageMax: v.eligibility.ageMax,
-          minMonthlyIncomeEGP: v.eligibility.minMonthlyIncomeEGP,
-          dbrCapPercent: v.eligibility.dbrCapPercent,
-          skipDbrCheck: v.eligibility.skipDbrCheck,
-          requiresCollateral: v.eligibility.requiresCollateral,
-        }),
-      );
-      if (v.eligibility.dbrBands) this.dbrBands.set(v.eligibility.dbrBands);
-    }
-    if (v.fees) {
-      this.feesGroup.patchValue(
-        pruneUndefined({
-          adminFeePercent: v.fees.adminFeePercent,
-          stampDutyPercent: v.fees.stampDutyPercent,
-          lifeInsurancePercent: v.fees.lifeInsurancePercent,
-        }),
-      );
-    }
-    if (v.requiredDocuments?.length) {
-      this.setArr('documents.requiredDocuments', v.requiredDocuments);
-    }
-  }
-
-  /**
-   * The catalog member whose defaults should win. The friendly-name control holds
-   * the member's English LABEL (legacy free-text is still allowed), so the key is
-   * resolved back through the registry; an unmatched name simply means no catalog
-   * layer, which prefill handles as `EMPTY`.
-   */
-  private selectedProgramNameKey(): string | null {
-    const name = this.identityGroup.controls['friendlyName']?.value as string | undefined;
-    if (!name) return null;
-    const match = this.enums.membersFor('program_name')().find((m) => m.labelEn === name);
-    return match?.key ?? null;
-  }
-
-  /** Reactive view of identity.friendlyName so the option list keeps a legacy/edit value visible. */
-  readonly friendlyNameSignal = toSignal(
-    this.form.controls.identity.controls.friendlyName.valueChanges,
-    { initialValue: this.form.controls.identity.controls.friendlyName.value },
+  /** Reactive view of the bound key so the option list keeps a legacy value visible. */
+  readonly programNameKeySignal = toSignal(
+    this.form.controls.identity.controls.programNameKey.valueChanges,
+    { initialValue: this.form.controls.identity.controls.programNameKey.value },
   );
 
   /**
    * Program-name options, sourced from the live `program_name` registry
    * (Principle II — names are DATA, no hardcoded list). The catalog is
    * category-agnostic: every active name is offerable under any product
-   * category, so the list is NOT filtered by the picked category. The
-   * currently-bound name is kept visible even when it isn't (yet) a catalog
-   * member, so edit mode + legacy free-text programs still render.
+   * category, so the list is NOT filtered by the picked category. Options carry
+   * the catalog KEY, which is what the API stores; a pre-catalog program being
+   * edited keeps its own key visible so saving does not silently re-classify it.
    */
   readonly programNameOptions = computed(() => {
     const opts = this.enums
       .membersFor('program_name')()
       .filter((m) => m.active && !m.deprecated)
-      .map((m) => ({ value: m.labelEn, label: this.localeIsAr ? m.labelAr : m.labelEn }));
-    const current = this.friendlyNameSignal();
+      .map((m) => ({ value: m.key, label: this.localeIsAr ? m.labelAr : m.labelEn }));
+    const current = this.programNameKeySignal();
     if (current && !opts.some((o) => o.value === current)) {
       opts.unshift({ value: current, label: current });
     }
@@ -2313,29 +2220,23 @@ export class BankProgramFormPage implements OnInit {
       }
     });
 
-    // Program-name picker: fill the Arabic name from the chosen catalog member.
-    this.form.controls.identity.controls.friendlyName.valueChanges
+    // Program-name picker: the key is the bound value, so both display names are
+    // derived from the chosen catalog member — never hand-typed (A20 / Principle II).
+    this.form.controls.identity.controls.programNameKey.valueChanges
       .pipe(takeUntilDestroyed())
-      .subscribe((name) => {
-        const match = this.enums.membersFor('program_name')().find((m) => m.labelEn === name);
+      .subscribe((key) => {
+        const match = this.enums.membersFor('program_name')().find((m) => m.key === key);
         if (match) {
+          this.form.controls.identity.controls.friendlyName.setValue(match.labelEn, {
+            emitEvent: false,
+          });
           this.form.controls.identity.controls.friendlyNameAr.setValue(match.labelAr, {
             emitEvent: false,
           });
         }
       });
     // No category-change reset: a program name serves every category, so a pick
-    // stays valid when the product category changes (only its prefill re-resolves).
-
-    // FR-008: re-resolve prefill whenever one of its three inputs changes.
-    // Create mode only — `refreshPrefill` no-ops on edit (FR-009).
-    merge(
-      this.bankIdControl.valueChanges,
-      this.form.controls.identity.controls.productCategory.valueChanges,
-      this.form.controls.identity.controls.friendlyName.valueChanges,
-    )
-      .pipe(takeUntilDestroyed())
-      .subscribe(() => void this.refreshPrefill());
+    // stays valid when the product category changes.
   }
 
   ngOnInit(): void {
@@ -2605,6 +2506,7 @@ export class BankProgramFormPage implements OnInit {
       ...(this.selectedBankId() ? { bankId: this.selectedBankId()! } : {}),
       friendlyName: id.friendlyName,
       friendlyNameAr: id.friendlyNameAr ?? undefined,
+      programNameKey: id.programNameKey,
       programType: id.programType,
       productCategory: id.productCategory,
       currencies: id.currencies,
@@ -2677,6 +2579,13 @@ export class BankProgramFormPage implements OnInit {
     this.identityGroup.patchValue({
       programCode: initial.programCode,
       bankName: initial.bankName,
+      // Pre-catalog rows have no key; fall back to the label match the old form
+      // used, so editing one does not silently blank its name.
+      programNameKey:
+        initial.programNameKey ??
+        this.enums.membersFor('program_name')().find((m) => m.labelEn === initial.friendlyName)
+          ?.key ??
+        '',
       friendlyName: initial.friendlyName,
       friendlyNameAr: initial.friendlyNameAr ?? null,
       programType: initial.programType,
@@ -2840,13 +2749,4 @@ function money(raw: string | null | undefined): string {
   const [int = '', frac] = raw.split('.');
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return frac ? `${grouped}.${frac}` : grouped;
-}
-
-/** Drops undefined keys so a partial prefill never clears a field the layers didn't supply. */
-function pruneUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  const out: Partial<T> = {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (v !== undefined) (out as Record<string, unknown>)[k] = v;
-  }
-  return out;
 }

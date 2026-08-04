@@ -14,6 +14,7 @@ import { CreateBankDto } from './dto/create-bank.dto';
 import { UpdateBankDto } from './dto/update-bank.dto';
 import { ToggleBankDto } from './dto/toggle-bank.dto';
 import { ListBanksQuery } from './dto/list-banks.query';
+import { BankProgramSummaryDto } from './dto/bank-program-summary.dto';
 
 export interface ActorCtx {
   id: string;
@@ -53,10 +54,44 @@ export class BanksService {
     return { bank: { ...bank, programCount }, programCount };
   }
 
-  async listPrograms(bankId: string) {
+  async listPrograms(bankId: string): Promise<BankProgramSummaryDto[]> {
     const exists = await this.repo.findById(bankId);
     if (!exists) throw new BankNotFoundException({ id: bankId });
-    return this.repo.listPrograms(bankId);
+    const rows = await this.repo.listPrograms(bankId);
+
+    return rows.map((r) => {
+      const pricing = (r.pricing ?? {}) as {
+        isVariableRate?: boolean;
+        baseRatePercent?: string;
+        currentEffectiveRatePercent?: string;
+      };
+      const limits = (r.loanLimits ?? {}) as {
+        perCurrency?: Record<string, { minAmount?: string; maxAmount?: string }>;
+      };
+      const tenor = (r.tenor ?? {}) as { minMonths?: number; maxMonths?: number };
+      const egp = limits.perCurrency?.['EGP'];
+      const isVariableRate = pricing.isVariableRate === true;
+
+      return {
+        id: r.id,
+        programCode: r.programCode,
+        friendlyName: r.friendlyName,
+        friendlyNameAr: r.friendlyNameAr ?? null,
+        programNameKey: r.programNameKey ?? null,
+        productCategory: r.productCategory,
+        active: r.active,
+        isShariaCompliant: r.isShariaCompliant,
+        version: r.version,
+        ratePercent:
+          (isVariableRate ? pricing.currentEffectiveRatePercent : pricing.baseRatePercent) ?? null,
+        isVariableRate,
+        minAmountEGP: egp?.minAmount ?? null,
+        maxAmountEGP: egp?.maxAmount ?? null,
+        minMonths: tenor.minMonths ?? null,
+        maxMonths: tenor.maxMonths ?? null,
+        updatedAt: r.updatedAt.toISOString(),
+      } satisfies BankProgramSummaryDto;
+    });
   }
 
   async create(dto: CreateBankDto, actor: ActorCtx) {

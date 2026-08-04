@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
@@ -12,7 +13,18 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { DecimalRange } from '../../../common/decorators/decimal-range.decorator';
-import { DbrBandDto } from '../program-defaults.dto';
+
+/** One row of a bank program's banded DBR table (FR-016). */
+export class DbrBandDto {
+  /** Inclusive upper bound on recognised monthly income; `null` = the open-ended final band. */
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2, nullable: true })
+  upToIncomeEGP!: string | null;
+
+  @DecimalRange({ min: '1', max: '100', precision: 7, scale: 4 })
+  capPercent!: string;
+}
 
 /**
  * Spec anchors: FR-005, FR-005c (wealth gates), FR-005c.1 (AND combination),

@@ -114,8 +114,10 @@ export enum AuditEventType {
   QUESTIONNAIRE_PUBLISHED = 'QUESTIONNAIRE_PUBLISHED',
   SCORING_WEIGHTS_SAVED = 'SCORING_WEIGHTS_SAVED',
 
-  // Feature 010 — prefill layers. Both are PREFILL ONLY: editing either leaves
-  // every already-saved bank program untouched (FR-007, FR-009, SC-008).
+  // RETIRED with the removal of prefill / catalog defaults — no writer remains.
+  // The values are preserved (not dropped) because `audit_event` rows are
+  // append-only (Principle VI) and a Postgres enum value cannot be removed in
+  // place without recreating `AuditEventType`. Do not emit these.
   BANK_POLICY_UPDATED = 'BANK_POLICY_UPDATED',
   PROGRAM_CATALOG_DEFAULTS_UPDATED = 'PROGRAM_CATALOG_DEFAULTS_UPDATED',
 }

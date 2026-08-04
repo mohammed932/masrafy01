@@ -659,6 +659,15 @@
   "results_monthly": "Monthly",
   "results_total": "Total",
   "results_view_offer": "View Offer",
+  "results_max_borrow": "You could borrow up to",
+  "results_max_borrow_value": "EGP {amount}",
+  "@results_max_borrow_value": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "offer_type_personal": "Personal",
   "offer_type_car": "Car",
   "offer_type_mortgage": "Mortgage",
@@ -678,11 +687,41 @@
   "offer_personal_id": "personal ID",
   "offer_total_loan": "Total Loan",
   "offer_total_loan_caption": "incl. interest + principal",
+  "offer_max_borrow": "Max you can borrow",
+  "offer_max_borrow_caption": "at a {pct}% debt cap",
+  "@offer_max_borrow_caption": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "offer_dbr": "Debt burden",
+  "offer_dbr_caption": "of your monthly income",
+  "offer_headroom_hint": "You asked for less than you qualify for.",
   "offer_fees_title": "Fees & charges",
   "offer_admin_fees": "Admin fees",
   "offer_admin_fees_value": "1% (EGP 1,500)",
   "offer_interest_charge": "12% - 15% from principal amount",
   "offer_interest_charge_value": "12.5% / year",
+  "offer_interest_charge_value_rate": "{pct}% / year",
+  "@offer_interest_charge_value_rate": {
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "offer_stamp_duty": "Stamp duty",
+  "offer_life_insurance": "Life insurance",
+  "offer_fee_egp": "EGP {amount}",
+  "@offer_fee_egp": {
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "offer_early_settlement": "Early settlement",
   "offer_early_settlement_value": "Free after 12M",
   "offer_apply": "Apply for this offer",

@@ -1689,6 +1689,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get results_view_offer => 'View Offer';
 
   @override
+  String get results_max_borrow => 'You could borrow up to';
+
+  @override
+  String results_max_borrow_value(String amount) {
+    return 'EGP $amount';
+  }
+
+  @override
   String get offer_type_personal => 'Personal';
 
   @override
@@ -1750,6 +1758,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_total_loan_caption => 'incl. interest + principal';
 
   @override
+  String get offer_max_borrow => 'Max you can borrow';
+
+  @override
+  String offer_max_borrow_caption(String pct) {
+    return 'at a $pct% debt cap';
+  }
+
+  @override
+  String get offer_dbr => 'Debt burden';
+
+  @override
+  String get offer_dbr_caption => 'of your monthly income';
+
+  @override
+  String get offer_headroom_hint => 'You asked for less than you qualify for.';
+
+  @override
   String get offer_fees_title => 'Fees & charges';
 
   @override
@@ -1763,6 +1788,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offer_interest_charge_value => '12.5% / year';
+
+  @override
+  String offer_interest_charge_value_rate(String pct) {
+    return '$pct% / year';
+  }
+
+  @override
+  String get offer_stamp_duty => 'Stamp duty';
+
+  @override
+  String get offer_life_insurance => 'Life insurance';
+
+  @override
+  String offer_fee_egp(String amount) {
+    return 'EGP $amount';
+  }
 
   @override
   String get offer_early_settlement => 'Early settlement';

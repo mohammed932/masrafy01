@@ -15,9 +15,8 @@ import type { DbrBand } from '@/matching/types';
  *   - exactly one open-ended band, and it MUST be last
  *   - every cap percentage in [1, 100]
  *
- * FR-021a: the same rules apply in all three hosts (bank lending policy,
- * predefined-program catalog defaults, bank program), so this is the single
- * implementation all three call.
+ * A band table is authored on the bank program itself (`eligibility.dbrBands`),
+ * so this is the single implementation the bank-program service calls.
  */
 
 export type DbrBandsViolation =

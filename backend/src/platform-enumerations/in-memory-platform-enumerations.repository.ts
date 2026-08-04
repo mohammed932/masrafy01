@@ -50,10 +50,6 @@ export class InMemoryPlatformEnumerationsRepository
     return Array.from(all.values()).filter((m) => m.active && !m.deprecated);
   }
 
-  async findMember(type: EnumerationType, key: string): Promise<EnumerationMember | null> {
-    return this.members.get(type)?.get(key) ?? null;
-  }
-
   private add(type: EnumerationType, key: string, labelAr: string, labelEn: string): void {
     let bucket = this.members.get(type);
     if (!bucket) {
@@ -66,9 +62,6 @@ export class InMemoryPlatformEnumerationsRepository
       labelAr,
       labelEn,
       parentKey: null,
-      // The stub carries no catalog defaults (feature 010) — prefill against it
-      // simply resolves every leaf to `EMPTY`.
-      defaults: {},
       active: true,
       deprecated: false,
     });

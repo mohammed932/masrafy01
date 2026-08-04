@@ -37,18 +37,22 @@ Audit: `bank_policy_updated` with a before/after diff. Existing programs untouch
 
 ## Program catalog defaults
 
+A predefined program is a NAME plus ONE flat set of lending values. The loan category is not part of it — it is chosen when a bank program instantiates the name (`bank_program.productCategory`).
+
 ### `GET /admin/platform-enumerations/program_name/:key/defaults`
 
 ```jsonc
 { "success": true, "data": {
-  "defaults": { "personal": { "tenor": { "minMonths": 6, "maxMonths": 72 }, … } } } }
+  "defaults": { "tenor": { "minMonths": 6, "maxMonths": 72 }, … } } }
 ```
+
+`defaults: {}` when the archetype has never been tuned.
 
 ### `PUT /admin/platform-enumerations/program_name/:key/defaults`
 
-Roles: `super_admin`. Body: `{ "defaults": { "<category>": { …partial sub-configs… } } }`. Full replace.
+Roles: `super_admin`. Body: `{ "defaults": { …partial sub-configs… } }`. Full replace.
 
-Errors: `CATALOG_DEFAULTS_CATEGORY_UNKNOWN`, `DBR_BANDS_INVALID`, `PROGRAM_RANGE_INVALID`, `VALIDATION_FAILED`, `NOT_FOUND`.
+Errors: `DBR_BANDS_INVALID`, `PROGRAM_RANGE_INVALID`, `VALIDATION_FAILED`, `NOT_FOUND`.
 Audit: `program_catalog_defaults_updated`.
 
 ---
@@ -57,7 +61,7 @@ Audit: `program_catalog_defaults_updated`.
 
 ### `GET /admin/bank-programs/prefill?bankId=&programNameKey=&category=`
 
-Roles: `super_admin`, `analyst`.
+Roles: `super_admin`, `analyst`. Every parameter is optional. `category` selects nothing in either layer — catalog defaults are flat per program name — and is validated against the `product_category` registry only when supplied.
 
 ```jsonc
 { "success": true, "data": {

@@ -3,7 +3,6 @@ import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { SuccessEnvelope } from '@core/auth/auth.types';
-import type { ProgramDefaults } from '../bank-programs/bank-programs.types';
 
 export interface EnumerationRow {
   id: string;
@@ -15,16 +14,11 @@ export interface EnumerationRow {
   deprecatedAt: string | null;
   systemOnly: boolean;
   parentKey: string | null;
-  /** Feature 010 — per-category prefill defaults; `{}` for non-`program_name` members. */
-  defaults: Record<string, ProgramDefaults>;
+  /** `program_name` rows only — how many bank programs instantiate this archetype. */
+  usage?: { programs: number; banks: number };
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
-}
-
-/** Response of the catalog-defaults endpoints (FR-001). */
-export interface CatalogDefaultsResponse {
-  defaults: Record<string, ProgramDefaults>;
 }
 
 export interface EnumerationTypeSummary {
@@ -83,34 +77,6 @@ export class LookupsApiService {
   async update(id: string, body: UpdateEnumerationRequest): Promise<EnumerationRow> {
     const res = await firstValueFrom(
       this.http.patch<SuccessEnvelope<EnumerationRow>>(`${this.base}/${id}`, body),
-    );
-    return res.data;
-  }
-
-  // --- Feature 010: predefined-program catalog defaults (FR-001 … FR-004) ---
-
-  async getCatalogDefaults(key: string): Promise<CatalogDefaultsResponse> {
-    const res = await firstValueFrom(
-      this.http.get<SuccessEnvelope<CatalogDefaultsResponse>>(
-        `${this.base}/program_name/${encodeURIComponent(key)}/defaults`,
-      ),
-    );
-    return res.data;
-  }
-
-  /**
-   * FULL REPLACE (not a patch) so clearing a category or a leaf is expressible.
-   * Prefill only — saved bank programs are never touched (FR-007, FR-009).
-   */
-  async updateCatalogDefaults(
-    key: string,
-    defaults: Record<string, ProgramDefaults>,
-  ): Promise<CatalogDefaultsResponse> {
-    const res = await firstValueFrom(
-      this.http.put<SuccessEnvelope<CatalogDefaultsResponse>>(
-        `${this.base}/program_name/${encodeURIComponent(key)}/defaults`,
-        { defaults },
-      ),
     );
     return res.data;
   }

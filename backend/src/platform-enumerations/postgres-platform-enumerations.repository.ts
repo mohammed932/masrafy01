@@ -39,8 +39,6 @@ export interface EnumerationRow {
   systemOnly: boolean;
   deprecatedAt: Date | null;
   parentKey: string | null;
-  /** Feature 010 — per-category prefill defaults; `{}` for non-`program_name` types. */
-  defaults: Record<string, unknown>;
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
@@ -56,8 +54,6 @@ export interface EnumerationUpdatePatch {
   /** When `true` AND `deprecatedAt` is currently null, the repository stamps `deprecatedAt = now`
    *  and forces `active = false`. */
   deprecate?: true;
-  /** Feature 010 — full replace of the per-category prefill defaults (FR-001). */
-  defaults?: Record<string, unknown>;
   updatedBy: string;
 }
 
@@ -142,13 +138,6 @@ export class PostgresPlatformEnumerationsRepository
     return members;
   }
 
-  async findMember(type: EnumerationType, key: string): Promise<EnumerationMember | null> {
-    const row = await this.prisma.platformEnumeration.findUnique({
-      where: { idx_platform_enumeration_type_key: { type, key } },
-    });
-    return row ? toEnumerationMember(row) : null;
-  }
-
   invalidateCache(type?: EnumerationType): void {
     if (type) this.cache.delete(type);
     else this.cache.clear();
@@ -164,6 +153,34 @@ export class PostgresPlatformEnumerationsRepository
       orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }, { key: 'asc' }],
     });
     return rows.map(toEnumerationRow);
+  }
+
+  /**
+   * How many bank programs (and distinct banks) each `program_name` archetype is
+   * currently used by — the number that tells an operator whether a catalog
+   * entry is load-bearing before they deprecate it.
+   *
+   * The `bank_program` read lives here rather than in `BankProgramRepository`
+   * because bank-programs already depends on this module; importing back would
+   * close a cycle. Still a repository, so Principle X holds.
+   */
+  async countProgramNameUsage(): Promise<Map<string, { programs: number; banks: number }>> {
+    const rows = await this.prisma.bankProgram.findMany({
+      where: { programNameKey: { not: null } },
+      select: { programNameKey: true, bankId: true },
+    });
+    const acc = new Map<string, { programs: number; banks: Set<string> }>();
+    for (const r of rows) {
+      const key = r.programNameKey;
+      if (!key) continue;
+      const entry = acc.get(key) ?? { programs: 0, banks: new Set<string>() };
+      entry.programs += 1;
+      if (r.bankId) entry.banks.add(r.bankId);
+      acc.set(key, entry);
+    }
+    return new Map(
+      [...acc].map(([key, v]) => [key, { programs: v.programs, banks: v.banks.size }]),
+    );
   }
 
   async listTypeStats(): Promise<EnumerationTypeStats[]> {
@@ -223,9 +240,6 @@ export class PostgresPlatformEnumerationsRepository
     if (patch.labelEn !== undefined) data.labelEn = patch.labelEn;
     if (patch.parentKey !== undefined) data.parentKey = patch.parentKey;
     if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
-    if (patch.defaults !== undefined) {
-      data.defaults = patch.defaults as Prisma.InputJsonValue;
-    }
 
     if (patch.deprecate === true) {
       data.deprecatedAt = new Date();
@@ -254,7 +268,6 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
     systemOnly: row.systemOnly,
     deprecatedAt: row.deprecatedAt,
     parentKey: row.parentKey,
-    defaults: toDefaultsRecord(row.defaults),
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -268,14 +281,7 @@ function toEnumerationMember(row: PlatformEnumeration): EnumerationMember {
     labelAr: row.labelAr,
     labelEn: row.labelEn,
     parentKey: row.parentKey,
-    defaults: toDefaultsRecord(row.defaults),
     active: row.active,
     deprecated: row.deprecatedAt !== null,
   };
-}
-
-/** `Json` widens to arrays/scalars/null in Prisma's type; only an object is meaningful here. */
-function toDefaultsRecord(value: Prisma.JsonValue): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return {};
-  return value as Record<string, unknown>;
 }

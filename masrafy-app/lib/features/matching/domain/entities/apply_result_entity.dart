@@ -52,6 +52,8 @@ class OfferEntity extends Equatable {
     required this.matchReasons,
     this.feesBreakdown,
     this.maxLoanAvailableEGP,
+    this.dbrPercent,
+    this.dbrCapPercent,
     this.isSaved = false,
   });
 
@@ -74,10 +76,26 @@ class OfferEntity extends Equatable {
   final List<String> requiredDocuments;
   final List<String> matchReasons;
   final Map<String, dynamic>? feesBreakdown;
+
+  /// The most this applicant could borrow from this program — income × DBR cap
+  /// minus existing obligations, present-valued over the term. Independent of
+  /// the amount requested, so it answers "how much can I get" even when the
+  /// customer asked for less.
   final double? maxLoanAvailableEGP;
+
+  /// Where this offer's installment lands on the debt-burden scale, and the cap
+  /// it was measured against.
+  final double? dbrPercent;
+  final double? dbrCapPercent;
 
   /// True when the authenticated customer has already saved this offer.
   final bool isSaved;
+
+  /// True when the customer asked for less than they could have borrowed —
+  /// the case worth surfacing, since nothing else on the card reveals it.
+  bool get hasUnusedHeadroom =>
+      maxLoanAvailableEGP != null &&
+      maxLoanAvailableEGP! > effectiveLoanAmountEGP;
 
   /// Total repayable over the effective term = installment × months.
   double get totalRepayableEGP => monthlyInstallmentEGP * effectiveTenorMonths;
@@ -110,6 +128,8 @@ class OfferEntity extends Equatable {
         matchReasons,
         feesBreakdown,
         maxLoanAvailableEGP,
+        dbrPercent,
+        dbrCapPercent,
         isSaved,
       ];
 }

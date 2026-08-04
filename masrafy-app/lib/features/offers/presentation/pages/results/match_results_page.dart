@@ -283,6 +283,9 @@ class _OfferCardSkeleton extends StatelessWidget {
               ],
             ],
           ),
+          // Mirrors the max-borrow band, which every real offer carries.
+          Gap(8.h),
+          const MasrafyShimmerBox(height: 33, radius: 10),
           if (best) ...[
             Gap(16.h),
             const MasrafyShimmerBox(height: 48, radius: 12),

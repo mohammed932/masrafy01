@@ -22,10 +22,8 @@ import { CreateBankProgramDto } from './dto/create-bank-program.dto';
 import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
 import { ToggleBankProgramDto } from './dto/toggle-bank-program.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
-import { PrefillQueryDto } from './dto/prefill.query';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { BankProgramsService } from './bank-programs.service';
-import { PrefillService } from './prefill/prefill.service';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 
 interface ActorCtx {
@@ -37,25 +35,7 @@ interface ActorCtx {
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('admin/bank-programs')
 export class BankProgramsController {
-  constructor(
-    private readonly service: BankProgramsService,
-    private readonly prefill: PrefillService,
-  ) {}
-
-  /**
-   * FR-008 — starting values for a NEW program, merged bank policy → catalog defaults.
-   * Declared before `@Get(':programCode')` so the literal segment wins the match.
-   * Response only: nothing is created, and matching never calls this (FR-021b).
-   */
-  @Get('prefill')
-  @Roles('super_admin', 'sales_manager', 'analyst')
-  @ApiOperation({ summary: 'Resolve prefill values + per-leaf origin for a new bank program' })
-  @ApiResponse({ status: 200, description: 'Merged values and origin map.' })
-  @ApiResponse({ status: 400, description: 'PREFILL_TARGET_INVALID' })
-  async resolvePrefill(@Query() query: PrefillQueryDto) {
-    const result = await this.prefill.resolve(query);
-    return ok(result);
-  }
+  constructor(private readonly service: BankProgramsService) {}
 
   @Get()
   @ApiOperation({ summary: 'List bank programs (paginated, filterable, searchable)' })

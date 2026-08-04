@@ -30,7 +30,12 @@ const COUNT_UP_DURATION_MS = 600;
   imports: [CommonModule, NzIconModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <dl class="strip" [attr.data-layout]="layout()" [attr.aria-label]="ariaLabel()">
+    <dl
+      class="strip"
+      [attr.data-layout]="layout()"
+      [style.--strip-col-min]="columnMin()"
+      [attr.aria-label]="ariaLabel()"
+    >
       @for (s of items(); track s.label; let i = $index) {
         <div class="card" [attr.data-tone]="s.tone ?? 'default'">
           <div class="head">
@@ -56,7 +61,7 @@ const COUNT_UP_DURATION_MS = 600;
       }
       .strip {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(var(--strip-col-min, 150px), 1fr));
         gap: var(--space-4);
         margin: 0;
       }
@@ -179,6 +184,12 @@ export class StatStripComponent {
   readonly ariaLabel = input<string>('Statistics');
   /** `auto` fills the available width; `row` keeps one horizontal line of cards. */
   readonly layout = input<'auto' | 'row'>('auto');
+  /**
+   * Track floor for the `auto` layout. Raise it when the cards carry hints and
+   * want room to breathe (a scoreboard), leave the default when they are dense
+   * counters sitting above a table.
+   */
+  readonly columnMin = input<string>('150px');
 
   private readonly zone = inject(NgZone);
   private readonly displayed = signal<readonly number[]>([]);

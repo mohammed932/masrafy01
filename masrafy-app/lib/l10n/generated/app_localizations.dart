@@ -3353,6 +3353,18 @@ abstract class AppLocalizations {
   /// **'عرض العرض'**
   String get results_view_offer;
 
+  /// No description provided for @results_max_borrow.
+  ///
+  /// In ar, this message translates to:
+  /// **'تقدر تقترض حتى'**
+  String get results_max_borrow;
+
+  /// No description provided for @results_max_borrow_value.
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} جنيه'**
+  String results_max_borrow_value(String amount);
+
   /// No description provided for @offer_type_personal.
   ///
   /// In ar, this message translates to:
@@ -3467,6 +3479,36 @@ abstract class AppLocalizations {
   /// **'شامل الفائدة + الأصل'**
   String get offer_total_loan_caption;
 
+  /// No description provided for @offer_max_borrow.
+  ///
+  /// In ar, this message translates to:
+  /// **'أقصى مبلغ تقدر تقترضه'**
+  String get offer_max_borrow;
+
+  /// No description provided for @offer_max_borrow_caption.
+  ///
+  /// In ar, this message translates to:
+  /// **'بحد أقصى {pct}% لنسبة الالتزامات'**
+  String offer_max_borrow_caption(String pct);
+
+  /// No description provided for @offer_dbr.
+  ///
+  /// In ar, this message translates to:
+  /// **'نسبة الالتزامات'**
+  String get offer_dbr;
+
+  /// No description provided for @offer_dbr_caption.
+  ///
+  /// In ar, this message translates to:
+  /// **'من دخلك الشهري'**
+  String get offer_dbr_caption;
+
+  /// No description provided for @offer_headroom_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'طلبت أقل من المبلغ اللي تقدر تاخده.'**
+  String get offer_headroom_hint;
+
   /// No description provided for @offer_fees_title.
   ///
   /// In ar, this message translates to:
@@ -3496,6 +3538,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'12.5% سنويًا'**
   String get offer_interest_charge_value;
+
+  /// No description provided for @offer_interest_charge_value_rate.
+  ///
+  /// In ar, this message translates to:
+  /// **'{pct}% سنويًا'**
+  String offer_interest_charge_value_rate(String pct);
+
+  /// No description provided for @offer_stamp_duty.
+  ///
+  /// In ar, this message translates to:
+  /// **'الدمغة'**
+  String get offer_stamp_duty;
+
+  /// No description provided for @offer_life_insurance.
+  ///
+  /// In ar, this message translates to:
+  /// **'تأمين الحياة'**
+  String get offer_life_insurance;
+
+  /// No description provided for @offer_fee_egp.
+  ///
+  /// In ar, this message translates to:
+  /// **'{amount} جنيه'**
+  String offer_fee_egp(String amount);
 
   /// No description provided for @offer_early_settlement.
   ///

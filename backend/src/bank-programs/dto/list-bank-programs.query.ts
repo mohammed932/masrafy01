@@ -28,6 +28,9 @@ export class ListBankProgramsQuery {
   @IsOptional() @IsString() productCategory?: string;
   @IsOptional() @IsString() employmentType?: string;
 
+  /** Every program carrying one predefined program name, across banks. */
+  @IsOptional() @IsString() @MaxLength(64) programNameKey?: string;
+
   /** Filter to Islamic-finance programs (or explicitly to conventional ones). */
   @IsOptional()
   @Transform(({ value }) =>

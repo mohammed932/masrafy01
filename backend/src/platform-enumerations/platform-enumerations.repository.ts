@@ -26,13 +26,6 @@ export interface EnumerationMember {
   labelEn: string;
   /** Optional single scoping parent key (generic; unused by `program_name`). */
   parentKey: string | null;
-  /**
-   * Feature 010 (FR-001): per-category lending defaults for `program_name` members,
-   * shape `{ "<loanCategory>": <partial program> }`. Empty `{}` for every other type.
-   * A program name itself is category-agnostic — any category may carry defaults.
-   * PREFILL ONLY — copied into the program on save (FR-009), never read at match time (FR-021b).
-   */
-  defaults: Record<string, unknown>;
   active: boolean;
   deprecated: boolean;
 }
@@ -49,11 +42,4 @@ export abstract class PlatformEnumerationsRepository {
 
   /** Active members of a given type — used to populate tier-key pickers in the admin form. */
   abstract getActiveMembers(type: EnumerationType): Promise<EnumerationMember[]>;
-
-  /**
-   * Single member lookup regardless of active/deprecated state (feature 010).
-   * The prefill service needs one member's `defaults` without pulling the whole
-   * type. Returns `null` when the key is unknown.
-   */
-  abstract findMember(type: EnumerationType, key: string): Promise<EnumerationMember | null>;
 }

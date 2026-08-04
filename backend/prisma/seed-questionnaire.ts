@@ -69,7 +69,10 @@ async function enumOptions(type: string): Promise<SeedOption[]> {
 interface SeedOption {
   labelEn: string;
   labelAr: string;
-  /** Stable option code; defaults to slug(labelEn). Set for enum-backed options. */
+  /** Stable option code. Authored options pin it explicitly because the code is a
+   *  join key: mobile answer mappers, `ScoringWeightSet.answerScores` and stored
+   *  `ApplicationAnswer.selectedOptionCode` all reference it, so it must survive a
+   *  copy edit. Only options built at seed time fall back to slug(labelEn). */
   code?: string;
   /** Seed-only desirability hint (0..100). Becomes the program's per-answer points. */
   points?: number;
@@ -110,25 +113,25 @@ interface CategoryConfig {
 // Employment codes used across categories. Points = desirability to a lender
 // (stable salaried income scores highest; irregular income lowest).
 const EMPLOYMENT_OPTIONS: SeedOption[] = [
-  { labelEn: 'Government employee', labelAr: 'موظف حكومي', points: 100 },
-  { labelEn: 'Private sector employee', labelAr: 'موظف قطاع خاص', points: 85 },
-  { labelEn: 'Business owner / company owner', labelAr: 'صاحب عمل / شركة', points: 70 },
-  { labelEn: 'Freelancer', labelAr: 'عمل حر', points: 45 },
-  { labelEn: 'Retired', labelAr: 'متقاعد', points: 55 },
+  { code: 'government_employee', labelEn: 'Government job', labelAr: 'موظف حكومي', points: 100 },
+  { code: 'private_sector_employee', labelEn: 'Private company job', labelAr: 'موظف قطاع خاص', points: 85 },
+  { code: 'business_owner_company_owner', labelEn: 'I own a business or company', labelAr: 'صاحب عمل / شركة', points: 70 },
+  { code: 'freelancer', labelEn: 'I work for myself', labelAr: 'عمل حر', points: 45 },
+  { code: 'retired', labelEn: 'Retired', labelAr: 'متقاعد', points: 55 },
 ];
 
 const YESNO = (yesPoints?: number, noPoints?: number): SeedOption[] => [
-  { labelEn: 'Yes', labelAr: 'نعم', ...(yesPoints != null ? { points: yesPoints } : {}) },
-  { labelEn: 'No', labelAr: 'لا', ...(noPoints != null ? { points: noPoints } : {}) },
+  { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', ...(yesPoints != null ? { points: yesPoints } : {}) },
+  { code: 'no', labelEn: 'No', labelAr: 'لا', ...(noPoints != null ? { points: noPoints } : {}) },
 ];
 
 const AGE_Q: SeedQuestion = {
-  code: 'your_age', questionEn: 'Your age', questionAr: 'عمرك',
+  code: 'your_age', questionEn: 'How old are you?', questionAr: 'عمرك',
   options: [
-    { labelEn: '21 – 30', labelAr: '21 – 30', points: 70 },
-    { labelEn: '31 – 45', labelAr: '31 – 45', points: 100 },
-    { labelEn: '46 – 60', labelAr: '46 – 60', points: 75 },
-    { labelEn: 'More than 60', labelAr: 'أكثر من 60', points: 35 },
+    { code: '21_30', labelEn: '21 – 30', labelAr: '21 – 30', points: 70 },
+    { code: '31_45', labelEn: '31 – 45', labelAr: '31 – 45', points: 100 },
+    { code: '46_60', labelEn: '46 – 60', labelAr: '46 – 60', points: 75 },
+    { code: 'more_than_60', labelEn: 'More than 60', labelAr: 'أكثر من 60', points: 35 },
   ],
 };
 // A customer can carry several obligations at once, so this is MULTI_SELECT.
@@ -136,29 +139,30 @@ const AGE_Q: SeedQuestion = {
 // into the loan-kind list.
 const CURRENT_LOANS_Q: SeedQuestion = {
   code: 'current_loans', type: 'MULTI_SELECT',
-  questionEn: 'Do you currently have any loans or obligations?', questionAr: 'هل لديك قروض أو التزامات حالية؟',
+  questionEn: 'Do you pay back any loans right now?', questionAr: 'هل لديك قروض أو التزامات حالية؟',
   options: [
-    { labelEn: 'None', labelAr: 'لا يوجد', points: 100 },
-    { labelEn: 'Personal loan', labelAr: 'قرض شخصي', points: 55 },
-    { labelEn: 'Car loan', labelAr: 'قرض سيارة', points: 55 },
-    { labelEn: 'Mortgage', labelAr: 'قرض عقاري', points: 50 },
-    { labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان', points: 60 },
-    { labelEn: 'Other', labelAr: 'أخرى', points: 50 },
+    { code: 'none', labelEn: 'None', labelAr: 'لا يوجد', points: 100 },
+    { code: 'personal_loan', labelEn: 'Personal loan', labelAr: 'قرض شخصي', points: 55 },
+    { code: 'car_loan', labelEn: 'Car loan', labelAr: 'قرض سيارة', points: 55 },
+    { code: 'mortgage', labelEn: 'Home loan', labelAr: 'قرض عقاري', points: 50 },
+    { code: 'credit_cards', labelEn: 'Credit cards', labelAr: 'بطاقات ائتمان', points: 60 },
+    { code: 'other', labelEn: 'Something else', labelAr: 'أخرى', points: 50 },
   ],
 };
 
 // Asks HOW, not just whether. A yes/no could only ever produce `payroll` or
 // `none`, which left every bank rule written against a salary/income transfer
-// letter unmatchable. Option codes are slugged from the English label, so they
-// land exactly on the `transfer_type` registry keys the programs are configured
-// with — see `TRANSFER_TYPE_BY_ANSWER` on the mobile side.
+// letter unmatchable. The option codes ARE the `transfer_type` registry keys the
+// programs are configured with — see `TRANSFER_TYPE_BY_ANSWER` on the mobile side.
 const SALARY_TRANSFER_Q: SeedQuestion = {
-  code: 'salary_transfer', questionEn: 'How does your salary reach the bank?', questionAr: 'كيف يصل راتبك إلى البنك؟',
+  code: 'salary_transfer', questionEn: 'How does your pay reach the bank?', questionAr: 'كيف يصل راتبك إلى البنك؟',
   options: [
-    { labelEn: 'Payroll', labelAr: 'تحويل راتب', points: 100 },
-    { labelEn: 'Salary transfer letter', labelAr: 'خطاب تحويل راتب', points: 80 },
-    { labelEn: 'Income transfer letter', labelAr: 'خطاب تحويل دخل', points: 60 },
-    { labelEn: 'No salary transfer', labelAr: 'بدون تحويل راتب', points: 20 },
+    // The two letters are different products, so each label names the document:
+    // one commits the basic salary, the other the applicant's whole income.
+    { code: 'payroll', labelEn: 'My employer already sends my salary to the bank', labelAr: 'تحويل راتب', points: 100 },
+    { code: 'salary_transfer_letter', labelEn: 'My employer signs a letter to transfer my salary', labelAr: 'خطاب تحويل راتب', points: 80 },
+    { code: 'income_transfer_letter', labelEn: 'My employer signs a letter to transfer my whole income', labelAr: 'خطاب تحويل دخل', points: 60 },
+    { code: 'no_salary_transfer', labelEn: 'Nothing is sent to the bank', labelAr: 'بدون تحويل راتب', points: 20 },
   ],
 };
 
@@ -189,7 +193,7 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
     question: {
       code: MONEY_FIELD_BINDINGS.tenor_months, // repayment_period_months
       type: 'NUMERIC',
-      questionEn: 'Over how many months do you want to repay?',
+      questionEn: 'Over how many months do you want to pay it back?',
       questionAr: 'على كم شهر تريد السداد؟',
       numeric: { minValue: '6', maxValue: '120', step: '6', unitEn: 'months', unitAr: 'شهر' },
       options: [],
@@ -201,7 +205,7 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
     question: {
       code: MONEY_FIELD_BINDINGS.monthly_income, // monthly_income
       type: 'NUMERIC',
-      questionEn: 'What is your monthly income?',
+      questionEn: 'How much money do you get each month?',
       questionAr: 'ما دخلك الشهري؟',
       numeric: { minValue: '1000', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
       options: [],
@@ -215,7 +219,7 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
       type: 'NUMERIC',
       // Zero is a legitimate answer, so this must not be a bucket with a
       // "less than X" floor — hence minValue 0.
-      questionEn: 'What do your current monthly loan payments total?',
+      questionEn: 'How much do you pay for loans each month?',
       questionAr: 'ما إجمالي أقساطك الشهرية الحالية؟',
       numeric: { minValue: '0', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
       options: [],
@@ -242,127 +246,131 @@ const PERSONAL: CategoryConfig = {
   category: 'personal',
   groups: [
     {
-      code: 'financing_info', titleEn: 'Financing Information', titleAr: 'معلومات التمويل',
+      code: 'financing_info', titleEn: 'About your loan', titleAr: 'معلومات التمويل',
       questions: [
         {
-          code: 'amount_requested', questionEn: 'What is the approximate amount you need?', questionAr: 'ما المبلغ التقريبي الذي تحتاجه؟',
+          code: 'amount_requested', questionEn: 'About how much do you need?', questionAr: 'ما المبلغ التقريبي الذي تحتاجه؟',
           options: [
-            { labelEn: 'Less than EGP 50,000', labelAr: 'أقل من 50,000 جنيه' },
-            { labelEn: 'EGP 50,000 – 150,000', labelAr: '50,000 – 150,000 جنيه' },
-            { labelEn: 'EGP 150,000 – 500,000', labelAr: '150,000 – 500,000 جنيه' },
-            { labelEn: 'More than EGP 500,000', labelAr: 'أكثر من 500,000 جنيه' },
+            { code: 'less_than_egp_50000', labelEn: 'Less than 50,000 EGP', labelAr: 'أقل من 50,000 جنيه' },
+            { code: 'egp_50000_150000', labelEn: '50,000 – 150,000 EGP', labelAr: '50,000 – 150,000 جنيه' },
+            { code: 'egp_150000_500000', labelEn: '150,000 – 500,000 EGP', labelAr: '150,000 – 500,000 جنيه' },
+            { code: 'more_than_egp_500000', labelEn: 'More than 500,000 EGP', labelAr: 'أكثر من 500,000 جنيه' },
           ],
         },
         {
-          code: 'repayment_period', questionEn: 'What repayment period suits you?', questionAr: 'ما مدة السداد المناسبة لك؟',
+          code: 'repayment_period', questionEn: 'How long do you want to pay it back?', questionAr: 'ما مدة السداد المناسبة لك؟',
           options: [
-            { labelEn: 'Less than 3 years', labelAr: 'أقل من 3 سنوات' },
-            { labelEn: '3 to 5 years', labelAr: 'من 3 إلى 5 سنوات' },
-            { labelEn: '5 to 7 years', labelAr: 'من 5 إلى 7 سنوات' },
-            { labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
+            { code: 'less_than_3_years', labelEn: 'Less than 3 years', labelAr: 'أقل من 3 سنوات' },
+            { code: '3_to_5_years', labelEn: '3 to 5 years', labelAr: 'من 3 إلى 5 سنوات' },
+            { code: '5_to_7_years', labelEn: '5 to 7 years', labelAr: 'من 5 إلى 7 سنوات' },
+            { code: 'more_than_7_years', labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
           ],
         },
         {
-          code: 'loan_purpose', questionEn: 'What is the purpose of the loan?', questionAr: 'ما الغرض من القرض؟',
+          code: 'loan_purpose', questionEn: 'What will you use the money for?', questionAr: 'ما الغرض من القرض؟',
           isRequired: false,
           options: [
-            { labelEn: 'Home finishing / renovation', labelAr: 'تشطيب / تجديد المنزل' },
-            { labelEn: 'Marriage', labelAr: 'زواج' },
-            { labelEn: 'Purchasing appliances or furniture', labelAr: 'شراء أجهزة أو أثاث' },
-            { labelEn: 'Education', labelAr: 'تعليم' },
-            { labelEn: 'Debt consolidation / settling obligations', labelAr: 'سداد التزامات' },
-            { labelEn: 'Personal project', labelAr: 'مشروع شخصي' },
-            { labelEn: 'Other', labelAr: 'أخرى' },
+            // "Finishing" covers تشطيب — fitting out a bare-shell new build, which
+            // is a purpose of its own here, not the same as renovating a lived-in home.
+            { code: 'home_finishing_renovation', labelEn: 'Finishing or fixing up my home', labelAr: 'تشطيب / تجديد المنزل' },
+            { code: 'marriage', labelEn: 'Getting married', labelAr: 'زواج' },
+            { code: 'purchasing_appliances_or_furniture', labelEn: 'Buying furniture or appliances', labelAr: 'شراء أجهزة أو أثاث' },
+            { code: 'education', labelEn: 'School or study', labelAr: 'تعليم' },
+            { code: 'debt_consolidation_settling_obligations', labelEn: 'Paying off what I owe', labelAr: 'سداد التزامات' },
+            { code: 'personal_project', labelEn: 'My own project', labelAr: 'مشروع شخصي' },
+            { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
           ],
         },
         AGE_Q,
       ],
     },
     {
-      code: 'employment_income', titleEn: 'Employment & Income Information', titleAr: 'معلومات العمل والدخل',
+      code: 'employment_income', titleEn: 'Your job and pay', titleAr: 'معلومات العمل والدخل',
       questions: [
         {
-          code: 'employment_status', questionEn: 'What is your employment status?', questionAr: 'ما هي حالتك الوظيفية؟',
+          code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟',
           options: EMPLOYMENT_OPTIONS,
         },
         {
-          code: 'job_tenure', questionEn: 'How long have you been in your current job?', questionAr: 'منذ متى وأنت في وظيفتك الحالية؟',
+          code: 'job_tenure', questionEn: 'How long have you been in this job?', questionAr: 'منذ متى وأنت في وظيفتك الحالية؟',
           options: [
-            { labelEn: 'Less than 6 months', labelAr: 'أقل من 6 أشهر', points: 15 },
-            { labelEn: '6 months to 1 year', labelAr: 'من 6 أشهر إلى سنة', points: 35 },
-            { labelEn: '1 to 3 years', labelAr: 'من 1 إلى 3 سنوات', points: 60 },
-            { labelEn: 'More than 3 years', labelAr: 'أكثر من 3 سنوات', points: 100 },
+            { code: 'less_than_6_months', labelEn: 'Less than 6 months', labelAr: 'أقل من 6 أشهر', points: 15 },
+            { code: '6_months_to_1_year', labelEn: '6 months to 1 year', labelAr: 'من 6 أشهر إلى سنة', points: 35 },
+            { code: '1_to_3_years', labelEn: '1 to 3 years', labelAr: 'من 1 إلى 3 سنوات', points: 60 },
+            { code: 'more_than_3_years', labelEn: 'More than 3 years', labelAr: 'أكثر من 3 سنوات', points: 100 },
           ],
         },
         {
-          code: 'monthly_income', questionEn: 'What is your average monthly income?', questionAr: 'ما متوسط دخلك الشهري؟',
+          code: 'monthly_income', questionEn: 'How much do you usually get each month?', questionAr: 'ما متوسط دخلك الشهري؟',
           options: [
-            { labelEn: 'Less than EGP 10,000', labelAr: 'أقل من 10,000 جنيه', points: 20 },
-            { labelEn: 'EGP 10,000 – 20,000', labelAr: '10,000 – 20,000 جنيه', points: 50 },
-            { labelEn: 'EGP 20,000 – 40,000', labelAr: '20,000 – 40,000 جنيه', points: 75 },
-            { labelEn: 'More than EGP 40,000', labelAr: 'أكثر من 40,000 جنيه', points: 100 },
+            { code: 'less_than_egp_10000', labelEn: 'Less than 10,000 EGP', labelAr: 'أقل من 10,000 جنيه', points: 20 },
+            { code: 'egp_10000_20000', labelEn: '10,000 – 20,000 EGP', labelAr: '10,000 – 20,000 جنيه', points: 50 },
+            { code: 'egp_20000_40000', labelEn: '20,000 – 40,000 EGP', labelAr: '20,000 – 40,000 جنيه', points: 75 },
+            { code: 'more_than_egp_40000', labelEn: 'More than 40,000 EGP', labelAr: 'أكثر من 40,000 جنيه', points: 100 },
           ],
         },
         SALARY_TRANSFER_Q,
         {
-          code: 'salary_bank', questionEn: 'Which bank do you receive your salary through?', questionAr: 'من خلال أي بنك تستلم راتبك؟',
+          // Asks whether the salary lands at ONE bank, not which one — the options
+          // never carried a bank name and the registry owns the bank list.
+          code: 'salary_bank', questionEn: 'Do you always get your salary through the same bank?', questionAr: 'من خلال أي بنك تستلم راتبك؟',
           isRequired: false,
           options: [
-            { labelEn: 'A specific bank', labelAr: 'بنك محدد' },
-            { labelEn: 'No specific bank', labelAr: 'لا يوجد بنك محدد' },
+            { code: 'a_specific_bank', labelEn: 'Yes, always the same bank', labelAr: 'بنك محدد' },
+            { code: 'no_specific_bank', labelEn: 'No, not always the same bank', labelAr: 'لا يوجد بنك محدد' },
           ],
         },
         {
-          code: 'employer_approved', questionEn: 'Is your employer approved by banks?', questionAr: 'هل جهة عملك معتمدة لدى البنوك؟',
+          code: 'employer_approved', questionEn: "Is the place you work at on the banks' approved list?", questionAr: 'هل جهة عملك معتمدة لدى البنوك؟',
           isRequired: false, options: [
-            { labelEn: 'Yes', labelAr: 'نعم', points: 100 },
-            { labelEn: 'No', labelAr: 'لا', points: 40 },
-            { labelEn: 'Not sure', labelAr: 'غير متأكد', points: 65 },
+            { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
+            { code: 'no', labelEn: 'No', labelAr: 'لا', points: 40 },
+            { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد', points: 65 },
           ],
         },
       ],
     },
     {
-      code: 'commitments', titleEn: 'Banking Commitments', titleAr: 'الالتزامات البنكية',
+      code: 'commitments', titleEn: 'What you already owe the banks', titleAr: 'الالتزامات البنكية',
       questions: [
         CURRENT_LOANS_Q,
         {
-          code: 'current_installments', questionEn: 'Total approximate current monthly installments?', questionAr: 'إجمالي الأقساط الشهرية الحالية تقريبًا؟',
+          code: 'current_installments', questionEn: 'About how much do you pay each month now?', questionAr: 'إجمالي الأقساط الشهرية الحالية تقريبًا؟',
           options: [
-            { labelEn: 'Less than EGP 2,000', labelAr: 'أقل من 2,000 جنيه', points: 100 },
-            { labelEn: 'EGP 2,000 – 5,000', labelAr: '2,000 – 5,000 جنيه', points: 75 },
-            { labelEn: 'EGP 5,000 – 10,000', labelAr: '5,000 – 10,000 جنيه', points: 50 },
-            { labelEn: 'More than EGP 10,000', labelAr: 'أكثر من 10,000 جنيه', points: 25 },
+            { code: 'less_than_egp_2000', labelEn: 'Less than 2,000 EGP', labelAr: 'أقل من 2,000 جنيه', points: 100 },
+            { code: 'egp_2000_5000', labelEn: '2,000 – 5,000 EGP', labelAr: '2,000 – 5,000 جنيه', points: 75 },
+            { code: 'egp_5000_10000', labelEn: '5,000 – 10,000 EGP', labelAr: '5,000 – 10,000 جنيه', points: 50 },
+            { code: 'more_than_egp_10000', labelEn: 'More than 10,000 EGP', labelAr: 'أكثر من 10,000 جنيه', points: 25 },
           ],
         },
         { code: 'has_credit_card', questionEn: 'Do you have a credit card?', questionAr: 'هل لديك بطاقة ائتمان؟', isRequired: false, options: YESNO() },
         {
-          code: 'card_usage', questionEn: 'Average monthly credit card usage?', questionAr: 'متوسط استخدام البطاقة الشهري؟',
+          code: 'card_usage', questionEn: 'How much do you spend on your card each month?', questionAr: 'متوسط استخدام البطاقة الشهري؟',
           isRequired: false,
           options: [
-            { labelEn: 'Less than EGP 5,000', labelAr: 'أقل من 5,000 جنيه' },
-            { labelEn: 'EGP 5,000 – 15,000', labelAr: '5,000 – 15,000 جنيه' },
-            { labelEn: 'More than EGP 15,000', labelAr: 'أكثر من 15,000 جنيه' },
+            { code: 'less_than_egp_5000', labelEn: 'Less than 5,000 EGP', labelAr: 'أقل من 5,000 جنيه' },
+            { code: 'egp_5000_15000', labelEn: '5,000 – 15,000 EGP', labelAr: '5,000 – 15,000 جنيه' },
+            { code: 'more_than_egp_15000', labelEn: 'More than 15,000 EGP', labelAr: 'أكثر من 15,000 جنيه' },
           ],
         },
       ],
     },
     {
-      code: 'preferences', titleEn: 'Preferences & Eligibility', titleAr: 'التفضيلات والأهلية',
+      code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات والأهلية',
       questions: [
         {
-          code: 'priority_factor', questionEn: 'Most important factor when choosing financing?', questionAr: 'أهم عامل عند اختيار التمويل؟',
+          code: 'priority_factor', questionEn: 'What matters most to you in a loan?', questionAr: 'أهم عامل عند اختيار التمويل؟',
           isRequired: false,
           options: [
-            { labelEn: 'Lowest monthly installment', labelAr: 'أقل قسط شهري' },
-            { labelEn: 'Lowest interest rate', labelAr: 'أقل سعر فائدة' },
-            { labelEn: 'Fastest approval', labelAr: 'أسرع موافقة' },
-            { labelEn: 'Least documentation required', labelAr: 'أقل أوراق مطلوبة' },
-            { labelEn: 'Flexible repayment', labelAr: 'سداد مرن' },
+            { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
+            { code: 'lowest_interest_rate', labelEn: 'The lowest interest', labelAr: 'أقل سعر فائدة' },
+            { code: 'fastest_approval', labelEn: 'The fastest answer', labelAr: 'أسرع موافقة' },
+            { code: 'least_documentation_required', labelEn: 'The fewest papers', labelAr: 'أقل أوراق مطلوبة' },
+            { code: 'flexible_repayment', labelEn: 'Easy ways to pay it back', labelAr: 'سداد مرن' },
           ],
         },
-        { code: 'prior_rejection', questionEn: 'Have you ever had a financing application rejected?', questionAr: 'هل سبق رفض طلب تمويل لك؟', isRequired: false, options: YESNO(25, 100) },
-        { code: 'needs_consultant', questionEn: 'Do you need assistance from a financing consultant?', questionAr: 'هل تحتاج مساعدة مستشار تمويل؟', isRequired: false, options: YESNO() },
+        { code: 'prior_rejection', questionEn: 'Has a bank ever said no to you?', questionAr: 'هل سبق رفض طلب تمويل لك؟', isRequired: false, options: YESNO(25, 100) },
+        { code: 'needs_consultant', questionEn: 'Do you want help from a loan expert?', questionAr: 'هل تحتاج مساعدة مستشار تمويل؟', isRequired: false, options: YESNO() },
       ],
     },
   ],
@@ -373,112 +381,112 @@ const MORTGAGE: CategoryConfig = {
   category: 'mortgage',
   groups: [
     {
-      code: 'property_financing', titleEn: 'Property & Financing Information', titleAr: 'معلومات العقار والتمويل',
+      code: 'property_financing', titleEn: 'About the home', titleAr: 'معلومات العقار والتمويل',
       questions: [
         {
-          code: 'property_type', questionEn: 'What type of property would you like to finance?', questionAr: 'ما نوع العقار الذي ترغب في تمويله؟', isRequired: false,
+          code: 'property_type', questionEn: 'What kind of place do you want to buy?', questionAr: 'ما نوع العقار الذي ترغب في تمويله؟', isRequired: false,
           options: [
-            { labelEn: 'Apartment', labelAr: 'شقة' },
-            { labelEn: 'Villa', labelAr: 'فيلا' },
-            { labelEn: 'Duplex', labelAr: 'دوبلكس' },
-            { labelEn: 'Commercial shop', labelAr: 'محل تجاري' },
-            { labelEn: 'Administrative office', labelAr: 'مكتب إداري' },
-            { labelEn: 'Other', labelAr: 'أخرى' },
+            { code: 'apartment', labelEn: 'Apartment', labelAr: 'شقة' },
+            { code: 'villa', labelEn: 'Villa', labelAr: 'فيلا' },
+            { code: 'duplex', labelEn: 'Duplex', labelAr: 'دوبلكس' },
+            { code: 'commercial_shop', labelEn: 'Shop', labelAr: 'محل تجاري' },
+            { code: 'administrative_office', labelEn: 'Office', labelAr: 'مكتب إداري' },
+            { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
           ],
         },
-        { code: 'in_compound', questionEn: 'Is the property within a residential compound?', questionAr: 'هل العقار داخل كمبوند سكني؟', isRequired: false, options: YESNO() },
+        { code: 'in_compound', questionEn: 'Is the place inside a compound?', questionAr: 'هل العقار داخل كمبوند سكني؟', isRequired: false, options: YESNO() },
         {
-          code: 'registration_status', questionEn: "What is the property's registration status?", questionAr: 'ما حالة تسجيل العقار؟', isRequired: false,
+          code: 'registration_status', questionEn: 'Is the property registered with the government?', questionAr: 'ما حالة تسجيل العقار؟', isRequired: false,
           options: [
-            { labelEn: 'Officially registered', labelAr: 'مسجل رسميًا' },
-            { labelEn: 'Eligible for registration', labelAr: 'قابل للتسجيل' },
-            { labelEn: 'Not registered', labelAr: 'غير مسجل' },
-            { labelEn: 'Not sure', labelAr: 'غير متأكد' },
+            { code: 'officially_registered', labelEn: 'Yes, it is registered', labelAr: 'مسجل رسميًا' },
+            { code: 'eligible_for_registration', labelEn: 'Not yet, but it can be', labelAr: 'قابل للتسجيل' },
+            { code: 'not_registered', labelEn: 'No, it is not', labelAr: 'غير مسجل' },
+            { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد' },
           ],
         },
         {
           // Options expanded from the active `governorate` platform-enumeration members.
-          code: 'governorate', questionEn: 'In which governorate is the property located?', questionAr: 'في أي محافظة يقع العقار؟', isRequired: false,
+          code: 'governorate', questionEn: 'Which governorate is the place in?', questionAr: 'في أي محافظة يقع العقار؟', isRequired: false,
           optionsFromEnum: 'governorate', options: [],
         },
         {
-          code: 'property_value', questionEn: 'What is the approximate property value?', questionAr: 'ما القيمة التقريبية للعقار؟',
+          code: 'property_value', questionEn: 'About how much is the place worth?', questionAr: 'ما القيمة التقريبية للعقار؟',
           options: [
-            { labelEn: 'Less than EGP 1 million', labelAr: 'أقل من مليون جنيه' },
-            { labelEn: 'EGP 1 – 3 million', labelAr: '1 – 3 مليون جنيه' },
-            { labelEn: 'EGP 3 – 5 million', labelAr: '3 – 5 مليون جنيه' },
-            { labelEn: 'More than EGP 5 million', labelAr: 'أكثر من 5 مليون جنيه' },
+            { code: 'less_than_egp_1_million', labelEn: 'Less than 1 million EGP', labelAr: 'أقل من مليون جنيه' },
+            { code: 'egp_1_3_million', labelEn: '1 – 3 million EGP', labelAr: '1 – 3 مليون جنيه' },
+            { code: 'egp_3_5_million', labelEn: '3 – 5 million EGP', labelAr: '3 – 5 مليون جنيه' },
+            { code: 'more_than_egp_5_million', labelEn: 'More than 5 million EGP', labelAr: 'أكثر من 5 مليون جنيه' },
           ],
         },
         {
-          code: 'down_payment', questionEn: 'How much down payment do you have available?', questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
+          code: 'down_payment', questionEn: 'How much money can you pay up front?', questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
           options: [
-            { labelEn: 'Less than 10%', labelAr: 'أقل من 10%', points: 20 },
-            { labelEn: '10% – 20%', labelAr: '10% – 20%', points: 50 },
-            { labelEn: '20% – 30%', labelAr: '20% – 30%', points: 75 },
-            { labelEn: 'More than 30%', labelAr: 'أكثر من 30%', points: 100 },
+            { code: 'less_than_10', labelEn: 'Less than 10%', labelAr: 'أقل من 10%', points: 20 },
+            { code: '10_20', labelEn: '10% – 20%', labelAr: '10% – 20%', points: 50 },
+            { code: '20_30', labelEn: '20% – 30%', labelAr: '20% – 30%', points: 75 },
+            { code: 'more_than_30', labelEn: 'More than 30%', labelAr: 'أكثر من 30%', points: 100 },
           ],
         },
         {
-          code: 'repayment_period', questionEn: 'What repayment period suits you?', questionAr: 'ما مدة السداد المناسبة لك؟',
+          code: 'repayment_period', questionEn: 'How long do you want to pay it back?', questionAr: 'ما مدة السداد المناسبة لك؟',
           options: [
-            { labelEn: 'Less than 10 years', labelAr: 'أقل من 10 سنوات' },
-            { labelEn: '10 – 15 years', labelAr: '10 – 15 سنة' },
-            { labelEn: '15 – 20 years', labelAr: '15 – 20 سنة' },
-            { labelEn: 'More than 20 years', labelAr: 'أكثر من 20 سنة' },
+            { code: 'less_than_10_years', labelEn: 'Less than 10 years', labelAr: 'أقل من 10 سنوات' },
+            { code: '10_15_years', labelEn: '10 – 15 years', labelAr: '10 – 15 سنة' },
+            { code: '15_20_years', labelEn: '15 – 20 years', labelAr: '15 – 20 سنة' },
+            { code: 'more_than_20_years', labelEn: 'More than 20 years', labelAr: 'أكثر من 20 سنة' },
           ],
         },
         AGE_Q,
       ],
     },
     {
-      code: 'income_employment', titleEn: 'Income & Employment Information', titleAr: 'معلومات الدخل والعمل',
+      code: 'income_employment', titleEn: 'More about your income and work', titleAr: 'معلومات الدخل والعمل',
       questions: [
-        { code: 'employment_status', questionEn: 'What is your employment status?', questionAr: 'ما هي حالتك الوظيفية؟', options: EMPLOYMENT_OPTIONS },
+        { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟', options: EMPLOYMENT_OPTIONS },
         {
-          code: 'monthly_income', questionEn: 'What is your average monthly income?', questionAr: 'ما متوسط دخلك الشهري؟',
+          code: 'monthly_income', questionEn: 'How much do you usually get each month?', questionAr: 'ما متوسط دخلك الشهري؟',
           options: [
-            { labelEn: 'Less than EGP 15,000', labelAr: 'أقل من 15,000 جنيه', points: 20 },
-            { labelEn: 'EGP 15,000 – 30,000', labelAr: '15,000 – 30,000 جنيه', points: 50 },
-            { labelEn: 'EGP 30,000 – 60,000', labelAr: '30,000 – 60,000 جنيه', points: 75 },
-            { labelEn: 'More than EGP 60,000', labelAr: 'أكثر من 60,000 جنيه', points: 100 },
+            { code: 'less_than_egp_15000', labelEn: 'Less than 15,000 EGP', labelAr: 'أقل من 15,000 جنيه', points: 20 },
+            { code: 'egp_15000_30000', labelEn: '15,000 – 30,000 EGP', labelAr: '15,000 – 30,000 جنيه', points: 50 },
+            { code: 'egp_30000_60000', labelEn: '30,000 – 60,000 EGP', labelAr: '30,000 – 60,000 جنيه', points: 75 },
+            { code: 'more_than_egp_60000', labelEn: 'More than 60,000 EGP', labelAr: 'أكثر من 60,000 جنيه', points: 100 },
           ],
         },
         SALARY_TRANSFER_Q,
-        { code: 'additional_income', questionEn: 'Do you have additional sources of income?', questionAr: 'هل لديك مصادر دخل إضافية؟', isRequired: false, options: YESNO(100, 70) },
-        { code: 'active_account', questionEn: 'Do you have an active bank account?', questionAr: 'هل لديك حساب بنكي نشط؟', isRequired: false, options: YESNO(100, 40) },
+        { code: 'additional_income', questionEn: 'Do you get money from anywhere else?', questionAr: 'هل لديك مصادر دخل إضافية؟', isRequired: false, options: YESNO(100, 70) },
+        { code: 'active_account', questionEn: 'Do you have a bank account you use?', questionAr: 'هل لديك حساب بنكي نشط؟', isRequired: false, options: YESNO(100, 40) },
       ],
     },
     {
-      code: 'credit_status', titleEn: 'Credit Status', titleAr: 'الحالة الائتمانية',
+      code: 'credit_status', titleEn: 'Your loans and cards', titleAr: 'الحالة الائتمانية',
       questions: [
         CURRENT_LOANS_Q,
         {
-          code: 'current_installments', questionEn: 'What is your total current monthly installment amount?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
+          code: 'current_installments', questionEn: 'How much do you pay each month now?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
           options: [
-            { labelEn: 'Less than EGP 5,000', labelAr: 'أقل من 5,000 جنيه', points: 100 },
-            { labelEn: 'EGP 5,000 – 15,000', labelAr: '5,000 – 15,000 جنيه', points: 70 },
-            { labelEn: 'EGP 15,000 – 30,000', labelAr: '15,000 – 30,000 جنيه', points: 45 },
-            { labelEn: 'More than EGP 30,000', labelAr: 'أكثر من 30,000 جنيه', points: 20 },
+            { code: 'less_than_egp_5000', labelEn: 'Less than 5,000 EGP', labelAr: 'أقل من 5,000 جنيه', points: 100 },
+            { code: 'egp_5000_15000', labelEn: '5,000 – 15,000 EGP', labelAr: '5,000 – 15,000 جنيه', points: 70 },
+            { code: 'egp_15000_30000', labelEn: '15,000 – 30,000 EGP', labelAr: '15,000 – 30,000 جنيه', points: 45 },
+            { code: 'more_than_egp_30000', labelEn: 'More than 30,000 EGP', labelAr: 'أكثر من 30,000 جنيه', points: 20 },
           ],
         },
-        { code: 'prior_rejection', questionEn: 'Have you ever had a mortgage application rejected?', questionAr: 'هل سبق رفض طلب تمويل عقاري لك؟', isRequired: false, options: YESNO(25, 100) },
+        { code: 'prior_rejection', questionEn: 'Has a bank ever said no to a home loan?', questionAr: 'هل سبق رفض طلب تمويل عقاري لك؟', isRequired: false, options: YESNO(25, 100) },
       ],
     },
     {
-      code: 'preferences', titleEn: 'Preferences', titleAr: 'التفضيلات',
+      code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات',
       questions: [
         {
-          code: 'priority_factor', questionEn: 'Most important thing you look for in a mortgage?', questionAr: 'أهم ما تبحث عنه في التمويل العقاري؟', isRequired: false,
+          code: 'priority_factor', questionEn: 'What matters most to you in a home loan?', questionAr: 'أهم ما تبحث عنه في التمويل العقاري؟', isRequired: false,
           options: [
-            { labelEn: 'Lowest monthly installment', labelAr: 'أقل قسط شهري' },
-            { labelEn: 'Longest repayment period', labelAr: 'أطول مدة سداد' },
-            { labelEn: 'Lowest down payment', labelAr: 'أقل دفعة مقدمة' },
-            { labelEn: 'Fastest approval', labelAr: 'أسرع موافقة' },
-            { labelEn: 'Lowest administrative fees', labelAr: 'أقل رسوم إدارية' },
+            { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
+            { code: 'longest_repayment_period', labelEn: 'The longest time to pay', labelAr: 'أطول مدة سداد' },
+            { code: 'lowest_down_payment', labelEn: 'The smallest amount up front', labelAr: 'أقل دفعة مقدمة' },
+            { code: 'fastest_approval', labelEn: 'The fastest answer', labelAr: 'أسرع موافقة' },
+            { code: 'lowest_administrative_fees', labelEn: 'The lowest fees', labelAr: 'أقل رسوم إدارية' },
           ],
         },
-        { code: 'needs_assistance', questionEn: 'Do you need assistance preparing documents?', questionAr: 'هل تحتاج مساعدة في تجهيز المستندات؟', isRequired: false, options: YESNO() },
+        { code: 'needs_assistance', questionEn: 'Do you want help getting your papers ready?', questionAr: 'هل تحتاج مساعدة في تجهيز المستندات؟', isRequired: false, options: YESNO() },
       ],
     },
   ],
@@ -489,102 +497,102 @@ const CAR: CategoryConfig = {
   category: 'car',
   groups: [
     {
-      code: 'vehicle_financing', titleEn: 'Vehicle & Financing Information', titleAr: 'معلومات السيارة والتمويل',
+      code: 'vehicle_financing', titleEn: 'About the car', titleAr: 'معلومات السيارة والتمويل',
       questions: [
-        { code: 'vehicle_condition', questionEn: 'Is the vehicle new or used?', questionAr: 'هل السيارة جديدة أم مستعملة؟', isRequired: false, options: [
-          { labelEn: 'New', labelAr: 'جديدة' },
-          { labelEn: 'Used', labelAr: 'مستعملة' },
+        { code: 'vehicle_condition', questionEn: 'Is the car new or used?', questionAr: 'هل السيارة جديدة أم مستعملة؟', isRequired: false, options: [
+          { code: 'new', labelEn: 'New', labelAr: 'جديدة' },
+          { code: 'used', labelEn: 'Used', labelAr: 'مستعملة' },
         ] },
         {
-          code: 'model_year', questionEn: 'What is the vehicle model year?', questionAr: 'ما سنة موديل السيارة؟', isRequired: false,
+          code: 'model_year', questionEn: "What is the car's model year?", questionAr: 'ما سنة موديل السيارة؟', isRequired: false,
           options: [
-            { labelEn: 'Current year model', labelAr: 'موديل السنة الحالية' },
-            { labelEn: 'Within the last 3 years', labelAr: 'خلال آخر 3 سنوات' },
-            { labelEn: '3 to 5 years old', labelAr: 'من 3 إلى 5 سنوات' },
-            { labelEn: 'More than 5 years old', labelAr: 'أكثر من 5 سنوات' },
+            { code: 'current_year_model', labelEn: 'This year model', labelAr: 'موديل السنة الحالية' },
+            { code: 'within_the_last_3_years', labelEn: 'Up to 3 years old', labelAr: 'خلال آخر 3 سنوات' },
+            { code: '3_to_5_years_old', labelEn: '3 to 5 years old', labelAr: 'من 3 إلى 5 سنوات' },
+            { code: 'more_than_5_years_old', labelEn: 'More than 5 years old', labelAr: 'أكثر من 5 سنوات' },
           ],
         },
         {
-          code: 'vehicle_price', questionEn: 'What is the approximate vehicle price?', questionAr: 'ما السعر التقريبي للسيارة؟',
+          code: 'vehicle_price', questionEn: 'About how much does the car cost?', questionAr: 'ما السعر التقريبي للسيارة؟',
           options: [
-            { labelEn: 'Less than EGP 500,000', labelAr: 'أقل من 500,000 جنيه' },
-            { labelEn: 'EGP 500,000 – 1 million', labelAr: '500,000 – مليون جنيه' },
-            { labelEn: 'EGP 1 – 2 million', labelAr: '1 – 2 مليون جنيه' },
-            { labelEn: 'More than EGP 2 million', labelAr: 'أكثر من 2 مليون جنيه' },
+            { code: 'less_than_egp_500000', labelEn: 'Less than 500,000 EGP', labelAr: 'أقل من 500,000 جنيه' },
+            { code: 'egp_500000_1_million', labelEn: '500,000 – 1 million EGP', labelAr: '500,000 – مليون جنيه' },
+            { code: 'egp_1_2_million', labelEn: '1 – 2 million EGP', labelAr: '1 – 2 مليون جنيه' },
+            { code: 'more_than_egp_2_million', labelEn: 'More than 2 million EGP', labelAr: 'أكثر من 2 مليون جنيه' },
           ],
         },
         {
-          code: 'down_payment', questionEn: 'How much down payment do you have available?', questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
+          code: 'down_payment', questionEn: 'How much money can you pay up front?', questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
           options: [
-            { labelEn: 'No down payment', labelAr: 'بدون دفعة مقدمة', points: 10 },
-            { labelEn: 'Less than 20%', labelAr: 'أقل من 20%', points: 40 },
-            { labelEn: '20% – 40%', labelAr: '20% – 40%', points: 70 },
-            { labelEn: 'More than 40%', labelAr: 'أكثر من 40%', points: 100 },
+            { code: 'no_down_payment', labelEn: 'Nothing up front', labelAr: 'بدون دفعة مقدمة', points: 10 },
+            { code: 'less_than_20', labelEn: 'Less than 20%', labelAr: 'أقل من 20%', points: 40 },
+            { code: '20_40', labelEn: '20% – 40%', labelAr: '20% – 40%', points: 70 },
+            { code: 'more_than_40', labelEn: 'More than 40%', labelAr: 'أكثر من 40%', points: 100 },
           ],
         },
         {
-          code: 'repayment_period', questionEn: 'What repayment period suits you?', questionAr: 'ما مدة السداد المناسبة لك؟',
+          code: 'repayment_period', questionEn: 'How long do you want to pay it back?', questionAr: 'ما مدة السداد المناسبة لك؟',
           options: [
-            { labelEn: 'Less than 3 years', labelAr: 'أقل من 3 سنوات' },
-            { labelEn: '3 – 5 years', labelAr: '3 – 5 سنوات' },
-            { labelEn: '5 – 7 years', labelAr: '5 – 7 سنوات' },
-            { labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
+            { code: 'less_than_3_years', labelEn: 'Less than 3 years', labelAr: 'أقل من 3 سنوات' },
+            { code: '3_5_years', labelEn: '3 – 5 years', labelAr: '3 – 5 سنوات' },
+            { code: '5_7_years', labelEn: '5 – 7 years', labelAr: '5 – 7 سنوات' },
+            { code: 'more_than_7_years', labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
           ],
         },
         AGE_Q,
       ],
     },
     {
-      code: 'employment_income', titleEn: 'Employment & Income', titleAr: 'العمل والدخل',
+      code: 'employment_income', titleEn: 'Your job and pay', titleAr: 'العمل والدخل',
       questions: [
-        { code: 'employment_status', questionEn: 'What is your employment status?', questionAr: 'ما هي حالتك الوظيفية؟', options: EMPLOYMENT_OPTIONS },
+        { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟', options: EMPLOYMENT_OPTIONS },
         {
-          code: 'monthly_income', questionEn: 'What is your average monthly income?', questionAr: 'ما متوسط دخلك الشهري؟',
+          code: 'monthly_income', questionEn: 'How much do you usually get each month?', questionAr: 'ما متوسط دخلك الشهري؟',
           options: [
-            { labelEn: 'Less than EGP 10,000', labelAr: 'أقل من 10,000 جنيه', points: 20 },
-            { labelEn: 'EGP 10,000 – 25,000', labelAr: '10,000 – 25,000 جنيه', points: 50 },
-            { labelEn: 'EGP 25,000 – 50,000', labelAr: '25,000 – 50,000 جنيه', points: 75 },
-            { labelEn: 'More than EGP 50,000', labelAr: 'أكثر من 50,000 جنيه', points: 100 },
+            { code: 'less_than_egp_10000', labelEn: 'Less than 10,000 EGP', labelAr: 'أقل من 10,000 جنيه', points: 20 },
+            { code: 'egp_10000_25000', labelEn: '10,000 – 25,000 EGP', labelAr: '10,000 – 25,000 جنيه', points: 50 },
+            { code: 'egp_25000_50000', labelEn: '25,000 – 50,000 EGP', labelAr: '25,000 – 50,000 جنيه', points: 75 },
+            { code: 'more_than_egp_50000', labelEn: 'More than 50,000 EGP', labelAr: 'أكثر من 50,000 جنيه', points: 100 },
           ],
         },
         SALARY_TRANSFER_Q,
-        { code: 'employer_approved', questionEn: 'Is your employer approved by banks?', questionAr: 'هل جهة عملك معتمدة لدى البنوك؟', isRequired: false, options: [
-          { labelEn: 'Yes', labelAr: 'نعم', points: 100 },
-          { labelEn: 'No', labelAr: 'لا', points: 40 },
-          { labelEn: 'Not sure', labelAr: 'غير متأكد', points: 65 },
+        { code: 'employer_approved', questionEn: "Is the place you work at on the banks' approved list?", questionAr: 'هل جهة عملك معتمدة لدى البنوك؟', isRequired: false, options: [
+          { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
+          { code: 'no', labelEn: 'No', labelAr: 'لا', points: 40 },
+          { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد', points: 65 },
         ] },
       ],
     },
     {
-      code: 'financial_status', titleEn: 'Financial Status', titleAr: 'الحالة المالية',
+      code: 'financial_status', titleEn: 'Your overall money picture', titleAr: 'الحالة المالية',
       questions: [
         CURRENT_LOANS_Q,
         {
-          code: 'current_installments', questionEn: 'What is your total current monthly installment amount?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
+          code: 'current_installments', questionEn: 'How much do you pay each month now?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
           options: [
-            { labelEn: 'Less than EGP 3,000', labelAr: 'أقل من 3,000 جنيه', points: 100 },
-            { labelEn: 'EGP 3,000 – 7,000', labelAr: '3,000 – 7,000 جنيه', points: 70 },
-            { labelEn: 'EGP 7,000 – 15,000', labelAr: '7,000 – 15,000 جنيه', points: 45 },
-            { labelEn: 'More than EGP 15,000', labelAr: 'أكثر من 15,000 جنيه', points: 20 },
+            { code: 'less_than_egp_3000', labelEn: 'Less than 3,000 EGP', labelAr: 'أقل من 3,000 جنيه', points: 100 },
+            { code: 'egp_3000_7000', labelEn: '3,000 – 7,000 EGP', labelAr: '3,000 – 7,000 جنيه', points: 70 },
+            { code: 'egp_7000_15000', labelEn: '7,000 – 15,000 EGP', labelAr: '7,000 – 15,000 جنيه', points: 45 },
+            { code: 'more_than_egp_15000', labelEn: 'More than 15,000 EGP', labelAr: 'أكثر من 15,000 جنيه', points: 20 },
           ],
         },
-        { code: 'has_credit_card', questionEn: 'Do you have active credit cards?', questionAr: 'هل لديك بطاقات ائتمان نشطة؟', isRequired: false, options: YESNO() },
+        { code: 'has_credit_card', questionEn: 'Do you use any credit cards?', questionAr: 'هل لديك بطاقات ائتمان نشطة؟', isRequired: false, options: YESNO() },
       ],
     },
     {
-      code: 'preferences', titleEn: 'Preferences', titleAr: 'التفضيلات',
+      code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات',
       questions: [
         {
-          code: 'priority_factor', questionEn: 'Primary priority when choosing a car loan?', questionAr: 'أهم أولوية عند اختيار تمويل السيارة؟', isRequired: false,
+          code: 'priority_factor', questionEn: 'What matters most to you in a car loan?', questionAr: 'أهم أولوية عند اختيار تمويل السيارة؟', isRequired: false,
           options: [
-            { labelEn: 'Lowest down payment', labelAr: 'أقل دفعة مقدمة' },
-            { labelEn: 'Lowest monthly installment', labelAr: 'أقل قسط شهري' },
-            { labelEn: 'Fastest approval', labelAr: 'أسرع موافقة' },
-            { labelEn: 'Lowest interest rate', labelAr: 'أقل سعر فائدة' },
-            { labelEn: 'Financing without a guarantor', labelAr: 'تمويل بدون ضامن' },
+            { code: 'lowest_down_payment', labelEn: 'The smallest amount up front', labelAr: 'أقل دفعة مقدمة' },
+            { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
+            { code: 'fastest_approval', labelEn: 'The fastest answer', labelAr: 'أسرع موافقة' },
+            { code: 'lowest_interest_rate', labelEn: 'The lowest interest', labelAr: 'أقل سعر فائدة' },
+            { code: 'financing_without_a_guarantor', labelEn: 'No one has to sign for me', labelAr: 'تمويل بدون ضامن' },
           ],
         },
-        { code: 'wants_insurance', questionEn: 'Would you like vehicle insurance offers?', questionAr: 'هل ترغب في عروض تأمين السيارة؟', isRequired: false, options: YESNO() },
+        { code: 'wants_insurance', questionEn: 'Do you want car insurance offers?', questionAr: 'هل ترغب في عروض تأمين السيارة؟', isRequired: false, options: YESNO() },
       ],
     },
   ],
@@ -595,107 +603,109 @@ const BUSINESS: CategoryConfig = {
   category: 'business',
   groups: [
     {
-      code: 'business_financing', titleEn: 'Business & Financing Information', titleAr: 'معلومات النشاط والتمويل',
+      code: 'business_financing', titleEn: 'About your business', titleAr: 'معلومات النشاط والتمويل',
       questions: [
         {
-          code: 'activity_type', questionEn: 'What type of business activity do you operate?', questionAr: 'ما نوع النشاط التجاري الذي تديره؟', isRequired: false,
+          code: 'activity_type', questionEn: 'What kind of work does your business do?', questionAr: 'ما نوع النشاط التجاري الذي تديره؟', isRequired: false,
           options: [
-            { labelEn: 'Trade', labelAr: 'تجارة' },
-            { labelEn: 'Services', labelAr: 'خدمات' },
-            { labelEn: 'Restaurants & Cafés', labelAr: 'مطاعم وكافيهات' },
-            { labelEn: 'Manufacturing', labelAr: 'تصنيع' },
-            { labelEn: 'Technology', labelAr: 'تكنولوجيا' },
-            { labelEn: 'Other', labelAr: 'أخرى' },
+            { code: 'trade', labelEn: 'Buying and selling', labelAr: 'تجارة' },
+            { code: 'services', labelEn: 'Services', labelAr: 'خدمات' },
+            { code: 'restaurants_cafes', labelEn: 'Food and coffee shops', labelAr: 'مطاعم وكافيهات' },
+            { code: 'manufacturing', labelEn: 'Making or producing goods', labelAr: 'تصنيع' },
+            { code: 'technology', labelEn: 'Technology', labelAr: 'تكنولوجيا' },
+            { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
           ],
         },
         {
-          code: 'business_age', questionEn: 'How long has the business been operating?', questionAr: 'منذ متى والنشاط يعمل؟',
+          code: 'business_age', questionEn: 'How long has your business been open?', questionAr: 'منذ متى والنشاط يعمل؟',
           options: [
-            { labelEn: 'Less than 1 year', labelAr: 'أقل من سنة', points: 30 },
-            { labelEn: '1 to 2 years', labelAr: 'من 1 إلى 2 سنة', points: 60 },
-            { labelEn: 'More than 2 years', labelAr: 'أكثر من سنتين', points: 100 },
+            { code: 'less_than_1_year', labelEn: 'Less than 1 year', labelAr: 'أقل من سنة', points: 30 },
+            { code: '1_to_2_years', labelEn: '1 to 2 years', labelAr: 'من 1 إلى 2 سنة', points: 60 },
+            { code: 'more_than_2_years', labelEn: 'More than 2 years', labelAr: 'أكثر من سنتين', points: 100 },
           ],
         },
         {
-          code: 'financing_amount', questionEn: 'What is the approximate financing amount required?', questionAr: 'ما مبلغ التمويل التقريبي المطلوب؟',
+          code: 'financing_amount', questionEn: 'About how much money does the business need?', questionAr: 'ما مبلغ التمويل التقريبي المطلوب؟',
           options: [
-            { labelEn: 'Less than EGP 250,000', labelAr: 'أقل من 250,000 جنيه' },
-            { labelEn: 'EGP 250,000 – 1 million', labelAr: '250,000 – مليون جنيه' },
-            { labelEn: 'EGP 1 – 5 million', labelAr: '1 – 5 مليون جنيه' },
-            { labelEn: 'More than EGP 5 million', labelAr: 'أكثر من 5 مليون جنيه' },
+            { code: 'less_than_egp_250000', labelEn: 'Less than 250,000 EGP', labelAr: 'أقل من 250,000 جنيه' },
+            { code: 'egp_250000_1_million', labelEn: '250,000 – 1 million EGP', labelAr: '250,000 – مليون جنيه' },
+            { code: 'egp_1_5_million', labelEn: '1 – 5 million EGP', labelAr: '1 – 5 مليون جنيه' },
+            { code: 'more_than_egp_5_million', labelEn: 'More than 5 million EGP', labelAr: 'أكثر من 5 مليون جنيه' },
           ],
         },
         {
-          code: 'financing_purpose', questionEn: 'What is the primary purpose of the financing?', questionAr: 'ما الغرض الأساسي من التمويل؟', isRequired: false,
+          code: 'financing_purpose', questionEn: 'What will the business use the money for?', questionAr: 'ما الغرض الأساسي من التمويل؟', isRequired: false,
           options: [
-            { labelEn: 'Expansion', labelAr: 'توسع' },
-            { labelEn: 'Purchasing equipment', labelAr: 'شراء معدات' },
-            { labelEn: 'Working capital', labelAr: 'رأس مال عامل' },
-            { labelEn: 'Opening a new branch', labelAr: 'فتح فرع جديد' },
-            { labelEn: 'Settling obligations', labelAr: 'سداد التزامات' },
-            { labelEn: 'Other', labelAr: 'أخرى' },
+            { code: 'expansion', labelEn: 'Growing the business', labelAr: 'توسع' },
+            { code: 'purchasing_equipment', labelEn: 'Buying equipment', labelAr: 'شراء معدات' },
+            { code: 'working_capital', labelEn: 'Day to day running costs', labelAr: 'رأس مال عامل' },
+            { code: 'opening_a_new_branch', labelEn: 'Opening a new branch', labelAr: 'فتح فرع جديد' },
+            { code: 'settling_obligations', labelEn: 'Paying off what we owe', labelAr: 'سداد التزامات' },
+            { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
           ],
         },
         {
-          code: 'repayment_period', questionEn: 'What repayment period suits you?', questionAr: 'ما مدة السداد المناسبة لك؟',
+          code: 'repayment_period', questionEn: 'How long do you want to pay it back?', questionAr: 'ما مدة السداد المناسبة لك؟',
           options: [
-            { labelEn: 'Less than 2 years', labelAr: 'أقل من سنتين' },
-            { labelEn: '2 – 5 years', labelAr: '2 – 5 سنوات' },
-            { labelEn: 'More than 5 years', labelAr: 'أكثر من 5 سنوات' },
+            { code: 'less_than_2_years', labelEn: 'Less than 2 years', labelAr: 'أقل من سنتين' },
+            { code: '2_5_years', labelEn: '2 – 5 years', labelAr: '2 – 5 سنوات' },
+            { code: 'more_than_5_years', labelEn: 'More than 5 years', labelAr: 'أكثر من 5 سنوات' },
           ],
         },
       ],
     },
     {
-      code: 'financial_info', titleEn: 'Financial Information', titleAr: 'المعلومات المالية',
+      code: 'financial_info', titleEn: 'Your business money', titleAr: 'المعلومات المالية',
       questions: [
         {
-          code: 'monthly_revenue', questionEn: 'What is the average monthly business revenue?', questionAr: 'ما متوسط الإيرادات الشهرية للنشاط؟',
+          code: 'monthly_revenue', questionEn: 'How much money does the business make each month?', questionAr: 'ما متوسط الإيرادات الشهرية للنشاط؟',
           options: [
-            { labelEn: 'Less than EGP 50,000', labelAr: 'أقل من 50,000 جنيه', points: 20 },
-            { labelEn: 'EGP 50,000 – 200,000', labelAr: '50,000 – 200,000 جنيه', points: 50 },
-            { labelEn: 'EGP 200,000 – 500,000', labelAr: '200,000 – 500,000 جنيه', points: 75 },
-            { labelEn: 'More than EGP 500,000', labelAr: 'أكثر من 500,000 جنيه', points: 100 },
+            { code: 'less_than_egp_50000', labelEn: 'Less than 50,000 EGP', labelAr: 'أقل من 50,000 جنيه', points: 20 },
+            { code: 'egp_50000_200000', labelEn: '50,000 – 200,000 EGP', labelAr: '50,000 – 200,000 جنيه', points: 50 },
+            { code: 'egp_200000_500000', labelEn: '200,000 – 500,000 EGP', labelAr: '200,000 – 500,000 جنيه', points: 75 },
+            { code: 'more_than_egp_500000', labelEn: 'More than 500,000 EGP', labelAr: 'أكثر من 500,000 جنيه', points: 100 },
           ],
         },
-        { code: 'business_account', questionEn: 'Do you have a business bank account?', questionAr: 'هل لديك حساب بنكي للنشاط؟', isRequired: false, options: YESNO(100, 50) },
-        { code: 'registered', questionEn: 'Is the business officially registered?', questionAr: 'هل النشاط مسجل رسميًا؟', isRequired: false, options: [
-          { labelEn: 'Yes', labelAr: 'نعم', points: 100 },
-          { labelEn: 'No', labelAr: 'لا', points: 40 },
-          { labelEn: 'Registration in progress', labelAr: 'التسجيل جارٍ', points: 65 },
+        { code: 'business_account', questionEn: 'Do you have a bank account for the business?', questionAr: 'هل لديك حساب بنكي للنشاط؟', isRequired: false, options: YESNO(100, 50) },
+        { code: 'registered', questionEn: 'Is your business officially registered?', questionAr: 'هل النشاط مسجل رسميًا؟', isRequired: false, options: [
+          { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
+          { code: 'no', labelEn: 'No', labelAr: 'لا', points: 40 },
+          { code: 'registration_in_progress', labelEn: 'We are registering it now', labelAr: 'التسجيل جارٍ', points: 65 },
         ] },
-        { code: 'tax_registration', questionEn: 'Do you have a tax or commercial registration?', questionAr: 'هل لديك سجل ضريبي أو تجاري؟', isRequired: false, options: YESNO(100, 45) },
+        { code: 'tax_registration', questionEn: 'Do you have a tax card or commercial register?', questionAr: 'هل لديك سجل ضريبي أو تجاري؟', isRequired: false, options: YESNO(100, 45) },
       ],
     },
     {
-      code: 'obligations_credit', titleEn: 'Obligations & Credit Status', titleAr: 'الالتزامات والحالة الائتمانية',
+      code: 'obligations_credit', titleEn: 'Business loans you have', titleAr: 'الالتزامات والحالة الائتمانية',
       questions: [
-        { code: 'current_facilities', questionEn: 'Does the business currently have financing facilities or loans?', questionAr: 'هل لدى النشاط تسهيلات أو قروض حالية؟', options: YESNO(40, 100) },
+        { code: 'current_facilities', questionEn: 'Does the business have any loans or credit right now?', questionAr: 'هل لدى النشاط تسهيلات أو قروض حالية؟', options: YESNO(40, 100) },
         {
-          code: 'current_installments', questionEn: 'Total current monthly financial obligation amount?', questionAr: 'إجمالي الالتزام المالي الشهري الحالي؟',
+          code: 'current_installments', questionEn: 'How much does the business pay each month now?', questionAr: 'إجمالي الالتزام المالي الشهري الحالي؟',
           options: [
-            { labelEn: 'Less than EGP 10,000', labelAr: 'أقل من 10,000 جنيه', points: 100 },
-            { labelEn: 'EGP 10,000 – 50,000', labelAr: '10,000 – 50,000 جنيه', points: 60 },
-            { labelEn: 'More than EGP 50,000', labelAr: 'أكثر من 50,000 جنيه', points: 25 },
+            { code: 'less_than_egp_10000', labelEn: 'Less than 10,000 EGP', labelAr: 'أقل من 10,000 جنيه', points: 100 },
+            { code: 'egp_10000_50000', labelEn: '10,000 – 50,000 EGP', labelAr: '10,000 – 50,000 جنيه', points: 60 },
+            { code: 'more_than_egp_50000', labelEn: 'More than 50,000 EGP', labelAr: 'أكثر من 50,000 جنيه', points: 25 },
           ],
         },
-        { code: 'prior_rejection', questionEn: 'Has a financing request for the business ever been rejected?', questionAr: 'هل سبق رفض طلب تمويل للنشاط؟', isRequired: false, options: YESNO(25, 100) },
+        { code: 'prior_rejection', questionEn: 'Has a bank ever said no to your business?', questionAr: 'هل سبق رفض طلب تمويل للنشاط؟', isRequired: false, options: YESNO(25, 100) },
       ],
     },
     {
-      code: 'preferences', titleEn: 'Preferences & Support', titleAr: 'التفضيلات والدعم',
+      code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات والدعم',
       questions: [
         {
-          code: 'priority_factor', questionEn: 'Most important thing in business financing?', questionAr: 'أهم ما تبحث عنه في تمويل النشاط؟', isRequired: false,
+          code: 'priority_factor', questionEn: 'What matters most to you in a business loan?', questionAr: 'أهم ما تبحث عنه في تمويل النشاط؟', isRequired: false,
           options: [
-            { labelEn: 'Fast approval', labelAr: 'موافقة سريعة' },
-            { labelEn: 'Flexible repayment', labelAr: 'سداد مرن' },
-            { labelEn: 'Highest financing amount', labelAr: 'أعلى مبلغ تمويل' },
-            { labelEn: 'Lowest interest rate', labelAr: 'أقل سعر فائدة' },
-            { labelEn: 'Least documentation required', labelAr: 'أقل أوراق مطلوبة' },
+            // Sits in the same merged list as `fastest_approval`, so the two must
+            // read as a real choice and not as the same sentence twice.
+            { code: 'fast_approval', labelEn: 'A quick answer, even if not the fastest', labelAr: 'موافقة سريعة' },
+            { code: 'flexible_repayment', labelEn: 'Easy ways to pay it back', labelAr: 'سداد مرن' },
+            { code: 'highest_financing_amount', labelEn: 'The biggest amount', labelAr: 'أعلى مبلغ تمويل' },
+            { code: 'lowest_interest_rate', labelEn: 'The lowest interest', labelAr: 'أقل سعر فائدة' },
+            { code: 'least_documentation_required', labelEn: 'The fewest papers', labelAr: 'أقل أوراق مطلوبة' },
           ],
         },
-        { code: 'needs_consultation', questionEn: 'Do you need consultation from a business financing expert?', questionAr: 'هل تحتاج استشارة خبير تمويل أعمال؟', isRequired: false, options: YESNO() },
+        { code: 'needs_consultation', questionEn: 'Do you want help from a business loan expert?', questionAr: 'هل تحتاج استشارة خبير تمويل أعمال؟', isRequired: false, options: YESNO() },
       ],
     },
   ],

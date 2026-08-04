@@ -35,7 +35,11 @@ export interface ApplicationOfferDto {
   selfDeclared: boolean;
   /** True when the authenticated customer has already saved this offer. */
   isSaved: boolean;
+  /** Borrowing ceiling at this program, frozen at match time. */
   maxLoanAvailableEGP?: string;
+  /** The ratio this offer lands at, and the cap it was measured against. */
+  dbrPercent?: string;
+  dbrCapPercent?: string;
 }
 
 export interface ApplicationListItemDto {

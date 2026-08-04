@@ -33,6 +33,8 @@
   --ant-error-color-outline: rgba(193, 102, 107, 0.20);
 
   // ===== Spacing (4px base) ==================================================
+  // Below the base step: optical nudges only (chip padding, icon baselines).
+  --space-0-5: 2px;
   --space-1: 4px;
   --space-2: 8px;
   --space-2-5: 10px;
@@ -58,6 +60,17 @@
   --motion-duration-slow: 280ms;
   --motion-easing-standard: cubic-bezier(0.2, 0.0, 0.0, 1.0);
   --motion-easing-emphasized: cubic-bezier(0.2, 0.0, 0.0, 1.0);
+  // Per-cell entrance offset when a grid stages itself in, and the loop length
+  // for ambient shimmer/sweep.
+  --motion-stagger: 40ms;
+  --motion-ambient: 1.4s;
+
+  // ===== Fixed control blocks ================================================
+  // Square affordances that must not scale with type: avatars, channel tiles.
+  --icon-tile-sm: 30px;
+  --rule-width-accent: 3px;
+  --skeleton-block-sm: 168px;
+  --skeleton-block-lg: 280px;
 
   // ===== Focus ring (WCAG 2.2 AA) ============================================
   --focus-ring-width: 2px;

@@ -22,13 +22,40 @@
       <trans-unit id="forcedChange.hint.breach" datatype="html"><source>Not in any known breach</source><target>غير موجودة في أي تسريب معروف</target></trans-unit>
       <trans-unit id="forcedChange.submit" datatype="html"><source>Save and continue</source><target>حفظ ومتابعة</target></trans-unit>
 
+      <trans-unit id="selfChange.eyebrow" datatype="html"><source>Account security</source><target>أمان الحساب</target></trans-unit>
       <trans-unit id="selfChange.title" datatype="html"><source>Change password</source><target>تغيير كلمة المرور</target></trans-unit>
+      <trans-unit id="selfChange.subtitle" datatype="html"><source>Set a new password for your admin account. Every other session ends the moment it saves.</source><target>عيّن كلمة مرور جديدة لحسابك الإداري. تنتهي كل جلساتك الأخرى فور الحفظ.</target></trans-unit>
       <trans-unit id="selfChange.currentPassword" datatype="html"><source>Current password</source><target>كلمة المرور الحالية</target></trans-unit>
+      <trans-unit id="selfChange.currentPassword.hint" datatype="html"><source>Verified before anything changes.</source><target>نتحقق منها قبل أي تغيير.</target></trans-unit>
+      <trans-unit id="selfChange.capsLock" datatype="html"><source>Caps Lock is on.</source><target>مفتاح Caps Lock مُفعّل.</target></trans-unit>
       <trans-unit id="selfChange.newPassword" datatype="html"><source>New password</source><target>كلمة المرور الجديدة</target></trans-unit>
-      <trans-unit id="selfChange.tooShort" datatype="html"><source>At least 12 characters.</source><target>12 حرفاً على الأقل.</target></trans-unit>
+      <trans-unit id="selfChange.show" datatype="html"><source>Show password</source><target>إظهار كلمة المرور</target></trans-unit>
+      <trans-unit id="selfChange.hide" datatype="html"><source>Hide password</source><target>إخفاء كلمة المرور</target></trans-unit>
+      <trans-unit id="selfChange.strength" datatype="html"><source>Strength</source><target>القوة</target></trans-unit>
+      <trans-unit id="selfChange.strengthAria" datatype="html"><source>New password strength</source><target>قوة كلمة المرور الجديدة</target></trans-unit>
+      <trans-unit id="selfChange.strength.weak" datatype="html"><source>Weak</source><target>ضعيفة</target></trans-unit>
+      <trans-unit id="selfChange.strength.fair" datatype="html"><source>Fair</source><target>متوسطة</target></trans-unit>
+      <trans-unit id="selfChange.strength.strong" datatype="html"><source>Strong</source><target>قوية</target></trans-unit>
+      <trans-unit id="selfChange.strength.excellent" datatype="html"><source>Excellent</source><target>ممتازة</target></trans-unit>
+      <trans-unit id="selfChange.requirements" datatype="html"><source>Requirements</source><target>المتطلبات</target></trans-unit>
+      <trans-unit id="selfChange.requirementsAria" datatype="html"><source>Password requirements</source><target>متطلبات كلمة المرور</target></trans-unit>
+      <trans-unit id="selfChange.rule.length" datatype="html"><source>12–128 characters</source><target>من 12 إلى 128 حرفاً</target></trans-unit>
+      <trans-unit id="selfChange.rule.distinct" datatype="html"><source>Different from your current password</source><target>مختلفة عن كلمة المرور الحالية</target></trans-unit>
+      <trans-unit id="selfChange.rule.common" datatype="html"><source>Not a commonly used password</source><target>ليست كلمة مرور شائعة الاستخدام</target></trans-unit>
+      <trans-unit id="selfChange.rule.breach" datatype="html"><source>Not found in a known data breach</source><target>غير موجودة في أي تسريب بيانات معروف</target></trans-unit>
+      <trans-unit id="selfChange.rule.deferred" datatype="html"><source>Checked when you save</source><target>يتم التحقق منها عند الحفظ</target></trans-unit>
+      <trans-unit id="selfChange.rule.checking" datatype="html"><source>Checking…</source><target>جارٍ التحقق…</target></trans-unit>
+      <trans-unit id="selfChange.consequence.title" datatype="html"><source>Saving ends your other sessions</source><target>الحفظ ينهي جلساتك الأخرى</target></trans-unit>
+      <trans-unit id="selfChange.consequence.body" datatype="html"><source>This browser stays signed in. Every other device signs out immediately.</source><target>يبقى هذا المتصفح مسجّل الدخول، وتُسجَّل بقية الأجهزة خارج الحساب فوراً.</target></trans-unit>
+      <trans-unit id="selfChange.lastSignIn" datatype="html"><source>Last sign-in</source><target>آخر تسجيل دخول</target></trans-unit>
+      <trans-unit id="selfChange.lastSignIn.never" datatype="html"><source>Not recorded</source><target>غير مسجّل</target></trans-unit>
+      <trans-unit id="selfChange.error.title" datatype="html"><source>Couldn't update your password</source><target>تعذّر تحديث كلمة المرور</target></trans-unit>
       <trans-unit id="selfChange.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
-      <trans-unit id="selfChange.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
-      <trans-unit id="selfChange.success" datatype="html"><source>Password updated. Other devices have been signed out.</source><target>تم تحديث كلمة المرور. تم تسجيل الخروج من الأجهزة الأخرى.</target></trans-unit>
+      <trans-unit id="selfChange.save" datatype="html"><source>Update password</source><target>تحديث كلمة المرور</target></trans-unit>
+      <trans-unit id="selfChange.submitting" datatype="html"><source>Updating…</source><target>جارٍ التحديث…</target></trans-unit>
+      <trans-unit id="selfChange.success.title" datatype="html"><source>Password updated</source><target>تم تحديث كلمة المرور</target></trans-unit>
+      <trans-unit id="selfChange.success.body" datatype="html"><source>Your other devices have been signed out.</source><target>تم تسجيل الخروج من أجهزتك الأخرى.</target></trans-unit>
+      <trans-unit id="selfChange.success.cta" datatype="html"><source>Go to dashboard</source><target>الذهاب إلى لوحة التحكم</target></trans-unit>
 
       <trans-unit id="topBar.brand" datatype="html"><source>Masrafy</source><target>مصرفي</target></trans-unit>
       <trans-unit id="topBar.userMenu" datatype="html"><source>User menu for {$INTERPOLATION}, role {$INTERPOLATION_1}</source><target>قائمة المستخدم لـ {$INTERPOLATION}، الدور {$INTERPOLATION_1}</target></trans-unit>
@@ -53,6 +80,8 @@
       <trans-unit id="bank_detail.programs.add" datatype="html"><source>Add program</source><target>إضافة برنامج</target></trans-unit>
       <trans-unit id="bank_detail.programs.empty" datatype="html"><source>No programs yet for this bank.</source><target>لا توجد برامج لهذا البنك بعد.</target></trans-unit>
       <trans-unit id="bank_detail.programs.add_first" datatype="html"><source>Add the first program</source><target>أضف أول برنامج</target></trans-unit>
+      <trans-unit id="bank_detail.programs.cat_empty" datatype="html"><source>No <x id="INTERPOLATION" equiv-text="{{ section.label }}"/> programs yet</source><target>لا توجد برامج في فئة <x id="INTERPOLATION" equiv-text="{{ section.label }}"/> بعد</target></trans-unit>
+      <trans-unit id="bank_detail.programs.cat_empty_hint" datatype="html"><source>Add the first one to make it available to applicants.</source><target>أضف أول برنامج ليصبح متاحًا لمقدمي الطلبات.</target></trans-unit>
       <trans-unit id="bank_detail.col.name" datatype="html"><source>Name</source><target>الاسم</target></trans-unit>
       <trans-unit id="bank_detail.col.code" datatype="html"><source>Code</source><target>الرمز</target></trans-unit>
       <trans-unit id="bank_detail.col.category" datatype="html"><source>Category</source><target>الفئة</target></trans-unit>
@@ -119,6 +148,172 @@
       <trans-unit id="dash.kicker.manager" datatype="html"><source>Sales manager console</source><target>وحدة مدير المبيعات</target></trans-unit>
       <trans-unit id="dash.kicker.agent" datatype="html"><source>Sales agent console</source><target>وحدة مندوب المبيعات</target></trans-unit>
       <trans-unit id="dash.kicker.analyst" datatype="html"><source>Analyst console</source><target>وحدة المحلل</target></trans-unit>
+      <trans-unit id="dash.greeting" datatype="html"><source>Welcome back, <x id="PH"/>.</source><target>أهلاً بعودتك، <x id="PH"/>.</target></trans-unit>
+      <trans-unit id="dash.greetingAnon" datatype="html"><source>Welcome to Masrafy.</source><target>أهلاً بك في مصرفي.</target></trans-unit>
+      <trans-unit id="dash.refresh" datatype="html"><source>Refresh</source><target>تحديث</target></trans-unit>
+      <trans-unit id="dash.retry" datatype="html"><source>Try again</source><target>حاول مرة أخرى</target></trans-unit>
+      <trans-unit id="dash.error" datatype="html"><source>The desk could not load its numbers. Nothing is lost — try again.</source><target>تعذّر تحميل أرقام لوحة العمل. لم يُفقد شيء — حاول مرة أخرى.</target></trans-unit>
+      <trans-unit id="dash.updated" datatype="html"><source>Updated <x id="PH"/></source><target>آخر تحديث <x id="PH"/></target></trans-unit>
+      <trans-unit id="dash.platform.aria" datatype="html"><source>Platform totals</source><target>إجماليات المنصة</target></trans-unit>
+      <trans-unit id="dash.window.truncated" datatype="html"><source>Readings cover the <x id="PH"/> most recent applications.</source><target>القراءات تغطي أحدث <x id="PH"/> طلب.</target></trans-unit>
+      <trans-unit id="dash.window.all" datatype="html"><source>Readings cover all <x id="PH"/> applications.</source><target>القراءات تغطي كل الطلبات (<x id="PH"/>).</target></trans-unit>
+      <trans-unit id="dash.brief.late" datatype="html"><source><x id="PH"/> leads past the 24h target — the oldest has waited <x id="PH_1"/>.</source><target><x id="PH"/> طلب تجاوز هدف الـ 24 ساعة — أقدمها انتظر <x id="PH_1"/>.</target></trans-unit>
+      <trans-unit id="dash.brief.onTime" datatype="html"><source><x id="PH"/> new leads waiting, all inside the 24h target.</source><target><x id="PH"/> طلب جديد في الانتظار، وكلها داخل هدف الـ 24 ساعة.</target></trans-unit>
+      <trans-unit id="dash.brief.clear" datatype="html"><source>No lead is waiting on a first touch.</source><target>لا يوجد طلب ينتظر أول تواصل.</target></trans-unit>
+      <trans-unit id="dash.brief.intakeUp" datatype="html"><source>Intake is up <x id="PH"/>% on last week (<x id="PH_1"/> applications).</source><target>الطلبات الواردة أعلى بنسبة <x id="PH"/>% عن الأسبوع الماضي (<x id="PH_1"/> طلب).</target></trans-unit>
+      <trans-unit id="dash.brief.intakeDown" datatype="html"><source>Intake is down <x id="PH"/>% on last week (<x id="PH_1"/> applications).</source><target>الطلبات الواردة أقل بنسبة <x id="PH"/>% عن الأسبوع الماضي (<x id="PH_1"/> طلب).</target></trans-unit>
+      <trans-unit id="dash.brief.intakeFlat" datatype="html"><source><x id="PH"/> applications arrived this week, flat on last week.</source><target>وصل <x id="PH"/> طلب هذا الأسبوع، بلا تغيّر عن الأسبوع الماضي.</target></trans-unit>
+      <trans-unit id="dash.brief.noMatch" datatype="html"><source><x id="PH"/>% of applications find no program — worth a look at program coverage.</source><target><x id="PH"/>% من الطلبات لا تجد أي برنامج — راجع تغطية البرامج.</target></trans-unit>
+      <trans-unit id="dash.brief.quality" datatype="html"><source>Average best-offer probability is <x id="PH"/>%.</source><target>متوسط احتمالية أفضل عرض هو <x id="PH"/>%.</target></trans-unit>
+      <trans-unit id="dash.queue.title" datatype="html"><source>Waiting on you</source><target>في انتظارك</target></trans-unit>
+      <trans-unit id="dash.queue.all" datatype="html"><source>All applications</source><target>كل الطلبات</target></trans-unit>
+      <trans-unit id="dash.queue.clear" datatype="html"><source>Every lead has had a first touch. Nothing is waiting.</source><target>كل الطلبات تم التواصل معها. لا شيء في الانتظار.</target></trans-unit>
+      <trans-unit id="dash.queue.hint" datatype="html"><source>Untouched and stalled leads, oldest first</source><target>طلبات لم يتم التواصل معها أو متوقفة، الأقدم أولاً</target></trans-unit>
+      <trans-unit id="dash.queue.hintLate" datatype="html"><source>Oldest first — <x id="PH"/> past the 24h target</source><target>الأقدم أولاً — <x id="PH"/> تجاوز هدف الـ 24 ساعة</target></trans-unit>
+      <trans-unit id="dash.queue.reason.new" datatype="html"><source>Untouched</source><target>بلا تواصل</target></trans-unit>
+      <trans-unit id="dash.queue.reason.stalled" datatype="html"><source>Stalled</source><target>متوقف</target></trans-unit>
+      <trans-unit id="dash.applicant.anonymous" datatype="html"><source>Applicant</source><target>مقدّم الطلب</target></trans-unit>
+      <trans-unit id="dash.intake.title" datatype="html"><source>Intake, 14 days</source><target>الطلبات الواردة، 14 يوماً</target></trans-unit>
+      <trans-unit id="dash.intake.today" datatype="html"><source>Today</source><target>اليوم</target></trans-unit>
+      <trans-unit id="dash.intake.noBaseline" datatype="html"><source>no prior week</source><target>لا يوجد أسبوع سابق</target></trans-unit>
+      <trans-unit id="dash.intake.flat" datatype="html"><source>flat on last week</source><target>بلا تغيّر عن الأسبوع الماضي</target></trans-unit>
+      <trans-unit id="dash.intake.up" datatype="html"><source>+<x id="PH"/>% on last week</source><target>+<x id="PH"/>% عن الأسبوع الماضي</target></trans-unit>
+      <trans-unit id="dash.intake.down" datatype="html"><source>−<x id="PH"/>% on last week</source><target>−<x id="PH"/>% عن الأسبوع الماضي</target></trans-unit>
+      <trans-unit id="dash.intake.aria" datatype="html"><source><x id="PH"/> applications in the last 7 days, <x id="PH_1"/> in the 7 days before.</source><target><x id="PH"/> طلب في آخر 7 أيام، و<x id="PH_1"/> في الـ 7 أيام السابقة.</target></trans-unit>
+      <trans-unit id="dash.dryRun.title" datatype="html"><source>If someone applied right now</source><target>لو تقدّم أحدهم بطلب الآن</target></trans-unit>
+      <trans-unit id="dash.dryRun.hint" datatype="html"><source>Empty-answer run — programs reachable per category, and how many carry no weights. Not a probability.</source><target>تشغيل بلا إجابات — البرامج المتاحة لكل فئة، وكم منها بلا أوزان. ليست نسبة احتمال.</target></trans-unit>
+      <trans-unit id="dash.dryRun.action" datatype="html"><source>Open the matching simulator</source><target>افتح محاكي المطابقة</target></trans-unit>
+      <trans-unit id="dash.dryRun.offered" datatype="html"><source><x id="PH"/> programs</source><target><x id="PH"/> برنامج</target></trans-unit>
+      <trans-unit id="dash.dryRun.noneOffered" datatype="html"><source>nothing to offer</source><target>لا يوجد ما يُعرض</target></trans-unit>
+      <trans-unit id="dash.dryRun.unscored" datatype="html"><source><x id="PH"/> unscored</source><target><x id="PH"/> بلا تقييم</target></trans-unit>
+      <trans-unit id="dash.dryRun.featured" datatype="html"><source><x id="PH"/> featured</source><target><x id="PH"/> مميّز</target></trans-unit>
+      <trans-unit id="dash.ready.support.title" datatype="html"><source>Support channels reachable</source><target>قنوات الدعم متاحة</target></trans-unit>
+      <trans-unit id="dash.ready.support.action" datatype="html"><source>Review support contacts</source><target>راجع بيانات التواصل</target></trans-unit>
+      <trans-unit id="dash.ready.support.none" datatype="html"><source>No contact details are published — a customer who needs help has nowhere to go.</source><target>لا توجد بيانات تواصل منشورة — العميل المحتاج للمساعدة لا يجد وجهة.</target></trans-unit>
+      <trans-unit id="dash.ready.support.partial" datatype="html"><source><x id="PH"/> contact channels are blank in the customer-facing card.</source><target><x id="PH"/> من قنوات التواصل فارغة في بطاقة العميل.</target></trans-unit>
+      <trans-unit id="dash.ready.support.all" datatype="html"><source>Phone, email, WhatsApp and opening hours are all published.</source><target>الهاتف والبريد وواتساب ومواعيد العمل كلها منشورة.</target></trans-unit>
+      <trans-unit id="dash.ready.support.phone" datatype="html"><source>phone</source><target>الهاتف</target></trans-unit>
+      <trans-unit id="dash.ready.support.email" datatype="html"><source>email</source><target>البريد الإلكتروني</target></trans-unit>
+      <trans-unit id="dash.ready.support.whatsapp" datatype="html"><source>WhatsApp link</source><target>رابط واتساب</target></trans-unit>
+      <trans-unit id="dash.ready.support.hours" datatype="html"><source>opening hours</source><target>مواعيد العمل</target></trans-unit>
+      <trans-unit id="dash.signups.hintPartial" datatype="html"><source>Counts cover the newest <x id="PH"/> of <x id="PH_1"/> signups</source><target>الأرقام تغطي أحدث <x id="PH"/> من <x id="PH_1"/> تسجيل</target></trans-unit>
+      <trans-unit id="dash.stat.signupsHint" datatype="html"><source><x id="PH"/> joined this week</source><target><x id="PH"/> انضموا هذا الأسبوع</target></trans-unit>
+      <trans-unit id="dash.stat.signupsNone" datatype="html"><source>none joined this week</source><target>لا انضمامات هذا الأسبوع</target></trans-unit>
+      <trans-unit id="dash.health.noneYet" datatype="html"><source>No offers matched yet.</source><target>لا توجد عروض مطابقة بعد.</target></trans-unit>
+      <trans-unit id="dash.health.title" datatype="html"><source>Match quality</source><target>جودة المطابقة</target></trans-unit>
+      <trans-unit id="dash.health.avg" datatype="html"><source>average best-offer probability</source><target>متوسط احتمالية أفضل عرض</target></trans-unit>
+      <trans-unit id="dash.health.coverage" datatype="html"><source>Review program coverage</source><target>راجع تغطية البرامج</target></trans-unit>
+      <trans-unit id="dash.health.strong" datatype="html"><source>strong</source><target>قوي</target></trans-unit>
+      <trans-unit id="dash.health.weak" datatype="html"><source>moderate or lower</source><target>متوسط أو أقل</target></trans-unit>
+      <trans-unit id="dash.health.none" datatype="html"><source>no program match</source><target>بدون برنامج مطابق</target></trans-unit>
+      <trans-unit id="dash.health.aria" datatype="html"><source><x id="PH"/> strong, <x id="PH_1"/> weaker, <x id="PH_2"/> unmatched out of <x id="PH_3"/>.</source><target><x id="PH"/> قوي، <x id="PH_1"/> أضعف، <x id="PH_2"/> بدون مطابقة من إجمالي <x id="PH_3"/>.</target></trans-unit>
+      <trans-unit id="dash.demand.title" datatype="html"><source>What they are asking for</source><target>ما يطلبه العملاء</target></trans-unit>
+      <trans-unit id="dash.demand.empty" datatype="html"><source>No applications in this window yet.</source><target>لا توجد طلبات في هذه الفترة بعد.</target></trans-unit>
+      <trans-unit id="dash.stat.banks" datatype="html"><source>Active banks</source><target>البنوك النشطة</target></trans-unit>
+      <trans-unit id="dash.stat.banksHint" datatype="html"><source>of <x id="PH"/> on the registry</source><target>من <x id="PH"/> في السجل</target></trans-unit>
+      <trans-unit id="dash.stat.programs" datatype="html"><source>Loan programs</source><target>برامج القروض</target></trans-unit>
+      <trans-unit id="dash.stat.programsHint" datatype="html"><source>across all banks</source><target>في كل البنوك</target></trans-unit>
+      <trans-unit id="dash.stat.customers" datatype="html"><source>Customers</source><target>العملاء</target></trans-unit>
+      <trans-unit id="dash.subtitle" datatype="html"><source>Where the platform stands right now.</source><target>وضع المنصة الآن.</target></trans-unit>
+      <trans-unit id="dash.section.platform" datatype="html"><source>Platform</source><target>المنصة</target></trans-unit>
+      <trans-unit id="dash.section.pipeline" datatype="html"><source>Pipeline</source><target>مسار الطلبات</target></trans-unit>
+      <trans-unit id="dash.stat.applications" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
+      <trans-unit id="dash.stat.applicationsClosed" datatype="html"><source><x id="PH"/>% closed</source><target><x id="PH"/>٪ مكتملة</target></trans-unit>
+      <trans-unit id="dash.stat.applicationsNone" datatype="html"><source>nothing closed yet</source><target>لا شيء مكتمل بعد</target></trans-unit>
+      <trans-unit id="dash.stat.pending" datatype="html"><source>Awaiting action</source><target>بانتظار المتابعة</target></trans-unit>
+      <trans-unit id="dash.stat.pendingHint" datatype="html"><source>not picked up yet</source><target>لم يبدأ العمل عليها</target></trans-unit>
+      <trans-unit id="dash.stat.working" datatype="html"><source>In progress</source><target>قيد التنفيذ</target></trans-unit>
+      <trans-unit id="dash.stat.workingHint" datatype="html"><source>being worked now</source><target>يجري العمل عليها الآن</target></trans-unit>
+      <trans-unit id="dash.stat.done" datatype="html"><source>Completed</source><target>مكتملة</target></trans-unit>
+      <trans-unit id="dash.stat.doneHint" datatype="html"><source>of <x id="PH"/> worked leads</source><target>من <x id="PH"/> طلب تمت متابعته</target></trans-unit>
+      <trans-unit id="dash.stat.support" datatype="html"><source>Open requests</source><target>طلبات الدعم المفتوحة</target></trans-unit>
+      <trans-unit id="dash.stat.supportHint" datatype="html"><source><x id="PH"/> being handled</source><target><x id="PH"/> قيد المعالجة</target></trans-unit>
+      <trans-unit id="dash.stat.supportNone" datatype="html"><source>none being handled</source><target>لا شيء قيد المعالجة</target></trans-unit>
+      <trans-unit id="dash.money.millions" datatype="html"><source><x id="PH"/>M EGP</source><target><x id="PH"/> مليون ج.م</target></trans-unit>
+      <trans-unit id="dash.money.thousands" datatype="html"><source><x id="PH"/>K EGP</source><target><x id="PH"/> ألف ج.م</target></trans-unit>
+      <trans-unit id="dash.money.units" datatype="html"><source><x id="PH"/> EGP</source><target><x id="PH"/> ج.م</target></trans-unit>
+      <trans-unit id="dash.age.fresh" datatype="html"><source>&lt;1h</source><target>أقل من ساعة</target></trans-unit>
+      <trans-unit id="dash.age.hours" datatype="html"><source><x id="PH"/>h</source><target><x id="PH"/> س</target></trans-unit>
+      <trans-unit id="dash.age.days" datatype="html"><source><x id="PH"/>d</source><target><x id="PH"/> ي</target></trans-unit>
+      <trans-unit id="dash.ready.title" datatype="html"><source>Platform readiness</source><target>جاهزية المنصة</target></trans-unit>
+      <trans-unit id="dash.ready.hintNone" datatype="html"><source>No configuration is visible to your role.</source><target>لا توجد إعدادات ظاهرة لصلاحيتك.</target></trans-unit>
+      <trans-unit id="dash.ready.hintBlocked" datatype="html"><source><x id="PH"/> blocking, <x id="PH_1"/> to tidy — matching cannot run end to end yet.</source><target><x id="PH"/> عائق، و<x id="PH_1"/> بحاجة لضبط — المطابقة لا تعمل من البداية للنهاية بعد.</target></trans-unit>
+      <trans-unit id="dash.ready.hintWarn" datatype="html"><source>Matching runs; <x id="PH"/> gaps hold it back from full coverage.</source><target>المطابقة تعمل؛ <x id="PH"/> ثغرات تمنع التغطية الكاملة.</target></trans-unit>
+      <trans-unit id="dash.ready.hintClear" datatype="html"><source>All <x id="PH"/> checks clear — the platform can match, price, and rank today.</source><target>كل الفحوص (<x id="PH"/>) سليمة — المنصة قادرة على المطابقة والتسعير والترتيب اليوم.</target></trans-unit>
+      <trans-unit id="dash.ready.state.ok" datatype="html"><source>Ready</source><target>جاهز</target></trans-unit>
+      <trans-unit id="dash.ready.state.warn" datatype="html"><source>Gap</source><target>ثغرة</target></trans-unit>
+      <trans-unit id="dash.ready.state.blocked" datatype="html"><source>Blocking</source><target>عائق</target></trans-unit>
+      <trans-unit id="dash.ready.state.unknown" datatype="html"><source>Not visible</source><target>غير ظاهر</target></trans-unit>
+      <trans-unit id="dash.ready.unreadable" datatype="html"><source>Not visible to your role.</source><target>غير ظاهر لصلاحيتك.</target></trans-unit>
+      <trans-unit id="dash.ready.banks.title" datatype="html"><source>Banks live</source><target>البنوك النشطة</target></trans-unit>
+      <trans-unit id="dash.ready.banks.action" datatype="html"><source>Open the bank registry</source><target>افتح سجل البنوك</target></trans-unit>
+      <trans-unit id="dash.ready.banks.none" datatype="html"><source>No bank is active — nothing can be offered to an applicant.</source><target>لا يوجد بنك نشط — لا يمكن تقديم أي عرض لمقدّم الطلب.</target></trans-unit>
+      <trans-unit id="dash.ready.banks.partial" datatype="html"><source><x id="PH"/> of <x id="PH_1"/> banks are active.</source><target><x id="PH"/> من <x id="PH_1"/> بنك نشط.</target></trans-unit>
+      <trans-unit id="dash.ready.banks.dormant" datatype="html"><source><x id="PH"/> switched off</source><target><x id="PH"/> غير مفعّل</target></trans-unit>
+      <trans-unit id="dash.ready.banks.all" datatype="html"><source>All <x id="PH"/> banks on the registry are active.</source><target>كل البنوك في السجل (<x id="PH"/>) نشطة.</target></trans-unit>
+      <trans-unit id="dash.ready.programs.title" datatype="html"><source>Category coverage</source><target>تغطية الفئات</target></trans-unit>
+      <trans-unit id="dash.ready.programs.action" datatype="html"><source>Review loan programs</source><target>راجع برامج القروض</target></trans-unit>
+      <trans-unit id="dash.ready.programs.none" datatype="html"><source>No active loan program — every application would come back empty.</source><target>لا يوجد برنامج قرض نشط — كل طلب سيعود بلا نتائج.</target></trans-unit>
+      <trans-unit id="dash.ready.programs.drafts" datatype="html"><source><x id="PH"/> inactive drafts</source><target><x id="PH"/> مسودة غير مفعّلة</target></trans-unit>
+      <trans-unit id="dash.ready.programs.window" datatype="html"><source> (first <x id="PH"/> programs read)</source><target> (تمت قراءة أول <x id="PH"/> برنامج)</target></trans-unit>
+      <trans-unit id="dash.ready.programs.partial" datatype="html"><source><x id="PH"/> active programs cover <x id="PH_1"/> of <x id="PH_2"/> categories.</source><target><x id="PH"/> برنامج نشط يغطي <x id="PH_1"/> من <x id="PH_2"/> فئات.</target></trans-unit>
+      <trans-unit id="dash.ready.programs.all" datatype="html"><source><x id="PH"/> active programs across all <x id="PH_1"/> categories.</source><target><x id="PH"/> برنامج نشط عبر كل الفئات (<x id="PH_1"/>).</target></trans-unit>
+      <trans-unit id="dash.ready.questionnaire.title" datatype="html"><source>Questionnaire published</source><target>نشر الاستبيان</target></trans-unit>
+      <trans-unit id="dash.ready.questionnaire.action" datatype="html"><source>Open the question pool</source><target>افتح بنك الأسئلة</target></trans-unit>
+      <trans-unit id="dash.ready.questionnaire.none" datatype="html"><source>Never published — applicants have no questions to answer.</source><target>لم يُنشر بعد — لا توجد أسئلة يجيب عنها مقدّمو الطلبات.</target></trans-unit>
+      <trans-unit id="dash.ready.questionnaire.drafted" datatype="html"><source><x id="PH"/> questions drafted</source><target><x id="PH"/> سؤال في المسودة</target></trans-unit>
+      <trans-unit id="dash.ready.questionnaire.unscoreable" datatype="html"><source>no single-select question to score</source><target>لا يوجد سؤال اختيار واحد قابل للتقييم</target></trans-unit>
+      <trans-unit id="dash.ready.questionnaire.bindings" datatype="html"><source><x id="PH"/> money bindings unresolved</source><target><x id="PH"/> ربط مالي غير محسوم</target></trans-unit>
+      <trans-unit id="dash.ready.questionnaire.live" datatype="html"><source>Version <x id="PH"/> is live — <x id="PH_1"/> questions, <x id="PH_2"/> scoreable.</source><target>الإصدار <x id="PH"/> منشور — <x id="PH_1"/> سؤال، منها <x id="PH_2"/> قابل للتقييم.</target></trans-unit>
+      <trans-unit id="dash.ready.scoring.title" datatype="html"><source>Programs scored</source><target>تقييم البرامج</target></trans-unit>
+      <trans-unit id="dash.ready.scoring.action" datatype="html"><source>Assign scoring weights</source><target>عيّن أوزان التقييم</target></trans-unit>
+      <trans-unit id="dash.ready.scoring.nothingToScore" datatype="html"><source>No active program to score yet.</source><target>لا يوجد برنامج نشط لتقييمه بعد.</target></trans-unit>
+      <trans-unit id="dash.ready.scoring.window" datatype="html"><source> (checked <x id="PH"/> of <x id="PH_1"/>)</source><target> (تم فحص <x id="PH"/> من <x id="PH_1"/>)</target></trans-unit>
+      <trans-unit id="dash.ready.scoring.all" datatype="html"><source>All <x id="PH"/> active programs carry an approved weight set.</source><target>كل البرامج النشطة (<x id="PH"/>) لديها مجموعة أوزان معتمدة.</target></trans-unit>
+      <trans-unit id="dash.ready.scoring.more" datatype="html"><source>+<x id="PH"/> more</source><target>+<x id="PH"/> أخرى</target></trans-unit>
+      <trans-unit id="dash.ready.scoring.partial" datatype="html"><source><x id="PH"/> of <x id="PH_1"/> active programs have no weights — they score 0 and never surface.</source><target><x id="PH"/> من <x id="PH_1"/> برنامج نشط بلا أوزان — تحصل على 0 ولا تظهر أبداً.</target></trans-unit>
+      <trans-unit id="dash.ready.brief.oneBlock" datatype="html"><source>One thing still stops the first match: <x id="PH"/></source><target>أمر واحد ما زال يمنع أول مطابقة: <x id="PH"/></target></trans-unit>
+      <trans-unit id="dash.ready.brief.blocks" datatype="html"><source><x id="PH"/> things still stop the first match — starting with: <x id="PH_1"/></source><target><x id="PH"/> أمور ما زالت تمنع أول مطابقة — أولها: <x id="PH_1"/></target></trans-unit>
+      <trans-unit id="dash.ready.brief.warn" datatype="html"><source>The catalogue can match, with gaps — <x id="PH"/></source><target>الكتالوج قادر على المطابقة مع وجود ثغرات — <x id="PH"/></target></trans-unit>
+      <trans-unit id="dash.ready.brief.clear" datatype="html"><source>Catalogue is live and fully scored — the desk fills the moment the first application lands.</source><target>الكتالوج منشور ومقيَّم بالكامل — تمتلئ لوحة العمل بمجرد وصول أول طلب.</target></trans-unit>
+      <trans-unit id="dash.ready.brief.audience" datatype="html"><source><x id="PH"/> customers have signed up; none has submitted an application yet.</source><target>سجّل <x id="PH"/> عميل؛ ولم يقدّم أي منهم طلباً بعد.</target></trans-unit>
+      <trans-unit id="dash.brief.support" datatype="html"><source><x id="PH"/> support requests are open, the oldest waiting <x id="PH_1"/>.</source><target><x id="PH"/> طلب دعم مفتوح، أقدمها ينتظر منذ <x id="PH_1"/>.</target></trans-unit>
+      <trans-unit id="dash.brief.supportUnassigned" datatype="html"><source><x id="PH"/> support requests are open — <x id="PH_1"/> with nobody on them, the oldest waiting <x id="PH_2"/>.</source><target><x id="PH"/> طلب دعم مفتوح — منها <x id="PH_1"/> بلا مسؤول، وأقدمها ينتظر منذ <x id="PH_2"/>.</target></trans-unit>
+      <trans-unit id="dash.catalogue.title" datatype="html"><source>What the market can sell</source><target>ما يمكن للسوق بيعه</target></trans-unit>
+      <trans-unit id="dash.catalogue.bank" datatype="html"><source>Bank</source><target>البنك</target></trans-unit>
+      <trans-unit id="dash.catalogue.total" datatype="html"><source>All</source><target>الإجمالي</target></trans-unit>
+      <trans-unit id="dash.catalogue.allBanks" datatype="html"><source>Every bank</source><target>كل البنوك</target></trans-unit>
+      <trans-unit id="dash.catalogue.none" datatype="html"><source>no program</source><target>لا يوجد برنامج</target></trans-unit>
+      <trans-unit id="dash.catalogue.empty" datatype="html"><source>No active program is published yet.</source><target>لم يُنشر أي برنامج نشط بعد.</target></trans-unit>
+      <trans-unit id="dash.catalogue.action" datatype="html"><source>Open the bank registry</source><target>افتح سجل البنوك</target></trans-unit>
+      <trans-unit id="dash.catalogue.caption" datatype="html"><source>Active loan programs per bank and category.</source><target>برامج القروض النشطة حسب البنك والفئة.</target></trans-unit>
+      <trans-unit id="dash.catalogue.hintHoles" datatype="html"><source><x id="PH"/> active programs · <x id="PH_1"/> bank–category pairs still unsold</source><target><x id="PH"/> برنامج نشط · <x id="PH_1"/> ثنائية بنك–فئة بلا منتج</target></trans-unit>
+      <trans-unit id="dash.catalogue.hintFull" datatype="html"><source><x id="PH"/> active programs · every bank covers every category</source><target><x id="PH"/> برنامج نشط · كل بنك يغطي كل الفئات</target></trans-unit>
+      <trans-unit id="dash.catalogue.hintMore" datatype="html"><source> · top <x id="PH"/> banks shown</source><target> · عرض أعلى <x id="PH"/> بنوك</target></trans-unit>
+      <trans-unit id="dash.support.title" datatype="html"><source>Customers asking for help</source><target>عملاء يطلبون المساعدة</target></trans-unit>
+      <trans-unit id="dash.support.clear" datatype="html"><source>No open support request. The inbox is empty.</source><target>لا يوجد طلب دعم مفتوح. صندوق الوارد فارغ.</target></trans-unit>
+      <trans-unit id="dash.support.resolve" datatype="html"><source>Resolve</source><target>إغلاق</target></trans-unit>
+      <trans-unit id="dash.support.resolveAria" datatype="html"><source>Resolve the <x id="PH"/> request raised <x id="PH_1"/> ago</source><target>إغلاق طلب <x id="PH"/> الوارد منذ <x id="PH_1"/></target></trans-unit>
+      <trans-unit id="dash.support.unassigned" datatype="html"><source>unassigned</source><target>بلا مسؤول</target></trans-unit>
+      <trans-unit id="dash.support.hint" datatype="html"><source><x id="PH"/> unopened, <x id="PH_1"/> in progress</source><target><x id="PH"/> لم يُفتح، و<x id="PH_1"/> قيد المعالجة</target></trans-unit>
+      <trans-unit id="dash.support.hintUnassigned" datatype="html"><source><x id="PH"/> unopened, <x id="PH_1"/> in progress — <x id="PH_2"/> with nobody on them</source><target><x id="PH"/> لم يُفتح، و<x id="PH_1"/> قيد المعالجة — منها <x id="PH_2"/> بلا مسؤول</target></trans-unit>
+      <trans-unit id="dash.support.overflow" datatype="html"><source><x id="PH"/> more waiting.</source><target>و<x id="PH"/> آخرون في الانتظار.</target></trans-unit>
+      <trans-unit id="dash.support.status.open" datatype="html"><source>Unopened</source><target>لم يُفتح</target></trans-unit>
+      <trans-unit id="dash.support.status.working" datatype="html"><source>Being worked</source><target>قيد المعالجة</target></trans-unit>
+      <trans-unit id="dash.support.channel.chat" datatype="html"><source>Chat</source><target>محادثة</target></trans-unit>
+      <trans-unit id="dash.support.channel.call" datatype="html"><source>Call</source><target>مكالمة</target></trans-unit>
+      <trans-unit id="dash.support.channel.whatsapp" datatype="html"><source>WhatsApp</source><target>واتساب</target></trans-unit>
+      <trans-unit id="dash.support.channel.email" datatype="html"><source>Email</source><target>بريد إلكتروني</target></trans-unit>
+      <trans-unit id="dash.signups.title" datatype="html"><source>Who just arrived</source><target>من وصل حديثاً</target></trans-unit>
+      <trans-unit id="dash.signups.empty" datatype="html"><source>No customer has signed up yet.</source><target>لم يسجّل أي عميل بعد.</target></trans-unit>
+      <trans-unit id="dash.signups.action" datatype="html"><source>Open the customer directory</source><target>افتح دليل العملاء</target></trans-unit>
+      <trans-unit id="dash.signups.verified" datatype="html"><source>verified</source><target>موثّق</target></trans-unit>
+      <trans-unit id="dash.signups.unnamed" datatype="html"><source>Unnamed customer</source><target>عميل بلا اسم</target></trans-unit>
+      <trans-unit id="dash.signups.hint" datatype="html"><source><x id="PH"/> joined this week</source><target><x id="PH"/> انضموا هذا الأسبوع</target></trans-unit>
+      <trans-unit id="dash.signups.hintDormant" datatype="html"><source><x id="PH"/> joined this week · <x id="PH_1"/> have never applied</source><target><x id="PH"/> انضموا هذا الأسبوع · <x id="PH_1"/> لم يقدّموا أي طلب</target></trans-unit>
+      <trans-unit id="dash.signups.noApps" datatype="html"><source>no application yet</source><target>لا يوجد طلب بعد</target></trans-unit>
+      <trans-unit id="dash.signups.oneApp" datatype="html"><source>1 application</source><target>طلب واحد</target></trans-unit>
+      <trans-unit id="dash.signups.manyApps" datatype="html"><source><x id="PH"/> applications</source><target><x id="PH"/> طلبات</target></trans-unit>
       <trans-unit id="sidebar.applications" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
       <trans-unit id="applications.title" datatype="html"><source>Applications</source><target>الطلبات</target></trans-unit>
       <trans-unit id="applications.subtitle" datatype="html"><source>Loan-match results triaged by approval probability.</source><target>نتائج مطابقة القروض مُرتَّبة حسب احتمالية الموافقة.</target></trans-unit>
@@ -416,6 +611,29 @@
       <trans-unit id="applications.documents.front" datatype="html"><source>Front</source><target>الوجه الأمامي</target></trans-unit>
       <trans-unit id="applications.documents.back" datatype="html"><source>Back</source><target>الوجه الخلفي</target></trans-unit>
       <trans-unit id="applications.documents.empty" datatype="html"><source>No documents are available for this applicant.</source><target>لا توجد مستندات متاحة لمقدّم الطلب.</target></trans-unit>
+      <trans-unit id="bank_detail.program.sharia" datatype="html"><source>Sharia-compliant</source><target>متوافق مع الشريعة</target></trans-unit>
+      <trans-unit id="bank_detail.program.sharia_short" datatype="html"><source>Islamic</source><target>إسلامي</target></trans-unit>
+      <trans-unit id="bank_detail.spec.rate" datatype="html"><source>Rate</source><target>العائد</target></trans-unit>
+      <trans-unit id="bank_detail.spec.variable" datatype="html"><source>var.</source><target>متغير</target></trans-unit>
+      <trans-unit id="bank_detail.spec.amount" datatype="html"><source>Amount</source><target>المبلغ</target></trans-unit>
+      <trans-unit id="bank_detail.spec.tenor" datatype="html"><source>Tenor</source><target>المدة</target></trans-unit>
+      <trans-unit id="bank_detail.spec.tenor_value" datatype="html"><source><x id="MIN" equiv-text="min"/>–<x id="MAX" equiv-text="max"/> mo</source><target><x id="MIN" equiv-text="min"/>–<x id="MAX" equiv-text="max"/> شهر</target></trans-unit>
+      <trans-unit id="program_catalog.usage.none" datatype="html"><source>Not offered yet</source><target>غير مطروح بعد</target></trans-unit>
+      <trans-unit id="program_catalog.usage.value" datatype="html"><source><x id="PROGRAMS" equiv-text="programs"/> programs · <x id="BANKS" equiv-text="banks"/> banks</source><target><x id="PROGRAMS" equiv-text="programs"/> برنامج · <x id="BANKS" equiv-text="banks"/> بنك</target></trans-unit>
+      <trans-unit id="program_catalog.defaults.state.set" datatype="html"><source>Defaults set</source><target>القيم الافتراضية مضبوطة</target></trans-unit>
+      <trans-unit id="program_catalog.defaults.state.none" datatype="html"><source>No defaults</source><target>لا توجد قيم افتراضية</target></trans-unit>
+      <!-- Program catalog — default lending values dialog -->
+      <trans-unit id="catalogDefaults.oneSetPerName" datatype="html"><source>One set of values for this program name. A bank can offer it as a personal, car, mortgage or business loan — the same starting values fill the form either way.</source><target>مجموعة قيم واحدة لهذا الاسم. يمكن للبنك طرحه كتمويل شخصي أو سيارات أو عقاري أو أعمال، ويُملأ النموذج بالقيم المبدئية نفسها في جميع الحالات.</target></trans-unit>
+      <trans-unit id="catalogDefaults.section.rate" datatype="html"><source>Rate</source><target>سعر العائد</target></trans-unit>
+      <trans-unit id="catalogDefaults.section.amountTenor" datatype="html"><source>Amount and tenor</source><target>المبلغ والمدة</target></trans-unit>
+      <trans-unit id="catalogDefaults.section.eligibility" datatype="html"><source>Eligibility</source><target>شروط الاستحقاق</target></trans-unit>
+      <trans-unit id="catalogDefaults.section.fees" datatype="html"><source>Fees</source><target>الرسوم</target></trans-unit>
+      <trans-unit id="catalogDefaults.clearAll" datatype="html"><source>Clear all default values</source><target>امسح كل القيم الافتراضية</target></trans-unit>
+      <trans-unit id="catalogDefaults.carried.label" datatype="html"><source>Also stored, kept when you save:</source><target>قيم أخرى مخزَّنة ويُحتفظ بها عند الحفظ:</target></trans-unit>
+      <trans-unit id="catalogDefaults.carried.documents" datatype="html"><source>Required documents: <x id="DOCUMENTS" equiv-text="docs"/></source><target>المستندات المطلوبة: <x id="DOCUMENTS" equiv-text="docs"/></target></trans-unit>
+      <trans-unit id="catalogDefaults.carried.commercialIncome" datatype="html"><source>Commercial-bank income <x id="PERCENT" equiv-text="percent"/>%</source><target>نسبة الدخل المحتسبة للبنوك التجارية <x id="PERCENT" equiv-text="percent"/>%</target></trans-unit>
+      <trans-unit id="catalogDefaults.carried.publicIncome" datatype="html"><source>Public-bank income <x id="PERCENT" equiv-text="percent"/>%</source><target>نسبة الدخل المحتسبة لبنوك القطاع العام <x id="PERCENT" equiv-text="percent"/>%</target></trans-unit>
+      <trans-unit id="catalogDefaults.carried.lifeInsuranceMinLoan" datatype="html"><source>Life-insurance minimum loan <x id="AMOUNT" equiv-text="amount"/> EGP</source><target>الحد الأدنى للقرض الخاضع لتأمين الحياة <x id="AMOUNT" equiv-text="amount"/> جنيه</target></trans-unit>
     </body>
   </file>
 </xliff>

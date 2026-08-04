@@ -11,6 +11,11 @@ export class BankProgramResponseDto {
   programCode!: string;
   friendlyName!: string;
   friendlyNameAr?: string | null;
+  /**
+   * Predefined program (`program_name` enumeration key) this program instantiates.
+   * A name only — every lending spec is authored on the program itself.
+   */
+  programNameKey?: string | null;
   bankName!: string;
   programType!: ProgramType;
   productCategory!: string;
@@ -41,6 +46,7 @@ export class BankProgramListRowDto {
   id!: string;
   programCode!: string;
   friendlyName!: string;
+  programNameKey?: string | null;
   bankName!: string;
   productCategory!: string;
   active!: boolean;

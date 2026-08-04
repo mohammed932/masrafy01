@@ -16,11 +16,40 @@ export type DbrBandsError =
   | null;
 
 /**
+ * Client-side mirror of the backend `validateDbrBands`, as a pure function so a
+ * host can gate its own save on the same verdict the editor shows inline —
+ * including while the editor is not rendered (a wizard step the admin has left).
+ * The server still re-checks on save; this only saves the round trip.
+ */
+export function dbrBandsErrorFor(rows: readonly DbrBand[]): DbrBandsError {
+  if (rows.length === 0) return null;
+
+  let previous: number | null = null;
+  for (const [index, row] of rows.entries()) {
+    const cap = Number(row.capPercent);
+    if (!Number.isFinite(cap) || cap < 1 || cap > 100) return 'CAP_OUT_OF_RANGE';
+
+    const isLast = index === rows.length - 1;
+    if (isLast) continue;
+
+    if (row.upToIncomeEGP === null || row.upToIncomeEGP.trim() === '') return 'BOUND_MISSING';
+    const bound = Number(row.upToIncomeEGP);
+    if (!Number.isFinite(bound)) return 'BOUND_MISSING';
+    if (previous !== null) {
+      if (bound === previous) return 'DUPLICATE_BOUND';
+      if (bound < previous) return 'NOT_ASCENDING';
+    }
+    previous = bound;
+  }
+  return null;
+}
+
+/**
  * Income-banded DBR table editor (FR-016 … FR-021a).
  *
- * One implementation, three hosts — bank lending policy, predefined-program
- * catalog defaults, and the bank program itself — with identical rules, so an
- * admin learns the control once.
+ * One implementation, two hosts — the bank program form's eligibility step and
+ * any future policy surface — with identical rules, so an admin learns the
+ * control once.
  *
  * Semantics enforced by the UI, not just validated after the fact:
  *   - upper bounds are INCLUSIVE and must ascend
@@ -354,33 +383,8 @@ export class DbrBandsEditorComponent {
   readonly removeAriaLabel = $localize`:@@dbrBands.aria.remove:Remove this band`;
   readonly lastRowTip = $localize`:@@dbrBands.tip.lastRow:The last band is always open-ended — it covers every income above the band before it.`;
 
-  /**
-   * Client-side mirror of the backend `validateDbrBands`. Surfacing the same
-   * verdict inline saves a round trip; the server still re-checks on save.
-   */
-  readonly error = computed<DbrBandsError>(() => {
-    const rows = this.bands();
-    if (rows.length === 0) return null;
-
-    let previous: number | null = null;
-    for (const [index, row] of rows.entries()) {
-      const cap = Number(row.capPercent);
-      if (!Number.isFinite(cap) || cap < 1 || cap > 100) return 'CAP_OUT_OF_RANGE';
-
-      const isLast = index === rows.length - 1;
-      if (isLast) continue;
-
-      if (row.upToIncomeEGP === null || row.upToIncomeEGP.trim() === '') return 'BOUND_MISSING';
-      const bound = Number(row.upToIncomeEGP);
-      if (!Number.isFinite(bound)) return 'BOUND_MISSING';
-      if (previous !== null) {
-        if (bound === previous) return 'DUPLICATE_BOUND';
-        if (bound < previous) return 'NOT_ASCENDING';
-      }
-      previous = bound;
-    }
-    return null;
-  });
+  /** Inline verdict, from the same pure rule a host gates its save on. */
+  readonly error = computed<DbrBandsError>(() => dbrBandsErrorFor(this.bands()));
 
   isLast(index: number): boolean {
     return index === this.bands().length - 1;

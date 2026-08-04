@@ -1692,6 +1692,14 @@ class AppLocalizationsAr extends AppLocalizations {
   String get results_view_offer => 'عرض العرض';
 
   @override
+  String get results_max_borrow => 'تقدر تقترض حتى';
+
+  @override
+  String results_max_borrow_value(String amount) {
+    return '$amount جنيه';
+  }
+
+  @override
   String get offer_type_personal => 'شخصي';
 
   @override
@@ -1753,6 +1761,23 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_total_loan_caption => 'شامل الفائدة + الأصل';
 
   @override
+  String get offer_max_borrow => 'أقصى مبلغ تقدر تقترضه';
+
+  @override
+  String offer_max_borrow_caption(String pct) {
+    return 'بحد أقصى $pct% لنسبة الالتزامات';
+  }
+
+  @override
+  String get offer_dbr => 'نسبة الالتزامات';
+
+  @override
+  String get offer_dbr_caption => 'من دخلك الشهري';
+
+  @override
+  String get offer_headroom_hint => 'طلبت أقل من المبلغ اللي تقدر تاخده.';
+
+  @override
   String get offer_fees_title => 'الرسوم والمصاريف';
 
   @override
@@ -1766,6 +1791,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get offer_interest_charge_value => '12.5% سنويًا';
+
+  @override
+  String offer_interest_charge_value_rate(String pct) {
+    return '$pct% سنويًا';
+  }
+
+  @override
+  String get offer_stamp_duty => 'الدمغة';
+
+  @override
+  String get offer_life_insurance => 'تأمين الحياة';
+
+  @override
+  String offer_fee_egp(String amount) {
+    return '$amount جنيه';
+  }
 
   @override
   String get offer_early_settlement => 'السداد المبكر';

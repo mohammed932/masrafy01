@@ -148,7 +148,8 @@ export interface EligibilityConfig {
   companyType?: string[];
   minimumCreditCardHoldingMonths?: number;
   competitorCardMustBeUnsecured?: boolean;
-  /** Feature 010 — optional income-band table resolved against RECOGNISED income. */
+  /** Feature 010 — optional income-band table, resolved against the same income
+   *  figure every other quote figure uses (see `quoteProgram` step 3). */
   dbrBands?: DbrBand[];
 }
 
@@ -158,8 +159,8 @@ export interface EligibilityConfig {
  * Sits beside the scalar `dbrCapPercent`, never replacing it: a program with no
  * `dbrBands` keeps behaving exactly as before (FR-020). Upper bounds are
  * INCLUSIVE and the final band carries `upToIncomeEGP: null` (open-ended).
- * Attachable to `Bank.policyDefaults` and `PlatformEnumeration.defaults[category]`
- * as prefill data, but only `bank_program.eligibility` is read at match time.
+ * Authored per bank program: `bank_program.eligibility` is the only source
+ * matching reads.
  */
 export interface DbrBand {
   /** Inclusive upper bound of the band; `null` marks the open-ended final band. */
@@ -319,11 +320,21 @@ export interface Offer {
   currency: string;
   qualitativeReviewBadge: boolean;
   selfDeclared: boolean;
+  /**
+   * The applicant's borrowing ceiling at this program — see
+   * `Quote.maxAffordableAmountEGP`. Present on every offer, not only DBR-reduced
+   * ones. Compare against `effectiveLoanAmountEGP` to tell "this is all you can
+   * get" apart from "you asked for less than you could have".
+   */
   maxLoanAvailableEGP?: Decimal;
   /** Debt-burden ratio for this offer, percent (0..100). Surfaced so the
    *  per-bank weighted scorer can feed the COMPUTED `debt_burden` factor
    *  without re-deriving it (Principle V v4.1.0). */
   dbrPercent: Decimal;
+  /** The cap `dbrPercent` was measured against — scalar or the matched band. */
+  dbrCapPercent: Decimal;
+  /** Which band resolved; `null` when the program uses the scalar cap. */
+  dbrBandIndex: number | null;
 }
 
 export interface MatchResult {
@@ -339,6 +350,12 @@ export interface MatchResult {
    * preview can serialise figures without a second engine pass.
    */
   quote?: Quote;
+  /**
+   * Set instead of `quote` when the program could not be priced. Carried so the
+   * surface can LIST the program with an explanation rather than dropping it —
+   * dropping it would make DBR a hard filter, which A33 forbids.
+   */
+  unavailable?: QuoteUnavailable;
 }
 
 export interface Suggestion {
@@ -415,8 +432,20 @@ export interface Quote {
   dbrCapPercent: Decimal;
   /** Which band resolved; `null` when the program uses the scalar cap. */
   dbrBandIndex: number | null;
+  /**
+   * The largest principal this applicant could borrow from this program at the
+   * effective tenor and rate, INDEPENDENT of what they asked for:
+   *
+   *   maxEMI = income × dbrCap ÷ 100 − existing obligations
+   *   max    = maxEMI × ((1+r)^n − 1) ÷ (r × (1+r)^n)      (r = 0 → maxEMI × n)
+   *
+   * Still clamped by the program ceiling and floored to the amount step. This is
+   * a headroom figure, not an offer: `offeredAmountEGP` never exceeds the ask.
+   * Zero means the existing obligations already consume the whole allowance.
+   */
+  maxAffordableAmountEGP: Decimal;
   bindingConstraint: BindingConstraint;
-  /** Declared income after the program's income assumption. */
+  /** The income every figure above keys off (see `quoteProgram` step 3). */
   recognisedIncomeEGP: Decimal;
   /** Itemised, always — fees are never folded in silently (FR-031). */
   feesBreakdown: FeesBreakdown;
@@ -424,11 +453,24 @@ export interface Quote {
   cascadeTrace: CascadeTrace;
 }
 
-/** A program that could not be quoted, with the reason. */
+/**
+ * A program that could not be quoted, with the reason. The program is still
+ * LISTED — this is a "no figures" outcome, never a filter (Principle V / A33).
+ */
 export interface QuoteUnavailable {
   reason: FiguresUnavailableReason;
   /** Populated when `reason` is `PROGRAM_MISCONFIGURED`: the missing setting paths. */
   missing?: string[];
+  /**
+   * Populated for the affordability reasons (`OBLIGATIONS_EXCEED_ALLOWANCE`,
+   * `BELOW_PROGRAM_MIN_AMOUNT`), where the applicant IS priceable — there is
+   * simply no room left. Lets the surface say "your ceiling here is X against a
+   * cap of Y" instead of showing an unexplained blank.
+   */
+  maxAffordableAmountEGP?: Decimal;
+  dbrCapPercent?: Decimal;
+  dbrBandIndex?: number | null;
+  recognisedIncomeEGP?: Decimal;
 }
 
 export type QuoteOutcome =

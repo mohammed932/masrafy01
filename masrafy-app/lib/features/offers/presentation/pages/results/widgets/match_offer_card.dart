@@ -116,6 +116,16 @@ class MatchOfferCard extends StatelessWidget {
               ),
             ],
           ),
+          if (offer.maxLoan != null) ...[
+            Gap(8.h),
+            _MaxBorrowBand(
+              label: l.results_max_borrow,
+              value: l.results_max_borrow_value(
+                NumberFormat.decimalPattern().format(offer.maxLoan),
+              ),
+              emphasised: offer.hasUnusedHeadroom,
+            ),
+          ],
           Gap(12.h),
           _ViewOfferButton(
             label: l.results_view_offer,
@@ -155,6 +165,60 @@ class _BestMatchChip extends StatelessWidget {
           fontWeight: FontWeight.w700,
           fontSize: 10.sp,
         ),
+      ),
+    );
+  }
+}
+
+/// Full-width affordability line under the KPI row: the ceiling this salary
+/// supports at this program. Deliberately its own band rather than a fourth KPI
+/// cell — the number runs to seven digits and would be unreadable at cell width.
+/// Tinted when the customer asked for less than they qualify for, which is the
+/// one case nothing else on the card reveals.
+class _MaxBorrowBand extends StatelessWidget {
+  const _MaxBorrowBand({
+    required this.label,
+    required this.value,
+    required this.emphasised,
+  });
+
+  final String label;
+  final String value;
+  final bool emphasised;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    final text = MasrafyTextTheme.of(context);
+    final accent = emphasised ? colors.success.main : colors.primary.border;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsetsDirectional.symmetric(horizontal: 10.w, vertical: 8.h),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10.r),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: text.caption.copyWith(
+                color: colors.primary.border,
+                fontSize: 10.sp,
+              ),
+            ),
+          ),
+          Gap(8.w),
+          Text(
+            value,
+            style: text.bodySmall.copyWith(
+              color: accent,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }

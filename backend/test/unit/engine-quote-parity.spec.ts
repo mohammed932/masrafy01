@@ -88,21 +88,40 @@ describe('engine ↔ quote parity', () => {
       expect(offer.requestedLoanAmountEGP.lessThan(300000)).toBe(true);
     });
 
-    it('leaves maxLoanAvailableEGP unset when nothing was reduced by DBR', () => {
+    it('reports the ceiling even when the ask was well inside it', () => {
+      // 20 000 income, no obligations, 50% cap, 24% over 60 months → the salary
+      // carries 347 608.87, far above the 300 000 asked for. Someone who
+      // under-asked needs that number as much as someone who over-asked.
       const result = engine.run({
         profile: profileFixture(),
         programs: [programFixture()],
         scoringConfig,
       });
-      expect(result.offers[0]?.maxLoanAvailableEGP).toBeUndefined();
+      const offer = result.offers[0];
+      expect(offer?.maxLoanAvailableEGP?.toFixed(2)).toBe('347608.87');
+      expect(offer?.requestedLoanAmountEGP.toFixed(2)).toBe('300000.00');
     });
 
-    it('does not reduce on the apply path, which runs with eligibility skipped', () => {
+    it('still reduces on the apply path — skipEligibility does not disable DBR', () => {
       const result = engine.run({
         profile: squeezed,
         programs: [programFixture()],
         scoringConfig,
         skipEligibility: true,
+      });
+      const offer = result.offers[0];
+      expect(offer?.requestedLoanAmountEGP.lessThan(300000)).toBe(true);
+      expect(offer?.requestedLoanAmountEGP.toFixed(2)).toBe(
+        offer?.maxLoanAvailableEGP?.toFixed(2),
+      );
+    });
+
+    it('quotes the full ask when DBR is explicitly skipped', () => {
+      const result = engine.run({
+        profile: squeezed,
+        programs: [programFixture()],
+        scoringConfig,
+        skipDbrCheck: true,
       });
       expect(result.offers[0]?.requestedLoanAmountEGP.toFixed(2)).toBe('300000.00');
     });

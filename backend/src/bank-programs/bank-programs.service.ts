@@ -18,6 +18,7 @@ import {
   InvalidVariableRateConfigurationException,
   NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
+  ProgramNameKeyUnknownException,
   QualitativeReviewCeilingBelowBaseException,
   UnknownEnumerationKeyException,
 } from '../common/errors/domain.exceptions';
@@ -101,6 +102,7 @@ export class BankProgramsService {
           bankId: dto.bankId,
           friendlyName: dto.friendlyName,
           friendlyNameAr: dto.friendlyNameAr,
+          programNameKey: dto.programNameKey,
           programType: dto.programType,
           productCategory: dto.productCategory,
           currencies: dto.currencies,
@@ -180,6 +182,11 @@ export class BankProgramsService {
       throw new ProgramCodeAlreadyInUseException(programCode);
     }
 
+    // A copy stays the same archetype unless the admin re-classifies it. A
+    // pre-catalog source has no archetype, so duplicating it forces a choice.
+    const programNameKey = dto.programNameKey ?? source.programNameKey ?? '';
+    await this.assertProgramNameKey(programNameKey);
+
     const program = await this.prisma.$transaction(async (tx) => {
       const created = await this.repo.create(
         {
@@ -188,6 +195,7 @@ export class BankProgramsService {
           bankId: source.bankId,
           friendlyName: dto.friendlyName,
           friendlyNameAr: dto.friendlyNameAr ?? null,
+          programNameKey,
           programType: source.programType,
           productCategory: source.productCategory,
           currencies: source.currencies,
@@ -257,6 +265,9 @@ export class BankProgramsService {
   private async runCrossConfigChecks(
     dto: CreateBankProgramDto | UpdateBankProgramDto,
   ): Promise<void> {
+    // A program names one predefined program from the catalog, never free text.
+    await this.assertProgramNameKey(dto.programNameKey);
+
     // FR-011a — variable-rate consistency.
     const { isVariableRate, baseRatePercent, currentEffectiveRatePercent } = dto.pricing;
     if (isVariableRate) {
@@ -372,6 +383,28 @@ export class BankProgramsService {
     }
   }
 
+  /**
+   * `programNameKey` MUST name a live member of the `program_name` catalog
+   * (Manage values → Program names). Kept out of `validateAgainstRegistry` on
+   * purpose: that helper collapses every miss into the generic
+   * `UNKNOWN_ENUMERATION_KEY`, and this one deserves its own code so the admin
+   * form can point at the catalog page.
+   */
+  private async assertProgramNameKey(programNameKey: string): Promise<void> {
+    if (await this.enums.isActiveMember('program_name', programNameKey)) return;
+    if (await this.enums.isDeprecatedMember('program_name', programNameKey)) {
+      throw new DeprecatedEnumerationKeyException({
+        enumerationType: 'program_name',
+        deprecatedKey: programNameKey,
+      });
+    }
+    const active = await this.enums.getActiveMembers('program_name');
+    throw new ProgramNameKeyUnknownException({
+      programNameKey,
+      activeKeys: active.map((m) => m.key),
+    });
+  }
+
   // --- Response mapping ---------------------------------------------------
 
   private toResponse(
@@ -383,6 +416,7 @@ export class BankProgramsService {
       programCode: program.programCode,
       friendlyName: program.friendlyName,
       friendlyNameAr: program.friendlyNameAr ?? null,
+      programNameKey: program.programNameKey ?? null,
       bankName: program.bankName,
       programType: program.programType as BankProgramResponseDto['programType'],
       productCategory: program.productCategory,
@@ -421,6 +455,7 @@ export class BankProgramsService {
       bankName: query.bankName,
       active: query.active,
       productCategory: query.productCategory,
+      programNameKey: query.programNameKey,
       isShariaCompliant: query.isShariaCompliant,
       acceptedEmploymentType: query.employmentType,
     });
@@ -438,6 +473,7 @@ export class BankProgramsService {
           id: r.id,
           programCode: r.programCode,
           friendlyName: r.friendlyName,
+          programNameKey: r.programNameKey ?? null,
           bankName: r.bankName,
           productCategory: r.productCategory,
           active: r.active,
@@ -499,6 +535,7 @@ export class BankProgramsService {
             : {}),
           friendlyName: dto.friendlyName,
           friendlyNameAr: dto.friendlyNameAr ?? null,
+          programNameKey: dto.programNameKey,
           programType: dto.programType,
           productCategory: dto.productCategory,
           currencies: dto.currencies,
@@ -746,6 +783,7 @@ function computeStructuralDiff(
     'bankName',
     'friendlyName',
     'friendlyNameAr',
+    'programNameKey',
     'programType',
     'productCategory',
     'active',

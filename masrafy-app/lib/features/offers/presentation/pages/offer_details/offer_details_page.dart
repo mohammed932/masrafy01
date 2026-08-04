@@ -32,6 +32,45 @@ class OfferDetailsPage extends StatelessWidget {
     final subtitle = l.offer_approval(offer.approvalPct);
     final grouped = NumberFormat.decimalPattern();
 
+    // Fee lines come from the engine's own breakdown. They used to be hardcoded
+    // literals ("1% (EGP 1,500)", "12.5% / year") that contradicted the
+    // installment printed inches above them; a fee with no figure is now simply
+    // not listed rather than invented.
+    String? feeAmount(String key) {
+      final raw = offer.feesBreakdown?[key];
+      final value = raw is num ? raw.toDouble() : double.tryParse('$raw');
+      if (value == null || value <= 0) return null;
+      return l.offer_fee_egp(grouped.format(value));
+    }
+
+    final feeRows = <OfferFeeRow>[
+      (
+        label: l.offer_admin_fees,
+        value: feeAmount('adminFeeEGP') ?? l.offer_admin_fees_value,
+        valueColor: colors.warning.active,
+      ),
+      (
+        label: l.offer_interest_charge,
+        value: l.offer_interest_charge_value_rate(_trimRate(offer.ratePct)),
+        valueColor: colors.warning.active,
+      ),
+      for (final fee in [
+        (key: 'stampDutyEGP', label: l.offer_stamp_duty),
+        (key: 'lifeInsuranceEGP', label: l.offer_life_insurance),
+      ])
+        if (feeAmount(fee.key) case final amount?)
+          (
+            label: fee.label,
+            value: amount,
+            valueColor: colors.warning.active,
+          ),
+      (
+        label: l.offer_early_settlement,
+        value: l.offer_early_settlement_value,
+        valueColor: colors.success.main,
+      ),
+    ];
+
     void comingSoon() => MasrafyToast.success(context, l.offer_action_soon);
 
     return Scaffold(
@@ -163,8 +202,37 @@ class OfferDetailsPage extends StatelessWidget {
                                 caption: l.offer_total_loan_caption,
                                 valueColor: colors.success.main,
                               ),
+                              // Affordability: what this salary supports here,
+                              // and where this offer sits against the cap.
+                              if (offer.maxLoan != null)
+                                OfferStatTile(
+                                  label: l.offer_max_borrow,
+                                  value: grouped.format(offer.maxLoan),
+                                  caption: offer.dbrCapPct == null
+                                      ? l.offer_egp_extra
+                                      : l.offer_max_borrow_caption(
+                                          _trimRate(offer.dbrCapPct!),
+                                        ),
+                                  valueColor: colors.success.main,
+                                ),
+                              if (offer.dbrPct != null)
+                                OfferStatTile(
+                                  label: l.offer_dbr,
+                                  value: '${_trimRate(offer.dbrPct!)}%',
+                                  caption: l.offer_dbr_caption,
+                                  valueColor: colors.warning.active,
+                                ),
                             ],
                           ),
+                          if (offer.hasUnusedHeadroom) ...[
+                            Gap(10.h),
+                            Text(
+                              l.offer_headroom_hint,
+                              style: text.bodySmall.copyWith(
+                                color: colors.success.main,
+                              ),
+                            ),
+                          ],
                           Gap(20.h),
                           Text(
                             l.offer_fees_title.toUpperCase(),
@@ -175,25 +243,7 @@ class OfferDetailsPage extends StatelessWidget {
                             ),
                           ),
                           Gap(12.h),
-                          OfferFeesCard(
-                            rows: [
-                              (
-                                label: l.offer_admin_fees,
-                                value: l.offer_admin_fees_value,
-                                valueColor: colors.warning.active,
-                              ),
-                              (
-                                label: l.offer_interest_charge,
-                                value: l.offer_interest_charge_value,
-                                valueColor: colors.warning.active,
-                              ),
-                              (
-                                label: l.offer_early_settlement,
-                                value: l.offer_early_settlement_value,
-                                valueColor: colors.success.main,
-                              ),
-                            ],
-                          ),
+                          OfferFeesCard(rows: feeRows),
                           if (offer.requiredDocuments.isNotEmpty) ...[
                             Gap(20.h),
                             OfferRequiredDocumentsCard(

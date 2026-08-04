@@ -74,6 +74,7 @@ export class SeedService {
             bankName: dto.bankName,
             friendlyName: dto.friendlyName,
             friendlyNameAr: dto.friendlyNameAr,
+            programNameKey: dto.programNameKey,
             programType: dto.programType,
             productCategory: dto.productCategory,
             currencies: dto.currencies,

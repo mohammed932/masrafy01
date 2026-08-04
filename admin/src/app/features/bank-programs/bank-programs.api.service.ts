@@ -9,8 +9,6 @@ import type {
   BankProgramUpdatePayload,
   DuplicateBankProgramPayload,
   ListBankProgramsQuery,
-  PrefillQuery,
-  PrefillResponse,
 } from './bank-programs.types';
 
 interface SuccessEnvelope<T> {
@@ -80,21 +78,6 @@ export class BankProgramsApiService {
         body,
       ),
     );
-  }
-
-  /**
-   * FR-008 — starting values for a NEW program, merged bank policy → catalog
-   * defaults, with a per-leaf `origin` map driving the inherited/edited badges.
-   * Read-only: nothing is created and matching never consults it (FR-021b).
-   */
-  async prefill(query: PrefillQuery): Promise<PrefillResponse> {
-    let params = new HttpParams().set('category', query.category);
-    if (query.bankId) params = params.set('bankId', query.bankId);
-    if (query.programNameKey) params = params.set('programNameKey', query.programNameKey);
-    const res = await firstValueFrom(
-      this.http.get<SuccessEnvelope<PrefillResponse>>(`${this.base}/prefill`, { params }),
-    );
-    return res.data;
   }
 
   /** FR-013 — copy a program into a new INACTIVE draft carrying every value. */

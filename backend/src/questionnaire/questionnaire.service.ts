@@ -476,7 +476,7 @@ export class QuestionnaireService {
    */
   async buildAnswersView(
     source: { versionId: string | null; category: string },
-    answers: ReadonlyArray<{ questionCode: string; selectedOptionCode: string | null }>,
+    answers: ReadonlyArray<ApplicantAnswerInput>,
   ): Promise<ApplicantQuestionnaireView | null> {
     // Prefer the exact submit-time snapshot; fall back to the active published
     // version when the application did not record a version id (the codes on the
@@ -486,7 +486,7 @@ export class QuestionnaireService {
       : await this.repo.activeVersion();
     if (!version) return null;
     const snap = version.snapshot as unknown as StoredSnapshot;
-    const picked = new Map(answers.map((a) => [a.questionCode, a.selectedOptionCode]));
+    const picked = new Map(answers.map((a) => [a.questionCode, a]));
 
     const orderOf = (x: unknown): number =>
       Number((x as Record<string, unknown>)['displayOrder'] ?? 0);
@@ -495,15 +495,15 @@ export class QuestionnaireService {
     for (const g of [...(snap.groups ?? [])].sort((a, b) => orderOf(a) - orderOf(b))) {
       const items: ApplicantAnswerItem[] = [];
       for (const q of [...(g.questions ?? [])].sort((a, b) => orderOf(a) - orderOf(b))) {
-        if (!picked.has(q.code)) continue;
-        const optCode = picked.get(q.code) ?? null;
-        const opt = optCode ? (q.options ?? []).find((o) => o.code === optCode) : undefined;
+        const answer = picked.get(q.code);
+        if (!answer) continue;
+        const rendered = renderAnswer(q, answer);
         items.push({
           questionCode: q.code,
           questionAr: String(q['questionAr'] ?? q.code),
           questionEn: String(q['questionEn'] ?? q.code),
-          answerAr: opt ? opt.labelAr : null,
-          answerEn: opt ? opt.labelEn : null,
+          answerAr: rendered.ar,
+          answerEn: rendered.en,
         });
       }
       if (items.length > 0) {
@@ -715,6 +715,22 @@ interface StoredSnapshot {
 }
 
 // ---- Applicant answers view (admin detail) --------------------------------
+
+/**
+ * One stored `application_answer` row, in the shape the view needs. Every value
+ * column is carried: a NUMERIC or TEXT answer has no option code, so reading
+ * only `selectedOptionCode` (pre-feature-010 behaviour) rendered those questions
+ * blank on the admin detail page.
+ */
+export interface ApplicantAnswerInput {
+  questionCode: string;
+  selectedOptionCode: string | null;
+  selectedOptionCodes?: readonly string[];
+  textValue?: string | null;
+  /** Decimal STRING — never a JS number (Principle I). */
+  numericValue?: string | null;
+}
+
 export interface ApplicantAnswerItem {
   questionCode: string;
   questionAr: string;
@@ -732,6 +748,68 @@ export interface ApplicantQuestionnaireView {
   category: string;
   versionNumber: number;
   groups: ApplicantAnswerGroup[];
+}
+
+/**
+ * Render one stored answer as bilingual display text, using the FROZEN snapshot
+ * question it belongs to. Choice answers resolve to option labels; NUMERIC
+ * answers render the stored decimal with the question's own unit (the snapshot
+ * carries `numeric.unitAr` / `unitEn`); TEXT answers pass through verbatim —
+ * an authorised admin reading an application is exactly who the answer was
+ * collected for (Principle VI masks on the way OUT to logs, not to the UI).
+ */
+function renderAnswer(
+  q: StoredQuestion,
+  answer: ApplicantAnswerInput,
+): { ar: string | null; en: string | null } {
+  const options = q.options ?? [];
+  const labelsFor = (codes: readonly string[]): { ar: string; en: string } | null => {
+    const matched = codes
+      .map((code) => options.find((o) => o.code === code))
+      .filter((o): o is StoredOption => o !== undefined);
+    if (matched.length === 0) return null;
+    return {
+      ar: matched.map((o) => o.labelAr).join('، '),
+      en: matched.map((o) => o.labelEn).join(', '),
+    };
+  };
+
+  if (answer.selectedOptionCode) {
+    const one = labelsFor([answer.selectedOptionCode]);
+    return { ar: one?.ar ?? null, en: one?.en ?? null };
+  }
+  if (answer.selectedOptionCodes && answer.selectedOptionCodes.length > 0) {
+    const many = labelsFor(answer.selectedOptionCodes);
+    return { ar: many?.ar ?? null, en: many?.en ?? null };
+  }
+  if (answer.numericValue != null && answer.numericValue !== '') {
+    const numeric = (q['numeric'] ?? {}) as { unitAr?: unknown; unitEn?: unknown };
+    const formatted = formatDecimalString(answer.numericValue);
+    const unitAr = typeof numeric.unitAr === 'string' ? numeric.unitAr : null;
+    const unitEn = typeof numeric.unitEn === 'string' ? numeric.unitEn : null;
+    return {
+      ar: unitAr ? `${formatted} ${unitAr}` : formatted,
+      en: unitEn ? `${formatted} ${unitEn}` : formatted,
+    };
+  }
+  if (answer.textValue != null && answer.textValue.trim().length > 0) {
+    return { ar: answer.textValue, en: answer.textValue };
+  }
+  return { ar: null, en: null };
+}
+
+/**
+ * Group a decimal STRING for display without ever going through a float
+ * (Principle I / A3): thousands separators on the integer part, trailing
+ * `.00` dropped.
+ */
+function formatDecimalString(value: string): string {
+  const [rawInt = '0', rawFraction] = value.split('.');
+  const negative = rawInt.startsWith('-');
+  const digits = negative ? rawInt.slice(1) : rawInt;
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const fraction = rawFraction && /[1-9]/.test(rawFraction) ? `.${rawFraction.replace(/0+$/, '')}` : '';
+  return `${negative ? '-' : ''}${grouped}${fraction}`;
 }
 
 /**

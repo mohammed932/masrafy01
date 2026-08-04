@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Ip,
-  Param,
-  Patch,
-  Post,
-  Put,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Ip, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -17,10 +6,8 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.service';
 import {
-  CatalogDefaultsResponseDto,
   CreateEnumerationDto,
   EnumerationRowDto,
-  UpdateCatalogDefaultsDto,
   UpdateEnumerationDto,
 } from './dto/enumeration.dto';
 
@@ -43,43 +30,18 @@ export class AdminPlatformEnumerationsController {
   @ApiOperation({ summary: 'List enumeration members (optionally filtered by type)' })
   async list(@Query('type') type?: string): Promise<{ success: true; data: EnumerationRowDto[] }> {
     const rows = await this.service.listAll({ type });
+    // Usage is meaningful only for the program catalog, and one extra query for
+    // the whole page beats one per row.
+    const usage =
+      type === 'program_name' || rows.some((r) => r.type === 'program_name')
+        ? await this.service.programNameUsage()
+        : undefined;
     return {
       success: true,
-      data: rows.map((r) => this.project(r)),
+      data: rows.map((r) =>
+        this.project(r, r.type === 'program_name' ? (usage?.get(r.key) ?? { programs: 0, banks: 0 }) : undefined),
+      ),
     };
-  }
-
-  // --- Feature 010: predefined-program catalog defaults (FR-001 … FR-004) ---
-  // Declared before `@Patch(':id')` / `@Post()` so the literal `program_name`
-  // segment is never swallowed by a parameterised route.
-  // Contract path is `/admin/platform-enumerations/...`; this controller has
-  // always been mounted at `/admin/enumerations`, so that prefix is kept.
-
-  @Get('program_name/:key/defaults')
-  @Roles('super_admin', 'analyst')
-  @ApiOperation({ summary: 'Read a predefined program’s per-category lending defaults' })
-  async getCatalogDefaults(
-    @Param('key') key: string,
-  ): Promise<{ success: true; data: CatalogDefaultsResponseDto }> {
-    const data = await this.service.getCatalogDefaults(key);
-    return { success: true, data: data as CatalogDefaultsResponseDto };
-  }
-
-  @Put('program_name/:key/defaults')
-  @ApiOperation({
-    summary: 'Replace a predefined program’s per-category lending defaults (prefill only)',
-  })
-  async updateCatalogDefaults(
-    @Param('key') key: string,
-    @Body() body: UpdateCatalogDefaultsDto,
-    @CurrentUser() user: JwtPayload,
-    @Ip() ip: string,
-  ): Promise<{ success: true; data: CatalogDefaultsResponseDto }> {
-    const data = await this.service.updateCatalogDefaults(key, body, {
-      staffId: user.sub,
-      sourceIp: ip ?? null,
-    });
-    return { success: true, data };
   }
 
   @Post()
@@ -121,11 +83,10 @@ export class AdminPlatformEnumerationsController {
     deprecatedAt: Date | null;
     systemOnly: boolean;
     parentKey: string | null;
-    defaults: Record<string, unknown>;
     sortOrder: number;
     createdAt: Date;
     updatedAt: Date;
-  }): EnumerationRowDto {
+  }, usage?: { programs: number; banks: number }): EnumerationRowDto {
     return {
       id: row.id,
       type: row.type,
@@ -136,7 +97,7 @@ export class AdminPlatformEnumerationsController {
       deprecatedAt: row.deprecatedAt?.toISOString() ?? null,
       systemOnly: row.systemOnly,
       parentKey: row.parentKey,
-      defaults: row.defaults,
+      ...(usage ? { usage } : {}),
       sortOrder: row.sortOrder,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
