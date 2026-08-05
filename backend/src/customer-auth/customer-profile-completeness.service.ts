@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { RegistrationPath } from '@prisma/client';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
+import { deriveAge } from './age.util';
 import {
   CustomerAccountRepository,
   type CustomerProfileState,
@@ -62,6 +63,23 @@ export class CustomerProfileCompletenessService {
   async assertComplete(customerId: string): Promise<void> {
     const complete = await this.isComplete(customerId);
     if (!complete) throw new DomainException(ERROR_CODES.PROFILE_INCOMPLETE);
+  }
+
+  /**
+   * Applicant age for the matching pipeline — DERIVED from `birthday`, never
+   * stored and never accepted from a client (Principle XXXVII / A31). Every
+   * registration path collects `birthday` at profile completion, so any caller
+   * past the completeness gate has one; a missing birthday means the profile is
+   * not complete, hence PROFILE_INCOMPLETE rather than an assumed age.
+   *
+   * Single source of truth for the three customer surfaces that price money off
+   * age (age-at-maturity tenor shortening): apply, matching preview, calculator.
+   */
+  async getApplicantAge(customerId: string): Promise<number> {
+    const state = await this.accounts.findProfileState(customerId);
+    const age = deriveAge(state?.birthday ?? null);
+    if (age === null) throw new DomainException(ERROR_CODES.PROFILE_INCOMPLETE);
+    return age;
   }
 
   /**

@@ -30,8 +30,9 @@ class CustomerModel {
   factory CustomerModel.fromJson(Map<String, dynamic> json) {
     final pathStr = (json['registrationPath'] as String? ?? 'PHONE').toUpperCase();
     final path = pathStr == 'SOCIAL' ? RegistrationPath.social : RegistrationPath.phone;
+    // Google is the only social provider (constitution v11.0.0).
     final providers = (json['linkedProviders'] as List<dynamic>? ?? const [])
-        .map((p) => p.toString().toUpperCase() == 'APPLE' ? SocialProvider.apple : SocialProvider.google)
+        .map((_) => SocialProvider.google)
         .toList(growable: false);
     return CustomerModel(
       id: json['id'] as String,

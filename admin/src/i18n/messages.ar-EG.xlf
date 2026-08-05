@@ -634,6 +634,140 @@
       <trans-unit id="catalogDefaults.carried.commercialIncome" datatype="html"><source>Commercial-bank income <x id="PERCENT" equiv-text="percent"/>%</source><target>نسبة الدخل المحتسبة للبنوك التجارية <x id="PERCENT" equiv-text="percent"/>%</target></trans-unit>
       <trans-unit id="catalogDefaults.carried.publicIncome" datatype="html"><source>Public-bank income <x id="PERCENT" equiv-text="percent"/>%</source><target>نسبة الدخل المحتسبة لبنوك القطاع العام <x id="PERCENT" equiv-text="percent"/>%</target></trans-unit>
       <trans-unit id="catalogDefaults.carried.lifeInsuranceMinLoan" datatype="html"><source>Life-insurance minimum loan <x id="AMOUNT" equiv-text="amount"/> EGP</source><target>الحد الأدنى للقرض الخاضع لتأمين الحياة <x id="AMOUNT" equiv-text="amount"/> جنيه</target></trans-unit>
+
+      <!-- Questionnaire editor — flat global question pool -->
+      <trans-unit id="qedit.eyebrow" datatype="html"><source>Matching engine</source><target>محرك المطابقة</target></trans-unit>
+      <trans-unit id="qedit.title" datatype="html"><source>Question pool</source><target>مجموعة الأسئلة</target></trans-unit>
+      <trans-unit id="qedit.live_title" datatype="html"><source>A version is published</source><target>هناك إصدار منشور</target></trans-unit>
+      <trans-unit id="qedit.live" datatype="html"><source>Live</source><target>منشور</target></trans-unit>
+      <trans-unit id="qedit.health_issues" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> to fix</source><target><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> تحتاج إصلاحًا</target></trans-unit>
+      <trans-unit id="qedit.health_ok" datatype="html"><source>Ready to ask</source><target>جاهزة للسؤال</target></trans-unit>
+      <trans-unit id="qedit.autosave" datatype="html"><source>Saves &amp; publishes automatically</source><target>يُحفظ ويُنشر تلقائيًا</target></trans-unit>
+      <trans-unit id="qedit.add_question" datatype="html"><source>Question</source><target>سؤال</target></trans-unit>
+      <trans-unit id="qedit.binding_warn_title" datatype="html"><source>Some figures the engine prices on are not being collected</source><target>بعض الأرقام التي يحسب عليها المحرك لا يتم جمعها</target></trans-unit>
+      <trans-unit id="qedit.hp_incomplete_title" datatype="html"><source>These questions can&apos;t be asked yet — a choice question needs at least two options.</source><target>هذه الأسئلة لا يمكن طرحها بعد — سؤال الاختيار يحتاج خيارين على الأقل.</target></trans-unit>
+      <trans-unit id="qedit.empty" datatype="html"><source>No questions yet — the first one you add becomes the first thing every applicant is asked</source><target>لا توجد أسئلة بعد — أول سؤال تضيفه سيكون أول ما يُسأل عنه كل متقدم</target></trans-unit>
+      <trans-unit id="qedit.empty_cta" datatype="html"><source>Add the first question</source><target>أضف أول سؤال</target></trans-unit>
+      <trans-unit id="qedit.search_ph" datatype="html"><source>Search questions, answers, or codes</source><target>ابحث في الأسئلة أو الإجابات أو الأكواد</target></trans-unit>
+      <trans-unit id="qedit.search_aria" datatype="html"><source>Search the question pool</source><target>ابحث في مجموعة الأسئلة</target></trans-unit>
+      <trans-unit id="qedit.filter_aria" datatype="html"><source>Filter by answer type</source><target>تصفية حسب نوع الإجابة</target></trans-unit>
+      <trans-unit id="qedit.filter_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="qedit.only_incomplete" datatype="html"><source>Needs options</source><target>تحتاج خيارات</target></trans-unit>
+      <trans-unit id="qedit.showing" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> questions</source><target><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> سؤالًا</target></trans-unit>
+      <trans-unit id="qedit.clear_filters" datatype="html"><source>Clear</source><target>إلغاء التصفية</target></trans-unit>
+      <trans-unit id="qedit.total" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions · <x id="INTERPOLATION_1" equiv-text="{{ totalOptions() }}"/> answers</source><target><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا · <x id="INTERPOLATION_1" equiv-text="{{ totalOptions() }}"/> إجابة</target></trans-unit>
+      <trans-unit id="qedit.drag_disabled" datatype="html"><source>Dragging is off while the list is filtered — the order you&apos;d see isn&apos;t the order applicants get. Use the row menu to move a question, or clear the filter.</source><target>السحب معطّل أثناء التصفية — الترتيب الظاهر ليس الترتيب الذي يراه المتقدمون. استخدم قائمة الصف لتحريك سؤال، أو ألغِ التصفية.</target></trans-unit>
+      <trans-unit id="qedit.drag_page" datatype="html"><source>Dragging reorders within this page. To move a question to another page, open it and use the arrows in the editor&apos;s header.</source><target>السحب يعيد الترتيب داخل هذه الصفحة فقط. لنقل سؤال إلى صفحة أخرى، افتحه واستخدم الأسهم في رأس المحرّر.</target></trans-unit>
+      <trans-unit id="qedit.pager_aria" datatype="html"><source>Question pages</source><target>صفحات الأسئلة</target></trans-unit>
+      <trans-unit id="qedit.page_range" datatype="html"><source>Showing <x id="INTERPOLATION" equiv-text="{{ rangeStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ rangeEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ visible().length }}"/></source><target>عرض <x id="INTERPOLATION" equiv-text="{{ rangeStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ rangeEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ visible().length }}"/></target></trans-unit>
+      <trans-unit id="qedit.no_matches_title" datatype="html"><source>Nothing matches that filter</source><target>لا شيء يطابق هذه التصفية</target></trans-unit>
+      <trans-unit id="qedit.no_matches_body" datatype="html"><source>The pool still has <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions — they&apos;re just filtered out.</source><target>المجموعة بها <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا — لكنها مستبعدة بالتصفية.</target></trans-unit>
+      <trans-unit id="qedit.reorder_aria" datatype="html"><source>Drag to reorder</source><target>اسحب لإعادة الترتيب</target></trans-unit>
+      <trans-unit id="qedit.needs_options_short" datatype="html"><source>needs options</source><target>تحتاج خيارات</target></trans-unit>
+      <trans-unit id="qedit.move_up" datatype="html"><source>Move up</source><target>تحريك للأعلى</target></trans-unit>
+      <trans-unit id="qedit.move_down" datatype="html"><source>Move down</source><target>تحريك للأسفل</target></trans-unit>
+      <trans-unit id="qedit.add_question_inline" datatype="html"><source>Add a question to the end</source><target>أضف سؤالًا في النهاية</target></trans-unit>
+      <trans-unit id="qedit.sec_content" datatype="html"><source>Content</source><target>المحتوى</target></trans-unit>
+      <trans-unit id="qedit.q_en" datatype="html"><source>Question (English)</source><target>السؤال (إنجليزي)</target></trans-unit>
+      <trans-unit id="qedit.q_ar" datatype="html"><source>السؤال (عربي)</source><target>السؤال (عربي)</target></trans-unit>
+      <trans-unit id="qedit.sec_answer" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
+      <trans-unit id="qedit.answer_type" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
+      <trans-unit id="qedit.type_locked" datatype="html"><source>The answer type can&apos;t change once applicants have answered this question — their stored answers would no longer match it. Add a new question instead.</source><target>لا يمكن تغيير نوع الإجابة بعد أن أجاب المتقدمون على هذا السؤال — إجاباتهم المحفوظة لن تطابقه. أضف سؤالًا جديدًا بدلًا من ذلك.</target></trans-unit>
+      <trans-unit id="qedit.not_scoreable" datatype="html"><source>Only single-choice questions carry scoring weights, so this question won&apos;t affect approval probability.</source><target>الأسئلة ذات الاختيار الواحد فقط تحمل أوزان التقييم، لذا لن يؤثر هذا السؤال على احتمالية الموافقة.</target></trans-unit>
+      <trans-unit id="qedit.required" datatype="html"><source>Required</source><target>مطلوب</target></trans-unit>
+      <trans-unit id="qedit.sec_rules" datatype="html"><source>Accepted values</source><target>القيم المقبولة</target></trans-unit>
+      <trans-unit id="qedit.num_min" datatype="html"><source>Minimum</source><target>الحد الأدنى</target></trans-unit>
+      <trans-unit id="qedit.num_max" datatype="html"><source>Maximum</source><target>الحد الأقصى</target></trans-unit>
+      <trans-unit id="qedit.num_step" datatype="html"><source>Step</source><target>الخطوة</target></trans-unit>
+      <trans-unit id="qedit.num_unit_en" datatype="html"><source>Unit (English)</source><target>الوحدة (إنجليزي)</target></trans-unit>
+      <trans-unit id="qedit.num_unit_ar" datatype="html"><source>الوحدة (عربي)</source><target>الوحدة (عربي)</target></trans-unit>
+      <trans-unit id="qedit.num_inverted" datatype="html"><source>The maximum must be greater than or equal to the minimum.</source><target>يجب أن يكون الحد الأقصى أكبر من أو يساوي الحد الأدنى.</target></trans-unit>
+      <trans-unit id="qedit.num_hint" datatype="html"><source>Bounds are inclusive, and the step counts up from the minimum. Leave a field empty for no limit.</source><target>الحدود شاملة، والخطوة تُحسب صعودًا من الحد الأدنى. اترك الحقل فارغًا لعدم وضع حد.</target></trans-unit>
+      <trans-unit id="qedit.text_max" datatype="html"><source>Maximum length</source><target>أقصى طول</target></trans-unit>
+      <trans-unit id="qedit.text_hint" datatype="html"><source>Free text is never written to logs, because applicants may type personal details into it.</source><target>النص الحر لا يُكتب في السجلات أبدًا، لأن المتقدمين قد يكتبون بيانات شخصية فيه.</target></trans-unit>
+      <trans-unit id="qedit.sec_answers" datatype="html"><source>Answer options</source><target>خيارات الإجابة</target></trans-unit>
+      <trans-unit id="qedit.needs_options" datatype="html"><source>Needs at least 2 options before this can be published.</source><target>يحتاج خيارين على الأقل قبل أن يمكن نشره.</target></trans-unit>
+      <trans-unit id="qedit.save_o" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
+      <trans-unit id="qedit.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="qedit.edit_option_aria" datatype="html"><source>Edit option</source><target>تعديل الخيار</target></trans-unit>
+      <trans-unit id="qedit.delete_option_aria" datatype="html"><source>Delete option</source><target>حذف الخيار</target></trans-unit>
+      <trans-unit id="qedit.add_o" datatype="html"><source>Add</source><target>إضافة</target></trans-unit>
+      <trans-unit id="qedit.add_option" datatype="html"><source>option</source><target>خيار</target></trans-unit>
+      <trans-unit id="qedit.choice_hint_new" datatype="html"><source>Save the question first, then add its options here — at least two are needed before it can be asked.</source><target>احفظ السؤال أولًا، ثم أضف خياراته هنا — يحتاج خيارين على الأقل قبل أن يُطرح.</target></trans-unit>
+      <trans-unit id="qedit.code_note" datatype="html"><source>A stable code is generated automatically — no need to type one.</source><target>يُنشأ كود ثابت تلقائيًا — لا حاجة لكتابته.</target></trans-unit>
+      <trans-unit id="qedit.save_q" datatype="html"><source>Save question</source><target>حفظ السؤال</target></trans-unit>
+      <trans-unit id="qedit.type_single" datatype="html"><source>One choice</source><target>اختيار واحد</target></trans-unit>
+      <trans-unit id="qedit.type_multi" datatype="html"><source>Several choices</source><target>عدة اختيارات</target></trans-unit>
+      <trans-unit id="qedit.type_numeric" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
+      <trans-unit id="qedit.type_text" datatype="html"><source>Text</source><target>نص</target></trans-unit>
+      <trans-unit id="qedit.type_single_hint" datatype="html"><source>The applicant picks exactly one option. This is the only type that carries scoring weights.</source><target>يختار المتقدم خيارًا واحدًا فقط. هذا هو النوع الوحيد الذي يحمل أوزان التقييم.</target></trans-unit>
+      <trans-unit id="qedit.type_multi_hint" datatype="html"><source>The applicant can pick more than one option.</source><target>يمكن للمتقدم اختيار أكثر من خيار.</target></trans-unit>
+      <trans-unit id="qedit.type_numeric_hint" datatype="html"><source>The applicant types a number, within the bounds you set.</source><target>يكتب المتقدم رقمًا داخل الحدود التي تحددها.</target></trans-unit>
+      <trans-unit id="qedit.type_text_hint" datatype="html"><source>The applicant types free text.</source><target>يكتب المتقدم نصًا حرًا.</target></trans-unit>
+      <trans-unit id="qedit.rule_text" datatype="html"><source>Free text, up to <x id="max" equiv-text="max"/> characters</source><target>نص حر، حتى <x id="max" equiv-text="max"/> حرفًا</target></trans-unit>
+      <trans-unit id="qedit.rule_numeric" datatype="html"><source>Number from <x id="min" equiv-text="min"/> to <x id="max" equiv-text="max"/> <x id="unit" equiv-text="unit"/></source><target>رقم من <x id="min" equiv-text="min"/> إلى <x id="max" equiv-text="max"/> <x id="unit" equiv-text="unit"/></target></trans-unit>
+      <trans-unit id="qedit.question_saved" datatype="html"><source>Question saved</source><target>تم حفظ السؤال</target></trans-unit>
+      <trans-unit id="qedit.question_added" datatype="html"><source>Question added</source><target>تمت إضافة السؤال</target></trans-unit>
+      <trans-unit id="qedit.option_saved" datatype="html"><source>Option saved</source><target>تم حفظ الخيار</target></trans-unit>
+      <trans-unit id="qedit.option_added" datatype="html"><source>Option added</source><target>تمت إضافة الخيار</target></trans-unit>
+      <trans-unit id="qedit.del_question_title" datatype="html"><source>Delete this question?</source><target>حذف هذا السؤال؟</target></trans-unit>
+      <trans-unit id="qedit.del_question_body" datatype="html"><source>&quot;<x id="name" equiv-text="this.isAr ? q.questionAr : q.questionEn"/>&quot; will stop being asked and a new version publishes immediately. Answers already given are kept. If another question branches on this one, the delete is refused.</source><target>«<x id="name" equiv-text="this.isAr ? q.questionAr : q.questionEn"/>» سيتوقف طرحه وسيُنشر إصدار جديد فورًا. الإجابات المُسجّلة تبقى محفوظة. وإذا كان سؤال آخر يتفرّع عنه، يُرفض الحذف.</target></trans-unit>
+      <trans-unit id="qedit.del_ok" datatype="html"><source>Delete</source><target>حذف</target></trans-unit>
+      <trans-unit id="qedit.del_cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="qedit.question_deleted" datatype="html"><source>Question deleted</source><target>تم حذف السؤال</target></trans-unit>
+      <trans-unit id="qedit.del_option_title" datatype="html"><source>Delete this option?</source><target>حذف هذا الخيار؟</target></trans-unit>
+      <trans-unit id="qedit.del_option_body" datatype="html"><source>&quot;<x id="name" equiv-text="this.isAr ? o.labelAr : o.labelEn"/>&quot; will no longer be offered. Answers that already picked it are kept, and any per-program score for it is dropped.</source><target>«<x id="name" equiv-text="this.isAr ? o.labelAr : o.labelEn"/>» لن يُعرض بعد الآن. الإجابات التي اختارته تبقى محفوظة، ويُحذف أي تقييم خاص به لكل برنامج.</target></trans-unit>
+      <trans-unit id="qedit.option_deleted" datatype="html"><source>Option deleted</source><target>تم حذف الخيار</target></trans-unit>
+      <trans-unit id="qedit.opt_more" datatype="html"><source>+<x id="INTERPOLATION" equiv-text="{{ q.options.length - INLINE_OPTION_PREVIEW }}"/> more</source><target>+<x id="INTERPOLATION" equiv-text="{{ q.options.length - INLINE_OPTION_PREVIEW }}"/> أخرى</target></trans-unit>
+      <trans-unit id="qedit.optional_chip" datatype="html"><source>optional</source><target>اختياري</target></trans-unit>
+      <trans-unit id="qedit.optional_tip" datatype="html"><source>Applicants may skip this</source><target>يمكن للمتقدمين تخطيه</target></trans-unit>
+      <trans-unit id="qedit.close_aria" datatype="html"><source>Close</source><target>إغلاق</target></trans-unit>
+      <trans-unit id="qedit.delete_question" datatype="html"><source>Delete question</source><target>حذف السؤال</target></trans-unit>
+      <trans-unit id="qedit.edit_question_aria" datatype="html"><source>Edit question</source><target>تعديل السؤال</target></trans-unit>
+      <trans-unit id="qedit.modal_edit" datatype="html"><source>Edit question</source><target>تعديل السؤال</target></trans-unit>
+      <trans-unit id="qedit.modal_new" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
+      <trans-unit id="qedit.modal_pos" datatype="html"><source>Question <x id="INTERPOLATION" equiv-text="{{ positionOf(eq) }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/></source><target>السؤال <x id="INTERPOLATION" equiv-text="{{ positionOf(eq) }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/></target></trans-unit>
+      <trans-unit id="qedit.modal_pos_new" datatype="html"><source>Position <x id="INTERPOLATION" equiv-text="{{ rows().length + 1 }}"/></source><target>الترتيب <x id="INTERPOLATION" equiv-text="{{ rows().length + 1 }}"/></target></trans-unit>
+      <trans-unit id="qedit.lang_en" datatype="html"><source>English</source><target>الإنجليزية</target></trans-unit>
+      <trans-unit id="qedit.lang_ar" datatype="html"><source>العربية</source><target>العربية</target></trans-unit>
+
+      <trans-unit id="qtabs.aria" datatype="html"><source>Questionnaire sections</source><target>أقسام الاستبيان</target></trans-unit>
+      <trans-unit id="qtabs.pool" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
+      <trans-unit id="qtabs.categories" datatype="html"><source>Loan categories</source><target>أنواع التمويل</target></trans-unit>
+
+      <trans-unit id="qcat.eyebrow" datatype="html"><source>Matching engine</source><target>محرك المطابقة</target></trans-unit>
+      <trans-unit id="qcat.title" datatype="html"><source>Who gets asked what</source><target>مَن يُسأل عن ماذا</target></trans-unit>
+      <trans-unit id="qcat.sub" datatype="html"><source>One question can be asked for several loan categories. Untick every category to park a question — it stays here, but nobody is asked it.</source><target>يمكن طرح السؤال نفسه في أكثر من نوع تمويل. أزل التحديد عن كل الأنواع لتوقيف السؤال — يبقى هنا، لكن لا يُسأل عنه أحد.</target></trans-unit>
+      <trans-unit id="qcat.health_issues" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> to look at</source><target><x id="INTERPOLATION" equiv-text="{{ issueCount() }}"/> تحتاج مراجعة</target></trans-unit>
+      <trans-unit id="qcat.autosave" datatype="html"><source>Saves &amp; publishes automatically</source><target>يُحفظ ويُنشر تلقائيًا</target></trans-unit>
+      <trans-unit id="qcat.parked_title" datatype="html"><source>These questions are asked for no category — nobody sees them.</source><target>هذه الأسئلة غير مرتبطة بأي نوع تمويل — لا يراها أحد.</target></trans-unit>
+      <trans-unit id="qcat.dangling_title" datatype="html"><source>These questions only appear after another answer, but that other question isn&apos;t asked in every category they&apos;re assigned to — so they&apos;ll always show there.</source><target>هذه الأسئلة تظهر فقط بعد إجابة سؤال آخر، لكن ذلك السؤال غير مطروح في كل أنواع التمويل المرتبطة بها — لذا ستظهر دائمًا هناك.</target></trans-unit>
+      <trans-unit id="qcat.empty" datatype="html"><source>No questions to assign yet — add some on the Questions tab first</source><target>لا توجد أسئلة لربطها بعد — أضف أسئلة من تبويب الأسئلة أولًا</target></trans-unit>
+      <trans-unit id="qcat.search_ph" datatype="html"><source>Search questions, answers, or codes</source><target>ابحث في الأسئلة أو الإجابات أو الأكواد</target></trans-unit>
+      <trans-unit id="qcat.search_aria" datatype="html"><source>Search the question pool</source><target>ابحث في مجموعة الأسئلة</target></trans-unit>
+      <trans-unit id="qcat.filter_aria" datatype="html"><source>Show only one category&apos;s questions</source><target>اعرض أسئلة نوع تمويل واحد فقط</target></trans-unit>
+      <trans-unit id="qcat.filter_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="qcat.showing" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> of <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> questions</source><target><x id="INTERPOLATION" equiv-text="{{ visible().length }}"/> من <x id="INTERPOLATION_1" equiv-text="{{ rows().length }}"/> سؤالًا</target></trans-unit>
+      <trans-unit id="qcat.clear" datatype="html"><source>Clear</source><target>مسح</target></trans-unit>
+      <trans-unit id="qcat.total" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions</source><target><x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا</target></trans-unit>
+      <trans-unit id="qcat.no_matches_title" datatype="html"><source>Nothing matches that filter</source><target>لا نتائج مطابقة لهذا التصفية</target></trans-unit>
+      <trans-unit id="qcat.caption" datatype="html"><source>Questions down the side, loan categories across the top. Tick a cell to ask that question for that category.</source><target>الأسئلة في العمود الجانبي وأنواع التمويل في الصف الأعلى. حدّد الخانة ليُطرح السؤال في ذلك النوع.</target></trans-unit>
+      <trans-unit id="qcat.col_question" datatype="html"><source>Question</source><target>السؤال</target></trans-unit>
+      <trans-unit id="qcat.col_all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
+      <trans-unit id="qcat.col_all_tip" datatype="html"><source>Ask every listed question for this category</source><target>اطرح كل الأسئلة المعروضة في هذا النوع</target></trans-unit>
+      <trans-unit id="qcat.col_none" datatype="html"><source>None</source><target>لا شيء</target></trans-unit>
+      <trans-unit id="qcat.col_none_tip" datatype="html"><source>Stop asking every listed question for this category</source><target>أوقف طرح كل الأسئلة المعروضة في هذا النوع</target></trans-unit>
+      <trans-unit id="qcat.parked_tag" datatype="html"><source>Parked</source><target>موقوف</target></trans-unit>
+      <trans-unit id="qcat.live_added" datatype="html"><source><x id="count" equiv-text="count"/> questions are now asked for <x id="category" equiv-text="cat"/></source><target><x id="count" equiv-text="count"/> سؤالًا تُطرح الآن في <x id="category" equiv-text="cat"/></target></trans-unit>
+      <trans-unit id="qcat.live_removed" datatype="html"><source><x id="count" equiv-text="count"/> questions are no longer asked for <x id="category" equiv-text="cat"/></source><target><x id="count" equiv-text="count"/> سؤالًا لم تُعد تُطرح في <x id="category" equiv-text="cat"/></target></trans-unit>
+      <trans-unit id="qcat.cell_aria" datatype="html"><source>Ask &quot;<x id="question" equiv-text="wording"/>&quot; for <x id="category" equiv-text="cat"/></source><target>اطرح &quot;<x id="question" equiv-text="wording"/>&quot; في <x id="category" equiv-text="cat"/></target></trans-unit>
+      <trans-unit id="qcat.rail_aria" datatype="html"><source>Loan categories</source><target>أنواع التمويل</target></trans-unit>
+      <trans-unit id="qcat.panel_count" datatype="html"><source>of <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> questions asked</source><target>من <x id="INTERPOLATION" equiv-text="{{ rows().length }}"/> سؤالًا مطروحة</target></trans-unit>
+      <trans-unit id="qcat.ask_all" datatype="html"><source>Ask all listed</source><target>اطرح كل المعروض</target></trans-unit>
+      <trans-unit id="qcat.remove_all" datatype="html"><source>Remove all listed</source><target>أزل كل المعروض</target></trans-unit>
+      <trans-unit id="qcat.sec_asked" datatype="html"><source>Asked in this category</source><target>مطروحة في هذا النوع</target></trans-unit>
+      <trans-unit id="qcat.sec_not_asked" datatype="html"><source>Not asked here</source><target>غير مطروحة هنا</target></trans-unit>
+      <trans-unit id="qcat.none_asked" datatype="html"><source>Nothing is asked here yet — tick a question below to add it.</source><target>لا توجد أسئلة مطروحة هنا بعد — حدّد سؤالًا بالأسفل لإضافته.</target></trans-unit>
     </body>
   </file>
 </xliff>

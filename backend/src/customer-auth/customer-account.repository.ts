@@ -91,7 +91,7 @@ export interface CustomerForLogin {
   locale: string;
   /**
    * Feature 008 (Constitution v1.8.0): nullable for SOCIAL customers who
-   * authenticate via Google / Apple and have no password set.
+   * authenticate via Google and have no password set.
    */
   passwordHash: string | null;
   registrationPath: RegistrationPath;

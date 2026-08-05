@@ -177,12 +177,10 @@ export class CarDetailsDto {
   downPaymentEGP!: string;
 }
 
+// `age` is deliberately absent: it is DERIVED from the authenticated customer's
+// `birthday` server-side (Principle XXXVII / A31). A client sending it gets a
+// 422 `VALIDATION_FAILED` from the global ValidationPipe (`forbidNonWhitelisted`).
 export class ApplyRequestDto {
-  @IsInt()
-  @Min(18)
-  @Max(75)
-  age!: number;
-
   @IsString()
   loanPurpose!: string;
 

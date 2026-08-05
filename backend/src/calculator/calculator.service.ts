@@ -41,10 +41,6 @@ const GENERIC_PROGRAM = {
   dbrCapPercent: '50.0000',
 } as const;
 
-/** Age assumed in `cost` mode, where the caller gave none: the youngest adult,
- *  so the age-at-maturity rule never quietly shortens the term they asked for. */
-const ASSUMED_AGE = 18;
-
 @Injectable()
 export class CalculatorService {
   constructor(
@@ -52,25 +48,29 @@ export class CalculatorService {
     private readonly config: ConfigService,
   ) {}
 
+  /** `age` is derived from the caller's `birthday` by the controller — never sent by the client. */
   async quote(
     dto: CalculatorQuoteDto,
+    age: number,
   ): Promise<CostQuoteResponseDto | AffordabilityQuoteResponseDto> {
     const { program, isRepresentativeRate } = await this.resolveProgram(dto);
     return dto.mode === 'cost'
-      ? this.costQuote(dto, program, isRepresentativeRate)
-      : this.affordabilityQuote(dto, program, isRepresentativeRate);
+      ? this.costQuote(dto, age, program, isRepresentativeRate)
+      : this.affordabilityQuote(dto, age, program, isRepresentativeRate);
   }
 
   // ── cost ─────────────────────────────────────────────────────────────────
 
   private costQuote(
     dto: CalculatorQuoteDto,
+    age: number,
     program: BankProgramSnapshot,
     isRepresentativeRate: boolean,
   ): CostQuoteResponseDto {
     const requested = new Decimal(this.required(dto.amountEGP, 'amountEGP'));
     const quote = this.runQuote({
       dto,
+      age,
       program,
       income: requested, // Cost mode tests price, not affordability…
       obligations: new Decimal(0),
@@ -114,6 +114,7 @@ export class CalculatorService {
 
   private affordabilityQuote(
     dto: CalculatorQuoteDto,
+    age: number,
     program: BankProgramSnapshot,
     isRepresentativeRate: boolean,
   ): AffordabilityQuoteResponseDto {
@@ -127,7 +128,7 @@ export class CalculatorService {
     // maximum. Same code path as a real offer, so the two cannot diverge.
     const ceiling = new Decimal(program.loanLimits.perCurrency['EGP']?.maxAmount ?? 0);
     const outcome = quoteProgram({
-      profile: this.buildProfile({ dto, income, obligations, requested: ceiling }),
+      profile: this.buildProfile({ dto, age, income, obligations, requested: ceiling }),
       program,
       overrideAmountEGP: ceiling,
       overrideTenorMonths: dto.tenorMonths,
@@ -197,6 +198,7 @@ export class CalculatorService {
 
   private runQuote(args: {
     dto: CalculatorQuoteDto;
+    age: number;
     program: BankProgramSnapshot;
     income: Decimal;
     obligations: Decimal;
@@ -206,6 +208,7 @@ export class CalculatorService {
     const outcome = quoteProgram({
       profile: this.buildProfile({
         dto: args.dto,
+        age: args.age,
         income: args.income,
         obligations: args.obligations,
         requested: args.overrideAmountEGP,
@@ -237,12 +240,13 @@ export class CalculatorService {
    */
   private buildProfile(args: {
     dto: CalculatorQuoteDto;
+    age: number;
     income: Decimal;
     obligations: Decimal;
     requested: Decimal;
   }): ApplicantProfile {
     return {
-      age: args.dto.age ?? ASSUMED_AGE,
+      age: args.age,
       loanPurpose: 'personal',
       requestedAmountEGP: args.requested,
       requestedCurrency: 'EGP',

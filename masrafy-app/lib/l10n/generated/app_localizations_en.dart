@@ -60,7 +60,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_account_locked => 'Account temporarily locked after too many failed attempts. Try again later.';
 
   @override
-  String get auth_password_not_set => 'This account has no password. Sign in with Google or Apple.';
+  String get auth_password_not_set => 'This account has no password. Sign in with Google.';
 
   @override
   String get auth_password_same_as_old => 'Pick a new password different from the current one.';
@@ -81,13 +81,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get auth_password_required_for_phone_profile => 'A password is required to complete your profile.';
 
   @override
-  String get auth_password_forbidden_for_social_profile => 'Accounts using Google or Apple sign-in do not set a password.';
+  String get auth_password_forbidden_for_social_profile => 'Accounts using Google sign-in do not set a password.';
 
   @override
   String get auth_phone_mutation_on_phone_customer_forbidden => 'Mobile number is already set on this account.';
 
   @override
-  String get auth_password_change_forbidden_for_social => 'Password change is not available for accounts using Google or Apple sign-in.';
+  String get auth_password_change_forbidden_for_social => 'Password change is not available for accounts using Google sign-in.';
 
   @override
   String get auth_age_invalid => 'Age must be between 18 and 80.';
@@ -109,9 +109,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get auth_landing_action_google => 'Continue with Google';
-
-  @override
-  String get auth_landing_action_apple => 'Continue with Apple';
 
   @override
   String get auth_landing_action_login => 'Log In';
@@ -427,9 +424,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboarding_google => 'Google';
 
   @override
-  String get onboarding_apple => 'Apple';
-
-  @override
   String get onboarding_lang_toggle => 'العربية';
 
   @override
@@ -461,9 +455,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get login_google => 'Google';
-
-  @override
-  String get login_apple => 'Apple';
 
   @override
   String get login_no_account => 'Don\'t have an account?';

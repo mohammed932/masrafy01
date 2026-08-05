@@ -100,14 +100,6 @@ class AuthRemoteDataSource extends BaseRemoteDataSource {
     return SocialSessionModel.fromJson(_unwrap(json));
   }
 
-  Future<SocialSessionModel> socialApple(SocialAppleSignInRequest body) async {
-    final json = await appNetwork.post(
-      MasrafyEndpoint(endpoint: ApiStrings.authSocialApple),
-      data: body.toJson(),
-    );
-    return SocialSessionModel.fromJson(_unwrap(json));
-  }
-
   Future<CustomerAuthEnvelopeModel> socialLogin(SocialLoginRequest body) async {
     final json = await appNetwork.post(
       MasrafyEndpoint(endpoint: ApiStrings.authSocialLogin),
@@ -123,17 +115,6 @@ class AuthRemoteDataSource extends BaseRemoteDataSource {
   ) async {
     final json = await appNetwork.post(
       MasrafyEndpoint(endpoint: ApiStrings.authGoogleSignin),
-      data: body.toJson(),
-    );
-    return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));
-  }
-
-  /// Dedicated one-call Apple login — tokens returned directly.
-  Future<CustomerAuthEnvelopeModel> appleLogin(
-    SocialAppleSignInRequest body,
-  ) async {
-    final json = await appNetwork.post(
-      MasrafyEndpoint(endpoint: ApiStrings.authAppleLogin),
       data: body.toJson(),
     );
     return CustomerAuthEnvelopeModel.fromJson(_unwrap(json));

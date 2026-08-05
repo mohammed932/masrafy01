@@ -68,7 +68,7 @@
   "@auth_account_locked": {
     "description": "Backend ACCOUNT_LOCKED error code"
   },
-  "auth_password_not_set": "لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google أو Apple.",
+  "auth_password_not_set": "لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google.",
   "@auth_password_not_set": {
     "description": "Backend PASSWORD_NOT_SET error code"
   },
@@ -96,7 +96,7 @@
   "@auth_password_required_for_phone_profile": {
     "description": "Backend PASSWORD_REQUIRED_FOR_PHONE_PROFILE error code"
   },
-  "auth_password_forbidden_for_social_profile": "حسابات Google أو Apple لا تستخدم كلمة مرور.",
+  "auth_password_forbidden_for_social_profile": "حسابات Google لا تستخدم كلمة مرور.",
   "@auth_password_forbidden_for_social_profile": {
     "description": "Backend PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE error code"
   },
@@ -104,7 +104,7 @@
   "@auth_phone_mutation_on_phone_customer_forbidden": {
     "description": "Backend PHONE_MUTATION_ON_PHONE_CUSTOMER_FORBIDDEN error code"
   },
-  "auth_password_change_forbidden_for_social": "تغيير كلمة المرور غير متاح لحسابات Google أو Apple.",
+  "auth_password_change_forbidden_for_social": "تغيير كلمة المرور غير متاح لحسابات Google.",
   "@auth_password_change_forbidden_for_social": {
     "description": "Backend PASSWORD_CHANGE_FORBIDDEN_FOR_SOCIAL error code"
   },
@@ -135,10 +135,6 @@
   "auth_landing_action_google": "المتابعة باستخدام Google",
   "@auth_landing_action_google": {
     "description": "Landing CTA — Google sign-in"
-  },
-  "auth_landing_action_apple": "المتابعة باستخدام Apple",
-  "@auth_landing_action_apple": {
-    "description": "Landing CTA — Apple sign-in (iOS only)"
   },
   "auth_landing_action_login": "تسجيل الدخول",
   "@auth_landing_action_login": {
@@ -507,7 +503,6 @@
   "onboarding_signin": "تسجيل الدخول",
   "onboarding_or_continue": "أو تابع باستخدام",
   "onboarding_google": "Google",
-  "onboarding_apple": "Apple",
   "onboarding_lang_toggle": "English",
   "login_title": "سجّل الدخول إلى حسابك",
   "login_subtitle": "سجّل الدخول لاكتشاف أفضل عروض القروض",
@@ -519,7 +514,6 @@
   "login_cta": "تسجيل الدخول",
   "login_or_continue": "أو تابع باستخدام",
   "login_google": "Google",
-  "login_apple": "Apple",
   "login_no_account": "ليس لديك حساب؟",
   "login_create_account": "إنشاء حساب",
   "login_terms": "بالتسجيل، أنت توافق على شروط الخدمة",

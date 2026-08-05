@@ -20,11 +20,7 @@ import {
 } from './dto/customer-signup-phone.dto';
 import { CustomerCompleteProfileDto } from './dto/customer-complete-profile.dto';
 import { UpdateCustomerProfileDto } from './dto/customer-update-profile.dto';
-import {
-  SocialAppleSignInDto,
-  SocialGoogleSignInDto,
-  SocialLoginDto,
-} from './dto/customer-social.dto';
+import { SocialGoogleSignInDto, SocialLoginDto } from './dto/customer-social.dto';
 import {
   ProfileMobileRequestOtpDto,
   ProfileMobileVerifyOtpDto,
@@ -259,23 +255,6 @@ export class CustomerAuthController {
     return ok(this.normalizeSocialResult(result));
   }
 
-  @Post('social/apple')
-  @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
-  @ApiOperation({ summary: 'Verify an Apple ID token + create lite SOCIAL customer (or session)' })
-  async socialApple(
-    @Body() body: SocialAppleSignInDto,
-    @Req() req: MobileRequest,
-  ): Promise<unknown> {
-    const result = await this.mobile.socialSignIn({
-      provider: SocialProvider.APPLE,
-      idToken: body.idToken,
-      userInfo: body.userInfo,
-      ctx: this.buildContext(req),
-    });
-    return ok(this.normalizeSocialResult(result));
-  }
-
   @Post('social/login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
@@ -304,25 +283,6 @@ export class CustomerAuthController {
     const result = await this.mobile.socialAuthDirect({
       provider: SocialProvider.GOOGLE,
       idToken: body.idToken,
-      ctx: this.buildContext(req),
-    });
-    return ok(this.toEnvelope(result));
-  }
-
-  @Post('apple/login')
-  @HttpCode(HttpStatus.OK)
-  @Throttle({ default: { limit: 10, ttl: 15 * 60 * 1000 } })
-  @ApiOperation({
-    summary: 'Log in with Apple — verify ID token + issue tokens directly (new or returning)',
-  })
-  async appleLogin(
-    @Body() body: SocialAppleSignInDto,
-    @Req() req: MobileRequest,
-  ): Promise<{ success: true; data: CustomerAuthEnvelopeDto }> {
-    const result = await this.mobile.socialAuthDirect({
-      provider: SocialProvider.APPLE,
-      idToken: body.idToken,
-      userInfo: body.userInfo,
       ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));

@@ -18,7 +18,6 @@ docker compose -f docker/compose.dev.yml up -d postgres redis
 #   CUSTOMER_JWT_REFRESH_SECRET=<32-byte hex>          # MUST differ from access secret
 #   ADMIN_JWT_ACCESS_SECRET=<existing>
 #   GOOGLE_OAUTH_CLIENT_IDS=<ios-client-id>,<android-client-id>
-#   APPLE_BUNDLE_ID=<your.bundle.id>
 #   SMS_GATEWAY_PROVIDER=mock                          # 'mock' for dev: logs OTP to console
 #   SMS_GATEWAY_FROM=+201000000000
 #   S3_BUCKET_NAME=masrafy-dev-documents
@@ -186,9 +185,9 @@ Before merging this feature's PR, ensure CI runs:
 
 ## 6. Common gotchas
 
-- **Apple Sign-In on Android**: button hidden, NOT greyed. Verify the landing screen on Android shows only Phone + Google + Log In.
+- **Social sign-in is Google-only** (constitution v11.0.0 superseded this feature's Apple support): the landing screen shows Phone + Google + Log In on BOTH platforms. There is no Apple button, package, or endpoint left to verify.
 - **Mobile becomes immutable after first write**: any attempt to change it post-write throws `IMMUTABLE_FIELD_VIOLATION`. The change-mobile flow is OUT OF SCOPE in this feature (Q3).
-- **Provider-supplied email**: if Apple/Google released an email at sign-in, the customer's email is already non-null. Email is NOT part of the v4.0.0 profile-completeness contract; confirm completeness by hitting `/auth/me` → `requiresProfileCompletion` reflects firstName/lastName/birthday/profilePhotoKey/verified-mobile/National-ID front+back (PHONE also passwordHash).
+- **Provider-supplied email**: if Google released an email at sign-in, the customer's email is already non-null. Email is NOT part of the v4.0.0 profile-completeness contract; confirm completeness by hitting `/auth/me` → `requiresProfileCompletion` reflects firstName/lastName/birthday/profilePhotoKey/verified-mobile/National-ID front+back (PHONE also passwordHash).
 - **bcrypt cost difference**: OTP hash uses cost 10, password uses cost 12. Do not collapse them — OTP at cost 12 would slow OTP verify under load.
 
 ---

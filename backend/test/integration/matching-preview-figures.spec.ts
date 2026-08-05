@@ -89,7 +89,9 @@ const moneyAnswers = (obligations: string): SubmittedAnswerDto[] =>
   ] as SubmittedAnswerDto[];
 
 function preview(answers: SubmittedAnswerDto[]) {
-  return makeService().preview({ category: 'personal' as never, answers });
+  // Derived from the caller's birthday in production (Principle XXXVII / A31);
+  // 34 against ageMax 65 leaves the age-at-maturity rule with nothing to cut.
+  return makeService().preview({ category: 'personal' as never, answers, age: 34 });
 }
 
 describe('preview figures', () => {

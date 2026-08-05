@@ -1,5 +1,5 @@
 /**
- * Splits a provider-supplied full name (Google / Apple) into first + last.
+ * Splits a provider-supplied full name (Google) into first + last.
  * First token → firstName; remainder → lastName (empty string when absent).
  */
 export function splitFullName(full: string | null | undefined): {

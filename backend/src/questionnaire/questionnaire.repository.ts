@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type {
+  LoanCategory,
   Question,
   QuestionGroup,
   QuestionOption,
@@ -33,6 +34,18 @@ export class QuestionnaireRepository {
 
   findGroup(id: string): Promise<QuestionGroup | null> {
     return this.prisma.questionGroup.findUnique({ where: { id } });
+  }
+
+  findGroupByCode(code: string): Promise<QuestionGroup | null> {
+    return this.prisma.questionGroup.findUnique({ where: { code } });
+  }
+
+  /** Lowest-order active group — where a flat client's new question lands. */
+  firstActiveGroup(): Promise<QuestionGroup | null> {
+    return this.prisma.questionGroup.findFirst({
+      where: { isActive: true },
+      orderBy: { displayOrder: 'asc' },
+    });
   }
 
   updateGroup(id: string, data: Prisma.QuestionGroupUpdateInput): Promise<QuestionGroup> {
@@ -91,6 +104,38 @@ export class QuestionnaireRepository {
     return this.prisma.question.update({ where: { id }, data });
   }
 
+  /** Highest `displayOrder` across the whole pool, or -1 when it is empty. */
+  async maxQuestionOrder(): Promise<number> {
+    const row = await this.prisma.question.findFirst({
+      orderBy: { displayOrder: 'desc' },
+      select: { displayOrder: true },
+    });
+    return row?.displayOrder ?? -1;
+  }
+
+  /**
+   * Rewrite the pool's order in one transaction: `displayOrder` becomes the id's
+   * index in `ids`. Writing the full sequence (rather than shifting neighbours)
+   * is what guarantees the result has no duplicate or gapped orders.
+   */
+  reorderQuestions(ids: string[]): Promise<unknown> {
+    return this.prisma.$transaction(
+      ids.map((id, index) =>
+        this.prisma.question.update({ where: { id }, data: { displayOrder: index } }),
+      ),
+    );
+  }
+
+  /** Highest `displayOrder` among a question's options, or -1 when it has none. */
+  async maxOptionOrder(questionId: string): Promise<number> {
+    const row = await this.prisma.questionOption.findFirst({
+      where: { questionId },
+      orderBy: { displayOrder: 'desc' },
+      select: { displayOrder: true },
+    });
+    return row?.displayOrder ?? -1;
+  }
+
   /** Active questions whose enabledWhen references the given question code (delete guard). */
   async dependentsOf(questionCode: string): Promise<string[]> {
     const rows = await this.prisma.question.findMany({
@@ -121,6 +166,62 @@ export class QuestionnaireRepository {
       select: { code: true },
     });
     return rows.map((r) => r.code);
+  }
+
+  // ---- Loan-category assignment -------------------------------------------
+  /**
+   * Every question→category assignment row. Read whole rather than per question:
+   * the admin tree and the publish snapshot both need the full map, and the pool
+   * is dozens of rows — one query beats N.
+   */
+  async categoryAssignments(): Promise<Map<string, LoanCategory[]>> {
+    const rows = await this.prisma.questionLoanCategory.findMany({
+      select: { questionId: true, category: true },
+    });
+    const map = new Map<string, LoanCategory[]>();
+    for (const row of rows) {
+      const list = map.get(row.questionId);
+      if (list) list.push(row.category);
+      else map.set(row.questionId, [row.category]);
+    }
+    return map;
+  }
+
+  categoriesOf(questionId: string): Promise<{ category: LoanCategory }[]> {
+    return this.prisma.questionLoanCategory.findMany({
+      where: { questionId },
+      select: { category: true },
+    });
+  }
+
+  /**
+   * Replace one question's assignment set atomically. Delete-then-insert (rather
+   * than diffing) is what makes the written set exactly the submitted set — a
+   * diff would leave a stale row behind on any missed comparison.
+   */
+  setCategories(questionId: string, categories: readonly LoanCategory[]): Promise<unknown> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.questionLoanCategory.deleteMany({ where: { questionId } });
+      if (categories.length === 0) return;
+      await tx.questionLoanCategory.createMany({
+        data: categories.map((category) => ({ questionId, category })),
+      });
+    });
+  }
+
+  /** Same as `setCategories`, for many questions in ONE transaction (column actions). */
+  setCategoriesBulk(
+    assignments: ReadonlyArray<{ questionId: string; categories: readonly LoanCategory[] }>,
+  ): Promise<unknown> {
+    return this.prisma.$transaction(async (tx) => {
+      for (const a of assignments) {
+        await tx.questionLoanCategory.deleteMany({ where: { questionId: a.questionId } });
+        if (a.categories.length === 0) continue;
+        await tx.questionLoanCategory.createMany({
+          data: a.categories.map((category) => ({ questionId: a.questionId, category })),
+        });
+      }
+    });
   }
 
   // ---- Options ------------------------------------------------------------

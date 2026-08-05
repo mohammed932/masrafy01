@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, QuestionType } from '@prisma/client';
+import { LoanCategory, Prisma, QuestionType } from '@prisma/client';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import {
@@ -37,16 +37,21 @@ export class QuestionnaireService {
 
   // ---- Public read --------------------------------------------------------
   /**
-   * Customer-facing snapshot of the single GLOBAL questionnaire. Questions/answers
-   * are pure content (MVP) — per-program per-answer scores live in
+   * Customer-facing snapshot of the GLOBAL questionnaire, narrowed to the
+   * questions assigned to `category` when one is given. Questions/answers are
+   * pure content (MVP) — per-program per-answer scores live in
    * `ScoringWeightSet`, never in the snapshot — so this is a shape passthrough
-   * with no IP left to strip. The chosen loan category only filters which
-   * programs get matched; every applicant answers the same questionnaire.
+   * with no IP left to strip.
+   *
+   * `category` is OPTIONAL: a client that does not send one gets the whole pool,
+   * which is what every client got before per-category assignment existed. The
+   * pool itself stays one canonical list; assignment decides which of its
+   * questions a given applicant is asked (A33 as amended).
    */
-  async activeSnapshot(): Promise<unknown> {
+  async activeSnapshot(category?: LoanCategory): Promise<unknown> {
     const version = await this.repo.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
-    return toCustomerSnapshot(version.snapshot);
+    return toCustomerSnapshot(version.snapshot, category);
   }
 
   // ---- Groups -------------------------------------------------------------
@@ -104,14 +109,45 @@ export class QuestionnaireService {
     return this.repo.groups();
   }
 
+  /**
+   * Where a question goes when the caller names no group.
+   *
+   * The pool is authored FLAT (one ordered list, no sections in the editor), but
+   * `Question.groupId` is a required FK and the published snapshot still pages the
+   * mobile wizard by group. So a flat client's question joins the FIRST active
+   * group rather than inventing a new one — inventing one would add an extra step
+   * to every applicant's wizard. Only a genuinely empty pool creates a group.
+   */
+  private async resolveDefaultGroupId(): Promise<string> {
+    const first = await this.repo.firstActiveGroup();
+    if (first) return first.id;
+    const existing = await this.repo.findGroupByCode(DEFAULT_GROUP_CODE);
+    if (existing) {
+      return existing.isActive
+        ? existing.id
+        : (await this.repo.updateGroup(existing.id, { isActive: true })).id;
+    }
+    const created = await this.repo.createGroup({
+      code: DEFAULT_GROUP_CODE,
+      titleAr: DEFAULT_GROUP_TITLE_AR,
+      titleEn: DEFAULT_GROUP_TITLE_EN,
+      displayOrder: 0,
+    });
+    return created.id;
+  }
+
   // ---- Questions ----------------------------------------------------------
   async createQuestion(dto: CreateQuestionDto, actor: string) {
-    const group = await this.repo.findGroup(dto.groupId);
+    const groupId = dto.groupId ?? (await this.resolveDefaultGroupId());
+    const group = await this.repo.findGroup(groupId);
     if (!group) {
       throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
     }
+    // Omitted order means "append": the flat editor sets order by drag, so it has
+    // no number to send, and 0 would silently jump the new question to the front.
+    const displayOrder = dto.displayOrder ?? (await this.repo.maxQuestionOrder()) + 1;
     if (dto.enabledWhen) {
-      await this.assertEnabledWhenValid(dto.displayOrder, dto.enabledWhen);
+      await this.assertEnabledWhenValid(displayOrder, dto.enabledWhen);
     }
     const type = dto.type ?? 'SINGLE_SELECT';
     // A question is created before its options exist, so the ">=2 options" rule
@@ -126,7 +162,7 @@ export class QuestionnaireService {
     const existing = new Set((await this.repo.questionCodes()).map((q) => q.code));
     const code = uniqueSlug(dto.questionEn, existing);
     const created = await this.repo.createQuestion({
-      groupId: dto.groupId,
+      groupId,
       code,
       type,
       questionAr: dto.questionAr,
@@ -134,13 +170,58 @@ export class QuestionnaireService {
       helperTextAr: dto.helperTextAr ?? null,
       helperTextEn: dto.helperTextEn ?? null,
       isRequired: dto.isRequired ?? true,
-      displayOrder: dto.displayOrder,
+      displayOrder,
       enabledWhen: dto.enabledWhen ? (dto.enabledWhen as unknown as Prisma.InputJsonValue) : Prisma.DbNull,
       ...numericColumns(type, dto.numeric ?? null),
       ...textColumns(type, dto.text ?? null),
     });
+    // A question with no assignment is asked for nothing, so a create that named
+    // no categories would add an invisible row. Default to ALL FOUR: the admin
+    // adds questions on one tab and narrows them on the other, never the reverse.
+    await this.repo.setCategories(created.id, dto.categories ?? ALL_LOAN_CATEGORIES);
     await this.publish(actor);
-    return created;
+    return { ...created, categories: dto.categories ?? [...ALL_LOAN_CATEGORIES] };
+  }
+
+  // ---- Loan-category assignment -------------------------------------------
+  /**
+   * Replace which loan categories a question is asked for. The submitted set is
+   * authoritative and MAY be empty — an empty set parks the question (kept, with
+   * its wording and options, but asked for nothing), which is the non-destructive
+   * alternative to deleting it. The admin tab flags those rows.
+   */
+  async setQuestionCategories(id: string, categories: LoanCategory[], actor: string) {
+    const question = await this.repo.findQuestion(id);
+    if (!question) throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND);
+    const unique = dedupeCategories(categories);
+    await this.repo.setCategories(id, unique);
+    await this.publish(actor);
+    return { ...question, categories: unique };
+  }
+
+  /**
+   * Replace the assignment of MANY questions in one transaction + one publish.
+   * The column actions ("assign every question to mortgage", "clear car") would
+   * otherwise fire one publish per row and churn a version per question.
+   */
+  async setQuestionCategoriesBulk(
+    assignments: ReadonlyArray<{ questionId: string; categories: LoanCategory[] }>,
+    actor: string,
+  ) {
+    const known = new Set((await this.repo.questions()).map((q) => q.id));
+    for (const a of assignments) {
+      if (!known.has(a.questionId)) {
+        throw new DomainException(ERROR_CODES.QUESTION_NOT_FOUND, { questionId: a.questionId });
+      }
+    }
+    await this.repo.setCategoriesBulk(
+      assignments.map((a) => ({
+        questionId: a.questionId,
+        categories: dedupeCategories(a.categories),
+      })),
+    );
+    await this.publish(actor);
+    return this.draftTree();
   }
 
   async updateQuestion(id: string, dto: UpdateQuestionDto, actor: string) {
@@ -214,6 +295,34 @@ export class QuestionnaireService {
     return this.repo.questions();
   }
 
+  /**
+   * Reorder the flat pool. `ids` is the whole new sequence and every ACTIVE
+   * question must appear in it exactly once: a partial list would leave the
+   * omitted questions holding orders that collide with the rewritten ones, and the
+   * flat editor is the only caller — it always holds the complete list.
+   */
+  async reorderQuestions(ids: string[], actor: string) {
+    const active = (await this.repo.questions()).filter((q) => q.isActive);
+    const activeIds = new Set(active.map((q) => q.id));
+    const seen = new Set<string>();
+    for (const id of ids) {
+      if (!activeIds.has(id) || seen.has(id)) {
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, { field: 'ids', value: id });
+      }
+      seen.add(id);
+    }
+    if (seen.size !== activeIds.size) {
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+        field: 'ids',
+        expected: activeIds.size,
+        received: seen.size,
+      });
+    }
+    await this.repo.reorderQuestions(ids);
+    await this.publish(actor);
+    return this.draftTree();
+  }
+
   // ---- Options ------------------------------------------------------------
   async createOption(questionId: string, dto: CreateOptionDto, actor: string) {
     const question = await this.repo.findQuestion(questionId);
@@ -225,7 +334,9 @@ export class QuestionnaireService {
       code,
       labelAr: dto.labelAr,
       labelEn: dto.labelEn,
-      displayOrder: dto.displayOrder,
+      // Same reason as questions: the flat editor appends options instead of
+      // asking the admin to type an order, and 0 would front-load every new one.
+      displayOrder: dto.displayOrder ?? (await this.repo.maxOptionOrder(questionId)) + 1,
     });
     await this.publish(actor);
     return created;
@@ -283,6 +394,9 @@ export class QuestionnaireService {
   async publish(publishedBy: string): Promise<PublishResult> {
     const groups = (await this.repo.groups()).filter((g) => g.isActive);
     const questions = (await this.repo.questions()).filter((q) => q.isActive);
+    // Frozen INTO the snapshot: the customer read filters on it, so a later
+    // reassignment must not retroactively change what an older version asked.
+    const assignments = await this.repo.categoryAssignments();
 
     const snapshotGroups = [];
     for (const g of groups) {
@@ -302,6 +416,7 @@ export class QuestionnaireService {
           isRequired: q.isRequired,
           displayOrder: q.displayOrder,
           enabledWhen: q.enabledWhen ?? null,
+          categories: sortCategories(assignments.get(q.id) ?? []),
           // Emitted only for the type that owns them, so the payload stays honest.
           ...(q.type === 'NUMERIC' && numeric ? { numeric } : {}),
           ...(q.type === 'TEXT' && text ? { text } : {}),
@@ -363,12 +478,16 @@ export class QuestionnaireService {
   async draftTree() {
     const groups = (await this.repo.groups()).filter((g) => g.isActive);
     const questions = (await this.repo.questions()).filter((q) => q.isActive);
+    const assignments = await this.repo.categoryAssignments();
     const result = [];
     for (const g of groups) {
       const gQuestions = [];
       for (const q of questions.filter((qq) => qq.groupId === g.id)) {
         const options = (await this.repo.optionsByQuestion(q.id)).filter((o) => o.isActive);
-        gQuestions.push({ ...q, options });
+        // `categories` rides along on the tree rather than on its own endpoint:
+        // the assign tab and the pool tab render the same rows, so a second fetch
+        // would only give the two tabs two ways to disagree.
+        gQuestions.push({ ...q, options, categories: sortCategories(assignments.get(q.id) ?? []) });
       }
       result.push({ ...g, questions: gQuestions });
     }
@@ -399,16 +518,30 @@ export class QuestionnaireService {
    *
    * Single choice still resolves `selectedOptionId`/`selectedOptionCode` so the
    * scorer and the admin answer views keep working unchanged (FR-045).
+   *
+   * `category` narrows the pool to the questions actually ASKED for this
+   * application's loan category. It has to: required-question enforcement runs
+   * here, so without the filter a personal-loan applicant would be rejected for
+   * not answering a mortgage-only question they were never shown.
    */
   async resolveAnswers(
     answers: ReadonlyArray<SubmittedAnswerValue>,
+    category?: LoanCategory,
   ): Promise<ResolvedAnswer[]> {
     const questions = await this.repo.questions();
-    const active = questions.filter((q) => q.isActive);
+    const assignments = category ? await this.repo.categoryAssignments() : null;
+    const active = questions.filter(
+      (q) =>
+        q.isActive &&
+        (assignments === null || (assignments.get(q.id) ?? []).includes(category as LoanCategory)),
+    );
     const byCode = new Map(active.map((q) => [q.code, q]));
     const submitted = new Map(answers.map((a) => [a.questionCode, a]));
 
-    // Unknown codes fail before anything else: a stale client must be told.
+    // Unknown codes fail before anything else: a stale client must be told. A
+    // code that exists in the pool but is not asked for this category counts as
+    // unknown here — accepting it would store an answer to a question this
+    // applicant was never shown.
     for (const a of answers) {
       if (!byCode.has(a.questionCode)) {
         throw new DomainException(ERROR_CODES.UNKNOWN_QUESTION_CODE, { code: a.questionCode });
@@ -550,6 +683,41 @@ export class QuestionnaireService {
  * passes on create and is enforced on every later update.
  */
 const MIN_CHOICE_OPTIONS_AT_CREATE = 2;
+
+/**
+ * The group a question joins when the pool is empty and the caller (the flat
+ * editor) names none. Looked up by this fixed code rather than slugged from the
+ * title, so it resolves to the same row every time instead of accumulating
+ * `general-1`, `general-2`, … on each create.
+ */
+const DEFAULT_GROUP_CODE = 'general';
+const DEFAULT_GROUP_TITLE_EN = 'Questions';
+const DEFAULT_GROUP_TITLE_AR = 'الأسئلة';
+
+/**
+ * The four scope-locked categories, in the order the admin sees them (Principle
+ * II / A26). Derived from the Prisma enum so a fifth cannot be added here
+ * without the amendment the enum itself requires.
+ */
+const ALL_LOAN_CATEGORIES: readonly LoanCategory[] = [
+  LoanCategory.personal,
+  LoanCategory.car,
+  LoanCategory.mortgage,
+  LoanCategory.business,
+];
+
+const CATEGORY_ORDER = new Map(ALL_LOAN_CATEGORIES.map((c, i) => [c, i]));
+
+/** Canonical display order, so the same set always serialises the same way. */
+function sortCategories(categories: readonly LoanCategory[]): LoanCategory[] {
+  return [...categories].sort(
+    (a, b) => (CATEGORY_ORDER.get(a) ?? 0) - (CATEGORY_ORDER.get(b) ?? 0),
+  );
+}
+
+function dedupeCategories(categories: readonly LoanCategory[]): LoanCategory[] {
+  return sortCategories([...new Set(categories)]);
+}
 
 /** Publish-time warning: non-blocking, surfaced in the publish response. */
 export interface PublishWarning {
@@ -813,19 +981,40 @@ function formatDecimalString(value: string): string {
 }
 
 /**
- * Project the stored snapshot into the customer payload. Questions/answers are
- * pure content (MVP) so this is a shape passthrough — no IP fields to strip.
+ * Is a snapshot question asked for `category`? A snapshot published BEFORE
+ * per-category assignment existed carries no `categories` key at all — those
+ * questions were asked of everyone, so a missing key reads as "all categories"
+ * rather than "none" (the same backward-compatibility posture as the missing
+ * `type` key below). An explicitly EMPTY array means parked: asked for nothing.
  */
-function toCustomerSnapshot(raw: unknown): unknown {
+function askedFor(q: StoredQuestion, category: LoanCategory | undefined): boolean {
+  if (category === undefined) return true;
+  const raw = q['categories'];
+  if (!Array.isArray(raw)) return true;
+  return raw.includes(category);
+}
+
+/**
+ * Project the stored snapshot into the customer payload, keeping only the
+ * questions assigned to `category` (all of them when it is undefined). Questions
+ * and answers are pure content (MVP) so the rest is a shape passthrough — no IP
+ * fields to strip. A group left with no questions is dropped: the mobile wizard
+ * renders one step per group, so an empty one is a blank screen with a live Next
+ * button.
+ */
+function toCustomerSnapshot(raw: unknown, category?: LoanCategory): unknown {
   const snap = raw as StoredSnapshot;
+  const groups = (snap.groups ?? [])
+    .map((g) => ({ ...g, questions: (g.questions ?? []).filter((q) => askedFor(q, category)) }))
+    .filter((g) => g.questions.length > 0);
   return {
     versionNumber: snap.versionNumber,
-    groups: (snap.groups ?? []).map((g) => ({
+    groups: groups.map((g) => ({
       code: g.code,
       titleAr: g.titleAr,
       titleEn: g.titleEn,
       displayOrder: g.displayOrder,
-      questions: (g.questions ?? []).map((q) => ({
+      questions: g.questions.map((q) => ({
         code: q.code,
         // A snapshot published before feature 010 has no `type` — it reads as
         // single choice, which is exactly what it was (FR-045).

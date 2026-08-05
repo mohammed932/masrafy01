@@ -12,7 +12,7 @@ import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
 part 'social_phone_cubit.freezed.dart';
 part 'social_phone_state.dart';
 
-/// SOCIAL onboarding — mobile entry screen. After a Google/Apple sign-in creates
+/// SOCIAL onboarding — mobile entry screen. After a Google sign-in creates
 /// a profile-incomplete lite account, the customer binds a phone here: on submit
 /// [profileMobileRequestOtp] issues an SMS OTP and the page hands the challenge
 /// (+ phone) to the shared OTP screen with [OtpPurpose.profileMobile].

@@ -78,7 +78,8 @@ export const APP_ROUTES: Routes = [
       ),
   },
   {
-    // Feature 009 — dynamic questionnaire (overview + tree editor).
+    // Dynamic questionnaire — tab shell: `questions` (pool builder) +
+    // `categories` (which loan categories ask each question, v12.0.0).
     path: 'questionnaire',
     canActivate: [authGuardFn],
     canMatch: [mcpGuardFn, roleGuardFn(['super_admin', 'sales_manager'])],

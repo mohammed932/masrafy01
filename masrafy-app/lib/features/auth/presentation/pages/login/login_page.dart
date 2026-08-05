@@ -170,27 +170,14 @@ class _LoginViewState extends State<_LoginView> {
                           Gap(20.h),
                           MasrafyOrDivider(label: l.login_or_continue),
                           Gap(16.h),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: MasrafySocialButton(
-                                  icon: Icons.g_mobiledata_rounded,
-                                  label: l.login_google,
-                                  onTap: () {
-                                    if (!state.isBusy) cubit.signInWithGoogle();
-                                  },
-                                ),
-                              ),
-                              Gap(15.w),
-                              Expanded(
-                                child: MasrafySocialButton(
-                                  icon: Icons.apple,
-                                  label: l.login_apple,
-                                  onTap: () =>
-                                      MasrafyToast.info(ctx, l.common_coming_soon),
-                                ),
-                              ),
-                            ],
+                          // Google is the only social provider (constitution
+                          // v11.0.0), so the button spans the full width.
+                          MasrafySocialButton(
+                            icon: Icons.g_mobiledata_rounded,
+                            label: l.login_google,
+                            onTap: () {
+                              if (!state.isBusy) cubit.signInWithGoogle();
+                            },
                           ),
                           Gap(20.h),
                           Row(

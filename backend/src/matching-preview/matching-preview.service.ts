@@ -79,11 +79,12 @@ interface MoneyInputs {
 }
 
 /**
- * Preview has no birthday to work from, and asking for one would turn a
- * try-before-you-commit screen into a form. The youngest adult age is assumed,
- * so the age-at-maturity rule never shortens a term here that apply would allow.
+ * Fallback for the ADMIN simulator only, where no customer exists and the admin
+ * left the sample applicant's age blank: the youngest adult, so the
+ * age-at-maturity rule never shortens a term. The customer preview always passes
+ * the age derived from its caller's `birthday` (Principle XXXVII / A31).
  */
-const ASSUMED_AGE = 18;
+export const SIMULATOR_DEFAULT_AGE = 18;
 
 /**
  * Mobile matching preview (MVP). Validates the submitted answers against the
@@ -99,9 +100,14 @@ export class MatchingPreviewService {
     private readonly programs: BankProgramRepository,
   ) {}
 
-  async preview(args: { category: LoanCategory; answers: SubmittedAnswerDto[] }) {
+  /**
+   * `age` prices the tenor through the age-at-maturity rule, so it must be the
+   * SAME number apply would use: the customer controller derives it from the
+   * caller's `birthday`, the admin simulator passes the sample applicant's.
+   */
+  async preview(args: { category: LoanCategory; answers: SubmittedAnswerDto[]; age: number }) {
     const { selected, money } = await this.resolveSelectedOptions(args.answers);
-    return this.runAndAssemble(args.category, selected, money);
+    return this.runAndAssemble(args.category, selected, money, args.age);
   }
 
   /**
@@ -177,11 +183,12 @@ export class MatchingPreviewService {
     category: LoanCategory,
     answers: SelectedAnswer[],
     money: MoneyInputs | null,
+    age: number,
   ) {
     const rows = (await this.programs.findAllActive()).filter(
       (p) => p.productCategory.toLowerCase() === category,
     );
-    const profile = money ? this.buildProfile(money) : null;
+    const profile = money ? this.buildProfile(money, age) : null;
 
     const matches: PreviewMatch[] = [];
     for (const p of rows) {
@@ -240,9 +247,9 @@ export class MatchingPreviewService {
    * to the program's base rate — preview is an estimate, and apply, which has
    * the full employment block, is the one that prices exactly.
    */
-  private buildProfile(money: MoneyInputs): ApplicantProfile {
+  private buildProfile(money: MoneyInputs, age: number): ApplicantProfile {
     return {
-      age: ASSUMED_AGE,
+      age,
       loanPurpose: 'personal',
       requestedAmountEGP: money.requestedAmountEGP,
       requestedCurrency: 'EGP',

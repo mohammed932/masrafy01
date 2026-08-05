@@ -253,9 +253,7 @@ interface WizardStep {
                           <span class="pick-name">{{ questionLabel(q) }}</span>
                           <span class="pick-meta"
                             >{{ q.options.length
-                            }}<span i18n="@@scoring.editor.answers_suffix"> answers</span>
-                            <span class="dot" aria-hidden="true">·</span>
-                            <span class="mono">{{ q.code }}</span></span
+                            }}<span i18n="@@scoring.editor.answers_suffix"> answers</span></span
                           >
                         </span>
                       </label>
@@ -544,9 +542,6 @@ interface WizardStep {
         padding-inline: var(--space-3);
         border-radius: var(--radius-pill);
       }
-      .mono {
-        font-family: var(--font-mono);
-      }
 
       /* ── Step rail ────────────────────────────────────────────────────── */
       .steps {
@@ -762,10 +757,6 @@ interface WizardStep {
         overflow-wrap: anywhere;
         white-space: normal;
       }
-      .pick-meta .dot {
-        margin-inline: var(--space-1);
-      }
-
       /* ── Progress strip (steps 2 + 3) ─────────────────────────────────── */
       .budget-strip {
         display: flex;

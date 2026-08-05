@@ -77,7 +77,11 @@ function makeService() {
 
 function preview(answers: SubmittedAnswerDto[]) {
   const { service, scoreProgram } = makeService();
-  return { result: service.preview({ category: 'personal' as never, answers }), scoreProgram };
+  // Age is derived from the caller's birthday in production, never submitted.
+  return {
+    result: service.preview({ category: 'personal' as never, answers, age: 34 }),
+    scoreProgram,
+  };
 }
 
 async function codeOf(promise: Promise<unknown>): Promise<string> {

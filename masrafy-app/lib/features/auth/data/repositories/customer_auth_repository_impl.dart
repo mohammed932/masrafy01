@@ -70,14 +70,6 @@ class CustomerAuthRepositoryImpl implements CustomerAuthRepository {
   }
 
   @override
-  Future<Either<Failure, SocialSessionEntity>> socialApple(
-    SocialAppleSignInRequest body,
-  ) async {
-    final result = await ApiHandler.callApi(() => _ds.socialApple(body));
-    return result.map((m) => m.toEntity());
-  }
-
-  @override
   Future<Either<Failure, CustomerSessionEntity>> socialLogin(SocialLoginRequest body) async {
     final result = await ApiHandler.callApi(() => _ds.socialLogin(body));
     return result.map((m) => m.toEntity());
@@ -88,14 +80,6 @@ class CustomerAuthRepositoryImpl implements CustomerAuthRepository {
     SocialGoogleSignInRequest body,
   ) async {
     final result = await ApiHandler.callApi(() => _ds.googleSignin(body));
-    return result.map((m) => m.toEntity());
-  }
-
-  @override
-  Future<Either<Failure, CustomerSessionEntity>> appleLogin(
-    SocialAppleSignInRequest body,
-  ) async {
-    final result = await ApiHandler.callApi(() => _ds.appleLogin(body));
     return result.map((m) => m.toEntity());
   }
 

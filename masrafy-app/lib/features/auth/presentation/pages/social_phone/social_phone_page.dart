@@ -1,6 +1,6 @@
 part of 'social_phone.imports.dart';
 
-/// SOCIAL onboarding — mobile-entry screen. Reached after a Google/Apple
+/// SOCIAL onboarding — mobile-entry screen. Reached after a Google
 /// sign-in returns a profile-incomplete lite account with no verified phone
 /// (Principle XIII / XXXVII). Collects the mobile number over the shared brand
 /// gradient header; on submit it issues the SMS OTP and pushes the shared OTP

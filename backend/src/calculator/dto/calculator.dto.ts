@@ -64,17 +64,11 @@ export class CalculatorQuoteDto {
   @IsDecimalString({ min: 1, max: 100, scale: 4, allowZero: false })
   dbrCapPercent?: string;
 
-  /**
-   * Drives the age-at-maturity tenor shortening. Optional in `cost` mode, where
-   * the caller is pricing an amount rather than testing their own eligibility;
-   * absent, the youngest adult age is assumed so no term is silently cut.
-   */
-  @ApiPropertyOptional({ example: 35, description: 'Required in `affordability` mode.' })
-  @ValidateIf((o: CalculatorQuoteDto) => o.mode === 'affordability')
-  @IsInt()
-  @Min(18)
-  @Max(80)
-  age?: number;
+  // Age is NOT a field here: it drives the age-at-maturity tenor shortening and
+  // is DERIVED from the authenticated customer's `birthday` (Principle XXXVII /
+  // A31), so the figures shown here can never disagree with the ones apply
+  // produces. A client sending `age` is rejected with 422 `VALIDATION_FAILED`
+  // (`forbidNonWhitelisted`).
 }
 
 // ---------------------------------------------------------------------------

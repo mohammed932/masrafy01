@@ -30,8 +30,9 @@ class ApiStrings {
   static const String apply = '/api/v1/apply';
 
   // --- Feature 009 — Dynamic questionnaire + matching preview ---
-  /// One GLOBAL questionnaire since feature 010 / constitution v10.0.0 — the
-  /// category filters which programs match, never which questions are asked.
+  /// ONE global question pool (one list, one published version). Each question is
+  /// assigned in the dashboard to the loan categories that ask it, so callers send
+  /// `?category=` and get back only that category's questions.
   static const String questionnaire = '/api/v1/questionnaire';
   static const String matchingPreview = '/api/v1/matching/preview';
 
@@ -64,11 +65,10 @@ class ApiStrings {
   static const String authOtpRequest = '/api/v1/auth/otp/request';
   static const String authOtpVerify = '/api/v1/auth/otp/verify';
   static const String authSocialGoogle = '/api/v1/auth/social/google';
-  static const String authSocialApple = '/api/v1/auth/social/apple';
   static const String authSocialLogin = '/api/v1/auth/social/login';
-  // Dedicated one-call social endpoints (tokens returned directly).
+  // Dedicated one-call social endpoint (tokens returned directly). Google is the
+  // only social provider — constitution v11.0.0 removed the Apple routes.
   static const String authGoogleSignin = '/api/v1/auth/google/signin';
-  static const String authAppleLogin = '/api/v1/auth/apple/login';
   static const String authProfileMobileRequestOtp = '/api/v1/auth/profile/mobile-request-otp';
   static const String authProfileMobileVerifyOtp = '/api/v1/auth/profile/mobile-verify-otp';
   static const String authPasswordReset = '/api/v1/auth/password/reset';

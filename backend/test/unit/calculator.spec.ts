@@ -22,6 +22,7 @@ import type {
   CalculatorQuoteDto,
   CostQuoteResponseDto,
 } from '../../src/calculator/dto/calculator.dto';
+import { programFixture } from '../helpers/matching';
 
 function makeService(ratePercent = '26.0000', findById: unknown = async () => null) {
   return new CalculatorService(
@@ -30,21 +31,28 @@ function makeService(ratePercent = '26.0000', findById: unknown = async () => nu
   );
 }
 
+/**
+ * The age the controller derives from the caller's `birthday` — never a request
+ * field (Principle XXXVII / A31). Comfortably inside every fixture's age range,
+ * so only the test that means to hit the age ceiling does.
+ */
+const AGE = 35;
+
 const affordability = (over: Partial<CalculatorQuoteDto> = {}): CalculatorQuoteDto => ({
   mode: 'affordability',
   monthlyIncomeEGP: '100000.00',
   existingObligationsEGP: '40000.00',
   dbrCapPercent: '60.0000',
   tenorMonths: 60,
-  age: 35,
   ...over,
 });
 
 async function quoteAffordability(
   dto: CalculatorQuoteDto,
   rate = '26.0000',
+  age = AGE,
 ): Promise<AffordabilityQuoteResponseDto> {
-  const result = await makeService(rate).quote(dto);
+  const result = await makeService(rate).quote(dto, age);
   return result as AffordabilityQuoteResponseDto;
 }
 
@@ -134,11 +142,14 @@ describe('CalculatorService — affordability', () => {
 
 describe('CalculatorService — cost', () => {
   it('prices a requested amount without letting DBR shrink it', async () => {
-    const data = (await makeService('24.0000').quote({
-      mode: 'cost',
-      amountEGP: '300000.00',
-      tenorMonths: 60,
-    })) as CostQuoteResponseDto;
+    const data = (await makeService('24.0000').quote(
+      {
+        mode: 'cost',
+        amountEGP: '300000.00',
+        tenorMonths: 60,
+      },
+      AGE,
+    )) as CostQuoteResponseDto;
 
     expect(data.mode).toBe('cost');
     expect(data.cashToCustomerEGP).toBe('300000.00');
@@ -152,14 +163,54 @@ describe('CalculatorService — cost', () => {
   });
 
   it('reports the clamp when the tenor exceeds the generic ceiling', async () => {
-    const data = (await makeService().quote({
-      mode: 'cost',
-      amountEGP: '300000.00',
-      tenorMonths: 480,
-    })) as CostQuoteResponseDto;
+    const data = (await makeService().quote(
+      {
+        mode: 'cost',
+        amountEGP: '300000.00',
+        tenorMonths: 480,
+      },
+      AGE,
+    )) as CostQuoteResponseDto;
 
     expect(data.tenorMonths).toBe(360);
     expect(data.clamped.tenor).toBe(true);
+  });
+});
+
+describe('CalculatorService — derived age', () => {
+  /**
+   * The age comes from the customer's `birthday`, and it prices the term: a
+   * 58-year-old cannot outrun a program that stops lending at 60, so the tenor
+   * is cut to 24 months and the installment rises to match. This is the whole
+   * reason the endpoint is profile-complete-gated rather than assuming an age.
+   */
+  const cappedProgram = async () =>
+    programFixture({
+      id: 'bp_age',
+      programCode: 'AGE-1',
+      tenor: { minMonths: 6, maxMonths: 84 },
+      eligibility: { maxAge: 60 },
+    });
+
+  it('shortens the tenor to the age-at-maturity ceiling', async () => {
+    const service = makeService('24.0000', cappedProgram);
+    const dto: CalculatorQuoteDto = {
+      mode: 'cost',
+      bankProgramId: 'bp_age',
+      amountEGP: '300000.00',
+      tenorMonths: 60,
+    };
+
+    const at58 = (await service.quote(dto, 58)) as CostQuoteResponseDto;
+    expect(at58.tenorMonths).toBe(24); // (60 − 58) × 12
+    expect(at58.clamped.tenor).toBe(true);
+
+    const at35 = (await service.quote(dto, 35)) as CostQuoteResponseDto;
+    expect(at35.tenorMonths).toBe(60);
+    expect(at35.clamped.tenor).toBe(false);
+    expect(new Decimal(at58.monthlyInstallmentEGP).greaterThan(at35.monthlyInstallmentEGP)).toBe(
+      true,
+    );
   });
 });
 
@@ -167,14 +218,14 @@ describe('CalculatorService — input rules', () => {
   it('rejects a caller-supplied DBR cap on a program-scoped quote', async () => {
     const service = makeService('24.0000', async () => ({ id: 'bp_1', active: true }));
     await expect(
-      service.quote(affordability({ bankProgramId: 'bp_1' })),
+      service.quote(affordability({ bankProgramId: 'bp_1' }), AGE),
     ).rejects.toBeInstanceOf(DomainException);
   });
 
   it('404s an unknown program', async () => {
     const dto = affordability({ bankProgramId: 'bp_missing' });
     delete dto.dbrCapPercent;
-    await expect(makeService().quote(dto)).rejects.toMatchObject({
+    await expect(makeService().quote(dto, AGE)).rejects.toMatchObject({
       code: 'BANK_PROGRAM_NOT_FOUND',
     });
   });
@@ -187,7 +238,7 @@ describe('CalculatorService — input rules', () => {
       programCode: 'OFF-1',
       active: false,
     }));
-    await expect(service.quote(dto)).rejects.toMatchObject({
+    await expect(service.quote(dto, AGE)).rejects.toMatchObject({
       code: 'CALCULATOR_PROGRAM_INACTIVE',
     });
   });

@@ -14,6 +14,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import {
@@ -44,6 +45,10 @@ const MONEY_UNITS: ReadonlySet<string> = new Set(['EGP', 'egp', 'جنيه', 'ج.
  * `en-US` digits deliberately: it is what `MoneyInputDirective` renders, and a
  * hint that groups differently from the input reads as a different number.
  */
+/** Above this many options a SINGLE_SELECT renders as a searchable dropdown
+ *  instead of a radio column (bank registry ≈ 11, governorates ≈ 27). */
+const LONG_OPTION_LIST_THRESHOLD = 8;
+
 function grouped(value: number | string): string {
   const numeric = typeof value === 'string' ? Number(value) : value;
   if (!Number.isFinite(numeric)) return String(value);
@@ -88,6 +93,7 @@ function isVisible(
     NzButtonModule,
     NzSpinModule,
     NzEmptyModule,
+    NzSelectModule,
   ],
   template: `
     <section class="page">
@@ -279,19 +285,39 @@ function isVisible(
                   </div>
                 }
                 @default {
-                  <div class="opts">
-                    @for (o of q.options; track o.code) {
-                      <button
-                        type="button"
-                        class="opt"
-                        [class.sel]="answers()[q.code]?.optionCode === o.code"
-                        (click)="choose(q.code, o.code)"
+                  @if (isLongList(q)) {
+                    <!-- Registry-backed lists (banks, governorates) are too long to
+                         read as a radio column — one searchable dropdown instead.
+                         No auto-advance here: the admin picks, then presses Next. -->
+                    <div class="field">
+                      <nz-select
+                        class="sel-ctl"
+                        [formControl]="choiceCtrl"
+                        nzShowSearch
+                        nzAllowClear
+                        [nzPlaceHolder]="pickPlaceholder"
+                        [attr.aria-label]="questionText(q)"
                       >
-                        <span class="opt-mark" aria-hidden="true"></span>
-                        <span class="opt-label">{{ optionText(o) }}</span>
-                      </button>
-                    }
-                  </div>
+                        @for (o of q.options; track o.code) {
+                          <nz-option [nzValue]="o.code" [nzLabel]="optionText(o)"></nz-option>
+                        }
+                      </nz-select>
+                    </div>
+                  } @else {
+                    <div class="opts">
+                      @for (o of q.options; track o.code) {
+                        <button
+                          type="button"
+                          class="opt"
+                          [class.sel]="answers()[q.code]?.optionCode === o.code"
+                          (click)="choose(q.code, o.code)"
+                        >
+                          <span class="opt-mark" aria-hidden="true"></span>
+                          <span class="opt-label">{{ optionText(o) }}</span>
+                        </button>
+                      }
+                    </div>
+                  }
                 }
               }
 
@@ -419,6 +445,7 @@ function isVisible(
       }
       .ctl:focus { outline: none; border-color: var(--ant-primary-color, #0869c3); }
       .unit { font-size: 14px; font-weight: 600; color: var(--color-text-secondary, #6b7280); }
+      .sel-ctl { inline-size: 100%; max-inline-size: 420px; }
       .hint { margin: var(--space-2, 8px) 0 0; font-size: 12px; color: var(--color-text-secondary, #6b7280); }
       .err { margin: var(--space-2, 8px) 0 0; font-size: 12px; font-weight: 600; color: var(--ant-error-color, #c1666b); }
 
@@ -486,9 +513,13 @@ export class MatchingSimulatorPage {
   readonly result = signal<SimulationResult | null>(null);
   readonly step = signal(0);
 
-  /** Typed controls for the two free-entry types (Principle XXII — no ngModel). */
+  /** Typed controls for the free-entry types + the long-list dropdown
+   *  (Principle XXII — no ngModel). */
   readonly numericCtrl = new FormControl<string>('', { nonNullable: true });
   readonly textCtrl = new FormControl<string>('', { nonNullable: true });
+  readonly choiceCtrl = new FormControl<string | null>(null);
+
+  readonly pickPlaceholder = $localize`:@@sim.pick_one:Choose one`;
 
   /** Active questions across all groups, minus the ones a branch rule hides. */
   readonly questions = computed<QuestionRow[]>(() => {
@@ -553,6 +584,7 @@ export class MatchingSimulatorPage {
         const value = q ? this.answers()[q.code] : undefined;
         this.numericCtrl.setValue(value?.numericValue ?? '', { emitEvent: false });
         this.textCtrl.setValue(value?.textValue ?? '', { emitEvent: false });
+        this.choiceCtrl.setValue(value?.optionCode ?? null, { emitEvent: false });
       });
     });
 
@@ -568,6 +600,17 @@ export class MatchingSimulatorPage {
       const trimmed = raw.trim();
       this.setAnswer(q.code, trimmed === '' ? null : { textValue: trimmed });
     });
+    this.choiceCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe((code) => {
+      const q = this.current();
+      if (!q) return;
+      this.setAnswer(q.code, code ? { optionCode: code } : null);
+    });
+  }
+
+  /** Long option lists come from a registry (banks, governorates) — a searchable
+   *  dropdown beats a radio column the admin has to scroll. */
+  isLongList(q: QuestionRow): boolean {
+    return q.options.length > LONG_OPTION_LIST_THRESHOLD;
   }
 
   pickCategory(c: LoanCategory): void {

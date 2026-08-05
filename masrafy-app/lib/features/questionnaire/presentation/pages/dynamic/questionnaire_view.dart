@@ -20,8 +20,8 @@ import 'package:app/l10n/generated/app_localizations.dart';
 
 /// Backend-driven questionnaire renderer shared by every loan category
 /// (Principle II — the questionnaire is DATA). Creates the [QuestionnaireCubit],
-/// loads the ONE global snapshot (feature 010 — [category] decides which
-/// programs match, not which questions are asked), and renders one step per
+/// loads the snapshot for [category] (the pool is global; [category] decides both
+/// which of its questions are asked and which programs match), and renders one step per
 /// group with a gradient Next/Finish CTA. On finish it maps the answers to an
 /// [ApplyRequest] via [buildRequest] and pushes the match results (which runs
 /// `/api/v1/apply`). Shimmer while loading, retry on error (Principle XXXIV).
@@ -41,7 +41,7 @@ class QuestionnaireView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<QuestionnaireCubit>(
-      create: (_) => getIt<QuestionnaireCubit>()..load(),
+      create: (_) => getIt<QuestionnaireCubit>()..load(category),
       child: _QuestionnaireBody(category: category, buildRequest: buildRequest),
     );
   }
@@ -104,7 +104,8 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
             RequestState.initial ||
             RequestState.loading =>
               const QuestionnaireShimmer(),
-            RequestState.error => _MessageView(onRetry: cubit.load),
+            RequestState.error =>
+              _MessageView(onRetry: () => cubit.load(widget.category)),
             // No step with a question left = nothing to ask, not a blank wizard.
             RequestState.loaded => state.steps.isEmpty
                 ? const _MessageView()

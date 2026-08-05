@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -20,6 +21,9 @@ import {
   CreateGroupDto,
   CreateOptionDto,
   CreateQuestionDto,
+  ReorderQuestionsDto,
+  SetQuestionCategoriesBulkDto,
+  SetQuestionCategoriesDto,
   UpdateGroupDto,
   UpdateOptionDto,
   UpdateQuestionDto,
@@ -77,6 +81,18 @@ export class AdminQuestionnaireController {
     return ok(await this.service.createQuestion(dto, user.sub));
   }
 
+  // POST rather than PATCH `questions/order`: a PATCH under `questions/` would sit
+  // in the same shape as `questions/:id` and depend on declaration order to win.
+  @Post('questions/reorder')
+  @ApiOperation({
+    summary: 'Rewrite the flat pool order (displayOrder = index in ids)',
+    description:
+      'Body carries EVERY active question id exactly once, in its new order — a partial list is rejected with VALIDATION_FAILED.',
+  })
+  async reorderQuestions(@Body() dto: ReorderQuestionsDto, @CurrentUser() user: JwtPayload) {
+    return ok(await this.service.reorderQuestions(dto.ids, user.sub));
+  }
+
   @Patch('questions/:id')
   @ApiOperation({ summary: 'Edit a question (code immutable)' })
   async updateQuestion(
@@ -91,6 +107,36 @@ export class AdminQuestionnaireController {
   @ApiOperation({ summary: 'Soft-delete a question (blocked if a branch depends on it)' })
   async deleteQuestion(@Param('id') id: string, @CurrentUser() user: JwtPayload) {
     return ok(await this.service.softDeleteQuestion(id, user.sub));
+  }
+
+  // Static segment, so it cannot be shadowed by `questions/:id/categories`
+  // (different method AND different depth) — same defensive posture as
+  // `questions/reorder` above.
+  @Post('questions/categories')
+  @ApiOperation({
+    summary: 'Reassign MANY questions to loan categories (one transaction, one publish)',
+    description:
+      'Each entry replaces that question’s whole category set. Backs the assignment tab’s column actions; a per-row toggle uses PUT questions/:id/categories instead.',
+  })
+  async setCategoriesBulk(
+    @Body() dto: SetQuestionCategoriesBulkDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return ok(await this.service.setQuestionCategoriesBulk(dto.assignments, user.sub));
+  }
+
+  @Put('questions/:id/categories')
+  @ApiOperation({
+    summary: 'Set which loan categories a question is asked for',
+    description:
+      'The submitted array replaces the set (not a delta). An empty array parks the question: kept and editable, asked for no category.',
+  })
+  async setCategories(
+    @Param('id') id: string,
+    @Body() dto: SetQuestionCategoriesDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return ok(await this.service.setQuestionCategories(id, dto.categories, user.sub));
   }
 
   @Get('questions/:id/options')

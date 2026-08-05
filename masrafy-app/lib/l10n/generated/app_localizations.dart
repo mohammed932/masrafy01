@@ -200,7 +200,7 @@ abstract class AppLocalizations {
   /// Backend PASSWORD_NOT_SET error code
   ///
   /// In ar, this message translates to:
-  /// **'لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google أو Apple.'**
+  /// **'لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google.'**
   String get auth_password_not_set;
 
   /// Backend PASSWORD_SAME_AS_OLD error code
@@ -242,7 +242,7 @@ abstract class AppLocalizations {
   /// Backend PASSWORD_FORBIDDEN_FOR_SOCIAL_PROFILE error code
   ///
   /// In ar, this message translates to:
-  /// **'حسابات Google أو Apple لا تستخدم كلمة مرور.'**
+  /// **'حسابات Google لا تستخدم كلمة مرور.'**
   String get auth_password_forbidden_for_social_profile;
 
   /// Backend PHONE_MUTATION_ON_PHONE_CUSTOMER_FORBIDDEN error code
@@ -254,7 +254,7 @@ abstract class AppLocalizations {
   /// Backend PASSWORD_CHANGE_FORBIDDEN_FOR_SOCIAL error code
   ///
   /// In ar, this message translates to:
-  /// **'تغيير كلمة المرور غير متاح لحسابات Google أو Apple.'**
+  /// **'تغيير كلمة المرور غير متاح لحسابات Google.'**
   String get auth_password_change_forbidden_for_social;
 
   /// Backend AGE_INVALID error code
@@ -298,12 +298,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'المتابعة باستخدام Google'**
   String get auth_landing_action_google;
-
-  /// Landing CTA — Apple sign-in (iOS only)
-  ///
-  /// In ar, this message translates to:
-  /// **'المتابعة باستخدام Apple'**
-  String get auth_landing_action_apple;
 
   /// Landing — existing-user log in link
   ///
@@ -905,12 +899,6 @@ abstract class AppLocalizations {
   /// **'Google'**
   String get onboarding_google;
 
-  /// No description provided for @onboarding_apple.
-  ///
-  /// In ar, this message translates to:
-  /// **'Apple'**
-  String get onboarding_apple;
-
   /// No description provided for @onboarding_lang_toggle.
   ///
   /// In ar, this message translates to:
@@ -976,12 +964,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'Google'**
   String get login_google;
-
-  /// No description provided for @login_apple.
-  ///
-  /// In ar, this message translates to:
-  /// **'Apple'**
-  String get login_apple;
 
   /// No description provided for @login_no_account.
   ///

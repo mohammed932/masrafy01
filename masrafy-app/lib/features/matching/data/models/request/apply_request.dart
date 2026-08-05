@@ -3,8 +3,11 @@
 ///
 /// Root [ApplyRequest] + its nested payload classes live in this one file on
 /// purpose (payload co-location); do not split per class. The per-category
-/// wizard mappers build this; [age] is filled in later by the results cubit
-/// from `/auth/me` (the wizard never collects it), hence nullable here.
+/// wizard mappers build this.
+///
+/// No `age` field: the backend derives the applicant's age from the
+/// authenticated customer's `birthday` (Principle XXXVII / A31). Sending one
+/// would be rejected by the API's `forbidNonWhitelisted` validation.
 class ApplyRequest {
   const ApplyRequest({
     required this.loanPurpose,
@@ -14,7 +17,6 @@ class ApplyRequest {
     required this.employment,
     required this.obligations,
     required this.assets,
-    this.age,
     this.requestedCurrency = 'EGP',
     this.mortgageDetails,
     this.carDetails,
@@ -23,8 +25,6 @@ class ApplyRequest {
     this.questionnaireAnswers,
   });
 
-  /// 18–75. Null until the results cubit injects it from the customer profile.
-  final int? age;
   final String loanPurpose;
 
   /// Decimal string, 5000–50,000,000 (Principle I).
@@ -54,26 +54,7 @@ class ApplyRequest {
   /// approval scoring (Principle V). Null for the legacy flows.
   final List<QuestionnaireAnswer>? questionnaireAnswers;
 
-  /// Returns a copy with [age] set — called by the results cubit before submit.
-  ApplyRequest withAge(int age) => ApplyRequest(
-        loanPurpose: loanPurpose,
-        requestedAmountEGP: requestedAmountEGP,
-        preferredTenorMonths: preferredTenorMonths,
-        priority: priority,
-        employment: employment,
-        obligations: obligations,
-        assets: assets,
-        age: age,
-        requestedCurrency: requestedCurrency,
-        mortgageDetails: mortgageDetails,
-        carDetails: carDetails,
-        category: category,
-        questionnaireVersionId: questionnaireVersionId,
-        questionnaireAnswers: questionnaireAnswers,
-      );
-
   Map<String, dynamic> toJson() => {
-        'age': age,
         'loanPurpose': loanPurpose,
         'requestedAmountEGP': requestedAmountEGP,
         'requestedCurrency': requestedCurrency,

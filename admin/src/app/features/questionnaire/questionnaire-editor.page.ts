@@ -2,31 +2,54 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  Injector,
   LOCALE_ID,
   OnInit,
+  afterNextRender,
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import {
+  CdkDrag,
+  CdkDragHandle,
+  CdkDragPlaceholder,
+  CdkDropList,
+  type CdkDragDrop,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
+import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
-import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { EditOutline, DeleteOutline, EllipsisOutline, DownOutline } from '@ant-design/icons-angular/icons';
-import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { A11yModule } from '@angular/cdk/a11y';
+import {
+  ArrowDownOutline,
+  ArrowUpOutline,
+  CheckCircleOutline,
+  CloseOutline,
+  DeleteOutline,
+  EditOutline,
+  EllipsisOutline,
+  HolderOutline,
+  PlusOutline,
+  SearchOutline,
+  WarningOutline,
+} from '@ant-design/icons-angular/icons';
 import {
   QuestionnaireApiService,
   isChoiceQuestionType,
-  type GroupTreeRow,
   type OptionRow,
   type PublishWarning,
   type QuestionRow,
@@ -34,22 +57,44 @@ import {
 } from './questionnaire.api.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 
-type Mode = null | 'group' | 'question' | 'option';
-
 /** Ordered for the segmented control: the two choice types, then the two value types. */
-const TYPE_ORDER: readonly QuestionType[] = [
-  'SINGLE_SELECT',
-  'MULTI_SELECT',
-  'NUMERIC',
-  'TEXT',
-];
+const TYPE_ORDER: readonly QuestionType[] = ['SINGLE_SELECT', 'MULTI_SELECT', 'NUMERIC', 'TEXT'];
+
+/**
+ * Answer chips shown on a collapsed row before collapsing into a `+N` counter.
+ * Generous because the chips own a full-width line: nearly every question in the
+ * pool fits entirely, so the count is a rare fallback rather than the norm.
+ */
+const INLINE_OPTION_PREVIEW = 8;
+
+/**
+ * Questions rendered per page. The pool grows without bound, and every row can
+ * carry a full line of answer chips, so an unpaged list turned the only screen
+ * that shows the questionnaire into a scroll hunt. Paging is CLIENT-side: the
+ * tree endpoint returns the whole pool in one call (search, the type counts, the
+ * health panel, and reordering all need every row), so a server page would cost
+ * a round-trip per page and still not shrink the payload.
+ */
+const PAGE_SIZE = 10;
+
+type TypeFilter = QuestionType | 'ALL';
 
 /**
  * GLOBAL question-pool authoring (Constitution V, Feature 010 — questions are
  * admin DATA with NO category). One pool feeds one global questionnaire; codes
- * are auto-generated server-side (read-only here, A33). Groups are sections used
- * only to organise the pool. Tree on the left, a contextual inspector drawer on
- * the right; every edit auto-publishes a new global version.
+ * are auto-generated server-side (read-only here, A33).
+ *
+ * The pool is authored FLAT: one ordered list of questions, no group/section
+ * dimension in the UI. Groups still exist in the database (they page the mobile
+ * wizard), but the editor never names one — `POST /questions` omits `groupId` and
+ * the server places the row. That trade buys the two things a sectioned tree could
+ * not: the whole questionnaire is visible and searchable at once, and order is a
+ * single global sequence you can drag, instead of a per-section number you type.
+ *
+ * Editing happens INLINE, in the row's own position — there is no drawer. A drawer
+ * costs the admin the surrounding questions (the context that tells them whether
+ * this question is redundant), and for a two-field option form it is pure overhead.
+ * Every edit auto-publishes a new global version.
  */
 @Component({
   standalone: true,
@@ -58,573 +103,778 @@ const TYPE_ORDER: readonly QuestionType[] = [
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    CdkDropList,
+    CdkDrag,
+    CdkDragHandle,
+    CdkDragPlaceholder,
     NzButtonModule,
     NzInputModule,
     NzInputNumberModule,
     NzSwitchModule,
     NzSpinModule,
     NzEmptyModule,
+    NzPaginationModule,
     NzIconModule,
-    NzDropDownModule,
     NzToolTipModule,
-    NzAlertModule,
     A11yModule,
   ],
-  providers: [provideNzIconsPatch([EditOutline, DeleteOutline, EllipsisOutline, DownOutline])],
+  providers: [
+    provideNzIconsPatch([
+      ArrowDownOutline,
+      ArrowUpOutline,
+      CheckCircleOutline,
+      CloseOutline,
+      DeleteOutline,
+      EditOutline,
+      EllipsisOutline,
+      HolderOutline,
+      PlusOutline,
+      SearchOutline,
+      WarningOutline,
+    ]),
+  ],
   template: `
     <section class="page">
-      <!-- Hero — quiet surface card; brand azure accent lives in the eyebrow +
-           counts. No category dimension: this is the single global pool. -->
-      <header class="hero">
-        <div class="hero-inner">
-          <div class="hero-lead">
-            <div class="title-text">
-              <p class="eyebrow" i18n="@@qedit.eyebrow">Matching engine</p>
-              <div class="title-row">
-                <h1 i18n="@@qedit.title">Question pool</h1>
-                @if (published()) {
-                  <span class="live-chip" title="A version is published" i18n-title="@@qedit.live_title">
-                    <span class="live-dot" aria-hidden="true"></span>
-                    <span i18n="@@qedit.live">Live</span>
-                  </span>
-                }
-              </div>
-            </div>
-            <p class="stats">
-              <strong>{{ groups().length }}</strong> <span i18n="@@qedit.stat_groups">groups</span>
-              <span class="dot">·</span>
-              <strong>{{ totalQuestions() }}</strong>
-              <span i18n="@@qedit.stat_questions">questions</span>
-              <span class="dot">·</span>
-              <span class="muted" i18n="@@qedit.stat_autosave"
-                >one global questionnaire · saves &amp; publishes automatically</span
+      <!-- Command bar — title, health, and the primary action on ONE row. The
+           former hero card spent ~120px restating counts that the toolbar below
+           already carries, on a screen whose job is to show a long list. -->
+      <header class="bar">
+        <div class="bar-lead">
+          <p class="eyebrow" i18n="@@qedit.eyebrow">Matching engine</p>
+          <div class="title-row">
+            <h1 i18n="@@qedit.title">Question pool</h1>
+            @if (published()) {
+              <span
+                class="live-chip"
+                title="A version is published"
+                i18n-title="@@qedit.live_title"
               >
-            </p>
+                <span class="live-dot" aria-hidden="true"></span>
+                <span i18n="@@qedit.live">Live</span>
+              </span>
+            }
           </div>
-          <div class="hero-actions">
-            <button nz-button nzType="primary" nzSize="large" (click)="startGroup()">
-              <span i18n="@@qedit.add_group">＋ Group</span>
+        </div>
+
+        <div class="bar-actions">
+          <!-- Health is a chip, not a banner: an unclaimed money binding is a
+               standing condition, so it belongs where the admin can ignore it and
+               still see the list. Expanded on demand, below. -->
+          @if (issueCount() > 0) {
+            <button
+              type="button"
+              class="health warn"
+              [class.on]="healthOpen()"
+              [attr.aria-expanded]="healthOpen()"
+              (click)="healthOpen.set(!healthOpen())"
+            >
+              <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@qedit.health_issues">{{ issueCount() }} to fix</span>
             </button>
-          </div>
+          } @else if (!loading() && rows().length > 0) {
+            <span class="health ok">
+              <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@qedit.health_ok">Ready to ask</span>
+            </span>
+          }
+          <span class="autosave" i18n="@@qedit.autosave">Saves &amp; publishes automatically</span>
+          <button nz-button nzType="primary" (click)="startCreate()">
+            <span nz-icon nzType="plus" nzTheme="outline"></span>
+            <span i18n="@@qedit.add_question">Question</span>
+          </button>
         </div>
       </header>
 
-      <!-- Money-binding banner. A standing condition, not a save event: the four
-           bound number questions are what the engine prices on, so an unclaimed
-           binding means affected applicants get MONEY_FIGURE_MISSING instead of a
-           quote (FR-044/FR-048). Rendered from the backend code via the shared
-           error-code catalog — no per-component message mapping (A22). -->
-      @if (bindingWarnings().length > 0) {
-        <nz-alert
-          class="binding-alert"
-          nzType="warning"
-          [nzMessage]="bindingWarningTitle"
-          [nzDescription]="bindingWarningBody"
-          nzShowIcon
-        />
-        <ng-template #bindingWarningTitle>
-          <span i18n="@@qedit.binding_warn_title"
-            >Some figures the engine prices on are not being collected</span
+      @if (healthOpen() && issueCount() > 0) {
+        <div class="health-panel">
+          @if (bindingWarnings().length > 0) {
+            <p class="hp-title" i18n="@@qedit.binding_warn_title">
+              Some figures the engine prices on are not being collected
+            </p>
+            <ul class="hp-list">
+              @for (w of bindingWarnings(); track w.code + bindingOf(w)) {
+                <li>
+                  <code>{{ bindingOf(w) }}</code>
+                  <span>{{ warningMessage(w) }}</span>
+                </li>
+              }
+            </ul>
+          }
+          @if (incomplete().length > 0) {
+            <p class="hp-title" i18n="@@qedit.hp_incomplete_title">
+              These questions can't be asked yet — a choice question needs at least two options.
+            </p>
+            <ul class="hp-list">
+              @for (q of incomplete(); track q.id) {
+                <li>
+                  <button type="button" class="hp-jump" (click)="jumpTo(q)">
+                    {{ isAr ? q.questionAr : q.questionEn }}
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      }
+
+      @if (loading()) {
+        <div class="center"><nz-spin nzSimple /></div>
+      } @else if (rows().length === 0) {
+        <div class="empty-card">
+          <nz-empty
+            nzNotFoundContent="No questions yet — the first one you add becomes the first thing every applicant is asked"
+            i18n-nzNotFoundContent="@@qedit.empty"
+          />
+          <button nz-button nzType="primary" (click)="startCreate()" i18n="@@qedit.empty_cta">
+            Add the first question
+          </button>
+        </div>
+      } @else {
+        <!-- Toolbar — search + type filter + the incomplete-only shortcut. A global
+             pool is dozens of rows long; without these it is a scroll hunt. -->
+        <div class="toolbar" role="search">
+          <!-- nz-input-group owns the icon's gutter. A hand-placed absolute icon
+               sat on top of the placeholder's first character. -->
+          <nz-input-group class="search" nzPrefixIcon="search" nzSize="large">
+            <input
+              nz-input
+              [formControl]="searchCtrl"
+              placeholder="Search questions, answers, or codes"
+              i18n-placeholder="@@qedit.search_ph"
+              aria-label="Search the question pool"
+              i18n-aria-label="@@qedit.search_aria"
+            />
+          </nz-input-group>
+
+          <div
+            class="filters"
+            role="radiogroup"
+            aria-label="Filter by answer type"
+            i18n-aria-label="@@qedit.filter_aria"
           >
-        </ng-template>
-        <ng-template #bindingWarningBody>
-          <ul class="binding-list">
-            @for (w of bindingWarnings(); track w.code + bindingOf(w)) {
-              <li>
-                <code>{{ bindingOf(w) }}</code>
-                <span>{{ warningMessage(w) }}</span>
+            <button
+              type="button"
+              role="radio"
+              class="chip"
+              [class.on]="typeFilter() === 'ALL'"
+              [attr.aria-checked]="typeFilter() === 'ALL'"
+              (click)="setTypeFilter('ALL')"
+              i18n="@@qedit.filter_all"
+            >
+              All
+            </button>
+            <!-- A type with no questions is disabled rather than hidden: it still
+                 tells the admin the type exists, without offering a filter whose
+                 only possible result is an empty list. -->
+            @for (t of types; track t) {
+              <button
+                type="button"
+                role="radio"
+                class="chip"
+                [class.on]="typeFilter() === t"
+                [attr.aria-checked]="typeFilter() === t"
+                [disabled]="countOfType(t) === 0"
+                (click)="setTypeFilter(t)"
+              >
+                {{ typeLabel(t) }}
+                <span class="chip-n">{{ countOfType(t) }}</span>
+              </button>
+            }
+          </div>
+
+          @if (incomplete().length > 0) {
+            <button
+              type="button"
+              class="chip warn"
+              [class.on]="onlyIncomplete()"
+              [attr.aria-pressed]="onlyIncomplete()"
+              (click)="setOnlyIncomplete(!onlyIncomplete())"
+            >
+              <span i18n="@@qedit.only_incomplete">Needs options</span>
+              <span class="chip-n">{{ incomplete().length }}</span>
+            </button>
+          }
+
+          <p class="showing">
+            @if (filtering()) {
+              <span i18n="@@qedit.showing"
+                >{{ visible().length }} of {{ rows().length }} questions</span
+              >
+              <button
+                type="button"
+                class="link"
+                (click)="clearFilters()"
+                i18n="@@qedit.clear_filters"
+              >
+                Clear
+              </button>
+            } @else {
+              <span i18n="@@qedit.total"
+                >{{ rows().length }} questions · {{ totalOptions() }} answers</span
+              >
+            }
+          </p>
+        </div>
+
+        @if (filtering() && visible().length > 0) {
+          <p class="drag-note" i18n="@@qedit.drag_disabled">
+            Dragging is off while the list is filtered — the order you'd see isn't the order
+            applicants get. Use the row menu to move a question, or clear the filter.
+          </p>
+        } @else if (pageCount() > 1) {
+          <!-- A drag cannot cross a page boundary, so the one move the list can't
+               do is spelled out where the admin would otherwise try it. -->
+          <p class="drag-note" i18n="@@qedit.drag_page">
+            Dragging reorders within this page. To move a question to another page, open it and use
+            the arrows in the editor's header.
+          </p>
+        }
+
+        @if (visible().length === 0) {
+          <div class="empty-card">
+            <p class="nm-title" i18n="@@qedit.no_matches_title">Nothing matches that filter</p>
+            <p class="nm-body" i18n="@@qedit.no_matches_body">
+              The pool still has {{ rows().length }} questions — they're just filtered out.
+            </p>
+            <button nz-button (click)="clearFilters()" i18n="@@qedit.clear_filters">Clear</button>
+          </div>
+        } @else {
+          <!-- The list is the page. Rows sit directly on one surface, separated by
+               hairlines: a card per question would nest a card inside a card and
+               spend ~24px of chrome on every row for no added meaning. -->
+          <ul
+            #listEl
+            class="list"
+            [class.has-pager]="pageCount() > 1"
+            cdkDropList
+            [cdkDropListDisabled]="!reorderable()"
+            (cdkDropListDropped)="drop($event)"
+          >
+            @for (q of paged(); track q.id) {
+              <li
+                class="row"
+                cdkDrag
+                cdkDragLockAxis="y"
+                [cdkDragDisabled]="!reorderable()"
+                [class.open]="expandedId() === q.id"
+                [class.flagged]="needsOptions(q)"
+              >
+                <div class="row-head">
+                  <button
+                    type="button"
+                    class="handle"
+                    cdkDragHandle
+                    [disabled]="!reorderable()"
+                    aria-label="Drag to reorder"
+                    i18n-aria-label="@@qedit.reorder_aria"
+                  >
+                    <span nz-icon nzType="holder" nzTheme="outline" aria-hidden="true"></span>
+                  </button>
+
+                  <span class="ord" aria-hidden="true">{{ positionOf(q) }}</span>
+
+                  <button
+                    type="button"
+                    class="row-main"
+                    [attr.aria-expanded]="expandedId() === q.id"
+                    (click)="toggleRow(q)"
+                  >
+                    <span class="q-text" [dir]="isAr ? 'rtl' : 'ltr'">{{
+                      isAr ? q.questionAr : q.questionEn
+                    }}</span>
+                    <!-- The auto-generated code is deliberately NOT shown here: it is
+                         machine identity the admin never types (A33), and it competed
+                         with the question for the eye on all 41 rows. Search still
+                         matches it. -->
+                    <!-- A value type's rule is short and belongs on the title line;
+                         only choice answers need the width of a second line. -->
+                    @if (!isChoice(q.type)) {
+                      <span class="rule-line">{{ ruleSummary(q) }}</span>
+                    }
+                  </button>
+
+                  <!-- Both chips share one cell so the kebab stays in the same
+                       column on every row — an optional required-chip cell of its
+                       own would shift every kebab it is missing from. -->
+                  <span class="row-meta">
+                    <span
+                      class="type-chip"
+                      [class.value-type]="!isChoice(q.type)"
+                      nz-tooltip
+                      [nzTooltipTitle]="typeHint(q.type)"
+                      >{{ typeLabel(q.type) }}</span
+                    >
+                    <!-- Required is the DEFAULT, so 41 identical "required" chips
+                         said nothing. Only the exception is worth a chip. -->
+                    @if (!q.isRequired) {
+                      <span
+                        class="req"
+                        nz-tooltip
+                        nzTooltipTitle="Applicants may skip this"
+                        i18n-nzTooltipTitle="@@qedit.optional_tip"
+                        i18n="@@qedit.optional_chip"
+                        >optional</span
+                      >
+                    }
+                  </span>
+
+                  <!-- Opens the editor, same as clicking the row. It used to open a
+                       4-item dropdown; move/delete now live in the editor itself, so
+                       there is nothing left for a menu to hold. -->
+                  <button
+                    type="button"
+                    class="kebab"
+                    nz-button
+                    nzType="text"
+                    nzShape="circle"
+                    (click)="toggleRow(q)"
+                    aria-label="Edit question"
+                    i18n-aria-label="@@qedit.edit_question_aria"
+                  >
+                    <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
+                  </button>
+                </div>
+
+                <!-- Answers get their own full-width line under the question. Squeezed
+                     into a column beside it they truncated to "Getti…" / "Scho…",
+                     which is worse than not showing them: the admin has to open the
+                     row to learn what it already looked like it was telling them. -->
+                @if (isChoice(q.type)) {
+                  <div class="row-answers">
+                    @if (q.options.length === 0) {
+                      <span class="pill warn" i18n="@@qedit.needs_options_short"
+                        >needs options</span
+                      >
+                    } @else {
+                      @for (o of previewOptions(q); track o.id) {
+                        <span class="pill" [dir]="isAr ? 'rtl' : 'ltr'">{{
+                          isAr ? o.labelAr : o.labelEn
+                        }}</span>
+                      }
+                      @if (q.options.length > INLINE_OPTION_PREVIEW) {
+                        <span
+                          class="pill more"
+                          nz-tooltip
+                          [nzTooltipTitle]="allOptionLabels(q)"
+                          i18n="@@qedit.opt_more"
+                          >+{{ q.options.length - INLINE_OPTION_PREVIEW }} more</span
+                        >
+                      }
+                    }
+                  </div>
+                }
+
+                <div class="drag-ghost" *cdkDragPlaceholder></div>
+              </li>
+            }
+
+            <!-- The new question lands where it will actually be asked (last), so the
+                 affordance sits at the end of the list rather than only in the bar —
+                 and only on the page that IS the end. -->
+            @if (!filtering() && page() === pageCount()) {
+              <li class="row add-row">
+                <button type="button" class="add-inline" (click)="startCreate()">
+                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@qedit.add_question_inline">Add a question to the end</span>
+                </button>
               </li>
             }
           </ul>
-        </ng-template>
-      }
 
-      <!-- Master-detail workbench: outline rail (left) + editing canvas (right). -->
-      <div class="tree">
-        @if (loading()) {
-          <div class="center"><nz-spin nzSimple /></div>
-        } @else if (groups().length === 0) {
-          <div class="empty-card">
-            <nz-empty
-              nzNotFoundContent="No groups yet — add your first group to start building the pool"
-              i18n-nzNotFoundContent="@@qedit.empty"
-            />
-            <button nz-button nzType="primary" (click)="startGroup()" i18n="@@qedit.empty_cta">
-              Add a group
-            </button>
-          </div>
-        } @else {
-          <div class="workbench">
-            <!-- LEFT: group outline (master) — pure navigation. -->
-            <aside class="outline" aria-label="Question groups" i18n-aria-label="@@qedit.outline_aria">
-              <div class="outline-head">
-                <span i18n="@@qedit.outline_head">Groups</span>
-                <span class="head-total">{{ groups().length }}</span>
-              </div>
-              <ul class="grp-list">
-                @for (g of groups(); track g.id) {
-                  <li>
-                    <button
-                      type="button"
-                      class="grp-row"
-                      [class.active]="g.id === selectedGroup()?.id"
-                      [attr.aria-current]="g.id === selectedGroup()?.id ? 'true' : null"
-                      nz-tooltip
-                      [nzTooltipTitle]="isAr ? g.titleAr : g.titleEn"
-                      nzTooltipPlacement="right"
-                      (click)="selectGroup(g)"
-                    >
-                      <span class="grp-name" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                        isAr ? g.titleAr : g.titleEn
-                      }}</span>
-                      <span
-                        class="count-pill"
-                        nz-tooltip
-                        nzTooltipTitle="Questions in this group"
-                        i18n-nzTooltipTitle="@@qedit.grp_qcount_tip"
-                        >{{ g.questions.length }}</span
-                      >
-                    </button>
-                  </li>
-                }
-              </ul>
-              <button
-                class="add-grp"
-                nz-button
-                nzType="text"
-                (click)="startGroup()"
-                i18n="@@qedit.add_group"
-              >
-                ＋ Group
-              </button>
-            </aside>
-
-            <!-- RIGHT: editing canvas (detail) — only the selected group. -->
-            <section class="canvas">
-              @if (selectedGroup(); as g) {
-                <header class="canvas-head">
-                  <div class="ch-title">
-                    <h2 [dir]="isAr ? 'rtl' : 'ltr'">{{ isAr ? g.titleAr : g.titleEn }}</h2>
-                    <span class="count-pill">{{ g.questions.length }}</span>
-                  </div>
-                  <div class="ch-actions">
-                    <button
-                      nz-button
-                      nzSize="small"
-                      (click)="startQuestion(g)"
-                      i18n="@@qedit.add_question"
-                    >
-                      ＋ Question
-                    </button>
-                    <button
-                      type="button"
-                      class="kebab"
-                      nz-button
-                      nzType="text"
-                      nzShape="circle"
-                      nz-dropdown
-                      [nzDropdownMenu]="gMenu"
-                      nzTrigger="click"
-                      nzPlacement="bottomRight"
-                      aria-label="Group actions"
-                      i18n-aria-label="@@qedit.group_actions_aria"
-                    >
-                      <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
-                    </button>
-                    <nz-dropdown-menu #gMenu="nzDropdownMenu">
-                      <ul nz-menu class="row-menu">
-                        <li nz-menu-item (click)="editGroup(g)">
-                          <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
-                          <span i18n="@@qedit.menu_edit">Edit</span>
-                        </li>
-                        <li nz-menu-item (click)="confirmDeleteGroup(g)">
-                          <span
-                            nz-icon
-                            nzType="delete"
-                            nzTheme="outline"
-                            style="margin-inline-end: 8px; color: var(--color-error, var(--ant-error-color))"
-                          ></span>
-                          <span style="color: var(--color-error, var(--ant-error-color))" i18n="@@qedit.menu_delete"
-                            >Delete</span
-                          >
-                        </li>
-                      </ul>
-                    </nz-dropdown-menu>
-                  </div>
-                </header>
-
-                @if (g.questions.length === 0) {
-                  <p class="empty-line" i18n="@@qedit.group_empty">
-                    No questions yet — add the first one.
-                  </p>
-                }
-
-                <div class="q-grid">
-                  @for (q of g.questions; track q.id; let i = $index) {
-                    <div class="q-card">
-                      <div class="q-top">
-                        <span class="q-ord" aria-hidden="true">{{ i + 1 }}</span>
-                        <span class="q-text" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                          isAr ? q.questionAr : q.questionEn
-                        }}</span>
-                        <span
-                          class="type-chip"
-                          [class.value-type]="!isChoice(q.type)"
-                          nz-tooltip
-                          [nzTooltipTitle]="typeHint(q.type)"
-                          >{{ typeLabel(q.type) }}</span
-                        >
-                        @if (q.isRequired) {
-                          <span class="req" i18n="@@qedit.required_chip">required</span>
-                        }
-                        <button
-                          type="button"
-                          class="kebab"
-                          nz-button
-                          nzType="text"
-                          nzShape="circle"
-                          nz-dropdown
-                          [nzDropdownMenu]="qMenu"
-                          nzTrigger="click"
-                          nzPlacement="bottomRight"
-                          aria-label="Question actions"
-                          i18n-aria-label="@@qedit.question_actions_aria"
-                        >
-                          <span nz-icon nzType="ellipsis" nzTheme="outline"></span>
-                        </button>
-                        <nz-dropdown-menu #qMenu="nzDropdownMenu">
-                          <ul nz-menu class="row-menu">
-                            <li nz-menu-item (click)="editQuestion(q)">
-                              <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
-                              <span i18n="@@qedit.menu_edit">Edit</span>
-                            </li>
-                            <li nz-menu-item (click)="confirmDeleteQuestion(q)">
-                              <span
-                                nz-icon
-                                nzType="delete"
-                                nzTheme="outline"
-                                style="margin-inline-end: 8px; color: var(--color-error, var(--ant-error-color))"
-                              ></span>
-                              <span style="color: var(--color-error, var(--ant-error-color))" i18n="@@qedit.menu_delete"
-                                >Delete</span
-                              >
-                            </li>
-                          </ul>
-                        </nz-dropdown-menu>
-                      </div>
-                      <!-- Value types have nothing to pick: showing an option list
-                           would invite the admin into a state the server rejects
-                           with QUESTION_TYPE_RULES_INVALID. Show the rule instead. -->
-                      @if (isChoice(q.type)) {
-                        @if (q.options.length > 0) {
-                          <p class="opt-meta">
-                            {{ q.options.length }}<span i18n="@@qedit.opt_count"> options</span>
-                          </p>
-                        } @else {
-                          <p class="rule-line warn" i18n="@@qedit.needs_options">
-                            Needs at least 2 options before this can be published.
-                          </p>
-                        }
-                      } @else {
-                        <p class="rule-line">{{ ruleSummary(q) }}</p>
-                      }
-                      @if (isChoice(q.type)) {
-                      <ul class="opts">
-                        @for (o of q.options; track o.id) {
-                          <li>
-                            <button
-                              type="button"
-                              class="opt-chip"
-                              nz-dropdown
-                              [nzDropdownMenu]="oMenu"
-                              nzTrigger="click"
-                              nzPlacement="bottomLeft"
-                              aria-label="Option actions"
-                              i18n-aria-label="@@qedit.option_actions_aria"
-                            >
-                              <span class="opt-label" [dir]="isAr ? 'rtl' : 'ltr'">{{
-                                isAr ? o.labelAr : o.labelEn
-                              }}</span>
-                              <span class="opt-caret" nz-icon nzType="down" nzTheme="outline" aria-hidden="true"></span>
-                            </button>
-                            <nz-dropdown-menu #oMenu="nzDropdownMenu">
-                              <ul nz-menu class="row-menu">
-                                <li nz-menu-item (click)="editOption(o)">
-                                  <span nz-icon nzType="edit" nzTheme="outline" style="margin-inline-end: 8px"></span>
-                                  <span i18n="@@qedit.menu_edit">Edit</span>
-                                </li>
-                                <li nz-menu-item (click)="confirmDeleteOption(o)">
-                                  <span
-                                    nz-icon
-                                    nzType="delete"
-                                    nzTheme="outline"
-                                    style="margin-inline-end: 8px; color: var(--color-error, var(--ant-error-color))"
-                                  ></span>
-                                  <span style="color: var(--color-error, var(--ant-error-color))" i18n="@@qedit.menu_delete"
-                                    >Delete</span
-                                  >
-                                </li>
-                              </ul>
-                            </nz-dropdown-menu>
-                          </li>
-                        }
-                        <li>
-                          <button
-                            type="button"
-                            class="add-opt-chip"
-                            (click)="startOption(q.id)"
-                            i18n="@@qedit.add_option"
-                          >
-                            ＋ option
-                          </button>
-                        </li>
-                      </ul>
-                      }
-                    </div>
-                  }
-                </div>
-              } @else {
-                <p class="empty-line" i18n="@@qedit.canvas_empty">
-                  Select a group to edit its questions.
-                </p>
-              }
-            </section>
-          </div>
+          <!-- Pager sits below the list and is hidden on a single page: a control
+               whose only state is "page 1 of 1" is chrome, not navigation. -->
+          @if (pageCount() > 1) {
+            <nav class="pager" aria-label="Question pages" i18n-aria-label="@@qedit.pager_aria">
+              <p class="pager-range" i18n="@@qedit.page_range">
+                Showing {{ rangeStart() }}–{{ rangeEnd() }} of {{ visible().length }}
+              </p>
+              <nz-pagination
+                [nzPageIndex]="page()"
+                [nzPageSize]="PAGE_SIZE"
+                [nzTotal]="visible().length"
+                nzSize="small"
+                (nzPageIndexChange)="setPage($event)"
+              />
+            </nav>
+          }
         }
-      </div>
+      }
     </section>
 
-    <!-- Inspector drawer — rendered OUTSIDE section.page so position:fixed
-         resolves against the viewport (A34). -->
-    @if (mode() !== null) {
+    <!-- Editor modal — rendered OUTSIDE section.page so the fixed scrim resolves
+         against the viewport rather than the page's animated containing block (A34).
+         A modal rather than an inline panel: expanding a row in place pushed every
+         question below it down by ~400px, so the list moved under the cursor at the
+         exact moment the admin was trying to read it. -->
+    @if (modalOpen()) {
       <div class="scrim" (click)="cancel()" aria-hidden="true"></div>
-      <!-- role="dialog" is a promise: Escape closes it and the heading names it.
-           cdkTrapFocus + cdkTrapFocusAutoCapture keep Tab inside the drawer and
-           move focus into it on open, so it is not a mouse-only surface. -->
-      <aside
-        class="drawer"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="drawer-title"
-        cdkTrapFocus
-        [cdkTrapFocusAutoCapture]="true"
-        (keydown.escape)="cancel()"
-      >
-        <div class="ins-card">
-          <header class="ins-head">
-            <h3 id="drawer-title">
-              @switch (mode()) {
-                @case ('group') {
-                  @if (editing()) {
-                    <span i18n="@@qedit.edit_group">Edit group</span>
-                  } @else {
-                    <span i18n="@@qedit.new_group">New group</span>
-                  }
-                }
-                @case ('question') {
-                  @if (editing()) {
-                    <span i18n="@@qedit.edit_question">Edit question</span>
-                  } @else {
-                    <span i18n="@@qedit.new_question">New question</span>
-                  }
-                }
-                @default {
-                  @if (editing()) {
-                    <span i18n="@@qedit.edit_option">Edit option</span>
-                  } @else {
-                    <span i18n="@@qedit.new_option">New option</span>
-                  }
-                }
+      <!-- The wrap is the scroll container. Owning the scroll (plus overscroll
+           containment) is what keeps the page behind from scrolling, with no
+           body-overflow bookkeeping to get out of sync with nz-modal's own. -->
+      <div class="modal-wrap">
+        <section
+          class="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="qedit-modal-title"
+          cdkTrapFocus
+          [cdkTrapFocusAutoCapture]="true"
+          (keydown.escape)="cancel()"
+        >
+          <header class="modal-head">
+            <div class="mh-lead">
+              @if (editingQuestion(); as eq) {
+                <p class="mh-eyebrow">
+                  <span i18n="@@qedit.modal_pos"
+                    >Question {{ positionOf(eq) }} of {{ rows().length }}</span
+                  >
+                </p>
+                <h2 id="qedit-modal-title" i18n="@@qedit.modal_edit">Edit question</h2>
+              } @else {
+                <p class="mh-eyebrow">
+                  <span i18n="@@qedit.modal_pos_new">Position {{ rows().length + 1 }}</span>
+                </p>
+                <h2 id="qedit-modal-title" i18n="@@qedit.modal_new">New question</h2>
               }
-            </h3>
+            </div>
+            <div class="mh-actions">
+              <!-- Reordering lives here now: it is the keyboard twin of the drag
+                   handle, and the only way to move a question while filtered. -->
+              @if (editingQuestion(); as eq) {
+                <button
+                  type="button"
+                  class="icon-btn"
+                  [disabled]="positionOf(eq) === 1"
+                  (click)="moveBy(eq, -1)"
+                  nz-tooltip
+                  nzTooltipTitle="Move up"
+                  i18n-nzTooltipTitle="@@qedit.move_up"
+                  aria-label="Move up"
+                  i18n-aria-label="@@qedit.move_up"
+                >
+                  <span nz-icon nzType="arrow-up" nzTheme="outline"></span>
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  [disabled]="positionOf(eq) === rows().length"
+                  (click)="moveBy(eq, 1)"
+                  nz-tooltip
+                  nzTooltipTitle="Move down"
+                  i18n-nzTooltipTitle="@@qedit.move_down"
+                  aria-label="Move down"
+                  i18n-aria-label="@@qedit.move_down"
+                >
+                  <span nz-icon nzType="arrow-down" nzTheme="outline"></span>
+                </button>
+              }
+              <button
+                type="button"
+                class="icon-btn mh-close"
+                (click)="cancel()"
+                aria-label="Close"
+                i18n-aria-label="@@qedit.close_aria"
+              >
+                <span nz-icon nzType="close" nzTheme="outline"></span>
+              </button>
+            </div>
+          </header>
+
+          <div class="modal-body">
+            <ng-container [ngTemplateOutlet]="questionEditor"></ng-container>
+          </div>
+        </section>
+      </div>
+    }
+
+    <!-- One editor for both edit and create: the two differ only in whether a
+         question is already saved, so duplicating 120 lines of form would be two
+         places to fix every rule. -->
+    <ng-template #questionEditor>
+      <form [formGroup]="questionForm" class="form" (ngSubmit)="submitQuestion()">
+        <div class="form-cols">
+          <div class="col">
+            <p class="section-lbl" i18n="@@qedit.sec_content">Content</p>
+            <label class="field">
+              <span class="lbl" i18n="@@qedit.q_en">Question (English)</span>
+              <input
+                #firstField
+                nz-input
+                formControlName="questionEn"
+                placeholder="e.g. What is your monthly income?"
+              />
+            </label>
+            <label class="field">
+              <span class="lbl" i18n="@@qedit.q_ar">السؤال (عربي)</span>
+              <input
+                nz-input
+                formControlName="questionAr"
+                dir="rtl"
+                placeholder="مثال: ما هو دخلك الشهري؟"
+              />
+            </label>
+
+            <p class="section-lbl" i18n="@@qedit.sec_answer">Answer type</p>
+            <!-- Typed reactive control, not ngModel (Principle XXII / A16).
+                 A radiogroup rather than a dropdown: four options are worth showing
+                 at once, and the choice changes the rest of the form. -->
+            <div class="type-group" role="radiogroup" aria-labelledby="type-lbl">
+              <span class="sr-only" id="type-lbl" i18n="@@qedit.answer_type">Answer type</span>
+              @for (t of types; track t) {
+                <button
+                  type="button"
+                  role="radio"
+                  class="type-btn"
+                  [class.on]="selectedType() === t"
+                  [attr.aria-checked]="selectedType() === t"
+                  [disabled]="typeLocked()"
+                  (click)="pickType(t)"
+                >
+                  {{ typeLabel(t) }}
+                </button>
+              }
+            </div>
+            <p class="hint">{{ typeHint(selectedType()) }}</p>
+            @if (typeLocked()) {
+              <p class="hint warn" i18n="@@qedit.type_locked">
+                The answer type can't change once applicants have answered this question — their
+                stored answers would no longer match it. Add a new question instead.
+              </p>
+            }
+            @if (!isChoice(selectedType())) {
+              <p class="hint warn" i18n="@@qedit.not_scoreable">
+                Only single-choice questions carry scoring weights, so this question won't affect
+                approval probability.
+              </p>
+            }
+
+            <label class="switch-field">
+              <nz-switch formControlName="isRequired" />
+              <span i18n="@@qedit.required">Required</span>
+            </label>
+          </div>
+
+          <div class="col">
+            <!-- Per-type rules. Only the owning type's block is rendered, so the form
+                 cannot express a combination the server rejects with
+                 QUESTION_TYPE_RULES_INVALID. -->
+            @if (selectedType() === 'NUMERIC') {
+              <p class="section-lbl" i18n="@@qedit.sec_rules">Accepted values</p>
+              <div formGroupName="numeric" class="rule-box">
+                <div class="field-row">
+                  <label class="field grow">
+                    <span class="lbl" i18n="@@qedit.num_min">Minimum</span>
+                    <input
+                      nz-input
+                      formControlName="minValue"
+                      inputmode="decimal"
+                      placeholder="1000"
+                    />
+                  </label>
+                  <label class="field grow">
+                    <span class="lbl" i18n="@@qedit.num_max">Maximum</span>
+                    <input
+                      nz-input
+                      formControlName="maxValue"
+                      inputmode="decimal"
+                      placeholder="20000000"
+                    />
+                  </label>
+                </div>
+                <div class="field-row">
+                  <label class="field grow">
+                    <span class="lbl" i18n="@@qedit.num_step">Step</span>
+                    <input nz-input formControlName="step" inputmode="decimal" placeholder="1000" />
+                  </label>
+                  <label class="field grow">
+                    <span class="lbl" i18n="@@qedit.num_unit_en">Unit (English)</span>
+                    <input nz-input formControlName="unitEn" placeholder="EGP" />
+                  </label>
+                  <label class="field grow">
+                    <span class="lbl" i18n="@@qedit.num_unit_ar">الوحدة (عربي)</span>
+                    <input nz-input formControlName="unitAr" dir="rtl" placeholder="جنيه" />
+                  </label>
+                </div>
+                @if (numericRangeInverted()) {
+                  <p class="hint error" i18n="@@qedit.num_inverted">
+                    The maximum must be greater than or equal to the minimum.
+                  </p>
+                }
+                <p class="hint" i18n="@@qedit.num_hint">
+                  Bounds are inclusive, and the step counts up from the minimum. Leave a field empty
+                  for no limit.
+                </p>
+              </div>
+            } @else if (selectedType() === 'TEXT') {
+              <p class="section-lbl" i18n="@@qedit.sec_rules">Accepted values</p>
+              <div formGroupName="text" class="rule-box">
+                <label class="field">
+                  <span class="lbl" i18n="@@qedit.text_max">Maximum length</span>
+                  <nz-input-number formControlName="maxLength" [nzMin]="1" [nzMax]="2000" />
+                </label>
+                <p class="hint" i18n="@@qedit.text_hint">
+                  Free text is never written to logs, because applicants may type personal details
+                  into it.
+                </p>
+              </div>
+            } @else {
+              @if (editingQuestion(); as eq) {
+                <!-- Options are edited here, in place. A choice question's answers are
+                   the substance of it, so they belong beside the wording, not behind
+                   a second trip through a drawer. -->
+                <p class="section-lbl">
+                  <span i18n="@@qedit.sec_answers">Answer options</span>
+                  <span class="count-pill">{{ eq.options.length }}</span>
+                </p>
+                @if (eq.options.length < 2) {
+                  <p class="hint warn" i18n="@@qedit.needs_options">
+                    Needs at least 2 options before this can be published.
+                  </p>
+                }
+                <ul class="opt-list">
+                  @for (o of eq.options; track o.id) {
+                    <li class="opt-row" [class.editing]="editingOptionId() === o.id">
+                      @if (editingOptionId() === o.id) {
+                        <ng-container
+                          [ngTemplateOutlet]="optionEditor"
+                          [ngTemplateOutletContext]="{ eq: eq, adding: false }"
+                        ></ng-container>
+                      } @else {
+                        <span class="opt-label" [dir]="isAr ? 'rtl' : 'ltr'">{{
+                          isAr ? o.labelAr : o.labelEn
+                        }}</span>
+                        <button
+                          type="button"
+                          class="icon-btn"
+                          (click)="openOptionEdit(o)"
+                          aria-label="Edit option"
+                          i18n-aria-label="@@qedit.edit_option_aria"
+                        >
+                          <span nz-icon nzType="edit" nzTheme="outline"></span>
+                        </button>
+                        <button
+                          type="button"
+                          class="icon-btn danger"
+                          (click)="confirmDeleteOption(o)"
+                          aria-label="Delete option"
+                          i18n-aria-label="@@qedit.delete_option_aria"
+                        >
+                          <span nz-icon nzType="delete" nzTheme="outline"></span>
+                        </button>
+                      }
+                    </li>
+                  }
+                  <li class="opt-row" [class.editing]="addingOption()">
+                    @if (addingOption()) {
+                      <ng-container
+                        [ngTemplateOutlet]="optionEditor"
+                        [ngTemplateOutletContext]="{ eq: eq, adding: true }"
+                      ></ng-container>
+                    } @else {
+                      <button type="button" class="add-opt" (click)="startAddOption()">
+                        <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                        <span i18n="@@qedit.add_option">option</span>
+                      </button>
+                    }
+                  </li>
+                </ul>
+              } @else {
+                <p class="section-lbl" i18n="@@qedit.sec_answers">Answer options</p>
+                <p class="hint" i18n="@@qedit.choice_hint_new">
+                  Save the question first, then add its options here — at least two are needed
+                  before it can be asked.
+                </p>
+              }
+            }
+          </div>
+        </div>
+
+        @if (!editing()) {
+          <p class="ins-note" i18n="@@qedit.code_note">
+            A stable code is generated automatically — no need to type one.
+          </p>
+        }
+
+        <!-- Sticky, so a long option list never buries the save button. Delete is
+             pushed to the far edge: it belongs to this question and had nowhere else
+             to go once the row menu was removed, but it must not sit next to Save. -->
+        <div class="form-actions">
+          @if (editingQuestion(); as eq) {
             <button
+              type="button"
               nz-button
               nzType="text"
-              nzShape="circle"
-              (click)="cancel()"
-              aria-label="Close"
-              i18n-aria-label="@@qedit.close_aria"
+              nzDanger
+              class="del-q"
+              (click)="confirmDeleteQuestion(eq)"
+              i18n="@@qedit.delete_question"
             >
-              ✕
+              Delete question
             </button>
-          </header>
-          @if (!editing()) {
-            <p class="ins-note" i18n="@@qedit.code_note">
-              A stable code is generated automatically — no need to type one.
-            </p>
           }
-
-          @if (mode() === 'group') {
-            <form [formGroup]="groupForm" class="form" (ngSubmit)="submitGroup()">
-              <label class="field">
-                <span class="lbl" i18n="@@qedit.title_en">Title (English)</span>
-                <input nz-input formControlName="titleEn" placeholder="e.g. Financing details" />
-              </label>
-              <label class="field">
-                <span class="lbl" i18n="@@qedit.title_ar">العنوان (عربي)</span>
-                <input nz-input formControlName="titleAr" dir="rtl" placeholder="مثال: تفاصيل التمويل" />
-              </label>
-              <label class="field">
-                <span class="lbl" i18n="@@qedit.order">Display order</span>
-                <nz-input-number formControlName="displayOrder" [nzMin]="0" />
-              </label>
-              <div class="form-actions">
-                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
-                <button nz-button nzType="primary" [disabled]="groupForm.invalid" i18n="@@qedit.save">
-                  Save group
-                </button>
-              </div>
-            </form>
-          } @else if (mode() === 'question') {
-            <form [formGroup]="questionForm" class="form" (ngSubmit)="submitQuestion()">
-              <p class="section-lbl" i18n="@@qedit.sec_content">Content</p>
-              <label class="field">
-                <span class="lbl" i18n="@@qedit.q_en">Question (English)</span>
-                <input nz-input formControlName="questionEn" placeholder="e.g. What is your monthly income?" />
-              </label>
-              <label class="field">
-                <span class="lbl" i18n="@@qedit.q_ar">السؤال (عربي)</span>
-                <input nz-input formControlName="questionAr" dir="rtl" placeholder="مثال: ما هو دخلك الشهري؟" />
-              </label>
-
-              <p class="section-lbl" i18n="@@qedit.sec_answer">Answer</p>
-              <div class="field">
-                <span class="lbl" id="type-lbl" i18n="@@qedit.answer_type">Answer type</span>
-                <!-- Typed reactive control, not ngModel (Principle XXII / A16).
-                     A radiogroup rather than a dropdown: four options are worth
-                     showing at once, and the choice changes the rest of the form. -->
-                <div class="type-group" role="radiogroup" aria-labelledby="type-lbl">
-                  @for (t of types; track t) {
-                    <button
-                      type="button"
-                      role="radio"
-                      class="type-btn"
-                      [class.on]="selectedType() === t"
-                      [attr.aria-checked]="selectedType() === t"
-                      [disabled]="typeLocked()"
-                      (click)="pickType(t)"
-                    >
-                      {{ typeLabel(t) }}
-                    </button>
-                  }
-                </div>
-                <p class="hint">{{ typeHint(selectedType()) }}</p>
-                @if (typeLocked()) {
-                  <p class="hint warn" i18n="@@qedit.type_locked">
-                    The answer type can't change once applicants have answered this question —
-                    their stored answers would no longer match it. Add a new question instead.
-                  </p>
-                }
-              </div>
-
-              <!-- Per-type rules. Only the owning type's block is rendered, so the
-                   form cannot express a combination the server rejects with
-                   QUESTION_TYPE_RULES_INVALID. -->
-              @if (selectedType() === 'NUMERIC') {
-                <div formGroupName="numeric" class="rule-box">
-                  <div class="field-row">
-                    <label class="field grow">
-                      <span class="lbl" i18n="@@qedit.num_min">Minimum</span>
-                      <input nz-input formControlName="minValue" inputmode="decimal" placeholder="1000" />
-                    </label>
-                    <label class="field grow">
-                      <span class="lbl" i18n="@@qedit.num_max">Maximum</span>
-                      <input nz-input formControlName="maxValue" inputmode="decimal" placeholder="20000000" />
-                    </label>
-                  </div>
-                  <div class="field-row">
-                    <label class="field grow">
-                      <span class="lbl" i18n="@@qedit.num_step">Step</span>
-                      <input nz-input formControlName="step" inputmode="decimal" placeholder="1000" />
-                    </label>
-                    <label class="field grow">
-                      <span class="lbl" i18n="@@qedit.num_unit_en">Unit (English)</span>
-                      <input nz-input formControlName="unitEn" placeholder="EGP" />
-                    </label>
-                    <label class="field grow">
-                      <span class="lbl" i18n="@@qedit.num_unit_ar">الوحدة (عربي)</span>
-                      <input nz-input formControlName="unitAr" dir="rtl" placeholder="جنيه" />
-                    </label>
-                  </div>
-                  @if (numericRangeInverted()) {
-                    <p class="hint error" i18n="@@qedit.num_inverted">
-                      The maximum must be greater than or equal to the minimum.
-                    </p>
-                  }
-                  <p class="hint" i18n="@@qedit.num_hint">
-                    Bounds are inclusive, and the step counts up from the minimum. Leave a field
-                    empty for no limit.
-                  </p>
-                </div>
-              } @else if (selectedType() === 'TEXT') {
-                <div formGroupName="text" class="rule-box">
-                  <label class="field">
-                    <span class="lbl" i18n="@@qedit.text_max">Maximum length</span>
-                    <nz-input-number formControlName="maxLength" [nzMin]="1" [nzMax]="2000" />
-                  </label>
-                  <p class="hint" i18n="@@qedit.text_hint">
-                    Free text is never written to logs, because applicants may type personal
-                    details into it.
-                  </p>
-                </div>
-              } @else {
-                <p class="hint" i18n="@@qedit.choice_hint">
-                  Add the answer options on the question card after saving — at least two are
-                  needed before this question can be published.
-                </p>
-              }
-              @if (!isChoice(selectedType())) {
-                <p class="hint warn" i18n="@@qedit.not_scoreable">
-                  Only single-choice questions carry scoring weights, so this question won't
-                  affect approval probability.
-                </p>
-              }
-
-              <p class="section-lbl" i18n="@@qedit.sec_behaviour">Behaviour</p>
-              <div class="field-row">
-                <label class="field grow">
-                  <span class="lbl" i18n="@@qedit.order">Display order</span>
-                  <nz-input-number formControlName="displayOrder" [nzMin]="0" />
-                </label>
-                <label class="switch-field">
-                  <nz-switch formControlName="isRequired" />
-                  <span i18n="@@qedit.required">Required</span>
-                </label>
-              </div>
-
-              <div class="form-actions">
-                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
-                <button nz-button nzType="primary" [disabled]="questionForm.invalid" i18n="@@qedit.save_q">
-                  Save question
-                </button>
-              </div>
-            </form>
-          } @else {
-            <form [formGroup]="optionForm" class="form" (ngSubmit)="submitOption()">
-              <label class="field">
-                <span class="lbl" i18n="@@qedit.label_en">Label (English)</span>
-                <input nz-input formControlName="labelEn" placeholder="e.g. 20,000 – 40,000" />
-              </label>
-              <label class="field">
-                <span class="lbl" i18n="@@qedit.label_ar">التسمية (عربي)</span>
-                <input nz-input formControlName="labelAr" dir="rtl" placeholder="مثال: ٢٠٬٠٠٠ – ٤٠٬٠٠٠" />
-              </label>
-              <label class="field">
-                <span class="lbl" i18n="@@qedit.order">Display order</span>
-                <nz-input-number formControlName="displayOrder" [nzMin]="0" />
-              </label>
-
-              <div class="form-actions">
-                <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
-                <button nz-button nzType="primary" [disabled]="optionForm.invalid" i18n="@@qedit.save_o">
-                  Save option
-                </button>
-              </div>
-            </form>
-          }
+          <button type="button" nz-button (click)="cancel()" i18n="@@qedit.cancel">Cancel</button>
+          <button
+            nz-button
+            nzType="primary"
+            [disabled]="questionForm.invalid"
+            i18n="@@qedit.save_q"
+          >
+            Save question
+          </button>
         </div>
-      </aside>
-    }
+      </form>
+    </ng-template>
+
+    <!-- One option editor for both add and edit — they differed only in the primary
+         button's word, which is not worth two copies of the form.
+
+         It reads as a framed insert rather than four naked controls crammed onto the
+         row: each field carries its own label (the placeholders vanished the moment
+         there was text, leaving two identical grey boxes distinguishable only by
+         script direction), and the buttons get their own line so nothing is squeezed. -->
+    <ng-template #optionEditor let-eq="eq" let-adding="adding">
+      <!-- Escape is caught on the panel, not per-input, so it also works when focus
+           is on Save or Cancel. tabindex="-1" makes that a focusable scope without
+           adding a stop to the tab order. -->
+      <div class="opt-edit" tabindex="-1" (keydown.escape)="escapeOption($event)">
+        <div class="oe-fields">
+          <label class="field">
+            <span class="lbl" i18n="@@qedit.lang_en">English</span>
+            <input nz-input [formControl]="optionEn" (keydown.enter)="submitOption(eq)" />
+          </label>
+          <label class="field">
+            <span class="lbl" i18n="@@qedit.lang_ar">العربية</span>
+            <input nz-input [formControl]="optionAr" dir="rtl" (keydown.enter)="submitOption(eq)" />
+          </label>
+        </div>
+        <div class="oe-actions">
+          <button
+            nz-button
+            nzType="text"
+            nzSize="small"
+            type="button"
+            (click)="cancelOption()"
+            i18n="@@qedit.cancel"
+          >
+            Cancel
+          </button>
+          <button
+            nz-button
+            nzType="primary"
+            nzSize="small"
+            type="button"
+            [disabled]="optionEn.invalid || optionAr.invalid"
+            (click)="submitOption(eq)"
+          >
+            @if (adding) {
+              <span i18n="@@qedit.add_o">Add</span>
+            } @else {
+              <span i18n="@@qedit.save_o">Save</span>
+            }
+          </button>
+        </div>
+      </div>
+    </ng-template>
   `,
   styles: [
     `
@@ -639,6 +889,7 @@ const TYPE_ORDER: readonly QuestionType[] = [
         --qe-surface: var(--color-surface-default, #fdfcfb);
         --qe-surface-muted: var(--color-surface-muted, #efeae5);
         --qe-radius: var(--radius-lg, 12px);
+        --qe-ease: var(--motion-easing-standard, cubic-bezier(0.4, 0, 0.2, 1));
       }
       .page {
         padding: var(--space-6, 32px);
@@ -646,24 +897,25 @@ const TYPE_ORDER: readonly QuestionType[] = [
         background: var(--color-surface-page, #f8f6f4);
         min-block-size: 100%;
       }
-
-      /* Hero — quiet surface card. */
-      .hero {
-        position: relative;
-        background: var(--qe-surface);
-        border: 1px solid var(--qe-line);
-        border-radius: var(--qe-radius);
-        margin-block-end: var(--space-6, 32px);
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
-      .hero-inner {
+
+      /* ---- Command bar ------------------------------------------------- */
+      .bar {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
         gap: var(--space-4, 16px);
         flex-wrap: wrap;
-        padding: var(--space-5, 24px) var(--space-6, 32px);
+        margin-block-end: var(--space-4, 16px);
       }
-      .title-text {
+      .bar-lead {
         display: flex;
         flex-direction: column;
         gap: 2px;
@@ -710,220 +962,412 @@ const TYPE_ORDER: readonly QuestionType[] = [
         background: var(--color-success, #2d5f3f);
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success, #2d5f3f) 18%, transparent);
       }
-      .stats {
-        margin: var(--space-3, 12px) 0 0;
-        color: var(--qe-text-2);
-        font-size: var(--text-sm, 14px);
-        font-variant-numeric: tabular-nums;
-      }
-      .stats strong {
-        margin-inline-end: 4px;
-        color: var(--qe-text);
-        font-weight: 700;
-      }
-      .stats .dot {
-        margin-inline: 8px;
-        color: var(--qe-line);
-      }
-      .stats .muted {
-        color: var(--qe-muted);
-      }
-      .hero-actions {
+      .bar-actions {
         display: flex;
+        align-items: center;
         gap: var(--space-3, 12px);
         flex-wrap: wrap;
       }
-
-      /* Layout — master-detail: outline rail (left) + editing canvas (right). */
-      .tree {
-        min-inline-size: 0;
-      }
-      .workbench {
-        display: grid;
-        grid-template-columns: minmax(240px, 288px) minmax(0, 1fr);
-        gap: var(--space-5, 24px);
-        align-items: start;
-        min-inline-size: 0;
-        animation: qe-fade var(--motion-duration-base, 180ms) var(--motion-easing-standard, ease);
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .workbench {
-          animation: none;
-        }
-      }
-
-      .outline {
-        position: sticky;
-        inset-block-start: var(--space-5, 24px);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2, 8px);
-        max-block-size: calc(100vh - var(--space-7, 48px));
-        overflow-y: auto;
-        padding: var(--space-3, 12px);
-        background: var(--qe-surface);
-        border: 1px solid var(--qe-line);
-        border-radius: var(--qe-radius);
-      }
-      .outline-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-2, 8px);
-        margin: 0;
-        padding-inline: var(--space-2, 8px);
-        padding-block-end: var(--space-2, 8px);
-        border-block-end: 1px solid var(--qe-line);
+      .autosave {
         font-size: var(--text-xs, 12px);
-        font-weight: 700;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
         color: var(--qe-muted);
       }
-      .head-total {
-        font-variant-numeric: tabular-nums;
-        letter-spacing: 0;
-        color: var(--cat);
-        background: color-mix(in srgb, var(--cat) 12%, transparent);
-        padding: 2px 8px;
+      .health {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-block-size: 32px;
+        padding: 2px 12px;
+        border: 1px solid transparent;
         border-radius: var(--radius-pill, 999px);
+        font-size: var(--text-sm, 14px);
+        font-weight: 600;
       }
-      .grp-list {
+      .health.ok {
+        color: var(--color-success, #2d5f3f);
+        background: color-mix(in srgb, var(--color-success, #2d5f3f) 10%, transparent);
+      }
+      .health.warn {
+        color: var(--color-warning, #c8893d);
+        background: color-mix(in srgb, var(--color-warning, #c8893d) 14%, transparent);
+        cursor: pointer;
+      }
+      .health.warn:hover,
+      .health.warn.on {
+        border-color: var(--color-warning, #c8893d);
+      }
+      .health.warn:focus-visible {
+        outline: 2px solid var(--color-warning, #c8893d);
+        outline-offset: 2px;
+      }
+      .health-panel {
+        margin-block-end: var(--space-4, 16px);
+        padding: var(--space-4, 16px);
+        background: color-mix(in srgb, var(--color-warning, #c8893d) 8%, var(--qe-surface));
+        border: 1px solid color-mix(in srgb, var(--color-warning, #c8893d) 32%, transparent);
+        border-radius: var(--qe-radius);
+        animation: qe-expand var(--motion-duration-base, 180ms) var(--qe-ease);
+      }
+      @keyframes qe-expand {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .hp-title {
+        margin: 0 0 var(--space-2, 8px);
+        font-size: var(--text-sm, 14px);
+        font-weight: 600;
+        color: var(--qe-text);
+      }
+      .hp-title:not(:first-child) {
+        margin-block-start: var(--space-4, 16px);
+      }
+      .hp-list {
+        margin: 0;
+        padding-inline-start: var(--space-4, 16px);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: var(--text-sm, 14px);
+        color: var(--qe-text-2);
+      }
+      .hp-list code {
+        margin-inline-end: var(--space-2, 8px);
+        font-variant-numeric: tabular-nums;
+      }
+      .hp-jump {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--cat);
+        font: inherit;
+        text-align: start;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+      }
+
+      /* ---- Toolbar ------------------------------------------------------ */
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3, 12px);
+        flex-wrap: wrap;
+        padding: var(--space-3, 12px) var(--space-4, 16px);
+        background: var(--qe-surface);
+        border: 1px solid var(--qe-line);
+        border-radius: var(--qe-radius) var(--qe-radius) 0 0;
+        border-block-end: 0;
+      }
+      .search {
+        flex: 1 1 320px;
+        min-inline-size: 240px;
+      }
+      .filters {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-block-size: 32px;
+        padding-inline: var(--space-3, 12px);
+        border: 1px solid var(--qe-line);
+        border-radius: var(--radius-pill, 999px);
+        background: var(--qe-surface);
+        color: var(--qe-text-2);
+        font-size: var(--text-sm, 14px);
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast, 120ms) ease,
+          color var(--motion-duration-fast, 120ms) ease,
+          background var(--motion-duration-fast, 120ms) ease;
+      }
+      .chip:hover:not(:disabled) {
+        color: var(--qe-text);
+        border-color: var(--qe-line-strong);
+      }
+      .chip:disabled {
+        cursor: default;
+        opacity: 0.45;
+      }
+      .chip:focus-visible {
+        outline: 2px solid var(--cat);
+        outline-offset: 2px;
+      }
+      .chip.on {
+        color: var(--cat);
+        border-color: var(--cat);
+        background: color-mix(in srgb, var(--cat) 8%, transparent);
+      }
+      .chip.warn {
+        color: var(--color-warning, #c8893d);
+        border-color: color-mix(in srgb, var(--color-warning, #c8893d) 40%, transparent);
+      }
+      .chip.warn.on {
+        background: color-mix(in srgb, var(--color-warning, #c8893d) 14%, transparent);
+        border-color: var(--color-warning, #c8893d);
+      }
+      .chip-n {
+        font-size: 11px;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.75;
+      }
+      .showing {
+        margin: 0;
+        margin-inline-start: auto;
+        display: flex;
+        align-items: center;
+        gap: var(--space-2, 8px);
+        font-size: var(--text-sm, 14px);
+        color: var(--qe-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .link {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--cat);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .link:focus-visible {
+        outline: 2px solid var(--cat);
+        outline-offset: 2px;
+      }
+      .drag-note {
+        margin: 0;
+        padding: var(--space-2, 8px) var(--space-4, 16px);
+        background: var(--qe-surface-muted);
+        border-inline: 1px solid var(--qe-line);
+        font-size: var(--text-xs, 12px);
+        color: var(--qe-muted);
+      }
+
+      /* ---- Flat list ---------------------------------------------------- */
+      .list {
         list-style: none;
         margin: 0;
         padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
+        background: var(--qe-surface);
+        border: 1px solid var(--qe-line);
+        border-radius: 0 0 var(--qe-radius) var(--qe-radius);
+        overflow: hidden;
       }
-      .grp-row {
-        inline-size: 100%;
+      /* The pager takes over the bottom edge when it is there, so the list stops
+         rounding into it and the two read as one panel. */
+      .list.has-pager {
+        border-radius: 0;
+      }
+      .pager {
         display: flex;
         align-items: center;
         justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--space-3, 12px);
+        padding: var(--space-2, 8px) var(--space-4, 16px);
+        background: var(--qe-surface);
+        border: 1px solid var(--qe-line);
+        border-block-start: 0;
+        border-radius: 0 0 var(--qe-radius) var(--qe-radius);
+      }
+      .pager-range {
+        margin: 0;
+        font-size: var(--text-sm, 14px);
+        color: var(--qe-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .row {
+        border-block-start: 1px solid var(--qe-line);
+      }
+      .row:first-child {
+        border-block-start: 0;
+      }
+      /* Title line: the question takes all the width it wants, the meta is pinned
+         right. The old 1.5fr / 1fr split left a dead gap mid-row on short
+         questions while starving the answers column beside it. */
+      .row-head {
+        display: grid;
+        grid-template-columns: auto 24px minmax(0, 1fr) auto auto;
+        align-items: center;
         gap: var(--space-2, 8px);
         padding: var(--space-2, 8px) var(--space-3, 12px);
+        transition: background var(--motion-duration-fast, 120ms) ease;
+      }
+      .row-head:hover {
+        background: color-mix(in srgb, var(--cat) 4%, transparent);
+      }
+      .row.open > .row-head {
+        background: color-mix(in srgb, var(--cat) 7%, transparent);
+      }
+      /* An unpublishable question is marked on its edge, not by tinting the row:
+         a tinted row reads as selected, which it is not. */
+      .row.flagged > .row-head {
+        box-shadow: inset 3px 0 0 0 var(--color-warning, #c8893d);
+      }
+      :host-context([dir='rtl']) .row.flagged > .row-head {
+        box-shadow: inset -3px 0 0 0 var(--color-warning, #c8893d);
+      }
+      .handle {
+        display: grid;
+        place-items: center;
+        inline-size: 28px;
+        block-size: 44px;
         border: 0;
-        border-inline-start: 3px solid transparent;
-        border-radius: var(--radius-md, 8px);
-        background: transparent;
+        background: none;
+        color: var(--qe-line-strong);
+        cursor: grab;
+        transition: color var(--motion-duration-fast, 120ms) ease;
+      }
+      .handle:hover:not(:disabled) {
         color: var(--qe-text-2);
+      }
+      .handle:disabled {
+        cursor: default;
+        opacity: 0.4;
+      }
+      .handle:focus-visible {
+        outline: 2px solid var(--cat);
+        outline-offset: -2px;
+      }
+      /* 41 filled azure badges shouted over the questions they were numbering. The
+         number earns the accent only on the row you are pointing at. */
+      .ord {
+        display: grid;
+        place-items: center;
+        inline-size: 24px;
+        block-size: 24px;
+        border-radius: var(--radius-pill, 999px);
+        font-size: var(--text-xs, 12px);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--qe-muted);
+        transition:
+          color var(--motion-duration-fast, 120ms) ease,
+          background var(--motion-duration-fast, 120ms) ease;
+      }
+      .row-head:hover .ord,
+      .row.open .ord {
+        color: var(--cat);
+        background: color-mix(in srgb, var(--cat) 12%, transparent);
+      }
+      /* Symmetric padding instead of min-block-size: baseline alignment puts a
+         single-line flex item at the TOP of a taller box, which is what left the
+         number sitting below the title it numbers. Padding keeps the 44px target
+         and centres the line inside it. */
+      .row-main {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2, 8px);
+        min-inline-size: 0;
+        padding: 10px 0;
+        border: 0;
+        background: none;
+        color: var(--qe-text);
+        font: inherit;
         font-size: var(--text-sm, 14px);
         font-weight: 600;
         text-align: start;
         cursor: pointer;
-        transition:
-          background var(--motion-duration-fast, 120ms) ease,
-          color var(--motion-duration-fast, 120ms) ease;
       }
-      .grp-row:hover {
-        background: var(--qe-surface-muted);
-        color: var(--qe-text);
-      }
-      .grp-row:focus-visible {
+      .row-main:focus-visible {
         outline: 2px solid var(--cat);
-        outline-offset: -2px;
+        outline-offset: 2px;
+        border-radius: var(--radius-sm, 6px);
       }
-      .grp-row.active {
-        border-inline-start-color: var(--cat);
-        background: color-mix(in srgb, var(--cat) 8%, transparent);
-        color: var(--qe-text);
-      }
-      .grp-name {
-        flex: 1;
+      .q-text {
         min-inline-size: 0;
-        overflow-wrap: anywhere;
-        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
-      .add-grp {
-        margin-block-start: var(--space-2, 8px);
-        justify-content: flex-start;
-        color: var(--qe-muted);
-      }
-      .add-grp:hover {
-        color: var(--cat);
+      .rule-line {
+        flex-shrink: 0;
+        font-size: var(--text-xs, 12px);
+        color: var(--qe-text-2);
+        font-variant-numeric: tabular-nums;
       }
 
-      .canvas {
-        min-inline-size: 0;
-        background: var(--qe-surface);
-        border: 1px solid var(--qe-line);
-        border-radius: var(--qe-radius);
-        padding: var(--space-5, 24px);
-      }
-      .canvas-head {
+      /* Second line, indented to the question's text edge. Full width, wrapping,
+         and NO per-chip clamp: a label that has to be read is a label that has to
+         be shown. */
+      .row-answers {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-3, 12px);
         flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        padding-inline: calc(28px + 24px + var(--space-2, 8px) * 2 + var(--space-3, 12px))
+          var(--space-3, 12px);
+        padding-block: 0 var(--space-3, 12px);
       }
-      .ch-title {
+      .pill {
+        max-inline-size: 44ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding: 2px 10px;
+        border: 1px solid var(--qe-line);
+        border-radius: var(--radius-pill, 999px);
+        background: var(--qe-surface);
+        color: var(--qe-text-2);
+        font-size: var(--text-sm, 14px);
+        font-weight: 500;
+      }
+      .pill.more {
+        border-style: dashed;
+        color: var(--qe-muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .pill.warn {
+        color: var(--color-warning, #c8893d);
+        border-color: color-mix(in srgb, var(--color-warning, #c8893d) 40%, transparent);
+        background: color-mix(in srgb, var(--color-warning, #c8893d) 10%, transparent);
+        font-weight: 600;
+      }
+      .row-meta {
         display: flex;
         align-items: center;
-        gap: var(--space-3, 12px);
-        min-inline-size: 0;
-      }
-      .ch-title h2 {
-        margin: 0;
-        font-family: var(--heading-font, var(--font-sans));
-        font-size: var(--text-lg, 18px);
-        font-weight: 700;
-        letter-spacing: -0.01em;
-        color: var(--qe-text);
-      }
-      .ch-actions {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2, 8px);
+        gap: 6px;
         flex-shrink: 0;
       }
-
-      @media (max-width: 960px) {
-        .workbench {
-          grid-template-columns: 1fr;
-        }
-        .outline {
-          position: static;
-          max-block-size: none;
-          flex-direction: row;
-          flex-wrap: wrap;
-          align-items: center;
-        }
-        .outline-head {
-          flex-basis: 100%;
-        }
-        .grp-list {
-          flex-direction: row;
-          flex-wrap: wrap;
-          flex: 1;
-        }
-        .grp-row {
-          inline-size: auto;
-          min-block-size: 44px;
-          border-inline-start: 0;
-          border: 1px solid var(--qe-line);
-        }
-        .grp-row.active {
-          border-color: var(--cat);
-        }
+      /* Outlined, not filled: the type repeats on every one of 41 rows, so it has
+         to be legible without competing with the question it labels. */
+      .type-chip {
+        flex-shrink: 0;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: var(--cat);
+        border: 1px solid color-mix(in srgb, var(--cat) 30%, transparent);
+        background: color-mix(in srgb, var(--cat) 6%, transparent);
+        padding: 1px 8px;
+        border-radius: var(--radius-pill, 999px);
       }
-      .center {
-        display: flex;
-        justify-content: center;
-        padding: var(--space-7, 40px);
+      /* Value types read as neutral: they carry no scoring weight, so they should
+         not wear the brand accent that marks a scoreable question. */
+      .type-chip.value-type {
+        color: var(--qe-muted);
+        border-color: var(--qe-line);
+        background: transparent;
       }
-      .empty-card {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: var(--space-3, 12px);
-        padding: var(--space-7, 40px);
-        background: var(--qe-surface);
-        border: 1px dashed var(--qe-line);
-        border-radius: var(--qe-radius);
+      .req {
+        flex-shrink: 0;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--qe-muted);
+        border: 1px dashed var(--qe-line-strong);
+        padding: 1px 8px;
+        border-radius: var(--radius-pill, 999px);
       }
-
       .kebab {
         flex-shrink: 0;
         color: var(--qe-muted);
@@ -936,180 +1380,99 @@ const TYPE_ORDER: readonly QuestionType[] = [
       .kebab span[nz-icon] {
         transform: rotate(90deg);
       }
-      .count-pill {
-        min-inline-size: 24px;
-        text-align: center;
-        font-size: var(--text-xs, 12px);
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-        color: var(--cat);
-        background: color-mix(in srgb, var(--cat) 12%, transparent);
-        padding: 2px 8px;
-        border-radius: var(--radius-pill, 999px);
-      }
-      .q-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: var(--space-4, 16px);
-        margin-block-start: var(--space-5, 24px);
-      }
-      .q-card {
-        position: relative;
-        border: 1px solid var(--qe-line);
+      /* Drag affordances. */
+      .cdk-drag-preview {
         border-radius: var(--radius-md, 8px);
-        padding: var(--space-4, 16px) var(--space-5, 24px);
-        background: var(--color-surface-page, #f8f6f4);
-        transition: border-color var(--motion-duration-base, 160ms) ease;
+        background: var(--qe-surface);
+        box-shadow: var(--shadow-xl, 0 12px 32px rgba(16, 24, 40, 0.18));
       }
-      .q-card:hover {
-        border-color: var(--qe-line-strong);
+      .cdk-drag-placeholder .row-head,
+      .cdk-drag-placeholder .row-answers {
+        display: none;
       }
-      .q-top {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2, 8px);
+      .drag-ghost {
+        block-size: 48px;
+        background: color-mix(in srgb, var(--cat) 8%, transparent);
+        border: 1px dashed var(--cat);
+        border-radius: var(--radius-md, 8px);
       }
-      .q-text {
-        font-weight: 600;
-        font-size: var(--text-sm, 14px);
-        flex: 1;
-        min-inline-size: 0;
-        color: var(--qe-text);
+      .cdk-drop-list-dragging .row-head {
+        transition: transform var(--motion-duration-base, 180ms) var(--qe-ease);
       }
-      .q-ord {
-        flex-shrink: 0;
+
+      /* ---- Editor modal ------------------------------------------------- */
+      /* Below nz-modal's 1000 on purpose: the delete confirmation is an nz-modal and
+         has to layer ABOVE this one. */
+      .scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 900;
+        background: var(--color-overlay-backdrop, rgba(16, 24, 40, 0.45));
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        animation: qe-fade var(--motion-duration-base, 180ms) var(--qe-ease);
+      }
+      .modal-wrap {
+        position: fixed;
+        inset: 0;
+        z-index: 901;
         display: grid;
         place-items: center;
-        inline-size: 22px;
-        block-size: 22px;
-        border-radius: var(--radius-pill, 999px);
+        padding: var(--space-6, 32px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+      .modal {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        inline-size: min(1080px, 100%);
+        max-block-size: min(880px, calc(100vh - var(--space-7, 48px) * 2));
+        background: var(--qe-surface);
+        border-radius: var(--qe-radius);
+        box-shadow: var(--shadow-xl, 0 24px 64px rgba(16, 24, 40, 0.24));
+        animation: qe-rise var(--motion-duration-base, 180ms) var(--qe-ease);
+      }
+      .modal-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-4, 16px);
+        padding: var(--space-4, 16px) var(--space-5, 24px);
+        border-block-end: 1px solid var(--qe-line);
+      }
+      .mh-lead {
+        min-inline-size: 0;
+      }
+      .mh-eyebrow {
+        margin: 0;
         font-size: 11px;
         font-weight: 700;
-        font-variant-numeric: tabular-nums;
-        color: var(--cat);
-        background: color-mix(in srgb, var(--cat) 12%, transparent);
-      }
-      .opt-meta {
-        margin: var(--space-3, 12px) 0 6px;
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         color: var(--qe-muted);
         font-variant-numeric: tabular-nums;
       }
-      .req {
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--color-warning, #c8893d);
-        background: color-mix(in srgb, var(--color-warning, #c8893d) 14%, transparent);
-        padding: 1px 7px;
-        border-radius: var(--radius-pill, 999px);
-      }
-      .opts {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-      .opt-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        max-inline-size: 100%;
-        padding: 4px 8px 4px 12px;
-        font-size: 13px;
-        color: var(--qe-text-2);
-        background: var(--qe-surface);
-        border: 1px solid var(--qe-line);
-        border-radius: var(--radius-pill, 999px);
-        cursor: pointer;
-        transition:
-          border-color var(--motion-duration-fast, 120ms) ease,
-          color var(--motion-duration-fast, 120ms) ease,
-          background var(--motion-duration-fast, 120ms) ease;
-      }
-      .opt-chip:hover,
-      .opt-chip:focus-visible {
+      .mh-lead h2 {
+        margin: 2px 0 0;
+        font-family: var(--heading-font, var(--font-sans));
+        font-size: var(--text-lg, 18px);
+        font-weight: 700;
+        letter-spacing: -0.01em;
         color: var(--qe-text);
-        border-color: var(--cat);
-        background: color-mix(in srgb, var(--cat) 6%, transparent);
       }
-      .opt-label {
-        min-inline-size: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .opt-caret {
-        flex-shrink: 0;
-        font-size: 10px;
-        color: var(--qe-muted);
-        transition: color var(--motion-duration-fast, 120ms) ease;
-      }
-      .opt-chip:hover .opt-caret,
-      .opt-chip:focus-visible .opt-caret {
-        color: var(--cat);
-      }
-      .add-opt-chip {
-        display: inline-flex;
+      .mh-actions {
+        display: flex;
         align-items: center;
-        padding: 4px 12px;
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--qe-muted);
-        background: transparent;
-        border: 1px dashed var(--qe-line-strong);
-        border-radius: var(--radius-pill, 999px);
-        cursor: pointer;
-        transition:
-          border-color var(--motion-duration-fast, 120ms) ease,
-          color var(--motion-duration-fast, 120ms) ease;
+        gap: 4px;
+        flex-shrink: 0;
       }
-      .add-opt-chip:hover,
-      .add-opt-chip:focus-visible {
-        color: var(--cat);
-        border-color: var(--cat);
+      .mh-close {
+        margin-inline-start: var(--space-2, 8px);
       }
-      .empty-line {
-        color: var(--qe-muted);
-        font-style: italic;
-        font-size: 13px;
-        margin: var(--space-2, 8px) 0 0;
-      }
-      .empty-line.tiny {
-        font-size: 12px;
-        margin-block-start: 4px;
-      }
-
-      /* Inspector drawer — docked inline-end; scrim is click-capture on desktop,
-         a real dimming backdrop on mobile (A34). */
-      .scrim {
-        position: fixed;
-        inset: 0;
-        z-index: 1000;
-        animation: qe-fade 160ms ease;
-      }
-      .drawer {
-        position: fixed;
-        z-index: 1001;
-        inset-block: 0;
-        inset-inline-end: 0;
-        inline-size: min(440px, 100vw);
-        background: var(--bg-surface, var(--qe-surface));
-        border-inline-start: 1px solid var(--qe-line);
-        box-shadow: var(--shadow-xl, 0 24px 64px rgba(16, 24, 40, 0.24));
+      .modal-body {
+        padding: var(--space-5, 24px);
         overflow-y: auto;
-        animation: qe-slide 200ms var(--motion-easing-standard, cubic-bezier(0.2, 0, 0, 1));
-      }
-      @media (max-width: 960px) {
-        .scrim {
-          background: var(--color-overlay-backdrop, rgba(16, 24, 40, 0.45));
-          backdrop-filter: blur(2px);
-          -webkit-backdrop-filter: blur(2px);
-        }
+        overscroll-behavior: contain;
       }
       @keyframes qe-fade {
         from {
@@ -1119,55 +1482,34 @@ const TYPE_ORDER: readonly QuestionType[] = [
           opacity: 1;
         }
       }
-      @keyframes qe-slide {
+      @keyframes qe-rise {
         from {
           opacity: 0;
-          transform: translateY(8px);
+          transform: translateY(8px) scale(0.99);
         }
         to {
           opacity: 1;
           transform: none;
         }
       }
-      @media (prefers-reduced-motion: reduce) {
-        .scrim,
-        .drawer {
-          animation: none;
-        }
-        .q-card {
-          transition: none;
-        }
-      }
-      .ins-card {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-4, 16px);
-        padding: var(--space-5, 24px);
-      }
-      .ins-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--space-2, 8px);
-      }
-      .ins-head h3 {
-        margin: 0;
-        font-size: var(--text-lg, 18px);
-        font-weight: var(--font-weight-semibold, 600);
-        color: var(--color-text-primary, #1a2433);
-      }
-      .ins-note {
-        font-size: 12px;
-        color: var(--qe-muted);
-        margin: 0;
-        padding: var(--space-2, 8px) var(--space-3, 12px);
-        background: color-mix(in srgb, var(--cat) 10%, transparent);
-        border-radius: var(--radius-md, 8px);
-      }
       .form {
         display: flex;
         flex-direction: column;
         gap: var(--space-3, 12px);
+      }
+      /* The width the group rail used to occupy now goes to the editor: wording on
+         one side, the answers it produces on the other, both visible at once. */
+      .form-cols {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: var(--space-5, 24px);
+        align-items: start;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3, 12px);
+        min-inline-size: 0;
       }
       .field {
         display: flex;
@@ -1191,48 +1533,62 @@ const TYPE_ORDER: readonly QuestionType[] = [
         display: flex;
         align-items: center;
         gap: var(--space-2, 8px);
-        padding-block-end: 6px;
         font-size: 13px;
       }
       .section-lbl {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0;
         font-size: 11px;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         color: var(--qe-muted);
-        margin: var(--space-3, 12px) 0 0;
+      }
+      .count-pill {
+        min-inline-size: 24px;
+        text-align: center;
+        font-size: var(--text-xs, 12px);
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0;
+        color: var(--cat);
+        background: color-mix(in srgb, var(--cat) 12%, transparent);
+        padding: 1px 8px;
+        border-radius: var(--radius-pill, 999px);
+      }
+      /* Pinned to the scrollport bottom (inset 0), and the negative margins let it
+         span the body's full width and swallow its bottom padding so it sits flush
+         on the modal's edge instead of floating 24px above it. */
+      .form-actions {
+        position: sticky;
+        inset-block-end: 0;
+        z-index: 1;
         display: flex;
         align-items: center;
-        gap: 8px;
-      }
-      .form-actions {
-        display: flex;
         justify-content: flex-end;
         gap: var(--space-2, 8px);
         margin-block-start: var(--space-2, 8px);
-        padding-block-start: var(--space-3, 12px);
-        border-block-start: 1px solid var(--color-border-default, var(--qe-line));
+        margin-inline: calc(var(--space-5, 24px) * -1);
+        margin-block-end: calc(var(--space-5, 24px) * -1);
+        padding: var(--space-3, 12px) var(--space-5, 24px);
+        background: var(--qe-surface);
+        border-block-start: 1px solid var(--qe-line);
       }
-      nz-input-number,
-      nz-select {
-        inline-size: 100%;
+      .del-q {
+        margin-inline-end: auto;
       }
-
-      /* ---- Feature 010: answer types ---------------------------------- */
-      .binding-alert {
-        margin-block-end: var(--space-5, 24px);
-      }
-      .binding-list {
+      .ins-note {
         margin: 0;
-        padding-inline-start: var(--space-4, 16px);
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        font-size: var(--text-sm, 14px);
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+        font-size: 12px;
+        color: var(--qe-muted);
+        background: color-mix(in srgb, var(--cat) 10%, transparent);
+        border-radius: var(--radius-md, 8px);
       }
-      .binding-list code {
-        margin-inline-end: var(--space-2, 8px);
-        font-variant-numeric: tabular-nums;
+      nz-input-number {
+        inline-size: 100%;
       }
 
       .type-group {
@@ -1275,28 +1631,6 @@ const TYPE_ORDER: readonly QuestionType[] = [
         cursor: not-allowed;
         opacity: 0.55;
       }
-      @media (prefers-reduced-motion: reduce) {
-        .type-btn {
-          transition: none;
-        }
-      }
-
-      .type-chip {
-        flex-shrink: 0;
-        font-size: var(--text-xs, 12px);
-        font-weight: 600;
-        color: var(--cat);
-        background: color-mix(in srgb, var(--cat) 12%, transparent);
-        padding: 1px 8px;
-        border-radius: var(--radius-pill, 999px);
-      }
-      /* Value types read as neutral: they carry no scoring weight, so they should
-         not wear the brand accent that marks a scoreable question. */
-      .type-chip.value-type {
-        color: var(--qe-text-2);
-        background: var(--qe-surface-muted);
-      }
-
       .rule-box {
         display: flex;
         flex-direction: column;
@@ -1304,15 +1638,6 @@ const TYPE_ORDER: readonly QuestionType[] = [
         padding: var(--space-3, 12px);
         background: var(--qe-surface-muted);
         border-radius: var(--radius-md, 8px);
-      }
-      .rule-line {
-        margin: var(--space-3, 12px) 0 0;
-        font-size: var(--text-sm, 14px);
-        color: var(--qe-text-2);
-        font-variant-numeric: tabular-nums;
-      }
-      .rule-line.warn {
-        color: var(--color-warning, var(--ant-warning-color));
       }
       .hint {
         margin: 0;
@@ -1326,6 +1651,270 @@ const TYPE_ORDER: readonly QuestionType[] = [
       .hint.error {
         color: var(--color-error, var(--ant-error-color));
       }
+
+      /* ---- Options, edited in place ------------------------------------- */
+      .opt-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .opt-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2, 8px);
+        min-block-size: 40px;
+        padding-inline: var(--space-2, 8px);
+        border-block-end: 1px solid var(--qe-line);
+        border-radius: var(--radius-sm, 6px);
+        transition: background var(--motion-duration-fast, 120ms) ease;
+      }
+      .opt-row:last-child {
+        border-block-end: 0;
+      }
+      .opt-row:hover:not(.editing) {
+        background: color-mix(in srgb, var(--cat) 4%, transparent);
+      }
+      /* The editing row drops the list chrome entirely — the framed panel below is
+         the affordance, and a hairline through the middle of it read as a break. */
+      .opt-row.editing {
+        padding: 0;
+        border-block-end: 0;
+        background: none;
+      }
+      .opt-label {
+        flex: 1;
+        min-inline-size: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: var(--text-sm, 14px);
+        color: var(--qe-text);
+      }
+
+      /* Framed insert: tinted, accented on the leading edge, so it reads as "this
+         answer is open" instead of as a layout break. */
+      .opt-edit {
+        flex: 1;
+        min-inline-size: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3, 12px);
+        margin-block: 6px;
+        padding: var(--space-3, 12px);
+        background: color-mix(in srgb, var(--cat) 5%, transparent);
+        border: 1px solid color-mix(in srgb, var(--cat) 22%, transparent);
+        border-inline-start: 3px solid var(--cat);
+        border-radius: var(--radius-md, 8px);
+        animation: qe-expand var(--motion-duration-base, 180ms) var(--qe-ease);
+      }
+      .oe-fields {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: var(--space-3, 12px);
+      }
+      .oe-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2, 8px);
+      }
+      @media (max-width: 1100px) {
+        .oe-fields {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      /* Present but quiet, full strength on the row you are pointing at: 14 icon
+         buttons at full contrast competed with the seven labels they act on. */
+      .opt-row .icon-btn {
+        opacity: 0.5;
+      }
+      .opt-row:hover .icon-btn,
+      .opt-row:focus-within .icon-btn {
+        opacity: 1;
+      }
+      .icon-btn {
+        display: grid;
+        place-items: center;
+        inline-size: 32px;
+        block-size: 32px;
+        flex-shrink: 0;
+        border: 0;
+        border-radius: var(--radius-sm, 6px);
+        background: none;
+        color: var(--qe-muted);
+        cursor: pointer;
+        transition:
+          color var(--motion-duration-fast, 120ms) ease,
+          background var(--motion-duration-fast, 120ms) ease,
+          opacity var(--motion-duration-fast, 120ms) ease;
+      }
+      .icon-btn:hover {
+        color: var(--cat);
+        background: var(--qe-surface-muted);
+      }
+      .icon-btn.danger:hover {
+        color: var(--color-error, var(--ant-error-color));
+      }
+      .icon-btn:focus-visible {
+        outline: 2px solid var(--cat);
+        outline-offset: -2px;
+      }
+      .icon-btn:disabled {
+        cursor: default;
+        opacity: 0.35;
+      }
+      .icon-btn:disabled:hover {
+        color: var(--qe-muted);
+        background: none;
+      }
+      .add-opt,
+      .add-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-block-size: 40px;
+        padding-inline: var(--space-3, 12px);
+        border: 1px dashed var(--qe-line-strong);
+        border-radius: var(--radius-pill, 999px);
+        background: transparent;
+        color: var(--qe-muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          color var(--motion-duration-fast, 120ms) ease,
+          border-color var(--motion-duration-fast, 120ms) ease;
+      }
+      .add-opt:hover,
+      .add-opt:focus-visible,
+      .add-inline:hover,
+      .add-inline:focus-visible {
+        color: var(--cat);
+        border-color: var(--cat);
+      }
+      .add-row {
+        padding: var(--space-3, 12px);
+        background: color-mix(in srgb, var(--qe-surface-muted) 45%, transparent);
+      }
+      .add-inline {
+        inline-size: 100%;
+        justify-content: center;
+        min-block-size: 44px;
+        border-radius: var(--radius-md, 8px);
+      }
+
+      /* ---- States ------------------------------------------------------- */
+      .center {
+        display: flex;
+        justify-content: center;
+        padding: var(--space-7, 40px);
+      }
+      .empty-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-3, 12px);
+        padding: var(--space-7, 40px);
+        background: var(--qe-surface);
+        border: 1px dashed var(--qe-line);
+        border-radius: var(--qe-radius);
+      }
+      .nm-title {
+        margin: 0;
+        font-size: var(--text-lg, 18px);
+        font-weight: 700;
+        color: var(--qe-text);
+      }
+      .nm-body {
+        margin: 0;
+        font-size: var(--text-sm, 14px);
+        color: var(--qe-muted);
+        text-align: center;
+      }
+
+      /* ---- Narrow ------------------------------------------------------- */
+      @media (max-width: 1100px) {
+        .form-cols {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      @media (max-width: 900px) {
+        .page {
+          padding: var(--space-4, 16px);
+        }
+        /* The type/optional chips drop under the question so the title keeps the
+           full width instead of ellipsising against them. */
+        .row-head {
+          grid-template-columns: auto 24px minmax(0, 1fr) auto;
+          grid-template-areas:
+            'handle ord  main kebab'
+            '.      meta meta meta';
+          row-gap: 4px;
+        }
+        .handle {
+          grid-area: handle;
+        }
+        .ord {
+          grid-area: ord;
+        }
+        .row-main {
+          grid-area: main;
+          flex-wrap: wrap;
+        }
+        .kebab {
+          grid-area: kebab;
+        }
+        .row-meta {
+          grid-area: meta;
+          justify-self: start;
+        }
+        .row-answers {
+          padding-inline: var(--space-3, 12px);
+        }
+        .showing {
+          margin-inline-start: 0;
+        }
+        /* The range text and the page buttons stop competing for one row. */
+        .pager {
+          justify-content: center;
+        }
+        .modal-wrap {
+          padding: var(--space-3, 12px);
+        }
+        .modal {
+          max-block-size: calc(100vh - var(--space-5, 24px));
+        }
+        .modal-body {
+          padding: var(--space-4, 16px);
+        }
+        .form-actions {
+          margin-inline: calc(var(--space-4, 16px) * -1);
+          margin-block-end: calc(var(--space-4, 16px) * -1);
+          padding-inline: var(--space-4, 16px);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .health-panel,
+        .scrim,
+        .modal,
+        .opt-edit {
+          animation: none;
+        }
+        .opt-row,
+        .chip,
+        .type-btn,
+        .row-head,
+        .handle,
+        .icon-btn,
+        .add-opt,
+        .add-inline,
+        .kebab {
+          transition: none;
+        }
+      }
     `,
   ],
 })
@@ -1334,51 +1923,172 @@ export class QuestionnaireEditorPage implements OnInit {
   private readonly message = inject(NzMessageService);
   private readonly modal = inject(NzModalService);
   private readonly errorCodes = inject(ErrorCodeService);
+  private readonly injector = inject(Injector);
 
   /** Active admin locale drives label language (ar build → Arabic, else English). */
   readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
-  /** The single global pool of groups (each with its questions + options). */
-  readonly groups = signal<GroupTreeRow[]>([]);
-  /** Whether a questionnaire version is currently published (LIVE chip). */
+  readonly INLINE_OPTION_PREVIEW = INLINE_OPTION_PREVIEW;
+  readonly PAGE_SIZE = PAGE_SIZE;
+  readonly types = TYPE_ORDER;
+
+  /**
+   * The flat pool, in the order applicants are asked. Groups still come back from
+   * `tree()` (they page the mobile wizard) but are flattened away here and sorted
+   * on `displayOrder` alone, which is the sequence `reorderQuestions` writes.
+   */
+  readonly rows = signal<QuestionRow[]>([]);
   readonly published = signal(false);
   readonly loading = signal(true);
-  readonly mode = signal<Mode>(null);
-  /** true → drawer is editing an existing node; false → creating a new one. */
-  readonly editing = signal(false);
-  readonly totalQuestions = computed(() =>
-    this.groups().reduce((sum, g) => sum + g.questions.length, 0),
-  );
-
-  /** Master-detail selection: which group the canvas is editing (falls back to first). */
-  readonly selectedGroupId = signal<string>('');
-  readonly selectedGroup = computed<GroupTreeRow | null>(() => {
-    const list = this.groups();
-    return list.find((g) => g.id === this.selectedGroupId()) ?? list[0] ?? null;
-  });
-  selectGroup(g: GroupTreeRow): void {
-    this.selectedGroupId.set(g.id);
-  }
-
-  private activeGroupId = '';
-  private activeQuestionId = '';
-  /** Id of the node being edited (empty in create mode). */
-  private editingId = '';
-
-  // ---- Feature 010: answer types ------------------------------------------
-  readonly types = TYPE_ORDER;
-  /** Mirrors `questionForm.controls.type` so the template can react to it. */
-  readonly selectedType = signal<QuestionType>('SINGLE_SELECT');
   /** Standing money-binding warnings for the whole pool (FR-048/FR-049). */
   readonly bindingWarnings = signal<PublishWarning[]>([]);
+  readonly healthOpen = signal(false);
+
+  /** Which question the editor modal is open on; null when it is closed. */
+  readonly expandedId = signal<string | null>(null);
+  /** True while the modal holds a blank question form. */
+  readonly creating = signal(false);
+  readonly editing = computed(() => this.expandedId() !== null);
+  readonly modalOpen = computed(() => this.editing() || this.creating());
+  readonly editingQuestion = computed<QuestionRow | null>(() => {
+    const id = this.expandedId();
+    return id === null ? null : (this.rows().find((q) => q.id === id) ?? null);
+  });
+
+  /** Option sub-editors inside the expanded row. */
+  readonly editingOptionId = signal<string | null>(null);
+  readonly addingOption = signal(false);
+
+  // ---- Filtering -----------------------------------------------------------
+  readonly searchCtrl = new FormControl('', { nonNullable: true });
+  private readonly query = toSignal(this.searchCtrl.valueChanges, { initialValue: '' });
+  readonly typeFilter = signal<TypeFilter>('ALL');
+  readonly onlyIncomplete = signal(false);
+
+  readonly filtering = computed(
+    () => this.query().trim() !== '' || this.typeFilter() !== 'ALL' || this.onlyIncomplete(),
+  );
+
+  readonly visible = computed<QuestionRow[]>(() => {
+    const needle = this.query().trim().toLowerCase();
+    const type = this.typeFilter();
+    const incompleteOnly = this.onlyIncomplete();
+    return this.rows().filter((q) => {
+      if (type !== 'ALL' && q.type !== type) return false;
+      if (incompleteOnly && !this.needsOptions(q)) return false;
+      if (needle === '') return true;
+      return this.haystack(q).includes(needle);
+    });
+  });
+
+  // ---- Paging --------------------------------------------------------------
+  /**
+   * The page the admin ASKED for. Reads go through `page()`, which clamps it, so
+   * a shrinking list (a delete, a narrowing filter) can never strand the view on
+   * an empty page — the clamp is the only place that decides what is shown.
+   */
+  private readonly pageRequest = signal(1);
+
+  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.visible().length / PAGE_SIZE)));
+  readonly page = computed(() => Math.min(Math.max(1, this.pageRequest()), this.pageCount()));
+  private readonly pageOffset = computed(() => (this.page() - 1) * PAGE_SIZE);
+
+  /** The rows actually rendered — one page of the FILTERED list. */
+  readonly paged = computed<QuestionRow[]>(() =>
+    this.visible().slice(this.pageOffset(), this.pageOffset() + PAGE_SIZE),
+  );
+
+  readonly rangeStart = computed(() => (this.visible().length === 0 ? 0 : this.pageOffset() + 1));
+  readonly rangeEnd = computed(() => this.pageOffset() + this.paged().length);
+
+  private readonly listEl = viewChild<ElementRef<HTMLElement>>('listEl');
+
+  /** Choice questions the server would refuse to ask: fewer than two options. */
+  readonly incomplete = computed(() => this.rows().filter((q) => this.needsOptions(q)));
+  readonly issueCount = computed(() => this.incomplete().length + this.bindingWarnings().length);
+  readonly totalOptions = computed(() => this.rows().reduce((sum, q) => sum + q.options.length, 0));
+
+  /**
+   * Reordering is only offered on the unfiltered list: in a filtered view the
+   * visible sequence is not the asked sequence, so a drop would move a question
+   * somewhere the admin cannot see. The modal covers the list while it is open, so
+   * it needs no separate guard — the move buttons in its header cover that case.
+   */
+  readonly reorderable = computed(() => !this.filtering());
+
+  // ---- Answer types --------------------------------------------------------
+  /** Mirrors `questionForm.controls.type` so the template can react to it. */
+  readonly selectedType = signal<QuestionType>('SINGLE_SELECT');
   /**
    * A question that already carries answers cannot change type: the stored
    * answers would no longer match their question's shape.
    */
   readonly typeLocked = signal(false);
 
+  private readonly firstField = viewChild<ElementRef<HTMLInputElement>>('firstField');
+
+  readonly questionForm = new FormGroup({
+    questionEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    questionAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    isRequired: new FormControl(true, { nonNullable: true }),
+    /** Typed reactive control (Principle XXII) — the radiogroup writes to this. */
+    type: new FormControl<QuestionType>('SINGLE_SELECT', { nonNullable: true }),
+    // Money crosses as decimal STRINGS even here, where these are bounds rather
+    // than amounts: the server stores them as Decimal(18,2) (Principle I).
+    numeric: new FormGroup({
+      minValue: new FormControl('', { nonNullable: true }),
+      maxValue: new FormControl('', { nonNullable: true }),
+      step: new FormControl('', { nonNullable: true }),
+      unitEn: new FormControl('', { nonNullable: true }),
+      unitAr: new FormControl('', { nonNullable: true }),
+    }),
+    text: new FormGroup({
+      maxLength: new FormControl<number | null>(null),
+    }),
+  });
+
+  /** Two standalone controls rather than a group: the option editor is one row. */
+  readonly optionEn = new FormControl('', { nonNullable: true, validators: [Validators.required] });
+  readonly optionAr = new FormControl('', { nonNullable: true, validators: [Validators.required] });
+
+  constructor() {
+    // A new search re-slices the list, so the page number the admin was on refers
+    // to a set that no longer exists. The two chip filters reset the page in their
+    // own setters; the search box is a control, so it resets from its stream.
+    this.searchCtrl.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.pageRequest.set(1));
+  }
+
+  async ngOnInit(): Promise<void> {
+    await this.loadAll();
+  }
+
+  // ---- Display helpers -----------------------------------------------------
   isChoice(type: QuestionType): boolean {
     return isChoiceQuestionType(type);
+  }
+
+  /** A choice question with fewer than two options cannot be published. */
+  needsOptions(q: QuestionRow): boolean {
+    return this.isChoice(q.type) && q.options.length < 2;
+  }
+
+  /** 1-based position in the ASKED order, not in the filtered view. */
+  positionOf(q: QuestionRow): number {
+    return this.rows().findIndex((r) => r.id === q.id) + 1;
+  }
+
+  countOfType(type: QuestionType): number {
+    return this.rows().filter((q) => q.type === type).length;
+  }
+
+  previewOptions(q: QuestionRow): OptionRow[] {
+    return q.options.slice(0, INLINE_OPTION_PREVIEW);
+  }
+
+  allOptionLabels(q: QuestionRow): string {
+    return q.options.map((o) => (this.isAr ? o.labelAr : o.labelEn)).join(' · ');
   }
 
   typeLabel(type: QuestionType): string {
@@ -1422,6 +2132,143 @@ export class QuestionnaireEditorPage implements OnInit {
     return '';
   }
 
+  /** `meta.binding` names which of the four money figures is unclaimed. */
+  bindingOf(w: PublishWarning): string {
+    return String(w.meta['binding'] ?? w.meta['questionCode'] ?? '');
+  }
+
+  /** Localized via the shared error-code catalog — no per-component mapping (A22). */
+  warningMessage(w: PublishWarning): string {
+    return this.errorCodes.toLocalizedMessage(w.code as never, w.meta);
+  }
+
+  /** Search matches the wording in BOTH languages, the code, and the answers. */
+  private haystack(q: QuestionRow): string {
+    return [
+      q.questionEn,
+      q.questionAr,
+      q.code,
+      ...q.options.flatMap((o) => [o.labelEn, o.labelAr, o.code]),
+    ]
+      .join(' ')
+      .toLowerCase();
+  }
+
+  // ---- Filters -------------------------------------------------------------
+  setTypeFilter(type: TypeFilter): void {
+    this.typeFilter.set(type);
+    this.pageRequest.set(1);
+  }
+
+  setOnlyIncomplete(only: boolean): void {
+    this.onlyIncomplete.set(only);
+    this.pageRequest.set(1);
+  }
+
+  clearFilters(): void {
+    this.searchCtrl.setValue('');
+    this.typeFilter.set('ALL');
+    this.onlyIncomplete.set(false);
+    this.pageRequest.set(1);
+  }
+
+  // ---- Paging --------------------------------------------------------------
+  /**
+   * A page change swaps the whole list under the admin, so the view scrolls back
+   * to the top of it — landing halfway down page 3 shows rows 5–10 first and
+   * reads as if the list simply jumped.
+   */
+  setPage(page: number): void {
+    this.pageRequest.set(page);
+    this.listEl()?.nativeElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  /**
+   * Put the page that CONTAINS this question in front of the admin. Called after
+   * anything that can move a question off the current page (a create appends to
+   * the end, a move crosses a boundary), so the row they are working on is still
+   * behind the modal when it closes.
+   */
+  private revealQuestion(id: string): void {
+    const index = this.visible().findIndex((q) => q.id === id);
+    if (index < 0) return;
+    this.pageRequest.set(Math.floor(index / PAGE_SIZE) + 1);
+  }
+
+  /** Jump from the health panel to the offending question, filters cleared. */
+  jumpTo(q: QuestionRow): void {
+    this.clearFilters();
+    this.revealQuestion(q.id);
+    this.healthOpen.set(false);
+    this.openRow(q);
+  }
+
+  // ---- Expand / collapse ---------------------------------------------------
+  toggleRow(q: QuestionRow): void {
+    if (this.expandedId() === q.id) {
+      this.collapse();
+      return;
+    }
+    this.openRow(q);
+  }
+
+  private openRow(q: QuestionRow): void {
+    this.creating.set(false);
+    this.resetOptionEditors();
+    // Changing the type of an answered question would orphan those answers, so
+    // the picker locks. The server is the authority and rejects it regardless.
+    this.typeLocked.set(true);
+    this.selectedType.set(q.type);
+    this.questionForm.reset({
+      questionEn: q.questionEn,
+      questionAr: q.questionAr,
+      isRequired: q.isRequired,
+      type: q.type,
+      numeric: {
+        minValue: q.numericMinValue ?? '',
+        maxValue: q.numericMaxValue ?? '',
+        step: q.numericStep ?? '',
+        unitEn: q.numericUnitEn ?? '',
+        unitAr: q.numericUnitAr ?? '',
+      },
+      text: { maxLength: q.textMaxLength },
+    } as never);
+    this.expandedId.set(q.id);
+    this.focusFirstField();
+  }
+
+  startCreate(): void {
+    this.expandedId.set(null);
+    this.resetOptionEditors();
+    this.typeLocked.set(false);
+    this.selectedType.set('SINGLE_SELECT');
+    this.questionForm.reset({
+      questionEn: '',
+      questionAr: '',
+      isRequired: true,
+      type: 'SINGLE_SELECT',
+      numeric: { minValue: '', maxValue: '', step: '', unitEn: '', unitAr: '' },
+      text: { maxLength: null },
+    } as never);
+    this.creating.set(true);
+    this.focusFirstField();
+  }
+
+  collapse(): void {
+    this.expandedId.set(null);
+    this.creating.set(false);
+    this.resetOptionEditors();
+  }
+
+  cancel(): void {
+    this.collapse();
+  }
+
+  /** The editor opens in place, so focus has to follow it or the keyboard is stranded. */
+  private focusFirstField(): void {
+    afterNextRender(() => this.firstField()?.nativeElement.focus(), { injector: this.injector });
+  }
+
   pickType(type: QuestionType): void {
     if (this.typeLocked()) return;
     this.questionForm.controls.type.setValue(type);
@@ -1437,147 +2284,7 @@ export class QuestionnaireEditorPage implements OnInit {
     return Number.isFinite(min) && Number.isFinite(max) && max < min;
   }
 
-  /** `meta.binding` names which of the four money figures is unclaimed. */
-  bindingOf(w: PublishWarning): string {
-    return String(w.meta['binding'] ?? w.meta['questionCode'] ?? '');
-  }
-
-  /** Localized via the shared error-code catalog — no per-component mapping (A22). */
-  warningMessage(w: PublishWarning): string {
-    return this.errorCodes.toLocalizedMessage(w.code as never, w.meta);
-  }
-
-  readonly groupForm = new FormGroup({
-    titleEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    titleAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    displayOrder: new FormControl(0, { nonNullable: true }),
-  });
-  readonly questionForm = new FormGroup({
-    questionEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    questionAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    displayOrder: new FormControl(0, { nonNullable: true }),
-    isRequired: new FormControl(true, { nonNullable: true }),
-    /** Typed reactive control (Principle XXII) — the radiogroup writes to this. */
-    type: new FormControl<QuestionType>('SINGLE_SELECT', { nonNullable: true }),
-    // Money crosses as decimal STRINGS even here, where these are bounds rather
-    // than amounts: the server stores them as Decimal(18,2) (Principle I).
-    numeric: new FormGroup({
-      minValue: new FormControl('', { nonNullable: true }),
-      maxValue: new FormControl('', { nonNullable: true }),
-      step: new FormControl('', { nonNullable: true }),
-      unitEn: new FormControl('', { nonNullable: true }),
-      unitAr: new FormControl('', { nonNullable: true }),
-    }),
-    text: new FormGroup({
-      maxLength: new FormControl<number | null>(null),
-    }),
-  });
-  readonly optionForm = new FormGroup({
-    labelEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    labelAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    displayOrder: new FormControl(0, { nonNullable: true }),
-  });
-
-  async ngOnInit(): Promise<void> {
-    await this.loadAll();
-  }
-
-  cancel(): void {
-    this.mode.set(null);
-  }
-
-  startGroup(): void {
-    this.editingId = '';
-    this.editing.set(false);
-    this.groupForm.reset({ titleEn: '', titleAr: '', displayOrder: this.groups().length });
-    this.mode.set('group');
-  }
-  editGroup(g: GroupTreeRow): void {
-    this.editingId = g.id;
-    this.editing.set(true);
-    this.groupForm.reset({ titleEn: g.titleEn, titleAr: g.titleAr, displayOrder: g.displayOrder });
-    this.mode.set('group');
-  }
-
-  startQuestion(g: GroupTreeRow): void {
-    this.activeGroupId = g.id;
-    this.editingId = '';
-    this.editing.set(false);
-    this.typeLocked.set(false);
-    this.selectedType.set('SINGLE_SELECT');
-    this.questionForm.reset({
-      displayOrder: g.questions.length,
-      isRequired: true,
-      type: 'SINGLE_SELECT',
-      numeric: { minValue: '', maxValue: '', step: '', unitEn: '', unitAr: '' },
-      text: { maxLength: null },
-    } as never);
-    this.mode.set('question');
-  }
-  editQuestion(q: QuestionRow): void {
-    this.editingId = q.id;
-    this.editing.set(true);
-    // Changing the type of an answered question would orphan those answers, so
-    // the picker locks. Options are the admin's signal that answers may exist;
-    // the server is the authority and rejects the change regardless.
-    this.typeLocked.set(true);
-    this.selectedType.set(q.type);
-    this.questionForm.reset({
-      questionEn: q.questionEn,
-      questionAr: q.questionAr,
-      displayOrder: q.displayOrder,
-      isRequired: q.isRequired,
-      type: q.type,
-      numeric: {
-        minValue: q.numericMinValue ?? '',
-        maxValue: q.numericMaxValue ?? '',
-        step: q.numericStep ?? '',
-        unitEn: q.numericUnitEn ?? '',
-        unitAr: q.numericUnitAr ?? '',
-      },
-      text: { maxLength: q.textMaxLength },
-    } as never);
-    this.mode.set('question');
-  }
-
-  startOption(questionId: string): void {
-    this.activeQuestionId = questionId;
-    this.editingId = '';
-    this.editing.set(false);
-    this.optionForm.reset({ displayOrder: 0 } as never);
-    this.mode.set('option');
-  }
-  editOption(o: OptionRow): void {
-    this.editingId = o.id;
-    this.editing.set(true);
-    this.optionForm.reset({
-      labelEn: o.labelEn,
-      labelAr: o.labelAr,
-      displayOrder: o.displayOrder,
-    } as never);
-    this.mode.set('option');
-  }
-
-  async submitGroup(): Promise<void> {
-    if (this.groupForm.invalid) return;
-    const v = this.groupForm.getRawValue();
-    if (this.editing()) {
-      await this.api.updateGroup(this.editingId, {
-        titleEn: v.titleEn,
-        titleAr: v.titleAr,
-        displayOrder: v.displayOrder,
-      });
-      this.message.success($localize`:@@qedit.group_saved:Group saved`);
-    } else {
-      const created = await this.api.createGroup(v);
-      // Jump the canvas to the group just created.
-      this.selectedGroupId.set(created.id);
-      this.message.success($localize`:@@qedit.group_added:Group added`);
-    }
-    this.mode.set(null);
-    await this.reload();
-  }
-
+  // ---- Question writes -----------------------------------------------------
   async submitQuestion(): Promise<void> {
     if (this.questionForm.invalid || this.numericRangeInverted()) return;
     const v = this.questionForm.getRawValue();
@@ -1585,86 +2292,151 @@ export class QuestionnaireEditorPage implements OnInit {
     // server's QUESTION_TYPE_RULES_INVALID check; sending `null` clears the other.
     const rules = {
       numeric: v.type === 'NUMERIC' ? blankToNull(v.numeric) : null,
-      text:
-        v.type === 'TEXT'
-          ? { maxLength: v.text.maxLength ?? undefined }
-          : null,
+      text: v.type === 'TEXT' ? { maxLength: v.text.maxLength ?? undefined } : null,
     };
-    if (this.editing()) {
+    const id = this.expandedId();
+    if (id !== null) {
       // `code` is immutable (A33) — never sent. `type` is not sent either: it is
       // locked in edit mode, because answers already reference this shape.
-      await this.api.updateQuestion(this.editingId, {
+      // `displayOrder` is not sent: order is owned by drag / move, not this form.
+      await this.api.updateQuestion(id, {
         questionEn: v.questionEn,
         questionAr: v.questionAr,
-        displayOrder: v.displayOrder,
         isRequired: v.isRequired,
         ...rules,
       });
       this.message.success($localize`:@@qedit.question_saved:Question saved`);
-    } else {
-      await this.api.createQuestion({
-        groupId: this.activeGroupId,
-        questionEn: v.questionEn,
-        questionAr: v.questionAr,
-        displayOrder: v.displayOrder,
-        isRequired: v.isRequired,
-        type: v.type,
-        ...rules,
-      });
-      this.message.success($localize`:@@qedit.question_added:Question added`);
+      await this.reload();
+      return;
     }
-    this.mode.set(null);
+    // No groupId, no displayOrder: the server places it at the end of the pool.
+    const created = await this.api.createQuestion({
+      questionEn: v.questionEn,
+      questionAr: v.questionAr,
+      isRequired: v.isRequired,
+      type: v.type,
+      ...rules,
+    });
+    this.message.success($localize`:@@qedit.question_added:Question added`);
     await this.reload();
+    // The server appends, so the new question is on the LAST page — follow it, or
+    // the admin closes the editor onto a list their question is not in.
+    this.revealQuestion(created.id);
+    // A choice question is unpublishable until it has options, so stay on it with
+    // the option editor open rather than collapsing to a row flagged "needs options".
+    if (isChoiceQuestionType(created.type)) {
+      const fresh = this.rows().find((q) => q.id === created.id);
+      if (fresh) {
+        this.openRow(fresh);
+        this.startAddOption();
+        return;
+      }
+    }
+    this.collapse();
   }
 
-  async submitOption(): Promise<void> {
-    if (this.optionForm.invalid) return;
-    const v = this.optionForm.getRawValue();
-    if (this.editing()) {
-      await this.api.updateOption(this.editingId, {
-        labelEn: v.labelEn,
-        labelAr: v.labelAr,
-        displayOrder: v.displayOrder,
-      });
+  // ---- Reordering ----------------------------------------------------------
+  /**
+   * CDK reports indexes within the RENDERED list, which is one page. Dragging is
+   * only offered unfiltered, so the page is a contiguous window over `rows()` and
+   * the page offset converts a page index into the global one `commitOrder` needs.
+   */
+  async drop(event: CdkDragDrop<unknown>): Promise<void> {
+    if (event.previousIndex === event.currentIndex) return;
+    const offset = this.pageOffset();
+    const next = [...this.rows()];
+    moveItemInArray(next, offset + event.previousIndex, offset + event.currentIndex);
+    await this.commitOrder(next);
+  }
+
+  /**
+   * Menu-driven move: the keyboard path, the only path while filtered, and the
+   * only way to move a question ACROSS a page boundary.
+   */
+  async moveBy(q: QuestionRow, delta: number): Promise<void> {
+    const current = [...this.rows()];
+    const from = current.findIndex((r) => r.id === q.id);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= current.length) return;
+    moveItemInArray(current, from, to);
+    await this.commitOrder(current);
+    this.revealQuestion(q.id);
+  }
+
+  /**
+   * Optimistic: the list re-renders before the round-trip so a drag does not snap
+   * back under the cursor. A rejected reorder reloads the server's truth.
+   */
+  private async commitOrder(next: QuestionRow[]): Promise<void> {
+    const previous = this.rows();
+    this.rows.set(next);
+    try {
+      await this.api.reorderQuestions(next.map((q) => q.id));
+      this.published.set(true);
+    } catch {
+      // Localized toast already shown by the interceptor.
+      this.rows.set(previous);
+    }
+  }
+
+  // ---- Options -------------------------------------------------------------
+  startAddOption(): void {
+    this.editingOptionId.set(null);
+    this.optionEn.reset('');
+    this.optionAr.reset('');
+    this.addingOption.set(true);
+  }
+
+  openOptionEdit(o: OptionRow): void {
+    this.addingOption.set(false);
+    this.optionEn.setValue(o.labelEn);
+    this.optionAr.setValue(o.labelAr);
+    this.editingOptionId.set(o.id);
+  }
+
+  cancelOption(): void {
+    this.resetOptionEditors();
+  }
+
+  /**
+   * Escape inside the option editor cancels the OPTION, not the question: without
+   * stopping the event it bubbles to the modal and throws away every unsaved edit
+   * on the question because the admin backed out of typing one answer label.
+   */
+  escapeOption(event: Event): void {
+    event.stopPropagation();
+    this.resetOptionEditors();
+  }
+
+  private resetOptionEditors(): void {
+    this.editingOptionId.set(null);
+    this.addingOption.set(false);
+  }
+
+  async submitOption(q: QuestionRow): Promise<void> {
+    if (this.optionEn.invalid || this.optionAr.invalid) return;
+    const labelEn = this.optionEn.value.trim();
+    const labelAr = this.optionAr.value.trim();
+    const editingId = this.editingOptionId();
+    if (editingId !== null) {
+      await this.api.updateOption(editingId, { labelEn, labelAr });
       this.message.success($localize`:@@qedit.option_saved:Option saved`);
     } else {
-      await this.api.createOption(this.activeQuestionId, {
-        labelEn: v.labelEn,
-        labelAr: v.labelAr,
-        displayOrder: v.displayOrder,
-      });
+      // No displayOrder: the server appends after the existing options.
+      await this.api.createOption(q.id, { labelEn, labelAr });
       this.message.success($localize`:@@qedit.option_added:Option added`);
     }
-    this.mode.set(null);
     await this.reload();
+    // Adding options comes in runs, so the add row stays open and pre-cleared;
+    // an edit is a one-off, so it closes.
+    if (editingId !== null) {
+      this.resetOptionEditors();
+    } else {
+      this.startAddOption();
+    }
   }
 
   // ---- Deletes (soft-delete server-side; typed-error toasts via interceptor) --
-  confirmDeleteGroup(g: GroupTreeRow): void {
-    this.modal.confirm({
-      nzTitle: $localize`:@@qedit.del_group_title:Delete this group?`,
-      // Name the target AND the consequence: the delete is a deactivation, and it
-      // is refused while the group still holds questions.
-      nzContent: $localize`:@@qedit.del_group_body:"${
-        this.isAr ? g.titleAr : g.titleEn
-      }:name:" will be hidden from the questionnaire. Answers already given are kept. Move or delete its questions first — a group that still holds questions can't be deleted.`,
-      nzCentered: true,
-      nzIconType: 'delete',
-      nzOkText: $localize`:@@qedit.del_ok:Delete`,
-      nzOkDanger: true,
-      nzCancelText: $localize`:@@qedit.del_cancel:Cancel`,
-      nzOnOk: async () => {
-        try {
-          await this.api.deleteGroup(g.id);
-          this.message.success($localize`:@@qedit.group_deleted:Group deleted`);
-          await this.reload();
-        } catch {
-          /* blocked / failed — localized toast already shown by the interceptor */
-        }
-      },
-    });
-  }
-
   confirmDeleteQuestion(q: QuestionRow): void {
     this.modal.confirm({
       nzTitle: $localize`:@@qedit.del_question_title:Delete this question?`,
@@ -1680,6 +2452,7 @@ export class QuestionnaireEditorPage implements OnInit {
         try {
           await this.api.deleteQuestion(q.id);
           this.message.success($localize`:@@qedit.question_deleted:Question deleted`);
+          if (this.expandedId() === q.id) this.collapse();
           await this.reload();
         } catch {
           /* blocked / failed — localized toast already shown by the interceptor */
@@ -1703,6 +2476,7 @@ export class QuestionnaireEditorPage implements OnInit {
         try {
           await this.api.deleteOption(o.id);
           this.message.success($localize`:@@qedit.option_deleted:Option deleted`);
+          this.resetOptionEditors();
           await this.reload();
         } catch {
           /* blocked / failed — localized toast already shown by the interceptor */
@@ -1711,7 +2485,7 @@ export class QuestionnaireEditorPage implements OnInit {
     });
   }
 
-  /** Load the global tree + published state. */
+  // ---- Loading -------------------------------------------------------------
   private async loadAll(): Promise<void> {
     this.loading.set(true);
     try {
@@ -1720,7 +2494,7 @@ export class QuestionnaireEditorPage implements OnInit {
         this.api.versionHistory(),
         this.api.bindingWarnings(),
       ]);
-      this.groups.set(tree ?? []);
+      this.rows.set(flatten(tree ?? []));
       this.published.set((history ?? []).some((v) => v.isActive));
       this.bindingWarnings.set(warnings ?? []);
     } finally {
@@ -1728,13 +2502,25 @@ export class QuestionnaireEditorPage implements OnInit {
     }
   }
 
-  /** After a mutation, re-fetch the tree. Every mutation auto-publishes server-side. */
+  /** After a mutation, re-fetch. Every mutation auto-publishes server-side. */
   private async reload(): Promise<void> {
     const [tree, warnings] = await Promise.all([this.api.tree(), this.api.bindingWarnings()]);
-    this.groups.set(tree ?? []);
+    this.rows.set(flatten(tree ?? []));
     this.published.set(true);
     this.bindingWarnings.set(warnings ?? []);
   }
+}
+
+/**
+ * Groups collapse away here. Sorting on `displayOrder` ALONE (not group order,
+ * then question order) is what makes the flat list authoritative: `reorderQuestions`
+ * writes a single global sequence, so group membership must not influence order.
+ */
+function flatten(tree: { questions: QuestionRow[] }[]): QuestionRow[] {
+  return tree
+    .flatMap((g) => g.questions)
+    .filter((q) => q.isActive)
+    .sort((a, b) => a.displayOrder - b.displayOrder);
 }
 
 /**

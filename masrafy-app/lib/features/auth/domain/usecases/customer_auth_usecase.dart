@@ -66,12 +66,6 @@ class CustomerAuthUseCase {
   ) =>
       _persistSession(() => _repo.googleSignin(request));
 
-  /// SOCIAL login with Apple — mirrors [signInWithGoogle].
-  Future<Either<Failure, CustomerSessionEntity>> signInWithApple(
-    SocialAppleSignInRequest request,
-  ) =>
-      _persistSession(() => _repo.appleLogin(request));
-
   // --- SOCIAL Complete-Profile mobile binding (Principle XIII / XXXVII) ---
 
   /// Issues an OTP to bind a mobile number to the authenticated (but

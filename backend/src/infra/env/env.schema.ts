@@ -101,9 +101,6 @@ export const envSchema = z.object({
   // Google Sign-In OAuth audiences (iOS + Android client IDs, comma-separated).
   // verifyIdToken({ audience }) accepts the list to support both platforms.
   GOOGLE_OAUTH_CLIENT_IDS: z.string().min(1).default('replace_me.apps.googleusercontent.com'),
-
-  // Apple Sign-In iOS bundle identifier (the `aud` claim on Apple ID tokens).
-  APPLE_BUNDLE_ID: z.string().min(1).default('com.example.masrafy'),
 });
 
 export type AppEnv = z.infer<typeof envSchema>;

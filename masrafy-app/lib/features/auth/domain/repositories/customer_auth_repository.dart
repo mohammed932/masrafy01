@@ -31,16 +31,12 @@ abstract class CustomerAuthRepository {
 
   Future<Either<Failure, SocialSessionEntity>> socialGoogle(SocialGoogleSignInRequest body);
 
-  Future<Either<Failure, SocialSessionEntity>> socialApple(SocialAppleSignInRequest body);
-
   Future<Either<Failure, CustomerSessionEntity>> socialLogin(SocialLoginRequest body);
 
   /// Dedicated one-call Google sign-in — returns a session (tokens) directly
-  /// for both new and returning users.
+  /// for both new and returning users. Google is the only social provider
+  /// (constitution v11.0.0 — Apple removed).
   Future<Either<Failure, CustomerSessionEntity>> googleSignin(SocialGoogleSignInRequest body);
-
-  /// Dedicated one-call Apple login — returns a session (tokens) directly.
-  Future<Either<Failure, CustomerSessionEntity>> appleLogin(SocialAppleSignInRequest body);
 
   Future<Either<Failure, OtpChallengeEntity>> profileMobileRequestOtp(
     ProfileMobileRequestOtpRequest body,

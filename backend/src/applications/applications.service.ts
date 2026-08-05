@@ -239,17 +239,23 @@ export class ApplicationsService {
     }
 
     // Feature 009/010 — resolve + validate dynamic questionnaire answers (if
-    // sent) against the live GLOBAL questions, for atomic persistence.
+    // sent) against the live GLOBAL questions, for atomic persistence. Scoped to
+    // `dto.category`: required-question enforcement lives in `resolveAnswers`, so
+    // it must only consider the questions this category actually asks.
     const dynamicAnswers =
       dto.category && dto.questionnaireAnswers && dto.questionnaireAnswers.length > 0
-        ? await this.questionnaire.resolveAnswers(dto.questionnaireAnswers)
+        ? await this.questionnaire.resolveAnswers(dto.questionnaireAnswers, dto.category)
         : undefined;
 
     const activePrograms = await this.programsRepo.findAllActive();
     const snapshots: BankProgramSnapshot[] = activePrograms.map(toBankProgramSnapshot);
 
     const scoringConfig: ScoringConfig = await loadActiveScoringConfig(this.scoringVersions);
-    const profile = this.buildProfile(dto);
+    // Age is DERIVED from the customer's birthday, never sent by the client
+    // (Principle XXXVII / A31). It prices money — the age-at-maturity rule
+    // shortens the tenor, which moves the installment and the max loan.
+    const age = await this.completeness.getApplicantAge(ctx.customerId);
+    const profile = this.buildProfile(dto, age);
     // MVP simplification: eligibility gating is dropped on apply — every active
     // program yields an offer, ranked purely by the per-bank approval score.
     // DBR is NOT part of that: affordability shapes the amount offered, so it
@@ -306,7 +312,9 @@ export class ApplicationsService {
         requestedCurrency: dto.requestedCurrency ?? 'EGP',
         preferredTenorMonths: dto.preferredTenorMonths,
         loanPurpose: dto.loanPurpose,
-        age: dto.age,
+        // Snapshot of the age the engine actually priced on (derived, not stored
+        // on the customer — Principle XXXVII / A31).
+        age,
         applicantUserId: ctx.customerId,
         category: dto.category ?? null,
         questionnaireVersionId: dto.questionnaireVersionId ?? null,
@@ -645,10 +653,10 @@ export class ApplicationsService {
     ) as JsonValueInput;
   }
 
-  private buildProfile(dto: ApplyRequestDto): ApplicantProfile {
+  private buildProfile(dto: ApplyRequestDto, age: number): ApplicantProfile {
     const dec = (v?: string): Decimal | undefined => (v !== undefined ? new Decimal(v) : undefined);
     return {
-      age: dto.age,
+      age,
       loanPurpose: dto.loanPurpose,
       requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
       requestedCurrency: dto.requestedCurrency ?? 'EGP',

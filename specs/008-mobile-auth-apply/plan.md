@@ -3,6 +3,14 @@
 **Branch**: `008-mobile-auth-apply` | **Date**: 2026-05-26 | **Spec**: [spec.md](./spec.md)
 **Input**: Feature specification from `/specs/008-mobile-auth-apply/spec.md`
 
+> **Superseded in part — constitution v11.0.0 (2026-08-04):** Apple sign-in is
+> removed platform-wide. Google is the only social provider. Every mention of
+> Apple below (the "Continue with Apple" CTA, `/auth/social/apple`,
+> `/auth/apple/login`, the Apple ID-token verifier, `APPLE_BUNDLE_ID`,
+> `sign_in_with_apple`, and the `APPLE` enum value) is historical and no longer
+> exists in the code. Applicant `age` is likewise no longer sent by any client —
+> it is derived from `birthday` server-side (A31, extended v11.0.0).
+
 ## Summary
 
 Ship the customer-facing mobile authentication and loan-request flow for the Masrafy mobile app. Two registration paths gate the entire app (no guest mode):

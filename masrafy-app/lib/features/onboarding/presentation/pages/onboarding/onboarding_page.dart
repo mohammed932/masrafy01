@@ -135,24 +135,12 @@ class _FinalActions extends StatelessWidget {
         Gap(12.h),
         MasrafyOrDivider(label: l.onboarding_or_continue),
         Gap(14.h),
-        Row(
-          children: [
-            Expanded(
-              child: MasrafySocialButton(
-                icon: Icons.g_mobiledata_rounded,
-                label: l.onboarding_google,
-                onTap: onSocial,
-              ),
-            ),
-            Gap(15.w),
-            Expanded(
-              child: MasrafySocialButton(
-                icon: Icons.apple,
-                label: l.onboarding_apple,
-                onTap: onSocial,
-              ),
-            ),
-          ],
+        // Google is the only social provider (constitution v11.0.0). The Apple
+        // button that used to sit beside this one ran the Google flow anyway.
+        MasrafySocialButton(
+          icon: Icons.g_mobiledata_rounded,
+          label: l.onboarding_google,
+          onTap: onSocial,
         ),
       ],
     );

@@ -13,7 +13,7 @@
  *    program gets those points scaled by a per-program multiplier so programs
  *    differ; the banking expert tunes them later in the admin editor.
  */
-import { PrismaClient, type QuestionType } from '@prisma/client';
+import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
 import { MONEY_FIELD_BINDINGS } from '../src/matching/pipeline/money-field-bindings';
 
 const prisma = new PrismaClient();
@@ -66,6 +66,38 @@ async function enumOptions(type: string): Promise<SeedOption[]> {
   return opts;
 }
 
+// Active `bank` registry rows → seed options (Principle II — banks are DATA, so
+// the option list follows whatever the admin registered; no hardcoded bank
+// branch anywhere). Cached because the merge reads it once per referencing
+// question. `code` slugs the English name: it is a join key
+// (`ScoringWeightSet.answerScores`, `ApplicationAnswer.selectedOptionCode`), so a
+// bank renamed in the registry seeds a NEW option code and the old one simply
+// deactivates — stored answers keep pointing at the name that was picked.
+let _bankOptionsCache: SeedOption[] | null = null;
+async function bankOptions(): Promise<SeedOption[]> {
+  if (_bankOptionsCache) return _bankOptionsCache;
+  const rows = await prisma.bank.findMany({
+    where: { isActive: true },
+    orderBy: [{ displayOrder: 'asc' }, { nameEnglish: 'asc' }],
+    select: { nameEnglish: true, nameArabic: true },
+  });
+  const opts: SeedOption[] = rows.map((b) => ({
+    code: slug(b.nameEnglish),
+    labelEn: b.nameEnglish,
+    labelAr: b.nameArabic,
+  }));
+  if (rows.length === 0) {
+    console.warn(
+      '[seed-questionnaire] bank registry is empty — bank-backed questions get only the "Another bank" option. Run `npm run seed:banks`, then re-run this seed.',
+    );
+  }
+  // Escape hatch: the registry only holds partner banks, so an applicant banking
+  // elsewhere still has an answer and the question never dead-ends.
+  opts.push({ code: 'another_bank', labelEn: 'Another bank', labelAr: 'بنك آخر' });
+  _bankOptionsCache = opts;
+  return opts;
+}
+
 interface SeedOption {
   labelEn: string;
   labelAr: string;
@@ -97,7 +129,20 @@ interface SeedQuestion {
    *  members of this type at seed time — single source of truth (e.g. governorate),
    *  so mobile still gets the list inside the one questionnaire snapshot call. */
   optionsFromEnum?: string;
+  /** When set, options are expanded from the active `bank` registry rows at seed
+   *  time (+ an "Another bank" escape hatch) — same single-source-of-truth reason
+   *  as `optionsFromEnum`. */
+  optionsFromBanks?: true;
+  /** Branch rule — the question renders only when the SOURCE question (which must
+   *  come EARLIER in the pool and be a choice type) was answered with (or, for
+   *  `not_equals`, without) `optionCode`. Mirrors `Question.enabledWhen`. */
+  enabledWhen?: SeedEnabledWhen;
   options: SeedOption[];
+}
+interface SeedEnabledWhen {
+  questionCode: string;
+  operator: 'equals' | 'not_equals';
+  optionCode: string;
 }
 interface SeedGroup {
   code: string;
@@ -319,6 +364,18 @@ const PERSONAL: CategoryConfig = {
             { code: 'a_specific_bank', labelEn: 'Yes, always the same bank', labelAr: 'بنك محدد' },
             { code: 'no_specific_bank', labelEn: 'No, not always the same bank', labelAr: 'لا يوجد بنك محدد' },
           ],
+        },
+        {
+          // Follow-up to `salary_bank`: asked ONLY when the applicant said the
+          // salary lands at one bank. Options come from the `bank` registry, so
+          // adding/retiring a bank there is the only edit needed (Principle II).
+          code: 'salary_bank_name',
+          questionEn: 'Which bank do you receive your salary through?',
+          questionAr: 'ما هو البنك الذي تستلم راتبك من خلاله؟',
+          isRequired: false,
+          enabledWhen: { questionCode: 'salary_bank', operator: 'equals', optionCode: 'a_specific_bank' },
+          optionsFromBanks: true,
+          options: [],
         },
         {
           code: 'employer_approved', questionEn: "Is the place you work at on the banks' approved list?", questionAr: 'هل جهة عملك معتمدة لدى البنوك؟',
@@ -721,6 +778,7 @@ interface MergedQuestion {
   questionEn: string;
   questionAr: string;
   isRequired: boolean;
+  enabledWhen?: SeedEnabledWhen;
   options: { code: string; labelEn: string; labelAr: string }[];
 }
 
@@ -748,7 +806,11 @@ export async function seedQuestionnaire(): Promise<void> {
         // never enters the pool. The four money figures come from real numbers.
         if (SUPERSEDED_BUCKET_CODES.has(q.code)) continue;
         (categoriesByQuestion[q.code] ??= new Set()).add(cfg.category);
-        const optionList = q.optionsFromEnum ? await enumOptions(q.optionsFromEnum) : q.options;
+        const optionList = q.optionsFromBanks
+          ? await bankOptions()
+          : q.optionsFromEnum
+            ? await enumOptions(q.optionsFromEnum)
+            : q.options;
         let mq = questionByCode.get(q.code);
         if (!mq) {
           mq = {
@@ -759,6 +821,7 @@ export async function seedQuestionnaire(): Promise<void> {
             questionEn: q.questionEn,
             questionAr: q.questionAr,
             isRequired: q.isRequired ?? true,
+            ...(q.enabledWhen ? { enabledWhen: q.enabledWhen } : {}),
             options: [],
           };
           questionByCode.set(q.code, mq);
@@ -828,17 +891,24 @@ export async function seedQuestionnaire(): Promise<void> {
       numericUnitAr: q.type === 'NUMERIC' ? (q.numeric?.unitAr ?? null) : null,
       textMaxLength: null,
     };
+    // Branch rule is authored data too: written on every run (DbNull when the
+    // seed dropped it) so a rule removed here also disappears from the row.
+    const branchColumn = {
+      enabledWhen: q.enabledWhen
+        ? (q.enabledWhen as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
+    };
     const question = await prisma.question.upsert({
       where: { code },
       update: {
         groupId: groupIdByCode.get(q.groupCode)!, questionEn: q.questionEn, questionAr: q.questionAr,
         displayOrder: qOrder, isRequired: q.isRequired, isActive: true,
-        ...typeColumns,
+        ...typeColumns, ...branchColumn,
       },
       create: {
         groupId: groupIdByCode.get(q.groupCode)!, code,
         questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder, isRequired: q.isRequired,
-        ...typeColumns,
+        ...typeColumns, ...branchColumn,
       },
     });
     const optionCodes: string[] = [];
@@ -856,6 +926,21 @@ export async function seedQuestionnaire(): Promise<void> {
       where: { questionId: question.id, code: { notIn: optionCodes } },
       data: { isActive: false },
     });
+    // Which loan categories ask this question (v12.0.0). Authored data like the
+    // rest of the seed, so it is rewritten on every run: a question moved between
+    // category configs must not keep the assignment it had before the move. The
+    // set comes from the SAME `categoriesByQuestion` map that pre-assigns each
+    // program's scoring below, so the two can never disagree.
+    const askedBy = [...(categoriesByQuestion[code] ?? new Set<Category>())];
+    await prisma.questionLoanCategory.deleteMany({
+      where: { questionId: question.id, category: { notIn: askedBy } },
+    });
+    if (askedBy.length > 0) {
+      await prisma.questionLoanCategory.createMany({
+        data: askedBy.map((category) => ({ questionId: question.id, category })),
+        skipDuplicates: true,
+      });
+    }
   }
   // Deactivate stale questions + groups (dropped/renamed across the whole pool).
   await prisma.question.updateMany({ where: { code: { notIn: questionOrder } }, data: { isActive: false } });

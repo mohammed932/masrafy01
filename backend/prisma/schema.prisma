@@ -621,7 +621,7 @@ model PlatformEnumeration {
 // `registrationPath` distinguishes upfront-PHONE customers (fully populated at
 // signup) from lite-SOCIAL customers (provider sign-in; mobile + age completed
 // via the loan-request Complete-Profile flow). `passwordHash` is nullable so
-// SOCIAL customers (who authenticate via Google / Apple) need not carry one.
+// SOCIAL customers (who authenticate via Google) need not carry one.
 // `mobileVerifiedAt` flips non-null IFF `phone` is OTP-verified — once set,
 // both fields are immutable (enforced by repository, not the DB). `age` is
 // nullable for in-flight SOCIAL customers; set immutably on first successful
@@ -631,9 +631,12 @@ enum RegistrationPath {
   SOCIAL
 }
 
+// Constitution v11.0.0 — Google is the only social provider. `APPLE` was
+// dropped from this enum by `google_only_social_provider`; the enum type itself
+// is kept single-valued because it keys two tables and is where a future
+// provider would be added.
 enum SocialProvider {
   GOOGLE
-  APPLE
 }
 
 enum OtpPurpose {
@@ -708,8 +711,8 @@ model CustomerRefreshToken {
 // -----------------------------------------------------------------------------
 
 // One row per (customer, provider) link. Provider+providerUserId is the unique
-// natural key — Google or Apple subject IDs. Email is captured at link time
-// for Apple-email-withheld resilience.
+// natural key — the Google subject ID. Email is captured at link time so a
+// provider that later withholds it cannot orphan the account.
 model CustomerProvider {
   id             String         @id @default(cuid()) @db.VarChar(30)
   customerId     String         @db.VarChar(30)
@@ -759,7 +762,7 @@ model VerifiedMobileToken {
   @@map("verified_mobile_token")
 }
 
-// Short-lived (15 min) wrapper around a successful Google/Apple ID-token
+// Short-lived (15 min) wrapper around a successful Google ID-token
 // verification. Consumed by /auth/social/login (returning customer) or the
 // social-signup transaction (new customer + CustomerProvider link).
 model SocialSession {
@@ -952,12 +955,31 @@ model Question {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
-  group   QuestionGroup       @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
-  options QuestionOption[]    @relation("QuestionOptions")
-  answers ApplicationAnswer[] @relation("QuestionAnswers")
+  group          QuestionGroup          @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
+  options        QuestionOption[]       @relation("QuestionOptions")
+  answers        ApplicationAnswer[]    @relation("QuestionAnswers")
+  loanCategories QuestionLoanCategory[] @relation("QuestionLoanCategories")
 
   @@index([groupId, displayOrder], name: "idx_question_group_question_order")
   @@map("question")
+}
+
+// Which loan categories a GLOBAL-pool question is asked for. A join row, NOT a
+// `category` column on `question` (A33): the pool stays one canonical list of
+// questions and one question serves many categories. The assignment set is
+// AUTHORITATIVE — a question with no rows here is asked for no category, so the
+// admin's "assign" tab warns on an empty row and `createQuestion` seeds all four
+// by default (nothing silently disappears from the wizard on create).
+model QuestionLoanCategory {
+  questionId String       @db.VarChar(30)
+  category   LoanCategory
+  createdAt  DateTime     @default(now()) @db.Timestamptz(6)
+
+  question Question @relation("QuestionLoanCategories", fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, category], name: "pk_question_loan_category")
+  @@index([category], name: "idx_question_loan_category_category")
+  @@map("question_loan_category")
 }
 
 model QuestionOption {

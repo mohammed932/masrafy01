@@ -60,7 +60,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_account_locked => 'تم قفل الحساب مؤقتًا بسبب محاولات فاشلة كثيرة. حاول لاحقًا.';
 
   @override
-  String get auth_password_not_set => 'لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google أو Apple.';
+  String get auth_password_not_set => 'لا توجد كلمة مرور لهذا الحساب. سجل الدخول عبر Google.';
 
   @override
   String get auth_password_same_as_old => 'اختر كلمة مرور مختلفة عن الحالية.';
@@ -81,13 +81,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_password_required_for_phone_profile => 'كلمة المرور مطلوبة لإكمال ملفك.';
 
   @override
-  String get auth_password_forbidden_for_social_profile => 'حسابات Google أو Apple لا تستخدم كلمة مرور.';
+  String get auth_password_forbidden_for_social_profile => 'حسابات Google لا تستخدم كلمة مرور.';
 
   @override
   String get auth_phone_mutation_on_phone_customer_forbidden => 'رقم الجوال مضبوط بالفعل على هذا الحساب.';
 
   @override
-  String get auth_password_change_forbidden_for_social => 'تغيير كلمة المرور غير متاح لحسابات Google أو Apple.';
+  String get auth_password_change_forbidden_for_social => 'تغيير كلمة المرور غير متاح لحسابات Google.';
 
   @override
   String get auth_age_invalid => 'العمر يجب أن يكون بين 18 و80 سنة.';
@@ -109,9 +109,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get auth_landing_action_google => 'المتابعة باستخدام Google';
-
-  @override
-  String get auth_landing_action_apple => 'المتابعة باستخدام Apple';
 
   @override
   String get auth_landing_action_login => 'تسجيل الدخول';
@@ -430,9 +427,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get onboarding_google => 'Google';
 
   @override
-  String get onboarding_apple => 'Apple';
-
-  @override
   String get onboarding_lang_toggle => 'English';
 
   @override
@@ -464,9 +458,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get login_google => 'Google';
-
-  @override
-  String get login_apple => 'Apple';
 
   @override
   String get login_no_account => 'ليس لديك حساب؟';

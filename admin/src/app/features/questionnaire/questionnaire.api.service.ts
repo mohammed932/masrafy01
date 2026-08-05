@@ -147,6 +147,12 @@ export interface QuestionRow {
   numericUnitEn: string | null;
   textMaxLength: number | null;
   options: OptionRow[];
+  /**
+   * Which loan categories this question is asked for. The pool stays global — one
+   * canonical question list — and this narrows who gets asked. Empty means parked:
+   * the question is kept and editable but asked for no category.
+   */
+  categories: LoanCategory[];
 }
 export interface GroupTreeRow {
   id: string;
@@ -227,16 +233,13 @@ export interface SimulatedAnswer {
   numericValue?: string;
 }
 
-export interface CreateGroupBody {
-  titleAr: string;
-  titleEn: string;
-  displayOrder: number;
-}
 export interface CreateQuestionBody {
-  groupId: string;
+  /** Omitted by the flat editor — the server places the question (see backend). */
+  groupId?: string;
   questionAr: string;
   questionEn: string;
-  displayOrder: number;
+  /** Omitted → appended to the end of the pool. Order is set by drag, not typed. */
+  displayOrder?: number;
   isRequired?: boolean;
   /** Defaults to SINGLE_SELECT server-side when omitted. */
   type?: QuestionType;
@@ -244,19 +247,22 @@ export interface CreateQuestionBody {
   numeric?: Partial<NumericRules> | null;
   /** Sent only for TEXT. No binding field exists — money bindings are code constants (A33). */
   text?: Partial<TextRules> | null;
+  /** Omitted → the server assigns all four categories, so nothing is born invisible. */
+  categories?: LoanCategory[];
+}
+
+/** One row of a bulk reassignment: the array REPLACES that question's set. */
+export interface QuestionCategoryAssignment {
+  questionId: string;
+  categories: LoanCategory[];
 }
 export interface CreateOptionBody {
   labelAr: string;
   labelEn: string;
-  displayOrder: number;
-}
-
-/** Group edits — title/order only; `code` and `category` are immutable (A33). */
-export interface UpdateGroupBody {
-  titleAr?: string;
-  titleEn?: string;
+  /** Omitted → appended after the question's existing options. */
   displayOrder?: number;
 }
+
 /** Question edits — `code` and `category` are immutable (A33). */
 export interface UpdateQuestionBody {
   questionAr?: string;
@@ -339,20 +345,17 @@ export class QuestionnaireApiService {
     );
   }
 
-  createGroup(body: CreateGroupBody): Promise<GroupTreeRow> {
-    return this.post<GroupTreeRow>(`/questionnaire/groups`, body);
-  }
-
-  updateGroup(id: string, body: UpdateGroupBody): Promise<GroupTreeRow> {
-    return this.patch<GroupTreeRow>(`/questionnaire/groups/${id}`, body);
-  }
-
-  deleteGroup(id: string): Promise<GroupTreeRow> {
-    return this.del<GroupTreeRow>(`/questionnaire/groups/${id}`);
-  }
-
   createQuestion(body: CreateQuestionBody): Promise<QuestionRow> {
     return this.post<QuestionRow>(`/questionnaire/questions`, body);
+  }
+
+  /**
+   * Rewrite the flat pool order. `ids` must be EVERY active question id, in the
+   * order they should be asked — the server rejects a partial list, because a
+   * partial rewrite would leave untouched questions colliding on `displayOrder`.
+   */
+  reorderQuestions(ids: string[]): Promise<GroupTreeRow[]> {
+    return this.post<GroupTreeRow[]>(`/questionnaire/questions/reorder`, { ids });
   }
 
   updateQuestion(id: string, body: UpdateQuestionBody): Promise<QuestionRow> {
@@ -361,6 +364,24 @@ export class QuestionnaireApiService {
 
   deleteQuestion(id: string): Promise<QuestionRow> {
     return this.del<QuestionRow>(`/questionnaire/questions/${id}`);
+  }
+
+  /**
+   * Replace which loan categories ONE question is asked for. The array is the new
+   * set, not a delta; `[]` parks the question. Auto-publishes, like every other
+   * questionnaire write.
+   */
+  setQuestionCategories(id: string, categories: LoanCategory[]): Promise<QuestionRow> {
+    return this.put<QuestionRow>(`/questionnaire/questions/${id}/categories`, { categories });
+  }
+
+  /**
+   * Reassign many questions at once (the column actions). One request rather than
+   * N: the server does it in one transaction and publishes ONE new version, where
+   * a loop would churn a version per question. Returns the refreshed tree.
+   */
+  setQuestionCategoriesBulk(assignments: QuestionCategoryAssignment[]): Promise<GroupTreeRow[]> {
+    return this.post<GroupTreeRow[]>(`/questionnaire/questions/categories`, { assignments });
   }
 
   createOption(questionId: string, body: CreateOptionBody): Promise<OptionRow> {
@@ -395,6 +416,12 @@ export class QuestionnaireApiService {
   private async post<T>(path: string, body: unknown, context?: HttpContext): Promise<T> {
     const res = await firstValueFrom(
       this.http.post<SuccessEnvelope<T>>(`${this.base()}${path}`, body, { context }),
+    );
+    return res.data;
+  }
+  private async put<T>(path: string, body: unknown): Promise<T> {
+    const res = await firstValueFrom(
+      this.http.put<SuccessEnvelope<T>>(`${this.base()}${path}`, body),
     );
     return res.data;
   }

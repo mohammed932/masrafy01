@@ -24,7 +24,11 @@ async function bootstrap(): Promise<void> {
   app.enableCors({
     origin: corsOrigins,
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    // PUT included: two routes replace a whole resource rather than patch it
+    // (`questionnaire/questions/:id/categories`, `support/config`). Leaving it
+    // out failed the preflight, so the browser blocked the call while the same
+    // request from curl — which never preflights — succeeded.
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
       'Authorization',
       'Content-Type',

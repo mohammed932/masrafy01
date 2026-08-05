@@ -36,7 +36,7 @@ This document resolves every architectural decision the implementation depends o
 
 **Decision**:
 - **Google**: `google-auth-library` Node SDK `verifyIdToken({ idToken, audience })`, where `audience` is the iOS + Android client IDs of the Masrafy app. Verifies signature against Google's published JWKs, claims (`iss`, `exp`, `aud`, `email_verified`).
-- **Apple**: `jose` package + Apple's public-key JWK set fetched from `https://appleid.apple.com/auth/keys` (cache 24 h). Verify `iss = https://appleid.apple.com`, `aud = <iOS bundle ID>`, `exp`, `iat`. Extract `sub` as the stable `appleUserId`; extract `email` (only present on first auth) and `name` (Apple sends only on first auth, via separate `userInfo` payload).
+- **Apple** *(SUPERSEDED — removed in constitution v11.0.0; Google is the only provider)*: `jose` package + Apple's public-key JWK set fetched from `https://appleid.apple.com/auth/keys` (cache 24 h). Verify `iss = https://appleid.apple.com`, `aud = <iOS bundle ID>`, `exp`, `iat`. Extract `sub` as the stable `appleUserId`; extract `email` (only present on first auth) and `name` (Apple sends only on first auth, via separate `userInfo` payload).
 
 **Rationale**: Both libraries are well-maintained and validate signatures against publicly rotating keys. Apple's "email only on first sign-in" behavior requires persisting the email keyed to `appleUserId` on first contact (FR-029).
 
@@ -219,6 +219,8 @@ Postgres-level `SELECT … FOR UPDATE` prevents two concurrent submissions reusi
 ---
 
 ## R15 — Apple Sign-In on Android (defer)
+
+> **SUPERSEDED by constitution v11.0.0 (2026-08-04)**: Apple Sign-In is removed from the platform entirely — on both platforms, not just Android. Google is the only social provider. The decision below is kept for history; the "Continue with Apple" button, the `sign_in_with_apple` package, the two Apple endpoints, and the `APPLE` enum value no longer exist.
 
 **Decision**: Apple Sign-In ships **iOS only** for v1. On Android the "Continue with Apple" button is HIDDEN, not greyed out (per spec assumption). A follow-up spec adds Apple's web-flow for Android.
 

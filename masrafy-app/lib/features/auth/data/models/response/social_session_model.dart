@@ -2,11 +2,10 @@ import '../../../domain/entities/social_session_entity.dart';
 import '../../../domain/enums/social_provider.dart';
 import 'customer_auth_envelope_model.dart';
 
-/// Wire-format response for `/auth/social/google` and `/auth/social/apple`
-/// (feature 008). Returns either an `existingCustomer` summary (caller will
-/// then hit `/auth/social/login` with `socialSessionId`) or a `newCustomer`
-/// session envelope (the lite SOCIAL customer was just created + tokens
-/// issued inline).
+/// Wire-format response for `/auth/social/google` (feature 008). Returns either
+/// an `existingCustomer` summary (caller will then hit `/auth/social/login` with
+/// `socialSessionId`) or a `newCustomer` session envelope (the lite SOCIAL
+/// customer was just created + tokens issued inline).
 class SocialSessionModel {
   const SocialSessionModel({
     required this.provider,
@@ -17,8 +16,8 @@ class SocialSessionModel {
   });
 
   factory SocialSessionModel.fromJson(Map<String, dynamic> json) {
-    final providerStr = (json['provider'] as String? ?? 'google').toLowerCase();
-    final provider = providerStr == 'apple' ? SocialProvider.apple : SocialProvider.google;
+    // Google is the only provider the API can return (constitution v11.0.0).
+    const provider = SocialProvider.google;
     final profile = json['profile'] as Map<String, dynamic>? ?? const {};
     final existing = json['existingCustomer'] as Map<String, dynamic>?;
     final newCust = json['newCustomer'] as Map<String, dynamic>?;

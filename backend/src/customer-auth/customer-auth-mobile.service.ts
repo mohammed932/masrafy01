@@ -24,7 +24,6 @@ import { PasswordResetTokenService } from './password-reset-token.service';
 import { SocialSessionRepository } from './social-session.repository';
 import { CustomerProviderRepository } from './customer-provider.repository';
 import { GoogleVerifyService, type VerifiedSocialIdentity } from './social/google-verify.service';
-import { AppleVerifyService } from './social/apple-verify.service';
 import { CustomerLoginLockoutService } from './customer-login-lockout.service';
 import {
   canonicalisePhone,
@@ -69,7 +68,6 @@ export class CustomerAuthMobileService {
     private readonly socialSessions: SocialSessionRepository,
     private readonly providers: CustomerProviderRepository,
     private readonly google: GoogleVerifyService,
-    private readonly apple: AppleVerifyService,
     private readonly lockout: CustomerLoginLockoutService,
     private readonly audit: AuditEventWriter,
     private readonly prisma: PrismaService,
@@ -396,13 +394,12 @@ export class CustomerAuthMobileService {
   }
 
   // -------------------------------------------------------------------------
-  // SOCIAL sign-in (Google / Apple)
+  // SOCIAL sign-in (Google — the only provider, constitution v11.0.0)
   // -------------------------------------------------------------------------
 
   async socialSignIn(args: {
     provider: SocialProvider;
     idToken: string;
-    userInfo?: { email?: string; fullName?: string };
     ctx: CustomerRequestContext;
   }): Promise<{
     socialSessionId: string;
@@ -411,7 +408,7 @@ export class CustomerAuthMobileService {
     existingCustomer: { id: string; maskedPhone: string | null } | null;
     newCustomer: { tokens: CustomerAuthResult } | null;
   }> {
-    const identity = await this.verifyProviderToken(args.provider, args.idToken, args.userInfo);
+    const identity = await this.verifyProviderToken(args.idToken);
 
     const link = await this.providers.findByProviderSubject(args.provider, identity.providerUserId);
     const expiresAt = new Date(Date.now() + CustomerAuthMobileService.SOCIAL_SESSION_TTL_MS);
@@ -488,7 +485,7 @@ export class CustomerAuthMobileService {
   }
 
   /**
-   * One-call social auth for the dedicated `/google/signin` + `/apple/login`
+   * One-call social auth for the dedicated `/google/signin` endpoint.
    * endpoints. Unlike {@link socialSignIn}, this issues JWT tokens directly for
    * BOTH returning and first-time users — no intermediate `SocialSession` /
    * `social/login` round-trip. First-time users get a lite SOCIAL account
@@ -500,7 +497,7 @@ export class CustomerAuthMobileService {
     userInfo?: { email?: string; fullName?: string };
     ctx: CustomerRequestContext;
   }): Promise<CustomerAuthResult> {
-    const identity = await this.verifyProviderToken(args.provider, args.idToken, args.userInfo);
+    const identity = await this.verifyProviderToken(args.idToken);
 
     const link = await this.providers.findByProviderSubject(args.provider, identity.providerUserId);
     if (link) {
@@ -771,19 +768,14 @@ export class CustomerAuthMobileService {
   // Internals
   // -------------------------------------------------------------------------
 
-  private async verifyProviderToken(
-    provider: SocialProvider,
-    idToken: string,
-    userInfo?: { email?: string; fullName?: string },
-  ): Promise<VerifiedSocialIdentity> {
-    if (provider === SocialProvider.GOOGLE) return this.google.verify(idToken);
-    const appleResult = await this.apple.verify(idToken);
-    return {
-      providerUserId: appleResult.providerUserId,
-      email: appleResult.email ?? userInfo?.email ?? null,
-      fullName: appleResult.fullName ?? userInfo?.fullName ?? null,
-      emailVerified: appleResult.emailVerified,
-    };
+  /**
+   * Google is the only social provider (constitution v11.0.0 — Apple removed),
+   * so there is nothing to dispatch on. The `provider` value still travels with
+   * the caller's args because it keys the `CustomerProvider` link and the
+   * `SocialSession` row; a second provider would reintroduce the switch here.
+   */
+  private async verifyProviderToken(idToken: string): Promise<VerifiedSocialIdentity> {
+    return this.google.verify(idToken);
   }
 
   private async issueSession(args: {

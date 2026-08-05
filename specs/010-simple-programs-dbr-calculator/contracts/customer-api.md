@@ -53,6 +53,11 @@ Answers become type-aware; the response gains figures. Existing fields keep thei
 
 Exactly one value key per answer, matching the question's type (R8).
 
+The applicant **age is never in the body**: it is derived from the authenticated
+customer's `birthday` (Principle XXXVII / A31), which is why this endpoint is
+profile-complete-gated. That is what makes a previewed tenor equal the one apply
+returns — the age-at-maturity rule sees the same number on both paths.
+
 **Response**
 
 ```jsonc
@@ -94,6 +99,11 @@ Errors: `ANSWER_TYPE_MISMATCH`, `ANSWER_OUT_OF_RANGE`, `ANSWER_TOO_LONG`, `ANSWE
 
 Unchanged route and response envelope. The economic fields (`requestedAmountEGP`, `preferredTenorMonths`, `employment.monthlyNetSalaryEGP`, `obligations.existingMonthlyObligationsEGP`) MUST now carry the values from the bound number answers — the app's bucket-to-guess maps are deleted (FR-042). A missing bound answer fails with `MONEY_FIGURE_MISSING` rather than defaulting to zero (FR-044).
 
+`age` is **removed from the request body** — it is derived from the authenticated
+customer's `birthday` server-side (Principle XXXVII / A31) and persisted on the
+application as the snapshot the engine priced on. A client that still sends it
+is rejected with 422 `VALIDATION_FAILED` by the global `forbidNonWhitelisted` validation.
+
 Offer payloads gain the same `figures` block plus the DBR audit fields (`dbrCapPercent`, `dbrBandIndex`).
 
 ---
@@ -127,7 +137,7 @@ Two modes. Program-scoped when `bankProgramId` is present, otherwise generic wit
 
 ```jsonc
 { "mode": "affordability", "bankProgramId": "bp_…",
-  "monthlyIncomeEGP": "20400", "existingObligationsEGP": "2000", "tenorMonths": 60, "age": 34 }
+  "monthlyIncomeEGP": "20400", "existingObligationsEGP": "2000", "tenorMonths": 60 }
 ```
 
 ```jsonc
@@ -144,6 +154,7 @@ Rules:
 - Inputs outside a program's limits are clamped to the limit and the clamp is reported in `clamped` (FR-029).
 - `isRepresentativeRate: true` in generic mode, with the rate returned so the app can state it (FR-030).
 - Fees are always itemised (FR-031).
+- The applicant age is **not a request field**: it is derived from the authenticated customer's `birthday` (Principle XXXVII / A31) and drives the age-at-maturity tenor shortening, so the endpoint is `CustomerJwtGuard` + `CustomerProfileCompleteGuard` gated and a lite profile gets `PROFILE_INCOMPLETE`. An assumed age would quote a term apply would then cut.
 - Persists nothing. Rate-limited by the existing throttler (Principle XV).
 
 Errors: `CALCULATOR_INPUT_INVALID`, `CALCULATOR_PROGRAM_INACTIVE`, `PROGRAM_MISCONFIGURED`, `BANK_PROGRAM_NOT_FOUND`.

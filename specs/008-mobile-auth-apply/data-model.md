@@ -4,6 +4,14 @@
 **Phase**: 1 — Design
 **Date**: 2026-05-26
 
+> **Superseded in part — constitution v11.0.0 (2026-08-04):** Apple sign-in is
+> removed platform-wide. Google is the only social provider. Every mention of
+> Apple below (the "Continue with Apple" CTA, `/auth/social/apple`,
+> `/auth/apple/login`, the Apple ID-token verifier, `APPLE_BUNDLE_ID`,
+> `sign_in_with_apple`, and the `APPLE` enum value) is historical and no longer
+> exists in the code. Applicant `age` is likewise no longer sent by any client —
+> it is derived from `birthday` server-side (A31, extended v11.0.0).
+
 This document specifies the Prisma schema additions/changes for this feature. Migration name: `008_mobile_auth_two_path_registration`.
 
 ---
@@ -94,8 +102,8 @@ model CustomerProvider {
   id              String         @id @default(cuid())
   customerId      String
   provider        SocialProvider
-  providerUserId  String         // Google: sub; Apple: sub
-  email           String?        // captured at link time (Apple may withhold on subsequent sign-ins; we trust the first)
+  providerUserId  String         // Google: sub (Apple removed, v11.0.0)
+  email           String?        // captured at link time (trust the first-contact email)
   linkedAt        DateTime       @default(now())
   customer        Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
 

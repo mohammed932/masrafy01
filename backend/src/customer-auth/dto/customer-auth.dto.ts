@@ -61,7 +61,7 @@ export class CustomerProfileResponseDto {
   registrationPath!: RegistrationPath;
   @ApiProperty({ description: 'True when a password is set (always true for PHONE; SOCIAL until set).' })
   hasPassword!: boolean;
-  @ApiProperty({ enum: SocialProvider, isArray: true, description: 'Linked social providers (GOOGLE / APPLE).' })
+  @ApiProperty({ enum: SocialProvider, isArray: true, description: 'Linked social providers (GOOGLE).' })
   linkedProviders!: SocialProvider[];
   @ApiPropertyOptional({ description: 'ISO timestamp the mobile was OTP-verified; null until verified.' })
   mobileVerifiedAt?: string;

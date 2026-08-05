@@ -7,6 +7,7 @@ import 'package:app/core/result/failure.dart';
 import 'package:app/features/questionnaire/domain/constants/money_field_bindings.dart';
 import 'package:app/features/questionnaire/domain/entities/question_answer.dart';
 import 'package:app/features/questionnaire/domain/entities/questionnaire_snapshot_entity.dart';
+import 'package:app/features/questionnaire/domain/enums/loan_category.dart';
 import 'package:app/features/questionnaire/domain/usecases/questionnaire_usecase.dart';
 
 part 'questionnaire_cubit.freezed.dart';
@@ -14,8 +15,10 @@ part 'questionnaire_state.dart';
 
 /// Orchestrates the generic, backend-driven questionnaire wizard used by every
 /// loan category (Principle II — the questionnaire is DATA). On [load] it
-/// fetches the ONE global published snapshot (feature 010: the category filters
-/// programs, not questions); one group renders as one step. Holds the typed
+/// fetches the published snapshot for that category: the question pool is GLOBAL
+/// (one list, one version) and each question is assigned in the dashboard to the
+/// categories that ask it, so the category decides both which questions are
+/// asked and which programs match. One group renders as one step. Holds the typed
 /// answers (`questionCode → QuestionAnswer`) plus the active step. Pure
 /// orchestration — all derivation/validation lives on [QuestionnaireState]
 /// (Principle XXXI). Screen-scoped via the page's `BlocProvider`.
@@ -25,10 +28,11 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
 
   final QuestionnaireUseCase _useCase;
 
-  /// Fetch (or re-fetch, on retry) the active global snapshot.
-  Future<void> load() async {
+  /// Fetch (or re-fetch, on retry) the snapshot for [category] — only the
+  /// questions that category asks.
+  Future<void> load(LoanCategory category) async {
     emit(state.copyWith(status: RequestState.loading, failure: null));
-    final result = await _useCase.getActive();
+    final result = await _useCase.getActive(category);
     result.fold(
       (failure) =>
           emit(state.copyWith(status: RequestState.error, failure: failure)),

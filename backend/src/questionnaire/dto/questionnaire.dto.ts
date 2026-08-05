@@ -89,7 +89,16 @@ export class TextRulesDto {
 export const TEXT_MAX_LENGTH_DEFAULT = 500;
 
 export class CreateQuestionDto {
-  @ApiProperty() @IsString() @Length(1, 30) groupId!: string;
+  /**
+   * Optional: the pool is authored FLAT, so the admin editor never names a group.
+   * Omitted → the service resolves one (first active group, else a default), which
+   * is why a flat client can create a question with no notion of grouping at all.
+   */
+  @ApiPropertyOptional({ description: 'Omit to let the server place the question' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 30)
+  groupId?: string;
   @ApiPropertyOptional({ enum: QuestionType, default: 'SINGLE_SELECT' })
   @IsOptional()
   @IsEnum(QuestionType)
@@ -99,7 +108,8 @@ export class CreateQuestionDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(0, 500) helperTextAr?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @Length(0, 500) helperTextEn?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isRequired?: boolean;
-  @ApiProperty() @IsInt() @Min(0) displayOrder!: number;
+  /** Omitted → appended to the end of the pool. Order is set by drag, not typed. */
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) displayOrder?: number;
   @ApiPropertyOptional({ type: EnabledWhenDto })
   @IsOptional()
   @ValidateNested()
@@ -120,6 +130,50 @@ export class CreateQuestionDto {
   @ValidateNested()
   @Type(() => TextRulesDto)
   text?: TextRulesDto | null;
+
+  /**
+   * Which loan categories this question is asked for. Omitted → all four, so a
+   * newly added question is never invisible; narrow it on the assignment tab.
+   */
+  @ApiPropertyOptional({ enum: LoanCategory, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(4)
+  @IsEnum(LoanCategory, { each: true })
+  categories?: LoanCategory[];
+}
+
+/**
+ * Replace one question's loan-category assignment. The submitted array IS the new
+ * set (not a delta), and MAY be empty — an empty set parks the question: kept and
+ * editable, asked for nothing.
+ */
+export class SetQuestionCategoriesDto {
+  @ApiProperty({ enum: LoanCategory, isArray: true })
+  @IsArray()
+  @ArrayMaxSize(4)
+  @IsEnum(LoanCategory, { each: true })
+  categories!: LoanCategory[];
+}
+
+export class QuestionCategoryAssignmentDto {
+  @ApiProperty() @IsString() @Length(1, 30) questionId!: string;
+  @ApiProperty({ enum: LoanCategory, isArray: true })
+  @IsArray()
+  @ArrayMaxSize(4)
+  @IsEnum(LoanCategory, { each: true })
+  categories!: LoanCategory[];
+}
+
+/** Reassign many questions in ONE transaction + ONE publish (column actions). */
+export class SetQuestionCategoriesBulkDto {
+  @ApiProperty({ type: [QuestionCategoryAssignmentDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => QuestionCategoryAssignmentDto)
+  assignments!: QuestionCategoryAssignmentDto[];
 }
 
 export class UpdateQuestionDto {
@@ -158,7 +212,23 @@ export class UpdateQuestionDto {
 export class CreateOptionDto {
   @ApiProperty() @IsString() @Length(1, 200) labelAr!: string;
   @ApiProperty() @IsString() @Length(1, 200) labelEn!: string;
-  @ApiProperty() @IsInt() @Min(0) displayOrder!: number;
+  /** Omitted → appended after the question's existing options. */
+  @ApiPropertyOptional() @IsOptional() @IsInt() @Min(0) displayOrder?: number;
+}
+
+/**
+ * Reorder the whole flat pool in one call: `ids` is the new order, front to back,
+ * and `displayOrder` becomes each id's index. Sent as a full sequence rather than
+ * a single moved id so a drag can never leave two questions sharing an order.
+ */
+export class ReorderQuestionsDto {
+  @ApiProperty({ type: [String], description: 'Question ids in their new order' })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @IsString({ each: true })
+  @Length(1, 30, { each: true })
+  ids!: string[];
 }
 
 export class UpdateOptionDto {

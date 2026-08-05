@@ -7,9 +7,9 @@
  * runtime mapping is required — the repository casts at the Prisma boundary.
  */
 
+/** Google is the only social provider (constitution v11.0.0 — Apple removed). */
 export enum SocialProvider {
   GOOGLE = 'GOOGLE',
-  APPLE = 'APPLE',
 }
 
 export enum OtpPurpose {

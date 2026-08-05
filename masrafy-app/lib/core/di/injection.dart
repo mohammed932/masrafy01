@@ -292,8 +292,9 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
 
   // matching — apply (real offers) + select-offer (proceed). Data-layer
-  // lazySingletons; screen-scoped cubits (Principle XXXI). MatchingResultsCubit
-  // reads the profile age via AuthUseCase before calling /apply.
+  // lazySingletons; screen-scoped cubits (Principle XXXI). The applicant age is
+  // derived server-side from the customer's birthday (Principle XXXVII / A31),
+  // so the results cubit calls /apply directly — no profile read first.
   getIt.registerLazySingleton(
     () => MatchingRemoteDataSource(getIt<BaseNetwork>()),
   );
@@ -303,9 +304,7 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   getIt.registerLazySingleton(
     () => MatchingUseCase(getIt<MatchingRepository>()),
   );
-  getIt.registerFactory(
-    () => MatchingResultsCubit(getIt<MatchingUseCase>(), getIt<AuthUseCase>()),
-  );
+  getIt.registerFactory(() => MatchingResultsCubit(getIt<MatchingUseCase>()));
   getIt.registerFactory(() => SelectOfferCubit(getIt<MatchingUseCase>()));
 
   // account — settings & security (UI-only mock; toggles flip local state).

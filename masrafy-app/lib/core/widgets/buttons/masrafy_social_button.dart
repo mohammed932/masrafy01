@@ -4,7 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
-/// Outlined social-provider button (Google / Apple) used on the login screen
+/// Outlined social-provider button (Google) used on the login screen
 /// and the final onboarding slide. Shared per Principle XXXIII. Tokens only.
 class MasrafySocialButton extends StatelessWidget {
   const MasrafySocialButton({

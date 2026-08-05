@@ -5,6 +5,14 @@
 **Status**: Draft
 **Input**: User description: "Mobile Authentication & Two-Path Registration: no guest mode. Path A (phone signup) collects mobile + OTP + full name + email + password + age upfront — customer is fully populated, loan-request flow is just National ID. Path B (Google/Apple) creates a lite account at sign-in with only the provider's name (and possibly email); at loan-request time a MANDATORY profile-completion popup asks for mobile + OTP + email + age before the user can proceed to National ID + submission. Returning users: phone-signup customers log in with mobile + password (no SMS); social customers re-sign-in via Google/Apple. Forgot-password OTP reset (phone-signup customers only)."
 
+> **Superseded in part — constitution v11.0.0 (2026-08-04):** Apple sign-in is
+> removed platform-wide. Google is the only social provider. Every mention of
+> Apple below (the "Continue with Apple" CTA, `/auth/social/apple`,
+> `/auth/apple/login`, the Apple ID-token verifier, `APPLE_BUNDLE_ID`,
+> `sign_in_with_apple`, and the `APPLE` enum value) is historical and no longer
+> exists in the code. Applicant `age` is likewise no longer sent by any client —
+> it is derived from `birthday` server-side (A31, extended v11.0.0).
+
 ## Clarifications
 
 > **v4.0.0 model (supersedes the 2026-05-26 clarifications below where they conflict)**: BOTH registration paths (PHONE and SOCIAL) create a LITE customer row at OTP/provider time, then a MANDATORY profile-completion step finalizes the account. There is NO "fully upfront" PHONE registration and NO loan-request "popup". Profile completion uploads the profile photo + National ID front/back FIRST (customer-scoped presign endpoints), then `POST /v1/auth/profile/complete` writes `firstName`, `lastName`, `birthday` (age ALWAYS derived from `birthday`, never stored), and — PHONE only — `password`. National ID is collected at PROFILE COMPLETION (two customer-linked `Document` rows), not at apply. Apply and select-offer are GATED on profile completeness (`PROFILE_INCOMPLETE`). No guest mode; `Application.isGuest`, `mobileClientId`, and the claim flow are REMOVED from code. Where older text below says `fullName`, stored `age`, "upfront", "popup", or "National ID at apply", read it through this v4.0.0 model.
