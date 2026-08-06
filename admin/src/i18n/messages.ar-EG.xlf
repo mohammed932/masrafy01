@@ -673,7 +673,7 @@
       <trans-unit id="qedit.sec_answer" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
       <trans-unit id="qedit.answer_type" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
       <trans-unit id="qedit.type_locked" datatype="html"><source>The answer type can&apos;t change once applicants have answered this question — their stored answers would no longer match it. Add a new question instead.</source><target>لا يمكن تغيير نوع الإجابة بعد أن أجاب المتقدمون على هذا السؤال — إجاباتهم المحفوظة لن تطابقه. أضف سؤالًا جديدًا بدلًا من ذلك.</target></trans-unit>
-      <trans-unit id="qedit.not_scoreable" datatype="html"><source>Only single-choice questions carry scoring weights, so this question won&apos;t affect approval probability.</source><target>الأسئلة ذات الاختيار الواحد فقط تحمل أوزان التقييم، لذا لن يؤثر هذا السؤال على احتمالية الموافقة.</target></trans-unit>
+      <trans-unit id="qedit.scoring_by_type" datatype="html"><source>This type carries scoring weights too — a number scores by the band it falls in, text by whether it was answered. Set that per program in its scoring weights.</source><target>هذا النوع يحمل أوزان تقييم أيضًا — الرقم يُقيَّم حسب الشريحة التي يقع فيها، والنص حسب الإجابة عليه من عدمها. يُضبط ذلك لكل برنامج في أوزان التقييم الخاصة به.</target></trans-unit>
       <trans-unit id="qedit.required" datatype="html"><source>Required</source><target>مطلوب</target></trans-unit>
       <trans-unit id="qedit.sec_rules" datatype="html"><source>Accepted values</source><target>القيم المقبولة</target></trans-unit>
       <trans-unit id="qedit.num_min" datatype="html"><source>Minimum</source><target>الحد الأدنى</target></trans-unit>

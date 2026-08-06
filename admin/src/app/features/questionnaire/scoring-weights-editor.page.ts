@@ -614,50 +614,61 @@ interface WizardStep {
         </form>
 
         <!-- ═══ FOOTER ════════════════════════════════════════════════════
-             Sticky: the next action is one glance away at any step height,
-             and the blocker for THIS step is spelled out beside it. -->
+             FIXED to the viewport bottom, not sticky: a sticky bar is laid out in
+             flow and only pinned while it would otherwise be off-screen, so it
+             lifts and re-seats as the scroll reaches its end. This one does not
+             move at any scroll offset. The bar spans the viewport; the inner row
+             holds the content column's width so the buttons stay aligned with the
+             form above them. -->
         <footer class="form-footer">
-          @if (blocker(); as msg) {
-            <span class="blocker" role="status">
-              <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
-              <span>{{ msg }}</span>
-            </span>
-          } @else if (form.dirty && !saving()) {
-            <span class="dirty" i18n="@@scoring.editor.unsaved">Unsaved changes</span>
-          }
-          <span class="footer-spacer"></span>
-          @if (stepIndex() > 0) {
-            <button nz-button type="button" (click)="prev()" [disabled]="saving()">
-              <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
-              <span i18n="@@scoring.editor.prev">Previous</span>
-            </button>
-          }
-          @if (!isLastStep()) {
-            <button
-              nz-button
-              nzType="primary"
-              type="button"
-              [disabled]="!!blocker()"
-              (click)="next()"
-            >
-              <span i18n="@@scoring.editor.next">Continue</span>
-              <span nz-icon nzType="arrow-right" nzTheme="outline" aria-hidden="true"></span>
-            </button>
-          } @else {
-            <button
-              nz-button
-              nzType="primary"
-              type="button"
-              [disabled]="saving() || form.invalid || !canSave()"
-              [nzLoading]="saving()"
-              (click)="save()"
-            >
-              @if (!saving()) {
-                <span nz-icon nzType="save" nzTheme="outline" aria-hidden="true"></span>
-              }
-              <span i18n="@@scoring.editor.save">Save scoring</span>
-            </button>
-          }
+          <div class="footer-inner">
+            @if (blocker(); as msg) {
+              <span class="blocker" role="status">
+                <span
+                  nz-icon
+                  nzType="exclamation-circle"
+                  nzTheme="outline"
+                  aria-hidden="true"
+                ></span>
+                <span>{{ msg }}</span>
+              </span>
+            } @else if (form.dirty && !saving()) {
+              <span class="dirty" i18n="@@scoring.editor.unsaved">Unsaved changes</span>
+            }
+            <span class="footer-spacer"></span>
+            @if (stepIndex() > 0) {
+              <button nz-button type="button" (click)="prev()" [disabled]="saving()">
+                <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
+                <span i18n="@@scoring.editor.prev">Previous</span>
+              </button>
+            }
+            @if (!isLastStep()) {
+              <button
+                nz-button
+                nzType="primary"
+                type="button"
+                [disabled]="!!blocker()"
+                (click)="next()"
+              >
+                <span i18n="@@scoring.editor.next">Continue</span>
+                <span nz-icon nzType="arrow-right" nzTheme="outline" aria-hidden="true"></span>
+              </button>
+            } @else {
+              <button
+                nz-button
+                nzType="primary"
+                type="button"
+                [disabled]="saving() || form.invalid || !canSave()"
+                [nzLoading]="saving()"
+                (click)="save()"
+              >
+                @if (!saving()) {
+                  <span nz-icon nzType="save" nzTheme="outline" aria-hidden="true"></span>
+                }
+                <span i18n="@@scoring.editor.save">Save scoring</span>
+              </button>
+            }
+          </div>
         </footer>
       }
     </section>
@@ -674,13 +685,10 @@ interface WizardStep {
         gap: var(--space-4);
         max-inline-size: min(1080px, 100%);
         margin-inline: auto;
-        /* The sticky footer can never travel past this box's bottom edge, so
-           the page ends flush with the scrollport — the negative margin
-           absorbs the shell content area's own trailing padding. Any trailing
-           space here would let the action bar lift off the bottom edge as the
-           scroll reaches its end. */
-        padding-block-end: 0;
-        margin-block-end: calc(-1 * var(--space-6));
+        /* Clearance for the viewport-fixed action bar. Without it the bar covers
+           the last control instead of sitting after it — and the last control is
+           an answer-score slider the admin has to reach to unblock Continue. */
+        padding-block-end: calc(var(--space-8) + var(--space-4));
       }
 
       /* ── Header ───────────────────────────────────────────────────────── */
@@ -1455,20 +1463,33 @@ interface WizardStep {
       }
 
       /* ── Footer ───────────────────────────────────────────────────────── */
+      /* Fixed to the viewport, edge to edge: it is a page-level action bar, so it
+         reads as part of the chrome rather than as a card that follows the form.
+         The page reserves its height below the content so the last control is
+         never underneath it. */
       .form-footer {
-        position: sticky;
+        --footer-h: calc(var(--space-8) + var(--space-1));
+        position: fixed;
+        inset-inline: 0;
         inset-block-end: 0;
-        z-index: 2;
+        z-index: 20;
+        min-block-size: var(--footer-h);
+        display: flex;
+        align-items: center;
+        padding-inline: var(--space-5);
+        background: var(--bg-surface);
+        border-block-start: 1px solid var(--border-default);
+        box-shadow: var(--shadow-md);
+      }
+      /* Same column as the form above, so Continue lands under the fields it
+         completes instead of against the window edge. */
+      .footer-inner {
         display: flex;
         align-items: center;
         gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        background: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-block-end: 0;
-        /* Seats on the bottom edge — square where it meets it. */
-        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-        box-shadow: var(--shadow-md);
+        inline-size: min(1080px, 100%);
+        margin-inline: auto;
+        padding-block: var(--space-3);
       }
       .footer-spacer {
         flex: 1 1 auto;
@@ -1490,6 +1511,19 @@ interface WizardStep {
 
       /* ── Narrow ───────────────────────────────────────────────────────── */
       @media (max-width: 720px) {
+        /* The bar is allowed a second line here rather than ellipsising the
+           blocker — the reason Continue is dead must stay readable — so the
+           clearance below the content grows to match. */
+        .form-footer {
+          padding-inline: var(--space-4);
+        }
+        .footer-inner {
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        }
+        .page {
+          padding-block-end: calc(var(--space-9) + var(--space-4));
+        }
         .weight-list {
           grid-template-columns: minmax(0, 1fr) auto;
         }

@@ -781,6 +781,221 @@ textarea.ant-input {
   margin-block-start: 4px;
 }
 
+// ============================================================================
+// NG-ZORRO message (`nz-message`) — confirmation capsule
+// ============================================================================
+// Stock antd is a 2px-radius pure-white box on a weak triple shadow, parked at
+// `top: 8px` — floating ON the azure topbar, with a `#fff` surface that suits
+// neither the warm light canvas nor dark theme. Re-skins the same DOM into a
+// design-system capsule: every surface value derives from ONE `--toast-hue` set
+// per message type, the bare glyph is promoted to a tinted medallion, and entry
+// motion is layered (capsule settles → medallion pops → ring pings → sheen).
+//
+// Motion ownership is split on purpose. `.ant-message-notice` belongs to
+// NG-ZORRO's `moveUpMotion` Angular animation, which writes INLINE styles — CSS
+// there would fight the enter/leave transitions. So every custom keyframe lives
+// on `.ant-message-notice-content` and below, and runs concurrently with it.
+//
+// No fill-mode on any of these: base state is the resting state, so a keyframe
+// that never runs (reduced motion, CSS parse failure) leaves a correct capsule
+// instead of one stuck at scale 0.5 — and post-animation `transform` reverts to
+// `none`, letting the hover lift take over.
+// ============================================================================
+.ant-message {
+  top: var(--toast-top) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-sans) !important;
+}
+
+// antd's 8px block padding stacks queued toasts 16px apart — too airy for a
+// group that should read as one column.
+.ant-message-notice {
+  padding-block: var(--space-1) !important;
+  padding-inline: var(--space-2) !important;
+}
+
+// ── Type → hue. The ONE mapping; tint, edge, medallion and ping all derive. ──
+// `:has()` because antd puts the type class on the inner content div, and custom
+// properties only inherit downward. Every consumer carries a `--primary` fallback
+// so an unsupported `:has()` degrades to a branded capsule, not a broken one.
+.ant-message-notice-content:has(.ant-message-success) { --toast-hue: var(--success); }
+.ant-message-notice-content:has(.ant-message-error) { --toast-hue: var(--error); }
+.ant-message-notice-content:has(.ant-message-warning) { --toast-hue: var(--warning); }
+.ant-message-notice-content:has(.ant-message-info),
+.ant-message-notice-content:has(.ant-message-loading) { --toast-hue: var(--info); }
+
+.ant-message-notice-content {
+  position: relative;
+  overflow: hidden; // clips the sheen sweep to the capsule
+  max-inline-size: min(var(--toast-max-inline-size), calc(100vw - var(--space-6)));
+  padding-block: var(--space-3) !important;
+  padding-inline: var(--space-4) !important;
+  border: 1px solid
+    color-mix(in srgb, var(--toast-hue, var(--primary)) var(--toast-edge-strength), var(--border-default)) !important;
+  border-radius: var(--toast-radius) !important;
+  background: color-mix(in srgb, var(--toast-hue, var(--primary)) var(--toast-tint-strength), var(--bg-surface)) !important;
+  box-shadow: var(--toast-shadow) !important;
+  transition:
+    box-shadow var(--motion-duration-base) var(--motion-easing-standard),
+    transform var(--motion-duration-base) var(--motion-easing-standard);
+  animation: toast-capsule-in var(--motion-duration-slow) var(--motion-easing-standard);
+}
+
+// The container is `pointer-events: none` but the capsule is `all`, and hovering
+// PAUSES nz-message's dismiss timer. The lift is that pause made visible.
+.ant-message-notice-content:hover {
+  transform: translateY(var(--toast-lift));
+  box-shadow: var(--toast-shadow-hover) !important;
+}
+
+// One-shot light sweep. `opacity: 0` at rest, and the pre-roll delay lives in the
+// keyframe percentages rather than `animation-delay`, so no fill-mode is needed.
+.ant-message-notice-content::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inline-size: var(--toast-sheen-width);
+  background: linear-gradient(100deg, transparent 0%, var(--toast-sheen) 50%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  animation: toast-sheen var(--toast-sheen-duration) var(--motion-easing-standard);
+}
+.ant-message-rtl .ant-message-notice-content::after {
+  animation-name: toast-sheen-rtl;
+}
+
+.ant-message-custom-content {
+  display: flex;
+  align-items: center;
+  gap: var(--toast-gap);
+  text-align: start; // antd centers; a wrapped 3-line error must not be centered
+}
+
+// Bare glyph → tinted medallion. Also unwinds antd's `top: 1px` optical nudge and
+// its PHYSICAL `margin-right` / `.ant-message-rtl` mirror — flex `gap` owns the
+// spacing now, so it is direction-correct for free.
+.ant-message-custom-content > .anticon {
+  position: relative;
+  top: 0 !important;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--toast-medallion-size);
+  block-size: var(--toast-medallion-size);
+  margin-inline: 0 !important;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--toast-hue, var(--primary)) var(--toast-disc-strength), var(--bg-surface));
+  color: var(--toast-hue, var(--primary)) !important;
+  font-size: var(--toast-icon-size) !important;
+}
+
+// `loading` is excluded: antd drives that glyph with its own infinite
+// `loadingCircle` animation on this same element, and an `animation` shorthand
+// here would replace it outright — the spinner would freeze.
+.ant-message-custom-content:not(.ant-message-loading) > .anticon {
+  animation: toast-medallion-in var(--toast-medallion-duration) var(--motion-easing-standard);
+}
+
+// Radar ping — a RING, not a disc, so its transparent interior never washes over
+// the glyph it is drawing attention to. Sized to stay inside the capsule's own
+// padding at full scale, so `overflow: hidden` above cannot clip it.
+.ant-message-custom-content:not(.ant-message-loading) > .anticon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: var(--toast-ping-ring) solid
+    color-mix(in srgb, var(--toast-hue, var(--primary)) var(--toast-halo-strength), transparent);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  animation: toast-ping var(--toast-ping-duration) var(--motion-easing-standard);
+}
+
+.ant-message-custom-content > span:not(.anticon) {
+  color: var(--text-primary) !important;
+  font-size: var(--text-sm) !important;
+  font-weight: var(--font-medium) !important;
+  line-height: var(--leading-normal) !important;
+  letter-spacing: var(--tracking-normal) !important;
+}
+
+@keyframes toast-capsule-in {
+  from {
+    transform: scale(0.96);
+  }
+}
+@keyframes toast-medallion-in {
+  0%,
+  20% {
+    transform: scale(0.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes toast-ping {
+  0%,
+  24% {
+    transform: scale(1);
+    opacity: 0;
+  }
+  38% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(var(--toast-ping-scale));
+    opacity: 0;
+  }
+}
+@keyframes toast-sheen {
+  0%,
+  18% {
+    transform: translateX(-160%) skewX(-14deg);
+    opacity: 0;
+  }
+  32% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(320%) skewX(-14deg);
+    opacity: 0;
+  }
+}
+@keyframes toast-sheen-rtl {
+  0%,
+  18% {
+    transform: translateX(160%) skewX(14deg);
+    opacity: 0;
+  }
+  32% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-320%) skewX(14deg);
+    opacity: 0;
+  }
+}
+
+// Explicit even though the global `*` rule below already flattens durations:
+// the intent is that the capsule still ARRIVES (NG-ZORRO's own fade carries it),
+// it just stops performing. Decoration drops out entirely rather than flickering.
+@media (prefers-reduced-motion: reduce) {
+  .ant-message-notice-content,
+  .ant-message-custom-content > .anticon {
+    animation: none !important;
+  }
+  .ant-message-notice-content::after,
+  .ant-message-custom-content > .anticon::after {
+    animation: none !important;
+    content: none;
+  }
+  .ant-message-notice-content:hover {
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   section.page,
   section.dashboard {

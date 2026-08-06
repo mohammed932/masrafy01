@@ -642,10 +642,14 @@ type TypeFilter = QuestionType | 'ALL';
                 stored answers would no longer match it. Add a new question instead.
               </p>
             }
+            <!-- Every type is scoreable since v14.0.0 (numeric by band, several
+                 choices by aggregation, text by presence). The old copy here said
+                 the opposite and read as a warning, which told admins their income
+                 and amount questions could not move a match. -->
             @if (!isChoice(selectedType())) {
-              <p class="hint warn" i18n="@@qedit.not_scoreable">
-                Only single-choice questions carry scoring weights, so this question won't affect
-                approval probability.
+              <p class="hint" i18n="@@qedit.scoring_by_type">
+                This type carries scoring weights too — a number scores by the band it falls in,
+                text by whether it was answered. Set that per program in its scoring weights.
               </p>
             }
 
@@ -1488,10 +1492,13 @@ type TypeFilter = QuestionType | 'ALL';
       .mh-close {
         margin-inline-start: var(--space-2, 8px);
       }
+      /* Holds the form and nothing else. The SCROLL belongs to .form-cols, one
+         level down, so the action bar can be a sibling of the scrollport instead
+         of an overlay inside it. */
       .modal-body {
-        padding: var(--space-5, 24px);
-        overflow-y: auto;
-        overscroll-behavior: contain;
+        display: grid;
+        min-block-size: 0;
+        overflow: hidden;
       }
       @keyframes qe-fade {
         from {
@@ -1511,25 +1518,27 @@ type TypeFilter = QuestionType | 'ALL';
           transform: none;
         }
       }
+      /* Scrolling region + action bar, as two grid ROWS. Rows cannot overlap, so
+         no control can end up under the bar — which is what the previous sticky
+         bar did to the Required switch at every scroll offset but the last. */
       .form {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-3, 12px);
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        min-block-size: 0;
       }
       /* The width the group rail used to occupy now goes to the editor: wording on
-         one side, the answers it produces on the other, both visible at once. */
+         one side, the answers it produces on the other, both visible at once.
+         This is also the scrollport — it owns the body padding, so the last
+         control in a column clears the bar by a full 24px of its own padding. */
       .form-cols {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: var(--space-5, 24px);
         align-items: start;
-        /* The sticky action bar lifts off its flow position at any scroll offset
-           other than the very bottom, and parked on top of the last control in the
-           left column — the Required switch, half-eaten by an opaque bar. The
-           padding gives the bar empty space to cover; the equal negative margin
-           cancels it once scrolled to the end, so no gap opens above the bar. */
-        padding-block-end: var(--space-7, 48px);
-        margin-block-end: calc(var(--space-7, 48px) * -1);
+        padding: var(--space-5, 24px);
+        min-block-size: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
       }
       .col {
         display: flex;
@@ -1589,23 +1598,18 @@ type TypeFilter = QuestionType | 'ALL';
         padding: 1px 8px;
         border-radius: var(--radius-pill, 999px);
       }
-      /* Pinned to the scrollport bottom (inset 0), and the negative margins let it
-         span the body's full width and swallow its bottom padding so it sits flush
-         on the modal's edge instead of floating 24px above it. */
+      /* Its OWN grid row on the modal's bottom edge: always visible, never over
+         anything. No sticky, no negative margins to cancel. */
       .form-actions {
-        position: sticky;
-        inset-block-end: 0;
-        z-index: 1;
         display: flex;
         align-items: center;
         justify-content: flex-end;
         gap: var(--space-2, 8px);
-        margin-block-start: var(--space-2, 8px);
-        margin-inline: calc(var(--space-5, 24px) * -1);
-        margin-block-end: calc(var(--space-5, 24px) * -1);
         padding: var(--space-3, 12px) var(--space-5, 24px);
         background: var(--qe-surface);
         border-block-start: 1px solid var(--qe-line);
+        border-end-start-radius: var(--qe-radius);
+        border-end-end-radius: var(--qe-radius);
       }
       .del-q {
         margin-inline-end: auto;
@@ -1917,12 +1921,10 @@ type TypeFilter = QuestionType | 'ALL';
         .modal {
           max-block-size: calc(100vh - var(--space-5, 24px));
         }
-        .modal-body {
+        .form-cols {
           padding: var(--space-4, 16px);
         }
         .form-actions {
-          margin-inline: calc(var(--space-4, 16px) * -1);
-          margin-block-end: calc(var(--space-4, 16px) * -1);
           padding-inline: var(--space-4, 16px);
         }
       }

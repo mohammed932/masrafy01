@@ -85,6 +85,38 @@
   --content-max-width: 1280px;
   --card-max-width-auth: 420px;
 
+  // ===== Toast capsule (nz-message) ==========================================
+  // Stock antd parks the message at `top: 8px` — i.e. floating ON the azure
+  // topbar. Hang it just below instead.
+  --toast-top: calc(var(--topbar-height) + var(--space-3));
+  --toast-radius: var(--radius-xl);
+  --toast-gap: 10px;
+  --toast-max-inline-size: 46ch;
+  --toast-medallion-size: 26px;
+  --toast-icon-size: 14px;
+  --toast-ping-ring: 1.5px;
+  --toast-ping-scale: 1.7;
+  --toast-sheen-width: 28%;
+  --toast-lift: -2px;
+  // Every capsule surface value derives from ONE `--toast-hue` (set per message
+  // type) mixed at these strengths — retune the whole family in one place, and
+  // the mix follows the active theme's own `--bg-surface` / `--border-default`.
+  --toast-tint-strength: 7%;
+  --toast-edge-strength: 30%;
+  --toast-disc-strength: 15%;
+  --toast-halo-strength: 40%;
+  // Two-layer elevation: tight contact edge + wide ambient bloom, tinted toward
+  // the warm neutral so it doesn't read as a gray box on the warm canvas.
+  --toast-shadow: 0 1px 2px rgba(43, 35, 32, 0.08), 0 14px 34px -10px rgba(43, 35, 32, 0.22);
+  --toast-shadow-hover: 0 1px 2px rgba(43, 35, 32, 0.10), 0 20px 46px -12px rgba(43, 35, 32, 0.30);
+  // One-shot light sweep on entry — makes the surface read as material. Kept low
+  // enough to be a glint: any higher and the sweep washes the semantic tint out
+  // for the third of a second it takes to cross the capsule.
+  --toast-sheen: rgba(255, 255, 255, 0.42);
+  --toast-sheen-duration: 900ms;
+  --toast-medallion-duration: 420ms;
+  --toast-ping-duration: 760ms;
+
   // ===== Legacy aliases (bridge to existing masrafy code) ====================
   --color-brand-primary: var(--primary);
   --color-brand-primary-hover: var(--primary-hover);
@@ -184,4 +216,15 @@
   --color-topbar-text: var(--text-primary);
   --shadow-focus-ring: 0 0 0 3px rgba(91, 165, 232, 0.40);
   --focus-halo: 0 0 0 3px rgba(91, 165, 232, 0.40);
+
+  // Toast capsule — not an inversion: a 7% tint that reads on the warm light
+  // canvas is invisible on near-black, and a neutral-tinted shadow disappears.
+  // Stronger mixes, blacker bloom, and a sheen dialled back so it can't blow out.
+  --toast-tint-strength: 13%;
+  --toast-edge-strength: 44%;
+  --toast-disc-strength: 24%;
+  --toast-halo-strength: 62%;
+  --toast-shadow: 0 1px 2px rgba(0, 0, 0, 0.50), 0 18px 40px -12px rgba(0, 0, 0, 0.66);
+  --toast-shadow-hover: 0 1px 2px rgba(0, 0, 0, 0.55), 0 24px 52px -14px rgba(0, 0, 0, 0.74);
+  --toast-sheen: rgba(255, 255, 255, 0.10);
 }
