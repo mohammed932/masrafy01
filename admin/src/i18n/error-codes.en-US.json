@@ -127,6 +127,7 @@
   "QUESTION_TYPE_NOT_SCOREABLE": "Only single-choice questions can carry scoring weights.",
   "MONEY_FIELD_BINDING_MISSING": "A required number question is missing or inactive, so its figure cannot be collected.",
   "MONEY_FIGURE_MISSING": "A figure needed for this quote was never answered, so no estimate can be produced.",
+  "OBLIGATIONS_TOTAL_MISMATCH": "The stated total monthly payments do not match the individual debts listed.",
   "CALCULATOR_INPUT_INVALID": "Please check the amount, term, income and existing payments.",
   "CALCULATOR_PROGRAM_INACTIVE": "This program is not active, so it cannot be used for a calculation.",
   "PROGRAM_MISCONFIGURED": "This program is missing settings needed to produce figures.",

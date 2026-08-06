@@ -1325,6 +1325,9 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get q_dyn_obligations_total_helper => 'محسوب من الأقساط التي أدخلتها أعلاه.';
+
+  @override
   String get q_dyn_money_missing => 'أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.';
 
   @override
@@ -1669,6 +1672,20 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get results_unrated => 'لم يُقيَّم بعد';
+
+  @override
+  String get results_unavailable_section => 'غير متاح لك حاليًا';
+
+  @override
+  String get results_unavailable_badge => 'لا يوجد عرض من هذا البنك';
+
+  @override
+  String get results_unavailable_generic => 'تعذّر على هذا البنك تقديم عرض لك حاليًا.';
+
+  @override
+  String results_unavailable_ceiling(String amount) {
+    return 'يمكنك الاقتراض حتى $amount جنيه من هذا البنك.';
+  }
 
   @override
   String get results_best_match => 'أفضل تطابق';
@@ -2059,6 +2076,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get error_calculator_program_inactive => 'هذا البرنامج غير متاح حاليًا.';
+
+  @override
+  String get error_obligations_total_mismatch => 'إجمالي أقساطك الشهرية غير مطابق. من فضلك راجع التزاماتك وحاول مرة أخرى.';
 
   @override
   String get reason_no_recognised_income => 'تعذّر الاعتراف بدخل شهري لهذا البرنامج.';

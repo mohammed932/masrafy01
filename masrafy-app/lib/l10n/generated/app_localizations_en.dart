@@ -1322,6 +1322,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get q_dyn_obligations_total_helper => 'Added up from the payments you listed above.';
+
+  @override
   String get q_dyn_money_missing => 'Fill in the amount, repayment period, income and current installments to see your offers.';
 
   @override
@@ -1666,6 +1669,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get results_unrated => 'Not rated yet';
+
+  @override
+  String get results_unavailable_section => 'Not available for you yet';
+
+  @override
+  String get results_unavailable_badge => 'No offer from this bank';
+
+  @override
+  String get results_unavailable_generic => 'This bank couldn\'t price an offer for you right now.';
+
+  @override
+  String results_unavailable_ceiling(String amount) {
+    return 'You could borrow up to $amount EGP here.';
+  }
 
   @override
   String get results_best_match => 'Best Match';
@@ -2056,6 +2073,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get error_calculator_program_inactive => 'This program is not available right now.';
+
+  @override
+  String get error_obligations_total_mismatch => 'Your monthly payments didn\'t add up. Please review your debts and try again.';
 
   @override
   String get reason_no_recognised_income => 'We couldn\'t recognise a monthly income for this program.';

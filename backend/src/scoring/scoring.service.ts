@@ -7,6 +7,7 @@ import { ERROR_CODES } from '@/common/errors/error-codes';
 import { ScoringRepository } from './scoring.repository';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
+import { OBLIGATION_ITEM_QUESTION_CODES } from '@/matching/pipeline/money-field-bindings';
 import { Decimal } from '@prisma/client/runtime/library';
 import type { QuestionType, ScoringWeightSet } from '@prisma/client';
 import type { SaveWeightsDto } from './dto/scoring.dto';
@@ -92,19 +93,31 @@ export class ScoringService {
     // scoring control needs: options for the choice types, bounds + unit for
     // NUMERIC, max length for TEXT. Filtering to SINGLE_SELECT here is what kept
     // income, existing debts, amount and term out of every match score.
-    return questions.map((q) => ({
-      code: q.code,
-      labelAr: q.questionAr,
-      labelEn: q.questionEn,
-      type: q.type,
-      categories: q.categories.map((c) => c.toLowerCase()),
-      options: q.options.map((o) => ({ code: o.code, labelAr: o.labelAr, labelEn: o.labelEn })),
-      numericMinValue: q.numericMinValue,
-      numericMaxValue: q.numericMaxValue,
-      numericUnitAr: q.numericUnitAr,
-      numericUnitEn: q.numericUnitEn,
-      textMaxLength: q.textMaxLength,
-    }));
+    return (
+      questions
+        // ...with ONE exception: the per-debt instalment questions. Debt burden is
+        // only meaningful as a TOTAL. Band each debt on its own and a single 5 000
+        // car loan reads "high debt" once while three 1 700 debts read "low debt"
+        // three times — the same burden scoring opposite ways, and the asked-weight
+        // denominator (v13.0.0) shifting with the number of debts on top of that.
+        // `current_installments`, the derived total, is the obligations question a
+        // program scores on; these five only exist to compute it accurately. Hidden
+        // rather than merely unseeded so it cannot be picked by accident.
+        .filter((q) => !OBLIGATION_ITEM_QUESTION_CODES.includes(q.code as never))
+        .map((q) => ({
+          code: q.code,
+          labelAr: q.questionAr,
+          labelEn: q.questionEn,
+          type: q.type,
+          categories: q.categories.map((c) => c.toLowerCase()),
+          options: q.options.map((o) => ({ code: o.code, labelAr: o.labelAr, labelEn: o.labelEn })),
+          numericMinValue: q.numericMinValue,
+          numericMaxValue: q.numericMaxValue,
+          numericUnitAr: q.numericUnitAr,
+          numericUnitEn: q.numericUnitEn,
+          textMaxLength: q.textMaxLength,
+        }))
+    );
   }
 
   // ---- Weight sets (direct save, v5.0.0) ----------------------------------
@@ -203,11 +216,7 @@ export class ScoringService {
       }
       return type;
     };
-    const requireType = (
-      questionCode: string,
-      expected: QuestionType,
-      rule: string,
-    ): void => {
+    const requireType = (questionCode: string, expected: QuestionType, rule: string): void => {
       const actual = requireKnown(questionCode);
       if (actual !== expected) {
         throw new DomainException(ERROR_CODES.WEIGHTS_RULE_TYPE_MISMATCH, {
@@ -405,7 +414,9 @@ export class ScoringService {
     }
     const rounded = Math.round(total * 10) / 10;
     if (rounded !== 100) {
-      throw new DomainException(ERROR_CODES.WEIGHTS_QUESTION_WEIGHT_SUM_INVALID, { total: rounded });
+      throw new DomainException(ERROR_CODES.WEIGHTS_QUESTION_WEIGHT_SUM_INVALID, {
+        total: rounded,
+      });
     }
   }
 }

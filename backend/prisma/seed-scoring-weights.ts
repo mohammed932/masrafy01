@@ -28,10 +28,19 @@
  * to drive here.
  */
 import { LoanCategory, Prisma, PrismaClient, ScoringWeightSetStatus } from '@prisma/client';
+import { seedNumericBands } from './seed-questionnaire';
+
+interface NumericBandRow {
+  from: string | null;
+  to: string | null;
+  score: number;
+}
 
 interface CategoryWeights {
   questionWeights: Record<string, number>;
   answerScores: Record<string, Record<string, number>>;
+  /** Filled in at write time by `withNumericBands` — never authored below. */
+  numericBands?: Record<string, NumericBandRow[]>;
 }
 
 export const WEIGHTS_BY_CATEGORY: Record<string, CategoryWeights> = {
@@ -780,11 +789,68 @@ export const WEIGHTS_BY_PROGRAM: Record<string, CategoryWeights> = {
   },
 };
 
+/**
+ * Repair a hand-authored scheme against the pool's ACTUAL question types.
+ *
+ * The schemes below were written when `monthly_income` and `current_installments`
+ * were bucket (choice) questions, so they weight them and give them option
+ * `answerScores` like `less_than_egp_2000: 100`. Feature 010 turned both into
+ * NUMERIC, and a NUMERIC answer is scored by BAND — those option keys can never
+ * match. The result was silent and expensive: the question kept its weight in the
+ * asked-weight denominator (Constitution V, v13.0.0) while earning 0 every time,
+ * so every seeded program was permanently capped below 100%.
+ *
+ * Derived from the live question rows rather than a hardcoded list of numeric
+ * codes, so a question that changes type later is repaired the same way without
+ * anyone remembering to edit this file.
+ */
+function withNumericBands(
+  scheme: CategoryWeights,
+  questionTypes: ReadonlyMap<string, { type: string; min: string | null; max: string | null }>,
+): CategoryWeights {
+  const answerScores: CategoryWeights['answerScores'] = {};
+  const numericBands: Record<string, NumericBandRow[]> = {};
+  for (const code of Object.keys(scheme.questionWeights)) {
+    const q = questionTypes.get(code);
+    if (q?.type === 'NUMERIC') {
+      // Same band shape + direction the questionnaire seeder uses, so a demo DB
+      // seeded by either route scores the same way. Multiplier 1: these schemes
+      // already carry per-program variation in their weights.
+      numericBands[code] = seedNumericBands(
+        code,
+        q.min !== null && q.max !== null
+          ? { minValue: q.min, maxValue: q.max, unitEn: '', unitAr: '' }
+          : undefined,
+        1,
+      );
+      continue; // drop the stale option scores — they can never match
+    }
+    const authored = scheme.answerScores[code];
+    if (authored) answerScores[code] = authored;
+  }
+  return { questionWeights: scheme.questionWeights, answerScores, numericBands };
+}
+
 /** Idempotent. Activates a v1 weight set for every program that has none yet. */
 export async function seedScoringWeights(prisma: PrismaClient, editorId: string): Promise<void> {
   const programs = await prisma.bankProgram.findMany({
     select: { id: true, programCode: true, productCategory: true },
   });
+  const questionTypes = new Map(
+    (
+      await prisma.question.findMany({
+        where: { isActive: true },
+        select: { code: true, type: true, numericMinValue: true, numericMaxValue: true },
+      })
+    ).map((q) => [
+      q.code,
+      {
+        type: q.type as string,
+        min: q.numericMinValue?.toString() ?? null,
+        max: q.numericMaxValue?.toString() ?? null,
+      },
+    ]),
+  );
 
   let created = 0;
   let skipped = 0;
@@ -811,7 +877,7 @@ export async function seedScoringWeights(prisma: PrismaClient, editorId: string)
         bankProgramId: program.id,
         status: ScoringWeightSetStatus.ACTIVE,
         versionNumber: 1,
-        weights: scheme as unknown as Prisma.InputJsonValue,
+        weights: withNumericBands(scheme, questionTypes) as unknown as Prisma.InputJsonValue,
         createdBy: editorId,
         approvedBy: editorId,
         approvedAt: new Date(),

@@ -9,6 +9,7 @@ import 'package:app/features/questionnaire/domain/entities/question_answer.dart'
 import 'package:app/features/questionnaire/domain/entities/questionnaire_snapshot_entity.dart';
 import 'package:app/features/questionnaire/domain/enums/loan_category.dart';
 import 'package:app/features/questionnaire/domain/usecases/questionnaire_usecase.dart';
+import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.dart';
 
 part 'questionnaire_cubit.freezed.dart';
 part 'questionnaire_state.dart';
@@ -72,7 +73,28 @@ class QuestionnaireCubit extends Cubit<QuestionnaireState> {
     } else {
       next[questionCode] = answer;
     }
+    _syncObligationsTotal(next);
     emit(state.copyWith(answers: next));
+  }
+
+  /// Keep the derived obligations total in step with the per-debt answers.
+  ///
+  /// The total is a real answer in [state.answers] — not a display-only value —
+  /// so it validates, submits and scores through the ordinary paths with no
+  /// special-casing anywhere downstream. It is simply never typed: the field is
+  /// read-only and this recomputes it after every edit, including after
+  /// UN-ticking a debt type, which must drop that amount from the total even
+  /// though the figure is still in the map.
+  ///
+  /// No-op on the pre-itemisation fallback path, where the applicant states the
+  /// lump sum himself and there is nothing to sum.
+  void _syncObligationsTotal(Map<String, QuestionAnswer> answers) {
+    final total = obligationsTotalOf(answers);
+    if (total == null) return;
+    // Two decimals, matching the server's `Decimal(18, 2)` answer column and the
+    // `toFixed(2)` the sum is compared against.
+    answers[kExistingObligationsQuestion] =
+        NumericAnswer(total.toStringAsFixed(2));
   }
 
   /// Advance the wizard. Guarded by [QuestionnaireState.canAdvance]; on the last

@@ -207,6 +207,10 @@ export const ERROR_CODES = {
   // Money-field bindings (code constants — never a Question column, A33)
   MONEY_FIELD_BINDING_MISSING: 'MONEY_FIELD_BINDING_MISSING',
   MONEY_FIGURE_MISSING: 'MONEY_FIGURE_MISSING',
+  // Itemised obligations: the stated total disagreed with the sum of the per-debt
+  // answers. The sum is authoritative, so this is a tampered or stale client —
+  // never a user mistake, because the total is not typed by hand.
+  OBLIGATIONS_TOTAL_MISMATCH: 'OBLIGATIONS_TOTAL_MISMATCH',
   // Calculator
   CALCULATOR_INPUT_INVALID: 'CALCULATOR_INPUT_INVALID',
   CALCULATOR_PROGRAM_INACTIVE: 'CALCULATOR_PROGRAM_INACTIVE',
@@ -391,6 +395,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   QUESTION_TYPE_NOT_SCOREABLE: 422,
   MONEY_FIELD_BINDING_MISSING: 422,
   MONEY_FIGURE_MISSING: 422,
+  OBLIGATIONS_TOTAL_MISMATCH: 422,
   CALCULATOR_INPUT_INVALID: 400,
   CALCULATOR_PROGRAM_INACTIVE: 409,
   PROGRAM_MISCONFIGURED: 422,

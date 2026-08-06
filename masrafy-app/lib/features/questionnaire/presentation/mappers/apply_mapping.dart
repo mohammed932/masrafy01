@@ -120,6 +120,39 @@ List<String> pickedOptions(
 ) =>
     answers[questionCode]?.pickedOptionCodes ?? const <String>[];
 
+// ---- Itemised obligations ---------------------------------------------------
+
+/// The applicant's total monthly instalments, summed from the per-debt answers.
+///
+/// Only debts whose TYPE is currently ticked contribute, so un-ticking a type
+/// drops its amount from the total even if the figure is still in state — the
+/// same rule the server applies, and the same rule `visibleAnswers` applies when
+/// deciding what to submit.
+///
+/// Returns null when the snapshot serves no debt-type question (a questionnaire
+/// published before this feature): the caller then falls back to the stated
+/// figure, exactly as before. Picking "none" is NOT null — it is a real 0.
+double? obligationsTotalOf(Map<String, QuestionAnswer> answers) {
+  final picks = answers[kDebtTypesQuestion];
+  if (picks == null || picks.isEmpty) return null;
+  var total = 0.0;
+  for (final pick in picks.pickedOptionCodes) {
+    final itemCode = obligationItemQuestionFor(pick);
+    if (itemCode == null) continue; // `none`, or a type with no amount question
+    total += num.tryParse(numericOf(answers, itemCode) ?? '')?.toDouble() ?? 0;
+  }
+  return total;
+}
+
+/// Whether the applicant ticked any real debt type.
+///
+/// Derived from the PICKS, not from `total > 0`: a credit card carried at a zero
+/// minimum payment is still a loan on book, which the old lump-sum derivation
+/// could never express.
+bool obligationsCarryDebt(Map<String, QuestionAnswer> answers) =>
+    pickedOptions(answers, kDebtTypesQuestion)
+        .any((pick) => obligationItemQuestionFor(pick) != null);
+
 /// The raw decimal string typed for a NUMERIC [questionCode], or null.
 String? numericOf(Map<String, QuestionAnswer> answers, String questionCode) {
   final answer = answers[questionCode];
@@ -161,6 +194,7 @@ class MoneyFigures {
     required this.tenorMonths,
     required this.monthlyIncomeEGP,
     required this.existingObligationsEGP,
+    required this.hasCurrentLoan,
   });
 
   /// Reads the four bound answers. Throws when any is missing or unparseable —
@@ -168,9 +202,16 @@ class MoneyFigures {
   /// blocks Finish while `QuestionnaireState.missingMoneyFigures` is non-empty,
   /// so a throw here means the gate was bypassed, not that a user hit it.
   factory MoneyFigures.fromAnswers(Map<String, QuestionAnswer> answers) {
+    // Obligations are DERIVED — summed from the per-debt answers, never recalled
+    // as a lump sum. So the total is not required to be present in `answers`
+    // when the itemised questions are being served; it is computed here and the
+    // read-only field is filled from the same function.
+    final itemisedTotal = obligationsTotalOf(answers);
     final missing = <String>[
       for (final code in kMoneyFieldQuestionCodes)
-        if (numericOf(answers, code) == null) code,
+        if (numericOf(answers, code) == null &&
+            !(code == kExistingObligationsQuestion && itemisedTotal != null))
+          code,
     ];
     if (missing.isNotEmpty) {
       throw StateError(
@@ -182,7 +223,9 @@ class MoneyFigures {
     final amount = num.tryParse(numericOf(answers, kRequestedAmountQuestion)!);
     final tenor = num.tryParse(numericOf(answers, kTenorMonthsQuestion)!);
     final income = num.tryParse(numericOf(answers, kMonthlyIncomeQuestion)!);
-    final obligations =
+    // Itemised sum when the debt-type question is served; the stated figure only
+    // on the fallback path, where `missing` above already proved it is present.
+    final obligations = itemisedTotal ??
         num.tryParse(numericOf(answers, kExistingObligationsQuestion)!);
     if (amount == null ||
         tenor == null ||
@@ -199,15 +242,25 @@ class MoneyFigures {
       tenorMonths: tenor.round().clamp(_minTenorMonths, _maxTenorMonths),
       monthlyIncomeEGP: egp(income),
       existingObligationsEGP: egp(obligations),
+      hasCurrentLoan: itemisedTotal != null
+          ? obligationsCarryDebt(answers)
+          : obligations > 0,
     );
   }
 
   final String requestedAmountEGP;
   final int tenorMonths;
   final String monthlyIncomeEGP;
+
+  /// Summed from the per-debt answers when the snapshot serves them; the stated
+  /// figure only on the pre-itemisation fallback path.
   final String existingObligationsEGP;
 
-  /// Whether the applicant carries any current installment — derived from the
-  /// stated figure, not from a separate yes/no bucket.
-  bool get hasCurrentLoan => (num.tryParse(existingObligationsEGP) ?? 0) > 0;
+  /// Whether the applicant carries any current instalment.
+  ///
+  /// From the debt-type PICKS when itemised — a credit card carried at a zero
+  /// minimum payment is still a loan on book, and the previous `total > 0`
+  /// derivation could never express that. Falls back to `total > 0` only on the
+  /// pre-itemisation path, where the picks do not exist.
+  final bool hasCurrentLoan;
 }

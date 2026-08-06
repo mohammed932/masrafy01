@@ -31,6 +31,36 @@ export interface ApprovalProbabilityResponseDto {
   engineVersion: string;
 }
 
+/**
+ * A program the engine checked but could not quote — listed, never hidden.
+ *
+ * `quoteProgram` failing is not covered by `skipEligibility`, so before this
+ * existed an applicant whose obligations used up a bank's whole allowed debt
+ * burden simply never saw that bank, with no reason given. The engine already
+ * carried everything needed on `MatchResult.unavailable` for exactly this
+ * purpose (`engine.service.ts` — "callers can list the program with its reason
+ * instead of dropping it"); apply just never read it.
+ *
+ * Deliberately NOT a `BankOffer`: an offer-less program is not an offer, and
+ * `BankOffer` is immutable post-creation (Principle I / A6). It rides on the
+ * response and is persisted in `Application.summary` so an idempotent replay
+ * returns the identical payload.
+ */
+export interface UnavailableProgramDto {
+  programCode: string;
+  bankName: string;
+  programFriendlyName: string;
+  /** A `FIGURES_UNAVAILABLE_REASONS` code — localized client-side (Principle III). */
+  reason: string;
+  /**
+   * The applicant's ceiling at this program, when he is priceable and simply has
+   * no room left. Lets the surface say "you could borrow up to X here" rather
+   * than showing an unexplained absence.
+   */
+  maxAffordableAmountEGP?: string;
+  dbrCapPercent?: string;
+}
+
 export interface ApplyMatchedResponse {
   success: true;
   data: {
@@ -42,6 +72,8 @@ export interface ApplyMatchedResponse {
       bestInstallmentEGP: string;
       bestRatePercent: string;
     };
+    /** Empty when every checked program produced an offer. */
+    unavailablePrograms: UnavailableProgramDto[];
     matchedOffers: Array<{
       /** Persisted BankOffer id — the select-offer key the client sends back. */
       bankOfferId: string;

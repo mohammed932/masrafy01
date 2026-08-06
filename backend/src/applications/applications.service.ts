@@ -42,7 +42,14 @@ import {
 } from '../common/errors/domain.exceptions';
 import { ScoringEngineVersionService } from '../scoring-versions/scoring-versions.service';
 import { CustomerProfileCompletenessService } from '@/customer-auth/customer-profile-completeness.service';
-import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
+import { QuestionnaireService, type ResolvedAnswer } from '@/questionnaire/questionnaire.service';
+import { DomainException } from '@/common/errors/domain.exceptions';
+import { ERROR_CODES } from '@/common/errors/error-codes';
+import {
+  DEBT_TYPES_QUESTION_CODE,
+  resolveObligations,
+  type ObligationsResolution,
+} from '@/matching/pipeline/money-field-bindings';
 import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import {
   toSelectedAnswers,
@@ -61,6 +68,7 @@ import type {
   ApplyResponse,
   ApprovalProbabilityResponseDto,
   ApprovalTierLiteral,
+  UnavailableProgramDto,
 } from './dto/apply-response.dto';
 import type {
   ApplicationDecisionStatus,
@@ -260,7 +268,8 @@ export class ApplicationsService {
     // (Principle XXXVII / A31). It prices money — the age-at-maturity rule
     // shortens the tenor, which moves the installment and the max loan.
     const age = await this.completeness.getApplicantAge(ctx.customerId);
-    const profile = this.buildProfile(dto, age);
+    const obligations = this.resolveApplicantObligations(dto, resolvedQuestionnaire);
+    const profile = this.buildProfile(dto, age, obligations);
     // MVP simplification: eligibility gating is dropped on apply — every active
     // program yields an offer, ranked purely by the per-bank approval score.
     // DBR is NOT part of that: affordability shapes the amount offered, so it
@@ -292,12 +301,39 @@ export class ApplicationsService {
       this.toOfferInput(o, scoringConfig.version),
     );
 
+    // Programs the engine checked but could not quote. `quoteProgram` failing is
+    // NOT covered by `skipEligibility` — it returns `eligible: false` with no
+    // offer, and `run()` builds `offers` from results that HAVE an offer, so
+    // these used to vanish from the customer's list with no reason given. The
+    // engine already carried the reason for exactly this purpose; apply just
+    // never read `result.results`.
+    const unavailablePrograms: UnavailableProgramDto[] = result.results.flatMap((r) => {
+      const u = r.unavailable;
+      if (!u) return [];
+      const program = activePrograms.find((p) => p.programCode === r.programCode);
+      return [
+        {
+          programCode: r.programCode,
+          bankName: program?.bankName ?? '',
+          programFriendlyName: program?.friendlyName ?? '',
+          reason: u.reason,
+          ...(u.maxAffordableAmountEGP
+            ? { maxAffordableAmountEGP: u.maxAffordableAmountEGP.toFixed(2) }
+            : {}),
+          ...(u.dbrCapPercent ? { dbrCapPercent: u.dbrCapPercent.toFixed(2) } : {}),
+        },
+      ];
+    });
+
     const summaryJson: JsonValueInput = {
       programsCheckedCount: result.programsChecked,
       eligibleProgramsCount: result.eligibleCount,
       engineDurationMs: result.engineDurationMs,
       bestRatePercent: result.offers[0]?.effectiveRatePercent.toFixed(4) ?? null,
       bestInstallmentEGP: result.offers[0]?.monthlyInstallmentEGP.toFixed(2) ?? null,
+      // Persisted so `toResponse` — which serves both the fresh apply and the
+      // idempotency replay off the stored row — returns the identical payload.
+      unavailablePrograms: unavailablePrograms as unknown as JsonValueInput,
     };
 
     const noMatchJson: JsonValueInput | undefined =
@@ -403,6 +439,17 @@ export class ApplicationsService {
     return this.toResponse(applicationId, fresh, correlationId, savedOfferIds);
   }
 
+  /**
+   * Read the unavailable-program list back out of the persisted summary blob.
+   *
+   * Tolerant by design: applications matched before this field existed have no
+   * key, and an empty list is the correct answer for them — never an error.
+   */
+  private readUnavailablePrograms(summary: unknown): UnavailableProgramDto[] {
+    const list = (summary as { unavailablePrograms?: unknown } | null)?.unavailablePrograms;
+    return Array.isArray(list) ? (list as UnavailableProgramDto[]) : [];
+  }
+
   private toResponse(
     applicationId: string,
     // Only bankOffers + scalar fields are read here, so type against the
@@ -429,6 +476,7 @@ export class ApplicationsService {
             bestInstallmentEGP: best ? best.monthlyInstallmentEGP.toFixed(2) : '0.00',
             bestRatePercent: best ? best.effectiveRatePercent.toFixed(4) : '0.0000',
           },
+          unavailablePrograms: this.readUnavailablePrograms(row.summary),
           matchedOffers: sorted.map((o) => this.toOfferDto(o, savedOfferIds)),
         },
       };
@@ -664,7 +712,59 @@ export class ApplicationsService {
     ) as JsonValueInput;
   }
 
-  private buildProfile(dto: ApplyRequestDto, age: number): ApplicantProfile {
+  /**
+   * The applicant's monthly obligations, from the itemised questionnaire answers
+   * when they were asked and from the request body otherwise.
+   *
+   * The SUM is authoritative. `dto.obligations.existingMonthlyObligationsEGP` is
+   * only cross-checked against it, never preferred, so editing the total in
+   * flight cannot buy affordability — and a disagreement is rejected rather than
+   * quietly resolved, because the total is computed on the client too and so a
+   * mismatch means a tampered or stale build, not a user slip.
+   */
+  private resolveApplicantObligations(
+    dto: ApplyRequestDto,
+    questionnaire: { resolved: ResolvedAnswer[]; askedQuestionCodes: string[] } | undefined,
+  ): ObligationsResolution {
+    const stated = new Decimal(dto.obligations.existingMonthlyObligationsEGP);
+    const statedOnly: ObligationsResolution = {
+      totalEGP: stated,
+      itemised: false,
+      itemisedCodes: [],
+      hasCurrentLoan: dto.obligations.hasCurrentLoan,
+      statedTotalMismatch: null,
+    };
+    // No dynamic answers (a category-less legacy submit) → nothing to sum from.
+    if (!questionnaire) return statedOnly;
+
+    const numericByCode = new Map<string, string>();
+    for (const a of questionnaire.resolved) {
+      if (a.numericValue !== null) numericByCode.set(a.questionCode, a.numericValue);
+    }
+    // `askedQuestionCodes` is the precise "was this snapshot serving the itemised
+    // flow" signal. A snapshot that predates it yields `undefined` here, which
+    // routes `resolveObligations` down its stated-lump-sum fallback.
+    const pickedDebtTypes = questionnaire.askedQuestionCodes.includes(DEBT_TYPES_QUESTION_CODE)
+      ? (questionnaire.resolved.find((a) => a.questionCode === DEBT_TYPES_QUESTION_CODE)
+          ?.selectedOptionCodes ?? [])
+      : undefined;
+
+    const resolved = resolveObligations({ numericByCode, pickedDebtTypes });
+    if (!resolved) return statedOnly;
+    if (resolved.statedTotalMismatch) {
+      throw new DomainException(ERROR_CODES.OBLIGATIONS_TOTAL_MISMATCH, {
+        statedEGP: resolved.statedTotalMismatch.statedEGP.toFixed(2),
+        computedEGP: resolved.statedTotalMismatch.computedEGP.toFixed(2),
+      });
+    }
+    return resolved;
+  }
+
+  private buildProfile(
+    dto: ApplyRequestDto,
+    age: number,
+    obligations: ObligationsResolution,
+  ): ApplicantProfile {
     const dec = (v?: string): Decimal | undefined => (v !== undefined ? new Decimal(v) : undefined);
     return {
       age,
@@ -687,8 +787,10 @@ export class ApplicationsService {
         bankCategory: dto.employment.bankCategory,
       },
       obligations: {
-        existingMonthlyObligationsEGP: new Decimal(dto.obligations.existingMonthlyObligationsEGP),
-        hasCurrentLoan: dto.obligations.hasCurrentLoan,
+        // Summed from the per-debt answers, NOT read off the request body — see
+        // `resolveApplicantObligations`.
+        existingMonthlyObligationsEGP: obligations.totalEGP,
+        hasCurrentLoan: obligations.hasCurrentLoan,
         currentLoanRatePercent: dec(dto.obligations.currentLoanRatePercent),
         monthsOnBookCurrentLoan: dto.obligations.monthsOnBookCurrentLoan,
         bkt1HitWithinMonths: dto.obligations.bkt1HitWithinMonths,

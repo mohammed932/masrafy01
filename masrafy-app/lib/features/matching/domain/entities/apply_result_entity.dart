@@ -13,6 +13,7 @@ class ApplyResultEntity extends Equatable {
     required this.matched,
     required this.applicationId,
     required this.offers,
+    this.unavailablePrograms = const [],
     this.summary,
     this.noMatchPrimaryReason,
   });
@@ -20,12 +21,59 @@ class ApplyResultEntity extends Equatable {
   final bool matched;
   final String applicationId;
   final List<OfferEntity> offers;
+
+  /// Programs checked but not quotable — see [UnavailableProgramEntity].
+  final List<UnavailableProgramEntity> unavailablePrograms;
   final ApplySummaryEntity? summary;
   final String? noMatchPrimaryReason;
 
   @override
-  List<Object?> get props =>
-      [matched, applicationId, offers, summary, noMatchPrimaryReason];
+  List<Object?> get props => [
+        matched,
+        applicationId,
+        offers,
+        unavailablePrograms,
+        summary,
+        noMatchPrimaryReason,
+      ];
+}
+
+/// A program the engine checked but could not quote, with the reason.
+///
+/// Listed, never hidden. An unaffordable bank that simply vanishes reads as "this
+/// bank doesn't exist for me" when the truth is "your current payments use up its
+/// limit" — which is actionable.
+class UnavailableProgramEntity extends Equatable {
+  const UnavailableProgramEntity({
+    required this.programCode,
+    required this.bankName,
+    required this.programFriendlyName,
+    required this.reason,
+    this.maxAffordableAmountEGP,
+    this.dbrCapPercent,
+  });
+
+  final String programCode;
+  final String bankName;
+  final String programFriendlyName;
+
+  /// Backend reason code, localized at the render site (Principle III).
+  final String reason;
+
+  /// The applicant's ceiling at this program, when he is priceable and simply has
+  /// no room left.
+  final double? maxAffordableAmountEGP;
+  final double? dbrCapPercent;
+
+  @override
+  List<Object?> get props => [
+        programCode,
+        bankName,
+        programFriendlyName,
+        reason,
+        maxAffordableAmountEGP,
+        dbrCapPercent,
+      ];
 }
 
 /// One ranked bank offer. Money fields are parsed doubles (the wire sends

@@ -316,6 +316,22 @@ export interface CreateQuestionBody {
   text?: Partial<TextRules> | null;
   /** Omitted → the server assigns all four categories, so nothing is born invisible. */
   categories?: LoanCategory[];
+  /** Show this question only when the source answer matches. Omit for always-on. */
+  enabledWhen?: EnabledWhenRule;
+}
+
+/**
+ * A branch rule: show the question when the source CHOICE question was answered
+ * with (`equals`) or without (`not_equals`) the named option.
+ *
+ * The server requires the source to be a choice question with a strictly LOWER
+ * `displayOrder` — no forward references — and a multi-pick answer satisfies
+ * `equals` when ANY picked code matches.
+ */
+export interface EnabledWhenRule {
+  questionCode: string;
+  operator: 'equals' | 'not_equals';
+  optionCode: string;
 }
 
 /** One row of a bulk reassignment: the array REPLACES that question's set. */
@@ -340,6 +356,8 @@ export interface UpdateQuestionBody {
   type?: QuestionType;
   numeric?: Partial<NumericRules> | null;
   text?: Partial<TextRules> | null;
+  /** `null` CLEARS the branch, making the question unconditional again. */
+  enabledWhen?: EnabledWhenRule | null;
 }
 /** Option edits — `code` is immutable (A33). */
 export interface UpdateOptionBody {

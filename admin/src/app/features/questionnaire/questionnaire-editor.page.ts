@@ -31,6 +31,7 @@ import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { A11yModule } from '@angular/cdk/a11y';
@@ -116,6 +117,7 @@ type TypeFilter = QuestionType | 'ALL';
     NzEmptyModule,
     NzPaginationModule,
     NzIconModule,
+    NzSelectModule,
     NzToolTipModule,
     A11yModule,
     MoneyInputDirective,
@@ -800,6 +802,111 @@ type TypeFilter = QuestionType | 'ALL';
               }
             }
           </div>
+        </div>
+
+        <!-- Branch rule. Sits below both columns because it is about WHEN the
+             question is asked, not about what it accepts — and because the source
+             list depends on this question's position, not on its type. -->
+        <div formGroupName="enabledWhen" class="branch-box">
+          <p class="section-lbl">
+            <span i18n="@@qedit.sec_branch">When to ask this</span>
+            @if (questionForm.controls.enabledWhen.controls.questionCode.value) {
+              <button type="button" class="clear-branch" (click)="clearBranch()">
+                <span nz-icon nzType="close" nzTheme="outline" aria-hidden="true"></span>
+                <span i18n="@@qedit.branch_clear">Always ask</span>
+              </button>
+            }
+          </p>
+          @if (branchSources().length === 0) {
+            <p class="hint" i18n="@@qedit.branch_none">
+              Nothing to branch on yet. A rule reads an answer the applicant already gave, so it
+              needs an earlier question that offers a choice of options.
+            </p>
+          } @else {
+            <!-- A div + aria-labelledby rather than a label/for pair: nz-select
+                 renders a div, not an input, so a wrapping label associates with
+                 nothing. Same pattern as the simulator's question select. -->
+            <div class="field-row">
+              <div class="field grow">
+                <span class="lbl" id="branch-src-lbl" i18n="@@qedit.branch_source">Depends on</span>
+                <nz-select
+                  formControlName="questionCode"
+                  class="select-comfy"
+                  nzDropdownClassName="select-comfy-dropdown"
+                  [nzOptionHeightPx]="42"
+                  nzAllowClear
+                  nzShowSearch
+                  [nzPlaceHolder]="branchAlwaysLabel"
+                  [attr.aria-labelledby]="'branch-src-lbl'"
+                  (ngModelChange)="onBranchSourceChange()"
+                >
+                  @for (q of branchSources(); track q.id) {
+                    <nz-option
+                      [nzValue]="q.code"
+                      [nzLabel]="isAr ? q.questionAr : q.questionEn"
+                    ></nz-option>
+                  }
+                </nz-select>
+              </div>
+              @if (questionForm.controls.enabledWhen.controls.questionCode.value) {
+                <div class="field">
+                  <span class="lbl" id="branch-op-lbl" i18n="@@qedit.branch_operator">
+                    Condition
+                  </span>
+                  <nz-select
+                    formControlName="operator"
+                    class="select-comfy"
+                    nzDropdownClassName="select-comfy-dropdown"
+                    [nzOptionHeightPx]="42"
+                    [attr.aria-labelledby]="'branch-op-lbl'"
+                  >
+                    <nz-option [nzValue]="'equals'" [nzLabel]="branchEqualsLabel"></nz-option>
+                    <nz-option
+                      [nzValue]="'not_equals'"
+                      [nzLabel]="branchNotEqualsLabel"
+                    ></nz-option>
+                  </nz-select>
+                </div>
+                <div class="field grow">
+                  <span class="lbl" id="branch-opt-lbl" i18n="@@qedit.branch_option">
+                    This answer
+                  </span>
+                  <nz-select
+                    formControlName="optionCode"
+                    class="select-comfy"
+                    nzDropdownClassName="select-comfy-dropdown"
+                    [nzOptionHeightPx]="42"
+                    nzShowSearch
+                    [nzPlaceHolder]="branchPickOptionLabel"
+                    [attr.aria-labelledby]="'branch-opt-lbl'"
+                  >
+                    @for (o of branchOptions(); track o.id) {
+                      <nz-option
+                        [nzValue]="o.code"
+                        [nzLabel]="isAr ? o.labelAr : o.labelEn"
+                      ></nz-option>
+                    }
+                  </nz-select>
+                </div>
+              }
+            </div>
+            @if (branchIncomplete()) {
+              <p class="hint warn" i18n="@@qedit.branch_incomplete">
+                Pick which answer triggers this question. A half-set rule can't be evaluated, so it
+                would save without ever hiding anything.
+              </p>
+            } @else if (questionForm.controls.enabledWhen.controls.questionCode.value) {
+              <p class="hint" i18n="@@qedit.branch_hint">
+                Asked only when that answer matches. If the source question allows several picks,
+                any one of them matching is enough.
+              </p>
+            } @else {
+              <p class="hint" i18n="@@qedit.branch_hint_off">
+                Asked of every applicant in this question's categories. Pick a question above to ask
+                it conditionally instead.
+              </p>
+            }
+          }
         </div>
 
         @if (!editing()) {
@@ -1674,6 +1781,51 @@ type TypeFilter = QuestionType | 'ALL';
         background: var(--qe-surface-muted);
         border-radius: var(--radius-md, 8px);
       }
+      /* Spans both columns: "when is this asked" is a different question from
+         "what does it accept", and its source list depends on position, not type. */
+      .branch-box {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3, 12px);
+        margin-block-start: var(--space-4, 16px);
+        padding: var(--space-3, 12px);
+        background: var(--qe-surface-muted);
+        border-radius: var(--radius-md, 8px);
+      }
+      /* Sits at the far edge of the section label — it undoes the whole rule, so
+         it must not read as part of the field row it would clear. */
+      .branch-box .section-lbl {
+        justify-content: space-between;
+      }
+      .clear-branch {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border: 0;
+        padding: 2px 8px;
+        border-radius: var(--radius-pill, 999px);
+        background: transparent;
+        color: var(--qe-muted);
+        font: inherit;
+        letter-spacing: 0;
+        text-transform: none;
+        cursor: pointer;
+        transition:
+          background var(--motion-duration-fast, 120ms) var(--motion-easing-standard, ease),
+          color var(--motion-duration-fast, 120ms) var(--motion-easing-standard, ease);
+      }
+      .clear-branch:hover {
+        background: var(--qe-surface);
+        color: var(--qe-text);
+      }
+      .branch-box .field-row {
+        flex-wrap: wrap;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .clear-branch {
+          transition: none;
+        }
+      }
       .hint {
         margin: 0;
         font-size: var(--text-xs, 12px);
@@ -2077,6 +2229,16 @@ export class QuestionnaireEditorPage implements OnInit {
     text: new FormGroup({
       maxLength: new FormControl<number | null>(null),
     }),
+    /**
+     * Branch rule. An empty `questionCode` means "always ask", which is why these
+     * are plain optional controls rather than a nullable group: the form has one
+     * representation of "no branch" instead of two.
+     */
+    enabledWhen: new FormGroup({
+      questionCode: new FormControl('', { nonNullable: true }),
+      operator: new FormControl<'equals' | 'not_equals'>('equals', { nonNullable: true }),
+      optionCode: new FormControl('', { nonNullable: true }),
+    }),
   });
 
   /** Two standalone controls rather than a group: the option editor is one row. */
@@ -2122,6 +2284,14 @@ export class QuestionnaireEditorPage implements OnInit {
   allOptionLabels(q: QuestionRow): string {
     return q.options.map((o) => (this.isAr ? o.labelAr : o.labelEn)).join(' · ');
   }
+
+  // Placeholders and option labels for the branch pickers. Properties, not method
+  // calls: `nzPlaceHolder` / `nzLabel` are plain string inputs, so a method here
+  // would re-run `$localize` on every change detection pass.
+  readonly branchAlwaysLabel = $localize`:@@qedit.branch_always:Always ask this`;
+  readonly branchEqualsLabel = $localize`:@@qedit.branch_is:is`;
+  readonly branchNotEqualsLabel = $localize`:@@qedit.branch_is_not:is not`;
+  readonly branchPickOptionLabel = $localize`:@@qedit.branch_pick_option:Pick an answer`;
 
   typeLabel(type: QuestionType): string {
     switch (type) {
@@ -2264,6 +2434,11 @@ export class QuestionnaireEditorPage implements OnInit {
         unitAr: q.numericUnitAr ?? '',
       },
       text: { maxLength: q.textMaxLength },
+      enabledWhen: {
+        questionCode: q.enabledWhen?.questionCode ?? '',
+        operator: q.enabledWhen?.operator === 'not_equals' ? 'not_equals' : 'equals',
+        optionCode: q.enabledWhen?.optionCode ?? '',
+      },
     } as never);
     this.expandedId.set(q.id);
     this.focusFirstField();
@@ -2281,6 +2456,7 @@ export class QuestionnaireEditorPage implements OnInit {
       type: 'SINGLE_SELECT',
       numeric: { minValue: '', maxValue: '', step: '', unitEn: '', unitAr: '' },
       text: { maxLength: null },
+      enabledWhen: { questionCode: '', operator: 'equals', optionCode: '' },
     } as never);
     this.creating.set(true);
     this.focusFirstField();
@@ -2307,6 +2483,69 @@ export class QuestionnaireEditorPage implements OnInit {
     this.selectedType.set(type);
   }
 
+  // ---- Branch rule ---------------------------------------------------------
+  /**
+   * Questions that may serve as a branch SOURCE for the one being edited.
+   *
+   * Mirrors `assertEnabledWhenValid` so the picker cannot offer something the
+   * server rejects: a CHOICE question (an option code is what the rule compares)
+   * with a strictly LOWER `displayOrder` — no forward references, since a rule
+   * can only read an answer the applicant has already given.
+   */
+  branchSources(): QuestionRow[] {
+    const selfOrder = this.rows().find((q) => q.id === this.expandedId())?.displayOrder;
+    return this.rows().filter(
+      (q) =>
+        q.isActive &&
+        isChoiceQuestionType(q.type) &&
+        q.id !== this.expandedId() &&
+        q.options.some((o) => o.isActive) &&
+        // Creating: the question is appended to the end of the pool, so every
+        // existing question precedes it and all of them are legal sources.
+        (selfOrder === undefined || q.displayOrder < selfOrder),
+    );
+  }
+
+  /** Active options of the currently picked branch source, for the option picker. */
+  branchOptions(): OptionRow[] {
+    const code = this.questionForm.controls.enabledWhen.controls.questionCode.value;
+    if (!code) return [];
+    return (
+      this.rows()
+        .find((q) => q.code === code)
+        ?.options.filter((o) => o.isActive) ?? []
+    );
+  }
+
+  /**
+   * Changing the source invalidates the option: option codes are scoped per
+   * question, so a code kept from the previous source would be rejected as
+   * `unknown_option`. Cleared here rather than validated later.
+   */
+  onBranchSourceChange(): void {
+    this.questionForm.controls.enabledWhen.controls.optionCode.setValue('');
+  }
+
+  /** Drop the rule entirely — the question becomes unconditional. */
+  clearBranch(): void {
+    this.questionForm.controls.enabledWhen.reset({
+      questionCode: '',
+      operator: 'equals',
+      optionCode: '',
+    });
+  }
+
+  /**
+   * A half-filled rule: a source picked with no option. Blocks save, because the
+   * server would reject it and because a rule that cannot be evaluated is treated
+   * as DANGLING at read time — it never hides its question, so it would look
+   * saved while doing nothing.
+   */
+  branchIncomplete(): boolean {
+    const { questionCode, optionCode } = this.questionForm.controls.enabledWhen.getRawValue();
+    return questionCode !== '' && optionCode === '';
+  }
+
   /** Live guard mirroring the server's `numeric.maxValue` rule, for fast feedback. */
   numericRangeInverted(): boolean {
     const { minValue, maxValue } = this.questionForm.controls.numeric.getRawValue();
@@ -2318,7 +2557,7 @@ export class QuestionnaireEditorPage implements OnInit {
 
   // ---- Question writes -----------------------------------------------------
   async submitQuestion(): Promise<void> {
-    if (this.questionForm.invalid || this.numericRangeInverted()) return;
+    if (this.questionForm.invalid || this.numericRangeInverted() || this.branchIncomplete()) return;
     const v = this.questionForm.getRawValue();
     // Send only the rule block the chosen type owns. Sending both would fail the
     // server's QUESTION_TYPE_RULES_INVALID check; sending `null` clears the other.
@@ -2326,6 +2565,17 @@ export class QuestionnaireEditorPage implements OnInit {
       numeric: v.type === 'NUMERIC' ? blankToNull(v.numeric) : null,
       text: v.type === 'TEXT' ? { maxLength: v.text.maxLength ?? undefined } : null,
     };
+    // An empty source code means "always ask". On UPDATE that must be sent as an
+    // explicit `null` to clear a rule the question previously had; on CREATE the
+    // key is simply omitted.
+    const branch =
+      v.enabledWhen.questionCode !== '' && v.enabledWhen.optionCode !== ''
+        ? {
+            questionCode: v.enabledWhen.questionCode,
+            operator: v.enabledWhen.operator,
+            optionCode: v.enabledWhen.optionCode,
+          }
+        : null;
     const id = this.expandedId();
     if (id !== null) {
       // `code` is immutable (A33) — never sent. `type` is not sent either: it is
@@ -2335,6 +2585,7 @@ export class QuestionnaireEditorPage implements OnInit {
         questionEn: v.questionEn,
         questionAr: v.questionAr,
         isRequired: v.isRequired,
+        enabledWhen: branch,
         ...rules,
       });
       this.message.success($localize`:@@qedit.question_saved:Question saved`);
@@ -2347,6 +2598,7 @@ export class QuestionnaireEditorPage implements OnInit {
       questionAr: v.questionAr,
       isRequired: v.isRequired,
       type: v.type,
+      ...(branch ? { enabledWhen: branch } : {}),
       ...rules,
     });
     this.message.success($localize`:@@qedit.question_added:Question added`);

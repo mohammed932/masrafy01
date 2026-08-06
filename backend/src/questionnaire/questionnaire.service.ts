@@ -3,8 +3,11 @@ import { LoanCategory, Prisma, QuestionType } from '@prisma/client';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import {
+  DEBT_TYPES_QUESTION_CODE,
+  DEBT_TYPE_NONE_OPTION,
   MONEY_FIELD_BINDINGS,
   MONEY_FIELD_BINDING_KEYS,
+  obligationItemQuestionFor,
 } from '@/matching/pipeline/money-field-bindings';
 import { QuestionnaireRepository } from './questionnaire.repository';
 import { uniqueSlug } from './slug.util';
@@ -446,7 +449,15 @@ export class QuestionnaireService {
       });
     }
 
-    const warnings = collectPublishWarnings(questions);
+    // Read the debt-type options off the snapshot just built, so the check runs
+    // against exactly what was frozen rather than a second read of the pool.
+    const warnings = collectPublishWarnings(
+      questions,
+      snapshotGroups
+        .flatMap((g) => g.questions)
+        .find((q) => q.code === DEBT_TYPES_QUESTION_CODE)
+        ?.options.map((o) => o.code) ?? [],
+    );
 
     const versionNumber = await this.repo.nextVersionNumber();
     const snapshot = { versionNumber, groups: snapshotGroups };
@@ -468,7 +479,13 @@ export class QuestionnaireService {
    */
   async bindingWarnings(): Promise<PublishWarning[]> {
     const active = (await this.repo.questions()).filter((q) => q.isActive);
-    return collectPublishWarnings(active);
+    const debtTypes = active.find((q) => q.code === DEBT_TYPES_QUESTION_CODE);
+    const debtTypeOptionCodes = debtTypes
+      ? (await this.repo.optionsByQuestion(debtTypes.id))
+          .filter((o) => o.isActive)
+          .map((o) => o.code)
+      : [];
+    return collectPublishWarnings(active, debtTypeOptionCodes);
   }
 
   /**
@@ -833,6 +850,7 @@ function textColumns(
  */
 function collectPublishWarnings(
   activeQuestions: ReadonlyArray<{ code: string; type: QuestionType }>,
+  debtTypeOptionCodes: readonly string[],
 ): PublishWarning[] {
   const byCode = new Map(activeQuestions.map((q) => [q.code, q]));
   const warnings: PublishWarning[] = [];
@@ -850,6 +868,53 @@ function collectPublishWarnings(
       warnings.push({
         code: ERROR_CODES.MONEY_FIELD_BINDING_MISSING,
         meta: { binding, questionCode, reason: 'not_numeric', type: q.type },
+      });
+    }
+  }
+
+  // Itemised obligations: every debt type the applicant can TICK must have a
+  // NUMERIC question to state its instalment in. An option with no amount
+  // question is the one failure mode that loses money silently — the applicant
+  // declares a debt, no question ever asks what it costs, and it contributes 0
+  // to the DBR sum. `none` is exempt: it exists precisely to mean "no amounts".
+  for (const optionCode of debtTypeOptionCodes) {
+    if (optionCode === DEBT_TYPE_NONE_OPTION) continue;
+    const itemCode = obligationItemQuestionFor(optionCode);
+    if (itemCode === undefined) {
+      warnings.push({
+        code: ERROR_CODES.MONEY_FIELD_BINDING_MISSING,
+        meta: {
+          binding: 'existing_obligations',
+          questionCode: DEBT_TYPES_QUESTION_CODE,
+          optionCode,
+          reason: 'debt_type_option_unmapped',
+        },
+      });
+      continue;
+    }
+    const item = byCode.get(itemCode);
+    if (!item) {
+      warnings.push({
+        code: ERROR_CODES.MONEY_FIELD_BINDING_MISSING,
+        meta: {
+          binding: 'existing_obligations',
+          questionCode: itemCode,
+          optionCode,
+          reason: 'obligation_item_missing_or_inactive',
+        },
+      });
+      continue;
+    }
+    if (item.type !== 'NUMERIC') {
+      warnings.push({
+        code: ERROR_CODES.MONEY_FIELD_BINDING_MISSING,
+        meta: {
+          binding: 'existing_obligations',
+          questionCode: itemCode,
+          optionCode,
+          reason: 'obligation_item_not_numeric',
+          type: item.type,
+        },
       });
     }
   }

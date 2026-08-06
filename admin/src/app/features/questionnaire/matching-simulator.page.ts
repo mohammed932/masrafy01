@@ -2,9 +2,9 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   LOCALE_ID,
   computed,
-  effect,
   inject,
   signal,
   untracked,
@@ -48,6 +48,58 @@ interface AnswerValue {
 /** Money-bearing NUMERIC questions get the thousands-grouping input (A27). */
 const MONEY_UNITS: ReadonlySet<string> = new Set(['EGP', 'egp', 'جنيه', 'ج.م']);
 
+// ---- Itemised obligations ---------------------------------------------------
+// Mirrors `DEBT_TYPES_QUESTION_CODE` / `OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE` /
+// `MONEY_FIELD_BINDINGS.existing_obligations` on the backend, and the same three on
+// mobile. Code constants in all three places because A33 forbids storing the binding
+// on `Question` — so the codes travel by mirror, not by column.
+
+/** The MULTI_SELECT whose picks decide which amount questions are asked. */
+const DEBT_TYPES_QUESTION_CODE = 'current_loans';
+
+/** The DERIVED total. Summed from the parts, never typed — see `derivedTotalOf`. */
+const OBLIGATIONS_TOTAL_QUESTION_CODE = 'current_installments';
+
+/** Debt-type option code → the NUMERIC question capturing its instalment. */
+const OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE: Readonly<Record<string, string>> = Object.freeze({
+  car_loan: 'obligation_car_loan',
+  credit_cards: 'obligation_credit_card',
+  personal_loan: 'obligation_personal_loan',
+  mortgage: 'obligation_mortgage',
+  other: 'obligation_other',
+});
+
+/** The debt types picked on the source question, across both single/multi shapes. */
+function pickedDebtTypes(answers: Record<string, AnswerValue>): readonly string[] {
+  const source = answers[DEBT_TYPES_QUESTION_CODE];
+  if (!source) return [];
+  return [...(source.optionCodes ?? []), ...(source.optionCode ? [source.optionCode] : [])];
+}
+
+/**
+ * The obligations total implied by the per-debt amounts, or `null` when the debt-type
+ * question has not been answered (the pre-itemised fallback, where the total is typed).
+ *
+ * Summed over the PICKED types only, so an amount left behind by un-ticking a type is
+ * ignored — the same rule `resolveObligations` applies server-side. Kept in lockstep
+ * with the mobile wizard so the simulator cannot show the admin a total the applicant's
+ * own app would never produce.
+ */
+function derivedTotalOf(answers: Record<string, AnswerValue>): string | null {
+  const picked = pickedDebtTypes(answers);
+  if (picked.length === 0) return null;
+  let total = 0;
+  for (const debtType of picked) {
+    const itemCode = OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE[debtType];
+    if (itemCode === undefined) continue; // e.g. the explicit "none" pick
+    const raw = answers[itemCode]?.numericValue?.trim() ?? '';
+    if (raw === '') continue;
+    const value = Number(raw);
+    if (Number.isFinite(value)) total += value;
+  }
+  return total.toFixed(2);
+}
+
 /**
  * Thousands grouping for bounds, steps and review values, so the hint under a
  * money field reads in the same shape as the field itself (1,000 — not 1000).
@@ -57,6 +109,21 @@ const MONEY_UNITS: ReadonlySet<string> = new Set(['EGP', 'egp', 'جنيه', 'ج.
 /** Above this many options a SINGLE_SELECT renders as a searchable dropdown
  *  instead of a radio column (bank registry ≈ 11, governorates ≈ 27). */
 const LONG_OPTION_LIST_THRESHOLD = 8;
+
+/**
+ * Questions shown per wizard step. One-per-step turned a 22-question walk into 22
+ * button presses; a small batch keeps each step readable while cutting the walk to
+ * a handful of steps. Slicing the VISIBLE list (not the raw pool) keeps branching
+ * intact — a revealed child lands in its own position, not at the end.
+ */
+const QUESTIONS_PER_STEP = 3;
+
+/** Fixed-size slices of the visible question list, in order. */
+function chunk(questions: readonly QuestionRow[], size: number): QuestionRow[][] {
+  const pages: QuestionRow[][] = [];
+  for (let i = 0; i < questions.length; i += size) pages.push(questions.slice(i, i + size));
+  return pages;
+}
 
 function grouped(value: number | string): string {
   const numeric = typeof value === 'string' ? Number(value) : value;
@@ -85,7 +152,7 @@ function isVisible(
 }
 
 /**
- * Admin matching simulator (read-only). A guided one-question-per-step flow
+ * Admin matching simulator (read-only). A guided flow of a few questions per step
  * runs the SAME per-bank approval scoring the mobile app uses — without creating
  * an application. All four question types (single pick, multi pick, text,
  * number) are answerable; only single pick carries an answer score (R9), the
@@ -217,124 +284,170 @@ function isVisible(
             <span class="progress-text">
               @if (onReview()) {
                 <span i18n="@@sim.review">Review</span>
+              } @else if (pageStart() === pageEnd()) {
+                <ng-container i18n="@@sim.step">Question {{ pageStart() }} of {{ total() }}</ng-container>
               } @else {
-                <ng-container i18n="@@sim.step">Question {{ step() + 1 }} of {{ total() }}</ng-container>
+                <ng-container i18n="@@sim.step_range"
+                  >Questions {{ pageStart() }}–{{ pageEnd() }} of {{ total() }}</ng-container
+                >
               }
             </span>
           </div>
 
-          @if (current(); as q) {
+          @if (currentPage(); as page) {
             <div class="step-card">
-              <h2 class="q-text">
-                {{ questionText(q) }}
-                @if (!q.isRequired) { <span class="opt-tag" i18n="@@sim.optional">optional</span> }
-              </h2>
+              <!-- Several questions per step, not one: an admin walking a sample
+                   applicant through 22 questions should not press Next 22 times.
+                   Branch children still appear the moment their source is
+                   answered — the page is a slice of the VISIBLE list, so a newly
+                   revealed question lands in place instead of after the walk. -->
+              <div class="q-page">
+              @for (q of page; track q.code) {
+                <div class="q-block" [class.wide]="isWide(q)">
+                  <h2 class="q-text">
+                    {{ questionText(q) }}
+                    @if (!q.isRequired) { <span class="opt-tag" i18n="@@sim.optional">optional</span> }
+                  </h2>
 
-              @switch (q.type) {
-                @case ('MULTI_SELECT') {
-                  <div class="opts">
-                    @for (o of q.options; track o.code) {
-                      <button
-                        type="button"
-                        class="opt multi"
-                        [class.sel]="isPicked(q, o.code)"
-                        [attr.aria-pressed]="isPicked(q, o.code)"
-                        (click)="toggle(q, o.code)"
-                      >
-                        <span class="opt-mark box" aria-hidden="true"></span>
-                        <span class="opt-label">{{ optionText(o) }}</span>
-                      </button>
-                    }
-                  </div>
-                }
-                @case ('NUMERIC') {
-                  <!-- <label>, not <div>: it makes the whole affix box — unit
-                       included — a click target that focuses the input, natively.
-                       The accessible name still comes from aria-label, which
-                       carries the unit so it is spoken as well as shown. -->
-                  <label class="ctl-affix" [class.invalid]="numericError() !== null">
-                    @if (isMoney(q)) {
-                      <input
-                        class="ctl"
-                        type="text"
-                        inputmode="numeric"
-                        appMoneyInput
-                        [formControl]="numericCtrl"
-                        [attr.aria-label]="numericAriaLabel(q)"
-                        [attr.aria-invalid]="numericError() !== null"
-                        [attr.aria-describedby]="numericDescribedBy(q)"
-                      />
-                    } @else {
-                      <!-- Text input, not type="number": NumberValueAccessor would
-                           push a number into a string control. Bounds are checked
-                           by numericError, the same rules the API applies. -->
-                      <input
-                        class="ctl"
-                        type="text"
-                        inputmode="decimal"
-                        [formControl]="numericCtrl"
-                        [attr.aria-label]="numericAriaLabel(q)"
-                        [attr.aria-invalid]="numericError() !== null"
-                        [attr.aria-describedby]="numericDescribedBy(q)"
-                      />
-                    }
-                    @if (unitText(q); as u) { <span class="unit" aria-hidden="true">{{ u }}</span> }
-                  </label>
-                  @if (numericHint(q); as h) { <p class="hint" [id]="'hint-' + q.code">{{ h }}</p> }
-                  @if (numericError(); as e) { <p class="err" [id]="'err-' + q.code" role="alert">{{ e }}</p> }
-                }
-                @case ('TEXT') {
-                  <div class="field">
-                    <input
-                      class="ctl"
-                      type="text"
-                      [formControl]="textCtrl"
-                      [attr.maxlength]="q.textMaxLength"
-                      [attr.aria-label]="questionText(q)"
-                    />
-                  </div>
-                }
-                @default {
-                  @if (isLongList(q)) {
-                    <!-- Registry-backed lists (banks, governorates) are too long to
-                         read as a radio column — one searchable dropdown instead.
-                         No auto-advance here: the admin picks, then presses Next. -->
-                    <div class="field">
-                      <nz-select
-                        class="sel-ctl select-comfy"
-                        nzDropdownClassName="select-comfy-dropdown"
-                        [nzOptionHeightPx]="42"
-                        [formControl]="choiceCtrl"
-                        nzShowSearch
-                        nzAllowClear
-                        [nzPlaceHolder]="pickPlaceholder"
-                        [attr.aria-label]="questionText(q)"
-                      >
+                  @switch (q.type) {
+                    @case ('MULTI_SELECT') {
+                      <div class="opts">
                         @for (o of q.options; track o.code) {
-                          <nz-option [nzValue]="o.code" [nzLabel]="optionText(o)"></nz-option>
+                          <button
+                            type="button"
+                            class="opt multi"
+                            [class.sel]="isPicked(q, o.code)"
+                            [attr.aria-pressed]="isPicked(q, o.code)"
+                            (click)="toggle(q, o.code)"
+                          >
+                            <span class="opt-mark box" aria-hidden="true"></span>
+                            <span class="opt-label">{{ optionText(o) }}</span>
+                          </button>
                         }
-                      </nz-select>
-                    </div>
-                    <p class="hint" i18n="@@sim.search_hint">
-                      {{ q.options.length }} options — type to search
-                    </p>
-                  } @else {
-                    <div class="opts">
-                      @for (o of q.options; track o.code) {
-                        <button
-                          type="button"
-                          class="opt"
-                          [class.sel]="answers()[q.code]?.optionCode === o.code"
-                          (click)="choose(q.code, o.code)"
-                        >
-                          <span class="opt-mark" aria-hidden="true"></span>
-                          <span class="opt-label">{{ optionText(o) }}</span>
-                        </button>
+                      </div>
+                    }
+                    @case ('NUMERIC') {
+                      @if (isDerivedTotal(q)) {
+                        <!-- Computed, not typed: the applicant states each debt and the
+                             server re-sums the parts, so a total typed here would be
+                             ignored (or rejected on apply). Shown with its breakdown so
+                             the number explains itself rather than merely being locked. -->
+                        <output class="ctl-affix derived" aria-live="polite">
+                          <span class="ctl">{{ groupedText(answers()[q.code]?.numericValue ?? '0') }}</span>
+                          @if (unitText(q); as u) { <span class="unit" aria-hidden="true">{{ u }}</span> }
+                        </output>
+                        <p class="hint derived-note" i18n="@@sim.derived_total">
+                          Added up from the payments above — not typed.
+                        </p>
+                        @if (derivedTotalParts(); as parts) {
+                          @if (parts.length > 0) {
+                            <ul class="derived-parts">
+                              @for (part of parts; track part.label) {
+                                <li><span>{{ part.label }}</span><b>{{ part.value }}</b></li>
+                              }
+                            </ul>
+                          }
+                        }
+                      } @else {
+                        <!-- <label>, not <div>: it makes the whole affix box — unit
+                             included — a click target that focuses the input, natively.
+                             The accessible name still comes from aria-label, which
+                             carries the unit so it is spoken as well as shown. -->
+                        <label class="ctl-affix" [class.invalid]="numericErrorFor(q) !== null">
+                          @if (isMoney(q)) {
+                            <input
+                              class="ctl"
+                              type="text"
+                              inputmode="numeric"
+                              appMoneyInput
+                              [formControl]="numericCtrl(q)"
+                              [attr.aria-label]="numericAriaLabel(q)"
+                              [attr.aria-invalid]="numericErrorFor(q) !== null"
+                              [attr.aria-describedby]="numericDescribedBy(q)"
+                            />
+                          } @else {
+                            <!-- Text input, not type="number": NumberValueAccessor would
+                                 push a number into a string control. Bounds are checked
+                                 by numericErrorFor, the same rules the API applies. -->
+                            <input
+                              class="ctl"
+                              type="text"
+                              inputmode="decimal"
+                              [formControl]="numericCtrl(q)"
+                              [attr.aria-label]="numericAriaLabel(q)"
+                              [attr.aria-invalid]="numericErrorFor(q) !== null"
+                              [attr.aria-describedby]="numericDescribedBy(q)"
+                            />
+                          }
+                          @if (unitText(q); as u) { <span class="unit" aria-hidden="true">{{ u }}</span> }
+                        </label>
+                        <!-- Hint + error share ONE slot so every paired question has
+                             the same three parts (heading / control / footnote) and
+                             the subgrid can line the fields up across the row. -->
+                        <div class="q-foot">
+                          @if (numericHint(q); as h) { <p class="hint" [id]="'hint-' + q.code">{{ h }}</p> }
+                          @if (numericErrorFor(q); as e) {
+                            <p class="err" [id]="'err-' + q.code" role="alert">{{ e }}</p>
+                          }
+                        </div>
                       }
-                    </div>
+                    }
+                    @case ('TEXT') {
+                      <div class="field">
+                        <input
+                          class="ctl"
+                          type="text"
+                          [formControl]="textCtrl(q)"
+                          [attr.maxlength]="q.textMaxLength"
+                          [attr.aria-label]="questionText(q)"
+                        />
+                      </div>
+                    }
+                    @default {
+                      @if (isLongList(q)) {
+                        <!-- Registry-backed lists (banks, governorates) are too long to
+                             read as a radio column — one searchable dropdown instead. -->
+                        <div class="field">
+                          <nz-select
+                            class="sel-ctl select-comfy"
+                            nzDropdownClassName="select-comfy-dropdown"
+                            [nzOptionHeightPx]="42"
+                            [formControl]="choiceCtrl(q)"
+                            nzShowSearch
+                            nzAllowClear
+                            [nzPlaceHolder]="pickPlaceholder"
+                            [attr.aria-label]="questionText(q)"
+                          >
+                            @for (o of q.options; track o.code) {
+                              <nz-option [nzValue]="o.code" [nzLabel]="optionText(o)"></nz-option>
+                            }
+                          </nz-select>
+                        </div>
+                        <div class="q-foot">
+                          <p class="hint" i18n="@@sim.search_hint">
+                            {{ q.options.length }} options — type to search
+                          </p>
+                        </div>
+                      } @else {
+                        <div class="opts">
+                          @for (o of q.options; track o.code) {
+                            <button
+                              type="button"
+                              class="opt"
+                              [class.sel]="answers()[q.code]?.optionCode === o.code"
+                              (click)="choose(q.code, o.code)"
+                            >
+                              <span class="opt-mark" aria-hidden="true"></span>
+                              <span class="opt-label">{{ optionText(o) }}</span>
+                            </button>
+                          }
+                        </div>
+                      }
+                    }
                   }
-                }
+                </div>
               }
+              </div>
 
               <div class="wiz-foot">
                 <button nz-button nzSize="large" (click)="back()" [disabled]="step() === 0" i18n="@@sim.back">
@@ -358,7 +471,7 @@ function isVisible(
               <h2 class="q-text" i18n="@@sim.review_h">Review answers</h2>
               <ul class="review">
                 @for (q of questions(); track q.code; let i = $index) {
-                  <li class="review-row" (click)="goTo(i)">
+                  <li class="review-row" (click)="goToQuestion(i)">
                     <span class="r-q">{{ questionText(q) }}</span>
                     <span class="r-a" [class.empty]="!isAnswered(q)">{{ answerLabel(q) }}</span>
                   </li>
@@ -386,7 +499,10 @@ function isVisible(
   `,
   styles: [
     `
-      .page { padding: var(--space-6, 24px); max-inline-size: 760px; margin-inline: auto; }
+      /* Wide enough for two question columns and a two-up option list. The old
+         760px cap was sized for a single-question step and left most of the
+         dashboard's width unused once a step started carrying three. */
+      .page { padding: var(--space-6, 24px); max-inline-size: 1080px; margin-inline: auto; }
       .head { margin-block-end: var(--space-5, 20px); }
       .head h1 { margin: 0; font-size: var(--text-2xl, 24px); font-weight: var(--font-weight-bold, 700); }
       .muted { color: var(--color-text-secondary, #6b7280); }
@@ -426,8 +542,44 @@ function isVisible(
       }
       @media (prefers-reduced-motion: reduce) { .step-card { animation: none; } .progress-bar span { transition: none; } }
 
+      /* Several questions per step, paired across two columns. A number field is
+         ~250px of content in a 700px card — stacking them full-width pushed the
+         third question off-screen and left half the card empty. Option columns
+         and the itemised total keep the full width (.wide); everything typed
+         or picked from a dropdown shares a row. Spacing does the separating:
+         12px binds a question to its field, 32px breaks one question from the
+         next — no rules needed once the rhythm carries the grouping. */
+      .q-page {
+        display: grid; align-items: start;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-6, 32px) var(--space-5, 24px);
+      }
+      .q-block.wide { grid-column: 1 / -1; }
+      @media (max-width: 640px) { .q-page { grid-template-columns: 1fr; } }
+
+      /* Two questions side by side only line up if their headings, fields and
+         footnotes sit on SHARED rows — a one-line question next to a two-line one
+         otherwise floats its input half a line high. Subgrid hands the three parts
+         to the parent's tracks; the row-gap override keeps the parts of a question
+         12px apart while questions stay 32px apart. Without subgrid support the
+         block just stacks, which is the pre-pairing layout — no breakage. */
+      @supports (grid-template-rows: subgrid) {
+        .q-page > .q-block:not(.wide) {
+          display: grid;
+          grid-template-rows: subgrid;
+          grid-row: span 3;
+          row-gap: var(--space-3, 12px);
+          /* The page sets align-items:start for the wide blocks; a subgrid must
+             span its tracks instead, or the shared rows collapse under it. */
+          align-self: stretch;
+        }
+        .q-page > .q-block:not(.wide) .q-text { margin-block-end: 0; }
+      }
+      /* Footnote slot: present even when empty, so the row exists for every pair. */
+      .q-foot > .hint:first-child, .q-foot > .err:first-child { margin-block-start: 0; }
+
       .q-text {
-        margin: 0 0 var(--space-5, 20px); font-size: var(--text-xl, 20px);
+        margin: 0 0 var(--space-3, 12px); font-size: var(--text-lg, 18px);
         font-weight: 700; line-height: 1.3; letter-spacing: -0.012em;
         display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
       }
@@ -440,7 +592,14 @@ function isVisible(
         padding: 1px 7px; border-radius: 999px;
       }
 
-      .opts { display: flex; flex-direction: column; gap: var(--space-2, 8px); }
+      /* Option rows wrap into columns instead of running one 1000px-wide row per
+         choice: at the card's width a full-bleed row puts the label alone at the
+         start of a long empty strip, and seven of them is a scroll. auto-fill
+         with a 300px floor means narrow cards keep the single column. */
+      .opts {
+        display: grid; gap: var(--space-2, 8px);
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      }
       .opt {
         display: flex; align-items: center; gap: 12px; inline-size: 100%;
         min-block-size: 52px; padding: 12px 16px; cursor: pointer; text-align: start;
@@ -510,6 +669,33 @@ function isVisible(
         min-block-size: 0; padding-inline: 0; border: none; background: none;
       }
       .ctl-affix .ctl:hover, .ctl-affix .ctl:focus { border: none; box-shadow: none; }
+
+      /* The derived total reads as an OUTPUT, not a disabled input: filled ground,
+         dashed edge, no caret, no hover affordance — nothing that invites a click
+         that will not take. Full text contrast is kept, because the value itself is
+         not muted information; only its editability is gone. */
+      .ctl-affix.derived {
+        cursor: default; align-items: center;
+        border-style: dashed;
+        background: var(--bg-subtle, #f6f8fa);
+      }
+      .ctl-affix.derived:hover { border-color: var(--color-border-default, #e5e7eb); }
+      .ctl-affix.derived .ctl {
+        align-self: center; font-size: 16px; font-weight: 650;
+        font-variant-numeric: tabular-nums;
+      }
+      .derived-note { font-style: italic; }
+      .derived-parts {
+        display: grid; gap: 4px;
+        margin-block: 8px 0; padding-inline-start: 0; list-style: none;
+        font-size: 13px; color: var(--color-text-secondary, #6b7280);
+      }
+      .derived-parts li {
+        display: flex; justify-content: space-between; gap: 12px; padding-block: 3px;
+        border-block-end: 1px dashed var(--color-border-subtle, #eef1f4);
+      }
+      .derived-parts li:last-child { border-block-end: none; }
+      .derived-parts b { font-weight: 650; font-variant-numeric: tabular-nums; }
 
       .unit {
         flex: none; align-self: center; user-select: none;
@@ -618,11 +804,20 @@ export class MatchingSimulatorPage {
   readonly result = signal<SimulationResult | null>(null);
   readonly step = signal(0);
 
-  /** Typed controls for the free-entry types + the long-list dropdown
-   *  (Principle XXII — no ngModel). */
-  readonly numericCtrl = new FormControl<string>('', { nonNullable: true });
-  readonly textCtrl = new FormControl<string>('', { nonNullable: true });
-  readonly choiceCtrl = new FormControl<string | null>(null);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /**
+   * Typed controls for the free-entry types + the long-list dropdown (Principle
+   * XXII — no ngModel), one per question code.
+   *
+   * A step now shows several questions at once, so a single shared control per
+   * type would have every field on the page writing the same value. Created on
+   * first render and cached, so the binding hands the template a stable instance
+   * and a paged-away answer is still in its control on the way back.
+   */
+  private readonly numericCtrls = new Map<string, FormControl<string>>();
+  private readonly textCtrls = new Map<string, FormControl<string>>();
+  private readonly choiceCtrls = new Map<string, FormControl<string | null>>();
 
   readonly pickPlaceholder = $localize`:@@sim.pick_one:Choose one`;
 
@@ -653,18 +848,29 @@ export class MatchingSimulatorPage {
     return asked.filter((q) => isVisible(q, answers, byCode));
   });
   readonly total = computed(() => this.questions().length);
-  /** null on the review step (step >= total). */
-  readonly current = computed<QuestionRow | null>(() => this.questions()[this.step()] ?? null);
-  readonly onReview = computed(() => this.total() > 0 && this.step() >= this.total());
-  readonly progressPct = computed(() =>
-    this.total() === 0 ? 0 : Math.round((Math.min(this.step(), this.total()) / this.total()) * 100),
+  /** The visible questions cut into steps. `step()` indexes THIS, not questions. */
+  readonly pages = computed<QuestionRow[][]>(() => chunk(this.questions(), QUESTIONS_PER_STEP));
+  readonly pageCount = computed(() => this.pages().length);
+  /** null on the review step (step >= pageCount). */
+  readonly currentPage = computed<QuestionRow[] | null>(() => this.pages()[this.step()] ?? null);
+  readonly onReview = computed(() => this.pageCount() > 0 && this.step() >= this.pageCount());
+  /** 1-based question numbers covered by this step, for the progress line. */
+  readonly pageStart = computed(() => this.step() * QUESTIONS_PER_STEP + 1);
+  readonly pageEnd = computed(() =>
+    Math.min(this.pageStart() + (this.currentPage()?.length ?? 1) - 1, this.total()),
   );
+  /** Questions left behind, not steps: the bar tracks the walk the admin sees. */
+  readonly progressPct = computed(() => {
+    const total = this.total();
+    if (total === 0) return 0;
+    const done = Math.min(this.step() * QUESTIONS_PER_STEP, total);
+    return Math.round((done / total) * 100);
+  });
   readonly answeredCount = computed(() => this.questions().filter((q) => this.isAnswered(q)).length);
 
   /** Client-side mirror of the backend's `ANSWER_OUT_OF_RANGE` rules. */
-  readonly numericError = computed<string | null>(() => {
-    const q = this.current();
-    if (!q || q.type !== 'NUMERIC') return null;
+  numericErrorFor(q: QuestionRow): string | null {
+    if (q.type !== 'NUMERIC') return null;
     const raw = this.answers()[q.code]?.numericValue ?? '';
     if (raw === '') return null;
     const value = Number(raw);
@@ -685,54 +891,82 @@ export class MatchingSimulatorPage {
       }
     }
     return null;
-  });
+  }
 
-  /** Blocks Next on an unanswered required question or an invalid number. */
+  /** Blocks Next while ANY question on the step is unanswered-required or invalid. */
   readonly canAdvance = computed(() => {
-    const q = this.current();
-    if (!q) return true;
-    if (this.numericError() !== null) return false;
-    return !q.isRequired || this.isAnswered(q);
+    const page = this.currentPage();
+    if (page === null) return true;
+    return page.every(
+      (q) => this.numericErrorFor(q) === null && (!q.isRequired || this.isAnswered(q)),
+    );
   });
 
   constructor() {
     void this.loadTree();
+  }
 
-    // Seed the free-entry controls when the step changes. `answers` is read
-    // untracked so typing does not reset the field being typed into.
-    effect(() => {
-      const q = this.current();
-      untracked(() => {
-        const value = q ? this.answers()[q.code] : undefined;
-        this.numericCtrl.setValue(value?.numericValue ?? '', { emitEvent: false });
-        this.textCtrl.setValue(value?.textValue ?? '', { emitEvent: false });
-        this.choiceCtrl.setValue(value?.optionCode ?? null, { emitEvent: false });
-      });
-    });
-
-    this.numericCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe((raw) => {
-      const q = this.current();
-      if (!q) return;
+  /**
+   * The control backing one free-entry / dropdown question, created on demand.
+   *
+   * Seeded from the answer already held (paging back must not blank a field) and
+   * read `untracked` so the lookup never enrols the template's change detection
+   * in the `answers` signal on the control's behalf.
+   */
+  numericCtrl(q: QuestionRow): FormControl<string> {
+    const existing = this.numericCtrls.get(q.code);
+    if (existing) return existing;
+    const seed = untracked(() => this.answers()[q.code]?.numericValue ?? '');
+    const ctrl = new FormControl<string>(seed, { nonNullable: true });
+    ctrl.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((raw) => {
       const trimmed = raw.trim();
       this.setAnswer(q.code, trimmed === '' ? null : { numericValue: trimmed });
     });
-    this.textCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe((raw) => {
-      const q = this.current();
-      if (!q) return;
+    this.numericCtrls.set(q.code, ctrl);
+    return ctrl;
+  }
+
+  textCtrl(q: QuestionRow): FormControl<string> {
+    const existing = this.textCtrls.get(q.code);
+    if (existing) return existing;
+    const seed = untracked(() => this.answers()[q.code]?.textValue ?? '');
+    const ctrl = new FormControl<string>(seed, { nonNullable: true });
+    ctrl.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((raw) => {
       const trimmed = raw.trim();
       this.setAnswer(q.code, trimmed === '' ? null : { textValue: trimmed });
     });
-    this.choiceCtrl.valueChanges.pipe(takeUntilDestroyed()).subscribe((code) => {
-      const q = this.current();
-      if (!q) return;
+    this.textCtrls.set(q.code, ctrl);
+    return ctrl;
+  }
+
+  choiceCtrl(q: QuestionRow): FormControl<string | null> {
+    const existing = this.choiceCtrls.get(q.code);
+    if (existing) return existing;
+    const seed = untracked(() => this.answers()[q.code]?.optionCode ?? null);
+    const ctrl = new FormControl<string | null>(seed);
+    ctrl.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((code) => {
       this.setAnswer(q.code, code ? { optionCode: code } : null);
     });
+    this.choiceCtrls.set(q.code, ctrl);
+    return ctrl;
   }
 
   /** Long option lists come from a registry (banks, governorates) — a searchable
    *  dropdown beats a radio column the admin has to scroll. */
   isLongList(q: QuestionRow): boolean {
     return q.options.length > LONG_OPTION_LIST_THRESHOLD;
+  }
+
+  /**
+   * Questions that claim the whole row rather than half of it: an option column
+   * (its rows carry sentence-length labels) and the derived total (it renders a
+   * breakdown list under the value). A single control — number, text, or the
+   * searchable dropdown — reads fine at half width and pairs with its neighbour.
+   */
+  isWide(q: QuestionRow): boolean {
+    if (q.type === 'NUMERIC') return this.isDerivedTotal(q);
+    if (q.type === 'TEXT') return false;
+    return !this.isLongList(q); // radio / checkbox column
   }
 
   pickCategory(c: LoanCategory): void {
@@ -747,10 +981,10 @@ export class MatchingSimulatorPage {
     this.result.set(null);
   }
 
-  /** Pick a single-select option, then auto-advance for a guided flow. */
+  /** Pick a single-select option. No auto-advance: the step holds sibling
+   *  questions, and jumping on the first pick would skip them. */
   choose(questionCode: string, optionCode: string): void {
     this.setAnswer(questionCode, { optionCode });
-    this.next();
   }
 
   isPicked(q: QuestionRow, optionCode: string): boolean {
@@ -767,13 +1001,14 @@ export class MatchingSimulatorPage {
   }
 
   next(): void {
-    if (this.step() < this.total()) this.step.update((s) => s + 1);
+    if (this.step() < this.pageCount()) this.step.update((s) => s + 1);
   }
   back(): void {
     if (this.step() > 0) this.step.update((s) => s - 1);
   }
-  goTo(i: number): void {
-    this.step.set(i);
+  /** Review rows are per question — open the step that question sits on. */
+  goToQuestion(index: number): void {
+    this.step.set(Math.floor(index / QUESTIONS_PER_STEP));
   }
   editAnswers(): void {
     this.result.set(null);
@@ -795,6 +1030,35 @@ export class MatchingSimulatorPage {
   isMoney(q: QuestionRow): boolean {
     return MONEY_UNITS.has((q.numericUnitEn ?? '').trim()) || MONEY_UNITS.has((q.numericUnitAr ?? '').trim());
   }
+  /** Thousands grouping for the read-only derived total, matching the money inputs. */
+  groupedText(value: string): string {
+    return grouped(value);
+  }
+  /**
+   * True when the total is computed from the parts and must therefore be shown
+   * read-only. False on a snapshot that predates the itemised questions, where the
+   * total is the only thing asked and has to stay typeable.
+   */
+  isDerivedTotal(q: QuestionRow): boolean {
+    return q.code === OBLIGATIONS_TOTAL_QUESTION_CODE && pickedDebtTypes(this.answers()).length > 0;
+  }
+  /** The per-debt amounts making up the total, for the read-only breakdown list. */
+  derivedTotalParts(): readonly { readonly label: string; readonly value: string }[] {
+    const answers = this.answers();
+    // The visible list is enough: an amount question is visible exactly when its
+    // debt type is picked, which is the same condition this loop walks.
+    const byCode = new Map(this.questions().map((q) => [q.code, q]));
+    const parts: { label: string; value: string }[] = [];
+    for (const debtType of pickedDebtTypes(answers)) {
+      const itemCode = OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE[debtType];
+      if (itemCode === undefined) continue;
+      const raw = answers[itemCode]?.numericValue?.trim() ?? '';
+      if (raw === '') continue;
+      const q = byCode.get(itemCode);
+      parts.push({ label: q ? this.questionText(q) : itemCode, value: grouped(raw) });
+    }
+    return parts;
+  }
   unitText(q: QuestionRow): string | null {
     return (this.isAr ? q.numericUnitAr : q.numericUnitEn) || q.numericUnitEn;
   }
@@ -811,7 +1075,7 @@ export class MatchingSimulatorPage {
   numericDescribedBy(q: QuestionRow): string | null {
     const ids = [
       this.numericHint(q) === null ? null : `hint-${q.code}`,
-      this.numericError() === null ? null : `err-${q.code}`,
+      this.numericErrorFor(q) === null ? null : `err-${q.code}`,
     ].filter((id): id is string => id !== null);
     return ids.length > 0 ? ids.join(' ') : null;
   }
@@ -918,6 +1182,12 @@ export class MatchingSimulatorPage {
       const next = { ...current };
       if (value === null) delete next[questionCode];
       else next[questionCode] = value;
+      // Re-derived on EVERY answer change, not only on the amount fields: un-ticking
+      // a debt type has to drop its amount back out of the sum too. Written as an
+      // ordinary answer so it validates, submits and scores through exactly the same
+      // path a typed one would.
+      const derived = derivedTotalOf(next);
+      if (derived !== null) next[OBLIGATIONS_TOTAL_QUESTION_CODE] = { numericValue: derived };
       return next;
     });
   }

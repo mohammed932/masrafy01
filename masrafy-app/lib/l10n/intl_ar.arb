@@ -857,6 +857,10 @@
       }
     }
   },
+  "q_dyn_obligations_total_helper": "محسوب من الأقساط التي أدخلتها أعلاه.",
+  "@q_dyn_obligations_total_helper": {
+    "description": "Helper under the read-only derived obligations total"
+  },
   "q_dyn_money_missing": "أدخل المبلغ ومدة السداد والدخل والأقساط الحالية لعرض العروض المتاحة.",
   "q_personal_years": "{years} سنة",
   "q_personal_step1_title": "بيانات التمويل",
@@ -990,6 +994,23 @@
   },
   "results_guarantee_approval": "توافق {pct}%",
   "results_unrated": "لم يُقيَّم بعد",
+  "results_unavailable_section": "غير متاح لك حاليًا",
+  "@results_unavailable_section": {
+    "description": "Heading above the checked-but-not-quotable programs"
+  },
+  "results_unavailable_badge": "لا يوجد عرض من هذا البنك",
+  "@results_unavailable_badge": {
+    "description": "Badge on an unavailable program card"
+  },
+  "results_unavailable_generic": "تعذّر على هذا البنك تقديم عرض لك حاليًا.",
+  "@results_unavailable_generic": {
+    "description": "Fallback for an unrecognised figures-unavailable reason code"
+  },
+  "results_unavailable_ceiling": "يمكنك الاقتراض حتى {amount} جنيه من هذا البنك.",
+  "@results_unavailable_ceiling": {
+    "description": "The applicant's ceiling at an unavailable program",
+    "placeholders": { "amount": { "type": "String" } }
+  },
   "@results_guarantee_approval": {
     "placeholders": {
       "pct": {
@@ -1188,6 +1209,10 @@
   "error_calculator_program_inactive": "هذا البرنامج غير متاح حاليًا.",
   "@error_calculator_program_inactive": {
     "description": "Backend CALCULATOR_PROGRAM_INACTIVE error code"
+  },
+  "error_obligations_total_mismatch": "إجمالي أقساطك الشهرية غير مطابق. من فضلك راجع التزاماتك وحاول مرة أخرى.",
+  "@error_obligations_total_mismatch": {
+    "description": "Backend OBLIGATIONS_TOTAL_MISMATCH error code"
   },
   "reason_no_recognised_income": "تعذّر الاعتراف بدخل شهري لهذا البرنامج.",
   "@reason_no_recognised_income": {

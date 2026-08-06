@@ -16,6 +16,7 @@ class ApplyResultModel {
     required this.matched,
     required this.applicationId,
     required this.offers,
+    this.unavailablePrograms = const [],
     this.summary,
     this.noMatchPrimaryReason,
   });
@@ -23,6 +24,11 @@ class ApplyResultModel {
   final bool matched;
   final String applicationId;
   final List<OfferModel> offers;
+
+  /// Programs the engine checked but could not quote — most often because the
+  /// applicant's existing payments use up the bank's whole allowed debt burden.
+  /// Absent on applications matched before the field existed, hence the default.
+  final List<UnavailableProgramModel> unavailablePrograms;
   final SummaryModel? summary;
   final String? noMatchPrimaryReason;
 
@@ -36,10 +42,15 @@ class ApplyResultModel {
           .map(OfferModel.fromJson)
           .toList();
       final rawSummary = data['summary'];
+      final rawUnavailable = data['unavailablePrograms'];
       return ApplyResultModel(
         matched: true,
         applicationId: (data['applicationId'] as String?) ?? '',
         offers: offers,
+        unavailablePrograms: (rawUnavailable is List ? rawUnavailable : const [])
+            .whereType<Map<String, dynamic>>()
+            .map(UnavailableProgramModel.fromJson)
+            .toList(),
         summary: rawSummary is Map<String, dynamic>
             ? SummaryModel.fromJson(rawSummary)
             : null,
@@ -58,8 +69,56 @@ class ApplyResultModel {
         matched: matched,
         applicationId: applicationId,
         offers: offers.map((o) => o.toEntity()).toList(),
+        unavailablePrograms:
+            unavailablePrograms.map((p) => p.toEntity()).toList(),
         summary: summary?.toEntity(),
         noMatchPrimaryReason: noMatchPrimaryReason,
+      );
+}
+
+/// A program the engine checked but could not quote. Listed rather than hidden:
+/// before this existed, an applicant whose obligations used up a bank's whole
+/// allowed debt burden simply never saw that bank, with no reason given.
+class UnavailableProgramModel {
+  const UnavailableProgramModel({
+    required this.programCode,
+    required this.bankName,
+    required this.programFriendlyName,
+    required this.reason,
+    this.maxAffordableAmountEGP,
+    this.dbrCapPercent,
+  });
+
+  final String programCode;
+  final String bankName;
+  final String programFriendlyName;
+
+  /// A backend reason code (`OBLIGATIONS_EXCEED_ALLOWANCE`, …). Localized on this
+  /// side, never sent as English prose (Principle III).
+  final String reason;
+  final double? maxAffordableAmountEGP;
+  final double? dbrCapPercent;
+
+  factory UnavailableProgramModel.fromJson(Map<String, dynamic> json) =>
+      UnavailableProgramModel(
+        programCode: (json['programCode'] as String?) ?? '',
+        bankName: (json['bankName'] as String?) ?? '',
+        programFriendlyName: (json['programFriendlyName'] as String?) ?? '',
+        reason: (json['reason'] as String?) ?? '',
+        // Money arrives as decimal STRINGS (Principle I / A3).
+        maxAffordableAmountEGP:
+            double.tryParse((json['maxAffordableAmountEGP'] as String?) ?? ''),
+        dbrCapPercent:
+            double.tryParse((json['dbrCapPercent'] as String?) ?? ''),
+      );
+
+  UnavailableProgramEntity toEntity() => UnavailableProgramEntity(
+        programCode: programCode,
+        bankName: bankName,
+        programFriendlyName: programFriendlyName,
+        reason: reason,
+        maxAffordableAmountEGP: maxAffordableAmountEGP,
+        dbrCapPercent: dbrCapPercent,
       );
 }
 

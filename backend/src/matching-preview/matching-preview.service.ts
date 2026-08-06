@@ -8,7 +8,12 @@ import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.serv
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { toBankProgramSnapshot } from '@/bank-programs/bank-program-snapshot.mapper';
 import { quoteProgram } from '@/matching/pipeline/quote';
-import { MONEY_FIELD_BINDINGS } from '@/matching/pipeline/money-field-bindings';
+import {
+  DEBT_TYPES_QUESTION_CODE,
+  MONEY_FIELD_BINDINGS,
+  resolveObligations,
+  type ObligationsResolution,
+} from '@/matching/pipeline/money-field-bindings';
 import type { ApplicantProfile, ApprovalFactors, Quote } from '@/matching/types';
 import type { SelectedAnswer } from '@/matching/scoring/approval-probability.scorer';
 import { toSelectedAnswer } from '@/matching/scoring/answer-to-selected';
@@ -87,12 +92,14 @@ export interface PreviewMatch {
   usedDefaultWeights: boolean;
 }
 
-/** The four bound numeric answers, once resolved. */
+/** The four bound money figures, once resolved. */
 interface MoneyInputs {
   requestedAmountEGP: Decimal;
   tenorMonths: number;
   monthlyIncomeEGP: Decimal;
+  /** Summed from the per-debt answers when the snapshot serves them. */
   existingObligationsEGP: Decimal;
+  hasCurrentLoan: boolean;
 }
 
 /**
@@ -182,6 +189,8 @@ export class MatchingPreviewService {
     const byCode = new Map(questions.map((q) => [q.code, q]));
     const selected: SelectedAnswer[] = [];
     const numeric = new Map<string, string>();
+    /** The debt-type picks, once validated — the basis for the obligations sum. */
+    let pickedDebtTypes: readonly string[] | undefined;
     for (const ans of answers) {
       const q = byCode.get(ans.questionCode);
       if (!q)
@@ -204,6 +213,9 @@ export class MatchingPreviewService {
       // A numeric answer feeds BOTH sides: it prices the loan here and, if the
       // program banded it, also scores. Two different jobs, not double counting.
       if (normalised?.numericValue != null) numeric.set(q.code, normalised.numericValue);
+      if (q.code === DEBT_TYPES_QUESTION_CODE && normalised) {
+        pickedDebtTypes = normalised.selectedOptionCodes;
+      }
     }
 
     // Branch visibility evaluated against what the applicant has answered so
@@ -215,7 +227,26 @@ export class MatchingPreviewService {
       .filter((q) => isQuestionVisible({ enabledWhen: q.enabledWhen ?? null }, submitted, byCode))
       .map((q) => q.code);
 
-    return { selected, money: this.resolveMoneyInputs(numeric), askedQuestionCodes };
+    // Itemised obligations. Three distinct states, and collapsing any two of them
+    // would produce a wrong figure rather than no figure:
+    //   not served  → this snapshot predates the feature; fall back to the stated
+    //                 lump sum, exactly as before.
+    //   served, unanswered → mid-questionnaire. NOT zero: quoting "no debts" here
+    //                 would show full affordability right up until he declares
+    //                 his debts, then shrink it.
+    //   served, answered   → sum the visible per-debt amounts (picking "none"
+    //                 sums to a real, stated 0).
+    const obligations = byCode.has(DEBT_TYPES_QUESTION_CODE)
+      ? pickedDebtTypes === undefined
+        ? null
+        : resolveObligations({ numericByCode: numeric, pickedDebtTypes })
+      : resolveObligations({ numericByCode: numeric });
+
+    return {
+      selected,
+      money: this.resolveMoneyInputs(numeric, obligations),
+      askedQuestionCodes,
+    };
   }
 
   /**
@@ -225,17 +256,25 @@ export class MatchingPreviewService {
    * set is the normal mid-questionnaire state, not an error (contrast apply,
    * which raises `MONEY_FIGURE_MISSING`).
    */
-  private resolveMoneyInputs(numeric: Map<string, string>): MoneyInputs | null {
+  private resolveMoneyInputs(
+    numeric: Map<string, string>,
+    obligations: ObligationsResolution | null,
+  ): MoneyInputs | null {
     const amount = numeric.get(MONEY_FIELD_BINDINGS.requested_amount);
     const tenor = numeric.get(MONEY_FIELD_BINDINGS.tenor_months);
     const income = numeric.get(MONEY_FIELD_BINDINGS.monthly_income);
-    const obligations = numeric.get(MONEY_FIELD_BINDINGS.existing_obligations);
-    if (!amount || !tenor || !income || !obligations) return null;
+    if (!amount || !tenor || !income || obligations === null) return null;
     return {
       requestedAmountEGP: new Decimal(amount),
       tenorMonths: Math.floor(Number(tenor)),
       monthlyIncomeEGP: new Decimal(income),
-      existingObligationsEGP: new Decimal(obligations),
+      // The SUM is authoritative. A stated `current_installments` that disagrees
+      // is ignored here rather than rejected: preview is an advisory read and the
+      // admin simulator shares it, so exploring must never 422. Apply, the
+      // committing action, raises `OBLIGATIONS_TOTAL_MISMATCH` instead — both use
+      // the same number, they differ only in tolerance for a lying client.
+      existingObligationsEGP: obligations.totalEGP,
+      hasCurrentLoan: obligations.hasCurrentLoan,
     };
   }
 
@@ -327,7 +366,10 @@ export class MatchingPreviewService {
       },
       obligations: {
         existingMonthlyObligationsEGP: money.existingObligationsEGP,
-        hasCurrentLoan: money.existingObligationsEGP.greaterThan(0),
+        // From the debt-type picks when itemised, not from `total > 0`: a card
+        // carried at a zero minimum payment is still a loan on book, and the
+        // lump-sum derivation could never express that.
+        hasCurrentLoan: money.hasCurrentLoan,
         hasPreviousRejection: false,
       },
       assets: {},

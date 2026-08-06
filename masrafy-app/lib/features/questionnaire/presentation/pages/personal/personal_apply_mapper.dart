@@ -45,7 +45,9 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
     ),
     obligations: ObligationsPayload(
       existingMonthlyObligationsEGP: money.existingObligationsEGP,
-      // Derived from the stated figure — no separate yes/no bucket needed.
+      // Both derived from the itemised debt answers — the total is the SUM of the
+      // per-debt amounts, and this flag comes from which TYPES were ticked (a
+      // card at a zero minimum payment is still a loan on book).
       hasCurrentLoan: money.hasCurrentLoan,
       hasPreviousRejection: pickedOption(answers, 'prior_rejection') == 'yes',
     ),

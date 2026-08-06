@@ -2639,6 +2639,12 @@ abstract class AppLocalizations {
   /// **'بمضاعفات {step}'**
   String q_dyn_number_step_helper(String step);
 
+  /// Helper under the read-only derived obligations total
+  ///
+  /// In ar, this message translates to:
+  /// **'محسوب من الأقساط التي أدخلتها أعلاه.'**
+  String get q_dyn_obligations_total_helper;
+
   /// No description provided for @q_dyn_money_missing.
   ///
   /// In ar, this message translates to:
@@ -3310,6 +3316,30 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لم يُقيَّم بعد'**
   String get results_unrated;
+
+  /// Heading above the checked-but-not-quotable programs
+  ///
+  /// In ar, this message translates to:
+  /// **'غير متاح لك حاليًا'**
+  String get results_unavailable_section;
+
+  /// Badge on an unavailable program card
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد عرض من هذا البنك'**
+  String get results_unavailable_badge;
+
+  /// Fallback for an unrecognised figures-unavailable reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر على هذا البنك تقديم عرض لك حاليًا.'**
+  String get results_unavailable_generic;
+
+  /// The applicant's ceiling at an unavailable program
+  ///
+  /// In ar, this message translates to:
+  /// **'يمكنك الاقتراض حتى {amount} جنيه من هذا البنك.'**
+  String results_unavailable_ceiling(String amount);
 
   /// No description provided for @results_best_match.
   ///
@@ -4066,6 +4096,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'هذا البرنامج غير متاح حاليًا.'**
   String get error_calculator_program_inactive;
+
+  /// Backend OBLIGATIONS_TOTAL_MISMATCH error code
+  ///
+  /// In ar, this message translates to:
+  /// **'إجمالي أقساطك الشهرية غير مطابق. من فضلك راجع التزاماتك وحاول مرة أخرى.'**
+  String get error_obligations_total_mismatch;
 
   /// Backend NO_RECOGNISED_INCOME reason code
   ///

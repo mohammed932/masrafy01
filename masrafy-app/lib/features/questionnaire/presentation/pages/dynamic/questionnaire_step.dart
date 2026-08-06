@@ -64,6 +64,7 @@ class QuestionnaireStep extends StatelessWidget {
               question: questions[i],
               answer: state.answers[questions[i].code],
               isAr: isAr,
+              isDerived: state.isDerivedObligationsTotal(questions[i]),
             ),
           ],
         ],
@@ -80,11 +81,16 @@ class _QuestionField extends StatelessWidget {
     required this.question,
     required this.answer,
     required this.isAr,
+    this.isDerived = false,
   });
 
   final QuestionEntity question;
   final QuestionAnswer? answer;
   final bool isAr;
+
+  /// Computed for the applicant rather than typed by him — currently only the
+  /// obligations total, summed from the per-debt answers.
+  final bool isDerived;
 
   @override
   Widget build(BuildContext context) {
@@ -103,12 +109,20 @@ class _QuestionField extends StatelessWidget {
               : const [],
           isAr: isAr,
         ),
-      QuestionType.numeric => _NumericField(
-          question: question,
-          initialValue:
-              answer is NumericAnswer ? (answer! as NumericAnswer).value : '',
-          isAr: isAr,
-        ),
+      QuestionType.numeric => isDerived
+          ? _DerivedTotalField(
+              question: question,
+              value:
+                  answer is NumericAnswer ? (answer! as NumericAnswer).value : '',
+              isAr: isAr,
+            )
+          : _NumericField(
+              question: question,
+              initialValue: answer is NumericAnswer
+                  ? (answer! as NumericAnswer).value
+                  : '',
+              isAr: isAr,
+            ),
       QuestionType.text => _FreeTextField(
           question: question,
           initialValue:
@@ -328,6 +342,83 @@ class _NumericFieldState extends State<_NumericField> {
     if (min != null) return l.q_dyn_number_min(min);
     if (max != null) return l.q_dyn_number_max(max);
     return l.q_dyn_number_hint;
+  }
+}
+
+/// The DERIVED obligations total — summed from the per-debt answers, shown
+/// rather than asked.
+///
+/// Read-only on purpose. The applicant has already stated each debt, so retyping
+/// the total could only introduce a disagreement, and the server rejects one
+/// (`OBLIGATIONS_TOTAL_MISMATCH`) precisely because the figure is computed on
+/// both sides. Rendering it as a plain surface rather than a disabled text field
+/// avoids promising an interaction that isn't there.
+class _DerivedTotalField extends StatelessWidget {
+  const _DerivedTotalField({
+    required this.question,
+    required this.value,
+    required this.isAr,
+  });
+
+  final QuestionEntity question;
+  final String value;
+  final bool isAr;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final colors = MasrafyColorTheme.of(context);
+    final text = MasrafyTextTheme.of(context);
+    final unit = question.numeric?.unit(isAr);
+    final display = GroupedNumberInputFormatter.format(value) ?? value;
+
+    return _TitledField(
+      title: question.label(isAr),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsetsDirectional.symmetric(
+              horizontal: 16.w,
+              vertical: 14.h,
+            ),
+            decoration: BoxDecoration(
+              // Disabled-container fill, so the surface reads as "shown to you"
+              // rather than as an input awaiting a tap.
+              color: colors.bg.containerDisabled,
+              borderRadius: BorderRadius.circular(12.r),
+              border: Border.all(color: colors.border.main),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    display.isEmpty ? '—' : display,
+                    style: text.heading4.semiBold().copyWith(
+                          color: display.isEmpty
+                              ? colors.text.tertiary
+                              : colors.text.primary,
+                        ),
+                  ),
+                ),
+                if (unit != null && unit.isNotEmpty)
+                  Text(
+                    unit,
+                    style:
+                        text.body.regular().copyWith(color: colors.text.tertiary),
+                  ),
+              ],
+            ),
+          ),
+          Gap(6.h),
+          Text(
+            l.q_dyn_obligations_total_helper,
+            style: text.caption.regular().copyWith(color: colors.text.tertiary),
+          ),
+        ],
+      ),
+    );
   }
 }
 

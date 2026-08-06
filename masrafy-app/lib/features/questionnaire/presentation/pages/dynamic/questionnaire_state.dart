@@ -76,6 +76,16 @@ class QuestionnaireState with _$QuestionnaireState {
     }).toList();
   }
 
+  /// Whether [question] is the DERIVED obligations total — summed from the
+  /// per-debt answers rather than typed.
+  ///
+  /// True only while this snapshot actually serves the debt-type question. A
+  /// questionnaire published before itemisation still asks for the lump sum
+  /// directly, and that field must stay editable.
+  bool isDerivedObligationsTotal(QuestionEntity question) =>
+      question.code == kExistingObligationsQuestion &&
+      _questionsByCode.containsKey(kDebtTypesQuestion);
+
   /// Whether [answer] is one the server would accept for [question]: a required
   /// question needs a value, and a typed number / text must satisfy that
   /// question's own CONTENT rules. Mirrors the server's `validateAnswer` so an

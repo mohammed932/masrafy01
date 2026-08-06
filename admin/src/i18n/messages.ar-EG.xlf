@@ -675,6 +675,19 @@
       <trans-unit id="qedit.type_locked" datatype="html"><source>The answer type can&apos;t change once applicants have answered this question — their stored answers would no longer match it. Add a new question instead.</source><target>لا يمكن تغيير نوع الإجابة بعد أن أجاب المتقدمون على هذا السؤال — إجاباتهم المحفوظة لن تطابقه. أضف سؤالًا جديدًا بدلًا من ذلك.</target></trans-unit>
       <trans-unit id="qedit.scoring_by_type" datatype="html"><source>This type carries scoring weights too — a number scores by the band it falls in, text by whether it was answered. Set that per program in its scoring weights.</source><target>هذا النوع يحمل أوزان تقييم أيضًا — الرقم يُقيَّم حسب الشريحة التي يقع فيها، والنص حسب الإجابة عليه من عدمها. يُضبط ذلك لكل برنامج في أوزان التقييم الخاصة به.</target></trans-unit>
       <trans-unit id="qedit.required" datatype="html"><source>Required</source><target>مطلوب</target></trans-unit>
+      <trans-unit id="qedit.sec_branch" datatype="html"><source>When to ask this</source><target>متى يُطرح هذا السؤال</target></trans-unit>
+      <trans-unit id="qedit.branch_clear" datatype="html"><source>Always ask</source><target>اطرحه دائمًا</target></trans-unit>
+      <trans-unit id="qedit.branch_none" datatype="html"><source>Nothing to branch on yet. A rule reads an answer the applicant already gave, so it needs an earlier question that offers a choice of options.</source><target>لا يوجد ما يمكن التفريع عليه بعد. القاعدة تقرأ إجابة سبق أن قدّمها المتقدم، لذا تحتاج سؤالًا أسبق يعرض خيارات للاختيار منها.</target></trans-unit>
+      <trans-unit id="qedit.branch_source" datatype="html"><source>Depends on</source><target>يعتمد على</target></trans-unit>
+      <trans-unit id="qedit.branch_operator" datatype="html"><source>Condition</source><target>الشرط</target></trans-unit>
+      <trans-unit id="qedit.branch_option" datatype="html"><source>This answer</source><target>هذه الإجابة</target></trans-unit>
+      <trans-unit id="qedit.branch_incomplete" datatype="html"><source>Pick which answer triggers this question. A half-set rule can&apos;t be evaluated, so it would save without ever hiding anything.</source><target>اختر الإجابة التي تُظهر هذا السؤال. القاعدة الناقصة لا يمكن تقييمها، لذا ستُحفظ دون أن تُخفي أي شيء.</target></trans-unit>
+      <trans-unit id="qedit.branch_hint" datatype="html"><source>Asked only when that answer matches. If the source question allows several picks, any one of them matching is enough.</source><target>يُطرح فقط عند تطابق تلك الإجابة. إذا كان السؤال المصدر يسمح بعدة اختيارات، فتطابق أي واحد منها يكفي.</target></trans-unit>
+      <trans-unit id="qedit.branch_hint_off" datatype="html"><source>Asked of every applicant in this question&apos;s categories. Pick a question above to ask it conditionally instead.</source><target>يُطرح على كل متقدم في فئات هذا السؤال. اختر سؤالًا بالأعلى لطرحه بشروط بدلًا من ذلك.</target></trans-unit>
+      <trans-unit id="qedit.branch_always" datatype="html"><source>Always ask this</source><target>اطرح هذا دائمًا</target></trans-unit>
+      <trans-unit id="qedit.branch_is" datatype="html"><source>is</source><target>يساوي</target></trans-unit>
+      <trans-unit id="qedit.branch_is_not" datatype="html"><source>is not</source><target>لا يساوي</target></trans-unit>
+      <trans-unit id="qedit.branch_pick_option" datatype="html"><source>Pick an answer</source><target>اختر إجابة</target></trans-unit>
       <trans-unit id="qedit.sec_rules" datatype="html"><source>Accepted values</source><target>القيم المقبولة</target></trans-unit>
       <trans-unit id="qedit.num_min" datatype="html"><source>Minimum</source><target>الحد الأدنى</target></trans-unit>
       <trans-unit id="qedit.num_max" datatype="html"><source>Maximum</source><target>الحد الأقصى</target></trans-unit>
@@ -769,6 +782,8 @@
       <trans-unit id="qcat.sec_not_asked" datatype="html"><source>Not asked here</source><target>غير مطروحة هنا</target></trans-unit>
       <trans-unit id="qcat.none_asked" datatype="html"><source>Nothing is asked here yet — tick a question below to add it.</source><target>لا توجد أسئلة مطروحة هنا بعد — حدّد سؤالًا بالأسفل لإضافته.</target></trans-unit>
       <trans-unit id="sim.no_category_questions" datatype="html"><source>No questions are assigned to this loan category yet.</source><target>لا توجد أسئلة مرتبطة بنوع التمويل هذا بعد.</target></trans-unit>
+      <trans-unit id="sim.derived_total" datatype="html"><source>Added up from the payments above — not typed.</source><target>محسوب تلقائيًا من الأقساط بالأعلى — غير مُدخل يدويًا.</target></trans-unit>
+      <trans-unit id="sim.step_range" datatype="html"><source>Questions <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></source><target>الأسئلة <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></target></trans-unit>
 
       <trans-unit id="scoring.editor.unasked_tag" datatype="html"><source>not asked</source><target>غير مطروح</target></trans-unit>
       <trans-unit id="scoring.editor.unasked_lead" datatype="html"><source>These picked questions are never shown to <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> applicants.</source><target>هذه الأسئلة المحدّدة لا تُطرح إطلاقًا على متقدّمي <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/>.</target></trans-unit>

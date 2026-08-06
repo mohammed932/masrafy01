@@ -17,10 +17,30 @@
  *    differ; the banking expert tunes them later in the admin editor.
  */
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
-import { MONEY_FIELD_BINDINGS } from '../src/matching/pipeline/money-field-bindings';
+import {
+  DEBT_TYPES_QUESTION_CODE,
+  DEBT_TYPE_NONE_OPTION,
+  DEBT_TYPE_OPTION_CODES,
+  MONEY_FIELD_BINDINGS,
+  MONEY_FIELD_BINDING_KEYS,
+  OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
+  OBLIGATION_ITEM_QUESTION_CODES,
+} from '../src/matching/pipeline/money-field-bindings';
 
 const prisma = new PrismaClient();
 const SEED_ACTOR = 'seed-system';
+
+/**
+ * The fixed system staff account created by the `lead_management_activity`
+ * migration, which `seed-demo` passes to `seedScoringWeights` as the editor id.
+ */
+const SYSTEM_STAFF_ID = 'clsysactor00000000000000000000';
+
+/**
+ * Every author that means "written by a seeder, safe to rewrite". Anything else in
+ * `ScoringWeightSet.createdBy` is a real staff id from an admin's dashboard save.
+ */
+const SEED_AUTHORS: ReadonlySet<string> = new Set([SEED_ACTOR, SYSTEM_STAFF_ID]);
 
 type Category = 'personal' | 'mortgage' | 'car' | 'business';
 
@@ -75,7 +95,7 @@ const SEED_BAND_SCORES = [25, 60, 100] as const;
  * Without bounds to split there is nothing to band on, so the question gets one
  * flat band — it then contributes a constant rather than silently earning 0.
  */
-function seedNumericBands(
+export function seedNumericBands(
   questionCode: string,
   numeric: SeedNumericRules | undefined,
   multiplier: number,
@@ -456,15 +476,107 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
     question: {
       code: MONEY_FIELD_BINDINGS.existing_obligations, // current_installments
       type: 'NUMERIC',
-      // Zero is a legitimate answer, so this must not be a bucket with a
-      // "less than X" floor — hence minValue 0.
-      questionEn: 'How much do you pay for loans each month?',
-      questionAr: 'ما إجمالي أقساطك الشهرية الحالية؟',
+      // The TOTAL, and it is DERIVED — summed from the per-debt answers below,
+      // not recalled by the applicant. Kept as a real asked question for two
+      // reasons: it stays the single bound money figure the engine reads, and it
+      // stays the single SCORED obligations question (a total is the only
+      // meaningful thing to band — see the assignment filter further down).
+      // Zero is legitimate ("I have none"), hence minValue 0.
+      questionEn: 'Your total monthly payments',
+      questionAr: 'إجمالي أقساطك الشهرية',
       numeric: { minValue: '0', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
       options: [],
     },
   },
 ];
+
+/**
+ * Itemised obligations — one NUMERIC amount question per debt TYPE, each unlocked
+ * by `enabledWhen` against a pick on the pool's EXISTING debt-type multi-select
+ * (`current_loans` / `DEBT_TYPES_QUESTION_CODE` — "Do you pay back any loans right
+ * now?", authored above as `CURRENT_LOANS_Q`).
+ *
+ * Reusing that question rather than authoring a second one is deliberate: it
+ * already asks precisely this, with precisely these option codes, so a new
+ * multi-select would put the same question in front of the applicant twice.
+ * Its `none` option is `DEBT_TYPE_NONE_OPTION`, so "no debts" is already a STATED
+ * answer — which is what lets obligations resolve to a real `0` instead of "no
+ * figures" (an empty multi-select is indistinguishable from an unanswered one).
+ *
+ * This is why the flow needs no new question type: the branching engine already
+ * matches an option code against a multi-pick answer
+ * (`question-visibility.ts`), and each amount lands in its own
+ * `ApplicationAnswer` row under its own code, so the one-answer-per-question
+ * constraint holds untouched.
+ *
+ * Ordered deliberately: the branch source must have a strictly lower
+ * `displayOrder` than every question it guards (`assertEnabledWhenValid`), and
+ * the derived total must come last so the applicant sees it settle after the
+ * parts. The injection below enforces that ordering explicitly.
+ */
+const OBLIGATION_QUESTIONS: ReadonlyArray<{
+  groupCode: string;
+  question: SeedQuestion;
+  categories: readonly Category[];
+}> = [
+  ...(
+    [
+      ['car_loan', 'How much is your car loan each month?', 'كم قسط سيارتك شهريًا؟'],
+      [
+        'credit_cards',
+        'How much do you pay on your credit card each month?',
+        'كم تسدد على بطاقتك الائتمانية شهريًا؟',
+      ],
+      ['personal_loan', 'How much is your personal loan each month?', 'كم قسط قرضك الشخصي شهريًا؟'],
+      ['mortgage', 'How much is your mortgage each month?', 'كم قسط قرضك العقاري شهريًا؟'],
+      ['other', 'How much are your other payments each month?', 'كم إجمالي التزاماتك الأخرى شهريًا؟'],
+    ] as ReadonlyArray<readonly [keyof typeof OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE, string, string]>
+  ).map(([debtType, questionEn, questionAr]) => ({
+    groupCode: 'commitments',
+    categories: ['personal', 'mortgage', 'car', 'business'] as readonly Category[],
+    question: {
+      code: OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE[debtType],
+      type: 'NUMERIC' as QuestionType,
+      questionEn,
+      questionAr,
+      // Required, so ticking a type and leaving the amount blank is already
+      // blocked by the wizard's own `canAdvance` — no extra gate needed.
+      isRequired: true,
+      // minValue 0 because a card carried at a zero minimum payment is real. That
+      // is exactly why `hasCurrentLoan` is derived from the PICK, not the amount.
+      numeric: { minValue: '0', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
+      enabledWhen: {
+        questionCode: DEBT_TYPES_QUESTION_CODE,
+        operator: 'equals' as const,
+        optionCode: debtType,
+      },
+      options: [],
+    },
+  })),
+];
+
+// The amount questions branch off `CURRENT_LOANS_Q`'s option codes, and those codes
+// are join keys spread across two files. A rename or a dropped option on either
+// side would not fail to compile — it would silently publish amount questions that
+// can never become visible, and the applicant would be asked for a total with no
+// parts to sum. So assert the two agree at seed time, before anything is written.
+{
+  const authored = new Set(CURRENT_LOANS_Q.options?.map((o) => o.code ?? slug(o.labelEn)) ?? []);
+  const required = [...DEBT_TYPE_OPTION_CODES, DEBT_TYPE_NONE_OPTION];
+  const missing = required.filter((code) => !authored.has(code));
+  if (CURRENT_LOANS_Q.code !== DEBT_TYPES_QUESTION_CODE) {
+    throw new Error(
+      `seed-questionnaire: DEBT_TYPES_QUESTION_CODE is '${DEBT_TYPES_QUESTION_CODE}' but the ` +
+        `authored debt-type question is '${CURRENT_LOANS_Q.code}'`,
+    );
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `seed-questionnaire: '${DEBT_TYPES_QUESTION_CODE}' is missing option(s) ` +
+        `${missing.join(', ')} required by OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE`,
+    );
+  }
+}
 
 /**
  * Bucket questions superseded by a MONEY_QUESTIONS entry. Three share the bound
@@ -865,6 +977,66 @@ export async function seedQuestionnaire(): Promise<void> {
     questionOrder.unshift(question.code);
   }
 
+  // ---- 1c. Inject the itemised obligations block -----------------------------
+  // Registered after 1b so `current_installments` already exists, then the whole
+  // block is re-ordered as one unit below.
+  for (const { groupCode, question, categories } of OBLIGATION_QUESTIONS) {
+    if (!groupByCode.has(groupCode)) {
+      throw new Error(
+        `seed-questionnaire: obligation question '${question.code}' targets unknown group '${groupCode}'`,
+      );
+    }
+    // Narrow to the categories that actually ask the branch source. `current_loans`
+    // is asked by personal / car / mortgage but NOT business, so claiming all four
+    // here would publish amount questions into a category where their branch source
+    // is never asked — questions that can never become visible, and a dangling
+    // branch in the admin's category matrix. Derived rather than hardcoded so that
+    // adding the source to a category automatically brings its amounts along.
+    const sourceCategories = categoriesByQuestion[DEBT_TYPES_QUESTION_CODE];
+    categoriesByQuestion[question.code] = new Set(
+      sourceCategories ? categories.filter((c) => sourceCategories.has(c)) : categories,
+    );
+    questionByCode.set(question.code, {
+      code: question.code,
+      groupCode,
+      type: question.type ?? 'NUMERIC',
+      ...(question.numeric ? { numeric: question.numeric } : {}),
+      ...(question.enabledWhen ? { enabledWhen: question.enabledWhen } : {}),
+      questionEn: question.questionEn,
+      questionAr: question.questionAr,
+      isRequired: question.isRequired ?? true,
+      // Same code fallback as the merge path: every option here pins its code
+      // explicitly (it is a join key), but the seed type allows omission.
+      options: (question.options ?? []).map((o) => ({
+        code: o.code ?? slug(o.labelEn),
+        labelEn: o.labelEn,
+        labelAr: o.labelAr,
+      })),
+    });
+  }
+
+  // `displayOrder` is this array's index, and `assertEnabledWhenValid` rejects a
+  // forward reference — so the branch source MUST precede the questions it
+  // guards. Re-seat the block as one contiguous, correctly ordered run rather
+  // than relying on the interleaving of two separate injection loops:
+  //   debt types → per-debt amounts → derived total
+  const obligationBlock: readonly string[] = [
+    DEBT_TYPES_QUESTION_CODE,
+    ...OBLIGATION_ITEM_QUESTION_CODES,
+    MONEY_FIELD_BINDINGS.existing_obligations,
+  ];
+  for (let i = questionOrder.length - 1; i >= 0; i--) {
+    if (obligationBlock.includes(questionOrder[i]!)) questionOrder.splice(i, 1);
+  }
+  // Seated immediately AFTER the remaining money questions, not at the very front:
+  // an applicant should say what he earns and what he wants before enumerating what
+  // he owes, and the derived total then lands right next to the income it is judged
+  // against. Still contiguous, so source → parts → total stays intact.
+  const lastMoneyIndex = MONEY_FIELD_BINDING_KEYS.map((k) => MONEY_FIELD_BINDINGS[k])
+    .filter((code) => !obligationBlock.includes(code))
+    .reduce((max, code) => Math.max(max, questionOrder.indexOf(code)), -1);
+  questionOrder.splice(lastMoneyIndex + 1, 0, ...obligationBlock);
+
   // ---- 2. Upsert the global groups / questions / options (unique by code) ---
   const groupIdByCode = new Map<string, string>();
   let gOrder = 0;
@@ -956,9 +1128,11 @@ export async function seedQuestionnaire(): Promise<void> {
   //         each type is scored by). Assignment = questionWeights keys. ---------
   const programs = await prisma.bankProgram.findMany({
     where: { active: true },
-    select: { id: true, productCategory: true },
+    select: { id: true, programCode: true, productCategory: true },
   });
   let setCount = 0;
+  /** Programs whose ACTIVE weights an admin tuned — left untouched, reported below. */
+  const skippedTuned: string[] = [];
   for (let i = 0; i < programs.length; i++) {
     const p = programs[i]!;
     const cat = p.productCategory.toLowerCase() as Category;
@@ -969,6 +1143,14 @@ export async function seedQuestionnaire(): Promise<void> {
     // what `WEIGHTS_MISSING_RULE` rejects.
     const assigned = questionOrder.filter((qc) => {
       if (!categoriesByQuestion[qc]?.has(cat)) return false;
+      // The per-debt AMOUNT questions are capture-only and must never be banded.
+      // Debt burden is only meaningful as a TOTAL: band each debt separately and
+      // one 5 000 car loan reads "high debt" once (a single low score) while three
+      // 1 700 debts read "low debt" three times (three high scores) — the same
+      // 5 000-ish burden scoring opposite ways, with the v13.0.0 asked-weight
+      // denominator shifting underneath it too. Only `current_installments`, the
+      // derived total, carries the obligations weight and bands.
+      if (OBLIGATION_ITEM_QUESTION_CODES.includes(qc as never)) return false;
       const type = questionByCode.get(qc)?.type ?? 'SINGLE_SELECT';
       if (type === 'SINGLE_SELECT' || type === 'MULTI_SELECT') {
         return Object.keys(pointsByAnswer[qc] ?? {}).length > 0;
@@ -1003,8 +1185,26 @@ export async function seedQuestionnaire(): Promise<void> {
       }
     }
     const weights = { questionWeights, answerScores, multiSelectRules, numericBands, textRules };
-    const existingActive = await prisma.scoringWeightSet.findFirst({ where: { bankProgramId: p.id, status: 'ACTIVE' } });
+    const existingActive = await prisma.scoringWeightSet.findFirst({
+      where: { bankProgramId: p.id, status: 'ACTIVE' },
+      select: { id: true, createdBy: true, versionNumber: true },
+    });
     if (existingActive) {
+      // Only ever rewrite a set a SEEDER authored. A set whose ACTIVE version an
+      // admin saved is hand-tuned by the banking expert through the dashboard, and
+      // re-running the seed to pick up a new QUESTION must not silently throw that
+      // tuning away — mutating an ACTIVE set in place is A33's first clause, and the
+      // seed has no more licence to do it than the app does.
+      //
+      // Matched on the AUTHOR, not the row: `seed-scoring-weights` creates the row
+      // as the system staff account while this seeder writes the bare `SEED_ACTOR`
+      // string, and this seeder used to overwrite the other's rows in place — so a
+      // row can carry either author and still be entirely seed-authored. An admin
+      // save goes through `saveWeights`, which stamps the real editor's staff id.
+      if (!SEED_AUTHORS.has(existingActive.createdBy)) {
+        skippedTuned.push(`${p.programCode} (v${existingActive.versionNumber})`);
+        continue;
+      }
       await prisma.scoringWeightSet.update({ where: { id: existingActive.id }, data: { weights } });
       setCount += 1;
       continue;
@@ -1019,6 +1219,12 @@ export async function seedQuestionnaire(): Promise<void> {
   console.log(
     `seed-questionnaire: ${groupOrder.length} groups, ${questionOrder.length} questions (global), ${setCount} program weight sets.`,
   );
+  if (skippedTuned.length > 0) {
+    console.log(
+      `seed-questionnaire: kept admin-tuned ACTIVE weights for ${skippedTuned.length} program(s): ` +
+        `${skippedTuned.join(', ')}. Assign any NEW question to them in the scoring editor.`,
+    );
+  }
 }
 
 async function publishVersion(): Promise<void> {

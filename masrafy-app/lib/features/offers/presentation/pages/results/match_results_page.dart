@@ -108,6 +108,7 @@ class _MatchResultsView extends StatelessWidget {
                             return _ResultsContent(
                               args: args,
                               offers: state.offers,
+                              unavailablePrograms: state.unavailablePrograms,
                             );
                           },
                         ),
@@ -123,10 +124,18 @@ class _MatchResultsView extends StatelessWidget {
 
 /// Loaded state — the summary card + ranked offer cards (the original layout).
 class _ResultsContent extends StatelessWidget {
-  const _ResultsContent({required this.args, required this.offers});
+  const _ResultsContent({
+    required this.args,
+    required this.offers,
+    this.unavailablePrograms = const [],
+  });
 
   final MatchResultsArgs args;
   final List<MatchOffer> offers;
+
+  /// Banks that were checked but could not quote — rendered under the real
+  /// offers, de-emphasised, each naming its own reason.
+  final List<UnavailableProgramEntity> unavailablePrograms;
 
   @override
   Widget build(BuildContext context) {
@@ -158,6 +167,29 @@ class _ResultsContent extends StatelessWidget {
               OfferDetailsRoute(offer: offer, summary: args),
             ),
           ),
+        ],
+        // Below the real offers, and headed, so the two groups are never mistaken
+        // for one another — but present, because a bank that explains why it
+        // can't lend is more useful to an over-committed applicant than a bank
+        // that silently disappears.
+        if (unavailablePrograms.isNotEmpty) ...[
+          Gap(32.h),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              l.results_unavailable_section,
+              style: MasrafyTextTheme.of(context).heading4.semiBold().copyWith(
+                    color: MasrafyColorTheme.of(context).text.secondary,
+                  ),
+            ),
+          ),
+          for (final program in unavailablePrograms) ...[
+            Gap(14.h),
+            UnavailableProgramCard(
+              program: program,
+              productLabel: typeLabel,
+            ),
+          ],
         ],
       ],
     );
