@@ -31,6 +31,7 @@ class SavedOfferModel {
     required this.bankOfferId,
     required this.loanTypeKey,
     required this.approvalScore,
+    required this.approvalUsedDefault,
     required this.effectiveTenorMonths,
     required this.effectiveRatePercent,
     required this.monthlyInstallmentEGP,
@@ -43,6 +44,9 @@ class SavedOfferModel {
   final String bankOfferId;
   final String loanTypeKey;
   final int approvalScore;
+
+  /// Program had no ACTIVE weight set at match time — "not rated", not 0%.
+  final bool approvalUsedDefault;
   final int effectiveTenorMonths;
   final double effectiveRatePercent;
   final double monthlyInstallmentEGP;
@@ -56,6 +60,7 @@ class SavedOfferModel {
       bankOfferId: json['bankOfferId'] as String,
       loanTypeKey: (json['loanTypeKey'] as String?) ?? 'personal',
       approvalScore: _toInt(json['approvalScore']),
+      approvalUsedDefault: json['approvalUsedDefault'] == true,
       effectiveTenorMonths: _toInt(json['effectiveTenorMonths']),
       effectiveRatePercent: _toDouble(json['effectiveRatePercent']),
       monthlyInstallmentEGP: _toDouble(json['monthlyInstallmentEGP']),
@@ -70,6 +75,7 @@ class SavedOfferModel {
         bankOfferId: bankOfferId,
         loanTypeKey: loanTypeKey,
         approvalPct: approvalScore,
+        approvalUnrated: approvalUsedDefault,
         termMonths: effectiveTenorMonths,
         ratePct: effectiveRatePercent,
         monthly: monthlyInstallmentEGP.round(),

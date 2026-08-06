@@ -105,6 +105,7 @@ class _SavedOffersView extends StatelessWidget {
   void _openDetails(BuildContext context, SavedOfferEntity e) {
     final offer = MatchOffer(
       approvalPct: e.approvalPct,
+      approvalUnrated: e.approvalUnrated,
       termMonths: e.termMonths,
       ratePct: e.ratePct,
       monthly: e.monthly,

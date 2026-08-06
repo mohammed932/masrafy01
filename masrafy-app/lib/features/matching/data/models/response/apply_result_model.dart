@@ -80,6 +80,7 @@ class OfferModel {
     required this.effectiveTenorMonths,
     required this.approvalScore,
     required this.approvalTierCode,
+    required this.approvalUsedDefault,
     required this.tierLabelCode,
     required this.requiredDocuments,
     required this.matchReasons,
@@ -105,6 +106,9 @@ class OfferModel {
   final int effectiveTenorMonths;
   final int approvalScore;
   final String approvalTierCode;
+
+  /// Program had no ACTIVE weight set: the 0 means "not rated", not "poor fit".
+  final bool approvalUsedDefault;
   final String tierLabelCode;
   final List<String> requiredDocuments;
   final List<String> matchReasons;
@@ -139,6 +143,7 @@ class OfferModel {
       effectiveTenorMonths: _toInt(json['effectiveTenorMonths']),
       approvalScore: _toInt(approval['score']),
       approvalTierCode: (approval['tier'] as String?) ?? 'very_low',
+      approvalUsedDefault: approval['usedDefault'] == true,
       tierLabelCode: (approval['tierLabelCode'] as String?) ?? '',
       requiredDocuments: _toStringList(json['requiredDocuments']),
       matchReasons: _toStringList(json['matchReasons']),
@@ -172,6 +177,7 @@ class OfferModel {
         effectiveTenorMonths: effectiveTenorMonths,
         approvalScore: approvalScore,
         approvalTier: ApprovalTier.fromCode(approvalTierCode),
+        approvalUnrated: approvalUsedDefault,
         tierLabelCode: tierLabelCode,
         requiredDocuments: requiredDocuments,
         matchReasons: matchReasons,

@@ -29,7 +29,10 @@ class OfferDetailsPage extends StatelessWidget {
     final topInset = MediaQuery.of(context).viewPadding.top;
     final typeLabel = loanTypeLabel(l, summary.loanTypeKey);
     final title = l.offer_title(typeLabel);
-    final subtitle = l.offer_approval(offer.approvalPct);
+    // An unrated program scores 0 for want of configuration, not for want of
+    // a fit — printing "0% match score" would state the opposite.
+    final subtitle =
+        offer.approvalUnrated ? l.offer_unrated : l.offer_approval(offer.approvalPct);
     final grouped = NumberFormat.decimalPattern();
 
     // Fee lines come from the engine's own breakdown. They used to be hardcoded

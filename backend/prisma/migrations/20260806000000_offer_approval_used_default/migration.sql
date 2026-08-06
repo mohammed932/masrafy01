@@ -1,0 +1,12 @@
+-- Constitution V (v13.0.0): record whether a persisted offer's approval score
+-- came from a real ACTIVE ScoringWeightSet or from the absence of one.
+--
+-- Without this the two cases are indistinguishable after the fact: an
+-- unconfigured program scores 0 and reads as `very_low`, exactly like a program
+-- that genuinely fits the applicant badly. It cannot be derived later either —
+-- configuring the program afterwards would retroactively change the meaning of
+-- an immutable offer (Principle I).
+--
+-- Backfills false: every existing row predates the flag, and false ("scored
+-- against a real weight set") is the status quo reading for them.
+ALTER TABLE "bank_offer" ADD COLUMN "approvalUsedDefault" BOOLEAN NOT NULL DEFAULT false;

@@ -496,6 +496,15 @@ export type ApprovalTier = (typeof APPROVAL_TIERS)[number];
 export interface FactorImpact {
   /** Stable factor code resolved against the offer's `engineVersion.weightsConfig.factorCatalog`. */
   code: string;
+  /**
+   * Which question this impact came from. `code` alone is ambiguous for a single
+   * pick: it is the OPTION code, and option codes are unique only WITHIN their
+   * question — half the pool has a `yes`. Without this, a reader cannot tell two
+   * `yes` rows apart, and labelling them by option code alone silently prints one
+   * question's wording on another question's row. Optional: absent on offers
+   * persisted before it existed.
+   */
+  questionCode?: string;
   /** Signed integer. Positive entries strictly > 0; negative entries strictly < 0. */
   impact: number;
 }
@@ -511,6 +520,12 @@ export interface ApprovalProbabilityResult {
   score: number;
   tier: ApprovalTier;
   factors: ApprovalFactors;
+  /**
+   * The program had no ACTIVE `ScoringWeightSet`, so this score is 0 for want of
+   * configuration — not because the applicant fits badly. Surfaces as "Not
+   * rated" rather than `very_low`; the two are otherwise indistinguishable.
+   */
+  usedDefault?: boolean;
 }
 
 export interface ScoringThresholds {

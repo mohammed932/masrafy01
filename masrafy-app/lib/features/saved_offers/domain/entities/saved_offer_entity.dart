@@ -9,6 +9,7 @@ class SavedOfferEntity extends Equatable {
     required this.bankOfferId,
     required this.loanTypeKey,
     required this.approvalPct,
+    this.approvalUnrated = false,
     required this.termMonths,
     required this.ratePct,
     required this.monthly,
@@ -25,8 +26,13 @@ class SavedOfferEntity extends Equatable {
   /// `business`. Resolved to a localized label by `loanTypeLabel`.
   final String loanTypeKey;
 
-  /// Approval percent 0–100 → "{pct}% Guarantee Approval".
+  /// Match score 0–100 → "{pct}% match".
   final int approvalPct;
+
+  /// The program had no ACTIVE scoring weight set when this offer was matched,
+  /// so [approvalPct] is 0 for want of configuration rather than for want of a
+  /// fit. Rendered as "Not rated" — the two are otherwise indistinguishable.
+  final bool approvalUnrated;
   final int termMonths;
 
   /// Annual interest rate, e.g. `10.1` → "10.1%".
@@ -52,6 +58,7 @@ class SavedOfferEntity extends Equatable {
         bankOfferId,
         loanTypeKey,
         approvalPct,
+        approvalUnrated,
         termMonths,
         ratePct,
         monthly,

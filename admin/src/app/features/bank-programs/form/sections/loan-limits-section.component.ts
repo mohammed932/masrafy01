@@ -5,11 +5,19 @@ import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { CreditCardOutline } from '@ant-design/icons-angular/icons';
+import { MoneyInputDirective } from '@core/directives/money-input.directive';
 
 @Component({
   selector: 'app-loan-limits-section',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, NzFormModule, NzInputModule, NzIconModule],
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    NzFormModule,
+    NzInputModule,
+    NzIconModule,
+    MoneyInputDirective,
+  ],
   providers: [provideNzIconsPatch([CreditCardOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -34,9 +42,10 @@ import { CreditCardOutline } from '@ant-design/icons-angular/icons';
             <nz-input-group nzAddOnBefore="EGP" class="money-group">
               <input
                 nz-input
+                appMoneyInput
                 id="minAmountEGP"
                 formControlName="minAmountEGP"
-                inputmode="decimal"
+                inputmode="numeric"
                 placeholder="50,000"
               />
             </nz-input-group>
@@ -50,9 +59,10 @@ import { CreditCardOutline } from '@ant-design/icons-angular/icons';
             <nz-input-group nzAddOnBefore="EGP" class="money-group">
               <input
                 nz-input
+                appMoneyInput
                 id="maxAmountEGP"
                 formControlName="maxAmountEGP"
-                inputmode="decimal"
+                inputmode="numeric"
                 placeholder="500,000"
               />
             </nz-input-group>
@@ -70,9 +80,11 @@ import { CreditCardOutline } from '@ant-design/icons-angular/icons';
               <nz-input-group nzAddOnBefore="EGP" class="money-group">
                 <input
                   nz-input
+                  appMoneyInput
                   id="qualitativeReviewMaxEGP"
                   formControlName="qualitativeReviewMaxEGP"
-                  inputmode="decimal"
+                  inputmode="numeric"
+                  placeholder="750,000"
                 />
               </nz-input-group>
               <ng-template #qrHint>

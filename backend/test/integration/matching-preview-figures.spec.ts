@@ -72,6 +72,7 @@ function makeService() {
     probability: 0.42,
     tier: 'moderate',
     usedDefault: false,
+    factors: { positive: [{ code: '31_45', impact: 42 }], negative: [] },
   }));
   return new MatchingPreviewService(
     { activeVersion: async () => ({ id: 'ver_4', snapshot: SNAPSHOT }) } as never,
@@ -134,6 +135,18 @@ describe('preview figures', () => {
     expect(match?.figuresUnavailableReason).toBe('OBLIGATIONS_EXCEED_ALLOWANCE');
     expect(match?.maxAffordableAmountEGP).toBe('0.00');
     expect(match?.approvalProbability).toBe(0.42); // still scored + ranked
+  });
+
+  /**
+   * The scorer already computes the per-answer breakdown behind the score. It
+   * used to be discarded here, which left every surface asserting a percentage
+   * it could not explain — and a dropped field looks identical to a program with
+   * nothing scored.
+   */
+  it('carries the scorer’s factor breakdown through to the match', async () => {
+    const { matches } = await preview(moneyAnswers('40000'));
+
+    expect(matches[0]?.approvalFactors.positive).toEqual([{ code: '31_45', impact: 42 }]);
   });
 
   it('lists programs without figures until every money answer is in', async () => {

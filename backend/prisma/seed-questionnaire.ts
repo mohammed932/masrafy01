@@ -6,9 +6,12 @@
  *
  * MVP model:
  *  - Questions + answers are PURE CONTENT (label + order only). No engine fields.
- *  - Scoring is per bank program, per ANSWER OPTION: `ScoringWeightSet.weights`
- *    is `{ optionCode: points }`. Approval probability =
- *    Σ(points of the picked answers) / max-achievable points. No eligibility gates.
+ *  - Scoring is per bank program: `ScoringWeightSet.weights` holds question
+ *    weights (summing to 100) plus the rule each TYPE is scored by — option
+ *    scores for the two choice types, an aggregation for MULTI_SELECT, `[from,to)`
+ *    bands for NUMERIC, a presence score for TEXT (Constitution V, v14.0.0).
+ *    Approval probability = Σ_answered(weight × answerScore÷100) ÷ Σ_asked(weight).
+ *    No eligibility gates.
  *  - Options carry an OPTIONAL seed-only `points` hint (0..100 desirability). Each
  *    program gets those points scaled by a per-program multiplier so programs
  *    differ; the banking expert tunes them later in the admin editor.
@@ -45,6 +48,56 @@ function equalWeights(questionCodes: readonly string[]): Record<string, number> 
     if (remainder > 0) remainder -= 1;
   }
   return out;
+}
+
+/**
+ * Which direction a seeded NUMERIC question's bands run. Demo judgement only —
+ * a bank sets its own bands in the scoring editor, and nothing in the engine
+ * reads this map (Principle II: no per-bank branch in code). Keyed by the four
+ * bound money codes; anything else defaults to "more is better".
+ */
+const SEED_BAND_DIRECTIONS: Record<string, 'higher_better' | 'lower_better'> = {
+  [MONEY_FIELD_BINDINGS.monthly_income]: 'higher_better',
+  [MONEY_FIELD_BINDINGS.existing_obligations]: 'lower_better',
+  [MONEY_FIELD_BINDINGS.requested_amount]: 'lower_better',
+  [MONEY_FIELD_BINDINGS.tenor_months]: 'lower_better',
+};
+
+/** The three band scores, worst → best, before the per-program multiplier. */
+const SEED_BAND_SCORES = [25, 60, 100] as const;
+
+/**
+ * Three gapless, half-open `[from, to)` bands for a NUMERIC question, split at
+ * the thirds of its own published range. The first opens at −∞ and the last
+ * closes at +∞, as `assertNumericBands` requires, so a value outside the
+ * question's bounds still scores instead of falling through a hole.
+ *
+ * Without bounds to split there is nothing to band on, so the question gets one
+ * flat band — it then contributes a constant rather than silently earning 0.
+ */
+function seedNumericBands(
+  questionCode: string,
+  numeric: SeedNumericRules | undefined,
+  multiplier: number,
+): { from: string | null; to: string | null; score: number }[] {
+  const scale = (score: number): number => Math.min(100, Math.max(1, Math.round(score * multiplier)));
+  const min = numeric?.minValue != null ? Number(numeric.minValue) : null;
+  const max = numeric?.maxValue != null ? Number(numeric.maxValue) : null;
+  if (min === null || max === null || !Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return [{ from: null, to: null, score: scale(NEUTRAL_SCORE) }];
+  }
+  const third = (max - min) / 3;
+  const lowerEdge = Math.round(min + third);
+  const upperEdge = Math.round(min + third * 2);
+  const [worst, mid, best] =
+    SEED_BAND_DIRECTIONS[questionCode] === 'lower_better'
+      ? [...SEED_BAND_SCORES].reverse()
+      : SEED_BAND_SCORES;
+  return [
+    { from: null, to: String(lowerEdge), score: scale(worst!) },
+    { from: String(lowerEdge), to: String(upperEdge), score: scale(mid!) },
+    { from: String(upperEdge), to: null, score: scale(best!) },
+  ];
 }
 
 // Active platform-enumeration members → seed options (code = enum key). Cached
@@ -211,6 +264,144 @@ const SALARY_TRANSFER_Q: SeedQuestion = {
   ],
 };
 
+// ONE band set for the down payment, shared by car + mortgage. Authored once
+// because the pool is GLOBAL and dedupes by code while UNIONing options: two
+// per-category band sets (10/20/30 vs 20/40) merged into one 8-option list where
+// "Less than 20%", "10% – 20%" and "20% – 30%" sat side by side and no applicant
+// could tell which one they were in.
+const DOWN_PAYMENT_OPTIONS: SeedOption[] = [
+  { code: 'no_down_payment', labelEn: 'Nothing up front', labelAr: 'بدون دفعة مقدمة', points: 10 },
+  { code: 'less_than_10', labelEn: 'Less than 10%', labelAr: 'أقل من 10%', points: 25 },
+  { code: '10_20', labelEn: '10% – 20%', labelAr: '10% – 20%', points: 50 },
+  { code: '20_30', labelEn: '20% – 30%', labelAr: '20% – 30%', points: 70 },
+  { code: '30_40', labelEn: '30% – 40%', labelAr: '30% – 40%', points: 85 },
+  { code: 'more_than_40', labelEn: 'More than 40%', labelAr: 'أكثر من 40%', points: 100 },
+];
+
+const DOWN_PAYMENT_Q: SeedQuestion = {
+  code: 'down_payment',
+  questionEn: 'How much money can you pay up front?',
+  questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
+  options: DOWN_PAYMENT_OPTIONS,
+};
+
+// The questions below are asked for MORE THAN ONE category and are therefore
+// authored ONCE and referenced from each config. Inlining them per category let
+// the same code drift apart in wording or points — and since the merge keeps
+// FIRST-SEEN content, the drift was silent: whichever config came first won.
+const JOB_TENURE_Q: SeedQuestion = {
+  code: 'job_tenure', questionEn: 'How long have you been in this job?', questionAr: 'منذ متى وأنت في وظيفتك الحالية؟',
+  options: [
+    { code: 'less_than_6_months', labelEn: 'Less than 6 months', labelAr: 'أقل من 6 أشهر', points: 15 },
+    { code: '6_months_to_1_year', labelEn: '6 months to 1 year', labelAr: 'من 6 أشهر إلى سنة', points: 35 },
+    { code: '1_to_3_years', labelEn: '1 to 3 years', labelAr: 'من 1 إلى 3 سنوات', points: 60 },
+    { code: 'more_than_3_years', labelEn: 'More than 3 years', labelAr: 'أكثر من 3 سنوات', points: 100 },
+  ],
+};
+
+const EMPLOYER_APPROVED_Q: SeedQuestion = {
+  code: 'employer_approved',
+  questionEn: "Is the place you work at on the banks' approved list?",
+  questionAr: 'هل جهة عملك معتمدة لدى البنوك؟',
+  isRequired: false,
+  options: [
+    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
+    { code: 'no', labelEn: 'No', labelAr: 'لا', points: 40 },
+    { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد', points: 65 },
+  ],
+};
+
+// Asks whether the salary lands at ONE bank, not which one — the options never
+// carried a bank name and the registry owns the bank list.
+const SALARY_BANK_Q: SeedQuestion = {
+  code: 'salary_bank',
+  questionEn: 'Do you always get your salary through the same bank?',
+  questionAr: 'من خلال أي بنك تستلم راتبك؟',
+  isRequired: false,
+  options: [
+    { code: 'a_specific_bank', labelEn: 'Yes, always the same bank', labelAr: 'بنك محدد' },
+    { code: 'no_specific_bank', labelEn: 'No, not always the same bank', labelAr: 'لا يوجد بنك محدد' },
+  ],
+};
+
+// Follow-up to `salary_bank`: asked ONLY when the applicant said the salary lands
+// at one bank. Options come from the `bank` registry, so adding/retiring a bank
+// there is the only edit needed (Principle II). It must be assigned to exactly
+// the categories `salary_bank` is, or the branch source is unanswerable and the
+// server shows the question unconditionally (`isQuestionVisible` never hides a
+// dangling rule).
+const SALARY_BANK_NAME_Q: SeedQuestion = {
+  code: 'salary_bank_name',
+  questionEn: 'Which bank do you receive your salary through?',
+  questionAr: 'ما هو البنك الذي تستلم راتبك من خلاله؟',
+  isRequired: false,
+  enabledWhen: { questionCode: 'salary_bank', operator: 'equals', optionCode: 'a_specific_bank' },
+  optionsFromBanks: true,
+  options: [],
+};
+
+const ADDITIONAL_INCOME_Q: SeedQuestion = {
+  code: 'additional_income', questionEn: 'Do you get money from anywhere else?', questionAr: 'هل لديك مصادر دخل إضافية؟',
+  isRequired: false, options: YESNO(100, 70),
+};
+
+const ACTIVE_ACCOUNT_Q: SeedQuestion = {
+  code: 'active_account', questionEn: 'Do you have a bank account you use?', questionAr: 'هل لديك حساب بنكي نشط؟',
+  isRequired: false, options: YESNO(100, 40),
+};
+
+const HAS_CREDIT_CARD_Q: SeedQuestion = {
+  code: 'has_credit_card', questionEn: 'Do you have a credit card?', questionAr: 'هل لديك بطاقة ائتمان؟',
+  isRequired: false, options: YESNO(),
+};
+
+// Only meaningful after a "yes" above — the mobile wording was literally "If yes,
+// …", which is a branch rule written as prose. Made a real rule so the step is
+// skipped instead of asking card spend of someone with no card.
+const CARD_USAGE_Q: SeedQuestion = {
+  code: 'card_usage', questionEn: 'How much do you spend on your card each month?', questionAr: 'متوسط استخدام البطاقة الشهري؟',
+  isRequired: false,
+  enabledWhen: { questionCode: 'has_credit_card', operator: 'equals', optionCode: 'yes' },
+  options: [
+    { code: 'less_than_egp_5000', labelEn: 'Less than 5,000 EGP', labelAr: 'أقل من 5,000 جنيه' },
+    { code: 'egp_5000_15000', labelEn: '5,000 – 15,000 EGP', labelAr: '5,000 – 15,000 جنيه' },
+    { code: 'more_than_egp_15000', labelEn: 'More than 15,000 EGP', labelAr: 'أكثر من 15,000 جنيه' },
+  ],
+};
+
+const PRIOR_REJECTION_Q: SeedQuestion = {
+  code: 'prior_rejection', questionEn: 'Has a bank ever said no to you?', questionAr: 'هل سبق رفض طلب تمويل لك؟',
+  isRequired: false, options: YESNO(25, 100),
+};
+
+/**
+ * ONE priority list for all four categories. The pool is global and dedupes by
+ * code, so four per-category lists could only ever UNION into one question
+ * anyway — and did, badly: eleven options that included both `fastest_approval`
+ * ("The fastest answer") and business's `fast_approval` ("Fast Approval"), which
+ * is the same choice offered twice. Authored once, the list is a deliberate
+ * cross-category set instead of an accident of merge order.
+ */
+const PRIORITY_FACTOR_Q: SeedQuestion = {
+  code: 'priority_factor', questionEn: 'What matters most to you?', questionAr: 'أهم عامل عند اختيار التمويل؟',
+  isRequired: false,
+  options: [
+    { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
+    { code: 'lowest_interest_rate', labelEn: 'The lowest interest', labelAr: 'أقل سعر فائدة' },
+    { code: 'lowest_down_payment', labelEn: 'The smallest amount up front', labelAr: 'أقل دفعة مقدمة' },
+    { code: 'longest_repayment_period', labelEn: 'The longest time to pay', labelAr: 'أطول مدة سداد' },
+    { code: 'highest_financing_amount', labelEn: 'The biggest amount', labelAr: 'أعلى مبلغ تمويل' },
+    { code: 'fastest_approval', labelEn: 'The fastest answer', labelAr: 'أسرع موافقة' },
+    { code: 'least_documentation_required', labelEn: 'The fewest papers', labelAr: 'أقل أوراق مطلوبة' },
+    { code: 'flexible_repayment', labelEn: 'Easy ways to pay it back', labelAr: 'سداد مرن' },
+  ],
+};
+
+const NEEDS_CONSULTANT_Q: SeedQuestion = {
+  code: 'needs_consultant', questionEn: 'Do you want help from a loan expert?', questionAr: 'هل تحتاج مساعدة مستشار تمويل؟',
+  isRequired: false, options: YESNO(),
+};
+
 // ── Feature 010: the four bound money questions ─────────────────────────────
 // These carry the real figures the engine prices on. Until now the app mapped a
 // bucket answer to a representative midpoint, so a customer asking for 500 000
@@ -250,8 +441,11 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
     question: {
       code: MONEY_FIELD_BINDINGS.monthly_income, // monthly_income
       type: 'NUMERIC',
-      questionEn: 'How much money do you get each month?',
-      questionAr: 'ما دخلك الشهري؟',
+      // Wording has to hold for a salaried applicant AND a business owner: this
+      // one question is what the business bucket `monthly_revenue` was replaced
+      // with, and it feeds the DBR for every category.
+      questionEn: 'How much money comes in each month?',
+      questionAr: 'ما إجمالي الدخل الشهري؟',
       numeric: { minValue: '1000', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
       options: [],
     },
@@ -275,15 +469,23 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
 /**
  * Bucket questions superseded by a MONEY_QUESTIONS entry. Three share the bound
  * code and are therefore REPLACED in place (same code, now NUMERIC, options
- * deactivated); `repayment_period` is superseded by the differently-named
- * `repayment_period_months` and is dropped from the pool, which deactivates it.
- * Answers already stored against any of them stay readable (FR-045).
+ * deactivated); the differently-named ones are dropped from the pool, which
+ * deactivates them:
+ *  - `repayment_period`   → `repayment_period_months`
+ *  - `financing_amount`   → `amount_requested`  (business asked BOTH: one bucket
+ *                            "how much does the business need" and the bound
+ *                            NUMERIC amount, which is the same question twice)
+ *  - `monthly_revenue`    → `monthly_income`    (same duplicate for income)
+ * Answers already stored against any of them stay readable (FR-045), because the
+ * admin answers view renders from the application's OWN frozen snapshot.
  */
 const SUPERSEDED_BUCKET_CODES: ReadonlySet<string> = new Set([
   MONEY_FIELD_BINDINGS.requested_amount,
   MONEY_FIELD_BINDINGS.monthly_income,
   MONEY_FIELD_BINDINGS.existing_obligations,
   'repayment_period',
+  'financing_amount',
+  'monthly_revenue',
 ]);
 
 // ── PERSONAL ────────────────────────────────────────────────────────────────
@@ -291,26 +493,12 @@ const PERSONAL: CategoryConfig = {
   category: 'personal',
   groups: [
     {
-      code: 'financing_info', titleEn: 'About your loan', titleAr: 'معلومات التمويل',
+      // Titles here are read by EVERY category (the bound money questions live in
+      // this group and in `employment_income` / `commitments`), so they must not
+      // say "your loan" to a business owner or "the banks you owe" to someone
+      // whose only entry is a single instalment figure.
+      code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
       questions: [
-        {
-          code: 'amount_requested', questionEn: 'About how much do you need?', questionAr: 'ما المبلغ التقريبي الذي تحتاجه؟',
-          options: [
-            { code: 'less_than_egp_50000', labelEn: 'Less than 50,000 EGP', labelAr: 'أقل من 50,000 جنيه' },
-            { code: 'egp_50000_150000', labelEn: '50,000 – 150,000 EGP', labelAr: '50,000 – 150,000 جنيه' },
-            { code: 'egp_150000_500000', labelEn: '150,000 – 500,000 EGP', labelAr: '150,000 – 500,000 جنيه' },
-            { code: 'more_than_egp_500000', labelEn: 'More than 500,000 EGP', labelAr: 'أكثر من 500,000 جنيه' },
-          ],
-        },
-        {
-          code: 'repayment_period', questionEn: 'How long do you want to pay it back?', questionAr: 'ما مدة السداد المناسبة لك؟',
-          options: [
-            { code: 'less_than_3_years', labelEn: 'Less than 3 years', labelAr: 'أقل من 3 سنوات' },
-            { code: '3_to_5_years', labelEn: '3 to 5 years', labelAr: 'من 3 إلى 5 سنوات' },
-            { code: '5_to_7_years', labelEn: '5 to 7 years', labelAr: 'من 5 إلى 7 سنوات' },
-            { code: 'more_than_7_years', labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
-          ],
-        },
         {
           code: 'loan_purpose', questionEn: 'What will you use the money for?', questionAr: 'ما الغرض من القرض؟',
           isRequired: false,
@@ -330,104 +518,31 @@ const PERSONAL: CategoryConfig = {
       ],
     },
     {
-      code: 'employment_income', titleEn: 'Your job and pay', titleAr: 'معلومات العمل والدخل',
+      code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
         {
           code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟',
           options: EMPLOYMENT_OPTIONS,
         },
-        {
-          code: 'job_tenure', questionEn: 'How long have you been in this job?', questionAr: 'منذ متى وأنت في وظيفتك الحالية؟',
-          options: [
-            { code: 'less_than_6_months', labelEn: 'Less than 6 months', labelAr: 'أقل من 6 أشهر', points: 15 },
-            { code: '6_months_to_1_year', labelEn: '6 months to 1 year', labelAr: 'من 6 أشهر إلى سنة', points: 35 },
-            { code: '1_to_3_years', labelEn: '1 to 3 years', labelAr: 'من 1 إلى 3 سنوات', points: 60 },
-            { code: 'more_than_3_years', labelEn: 'More than 3 years', labelAr: 'أكثر من 3 سنوات', points: 100 },
-          ],
-        },
-        {
-          code: 'monthly_income', questionEn: 'How much do you usually get each month?', questionAr: 'ما متوسط دخلك الشهري؟',
-          options: [
-            { code: 'less_than_egp_10000', labelEn: 'Less than 10,000 EGP', labelAr: 'أقل من 10,000 جنيه', points: 20 },
-            { code: 'egp_10000_20000', labelEn: '10,000 – 20,000 EGP', labelAr: '10,000 – 20,000 جنيه', points: 50 },
-            { code: 'egp_20000_40000', labelEn: '20,000 – 40,000 EGP', labelAr: '20,000 – 40,000 جنيه', points: 75 },
-            { code: 'more_than_egp_40000', labelEn: 'More than 40,000 EGP', labelAr: 'أكثر من 40,000 جنيه', points: 100 },
-          ],
-        },
+        JOB_TENURE_Q,
         SALARY_TRANSFER_Q,
-        {
-          // Asks whether the salary lands at ONE bank, not which one — the options
-          // never carried a bank name and the registry owns the bank list.
-          code: 'salary_bank', questionEn: 'Do you always get your salary through the same bank?', questionAr: 'من خلال أي بنك تستلم راتبك؟',
-          isRequired: false,
-          options: [
-            { code: 'a_specific_bank', labelEn: 'Yes, always the same bank', labelAr: 'بنك محدد' },
-            { code: 'no_specific_bank', labelEn: 'No, not always the same bank', labelAr: 'لا يوجد بنك محدد' },
-          ],
-        },
-        {
-          // Follow-up to `salary_bank`: asked ONLY when the applicant said the
-          // salary lands at one bank. Options come from the `bank` registry, so
-          // adding/retiring a bank there is the only edit needed (Principle II).
-          code: 'salary_bank_name',
-          questionEn: 'Which bank do you receive your salary through?',
-          questionAr: 'ما هو البنك الذي تستلم راتبك من خلاله؟',
-          isRequired: false,
-          enabledWhen: { questionCode: 'salary_bank', operator: 'equals', optionCode: 'a_specific_bank' },
-          optionsFromBanks: true,
-          options: [],
-        },
-        {
-          code: 'employer_approved', questionEn: "Is the place you work at on the banks' approved list?", questionAr: 'هل جهة عملك معتمدة لدى البنوك؟',
-          isRequired: false, options: [
-            { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
-            { code: 'no', labelEn: 'No', labelAr: 'لا', points: 40 },
-            { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد', points: 65 },
-          ],
-        },
+        SALARY_BANK_Q,
+        SALARY_BANK_NAME_Q,
+        EMPLOYER_APPROVED_Q,
+        ADDITIONAL_INCOME_Q,
+        ACTIVE_ACCOUNT_Q,
       ],
     },
     {
-      code: 'commitments', titleEn: 'What you already owe the banks', titleAr: 'الالتزامات البنكية',
-      questions: [
-        CURRENT_LOANS_Q,
-        {
-          code: 'current_installments', questionEn: 'About how much do you pay each month now?', questionAr: 'إجمالي الأقساط الشهرية الحالية تقريبًا؟',
-          options: [
-            { code: 'less_than_egp_2000', labelEn: 'Less than 2,000 EGP', labelAr: 'أقل من 2,000 جنيه', points: 100 },
-            { code: 'egp_2000_5000', labelEn: '2,000 – 5,000 EGP', labelAr: '2,000 – 5,000 جنيه', points: 75 },
-            { code: 'egp_5000_10000', labelEn: '5,000 – 10,000 EGP', labelAr: '5,000 – 10,000 جنيه', points: 50 },
-            { code: 'more_than_egp_10000', labelEn: 'More than 10,000 EGP', labelAr: 'أكثر من 10,000 جنيه', points: 25 },
-          ],
-        },
-        { code: 'has_credit_card', questionEn: 'Do you have a credit card?', questionAr: 'هل لديك بطاقة ائتمان؟', isRequired: false, options: YESNO() },
-        {
-          code: 'card_usage', questionEn: 'How much do you spend on your card each month?', questionAr: 'متوسط استخدام البطاقة الشهري؟',
-          isRequired: false,
-          options: [
-            { code: 'less_than_egp_5000', labelEn: 'Less than 5,000 EGP', labelAr: 'أقل من 5,000 جنيه' },
-            { code: 'egp_5000_15000', labelEn: '5,000 – 15,000 EGP', labelAr: '5,000 – 15,000 جنيه' },
-            { code: 'more_than_egp_15000', labelEn: 'More than 15,000 EGP', labelAr: 'أكثر من 15,000 جنيه' },
-          ],
-        },
-      ],
+      code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
+      questions: [CURRENT_LOANS_Q, HAS_CREDIT_CARD_Q, CARD_USAGE_Q],
     },
     {
       code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات والأهلية',
       questions: [
-        {
-          code: 'priority_factor', questionEn: 'What matters most to you in a loan?', questionAr: 'أهم عامل عند اختيار التمويل؟',
-          isRequired: false,
-          options: [
-            { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
-            { code: 'lowest_interest_rate', labelEn: 'The lowest interest', labelAr: 'أقل سعر فائدة' },
-            { code: 'fastest_approval', labelEn: 'The fastest answer', labelAr: 'أسرع موافقة' },
-            { code: 'least_documentation_required', labelEn: 'The fewest papers', labelAr: 'أقل أوراق مطلوبة' },
-            { code: 'flexible_repayment', labelEn: 'Easy ways to pay it back', labelAr: 'سداد مرن' },
-          ],
-        },
-        { code: 'prior_rejection', questionEn: 'Has a bank ever said no to you?', questionAr: 'هل سبق رفض طلب تمويل لك؟', isRequired: false, options: YESNO(25, 100) },
-        { code: 'needs_consultant', questionEn: 'Do you want help from a loan expert?', questionAr: 'هل تحتاج مساعدة مستشار تمويل؟', isRequired: false, options: YESNO() },
+        PRIORITY_FACTOR_Q,
+        PRIOR_REJECTION_Q,
+        NEEDS_CONSULTANT_Q,
       ],
     },
   ],
@@ -475,75 +590,40 @@ const MORTGAGE: CategoryConfig = {
             { code: 'more_than_egp_5_million', labelEn: 'More than 5 million EGP', labelAr: 'أكثر من 5 مليون جنيه' },
           ],
         },
-        {
-          code: 'down_payment', questionEn: 'How much money can you pay up front?', questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
-          options: [
-            { code: 'less_than_10', labelEn: 'Less than 10%', labelAr: 'أقل من 10%', points: 20 },
-            { code: '10_20', labelEn: '10% – 20%', labelAr: '10% – 20%', points: 50 },
-            { code: '20_30', labelEn: '20% – 30%', labelAr: '20% – 30%', points: 75 },
-            { code: 'more_than_30', labelEn: 'More than 30%', labelAr: 'أكثر من 30%', points: 100 },
-          ],
-        },
-        {
-          code: 'repayment_period', questionEn: 'How long do you want to pay it back?', questionAr: 'ما مدة السداد المناسبة لك؟',
-          options: [
-            { code: 'less_than_10_years', labelEn: 'Less than 10 years', labelAr: 'أقل من 10 سنوات' },
-            { code: '10_15_years', labelEn: '10 – 15 years', labelAr: '10 – 15 سنة' },
-            { code: '15_20_years', labelEn: '15 – 20 years', labelAr: '15 – 20 سنة' },
-            { code: 'more_than_20_years', labelEn: 'More than 20 years', labelAr: 'أكثر من 20 سنة' },
-          ],
-        },
-        AGE_Q,
       ],
     },
+    // Shared groups are referenced by CODE, never re-declared with a new code:
+    // an `income_employment` of its own held only questions that dedupe into
+    // PERSONAL's `employment_income`, so it published as an empty step and sat in
+    // the pool as a group nobody is ever asked.
     {
-      code: 'income_employment', titleEn: 'More about your income and work', titleAr: 'معلومات الدخل والعمل',
+      code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
+      questions: [DOWN_PAYMENT_Q, AGE_Q],
+    },
+    {
+      code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
         { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟', options: EMPLOYMENT_OPTIONS },
-        {
-          code: 'monthly_income', questionEn: 'How much do you usually get each month?', questionAr: 'ما متوسط دخلك الشهري؟',
-          options: [
-            { code: 'less_than_egp_15000', labelEn: 'Less than 15,000 EGP', labelAr: 'أقل من 15,000 جنيه', points: 20 },
-            { code: 'egp_15000_30000', labelEn: '15,000 – 30,000 EGP', labelAr: '15,000 – 30,000 جنيه', points: 50 },
-            { code: 'egp_30000_60000', labelEn: '30,000 – 60,000 EGP', labelAr: '30,000 – 60,000 جنيه', points: 75 },
-            { code: 'more_than_egp_60000', labelEn: 'More than 60,000 EGP', labelAr: 'أكثر من 60,000 جنيه', points: 100 },
-          ],
-        },
+        JOB_TENURE_Q,
         SALARY_TRANSFER_Q,
-        { code: 'additional_income', questionEn: 'Do you get money from anywhere else?', questionAr: 'هل لديك مصادر دخل إضافية؟', isRequired: false, options: YESNO(100, 70) },
-        { code: 'active_account', questionEn: 'Do you have a bank account you use?', questionAr: 'هل لديك حساب بنكي نشط؟', isRequired: false, options: YESNO(100, 40) },
+        SALARY_BANK_Q,
+        SALARY_BANK_NAME_Q,
+        EMPLOYER_APPROVED_Q,
+        ADDITIONAL_INCOME_Q,
+        ACTIVE_ACCOUNT_Q,
       ],
     },
     {
-      code: 'credit_status', titleEn: 'Your loans and cards', titleAr: 'الحالة الائتمانية',
-      questions: [
-        CURRENT_LOANS_Q,
-        {
-          code: 'current_installments', questionEn: 'How much do you pay each month now?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
-          options: [
-            { code: 'less_than_egp_5000', labelEn: 'Less than 5,000 EGP', labelAr: 'أقل من 5,000 جنيه', points: 100 },
-            { code: 'egp_5000_15000', labelEn: '5,000 – 15,000 EGP', labelAr: '5,000 – 15,000 جنيه', points: 70 },
-            { code: 'egp_15000_30000', labelEn: '15,000 – 30,000 EGP', labelAr: '15,000 – 30,000 جنيه', points: 45 },
-            { code: 'more_than_egp_30000', labelEn: 'More than 30,000 EGP', labelAr: 'أكثر من 30,000 جنيه', points: 20 },
-          ],
-        },
-        { code: 'prior_rejection', questionEn: 'Has a bank ever said no to a home loan?', questionAr: 'هل سبق رفض طلب تمويل عقاري لك؟', isRequired: false, options: YESNO(25, 100) },
-      ],
+      code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
+      questions: [CURRENT_LOANS_Q],
     },
     {
       code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات',
       questions: [
-        {
-          code: 'priority_factor', questionEn: 'What matters most to you in a home loan?', questionAr: 'أهم ما تبحث عنه في التمويل العقاري؟', isRequired: false,
-          options: [
-            { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
-            { code: 'longest_repayment_period', labelEn: 'The longest time to pay', labelAr: 'أطول مدة سداد' },
-            { code: 'lowest_down_payment', labelEn: 'The smallest amount up front', labelAr: 'أقل دفعة مقدمة' },
-            { code: 'fastest_approval', labelEn: 'The fastest answer', labelAr: 'أسرع موافقة' },
-            { code: 'lowest_administrative_fees', labelEn: 'The lowest fees', labelAr: 'أقل رسوم إدارية' },
-          ],
-        },
+        PRIORITY_FACTOR_Q,
+        PRIOR_REJECTION_Q,
         { code: 'needs_assistance', questionEn: 'Do you want help getting your papers ready?', questionAr: 'هل تحتاج مساعدة في تجهيز المستندات؟', isRequired: false, options: YESNO() },
+        NEEDS_CONSULTANT_Q,
       ],
     },
   ],
@@ -578,78 +658,36 @@ const CAR: CategoryConfig = {
             { code: 'more_than_egp_2_million', labelEn: 'More than 2 million EGP', labelAr: 'أكثر من 2 مليون جنيه' },
           ],
         },
-        {
-          code: 'down_payment', questionEn: 'How much money can you pay up front?', questionAr: 'ما حجم الدفعة المقدمة المتاحة لديك؟',
-          options: [
-            { code: 'no_down_payment', labelEn: 'Nothing up front', labelAr: 'بدون دفعة مقدمة', points: 10 },
-            { code: 'less_than_20', labelEn: 'Less than 20%', labelAr: 'أقل من 20%', points: 40 },
-            { code: '20_40', labelEn: '20% – 40%', labelAr: '20% – 40%', points: 70 },
-            { code: 'more_than_40', labelEn: 'More than 40%', labelAr: 'أكثر من 40%', points: 100 },
-          ],
-        },
-        {
-          code: 'repayment_period', questionEn: 'How long do you want to pay it back?', questionAr: 'ما مدة السداد المناسبة لك؟',
-          options: [
-            { code: 'less_than_3_years', labelEn: 'Less than 3 years', labelAr: 'أقل من 3 سنوات' },
-            { code: '3_5_years', labelEn: '3 – 5 years', labelAr: '3 – 5 سنوات' },
-            { code: '5_7_years', labelEn: '5 – 7 years', labelAr: '5 – 7 سنوات' },
-            { code: 'more_than_7_years', labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
-          ],
-        },
-        AGE_Q,
       ],
     },
     {
-      code: 'employment_income', titleEn: 'Your job and pay', titleAr: 'العمل والدخل',
+      code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
+      questions: [DOWN_PAYMENT_Q, AGE_Q],
+    },
+    {
+      code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
       questions: [
         { code: 'employment_status', questionEn: 'What kind of work do you do?', questionAr: 'ما هي حالتك الوظيفية؟', options: EMPLOYMENT_OPTIONS },
-        {
-          code: 'monthly_income', questionEn: 'How much do you usually get each month?', questionAr: 'ما متوسط دخلك الشهري؟',
-          options: [
-            { code: 'less_than_egp_10000', labelEn: 'Less than 10,000 EGP', labelAr: 'أقل من 10,000 جنيه', points: 20 },
-            { code: 'egp_10000_25000', labelEn: '10,000 – 25,000 EGP', labelAr: '10,000 – 25,000 جنيه', points: 50 },
-            { code: 'egp_25000_50000', labelEn: '25,000 – 50,000 EGP', labelAr: '25,000 – 50,000 جنيه', points: 75 },
-            { code: 'more_than_egp_50000', labelEn: 'More than 50,000 EGP', labelAr: 'أكثر من 50,000 جنيه', points: 100 },
-          ],
-        },
+        JOB_TENURE_Q,
         SALARY_TRANSFER_Q,
-        { code: 'employer_approved', questionEn: "Is the place you work at on the banks' approved list?", questionAr: 'هل جهة عملك معتمدة لدى البنوك؟', isRequired: false, options: [
-          { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
-          { code: 'no', labelEn: 'No', labelAr: 'لا', points: 40 },
-          { code: 'not_sure', labelEn: 'I am not sure', labelAr: 'غير متأكد', points: 65 },
-        ] },
+        SALARY_BANK_Q,
+        SALARY_BANK_NAME_Q,
+        EMPLOYER_APPROVED_Q,
+        ADDITIONAL_INCOME_Q,
+        ACTIVE_ACCOUNT_Q,
       ],
     },
     {
-      code: 'financial_status', titleEn: 'Your overall money picture', titleAr: 'الحالة المالية',
-      questions: [
-        CURRENT_LOANS_Q,
-        {
-          code: 'current_installments', questionEn: 'How much do you pay each month now?', questionAr: 'ما إجمالي قسطك الشهري الحالي؟',
-          options: [
-            { code: 'less_than_egp_3000', labelEn: 'Less than 3,000 EGP', labelAr: 'أقل من 3,000 جنيه', points: 100 },
-            { code: 'egp_3000_7000', labelEn: '3,000 – 7,000 EGP', labelAr: '3,000 – 7,000 جنيه', points: 70 },
-            { code: 'egp_7000_15000', labelEn: '7,000 – 15,000 EGP', labelAr: '7,000 – 15,000 جنيه', points: 45 },
-            { code: 'more_than_egp_15000', labelEn: 'More than 15,000 EGP', labelAr: 'أكثر من 15,000 جنيه', points: 20 },
-          ],
-        },
-        { code: 'has_credit_card', questionEn: 'Do you use any credit cards?', questionAr: 'هل لديك بطاقات ائتمان نشطة؟', isRequired: false, options: YESNO() },
-      ],
+      code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
+      questions: [CURRENT_LOANS_Q, HAS_CREDIT_CARD_Q, CARD_USAGE_Q],
     },
     {
       code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات',
       questions: [
-        {
-          code: 'priority_factor', questionEn: 'What matters most to you in a car loan?', questionAr: 'أهم أولوية عند اختيار تمويل السيارة؟', isRequired: false,
-          options: [
-            { code: 'lowest_down_payment', labelEn: 'The smallest amount up front', labelAr: 'أقل دفعة مقدمة' },
-            { code: 'lowest_monthly_installment', labelEn: 'The smallest payment each month', labelAr: 'أقل قسط شهري' },
-            { code: 'fastest_approval', labelEn: 'The fastest answer', labelAr: 'أسرع موافقة' },
-            { code: 'lowest_interest_rate', labelEn: 'The lowest interest', labelAr: 'أقل سعر فائدة' },
-            { code: 'financing_without_a_guarantor', labelEn: 'No one has to sign for me', labelAr: 'تمويل بدون ضامن' },
-          ],
-        },
+        PRIORITY_FACTOR_Q,
+        PRIOR_REJECTION_Q,
         { code: 'wants_insurance', questionEn: 'Do you want car insurance offers?', questionAr: 'هل ترغب في عروض تأمين السيارة؟', isRequired: false, options: YESNO() },
+        NEEDS_CONSULTANT_Q,
       ],
     },
   ],
@@ -682,15 +720,6 @@ const BUSINESS: CategoryConfig = {
           ],
         },
         {
-          code: 'financing_amount', questionEn: 'About how much money does the business need?', questionAr: 'ما مبلغ التمويل التقريبي المطلوب؟',
-          options: [
-            { code: 'less_than_egp_250000', labelEn: 'Less than 250,000 EGP', labelAr: 'أقل من 250,000 جنيه' },
-            { code: 'egp_250000_1_million', labelEn: '250,000 – 1 million EGP', labelAr: '250,000 – مليون جنيه' },
-            { code: 'egp_1_5_million', labelEn: '1 – 5 million EGP', labelAr: '1 – 5 مليون جنيه' },
-            { code: 'more_than_egp_5_million', labelEn: 'More than 5 million EGP', labelAr: 'أكثر من 5 مليون جنيه' },
-          ],
-        },
-        {
           code: 'financing_purpose', questionEn: 'What will the business use the money for?', questionAr: 'ما الغرض الأساسي من التمويل؟', isRequired: false,
           options: [
             { code: 'expansion', labelEn: 'Growing the business', labelAr: 'توسع' },
@@ -701,28 +730,17 @@ const BUSINESS: CategoryConfig = {
             { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
           ],
         },
-        {
-          code: 'repayment_period', questionEn: 'How long do you want to pay it back?', questionAr: 'ما مدة السداد المناسبة لك؟',
-          options: [
-            { code: 'less_than_2_years', labelEn: 'Less than 2 years', labelAr: 'أقل من سنتين' },
-            { code: '2_5_years', labelEn: '2 – 5 years', labelAr: '2 – 5 سنوات' },
-            { code: 'more_than_5_years', labelEn: 'More than 5 years', labelAr: 'أكثر من 5 سنوات' },
-          ],
-        },
       ],
+    },
+    {
+      // Business owners are asked the shared age question too: every program
+      // prices the tenor against the applicant's age, whoever they are.
+      code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
+      questions: [AGE_Q],
     },
     {
       code: 'financial_info', titleEn: 'Your business money', titleAr: 'المعلومات المالية',
       questions: [
-        {
-          code: 'monthly_revenue', questionEn: 'How much money does the business make each month?', questionAr: 'ما متوسط الإيرادات الشهرية للنشاط؟',
-          options: [
-            { code: 'less_than_egp_50000', labelEn: 'Less than 50,000 EGP', labelAr: 'أقل من 50,000 جنيه', points: 20 },
-            { code: 'egp_50000_200000', labelEn: '50,000 – 200,000 EGP', labelAr: '50,000 – 200,000 جنيه', points: 50 },
-            { code: 'egp_200000_500000', labelEn: '200,000 – 500,000 EGP', labelAr: '200,000 – 500,000 جنيه', points: 75 },
-            { code: 'more_than_egp_500000', labelEn: 'More than 500,000 EGP', labelAr: 'أكثر من 500,000 جنيه', points: 100 },
-          ],
-        },
         { code: 'business_account', questionEn: 'Do you have a bank account for the business?', questionAr: 'هل لديك حساب بنكي للنشاط؟', isRequired: false, options: YESNO(100, 50) },
         { code: 'registered', questionEn: 'Is your business officially registered?', questionAr: 'هل النشاط مسجل رسميًا؟', isRequired: false, options: [
           { code: 'yes', labelEn: 'Yes', labelAr: 'نعم', points: 100 },
@@ -736,33 +754,17 @@ const BUSINESS: CategoryConfig = {
       code: 'obligations_credit', titleEn: 'Business loans you have', titleAr: 'الالتزامات والحالة الائتمانية',
       questions: [
         { code: 'current_facilities', questionEn: 'Does the business have any loans or credit right now?', questionAr: 'هل لدى النشاط تسهيلات أو قروض حالية؟', options: YESNO(40, 100) },
-        {
-          code: 'current_installments', questionEn: 'How much does the business pay each month now?', questionAr: 'إجمالي الالتزام المالي الشهري الحالي؟',
-          options: [
-            { code: 'less_than_egp_10000', labelEn: 'Less than 10,000 EGP', labelAr: 'أقل من 10,000 جنيه', points: 100 },
-            { code: 'egp_10000_50000', labelEn: '10,000 – 50,000 EGP', labelAr: '10,000 – 50,000 جنيه', points: 60 },
-            { code: 'more_than_egp_50000', labelEn: 'More than 50,000 EGP', labelAr: 'أكثر من 50,000 جنيه', points: 25 },
-          ],
-        },
-        { code: 'prior_rejection', questionEn: 'Has a bank ever said no to your business?', questionAr: 'هل سبق رفض طلب تمويل للنشاط؟', isRequired: false, options: YESNO(25, 100) },
       ],
     },
     {
       code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات والدعم',
       questions: [
-        {
-          code: 'priority_factor', questionEn: 'What matters most to you in a business loan?', questionAr: 'أهم ما تبحث عنه في تمويل النشاط؟', isRequired: false,
-          options: [
-            // Sits in the same merged list as `fastest_approval`, so the two must
-            // read as a real choice and not as the same sentence twice.
-            { code: 'fast_approval', labelEn: 'A quick answer, even if not the fastest', labelAr: 'موافقة سريعة' },
-            { code: 'flexible_repayment', labelEn: 'Easy ways to pay it back', labelAr: 'سداد مرن' },
-            { code: 'highest_financing_amount', labelEn: 'The biggest amount', labelAr: 'أعلى مبلغ تمويل' },
-            { code: 'lowest_interest_rate', labelEn: 'The lowest interest', labelAr: 'أقل سعر فائدة' },
-            { code: 'least_documentation_required', labelEn: 'The fewest papers', labelAr: 'أقل أوراق مطلوبة' },
-          ],
-        },
-        { code: 'needs_consultation', questionEn: 'Do you want help from a business loan expert?', questionAr: 'هل تحتاج استشارة خبير تمويل أعمال؟', isRequired: false, options: YESNO() },
+        PRIORITY_FACTOR_Q,
+        PRIOR_REJECTION_Q,
+        // `needs_consultation` was a second copy of `needs_consultant` with
+        // "business" in the wording — two rows to tick, two rows to score, one
+        // question. The shared one covers both.
+        NEEDS_CONSULTANT_Q,
       ],
     },
   ],
@@ -950,8 +952,8 @@ export async function seedQuestionnaire(): Promise<void> {
   await publishVersion();
 
   // ---- 4. Per-program weight sets: each active program is pre-assigned the
-  //         questions from its OWN category (equal weights sum 100 + per-answer
-  //         scores scaled by a multiplier). Assignment = questionWeights keys. --
+  //         questions from its OWN category (equal weights sum 100 + the rule
+  //         each type is scored by). Assignment = questionWeights keys. ---------
   const programs = await prisma.bankProgram.findMany({
     where: { active: true },
     select: { id: true, productCategory: true },
@@ -960,26 +962,47 @@ export async function seedQuestionnaire(): Promise<void> {
   for (let i = 0; i < programs.length; i++) {
     const p = programs[i]!;
     const cat = p.productCategory.toLowerCase() as Category;
-    // Only SINGLE_SELECT questions are assignable (R9 / A33): the formula needs
-    // one picked answer score per question, which NUMERIC/TEXT/MULTI_SELECT
-    // cannot supply. Weights still sum to 100 over the assigned set.
-    const assigned = questionOrder.filter(
-      (qc) =>
-        categoriesByQuestion[qc]?.has(cat) &&
-        (questionByCode.get(qc)?.type ?? 'SINGLE_SELECT') === 'SINGLE_SELECT',
-    );
+    // EVERY type is assignable (Constitution V, v14.0.0). A choice question scores
+    // by option, a NUMERIC one by band, a TEXT one by presence — so the four money
+    // figures finally move the match instead of only pricing it. A choice question
+    // with no seeded option points is skipped: weighted-but-unscored is exactly
+    // what `WEIGHTS_MISSING_RULE` rejects.
+    const assigned = questionOrder.filter((qc) => {
+      if (!categoriesByQuestion[qc]?.has(cat)) return false;
+      const type = questionByCode.get(qc)?.type ?? 'SINGLE_SELECT';
+      if (type === 'SINGLE_SELECT' || type === 'MULTI_SELECT') {
+        return Object.keys(pointsByAnswer[qc] ?? {}).length > 0;
+      }
+      return true;
+    });
     if (assigned.length === 0) continue; // no questions for this category → scores 0
     const mult = PROGRAM_POINT_MULTIPLIERS[i % PROGRAM_POINT_MULTIPLIERS.length]!;
     const questionWeights = equalWeights(assigned);
     const answerScores: Record<string, Record<string, number>> = {};
+    const multiSelectRules: Record<string, { aggregation: 'AVERAGE' }> = {};
+    const numericBands: Record<string, { from: string | null; to: string | null; score: number }[]> =
+      {};
+    const textRules: Record<string, { answeredScore: number }> = {};
+    // Floor at 1 so a low base × low multiplier never rounds down to 0.
+    const scaled = (pts: number): number => Math.min(100, Math.max(1, Math.round(pts * mult)));
     for (const qc of assigned) {
-      answerScores[qc] = {};
-      for (const [oCode, pts] of Object.entries(pointsByAnswer[qc] ?? {})) {
-        // Floor at 1 so a low base × low multiplier never rounds down to 0.
-        answerScores[qc][oCode] = Math.min(100, Math.max(1, Math.round(pts * mult)));
+      const q = questionByCode.get(qc);
+      const type = q?.type ?? 'SINGLE_SELECT';
+      if (type === 'SINGLE_SELECT' || type === 'MULTI_SELECT') {
+        answerScores[qc] = {};
+        for (const [oCode, pts] of Object.entries(pointsByAnswer[qc] ?? {})) {
+          answerScores[qc][oCode] = scaled(pts);
+        }
+        // AVERAGE keeps a multi-pick answer inside 0..100 and treats one pick the
+        // same way every other mode would; admins retune per question in the editor.
+        if (type === 'MULTI_SELECT') multiSelectRules[qc] = { aggregation: 'AVERAGE' };
+      } else if (type === 'NUMERIC') {
+        numericBands[qc] = seedNumericBands(qc, q?.numeric, mult);
+      } else {
+        textRules[qc] = { answeredScore: scaled(NEUTRAL_SCORE) };
       }
     }
-    const weights = { questionWeights, answerScores };
+    const weights = { questionWeights, answerScores, multiSelectRules, numericBands, textRules };
     const existingActive = await prisma.scoringWeightSet.findFirst({ where: { bankProgramId: p.id, status: 'ACTIVE' } });
     if (existingActive) {
       await prisma.scoringWeightSet.update({ where: { id: existingActive.id }, data: { weights } });
@@ -1006,8 +1029,21 @@ async function publishVersion(): Promise<void> {
     const qOut = [];
     for (const q of questions) {
       const options = await prisma.questionOption.findMany({ where: { questionId: q.id, isActive: true }, orderBy: { displayOrder: 'asc' } });
+      // Which categories ask this question is FROZEN here, exactly as
+      // `QuestionnaireService.publish()` does it (A33 — never re-derived at read
+      // time). Omitting it is not a smaller snapshot, it is a WRONG one: a
+      // question with no `categories` key is read as "asked by all four"
+      // (pre-v12 compatibility in `askedFor`), so `GET /v1/questionnaire?
+      // category=car` served the whole 38-question pool — every mortgage and
+      // business question included — to a car applicant.
+      const categories = (
+        await prisma.questionLoanCategory.findMany({
+          where: { questionId: q.id },
+          orderBy: { category: 'asc' },
+        })
+      ).map((c) => c.category);
       qOut.push({
-        code: q.code, type: q.type, questionAr: q.questionAr, questionEn: q.questionEn,
+        code: q.code, type: q.type, categories, questionAr: q.questionAr, questionEn: q.questionEn,
         helperTextAr: q.helperTextAr, helperTextEn: q.helperTextEn, isRequired: q.isRequired,
         displayOrder: q.displayOrder, enabledWhen: q.enabledWhen ?? null,
         // Feature 010 — rule blocks, emitted only for the type that owns them.

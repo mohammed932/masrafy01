@@ -16,7 +16,10 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzDrawerService } from 'ng-zorro-antd/drawer';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
+import { ErrorCodeService } from '@core/errors/error-code.service';
+import type { ErrorCode } from '@core/auth/auth.types';
 import {
   LOAN_CATEGORIES,
   QuestionnaireApiService,
@@ -25,8 +28,14 @@ import {
   type OptionRow,
   type QuestionRow,
   type SimulatedAnswer,
+  type SimulationMatch,
   type SimulationResult,
 } from './questionnaire.api.service';
+import { approvalTierLabel, bindingConstraintLabel } from './simulation-labels';
+import {
+  SimulatedOfferDrawerComponent,
+  type SimulatedOfferDrawerData,
+} from './simulated-offer.drawer';
 
 /** One applicant answer held by the wizard — exactly one value key is populated. */
 interface AnswerValue {
@@ -127,86 +136,79 @@ function isVisible(
           } @else {
             <ul class="matches">
               @for (m of result()!.matches; track m.programCode) {
-                <li class="match" [class.ineligible]="!m.eligible">
+                <!-- The whole card opens the offer drawer. Keyboard reaches it the
+                     same way (Enter / Space on the focused row), so the pointer
+                     shortcut adds no control the keyboard lacks. -->
+                <li
+                  class="match"
+                  role="button"
+                  tabindex="0"
+                  [attr.aria-label]="openLabelFor(m)"
+                  (click)="openOffer(m)"
+                  (keydown.enter)="openOffer(m)"
+                  (keydown.space)="openOffer(m); $event.preventDefault()"
+                >
                   <div class="m-head">
                     <div class="m-id">
                       <span class="m-bank">{{ m.bankName }}</span>
                       <span class="m-prog">{{ m.programFriendlyName }}</span>
                     </div>
-                    <div class="prob" [attr.data-tier]="m.approvalTier">
+                    <div class="prob" [attr.data-tier]="m.usedDefaultWeights ? 'unrated' : m.approvalTier">
                       <span class="prob-num">{{ pct(m.approvalProbability) }}%</span>
-                      <span class="prob-tier">{{ tierLabel(m.approvalTier) }}</span>
+                      <span class="prob-tier">{{ tierLabel(m) }}</span>
                     </div>
                   </div>
+                  <!-- Registry facts only. "Eligible" is NOT one: gating is dropped
+                       for MVP, so every program carries eligible=true and a tag
+                       saying so would be decoration, not information (A33). -->
                   <div class="m-tags">
-                    @if (m.eligible) {
-                      <span class="tag ok" i18n="@@sim.eligible">Eligible</span>
-                    } @else {
-                      <span class="tag bad" i18n="@@sim.ineligible">Not eligible</span>
-                    }
                     @if (m.bankIsFeatured) { <span class="tag feat" i18n="@@sim.featured">Featured</span> }
+                    @if (m.isShariaCompliant) {
+                      <span class="tag ok" i18n="@@sim.sharia">Sharia-compliant</span>
+                    }
                     @if (m.usedDefaultWeights) {
-                      <span class="tag warn" i18n="@@sim.default_weights">default weights</span>
+                      <span class="tag warn" i18n="@@sim.tier.unrated">Not rated</span>
                     }
                   </div>
-                  <!-- Figures are additive: rendered only once the quote pipeline
-                       supplies them, never as a "null EGP" placeholder. -->
-                  @if (m.effectiveRatePercent !== null || m.monthlyInstallmentEGP !== null) {
+                  <!-- Card carries the three figures a ranking is read on; the rest
+                       of the money block lives in the drawer. Rendered only once
+                       the quote pipeline supplies them, never as "null EGP". -->
+                  @if (m.figures; as f) {
                     <dl class="m-figs">
-                      @if (m.effectiveRatePercent !== null) {
-                        <div><dt i18n="@@sim.rate">Rate</dt><dd class="numeric">{{ m.effectiveRatePercent }}%</dd></div>
-                      }
-                      @if (m.monthlyInstallmentEGP !== null) {
-                        <div>
-                          <dt i18n="@@sim.installment">Installment</dt>
-                          <dd class="numeric">{{ m.monthlyInstallmentEGP }} EGP</dd>
-                        </div>
-                      }
-                      @if (m.maxAffordableAmountEGP !== null) {
-                        <div>
-                          <dt i18n="@@sim.max_loan">Max loan</dt>
-                          <dd class="numeric">{{ m.maxAffordableAmountEGP }} EGP</dd>
-                        </div>
-                      }
-                      @if (m.figures; as f) {
-                        <div>
-                          <dt i18n="@@sim.dbr">DBR</dt>
-                          <dd class="numeric">{{ f.dbrPercent }}% / {{ f.dbrCapPercent }}%</dd>
-                        </div>
-                        <div>
-                          <dt i18n="@@sim.binding">Binding</dt>
-                          <dd>{{ humanizeReason(f.bindingConstraint) }}</dd>
-                        </div>
-                        @if (f.dbrBandIndex !== null) {
-                          <div>
-                            <dt i18n="@@sim.dbr_band">DBR band</dt>
-                            <dd class="numeric">#{{ f.dbrBandIndex }}</dd>
-                          </div>
-                        }
-                      }
+                      <div>
+                        <dt i18n="@@sim.installment">Installment</dt>
+                        <dd class="numeric">{{ money(f.monthlyInstallmentEGP) }} EGP</dd>
+                      </div>
+                      <div>
+                        <dt i18n="@@sim.rate">Rate</dt>
+                        <dd class="numeric">{{ pctText(f.effectiveRatePercent) }}%</dd>
+                      </div>
+                      <div>
+                        <dt i18n="@@sim.binding">Capped by</dt>
+                        <dd>{{ bindingLabel(f.bindingConstraint) }}</dd>
+                      </div>
                     </dl>
+                  } @else if (m.figuresUnavailableReason !== null) {
+                    <!-- An unquotable program stays listed with its reason: DBR
+                         shapes the amount, never whether a program appears (A33). -->
+                    <p class="m-reason">{{ reasonText(m.figuresUnavailableReason) }}</p>
                   }
-                  <!-- An unquotable program stays listed with its reason: DBR
-                       shapes the amount, never whether a program appears (A33). -->
-                  @if (m.figuresUnavailableReason !== null) {
-                    <div class="reasons">
-                      <span class="reason">{{ humanizeReason(m.figuresUnavailableReason) }}</span>
-                    </div>
-                  }
-                  @if (m.rejectionReasons.length > 0) {
-                    <div class="reasons">
-                      @for (r of m.rejectionReasons; track r) {
-                        <span class="reason">{{ humanizeReason(r) }}</span>
-                      }
-                    </div>
-                  }
+                  <span class="m-more" aria-hidden="true" i18n="@@sim.open_offer"
+                    >Offer details →</span
+                  >
                 </li>
               }
             </ul>
           }
         </div>
       } @else if (total() === 0) {
-        <p class="muted" i18n="@@sim.no_questions">No published questions yet.</p>
+        @if (anyActiveQuestions()) {
+          <p class="muted" i18n="@@sim.no_category_questions">
+            No questions are assigned to this loan category yet.
+          </p>
+        } @else {
+          <p class="muted" i18n="@@sim.no_questions">No published questions yet.</p>
+        }
       } @else {
         <!-- ── Wizard ────────────────────────────────────────── -->
         <div class="wizard">
@@ -246,7 +248,11 @@ function isVisible(
                   </div>
                 }
                 @case ('NUMERIC') {
-                  <div class="field">
+                  <!-- <label>, not <div>: it makes the whole affix box — unit
+                       included — a click target that focuses the input, natively.
+                       The accessible name still comes from aria-label, which
+                       carries the unit so it is spoken as well as shown. -->
+                  <label class="ctl-affix" [class.invalid]="numericError() !== null">
                     @if (isMoney(q)) {
                       <input
                         class="ctl"
@@ -254,7 +260,9 @@ function isVisible(
                         inputmode="numeric"
                         appMoneyInput
                         [formControl]="numericCtrl"
-                        [attr.aria-label]="questionText(q)"
+                        [attr.aria-label]="numericAriaLabel(q)"
+                        [attr.aria-invalid]="numericError() !== null"
+                        [attr.aria-describedby]="numericDescribedBy(q)"
                       />
                     } @else {
                       <!-- Text input, not type="number": NumberValueAccessor would
@@ -265,13 +273,15 @@ function isVisible(
                         type="text"
                         inputmode="decimal"
                         [formControl]="numericCtrl"
-                        [attr.aria-label]="questionText(q)"
+                        [attr.aria-label]="numericAriaLabel(q)"
+                        [attr.aria-invalid]="numericError() !== null"
+                        [attr.aria-describedby]="numericDescribedBy(q)"
                       />
                     }
-                    @if (unitText(q); as u) { <span class="unit">{{ u }}</span> }
-                  </div>
-                  @if (numericHint(q); as h) { <p class="hint">{{ h }}</p> }
-                  @if (numericError(); as e) { <p class="err">{{ e }}</p> }
+                    @if (unitText(q); as u) { <span class="unit" aria-hidden="true">{{ u }}</span> }
+                  </label>
+                  @if (numericHint(q); as h) { <p class="hint" [id]="'hint-' + q.code">{{ h }}</p> }
+                  @if (numericError(); as e) { <p class="err" [id]="'err-' + q.code" role="alert">{{ e }}</p> }
                 }
                 @case ('TEXT') {
                   <div class="field">
@@ -291,7 +301,9 @@ function isVisible(
                          No auto-advance here: the admin picks, then presses Next. -->
                     <div class="field">
                       <nz-select
-                        class="sel-ctl"
+                        class="sel-ctl select-comfy"
+                        nzDropdownClassName="select-comfy-dropdown"
+                        [nzOptionHeightPx]="42"
                         [formControl]="choiceCtrl"
                         nzShowSearch
                         nzAllowClear
@@ -303,6 +315,9 @@ function isVisible(
                         }
                       </nz-select>
                     </div>
+                    <p class="hint" i18n="@@sim.search_hint">
+                      {{ q.options.length }} options — type to search
+                    </p>
                   } @else {
                     <div class="opts">
                       @for (o of q.options; track o.code) {
@@ -322,8 +337,17 @@ function isVisible(
               }
 
               <div class="wiz-foot">
-                <button nz-button (click)="back()" [disabled]="step() === 0" i18n="@@sim.back">Back</button>
-                <button nz-button nzType="primary" (click)="next()" [disabled]="!canAdvance()" i18n="@@sim.next">
+                <button nz-button nzSize="large" (click)="back()" [disabled]="step() === 0" i18n="@@sim.back">
+                  Back
+                </button>
+                <button
+                  nz-button
+                  nzSize="large"
+                  nzType="primary"
+                  (click)="next()"
+                  [disabled]="!canAdvance()"
+                  i18n="@@sim.next"
+                >
                   Next
                 </button>
               </div>
@@ -341,9 +365,10 @@ function isVisible(
                 }
               </ul>
               <div class="wiz-foot">
-                <button nz-button (click)="back()" i18n="@@sim.back">Back</button>
+                <button nz-button nzSize="large" (click)="back()" i18n="@@sim.back">Back</button>
                 <button
                   nz-button
+                  nzSize="large"
                   nzType="primary"
                   [nzLoading]="running()"
                   [disabled]="answeredCount() === 0"
@@ -392,19 +417,27 @@ function isVisible(
       .step-card {
         background: var(--bg-surface, #fff); border: 1px solid var(--color-border-default, #eceff3);
         border-radius: var(--radius-lg, 14px); padding: var(--space-6, 24px);
+        box-shadow: var(--shadow-sm, 0 1px 2px rgba(43, 35, 32, 0.06));
         animation: step-in 240ms cubic-bezier(0.4, 0, 0.2, 1);
       }
-      @keyframes step-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; } }
+      @keyframes step-in {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
       @media (prefers-reduced-motion: reduce) { .step-card { animation: none; } .progress-bar span { transition: none; } }
 
       .q-text {
         margin: 0 0 var(--space-5, 20px); font-size: var(--text-xl, 20px);
-        font-weight: 700; line-height: 1.3; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+        font-weight: 700; line-height: 1.3; letter-spacing: -0.012em;
+        display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
       }
+      /* Reads as a footnote to the question, not a second badge competing with
+         it — the required case is the one that carries weight, and it is silent. */
       .opt-tag {
-        font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
-        color: var(--color-text-secondary, #6b7280);
-        background: var(--bg-subtle, #f6f8fa); padding: 1px 8px; border-radius: 999px;
+        font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+        color: var(--color-text-tertiary, #9aa1ab);
+        border: 1px solid var(--color-border-default, #e5e7eb);
+        padding: 1px 7px; border-radius: 999px;
       }
 
       .opts { display: flex; flex-direction: column; gap: var(--space-2, 8px); }
@@ -442,14 +475,59 @@ function isVisible(
         border: 1.5px solid var(--color-border-default, #e5e7eb);
         border-radius: var(--radius-md, 10px); background: var(--bg-surface, #fff);
         color: var(--color-text-primary, #1a2433); font-variant-numeric: tabular-nums lining-nums;
+        transition: border-color 120ms ease, box-shadow 120ms ease;
       }
-      .ctl:focus { outline: none; border-color: var(--ant-primary-color, #0869c3); }
-      .unit { font-size: 14px; font-weight: 600; color: var(--color-text-secondary, #6b7280); }
-      .sel-ctl { inline-size: 100%; max-inline-size: 420px; }
+      .ctl:hover { border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 50%, transparent); }
+      /* The native outline is dropped, so the ring has to come back as a halo —
+         a border-colour change alone is not a focus indicator. */
+      .ctl:focus {
+        outline: none; border-color: var(--ant-primary-color, #0869c3);
+        box-shadow: var(--focus-halo, 0 0 0 3px rgba(8, 105, 195, 0.15));
+      }
+
+      /* Unit-suffixed number field. The BOX owns the border, background and every
+         state; the input inside is stripped bare so the unit sits within the
+         control rather than floating beside it. */
+      .ctl-affix {
+        display: flex; align-items: stretch; gap: 10px; cursor: text;
+        min-block-size: 52px; padding-inline: 16px;
+        border: 1.5px solid var(--color-border-default, #e5e7eb);
+        border-radius: var(--radius-md, 10px); background: var(--bg-surface, #fff);
+        transition: border-color 120ms ease, box-shadow 120ms ease;
+      }
+      .ctl-affix:hover { border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 50%, transparent); }
+      .ctl-affix:focus-within {
+        border-color: var(--ant-primary-color, #0869c3);
+        box-shadow: var(--focus-halo, 0 0 0 3px rgba(8, 105, 195, 0.15));
+      }
+      .ctl-affix.invalid { border-color: var(--ant-error-color, #c1666b); }
+      .ctl-affix.invalid:focus-within {
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ant-error-color, #c1666b) 22%, transparent);
+      }
+      /* Border/padding/halo now belong to the box — the input must add none of
+         its own, or it draws a second control inside the first. */
+      .ctl-affix .ctl {
+        min-block-size: 0; padding-inline: 0; border: none; background: none;
+      }
+      .ctl-affix .ctl:hover, .ctl-affix .ctl:focus { border: none; box-shadow: none; }
+
+      .unit {
+        flex: none; align-self: center; user-select: none;
+        font-size: 14px; font-weight: 600; letter-spacing: 0.01em;
+        color: var(--color-text-tertiary, #9aa1ab);
+      }
+      .ctl-affix:focus-within .unit { color: var(--color-text-secondary, #6b7280); }
+      /* Full-bleed like every sibling control: a 420px cap left the field
+         orphaned against the card's inline edge. Height/skin: .select-comfy. */
+      .sel-ctl { flex: 1; min-inline-size: 0; }
       .hint { margin: var(--space-2, 8px) 0 0; font-size: 12px; color: var(--color-text-secondary, #6b7280); }
       .err { margin: var(--space-2, 8px) 0 0; font-size: 12px; font-weight: 600; color: var(--ant-error-color, #c1666b); }
 
-      .wiz-foot { display: flex; justify-content: space-between; gap: var(--space-3, 12px); margin-block-start: var(--space-6, 24px); }
+      .wiz-foot {
+        display: flex; justify-content: space-between; gap: var(--space-3, 12px);
+        margin-block-start: var(--space-6, 24px); padding-block-start: var(--space-4, 16px);
+        border-block-start: 1px solid var(--color-border-default, #eceff3);
+      }
       .count {
         margin-inline-start: 8px; background: rgba(255, 255, 255, 0.25);
         padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700;
@@ -468,8 +546,22 @@ function isVisible(
       /* ── Results ── */
       .results-head { display: flex; align-items: center; justify-content: space-between; margin-block-end: var(--space-4, 16px); }
       .matches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3, 12px); }
-      .match { border: 1px solid var(--color-border-default, #eceff3); border-radius: var(--radius-md, 10px); padding: var(--space-4, 16px); }
-      .match.ineligible { opacity: 0.85; }
+      /* The card IS the control: it needs the four states a button needs, and a
+         focus ring the pointer affordance alone would not give a keyboard user. */
+      .match {
+        position: relative; cursor: pointer;
+        border: 1px solid var(--color-border-default, #eceff3);
+        border-radius: var(--radius-md, 10px); padding: var(--space-4, 16px);
+        background: var(--bg-surface, #fff);
+        transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+      }
+      .match:hover {
+        border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 45%, transparent);
+        box-shadow: var(--shadow-sm, 0 1px 2px rgba(43, 35, 32, 0.06));
+      }
+      .match:active { transform: translateY(1px); }
+      .match:focus-visible { outline: 2px solid var(--ant-primary-color, #0869c3); outline-offset: 2px; }
+      @media (prefers-reduced-motion: reduce) { .match { transition: none; } .match:active { transform: none; } }
       .m-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3, 12px); }
       .m-id { display: flex; flex-direction: column; min-inline-size: 0; }
       .m-bank { font-weight: 700; }
@@ -480,28 +572,41 @@ function isVisible(
       .prob[data-tier='excellent'] .prob-num, .prob[data-tier='good'] .prob-num { color: var(--ant-success-color, #2e7d4f); }
       .prob[data-tier='moderate'] .prob-num { color: var(--ant-warning-color, #b8860b); }
       .prob[data-tier='low'] .prob-num, .prob[data-tier='very_low'] .prob-num { color: var(--ant-error-color, #c1666b); }
+      /* An unconfigured program is grey, not red: "not rated" and "rated badly"
+         must never look the same (v13.0.0). */
+      .prob[data-tier='unrated'] .prob-num { color: var(--color-text-tertiary, #9aa1ab); }
       .m-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: var(--space-3, 12px); }
       .tag { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: var(--radius-pill, 999px); }
       .tag.ok { background: color-mix(in srgb, var(--ant-success-color, #2e7d4f) 14%, #fff); color: var(--ant-success-color, #2e7d4f); }
-      .tag.bad { background: color-mix(in srgb, var(--ant-error-color, #c1666b) 14%, #fff); color: var(--ant-error-color, #c1666b); }
       .tag.feat { background: color-mix(in srgb, var(--ant-primary-color, #0869c3) 14%, #fff); color: var(--ant-primary-color, #0869c3); }
       .tag.warn { background: color-mix(in srgb, var(--ant-warning-color, #b8860b) 16%, #fff); color: var(--ant-warning-color, #b8860b); }
-      .m-figs { display: flex; gap: var(--space-5, 20px); margin: var(--space-3, 12px) 0 0; }
-      .m-figs div { display: flex; flex-direction: column; }
+      .m-figs { display: flex; flex-wrap: wrap; gap: var(--space-5, 20px); margin: var(--space-3, 12px) 0 0; }
+      .m-figs div { display: flex; flex-direction: column; min-inline-size: 0; }
       .m-figs dt { font-size: 11px; color: var(--color-text-secondary, #6b7280); }
       .m-figs dd { margin: 0; font-weight: 600; }
       .numeric { font-variant-numeric: tabular-nums lining-nums; }
-      .reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: var(--space-3, 12px); }
-      .reason {
-        font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: var(--radius-pill, 999px);
-        background: color-mix(in srgb, var(--ant-error-color, #c1666b) 10%, #fff); color: var(--ant-error-color, #c1666b);
+      /* Not a red pill: an unquotable program is a configuration/answer state, not
+         a rejection, and the sentence has to be readable to say which. */
+      .m-reason {
+        margin: var(--space-3, 12px) 0 0; font-size: 12px; line-height: 1.5;
+        color: var(--color-text-secondary, #6b7280);
+        border-inline-start: 3px solid var(--ant-warning-color, #b8860b);
+        padding-inline-start: 10px;
       }
+      .m-more {
+        display: block; margin-block-start: var(--space-3, 12px);
+        font-size: 12px; font-weight: 600; color: var(--ant-primary-color, #0869c3);
+        opacity: 0.75; transition: opacity 120ms ease;
+      }
+      .match:hover .m-more, .match:focus-visible .m-more { opacity: 1; }
     `,
   ],
 })
 export class MatchingSimulatorPage {
   private readonly api = inject(QuestionnaireApiService);
   private readonly message = inject(NzMessageService);
+  private readonly drawer = inject(NzDrawerService);
+  private readonly errors = inject(ErrorCodeService);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   readonly categories = LOAN_CATEGORIES;
@@ -521,14 +626,31 @@ export class MatchingSimulatorPage {
 
   readonly pickPlaceholder = $localize`:@@sim.pick_one:Choose one`;
 
-  /** Active questions across all groups, minus the ones a branch rule hides. */
+  /** True while the pool holds any active question at all — separates "nothing
+   *  published" from "nothing assigned to THIS category" in the empty state. */
+  readonly anyActiveQuestions = computed(() =>
+    this.tree().some((g) => g.questions.some((q) => q.isActive)),
+  );
+
+  /**
+   * The questions this category asks, minus the ones a branch rule hides.
+   *
+   * Category assignment is authoritative (Principle V, v12.0.0): the chip picks
+   * BOTH which programs are simulated and which of the global pool's questions
+   * the applicant is asked — empty `categories` means parked, asked by nobody.
+   * `byCode` is built from the already-filtered set so branch resolution matches
+   * `resolveSelectedOptions`, which also maps codes only over the asked set: a
+   * rule pointing outside this category is dangling, and `isVisible` shows the
+   * child rather than hiding it.
+   */
   readonly questions = computed<QuestionRow[]>(() => {
-    const active = this.tree()
+    const category = this.category();
+    const asked = this.tree()
       .flatMap((g) => g.questions)
-      .filter((q) => q.isActive);
-    const byCode = new Map(active.map((q) => [q.code, q]));
+      .filter((q) => q.isActive && q.categories.includes(category));
+    const byCode = new Map(asked.map((q) => [q.code, q]));
     const answers = this.answers();
-    return active.filter((q) => isVisible(q, answers, byCode));
+    return asked.filter((q) => isVisible(q, answers, byCode));
   });
   readonly total = computed(() => this.questions().length);
   /** null on the review step (step >= total). */
@@ -616,8 +738,12 @@ export class MatchingSimulatorPage {
   pickCategory(c: LoanCategory): void {
     if (c === this.category()) return;
     this.category.set(c);
-    // Questions are global (Feature 010) — only the program set being simulated
-    // changes with the category, so keep the answers and just drop a stale result.
+    // The chip changes the ASKED question set, not just the program set, so the
+    // step index no longer points at the same question — restart the walk.
+    // Answers survive: `payload()` maps over `questions()`, so an answer to a
+    // question this category never asks is dropped from the request instead of
+    // being rejected by the API as an unknown code.
+    this.step.set(0);
     this.result.set(null);
   }
 
@@ -672,6 +798,24 @@ export class MatchingSimulatorPage {
   unitText(q: QuestionRow): string | null {
     return (this.isAr ? q.numericUnitAr : q.numericUnitEn) || q.numericUnitEn;
   }
+  /** The unit is rendered as a visual suffix (`aria-hidden`), so it has to reach
+   *  screen readers through the field's name instead. */
+  numericAriaLabel(q: QuestionRow): string {
+    const unit = this.unitText(q);
+    const label = this.questionText(q);
+    return unit ? `${label} (${unit})` : label;
+  }
+
+  /** Hint and error are separate nodes below the box — point the field at them
+   *  so the range rule and the violation are announced with it, not orphaned. */
+  numericDescribedBy(q: QuestionRow): string | null {
+    const ids = [
+      this.numericHint(q) === null ? null : `hint-${q.code}`,
+      this.numericError() === null ? null : `err-${q.code}`,
+    ].filter((id): id is string => id !== null);
+    return ids.length > 0 ? ids.join(' ') : null;
+  }
+
   numericHint(q: QuestionRow): string | null {
     const min = q.numericMinValue;
     const max = q.numericMaxValue;
@@ -717,11 +861,48 @@ export class MatchingSimulatorPage {
   pct(p: number): number {
     return Math.round(p * 100);
   }
-  tierLabel(tier: string): string {
-    return tier.replace(/_/g, ' ');
+  tierLabel(match: SimulationMatch): string {
+    return approvalTierLabel(match);
   }
-  humanizeReason(code: string): string {
-    return code.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  bindingLabel(constraint: string): string {
+    return bindingConstraintLabel(constraint);
+  }
+  /** Figures-unavailable reasons are error codes — one localized catalog (A22). */
+  reasonText(code: string): string {
+    return this.errors.toLocalizedMessage(code as ErrorCode);
+  }
+  /** Thousands grouping on the STRING: a Decimal never becomes a float (Principle I). */
+  money(value: string): string {
+    const [whole = '0', frac] = value.split('.');
+    const negative = whole.startsWith('-');
+    const digits = (negative ? whole.slice(1) : whole).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return `${negative ? '-' : ''}${digits}${frac ? `.${frac}` : ''}`;
+  }
+  /** `18.5000` → `18.5`. Trailing-zero trim only — no arithmetic. */
+  pctText(value: string): string {
+    if (!value.includes('.')) return value;
+    const trimmed = value.replace(/0+$/, '').replace(/\.$/, '');
+    return trimmed === '' || trimmed === '-' ? '0' : trimmed;
+  }
+
+  openLabelFor(m: SimulationMatch): string {
+    return $localize`:@@sim.open_offer_aria:Offer details for ${m.bankName}:bank: — ${m.programFriendlyName}:program:`;
+  }
+
+  /**
+   * Drill into one simulated program. The drawer re-fetches that program's
+   * registry terms itself; everything else it shows is the response already in
+   * hand, so pressing a card runs no second simulation and cannot disagree with
+   * the list it was opened from.
+   */
+  openOffer(m: SimulationMatch): void {
+    this.drawer.create<SimulatedOfferDrawerComponent, SimulatedOfferDrawerData>({
+      nzContent: SimulatedOfferDrawerComponent,
+      nzData: { match: m },
+      nzTitle: m.bankName,
+      nzWidth: 'min(560px, calc(100vw - 48px))',
+      nzPlacement: 'right',
+    });
   }
 
   /** Only VISIBLE, answered questions are sent — a hidden answer must not score. */

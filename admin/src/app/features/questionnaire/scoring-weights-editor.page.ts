@@ -8,12 +8,19 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormControl,
+  FormGroup,
+  FormsModule,
+  ReactiveFormsModule,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSliderModule } from 'ng-zorro-antd/slider';
 import { NzEmptyModule } from 'ng-zorro-antd/empty';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
@@ -23,13 +30,23 @@ import {
   ArrowRightOutline,
   CheckOutline,
   ExclamationCircleOutline,
+  RightOutline,
   SaveOutline,
   SearchOutline,
   ThunderboltOutline,
 } from '@ant-design/icons-angular/icons';
-import { PercentFieldComponent } from '@shared/ui';
 import {
+  PercentFieldComponent,
+  ScoreBandsEditorComponent,
+  scoreBandsErrorFor,
+  seedScoreBands,
+} from '@shared/ui';
+import { categoryLabel, isLoanCategory } from '@core/loan-category';
+import {
+  MULTI_SELECT_AGGREGATIONS,
   QuestionnaireApiService,
+  type MultiSelectAggregation,
+  type NumericScoreBand,
   type ProgramMeta,
   type ProgramScoringWeights,
   type WeightableOption,
@@ -42,6 +59,15 @@ const QW = 'qw';
 const SC = 'sc';
 const weightKey = (q: string): string => `${QW}${SEP}${q}`;
 const scoreKey = (q: string, o: string): string => `${SC}${SEP}${q}${SEP}${o}`;
+
+/**
+ * A TEXT question has no options, so its presence score rides the SAME control
+ * machinery under a reserved pseudo-option code. It is never sent as an option
+ * score: `scoringNow` iterates the question's real options, which for TEXT is
+ * empty, and emits `textRules` instead.
+ */
+const TEXT_PRESENCE = '__answered__';
+const textScoreKey = (q: string): string => scoreKey(q, TEXT_PRESENCE);
 
 /** Weights + scores are both 0..100. */
 const clampPct = (n: number): number => Math.min(100, Math.max(0, n));
@@ -103,8 +129,10 @@ interface WizardStep {
     NzInputModule,
     NzSliderModule,
     NzEmptyModule,
+    NzSelectModule,
     NzSpinModule,
     PercentFieldComponent,
+    ScoreBandsEditorComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -112,6 +140,7 @@ interface WizardStep {
       ArrowRightOutline,
       CheckOutline,
       ExclamationCircleOutline,
+      RightOutline,
       SaveOutline,
       SearchOutline,
       ThunderboltOutline,
@@ -207,9 +236,8 @@ interface WizardStep {
                 </ng-template>
                 <span class="pick-count" aria-live="polite"
                   >{{ assignedCount() }}<span i18n="@@scoring.editor.of"> of </span
-                  >{{ questions().length }}<span i18n="@@scoring.editor.picked_suffix">
-                    picked</span
-                  ></span
+                  >{{ questions().length
+                  }}<span i18n="@@scoring.editor.picked_suffix"> picked</span></span
                 >
                 <button
                   nz-button
@@ -233,6 +261,28 @@ interface WizardStep {
                 </button>
               </div>
 
+              @if (unaskedPicked().length > 0) {
+                <div class="unasked-note" role="status">
+                  <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+                  <p class="un-body">
+                    <span class="un-lead" i18n="@@scoring.editor.unasked_lead"
+                      >These picked questions are never shown to
+                      {{ programCategoryLabel() }} applicants.</span
+                    >
+                    <span class="un-hint" i18n="@@scoring.editor.unasked_hint"
+                      >They can never score, so any weight you give them is wasted. Untick them, or
+                      add {{ programCategoryLabel() }} to them under Questionnaire → Loan
+                      categories.</span
+                    >
+                  </p>
+                  <ul class="un-list">
+                    @for (q of unaskedPicked(); track q.code) {
+                      <li>{{ questionLabel(q) }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+
               @if (visibleQuestions().length === 0) {
                 <p class="empty-line" i18n="@@scoring.editor.no_match">
                   No question matches that search.
@@ -250,11 +300,17 @@ interface WizardStep {
                         (ngModelChange)="toggleAssign(q.code, $event)"
                       >
                         <span class="pick-text">
-                          <span class="pick-name">{{ questionLabel(q) }}</span>
-                          <span class="pick-meta"
-                            >{{ q.options.length
-                            }}<span i18n="@@scoring.editor.answers_suffix"> answers</span></span
-                          >
+                          <span class="pick-name">
+                            {{ questionLabel(q) }}
+                            @if (!isAskedHere(q)) {
+                              <span class="unasked-tag" i18n="@@scoring.editor.unasked_tag"
+                                >not asked</span
+                              >
+                            }
+                          </span>
+                          <!-- What the admin will be asked to score, so the type is
+                               known before picking, not after. -->
+                          <span class="pick-meta">{{ scoredByLabel(q) }}</span>
                         </span>
                       </label>
                     </li>
@@ -325,7 +381,9 @@ interface WizardStep {
           <!-- ─── Step 3 · score every answer ──────────────────────────── -->
           @if (stepIndex() === 2) {
             <div class="budget-strip">
-              <span class="budget-label" i18n="@@scoring.editor.scored_label">Questions scored</span>
+              <span class="budget-label" i18n="@@scoring.editor.scored_label"
+                >Questions scored</span
+              >
               <span class="budget-val"
                 >{{ scoredCount() }}<span class="budget-unit"> / {{ assignedCount() }}</span></span
               >
@@ -341,41 +399,151 @@ interface WizardStep {
             </div>
 
             <div class="panel">
+              <!-- One question open at a time: a 7-answer slider stack per question
+                   buries the rest of the list, and the collapsed line already says
+                   whether a question needs opening. -->
               <ul class="score-list">
                 @for (q of assignedQuestions(); track q.code) {
-                  <li class="score-block" [class.pending]="questionIncomplete(q)">
-                    <header class="score-head">
-                      <h2 class="qlabel">{{ questionLabel(q) }}</h2>
-                      <span class="q-weight">{{ weightOf(q.code) | number: '1.0-0' }}%</span>
-                    </header>
-                    <div class="answers">
-                      @for (o of q.options; track o.code) {
-                        <div class="answer-row">
-                          <span class="answer-label"
-                            >{{ optionLabel(o) }}
-                            @if (isTop(q.code, o.code)) {
-                              <span class="top-pill" i18n="@@scoring.editor.top">★ Top</span>
+                  <li
+                    class="score-block"
+                    [class.pending]="questionIncomplete(q)"
+                    [class.is-open]="isScoreOpen(q.code)"
+                  >
+                    <h2 class="score-head">
+                      <button
+                        type="button"
+                        class="score-trigger"
+                        [id]="scoreHeadId(q.code)"
+                        [attr.aria-expanded]="isScoreOpen(q.code)"
+                        [attr.aria-controls]="scorePanelId(q.code)"
+                        (click)="toggleScoreOpen(q.code)"
+                      >
+                        <span
+                          class="score-chev"
+                          nz-icon
+                          nzType="right"
+                          nzTheme="outline"
+                          aria-hidden="true"
+                        ></span>
+                        <span class="qlabel">{{ questionLabel(q) }}</span>
+                        <span class="q-type">{{ typeLabel(q) }}</span>
+                        <span class="q-weight">{{ weightOf(q.code) | number: '1.0-0' }}%</span>
+                        <!-- The collapsed readout: what is set, or what is missing. -->
+                        <span class="score-sum">{{ scoreSummary(q) }}</span>
+                      </button>
+                    </h2>
+
+                    <!-- One question, one way of scoring it. The control follows the
+                         question's TYPE: options for a choice, ranges for a number,
+                         a single presence score for free text. -->
+                    @if (isScoreOpen(q.code)) {
+                      <div
+                        class="score-panel"
+                        role="region"
+                        [id]="scorePanelId(q.code)"
+                        [attr.aria-labelledby]="scoreHeadId(q.code)"
+                      >
+                        @switch (q.type) {
+                          @case ('NUMERIC') {
+                            <p class="type-hint" i18n="@@scoring.editor.hint_numeric">
+                              Score this number by range. Each band starts where the one before it
+                              ends, so every answer lands in exactly one.
+                            </p>
+                            <app-score-bands-editor
+                              [bands]="bandsOf(q.code)"
+                              (bandsChange)="setBands(q.code, $event)"
+                              [unit]="numericUnit(q)"
+                              [minValue]="q.numericMinValue"
+                              [maxValue]="q.numericMaxValue"
+                            />
+                          }
+                          @case ('TEXT') {
+                            <p class="type-hint" i18n="@@scoring.editor.hint_text">
+                              Free text is scored on being answered, not on what it says — a keyword
+                              rule would be guesswork nobody can audit. Leaving it blank earns
+                              nothing.
+                            </p>
+                            <div class="answer-row">
+                              <span class="answer-label" i18n="@@scoring.editor.text_answered"
+                                >Answered</span
+                              >
+                              <nz-slider
+                                class="pts-slider"
+                                [ngModel]="textScoreOf(q.code)"
+                                [ngModelOptions]="{ standalone: true }"
+                                (ngModelChange)="setTextScore(q.code, $event)"
+                                [nzMin]="0"
+                                [nzMax]="100"
+                                [nzStep]="1"
+                                [attr.aria-label]="draggedAria(questionLabel(q))"
+                              />
+                              <app-percent-field
+                                [value]="textScoreOf(q.code)"
+                                (valueChange)="setTextScore(q.code, $event)"
+                                [ariaLabel]="typedAria(questionLabel(q))"
+                              />
+                            </div>
+                          }
+                          @default {
+                            @if (q.type === 'MULTI_SELECT') {
+                              <div class="agg-row">
+                                <!-- Visible text + aria-label rather than a label/for
+                                     pair: nz-select renders no native control to point
+                                     at, so a for attribute would name nothing. -->
+                                <span class="agg-label" i18n="@@scoring.editor.agg_label"
+                                  >Several picks count as</span
+                                >
+                                <nz-select
+                                  class="agg-select"
+                                  [ngModel]="aggregationOf(q.code)"
+                                  [ngModelOptions]="{ standalone: true }"
+                                  (ngModelChange)="setAggregation(q.code, $event)"
+                                  [attr.aria-label]="aggregationAria(questionLabel(q))"
+                                >
+                                  @for (mode of aggregations; track mode) {
+                                    <nz-option
+                                      [nzValue]="mode"
+                                      [nzLabel]="aggregationLabel(mode)"
+                                    />
+                                  }
+                                </nz-select>
+                                <p class="agg-hint">{{ aggregationHint(q.code) }}</p>
+                              </div>
                             }
-                          </span>
-                          <nz-slider
-                            class="pts-slider"
-                            [ngModel]="scoreOf(q.code, o.code)"
-                            [ngModelOptions]="{ standalone: true }"
-                            (ngModelChange)="setScore(q.code, o.code, $event)"
-                            [nzMin]="0"
-                            [nzMax]="100"
-                            [nzStep]="1"
-                            [attr.aria-label]="draggedAria(optionLabel(o))"
-                          />
-                          <app-percent-field
-                            [value]="scoreOf(q.code, o.code)"
-                            (valueChange)="setScore(q.code, o.code, $event)"
-                            [accent]="isTop(q.code, o.code)"
-                            [ariaLabel]="typedAria(optionLabel(o))"
-                          />
-                        </div>
-                      }
-                    </div>
+                            <div class="answers">
+                              @for (o of q.options; track o.code) {
+                                <div class="answer-row">
+                                  <span class="answer-label"
+                                    >{{ optionLabel(o) }}
+                                    @if (isTop(q.code, o.code)) {
+                                      <span class="top-pill" i18n="@@scoring.editor.top"
+                                        >★ Top</span
+                                      >
+                                    }
+                                  </span>
+                                  <nz-slider
+                                    class="pts-slider"
+                                    [ngModel]="scoreOf(q.code, o.code)"
+                                    [ngModelOptions]="{ standalone: true }"
+                                    (ngModelChange)="setScore(q.code, o.code, $event)"
+                                    [nzMin]="0"
+                                    [nzMax]="100"
+                                    [nzStep]="1"
+                                    [attr.aria-label]="draggedAria(optionLabel(o))"
+                                  />
+                                  <app-percent-field
+                                    [value]="scoreOf(q.code, o.code)"
+                                    (valueChange)="setScore(q.code, o.code, $event)"
+                                    [accent]="isTop(q.code, o.code)"
+                                    [ariaLabel]="typedAria(optionLabel(o))"
+                                  />
+                                </div>
+                              }
+                            </div>
+                          }
+                        }
+                      </div>
+                    }
                   </li>
                 }
               </ul>
@@ -401,6 +569,9 @@ interface WizardStep {
                         ><span i18n="@@scoring.editor.top_answer">Top answer:</span>
                         {{ r.topLabel }} ({{ r.topScore | number: '1.0-0' }}%)</span
                       >
+                      @if (r.ruleNote) {
+                        <span class="review-q-rule">{{ r.ruleNote }}</span>
+                      }
                     </span>
                     <span class="review-bar" aria-hidden="true">
                       <span class="review-fill" [style.inline-size.%]="r.weight"></span>
@@ -410,13 +581,31 @@ interface WizardStep {
                 }
               </ul>
               <div class="review-actions">
-                <button nz-button type="button" nzSize="small" (click)="goTo(0)" i18n="@@scoring.editor.edit_pick">
+                <button
+                  nz-button
+                  type="button"
+                  nzSize="small"
+                  (click)="goTo(0)"
+                  i18n="@@scoring.editor.edit_pick"
+                >
                   Change questions
                 </button>
-                <button nz-button type="button" nzSize="small" (click)="goTo(1)" i18n="@@scoring.editor.edit_weights">
+                <button
+                  nz-button
+                  type="button"
+                  nzSize="small"
+                  (click)="goTo(1)"
+                  i18n="@@scoring.editor.edit_weights"
+                >
                   Change weights
                 </button>
-                <button nz-button type="button" nzSize="small" (click)="goTo(2)" i18n="@@scoring.editor.edit_scores">
+                <button
+                  nz-button
+                  type="button"
+                  nzSize="small"
+                  (click)="goTo(2)"
+                  i18n="@@scoring.editor.edit_scores"
+                >
                   Change answer scores
                 </button>
               </div>
@@ -485,7 +674,13 @@ interface WizardStep {
         gap: var(--space-4);
         max-inline-size: min(1080px, 100%);
         margin-inline: auto;
-        padding-block-end: var(--space-4);
+        /* The sticky footer can never travel past this box's bottom edge, so
+           the page ends flush with the scrollport — the negative margin
+           absorbs the shell content area's own trailing padding. Any trailing
+           space here would let the action bar lift off the bottom edge as the
+           scroll reaches its end. */
+        padding-block-end: 0;
+        margin-block-end: calc(-1 * var(--space-6));
       }
 
       /* ── Header ───────────────────────────────────────────────────────── */
@@ -680,6 +875,66 @@ interface WizardStep {
         line-height: var(--leading-normal);
         color: var(--text-secondary);
       }
+
+      /* ── "Not asked here" warning ─────────────────────────────────────────
+         Two surfaces for one problem: an inline tag marking each offending row
+         in the list, and this summary the admin cannot scroll past. Tinted from
+         --warning via color-mix so both themes derive their own surface rather
+         than sharing one hardcoded light fill — the mistake that stranded
+         question-categories in light mode (see its :host comment). */
+      .unasked-note {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: var(--space-1) var(--space-3);
+        margin-block-end: var(--space-4);
+        padding: var(--space-3) var(--space-4);
+        background: color-mix(in srgb, var(--warning) 10%, var(--bg-surface));
+        border: 1px solid color-mix(in srgb, var(--warning) 32%, transparent);
+        border-radius: var(--radius-md);
+      }
+      .unasked-note > [nz-icon] {
+        margin-block-start: 2px;
+        font-size: var(--text-base);
+        color: var(--warning);
+      }
+      .un-body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+      }
+      .un-lead {
+        font-weight: var(--font-medium);
+        color: var(--text-primary);
+      }
+      .un-hint {
+        color: var(--text-secondary);
+      }
+      .un-list {
+        grid-column: 2;
+        margin: 0;
+        padding-inline-start: var(--space-4);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--text-secondary);
+      }
+      /* Sits inside a <label>, so it must not swallow the click that toggles
+         the checkbox — no pointer cursor, no hit-target of its own. */
+      .unasked-tag {
+        margin-inline-start: var(--space-2);
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-pill, 999px);
+        background: color-mix(in srgb, var(--warning) 14%, transparent);
+        color: var(--warning);
+        font-size: var(--text-xs);
+        font-weight: var(--font-medium);
+        white-space: nowrap;
+      }
       .empty-line {
         margin: 0;
         padding-block: var(--space-5);
@@ -853,44 +1108,165 @@ interface WizardStep {
         overflow-wrap: anywhere;
       }
 
-      /* ── Step 3 · answer scores ───────────────────────────────────────── */
+      /* ── Step 3 · answer scores (accordion) ───────────────────────────── */
+      /* Rows separated by rules, not by cards: the panel is already a card, and a
+         card per question would nest one inside another for no added meaning. */
       .score-list {
         display: flex;
         flex-direction: column;
-        gap: var(--space-5);
         margin: 0;
         padding: 0;
         list-style: none;
       }
       .score-block {
-        padding-block-end: var(--space-5);
         border-block-end: 1px solid var(--border-default);
       }
       .score-block:last-child {
-        padding-block-end: 0;
         border-block-end: 0;
       }
       .score-head {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: var(--space-4);
-        margin-block-end: var(--space-3);
+        margin: 0;
+        font: inherit;
+      }
+      /* Two rows: identity + weight on top, the state readout under it. The whole
+         header is the hit target, so scanning and opening are the same gesture. */
+      .score-trigger {
+        appearance: none;
+        inline-size: 100%;
+        display: grid;
+        grid-template-columns: var(--space-5) minmax(0, 1fr) auto auto;
+        grid-template-areas:
+          'chev name type weight'
+          'chev sum sum sum';
+        align-items: center;
+        column-gap: var(--space-3);
+        row-gap: var(--space-0-5);
+        min-block-size: 44px;
+        padding-block: var(--space-3);
+        padding-inline: 0;
+        background: transparent;
+        border: 0;
+        text-align: start;
+        cursor: pointer;
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .score-trigger:hover {
+        background: var(--bg-subtle);
+      }
+      .score-trigger:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-halo);
+        border-radius: var(--radius-sm);
+      }
+      .score-chev {
+        grid-area: chev;
+        justify-self: center;
+        color: var(--text-tertiary);
+        font-size: var(--text-xs);
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      /* Logical rotation: in RTL the collapsed chevron points the other way. */
+      :host-context([dir='rtl']) .score-chev {
+        transform: rotate(180deg);
+      }
+      .score-block.is-open .score-chev,
+      :host-context([dir='rtl']) .score-block.is-open .score-chev {
+        transform: rotate(90deg);
+        color: var(--primary);
       }
       .qlabel {
+        grid-area: name;
         margin: 0;
         font-size: var(--text-base);
         font-weight: var(--font-semibold);
+        line-height: var(--leading-normal);
         color: var(--text-primary);
+        overflow-wrap: anywhere;
       }
       .q-weight {
-        flex: none;
+        grid-area: weight;
         font-size: var(--text-sm);
         font-weight: var(--font-bold);
         color: var(--primary);
+        white-space: nowrap;
         font-feature-settings:
           'tnum' 1,
           'lnum' 1;
+      }
+      /* The type sits between name and weight: it explains why THIS question's
+         control looks different from the one above it, before the admin wonders. */
+      .q-type {
+        grid-area: type;
+        font-size: var(--text-xs);
+        font-weight: var(--font-medium);
+        color: var(--text-tertiary);
+        padding-block: 1px;
+        padding-inline: var(--space-2);
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-pill);
+        white-space: nowrap;
+      }
+      /* Collapsed state in words — an amber dot alone would be unreadable to
+         anyone who cannot see it, and useless to anyone who can't recall what
+         amber meant. */
+      .score-sum {
+        grid-area: sum;
+        font-size: var(--text-xs);
+        line-height: var(--leading-normal);
+        color: var(--text-tertiary);
+        overflow-wrap: anywhere;
+      }
+      .score-block.pending .score-sum {
+        color: var(--warning-600);
+        font-weight: var(--font-medium);
+      }
+      .score-panel {
+        padding-block: var(--space-2) var(--space-5);
+        padding-inline-start: var(--space-5);
+        animation: score-open var(--motion-duration-base) var(--motion-easing-standard) both;
+      }
+      @keyframes score-open {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      /* One line of plain language per unfamiliar control, then out of the way. */
+      .type-hint {
+        margin: 0 0 var(--space-3);
+        max-inline-size: 68ch;
+        font-size: var(--text-xs);
+        line-height: var(--leading-relaxed);
+        color: var(--text-tertiary);
+      }
+      .agg-row {
+        display: grid;
+        grid-template-columns: minmax(12ch, 18ch) minmax(0, 22rem);
+        align-items: center;
+        column-gap: var(--space-4);
+        row-gap: var(--space-1);
+        margin-block-end: var(--space-3);
+      }
+      .agg-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-medium);
+        color: var(--text-primary);
+      }
+      .agg-select {
+        inline-size: 100%;
+      }
+      /* Sits under the select, aligned with it — the consequence of the choice
+         you just made, not a caption for the label. */
+      .agg-hint {
+        grid-column: 2;
+        margin: 0;
+        font-size: var(--text-xs);
+        line-height: var(--leading-relaxed);
+        color: var(--text-tertiary);
       }
       /* Amber marker = this question still blocks Continue (an answer at 0). */
       .score-block.pending .qlabel::before {
@@ -1042,6 +1418,13 @@ interface WizardStep {
         color: var(--text-tertiary);
         overflow-wrap: anywhere;
       }
+      /* The type-specific rule (aggregation mode, band count): part of what gets
+         saved, so the review is not silently narrower than the payload. */
+      .review-q-rule {
+        font-size: var(--text-xs);
+        color: var(--text-tertiary);
+        font-style: italic;
+      }
       .review-bar {
         block-size: 6px;
         border-radius: var(--radius-pill);
@@ -1082,7 +1465,9 @@ interface WizardStep {
         padding: var(--space-3) var(--space-4);
         background: var(--bg-surface);
         border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
+        border-block-end: 0;
+        /* Seats on the bottom edge — square where it meets it. */
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         box-shadow: var(--shadow-md);
       }
       .footer-spacer {
@@ -1112,6 +1497,21 @@ interface WizardStep {
           grid-template-columns: 1fr;
           row-gap: var(--space-2);
         }
+        /* The header stacks instead of squeezing: name + weight, then the type,
+           then the readout — the weight stays paired with the name it belongs to. */
+        .score-trigger {
+          grid-template-columns: var(--space-5) minmax(0, 1fr) auto;
+          grid-template-areas:
+            'chev name weight'
+            'chev type type'
+            'chev sum sum';
+        }
+        .q-type {
+          justify-self: start;
+        }
+        .score-panel {
+          padding-inline-start: var(--space-3);
+        }
         .answers {
           grid-template-columns: minmax(0, 1fr);
         }
@@ -1135,9 +1535,14 @@ interface WizardStep {
         .pick-row,
         .budget-strip,
         .budget-fill,
+        .score-trigger,
+        .score-chev,
         .pts-slider ::ng-deep .ant-slider-handle,
         .qweight-slider ::ng-deep .ant-slider-handle {
           transition: none;
+        }
+        .score-panel {
+          animation: none;
         }
       }
     `,
@@ -1163,11 +1568,27 @@ export class ScoringWeightsEditorPage implements OnInit {
   /** True once entering step 2 auto-spread an all-zero budget — explains itself. */
   readonly autoBalanced = signal(false);
   /**
+   * Step-3 accordion: the ONE question whose scoring panel is open (`null` = all
+   * collapsed). Exclusive rather than multi-open — a question can stack a dozen
+   * sliders, and two of them open at once pushes the rest of the list out of view,
+   * which is the problem the accordion exists to solve.
+   */
+  readonly openScore = signal<string | null>(null);
+  /**
    * The set of PICKED question codes — the checkbox state. This IS the
    * program's `questionWeights` domain: picked → scored, unpicked → excluded.
    * Stored as an immutable Set (replaced on every toggle) so signal reads react.
    */
   readonly assigned = signal<ReadonlySet<string>>(new Set());
+  /**
+   * Per-type scoring rules that have no natural home in the flat number form:
+   * NUMERIC band tables and MULTI_SELECT aggregations. Kept as signals for the
+   * same reason `assigned` is — they are model state the form has no control for,
+   * and every derived signal reads them directly.
+   */
+  readonly bands = signal<Record<string, NumericScoreBand[]>>({});
+  readonly aggregation = signal<Record<string, MultiSelectAggregation>>({});
+  readonly aggregations = MULTI_SELECT_AGGREGATIONS;
 
   readonly steps: readonly WizardStep[] = [
     {
@@ -1222,8 +1643,7 @@ export class ScoringWeightsEditorPage implements OnInit {
     const all = this.questions();
     if (!q) return all;
     return all.filter(
-      (x) =>
-        this.questionLabel(x).toLowerCase().includes(q) || x.code.toLowerCase().includes(q),
+      (x) => this.questionLabel(x).toLowerCase().includes(q) || x.code.toLowerCase().includes(q),
     );
   });
 
@@ -1245,15 +1665,53 @@ export class ScoringWeightsEditorPage implements OnInit {
     const a = this.assigned();
     return this.questions().filter((q) => a.has(q.code));
   });
+
+  /**
+   * Does this program's loan category actually ask the question?
+   *
+   * The two assignments are made on different screens — `/questionnaire`
+   * decides which categories ask a question, this editor decides which
+   * questions a program scores on — and nothing else compares them. Picking a
+   * question outside the program's category configures a weight for something
+   * this program's applicants are never shown.
+   *
+   * An empty `categories` list means the question is parked (asked by nobody),
+   * which is equally invisible here and is flagged the same way.
+   */
+  isAskedHere(q: WeightableQuestion): boolean {
+    const category = this.program()?.category;
+    if (!category) return true; // program not loaded yet — do not cry wolf
+    return q.categories.includes(category);
+  }
+
+  /** Picked questions this program's applicants will never be shown. */
+  readonly unaskedPicked = computed<WeightableQuestion[]>(() =>
+    this.assignedQuestions().filter((q) => !this.isAskedHere(q)),
+  );
+
+  /**
+   * The program's category as the admin reads it elsewhere ("Auto Loan", not
+   * "car") via the shared label source, so the warning names the same thing the
+   * Loan categories tab does. Falls back to the raw value if a program ever
+   * carries a category outside the constitution-locked four.
+   */
+  readonly programCategoryLabel = computed<string>(() => {
+    const raw = this.program()?.category ?? '';
+    return isLoanCategory(raw) ? categoryLabel(raw) : raw;
+  });
   /** No picked question may be left at 0% weight. */
   readonly allWeightsPositive = computed<boolean>(() =>
     this.assignedQuestions().every((q) => (this.weightValues()[q.code] ?? 0) > 0),
   );
-  /** No answer of a picked question may be left at 0 score. */
+  /**
+   * Every picked question must be scoreable BY ITS OWN TYPE — a choice question
+   * with every answer scored, a number with a valid band table, a text question
+   * with a presence score. A weighted question that cannot earn anything spends
+   * its share of the score's denominator and never gives it back, which is what
+   * the backend now rejects with `WEIGHTS_MISSING_RULE`.
+   */
   readonly allScoresPositive = computed<boolean>(() =>
-    this.assignedQuestions().every((q) =>
-      q.options.every((o) => (this.scoreValues()[q.code]?.[o.code] ?? 0) > 0),
-    ),
+    this.assignedQuestions().every((q) => !this.questionIncomplete(q)),
   );
   /** Picked questions whose answers are all scored — step-3 progress. */
   readonly scoredCount = computed<number>(
@@ -1263,12 +1721,22 @@ export class ScoringWeightsEditorPage implements OnInit {
     const total = this.assignedCount();
     return total === 0 ? 0 : (this.scoredCount() / total) * 100;
   });
-  /** Answers still sitting at 0 across the picked questions. */
+  /**
+   * Scoring slots still sitting at 0 across the picked questions — an unscored
+   * option, a text question with no presence score. Numeric bands are excluded:
+   * a 0-score band is a deliberate "this range is bad", and the band table has its
+   * own seed button, so counting them here would make the shortcut lie.
+   */
   readonly blankCount = computed<number>(() => {
+    this.rev();
     const scores = this.scoreValues();
     let n = 0;
     for (const q of this.assignedQuestions()) {
-      for (const o of q.options) if ((scores[q.code]?.[o.code] ?? 0) <= 0) n += 1;
+      if (q.type === 'TEXT') {
+        if (this.textScoreOf(q.code) <= 0) n += 1;
+      } else if (q.type !== 'NUMERIC') {
+        for (const o of q.options) if ((scores[q.code]?.[o.code] ?? 0) <= 0) n += 1;
+      }
     }
     return n;
   });
@@ -1300,21 +1768,60 @@ export class ScoringWeightsEditorPage implements OnInit {
     return out;
   });
 
-  /** Flattened model for the review step. */
+  /**
+   * Flattened model for the review step. "Top answer" means whatever earns the most
+   * for this question's type: the best option, the best band's range, or simply
+   * having answered. `ruleNote` carries the type-specific rule (the aggregation
+   * mode, the band count) so the review shows everything that is about to be saved.
+   */
   readonly reviewRows = computed<
-    { code: string; label: string; weight: number; topLabel: string; topScore: number }[]
+    {
+      code: string;
+      label: string;
+      weight: number;
+      topLabel: string;
+      topScore: number;
+      ruleNote: string | null;
+    }[]
   >(() => {
+    this.rev();
     const scores = this.scoreValues();
     const best = this.bestByQuestion();
     return this.assignedQuestions().map((q) => {
-      const topCode = best[q.code] ?? '';
-      const top = q.options.find((o) => o.code === topCode);
-      return {
+      const row = {
         code: q.code,
         label: this.questionLabel(q),
         weight: this.weightValues()[q.code] ?? 0,
+      };
+      if (q.type === 'NUMERIC') {
+        const rows = this.bandsOf(q.code);
+        const top = rows.reduce<NumericScoreBand | null>(
+          (acc, band) => (acc === null || band.score > acc.score ? band : acc),
+          null,
+        );
+        return {
+          ...row,
+          topLabel: top ? this.bandRangeLabel(q, top) : '—',
+          topScore: top?.score ?? 0,
+          ruleNote: this.bandCountLabel(rows.length),
+        };
+      }
+      if (q.type === 'TEXT') {
+        return {
+          ...row,
+          topLabel: $localize`:@@scoring.editor.text_answered:Answered`,
+          topScore: this.textScoreOf(q.code),
+          ruleNote: null,
+        };
+      }
+      const topCode = best[q.code] ?? '';
+      const top = q.options.find((o) => o.code === topCode);
+      return {
+        ...row,
         topLabel: top ? this.optionLabel(top) : '—',
         topScore: scores[q.code]?.[topCode] ?? 0,
+        ruleNote:
+          q.type === 'MULTI_SELECT' ? this.aggregationLabel(this.aggregationOf(q.code)) : null,
       };
     });
   });
@@ -1338,10 +1845,19 @@ export class ScoringWeightsEditorPage implements OnInit {
         return this.allWeightsPositive()
           ? null
           : $localize`:@@scoring.editor.fix_zero_weight:Every picked question needs a weight above 0%.`;
-      case 2:
-        return this.allScoresPositive()
-          ? null
-          : $localize`:@@scoring.editor.fix_zero_score:Every answer needs a score above 0.`;
+      case 2: {
+        // Name the offending question: with four kinds of control on one step,
+        // "something is unscored" leaves the admin hunting.
+        const pending = this.assignedQuestions().find((q) => this.questionIncomplete(q));
+        if (!pending) return null;
+        if (pending.type === 'NUMERIC') {
+          return $localize`:@@scoring.editor.fix_bands:${this.questionLabel(pending)}:QUESTION: needs number bands that start in ascending order.`;
+        }
+        if (pending.type === 'TEXT') {
+          return $localize`:@@scoring.editor.fix_text_score:${this.questionLabel(pending)}:QUESTION: needs a score above 0 for being answered.`;
+        }
+        return $localize`:@@scoring.editor.fix_zero_score:Every answer needs a score above 0.`;
+      }
       default:
         return this.canSave()
           ? null
@@ -1375,6 +1891,17 @@ export class ScoringWeightsEditorPage implements OnInit {
         questions.some((q) => q.code === c),
       );
       this.assigned.set(new Set(assignedCodes));
+      // A weight set saved before v14.0.0 carries no rule maps — absent reads as
+      // "not configured yet", which the step-3 gate then asks the admin to fill in.
+      this.bands.set({ ...(active?.numericBands ?? {}) });
+      this.aggregation.set(
+        Object.fromEntries(
+          Object.entries(active?.multiSelectRules ?? {}).map(([code, rule]) => [
+            code,
+            rule.aggregation,
+          ]),
+        ),
+      );
 
       for (const q of questions) {
         const w = clampPct(Number(seedWeights[q.code] ?? 0));
@@ -1382,6 +1909,10 @@ export class ScoringWeightsEditorPage implements OnInit {
         for (const o of q.options) {
           const s = clampPct(Number(seedScores[q.code]?.[o.code] ?? 0));
           this.form.addControl(scoreKey(q.code, o.code), this.numberControl(s));
+        }
+        if (q.type === 'TEXT') {
+          const s = clampPct(Number(active?.textRules?.[q.code]?.answeredScore ?? 0));
+          this.form.addControl(textScoreKey(q.code), this.numberControl(s));
         }
       }
       this.touch();
@@ -1420,7 +1951,12 @@ export class ScoringWeightsEditorPage implements OnInit {
   }
 
   next(): void {
-    if (this.blocker()) return;
+    if (this.blocker()) {
+      // Blocked on the answers step: open the question the footer message names,
+      // so the fix is one click away instead of a hunt through collapsed rows.
+      if (this.stepIndex() === 2) this.openFirstIncomplete();
+      return;
+    }
     this.enter(Math.min(this.stepIndex() + 1, this.steps.length - 1));
   }
 
@@ -1438,7 +1974,56 @@ export class ScoringWeightsEditorPage implements OnInit {
       this.balance();
       this.autoBalanced.set(true);
     }
+    // Entering the answers step, a picked number with no bands gets three seeded
+    // from its own published range. Starting from a concrete table the admin can
+    // drag beats an empty one they have to decode — and an unbanded number is the
+    // one state that cannot score at all.
+    if (i === 2) {
+      this.seedMissingBands();
+      // Land on the question that still needs work; an all-done list opens its
+      // first row so the step never reads as an empty stack of headers.
+      this.openFirstIncomplete();
+    }
     this.stepIndex.set(i);
+  }
+
+  // ── Step-3 accordion ──────────────────────────────────────────────────
+  isScoreOpen(questionCode: string): boolean {
+    return this.openScore() === questionCode;
+  }
+
+  /** Clicking the open question collapses it — the header is a toggle, not a tab. */
+  toggleScoreOpen(questionCode: string): void {
+    this.openScore.update((open) => (open === questionCode ? null : questionCode));
+  }
+
+  scoreHeadId(questionCode: string): string {
+    return `score-head-${questionCode}`;
+  }
+
+  scorePanelId(questionCode: string): string {
+    return `score-panel-${questionCode}`;
+  }
+
+  /** Open the first picked question that cannot score yet, else the first one. */
+  private openFirstIncomplete(): void {
+    const rows = this.assignedQuestions();
+    const target = rows.find((q) => this.questionIncomplete(q)) ?? rows[0];
+    if (target) this.openScore.set(target.code);
+  }
+
+  /** Seed a default band table for every picked NUMERIC question that has none. */
+  private seedMissingBands(): void {
+    const pending = this.assignedQuestions().filter(
+      (q) => q.type === 'NUMERIC' && this.bandsOf(q.code).length === 0,
+    );
+    if (pending.length === 0) return;
+    this.bands.update((all) => {
+      const next = { ...all };
+      for (const q of pending) next[q.code] = seedScoreBands(q.numericMinValue, q.numericMaxValue);
+      return next;
+    });
+    this.touch();
   }
 
   async save(): Promise<void> {
@@ -1544,9 +2129,133 @@ export class ScoringWeightsEditorPage implements OnInit {
         const ctrl = this.form.controls[scoreKey(q.code, o.code)];
         if (ctrl && ctrl.value <= 0) ctrl.setValue(BLANK_FILL_SCORE);
       }
+      if (q.type === 'TEXT') {
+        const ctrl = this.form.controls[textScoreKey(q.code)];
+        if (ctrl && ctrl.value <= 0) ctrl.setValue(BLANK_FILL_SCORE);
+      }
     }
     this.form.markAsDirty();
     this.touch();
+  }
+
+  // ── Per-type scoring rules ────────────────────────────────────────────
+  /** This question's band table. Empty until the admin seeds one. */
+  bandsOf(questionCode: string): NumericScoreBand[] {
+    this.rev();
+    return this.bands()[questionCode] ?? [];
+  }
+
+  setBands(questionCode: string, rows: NumericScoreBand[]): void {
+    this.bands.update((all) => ({ ...all, [questionCode]: rows }));
+    this.form.markAsDirty();
+    this.touch();
+  }
+
+  /** Stored aggregation, or the default the backend would apply anyway. */
+  aggregationOf(questionCode: string): MultiSelectAggregation {
+    this.rev();
+    return this.aggregation()[questionCode] ?? 'AVERAGE';
+  }
+
+  setAggregation(questionCode: string, mode: MultiSelectAggregation): void {
+    this.aggregation.update((all) => ({ ...all, [questionCode]: mode }));
+    this.form.markAsDirty();
+    this.touch();
+  }
+
+  /** The presence score of a TEXT question (0 = answering earns nothing). */
+  textScoreOf(questionCode: string): number {
+    this.rev();
+    return this.form.controls[textScoreKey(questionCode)]?.value ?? 0;
+  }
+
+  setTextScore(questionCode: string, value: number | null): void {
+    const ctrl = this.form.controls[textScoreKey(questionCode)];
+    if (!ctrl) return;
+    ctrl.setValue(clampPct(Number(value ?? 0)));
+    ctrl.markAsDirty();
+    this.form.markAsDirty();
+    this.touch();
+  }
+
+  /** How the admin reads a question's type on the pick list and the score head. */
+  typeLabel(q: WeightableQuestion): string {
+    switch (q.type) {
+      case 'MULTI_SELECT':
+        return $localize`:@@scoring.editor.type_multi:Pick several`;
+      case 'NUMERIC':
+        return $localize`:@@scoring.editor.type_numeric:Number`;
+      case 'TEXT':
+        return $localize`:@@scoring.editor.type_text:Free text`;
+      default:
+        return $localize`:@@scoring.editor.type_single:Pick one`;
+    }
+  }
+
+  /** What scoring this question will ask of the admin — shown before they pick it. */
+  scoredByLabel(q: WeightableQuestion): string {
+    switch (q.type) {
+      case 'NUMERIC':
+        return $localize`:@@scoring.editor.scored_by_bands:scored by number range`;
+      case 'TEXT':
+        return $localize`:@@scoring.editor.scored_by_presence:scored on being answered`;
+      default:
+        return $localize`:@@scoring.editor.scored_by_answers:${q.options.length}:COUNT: answers`;
+    }
+  }
+
+  /** Display unit of a NUMERIC question, Arabic-first. */
+  numericUnit(q: WeightableQuestion): string | null {
+    return (this.isAr ? q.numericUnitAr : q.numericUnitEn) || q.numericUnitEn;
+  }
+
+  /** Names the select after its question — every row on this step has one. */
+  aggregationAria(label: string): string {
+    return $localize`:@@scoring.editor.aria.agg:${label}:NAME: — how several picks count`;
+  }
+
+  aggregationLabel(mode: MultiSelectAggregation): string {
+    switch (mode) {
+      case 'SUM_CAPPED':
+        return $localize`:@@scoring.editor.agg_sum:Added up (capped at 100)`;
+      case 'MAX':
+        return $localize`:@@scoring.editor.agg_max:The best pick only`;
+      case 'MIN':
+        return $localize`:@@scoring.editor.agg_min:The worst pick only`;
+      default:
+        return $localize`:@@scoring.editor.agg_avg:Their average`;
+    }
+  }
+
+  /** One line saying what the chosen mode does to a real answer. */
+  aggregationHint(questionCode: string): string {
+    switch (this.aggregationOf(questionCode)) {
+      case 'SUM_CAPPED':
+        return $localize`:@@scoring.editor.agg_hint_sum:Picking more counts for more — use this when each extra answer is genuinely better.`;
+      case 'MAX':
+        return $localize`:@@scoring.editor.agg_hint_max:Only the applicant's strongest pick counts; the others never help or hurt.`;
+      case 'MIN':
+        return $localize`:@@scoring.editor.agg_hint_min:One weak pick drags the answer down — use this when any bad item is a concern.`;
+      default:
+        return $localize`:@@scoring.editor.agg_hint_avg:A strong pick and a weak one land in the middle.`;
+    }
+  }
+
+  /** "Below 5,000" / "5,000 → 15,000" / "15,000 and above" for the review row. */
+  bandRangeLabel(q: WeightableQuestion, band: NumericScoreBand): string {
+    const unit = this.numericUnit(q);
+    const suffix = unit ? ` ${unit}` : '';
+    if (band.from == null) {
+      return $localize`:@@scoring.editor.band_below:Below ${band.to ?? ''}:TO:${suffix}:UNIT:`;
+    }
+    if (band.to == null) {
+      return $localize`:@@scoring.editor.band_above:${band.from}:FROM:${suffix}:UNIT: and above`;
+    }
+    return `${band.from} → ${band.to}${suffix}`;
+  }
+
+  private bandCountLabel(count: number): string {
+    return $localize`:@@scoring.editor.band_count:${count}:COUNT: bands`;
   }
 
   weightOf(questionCode: string): number {
@@ -1584,30 +2293,94 @@ export class ScoringWeightsEditorPage implements OnInit {
     return this.bestByQuestion()[questionCode] === optionCode;
   }
 
-  /** A picked question still needs work: no weight yet, or some answer at 0. */
+  /**
+   * A picked question still needs work — judged BY ITS TYPE:
+   *   choice  → some answer left at 0
+   *   number  → no bands, or bands that do not ascend (the same rule the backend
+   *             re-checks, via the shared `scoreBandsErrorFor`)
+   *   text    → nothing earned for answering
+   */
   questionIncomplete(q: WeightableQuestion): boolean {
+    if (q.type === 'NUMERIC') {
+      const rows = this.bandsOf(q.code);
+      return scoreBandsErrorFor(rows) !== null || rows.every((b) => b.score <= 0);
+    }
+    if (q.type === 'TEXT') return this.textScoreOf(q.code) <= 0;
     const scores = this.scoreValues()[q.code] ?? {};
-    return q.options.some((o) => (scores[o.code] ?? 0) <= 0);
+    return q.options.length === 0 || q.options.some((o) => (scores[o.code] ?? 0) <= 0);
   }
 
   /**
-   * Build the two-level scoring payload from the PICKED questions only,
-   * reading each control by its EXACT key. Unpicked questions are omitted, so
-   * the saved `questionWeights` map doubles as the assignment record.
+   * The collapsed accordion line: what this question scores by right now, or what
+   * is missing. Says the same thing the footer blocker says, per row, so a
+   * collapsed list is still readable at a glance instead of a stack of names.
+   */
+  scoreSummary(q: WeightableQuestion): string {
+    if (q.type === 'NUMERIC') {
+      const rows = this.bandsOf(q.code);
+      const top = rows.reduce<NumericScoreBand | null>(
+        (acc, band) => (acc === null || band.score > acc.score ? band : acc),
+        null,
+      );
+      if (top === null) return $localize`:@@scoring.editor.sum_no_bands:no ranges yet`;
+      if (scoreBandsErrorFor(rows) !== null || top.score <= 0) {
+        return $localize`:@@scoring.editor.sum_bad_bands:ranges still need fixing`;
+      }
+      return $localize`:@@scoring.editor.sum_bands:${rows.length}:COUNT: ranges · best ${this.bandRangeLabel(q, top)}:BAND: at ${top.score}:SCORE:%`;
+    }
+    if (q.type === 'TEXT') {
+      const score = this.textScoreOf(q.code);
+      return score > 0
+        ? $localize`:@@scoring.editor.sum_text:answering earns ${score}:SCORE:%`
+        : $localize`:@@scoring.editor.sum_text_zero:answering earns nothing yet`;
+    }
+    if (q.options.length === 0)
+      return $localize`:@@scoring.editor.sum_no_answers:no answers to score`;
+    const blanks = q.options.filter((o) => this.scoreOf(q.code, o.code) <= 0).length;
+    if (blanks > 0) {
+      return $localize`:@@scoring.editor.sum_blanks:${blanks}:COUNT: of ${q.options.length}:TOTAL: answers still at 0`;
+    }
+    const topCode = this.bestByQuestion()[q.code] ?? '';
+    const top = q.options.find((o) => o.code === topCode);
+    return top
+      ? $localize`:@@scoring.editor.sum_top:${q.options.length}:TOTAL: answers · top ${this.optionLabel(top)}:LABEL: at ${this.scoreOf(q.code, topCode)}:SCORE:%`
+      : $localize`:@@scoring.editor.sum_answers:${q.options.length}:TOTAL: answers scored`;
+  }
+
+  /**
+   * Build the scoring payload from the PICKED questions only, reading each control
+   * by its EXACT key. Unpicked questions are omitted, so the saved
+   * `questionWeights` map doubles as the assignment record — and each picked
+   * question contributes exactly the rule map its own type is scored by, never a
+   * rule block on the wrong type (the backend rejects that outright).
    */
   private scoringNow(): ProgramScoringWeights {
     const questionWeights: Record<string, number> = {};
     const answerScores: Record<string, Record<string, number>> = {};
+    const multiSelectRules: Record<string, { aggregation: MultiSelectAggregation }> = {};
+    const numericBands: Record<string, NumericScoreBand[]> = {};
+    const textRules: Record<string, { answeredScore: number }> = {};
     const assigned = this.assigned();
     for (const q of this.questions()) {
       if (!assigned.has(q.code)) continue;
       questionWeights[q.code] = Number(this.form.controls[weightKey(q.code)]?.value ?? 0);
+      if (q.type === 'NUMERIC') {
+        numericBands[q.code] = this.bandsOf(q.code);
+        continue;
+      }
+      if (q.type === 'TEXT') {
+        textRules[q.code] = { answeredScore: this.textScoreOf(q.code) };
+        continue;
+      }
       const scores: Record<string, number> = {};
       for (const o of q.options) {
         scores[o.code] = Number(this.form.controls[scoreKey(q.code, o.code)]?.value ?? 0);
       }
       answerScores[q.code] = scores;
+      if (q.type === 'MULTI_SELECT') {
+        multiSelectRules[q.code] = { aggregation: this.aggregationOf(q.code) };
+      }
     }
-    return { questionWeights, answerScores };
+    return { questionWeights, answerScores, multiSelectRules, numericBands, textRules };
   }
 }

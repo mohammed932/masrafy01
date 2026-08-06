@@ -51,6 +51,12 @@ export class ApprovalProbabilityDto {
   factors!: ApprovalFactorsDto;
 
   @ApiProperty({
+    description:
+      'True when the program had no ACTIVE scoring weight set at match time: the score is 0 because nobody configured the program, not because the applicant fits badly. Render as "not rated" rather than the very_low tier.',
+  })
+  usedDefault!: boolean;
+
+  @ApiProperty({
     description: 'Semver of the scoring engine that produced this score.',
     example: '1.1.0-init',
   })

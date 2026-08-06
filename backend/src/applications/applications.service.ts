@@ -44,6 +44,10 @@ import { ScoringEngineVersionService } from '../scoring-versions/scoring-version
 import { CustomerProfileCompletenessService } from '@/customer-auth/customer-profile-completeness.service';
 import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
+import {
+  toSelectedAnswers,
+  type ScorableAnswer,
+} from '@/matching/scoring/answer-to-selected';
 import { loadActiveScoringConfig } from './adapters/active-scoring-config.adapter';
 import type { LoanCategory, DecisionOutcome } from '@prisma/client';
 import type {
@@ -242,10 +246,11 @@ export class ApplicationsService {
     // sent) against the live GLOBAL questions, for atomic persistence. Scoped to
     // `dto.category`: required-question enforcement lives in `resolveAnswers`, so
     // it must only consider the questions this category actually asks.
-    const dynamicAnswers =
+    const resolvedQuestionnaire =
       dto.category && dto.questionnaireAnswers && dto.questionnaireAnswers.length > 0
         ? await this.questionnaire.resolveAnswers(dto.questionnaireAnswers, dto.category)
         : undefined;
+    const dynamicAnswers = resolvedQuestionnaire?.resolved;
 
     const activePrograms = await this.programsRepo.findAllActive();
     const snapshots: BankProgramSnapshot[] = activePrograms.map(toBankProgramSnapshot);
@@ -273,8 +278,14 @@ export class ApplicationsService {
     // from `WeightedApprovalScoringService.scoreProgram`. Same scorer the mobile
     // preview uses. Only runs when the application carries dynamic-questionnaire
     // answers; otherwise the engine's own approval probability is left as-is.
-    if (dto.category && dynamicAnswers && dynamicAnswers.length > 0) {
-      await this.applyPerBankScoring(result.offers, dto.category, dynamicAnswers, snapshots);
+    if (dto.category && resolvedQuestionnaire && dynamicAnswers && dynamicAnswers.length > 0) {
+      await this.applyPerBankScoring(
+        result.offers,
+        dto.category,
+        dynamicAnswers,
+        resolvedQuestionnaire.askedQuestionCodes,
+        snapshots,
+      );
     }
 
     const offerInputs: CreateBankOfferInput[] = result.offers.map((o) =>
@@ -452,35 +463,30 @@ export class ApplicationsService {
    * they are mapped to BankOffer inputs — the rows are not yet created, so
    * Principle I / A6 (immutable-after-match) is respected. The score is derived
    * by `scoreProgram` from the program's ACTIVE weight set and the customer's
-   * selected option codes.
+   * answers — of every type, since v14.0.0.
    */
   private async applyPerBankScoring(
     offers: Offer[],
     category: LoanCategory,
-    answers: ReadonlyArray<{ questionCode: string; selectedOptionCode: string | null }>,
+    answers: readonly ScorableAnswer[],
+    askedQuestionCodes: readonly string[],
     snapshots: BankProgramSnapshot[],
   ): Promise<void> {
     if (offers.length === 0) return;
-    // Only SINGLE_SELECT answers are scoreable (R9 / A33): multi-pick has no one
-    // "picked answer score", and text/number have no options to score. Feeding a
-    // non-single-choice answer here would silently invent a new formula.
-    const selectedAnswers = answers
-      .filter((a): a is { questionCode: string; selectedOptionCode: string } =>
-        a.selectedOptionCode !== null,
-      )
-      .map((a) => ({
-        questionCode: a.questionCode,
-        optionCode: a.selectedOptionCode,
-      }));
+    // EVERY question type scores (Constitution V, v14.0.0): a single pick, a set
+    // of picks, a number in a band, or the presence of free text. The mapping is
+    // shared with the preview path so both derive the same answer scores (A25).
+    const selectedAnswers = toSelectedAnswers(answers);
     const idByCode = new Map(snapshots.map((s) => [s.programCode, s.id]));
 
     for (const offer of offers) {
-      const { score, tier, factors } = await this.weightedScoring.scoreProgram({
+      const { score, tier, factors, usedDefault } = await this.weightedScoring.scoreProgram({
         programId: idByCode.get(offer.programCode) ?? null,
         category,
         answers: selectedAnswers,
+        askedQuestionCodes,
       });
-      offer.approvalProbability = { score, tier, factors };
+      offer.approvalProbability = { score, tier, factors, usedDefault };
       offer.approvalProbabilityPercent = score;
     }
   }
@@ -505,6 +511,7 @@ export class ApplicationsService {
       approvalScore: offer.approvalProbability.score,
       approvalTier: offer.approvalProbability.tier,
       approvalFactors: offer.approvalProbability.factors as unknown as JsonValueInput,
+      approvalUsedDefault: offer.approvalProbability.usedDefault ?? false,
       engineVersion,
       requiredDocuments: offer.requiredDocuments,
       matchReasons: offer.matchReasons,
@@ -529,6 +536,7 @@ export class ApplicationsService {
     approvalScore: number;
     approvalTier: string;
     approvalFactors: unknown;
+    approvalUsedDefault?: boolean;
     engineVersion: string;
   }): ApprovalProbabilityResponseDto {
     const tier = row.approvalTier as ApprovalTierLiteral;
@@ -546,6 +554,9 @@ export class ApplicationsService {
         negative: raw.negative ?? [],
         ...(raw.legacy === true ? { legacy: true as const } : {}),
       },
+      // Rows predating the column read as false — they were scored against a
+      // real weight set, which is the status quo for every backfilled offer.
+      usedDefault: row.approvalUsedDefault ?? false,
       engineVersion: row.engineVersion,
     };
   }

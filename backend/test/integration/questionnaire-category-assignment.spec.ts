@@ -213,11 +213,32 @@ describe('apply validates answers against the questions its category asks', () =
   it('does not require a question the applicant was never shown', async () => {
     // `property_type` is required, mortgage-only, and unanswered. A personal-loan
     // apply must still succeed — this is the failure the filter exists to prevent.
-    const resolved = await makeService().resolveAnswers(
+    const { resolved } = await makeService().resolveAnswers(
       [{ questionCode: 'monthly_income', numericValue: '25000' }],
       'personal' as never,
     );
     expect(resolved.map((r) => r.questionCode)).toEqual(['monthly_income']);
+  });
+
+  it('reports the asked set as the scoring denominator, scoped to the category', async () => {
+    // `property_type` is mortgage-only, so a personal-loan applicant is never
+    // asked it and a program weighting it must not be charged for it.
+    const personal = await makeService().resolveAnswers(
+      [{ questionCode: 'monthly_income', numericValue: '25000' }],
+      'personal' as never,
+    );
+    expect(personal.askedQuestionCodes).toEqual(['monthly_income']);
+
+    // Same pool, mortgage applicant: the question IS asked, so it belongs in
+    // the denominator even though answering it is what avoids the throw.
+    const mortgage = await makeService().resolveAnswers(
+      [
+        { questionCode: 'monthly_income', numericValue: '25000' },
+        { questionCode: 'property_type', optionCode: 'villa' },
+      ],
+      'mortgage' as never,
+    );
+    expect(mortgage.askedQuestionCodes.sort()).toEqual(['monthly_income', 'property_type']);
   });
 
   it('still requires a question that category does ask', async () => {
@@ -242,7 +263,7 @@ describe('apply validates answers against the questions its category asks', () =
   });
 
   it('validates against the whole pool when no category is given', async () => {
-    const resolved = await makeService().resolveAnswers([
+    const { resolved } = await makeService().resolveAnswers([
       { questionCode: 'monthly_income', numericValue: '25000' },
       { questionCode: 'property_type', optionCode: 'villa' },
     ]);

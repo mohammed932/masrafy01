@@ -136,7 +136,7 @@ describe('answers stored against a legacy question stay resolvable', () => {
     const service = makeService([legacyQuestion], {
       q_amount: ['under_50k', 'egp_150_000_500_000'],
     });
-    const resolved = await service.resolveAnswers([
+    const { resolved } = await service.resolveAnswers([
       { questionCode: 'amount_requested', optionCode: 'egp_150_000_500_000' },
     ]);
     expect(resolved).toHaveLength(1);
@@ -163,7 +163,7 @@ describe('answers stored against a legacy question stay resolvable', () => {
     // This is the seed's in-place conversion: same code, now a real number.
     const converted: FakeQuestion = { ...legacyQuestion, type: 'NUMERIC' };
     const service = makeService([converted], { q_amount: [] });
-    const resolved = await service.resolveAnswers([
+    const { resolved } = await service.resolveAnswers([
       { questionCode: 'amount_requested', numericValue: '500000' },
     ]);
     // 500 000 stays 500 000 — the bug this feature exists to fix.

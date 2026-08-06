@@ -179,6 +179,16 @@ export const ERROR_CODES = {
   WEIGHTS_UNKNOWN_OPTION: 'WEIGHTS_UNKNOWN_OPTION',
   WEIGHTS_QUESTION_WEIGHT_SUM_INVALID: 'WEIGHTS_QUESTION_WEIGHT_SUM_INVALID',
   WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE: 'WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE',
+  /**
+   * A weighted question carries no rule for its own type (v14.0.0): no option
+   * scores, no numeric bands, no text presence score. It would consume its share
+   * of the denominator and never be able to earn anything — a silent cap.
+   */
+  WEIGHTS_MISSING_RULE: 'WEIGHTS_MISSING_RULE',
+  /** NUMERIC bands missing, out of order, overlapping, gapped, or malformed. */
+  WEIGHTS_NUMERIC_BANDS_INVALID: 'WEIGHTS_NUMERIC_BANDS_INVALID',
+  /** A rule block on a question of the wrong type, or an unknown aggregation. */
+  WEIGHTS_RULE_TYPE_MISMATCH: 'WEIGHTS_RULE_TYPE_MISMATCH',
 
   // --- Feature 010 — simple program setup, banded DBR & calculator ---
   // Banded DBR + program ranges (admin)
@@ -365,6 +375,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   WEIGHTS_UNKNOWN_OPTION: 422,
   WEIGHTS_QUESTION_WEIGHT_SUM_INVALID: 422,
   WEIGHTS_ANSWER_SCORE_OUT_OF_RANGE: 422,
+  WEIGHTS_MISSING_RULE: 422,
+  WEIGHTS_NUMERIC_BANDS_INVALID: 422,
+  WEIGHTS_RULE_TYPE_MISMATCH: 422,
 
   DBR_BANDS_INVALID: 422,
   DBR_BAND_CAP_OUT_OF_RANGE: 422,

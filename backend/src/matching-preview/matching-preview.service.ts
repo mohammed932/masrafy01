@@ -9,10 +9,12 @@ import { BankProgramRepository } from '@/bank-programs/bank-programs.repository'
 import { toBankProgramSnapshot } from '@/bank-programs/bank-program-snapshot.mapper';
 import { quoteProgram } from '@/matching/pipeline/quote';
 import { MONEY_FIELD_BINDINGS } from '@/matching/pipeline/money-field-bindings';
-import type { ApplicantProfile, Quote } from '@/matching/types';
+import type { ApplicantProfile, ApprovalFactors, Quote } from '@/matching/types';
 import type { SelectedAnswer } from '@/matching/scoring/approval-probability.scorer';
+import { toSelectedAnswer } from '@/matching/scoring/answer-to-selected';
 import type { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
 import { validateAnswer } from '@/questionnaire/validation/answer-validation';
+import { isQuestionVisible } from '@/questionnaire/validation/question-visibility';
 
 interface SnapshotOption {
   code: string;
@@ -21,6 +23,13 @@ interface SnapshotQuestion {
   code: string;
   /** Absent on a pre-010 snapshot — read as SINGLE_SELECT (FR-045). */
   type?: string | null;
+  /**
+   * Frozen at publish (v12.0.0). Absent on a pre-v12 snapshot, which predates
+   * per-category assignment and therefore reads as "asked for all categories".
+   */
+  categories?: string[] | null;
+  /** Frozen branching rule; absent means always shown. */
+  enabledWhen?: unknown;
   options: SnapshotOption[];
   numeric?: { minValue?: string | null; maxValue?: string | null; step?: string | null } | null;
   text?: { maxLength?: number | null } | null;
@@ -65,6 +74,14 @@ export interface PreviewMatch {
   figuresUnavailableReason: string | null;
   approvalProbability: number;
   approvalTier: string;
+  /**
+   * Per-answer contribution breakdown behind `approvalProbability`, biggest
+   * first — the SAME numbers the scorer used, not a second derivation
+   * (`buildFactorBreakdown`). Already computed by `scoreProgram`; surfaced so a
+   * surface can explain a score instead of asserting one. Empty when the program
+   * has no ACTIVE weight set (`usedDefaultWeights`) or nothing asked scored.
+   */
+  approvalFactors: ApprovalFactors;
   rejectionReasons: string[];
   requiredDocuments: string[];
   usedDefaultWeights: boolean;
@@ -106,8 +123,11 @@ export class MatchingPreviewService {
    * caller's `birthday`, the admin simulator passes the sample applicant's.
    */
   async preview(args: { category: LoanCategory; answers: SubmittedAnswerDto[]; age: number }) {
-    const { selected, money } = await this.resolveSelectedOptions(args.answers);
-    return this.runAndAssemble(args.category, selected, money, args.age);
+    const { selected, money, askedQuestionCodes } = await this.resolveSelectedOptions(
+      args.answers,
+      args.category,
+    );
+    return this.runAndAssemble(args.category, selected, money, args.age, askedQuestionCodes);
   }
 
   /**
@@ -122,15 +142,43 @@ export class MatchingPreviewService {
    *
    * `isRequired` is forced off: preview and the admin simulator accept a PARTIAL
    * answer set by design; required-question enforcement belongs to apply.
+   *
+   * Scoped to `category`, matching apply (`resolveAnswers`). Previously this
+   * read the whole pool, so preview and apply could disagree about which
+   * questions existed for an applicant. That gap now also moves the score: the
+   * asked set returned here is the scoring denominator (Constitution V,
+   * v13.0.0), so the two paths must derive it identically or the same answers
+   * yield different numbers before and after apply.
    */
   private async resolveSelectedOptions(
     answers: SubmittedAnswerDto[],
-  ): Promise<{ selected: SelectedAnswer[]; money: MoneyInputs | null }> {
+    category: LoanCategory,
+  ): Promise<{
+    selected: SelectedAnswer[];
+    money: MoneyInputs | null;
+    askedQuestionCodes: string[];
+  }> {
     const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
     const snapshot = version.snapshot as unknown as Snapshot;
     const questions: SnapshotQuestion[] = [];
-    for (const g of snapshot.groups ?? []) for (const q of g.questions ?? []) questions.push(q);
+    for (const g of snapshot.groups ?? []) {
+      for (const q of g.questions ?? []) {
+        // ABSENT vs EMPTY are different snapshots, not the same one:
+        //   absent (pre-v12, the key was never frozen) → asked for every
+        //     category, or every legacy snapshot would suddenly ask nothing;
+        //   [] (v12+, explicitly frozen by `publish()` as
+        //     `sortCategories(assignments.get(q.id) ?? [])`) → PARKED, asked by
+        //     nobody. Assignment is authoritative (Principle V, v12.0.0).
+        // Testing `.length > 0` conflates the two and lets a parked question
+        // into the asked set here while apply's `resolveAnswers` and the
+        // customer read both exclude it — the same answers would then score
+        // differently before and after apply.
+        const frozen = q.categories;
+        if (frozen != null && !frozen.includes(category)) continue;
+        questions.push(q);
+      }
+    }
     const byCode = new Map(questions.map((q) => [q.code, q]));
     const selected: SelectedAnswer[] = [];
     const numeric = new Map<string, string>();
@@ -149,12 +197,25 @@ export class MatchingPreviewService {
         },
         ans,
       );
-      if (normalised?.selectedOptionCode) {
-        selected.push({ questionCode: q.code, optionCode: normalised.selectedOptionCode });
-      }
+      // Every type scores since v14.0.0, through the SAME mapper apply uses —
+      // preview and apply must agree on both the asked set and the answer scores.
+      const scorable = normalised ? toSelectedAnswer(normalised) : null;
+      if (scorable) selected.push(scorable);
+      // A numeric answer feeds BOTH sides: it prices the loan here and, if the
+      // program banded it, also scores. Two different jobs, not double counting.
       if (normalised?.numericValue != null) numeric.set(q.code, normalised.numericValue);
     }
-    return { selected, money: this.resolveMoneyInputs(numeric) };
+
+    // Branch visibility evaluated against what the applicant has answered so
+    // far, using the shared rule apply uses. Mid-questionnaire this set grows
+    // as they answer, which is correct: a branch only becomes asked once its
+    // trigger is picked.
+    const submitted = new Map(answers.map((a) => [a.questionCode, a]));
+    const askedQuestionCodes = questions
+      .filter((q) => isQuestionVisible({ enabledWhen: q.enabledWhen ?? null }, submitted, byCode))
+      .map((q) => q.code);
+
+    return { selected, money: this.resolveMoneyInputs(numeric), askedQuestionCodes };
   }
 
   /**
@@ -184,6 +245,7 @@ export class MatchingPreviewService {
     answers: SelectedAnswer[],
     money: MoneyInputs | null,
     age: number,
+    askedQuestionCodes: readonly string[],
   ) {
     const rows = (await this.programs.findAllActive()).filter(
       (p) => p.productCategory.toLowerCase() === category,
@@ -192,14 +254,13 @@ export class MatchingPreviewService {
 
     const matches: PreviewMatch[] = [];
     for (const p of rows) {
-      const { probability, tier, usedDefault } = await this.weightedScoring.scoreProgram({
+      const { probability, tier, usedDefault, factors } = await this.weightedScoring.scoreProgram({
         programId: p.id,
         category,
         answers,
+        askedQuestionCodes,
       });
-      const priced = profile
-        ? quoteProgram({ profile, program: toBankProgramSnapshot(p) })
-        : null;
+      const priced = profile ? quoteProgram({ profile, program: toBankProgramSnapshot(p) }) : null;
       const quote = priced?.ok ? priced.quote : null;
       matches.push({
         bankProgramId: p.id,
@@ -225,6 +286,7 @@ export class MatchingPreviewService {
             : 'MONEY_FIGURE_MISSING',
         approvalProbability: probability,
         approvalTier: tier,
+        approvalFactors: factors,
         rejectionReasons: [],
         requiredDocuments: (p.requiredDocuments as string[]) ?? [],
         usedDefaultWeights: usedDefault,

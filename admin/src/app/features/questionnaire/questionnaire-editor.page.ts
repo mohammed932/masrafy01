@@ -56,6 +56,7 @@ import {
   type QuestionType,
 } from './questionnaire.api.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
+import { MoneyInputDirective, formatGroupedNumber } from '@core/directives/money-input.directive';
 
 /** Ordered for the segmented control: the two choice types, then the two value types. */
 const TYPE_ORDER: readonly QuestionType[] = ['SINGLE_SELECT', 'MULTI_SELECT', 'NUMERIC', 'TEXT'];
@@ -117,6 +118,7 @@ type TypeFilter = QuestionType | 'ALL';
     NzIconModule,
     NzToolTipModule,
     A11yModule,
+    MoneyInputDirective,
   ],
   providers: [
     provideNzIconsPatch([
@@ -343,7 +345,6 @@ type TypeFilter = QuestionType | 'ALL';
                hairlines: a card per question would nest a card inside a card and
                spend ~24px of chrome on every row for no added meaning. -->
           <ul
-            #listEl
             class="list"
             [class.has-pager]="pageCount() > 1"
             cdkDropList
@@ -666,25 +667,33 @@ type TypeFilter = QuestionType | 'ALL';
                     <span class="lbl" i18n="@@qedit.num_min">Minimum</span>
                     <input
                       nz-input
+                      appMoneyInput
                       formControlName="minValue"
                       inputmode="decimal"
-                      placeholder="1000"
+                      placeholder="1,000"
                     />
                   </label>
                   <label class="field grow">
                     <span class="lbl" i18n="@@qedit.num_max">Maximum</span>
                     <input
                       nz-input
+                      appMoneyInput
                       formControlName="maxValue"
                       inputmode="decimal"
-                      placeholder="20000000"
+                      placeholder="20,000,000"
                     />
                   </label>
                 </div>
                 <div class="field-row">
                   <label class="field grow">
                     <span class="lbl" i18n="@@qedit.num_step">Step</span>
-                    <input nz-input formControlName="step" inputmode="decimal" placeholder="1000" />
+                    <input
+                      nz-input
+                      appMoneyInput
+                      formControlName="step"
+                      inputmode="decimal"
+                      placeholder="1,000"
+                    />
                   </label>
                   <label class="field grow">
                     <span class="lbl" i18n="@@qedit.num_unit_en">Unit (English)</span>
@@ -1239,25 +1248,31 @@ type TypeFilter = QuestionType | 'ALL';
         outline: 2px solid var(--cat);
         outline-offset: -2px;
       }
-      /* 41 filled azure badges shouted over the questions they were numbering. The
-         number earns the accent only on the row you are pointing at. */
+      /* 41 filled azure badges would shout over the questions they number, but a
+         bare muted digit vanished into the hairline. A ringed neutral badge gives
+         the number a countable shape on every row; the accent still arrives only
+         on the row you are pointing at. */
       .ord {
         display: grid;
         place-items: center;
         inline-size: 24px;
         block-size: 24px;
         border-radius: var(--radius-pill, 999px);
+        border: 1px solid var(--qe-line-strong);
+        background: color-mix(in srgb, var(--qe-text) 4%, var(--qe-surface));
         font-size: var(--text-xs, 12px);
-        font-weight: 600;
+        font-weight: 700;
         font-variant-numeric: tabular-nums;
-        color: var(--qe-muted);
+        color: var(--qe-text-2);
         transition:
           color var(--motion-duration-fast, 120ms) ease,
+          border-color var(--motion-duration-fast, 120ms) ease,
           background var(--motion-duration-fast, 120ms) ease;
       }
       .row-head:hover .ord,
       .row.open .ord {
         color: var(--cat);
+        border-color: color-mix(in srgb, var(--cat) 35%, transparent);
         background: color-mix(in srgb, var(--cat) 12%, transparent);
       }
       /* Symmetric padding instead of min-block-size: baseline alignment puts a
@@ -1309,16 +1324,20 @@ type TypeFilter = QuestionType | 'ALL';
           var(--space-3, 12px);
         padding-block: 0 var(--space-3, 12px);
       }
+      /* An outline the colour of the row's own hairline on a fill the colour of the
+         row read as ghost text, so the answers looked like disabled chrome rather
+         than the content they are. Filled + primary text: they are answers a bank
+         scores on, not decoration. */
       .pill {
         max-inline-size: 44ch;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        padding: 2px 10px;
-        border: 1px solid var(--qe-line);
+        padding: 3px 12px;
+        border: 1px solid var(--qe-line-strong);
         border-radius: var(--radius-pill, 999px);
-        background: var(--qe-surface);
-        color: var(--qe-text-2);
+        background: color-mix(in srgb, var(--qe-text) 5%, var(--qe-surface));
+        color: var(--qe-text);
         font-size: var(--text-sm, 14px);
         font-weight: 500;
       }
@@ -1504,6 +1523,13 @@ type TypeFilter = QuestionType | 'ALL';
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: var(--space-5, 24px);
         align-items: start;
+        /* The sticky action bar lifts off its flow position at any scroll offset
+           other than the very bottom, and parked on top of the last control in the
+           left column — the Required switch, half-eaten by an opaque bar. The
+           padding gives the bar empty space to cover; the equal negative margin
+           cancels it once scrolled to the end, so no gap opens above the bar. */
+        padding-block-end: var(--space-7, 48px);
+        margin-block-end: calc(var(--space-7, 48px) * -1);
       }
       .col {
         display: flex;
@@ -1534,6 +1560,11 @@ type TypeFilter = QuestionType | 'ALL';
         align-items: center;
         gap: var(--space-2, 8px);
         font-size: 13px;
+      }
+      /* A flex item with an intrinsic min-width still shrinks below its track; the
+         switch loses its knob before the label loses a letter. */
+      .switch-field nz-switch {
+        flex-shrink: 0;
       }
       .section-lbl {
         display: flex;
@@ -2001,7 +2032,6 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly rangeStart = computed(() => (this.visible().length === 0 ? 0 : this.pageOffset() + 1));
   readonly rangeEnd = computed(() => this.pageOffset() + this.paged().length);
 
-  private readonly listEl = viewChild<ElementRef<HTMLElement>>('listEl');
 
   /** Choice questions the server would refuse to ask: fewer than two options. */
   readonly incomplete = computed(() => this.rows().filter((q) => this.needsOptions(q)));
@@ -2125,8 +2155,8 @@ export class QuestionnaireEditorPage implements OnInit {
     }
     if (q.type === 'NUMERIC') {
       const unit = (this.isAr ? q.numericUnitAr : q.numericUnitEn) ?? '';
-      const min = q.numericMinValue ?? '—';
-      const max = q.numericMaxValue ?? '—';
+      const min = formatGroupedNumber(q.numericMinValue) || '—';
+      const max = formatGroupedNumber(q.numericMaxValue) || '—';
       return $localize`:@@qedit.rule_numeric:Number from ${min}:min: to ${max}:max: ${unit}:unit:`;
     }
     return '';
@@ -2174,13 +2204,13 @@ export class QuestionnaireEditorPage implements OnInit {
 
   // ---- Paging --------------------------------------------------------------
   /**
-   * A page change swaps the whole list under the admin, so the view scrolls back
-   * to the top of it — landing halfway down page 3 shows rows 5–10 first and
-   * reads as if the list simply jumped.
+   * Page change only re-slices the list — the scroll position is left exactly
+   * where it was. Scrolling the list back to its top moved the pager itself off
+   * screen, so paging through the pool meant scrolling back down to the control
+   * that had just been used for every single page.
    */
   setPage(page: number): void {
     this.pageRequest.set(page);
-    this.listEl()?.nativeElement.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
   /**

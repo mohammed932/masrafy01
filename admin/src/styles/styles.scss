@@ -650,6 +650,82 @@ textarea.ant-input {
   contain: layout style;
 }
 
+// ----------------------------------------------------------------------------
+// `.select-comfy` — 52px select that sits beside hand-rolled 52px controls
+// ----------------------------------------------------------------------------
+// The shared select above is tuned for dense form grids: 44px on `--bg-subtle`.
+// Dropped into a card whose other controls are 52px on `--bg-surface` it reads
+// as a *disabled* field of a different family. This modifier re-tunes the same
+// component to the card's control language — same height, same 1.5px border,
+// same surface, same 15px type. Pair it with `nzDropdownClassName` so the panel
+// (which renders in a CDK overlay, outside every component's scope) follows.
+.ant-select.select-comfy:not(.ant-select-customize-input) .ant-select-selector {
+  background: var(--bg-surface, var(--color-surface-default)) !important;
+  border-width: 1.5px !important;
+  border-radius: var(--radius-md) !important;
+  min-block-size: 52px !important;
+  padding-inline: 16px !important;
+}
+.ant-select-single.select-comfy:not(.ant-select-customize-input) .ant-select-selector {
+  height: 52px !important;
+}
+// 52px minus the 1.5px borders — the value has to sit on the control's centre
+// line, not the 44px one the base rule assumes.
+.ant-select-single.select-comfy .ant-select-selector .ant-select-selection-item,
+.ant-select-single.select-comfy .ant-select-selector .ant-select-selection-placeholder,
+.ant-select-single.select-comfy .ant-select-selector .ant-select-selection-search,
+.ant-select-single.select-comfy .ant-select-selector .ant-select-selection-search-input {
+  height: 49px !important;
+  line-height: 49px !important;
+  font-size: 15px !important;
+}
+.ant-select-single.select-comfy:not(.ant-select-customize-input)
+  .ant-select-selector
+  .ant-select-selection-search {
+  inset-inline-start: 16px !important;
+  inset-inline-end: 16px !important;
+}
+.ant-select.select-comfy:not(.ant-select-disabled):hover .ant-select-selector {
+  border-color: color-mix(in srgb, var(--primary, #0869c3) 50%, transparent) !important;
+}
+.ant-select-focused.select-comfy:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input)
+  .ant-select-selector {
+  border-color: var(--primary, var(--color-brand-primary)) !important;
+  box-shadow: var(--focus-halo) !important;
+}
+// Optical alignment with the 16px text inset, and a caret that answers "is it
+// open?" without needing the panel in view.
+.ant-select.select-comfy .ant-select-arrow,
+.ant-select.select-comfy .ant-select-clear {
+  inset-inline-end: 16px !important;
+  font-size: 13px !important;
+}
+// `.anticon-down` ONLY. With nzShowSearch the arrow slot swaps the caret for a
+// magnifier while open, and a rotated magnifier just reads as a broken glyph —
+// the same rule must not reach `.anticon-search` (or the loading spinner).
+.ant-select.select-comfy .ant-select-arrow .anticon-down {
+  transition: transform var(--motion-duration-base, 180ms) var(--motion-easing-standard, ease);
+}
+.ant-select-open.select-comfy .ant-select-arrow .anticon-down {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ant-select.select-comfy .ant-select-arrow .anticon-down { transition: none; }
+}
+
+// Panel rows scaled to the 52px trigger — 32px rows under a 52px control read
+// as a different control's menu. Past `nzOptionOverflowSize` the panel is
+// virtual-scrolled and rows are translated by `index * nzOptionHeightPx`, so a
+// caller using this class MUST also set `[nzOptionHeightPx]="42"` — a CSS-only
+// height change slides every row out from under its own slot.
+.select-comfy-dropdown .ant-select-item {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 12px !important;
+  font-size: 15px !important;
+  border-radius: var(--radius-md) !important;
+}
+
 // ============================================================================
 // NG-ZORRO form layout — force vertical (label above control) globally
 // ============================================================================

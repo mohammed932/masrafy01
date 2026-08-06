@@ -105,9 +105,18 @@ describe('the preview accepts every answer type in the global pool', () => {
 
     expect(matches).toHaveLength(1);
     expect(matches[0]?.approvalProbability).toBe(0.42);
-    // Only the single pick is scoreable — the rest are validated, then dropped.
+    // Every type reaches the scorer since v14.0.0, each as its own variant —
+    // before, only the single pick was forwarded and the rest were dropped after
+    // validation, so a numeric or multi-pick answer could never move the score.
     expect(scoreProgram).toHaveBeenCalledWith(
-      expect.objectContaining({ answers: [{ questionCode: 'your_age', optionCode: '21_30' }] }),
+      expect.objectContaining({
+        answers: [
+          { questionCode: 'amount_requested', kind: 'numeric', value: '150000.00' },
+          { questionCode: 'current_loans', kind: 'options', optionCodes: ['none'] },
+          { questionCode: 'your_age', kind: 'option', optionCode: '21_30' },
+          { questionCode: 'notes', kind: 'text', hasValue: true },
+        ],
+      }),
     );
   });
 

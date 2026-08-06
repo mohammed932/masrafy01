@@ -24,12 +24,28 @@ export interface WeightableOption {
   labelEn: string;
 }
 
-/** A question (with its options) shown in the per-answer weights editor. */
+/** A question shown in the weights editor, with whatever its type is scored by. */
 export interface WeightableQuestion {
   code: string;
   labelAr: string;
   labelEn: string;
+  /** Decides which scoring control the editor renders (every type scores, v14.0.0). */
+  type: QuestionType;
+  /**
+   * Loan categories that ASK this question (lowercase). A program scoring on a
+   * question outside its own category is configuring something its applicants
+   * never see — the editor warns, it does not block.
+   */
+  categories: string[];
+  /** Both choice types. Empty for NUMERIC / TEXT. */
   options: WeightableOption[];
+  /** NUMERIC only — seeds the band edges so the admin does not invent them. */
+  numericMinValue: string | null;
+  numericMaxValue: string | null;
+  numericUnitAr: string | null;
+  numericUnitEn: string | null;
+  /** TEXT only. */
+  textMaxLength: number | null;
 }
 
 /** Bank + program identity for labelling a per-program weight set. */
@@ -43,10 +59,32 @@ export interface ProgramMeta {
 
 export type WeightSetStatus = 'ACTIVE' | 'ARCHIVED';
 
-/** Two-level scoring (v8): per-question weights (sum 100) + per-answer scores (0–100). */
+/** How a MULTI_SELECT question combines the scores of the options that were picked. */
+export const MULTI_SELECT_AGGREGATIONS = ['AVERAGE', 'SUM_CAPPED', 'MAX', 'MIN'] as const;
+export type MultiSelectAggregation = (typeof MULTI_SELECT_AGGREGATIONS)[number];
+
+/**
+ * One NUMERIC scoring band. Half-open `[from, to)` so two adjacent bands never
+ * both claim an edge value; `from: null` = −∞, `to: null` = +∞. Edges are decimal
+ * STRINGS — these are money values (Principle I).
+ */
+export interface NumericScoreBand {
+  from: string | null;
+  to: string | null;
+  score: number;
+}
+
+/**
+ * Two-level scoring: per-question weights (sum 100) plus the rule each question's
+ * TYPE is scored by (v14.0.0). The three rule maps are optional so a weight set
+ * saved before v14.0.0 still parses.
+ */
 export interface ProgramScoringWeights {
   questionWeights: Record<string, number>;
   answerScores: Record<string, Record<string, number>>;
+  multiSelectRules?: Record<string, { aggregation: MultiSelectAggregation }>;
+  numericBands?: Record<string, NumericScoreBand[]>;
+  textRules?: Record<string, { answeredScore: number }>;
 }
 
 export interface ScoringWeightSet {
@@ -101,9 +139,9 @@ export interface OptionRow {
 }
 
 /**
- * Feature 010 — the four question types are all real. Only `SINGLE_SELECT` is
- * scoreable (R9 / A33): the approval formula needs one picked answer score per
- * question, which multi-pick, text and number cannot supply.
+ * Feature 010 — the four question types are all real, and since v14.0.0 all four
+ * are scoreable: each resolves to one 0–100 answer score by its own rule (option
+ * scores, multi-select aggregation, numeric bands, text presence).
  */
 export const QUESTION_TYPES = ['SINGLE_SELECT', 'MULTI_SELECT', 'TEXT', 'NUMERIC'] as const;
 export type QuestionType = (typeof QUESTION_TYPES)[number];
@@ -170,7 +208,13 @@ export interface SimulationMatch {
   programCode: string;
   bankName: string;
   bankIsFeatured: boolean;
+  /** Registry fact, not a simulation output — Islamic-finance program. */
+  isShariaCompliant: boolean;
   programFriendlyName: string;
+  /**
+   * Always `true` — eligibility gating is dropped for MVP (Principle V / A33), so
+   * this carries no information and MUST NOT be rendered as a per-program verdict.
+   */
   eligible: boolean;
   monthlyInstallmentEGP: string | null;
   effectiveRatePercent: string | null;
@@ -186,9 +230,32 @@ export interface SimulationMatch {
   figuresUnavailableReason: string | null;
   approvalProbability: number; // 0..1
   approvalTier: string;
+  /** Per-answer contributions behind the score, biggest first (Principle V). */
+  approvalFactors: SimulationFactors;
   rejectionReasons: string[];
   requiredDocuments: string[];
   usedDefaultWeights: boolean;
+}
+
+/**
+ * Why the score is what it is. `code` is the OPTION code for a single pick and
+ * the QUESTION code for the other three types (multi / numeric / text — no one
+ * option to name); `impact` is that answer's share of the score in points, and
+ * the impacts sum to the displayed percentage.
+ */
+export interface SimulationFactors {
+  positive: SimulationFactorImpact[];
+  negative: SimulationFactorImpact[];
+}
+export interface SimulationFactorImpact {
+  code: string;
+  /**
+   * The question the impact came from. Needed to label the row: `code` is an
+   * OPTION code for a single pick, and option codes repeat across questions
+   * (`yes` many times over), so the pair is what identifies an answer.
+   */
+  questionCode?: string;
+  impact: number;
 }
 
 /** Full money block for one simulated program. Decimal strings, never floats. */

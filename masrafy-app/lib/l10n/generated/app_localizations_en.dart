@@ -1661,8 +1661,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String results_guarantee_approval(int pct) {
-    return '$pct% Guarantee Approval';
+    return '$pct% match';
   }
+
+  @override
+  String get results_unrated => 'Not rated yet';
 
   @override
   String get results_best_match => 'Best Match';
@@ -1706,8 +1709,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String offer_approval(int pct) {
-    return '$pct% Approval';
+    return '$pct% match score';
   }
+
+  @override
+  String get offer_unrated => 'Not rated yet';
 
   @override
   String get offer_interest_rate => 'Interest rate';

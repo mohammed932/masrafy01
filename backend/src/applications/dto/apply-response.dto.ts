@@ -22,6 +22,12 @@ export interface ApprovalProbabilityResponseDto {
     negative: FactorImpactDto[];
     legacy?: boolean;
   };
+  /**
+   * The program had no ACTIVE weight set when this offer was matched, so the 0
+   * score means "not rated", not "poor fit". Clients render the two
+   * differently; without this they cannot tell them apart.
+   */
+  usedDefault: boolean;
   engineVersion: string;
 }
 

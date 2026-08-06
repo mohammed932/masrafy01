@@ -453,6 +453,11 @@ model BankOffer {
   approvalScore              Int
   approvalTier               ApprovalTier
   approvalFactors            Json
+  /// True when the program had no ACTIVE ScoringWeightSet at match time, so the
+  /// score is 0 for want of configuration rather than for want of a fit. Must be
+  /// persisted, not derived: configuring the program later would silently
+  /// rewrite the meaning of an immutable offer (Principle I).
+  approvalUsedDefault        Boolean      @default(false)
   engineVersion              String       @db.VarChar(32)
   requiredDocuments          String[]     @db.VarChar(80)
   matchReasons               String[]     @db.VarChar(80)

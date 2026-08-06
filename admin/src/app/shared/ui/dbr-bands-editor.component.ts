@@ -5,6 +5,7 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { DeleteOutline, PlusOutline, WarningOutline } from '@ant-design/icons-angular/icons';
+import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import type { DbrBand } from '../../features/bank-programs/bank-programs.types';
 
 /** Mirrors the backend `validateDbrBands` reasons so the two never disagree. */
@@ -64,7 +65,14 @@ export function dbrBandsErrorFor(rows: readonly DbrBand[]): DbrBandsError {
 @Component({
   selector: 'app-dbr-bands-editor',
   standalone: true,
-  imports: [FormsModule, NzButtonModule, NzIconModule, NzInputModule, NzToolTipModule],
+  imports: [
+    FormsModule,
+    NzButtonModule,
+    NzIconModule,
+    NzInputModule,
+    NzToolTipModule,
+    MoneyInputDirective,
+  ],
   providers: [provideNzIconsPatch([PlusOutline, DeleteOutline, WarningOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -115,14 +123,15 @@ export function dbrBandsErrorFor(rows: readonly DbrBand[]): DbrBandsError {
                 } @else {
                   <input
                     nz-input
+                    appMoneyInput
                     type="text"
-                    inputmode="decimal"
+                    inputmode="numeric"
                     class="band__input band__input--num"
                     [attr.aria-label]="upToAriaLabel"
                     [ngModel]="band.upToIncomeEGP"
                     (ngModelChange)="setBound($index, $event)"
                     [ngModelOptions]="{ standalone: true }"
-                    placeholder="10000.00"
+                    placeholder="10,000"
                   />
                 }
               </label>

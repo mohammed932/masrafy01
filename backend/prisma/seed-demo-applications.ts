@@ -35,6 +35,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcrypt';
 import { EngineService } from '../src/matching/engine.service';
 import {
+  askedWeightSum,
   computeProbability,
   normalizeWeights,
   tierFor,
@@ -651,24 +652,33 @@ function toSnapshot(p: ProgramRow): BankProgramSnapshot {
 }
 
 /**
- * The same two-level formula the apply path runs (Principle V v8.0.0):
- * `probability = Σ_question(questionWeight/100 × pickedAnswerScore/100)`, with
+ * The same two-level formula the apply path runs (Principle V v13.0.0):
+ * `Σ_answered(questionWeight × answerScore/100) ÷ Σ_asked(questionWeight)`, with
  * the per-answer contributions kept as the offer's `approvalFactors` so the
  * admin "why this score" panel has real content.
+ *
+ * The demo applicant was asked exactly what they answered, so the asked set is
+ * every question code the spec produced a row for — including the numeric and
+ * text ones, which carry no weight and so drop out of the sum anyway.
  */
 function scoreProgram(
   scoring: ProgramScoring,
   answers: readonly SelectedAnswer[],
+  askedQuestionCodes: readonly string[],
 ): { score: number; tier: string; factors: { positive: Array<{ code: string; impact: number }>; negative: never[] } } {
-  const probability = computeProbability(scoring, answers);
-  const positive = answers
-    .map((ans) => {
-      const weight = scoring.questionWeights[ans.questionCode] ?? 0;
-      const optionScore = scoring.answerScores[ans.questionCode]?.[ans.optionCode] ?? 0;
-      return { code: ans.optionCode, impact: Math.round((weight / 100) * optionScore) };
-    })
-    .filter((f) => f.impact > 0)
-    .sort((x, y) => y.impact - x.impact);
+  const probability = computeProbability(scoring, answers, askedQuestionCodes);
+  const denominator = askedWeightSum(scoring, askedQuestionCodes);
+  const positive =
+    denominator <= 0
+      ? []
+      : answers
+          .map((ans) => {
+            const weight = scoring.questionWeights[ans.questionCode] ?? 0;
+            const optionScore = scoring.answerScores[ans.questionCode]?.[ans.optionCode] ?? 0;
+            return { code: ans.optionCode, impact: Math.round((weight * optionScore) / denominator) };
+          })
+          .filter((f) => f.impact > 0)
+          .sort((x, y) => y.impact - x.impact);
   return {
     score: Math.round(probability * 100),
     tier: tierFor(probability),
@@ -854,6 +864,8 @@ async function main(): Promise<void> {
     // answer row and leave the questionnaire card half-empty.
     const answerRows: Prisma.ApplicationAnswerCreateManyApplicationInput[] = [];
     const selectedAnswers: SelectedAnswer[] = [];
+    // The scoring denominator: what this demo applicant was put in front of.
+    const askedQuestionCodes: string[] = [];
     for (const [code, value] of Object.entries(answers)) {
       const q = questions.get(code);
       if (!q) continue; // question retired since this seeder was written
@@ -869,6 +881,7 @@ async function main(): Promise<void> {
         textValue: value.textValue ?? null,
         numericValue: value.numericValue ? new Prisma.Decimal(value.numericValue) : null,
       });
+      askedQuestionCodes.push(code);
       if (value.optionCode) {
         selectedAnswers.push({ questionCode: code, optionCode: value.optionCode });
       }
@@ -904,11 +917,14 @@ async function main(): Promise<void> {
         questionWeights: {},
         answerScores: {},
       };
-      const scored = scoreProgram(scoring, selectedAnswers);
+      const scored = scoreProgram(scoring, selectedAnswers, askedQuestionCodes);
       offer.approvalProbability = {
         score: scored.score,
         tier: scored.tier,
         factors: scored.factors,
+        // No ACTIVE weight set → this 0 means "nobody configured the program",
+        // and the board must not render it as a poor fit.
+        usedDefault: !(programId && scoringByProgramId.has(programId)),
       } as Offer['approvalProbability'];
       offer.approvalProbabilityPercent = scored.score;
     }
@@ -978,6 +994,7 @@ async function main(): Promise<void> {
             approvalScore: offer.approvalProbability.score,
             approvalTier: offer.approvalProbability.tier,
             approvalFactors: jsonify(offer.approvalProbability.factors),
+            approvalUsedDefault: offer.approvalProbability.usedDefault ?? false,
             engineVersion: scoringConfig.version,
             requiredDocuments: offer.requiredDocuments,
             matchReasons: offer.matchReasons,

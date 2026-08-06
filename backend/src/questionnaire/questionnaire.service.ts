@@ -20,6 +20,7 @@ import {
   type NormalisedAnswer,
   type SubmittedAnswerValue,
 } from './validation/answer-validation';
+import { isQuestionVisible } from './validation/question-visibility';
 import type {
   CreateGroupDto,
   CreateOptionDto,
@@ -523,11 +524,18 @@ export class QuestionnaireService {
    * application's loan category. It has to: required-question enforcement runs
    * here, so without the filter a personal-loan applicant would be rejected for
    * not answering a mortgage-only question they were never shown.
+   *
+   * Returns that asked set alongside the resolved rows. It is the scoring
+   * denominator (Constitution V, v13.0.0) and cannot be recovered from
+   * `resolved` afterwards: a skipped optional question is asked but produces no
+   * row (`validateAnswer` returns null), and it must still cost the applicant
+   * its weight. Non-scoreable codes are left in — a weight set can only name
+   * SINGLE_SELECT questions, so the scorer's intersection drops them anyway.
    */
   async resolveAnswers(
     answers: ReadonlyArray<SubmittedAnswerValue>,
     category?: LoanCategory,
-  ): Promise<ResolvedAnswer[]> {
+  ): Promise<{ resolved: ResolvedAnswer[]; askedQuestionCodes: string[] }> {
     const questions = await this.repo.questions();
     const assignments = category ? await this.repo.categoryAssignments() : null;
     const active = questions.filter(
@@ -558,15 +566,20 @@ export class QuestionnaireService {
     }
 
     const resolved: ResolvedAnswer[] = [];
+    const askedQuestionCodes: string[] = [];
     for (const q of active) {
       const options = optionsByQuestionId.get(q.id) ?? [];
       const visible = isQuestionVisible(q, submitted, byCode);
       const answer = submitted.get(q.code);
 
       if (!visible) {
-        // Hidden questions are neither required nor stored.
+        // Hidden questions are neither required nor stored — and never scored,
+        // so they stay out of the denominator too.
         continue;
       }
+      // Asked = active, in-category, and visible. Recorded BEFORE validation so
+      // a skipped optional question still counts against the applicant.
+      askedQuestionCodes.push(q.code);
 
       const normalised = validateAnswer(
         {
@@ -595,7 +608,7 @@ export class QuestionnaireService {
         numericValue: normalised.numericValue,
       });
     }
-    return resolved;
+    return { resolved, askedQuestionCodes };
   }
 
   /**
@@ -812,23 +825,6 @@ function textColumns(
  * question was answered with (or without, for `not_equals`) the named option.
  * Multi-pick satisfies `equals` when ANY picked code matches.
  */
-function isQuestionVisible(
-  q: { enabledWhen: Prisma.JsonValue | null },
-  submitted: ReadonlyMap<string, SubmittedAnswerValue>,
-  byCode: ReadonlyMap<string, unknown>,
-): boolean {
-  const rule = q.enabledWhen as { questionCode?: string; operator?: string; optionCode?: string } | null;
-  if (!rule?.questionCode || !rule.optionCode) return true;
-  if (!byCode.has(rule.questionCode)) return true; // dangling rule: never hide
-
-  const source = submitted.get(rule.questionCode);
-  const picked = source
-    ? [...(source.optionCodes ?? []), ...(source.optionCode ? [source.optionCode] : [])]
-    : [];
-  const matches = picked.includes(rule.optionCode);
-  return rule.operator === 'not_equals' ? !matches : matches;
-}
-
 /**
  * FR-048 / FR-049: every money-field binding must resolve to an ACTIVE NUMERIC
  * question. A miss is a warning, not a publish failure — but a quote for an

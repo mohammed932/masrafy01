@@ -9,3 +9,9 @@ export {
   type DbrBandsError,
 } from './dbr-bands-editor.component';
 export { PercentFieldComponent } from './percent-field.component';
+export {
+  ScoreBandsEditorComponent,
+  scoreBandsErrorFor,
+  seedScoreBands,
+  type ScoreBandsError,
+} from './score-bands-editor.component';

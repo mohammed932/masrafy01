@@ -16,8 +16,19 @@ import { ERROR_CODES } from '@/common/errors/error-codes';
 export const CHOICE_TYPES: readonly QuestionType[] = ['SINGLE_SELECT', 'MULTI_SELECT'];
 export const VALUE_TYPES: readonly QuestionType[] = ['TEXT', 'NUMERIC'];
 
-/** Only single choice is scoreable — see R9 / A33. */
-export const SCOREABLE_TYPES: readonly QuestionType[] = ['SINGLE_SELECT'];
+/**
+ * EVERY type is scoreable (Constitution V, v14.0.0). Each one resolves to a
+ * single 0..100 answer score by its own admin-configured rule — option scores,
+ * multi-select aggregation, numeric bands, text presence — so the formula itself
+ * is unchanged. Before v14.0.0 this was `['SINGLE_SELECT']`, which silently
+ * excluded income, existing debts, requested amount and term from every match.
+ */
+export const SCOREABLE_TYPES: readonly QuestionType[] = [
+  'SINGLE_SELECT',
+  'MULTI_SELECT',
+  'NUMERIC',
+  'TEXT',
+];
 
 export const MIN_CHOICE_OPTIONS = 2;
 export const TEXT_MAX_LENGTH_CEILING = 2000;

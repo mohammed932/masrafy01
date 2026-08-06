@@ -229,6 +229,7 @@ export class AdminApplicationsController {
     approvalScore: number;
     approvalTier: string;
     approvalFactors: unknown;
+    approvalUsedDefault?: boolean;
     engineVersion: string;
   }) {
     const raw = (o.approvalFactors ?? {}) as {
@@ -245,6 +246,8 @@ export class AdminApplicationsController {
         negative: raw.negative ?? [],
         ...(raw.legacy === true ? { legacy: true } : {}),
       },
+      // Rows predating the column read as false — see the service-side twin.
+      usedDefault: o.approvalUsedDefault ?? false,
       engineVersion: o.engineVersion,
     };
   }

@@ -151,16 +151,20 @@ describe('branch sources', () => {
   });
 });
 
-describe('scoreability (R9 / A33)', () => {
-  it('treats SINGLE_SELECT as the only scoreable type', () => {
-    expect(isScoreableType('SINGLE_SELECT')).toBe(true);
-    for (const type of ['MULTI_SELECT', 'TEXT', 'NUMERIC'] as const) {
-      expect(isScoreableType(type)).toBe(false);
+describe('scoreability (Constitution V, v14.0.0)', () => {
+  it('treats every type as scoreable', () => {
+    for (const type of ['SINGLE_SELECT', 'MULTI_SELECT', 'TEXT', 'NUMERIC'] as const) {
+      expect(isScoreableType(type)).toBe(true);
     }
   });
 
-  it('separates "has options" from "is scoreable" — MULTI_SELECT has options but no single picked score', () => {
+  it('keeps "has options" and "is scoreable" as separate questions', () => {
+    // A value type is scoreable without options — by band (NUMERIC) or by
+    // presence (TEXT) — so the two predicates must not be conflated in either
+    // direction. `assertQuestionTypeRules` still forbids options on value types.
+    expect(isChoiceType('NUMERIC')).toBe(false);
+    expect(isScoreableType('NUMERIC')).toBe(true);
     expect(isChoiceType('MULTI_SELECT')).toBe(true);
-    expect(isScoreableType('MULTI_SELECT')).toBe(false);
+    expect(isScoreableType('MULTI_SELECT')).toBe(true);
   });
 });

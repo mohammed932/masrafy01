@@ -63,6 +63,8 @@ export interface CreateBankOfferInput {
   approvalScore: number;
   approvalTier: ApprovalTier;
   approvalFactors: JsonValueInput;
+  /** No ACTIVE weight set at match time — "not rated", not a bad fit. */
+  approvalUsedDefault: boolean;
   engineVersion: string;
   requiredDocuments: string[];
   matchReasons: string[];

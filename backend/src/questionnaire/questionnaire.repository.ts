@@ -73,24 +73,48 @@ export class QuestionnaireRepository {
    * All active questions with their active options (code + labels), ordered.
    * Feeds both the admin per-program scoring editor (assign + weight + score) and
    * the `maxPoints` normaliser in the scorer.
+   *
+   * `categories` comes along so the scoring editor can tell the admin when a
+   * question they are weighting is not asked for their program's category — the
+   * two assignment axes (question→category, program→question) are set on
+   * different screens and nothing else compares them.
+   *
+   * The NUMERIC bounds + unit and the TEXT length come along too (v14.0.0):
+   * every type is now scoreable, and the editor seeds a numeric question's bands
+   * from its own min/max instead of asking the admin to invent edges.
    */
-  questionsWithOptions(): Promise<
+  async questionsWithOptions(): Promise<
     {
       code: string;
       type: QuestionType;
       questionAr: string;
       questionEn: string;
+      categories: LoanCategory[];
+      numericMinValue: string | null;
+      numericMaxValue: string | null;
+      numericStep: string | null;
+      numericUnitAr: string | null;
+      numericUnitEn: string | null;
+      textMaxLength: number | null;
       options: { code: string; labelAr: string; labelEn: string }[];
     }[]
   > {
-    return this.prisma.question.findMany({
+    const rows = await this.prisma.question.findMany({
       where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
       select: {
+        id: true,
         code: true,
         type: true,
         questionAr: true,
         questionEn: true,
+        numericMinValue: true,
+        numericMaxValue: true,
+        numericStep: true,
+        numericUnitAr: true,
+        numericUnitEn: true,
+        textMaxLength: true,
+        loanCategories: { select: { category: true } },
         options: {
           where: { isActive: true },
           orderBy: { displayOrder: 'asc' },
@@ -98,6 +122,24 @@ export class QuestionnaireRepository {
         },
       },
     });
+    return rows.map(
+      ({
+        id: _id,
+        loanCategories,
+        numericMinValue,
+        numericMaxValue,
+        numericStep,
+        ...q
+      }) => ({
+        ...q,
+        categories: loanCategories.map((c) => c.category),
+        // Decimal → string at the repository edge: money never crosses a service
+        // boundary as a float (Principle I) and never leaks a Prisma type (A8).
+        numericMinValue: numericMinValue?.toFixed(2) ?? null,
+        numericMaxValue: numericMaxValue?.toFixed(2) ?? null,
+        numericStep: numericStep?.toFixed(2) ?? null,
+      }),
+    );
   }
 
   updateQuestion(id: string, data: Prisma.QuestionUpdateInput): Promise<Question> {

@@ -20,6 +20,21 @@ function group(value: string): string {
   return fracPart === null ? intGrouped : `${intGrouped}.${fracPart}`;
 }
 
+/**
+ * Read-only counterpart of what the directive renders, for summary lines and
+ * static labels that sit beside a money field ("20000000.00" → "20,000,000").
+ * `en-US` digits deliberately: the editable field shows the same, and one screen
+ * must not mix two digit systems. Trailing fraction zeros are dropped — money
+ * bounds are authored in whole units and ".00" is noise outside an input.
+ */
+export function formatGroupedNumber(value: string | null | undefined): string {
+  if (value === null || value === undefined || value.trim() === '') return '';
+  const parsed = Number(value);
+  return Number.isFinite(parsed)
+    ? parsed.toLocaleString('en-US', { maximumFractionDigits: 4 })
+    : value;
+}
+
 /** Caret position just after the Nth digit of a grouped string. */
 function caretAfterDigit(formatted: string, digitCount: number): number {
   if (digitCount <= 0) return 0;

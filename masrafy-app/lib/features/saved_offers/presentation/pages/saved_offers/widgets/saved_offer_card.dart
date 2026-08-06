@@ -54,7 +54,9 @@ class SavedOfferCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l.results_guarantee_approval(offer.approvalPct),
+                      offer.approvalUnrated
+                          ? l.results_unrated
+                          : l.results_guarantee_approval(offer.approvalPct),
                       style: text.bodyLarge.copyWith(
                         color: colors.primary.main,
                         fontWeight: FontWeight.w800,

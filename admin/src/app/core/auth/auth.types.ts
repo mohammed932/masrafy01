@@ -41,6 +41,16 @@ export type ErrorCode =
   | 'BANK_HAS_PROGRAMS'
   | 'BANK_CONFLICT_STALE_DATA'
   | 'RATE_LIMITED'
+  // Figures-unavailable reasons (feature 010). Not thrown as errors — carried on
+  // a quote as `figuresUnavailableReason` — but rendered through the SAME
+  // localized catalog, so they belong in the same union (Principle III / A22).
+  | 'MONEY_FIGURE_MISSING'
+  | 'NO_RECOGNISED_INCOME'
+  | 'OBLIGATIONS_EXCEED_ALLOWANCE'
+  | 'BELOW_PROGRAM_MIN_AMOUNT'
+  | 'AGE_AT_MATURITY'
+  | 'CURRENCY_NOT_OFFERED'
+  | 'PROGRAM_MISCONFIGURED'
   | 'INTERNAL_ERROR';
 
 export interface AuthenticatedUser {

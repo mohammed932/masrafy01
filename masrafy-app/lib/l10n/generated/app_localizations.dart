@@ -3302,8 +3302,14 @@ abstract class AppLocalizations {
   /// No description provided for @results_guarantee_approval.
   ///
   /// In ar, this message translates to:
-  /// **'ضمان الموافقة {pct}%'**
+  /// **'توافق {pct}%'**
   String results_guarantee_approval(int pct);
+
+  /// No description provided for @results_unrated.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُقيَّم بعد'**
+  String get results_unrated;
 
   /// No description provided for @results_best_match.
   ///
@@ -3380,8 +3386,14 @@ abstract class AppLocalizations {
   /// No description provided for @offer_approval.
   ///
   /// In ar, this message translates to:
-  /// **'موافقة {pct}%'**
+  /// **'درجة التوافق {pct}%'**
   String offer_approval(int pct);
+
+  /// No description provided for @offer_unrated.
+  ///
+  /// In ar, this message translates to:
+  /// **'لم يُقيَّم بعد'**
+  String get offer_unrated;
 
   /// No description provided for @offer_interest_rate.
   ///

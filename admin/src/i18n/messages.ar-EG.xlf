@@ -768,6 +768,66 @@
       <trans-unit id="qcat.sec_asked" datatype="html"><source>Asked in this category</source><target>مطروحة في هذا النوع</target></trans-unit>
       <trans-unit id="qcat.sec_not_asked" datatype="html"><source>Not asked here</source><target>غير مطروحة هنا</target></trans-unit>
       <trans-unit id="qcat.none_asked" datatype="html"><source>Nothing is asked here yet — tick a question below to add it.</source><target>لا توجد أسئلة مطروحة هنا بعد — حدّد سؤالًا بالأسفل لإضافته.</target></trans-unit>
+      <trans-unit id="sim.no_category_questions" datatype="html"><source>No questions are assigned to this loan category yet.</source><target>لا توجد أسئلة مرتبطة بنوع التمويل هذا بعد.</target></trans-unit>
+
+      <trans-unit id="scoring.editor.unasked_tag" datatype="html"><source>not asked</source><target>غير مطروح</target></trans-unit>
+      <trans-unit id="scoring.editor.unasked_lead" datatype="html"><source>These picked questions are never shown to <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> applicants.</source><target>هذه الأسئلة المحدّدة لا تُطرح إطلاقًا على متقدّمي <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/>.</target></trans-unit>
+      <trans-unit id="scoring.editor.unasked_hint" datatype="html"><source>They can never score, so any weight you give them is wasted. Untick them, or add <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> to them under Questionnaire → Loan categories.</source><target>لن تُحتسب لها أي درجة، لذا فأي وزن تمنحه لها يضيع بلا فائدة. ألغِ تحديدها، أو أضِف <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> إليها من الاستبيان ← أنواع التمويل.</target></trans-unit>
+
+      <!-- Every question type is scored (Constitution V, v14.0.0): the control the
+           admin sees follows the question's type, and so does its wording. -->
+      <trans-unit id="scoring.editor.type_single" datatype="html"><source>Pick one</source><target>اختيار واحد</target></trans-unit>
+      <trans-unit id="scoring.editor.type_multi" datatype="html"><source>Pick several</source><target>اختيار متعدد</target></trans-unit>
+      <trans-unit id="scoring.editor.type_numeric" datatype="html"><source>Number</source><target>رقم</target></trans-unit>
+      <trans-unit id="scoring.editor.type_text" datatype="html"><source>Free text</source><target>نص حر</target></trans-unit>
+      <trans-unit id="scoring.editor.scored_by_bands" datatype="html"><source>scored by number range</source><target>يُقيَّم حسب نطاق الرقم</target></trans-unit>
+      <trans-unit id="scoring.editor.scored_by_presence" datatype="html"><source>scored on being answered</source><target>يُقيَّم على مجرد الإجابة</target></trans-unit>
+      <trans-unit id="scoring.editor.scored_by_answers" datatype="html"><source><x id="COUNT" equiv-text="q.options.length"/> answers</source><target><x id="COUNT" equiv-text="q.options.length"/> إجابة</target></trans-unit>
+      <trans-unit id="scoring.editor.hint_numeric" datatype="html"><source>Score this number by range. Each band starts where the one before it ends, so every answer lands in exactly one.</source><target>قيّم هذا الرقم حسب النطاق. يبدأ كل نطاق من حيث ينتهي الذي قبله، فتقع كل إجابة في نطاق واحد بالضبط.</target></trans-unit>
+      <trans-unit id="scoring.editor.hint_text" datatype="html"><source>Free text is scored on being answered, not on what it says — a keyword rule would be guesswork nobody can audit. Leaving it blank earns nothing.</source><target>يُقيَّم النص الحر على مجرد الإجابة لا على مضمونها — فقاعدة الكلمات المفتاحية تخمين لا يمكن مراجعته. تركه فارغًا لا يمنح أي درجة.</target></trans-unit>
+      <trans-unit id="scoring.editor.text_answered" datatype="html"><source>Answered</source><target>تمت الإجابة</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_label" datatype="html"><source>Several picks count as</source><target>الاختيارات المتعددة تُحسب كـ</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_avg" datatype="html"><source>Their average</source><target>متوسطها</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_sum" datatype="html"><source>Added up (capped at 100)</source><target>مجموعها (بحد أقصى 100)</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_max" datatype="html"><source>The best pick only</source><target>أفضل اختيار فقط</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_min" datatype="html"><source>The worst pick only</source><target>أسوأ اختيار فقط</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_hint_avg" datatype="html"><source>A strong pick and a weak one land in the middle.</source><target>اختيار قوي مع آخر ضعيف ينتج درجة في المنتصف.</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_hint_sum" datatype="html"><source>Picking more counts for more — use this when each extra answer is genuinely better.</source><target>الاختيارات الأكثر تعني درجة أعلى — استخدمه عندما تكون كل إجابة إضافية أفضل فعلًا.</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_hint_max" datatype="html"><source>Only the applicant&apos;s strongest pick counts; the others never help or hurt.</source><target>يُحتسب أقوى اختيار للمتقدّم فقط؛ والبقية لا تنفع ولا تضر.</target></trans-unit>
+      <trans-unit id="scoring.editor.agg_hint_min" datatype="html"><source>One weak pick drags the answer down — use this when any bad item is a concern.</source><target>اختيار ضعيف واحد يخفض الدرجة — استخدمه عندما يمثّل أي بند سيئ مصدر قلق.</target></trans-unit>
+      <trans-unit id="scoring.editor.band_below" datatype="html"><source>Below <x id="TO" equiv-text="band.to"/><x id="UNIT" equiv-text="unit"/></source><target>أقل من <x id="TO" equiv-text="band.to"/><x id="UNIT" equiv-text="unit"/></target></trans-unit>
+      <trans-unit id="scoring.editor.band_above" datatype="html"><source><x id="FROM" equiv-text="band.from"/><x id="UNIT" equiv-text="unit"/> and above</source><target><x id="FROM" equiv-text="band.from"/><x id="UNIT" equiv-text="unit"/> وأكثر</target></trans-unit>
+      <trans-unit id="scoring.editor.band_count" datatype="html"><source><x id="COUNT" equiv-text="count"/> bands</source><target><x id="COUNT" equiv-text="count"/> نطاقات</target></trans-unit>
+      <trans-unit id="scoring.editor.fix_bands" datatype="html"><source><x id="QUESTION" equiv-text="label"/> needs number bands that start in ascending order.</source><target><x id="QUESTION" equiv-text="label"/> يحتاج نطاقات أرقام تبدأ بترتيب تصاعدي.</target></trans-unit>
+      <trans-unit id="scoring.editor.fix_text_score" datatype="html"><source><x id="QUESTION" equiv-text="label"/> needs a score above 0 for being answered.</source><target><x id="QUESTION" equiv-text="label"/> يحتاج درجة أكبر من 0 عند الإجابة عليه.</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_no_bands" datatype="html"><source>no ranges yet</source><target>لا توجد نطاقات بعد</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_bad_bands" datatype="html"><source>ranges still need fixing</source><target>النطاقات تحتاج تصحيحًا</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_bands" datatype="html"><source><x id="COUNT" equiv-text="rows.length"/> ranges · best <x id="BAND" equiv-text="bandRangeLabel"/> at <x id="SCORE" equiv-text="top.score"/>%</source><target><x id="COUNT" equiv-text="rows.length"/> نطاقات · الأفضل <x id="BAND" equiv-text="bandRangeLabel"/> بدرجة <x id="SCORE" equiv-text="top.score"/>%</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_text" datatype="html"><source>answering earns <x id="SCORE" equiv-text="score"/>%</source><target>الإجابة تمنح <x id="SCORE" equiv-text="score"/>%</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_text_zero" datatype="html"><source>answering earns nothing yet</source><target>الإجابة لا تمنح أي درجة بعد</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_no_answers" datatype="html"><source>no answers to score</source><target>لا توجد إجابات لتقييمها</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_blanks" datatype="html"><source><x id="COUNT" equiv-text="blanks"/> of <x id="TOTAL" equiv-text="q.options.length"/> answers still at 0</source><target><x id="COUNT" equiv-text="blanks"/> من <x id="TOTAL" equiv-text="q.options.length"/> إجابات لا تزال على 0</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_top" datatype="html"><source><x id="TOTAL" equiv-text="q.options.length"/> answers · top <x id="LABEL" equiv-text="optionLabel"/> at <x id="SCORE" equiv-text="score"/>%</source><target><x id="TOTAL" equiv-text="q.options.length"/> إجابات · الأعلى <x id="LABEL" equiv-text="optionLabel"/> بدرجة <x id="SCORE" equiv-text="score"/>%</target></trans-unit>
+      <trans-unit id="scoring.editor.sum_answers" datatype="html"><source><x id="TOTAL" equiv-text="q.options.length"/> answers scored</source><target>تم تقييم <x id="TOTAL" equiv-text="q.options.length"/> إجابات</target></trans-unit>
+
+      <trans-unit id="scoreBands.empty" datatype="html"><source>This number earns nothing yet. Band it so a higher — or lower — answer scores better.</source><target>هذا الرقم لا يمنح أي درجة بعد. قسّمه إلى نطاقات ليحصل الرقم الأعلى — أو الأقل — على درجة أفضل.</target></trans-unit>
+      <trans-unit id="scoreBands.seed" datatype="html"><source>Start with three bands</source><target>ابدأ بثلاثة نطاقات</target></trans-unit>
+      <trans-unit id="scoreBands.colFrom" datatype="html"><source>From</source><target>من</target></trans-unit>
+      <trans-unit id="scoreBands.colTo" datatype="html"><source>To</source><target>إلى</target></trans-unit>
+      <trans-unit id="scoreBands.colScore" datatype="html"><source>Score</source><target>الدرجة</target></trans-unit>
+      <trans-unit id="scoreBands.noMinimum" datatype="html"><source>No minimum</source><target>بلا حد أدنى</target></trans-unit>
+      <trans-unit id="scoreBands.noMaximum" datatype="html"><source>No maximum</source><target>بلا حد أقصى</target></trans-unit>
+      <trans-unit id="scoreBands.linkHint" datatype="html"><source>A band's end is the next band's start — edit either box and the other follows.</source><target>نهاية كل نطاق هي بداية النطاق التالي — عدّل أيًّا من الحقلين ويتبعه الآخر.</target></trans-unit>
+      <trans-unit id="scoreBands.add" datatype="html"><source>Add a band</source><target>أضف نطاقًا</target></trans-unit>
+      <trans-unit id="scoreBands.clear" datatype="html"><source>Remove all bands</source><target>أزل كل النطاقات</target></trans-unit>
+      <trans-unit id="scoreBands.error.edgeMissing" datatype="html"><source>Every band needs a starting value.</source><target>كل نطاق يحتاج قيمة بداية.</target></trans-unit>
+      <trans-unit id="scoreBands.error.notAscending" datatype="html"><source>Each band must start higher than the one before it.</source><target>يجب أن يبدأ كل نطاق بقيمة أعلى من الذي قبله.</target></trans-unit>
+      <trans-unit id="scoreBands.error.noBands" datatype="html"><source>Add at least one band, or this question earns nothing.</source><target>أضف نطاقًا واحدًا على الأقل، وإلا فلن يمنح هذا السؤال أي درجة.</target></trans-unit>
+      <trans-unit id="scoreBands.aria.from" datatype="html"><source>Band starts at</source><target>يبدأ النطاق من</target></trans-unit>
+      <trans-unit id="scoreBands.aria.to" datatype="html"><source>Band ends at — also the next band's start</source><target>ينتهي النطاق عند — وهي أيضًا بداية النطاق التالي</target></trans-unit>
+      <trans-unit id="scoreBands.aria.scoreSlider" datatype="html"><source>Band score — slider</source><target>درجة النطاق — شريط تمرير</target></trans-unit>
+      <trans-unit id="scoreBands.aria.scoreField" datatype="html"><source>Band score — type or use arrow keys</source><target>درجة النطاق — اكتب أو استخدم مفاتيح الأسهم</target></trans-unit>
+      <trans-unit id="scoreBands.aria.remove" datatype="html"><source>Remove this band</source><target>أزل هذا النطاق</target></trans-unit>
     </body>
   </file>
 </xliff>
