@@ -364,13 +364,28 @@ class _DerivedTotalField extends StatelessWidget {
   final String value;
   final bool isAr;
 
+  /// `"2000.00"` → `"2000"`, leaving a real fraction (`"2000.50"`) alone.
+  static String _withoutZeroFraction(String raw) {
+    final dot = raw.indexOf('.');
+    if (dot == -1) return raw;
+    final fraction = raw.substring(dot + 1);
+    return fraction.isNotEmpty && fraction.split('').every((c) => c == '0')
+        ? raw.substring(0, dot)
+        : raw;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final unit = question.numeric?.unit(isAr);
-    final display = GroupedNumberInputFormatter.format(value) ?? value;
+    // DISPLAY only drops a zero fraction — instalments are whole pounds in
+    // practice and "2,000" reads as a figure while "2,000.00" reads as a
+    // machine total. The ANSWER keeps its two decimals (the cubit's
+    // `toStringAsFixed(2)`), which is what the server re-sums against.
+    final display =
+        GroupedNumberInputFormatter.format(_withoutZeroFraction(value)) ?? value;
 
     return _TitledField(
       title: question.label(isAr),

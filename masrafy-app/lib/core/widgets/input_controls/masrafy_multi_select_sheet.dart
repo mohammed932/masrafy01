@@ -459,15 +459,7 @@ class _Checkbox extends StatelessWidget {
         borderRadius: BorderRadius.circular(2.r),
       ),
       child: isSelected
-          ? SvgPicture.asset(
-              MasrafyAssets.kCheck,
-              width: 12.r,
-              height: 12.r,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
-              ),
-            )
+          ? Icon(Icons.check_rounded, size: 12.r, color: Colors.white)
           : const SizedBox.shrink(),
     );
   }

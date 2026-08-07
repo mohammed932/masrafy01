@@ -5,7 +5,6 @@ import 'package:injectable/injectable.dart';
 import 'package:app/core/enums/request_state.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/features/matching/data/models/request/apply_request.dart';
-import 'package:app/features/matching/domain/entities/apply_result_entity.dart';
 import 'package:app/features/matching/domain/usecases/matching_usecase.dart';
 import 'package:app/features/offers/presentation/models/match_results_args.dart';
 
@@ -42,10 +41,6 @@ class MatchingResultsCubit extends Cubit<MatchingResultsState> {
         emit(state.copyWith(
           status: RequestState.loaded,
           offers: offers,
-          // Carried through rather than dropped: a bank the applicant cannot
-          // afford is the most actionable row on the screen for him, because it
-          // names the obstacle instead of silently disappearing.
-          unavailablePrograms: entity.unavailablePrograms,
           applicationId: entity.applicationId,
           matched: entity.matched,
           error: null,
