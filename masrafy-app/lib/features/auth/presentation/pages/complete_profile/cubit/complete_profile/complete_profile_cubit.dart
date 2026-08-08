@@ -1,11 +1,13 @@
 import 'dart:typed_data';
 
 import 'package:bloc/bloc.dart';
+import 'package:flutter/widgets.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:app/core/enums/request_state.dart';
+import 'package:app/core/features/id_capture/id_thumbnail.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/core/utils/image_pick.dart';
 import 'package:app/core/utils/validators.dart';
@@ -118,9 +120,18 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
       (err) => emit(front
           ? state.copyWith(idFrontUploading: false, error: err)
           : state.copyWith(idBackUploading: false, error: err)),
+      // Bytes kept so the tile shows the shot with no extra round-trip.
       (_) => emit(front
-          ? state.copyWith(idFrontUploading: false, idFrontUploaded: true)
-          : state.copyWith(idBackUploading: false, idBackUploaded: true)),
+          ? state.copyWith(
+              idFrontUploading: false,
+              idFrontUploaded: true,
+              idFrontBytes: image.bytes,
+            )
+          : state.copyWith(
+              idBackUploading: false,
+              idBackUploaded: true,
+              idBackBytes: image.bytes,
+            )),
     );
   }
 

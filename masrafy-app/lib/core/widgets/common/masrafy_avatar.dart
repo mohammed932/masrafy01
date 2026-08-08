@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/widgets/images/masrafy_network_image.dart';
+import 'package:app/core/widgets/shimmers/masrafy_shimmer.dart';
 
 /// Circular profile avatar.
 ///
@@ -38,8 +39,7 @@ class MasrafyAvatar extends StatelessWidget {
     final bytes = imageBytes;
     // Decode at the size actually painted. Without this the full-resolution
     // picture is held in the image cache to fill a ~104px circle.
-    final decodeWidth =
-        (size * MediaQuery.devicePixelRatioOf(context)).round();
+    final decodeWidth = (size * MediaQuery.devicePixelRatioOf(context)).round();
     final Widget avatar = bytes != null
         ? Image.memory(
             bytes,
@@ -54,7 +54,11 @@ class MasrafyAvatar extends StatelessWidget {
             width: size,
             height: size,
             borderRadius: BorderRadius.circular(size / 2),
-            placeholder: (_) => _DefaultAvatar(size: size),
+            // Loading and "no photo" must not look the same. The glyph is the
+            // empty state; a photo still on the wire shimmers (Principle
+            // XXXIV), so the wait reads as progress rather than as an account
+            // with no picture.
+            placeholder: (_) => _LoadingAvatar(size: size),
             errorWidget: (_) => _DefaultAvatar(size: size),
           );
 
@@ -70,6 +74,28 @@ class MasrafyAvatar extends StatelessWidget {
         border: Border.all(color: borderColor!, width: effectiveBorderWidth),
       ),
       child: ClipOval(child: avatar),
+    );
+  }
+}
+
+/// Shape-matched wait state: a shimmering disc the exact size of the photo it
+/// is standing in for, so nothing shifts when the bytes land.
+class _LoadingAvatar extends StatelessWidget {
+  const _LoadingAvatar({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return MasrafyShimmer(
+      child: Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+        ),
+      ),
     );
   }
 }

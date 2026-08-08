@@ -398,32 +398,40 @@ interface WizardStep {
             <div class="panel">
               @if (autoBalanced()) {
                 <p class="stage-note" i18n="@@scoring.editor.autobalanced">
-                  Weights started out even. Drag any question up and the others keep their values —
+                  Weights started out even. Raise any question and the others keep their values —
                   the total must land on 100.
                 </p>
               }
-              <ul class="weight-list">
-                @for (q of assignedQuestions(); track q.code) {
-                  <li class="weight-row">
-                    <span class="weight-name">{{ questionLabel(q) }}</span>
-                    <nz-slider
-                      class="qweight-slider"
-                      [ngModel]="weightOf(q.code)"
-                      [ngModelOptions]="{ standalone: true }"
-                      (ngModelChange)="setWeight(q.code, $event)"
-                      [nzMin]="0"
-                      [nzMax]="100"
-                      [nzStep]="1"
-                      [attr.aria-label]="questionLabel(q)"
-                    />
-                    <app-percent-field
-                      [value]="weightOf(q.code)"
-                      (valueChange)="setWeight(q.code, $event)"
-                      [ariaLabel]="typedAria(questionLabel(q))"
-                    />
-                  </li>
-                }
-              </ul>
+              <!-- Numbers only: 100 split across a dozen questions leaves every
+                   weight in a narrow band, where a track reads as empty and the
+                   typed value is the thing being set anyway. The even share is
+                   named once, as the figure each row is judged against. -->
+              <p class="scale-note">
+                <span i18n="@@scoring.editor.weights_hint"
+                  >Type each question's share of the 100. ↑/↓ steps by 1, Shift+↑/↓ by 10.</span
+                >
+                <span class="scale-even"
+                  ><span i18n="@@scoring.editor.scale_even">Even share</span>
+                  {{ evenShare() | number: '1.0-1' }}%</span
+                >
+              </p>
+              <!-- Wrapper owns the container query: the column count follows the
+                   panel's own width, not the viewport's, so the rules between the
+                   columns are drawn only when there are columns to divide. -->
+              <div class="weight-grid">
+                <ul class="weight-list">
+                  @for (q of assignedQuestions(); track q.code) {
+                    <li class="weight-row">
+                      <span class="weight-name">{{ questionLabel(q) }}</span>
+                      <app-percent-field
+                        [value]="weightOf(q.code)"
+                        (valueChange)="setWeight(q.code, $event)"
+                        [ariaLabel]="typedAria(questionLabel(q))"
+                      />
+                    </li>
+                  }
+                </ul>
+              </div>
             </div>
           }
 
@@ -447,7 +455,7 @@ interface WizardStep {
               }
             </div>
 
-            <div class="panel">
+            <div class="panel score-grid">
               <!-- One question open at a time: a 7-answer slider stack per question
                    buries the rest of the list, and the collapsed line already says
                    whether a question needs opening. -->
@@ -602,30 +610,51 @@ interface WizardStep {
           <!-- ─── Step 4 · review, then save ───────────────────────────── -->
           @if (stepIndex() === 3) {
             <div class="panel">
+              <!-- Head and cards, not one row per question: the review is read, not
+                   edited, so it packs into columns. A 12-question model fits on one
+                   screen instead of costing a full page of scrolling before Save. -->
               <div class="review-head">
-                <h2 class="review-title" i18n="@@scoring.editor.review_title">Scoring model</h2>
-                <p class="review-sub" i18n="@@scoring.editor.review_sub">
-                  An applicant picking every top answer scores 100%. Everything below is what gets
-                  saved.
-                </p>
+                <div class="review-headings">
+                  <h2 class="review-title" i18n="@@scoring.editor.review_title">Scoring model</h2>
+                  <p class="review-sub" i18n="@@scoring.editor.review_sub">
+                    An applicant picking every top answer scores 100%. Everything below is what gets
+                    saved.
+                  </p>
+                </div>
+                <dl class="review-stats">
+                  <div class="review-stat">
+                    <dt i18n="@@scoring.editor.review_stat_questions">Questions</dt>
+                    <dd>{{ reviewRows().length }}</dd>
+                  </div>
+                  <div class="review-stat">
+                    <dt i18n="@@scoring.editor.weight_budget">Importance</dt>
+                    <dd>{{ weightSum() | number: '1.0-1' }}%</dd>
+                  </div>
+                </dl>
               </div>
               <ul class="review-list">
                 @for (r of reviewRows(); track r.code) {
-                  <li class="review-row">
-                    <span class="review-q">
-                      <span class="review-q-name">{{ r.label }}</span>
-                      <span class="review-q-top"
-                        ><span i18n="@@scoring.editor.top_answer">Top answer:</span>
-                        {{ r.topLabel }} ({{ r.topScore | number: '1.0-0' }}%)</span
-                      >
+                  <li class="review-card">
+                    <span class="review-q-name">{{ r.label }}</span>
+                    <span class="review-meter">
+                      <!-- Drawn against the same set-derived scale as step 2, with
+                           the even-share tick, so a 7% weight reads as "a bit under
+                           its share" instead of as an empty track. -->
+                      <span class="review-bar" aria-hidden="true" [style.--even]="evenTickRatio()">
+                        <span
+                          class="review-fill"
+                          [style.inline-size.%]="scaledPct(r.weight)"
+                        ></span>
+                      </span>
+                      <span class="review-w">{{ r.weight | number: '1.0-0' }}%</span>
+                    </span>
+                    <span class="review-q-top"
+                      ><span i18n="@@scoring.editor.top_answer">Top answer:</span>
+                      {{ r.topLabel }} ({{ r.topScore | number: '1.0-0' }}%)
                       @if (r.ruleNote) {
-                        <span class="review-q-rule">{{ r.ruleNote }}</span>
+                        <span class="review-q-rule"> · {{ r.ruleNote }}</span>
                       }
                     </span>
-                    <span class="review-bar" aria-hidden="true">
-                      <span class="review-fill" [style.inline-size.%]="r.weight"></span>
-                    </span>
-                    <span class="review-w">{{ r.weight | number: '1.0-0' }}%</span>
                   </li>
                 }
               </ul>
@@ -1083,13 +1112,14 @@ interface WizardStep {
         list-style: none;
       }
       /* A roster row, not a control: no hover, no selected state, nothing that
-         invites a click the screen will not answer. */
+         invites a click the screen will not answer. Tint only — an outlined box
+         inside the panel would be a card in a card, and the fill already groups
+         the pair. Same treatment as the step-4 review cards. */
       .pick-row {
         display: flex;
         align-items: flex-start;
         inline-size: 100%;
         padding: var(--space-3);
-        border: 1px solid var(--border-default);
         border-radius: var(--radius-md);
         background: var(--bg-subtle);
       }
@@ -1179,32 +1209,75 @@ interface WizardStep {
       }
 
       /* ── Step 2 · weights ─────────────────────────────────────────────── */
+      /* Name + value only, so the rows are narrow enough to run several abreast:
+         a 12-question model fits without scrolling. */
+      .weight-grid {
+        container-type: inline-size;
+      }
+      /* Column count is explicit per container width rather than auto-fill,
+         because the rules between columns are drawn on this element and their
+         positions depend on knowing how many columns there are. Gutters live in
+         the rows' own inline padding, not in column-gap, so each rule can sit
+         exactly on a track boundary — dead centre of the gutter. */
       .weight-list {
         display: grid;
-        grid-template-columns: minmax(14ch, 24ch) minmax(0, 1fr) auto;
-        align-items: center;
-        column-gap: var(--space-4);
-        row-gap: 0;
+        grid-template-columns: minmax(0, 1fr);
+        column-gap: 0;
+        row-gap: var(--space-1);
         margin: 0;
         padding: 0;
         list-style: none;
+        background-repeat: no-repeat;
+        /* Inset from the top and bottom edges: a rule that runs the full height
+           reads as a table border, which this is not. */
+        background-size: 1px calc(100% - var(--space-4));
       }
+      @container (min-width: 620px) {
+        .weight-list {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          background-image: linear-gradient(var(--border-default), var(--border-default));
+          background-position: 50% 50%;
+        }
+        /* Gutter is padding + margin, so the hover tint stops short of the rule
+           instead of butting against it. */
+        .weight-row {
+          padding-inline: var(--space-3);
+          margin-inline: var(--space-1);
+        }
+      }
+      @container (min-width: 940px) {
+        .weight-list {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          background-image:
+            linear-gradient(var(--border-default), var(--border-default)),
+            linear-gradient(var(--border-default), var(--border-default));
+          background-position:
+            33.333% 50%,
+            66.667% 50%;
+        }
+      }
+      /* Separated by the gutter rules and a hover tint rather than a bottom rule:
+         with rows abreast, a per-row rule leaves an orphan underline under
+         whichever cell ends the grid's last line. */
       .weight-row {
         display: grid;
-        grid-template-columns: subgrid;
-        grid-column: 1 / -1;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
+        column-gap: var(--space-3);
         min-block-size: 44px;
         padding-block: var(--space-2);
-        border-block-end: 1px solid var(--border-default);
+        padding-inline: var(--space-2);
+        border-radius: var(--radius-md);
+        transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .weight-row:last-child {
-        border-block-end: 0;
+      .weight-row:hover,
+      .weight-row:focus-within {
+        background: var(--bg-subtle);
       }
       .weight-name {
         font-size: var(--text-sm);
         font-weight: var(--font-medium);
-        line-height: var(--leading-normal);
+        line-height: var(--leading-snug);
         color: var(--text-primary);
         overflow-wrap: anywhere;
       }
@@ -1229,8 +1302,14 @@ interface WizardStep {
         margin: 0;
         font: inherit;
       }
-      /* Two rows: identity + weight on top, the state readout under it. The whole
-         header is the hit target, so scanning and opening are the same gesture. */
+      .score-grid {
+        container-type: inline-size;
+      }
+      /* Narrow: two rows — identity + weight on top, the state readout under it.
+         Wide: everything on one line (see the container query below), because the
+         empty half of a 1000px row was costing a full screen of scrolling across
+         twelve questions. The whole header is the hit target either way, so
+         scanning and opening are the same gesture. */
       .score-trigger {
         appearance: none;
         inline-size: 100%;
@@ -1250,6 +1329,32 @@ interface WizardStep {
         text-align: start;
         cursor: pointer;
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      @container (min-width: 760px) {
+        /* The name takes the width it needs and the readout absorbs the rest; the
+           name only starts clipping once there is genuinely no room left. */
+        .score-trigger {
+          grid-template-columns: var(--space-5) minmax(0, max-content) minmax(0, 1fr) auto auto;
+          grid-template-areas: 'chev name sum type weight';
+          padding-block: var(--space-2);
+        }
+        /* One line each, clipped rather than wrapped: two questions of different
+           name lengths must still line their type and weight up with each other. */
+        .score-trigger .qlabel,
+        .score-trigger .score-sum {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow-wrap: normal;
+        }
+        /* Open question: the name is the panel's heading, so it gets its full
+           width back and the readout steps aside for the editor below. */
+        .score-block.is-open .score-trigger {
+          grid-template-areas: 'chev name name type weight';
+        }
+        .score-block.is-open .score-sum {
+          display: none;
+        }
       }
       .score-trigger:hover {
         background: var(--bg-subtle);
@@ -1419,34 +1524,53 @@ interface WizardStep {
         justify-self: end;
       }
 
-      /* Slider skins (shared by both levels) */
-      .pts-slider,
-      .qweight-slider {
+      /* Scale disclosure above the weight list. */
+      .scale-note {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-1) var(--space-2);
+        margin: 0 0 var(--space-4);
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        font-size: var(--text-xs);
+        line-height: var(--leading-snug);
+        color: var(--text-secondary);
+      }
+      /* The number every question is compared against — same weight as a value,
+         since it is the one figure that makes a 7 next to a 9 mean something. */
+      .scale-even {
+        margin-inline-start: auto;
+        display: inline-flex;
+        gap: var(--space-1);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+        white-space: nowrap;
+      }
+
+      /* Slider skin — answer scores (step 3) only; weights are typed. */
+      .pts-slider {
         margin: 0;
       }
-      .pts-slider ::ng-deep .ant-slider,
-      .qweight-slider ::ng-deep .ant-slider {
+      .pts-slider ::ng-deep .ant-slider {
         margin-block: 0;
         margin-inline: var(--space-2);
       }
-      .pts-slider ::ng-deep .ant-slider-rail,
-      .qweight-slider ::ng-deep .ant-slider-rail {
+      .pts-slider ::ng-deep .ant-slider-rail {
         block-size: 6px;
         border-radius: var(--radius-pill);
         background: var(--bg-muted);
       }
-      .pts-slider ::ng-deep .ant-slider-track,
-      .qweight-slider ::ng-deep .ant-slider-track {
+      .pts-slider ::ng-deep .ant-slider-track {
         block-size: 6px;
         border-radius: var(--radius-pill);
         background: var(--primary);
       }
-      .pts-slider ::ng-deep .ant-slider:hover .ant-slider-track,
-      .qweight-slider ::ng-deep .ant-slider:hover .ant-slider-track {
+      .pts-slider ::ng-deep .ant-slider:hover .ant-slider-track {
         background: var(--primary-hover);
       }
-      .pts-slider ::ng-deep .ant-slider-handle,
-      .qweight-slider ::ng-deep .ant-slider-handle {
+      .pts-slider ::ng-deep .ant-slider-handle {
         inline-size: 18px;
         block-size: 18px;
         margin-block-start: -6px;
@@ -1458,16 +1582,48 @@ interface WizardStep {
           box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .pts-slider ::ng-deep .ant-slider-handle:hover,
-      .pts-slider ::ng-deep .ant-slider-handle:focus,
-      .qweight-slider ::ng-deep .ant-slider-handle:hover,
-      .qweight-slider ::ng-deep .ant-slider-handle:focus {
+      .pts-slider ::ng-deep .ant-slider-handle:focus {
         transform: scale(1.14);
         box-shadow: var(--focus-halo);
       }
 
       /* ── Step 4 · review ──────────────────────────────────────────────── */
+      /* The head keeps the count + total on the same line as the title instead of
+         under it — the two numbers an admin checks before saving are then above
+         the fold with the first cards. */
       .review-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: var(--space-3) var(--space-5);
         margin-block-end: var(--space-4);
+      }
+      .review-headings {
+        min-inline-size: 0;
+      }
+      .review-stats {
+        display: flex;
+        gap: var(--space-5);
+        margin: 0;
+      }
+      .review-stat {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .review-stat dt {
+        font-size: var(--text-xs);
+        color: var(--text-tertiary);
+      }
+      .review-stat dd {
+        margin: 0;
+        font-size: var(--text-lg);
+        font-weight: var(--font-bold);
+        color: var(--text-primary);
+        font-feature-settings:
+          'tnum' 1,
+          'lnum' 1;
       }
       .review-title {
         margin: 0;
@@ -1482,40 +1638,57 @@ interface WizardStep {
         line-height: var(--leading-normal);
         color: var(--text-secondary);
       }
+      /* Cards flow into as many columns as the 1080px column affords (3 at desktop
+         width), so the list is height/3 instead of one tall stack. */
       .review-list {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(80px, 200px) auto;
-        align-items: center;
-        column-gap: var(--space-4);
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: var(--space-3);
         margin: 0;
         padding: 0;
         list-style: none;
       }
-      .review-row {
-        display: grid;
-        grid-template-columns: subgrid;
-        grid-column: 1 / -1;
-        align-items: center;
-        padding-block: var(--space-3);
-        border-block-end: 1px solid var(--border-default);
-      }
-      .review-row:last-child {
-        border-block-end: 0;
-      }
-      .review-q {
+      /* Tint only, no outline: the panel is already a card, and a bordered box
+         inside it would be a card in a card. The fill is enough to group. */
+      .review-card {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--space-2);
         min-inline-size: 0;
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
       }
+      /* Name wraps to two lines, then clips, so one long question cannot make its
+         whole grid row tall. The weight below it is the number being reviewed and
+         must sit at the same height across the row. */
       .review-q-name {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
         font-size: var(--text-sm);
         font-weight: var(--font-medium);
+        line-height: var(--leading-snug);
         color: var(--text-primary);
         overflow-wrap: anywhere;
       }
+      .review-meter {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+      }
+      .review-meter .review-bar {
+        flex: 1 1 auto;
+        min-inline-size: 0;
+      }
+      /* Pushed to the card's floor so the footnote lines up across the row even
+         when the names above them differ in height. */
       .review-q-top {
+        margin-block-start: auto;
         font-size: var(--text-xs);
+        line-height: var(--leading-snug);
         color: var(--text-tertiary);
         overflow-wrap: anywhere;
       }
@@ -1527,10 +1700,22 @@ interface WizardStep {
         font-style: italic;
       }
       .review-bar {
+        position: relative;
         block-size: 6px;
         border-radius: var(--radius-pill);
         background: var(--bg-muted);
         overflow: hidden;
+      }
+      /* Even-share tick — the same reference the step-2 sliders carry. */
+      .review-bar::after {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: calc(100% * var(--even, 0));
+        inline-size: 2px;
+        margin-inline-start: -1px;
+        background: var(--border-strong);
+        opacity: 0.75;
       }
       .review-fill {
         display: block;
@@ -1617,13 +1802,9 @@ interface WizardStep {
         .page {
           padding-block-end: calc(var(--space-9) + var(--space-4));
         }
-        .weight-list {
-          grid-template-columns: minmax(0, 1fr) auto;
-        }
-        .weight-row {
-          grid-template-columns: 1fr;
-          row-gap: var(--space-2);
-        }
+        /* The weight grid is governed by its own container query — a viewport
+           override here would strand a rule down a single-column list. */
+
         /* The header stacks instead of squeezing: name + weight, then the type,
            then the readout — the weight stays paired with the name it belongs to. */
         .score-trigger {
@@ -1650,10 +1831,10 @@ interface WizardStep {
           grid-column: 1 / -1;
         }
         .review-list {
-          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-columns: minmax(0, 1fr);
         }
-        .review-row .review-bar {
-          display: none;
+        .review-stats {
+          gap: var(--space-4);
         }
       }
 
@@ -1663,8 +1844,8 @@ interface WizardStep {
         .budget-fill,
         .score-trigger,
         .score-chev,
-        .pts-slider ::ng-deep .ant-slider-handle,
-        .qweight-slider ::ng-deep .ant-slider-handle {
+        .weight-row,
+        .pts-slider ::ng-deep .ant-slider-handle {
           transition: none;
         }
         .score-panel {
@@ -1825,6 +2006,44 @@ export class ScoringWeightsEditorPage implements OnInit {
   });
   readonly weightSumOk = computed<boolean>(() => this.weightSum() === 100);
   readonly weightBarPct = computed<number>(() => Math.min(100, Math.max(0, this.weightSum())));
+
+  /** What each scored question would carry if the 100 were split evenly. */
+  readonly evenShare = computed<number>(() => {
+    const n = this.assignedCount();
+    return n > 0 ? Math.round((100 / n) * 10) / 10 : 0;
+  });
+
+  /**
+   * Ceiling the step-4 review bars are DRAWN against.
+   *
+   * 100 shares out across every scored question, so a 12-question model lives
+   * near 8% each: drawn against 100 every bar is a sliver and 7% looks like 0.
+   * The ceiling is a multiple of the even share and never below the heaviest
+   * weight in the set, so the range in use fills the bar and 7 next to 11 is a
+   * difference you can see. The printed numbers stay absolute percentages of
+   * 100 — only the drawing is scaled.
+   */
+  readonly weightScaleMax = computed<number>(() => {
+    const n = this.assignedCount();
+    const even = n > 0 ? 100 / n : 100;
+    const peak = Math.max(0, ...Object.values(this.weightValues()));
+    const raw = Math.max(even * 2.5, peak * 1.15, 10);
+    return Math.min(100, Math.ceil(raw / 5) * 5);
+  });
+
+  /** A weight as a share of the drawn scale — bar widths only, never a value. */
+  scaledPct(weight: number): number {
+    const max = this.weightScaleMax();
+    if (max <= 0) return 0;
+    return Math.min(100, Math.max(0, (weight / max) * 100));
+  }
+
+  /**
+   * Where the even share sits on that scale, 0..1, for the tick drawn on every
+   * track. Without a reference mark a scaled bar says "some of the range" and
+   * nothing about whether this question is pulling more weight than its peers.
+   */
+  readonly evenTickRatio = computed<number>(() => this.scaledPct(this.evenShare()) / 100);
 
   /** The scored questions, in pool order — the roster under another name. */
   readonly assignedQuestions = computed<WeightableQuestion[]>(() => this.roster());
@@ -2384,12 +2603,24 @@ export class ScoringWeightsEditorPage implements OnInit {
     const unit = this.numericUnit(q);
     const suffix = unit ? ` ${unit}` : '';
     if (band.from == null) {
-      return $localize`:@@scoring.editor.band_below:Below ${band.to ?? ''}:TO:${suffix}:UNIT:`;
+      return $localize`:@@scoring.editor.band_below:Below ${this.grouped(band.to)}:TO:${suffix}:UNIT:`;
     }
     if (band.to == null) {
-      return $localize`:@@scoring.editor.band_above:${band.from}:FROM:${suffix}:UNIT: and above`;
+      return $localize`:@@scoring.editor.band_above:${this.grouped(band.from)}:FROM:${suffix}:UNIT: and above`;
     }
-    return `${band.from} → ${band.to}${suffix}`;
+    return `${this.grouped(band.from)} → ${this.grouped(band.to)}${suffix}`;
+  }
+
+  /**
+   * Band edges read as money here, so they carry the same grouping the inputs do.
+   * Edges arrive as decimal STRINGS (Principle I) — parsed for display only, and
+   * anything that will not parse is printed exactly as it came.
+   */
+  private grouped(value: string | null | undefined): string {
+    if (value == null || value === '') return '';
+    const n = Number(value);
+    if (!Number.isFinite(n)) return value;
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n);
   }
 
   private bandCountLabel(count: number): string {

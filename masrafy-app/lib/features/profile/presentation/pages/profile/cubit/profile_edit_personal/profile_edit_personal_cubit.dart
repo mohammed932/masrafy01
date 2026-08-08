@@ -5,6 +5,10 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:flutter/widgets.dart';
+
+import 'package:app/core/enums/request_state.dart';
+import 'package:app/core/features/id_capture/id_thumbnail.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/core/utils/image_pick.dart';
 import 'package:app/core/widgets/bottom_sheets/masrafy_photo_source_sheet.dart';
@@ -79,15 +83,24 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
   }
 
   /// Pre-checks the National-ID tiles from the server's document status so they
-  /// reflect what is already on file (mirrors `ApplyDocumentsCubit.load`). A
-  /// failure is swallowed — the user can still upload; tiles just stay unmarked.
+  /// reflect what is already on file (mirrors `ApplyDocumentsCubit.load`).
+  ///
+  /// A failure is still non-blocking — the user can upload regardless — but it
+  /// is no longer invisible: [docsStatus] goes to `error` so the tiles say the
+  /// check failed instead of silently reading as "nothing uploaded". Both
+  /// flags are always written from the response, never merged into whatever
+  /// was there before.
   Future<void> loadDocumentsStatus() async {
+    emit(state.copyWith(docsStatus: RequestState.loading));
     final res = await _customerAuth.profileDocumentsStatus();
     res.fold(
-      (_) {},
+      (_) => emit(state.copyWith(docsStatus: RequestState.error)),
       (status) => emit(state.copyWith(
+        docsStatus: RequestState.loaded,
         frontUploaded: status.nationalIdFront,
         backUploaded: status.nationalIdBack,
+        frontUrl: status.nationalIdFrontUrl,
+        backUrl: status.nationalIdBackUrl,
       )),
     );
   }
@@ -117,9 +130,20 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
       (err) => emit(front
           ? state.copyWith(frontUploading: false, docError: err)
           : state.copyWith(backUploading: false, docError: err)),
+      // Bytes are kept so the tile shows the shot immediately. Re-reading the
+      // status just to obtain a presigned URL for a picture already in memory
+      // would put a spinner between the capture and seeing it.
       (_) => emit(front
-          ? state.copyWith(frontUploading: false, frontUploaded: true)
-          : state.copyWith(backUploading: false, backUploaded: true)),
+          ? state.copyWith(
+              frontUploading: false,
+              frontUploaded: true,
+              frontBytes: image.bytes,
+            )
+          : state.copyWith(
+              backUploading: false,
+              backUploaded: true,
+              backBytes: image.bytes,
+            )),
     );
   }
 

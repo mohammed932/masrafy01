@@ -558,6 +558,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signup_id_tap_to_upload => 'اضغط للرفع';
 
   @override
+  String get signup_id_unavailable => 'اضغط لإعادة الرفع';
+
+  @override
   String get signup_terms => 'أوافق على شروط الخدمة وسياسة الخصوصية الخاصة بمصرفي، وأوافق على معالجة بياناتي المالية.';
 
   @override
@@ -1575,6 +1578,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get profile_id_uploading => 'جارٍ الرفع…';
 
   @override
+  String get profile_id_checking => 'جارٍ التحقق…';
+
+  @override
+  String get profile_id_check_failed => 'تعذّر التحقق';
+
+  @override
+  String get profile_id_unavailable => 'اضغط لإعادة الرفع';
+
+  @override
   String get profile_id_upload_failed => 'تعذّر رفع البطاقة. حاول مرة أخرى.';
 
   @override
@@ -2121,15 +2133,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get id_capture_hint => 'ضع بطاقة الرقم القومي داخل الإطار ثم اضغط زر التصوير.';
-
-  @override
-  String get id_capture_review_hint => 'هل البطاقة واضحة وداخل الإطار بالكامل؟';
-
-  @override
-  String get id_capture_confirm => 'استخدام الصورة';
-
-  @override
-  String get id_capture_retake => 'إعادة التصوير';
 
   @override
   String get id_capture_retry => 'حاول مرة أخرى';

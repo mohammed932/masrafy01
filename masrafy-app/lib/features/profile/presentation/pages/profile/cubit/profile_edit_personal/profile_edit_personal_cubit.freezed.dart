@@ -27,6 +27,19 @@ mixin _$ProfileEditPersonalState {
   bool get backUploaded => throw _privateConstructorUsedError;
   bool get frontUploading => throw _privateConstructorUsedError;
   bool get backUploading => throw _privateConstructorUsedError;
+
+  /// Whether the server has actually been asked yet. Without this, a failed
+  /// or in-flight status read is indistinguishable from a confirmed "nothing
+  /// uploaded", and the tiles state something the app does not know.
+  RequestState get docsStatus => throw _privateConstructorUsedError;
+
+  /// Presigned previews from the last status read, and the bytes of a side
+  /// captured in THIS session. Bytes win: they are the picture the user just
+  /// took, and they render with no round-trip.
+  String? get frontUrl => throw _privateConstructorUsedError;
+  String? get backUrl => throw _privateConstructorUsedError;
+  Uint8List? get frontBytes => throw _privateConstructorUsedError;
+  Uint8List? get backBytes => throw _privateConstructorUsedError;
   Failure? get docError => throw _privateConstructorUsedError;
   bool get saving => throw _privateConstructorUsedError;
   Failure? get saveError => throw _privateConstructorUsedError;
@@ -57,6 +70,11 @@ abstract class $ProfileEditPersonalStateCopyWith<$Res> {
       bool backUploaded,
       bool frontUploading,
       bool backUploading,
+      RequestState docsStatus,
+      String? frontUrl,
+      String? backUrl,
+      Uint8List? frontBytes,
+      Uint8List? backBytes,
       Failure? docError,
       bool saving,
       Failure? saveError,
@@ -90,6 +108,11 @@ class _$ProfileEditPersonalStateCopyWithImpl<$Res,
     Object? backUploaded = null,
     Object? frontUploading = null,
     Object? backUploading = null,
+    Object? docsStatus = null,
+    Object? frontUrl = freezed,
+    Object? backUrl = freezed,
+    Object? frontBytes = freezed,
+    Object? backBytes = freezed,
     Object? docError = freezed,
     Object? saving = null,
     Object? saveError = freezed,
@@ -140,6 +163,26 @@ class _$ProfileEditPersonalStateCopyWithImpl<$Res,
           ? _value.backUploading
           : backUploading // ignore: cast_nullable_to_non_nullable
               as bool,
+      docsStatus: null == docsStatus
+          ? _value.docsStatus
+          : docsStatus // ignore: cast_nullable_to_non_nullable
+              as RequestState,
+      frontUrl: freezed == frontUrl
+          ? _value.frontUrl
+          : frontUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      backUrl: freezed == backUrl
+          ? _value.backUrl
+          : backUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      frontBytes: freezed == frontBytes
+          ? _value.frontBytes
+          : frontBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
+      backBytes: freezed == backBytes
+          ? _value.backBytes
+          : backBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       docError: freezed == docError
           ? _value.docError
           : docError // ignore: cast_nullable_to_non_nullable
@@ -181,6 +224,11 @@ abstract class _$$ProfileEditPersonalStateImplCopyWith<$Res>
       bool backUploaded,
       bool frontUploading,
       bool backUploading,
+      RequestState docsStatus,
+      String? frontUrl,
+      String? backUrl,
+      Uint8List? frontBytes,
+      Uint8List? backBytes,
       Failure? docError,
       bool saving,
       Failure? saveError,
@@ -213,6 +261,11 @@ class __$$ProfileEditPersonalStateImplCopyWithImpl<$Res>
     Object? backUploaded = null,
     Object? frontUploading = null,
     Object? backUploading = null,
+    Object? docsStatus = null,
+    Object? frontUrl = freezed,
+    Object? backUrl = freezed,
+    Object? frontBytes = freezed,
+    Object? backBytes = freezed,
     Object? docError = freezed,
     Object? saving = null,
     Object? saveError = freezed,
@@ -263,6 +316,26 @@ class __$$ProfileEditPersonalStateImplCopyWithImpl<$Res>
           ? _value.backUploading
           : backUploading // ignore: cast_nullable_to_non_nullable
               as bool,
+      docsStatus: null == docsStatus
+          ? _value.docsStatus
+          : docsStatus // ignore: cast_nullable_to_non_nullable
+              as RequestState,
+      frontUrl: freezed == frontUrl
+          ? _value.frontUrl
+          : frontUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      backUrl: freezed == backUrl
+          ? _value.backUrl
+          : backUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      frontBytes: freezed == frontBytes
+          ? _value.frontBytes
+          : frontBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
+      backBytes: freezed == backBytes
+          ? _value.backBytes
+          : backBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       docError: freezed == docError
           ? _value.docError
           : docError // ignore: cast_nullable_to_non_nullable
@@ -298,6 +371,11 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
       this.backUploaded = false,
       this.frontUploading = false,
       this.backUploading = false,
+      this.docsStatus = RequestState.initial,
+      this.frontUrl,
+      this.backUrl,
+      this.frontBytes,
+      this.backBytes,
       this.docError,
       this.saving = false,
       this.saveError,
@@ -333,6 +411,25 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
   @override
   @JsonKey()
   final bool backUploading;
+
+  /// Whether the server has actually been asked yet. Without this, a failed
+  /// or in-flight status read is indistinguishable from a confirmed "nothing
+  /// uploaded", and the tiles state something the app does not know.
+  @override
+  @JsonKey()
+  final RequestState docsStatus;
+
+  /// Presigned previews from the last status read, and the bytes of a side
+  /// captured in THIS session. Bytes win: they are the picture the user just
+  /// took, and they render with no round-trip.
+  @override
+  final String? frontUrl;
+  @override
+  final String? backUrl;
+  @override
+  final Uint8List? frontBytes;
+  @override
+  final Uint8List? backBytes;
   @override
   final Failure? docError;
   @override
@@ -346,7 +443,7 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
 
   @override
   String toString() {
-    return 'ProfileEditPersonalState(firstName: $firstName, lastName: $lastName, birthday: $birthday, photoUrl: $photoUrl, photoBytes: $photoBytes, photoUploading: $photoUploading, photoError: $photoError, frontUploaded: $frontUploaded, backUploaded: $backUploaded, frontUploading: $frontUploading, backUploading: $backUploading, docError: $docError, saving: $saving, saveError: $saveError, saved: $saved)';
+    return 'ProfileEditPersonalState(firstName: $firstName, lastName: $lastName, birthday: $birthday, photoUrl: $photoUrl, photoBytes: $photoBytes, photoUploading: $photoUploading, photoError: $photoError, frontUploaded: $frontUploaded, backUploaded: $backUploaded, frontUploading: $frontUploading, backUploading: $backUploading, docsStatus: $docsStatus, frontUrl: $frontUrl, backUrl: $backUrl, frontBytes: $frontBytes, backBytes: $backBytes, docError: $docError, saving: $saving, saveError: $saveError, saved: $saved)';
   }
 
   @override
@@ -376,6 +473,14 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
                 other.frontUploading == frontUploading) &&
             (identical(other.backUploading, backUploading) ||
                 other.backUploading == backUploading) &&
+            (identical(other.docsStatus, docsStatus) ||
+                other.docsStatus == docsStatus) &&
+            (identical(other.frontUrl, frontUrl) ||
+                other.frontUrl == frontUrl) &&
+            (identical(other.backUrl, backUrl) || other.backUrl == backUrl) &&
+            const DeepCollectionEquality()
+                .equals(other.frontBytes, frontBytes) &&
+            const DeepCollectionEquality().equals(other.backBytes, backBytes) &&
             (identical(other.docError, docError) ||
                 other.docError == docError) &&
             (identical(other.saving, saving) || other.saving == saving) &&
@@ -385,23 +490,29 @@ class _$ProfileEditPersonalStateImpl extends _ProfileEditPersonalState {
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType,
-      firstName,
-      lastName,
-      birthday,
-      photoUrl,
-      const DeepCollectionEquality().hash(photoBytes),
-      photoUploading,
-      photoError,
-      frontUploaded,
-      backUploaded,
-      frontUploading,
-      backUploading,
-      docError,
-      saving,
-      saveError,
-      saved);
+  int get hashCode => Object.hashAll([
+        runtimeType,
+        firstName,
+        lastName,
+        birthday,
+        photoUrl,
+        const DeepCollectionEquality().hash(photoBytes),
+        photoUploading,
+        photoError,
+        frontUploaded,
+        backUploaded,
+        frontUploading,
+        backUploading,
+        docsStatus,
+        frontUrl,
+        backUrl,
+        const DeepCollectionEquality().hash(frontBytes),
+        const DeepCollectionEquality().hash(backBytes),
+        docError,
+        saving,
+        saveError,
+        saved
+      ]);
 
   /// Create a copy of ProfileEditPersonalState
   /// with the given fields replaced by the non-null parameter values.
@@ -426,6 +537,11 @@ abstract class _ProfileEditPersonalState extends ProfileEditPersonalState {
       final bool backUploaded,
       final bool frontUploading,
       final bool backUploading,
+      final RequestState docsStatus,
+      final String? frontUrl,
+      final String? backUrl,
+      final Uint8List? frontBytes,
+      final Uint8List? backBytes,
       final Failure? docError,
       final bool saving,
       final Failure? saveError,
@@ -454,6 +570,24 @@ abstract class _ProfileEditPersonalState extends ProfileEditPersonalState {
   bool get frontUploading;
   @override
   bool get backUploading;
+
+  /// Whether the server has actually been asked yet. Without this, a failed
+  /// or in-flight status read is indistinguishable from a confirmed "nothing
+  /// uploaded", and the tiles state something the app does not know.
+  @override
+  RequestState get docsStatus;
+
+  /// Presigned previews from the last status read, and the bytes of a side
+  /// captured in THIS session. Bytes win: they are the picture the user just
+  /// took, and they render with no round-trip.
+  @override
+  String? get frontUrl;
+  @override
+  String? get backUrl;
+  @override
+  Uint8List? get frontBytes;
+  @override
+  Uint8List? get backBytes;
   @override
   Failure? get docError;
   @override

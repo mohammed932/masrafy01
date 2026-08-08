@@ -20,6 +20,12 @@ class CompleteProfileState with _$CompleteProfileState {
     @Default(false) bool idFrontUploaded,
     @Default(false) bool idFrontUploading,
     @Default(false) bool idBackUploaded,
+
+    /// Bytes of a National-ID side captured in THIS session. Nothing is fetched
+    /// here: complete-profile runs before the account has any documents, so a
+    /// presigned preview would always be null.
+    Uint8List? idFrontBytes,
+    Uint8List? idBackBytes,
     @Default(false) bool idBackUploading,
     @Default(RequestState.initial) RequestState loadStatus,
     @Default(RequestState.initial) RequestState status,
@@ -58,6 +64,10 @@ class CompleteProfileState with _$CompleteProfileState {
   /// (Constitution v9.0.0) — both are collected later, at the select-offer
   /// commitment point. They remain uploadable here but never block submit.
   bool get nationalIdComplete => idFrontUploaded && idBackUploaded;
+
+  /// Thumbnails for the two tiles (Principle XXXI — derivation on the state).
+  ImageProvider? get idFrontImage => idThumbnail(idFrontBytes, null);
+  ImageProvider? get idBackImage => idThumbnail(idBackBytes, null);
 
   bool get _anyUploading =>
       photoUploading || idFrontUploading || idBackUploading;

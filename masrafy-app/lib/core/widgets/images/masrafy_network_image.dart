@@ -34,12 +34,26 @@ class MasrafyNetworkImage extends StatelessWidget {
   /// "no URL yet" branch.
   final String? imageUrl;
 
-  /// Stable cache key. Pass this when the URL itself rotates between
-  /// fetches (e.g. signed S3/CloudFront URLs that include an expiring
-  /// signature). Without it, [CachedNetworkImage] keys by the URL string
-  /// and re-downloads every time even when the underlying image is the
-  /// same. Use a domain-stable id (attachment id, asset id, etc.).
+  /// Stable cache key. Defaults to the URL with its query stripped, which is
+  /// what makes signed S3 URLs cacheable at all: the signature rotates on every
+  /// presign, so keying by the full URL misses the cache and re-downloads the
+  /// same bytes on every visit. Object keys are minted fresh per upload, so the
+  /// path changes whenever the picture does — the default key cannot go stale.
+  /// Pass this explicitly for a backend that overwrites objects in place.
   final String? cacheKey;
+
+  /// Origin + path, no query. See [cacheKey].
+  static String? stableKeyFor(String? url) {
+    if (url == null || url.isEmpty) return null;
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasQuery) return url;
+    return Uri(
+      scheme: uri.scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+      path: uri.path,
+    ).toString();
+  }
 
   final double? width;
   final double? height;
@@ -56,17 +70,16 @@ class MasrafyNetworkImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final ph = placeholder ?? (_) => ColoredBox(color: colors.fill.handleBg);
-    final err =
-        errorWidget ??
+    final err = errorWidget ??
         (_) => ColoredBox(
-          color: colors.fill.handleBg,
-          child: Center(
-            child: Icon(
-              Icons.broken_image_outlined,
-              color: colors.text.tertiary,
-            ),
-          ),
-        );
+              color: colors.fill.handleBg,
+              child: Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: colors.text.tertiary,
+                ),
+              ),
+            );
 
     final hasUrl = imageUrl.isNotNullOrEmpty;
     // Decode to the painted size rather than the source resolution. Exactly
@@ -82,12 +95,19 @@ class MasrafyNetworkImage extends StatelessWidget {
       child: hasUrl
           ? CachedNetworkImage(
               imageUrl: imageUrl!,
-              cacheKey: cacheKey,
+              cacheKey: cacheKey ?? stableKeyFor(imageUrl),
               width: width,
               height: height,
               memCacheWidth: memWidth,
               memCacheHeight: memHeight,
               fit: fit,
+              // The package defaults to a 500ms fade-in over a 1s fade-out, so
+              // a picture already in cache still takes over a second to settle.
+              // Trimmed to a single quick cross-fade: on a cache hit it reads as
+              // instant, and a fresh download no longer pays a second of
+              // animation on top of the request.
+              fadeInDuration: const Duration(milliseconds: 150),
+              fadeOutDuration: const Duration(milliseconds: 100),
               placeholder: (ctx, _) => ph(ctx),
               errorWidget: (ctx, _, __) => err(ctx),
             )

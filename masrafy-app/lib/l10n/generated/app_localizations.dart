@@ -1157,6 +1157,12 @@ abstract class AppLocalizations {
   /// **'اضغط للرفع'**
   String get signup_id_tap_to_upload;
 
+  /// No description provided for @signup_id_unavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط لإعادة الرفع'**
+  String get signup_id_unavailable;
+
   /// No description provided for @signup_terms.
   ///
   /// In ar, this message translates to:
@@ -3131,6 +3137,24 @@ abstract class AppLocalizations {
   /// **'جارٍ الرفع…'**
   String get profile_id_uploading;
 
+  /// No description provided for @profile_id_checking.
+  ///
+  /// In ar, this message translates to:
+  /// **'جارٍ التحقق…'**
+  String get profile_id_checking;
+
+  /// No description provided for @profile_id_check_failed.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر التحقق'**
+  String get profile_id_check_failed;
+
+  /// No description provided for @profile_id_unavailable.
+  ///
+  /// In ar, this message translates to:
+  /// **'اضغط لإعادة الرفع'**
+  String get profile_id_unavailable;
+
   /// No description provided for @profile_id_upload_failed.
   ///
   /// In ar, this message translates to:
@@ -4186,24 +4210,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'ضع بطاقة الرقم القومي داخل الإطار ثم اضغط زر التصوير.'**
   String get id_capture_hint;
-
-  /// No description provided for @id_capture_review_hint.
-  ///
-  /// In ar, this message translates to:
-  /// **'هل البطاقة واضحة وداخل الإطار بالكامل؟'**
-  String get id_capture_review_hint;
-
-  /// No description provided for @id_capture_confirm.
-  ///
-  /// In ar, this message translates to:
-  /// **'استخدام الصورة'**
-  String get id_capture_confirm;
-
-  /// No description provided for @id_capture_retake.
-  ///
-  /// In ar, this message translates to:
-  /// **'إعادة التصوير'**
-  String get id_capture_retake;
 
   /// No description provided for @id_capture_retry.
   ///

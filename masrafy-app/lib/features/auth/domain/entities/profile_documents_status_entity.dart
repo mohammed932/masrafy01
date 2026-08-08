@@ -9,15 +9,32 @@ class ProfileDocumentsStatusEntity extends Equatable {
     required this.profilePhoto,
     required this.nationalIdFront,
     required this.nationalIdBack,
+    this.profilePhotoUrl,
+    this.nationalIdFrontUrl,
+    this.nationalIdBackUrl,
   });
 
   final bool profilePhoto;
   final bool nationalIdFront;
   final bool nationalIdBack;
 
+  /// Short-lived presigned GET URLs for the caller's own documents, so a tile
+  /// can show the picture instead of only a tick. Null whenever the matching
+  /// flag is false.
+  final String? profilePhotoUrl;
+  final String? nationalIdFrontUrl;
+  final String? nationalIdBackUrl;
+
   /// All three required documents are present — the apply can proceed.
   bool get allPresent => profilePhoto && nationalIdFront && nationalIdBack;
 
   @override
-  List<Object?> get props => [profilePhoto, nationalIdFront, nationalIdBack];
+  List<Object?> get props => [
+        profilePhoto,
+        nationalIdFront,
+        nationalIdBack,
+        profilePhotoUrl,
+        nationalIdFrontUrl,
+        nationalIdBackUrl,
+      ];
 }

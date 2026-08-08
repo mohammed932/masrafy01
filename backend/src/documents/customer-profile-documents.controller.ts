@@ -126,7 +126,8 @@ export class CustomerProfileDocumentsController {
 
   @Get('documents/status')
   @ApiOperation({
-    summary: 'Which profile documents are already uploaded (photo + National ID front/back)',
+    summary:
+      'Which profile documents are already uploaded (photo + National ID front/back), with presigned previews',
   })
   @ApiResponse({
     status: 200,
@@ -138,8 +139,14 @@ export class CustomerProfileDocumentsController {
     @Req() req: Request,
   ): Promise<{ success: true; data: ProfileDocumentsStatusDto }> {
     const customerId = this.requireCustomerId(req);
-    const status = await this.completeness.getProfileDocumentsStatus(customerId);
-    return ok(status);
+    // Flags and previews are read separately on purpose: the flags are also the
+    // select-offer gate's predicate and must never depend on presigning
+    // succeeding, while the previews are presentation only.
+    const [status, previews] = await Promise.all([
+      this.completeness.getProfileDocumentsStatus(customerId),
+      this.service.getOwnProfileDocumentPreviews(customerId),
+    ]);
+    return ok({ ...status, ...previews });
   }
 
   private requireCustomerId(req: Request): string {

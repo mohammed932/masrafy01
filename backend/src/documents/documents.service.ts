@@ -374,6 +374,67 @@ export class DocumentsService {
     return this.repo.findManyByApplication(applicationId);
   }
 
+  /**
+   * Short-lived presigned GET URLs for the caller's OWN profile documents, so
+   * the app can render what was uploaded instead of a bare "Uploaded" tick.
+   *
+   * Distinct from `revealApplicantDocument` on purpose: that one is a STAFF
+   * reveal of someone else's National ID and is therefore audited (Principle
+   * VI). A customer looking at their own ID is not a reveal, so no audit event
+   * is written here — logging every profile-screen open would bury the events
+   * that actually matter. Scoping is by `customerId` on both reads, so a
+   * caller can only ever presign their own objects.
+   *
+   * Returns `null` per slot rather than omitting it: "not uploaded" and "failed
+   * to presign" must not collapse into the same absent field on the client.
+   */
+  async getOwnProfileDocumentPreviews(customerId: string): Promise<{
+    profilePhotoUrl: string | null;
+    nationalIdFrontUrl: string | null;
+    nationalIdBackUrl: string | null;
+    previewsExpireAt: string | null;
+  }> {
+    const [photoKey, idDocs] = await Promise.all([
+      this.customers.findProfilePhotoKey(customerId),
+      this.repo.findIdDocumentsByCustomer(customerId),
+    ]);
+
+    // `idDocs` is newest-first. Re-uploading a side leaves the old row in
+    // place, so the newest USABLE row per side is the one the tick refers to —
+    // anything else would preview a picture the status flag is not about.
+    const newestUsableKey = (documentType: string): string | null =>
+      idDocs.find(
+        (d) =>
+          d.documentType === documentType &&
+          (d.status === 'uploaded' || d.status === 'verified'),
+      )?.s3Key ?? null;
+
+    const keys = [
+      photoKey,
+      newestUsableKey(NATIONAL_ID_FRONT),
+      newestUsableKey(NATIONAL_ID_BACK),
+    ];
+    const signed = await Promise.all(
+      keys.map(async (key) =>
+        key ? this.s3.getPresignedGetUrl(key) : null,
+      ),
+    );
+
+    const soonest = signed
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+      .reduce<Date | null>(
+        (acc, s) => (acc === null || s.expiresAt < acc ? s.expiresAt : acc),
+        null,
+      );
+
+    return {
+      profilePhotoUrl: signed[0]?.downloadUrl ?? null,
+      nationalIdFrontUrl: signed[1]?.downloadUrl ?? null,
+      nationalIdBackUrl: signed[2]?.downloadUrl ?? null,
+      previewsExpireAt: soonest?.toISOString() ?? null,
+    };
+  }
+
   // -------------------------------------------------------------------------
   // Admin applicant-documents view (application detail page). Resolves the
   // application's owning customer, then returns the profile photo (presigned,

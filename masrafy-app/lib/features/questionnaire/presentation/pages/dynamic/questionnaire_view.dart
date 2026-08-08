@@ -48,7 +48,8 @@ class QuestionnaireView extends StatelessWidget {
 }
 
 class _QuestionnaireBody extends StatefulWidget {
-  const _QuestionnaireBody({required this.category, required this.buildRequest});
+  const _QuestionnaireBody(
+      {required this.category, required this.buildRequest});
 
   final LoanCategory category;
   final ApplyRequest Function(QuestionnaireState state) buildRequest;
@@ -97,6 +98,10 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
       },
       builder: (ctx, state) {
         final cubit = ctx.read<QuestionnaireCubit>();
+        // Read OUTSIDE the Scaffold: with resizeToAvoidBottomInset it strips
+        // viewInsets.bottom from its body's MediaQuery, so a descendant always
+        // reads 0 and never sees the keyboard.
+        final keyboardOpen = MediaQuery.viewInsetsOf(ctx).bottom > 0;
 
         return Scaffold(
           backgroundColor: colors.bg.layout,
@@ -109,7 +114,11 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
             // No step with a question left = nothing to ask, not a blank wizard.
             RequestState.loaded => state.steps.isEmpty
                 ? const _MessageView()
-                : _LoadedView(state: state, controller: _controller),
+                : _LoadedView(
+                    state: state,
+                    controller: _controller,
+                    keyboardOpen: keyboardOpen,
+                  ),
           },
         );
       },
@@ -117,11 +126,24 @@ class _QuestionnaireBodyState extends State<_QuestionnaireBody> {
   }
 }
 
+/// Step CTA enter/exit motion — tuned to read as one movement with the
+/// platform keyboard slide rather than a separate pop.
+const Duration _ctaMotion = Duration(milliseconds: 220);
+const Curve _ctaCurve = Curves.easeOutCubic;
+
 class _LoadedView extends StatelessWidget {
-  const _LoadedView({required this.state, required this.controller});
+  const _LoadedView({
+    required this.state,
+    required this.controller,
+    required this.keyboardOpen,
+  });
 
   final QuestionnaireState state;
   final PageController controller;
+
+  /// Keyboard visibility, resolved above the Scaffold (its body's MediaQuery
+  /// has viewInsets.bottom removed). Drives hiding the CTA while typing.
+  final bool keyboardOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -154,33 +176,69 @@ class _LoadedView extends StatelessWidget {
               ],
             ),
           ),
-          Padding(
-            padding: EdgeInsetsDirectional.fromSTEB(24.w, 8.h, 24.w, 12.h),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // A money-bound question left unanswered is never defaulted
-                  // (FR-044) — say why Finish is locked instead of submitting a
-                  // fabricated figure.
-                  if (blocked) ...[
-                    Text(
-                      l.q_dyn_money_missing,
-                      textAlign: TextAlign.center,
-                      style: MasrafyTextTheme.of(context).caption.regular().copyWith(
-                            color: MasrafyColorTheme.of(context).text.secondary,
-                          ),
-                    ),
-                    Gap(8.h),
-                  ],
-                  MasrafyGradientButton(
-                    label: state.isLastStep ? l.q_dyn_finish : l.q_dyn_next,
-                    onPressed: canProceed ? cubit.next : null,
-                  ),
-                ],
+          // The CTA lands right on top of the field being typed into once the
+          // keyboard pushes the body up, so it slides out while typing and back
+          // in when the keyboard closes (scroll-drag dismisses it too — see the
+          // step scaffold's keyboardDismissBehavior). The SizeTransition frees
+          // the row's height in step with the slide + fade, so the PageView
+          // above grows smoothly instead of snapping.
+          AnimatedSwitcher(
+            duration: _ctaMotion,
+            switchInCurve: _ctaCurve,
+            switchOutCurve: _ctaCurve,
+            transitionBuilder: (child, animation) => SizeTransition(
+              sizeFactor: animation,
+              axisAlignment: -1,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.4),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: FadeTransition(opacity: animation, child: child),
               ),
             ),
+            child: keyboardOpen
+                ? const SizedBox(
+                    key: ValueKey('cta-hidden'),
+                    width: double.infinity,
+                  )
+                : Padding(
+                    key: const ValueKey('cta'),
+                    padding:
+                        EdgeInsetsDirectional.fromSTEB(24.w, 8.h, 24.w, 12.h),
+                    child: SafeArea(
+                      top: false,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // A money-bound question left unanswered is never
+                          // defaulted (FR-044) — say why Finish is locked
+                          // instead of submitting a fabricated figure.
+                          if (blocked) ...[
+                            Text(
+                              l.q_dyn_money_missing,
+                              textAlign: TextAlign.center,
+                              style: MasrafyTextTheme.of(context)
+                                  .caption
+                                  .regular()
+                                  .copyWith(
+                                    color: MasrafyColorTheme.of(context)
+                                        .text
+                                        .secondary,
+                                  ),
+                            ),
+                            Gap(8.h),
+                          ],
+                          MasrafyGradientButton(
+                            label: state.isLastStep
+                                ? l.q_dyn_finish
+                                : l.q_dyn_next,
+                            onPressed: canProceed ? cubit.next : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),

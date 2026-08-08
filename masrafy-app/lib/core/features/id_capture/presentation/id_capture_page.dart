@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:auto_route/auto_route.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -34,8 +32,10 @@ Color cameraSurface(MasrafyColorTheme colors) =>
 /// `core/features/` rather than inside one feature.
 ///
 /// Pops a [PickedImage] cropped to the on-screen card cutout, or `null` if the
-/// user backs out. Upload stays with the caller's cubit — this page never
-/// touches a datasource.
+/// user backs out. The shutter is the commit point: the camera is torn down and
+/// the page pops straight away, so the caller's cubit starts the upload without
+/// a second confirm tap. Upload stays with the caller — this page never touches
+/// a datasource.
 ///
 /// Why a custom camera instead of `ImageSource.camera`: the OS camera gives no
 /// aiming guide, so IDs came back rotated, cropped short, or shot from so far
@@ -50,7 +50,7 @@ class IdCapturePage extends StatefulWidget {
   State<IdCapturePage> createState() => _IdCapturePageState();
 }
 
-enum _CaptureStage { starting, ready, busy, review, failed }
+enum _CaptureStage { starting, ready, busy, failed }
 
 class _IdCapturePageState extends State<IdCapturePage>
     with WidgetsBindingObserver {
@@ -68,8 +68,11 @@ class _IdCapturePageState extends State<IdCapturePage>
 
   bool _torchOn = false;
 
-  /// Cropped JPEG awaiting the user's confirm/retake decision.
-  Uint8List? _review;
+  /// Raw JPEG straight off the sensor, held only so the shot stays on screen
+  /// after the camera is released. Drawn with the same `BoxFit.cover` geometry
+  /// as the live preview, so the cutout keeps showing the exact region the user
+  /// aimed at — a frozen frame instead of a black rectangle or a spinner.
+  Uint8List? _frozen;
 
   /// Size of the preview area that the overlay was painted into. The crop maps
   /// cutout coordinates back through this exact viewport, so it must be the
@@ -92,11 +95,12 @@ class _IdCapturePageState extends State<IdCapturePage>
   }
 
   /// The OS revokes the camera while the app is backgrounded, so the controller
-  /// is torn down on pause and rebuilt on resume. Skipped while reviewing a
-  /// shot — that stage shows a still image and must survive a task switch.
+  /// is torn down on pause and rebuilt on resume. Skipped once the shutter has
+  /// fired — the sensor is deliberately stopped there, and a resume must not
+  /// bring it back while the shot is still being cropped.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (_stage == _CaptureStage.review) return;
+    if (_stage == _CaptureStage.busy) return;
     final controller = _controller;
     if (state == AppLifecycleState.inactive) {
       _controller = null;
@@ -180,6 +184,14 @@ class _IdCapturePageState extends State<IdCapturePage>
     try {
       final shot = await controller.takePicture();
       final bytes = await shot.readAsBytes();
+      if (!mounted) return;
+      // Freeze the shot on screen, then release the sensor. Everything below —
+      // decoding, cropping, re-encoding — takes seconds on a multi-megapixel
+      // JPEG, and leaving the preview streaming through it is what made the
+      // camera look like it ignored the shutter. Pinning the still first means
+      // the cutout never blanks between the live feed and the frozen frame.
+      setState(() => _frozen = bytes);
+      await _stopCamera();
       final cropped = await compute(
         cropCapturedIdFrame,
         IdCropRequest(
@@ -190,55 +202,55 @@ class _IdCapturePageState extends State<IdCapturePage>
         ),
       );
       if (!mounted) return;
-      if (cropped == null) {
-        setState(() {
-          _captureFailed = true;
-          _stage = _CaptureStage.failed;
-        });
+      // Over-budget after a full-resolution crop is possible on a very wide
+      // cutout; treat it like a failed capture rather than popping bytes the
+      // upload endpoint would reject.
+      if (cropped == null ||
+          cropped.length > ImagePickProfile.document.maxBytes) {
+        _fail();
         return;
       }
-      setState(() {
-        _review = cropped;
-        _stage = _CaptureStage.review;
-      });
+      await context.router.maybePop(
+        PickedImage(
+          bytes: cropped,
+          contentType: 'image/jpeg',
+          filename: widget.side.filename,
+        ),
+      );
     } catch (_) {
+      await _stopCamera();
       if (!mounted) return;
-      setState(() {
-        _captureFailed = true;
-        _stage = _CaptureStage.failed;
-      });
+      _fail();
     }
   }
 
+  /// Releases the sensor and repaints, so the frozen shot takes over from the
+  /// live feed instead of the feed being kept alive behind it.
+  Future<void> _stopCamera() async {
+    final controller = _controller;
+    if (controller == null) return;
+    _controller = null;
+    if (mounted) setState(() {});
+    await controller.dispose();
+  }
+
+  void _fail() {
+    setState(() {
+      _captureFailed = true;
+      _stage = _CaptureStage.failed;
+    });
+  }
+
+  /// Retry after a capture miss: drop the frozen shot and restart the sensor
+  /// so the user goes straight back to aiming.
   void _retake() {
     setState(() {
-      _review = null;
+      _captureFailed = false;
+      _frozen = null;
       _stage =
           _controller == null ? _CaptureStage.starting : _CaptureStage.ready;
     });
     if (_controller == null) _start();
-  }
-
-  Future<void> _confirm() async {
-    final bytes = _review;
-    if (bytes == null) return;
-    // Over-budget after a full-resolution crop is possible on a very wide
-    // cutout; the caller shows the same actionable message as a gallery pick.
-    if (bytes.length > ImagePickProfile.document.maxBytes) {
-      setState(() {
-        _captureFailed = true;
-        _stage = _CaptureStage.failed;
-        _review = null;
-      });
-      return;
-    }
-    await context.router.maybePop(
-      PickedImage(
-        bytes: bytes,
-        contentType: 'image/jpeg',
-        filename: widget.side.filename,
-      ),
-    );
   }
 
   @override
@@ -253,10 +265,11 @@ class _IdCapturePageState extends State<IdCapturePage>
           return Stack(
             fit: StackFit.expand,
             children: [
-              if (_stage == _CaptureStage.review)
-                _ReviewShot(bytes: _review!, viewport: _viewport)
-              else
-                _PreviewLayer(controller: _controller, viewport: _viewport),
+              _PreviewLayer(
+                controller: _controller,
+                frozen: _frozen,
+                viewport: _viewport,
+              ),
               if (_stage != _CaptureStage.failed)
                 IdFrameOverlay(
                   scrimColor: colors.bg.spotlight.withValues(alpha: 0.72),
@@ -277,8 +290,6 @@ class _IdCapturePageState extends State<IdCapturePage>
                 onClose: () => context.router.maybePop(),
                 onToggleTorch: _toggleTorch,
                 onCapture: _capture,
-                onRetake: _retake,
-                onConfirm: _confirm,
               ),
             ],
           );
@@ -288,21 +299,32 @@ class _IdCapturePageState extends State<IdCapturePage>
   }
 }
 
-/// Live camera feed, sized so it covers the whole viewport.
+/// Live camera feed — or, once the shutter has fired, the frozen shot in its
+/// place — sized so it covers the whole viewport.
 ///
 /// `BoxFit.cover` on the sensor's own aspect ratio is what the crop math in
 /// [cropCapturedIdFrame] inverts — changing the fit here without changing that
-/// function silently misaligns every capture.
+/// function silently misaligns every capture. The frozen still uses the same
+/// full-bleed `cover`, so it lands pixel-for-pixel where the live feed was.
 class _PreviewLayer extends StatelessWidget {
-  const _PreviewLayer({required this.controller, required this.viewport});
+  const _PreviewLayer({
+    required this.controller,
+    required this.frozen,
+    required this.viewport,
+  });
 
   final CameraController? controller;
+  final Uint8List? frozen;
   final Size viewport;
 
   @override
   Widget build(BuildContext context) {
     final controller = this.controller;
+    final frozen = this.frozen;
     final colors = MasrafyColorTheme.of(context);
+    if (frozen != null) {
+      return Image.memory(frozen, fit: BoxFit.cover, gaplessPlayback: true);
+    }
     if (controller == null || !controller.value.isInitialized) {
       return ColoredBox(
         color: cameraSurface(colors),
@@ -331,35 +353,7 @@ class _PreviewLayer extends StatelessWidget {
   }
 }
 
-/// The cropped still, shown full-bleed behind the same cutout so the user
-/// judges the shot in the frame they aimed with.
-class _ReviewShot extends StatelessWidget {
-  const _ReviewShot({required this.bytes, required this.viewport});
-
-  final Uint8List bytes;
-  final Size viewport;
-
-  @override
-  Widget build(BuildContext context) {
-    final frame = idFrameRect(viewport);
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        ColoredBox(color: cameraSurface(MasrafyColorTheme.of(context))),
-        Positioned.fromRect(
-          rect: frame,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(idFrameCornerRadius),
-            child: Image.memory(bytes, fit: BoxFit.cover),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Top bar (close + title + torch) and bottom bar (hint + shutter, or the
-/// retake/confirm pair while reviewing).
+/// Top bar (close + title + torch) and bottom bar (hint + shutter).
 class _CaptureChrome extends StatelessWidget {
   const _CaptureChrome({
     required this.side,
@@ -369,8 +363,6 @@ class _CaptureChrome extends StatelessWidget {
     required this.onClose,
     required this.onToggleTorch,
     required this.onCapture,
-    required this.onRetake,
-    required this.onConfirm,
   });
 
   final IdCaptureSide side;
@@ -380,15 +372,12 @@ class _CaptureChrome extends StatelessWidget {
   final VoidCallback onClose;
   final VoidCallback onToggleTorch;
   final VoidCallback onCapture;
-  final VoidCallback onRetake;
-  final VoidCallback onConfirm;
 
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final l = AppLocalizations.of(context);
-    final reviewing = stage == _CaptureStage.review;
 
     return SafeArea(
       child: Column(
@@ -414,7 +403,7 @@ class _CaptureChrome extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (torchAvailable && !reviewing)
+                if (torchAvailable)
                   _GlassIconButton(
                     icon: torchOn
                         ? Icons.flash_on_rounded
@@ -437,20 +426,17 @@ class _CaptureChrome extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  reviewing ? l.id_capture_review_hint : l.id_capture_hint,
+                  l.id_capture_hint,
                   textAlign: TextAlign.center,
                   style: text.bodySmall.copyWith(
                     color: colors.white.withValues(alpha: 0.85),
                   ),
                 ),
                 Gap(20.h),
-                if (reviewing)
-                  _ReviewActions(onRetake: onRetake, onConfirm: onConfirm)
-                else
-                  _ShutterButton(
-                    busy: stage == _CaptureStage.busy,
-                    onTap: stage == _CaptureStage.ready ? onCapture : null,
-                  ),
+                _ShutterButton(
+                  busy: stage == _CaptureStage.busy,
+                  onTap: stage == _CaptureStage.ready ? onCapture : null,
+                ),
               ],
             ),
           ),
@@ -509,72 +495,6 @@ class _ShutterButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ReviewActions extends StatelessWidget {
-  const _ReviewActions({required this.onRetake, required this.onConfirm});
-
-  final VoidCallback onRetake;
-  final VoidCallback onConfirm;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MasrafyColorTheme.of(context);
-    final text = MasrafyTextTheme.of(context);
-    final l = AppLocalizations.of(context);
-
-    return Row(
-      children: [
-        Expanded(
-          child: GestureDetector(
-            onTap: onRetake,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              height: 52.h,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15.r),
-                border: Border.all(color: colors.white.withValues(alpha: 0.6)),
-              ),
-              child: Text(
-                l.id_capture_retake,
-                style: text.body.copyWith(
-                  color: colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ),
-        Gap(12.w),
-        Expanded(
-          child: GestureDetector(
-            onTap: onConfirm,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              height: 52.h,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15.r),
-                gradient: LinearGradient(
-                  begin: AlignmentDirectional.topStart,
-                  end: AlignmentDirectional.bottomEnd,
-                  colors: [colors.secondary.main, colors.primary.main],
-                ),
-              ),
-              child: Text(
-                l.id_capture_confirm,
-                style: text.body.copyWith(
-                  color: colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

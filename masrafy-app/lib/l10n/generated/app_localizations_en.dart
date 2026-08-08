@@ -555,6 +555,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup_id_tap_to_upload => 'Tap to upload';
 
   @override
+  String get signup_id_unavailable => 'Tap to upload again';
+
+  @override
   String get signup_terms => 'I agree to Masrafy\'s Terms of Service and Privacy Policy, and consent to processing my financial data.';
 
   @override
@@ -1572,6 +1575,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profile_id_uploading => 'Uploading…';
 
   @override
+  String get profile_id_checking => 'Checking…';
+
+  @override
+  String get profile_id_check_failed => 'Couldn\'t check';
+
+  @override
+  String get profile_id_unavailable => 'Tap to upload again';
+
+  @override
   String get profile_id_upload_failed => 'Couldn\'t upload the ID. Please try again.';
 
   @override
@@ -2118,15 +2130,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get id_capture_hint => 'Place your National ID inside the frame, then tap the shutter.';
-
-  @override
-  String get id_capture_review_hint => 'Is the ID sharp and fully inside the frame?';
-
-  @override
-  String get id_capture_confirm => 'Use photo';
-
-  @override
-  String get id_capture_retake => 'Retake';
 
   @override
   String get id_capture_retry => 'Try again';

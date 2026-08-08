@@ -40,15 +40,19 @@ class ProfileData with _$ProfileData {
     return days < 30 ? 0 : days ~/ 30;
   }
 
-  /// Slice consumed by the Edit Personal Info screen. The National-ID document
-  /// is treated as already captured in the mock (front + back uploaded).
+  /// Slice consumed by the Edit Personal Info screen.
+  ///
+  /// National-ID flags are deliberately NOT seeded here. They used to be
+  /// hardcoded `true` (a leftover from when this whole screen was a mock), so
+  /// both tiles painted a green "Uploaded" tick the instant the screen opened
+  /// — for every customer, including ones with no documents at all. The server
+  /// is the only thing that knows, so the screen starts at `false` and
+  /// `loadDocumentsStatus()` fills it in.
   ProfilePersonalDraft toPersonalDraft() => ProfilePersonalDraft(
         firstName: firstName,
         lastName: lastName,
         birthday: birthday,
         photoUrl: photoUrl,
-        frontUploaded: true,
-        backUploaded: true,
       );
 
   /// Slice consumed by the Edit Contact Details screen.

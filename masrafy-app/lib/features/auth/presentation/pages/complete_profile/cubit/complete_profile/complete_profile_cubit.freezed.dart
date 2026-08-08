@@ -30,6 +30,12 @@ mixin _$CompleteProfileState {
   bool get idFrontUploaded => throw _privateConstructorUsedError;
   bool get idFrontUploading => throw _privateConstructorUsedError;
   bool get idBackUploaded => throw _privateConstructorUsedError;
+
+  /// Bytes of a National-ID side captured in THIS session. Nothing is fetched
+  /// here: complete-profile runs before the account has any documents, so a
+  /// presigned preview would always be null.
+  Uint8List? get idFrontBytes => throw _privateConstructorUsedError;
+  Uint8List? get idBackBytes => throw _privateConstructorUsedError;
   bool get idBackUploading => throw _privateConstructorUsedError;
   RequestState get loadStatus => throw _privateConstructorUsedError;
   RequestState get status => throw _privateConstructorUsedError;
@@ -64,6 +70,8 @@ abstract class $CompleteProfileStateCopyWith<$Res> {
       bool idFrontUploaded,
       bool idFrontUploading,
       bool idBackUploaded,
+      Uint8List? idFrontBytes,
+      Uint8List? idBackBytes,
       bool idBackUploading,
       RequestState loadStatus,
       RequestState status,
@@ -101,6 +109,8 @@ class _$CompleteProfileStateCopyWithImpl<$Res,
     Object? idFrontUploaded = null,
     Object? idFrontUploading = null,
     Object? idBackUploaded = null,
+    Object? idFrontBytes = freezed,
+    Object? idBackBytes = freezed,
     Object? idBackUploading = null,
     Object? loadStatus = null,
     Object? status = null,
@@ -164,6 +174,14 @@ class _$CompleteProfileStateCopyWithImpl<$Res,
           ? _value.idBackUploaded
           : idBackUploaded // ignore: cast_nullable_to_non_nullable
               as bool,
+      idFrontBytes: freezed == idFrontBytes
+          ? _value.idFrontBytes
+          : idFrontBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
+      idBackBytes: freezed == idBackBytes
+          ? _value.idBackBytes
+          : idBackBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       idBackUploading: null == idBackUploading
           ? _value.idBackUploading
           : idBackUploading // ignore: cast_nullable_to_non_nullable
@@ -211,6 +229,8 @@ abstract class _$$CompleteProfileStateImplCopyWith<$Res>
       bool idFrontUploaded,
       bool idFrontUploading,
       bool idBackUploaded,
+      Uint8List? idFrontBytes,
+      Uint8List? idBackBytes,
       bool idBackUploading,
       RequestState loadStatus,
       RequestState status,
@@ -245,6 +265,8 @@ class __$$CompleteProfileStateImplCopyWithImpl<$Res>
     Object? idFrontUploaded = null,
     Object? idFrontUploading = null,
     Object? idBackUploaded = null,
+    Object? idFrontBytes = freezed,
+    Object? idBackBytes = freezed,
     Object? idBackUploading = null,
     Object? loadStatus = null,
     Object? status = null,
@@ -308,6 +330,14 @@ class __$$CompleteProfileStateImplCopyWithImpl<$Res>
           ? _value.idBackUploaded
           : idBackUploaded // ignore: cast_nullable_to_non_nullable
               as bool,
+      idFrontBytes: freezed == idFrontBytes
+          ? _value.idFrontBytes
+          : idFrontBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
+      idBackBytes: freezed == idBackBytes
+          ? _value.idBackBytes
+          : idBackBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       idBackUploading: null == idBackUploading
           ? _value.idBackUploading
           : idBackUploading // ignore: cast_nullable_to_non_nullable
@@ -350,6 +380,8 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
       this.idFrontUploaded = false,
       this.idFrontUploading = false,
       this.idBackUploaded = false,
+      this.idFrontBytes,
+      this.idBackBytes,
       this.idBackUploading = false,
       this.loadStatus = RequestState.initial,
       this.status = RequestState.initial,
@@ -397,6 +429,14 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
   @override
   @JsonKey()
   final bool idBackUploaded;
+
+  /// Bytes of a National-ID side captured in THIS session. Nothing is fetched
+  /// here: complete-profile runs before the account has any documents, so a
+  /// presigned preview would always be null.
+  @override
+  final Uint8List? idFrontBytes;
+  @override
+  final Uint8List? idBackBytes;
   @override
   @JsonKey()
   final bool idBackUploading;
@@ -413,7 +453,7 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
 
   @override
   String toString() {
-    return 'CompleteProfileState(firstName: $firstName, lastName: $lastName, birthday: $birthday, email: $email, password: $password, obscure: $obscure, registrationPath: $registrationPath, hasPassword: $hasPassword, photoBytes: $photoBytes, photoUploaded: $photoUploaded, photoUploading: $photoUploading, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idBackUploading: $idBackUploading, loadStatus: $loadStatus, status: $status, error: $error, session: $session)';
+    return 'CompleteProfileState(firstName: $firstName, lastName: $lastName, birthday: $birthday, email: $email, password: $password, obscure: $obscure, registrationPath: $registrationPath, hasPassword: $hasPassword, photoBytes: $photoBytes, photoUploaded: $photoUploaded, photoUploading: $photoUploading, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idFrontBytes: $idFrontBytes, idBackBytes: $idBackBytes, idBackUploading: $idBackUploading, loadStatus: $loadStatus, status: $status, error: $error, session: $session)';
   }
 
   @override
@@ -447,6 +487,10 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
                 other.idFrontUploading == idFrontUploading) &&
             (identical(other.idBackUploaded, idBackUploaded) ||
                 other.idBackUploaded == idBackUploaded) &&
+            const DeepCollectionEquality()
+                .equals(other.idFrontBytes, idFrontBytes) &&
+            const DeepCollectionEquality()
+                .equals(other.idBackBytes, idBackBytes) &&
             (identical(other.idBackUploading, idBackUploading) ||
                 other.idBackUploading == idBackUploading) &&
             (identical(other.loadStatus, loadStatus) ||
@@ -473,6 +517,8 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
         idFrontUploaded,
         idFrontUploading,
         idBackUploaded,
+        const DeepCollectionEquality().hash(idFrontBytes),
+        const DeepCollectionEquality().hash(idBackBytes),
         idBackUploading,
         loadStatus,
         status,
@@ -507,6 +553,8 @@ abstract class _CompleteProfileState extends CompleteProfileState {
       final bool idFrontUploaded,
       final bool idFrontUploading,
       final bool idBackUploaded,
+      final Uint8List? idFrontBytes,
+      final Uint8List? idBackBytes,
       final bool idBackUploading,
       final RequestState loadStatus,
       final RequestState status,
@@ -542,6 +590,14 @@ abstract class _CompleteProfileState extends CompleteProfileState {
   bool get idFrontUploading;
   @override
   bool get idBackUploaded;
+
+  /// Bytes of a National-ID side captured in THIS session. Nothing is fetched
+  /// here: complete-profile runs before the account has any documents, so a
+  /// presigned preview would always be null.
+  @override
+  Uint8List? get idFrontBytes;
+  @override
+  Uint8List? get idBackBytes;
   @override
   bool get idBackUploading;
   @override

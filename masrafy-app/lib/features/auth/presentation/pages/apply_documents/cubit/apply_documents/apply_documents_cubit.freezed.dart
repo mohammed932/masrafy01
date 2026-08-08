@@ -21,6 +21,13 @@ mixin _$ApplyDocumentsState {
   bool get idFrontUploading => throw _privateConstructorUsedError;
   bool get idBackUploaded => throw _privateConstructorUsedError;
   bool get idBackUploading => throw _privateConstructorUsedError;
+
+  /// Presigned previews from the status read, and the bytes of a side shot in
+  /// THIS session. Bytes win — see [idThumbnail].
+  String? get idFrontUrl => throw _privateConstructorUsedError;
+  String? get idBackUrl => throw _privateConstructorUsedError;
+  Uint8List? get idFrontBytes => throw _privateConstructorUsedError;
+  Uint8List? get idBackBytes => throw _privateConstructorUsedError;
   Failure? get error => throw _privateConstructorUsedError;
 
   /// Create a copy of ApplyDocumentsState
@@ -42,6 +49,10 @@ abstract class $ApplyDocumentsStateCopyWith<$Res> {
       bool idFrontUploading,
       bool idBackUploaded,
       bool idBackUploading,
+      String? idFrontUrl,
+      String? idBackUrl,
+      Uint8List? idFrontBytes,
+      Uint8List? idBackBytes,
       Failure? error});
 }
 
@@ -65,6 +76,10 @@ class _$ApplyDocumentsStateCopyWithImpl<$Res, $Val extends ApplyDocumentsState>
     Object? idFrontUploading = null,
     Object? idBackUploaded = null,
     Object? idBackUploading = null,
+    Object? idFrontUrl = freezed,
+    Object? idBackUrl = freezed,
+    Object? idFrontBytes = freezed,
+    Object? idBackBytes = freezed,
     Object? error = freezed,
   }) {
     return _then(_value.copyWith(
@@ -88,6 +103,22 @@ class _$ApplyDocumentsStateCopyWithImpl<$Res, $Val extends ApplyDocumentsState>
           ? _value.idBackUploading
           : idBackUploading // ignore: cast_nullable_to_non_nullable
               as bool,
+      idFrontUrl: freezed == idFrontUrl
+          ? _value.idFrontUrl
+          : idFrontUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      idBackUrl: freezed == idBackUrl
+          ? _value.idBackUrl
+          : idBackUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      idFrontBytes: freezed == idFrontBytes
+          ? _value.idFrontBytes
+          : idFrontBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
+      idBackBytes: freezed == idBackBytes
+          ? _value.idBackBytes
+          : idBackBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       error: freezed == error
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
@@ -110,6 +141,10 @@ abstract class _$$ApplyDocumentsStateImplCopyWith<$Res>
       bool idFrontUploading,
       bool idBackUploaded,
       bool idBackUploading,
+      String? idFrontUrl,
+      String? idBackUrl,
+      Uint8List? idFrontBytes,
+      Uint8List? idBackBytes,
       Failure? error});
 }
 
@@ -131,6 +166,10 @@ class __$$ApplyDocumentsStateImplCopyWithImpl<$Res>
     Object? idFrontUploading = null,
     Object? idBackUploaded = null,
     Object? idBackUploading = null,
+    Object? idFrontUrl = freezed,
+    Object? idBackUrl = freezed,
+    Object? idFrontBytes = freezed,
+    Object? idBackBytes = freezed,
     Object? error = freezed,
   }) {
     return _then(_$ApplyDocumentsStateImpl(
@@ -154,6 +193,22 @@ class __$$ApplyDocumentsStateImplCopyWithImpl<$Res>
           ? _value.idBackUploading
           : idBackUploading // ignore: cast_nullable_to_non_nullable
               as bool,
+      idFrontUrl: freezed == idFrontUrl
+          ? _value.idFrontUrl
+          : idFrontUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      idBackUrl: freezed == idBackUrl
+          ? _value.idBackUrl
+          : idBackUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
+      idFrontBytes: freezed == idFrontBytes
+          ? _value.idFrontBytes
+          : idFrontBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
+      idBackBytes: freezed == idBackBytes
+          ? _value.idBackBytes
+          : idBackBytes // ignore: cast_nullable_to_non_nullable
+              as Uint8List?,
       error: freezed == error
           ? _value.error
           : error // ignore: cast_nullable_to_non_nullable
@@ -171,6 +226,10 @@ class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
       this.idFrontUploading = false,
       this.idBackUploaded = false,
       this.idBackUploading = false,
+      this.idFrontUrl,
+      this.idBackUrl,
+      this.idFrontBytes,
+      this.idBackBytes,
       this.error})
       : super._();
 
@@ -189,12 +248,23 @@ class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
   @override
   @JsonKey()
   final bool idBackUploading;
+
+  /// Presigned previews from the status read, and the bytes of a side shot in
+  /// THIS session. Bytes win — see [idThumbnail].
+  @override
+  final String? idFrontUrl;
+  @override
+  final String? idBackUrl;
+  @override
+  final Uint8List? idFrontBytes;
+  @override
+  final Uint8List? idBackBytes;
   @override
   final Failure? error;
 
   @override
   String toString() {
-    return 'ApplyDocumentsState(loadStatus: $loadStatus, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idBackUploading: $idBackUploading, error: $error)';
+    return 'ApplyDocumentsState(loadStatus: $loadStatus, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idBackUploading: $idBackUploading, idFrontUrl: $idFrontUrl, idBackUrl: $idBackUrl, idFrontBytes: $idFrontBytes, idBackBytes: $idBackBytes, error: $error)';
   }
 
   @override
@@ -212,12 +282,30 @@ class _$ApplyDocumentsStateImpl extends _ApplyDocumentsState {
                 other.idBackUploaded == idBackUploaded) &&
             (identical(other.idBackUploading, idBackUploading) ||
                 other.idBackUploading == idBackUploading) &&
+            (identical(other.idFrontUrl, idFrontUrl) ||
+                other.idFrontUrl == idFrontUrl) &&
+            (identical(other.idBackUrl, idBackUrl) ||
+                other.idBackUrl == idBackUrl) &&
+            const DeepCollectionEquality()
+                .equals(other.idFrontBytes, idFrontBytes) &&
+            const DeepCollectionEquality()
+                .equals(other.idBackBytes, idBackBytes) &&
             (identical(other.error, error) || other.error == error));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, loadStatus, idFrontUploaded,
-      idFrontUploading, idBackUploaded, idBackUploading, error);
+  int get hashCode => Object.hash(
+      runtimeType,
+      loadStatus,
+      idFrontUploaded,
+      idFrontUploading,
+      idBackUploaded,
+      idBackUploading,
+      idFrontUrl,
+      idBackUrl,
+      const DeepCollectionEquality().hash(idFrontBytes),
+      const DeepCollectionEquality().hash(idBackBytes),
+      error);
 
   /// Create a copy of ApplyDocumentsState
   /// with the given fields replaced by the non-null parameter values.
@@ -236,6 +324,10 @@ abstract class _ApplyDocumentsState extends ApplyDocumentsState {
       final bool idFrontUploading,
       final bool idBackUploaded,
       final bool idBackUploading,
+      final String? idFrontUrl,
+      final String? idBackUrl,
+      final Uint8List? idFrontBytes,
+      final Uint8List? idBackBytes,
       final Failure? error}) = _$ApplyDocumentsStateImpl;
   const _ApplyDocumentsState._() : super._();
 
@@ -249,6 +341,17 @@ abstract class _ApplyDocumentsState extends ApplyDocumentsState {
   bool get idBackUploaded;
   @override
   bool get idBackUploading;
+
+  /// Presigned previews from the status read, and the bytes of a side shot in
+  /// THIS session. Bytes win — see [idThumbnail].
+  @override
+  String? get idFrontUrl;
+  @override
+  String? get idBackUrl;
+  @override
+  Uint8List? get idFrontBytes;
+  @override
+  Uint8List? get idBackBytes;
   @override
   Failure? get error;
 

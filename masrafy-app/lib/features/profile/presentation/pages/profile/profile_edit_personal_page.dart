@@ -83,6 +83,33 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
     await cubit.pickAndUploadPhoto(source);
   }
 
+  /// True only once the stored-document check has actually answered. A failed
+  /// check is not an answer: marking a side missing off a request that never
+  /// landed would accuse the customer of skipping a side they may have on file.
+  bool _docsKnown(ProfileEditPersonalState state) =>
+      state.docsStatus == RequestState.loaded;
+
+  /// Copy for one National-ID tile.
+  ///
+  /// The "checking / couldn't check" branches matter: this screen used to seed
+  /// both sides as uploaded from a mock draft, so the tiles claimed a document
+  /// was on file before the server had been asked. A state the app does not
+  /// know must say so rather than pick a side.
+  String _idSubtitle(
+    AppLocalizations l,
+    ProfileEditPersonalState state, {
+    required bool uploading,
+    required bool uploaded,
+  }) {
+    if (uploading) return l.profile_id_uploading;
+    if (uploaded) return l.profile_id_uploaded;
+    return switch (state.docsStatus) {
+      RequestState.initial || RequestState.loading => l.profile_id_checking,
+      RequestState.error => l.profile_id_check_failed,
+      RequestState.loaded => l.profile_id_tap_to_upload,
+    };
+  }
+
   /// Navigation stays on the screen (Principle XXXI): the page opens the framed
   /// camera, the cubit only uploads what comes back.
   Future<void> _captureAndUploadId(
@@ -138,14 +165,19 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
             (!p.saved && c.saved),
         listener: (ctx, state) {
           if (state.photoError != null) {
-            MasrafyToast.error(ctx, _uploadError(l, state.photoError!, l.profile_photo_upload_failed));
+            MasrafyToast.error(
+                ctx,
+                _uploadError(
+                    l, state.photoError!, l.profile_photo_upload_failed));
           } else if (state.docError != null) {
-            MasrafyToast.error(ctx, _uploadError(l, state.docError!, l.profile_id_upload_failed));
+            MasrafyToast.error(ctx,
+                _uploadError(l, state.docError!, l.profile_id_upload_failed));
           } else if (state.saveError != null) {
             MasrafyToast.error(ctx, _saveError(l, state.saveError!));
           } else if (state.saved) {
             MasrafyToast.success(ctx, l.profile_save_success);
-            ctx.router.maybePop(ctx.read<ProfileEditPersonalCubit>().state.toDraft());
+            ctx.router
+                .maybePop(ctx.read<ProfileEditPersonalCubit>().state.toDraft());
           }
         },
         builder: (ctx, state) {
@@ -164,7 +196,8 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                     physics: const BouncingScrollPhysics(
                       parent: AlwaysScrollableScrollPhysics(),
                     ),
-                    padding: EdgeInsetsDirectional.fromSTEB(20.w, 16.h, 20.w, 24.h),
+                    padding:
+                        EdgeInsetsDirectional.fromSTEB(20.w, 16.h, 20.w, 24.h),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -227,18 +260,30 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                               sectionHint: l.profile_national_id_hint,
                               frontLabel: l.profile_id_front,
                               backLabel: l.profile_id_back,
-                              frontSubtitle: state.frontUploading
-                                  ? l.profile_id_uploading
-                                  : state.frontUploaded
-                                      ? l.profile_id_uploaded
-                                      : l.profile_id_tap_to_upload,
-                              backSubtitle: state.backUploading
-                                  ? l.profile_id_uploading
-                                  : state.backUploaded
-                                      ? l.profile_id_uploaded
-                                      : l.profile_id_tap_to_upload,
+                              frontSubtitle: _idSubtitle(
+                                l,
+                                state,
+                                uploading: state.frontUploading,
+                                uploaded: state.frontUploaded,
+                              ),
+                              backSubtitle: _idSubtitle(
+                                l,
+                                state,
+                                uploading: state.backUploading,
+                                uploaded: state.backUploaded,
+                              ),
                               frontUploaded: state.frontUploaded,
                               backUploaded: state.backUploaded,
+                              unavailableSubtitle: l.profile_id_unavailable,
+                              // Mid-upload and mid-status-check both read as
+                              // "not known yet", so neither tile accuses the
+                              // customer of skipping a side it may already have.
+                              frontChecking:
+                                  state.frontUploading || !_docsKnown(state),
+                              backChecking:
+                                  state.backUploading || !_docsKnown(state),
+                              frontImage: state.frontImage,
+                              backImage: state.backImage,
                               onTapFront: state.frontUploading
                                   ? null
                                   : () => _captureAndUploadId(ctx, cubit,
@@ -255,7 +300,8 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(20.w, 8.h, 20.w, 12.h),
+                  padding:
+                      EdgeInsetsDirectional.fromSTEB(20.w, 8.h, 20.w, 12.h),
                   child: MasrafyGradientButton(
                     label: l.profile_save,
                     isLoading: state.saving,

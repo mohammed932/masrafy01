@@ -147,8 +147,8 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
                       ),
                     ),
                     child: Padding(
-                      padding:
-                          EdgeInsetsDirectional.fromSTEB(24.w, 40.h, 24.w, 30.h),
+                      padding: EdgeInsetsDirectional.fromSTEB(
+                          24.w, 40.h, 24.w, 30.h),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -215,7 +215,8 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
                               showStatusDot: true,
                               status: state.password.isEmpty
                                   ? MasrafyFieldStatus.neutral
-                                  : (Validators.strongPassword(state.password) ==
+                                  : (Validators.strongPassword(
+                                              state.password) ==
                                           null
                                       ? MasrafyFieldStatus.valid
                                       : MasrafyFieldStatus.error),
@@ -244,6 +245,16 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
                             backSubtitle: l.signup_id_tap_to_upload,
                             frontUploaded: state.idFrontUploaded,
                             backUploaded: state.idBackUploaded,
+                            unavailableSubtitle: l.signup_id_unavailable,
+                            // Neither the status read nor an in-flight upload
+                            // has answered yet — hold both tiles neutral rather
+                            // than accuse a side that may already be on file.
+                            frontChecking: !state.loadStatus.isLoaded ||
+                                state.idFrontUploading,
+                            backChecking: !state.loadStatus.isLoaded ||
+                                state.idBackUploading,
+                            frontImage: state.idFrontImage,
+                            backImage: state.idBackImage,
                             onTapFront: state.idFrontUploading
                                 ? null
                                 : () => _captureAndUploadId(ctx, cubit,

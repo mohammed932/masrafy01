@@ -143,6 +143,12 @@ class _ApplyDocumentsForm extends StatelessWidget {
           backSubtitle: l.signup_id_tap_to_upload,
           frontUploaded: state.idFrontUploaded,
           backUploaded: state.idBackUploaded,
+          unavailableSubtitle: l.signup_id_unavailable,
+          // An upload in flight is not a missing side.
+          frontChecking: state.idFrontUploading,
+          backChecking: state.idBackUploading,
+          frontImage: state.idFrontImage,
+          backImage: state.idBackImage,
           onTapFront: state.idFrontUploading
               ? null
               : () => _captureAndUpload(context, front: true),

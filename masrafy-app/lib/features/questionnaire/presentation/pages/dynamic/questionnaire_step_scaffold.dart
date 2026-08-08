@@ -52,6 +52,9 @@ class QuestionnaireStepScaffold extends StatelessWidget {
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
+      // The step CTA is hidden while the keyboard is up, so scrolling away from
+      // the field must be enough to bring it back.
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         SliverPersistentHeader(
           pinned: true,

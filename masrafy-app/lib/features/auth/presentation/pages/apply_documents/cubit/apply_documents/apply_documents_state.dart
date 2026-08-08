@@ -8,10 +8,21 @@ class ApplyDocumentsState with _$ApplyDocumentsState {
     @Default(false) bool idFrontUploading,
     @Default(false) bool idBackUploaded,
     @Default(false) bool idBackUploading,
+
+    /// Presigned previews from the status read, and the bytes of a side shot in
+    /// THIS session. Bytes win — see [idThumbnail].
+    String? idFrontUrl,
+    String? idBackUrl,
+    Uint8List? idFrontBytes,
+    Uint8List? idBackBytes,
     Failure? error,
   }) = _ApplyDocumentsState;
 
   const ApplyDocumentsState._();
+
+  /// Thumbnails for the two tiles (Principle XXXI — derivation on the state).
+  ImageProvider? get idFrontImage => idThumbnail(idFrontBytes, idFrontUrl);
+  ImageProvider? get idBackImage => idThumbnail(idBackBytes, idBackUrl);
 
   bool get isLoadingStatus =>
       loadStatus.isInitial || loadStatus.isLoading;
