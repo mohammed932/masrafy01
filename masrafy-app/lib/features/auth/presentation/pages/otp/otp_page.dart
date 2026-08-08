@@ -85,11 +85,19 @@ class _OtpView extends StatelessWidget {
         listenWhen: (p, c) => p.status != c.status,
         listener: (ctx, state) {
           if (state.mobileBound) {
-            // SOCIAL flow: mobile is now verified/bound. The profile is still
-            // missing a birthday, so route to the Complete-Profile step (name
-            // prefills from the Google identity) rather than Home.
+            // SOCIAL flow: mobile is now verified/bound. Always route to the
+            // Complete-Profile step rather than Home — name, and often the
+            // birthday and photo, prefill from the Google identity, but the
+            // customer confirms them (and fills whatever Google withheld)
+            // before the account is used to apply.
             ctx.router.replace(CompleteProfileRoute());
           } else if (state.isSuccess) {
+            // The account is valid either way; this only tells the customer
+            // their captured ID did not make it, so they re-add it from the
+            // profile instead of assuming it is on file.
+            if (state.nationalIdUploadFailed) {
+              MasrafyToast.info(ctx, l.signup_id_upload_deferred);
+            }
             // SIGNUP: profile completion already ran silently in OtpCubit and
             // only reaches success once it actually completed — so the account
             // is valid (profileComplete) and Home is always correct. A failed

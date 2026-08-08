@@ -154,7 +154,12 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
                         children: [
                           MasrafyPhotoUpload(
                             label: l.signup_photo_upload,
+                            // Optional since v9.0.0 — it is not part of the
+                            // completeness gate, so say so rather than leaving
+                            // an empty circle that looks unfinished.
+                            caption: l.signup_photo_optional,
                             imageBytes: state.photoBytes,
+                            imageUrl: state.photoUrl,
                             uploading: state.photoUploading,
                             uploaded: state.photoUploaded,
                             onTap: cubit.pickAndUploadPhoto,

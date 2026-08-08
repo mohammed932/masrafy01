@@ -75,6 +75,20 @@ class _SignupViewState extends State<_SignupView> {
     );
   }
 
+  /// Opens the framed National-ID camera and keeps the shot. Navigation stays
+  /// on the screen (Principle XXXI) — the cubit only receives the image, and it
+  /// cannot upload it yet: this runs before the account (and its JWT) exists,
+  /// so the bytes go up right after OTP verification.
+  Future<void> _captureId(
+    BuildContext context,
+    SignupCubit cubit, {
+    required bool front,
+  }) async {
+    final image = await captureNationalId(context, front: front);
+    if (image == null) return;
+    cubit.setNationalId(front: front, image: image);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
@@ -163,7 +177,7 @@ class _SignupViewState extends State<_SignupView> {
                                       SignupField.firstName, v),
                                 ),
                               ),
-                              Gap(10.w),
+                              Gap(12.w),
                               Expanded(
                                 child: MasrafyLabeledField(
                                   label: l.signup_last_name_label,
@@ -188,9 +202,10 @@ class _SignupViewState extends State<_SignupView> {
                             phoneNumber: state.phone,
                             onPhoneNumberChanged: (p) =>
                                 cubit.updateField(SignupField.phone, p),
-                            phoneCodeLabel: ' ',
+                            phoneCodeLabel: l.signup_phone_code_label,
                             phoneNumberLabel: l.signup_phone_label,
                             phoneNumberPlaceholder: l.signup_phone_hint,
+                            uppercaseLabels: true,
                           ),
                           Gap(16.h),
                           MasrafyLabeledField(
@@ -270,12 +285,25 @@ class _SignupViewState extends State<_SignupView> {
                             sectionHint: l.signup_national_id_hint,
                             frontLabel: l.signup_id_front,
                             backLabel: l.signup_id_back,
-                            frontSubtitle: l.signup_id_tap_to_upload,
-                            backSubtitle: l.signup_id_tap_to_upload,
+                            frontSubtitle: state.idFront != null
+                                ? l.signup_id_captured
+                                : l.signup_id_tap_to_upload,
+                            backSubtitle: state.idBack != null
+                                ? l.signup_id_captured
+                                : l.signup_id_tap_to_upload,
+                            frontUploaded: state.idFront != null,
+                            backUploaded: state.idBack != null,
+                            frontImage: state.idFrontImage,
+                            backImage: state.idBackImage,
+                            // Optional here (Principle XXXVII): the tiles stay
+                            // neutral rather than red, because nothing on this
+                            // screen is blocked by a missing side.
+                            frontChecking: state.idFront == null,
+                            backChecking: state.idBack == null,
                             onTapFront: () =>
-                                MasrafyToast.info(ctx, l.common_coming_soon),
+                                _captureId(ctx, cubit, front: true),
                             onTapBack: () =>
-                                MasrafyToast.info(ctx, l.common_coming_soon),
+                                _captureId(ctx, cubit, front: false),
                           ),
                           Gap(8.h),
                           MasrafyCheckboxTile(

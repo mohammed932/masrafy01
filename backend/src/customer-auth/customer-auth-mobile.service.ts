@@ -24,6 +24,8 @@ import { PasswordResetTokenService } from './password-reset-token.service';
 import { SocialSessionRepository } from './social-session.repository';
 import { CustomerProviderRepository } from './customer-provider.repository';
 import { GoogleVerifyService, type VerifiedSocialIdentity } from './social/google-verify.service';
+import { GooglePeopleService } from './social/google-people.service';
+import { GoogleProfilePhotoService } from './social/google-profile-photo.service';
 import { CustomerLoginLockoutService } from './customer-login-lockout.service';
 import {
   canonicalisePhone,
@@ -40,7 +42,7 @@ import { CustomerProfileDocumentRepository } from './customer-profile-document.r
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { UnknownEnumerationKeyException } from '@/common/errors/domain.exceptions';
 import { RegistrationPath } from '@prisma/client';
-import { splitFullName } from './name.util';
+import { resolveSocialName } from './name.util';
 import { deriveAge } from './age.util';
 
 /**
@@ -68,6 +70,8 @@ export class CustomerAuthMobileService {
     private readonly socialSessions: SocialSessionRepository,
     private readonly providers: CustomerProviderRepository,
     private readonly google: GoogleVerifyService,
+    private readonly googlePeople: GooglePeopleService,
+    private readonly googlePhoto: GoogleProfilePhotoService,
     private readonly lockout: CustomerLoginLockoutService,
     private readonly audit: AuditEventWriter,
     private readonly prisma: PrismaService,
@@ -400,6 +404,7 @@ export class CustomerAuthMobileService {
   async socialSignIn(args: {
     provider: SocialProvider;
     idToken: string;
+    accessToken?: string;
     ctx: CustomerRequestContext;
   }): Promise<{
     socialSessionId: string;
@@ -423,6 +428,12 @@ export class CustomerAuthMobileService {
         resolvedCustomerId: link.customerId,
         expiresAt,
       });
+      await this.enrichSocialProfile({
+        customerId: link.customerId,
+        identity,
+        accessToken: args.accessToken,
+        isNewCustomer: false,
+      });
       const existing = await this.accounts.findById(link.customerId);
       return {
         socialSessionId: session.id,
@@ -440,13 +451,15 @@ export class CustomerAuthMobileService {
     }
 
     // First-time social — create a lite SOCIAL customer + provider link + tokens.
-    const { firstName, lastName } = splitFullName(identity.fullName);
+    const { firstName, lastName } = resolveSocialName(identity);
+    const birthday = await this.fetchProviderBirthday(identity, args.accessToken);
     const created = await this.prisma.$transaction(async (tx) => {
       const customer = await this.accounts.createSocialLite(
         {
           firstName,
           lastName,
           email: identity.email,
+          birthday,
         },
         tx,
       );
@@ -469,6 +482,8 @@ export class CustomerAuthMobileService {
       sourceIp: args.ctx.sourceIp,
       payload: { customerId: created.id, provider: args.provider },
     });
+
+    await this.importProviderPhoto(created.id, identity);
 
     const tokens = await this.issueSession({ customerId: created.id, ctx: args.ctx });
     return {
@@ -489,11 +504,14 @@ export class CustomerAuthMobileService {
    * endpoints. Unlike {@link socialSignIn}, this issues JWT tokens directly for
    * BOTH returning and first-time users — no intermediate `SocialSession` /
    * `social/login` round-trip. First-time users get a lite SOCIAL account
-   * (profile-incomplete; mobile + birthday collected client-side afterwards).
+   * (profile-incomplete; mobile collected client-side afterwards — birthday is
+   * prefilled here when Google supplies one, and still confirmable on the
+   * Complete-Profile screen).
    */
   async socialAuthDirect(args: {
     provider: SocialProvider;
     idToken: string;
+    accessToken?: string;
     userInfo?: { email?: string; fullName?: string };
     ctx: CustomerRequestContext;
   }): Promise<CustomerAuthResult> {
@@ -501,15 +519,24 @@ export class CustomerAuthMobileService {
 
     const link = await this.providers.findByProviderSubject(args.provider, identity.providerUserId);
     if (link) {
-      // Returning social user — issue tokens directly.
+      // Returning social user — issue tokens directly. Enrichment still runs so
+      // an account created before this existed (or before the customer granted
+      // the birthday scope) backfills on the next sign-in.
+      await this.enrichSocialProfile({
+        customerId: link.customerId,
+        identity,
+        accessToken: args.accessToken,
+        isNewCustomer: false,
+      });
       return this.issueSession({ customerId: link.customerId, ctx: args.ctx });
     }
 
     // First-time social — create a lite SOCIAL customer + provider link, then tokens.
-    const { firstName, lastName } = splitFullName(identity.fullName);
+    const { firstName, lastName } = resolveSocialName(identity);
+    const birthday = await this.fetchProviderBirthday(identity, args.accessToken);
     const created = await this.prisma.$transaction(async (tx) => {
       const customer = await this.accounts.createSocialLite(
-        { firstName, lastName, email: identity.email },
+        { firstName, lastName, email: identity.email, birthday },
         tx,
       );
       await this.providers.link(
@@ -531,6 +558,8 @@ export class CustomerAuthMobileService {
       sourceIp: args.ctx.sourceIp,
       payload: { customerId: created.id, provider: args.provider },
     });
+
+    await this.importProviderPhoto(created.id, identity);
 
     return this.issueSession({ customerId: created.id, ctx: args.ctx });
   }
@@ -776,6 +805,50 @@ export class CustomerAuthMobileService {
    */
   private async verifyProviderToken(idToken: string): Promise<VerifiedSocialIdentity> {
     return this.google.verify(idToken);
+  }
+
+  /**
+   * Provider prefill for an account that ALREADY exists — birthday and profile
+   * photo only, and only into slots that are still empty. Never touches a
+   * value the customer has set: birthday is immutable once Complete-Profile
+   * writes it, and an uploaded photo must not be replaced by a stale avatar.
+   *
+   * Best-effort by construction: both collaborators swallow their own
+   * failures, so a Google outage degrades to "no prefill", never to a failed
+   * sign-in.
+   */
+  private async enrichSocialProfile(args: {
+    customerId: string;
+    identity: VerifiedSocialIdentity;
+    accessToken?: string;
+    isNewCustomer: boolean;
+  }): Promise<void> {
+    const birthday = await this.fetchProviderBirthday(args.identity, args.accessToken);
+    if (birthday) await this.accounts.setBirthdayIfUnset(args.customerId, birthday);
+
+    if (!args.identity.pictureUrl) return;
+    const existingPhotoKey = await this.accounts.findProfilePhotoKey(args.customerId);
+    if (existingPhotoKey) return;
+    await this.importProviderPhoto(args.customerId, args.identity);
+  }
+
+  private async fetchProviderBirthday(
+    identity: VerifiedSocialIdentity,
+    accessToken: string | undefined,
+  ): Promise<Date | null> {
+    if (!accessToken) return null;
+    return this.googlePeople.fetchBirthday({
+      accessToken,
+      expectedProviderUserId: identity.providerUserId,
+    });
+  }
+
+  private async importProviderPhoto(
+    customerId: string,
+    identity: VerifiedSocialIdentity,
+  ): Promise<void> {
+    if (!identity.pictureUrl) return;
+    await this.googlePhoto.importFromUrl({ customerId, pictureUrl: identity.pictureUrl });
   }
 
   private async issueSession(args: {

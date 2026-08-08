@@ -15,6 +15,11 @@ class CompleteProfileState with _$CompleteProfileState {
     @Default(RegistrationPath.phone) RegistrationPath registrationPath,
     @Default(false) bool hasPassword,
     Uint8List? photoBytes,
+
+    /// Presigned URL of a photo the account already has — on the Google path
+    /// that is the imported provider avatar, so the circle shows the picture
+    /// instead of asking for one we already hold.
+    String? photoUrl,
     @Default(false) bool photoUploaded,
     @Default(false) bool photoUploading,
     @Default(false) bool idFrontUploaded,

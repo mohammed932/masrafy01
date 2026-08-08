@@ -29,10 +29,10 @@ const SNAPSHOT = {
           options: [],
         },
         {
-          code: 'your_age',
+          code: 'loan_purpose',
           type: 'SINGLE_SELECT',
           isRequired: true,
-          options: [{ code: '21_30' }, { code: '31_45' }],
+          options: [{ code: 'marriage' }, { code: 'education' }],
         },
         {
           code: 'current_loans',
@@ -98,7 +98,7 @@ describe('the preview accepts every answer type in the global pool', () => {
     const { result, scoreProgram } = preview([
       { questionCode: 'amount_requested', numericValue: '150000' },
       { questionCode: 'current_loans', optionCodes: ['none'] },
-      { questionCode: 'your_age', optionCode: '21_30' },
+      { questionCode: 'loan_purpose', optionCode: 'marriage' },
       { questionCode: 'notes', textValue: 'ok' },
     ]);
     const matches = (await result).matches;
@@ -113,7 +113,7 @@ describe('the preview accepts every answer type in the global pool', () => {
         answers: [
           { questionCode: 'amount_requested', kind: 'numeric', value: '150000.00' },
           { questionCode: 'current_loans', kind: 'options', optionCodes: ['none'] },
-          { questionCode: 'your_age', kind: 'option', optionCode: '21_30' },
+          { questionCode: 'loan_purpose', kind: 'option', optionCode: 'marriage' },
           { questionCode: 'notes', kind: 'text', hasValue: true },
         ],
       }),
@@ -121,7 +121,7 @@ describe('the preview accepts every answer type in the global pool', () => {
   });
 
   it('accepts a partial answer set — required questions are enforced at apply, not here', async () => {
-    const { result } = preview([{ questionCode: 'your_age', optionCode: '31_45' }]);
+    const { result } = preview([{ questionCode: 'loan_purpose', optionCode: 'education' }]);
     await expect(result).resolves.toMatchObject({ category: 'personal' });
   });
 });
@@ -148,7 +148,7 @@ describe('typed answers are validated with the same rules as apply', () => {
   });
 
   it('rejects an option code that is not on the question', async () => {
-    const { result } = preview([{ questionCode: 'your_age', optionCode: '99_plus' }]);
+    const { result } = preview([{ questionCode: 'loan_purpose', optionCode: 'not_an_option' }]);
     expect(await codeOf(result)).toBe(ERROR_CODES.UNKNOWN_OPTION_CODE);
   });
 

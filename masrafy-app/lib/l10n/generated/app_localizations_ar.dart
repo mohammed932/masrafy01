@@ -487,6 +487,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signup_photo_upload => 'رفع';
 
   @override
+  String get signup_photo_optional => 'اختياري';
+
+  @override
   String get signup_first_name_label => 'الاسم الأول';
 
   @override
@@ -497,6 +500,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get signup_last_name_hint => 'إسكندر';
+
+  @override
+  String get signup_phone_code_label => 'رمز الدولة';
 
   @override
   String get signup_phone_label => 'رقم الهاتف';
@@ -546,7 +552,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signup_national_id_label => 'الرقم القومي';
 
   @override
-  String get signup_national_id_hint => '— مطلوب للأهلية للحصول على القرض';
+  String get signup_national_id_hint => '— اختياري الآن، مطلوب عند اختيار العرض';
 
   @override
   String get signup_id_front => 'الوجه الأمامي';
@@ -555,10 +561,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signup_id_back => 'الوجه الخلفي';
 
   @override
-  String get signup_id_tap_to_upload => 'اضغط للرفع';
+  String get signup_id_tap_to_upload => 'اضغط للتصوير';
+
+  @override
+  String get signup_id_captured => 'تم التصوير';
 
   @override
   String get signup_id_unavailable => 'اضغط لإعادة الرفع';
+
+  @override
+  String get signup_id_upload_deferred => 'تم إنشاء حسابك، لكن تعذّر رفع الرقم القومي. أضِفه من ملفك الشخصي.';
 
   @override
   String get signup_terms => 'أوافق على شروط الخدمة وسياسة الخصوصية الخاصة بمصرفي، وأوافق على معالجة بياناتي المالية.';

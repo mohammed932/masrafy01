@@ -1,3 +1,5 @@
+import 'package:app/core/utils/calendar_date.dart';
+
 import '../../../domain/entities/customer_entity.dart';
 import '../../../domain/enums/registration_path.dart';
 import '../../../domain/enums/social_provider.dart';
@@ -24,6 +26,8 @@ class CustomerModel {
     this.mobileVerifiedAt,
     this.email,
     this.age,
+    this.birthday,
+    this.photoUrl,
     this.lastLoginAt,
   });
 
@@ -50,6 +54,10 @@ class CustomerModel {
           : DateTime.parse(json['mobileVerifiedAt'] as String),
       email: json['email'] as String?,
       age: (json['age'] as num?)?.toInt(),
+      birthday: parseCalendarDate(json['birthday'] as String?),
+      photoUrl: (json['photoUrl'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : (json['photoUrl'] as String),
       lastLoginAt: json['lastLoginAt'] == null
           ? null
           : DateTime.parse(json['lastLoginAt'] as String),
@@ -79,6 +87,13 @@ class CustomerModel {
   final DateTime? mobileVerifiedAt;
   final String? email;
   final int? age;
+
+  /// Calendar date of birth. Present once set — either by the customer on
+  /// Complete-Profile or prefilled from the Google People API at social sign-up.
+  final DateTime? birthday;
+
+  /// Presigned GET URL for the profile photo (our bucket, not the provider's).
+  final String? photoUrl;
   final DateTime? lastLoginAt;
 
   CustomerEntity toEntity() => CustomerEntity(
@@ -94,6 +109,8 @@ class CustomerModel {
         mobileVerifiedAt: mobileVerifiedAt,
         email: email,
         age: age,
+        birthday: birthday,
+        photoUrl: photoUrl,
         lastLoginAt: lastLoginAt,
       );
 }

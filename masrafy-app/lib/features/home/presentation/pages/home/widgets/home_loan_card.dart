@@ -5,7 +5,7 @@ import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
-/// Selectable loan-type card (Figma `137:2929`): icon + title.
+/// Selectable loan-type card (Figma `137:2929`): icon beside the title.
 /// Selected state uses an azure-tinted fill + azure border. Flow-local widget
 /// (Principle XXXII); one widget per file (XXXVI). Tokens only.
 class HomeLoanCard extends StatelessWidget {
@@ -43,24 +43,31 @@ class HomeLoanCard extends StatelessWidget {
             width: selected ? 1.5 : 1,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12.r),
               child: Image.asset(
                 icon,
-                width: 45.r,
-                height: 45.r,
+                width: 40.r,
+                height: 40.r,
                 fit: BoxFit.contain,
                 filterQuality: FilterQuality.medium,
               ),
             ),
-            Gap(7.h),
-            Text(
-              title,
-              style: text.bodySmall.bold().copyWith(color: colors.text.heading),
+            Gap(10.w),
+            // Expanded + wrap: the card is half the screen wide, and the
+            // Arabic labels are longer than the English ones — an unbounded
+            // Text here overflows instead of taking a second line.
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    text.bodySmall.bold().copyWith(color: colors.text.heading),
+              ),
             ),
           ],
         ),

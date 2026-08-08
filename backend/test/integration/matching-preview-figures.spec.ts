@@ -34,10 +34,10 @@ const SNAPSHOT = {
         numericQuestion('monthly_income', '10000000.00'),
         numericQuestion('current_installments', '10000000.00'),
         {
-          code: 'your_age',
+          code: 'loan_purpose',
           type: 'SINGLE_SELECT',
           isRequired: false,
-          options: [{ code: '31_45' }],
+          options: [{ code: 'education' }],
         },
       ],
     },
@@ -72,7 +72,7 @@ function makeService() {
     probability: 0.42,
     tier: 'moderate',
     usedDefault: false,
-    factors: { positive: [{ code: '31_45', impact: 42 }], negative: [] },
+    factors: { positive: [{ code: 'education', impact: 42 }], negative: [] },
   }));
   return new MatchingPreviewService(
     { activeVersion: async () => ({ id: 'ver_4', snapshot: SNAPSHOT }) } as never,
@@ -146,7 +146,7 @@ describe('preview figures', () => {
   it('carries the scorer’s factor breakdown through to the match', async () => {
     const { matches } = await preview(moneyAnswers('40000'));
 
-    expect(matches[0]?.approvalFactors.positive).toEqual([{ code: '31_45', impact: 42 }]);
+    expect(matches[0]?.approvalFactors.positive).toEqual([{ code: 'education', impact: 42 }]);
   });
 
   it('lists programs without figures until every money answer is in', async () => {

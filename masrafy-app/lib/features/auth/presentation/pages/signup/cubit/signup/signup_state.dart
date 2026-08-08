@@ -24,6 +24,13 @@ class SignupState with _$SignupState {
     DateTime? birthday,
     @Default('') String password,
     @Default('') String confirmPassword,
+    /// National-ID sides captured HERE, before the account exists. They cannot
+    /// be uploaded yet — the upload endpoints are customer-scoped and the JWT
+    /// only arrives once the OTP is verified — so the bytes ride along in the
+    /// draft and go up right after verification. Optional: neither side is in
+    /// [canSubmit] (Principle XXXVII, narrowed v9.0.0).
+    PickedImage? idFront,
+    PickedImage? idBack,
     @Default(false) bool agreedToTerms,
     @Default(true) bool obscure,
     @Default(true) bool obscureConfirm,
@@ -74,6 +81,11 @@ class SignupState with _$SignupState {
       agreedToTerms &&
       !status.isLoading;
 
+  /// Thumbnails for the two National-ID tiles (derivation on the state,
+  /// Principle XXXI).
+  ImageProvider? get idFrontImage => idThumbnail(idFront?.bytes, null);
+  ImageProvider? get idBackImage => idThumbnail(idBack?.bytes, null);
+
   /// Snapshot carried to the OTP screen so it can complete the signup once the
   /// mobile is verified.
   SignupDraft toDraft() => SignupDraft(
@@ -83,5 +95,7 @@ class SignupState with _$SignupState {
         password: password,
         birthday: birthday!,
         email: email.trim().isEmpty ? null : email.trim(),
+        nationalIdFront: idFront,
+        nationalIdBack: idBack,
       );
 }

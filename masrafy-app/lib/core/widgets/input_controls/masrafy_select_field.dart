@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 import 'package:app/core/widgets/input_controls/masrafy_single_select_sheet.dart';
 
 export 'package:app/core/widgets/input_controls/masrafy_single_select_sheet.dart'
@@ -15,12 +16,13 @@ export 'package:app/core/widgets/input_controls/masrafy_single_select_sheet.dart
 /// (or [hint]) plus a chevron; tapping opens the sheet, and a row tap applies
 /// the value via [onSelected] and closes the sheet.
 ///
-/// Two visual densities:
-/// - default — the questionnaire chrome (uppercased `caption` label, 44h field,
-///   12r border, down chevron).
+/// Two visual densities — both [MasrafyFieldMetrics.height] tall, like every
+/// other single-line field:
+/// - default — the questionnaire chrome (uppercased `caption` label, 12r border,
+///   down chevron).
 /// - [dense] — the edit-form chrome, aligned to `MasrafyLabeledField` so selects
-///   and text inputs read as one family (uppercase indigo `caption` label, 14r
-///   border, `bg.layout` fill, down chevron) used inside edit forms (e.g. profile).
+///   and text inputs read as one family (uppercase indigo `caption` label,
+///   transparent fill, down chevron) used inside edit forms (e.g. profile).
 ///
 /// Long option lists pass [showSearch] `true` (the sheet scrolls natively).
 /// Tokens only — no raw hex (Principle VIII / A18); logical insets only (A19).
@@ -95,18 +97,19 @@ class MasrafySelectField<T> extends StatelessWidget {
                 letterSpacing: 0.5,
               ),
         ),
-        Gap(8.h),
+        Gap(MasrafyFieldMetrics.labelGap),
         GestureDetector(
           onTap: isEnabled ? () => _open(context) : null,
           behavior: HitTestBehavior.opaque,
           child: Container(
-            height: 44.h,
-            padding: EdgeInsetsDirectional.symmetric(horizontal: 14.w),
+            height: MasrafyFieldMetrics.height,
+            padding: EdgeInsetsDirectional.symmetric(
+              horizontal: MasrafyFieldMetrics.horizontalPadding,
+            ),
             decoration: BoxDecoration(
-              color:
-                  isEnabled ? colors.bg.container : colors.fill.quaternary,
+              color: isEnabled ? Colors.transparent : colors.fill.quaternary,
               border: Border.all(color: colors.border.main),
-              borderRadius: BorderRadius.circular(12.r),
+              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
             ),
             child: Row(
               children: [
@@ -118,7 +121,7 @@ class MasrafySelectField<T> extends StatelessWidget {
                     style: text.body.copyWith(
                       color: selectedLabel != null
                           ? colors.text.heading
-                          : colors.text.placeholder,
+                          : colors.text.tertiary,
                     ),
                   ),
                 ),
@@ -154,14 +157,16 @@ class MasrafySelectField<T> extends StatelessWidget {
                   letterSpacing: 0.66,
                 ),
           ),
-          Gap(6.h),
+          Gap(MasrafyFieldMetrics.labelGap),
           Container(
-            padding:
-                EdgeInsetsDirectional.symmetric(horizontal: 14.w, vertical: 13.h),
+            height: MasrafyFieldMetrics.height,
+            padding: EdgeInsetsDirectional.symmetric(
+              horizontal: MasrafyFieldMetrics.horizontalPadding,
+            ),
             decoration: BoxDecoration(
-              color: isEnabled ? colors.bg.layout : colors.fill.quaternary,
+              color: isEnabled ? Colors.transparent : colors.fill.quaternary,
               border: Border.all(color: colors.border.main),
-              borderRadius: BorderRadius.circular(14.r),
+              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
             ),
             child: Row(
               children: [
@@ -173,7 +178,7 @@ class MasrafySelectField<T> extends StatelessWidget {
                     style: text.body.copyWith(
                       color: selectedLabel != null
                           ? colors.text.heading
-                          : colors.text.placeholder,
+                          : colors.text.tertiary,
                     ),
                   ),
                 ),

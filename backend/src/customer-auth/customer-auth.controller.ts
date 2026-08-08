@@ -250,6 +250,7 @@ export class CustomerAuthController {
     const result = await this.mobile.socialSignIn({
       provider: SocialProvider.GOOGLE,
       idToken: body.idToken,
+      accessToken: body.accessToken,
       ctx: this.buildContext(req),
     });
     return ok(this.normalizeSocialResult(result));
@@ -283,6 +284,7 @@ export class CustomerAuthController {
     const result = await this.mobile.socialAuthDirect({
       provider: SocialProvider.GOOGLE,
       idToken: body.idToken,
+      accessToken: body.accessToken,
       ctx: this.buildContext(req),
     });
     return ok(this.toEnvelope(result));

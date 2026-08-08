@@ -23,6 +23,8 @@ class CustomerEntity extends Equatable {
     this.mobileVerifiedAt,
     this.email,
     this.age,
+    this.birthday,
+    this.photoUrl,
     this.lastLoginAt,
   });
 
@@ -53,6 +55,17 @@ class CustomerEntity extends Equatable {
   /// Null until first loan submission for SOCIAL customers. Once set, immutable.
   final int? age;
 
+  /// Calendar date of birth, source of [age] (Principle XXXVII / A31 — the age
+  /// is derived, never stored). Null until the customer sets it on
+  /// Complete-Profile, EXCEPT on the Google path where it may already be
+  /// prefilled from the People API — which is exactly what that screen reads to
+  /// avoid asking for a date the provider already gave us.
+  final DateTime? birthday;
+
+  /// Presigned GET URL for the profile photo. Set once a photo exists — either
+  /// uploaded by the customer or imported from the Google avatar at sign-up.
+  final String? photoUrl;
+
   final DateTime? lastLoginAt;
 
   /// Authoritative: the backend computes completeness (Principle XXXVII).
@@ -72,6 +85,8 @@ class CustomerEntity extends Equatable {
         mobileVerifiedAt,
         email,
         age,
+        birthday,
+        photoUrl,
         lastLoginAt,
       ];
 }

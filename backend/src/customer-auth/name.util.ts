@@ -15,3 +15,25 @@ export function splitFullName(full: string | null | undefined): {
     lastName: trimmed.slice(spaceIdx + 1),
   };
 }
+
+/**
+ * Prefers the provider's own `given_name` / `family_name` over splitting the
+ * display name on the first space. Google already knows where the boundary is,
+ * so "Mohammed Mokhtar Ali" no longer lands as first="Mohammed",
+ * last="Mokhtar Ali" when the claims say otherwise. Falls back to
+ * {@link splitFullName} when either claim is absent.
+ */
+export function resolveSocialName(identity: {
+  givenName?: string | null;
+  familyName?: string | null;
+  fullName?: string | null;
+}): { firstName: string; lastName: string } {
+  const given = (identity.givenName ?? '').trim();
+  const family = (identity.familyName ?? '').trim();
+  if (given && family) return { firstName: given, lastName: family };
+  const split = splitFullName(identity.fullName);
+  return {
+    firstName: given || split.firstName,
+    lastName: family || split.lastName,
+  };
+}

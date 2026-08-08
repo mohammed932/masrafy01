@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 
 /// Date-of-birth control: an uppercase label over a single tappable, read-only
 /// field that shows the chosen date (localized, e.g. `21 March 1992`), plus an
@@ -12,10 +13,12 @@ import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 /// this widget only displays the chosen [value] (or [hint] when empty).
 ///
 /// Styled to match the app's canonical trigger `MasrafySelectField` (uppercase
-/// label, 44h field, 14r border) but opens a calendar sheet rather than the
-/// select sheet. Promoted to `core/widgets/input_controls/` per Principle
-/// XXXIII (shared by signup + profile). State is fully external — the caller
-/// owns [value].
+/// label, shared [MasrafyFieldMetrics] geometry) but opens a calendar sheet
+/// rather than the select sheet. A filled field keeps the neutral chrome — the
+/// age line below is the only "valid" signal, matching `MasrafyLabeledField`.
+///
+/// Promoted to `core/widgets/input_controls/` per Principle XXXIII (shared by
+/// signup + profile). State is fully external — the caller owns [value].
 class MasrafyDobSelector extends StatelessWidget {
   const MasrafyDobSelector({
     super.key,
@@ -55,21 +58,20 @@ class MasrafyDobSelector extends StatelessWidget {
                 letterSpacing: 0.66,
               ),
         ),
-        Gap(8.h),
+        Gap(MasrafyFieldMetrics.labelGap),
         GestureDetector(
           onTap: enabled ? onTap : null,
           behavior: HitTestBehavior.opaque,
           child: Container(
-            height: 44.h,
-            padding: EdgeInsetsDirectional.symmetric(horizontal: 12.w),
+            height: MasrafyFieldMetrics.height,
+            padding: EdgeInsetsDirectional.symmetric(
+              horizontal: MasrafyFieldMetrics.horizontalPadding,
+            ),
             decoration: BoxDecoration(
-              color: filled
-                  ? colors.success.main.withValues(alpha: 0.06)
-                  : colors.bg.layout,
-              border: Border.all(
-                color: filled ? colors.success.main : colors.border.main,
-              ),
-              borderRadius: BorderRadius.circular(14.r),
+              color: enabled ? Colors.transparent : colors.fill.quaternary,
+              border: Border.all(color: colors.border.main),
+              borderRadius:
+                  BorderRadius.circular(MasrafyFieldMetrics.radius),
             ),
             child: Row(
               children: [
@@ -81,7 +83,7 @@ class MasrafyDobSelector extends StatelessWidget {
                     style: text.body.copyWith(
                       color: filled
                           ? colors.text.heading
-                          : colors.text.placeholder,
+                          : colors.text.tertiary,
                     ),
                   ),
                 ),

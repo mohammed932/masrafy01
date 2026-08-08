@@ -69,6 +69,22 @@ export class S3StorageClient implements OnModuleInit {
     return { uploadUrl, expiresAt: new Date(Date.now() + ttl * 1000) };
   }
 
+  /**
+   * Server-side upload. Used when the bytes originate on the backend rather
+   * than on the customer's device (e.g. importing a Google profile picture at
+   * social sign-up), so there is no client to hand a presigned PUT to.
+   */
+  async putObject(key: string, body: Uint8Array, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+  }
+
   async getPresignedGetUrl(key: string, ttlSec?: number): Promise<PresignedDownloadUrl> {
     const ttl = ttlSec ?? this.defaultTtl;
     const cmd = new GetObjectCommand({ Bucket: this.bucket, Key: key });

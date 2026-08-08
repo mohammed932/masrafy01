@@ -1019,6 +1019,12 @@ abstract class AppLocalizations {
   /// **'رفع'**
   String get signup_photo_upload;
 
+  /// No description provided for @signup_photo_optional.
+  ///
+  /// In ar, this message translates to:
+  /// **'اختياري'**
+  String get signup_photo_optional;
+
   /// No description provided for @signup_first_name_label.
   ///
   /// In ar, this message translates to:
@@ -1042,6 +1048,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إسكندر'**
   String get signup_last_name_hint;
+
+  /// No description provided for @signup_phone_code_label.
+  ///
+  /// In ar, this message translates to:
+  /// **'رمز الدولة'**
+  String get signup_phone_code_label;
 
   /// No description provided for @signup_phone_label.
   ///
@@ -1136,7 +1148,7 @@ abstract class AppLocalizations {
   /// No description provided for @signup_national_id_hint.
   ///
   /// In ar, this message translates to:
-  /// **'— مطلوب للأهلية للحصول على القرض'**
+  /// **'— اختياري الآن، مطلوب عند اختيار العرض'**
   String get signup_national_id_hint;
 
   /// No description provided for @signup_id_front.
@@ -1154,14 +1166,26 @@ abstract class AppLocalizations {
   /// No description provided for @signup_id_tap_to_upload.
   ///
   /// In ar, this message translates to:
-  /// **'اضغط للرفع'**
+  /// **'اضغط للتصوير'**
   String get signup_id_tap_to_upload;
+
+  /// No description provided for @signup_id_captured.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم التصوير'**
+  String get signup_id_captured;
 
   /// No description provided for @signup_id_unavailable.
   ///
   /// In ar, this message translates to:
   /// **'اضغط لإعادة الرفع'**
   String get signup_id_unavailable;
+
+  /// No description provided for @signup_id_upload_deferred.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم إنشاء حسابك، لكن تعذّر رفع الرقم القومي. أضِفه من ملفك الشخصي.'**
+  String get signup_id_upload_deferred;
 
   /// No description provided for @signup_terms.
   ///

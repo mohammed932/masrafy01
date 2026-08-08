@@ -25,6 +25,11 @@ mixin _$CompleteProfileState {
   RegistrationPath get registrationPath => throw _privateConstructorUsedError;
   bool get hasPassword => throw _privateConstructorUsedError;
   Uint8List? get photoBytes => throw _privateConstructorUsedError;
+
+  /// Presigned URL of a photo the account already has — on the Google path
+  /// that is the imported provider avatar, so the circle shows the picture
+  /// instead of asking for one we already hold.
+  String? get photoUrl => throw _privateConstructorUsedError;
   bool get photoUploaded => throw _privateConstructorUsedError;
   bool get photoUploading => throw _privateConstructorUsedError;
   bool get idFrontUploaded => throw _privateConstructorUsedError;
@@ -65,6 +70,7 @@ abstract class $CompleteProfileStateCopyWith<$Res> {
       RegistrationPath registrationPath,
       bool hasPassword,
       Uint8List? photoBytes,
+      String? photoUrl,
       bool photoUploaded,
       bool photoUploading,
       bool idFrontUploaded,
@@ -104,6 +110,7 @@ class _$CompleteProfileStateCopyWithImpl<$Res,
     Object? registrationPath = null,
     Object? hasPassword = null,
     Object? photoBytes = freezed,
+    Object? photoUrl = freezed,
     Object? photoUploaded = null,
     Object? photoUploading = null,
     Object? idFrontUploaded = null,
@@ -154,6 +161,10 @@ class _$CompleteProfileStateCopyWithImpl<$Res,
           ? _value.photoBytes
           : photoBytes // ignore: cast_nullable_to_non_nullable
               as Uint8List?,
+      photoUrl: freezed == photoUrl
+          ? _value.photoUrl
+          : photoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
       photoUploaded: null == photoUploaded
           ? _value.photoUploaded
           : photoUploaded // ignore: cast_nullable_to_non_nullable
@@ -224,6 +235,7 @@ abstract class _$$CompleteProfileStateImplCopyWith<$Res>
       RegistrationPath registrationPath,
       bool hasPassword,
       Uint8List? photoBytes,
+      String? photoUrl,
       bool photoUploaded,
       bool photoUploading,
       bool idFrontUploaded,
@@ -260,6 +272,7 @@ class __$$CompleteProfileStateImplCopyWithImpl<$Res>
     Object? registrationPath = null,
     Object? hasPassword = null,
     Object? photoBytes = freezed,
+    Object? photoUrl = freezed,
     Object? photoUploaded = null,
     Object? photoUploading = null,
     Object? idFrontUploaded = null,
@@ -310,6 +323,10 @@ class __$$CompleteProfileStateImplCopyWithImpl<$Res>
           ? _value.photoBytes
           : photoBytes // ignore: cast_nullable_to_non_nullable
               as Uint8List?,
+      photoUrl: freezed == photoUrl
+          ? _value.photoUrl
+          : photoUrl // ignore: cast_nullable_to_non_nullable
+              as String?,
       photoUploaded: null == photoUploaded
           ? _value.photoUploaded
           : photoUploaded // ignore: cast_nullable_to_non_nullable
@@ -375,6 +392,7 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
       this.registrationPath = RegistrationPath.phone,
       this.hasPassword = false,
       this.photoBytes,
+      this.photoUrl,
       this.photoUploaded = false,
       this.photoUploading = false,
       this.idFrontUploaded = false,
@@ -414,6 +432,12 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
   final bool hasPassword;
   @override
   final Uint8List? photoBytes;
+
+  /// Presigned URL of a photo the account already has — on the Google path
+  /// that is the imported provider avatar, so the circle shows the picture
+  /// instead of asking for one we already hold.
+  @override
+  final String? photoUrl;
   @override
   @JsonKey()
   final bool photoUploaded;
@@ -453,7 +477,7 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
 
   @override
   String toString() {
-    return 'CompleteProfileState(firstName: $firstName, lastName: $lastName, birthday: $birthday, email: $email, password: $password, obscure: $obscure, registrationPath: $registrationPath, hasPassword: $hasPassword, photoBytes: $photoBytes, photoUploaded: $photoUploaded, photoUploading: $photoUploading, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idFrontBytes: $idFrontBytes, idBackBytes: $idBackBytes, idBackUploading: $idBackUploading, loadStatus: $loadStatus, status: $status, error: $error, session: $session)';
+    return 'CompleteProfileState(firstName: $firstName, lastName: $lastName, birthday: $birthday, email: $email, password: $password, obscure: $obscure, registrationPath: $registrationPath, hasPassword: $hasPassword, photoBytes: $photoBytes, photoUrl: $photoUrl, photoUploaded: $photoUploaded, photoUploading: $photoUploading, idFrontUploaded: $idFrontUploaded, idFrontUploading: $idFrontUploading, idBackUploaded: $idBackUploaded, idFrontBytes: $idFrontBytes, idBackBytes: $idBackBytes, idBackUploading: $idBackUploading, loadStatus: $loadStatus, status: $status, error: $error, session: $session)';
   }
 
   @override
@@ -477,6 +501,8 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
                 other.hasPassword == hasPassword) &&
             const DeepCollectionEquality()
                 .equals(other.photoBytes, photoBytes) &&
+            (identical(other.photoUrl, photoUrl) ||
+                other.photoUrl == photoUrl) &&
             (identical(other.photoUploaded, photoUploaded) ||
                 other.photoUploaded == photoUploaded) &&
             (identical(other.photoUploading, photoUploading) ||
@@ -512,6 +538,7 @@ class _$CompleteProfileStateImpl extends _CompleteProfileState {
         registrationPath,
         hasPassword,
         const DeepCollectionEquality().hash(photoBytes),
+        photoUrl,
         photoUploaded,
         photoUploading,
         idFrontUploaded,
@@ -548,6 +575,7 @@ abstract class _CompleteProfileState extends CompleteProfileState {
       final RegistrationPath registrationPath,
       final bool hasPassword,
       final Uint8List? photoBytes,
+      final String? photoUrl,
       final bool photoUploaded,
       final bool photoUploading,
       final bool idFrontUploaded,
@@ -580,6 +608,12 @@ abstract class _CompleteProfileState extends CompleteProfileState {
   bool get hasPassword;
   @override
   Uint8List? get photoBytes;
+
+  /// Presigned URL of a photo the account already has — on the Google path
+  /// that is the imported provider avatar, so the circle shows the picture
+  /// instead of asking for one we already hold.
+  @override
+  String? get photoUrl;
   @override
   bool get photoUploaded;
   @override

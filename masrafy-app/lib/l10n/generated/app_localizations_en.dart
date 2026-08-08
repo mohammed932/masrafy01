@@ -484,6 +484,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup_photo_upload => 'Upload';
 
   @override
+  String get signup_photo_optional => 'Optional';
+
+  @override
   String get signup_first_name_label => 'First name';
 
   @override
@@ -494,6 +497,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get signup_last_name_hint => 'Iskandar';
+
+  @override
+  String get signup_phone_code_label => 'Country code';
 
   @override
   String get signup_phone_label => 'Phone number';
@@ -543,7 +549,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup_national_id_label => 'National ID';
 
   @override
-  String get signup_national_id_hint => '— required for loan eligibility';
+  String get signup_national_id_hint => '— optional now, needed when you pick an offer';
 
   @override
   String get signup_id_front => 'Front side';
@@ -552,10 +558,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get signup_id_back => 'Back side';
 
   @override
-  String get signup_id_tap_to_upload => 'Tap to upload';
+  String get signup_id_tap_to_upload => 'Tap to capture';
+
+  @override
+  String get signup_id_captured => 'Captured';
 
   @override
   String get signup_id_unavailable => 'Tap to upload again';
+
+  @override
+  String get signup_id_upload_deferred => 'Your account is ready, but the National ID didn\'t upload. Add it from your profile.';
 
   @override
   String get signup_terms => 'I agree to Masrafy\'s Terms of Service and Privacy Policy, and consent to processing my financial data.';

@@ -187,18 +187,51 @@ class OtpCubit extends Cubit<OtpState> {
         password: draft.password,
       ),
     );
-    res.fold(
-      (err) => emit(state.copyWith(
+    await res.fold(
+      (err) async => emit(state.copyWith(
         status: RequestState.error,
         error: err,
         session: lite,
       )),
-      (completed) => emit(state.copyWith(
-        status: RequestState.loaded,
-        session: completed,
-        error: null,
-      )),
+      (completed) async {
+        // Session exists now, so the National-ID sides captured on the signup
+        // screen can finally be uploaded (the endpoints are customer-scoped).
+        final idFailed = await _uploadCarriedNationalId(draft);
+        emit(state.copyWith(
+          status: RequestState.loaded,
+          session: completed,
+          error: null,
+          // Not an error: the account IS created and usable. The flag only
+          // tells the page to say the ID must be re-added from the profile,
+          // rather than dropping the customer's capture in silence.
+          nationalIdUploadFailed: idFailed,
+        ));
+      },
     );
+  }
+
+  /// Uploads whichever National-ID sides the signup screen captured. Never
+  /// blocks the signup: National ID is optional until the select-offer step
+  /// (Principle XXXVII / v9.1.0), so a failure returns `true` for the page to
+  /// mention and the customer keeps a working account either way.
+  Future<bool> _uploadCarriedNationalId(SignupDraft draft) async {
+    var failed = false;
+    for (final (front, image) in [
+      (true, draft.nationalIdFront),
+      (false, draft.nationalIdBack),
+    ]) {
+      if (image == null) continue;
+      final res = await _auth.uploadNationalIdSide(
+        UploadNationalIdRequest(
+          documentType: front ? 'NATIONAL_ID_FRONT' : 'NATIONAL_ID_BACK',
+          bytes: image.bytes,
+          contentType: image.contentType,
+          filename: image.filename,
+        ),
+      );
+      if (res.isLeft()) failed = true;
+    }
+    return failed;
   }
 
   /// Re-issues the SMS code. [locale] is the active app language code.

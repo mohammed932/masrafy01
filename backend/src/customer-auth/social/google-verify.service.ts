@@ -8,6 +8,18 @@ export interface VerifiedSocialIdentity {
   providerUserId: string;
   email: string | null;
   fullName: string | null;
+  /**
+   * `given_name` / `family_name` claims. Preferred over splitting `name` on
+   * whitespace — Google already knows where the boundary is, so a two-word
+   * family name no longer lands half in `firstName`.
+   */
+  givenName: string | null;
+  familyName: string | null;
+  /**
+   * `picture` claim — a Google-hosted avatar URL. Only ever fetched by
+   * `GoogleProfilePhotoService`, which re-checks the host before requesting it.
+   */
+  pictureUrl: string | null;
   emailVerified: boolean;
 }
 
@@ -43,6 +55,9 @@ export class GoogleVerifyService {
         providerUserId: payload.sub,
         email: payload.email ?? null,
         fullName: payload.name ?? null,
+        givenName: payload.given_name ?? null,
+        familyName: payload.family_name ?? null,
+        pictureUrl: payload.picture ?? null,
         emailVerified: payload.email_verified === true,
       };
     } catch (err) {

@@ -30,6 +30,8 @@ import { VerifiedMobileTokenService } from './verified-mobile-token.service';
 import { PasswordResetTokenService } from './password-reset-token.service';
 import { CustomerLoginLockoutService } from './customer-login-lockout.service';
 import { GoogleVerifyService } from './social/google-verify.service';
+import { GooglePeopleService } from './social/google-people.service';
+import { GoogleProfilePhotoService } from './social/google-profile-photo.service';
 import { SMS_GATEWAY } from './sms/sms-gateway.interface';
 import { MockSmsGateway } from './sms/mock-sms-gateway.service';
 // S3 presign for the profile photo on GET /me. Registered directly (not via
@@ -89,6 +91,8 @@ import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enu
     PasswordResetTokenService,
     CustomerLoginLockoutService,
     GoogleVerifyService,
+    GooglePeopleService,
+    GoogleProfilePhotoService,
     { provide: SMS_GATEWAY, useClass: MockSmsGateway },
     CustomerAuthMobileService,
     S3StorageClient,

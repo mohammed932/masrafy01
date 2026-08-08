@@ -53,18 +53,34 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
 
   /// Prefills the form from the current account. The form stays usable even if
   /// this fails — submission re-validates server-side.
+  ///
+  /// On the Google path the account already carries whatever the provider gave
+  /// us — name, and (when the customer granted the birthday scope) the date of
+  /// birth plus the avatar imported into our own storage. Those land here, so
+  /// the screen only asks for what is genuinely still missing. Every prefill is
+  /// still editable: [seed]'s values win, and the customer can overwrite any of
+  /// them before submitting.
   Future<void> load() async {
     emit(state.copyWith(loadStatus: RequestState.loading));
     final res = await _auth.me();
     res.fold(
       (_) => emit(state.copyWith(loadStatus: RequestState.error)),
-      (c) => emit(state.copyWith(
-        loadStatus: RequestState.loaded,
-        registrationPath: c.registrationPath,
-        hasPassword: c.hasPassword,
-        firstName: state.firstName.isEmpty ? _firstWord(c.name) : state.firstName,
-        lastName: state.lastName.isEmpty ? _restWords(c.name) : state.lastName,
-      )),
+      (c) {
+        // Same broadcast as a fresh upload — a photo the account already has is
+        // the avatar every other screen should be painting from this moment on.
+        if (c.photoUrl != null) _photos.publishRemote(c.photoUrl);
+        emit(state.copyWith(
+          loadStatus: RequestState.loaded,
+          registrationPath: c.registrationPath,
+          hasPassword: c.hasPassword,
+          firstName:
+              state.firstName.isEmpty ? _firstWord(c.name) : state.firstName,
+          lastName:
+              state.lastName.isEmpty ? _restWords(c.name) : state.lastName,
+          birthday: state.birthday ?? c.birthday,
+          photoUrl: c.photoUrl,
+        ));
+      },
     );
   }
 

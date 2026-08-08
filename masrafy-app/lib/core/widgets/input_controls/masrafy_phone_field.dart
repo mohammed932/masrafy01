@@ -6,16 +6,19 @@ import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/utils/masrafy_assets.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 import 'package:app/core/widgets/input_controls/phone_dial_codes.dart';
 
 /// Pixel-perfect mirror of Figma node 3173:91172 (Phone Code + Phone Number row).
 /// Layout:
 ///   [Phone Code select 158w]   [Phone Number input flex-1]
 ///   gap 16
-/// Each column has a 14/22 label (8h pad below) above its control.
-/// Both controls: bg `bg.container`, 1px `border.main`, 8r radius,
-/// 12h padding (select) / 11h padding (input), 40h height. The select
-/// uses a 12r DownOutlined SVG (`kSetStudyChevronDown`).
+/// Each column has its own label above its control — pass [uppercaseLabels] to
+/// get the uppercase indigo `caption` label of the edit-form field family.
+/// Both controls: transparent, 1px `border.main`, [MasrafyFieldMetrics.radius],
+/// [MasrafyFieldMetrics.height] — the same height as every other single-line
+/// field, so a form mixing this row with text inputs / selects stays even. The
+/// select uses a 12r DownOutlined SVG (`kSetStudyChevronDown`).
 ///
 /// State is fully external — caller owns the dial code (e.g. `"+1"`) and
 /// phone number strings, plus the matching `onChanged` callbacks.
@@ -145,9 +148,9 @@ class MasrafyPhoneField extends StatelessWidget {
   }
 }
 
-/// 40h phone-number input — same chrome as the dial-code select so the
-/// two fields are vertically pixel-aligned. `bg.container` + 1px
-/// `border.main` + 8r radius + 12h padding + Inter Regular 16/24 text.
+/// Phone-number input — same chrome as the dial-code select so the two fields
+/// are vertically pixel-aligned: transparent + 1px `border.main` +
+/// [MasrafyFieldMetrics.radius] + [MasrafyFieldMetrics.height], `body` text.
 /// Wires through digits-only formatter + 20-char limit + optional
 /// validator (form-level error rendering left to the caller).
 class _PhoneNumberInput extends StatefulWidget {
@@ -198,14 +201,18 @@ class _PhoneNumberInputState extends State<_PhoneNumberInput> {
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final texts = MasrafyTextTheme.of(context);
-    // Height + horizontal padding match `MasrafyTextField` (Email
-    // Address) — vertical 14h + body line-height 22 ≈ 50h, padding-x 16.
+    // Fixed height (shared with every other field) instead of vertical padding,
+    // and the text centred inside it.
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+      height: MasrafyFieldMetrics.height,
+      padding: EdgeInsetsDirectional.symmetric(
+        horizontal: MasrafyFieldMetrics.horizontalPadding,
+      ),
+      alignment: AlignmentDirectional.centerStart,
       decoration: BoxDecoration(
-        color: colors.bg.container,
+        color: Colors.transparent,
         border: Border.all(color: colors.border.main),
-        borderRadius: BorderRadius.circular(8.r),
+        borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
       ),
       child: TextField(
         controller: _controller,
@@ -216,8 +223,8 @@ class _PhoneNumberInputState extends State<_PhoneNumberInput> {
           LengthLimitingTextInputFormatter(20),
         ],
         cursorColor: colors.primary.main,
-        style:
-            texts.body.medium().copyWith(color: colors.text.primary),
+        // Same value + placeholder styles as `MasrafyLabeledField`.
+        style: texts.body.copyWith(color: colors.text.heading),
         onChanged: widget.onChanged,
         onTapOutside: (_) =>
             FocusManager.instance.primaryFocus?.unfocus(),
@@ -225,8 +232,7 @@ class _PhoneNumberInputState extends State<_PhoneNumberInput> {
           isCollapsed: true,
           border: InputBorder.none,
           hintText: widget.placeholder,
-          hintStyle:
-              texts.body.regular().copyWith(color: colors.text.tertiary),
+          hintStyle: texts.body.copyWith(color: colors.text.tertiary),
         ),
       ),
     );
@@ -247,7 +253,9 @@ class _Label extends StatelessWidget {
     final colors = MasrafyColorTheme.of(context);
     final texts = MasrafyTextTheme.of(context);
     return Padding(
-      padding: EdgeInsets.only(bottom: uppercase ? 6.h : 8.h),
+      padding: EdgeInsetsDirectional.only(
+        bottom: uppercase ? MasrafyFieldMetrics.labelGap : 8.h,
+      ),
       child: Text(
         uppercase ? text.toUpperCase() : text,
         style: uppercase
@@ -261,8 +269,9 @@ class _Label extends StatelessWidget {
   }
 }
 
-/// Tappable select — `bg.container` + 1px `border.main` + 8r + 12h pad
-/// + 40h. Trailing 12r `DownOutlined` SVG.
+/// Tappable select — transparent + 1px `border.main` +
+/// [MasrafyFieldMetrics.radius] + [MasrafyFieldMetrics.height]. Trailing 12r
+/// `DownOutlined` SVG.
 class _DialCodeSelect extends StatelessWidget {
   const _DialCodeSelect({
     required this.placeholder,
@@ -279,28 +288,29 @@ class _DialCodeSelect extends StatelessWidget {
     final colors = MasrafyColorTheme.of(context);
     final texts = MasrafyTextTheme.of(context);
     final hasValue = value != null && value!.isNotEmpty;
-    // Padding matches `MasrafyTextField` (Email Address) — 16h / 14v.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding:
-            EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+        height: MasrafyFieldMetrics.height,
+        padding: EdgeInsetsDirectional.symmetric(
+          horizontal: MasrafyFieldMetrics.horizontalPadding,
+        ),
         decoration: BoxDecoration(
-          color: colors.bg.container,
+          color: Colors.transparent,
           border: Border.all(color: colors.border.main),
-          borderRadius: BorderRadius.circular(8.r),
+          borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
         ),
         child: Row(
           children: [
             Expanded(
               child: Text(
                 hasValue ? value! : placeholder,
-                style: texts.body.medium().copyWith(
-                      color: hasValue
-                          ? colors.text.primary
-                          : colors.text.tertiary,
-                    ),
+                style: texts.body.copyWith(
+                  color: hasValue
+                      ? colors.text.heading
+                      : colors.text.tertiary,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -311,7 +321,7 @@ class _DialCodeSelect extends StatelessWidget {
               width: 12.r,
               height: 12.r,
               colorFilter: ColorFilter.mode(
-                colors.text.primary,
+                colors.icon.main,
                 BlendMode.srcIn,
               ),
             ),

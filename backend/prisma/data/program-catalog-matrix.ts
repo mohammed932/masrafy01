@@ -142,7 +142,6 @@ const PERSONAL_SALARIED = [
   'salary_transfer',
   'employer_approved',
   'amount_requested',
-  'your_age',
   'active_account',
 ] as const;
 
@@ -159,7 +158,6 @@ const PERSONAL_SELF_EMPLOYED = [
   'current_loans',
   'employment_status',
   'amount_requested',
-  'your_age',
   'active_account',
   'prior_rejection',
 ] as const;
@@ -179,7 +177,6 @@ const CAR_SPINE = [
   'amount_requested',
   'repayment_period_months',
   'employment_status',
-  'your_age',
 ] as const;
 
 /**
@@ -198,7 +195,6 @@ const MORTGAGE_SPINE = [
   'repayment_period_months',
   'employment_status',
   'job_tenure',
-  'your_age',
 ] as const;
 
 /**
@@ -242,7 +238,7 @@ export const CATALOG_QUESTION_TEMPLATE: Readonly<
     personal: [...PERSONAL_SALARIED, 'additional_income'],
     car: [...CAR_SPINE, 'additional_income', 'salary_transfer'],
     mortgage: [...MORTGAGE_SPINE, 'additional_income', 'salary_transfer'],
-    business: [...BUSINESS_SPINE, 'your_age'],
+    business: [...BUSINESS_SPINE],
   },
 
   // ── Professionals (lawyers, engineers, accountants): the same two-sided
@@ -251,7 +247,7 @@ export const CATALOG_QUESTION_TEMPLATE: Readonly<
     personal: [...PERSONAL_SELF_EMPLOYED],
     car: [...CAR_SPINE, 'additional_income'],
     mortgage: [...MORTGAGE_SPINE, 'additional_income'],
-    business: [...BUSINESS_SPINE, 'your_age'],
+    business: [...BUSINESS_SPINE],
   },
 
   // ── Pharmacy: a licensed retail business. On the personal side the owner is
@@ -312,7 +308,6 @@ export const CATALOG_QUESTION_TEMPLATE: Readonly<
       'current_installments',
       'current_loans',
       'amount_requested',
-      'your_age',
       'active_account',
     ],
     car: [...CAR_SPINE, 'salary_transfer', 'additional_income'],
@@ -329,7 +324,6 @@ export const CATALOG_QUESTION_TEMPLATE: Readonly<
       'salary_transfer',
       'current_installments',
       'amount_requested',
-      'your_age',
       'has_credit_card',
       'card_usage',
       'active_account',
@@ -383,7 +377,7 @@ export const CATALOG_QUESTION_TEMPLATE: Readonly<
   // ── Equipment finance: asset-backed lending on the business side, and an
   // ordinary secured car deal when the equipment happens to have wheels.
   equipment_finance: {
-    business: [...BUSINESS_SPINE, 'your_age'],
+    business: [...BUSINESS_SPINE],
     car: [...CAR_SPINE, 'current_loans'],
   },
 };

@@ -1,9 +1,12 @@
 import 'package:bloc/bloc.dart';
+import 'package:flutter/widgets.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:app/core/enums/request_state.dart';
+import 'package:app/core/features/id_capture/id_thumbnail.dart';
 import 'package:app/core/result/failure.dart';
+import 'package:app/core/utils/image_pick.dart';
 import 'package:app/core/utils/validators.dart';
 import 'package:app/features/auth/data/models/request/signup/signup_phone_start_request.dart';
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart';
@@ -45,6 +48,17 @@ class SignupCubit extends Cubit<SignupState> {
         emit(state.copyWith(agreedToTerms: value as bool, error: null));
     }
   }
+
+  /// Keeps a National-ID side captured on this screen. Nothing is uploaded
+  /// here: the upload endpoints are customer-scoped and no customer exists
+  /// until the OTP is verified, so the bytes travel in the draft and the OTP
+  /// cubit sends them the moment the session is issued. Kept off
+  /// [updateField] so the cubit takes a typed [PickedImage] instead of casting
+  /// an `Object`.
+  void setNationalId({required bool front, required PickedImage image}) =>
+      emit(front
+          ? state.copyWith(idFront: image, error: null)
+          : state.copyWith(idBack: image, error: null));
 
   void toggleObscure() => emit(state.copyWith(obscure: !state.obscure));
 

@@ -162,15 +162,11 @@ const YESNO = (yesPoints?: number, noPoints?: number): SeedOption[] => [
   { code: 'no', labelEn: 'No', labelAr: 'لا', ...(noPoints != null ? { points: noPoints } : {}) },
 ];
 
-const AGE_Q: SeedQuestion = {
-  code: 'your_age', questionEn: 'How old are you?', questionAr: 'عمرك',
-  options: [
-    { code: '21_30', labelEn: '21 – 30', labelAr: '21 – 30', points: 70 },
-    { code: '31_45', labelEn: '31 – 45', labelAr: '31 – 45', points: 100 },
-    { code: '46_60', labelEn: '46 – 60', labelAr: '46 – 60', points: 75 },
-    { code: 'more_than_60', labelEn: 'More than 60', labelAr: 'أكثر من 60', points: 35 },
-  ],
-};
+// `your_age` used to live here. It is gone: age is a mandatory signup field
+// (`birthday`, Principle XXXVII) and is DERIVED via `getApplicantAge()` for every
+// caller, so asking it again could only ever produce a second, self-reported age
+// that disagrees with the verified one — and the band answer would have been the
+// one scored. Re-running this seed deactivates the row and republishes without it.
 // A customer can carry several obligations at once, so this is MULTI_SELECT.
 // Shared across categories so the global merge never unions a Yes/No variant
 // into the loan-kind list.
@@ -596,7 +592,6 @@ const PERSONAL: CategoryConfig = {
             { code: 'other', labelEn: 'Something else', labelAr: 'أخرى' },
           ],
         },
-        AGE_Q,
       ],
     },
     {
@@ -680,7 +675,7 @@ const MORTGAGE: CategoryConfig = {
     // the pool as a group nobody is ever asked.
     {
       code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      questions: [DOWN_PAYMENT_Q, AGE_Q],
+      questions: [DOWN_PAYMENT_Q],
     },
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
@@ -744,7 +739,7 @@ const CAR: CategoryConfig = {
     },
     {
       code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      questions: [DOWN_PAYMENT_Q, AGE_Q],
+      questions: [DOWN_PAYMENT_Q],
     },
     {
       code: 'employment_income', titleEn: 'Your work and income', titleAr: 'معلومات العمل والدخل',
@@ -815,10 +810,12 @@ const BUSINESS: CategoryConfig = {
       ],
     },
     {
-      // Business owners are asked the shared age question too: every program
-      // prices the tenor against the applicant's age, whoever they are.
+      // Declared with no questions of its own on purpose: `amount_requested` and
+      // `repayment_period_months` are injected into this group for all four
+      // categories below, and that injection throws if the group is not declared
+      // here first. Nothing else business-specific belongs in it.
       code: 'financing_info', titleEn: 'About the financing', titleAr: 'معلومات التمويل',
-      questions: [AGE_Q],
+      questions: [],
     },
     {
       code: 'financial_info', titleEn: 'Your business money', titleAr: 'المعلومات المالية',

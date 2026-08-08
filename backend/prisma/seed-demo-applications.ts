@@ -357,13 +357,6 @@ function ageFromBirthday(birthday: string, at: Date): number {
   return age;
 }
 
-function ageBandAnswer(age: number): string {
-  if (age <= 30) return '21_30';
-  if (age <= 45) return '31_45';
-  if (age <= 60) return '46_60';
-  return 'more_than_60';
-}
-
 function buildSpecs(count: number, categories: readonly Category[]): AppSpec[] {
   const now = new Date();
   const specs: AppSpec[] = [];
@@ -477,7 +470,6 @@ function buildAnswers(spec: AppSpec): Record<string, AnswerValue> {
         'debt_consolidation_settling_obligations',
       ),
     },
-    your_age: { optionCode: ageBandAnswer(spec.age) },
 
     // Employment + income
     monthly_income: { numericValue: a.incomeEGP.toFixed(2) },

@@ -38,6 +38,12 @@ export interface CreateSocialLiteCustomerInput {
   firstName?: string | null;
   lastName?: string | null;
   locale?: string;
+  /**
+   * Prefill from the provider (Google People API) when the customer granted
+   * the birthday scope. Stays null otherwise — the Complete-Profile screen
+   * collects it, and the customer can overwrite this value there either way.
+   */
+  birthday?: Date | null;
 }
 
 export interface CompleteProfileInput {
@@ -216,9 +222,22 @@ export class CustomerAccountRepository {
         email: input.email?.toLowerCase().trim() ?? null,
         locale: input.locale ?? 'ar-EG',
         passwordHash: null,
-        birthday: null,
+        birthday: input.birthday ?? null,
       },
     });
+  }
+
+  /**
+   * Fills `birthday` ONLY when it is still null — a provider prefill must never
+   * overwrite a date the customer already confirmed on Complete-Profile
+   * (birthday is immutable from that point). Returns whether it wrote.
+   */
+  async setBirthdayIfUnset(customerId: string, birthday: Date): Promise<boolean> {
+    const { count } = await this.prisma.customerAccount.updateMany({
+      where: { id: customerId, birthday: null },
+      data: { birthday },
+    });
+    return count > 0;
   }
 
   /**

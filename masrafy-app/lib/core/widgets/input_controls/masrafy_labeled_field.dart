@@ -4,9 +4,12 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 
-/// Validation tint for a [MasrafyLabeledField] (Figma sign-up inputs:
-/// neutral grey, green when valid, red when in error).
+/// Validation tint for a [MasrafyLabeledField]: red when in error, otherwise
+/// the neutral grey chrome. `valid` is signalled by the status dot + helper
+/// line only — a filled field keeps the same border and fill as an empty one,
+/// so a long form does not turn into a wall of coloured boxes.
 enum MasrafyFieldStatus { neutral, valid, error }
 
 /// Uppercase label (optionally with a colored status dot) above a filled,
@@ -45,24 +48,17 @@ class MasrafyLabeledField extends StatelessWidget {
   final String? helperText;
   final bool showStatusDot;
 
-  Color _accent(MasrafyColorTheme colors) {
-    switch (status) {
-      case MasrafyFieldStatus.valid:
-        return colors.success.main;
-      case MasrafyFieldStatus.error:
-        return colors.error.main;
-      case MasrafyFieldStatus.neutral:
-        return colors.border.main;
-    }
-  }
+  Color _accent(MasrafyColorTheme colors) => status == MasrafyFieldStatus.error
+      ? colors.error.main
+      : colors.border.main;
 
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final accent = _accent(colors);
-    final isNeutral = status == MasrafyFieldStatus.neutral;
-    final fill = isNeutral ? colors.bg.layout : accent.withValues(alpha: 0.06);
+    final isError = status == MasrafyFieldStatus.error;
+    final inputStyle = text.body.copyWith(color: colors.text.heading);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,13 +66,18 @@ class MasrafyLabeledField extends StatelessWidget {
         Row(
           children: [
             if (showStatusDot) ...[
+              // Grey until the field has something to judge — a green dot over
+              // an empty required field claims a validity it can't know. Kept
+              // in the layout (not hidden) so the label doesn't shift on type.
               Container(
                 width: 6.r,
                 height: 6.r,
                 decoration: BoxDecoration(
-                  color: status == MasrafyFieldStatus.error
-                      ? colors.error.main
-                      : colors.success.main,
+                  color: switch (status) {
+                    MasrafyFieldStatus.error => colors.error.main,
+                    MasrafyFieldStatus.valid => colors.success.main,
+                    MasrafyFieldStatus.neutral => colors.text.quaternary,
+                  },
                   borderRadius: BorderRadius.circular(2.r),
                 ),
               ),
@@ -93,7 +94,7 @@ class MasrafyLabeledField extends StatelessWidget {
             ),
           ],
         ),
-        Gap(6.h),
+        Gap(MasrafyFieldMetrics.labelGap),
         TextField(
           controller: controller,
           onChanged: onChanged,
@@ -101,27 +102,39 @@ class MasrafyLabeledField extends StatelessWidget {
           keyboardType: keyboardType,
           textInputAction: textInputAction,
           inputFormatters: inputFormatters,
-          style: text.body.copyWith(color: colors.text.heading),
+          style: inputStyle,
+          textAlignVertical: TextAlignVertical.center,
           onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
           decoration: InputDecoration(
             isDense: true,
             hintText: hint,
-            hintStyle: text.body.copyWith(color: colors.text.placeholder),
-            filled: true,
-            fillColor: fill,
+            hintStyle: inputStyle.copyWith(color: colors.text.tertiary),
+            // Transparent box — the 1px border carries the field, so inputs,
+            // selects and the phone row read as one outlined family.
+            filled: false,
             suffixIcon: suffix,
+            // Caps the suffix (a 48² IconButton by default) so it cannot
+            // inflate the box past [MasrafyFieldMetrics.height].
+            suffixIconConstraints: BoxConstraints(
+              minWidth: 40.w,
+              maxHeight: MasrafyFieldMetrics.height - 2,
+            ),
+            // Padding, not a SizedBox, sets the height — see
+            // [MasrafyFieldMetrics.verticalPaddingFor].
             contentPadding: EdgeInsetsDirectional.symmetric(
-              horizontal: 14.w,
-              vertical: 14.h,
+              horizontal: MasrafyFieldMetrics.horizontalPadding,
+              vertical: MasrafyFieldMetrics.verticalPaddingFor(inputStyle),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.r),
+              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
               borderSide: BorderSide(color: accent),
             ),
+            // Same 1px width as the resting border: a thicker focus ring would
+            // grow the field by 1px and jitter the whole form on every focus.
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14.r),
+              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
               borderSide: BorderSide(
-                color: isNeutral ? colors.secondary.main : accent,
+                color: isError ? accent : colors.secondary.main,
               ),
             ),
           ),

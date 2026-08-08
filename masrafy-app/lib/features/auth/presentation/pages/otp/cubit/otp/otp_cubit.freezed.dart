@@ -30,7 +30,12 @@ mixin _$OtpState {
   CustomerSessionEntity? get session =>
       throw _privateConstructorUsedError; // Single-use OTP result, retained so a retry after a later-step failure
 // resumes from signup/complete instead of re-verifying the consumed OTP.
-  String? get verifiedMobileToken => throw _privateConstructorUsedError;
+  String? get verifiedMobileToken =>
+      throw _privateConstructorUsedError; // A National-ID side captured at signup that did not survive the upload.
+// Deliberately NOT an error: the account is complete without it (Principle
+// XXXVII), so the page still routes Home — it just says the ID needs
+// re-adding instead of losing the capture quietly.
+  bool get nationalIdUploadFailed => throw _privateConstructorUsedError;
 
   /// Create a copy of OtpState
   /// with the given fields replaced by the non-null parameter values.
@@ -55,7 +60,8 @@ abstract class $OtpStateCopyWith<$Res> {
       RequestState status,
       Failure? error,
       CustomerSessionEntity? session,
-      String? verifiedMobileToken});
+      String? verifiedMobileToken,
+      bool nationalIdUploadFailed});
 }
 
 /// @nodoc
@@ -84,6 +90,7 @@ class _$OtpStateCopyWithImpl<$Res, $Val extends OtpState>
     Object? error = freezed,
     Object? session = freezed,
     Object? verifiedMobileToken = freezed,
+    Object? nationalIdUploadFailed = null,
   }) {
     return _then(_value.copyWith(
       code: null == code
@@ -130,6 +137,10 @@ class _$OtpStateCopyWithImpl<$Res, $Val extends OtpState>
           ? _value.verifiedMobileToken
           : verifiedMobileToken // ignore: cast_nullable_to_non_nullable
               as String?,
+      nationalIdUploadFailed: null == nationalIdUploadFailed
+          ? _value.nationalIdUploadFailed
+          : nationalIdUploadFailed // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -153,7 +164,8 @@ abstract class _$$OtpStateImplCopyWith<$Res>
       RequestState status,
       Failure? error,
       CustomerSessionEntity? session,
-      String? verifiedMobileToken});
+      String? verifiedMobileToken,
+      bool nationalIdUploadFailed});
 }
 
 /// @nodoc
@@ -180,6 +192,7 @@ class __$$OtpStateImplCopyWithImpl<$Res>
     Object? error = freezed,
     Object? session = freezed,
     Object? verifiedMobileToken = freezed,
+    Object? nationalIdUploadFailed = null,
   }) {
     return _then(_$OtpStateImpl(
       code: null == code
@@ -226,6 +239,10 @@ class __$$OtpStateImplCopyWithImpl<$Res>
           ? _value.verifiedMobileToken
           : verifiedMobileToken // ignore: cast_nullable_to_non_nullable
               as String?,
+      nationalIdUploadFailed: null == nationalIdUploadFailed
+          ? _value.nationalIdUploadFailed
+          : nationalIdUploadFailed // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -244,7 +261,8 @@ class _$OtpStateImpl extends _OtpState {
       this.status = RequestState.initial,
       this.error,
       this.session,
-      this.verifiedMobileToken})
+      this.verifiedMobileToken,
+      this.nationalIdUploadFailed = false})
       : super._();
 
   @override
@@ -277,10 +295,17 @@ class _$OtpStateImpl extends _OtpState {
 // resumes from signup/complete instead of re-verifying the consumed OTP.
   @override
   final String? verifiedMobileToken;
+// A National-ID side captured at signup that did not survive the upload.
+// Deliberately NOT an error: the account is complete without it (Principle
+// XXXVII), so the page still routes Home — it just says the ID needs
+// re-adding instead of losing the capture quietly.
+  @override
+  @JsonKey()
+  final bool nationalIdUploadFailed;
 
   @override
   String toString() {
-    return 'OtpState(code: $code, challenge: $challenge, purpose: $purpose, draft: $draft, phone: $phone, secondsRemaining: $secondsRemaining, attemptsLeft: $attemptsLeft, status: $status, error: $error, session: $session, verifiedMobileToken: $verifiedMobileToken)';
+    return 'OtpState(code: $code, challenge: $challenge, purpose: $purpose, draft: $draft, phone: $phone, secondsRemaining: $secondsRemaining, attemptsLeft: $attemptsLeft, status: $status, error: $error, session: $session, verifiedMobileToken: $verifiedMobileToken, nationalIdUploadFailed: $nationalIdUploadFailed)';
   }
 
   @override
@@ -302,7 +327,9 @@ class _$OtpStateImpl extends _OtpState {
             (identical(other.error, error) || other.error == error) &&
             (identical(other.session, session) || other.session == session) &&
             (identical(other.verifiedMobileToken, verifiedMobileToken) ||
-                other.verifiedMobileToken == verifiedMobileToken));
+                other.verifiedMobileToken == verifiedMobileToken) &&
+            (identical(other.nationalIdUploadFailed, nationalIdUploadFailed) ||
+                other.nationalIdUploadFailed == nationalIdUploadFailed));
   }
 
   @override
@@ -318,7 +345,8 @@ class _$OtpStateImpl extends _OtpState {
       status,
       error,
       session,
-      verifiedMobileToken);
+      verifiedMobileToken,
+      nationalIdUploadFailed);
 
   /// Create a copy of OtpState
   /// with the given fields replaced by the non-null parameter values.
@@ -341,7 +369,8 @@ abstract class _OtpState extends OtpState {
       final RequestState status,
       final Failure? error,
       final CustomerSessionEntity? session,
-      final String? verifiedMobileToken}) = _$OtpStateImpl;
+      final String? verifiedMobileToken,
+      final bool nationalIdUploadFailed}) = _$OtpStateImpl;
   const _OtpState._() : super._();
 
   @override
@@ -369,7 +398,13 @@ abstract class _OtpState extends OtpState {
       get session; // Single-use OTP result, retained so a retry after a later-step failure
 // resumes from signup/complete instead of re-verifying the consumed OTP.
   @override
-  String? get verifiedMobileToken;
+  String?
+      get verifiedMobileToken; // A National-ID side captured at signup that did not survive the upload.
+// Deliberately NOT an error: the account is complete without it (Principle
+// XXXVII), so the page still routes Home — it just says the ID needs
+// re-adding instead of losing the capture quietly.
+  @override
+  bool get nationalIdUploadFailed;
 
   /// Create a copy of OtpState
   /// with the given fields replaced by the non-null parameter values.

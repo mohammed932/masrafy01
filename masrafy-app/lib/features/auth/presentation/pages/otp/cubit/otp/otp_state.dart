@@ -18,6 +18,11 @@ class OtpState with _$OtpState {
     // Single-use OTP result, retained so a retry after a later-step failure
     // resumes from signup/complete instead of re-verifying the consumed OTP.
     String? verifiedMobileToken,
+    // A National-ID side captured at signup that did not survive the upload.
+    // Deliberately NOT an error: the account is complete without it (Principle
+    // XXXVII), so the page still routes Home — it just says the ID needs
+    // re-adding instead of losing the capture quietly.
+    @Default(false) bool nationalIdUploadFailed,
   }) = _OtpState;
 
   const OtpState._();

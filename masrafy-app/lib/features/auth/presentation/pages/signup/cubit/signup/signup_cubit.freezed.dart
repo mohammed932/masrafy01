@@ -24,6 +24,14 @@ mixin _$SignupState {
   DateTime? get birthday => throw _privateConstructorUsedError;
   String get password => throw _privateConstructorUsedError;
   String get confirmPassword => throw _privateConstructorUsedError;
+
+  /// National-ID sides captured HERE, before the account exists. They cannot
+  /// be uploaded yet — the upload endpoints are customer-scoped and the JWT
+  /// only arrives once the OTP is verified — so the bytes ride along in the
+  /// draft and go up right after verification. Optional: neither side is in
+  /// [canSubmit] (Principle XXXVII, narrowed v9.0.0).
+  PickedImage? get idFront => throw _privateConstructorUsedError;
+  PickedImage? get idBack => throw _privateConstructorUsedError;
   bool get agreedToTerms => throw _privateConstructorUsedError;
   bool get obscure => throw _privateConstructorUsedError;
   bool get obscureConfirm => throw _privateConstructorUsedError;
@@ -53,6 +61,8 @@ abstract class $SignupStateCopyWith<$Res> {
       DateTime? birthday,
       String password,
       String confirmPassword,
+      PickedImage? idFront,
+      PickedImage? idBack,
       bool agreedToTerms,
       bool obscure,
       bool obscureConfirm,
@@ -84,6 +94,8 @@ class _$SignupStateCopyWithImpl<$Res, $Val extends SignupState>
     Object? birthday = freezed,
     Object? password = null,
     Object? confirmPassword = null,
+    Object? idFront = freezed,
+    Object? idBack = freezed,
     Object? agreedToTerms = null,
     Object? obscure = null,
     Object? obscureConfirm = null,
@@ -124,6 +136,14 @@ class _$SignupStateCopyWithImpl<$Res, $Val extends SignupState>
           ? _value.confirmPassword
           : confirmPassword // ignore: cast_nullable_to_non_nullable
               as String,
+      idFront: freezed == idFront
+          ? _value.idFront
+          : idFront // ignore: cast_nullable_to_non_nullable
+              as PickedImage?,
+      idBack: freezed == idBack
+          ? _value.idBack
+          : idBack // ignore: cast_nullable_to_non_nullable
+              as PickedImage?,
       agreedToTerms: null == agreedToTerms
           ? _value.agreedToTerms
           : agreedToTerms // ignore: cast_nullable_to_non_nullable
@@ -169,6 +189,8 @@ abstract class _$$SignupStateImplCopyWith<$Res>
       DateTime? birthday,
       String password,
       String confirmPassword,
+      PickedImage? idFront,
+      PickedImage? idBack,
       bool agreedToTerms,
       bool obscure,
       bool obscureConfirm,
@@ -198,6 +220,8 @@ class __$$SignupStateImplCopyWithImpl<$Res>
     Object? birthday = freezed,
     Object? password = null,
     Object? confirmPassword = null,
+    Object? idFront = freezed,
+    Object? idBack = freezed,
     Object? agreedToTerms = null,
     Object? obscure = null,
     Object? obscureConfirm = null,
@@ -238,6 +262,14 @@ class __$$SignupStateImplCopyWithImpl<$Res>
           ? _value.confirmPassword
           : confirmPassword // ignore: cast_nullable_to_non_nullable
               as String,
+      idFront: freezed == idFront
+          ? _value.idFront
+          : idFront // ignore: cast_nullable_to_non_nullable
+              as PickedImage?,
+      idBack: freezed == idBack
+          ? _value.idBack
+          : idBack // ignore: cast_nullable_to_non_nullable
+              as PickedImage?,
       agreedToTerms: null == agreedToTerms
           ? _value.agreedToTerms
           : agreedToTerms // ignore: cast_nullable_to_non_nullable
@@ -278,6 +310,8 @@ class _$SignupStateImpl extends _SignupState {
       this.birthday,
       this.password = '',
       this.confirmPassword = '',
+      this.idFront,
+      this.idBack,
       this.agreedToTerms = false,
       this.obscure = true,
       this.obscureConfirm = true,
@@ -309,6 +343,16 @@ class _$SignupStateImpl extends _SignupState {
   @override
   @JsonKey()
   final String confirmPassword;
+
+  /// National-ID sides captured HERE, before the account exists. They cannot
+  /// be uploaded yet — the upload endpoints are customer-scoped and the JWT
+  /// only arrives once the OTP is verified — so the bytes ride along in the
+  /// draft and go up right after verification. Optional: neither side is in
+  /// [canSubmit] (Principle XXXVII, narrowed v9.0.0).
+  @override
+  final PickedImage? idFront;
+  @override
+  final PickedImage? idBack;
   @override
   @JsonKey()
   final bool agreedToTerms;
@@ -328,7 +372,7 @@ class _$SignupStateImpl extends _SignupState {
 
   @override
   String toString() {
-    return 'SignupState(firstName: $firstName, lastName: $lastName, dialCode: $dialCode, phone: $phone, email: $email, birthday: $birthday, password: $password, confirmPassword: $confirmPassword, agreedToTerms: $agreedToTerms, obscure: $obscure, obscureConfirm: $obscureConfirm, status: $status, error: $error, challenge: $challenge)';
+    return 'SignupState(firstName: $firstName, lastName: $lastName, dialCode: $dialCode, phone: $phone, email: $email, birthday: $birthday, password: $password, confirmPassword: $confirmPassword, idFront: $idFront, idBack: $idBack, agreedToTerms: $agreedToTerms, obscure: $obscure, obscureConfirm: $obscureConfirm, status: $status, error: $error, challenge: $challenge)';
   }
 
   @override
@@ -350,6 +394,8 @@ class _$SignupStateImpl extends _SignupState {
                 other.password == password) &&
             (identical(other.confirmPassword, confirmPassword) ||
                 other.confirmPassword == confirmPassword) &&
+            (identical(other.idFront, idFront) || other.idFront == idFront) &&
+            (identical(other.idBack, idBack) || other.idBack == idBack) &&
             (identical(other.agreedToTerms, agreedToTerms) ||
                 other.agreedToTerms == agreedToTerms) &&
             (identical(other.obscure, obscure) || other.obscure == obscure) &&
@@ -372,6 +418,8 @@ class _$SignupStateImpl extends _SignupState {
       birthday,
       password,
       confirmPassword,
+      idFront,
+      idBack,
       agreedToTerms,
       obscure,
       obscureConfirm,
@@ -398,6 +446,8 @@ abstract class _SignupState extends SignupState {
       final DateTime? birthday,
       final String password,
       final String confirmPassword,
+      final PickedImage? idFront,
+      final PickedImage? idBack,
       final bool agreedToTerms,
       final bool obscure,
       final bool obscureConfirm,
@@ -422,6 +472,16 @@ abstract class _SignupState extends SignupState {
   String get password;
   @override
   String get confirmPassword;
+
+  /// National-ID sides captured HERE, before the account exists. They cannot
+  /// be uploaded yet — the upload endpoints are customer-scoped and the JWT
+  /// only arrives once the OTP is verified — so the bytes ride along in the
+  /// draft and go up right after verification. Optional: neither side is in
+  /// [canSubmit] (Principle XXXVII, narrowed v9.0.0).
+  @override
+  PickedImage? get idFront;
+  @override
+  PickedImage? get idBack;
   @override
   bool get agreedToTerms;
   @override
