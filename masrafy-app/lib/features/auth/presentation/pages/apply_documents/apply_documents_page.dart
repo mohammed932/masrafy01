@@ -24,6 +24,13 @@ class ApplyDocumentsPage extends StatelessWidget {
 class _ApplyDocumentsView extends StatelessWidget {
   const _ApplyDocumentsView();
 
+  /// Upload errors: an over-budget image is actionable, so it must not read as
+  /// the generic "try again" (which would fail identically on every retry).
+  String _uploadError(AppLocalizations l, Failure f) => switch (f.code) {
+        'IMAGE_TOO_LARGE' => l.error_image_too_large,
+        _ => l.apply_docs_upload_error,
+      };
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
@@ -37,8 +44,9 @@ class _ApplyDocumentsView extends StatelessWidget {
       body: BlocConsumer<ApplyDocumentsCubit, ApplyDocumentsState>(
         listenWhen: (p, c) => p.error != c.error && c.error != null,
         listener: (ctx, state) {
-          if (state.error != null && !state.isStatusError) {
-            MasrafyToast.error(ctx, l.apply_docs_upload_error);
+          final err = state.error;
+          if (err != null && !state.isStatusError) {
+            MasrafyToast.error(ctx, _uploadError(l, err));
           }
         },
         builder: (ctx, state) {
@@ -108,6 +116,17 @@ class _ApplyDocumentsForm extends StatelessWidget {
   final ApplyDocumentsState state;
   final ApplyDocumentsCubit cubit;
 
+  /// Navigation stays on the screen (Principle XXXI): the page opens the framed
+  /// camera, the cubit only uploads what comes back.
+  Future<void> _captureAndUpload(
+    BuildContext context, {
+    required bool front,
+  }) async {
+    final image = await captureNationalId(context, front: front);
+    if (image == null) return;
+    await cubit.uploadNationalId(front: front, image: image);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
@@ -126,10 +145,10 @@ class _ApplyDocumentsForm extends StatelessWidget {
           backUploaded: state.idBackUploaded,
           onTapFront: state.idFrontUploading
               ? null
-              : () => cubit.pickAndUploadNationalId(front: true),
+              : () => _captureAndUpload(context, front: true),
           onTapBack: state.idBackUploading
               ? null
-              : () => cubit.pickAndUploadNationalId(front: false),
+              : () => _captureAndUpload(context, front: false),
         ),
         Gap(28.h),
         MasrafyGradientButton(

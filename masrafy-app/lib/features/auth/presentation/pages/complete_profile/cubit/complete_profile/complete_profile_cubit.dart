@@ -7,6 +7,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:app/core/enums/request_state.dart';
 import 'package:app/core/result/failure.dart';
+import 'package:app/core/utils/image_pick.dart';
 import 'package:app/core/utils/validators.dart';
 import 'package:app/features/auth/data/models/request/profile/complete_profile_request.dart';
 import 'package:app/features/auth/domain/entities/customer_entity.dart';
@@ -30,7 +31,7 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
 
   final AuthUseCase _auth;
   final CustomerAuthUseCase _customerAuth;
-  final ImagePicker _picker = ImagePicker();
+  final MasrafyImagePicker _picker = MasrafyImagePicker();
 
   /// Seeds the form from the PHONE-signup [SignupDraft] so the user does not
   /// retype name / birthday / email / password already entered on signup.
@@ -79,7 +80,7 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
   void toggleObscure() => emit(state.copyWith(obscure: !state.obscure));
 
   Future<void> pickAndUploadPhoto() async {
-    final picked = await _pick();
+    final picked = await _pick(ImagePickProfile.avatar);
     if (picked == null) return;
     emit(state.copyWith(photoUploading: true, error: null));
     final res = await _customerAuth.uploadProfilePhoto(
@@ -95,18 +96,22 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
     );
   }
 
-  Future<void> pickAndUploadNationalId({required bool front}) async {
-    final picked = await _pick();
-    if (picked == null) return;
+  /// Uploads one already-captured side. The image comes from the framed camera
+  /// page, which the screen pushes — a cubit must not navigate (Principle
+  /// XXXI: orchestration only).
+  Future<void> uploadNationalId({
+    required bool front,
+    required PickedImage image,
+  }) async {
     emit(front
         ? state.copyWith(idFrontUploading: true, error: null)
         : state.copyWith(idBackUploading: true, error: null));
     final res = await _customerAuth.uploadNationalIdSide(
       UploadNationalIdRequest(
         documentType: front ? 'NATIONAL_ID_FRONT' : 'NATIONAL_ID_BACK',
-        bytes: picked.bytes,
-        contentType: picked.contentType,
-        filename: picked.filename,
+        bytes: image.bytes,
+        contentType: image.contentType,
+        filename: image.filename,
       ),
     );
     res.fold(
@@ -141,26 +146,19 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
     );
   }
 
-  Future<_PickedImage?> _pick() async {
-    final file = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 2000,
-    );
-    if (file == null) return null;
-    final bytes = await file.readAsBytes();
-    return _PickedImage(
-      bytes: bytes,
-      contentType: file.mimeType ?? _mimeFromName(file.name),
-      filename: file.name,
-    );
-  }
-
-  static String _mimeFromName(String name) {
-    final n = name.toLowerCase();
-    if (n.endsWith('.png')) return 'image/png';
-    if (n.endsWith('.heic')) return 'image/heic';
-    return 'image/jpeg';
+  /// Gallery pick under [profile]'s size budget. An over-budget file surfaces
+  /// on [state.error] like any other failure; cancelling is silent.
+  Future<PickedImage?> _pick(ImagePickProfile profile) async {
+    final result = await _picker.pick(ImageSource.gallery, profile);
+    switch (result) {
+      case ImagePickCancelled():
+        return null;
+      case ImagePickTooLarge():
+        emit(state.copyWith(error: const LocalFailure(code: 'IMAGE_TOO_LARGE')));
+        return null;
+      case ImagePickSuccess(:final image):
+        return image;
+    }
   }
 
   static String _firstWord(String name) {
@@ -174,17 +172,4 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
     if (parts.length < 2) return '';
     return parts.sublist(1).join(' ');
   }
-}
-
-/// Picked-image transport (cubit-local).
-class _PickedImage {
-  const _PickedImage({
-    required this.bytes,
-    required this.contentType,
-    required this.filename,
-  });
-
-  final Uint8List bytes;
-  final String contentType;
-  final String filename;
 }

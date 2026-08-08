@@ -62,7 +62,14 @@ class MasrafyPhotoUpload extends StatelessWidget {
               color: colors.secondary.main.withValues(alpha: 0.12),
               image: hasImage
                   ? DecorationImage(
-                      image: MemoryImage(imageBytes!),
+                      // Decode at the painted size — the circle is 128 logical
+                      // px, so the full-resolution bitmap never needs to be
+                      // held in the image cache.
+                      image: ResizeImage(
+                        MemoryImage(imageBytes!),
+                        width: (128.r * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
+                      ),
                       fit: BoxFit.cover,
                     )
                   : null,

@@ -394,6 +394,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_generic => 'Something went wrong. Please try again.';
 
   @override
+  String get error_image_too_large => 'This image is too large. Please pick a smaller one.';
+
+  @override
   String get error_rate_limited => 'Too many attempts. Please wait a moment and try again.';
 
   @override
@@ -724,30 +727,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get home_cat_business => 'Business';
-
-  @override
-  String get home_limit_personal => 'Up to EGP 200K';
-
-  @override
-  String get home_limit_mortgage => 'Up to EGP 3M';
-
-  @override
-  String get home_limit_car => 'Up to EGP 2M';
-
-  @override
-  String get home_limit_business => 'Up to EGP 5M';
-
-  @override
-  String get home_apr_personal => 'From 11% APR';
-
-  @override
-  String get home_apr_mortgage => 'From 9.5% APR';
-
-  @override
-  String get home_apr_car => 'From 10.2% APR';
-
-  @override
-  String get home_apr_business => 'From 12% APR';
 
   @override
   String get q_common_yes => 'Yes';
@@ -2130,4 +2109,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get disclaimer_indicative_estimate => 'Indicative estimate — not a binding offer. Final figures come from the bank.';
+
+  @override
+  String get id_capture_title_front => 'Front side of your ID';
+
+  @override
+  String get id_capture_title_back => 'Back side of your ID';
+
+  @override
+  String get id_capture_hint => 'Place your National ID inside the frame, then tap the shutter.';
+
+  @override
+  String get id_capture_review_hint => 'Is the ID sharp and fully inside the frame?';
+
+  @override
+  String get id_capture_confirm => 'Use photo';
+
+  @override
+  String get id_capture_retake => 'Retake';
+
+  @override
+  String get id_capture_retry => 'Try again';
+
+  @override
+  String get id_capture_close => 'Close camera';
+
+  @override
+  String get id_capture_shutter => 'Capture';
+
+  @override
+  String get id_capture_torch_on => 'Turn on the light';
+
+  @override
+  String get id_capture_torch_off => 'Turn off the light';
+
+  @override
+  String get id_capture_error => 'Couldn\'t start the camera on this device.';
+
+  @override
+  String get id_capture_permission_error => 'Camera access is off. Allow the camera for Masrafy in your device settings, then try again.';
+
+  @override
+  String get id_capture_capture_error => 'Couldn\'t save that shot. Please take it again.';
 }

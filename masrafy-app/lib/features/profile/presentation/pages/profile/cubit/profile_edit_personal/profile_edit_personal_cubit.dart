@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:app/core/result/failure.dart';
+import 'package:app/core/utils/image_pick.dart';
 import 'package:app/core/widgets/bottom_sheets/masrafy_photo_source_sheet.dart';
 import 'package:app/features/auth/data/models/request/profile/complete_profile_request.dart';
 import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
@@ -31,7 +32,7 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
 
   final CustomerAuthUseCase _customerAuth;
   final ProfileUseCase _profile;
-  final ImagePicker _picker = ImagePicker();
+  final MasrafyImagePicker _picker = MasrafyImagePicker();
 
   /// Seed from the current profile slice (called once in the page's provider).
   void seed(ProfilePersonalDraft d) => emit(state.copyWith(
@@ -91,22 +92,25 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
     );
   }
 
-  /// Picks a National-ID image and uploads one side through the customer-scoped
+  /// Uploads one already-captured National-ID side through the customer-scoped
   /// pipeline (presign → S3 PUT → confirm). Emits onto the per-side uploading
-  /// flag + [docError]; on success flips the side's uploaded flag.
-  Future<void> pickAndUploadNationalId({required bool front}) async {
+  /// flag + [docError]; on success flips the side's uploaded flag. The image
+  /// comes from the framed camera page, which the screen pushes — a cubit must
+  /// not navigate (Principle XXXI: orchestration only).
+  Future<void> uploadNationalId({
+    required bool front,
+    required PickedImage image,
+  }) async {
     if (front ? state.frontUploading : state.backUploading) return;
-    final picked = await _pickDocument();
-    if (picked == null) return;
     emit(front
         ? state.copyWith(frontUploading: true, docError: null)
         : state.copyWith(backUploading: true, docError: null));
     final res = await _customerAuth.uploadNationalIdSide(
       UploadNationalIdRequest(
         documentType: front ? 'NATIONAL_ID_FRONT' : 'NATIONAL_ID_BACK',
-        bytes: picked.bytes,
-        contentType: picked.contentType,
-        filename: picked.filename,
+        bytes: image.bytes,
+        contentType: image.contentType,
+        filename: image.filename,
       ),
     );
     res.fold(
@@ -137,55 +141,26 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
     );
   }
 
-  Future<_PickedImage?> _pick(PhotoPickSource source) async {
-    final file = await _picker.pickImage(
-      source: source == PhotoPickSource.camera
+  /// Avatar pick — the only surface still using the OS camera/gallery picker
+  /// (National ID goes through the framed in-app camera instead). Over-budget
+  /// files surface on [photoError]; cancelling is silent.
+  Future<PickedImage?> _pick(PhotoPickSource source) async {
+    final result = await _picker.pick(
+      source == PhotoPickSource.camera
           ? ImageSource.camera
           : ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 2000,
+      ImagePickProfile.avatar,
     );
-    if (file == null) return null;
-    final bytes = await file.readAsBytes();
-    return _PickedImage(
-      bytes: bytes,
-      contentType: file.mimeType ?? _mimeFromName(file.name),
-      filename: file.name,
-    );
+    switch (result) {
+      case ImagePickCancelled():
+        return null;
+      case ImagePickTooLarge():
+        emit(state.copyWith(
+          photoError: const LocalFailure(code: 'IMAGE_TOO_LARGE'),
+        ));
+        return null;
+      case ImagePickSuccess(:final image):
+        return image;
+    }
   }
-
-  Future<_PickedImage?> _pickDocument() async {
-    final file = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-      maxWidth: 2000,
-    );
-    if (file == null) return null;
-    final bytes = await file.readAsBytes();
-    return _PickedImage(
-      bytes: bytes,
-      contentType: file.mimeType ?? _mimeFromName(file.name),
-      filename: file.name,
-    );
-  }
-
-  static String _mimeFromName(String name) {
-    final n = name.toLowerCase();
-    if (n.endsWith('.png')) return 'image/png';
-    if (n.endsWith('.heic')) return 'image/heic';
-    return 'image/jpeg';
-  }
-}
-
-/// Picked-image transport (cubit-local).
-class _PickedImage {
-  const _PickedImage({
-    required this.bytes,
-    required this.contentType,
-    required this.filename,
-  });
-
-  final Uint8List bytes;
-  final String contentType;
-  final String filename;
 }

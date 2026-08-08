@@ -69,6 +69,13 @@ class MasrafyNetworkImage extends StatelessWidget {
         );
 
     final hasUrl = imageUrl.isNotNullOrEmpty;
+    // Decode to the painted size rather than the source resolution. Exactly
+    // ONE axis is constrained — passing both makes the decoder resize to those
+    // exact dimensions and distort the aspect ratio before [fit] ever applies.
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final memWidth = width == null ? null : (width! * dpr).round();
+    final memHeight =
+        width != null || height == null ? null : (height! * dpr).round();
     final Widget child = SizedBox(
       width: width,
       height: height,
@@ -78,6 +85,8 @@ class MasrafyNetworkImage extends StatelessWidget {
               cacheKey: cacheKey,
               width: width,
               height: height,
+              memCacheWidth: memWidth,
+              memCacheHeight: memHeight,
               fit: fit,
               placeholder: (ctx, _) => ph(ctx),
               errorWidget: (ctx, _, __) => err(ctx),

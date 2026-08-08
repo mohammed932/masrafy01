@@ -5,9 +5,9 @@ import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
 /// National-ID document capture (Figma `91:491`): an uppercase section label
-/// with an eligibility hint over two upload cards (front / back). UI-only for
-/// now — capture/upload is deferred (no mobile document endpoint wired yet);
-/// [onTapFront] / [onTapBack] surface a coming-soon hint from the page.
+/// with an eligibility hint over two upload cards (front / back). UI-only —
+/// [onTapFront] / [onTapBack] open the framed camera page from the caller and
+/// the caller's cubit performs the upload.
 ///
 /// Promoted to `core/widgets/input_controls/` per Principle XXXIII (shared by
 /// signup + profile).

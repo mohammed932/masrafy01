@@ -48,6 +48,8 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
     switch (f.code) {
       case 'NETWORK_UNREACHABLE':
         return l.error_network;
+      case 'IMAGE_TOO_LARGE':
+        return l.error_image_too_large;
       default:
         return l.error_generic;
     }
@@ -71,6 +73,18 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
             cubit.updateField(CompleteProfileField.birthday, d),
       ),
     );
+  }
+
+  /// Navigation stays on the screen (Principle XXXI): the page opens the framed
+  /// camera, the cubit only uploads what comes back.
+  Future<void> _captureAndUploadId(
+    BuildContext context,
+    CompleteProfileCubit cubit, {
+    required bool front,
+  }) async {
+    final image = await captureNationalId(context, front: front);
+    if (image == null) return;
+    await cubit.uploadNationalId(front: front, image: image);
   }
 
   @override
@@ -232,11 +246,11 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
                             backUploaded: state.idBackUploaded,
                             onTapFront: state.idFrontUploading
                                 ? null
-                                : () => cubit.pickAndUploadNationalId(
+                                : () => _captureAndUploadId(ctx, cubit,
                                     front: true),
                             onTapBack: state.idBackUploading
                                 ? null
-                                : () => cubit.pickAndUploadNationalId(
+                                : () => _captureAndUploadId(ctx, cubit,
                                     front: false),
                           ),
                           Gap(24.h),

@@ -6,6 +6,7 @@ import 'package:gap/gap.dart';
 
 import 'package:app/core/di/injection.dart';
 import 'package:app/core/enums/request_state.dart';
+import 'package:app/core/features/id_capture/capture_national_id.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/core/router/router.gr.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';

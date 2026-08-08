@@ -36,11 +36,16 @@ class MasrafyAvatar extends StatelessWidget {
     final effectiveBorderWidth = borderWidth ?? 2.r;
 
     final bytes = imageBytes;
+    // Decode at the size actually painted. Without this the full-resolution
+    // picture is held in the image cache to fill a ~104px circle.
+    final decodeWidth =
+        (size * MediaQuery.devicePixelRatioOf(context)).round();
     final Widget avatar = bytes != null
         ? Image.memory(
             bytes,
             width: size,
             height: size,
+            cacheWidth: decodeWidth,
             fit: BoxFit.cover,
             gaplessPlayback: true,
           )

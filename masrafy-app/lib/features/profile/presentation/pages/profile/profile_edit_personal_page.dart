@@ -83,6 +83,18 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
     await cubit.pickAndUploadPhoto(source);
   }
 
+  /// Navigation stays on the screen (Principle XXXI): the page opens the framed
+  /// camera, the cubit only uploads what comes back.
+  Future<void> _captureAndUploadId(
+    BuildContext context,
+    ProfileEditPersonalCubit cubit, {
+    required bool front,
+  }) async {
+    final image = await captureNationalId(context, front: front);
+    if (image == null) return;
+    await cubit.uploadNationalId(front: front, image: image);
+  }
+
   /// Maps a save [Failure] code to a localized message (Principle III — never
   /// show a raw backend string). Mirrors the change-password error mapper.
   String _saveError(AppLocalizations l, Failure f) {
@@ -100,9 +112,14 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
     }
   }
 
-  /// Upload errors: distinguish offline from the generic per-asset fallback.
+  /// Upload errors: distinguish offline and over-budget images from the
+  /// generic per-asset fallback (both are actionable; "try again" is not).
   String _uploadError(AppLocalizations l, Failure f, String fallback) =>
-      f.code == 'NETWORK_UNREACHABLE' ? l.error_network : fallback;
+      switch (f.code) {
+        'NETWORK_UNREACHABLE' => l.error_network,
+        'IMAGE_TOO_LARGE' => l.error_image_too_large,
+        _ => fallback,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -222,10 +239,14 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                                       : l.profile_id_tap_to_upload,
                               frontUploaded: state.frontUploaded,
                               backUploaded: state.backUploaded,
-                              onTapFront: () =>
-                                  cubit.pickAndUploadNationalId(front: true),
-                              onTapBack: () =>
-                                  cubit.pickAndUploadNationalId(front: false),
+                              onTapFront: state.frontUploading
+                                  ? null
+                                  : () => _captureAndUploadId(ctx, cubit,
+                                      front: true),
+                              onTapBack: state.backUploading
+                                  ? null
+                                  : () => _captureAndUploadId(ctx, cubit,
+                                      front: false),
                             ),
                           ],
                         ),

@@ -397,6 +397,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get error_generic => 'حدث خطأ ما. حاول مرة أخرى.';
 
   @override
+  String get error_image_too_large => 'هذه الصورة كبيرة جدًا. اختر صورة أصغر.';
+
+  @override
   String get error_rate_limited => 'محاولات كثيرة. انتظر قليلاً وحاول مجددًا.';
 
   @override
@@ -727,30 +730,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get home_cat_business => 'أعمال';
-
-  @override
-  String get home_limit_personal => 'حتى ٢٠٠ ألف ج.م';
-
-  @override
-  String get home_limit_mortgage => 'حتى ٣ مليون ج.م';
-
-  @override
-  String get home_limit_car => 'حتى ٢ مليون ج.م';
-
-  @override
-  String get home_limit_business => 'حتى ٥ مليون ج.م';
-
-  @override
-  String get home_apr_personal => 'من ١١٪ سنويًا';
-
-  @override
-  String get home_apr_mortgage => 'من ٩٫٥٪ سنويًا';
-
-  @override
-  String get home_apr_car => 'من ١٠٫٢٪ سنويًا';
-
-  @override
-  String get home_apr_business => 'من ١٢٪ سنويًا';
 
   @override
   String get q_common_yes => 'نعم';
@@ -2133,4 +2112,46 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get disclaimer_indicative_estimate => 'تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.';
+
+  @override
+  String get id_capture_title_front => 'الوجه الأمامي للبطاقة';
+
+  @override
+  String get id_capture_title_back => 'الوجه الخلفي للبطاقة';
+
+  @override
+  String get id_capture_hint => 'ضع بطاقة الرقم القومي داخل الإطار ثم اضغط زر التصوير.';
+
+  @override
+  String get id_capture_review_hint => 'هل البطاقة واضحة وداخل الإطار بالكامل؟';
+
+  @override
+  String get id_capture_confirm => 'استخدام الصورة';
+
+  @override
+  String get id_capture_retake => 'إعادة التصوير';
+
+  @override
+  String get id_capture_retry => 'حاول مرة أخرى';
+
+  @override
+  String get id_capture_close => 'إغلاق الكاميرا';
+
+  @override
+  String get id_capture_shutter => 'التقاط';
+
+  @override
+  String get id_capture_torch_on => 'تشغيل الإضاءة';
+
+  @override
+  String get id_capture_torch_off => 'إطفاء الإضاءة';
+
+  @override
+  String get id_capture_error => 'تعذّر تشغيل الكاميرا على هذا الجهاز.';
+
+  @override
+  String get id_capture_permission_error => 'إذن الكاميرا غير مفعّل. فعّل الكاميرا لتطبيق مصرفي من إعدادات جهازك ثم حاول مرة أخرى.';
+
+  @override
+  String get id_capture_capture_error => 'تعذّر حفظ هذه الصورة. من فضلك أعد التصوير.';
 }

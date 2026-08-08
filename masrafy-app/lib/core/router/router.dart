@@ -67,5 +67,6 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: PreviousApplicationsRoute.page),
         AutoRoute(page: SavedOffersRoute.page),
         AutoRoute(page: BiometricLockRoute.page),
+        AutoRoute(page: IdCaptureRoute.page),
       ];
 }

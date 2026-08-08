@@ -499,6 +499,10 @@
   "error_invalid_credentials": "رقم الهاتف أو كلمة المرور غير صحيحة.",
   "error_network": "لا يوجد اتصال. تحقق من الشبكة وحاول مجددًا.",
   "error_generic": "حدث خطأ ما. حاول مرة أخرى.",
+  "error_image_too_large": "هذه الصورة كبيرة جدًا. اختر صورة أصغر.",
+  "@error_image_too_large": {
+    "description": "Client-side IMAGE_TOO_LARGE — picked image exceeds the upload budget"
+  },
   "error_rate_limited": "محاولات كثيرة. انتظر قليلاً وحاول مجددًا.",
   "onboarding_slide1_title": "اكتشف عروض قروض مصمّمة لك.",
   "onboarding_slide1_body": "نبحث في عدة بنوك رائدة لإيجاد أفضل الأسعار والشروط المناسبة لملفك تحديدًا.",
@@ -619,14 +623,6 @@
   "home_cat_mortgage": "عقاري",
   "home_cat_car": "سيارة",
   "home_cat_business": "أعمال",
-  "home_limit_personal": "حتى ٢٠٠ ألف ج.م",
-  "home_limit_mortgage": "حتى ٣ مليون ج.م",
-  "home_limit_car": "حتى ٢ مليون ج.م",
-  "home_limit_business": "حتى ٥ مليون ج.م",
-  "home_apr_personal": "من ١١٪ سنويًا",
-  "home_apr_mortgage": "من ٩٫٥٪ سنويًا",
-  "home_apr_car": "من ١٠٫٢٪ سنويًا",
-  "home_apr_business": "من ١٢٪ سنويًا",
   "q_common_yes": "نعم",
   "q_common_no": "لا",
   "q_common_currency_egp": "ج.م",
@@ -1267,5 +1263,20 @@
   "disclaimer_indicative_estimate": "تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.",
   "@disclaimer_indicative_estimate": {
     "description": "Backend INDICATIVE_ESTIMATE_NOT_AN_OFFER disclaimer code"
-  }
+  },
+
+  "id_capture_title_front": "الوجه الأمامي للبطاقة",
+  "id_capture_title_back": "الوجه الخلفي للبطاقة",
+  "id_capture_hint": "ضع بطاقة الرقم القومي داخل الإطار ثم اضغط زر التصوير.",
+  "id_capture_review_hint": "هل البطاقة واضحة وداخل الإطار بالكامل؟",
+  "id_capture_confirm": "استخدام الصورة",
+  "id_capture_retake": "إعادة التصوير",
+  "id_capture_retry": "حاول مرة أخرى",
+  "id_capture_close": "إغلاق الكاميرا",
+  "id_capture_shutter": "التقاط",
+  "id_capture_torch_on": "تشغيل الإضاءة",
+  "id_capture_torch_off": "إطفاء الإضاءة",
+  "id_capture_error": "تعذّر تشغيل الكاميرا على هذا الجهاز.",
+  "id_capture_permission_error": "إذن الكاميرا غير مفعّل. فعّل الكاميرا لتطبيق مصرفي من إعدادات جهازك ثم حاول مرة أخرى.",
+  "id_capture_capture_error": "تعذّر حفظ هذه الصورة. من فضلك أعد التصوير."
 }

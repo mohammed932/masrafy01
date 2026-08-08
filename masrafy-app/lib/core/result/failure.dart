@@ -30,6 +30,13 @@ class UnknownFailure extends Failure {
   const UnknownFailure() : super(code: 'INTERNAL_ERROR');
 }
 
+/// Rejected on-device, before any request goes out (e.g. a picked image over
+/// the upload budget). Carries the same typed `code` contract as a server
+/// failure so the UI maps it through the existing switch (Principle III).
+class LocalFailure extends Failure {
+  const LocalFailure({required super.code, super.meta});
+}
+
 /// Translate a Dio error into a typed `Failure`. Maps the backend envelope
 /// `{ success: false, code: "...", meta?: {...} }` directly.
 Failure failureFromDio(DioException error) {

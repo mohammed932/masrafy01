@@ -839,6 +839,12 @@ abstract class AppLocalizations {
   /// **'حدث خطأ ما. حاول مرة أخرى.'**
   String get error_generic;
 
+  /// Client-side IMAGE_TOO_LARGE — picked image exceeds the upload budget
+  ///
+  /// In ar, this message translates to:
+  /// **'هذه الصورة كبيرة جدًا. اختر صورة أصغر.'**
+  String get error_image_too_large;
+
   /// No description provided for @error_rate_limited.
   ///
   /// In ar, this message translates to:
@@ -1486,54 +1492,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أعمال'**
   String get home_cat_business;
-
-  /// No description provided for @home_limit_personal.
-  ///
-  /// In ar, this message translates to:
-  /// **'حتى ٢٠٠ ألف ج.م'**
-  String get home_limit_personal;
-
-  /// No description provided for @home_limit_mortgage.
-  ///
-  /// In ar, this message translates to:
-  /// **'حتى ٣ مليون ج.م'**
-  String get home_limit_mortgage;
-
-  /// No description provided for @home_limit_car.
-  ///
-  /// In ar, this message translates to:
-  /// **'حتى ٢ مليون ج.م'**
-  String get home_limit_car;
-
-  /// No description provided for @home_limit_business.
-  ///
-  /// In ar, this message translates to:
-  /// **'حتى ٥ مليون ج.م'**
-  String get home_limit_business;
-
-  /// No description provided for @home_apr_personal.
-  ///
-  /// In ar, this message translates to:
-  /// **'من ١١٪ سنويًا'**
-  String get home_apr_personal;
-
-  /// No description provided for @home_apr_mortgage.
-  ///
-  /// In ar, this message translates to:
-  /// **'من ٩٫٥٪ سنويًا'**
-  String get home_apr_mortgage;
-
-  /// No description provided for @home_apr_car.
-  ///
-  /// In ar, this message translates to:
-  /// **'من ١٠٫٢٪ سنويًا'**
-  String get home_apr_car;
-
-  /// No description provided for @home_apr_business.
-  ///
-  /// In ar, this message translates to:
-  /// **'من ١٢٪ سنويًا'**
-  String get home_apr_business;
 
   /// No description provided for @q_common_yes.
   ///
@@ -4210,6 +4168,90 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.'**
   String get disclaimer_indicative_estimate;
+
+  /// No description provided for @id_capture_title_front.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجه الأمامي للبطاقة'**
+  String get id_capture_title_front;
+
+  /// No description provided for @id_capture_title_back.
+  ///
+  /// In ar, this message translates to:
+  /// **'الوجه الخلفي للبطاقة'**
+  String get id_capture_title_back;
+
+  /// No description provided for @id_capture_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'ضع بطاقة الرقم القومي داخل الإطار ثم اضغط زر التصوير.'**
+  String get id_capture_hint;
+
+  /// No description provided for @id_capture_review_hint.
+  ///
+  /// In ar, this message translates to:
+  /// **'هل البطاقة واضحة وداخل الإطار بالكامل؟'**
+  String get id_capture_review_hint;
+
+  /// No description provided for @id_capture_confirm.
+  ///
+  /// In ar, this message translates to:
+  /// **'استخدام الصورة'**
+  String get id_capture_confirm;
+
+  /// No description provided for @id_capture_retake.
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة التصوير'**
+  String get id_capture_retake;
+
+  /// No description provided for @id_capture_retry.
+  ///
+  /// In ar, this message translates to:
+  /// **'حاول مرة أخرى'**
+  String get id_capture_retry;
+
+  /// No description provided for @id_capture_close.
+  ///
+  /// In ar, this message translates to:
+  /// **'إغلاق الكاميرا'**
+  String get id_capture_close;
+
+  /// No description provided for @id_capture_shutter.
+  ///
+  /// In ar, this message translates to:
+  /// **'التقاط'**
+  String get id_capture_shutter;
+
+  /// No description provided for @id_capture_torch_on.
+  ///
+  /// In ar, this message translates to:
+  /// **'تشغيل الإضاءة'**
+  String get id_capture_torch_on;
+
+  /// No description provided for @id_capture_torch_off.
+  ///
+  /// In ar, this message translates to:
+  /// **'إطفاء الإضاءة'**
+  String get id_capture_torch_off;
+
+  /// No description provided for @id_capture_error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر تشغيل الكاميرا على هذا الجهاز.'**
+  String get id_capture_error;
+
+  /// No description provided for @id_capture_permission_error.
+  ///
+  /// In ar, this message translates to:
+  /// **'إذن الكاميرا غير مفعّل. فعّل الكاميرا لتطبيق مصرفي من إعدادات جهازك ثم حاول مرة أخرى.'**
+  String get id_capture_permission_error;
+
+  /// No description provided for @id_capture_capture_error.
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذّر حفظ هذه الصورة. من فضلك أعد التصوير.'**
+  String get id_capture_capture_error;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

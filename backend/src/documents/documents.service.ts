@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import cuid from 'cuid';
 import type { TransactionClient } from '@/common/transaction/transaction-client';
 import {
@@ -73,6 +73,8 @@ const MIME_TO_EXT: Record<AllowedDocumentMimeType, string> = {
 
 @Injectable()
 export class DocumentsService {
+  private readonly logger = new Logger(DocumentsService.name);
+
   constructor(
     private readonly s3: S3StorageClient,
     private readonly repo: DocumentsRepository,
@@ -264,10 +266,25 @@ export class DocumentsService {
     }
     const head = await this.s3.headObject(input.s3Key);
     if (!head.exists) throw new NotFoundException();
+    // A profile photo is single-valued: every upload mints a fresh cuid key, so
+    // the superseded object must be reaped or the bucket accumulates one orphan
+    // per change (PII lingering past its purpose — Principle VI).
+    const previousKey = await this.customers.findProfilePhotoKey(input.customer.id);
     await this.customers.setProfilePhotoKey({
       customerId: input.customer.id,
       profilePhotoKey: input.s3Key,
     });
+    if (previousKey && previousKey !== input.s3Key) {
+      // Best-effort: the pointer already moved, so a failed delete leaves an
+      // orphan object but must not fail the customer's upload.
+      try {
+        await this.s3.deleteObject(previousKey);
+      } catch (err) {
+        this.logger.warn(
+          `Failed to delete superseded profile photo object: ${(err as Error).message}`,
+        );
+      }
+    }
     return { s3Key: input.s3Key };
   }
 

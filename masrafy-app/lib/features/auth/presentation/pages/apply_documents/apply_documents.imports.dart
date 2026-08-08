@@ -5,6 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 
 import 'package:app/core/di/injection.dart';
+import 'package:app/core/features/id_capture/capture_national_id.dart';
+import 'package:app/core/result/failure.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/widgets/buttons/masrafy_gradient_button.dart';
 import 'package:app/core/widgets/common/masrafy_empty_state.dart';

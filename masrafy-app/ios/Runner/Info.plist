@@ -40,7 +40,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Masrafy needs access to your camera so you can take a profile picture.</string>
+	<string>Masrafy needs access to your camera so you can photograph your National ID and take a profile picture.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Masrafy uses Face ID to let you sign in quickly and securely.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

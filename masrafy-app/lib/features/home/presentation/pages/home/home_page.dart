@@ -23,13 +23,13 @@ class _HomeView extends StatelessWidget {
 
   List<_LoanCardData> _cards(AppLocalizations l) => [
         _LoanCardData(HomeLoanCategory.personal, MasrafyAssets.homeIconPersonal,
-            l.home_cat_personal, l.home_limit_personal, l.home_apr_personal),
+            l.home_cat_personal),
         _LoanCardData(HomeLoanCategory.mortgage, MasrafyAssets.homeIconMortgage,
-            l.home_cat_mortgage, l.home_limit_mortgage, l.home_apr_mortgage),
-        _LoanCardData(HomeLoanCategory.car, MasrafyAssets.homeIconCar,
-            l.home_cat_car, l.home_limit_car, l.home_apr_car),
+            l.home_cat_mortgage),
+        _LoanCardData(
+            HomeLoanCategory.car, MasrafyAssets.homeIconCar, l.home_cat_car),
         _LoanCardData(HomeLoanCategory.business, MasrafyAssets.homeIconBusiness,
-            l.home_cat_business, l.home_limit_business, l.home_apr_business),
+            l.home_cat_business),
       ];
 
   @override
@@ -52,8 +52,6 @@ class _HomeView extends StatelessWidget {
             return HomeLoanCard(
               icon: c.icon,
               title: c.title,
-              limit: c.limit,
-              apr: c.apr,
               selected: state.selected == c.category,
               onTap: () => cubit.selectCategory(c.category),
             );
@@ -198,11 +196,9 @@ class _HomeView extends StatelessWidget {
 }
 
 class _LoanCardData {
-  const _LoanCardData(this.category, this.icon, this.title, this.limit, this.apr);
+  const _LoanCardData(this.category, this.icon, this.title);
   final HomeLoanCategory category;
   final String icon;
   final String title;
-  final String limit;
-  final String apr;
 }
 
