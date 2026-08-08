@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:app/core/enums/request_state.dart';
+import 'package:app/core/features/customer_photo/customer_photo_store.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/features/profile/domain/entities/customer_profile_entity.dart';
 import 'package:app/features/profile/domain/usecases/profile_usecase.dart';
@@ -18,20 +19,36 @@ part 'profile_state.dart';
 /// (Principle XXXI).
 @injectable
 class ProfileCubit extends Cubit<ProfileState> {
-  ProfileCubit(this._useCase) : super(const ProfileState());
+  ProfileCubit(this._useCase, this._photos) : super(const ProfileState());
 
   final ProfileUseCase _useCase;
+  final CustomerPhotoStore _photos;
 
-  Future<void> load() async {
-    emit(state.copyWith(status: RequestState.loading, error: null));
+  /// Re-pulls `/me`. [silent] refreshes in place — no shimmer, and a failure
+  /// leaves the currently-shown profile standing instead of blanking it into an
+  /// error state. Used when coming back from an edit screen, where something is
+  /// already on screen and replacing it with a skeleton would read as a reset.
+  Future<void> load({bool silent = false}) async {
+    final hasData = state.data != null;
+    if (!silent || !hasData) {
+      emit(state.copyWith(status: RequestState.loading, error: null));
+    }
     final res = await _useCase.getMe();
     res.fold(
-      (err) => emit(state.copyWith(status: RequestState.error, error: err)),
-      (customer) => emit(state.copyWith(
-        status: RequestState.loaded,
-        data: _toProfileData(customer),
-        error: null,
-      )),
+      (err) {
+        if (silent && hasData) return;
+        emit(state.copyWith(status: RequestState.error, error: err));
+      },
+      (customer) {
+        // Feed the app-wide avatar its canonical URL, so screens opened later
+        // (and later app runs, where no picked bytes exist) still paint it.
+        _photos.publishRemote(customer.photoUrl);
+        emit(state.copyWith(
+          status: RequestState.loaded,
+          data: _toProfileData(customer),
+          error: null,
+        ));
+      },
     );
   }
 

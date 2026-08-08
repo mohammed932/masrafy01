@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:app/core/enums/request_state.dart';
+import 'package:app/core/features/customer_photo/customer_photo_store.dart';
 import 'package:app/core/features/id_capture/id_thumbnail.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/core/utils/image_pick.dart';
@@ -31,11 +32,12 @@ enum ProfileEditPersonalField { firstName, lastName }
 /// live on the state (Principle XXXI).
 @injectable
 class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
-  ProfileEditPersonalCubit(this._customerAuth, this._profile)
+  ProfileEditPersonalCubit(this._customerAuth, this._profile, this._photos)
       : super(const ProfileEditPersonalState());
 
   final CustomerAuthUseCase _customerAuth;
   final ProfileUseCase _profile;
+  final CustomerPhotoStore _photos;
   final MasrafyImagePicker _picker = MasrafyImagePicker();
 
   /// Seed from the current profile slice (called once in the page's provider).
@@ -75,10 +77,13 @@ class ProfileEditPersonalCubit extends Cubit<ProfileEditPersonalState> {
     );
     res.fold(
       (err) => emit(state.copyWith(photoUploading: false, photoError: err)),
-      (_) => emit(state.copyWith(
-        photoUploading: false,
-        photoBytes: picked.bytes,
-      )),
+      (_) {
+        // Broadcast before emitting: every other screen holding the avatar
+        // repaints from the same bytes, so leaving this screen by ANY route
+        // (Save, back chip, swipe, system back) already shows the new photo.
+        _photos.publishUpload(picked.bytes);
+        emit(state.copyWith(photoUploading: false, photoBytes: picked.bytes));
+      },
     );
   }
 

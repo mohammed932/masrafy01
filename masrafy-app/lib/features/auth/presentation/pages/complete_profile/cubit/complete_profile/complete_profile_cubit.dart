@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:app/core/enums/request_state.dart';
+import 'package:app/core/features/customer_photo/customer_photo_store.dart';
 import 'package:app/core/features/id_capture/id_thumbnail.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/core/utils/image_pick.dart';
@@ -28,11 +29,12 @@ part 'complete_profile_state.dart';
 /// derivations live on [CompleteProfileState] (Principle XXXI).
 @injectable
 class CompleteProfileCubit extends Cubit<CompleteProfileState> {
-  CompleteProfileCubit(this._auth, this._customerAuth)
+  CompleteProfileCubit(this._auth, this._customerAuth, this._photos)
       : super(const CompleteProfileState());
 
   final AuthUseCase _auth;
   final CustomerAuthUseCase _customerAuth;
+  final CustomerPhotoStore _photos;
   final MasrafyImagePicker _picker = MasrafyImagePicker();
 
   /// Seeds the form from the PHONE-signup [SignupDraft] so the user does not
@@ -90,11 +92,16 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
     );
     res.fold(
       (err) => emit(state.copyWith(photoUploading: false, error: err)),
-      (_) => emit(state.copyWith(
-        photoUploading: false,
-        photoUploaded: true,
-        photoBytes: picked.bytes,
-      )),
+      (_) {
+        // Same broadcast as the profile editor — the avatar chosen here is the
+        // account's photo from this moment on, on every screen that shows it.
+        _photos.publishUpload(picked.bytes);
+        emit(state.copyWith(
+          photoUploading: false,
+          photoUploaded: true,
+          photoBytes: picked.bytes,
+        ));
+      },
     );
   }
 

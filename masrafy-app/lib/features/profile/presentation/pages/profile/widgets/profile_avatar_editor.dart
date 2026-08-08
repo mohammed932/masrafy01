@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/widgets/common/masrafy_avatar.dart';
+import 'package:app/core/widgets/common/masrafy_customer_avatar.dart';
 
 /// Editable avatar (Figma `4028:4573`): the circular profile photo with an
 /// azure camera badge pinned to its bottom edge. Tapping picks + uploads a new
@@ -36,13 +37,23 @@ class ProfileAvatarEditor extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            MasrafyAvatar(
-              size: size.r,
-              imageUrl: imageUrl,
-              imageBytes: imageBytes,
-              borderColor: colors.secondary.main.withValues(alpha: 0.4),
-              borderWidth: 2,
-            ),
+            // Store-backed like every other avatar, so a photo uploaded on
+            // another screen (e.g. Complete Profile) is already the one shown
+            // here. [imageBytes] still wins while it is set locally.
+            if (imageBytes != null)
+              MasrafyAvatar(
+                size: size.r,
+                imageBytes: imageBytes,
+                borderColor: colors.secondary.main.withValues(alpha: 0.4),
+                borderWidth: 2,
+              )
+            else
+              MasrafyCustomerAvatar(
+                size: size.r,
+                fallbackUrl: imageUrl,
+                borderColor: colors.secondary.main.withValues(alpha: 0.4),
+                borderWidth: 2,
+              ),
             if (uploading)
               Positioned.fill(
                 child: Container(

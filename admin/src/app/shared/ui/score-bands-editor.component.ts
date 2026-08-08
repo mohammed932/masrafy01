@@ -348,6 +348,51 @@ export function scoreBandsErrorFor(rows: readonly NumericScoreBand[]): ScoreBand
         color: var(--color-error);
       }
 
+      /* Brand skin, matching the answer-score sliders this editor sits beside —
+         ant's own palette blue is not the product's blue. */
+      .sb__slider {
+        margin: 0;
+      }
+      .sb__slider ::ng-deep .ant-slider {
+        margin-block: 0;
+        margin-inline: var(--space-2);
+      }
+      .sb__slider ::ng-deep .ant-slider-rail {
+        block-size: 6px;
+        border-radius: var(--radius-pill);
+        background: var(--bg-muted);
+      }
+      .sb__slider ::ng-deep .ant-slider-track {
+        block-size: 6px;
+        border-radius: var(--radius-pill);
+        background: var(--primary);
+      }
+      .sb__slider ::ng-deep .ant-slider:hover .ant-slider-track {
+        background: var(--primary-hover);
+      }
+      .sb__slider ::ng-deep .ant-slider-handle {
+        inline-size: 18px;
+        block-size: 18px;
+        margin-block-start: -6px;
+        border: 2px solid var(--primary);
+        background: var(--bg-surface);
+        box-shadow: var(--shadow-sm);
+        transition:
+          transform var(--motion-duration-fast) var(--motion-easing-standard),
+          box-shadow var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .sb__slider ::ng-deep .ant-slider-handle:hover,
+      .sb__slider ::ng-deep .ant-slider-handle:focus {
+        transform: scale(1.14);
+        box-shadow: var(--focus-halo);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sb__slider ::ng-deep .ant-slider-handle {
+          transition: none;
+        }
+      }
+
       @media (max-width: 767px) {
         .sb__row {
           grid-template-columns: minmax(0, 1fr) auto auto;

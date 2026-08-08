@@ -1380,12 +1380,14 @@ interface WizardStep {
         transform: rotate(90deg);
         color: var(--primary);
       }
+      /* Same size as every other question name on this screen (steps 1, 2, 4) —
+         the weight of the type, not its size, is what makes it lead the row. */
       .qlabel {
         grid-area: name;
         margin: 0;
-        font-size: var(--text-base);
+        font-size: var(--text-sm);
         font-weight: var(--font-semibold);
-        line-height: var(--leading-normal);
+        line-height: var(--leading-snug);
         color: var(--text-primary);
         overflow-wrap: anywhere;
       }

@@ -29,10 +29,12 @@ class _ProfileView extends StatelessWidget {
     final draft = await ctx.router.push<ProfilePersonalDraft>(
       ProfileEditPersonalRoute(initial: data.toPersonalDraft()),
     );
-    if (draft != null) {
-      cubit.applyPersonal(draft); // instant local merge…
-      await cubit.load(); // …then re-pull /me for canonical server state (fresh photo URL).
-    }
+    if (draft != null) cubit.applyPersonal(draft); // instant local merge…
+    // …and re-pull /me on EVERY return, not just after Save. The avatar uploads
+    // the moment it is picked, so leaving by the back button (or a swipe/system
+    // back, which pop no result at all) already changed server state — without
+    // this the Profile screen kept painting the old photo until a full reload.
+    await cubit.load(silent: true);
   }
 
   Future<void> _editContact(
@@ -45,7 +47,7 @@ class _ProfileView extends StatelessWidget {
     );
     if (draft != null) {
       cubit.applyContact(draft); // instant local merge…
-      await cubit.load(); // …then re-pull /me for canonical server state.
+      await cubit.load(silent: true); // …then re-pull /me, in place.
     }
   }
 
@@ -116,10 +118,12 @@ class _ProfileBody extends StatelessWidget {
         children: [
           Gap(8.h),
           Center(
-            child: MasrafyAvatar(
+            // Store-backed: a photo uploaded on the edit screen lands here the
+            // instant the upload succeeds, without waiting for this screen's
+            // next /me read (or for the user to come back a particular way).
+            child: MasrafyCustomerAvatar(
               size: 104.r,
-              imageUrl: data.photoUrl,
-              imageBytes: data.photoBytes,
+              fallbackUrl: data.photoUrl,
               borderColor: colors.secondary.main.withValues(alpha: 0.4),
               borderWidth: 2,
             ),

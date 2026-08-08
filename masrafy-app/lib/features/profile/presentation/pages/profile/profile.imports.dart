@@ -16,7 +16,7 @@ import 'package:app/core/widgets/bottom_sheets/masrafy_photo_source_sheet.dart';
 import 'package:app/core/widgets/buttons/masrafy_gradient_button.dart';
 import 'package:app/core/widgets/common/masrafy_app_bottom_nav.dart';
 import 'package:app/core/widgets/common/masrafy_shell_nav_bar.dart';
-import 'package:app/core/widgets/common/masrafy_avatar.dart';
+import 'package:app/core/widgets/common/masrafy_customer_avatar.dart';
 import 'package:app/core/widgets/common/masrafy_back_title_header.dart';
 import 'package:app/core/widgets/common/masrafy_empty_state.dart';
 import 'package:app/core/widgets/common/masrafy_toast.dart';

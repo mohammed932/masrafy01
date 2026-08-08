@@ -9,6 +9,7 @@ import '../environments/app_env.dart';
 import '../environments/base_environment.dart';
 import '../environments/dev_environment.dart';
 import '../features/biometric/data/biometric_storage.dart';
+import '../features/customer_photo/customer_photo_store.dart';
 import '../features/platform_enumerations/data/datasources/platform_enumerations_remote_datasource.dart';
 import '../features/platform_enumerations/data/repositories/platform_enumerations_repository_impl.dart';
 import '../features/platform_enumerations/domain/repositories/platform_enumerations_repository.dart';
@@ -101,7 +102,10 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     ),
   );
   getIt.registerLazySingleton<CustomerSessionStorage>(
-    () => CustomerSessionStorage(getIt<FlutterSecureStorage>()),
+    () => CustomerSessionStorage(
+      getIt<FlutterSecureStorage>(),
+      getIt<CustomerPhotoStore>(),
+    ),
   );
 
   // -- Biometric login (Face ID / fingerprint) ----------------------------
@@ -118,6 +122,11 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
       getIt<CustomerSessionStorage>(),
     ),
   );
+
+  // -- Customer avatar broadcast -----------------------------------------
+  // Singleton on purpose: it is the one place every screen showing the
+  // customer's photo reads from, so an upload anywhere repaints everywhere.
+  getIt.registerLazySingleton<CustomerPhotoStore>(() => CustomerPhotoStore());
 
   // -- Network -----------------------------------------------------------
   getIt.registerLazySingleton(() => DioFactory.create(
@@ -194,6 +203,7 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
     () => CompleteProfileCubit(
       getIt<AuthUseCase>(),
       getIt<CustomerAuthUseCase>(),
+      getIt<CustomerPhotoStore>(),
     ),
   );
   getIt.registerFactory(
@@ -255,10 +265,13 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   getIt.registerLazySingleton(
     () => ProfileUseCase(getIt<ProfileRepository>()),
   );
-  getIt.registerFactory(() => ProfileCubit(getIt<ProfileUseCase>()));
+  getIt.registerFactory(
+    () => ProfileCubit(getIt<ProfileUseCase>(), getIt<CustomerPhotoStore>()),
+  );
   getIt.registerFactory(() => ProfileEditPersonalCubit(
         getIt<CustomerAuthUseCase>(),
         getIt<ProfileUseCase>(),
+        getIt<CustomerPhotoStore>(),
       ));
   getIt.registerFactory(() => ProfileEditContactCubit(
         getIt<ProfileUseCase>(),
