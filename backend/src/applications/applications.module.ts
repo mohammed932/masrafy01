@@ -17,6 +17,7 @@ import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
 import { ScoringModule } from '@/scoring/scoring.module';
 import { SavedOffersModule } from '../saved-offers/saved-offers.module';
+import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enumerations.module';
 
 /**
  * Imports `CustomerAuthModule` so the apply endpoint can require a valid
@@ -33,6 +34,7 @@ import { SavedOffersModule } from '../saved-offers/saved-offers.module';
     QuestionnaireModule,
     ScoringModule,
     SavedOffersModule,
+    PlatformEnumerationsModule,
   ],
   controllers: [ApplicationsController, AdminApplicationsController],
   providers: [

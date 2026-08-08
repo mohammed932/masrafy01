@@ -1,18 +1,20 @@
 part of 'saved_offers.imports.dart';
 
 /// Saved Offers — the customer's bookmarked matches (Figma `4088:153`). A plain
-/// back-title header over a scrolling list of [SavedOfferCard]s with the shared
-/// bottom nav. Reached from Account ▸ Saved Offers. The single route-level
-/// widget for this file (Principle XXXVI). Backend-wired: loads via
+/// back-title header over a scrolling list of [SavedOfferCard]s. Serves both as
+/// the My Loans tab of `MainShellPage` (`fromTab: true` — the shell owns the
+/// nav) and as a pushed screen from Account ▸ Saved Offers. The single
+/// route-level widget for this file (Principle XXXVI). Backend-wired: loads via
 /// [SavedOffersCubit] (shimmer while loading, Principle XXXIV) and removes
 /// (unsaves) optimistically.
 @RoutePage()
 class SavedOffersPage extends StatelessWidget {
   const SavedOffersPage({super.key, this.fromTab = false});
 
-  /// `true` when opened via the My Loans bottom-nav tab (a tab root with
-  /// nothing to pop) — hides the header back chip. `false` when pushed from
-  /// the Account ▸ Saved Offers row, where back is meaningful.
+  /// `true` when rendered as the My Loans bottom-nav tab (a tab root with
+  /// nothing to pop) — hides the header back chip and the local nav bar, and
+  /// refetches whenever the tab is re-selected. `false` when pushed from the
+  /// Account ▸ Saved Offers row, where back is meaningful.
   final bool fromTab;
 
   @override
@@ -24,10 +26,34 @@ class SavedOffersPage extends StatelessWidget {
   }
 }
 
-class _SavedOffersView extends StatelessWidget {
+class _SavedOffersView extends StatefulWidget {
   const _SavedOffersView({required this.fromTab});
 
   final bool fromTab;
+
+  @override
+  State<_SavedOffersView> createState() => _SavedOffersViewState();
+}
+
+class _SavedOffersViewState extends State<_SavedOffersView> {
+  @override
+  void initState() {
+    super.initState();
+    // As a tab the page stays mounted, so nothing would refetch after the user
+    // saves or unsaves an offer elsewhere — re-selecting the tab reloads.
+    if (widget.fromTab) mainShellTab.addListener(_reloadOnTabSelected);
+  }
+
+  @override
+  void dispose() {
+    if (widget.fromTab) mainShellTab.removeListener(_reloadOnTabSelected);
+    super.dispose();
+  }
+
+  void _reloadOnTabSelected() {
+    if (!mounted || mainShellTab.value != MasrafyAppNavTab.loans) return;
+    context.read<SavedOffersCubit>().refresh();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,15 +62,9 @@ class _SavedOffersView extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.bg.layout,
-      bottomNavigationBar: MasrafyAppBottomNav(
-        active: MasrafyAppNavTab.loans,
-        loansLabel: l.home_nav_loans,
-        homeLabel: l.home_nav_home,
-        menuLabel: l.home_nav_menu,
-        onLoans: () {},
-        onHome: () => context.router.replaceAll([const HomeRoute()]),
-        onMenu: () => context.router.replaceAll([const AccountRoute()]),
-      ),
+      bottomNavigationBar: widget.fromTab
+          ? null
+          : const MasrafyShellNavBar(active: MasrafyAppNavTab.loans),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -52,7 +72,7 @@ class _SavedOffersView extends StatelessWidget {
           children: [
             MasrafyBackTitleHeader(
               title: l.account_row_saved_offers,
-              onBack: fromTab ? null : () => context.router.maybePop(),
+              onBack: widget.fromTab ? null : () => context.router.maybePop(),
             ),
             Gap(8.h),
             Expanded(

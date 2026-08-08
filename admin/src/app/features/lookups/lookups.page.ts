@@ -319,6 +319,11 @@ export class LookupsPage implements OnInit {
     >({
       nzContent: EnumerationEditDialogComponent,
       nzData: data,
+      // The dialog body carries no heading of its own — the modal chrome owns the title.
+      nzTitle:
+        data.mode === 'create'
+          ? $localize`:@@lookups.dialog.titleCreate:Add new value`
+          : $localize`:@@lookups.dialog.titleEdit:Edit value`,
       nzWidth: 'min(640px, calc(100vw - 48px))',
       nzFooter: null,
       nzMaskClosable: true,

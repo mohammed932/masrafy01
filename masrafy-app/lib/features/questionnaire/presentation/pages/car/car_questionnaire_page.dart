@@ -13,14 +13,20 @@ import 'package:app/features/questionnaire/presentation/pages/car/car_apply_mapp
 /// unchanged, so existing navigation and `router.gr.dart` stay valid.
 @RoutePage()
 class CarQuestionnairePage extends StatelessWidget {
-  const CarQuestionnairePage({super.key});
+  const CarQuestionnairePage({super.key, this.programNameKey});
+
+  /// Catalog program name picked on Home alongside the loan category; narrows
+  /// the matched programs to that archetype. Null = whole category.
+  final String? programNameKey;
 
   @override
   Widget build(BuildContext context) {
     return QuestionnaireView(
       category: LoanCategory.car,
-      buildRequest: (QuestionnaireState state) =>
-          mapCarAnswersToApplyRequest(state.visibleAnswers),
+      buildRequest: (QuestionnaireState state) => mapCarAnswersToApplyRequest(
+        state.visibleAnswers,
+        programNameKey: programNameKey,
+      ),
     );
   }
 }

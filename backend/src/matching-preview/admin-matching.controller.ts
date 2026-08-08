@@ -30,6 +30,10 @@ export class AdminMatchingController {
       answers: dto.answers,
       // No customer here — the admin's sample applicant carries its own age.
       age: dto.age ?? SIMULATOR_DEFAULT_AGE,
+      // Inherited from `PreviewMatchesDto`, and optional here on purpose: the
+      // admin simulating a category wants the whole category by default, and
+      // sets a name only when reproducing what one applicant saw.
+      programNameKey: dto.programNameKey,
     });
     return ok(result);
   }

@@ -43,6 +43,12 @@ import {
   DownOutline,
   UpOutline,
   DeleteOutline,
+  CompassOutline,
+  UserOutline,
+  CarOutline,
+  HomeOutline,
+  ShopOutline,
+  AppstoreOutline,
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -50,7 +56,7 @@ import { map } from 'rxjs';
 import { MoneyInputDirective } from '../../../core/directives/money-input.directive';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
-import { LOAN_CATEGORIES, categoryLabel, isLoanCategory } from '@core/loan-category';
+import { categoryLabel, isLoanCategory, type LoanCategory } from '@core/loan-category';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import type {
   BankProgramCreatePayload,
@@ -136,7 +142,13 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
       CloudOutline,
       DownOutline,
       UpOutline,
-          DeleteOutline,
+      DeleteOutline,
+      CompassOutline,
+      UserOutline,
+      CarOutline,
+      HomeOutline,
+      ShopOutline,
+      AppstoreOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -147,12 +159,46 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
           <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.form.back">Back</span>
         </a>
-        <div class="title-block">
-          <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
-          <p class="page-subtitle" i18n="@@bank_programs.form.subtitle">
-            Six short steps. Every number belongs to this program alone, and nothing is saved until you
-            confirm on the last step.
-          </p>
+        <div class="header-row">
+          <div class="title-block">
+            <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
+            <p class="page-subtitle" i18n="@@bank_programs.form.subtitle">
+              Six short steps. Every number belongs to this program alone, and nothing is saved until you
+              confirm on the last step.
+            </p>
+          </div>
+          <!-- What was already decided BEFORE this form opened — the bank and
+               the loan type. They belong to the whole program, not to a step,
+               so they sit with the title rather than inside step 1's body.
+               Read-only: re-picking the loan type mid-form would silently
+               re-classify the program (and invalidate the program-name list). -->
+          @if ((!isEditMode() && preselectedBank) || lockedCategory()) {
+            <div class="context-row">
+              @if (!isEditMode() && preselectedBank; as b) {
+                <div class="bank-chip">
+                  <span class="bank-chip-avatar" aria-hidden="true">{{ initialsOf(b.nameEnglish) }}</span>
+                  <span class="bank-chip-body">
+                    <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.for_bank">For bank</span>
+                    <span class="bank-chip-name">{{ b.nameEnglish }}</span>
+                  </span>
+                  <button type="button" class="bank-chip-change" (click)="clearBank()">
+                    <span i18n="@@bank_programs.form.change_bank">Change</span>
+                  </button>
+                </div>
+              }
+              @if (lockedCategory(); as cat) {
+                <div class="bank-chip" [style.--cat]="catColor(cat)">
+                  <span class="bank-chip-avatar cat-chip-avatar" aria-hidden="true">
+                    <span nz-icon [nzType]="catIcon(cat)" nzTheme="outline"></span>
+                  </span>
+                  <span class="bank-chip-body">
+                    <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.loan_type">Loan type</span>
+                    <span class="bank-chip-name">{{ categoryLabelOf(cat) }}</span>
+                  </span>
+                </div>
+              }
+            </div>
+          }
         </div>
       </header>
 
@@ -231,7 +277,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               </li>
             }
           </ol>
-          <p class="step-caption">{{ stepCaption() }}</p>
+          <p class="step-caption sr-only">{{ stepCaption() }}</p>
 
           @if (showStepIssues() && stepIssueCount() > 0) {
             <div class="step-alert" role="alert">
@@ -241,18 +287,25 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
           }
           </div>
 
+          <!-- ═══ STEP BODY ═══════════════════════════════════════════════════
+               The ONLY scrolling region on the page. The rail above it and the
+               action bar below it are flex siblings pinned by the layout, not by
+               position: sticky — so no opaque-backdrop bleed, no z-index race,
+               and nothing ever scrolls through the gaps between them. -->
+          <div class="form-scroll">
+
           <!-- ═══ STEP 1 — PROGRAM ════════════════════════════════════════════ -->
           @if (stepIndex() === 0) {
-          @if (!isEditMode() && preselectedBank; as b) {
-            <div class="bank-chip">
-              <span class="bank-chip-avatar" aria-hidden="true">{{ initialsOf(b.nameEnglish) }}</span>
-              <span class="bank-chip-body">
-                <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.for_bank">For bank</span>
-                <span class="bank-chip-name">{{ b.nameEnglish }}</span>
-              </span>
-              <button type="button" class="bank-chip-change" (click)="clearBank()">
-                <span i18n="@@bank_programs.form.change_bank">Change</span>
-              </button>
+          <!-- Create reached without a loan type (direct URL): the value is not
+               guessable, and defaulting it would file the program under the
+               wrong product. Say where the choice is made instead. -->
+          @if (!isEditMode() && !lockedCategory()) {
+            <div class="ctx-missing" role="alert">
+              <span nz-icon nzType="compass" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@bank_programs.form.category_missing"
+                >Start from a bank’s loan type so this program is filed under the right product.</span
+              >
+              <a routerLink="/banks" i18n="@@bank_programs.form.category_missing_cta">Go to banks</a>
             </div>
           }
 
@@ -261,7 +314,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               <div>
                 <h2 class="card-title" i18n="@@bank_programs.form.core.title">Program</h2>
                 <p class="card-sub" i18n="@@bank_programs.form.core.sub">
-                  Which bank, which product, which name customers will see.
+                  The name customers will see, and how the bank proves income.
                 </p>
               </div>
             </header>
@@ -297,7 +350,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                   </nz-form-control>
                 </nz-form-item>
               }
-              <nz-form-item class="span-2">
+              <nz-form-item>
                 <nz-form-label [nzFor]="'programNameKey'" nzRequired i18n="@@bank_programs.field.friendly_name">Program name</nz-form-label>
                 <nz-form-control [nzErrorTip]="friendlyNameErrorTpl">
                   <nz-select
@@ -305,6 +358,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                     formControlName="programNameKey"
                     nzShowSearch
                     [nzDropdownStyle]="dropdownStyle"
+                    [nzNotFoundContent]="noNamesForCategoryLabel"
                     nzPlaceHolder="Select a program"
                     i18n-nzPlaceHolder="@@bank_programs.field.friendly_name.placeholder"
                   >
@@ -312,28 +366,28 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                       <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
                     }
                   </nz-select>
-                  <!-- Required is the only reachable error: the value comes from
-                       a fixed option list, so it cannot overflow the key length. -->
+                  <!-- Required is the only CONTROL error reachable: the value
+                       comes from a fixed option list, so it cannot overflow the
+                       key length. The name-vs-category mismatch is not a control
+                       error — it is rendered as a warning below. -->
                   <ng-template #friendlyNameErrorTpl let-control>
                     @if (control.hasError('required')) {
                       <span i18n="@@bank_programs.err.friendly_name_required">Program name is required.</span>
                     }
                   </ng-template>
+                  @if (programNameMismatch(); as mismatch) {
+                    <p class="field-warn" role="alert">
+                      <span i18n="@@bank_programs.warn.name_not_in_category"
+                        >“{{ mismatch.name }}” isn’t offered for {{ mismatch.category }}. Pick
+                        another name, or add it to this loan type in the program catalog.</span
+                      >
+                    </p>
+                  }
                 </nz-form-control>
               </nz-form-item>
-              <nz-form-item>
-                <nz-form-label [nzFor]="'productCategory'" nzRequired i18n="@@bank_programs.field.product_type">Product type</nz-form-label>
-                <nz-form-control [nzErrorTip]="productCategoryErrorTpl">
-                  <nz-select id="productCategory" formControlName="productCategory" [nzDropdownStyle]="dropdownStyle">
-                    @for (opt of categoryOptions(); track opt.value) {
-                      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
-                    }
-                  </nz-select>
-                  <ng-template #productCategoryErrorTpl>
-                    <span i18n="@@bank_programs.err.product_required">Product type is required.</span>
-                  </ng-template>
-                </nz-form-control>
-              </nz-form-item>
+              <!-- Product type is NOT a field here: it arrives decided (query
+                   param on create, the saved row on edit) and is shown in the
+                   context chip beside the page title. -->
               <nz-form-item>
                 <nz-form-label [nzFor]="'programType'" nzRequired i18n="@@bank_programs.field.program_type">Program type</nz-form-label>
                 <nz-form-control [nzErrorTip]="programTypeErrorTpl">
@@ -346,6 +400,15 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                   </ng-template>
                 </nz-form-control>
               </nz-form-item>
+
+              <label class="option-row span-2" [class.is-on]="isSharia" nz-checkbox formControlName="isShariaCompliant">
+                <span class="option-text">
+                  <span class="option-title" i18n="@@bank_programs.field.sharia">Sharia-compliant program</span>
+                  <span class="option-hint" i18n="@@bank_programs.field.sharia.hint">
+                    Shown to customers who filter for Islamic finance.
+                  </span>
+                </span>
+              </label>
             </div>
           </section>
 
@@ -411,31 +474,6 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
             </div>
           </section>
 
-          <!-- Optional on this step. Nothing REQUIRED ever hides behind a
-               disclosure — that was the failure mode of the old wizard. -->
-          <section class="card disclosure" [class.open]="termsExtrasOpen()">
-            <button type="button" class="disclosure-head" (click)="termsExtrasOpen.set(!termsExtrasOpen())" [attr.aria-expanded]="termsExtrasOpen()">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.terms_extras.title">Optional ceilings</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.terms_extras.sub">Only needed for programs that grant a qualitative-review uplift.</p>
-              </div>
-              <span class="chevron" nz-icon [nzType]="termsExtrasOpen() ? 'up' : 'down'" nzTheme="outline" aria-hidden="true"></span>
-            </button>
-            @if (termsExtrasOpen()) {
-              <div class="disclosure-body">
-                <div class="grid" formGroupName="loanLimits">
-                  <nz-form-item class="span-2">
-                    <nz-form-label i18n="@@bank_programs.field.qr_max">Qualitative-review uplift ceiling</nz-form-label>
-                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                      <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                        <input nz-input appMoneyInput formControlName="qualitativeReviewMaxEGP" inputmode="numeric" placeholder="Only with Special Eligibility → requiresQualitativeReview" />
-                      </nz-input-group>
-                    </nz-form-control>
-                  </nz-form-item>
-                </div>
-              </div>
-            }
-          </section>
           }
 
           <!-- ═══ STEP 3 — PRICING & FEES ═════════════════════════════════════ -->
@@ -793,9 +831,11 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
           </section>
           }
 
-          <!-- Sticky so the next action is always one glance away, whatever the
-               step's height. Submit stays enabled and REPORTS what is missing
-               instead of going dead with no explanation. -->
+          </div>
+
+          <!-- Pinned below the scrolling body, so the next action is always one
+               glance away whatever the step's height. Submit stays enabled and
+               REPORTS what is missing instead of going dead with no explanation. -->
           <footer class="form-footer">
             <button nz-button type="button" (click)="cancel()" [disabled]="busy()">
               <span i18n="@@bank_programs.form.cancel">Cancel</span>
@@ -943,13 +983,50 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         color: var(--color-text-tertiary);
       }
 
+      /* Not an nz-form error: the verdict comes from a signal, so nzErrorTip
+         never fires for it. Styled to read at the same weight as one. */
+      .field-warn {
+        margin: var(--space-1) 0 0;
+        font-size: var(--text-xs);
+        line-height: var(--line-height-base);
+        color: var(--color-warning);
+      }
+
+      /* ── App-frame layout ────────────────────────────────────────
+         The page fills the shell scrollport EXACTLY (<main class="content"> in
+         app.component owns overflow-y; its height is definite, so a 100% child
+         is definite too) and hands its own overflow to .form-scroll. That is
+         what pins the rail and the action bar: they are flex siblings of the
+         scroller, never scrolled at all — no sticky offsets, no opaque backdrop
+         bleeding past the host padding, no z-index race with ng-zorro overlays.
+         box-sizing is set here because this app has no global border-box
+         reset — without it the padding would push the host 48px past the
+         scrollport and hand the shell a second scrollbar. */
       :host {
-        display: block;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        block-size: 100%;
+        min-block-size: 0;
         padding: var(--space-6);
-        max-width: 1080px;
+        max-width: 900px;
         margin-inline: auto;
       }
-      .page-header { display: flex; flex-direction: column; gap: var(--space-2); margin-block-end: var(--space-5); }
+      .page {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-block-size: 0;
+      }
+      .page-header { display: flex; flex-direction: column; gap: var(--space-2); margin-block-end: var(--space-4); }
+      .header-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-3) var(--space-5);
+      }
+      .title-block { flex: 1 1 340px; }
       .back-link {
         display: inline-flex; align-items: center; gap: var(--space-1);
         color: var(--text-secondary, var(--color-text-secondary));
@@ -965,17 +1042,46 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         margin: 0; font-size: var(--text-md); max-width: 72ch;
         color: var(--text-secondary, var(--color-text-secondary));
       }
-      .form-body { display: flex; flex-direction: column; gap: var(--space-4); }
+      /* Title + rail + action bar are all permanent chrome now. On a short
+         laptop viewport the once-read intro is the first thing to go, so the
+         step body keeps a workable height. */
+      @media (max-height: 860px) {
+        .page-subtitle { display: none; }
+        .page-header { margin-block-end: var(--space-4); }
+      }
+      .form-body {
+        display: flex; flex-direction: column; gap: var(--space-4);
+        flex: 0 1 auto;
+        min-block-size: 0;
+      }
+      /* The scrolling step body. min-block-size:0 is load-bearing: without it a
+         flex item refuses to shrink below its content and the whole page — rail
+         and action bar included — scrolls in the shell instead.
+         scrollbar-gutter keeps the column from shifting sideways when a short
+         step (Documents) has no scrollbar and a tall one (Pricing) does.
+         The inline padding + matching negative margin let focus halos and card
+         shadows breathe instead of being clipped at the scrollport edge. */
+      .form-scroll {
+        flex: 0 1 auto;
+        min-block-size: 0;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+        padding-block: var(--space-2);
+        padding-inline: var(--space-2);
+        margin-inline: calc(var(--space-2) * -1);
+      }
 
       /* ── Wizard step bar ───────────────────────────────────────── */
       .steps {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: var(--space-3) var(--space-4);
-        background: var(--bg-surface, var(--color-surface-default));
-        border: 1px solid var(--border-default, var(--color-border-default));
-        border-radius: var(--radius-lg);
+        padding: 0 0 var(--space-1);
+        background: transparent;
+        border: none;
         overflow-x: auto;
       }
       .step {
@@ -1031,14 +1137,18 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         background: var(--border-default, var(--color-border-default));
       }
 
-      /* ── Bank chip (pre-selected from atlas CTA) ───────────────── */
+      /* ── Given chips (bank + loan type) ─────────────────────────────
+         One shell for both so the row reads as a single band of decisions
+         already made, not two unrelated badges. Colour lives in the avatar
+         only — tinting the whole pill made the bank look like the selected
+         item in a set of two, which it is not. */
       .bank-chip {
         display: inline-flex;
         align-items: center;
-        gap: var(--space-3);
-        padding: 8px 12px 8px 8px;
-        background: var(--accent-subtle, var(--color-tonal-accent-bg));
-        border: 1px solid color-mix(in srgb, var(--primary, var(--color-brand-primary)) 22%, transparent);
+        gap: var(--space-2);
+        padding: 4px var(--space-3) 4px 4px;
+        background: var(--bg-surface, var(--color-surface-default));
+        border: 1px solid var(--border-default, var(--color-border-default));
         border-radius: var(--radius-pill);
         align-self: flex-start;
       }
@@ -1046,42 +1156,93 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        inline-size: 32px;
-        block-size: 32px;
+        inline-size: 28px;
+        block-size: 28px;
         border-radius: 50%;
         background: var(--primary, var(--color-brand-primary));
         color: var(--text-on-primary, var(--color-text-on-brand));
         font-size: 12px;
         font-weight: 700;
+        letter-spacing: 0.02em;
       }
-      .bank-chip-body { display: flex; flex-direction: column; gap: 1px; }
+      .bank-chip-body { display: flex; flex-direction: column; gap: 2px; }
       .bank-chip-eyebrow {
         font-size: 10px;
         font-weight: 700;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.09em;
         text-transform: uppercase;
         color: var(--text-tertiary, var(--color-text-tertiary));
+        line-height: 1;
       }
       .bank-chip-name {
         font-size: 13px;
         font-weight: 700;
-        color: var(--primary, var(--color-brand-primary));
+        line-height: 1.25;
+        color: var(--text-primary, var(--color-text-primary));
       }
+      /* Hairline, not a gap: the action belongs to this chip, and floating it
+         loose inside the pill read as a third value. */
       .bank-chip-change {
         appearance: none;
         background: transparent;
         border: none;
+        border-inline-start: 1px solid var(--border-default, var(--color-border-default));
         cursor: pointer;
-        padding: 4px 8px;
-        color: var(--text-secondary, var(--color-text-secondary));
+        margin-inline-start: var(--space-1);
+        padding: 2px 0 2px var(--space-2);
+        color: var(--primary, var(--color-brand-primary));
         font-size: 12px;
         font-weight: 600;
-        border-radius: var(--radius-pill);
-        transition: background 150ms ease, color 150ms ease;
+        transition: color 150ms var(--motion-easing-standard, ease);
       }
-      .bank-chip-change:hover {
-        background: rgba(255, 255, 255, 0.4);
+      .bank-chip-change:hover { color: var(--text-primary, var(--color-text-primary)); }
+      .bank-chip-change:focus-visible {
+        outline: 2px solid var(--primary, var(--color-brand-primary));
+        outline-offset: 3px;
+        border-radius: var(--radius-sm);
+      }
+
+      /* ── Context row: decisions made BEFORE this form (bank + loan type) ──
+         Same chip shell so they read as one band of givens. The loan-type chip
+         carries no action: it is a fact, and the only affordance would be a
+         picker this step deliberately does not offer. */
+      .context-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        padding-block-start: var(--space-1);
+      }
+      .cat-chip-avatar {
+        background: color-mix(in srgb, var(--cat) 13%, transparent);
+        color: var(--cat);
+        font-size: 14px;
+      }
+
+      /* Create with no loan type: a dead end unless we say where the choice is
+         made, so the notice names the destination instead of just refusing. */
+      .ctx-missing {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-lg);
+        background: var(--color-warning-bg, var(--accent-subtle, var(--color-tonal-accent-bg)));
+        border: 1px solid color-mix(in srgb, var(--color-warning, var(--color-brand-primary)) 28%, transparent);
+        color: var(--text-primary, var(--color-text-primary));
+        font-size: var(--text-sm);
+      }
+      .ctx-missing a {
+        font-weight: 600;
         color: var(--primary, var(--color-brand-primary));
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        border-radius: var(--radius-sm);
+      }
+      .ctx-missing a:focus-visible {
+        outline: 2px solid var(--primary, var(--color-brand-primary));
+        outline-offset: 2px;
       }
       .footer-spacer { flex: 1 1 auto; }
 
@@ -1089,7 +1250,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         background: var(--bg-surface, var(--color-surface-default));
         border: 1px solid var(--border-default, var(--color-border-default));
         border-radius: var(--radius-lg);
-        padding: var(--space-5);
+        padding: var(--space-6);
         display: flex; flex-direction: column; gap: var(--space-4);
       }
       .card-head {
@@ -1107,7 +1268,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
       }
       .grid {
         display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-3) var(--space-4);
+        gap: var(--space-4) var(--space-4);
         align-items: start;
       }
       .grid > * { align-self: start; min-block-size: 0; }
@@ -1124,37 +1285,13 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         color: var(--color-error);
       }
 
-      .disclosure { padding: 0; }
-      .disclosure-head {
-        appearance: none;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        text-align: start;
-        width: 100%;
-        padding: var(--space-5);
-        display: flex; align-items: center; justify-content: space-between;
-        gap: var(--space-3);
-      }
-      .disclosure-head:hover { background: var(--bg-subtle, var(--color-surface-row-hover)); }
-      .disclosure-head:focus-visible {
-        outline: 2px solid var(--primary, var(--color-brand-primary));
-        outline-offset: -2px;
-      }
-      .chevron { color: var(--text-tertiary, var(--color-text-tertiary)); font-size: 14px; }
-      .disclosure.open .chevron { color: var(--primary, var(--color-brand-primary)); }
-      .disclosure-body {
-        padding: 0 var(--space-5) var(--space-5);
-        display: flex; flex-direction: column; gap: var(--space-4);
-        border-block-start: 1px solid var(--border-default, var(--color-border-default));
-        padding-block-start: var(--space-4);
-      }
       .form-footer {
         display: flex; align-items: center; justify-content: flex-end;
-        gap: var(--space-3); padding: var(--space-4);
-        background: var(--bg-surface, var(--color-surface-default));
-        border: 1px solid var(--border-default, var(--color-border-default));
-        border-radius: var(--radius-lg);
+        gap: var(--space-3);
+        padding: var(--space-4) 0 0;
+        background: transparent;
+        border: none;
+        border-block-start: 1px solid var(--border-default, var(--color-border-default));
       }
       .manual-error {
         margin-block-start: 4px;
@@ -1222,31 +1359,16 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
       }
 
       /* ── Wizard: rail semantics, step caption, issue banner ─────── */
-      /* The rail, its caption and the issue banner pin together as ONE block
-         parked flush at the top of the page scrollport.
-         The scroll container is <main class="content"> in app.component (it owns
-         overflow-y, the app top bar is its SIBLING and never scrolls) — so the
-         sticky offset is 0, not --topbar-height: a 64px offset would park the
-         rail 64px down inside the scrollport and let step content scroll
-         visibly through the band above it.
-         The wrapper — not the <ol> — is the sticky element so the flex gaps
-         between the three carry an opaque backdrop; a bare sticky <ol> lets the
-         step content scroll visibly through those gaps. The backdrop bleeds out
-         past the host's inline padding, and up over the host's block padding, so
-         nothing peeks at the edges either. */
+      /* The rail, its caption and the issue banner sit together as ONE block
+         above the scrolling body — a flex sibling of .form-scroll, so it holds
+         its place without sticky offsets or an opaque backdrop faking one. */
       .wizard-rail {
-        position: sticky;
-        inset-block-start: 0;
-        z-index: 3;
+        position: relative;
+        flex: 0 0 auto;
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
-        background: var(--bg-base, var(--color-surface-page));
-        margin-inline: calc(var(--space-6) * -1);
-        padding-inline: var(--space-6);
-        padding-block: var(--space-3);
-        margin-block: calc(var(--space-3) * -1);
-        scroll-margin-block-start: 0;
+        padding-block-end: var(--space-3);
       }
       /* Hairline under the pinned block so cards sliding beneath it read as
          passing UNDER the rail rather than colliding with it. */
@@ -1307,13 +1429,18 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
           white-space: nowrap;
         }
       }
-      .step-caption {
-        margin: 0;
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--text-tertiary, var(--color-text-tertiary));
+      /* The rail already names the step and marks it aria-current; the caption
+         repeated it in print. Kept for screen readers, which get the rail as a
+         row of buttons and benefit from the plain sentence. */
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
       /* Labels compete for width on narrow screens; only the current step keeps
          its name so the rail never overflows into a horizontal scroll. */
@@ -1336,21 +1463,21 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
 
       /* Cards are re-created on every step change, so the entry animation plays
          once per step — a directional cue, not decoration. */
-      .form-body > .card,
-      .form-body > app-income-assumption-section,
-      .form-body > .bank-chip {
+      .form-scroll > .card,
+      .form-scroll > app-income-assumption-section,
+      .form-scroll > .ctx-missing {
         animation: step-enter var(--motion-duration-base) var(--motion-easing-standard) both;
       }
-      .form-body > section.card:nth-of-type(2) { animation-delay: 30ms; }
-      .form-body > section.card:nth-of-type(3) { animation-delay: 60ms; }
+      .form-scroll > section.card:nth-of-type(2) { animation-delay: 30ms; }
+      .form-scroll > section.card:nth-of-type(3) { animation-delay: 60ms; }
       @keyframes step-enter {
         from { opacity: 0; transform: translateY(6px); }
         to { opacity: 1; transform: none; }
       }
       @media (prefers-reduced-motion: reduce) {
-        .form-body > .card,
-        .form-body > app-income-assumption-section,
-        .form-body > .bank-chip { animation: none; }
+        .form-scroll > .card,
+        .form-scroll > app-income-assumption-section,
+        .form-scroll > .ctx-missing { animation: none; }
       }
 
       /* ── Review step ────────────────────────────────────────────── */
@@ -1424,12 +1551,11 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         .review-list { grid-template-columns: minmax(0, 1fr); }
       }
 
-      /* Sticky action bar: the next step is always reachable without scrolling
-         back to the bottom of a long panel. */
+      /* Pinned action bar: the next step is always reachable without scrolling
+         back to the bottom of a long panel. Pinned by the flex layout (the body
+         above it owns the overflow), not by sticky. */
       .form-footer {
-        position: sticky;
-        inset-block-end: 0;
-        z-index: 2;
+        flex: 0 0 auto;
       }
       /* Direction arrows are glyphs, not logical properties — flip them in RTL
          so "Back" and "Continue" keep pointing the way the reader travels. */
@@ -1475,11 +1601,10 @@ export class BankProgramFormPage implements OnInit {
   // ── Wizard (FR-011 revisited) ────────────────────────────────────────────
   /**
    * The form is a 6-step wizard again, with the defect that killed the previous
-   * one designed out: **no required control lives behind a disclosure.** Every
-   * fee, the DBR cap and the rate all render in the open on the step that owns
-   * them, so an admin can never be blocked by a field they were never shown.
-   * Disclosures now hold optional-only fields, and the rail marks the exact step
-   * that still needs attention.
+   * one designed out: **no control hides behind a disclosure.** Every fee, the
+   * DBR cap and the rate all render in the open on the step that owns them, so
+   * an admin can never be blocked by a field they were never shown, and the rail
+   * marks the exact step that still needs attention.
    */
   readonly steps: readonly WizardStep[] = [
     {
@@ -1517,8 +1642,6 @@ export class BankProgramFormPage implements OnInit {
   readonly furthestStep = signal(0);
   /** Set when Continue / Create is refused, cleared on every step change. */
   readonly showStepIssues = signal(false);
-  /** Optional-only disclosure on the amount step (qualitative-review ceiling). */
-  readonly termsExtrasOpen = signal(false);
 
   readonly isLastStep = computed(() => this.stepIndex() === this.steps.length - 1);
   readonly stepCaption = computed(() => {
@@ -1542,6 +1665,10 @@ export class BankProgramFormPage implements OnInit {
     // to ask it directly — otherwise a broken table would sail past Continue and
     // only fail on the server (`DBR_BANDS_INVALID`).
     if (this.steps[index]?.id === 'eligibility' && this.dbrBandsError() !== null) return false;
+    // Same reason: the name↔category verdict lives in a signal, so Continue
+    // would sail past it and the save would fail on the server
+    // (`PROGRAM_NAME_KEY_NOT_IN_CATEGORY`).
+    if (this.steps[index]?.id === 'program' && this.programNameMismatch() !== null) return false;
     return true;
   }
 
@@ -1623,10 +1750,15 @@ export class BankProgramFormPage implements OnInit {
     return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
   }
 
+  /**
+   * A new step starts at its own top. The rail is fixed chrome now, so there is
+   * nothing to scroll INTO view — the step body is the scroller, and it keeps
+   * the outgoing step's offset unless it is reset here.
+   */
   private revealStepStart(): void {
-    const rail = this.host.nativeElement.querySelector('.wizard-rail');
-    rail?.scrollIntoView({
-      block: 'start',
+    const body = this.host.nativeElement.querySelector<HTMLElement>('.form-scroll');
+    body?.scrollTo({
+      top: 0,
       behavior: this.prefersReducedMotion ? 'auto' : 'smooth',
     });
   }
@@ -1717,24 +1849,44 @@ export class BankProgramFormPage implements OnInit {
     this.enums.membersFor('required_document')().map((m) => ({ value: m.key, label: m.labelEn })),
   );
   /**
-   * Product-category options sourced from the live registry (`product_category`).
-   * Localized via the shared `categoryLabel()` for the four known categories;
-   * falls back to the canonical four if the registry hasn't loaded yet so the
-   * picker is never empty. Adding `business` to the registry surfaces it here
-   * automatically — no hardcoded option list (Principle II).
+   * The loan type this form is operating under, or `null` when it has not been
+   * decided (create reached without `?category=`). Read-only by design: the
+   * choice is made one screen earlier, so this is a fact the form displays, not
+   * a field it collects.
    */
-  readonly categoryOptions = computed(() => {
-    const members = this.enums
-      .membersFor('product_category')()
-      .filter((m) => m.active && !m.deprecated);
-    if (members.length === 0) {
-      return LOAN_CATEGORIES.map((cat) => ({ value: cat as string, label: categoryLabel(cat) }));
-    }
-    return members.map((m) => ({
-      value: m.key,
-      label: isLoanCategory(m.key) ? categoryLabel(m.key) : m.labelEn,
-    }));
+  readonly lockedCategory = computed<LoanCategory | null>(() => {
+    const cat = this.productCategorySignal();
+    return isLoanCategory(cat) ? cat : null;
   });
+
+  /** Template-side access to the shared category label (Principle II / A20). */
+  protected categoryLabelOf(cat: LoanCategory): string {
+    return categoryLabel(cat);
+  }
+
+  /** ng-zorro icon nzType per loan category — generic map, no bank branching. */
+  private static readonly CAT_ICONS: Readonly<Record<LoanCategory, string>> = {
+    personal: 'user',
+    car: 'car',
+    mortgage: 'home',
+    business: 'shop',
+  };
+
+  protected catIcon(cat: LoanCategory): string {
+    return BankProgramFormPage.CAT_ICONS[cat] ?? 'appstore';
+  }
+
+  /** Per-category accent, resolved against the theme tokens (A18). */
+  private static readonly CAT_COLORS: Readonly<Record<LoanCategory, string>> = {
+    personal: 'var(--color-cat-personal)',
+    car: 'var(--color-cat-car)',
+    mortgage: 'var(--color-cat-mortgage)',
+    business: 'var(--color-cat-business)',
+  };
+
+  protected catColor(cat: LoanCategory): string {
+    return BankProgramFormPage.CAT_COLORS[cat] ?? 'var(--color-cat-other)';
+  }
 
   readonly form = this.fb.nonNullable.group({
     identity: this.fb.nonNullable.group({
@@ -1801,6 +1953,12 @@ export class BankProgramFormPage implements OnInit {
         nonNullable: true,
         validators: [Validators.required],
       }),
+      // Not rendered — the "Optional ceilings" disclosure that edited it is
+      // gone. The control stays so an EXISTING program's ceiling survives an
+      // edit: `payloadFromForm` reads the form, and update is a
+      // full-replacement PUT, so dropping the control would silently clear a
+      // value the admin never saw and never asked to change. New programs leave
+      // it null, exactly as before.
       qualitativeReviewMaxEGP: new FormControl<string | null>(null),
     }),
     pricing: this.fb.nonNullable.group({
@@ -1908,6 +2066,7 @@ export class BankProgramFormPage implements OnInit {
   get eligibilityGroup(): FormGroup { return this.form.controls.eligibility as FormGroup; }
   /** Drives the dimmed cap field + the lit toggle row on the Debt burden card. */
   get skipDbr(): boolean { return this.eligibilityGroup.get('skipDbrCheck')?.value === true; }
+  get isSharia(): boolean { return this.identityGroup.get('isShariaCompliant')?.value === true; }
   get incomeAssumptionGroup(): FormGroup { return this.form.controls.incomeAssumption as FormGroup; }
   get feesGroup(): FormGroup { return this.form.controls.fees as FormGroup; }
   get documentsGroup(): FormGroup { return this.form.controls.documents as FormGroup; }
@@ -2029,12 +2188,6 @@ export class BankProgramFormPage implements OnInit {
           {
             label: $localize`:@@bank_programs.review.duration:Duration`,
             value: `${this.formatMonths(v.tenor.minMonths)} – ${this.formatMonths(v.tenor.maxMonths)}`,
-          },
-          {
-            label: $localize`:@@bank_programs.review.qr_ceiling:Uplift ceiling`,
-            value: v.loanLimits.qualitativeReviewMaxEGP
-              ? `${money(v.loanLimits.qualitativeReviewMaxEGP)} EGP`
-              : '',
           },
         ],
       },
@@ -2160,24 +2313,97 @@ export class BankProgramFormPage implements OnInit {
   );
 
   /**
+   * The registry signal, hoisted: `membersFor()` allocates a fresh `computed()`
+   * per call, and calling it inside another computed made a new reactive node on
+   * every recomputation.
+   */
+  private readonly programNameMembers = this.enums.membersFor('program_name');
+
+  /**
    * Program-name options, sourced from the live `program_name` registry
-   * (Principle II — names are DATA, no hardcoded list). The catalog is
-   * category-agnostic: every active name is offerable under any product
-   * category, so the list is NOT filtered by the picked category. Options carry
-   * the catalog KEY, which is what the API stores; a pre-catalog program being
-   * edited keeps its own key visible so saving does not silently re-classify it.
+   * (Principle II — names are DATA, no hardcoded list), narrowed to the names
+   * assigned to the picked product category (Program catalog → Loan
+   * categories). The API enforces the same pair, so offering a name the save
+   * would reject is just a slower way to show the error.
+   *
+   * A name assigned to NOTHING is parked and appears nowhere — there is no
+   * "show all" escape hatch, or the catalog's own parked warning would be a lie.
+   *
+   * Options carry the catalog KEY, which is what the API stores; a bound key
+   * that is not in the filtered list stays visible so saving does not silently
+   * re-classify the program — that now covers three cases (a pre-catalog key, a
+   * deprecated one, and a live one valid under a different category), and the
+   * label is resolved from the FULL registry so a known name never renders as a
+   * raw machine key.
    */
   readonly programNameOptions = computed(() => {
-    const opts = this.enums
-      .membersFor('program_name')()
-      .filter((m) => m.active && !m.deprecated)
-      .map((m) => ({ value: m.key, label: this.localeIsAr ? m.labelAr : m.labelEn }));
+    const all = this.programNameMembers().filter((m) => m.active && !m.deprecated);
+    const cat = this.productCategorySignal();
+    // An unrecognised product category is a registry-config problem, not a
+    // reason to hand the admin an empty picker.
+    const pool = isLoanCategory(cat)
+      ? all.filter((m) => (m.categories ?? []).includes(cat))
+      : all;
+    const opts = pool.map((m) => ({
+      value: m.key,
+      label: this.localeIsAr ? m.labelAr : m.labelEn,
+    }));
+
     const current = this.programNameKeySignal();
     if (current && !opts.some((o) => o.value === current)) {
-      opts.unshift({ value: current, label: current });
+      const known = this.programNameMembers().find((m) => m.key === current);
+      opts.unshift({
+        value: current,
+        label: known ? (this.localeIsAr ? known.labelAr : known.labelEn) : current,
+      });
     }
     return opts;
   });
+
+  /**
+   * The picked name is not offered under the picked product category.
+   *
+   * A signal rather than a control validator: the verdict depends on the
+   * registry, which arrives asynchronously, and a validator computed before it
+   * lands would stay stale. Returns `null` when the registry has not shipped
+   * `categories` at all (pre-rollout rows must never be blocked) and when the
+   * pair is untouched on an existing program — the same grandfather rule the
+   * backend applies, so the form and the API agree on what is refusable.
+   */
+  readonly programNameMismatch = computed<{ name: string; category: string } | null>(() => {
+    const key = this.programNameKeySignal();
+    const cat = this.productCategorySignal();
+    if (!key || !isLoanCategory(cat)) return null;
+    if (key === this.grandfatheredPair()?.programNameKey && cat === this.grandfatheredPair()?.productCategory) {
+      return null;
+    }
+    const member = this.programNameMembers().find((m) => m.key === key);
+    if (!member || member.categories === undefined) return null;
+    if (member.categories.includes(cat)) return null;
+    return {
+      name: this.localeIsAr ? member.labelAr : member.labelEn,
+      category: categoryLabel(cat),
+    };
+  });
+
+  /**
+   * The (name, category) pair this program was loaded with, on edit. Kept so an
+   * operator who opened a program to change a fee is not blocked by an
+   * assignment someone narrowed after the program was created — they did not
+   * break it, and refusing the save would strand the row.
+   */
+  private readonly grandfatheredPair = signal<{
+    programNameKey: string;
+    productCategory: string;
+  } | null>(null);
+
+  /**
+   * Empty-picker copy. Deliberately does NOT tell the operator to go fix it in
+   * the program catalog: this form is reachable by four roles, while
+   * `/program-catalog` is super-admin only, so that instruction would be a
+   * dead end for most of the people who see it.
+   */
+  protected readonly noNamesForCategoryLabel = $localize`:@@bank_programs.field.friendly_name.none_for_category:No program names are set up for this loan type yet.`;
 
   constructor() {
     // Bank picker valueChanges → mirror into identity.bankName.
@@ -2225,7 +2451,7 @@ export class BankProgramFormPage implements OnInit {
     this.form.controls.identity.controls.programNameKey.valueChanges
       .pipe(takeUntilDestroyed())
       .subscribe((key) => {
-        const match = this.enums.membersFor('program_name')().find((m) => m.key === key);
+        const match = this.programNameMembers().find((m) => m.key === key);
         if (match) {
           this.form.controls.identity.controls.friendlyName.setValue(match.labelEn, {
             emitEvent: false,
@@ -2235,8 +2461,11 @@ export class BankProgramFormPage implements OnInit {
           });
         }
       });
-    // No category-change reset: a program name serves every category, so a pick
-    // stays valid when the product category changes.
+    // No category-change RESET. Changing the product category can invalidate the
+    // picked name, but clearing the key would not clear `friendlyName` /
+    // `friendlyNameAr` (derived above), leaving a program with no key and a
+    // stale display name — worse than the problem. `programNameMismatch` warns
+    // and blocks the step instead, so the operator decides which field is wrong.
   }
 
   ngOnInit(): void {
@@ -2244,7 +2473,6 @@ export class BankProgramFormPage implements OnInit {
       'transfer_type',
       'employment_type',
       'property_type',
-      'product_category',
       'currency',
       'required_document',
       'program_name',
@@ -2265,15 +2493,18 @@ export class BankProgramFormPage implements OnInit {
   }
 
   /**
-   * Preselect the product category when creating from a bank-detail category
-   * section (`?category=<loanCategory>`), overriding the `personal` default.
-   * Ignored for unknown values so the registry/default still governs.
+   * Adopt the product category chosen on the bank-detail category section
+   * (`?category=<loanCategory>`). There is no picker on this form, so an
+   * unknown or absent value must NOT fall through to a default: filing the
+   * program under the wrong product is worse than blocking the step, and the
+   * empty value trips the `required` validator that keeps Continue shut while
+   * the "start from a bank" notice explains where the choice lives.
    */
   private preselectCategoryFromQuery(): void {
     const cat = this.route.snapshot.queryParamMap.get('category');
-    if (isLoanCategory(cat)) {
-      this.form.controls.identity.controls.productCategory.setValue(cat);
-    }
+    this.form.controls.identity.controls.productCategory.setValue(
+      isLoanCategory(cat) ? cat : '',
+    );
   }
 
   private async loadActiveBanks(): Promise<void> {
@@ -2338,7 +2569,6 @@ export class BankProgramFormPage implements OnInit {
       'transfer_type',
       'employment_type',
       'property_type',
-      'product_category',
       'currency',
       'required_document',
       'program_name',
@@ -2425,7 +2655,11 @@ export class BankProgramFormPage implements OnInit {
     if (this.busy()) return;
     // A dead Create button explains nothing. Instead, land the admin on the first
     // step that still has a problem, with the field focused.
-    if (this.form.invalid) {
+    //
+    // Signal-derived verdicts are tested alongside `form.invalid`: they are
+    // invisible to it, so `goTo()`-ing back to an early step and hitting Create
+    // would otherwise slip past them and fail on the server.
+    if (this.form.invalid || this.programNameMismatch() !== null || this.dbrBandsError() !== null) {
       revealErrors(this.form);
       const blocked = this.steps.findIndex((_, i) => !this.isStepValid(i));
       if (blocked >= 0) {
@@ -2472,14 +2706,13 @@ export class BankProgramFormPage implements OnInit {
   /**
    * On edit the program already exists, so every step is reachable immediately —
    * an admin fixing one fee should not have to walk the wizard to get to it.
-   * Optional disclosures open only when they actually hold a value.
+   * Optional toggles turn themselves on only when they actually hold a value.
    */
   private autodetectToggles(d: BankProgramResponse): void {
     this.toggles.tieredRates.set(
       d.pricing.rateByLoanAmountBand != null &&
         Object.keys(d.pricing.rateByLoanAmountBand).length > 0,
     );
-    this.termsExtrasOpen.set(d.loanLimits.qualitativeReviewMaxEGP != null);
     this.furthestStep.set(this.steps.length - 1);
   }
 
@@ -2576,6 +2809,15 @@ export class BankProgramFormPage implements OnInit {
 
   private applyInitial(initial: BankProgramResponse): void {
     this.editBankName.set(initial.bankName);
+    // Remember the pair this row arrived with, so an assignment narrowed after
+    // it was created does not block an edit to an unrelated field. Mirrors the
+    // backend's own grandfather rule.
+    if (initial.programNameKey) {
+      this.grandfatheredPair.set({
+        programNameKey: initial.programNameKey,
+        productCategory: initial.productCategory,
+      });
+    }
     this.identityGroup.patchValue({
       programCode: initial.programCode,
       bankName: initial.bankName,
@@ -2583,8 +2825,7 @@ export class BankProgramFormPage implements OnInit {
       // used, so editing one does not silently blank its name.
       programNameKey:
         initial.programNameKey ??
-        this.enums.membersFor('program_name')().find((m) => m.labelEn === initial.friendlyName)
-          ?.key ??
+        this.programNameMembers().find((m) => m.labelEn === initial.friendlyName)?.key ??
         '',
       friendlyName: initial.friendlyName,
       friendlyNameAr: initial.friendlyNameAr ?? null,
@@ -2679,12 +2920,12 @@ export class BankProgramFormPage implements OnInit {
       this.pricingGroup.get('currentEffectiveRatePercent')?.setErrors({ variableRate: true });
       this.pricingGroup.get('baseRatePercent')?.setErrors({ variableRate: true });
     }
-    if (
-      code === 'INVALID_QUALITATIVE_REVIEW_CEILING' ||
-      code === 'QUALITATIVE_REVIEW_CEILING_BELOW_BASE'
-    ) {
-      this.loanLimitsGroup.get('qualitativeReviewMaxEGP')?.setErrors({ qrCeiling: true });
-    }
+    // The two qualitative-review ceiling codes get the toast above and nothing
+    // more. Flagging the control would mark the form invalid on a field this
+    // wizard no longer renders — an admin would be blocked from saving with
+    // nothing on screen to fix. The rejection can still reach an existing
+    // program (toggling `requiresQualitativeReview` off under a stored
+    // ceiling), and the localized message names it.
     if (code === 'CONFLICT_STALE_DATA' && this.isEditMode()) {
       void this.loadForEdit(this.currentProgramCode);
     }

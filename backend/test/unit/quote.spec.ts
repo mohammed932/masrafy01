@@ -126,6 +126,21 @@ describe('quoteProgram', () => {
       expect(quote.effectiveTenorMonths).toBe(36);
     });
 
+    // Regression: the questionnaire lets any applicant ask for 6 months while
+    // every personal program floors at 12, and a below-floor term used to drop
+    // the program entirely (reported as AGE_AT_MATURITY). A whole shortlist —
+    // "personal + Doctor Loans, 6 months" — came back empty.
+    it('reports tenor_min and stretches a below-floor term up to the program minimum', () => {
+      const quote = expectQuoted(
+        quoteProgram({
+          profile: profileFixture({ ...modest, preferredTenorMonths: 6 }),
+          program: programFixture({ tenor: { minMonths: 12, maxMonths: 84 } }),
+        }),
+      );
+      expect(quote.bindingConstraint).toBe('tenor_min');
+      expect(quote.effectiveTenorMonths).toBe(12);
+    });
+
     it('reports age_at_maturity — the loan must end before the age ceiling', () => {
       const quote = expectQuoted(
         quoteProgram({

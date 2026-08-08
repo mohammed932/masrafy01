@@ -15,8 +15,9 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 ///
 /// Codes mirror `backend/prisma/seed-questionnaire.ts`.
 ApplyRequest mapBusinessAnswersToApplyRequest(
-  Map<String, QuestionAnswer> answers,
-) {
+  Map<String, QuestionAnswer> answers, {
+  String? programNameKey,
+}) {
   final money = MoneyFigures.fromAnswers(answers);
 
   return ApplyRequest(
@@ -39,6 +40,7 @@ ApplyRequest mapBusinessAnswersToApplyRequest(
     ),
     assets: const AssetsPayload(),
     category: 'business',
+    programNameKey: programNameKey,
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }

@@ -291,6 +291,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get match_program_no_longer_matches => 'This offer is no longer available for your answers.';
 
   @override
+  String get match_program_name_key_unknown => 'That program is no longer available. Please pick another one.';
+
+  @override
+  String get match_program_name_not_in_category => 'That program isn\'t offered for this loan type. Please pick another one.';
+
+  @override
   String get questionnaire_form_title => 'Tell us about your loan';
 
   @override
@@ -613,6 +619,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get home_loan_types => 'Loan types';
+
+  @override
+  String get home_program_label => 'Loan program';
+
+  @override
+  String get home_program_hint => 'Choose a program';
+
+  @override
+  String get home_program_search_hint => 'Search programs';
 
   @override
   String get home_continue => 'Continue';
@@ -1650,6 +1665,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get results_amount => 'Amount';
 
   @override
+  String get results_requested => 'Requested';
+
+  @override
+  String get results_requested_duration => 'Requested duration';
+
+  @override
+  String get results_approved_amount => 'Approved amount';
+
+  @override
   String results_amount_egp(String amount) {
     return 'EGP $amount';
   }
@@ -1752,6 +1776,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get offer_total_interest => 'Total interest';
+
+  @override
+  String get offer_total_interest_caption => 'interest over the term';
+
+  @override
+  String get offer_cash_received => 'Cash you receive';
+
+  @override
+  String get offer_cash_received_caption => 'after fees';
 
   @override
   String get offer_egp_extra => 'EGP paid extra';

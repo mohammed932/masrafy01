@@ -14,6 +14,16 @@ export function isLoanCategory(value: string | null | undefined): value is LoanC
 }
 
 /**
+ * Canonical order + dedupe for a category set. A fact about `LOAN_CATEGORIES`,
+ * not about whatever is being assigned, so it lives here rather than in each
+ * assignment screen — two screens each sorting their own way would serialise
+ * the same set differently.
+ */
+export function canonicalCategories(categories: readonly LoanCategory[]): LoanCategory[] {
+  return LOAN_CATEGORIES.filter((c) => categories.includes(c));
+}
+
+/**
  * Friendly, localized label for a loan category. Single source so naming stays
  * consistent across surfaces (`car` → "Auto Loan"). Arabic lands in
  * messages.ar-EG.xlf on extraction.

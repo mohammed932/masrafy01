@@ -388,6 +388,16 @@ model Application {
   // questionnaire version answered (snapshot reproducibility). Nullable until
   // the dynamic-questionnaire apply path replaces the legacy fixed-DTO path.
   category                LoanCategory?
+  /// Catalog program-name archetype the applicant picked on top of the
+  /// category (`platform_enumeration` where `type = 'program_name'`). The pair
+  /// (category, programNameKey) is what narrowed the programs this application
+  /// was matched against, so it is persisted: without it a stored application
+  /// cannot explain why a program the customer can see in the catalog produced
+  /// no offer. Nullable — legacy rows and any category-less submit carry none,
+  /// and a null means "every program in the category", not "unknown".
+  /// No FK, same posture as `bank_program.programNameKey`: the catalog's unique
+  /// key is the composite (type, key), so validation lives in the service.
+  programNameKey          String?             @db.VarChar(64)
   questionnaireVersionId  String?             @db.VarChar(30)
   age                     Int
   applicantProfile        Json
@@ -610,10 +620,96 @@ model PlatformEnumeration {
   createdBy    String?   @db.VarChar(30)
   updatedBy    String?   @db.VarChar(30)
 
+  loanCategories PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
+  questions      PlatformEnumerationQuestion[]     @relation("PlatformEnumerationQuestions")
+
   @@unique([type, key], name: "idx_platform_enumeration_type_key")
   @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
   @@index([type, parentKey], name: "idx_platform_enumeration_type_parent")
   @@map("platform_enumeration")
+}
+
+/// Which loan categories a catalog entry may be OFFERED under.
+///
+/// A join row, not a column: one `program_name` archetype ("Pharmacy") serves
+/// several categories, and the `categories[]` array this replaces
+/// (`20260802090000_drop_program_name_categories`) could be neither indexed nor
+/// audited per pair, and shipped with no backfill — so narrowing it silently
+/// hid valid picks in the bank-program builder. Here the set is AUTHORITATIVE:
+/// an entry with no rows is "parked" (offerable nowhere), and bank-program
+/// create/update/duplicate reject an unassigned (programNameKey,
+/// productCategory) pair.
+///
+/// Generic by shape, meaningful only for the types in
+/// `CATEGORISED_ENUMERATION_TYPES`. The service layer — not a CHECK constraint —
+/// keeps a `currency` row from acquiring a loan category, the same posture
+/// `bank_program.programNameKey` already takes (no FK, validated in the service).
+///
+/// Orthogonal to `parentKey`, which stays NULL for `program_name`
+/// (`20260807090000_clear_program_name_parent_key`): that column is the
+/// registry's generic single-parent SCOPE, this is a many-to-many ASSIGNMENT.
+model PlatformEnumerationLoanCategory {
+  enumerationId String       @db.VarChar(30)
+  category      LoanCategory
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+
+  enumeration PlatformEnumeration @relation("PlatformEnumerationLoanCategories", fields: [enumerationId], references: [id], onDelete: Cascade)
+
+  @@id([enumerationId, category], name: "pk_platform_enumeration_loan_category")
+  @@index([category], name: "idx_platform_enumeration_loan_category_category")
+  @@map("platform_enumeration_loan_category")
+}
+
+/// Which questions a catalog program name SUGGESTS scoring on — the archetype's
+/// house opinion about what matters for that product ("New Car" cares about the
+/// car instalment; "Working Capital" cares about company age).
+///
+/// A TEMPLATE, READ BY NOTHING AT RUNTIME. `ScoringWeightSet.weights.questionWeights`
+/// remains the sole authority on what a bank program actually scores, and
+/// `ScoringService.saveWeights` never consults this table. All this does is
+/// pre-tick step 1 of the per-program scoring wizard, where the admin then sets
+/// the weights — the archetype says WHICH questions, each bank says HOW MUCH.
+/// Do not "complete" the feature by wiring it into save validation: that would
+/// make a catalog edit retroactively invalidate weight sets banks already saved.
+///
+/// No weights here, deliberately. Two banks offering the same archetype price it
+/// differently — that difference is the whole marketplace — so a shared weight
+/// would be a value with no owner.
+///
+/// Keyed by `questionId`, not `code`, so the board can tell "this question left
+/// the pool" (row cascaded away) from "this question is out of scope" (row still
+/// here, flagged). A dangling code column cannot express that difference, and the
+/// two have different fixes.
+///
+/// PER LOAN CATEGORY. One archetype serves several categories ("Pharmacy" sells
+/// as personal, car and business) and each of those products cares about
+/// different things, so the suggestion is a fact about the (name, category) PAIR,
+/// not about the name. A flat name→question set could not say "Doctor Loans
+/// scores on `monthly_income` as a personal loan but not as a business one",
+/// because the row is the same row. The bank program that consumes this seed
+/// always knows its own `productCategory`, so there is always exactly one set to
+/// read.
+///
+/// The category is NOT validated against `platform_enumeration_loan_category`
+/// here (nor by the service). A pick under a category the name is not currently
+/// offered under is kept and flagged, never pruned — same anti-prune posture as
+/// an out-of-scope question code. Re-assign the category and the picks are still
+/// there.
+model PlatformEnumerationQuestion {
+  enumerationId String       @db.VarChar(30)
+  category      LoanCategory
+  questionId    String       @db.VarChar(30)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(6)
+
+  enumeration PlatformEnumeration @relation("PlatformEnumerationQuestions", fields: [enumerationId], references: [id], onDelete: Cascade)
+  question    Question            @relation("QuestionPlatformEnumerations", fields: [questionId], references: [id], onDelete: Cascade)
+
+  /// `enumerationId` leads so the board's read (one name, every category) is a
+  /// prefix scan, and the per-tab write (`deleteMany` on name + category) is a
+  /// two-column prefix rather than a filtered scan of the name's whole template.
+  @@id([enumerationId, category, questionId], name: "pk_platform_enumeration_question")
+  @@index([questionId], name: "idx_platform_enumeration_question_question")
+  @@map("platform_enumeration_question")
 }
 
 // -----------------------------------------------------------------------------
@@ -964,6 +1060,8 @@ model Question {
   options        QuestionOption[]       @relation("QuestionOptions")
   answers        ApplicationAnswer[]    @relation("QuestionAnswers")
   loanCategories QuestionLoanCategory[] @relation("QuestionLoanCategories")
+  /// Catalog program names that suggest scoring on this question (template only).
+  catalogNames   PlatformEnumerationQuestion[] @relation("QuestionPlatformEnumerations")
 
   @@index([groupId, displayOrder], name: "idx_question_group_question_order")
   @@map("question")

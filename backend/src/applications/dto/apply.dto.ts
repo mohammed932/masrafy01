@@ -207,6 +207,26 @@ export class ApplyRequestDto {
   @IsEnum(LoanCategory)
   category?: LoanCategory;
 
+  /**
+   * Catalog program-name archetype the applicant picked on top of `category`
+   * (a `program_name` key from `GET /v1/platform-enumerations/program_name`).
+   * When set, only programs instantiating THIS archetype are matched.
+   *
+   * Optional, and its absence is meaningful rather than lax: null means "every
+   * program in the category", which is what every pre-catalog client sends and
+   * what the admin simulator wants. Validated against the registry (active +
+   * assigned to `category`) — an unknown or wrongly-scoped key is a typed
+   * rejection, never a silently-ignored filter that would return the whole
+   * category and read as a successful narrow.
+   *
+   * Requires `category`: an archetype is offered UNDER categories, so with no
+   * category there is nothing to validate the assignment against.
+   */
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  programNameKey?: string;
+
   @IsOptional()
   @IsString()
   @Length(1, 30)

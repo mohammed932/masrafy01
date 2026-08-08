@@ -18,6 +18,16 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$HomeState {
   HomeLoanCategory get selected => throw _privateConstructorUsedError;
 
+  /// Whole `program_name` catalog, unfiltered — [programsForCategory] narrows
+  /// it per selection.
+  List<PlatformEnumerationEntity> get programs =>
+      throw _privateConstructorUsedError;
+  RequestState get programsStatus => throw _privateConstructorUsedError;
+
+  /// The picked catalog name, or null when nothing is picked yet / the
+  /// category offers none.
+  String? get programKey => throw _privateConstructorUsedError;
+
   /// Create a copy of HomeState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -30,7 +40,11 @@ abstract class $HomeStateCopyWith<$Res> {
   factory $HomeStateCopyWith(HomeState value, $Res Function(HomeState) then) =
       _$HomeStateCopyWithImpl<$Res, HomeState>;
   @useResult
-  $Res call({HomeLoanCategory selected});
+  $Res call(
+      {HomeLoanCategory selected,
+      List<PlatformEnumerationEntity> programs,
+      RequestState programsStatus,
+      String? programKey});
 }
 
 /// @nodoc
@@ -49,12 +63,27 @@ class _$HomeStateCopyWithImpl<$Res, $Val extends HomeState>
   @override
   $Res call({
     Object? selected = null,
+    Object? programs = null,
+    Object? programsStatus = null,
+    Object? programKey = freezed,
   }) {
     return _then(_value.copyWith(
       selected: null == selected
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
               as HomeLoanCategory,
+      programs: null == programs
+          ? _value.programs
+          : programs // ignore: cast_nullable_to_non_nullable
+              as List<PlatformEnumerationEntity>,
+      programsStatus: null == programsStatus
+          ? _value.programsStatus
+          : programsStatus // ignore: cast_nullable_to_non_nullable
+              as RequestState,
+      programKey: freezed == programKey
+          ? _value.programKey
+          : programKey // ignore: cast_nullable_to_non_nullable
+              as String?,
     ) as $Val);
   }
 }
@@ -67,7 +96,11 @@ abstract class _$$HomeStateImplCopyWith<$Res>
       __$$HomeStateImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({HomeLoanCategory selected});
+  $Res call(
+      {HomeLoanCategory selected,
+      List<PlatformEnumerationEntity> programs,
+      RequestState programsStatus,
+      String? programKey});
 }
 
 /// @nodoc
@@ -84,12 +117,27 @@ class __$$HomeStateImplCopyWithImpl<$Res>
   @override
   $Res call({
     Object? selected = null,
+    Object? programs = null,
+    Object? programsStatus = null,
+    Object? programKey = freezed,
   }) {
     return _then(_$HomeStateImpl(
       selected: null == selected
           ? _value.selected
           : selected // ignore: cast_nullable_to_non_nullable
               as HomeLoanCategory,
+      programs: null == programs
+          ? _value._programs
+          : programs // ignore: cast_nullable_to_non_nullable
+              as List<PlatformEnumerationEntity>,
+      programsStatus: null == programsStatus
+          ? _value.programsStatus
+          : programsStatus // ignore: cast_nullable_to_non_nullable
+              as RequestState,
+      programKey: freezed == programKey
+          ? _value.programKey
+          : programKey // ignore: cast_nullable_to_non_nullable
+              as String?,
     ));
   }
 }
@@ -97,16 +145,45 @@ class __$$HomeStateImplCopyWithImpl<$Res>
 /// @nodoc
 
 class _$HomeStateImpl extends _HomeState {
-  const _$HomeStateImpl({this.selected = HomeLoanCategory.personal})
-      : super._();
+  const _$HomeStateImpl(
+      {this.selected = HomeLoanCategory.personal,
+      final List<PlatformEnumerationEntity> programs =
+          const <PlatformEnumerationEntity>[],
+      this.programsStatus = RequestState.initial,
+      this.programKey})
+      : _programs = programs,
+        super._();
 
   @override
   @JsonKey()
   final HomeLoanCategory selected;
 
+  /// Whole `program_name` catalog, unfiltered — [programsForCategory] narrows
+  /// it per selection.
+  final List<PlatformEnumerationEntity> _programs;
+
+  /// Whole `program_name` catalog, unfiltered — [programsForCategory] narrows
+  /// it per selection.
+  @override
+  @JsonKey()
+  List<PlatformEnumerationEntity> get programs {
+    if (_programs is EqualUnmodifiableListView) return _programs;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_programs);
+  }
+
+  @override
+  @JsonKey()
+  final RequestState programsStatus;
+
+  /// The picked catalog name, or null when nothing is picked yet / the
+  /// category offers none.
+  @override
+  final String? programKey;
+
   @override
   String toString() {
-    return 'HomeState(selected: $selected)';
+    return 'HomeState(selected: $selected, programs: $programs, programsStatus: $programsStatus, programKey: $programKey)';
   }
 
   @override
@@ -115,11 +192,21 @@ class _$HomeStateImpl extends _HomeState {
         (other.runtimeType == runtimeType &&
             other is _$HomeStateImpl &&
             (identical(other.selected, selected) ||
-                other.selected == selected));
+                other.selected == selected) &&
+            const DeepCollectionEquality().equals(other._programs, _programs) &&
+            (identical(other.programsStatus, programsStatus) ||
+                other.programsStatus == programsStatus) &&
+            (identical(other.programKey, programKey) ||
+                other.programKey == programKey));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, selected);
+  int get hashCode => Object.hash(
+      runtimeType,
+      selected,
+      const DeepCollectionEquality().hash(_programs),
+      programsStatus,
+      programKey);
 
   /// Create a copy of HomeState
   /// with the given fields replaced by the non-null parameter values.
@@ -131,11 +218,27 @@ class _$HomeStateImpl extends _HomeState {
 }
 
 abstract class _HomeState extends HomeState {
-  const factory _HomeState({final HomeLoanCategory selected}) = _$HomeStateImpl;
+  const factory _HomeState(
+      {final HomeLoanCategory selected,
+      final List<PlatformEnumerationEntity> programs,
+      final RequestState programsStatus,
+      final String? programKey}) = _$HomeStateImpl;
   const _HomeState._() : super._();
 
   @override
   HomeLoanCategory get selected;
+
+  /// Whole `program_name` catalog, unfiltered — [programsForCategory] narrows
+  /// it per selection.
+  @override
+  List<PlatformEnumerationEntity> get programs;
+  @override
+  RequestState get programsStatus;
+
+  /// The picked catalog name, or null when nothing is picked yet / the
+  /// category offers none.
+  @override
+  String? get programKey;
 
   /// Create a copy of HomeState
   /// with the given fields replaced by the non-null parameter values.

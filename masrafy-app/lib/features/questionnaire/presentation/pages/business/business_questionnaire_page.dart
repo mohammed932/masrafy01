@@ -13,14 +13,21 @@ import 'package:app/features/questionnaire/presentation/pages/business/business_
 /// is unchanged, so existing navigation and `router.gr.dart` stay valid.
 @RoutePage()
 class BusinessQuestionnairePage extends StatelessWidget {
-  const BusinessQuestionnairePage({super.key});
+  const BusinessQuestionnairePage({super.key, this.programNameKey});
+
+  /// Catalog program name picked on Home alongside the loan category; narrows
+  /// the matched programs to that archetype. Null = whole category.
+  final String? programNameKey;
 
   @override
   Widget build(BuildContext context) {
     return QuestionnaireView(
       category: LoanCategory.business,
       buildRequest: (QuestionnaireState state) =>
-          mapBusinessAnswersToApplyRequest(state.visibleAnswers),
+          mapBusinessAnswersToApplyRequest(
+        state.visibleAnswers,
+        programNameKey: programNameKey,
+      ),
     );
   }
 }

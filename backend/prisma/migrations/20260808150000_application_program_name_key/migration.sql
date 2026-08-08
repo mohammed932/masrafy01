@@ -1,0 +1,28 @@
+-- Feature: the applicant picks a catalog PROGRAM NAME on top of the loan
+-- category, and the matched set is narrowed to that pair.
+--
+-- Before this, the mobile flow sent only `category`, so "Personal loan" matched
+-- every active personal program at once — the customer could see the program
+-- catalog in the app but had no way to say "I want a Doctor Loan". The pick is
+-- now part of the request, which makes it part of the ANSWER: the offers a
+-- stored application carries are the ones that survived (category,
+-- programNameKey), and without the second half of that pair a support agent
+-- reading the row cannot tell "no program priced this applicant" from "the
+-- applicant asked for one archetype and this program is another one".
+--
+-- Nullable, no backfill, and null is MEANINGFUL, not unknown: it reads as "every
+-- program in the category", which is exactly what every pre-existing row was
+-- matched under. Backfilling a key would invent a narrowing that never happened
+-- and silently rewrite what those applications meant.
+--
+-- No FK, deliberately — the same posture `bank_program.programNameKey` already
+-- takes. The catalog's unique key is the composite (type, key) on
+-- `platform_enumeration`, so a single-column FK is not expressible; the service
+-- layer validates the key against the registry (active + assigned to the
+-- requested category) and rejects with PROGRAM_NAME_KEY_UNKNOWN /
+-- PROGRAM_NAME_KEY_NOT_IN_CATEGORY.
+--
+-- No index: nothing filters applications by this column. The admin list filters
+-- on `leadStatus` / `userProceededAt` / customer, and this is read one row at a
+-- time alongside the row it belongs to. Add one when a query needs it.
+ALTER TABLE "application" ADD COLUMN "programNameKey" VARCHAR(64);

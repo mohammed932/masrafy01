@@ -21,8 +21,9 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 ///
 /// Codes mirror `backend/prisma/seed-questionnaire.ts`.
 ApplyRequest mapPersonalAnswersToApplyRequest(
-  Map<String, QuestionAnswer> answers,
-) {
+  Map<String, QuestionAnswer> answers, {
+  String? programNameKey,
+}) {
   final money = MoneyFigures.fromAnswers(answers);
   final employmentCode = pickedOption(answers, 'employment_status');
   final employmentType =
@@ -53,6 +54,7 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
     ),
     assets: const AssetsPayload(),
     category: 'personal',
+    programNameKey: programNameKey,
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }

@@ -10,6 +10,7 @@ class PlatformEnumerationModel {
     required this.key,
     required this.labelEn,
     required this.labelAr,
+    this.categories = const [],
   });
 
   factory PlatformEnumerationModel.fromJson(Map<String, dynamic> json) =>
@@ -17,15 +18,23 @@ class PlatformEnumerationModel {
         key: json['key'] as String? ?? '',
         labelEn: json['labelEn'] as String? ?? '',
         labelAr: json['labelAr'] as String? ?? '',
+        // Absent on every non-categorised type, and absent is the same as empty
+        // here only because the caller that reads it (`program_name`) is always
+        // served the key by a backend that does carry the assignment.
+        categories: (json['categories'] as List<dynamic>? ?? const [])
+            .whereType<String>()
+            .toList(growable: false),
       );
 
   final String key;
   final String labelEn;
   final String labelAr;
+  final List<String> categories;
 
   PlatformEnumerationEntity toEntity() => PlatformEnumerationEntity(
         key: key,
         labelEn: labelEn,
         labelAr: labelAr,
+        categories: categories,
       );
 }

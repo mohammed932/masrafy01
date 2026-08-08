@@ -94,7 +94,7 @@ class _CompleteProfileViewState extends State<_CompleteProfileView> {
             _password.text = state.password;
           }
           if (state.isSuccess) {
-            ctx.router.replaceAll([const HomeRoute()]);
+            ctx.router.replaceAll([MainShellRoute()]);
           } else if (state.error != null) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));
           }

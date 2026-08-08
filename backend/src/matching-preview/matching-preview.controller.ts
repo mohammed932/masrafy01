@@ -43,6 +43,7 @@ export class MatchingPreviewController {
       category: dto.category,
       answers: dto.answers,
       age,
+      programNameKey: dto.programNameKey,
     });
     return ok(result);
   }

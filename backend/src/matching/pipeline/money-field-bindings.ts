@@ -111,10 +111,23 @@ export const DEBT_TYPES_QUESTION_CODE = 'current_loans';
  */
 export const DEBT_TYPE_NONE_OPTION = 'none';
 
-/** Debt-type option code → the NUMERIC question that captures its instalment. */
+/**
+ * Credit cards are stated as a LIMIT, not as an instalment.
+ *
+ * Every other debt type has a fixed monthly instalment the applicant can quote.
+ * A card has none: the balance — and therefore the payment — moves month to
+ * month, and an undrawn limit is money the applicant can draw tomorrow, so the
+ * minimum payment on today's statement understates the exposure a bank underwrites
+ * against. The stated figure is therefore the TOTAL limit across every card the
+ * applicant holds (CIB 100 000 + QNB 50 000 → 150 000), discounted below to a
+ * notional monthly burden.
+ */
+export const CREDIT_CARD_LIMIT_QUESTION_CODE = 'credit_card_total_limit';
+
+/** Debt-type option code → the NUMERIC question that captures its monthly figure. */
 export const OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE = Object.freeze({
   car_loan: 'obligation_car_loan',
-  credit_cards: 'obligation_credit_card',
+  credit_cards: CREDIT_CARD_LIMIT_QUESTION_CODE,
   personal_loan: 'obligation_personal_loan',
   mortgage: 'obligation_mortgage',
   other: 'obligation_other',
@@ -139,6 +152,53 @@ export function obligationItemQuestionFor(
   return debtTypeOptionCode in OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE
     ? OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE[debtTypeOptionCode as DebtTypeOptionCode]
     : undefined;
+}
+
+/**
+ * Share of the total credit-card LIMIT that counts as a monthly obligation.
+ *
+ * A platform constant, not per-program data: this is the market convention every
+ * Egyptian lender underwrites cards on, applied identically to every program, so
+ * it is not bank branching (Principle II / A1). It also cannot be per-program
+ * without restructuring: obligations resolve ONCE per applicant, before the
+ * per-program quote loop, and land on the shared `ApplicantProfile`.
+ *
+ * Kept next to the mapping above because the pair only makes sense together —
+ * `credit_cards` states a limit precisely BECAUSE the limit is what gets
+ * discounted here. Mirrored on mobile and in the admin simulator.
+ */
+export const CREDIT_CARD_LIMIT_MONTHLY_PERCENT = new Decimal('5');
+
+/** The pick whose amount question states a limit rather than an instalment. */
+export const CREDIT_CARD_DEBT_TYPE_OPTION: DebtTypeOptionCode = 'credit_cards';
+
+/**
+ * Rounds AWAY from zero on a half, matching Dart's `toStringAsFixed` and JS's
+ * `toFixed` — the two clients that compute this same figure. Banker's rounding
+ * here would put the server one cent below them on a `.005` tie and fail the
+ * `OBLIGATIONS_TOTAL_MISMATCH` cross-check for no reason.
+ */
+const ROUND_LIKE_CLIENTS = Decimal.ROUND_HALF_UP;
+
+/**
+ * The monthly obligation one stated per-debt figure contributes.
+ *
+ * Identity for every debt whose answer already IS a monthly instalment; for
+ * credit cards the stated figure is a limit, so it is discounted by
+ * `CREDIT_CARD_LIMIT_MONTHLY_PERCENT` (150 000 of limit → 7 500 a month).
+ * Unknown picks contribute their figure unchanged rather than nothing: a new
+ * debt type added to the multi-select before this map is updated must not
+ * silently drop out of the DBR.
+ */
+export function obligationMonthlyAmountFor(
+  debtTypeOptionCode: string,
+  statedEGP: Decimal,
+): Decimal {
+  if (debtTypeOptionCode !== CREDIT_CARD_DEBT_TYPE_OPTION) return statedEGP;
+  return statedEGP
+    .mul(CREDIT_CARD_LIMIT_MONTHLY_PERCENT)
+    .div(100)
+    .toDecimalPlaces(2, ROUND_LIKE_CLIENTS);
 }
 
 export interface ObligationsResolution {
@@ -170,9 +230,10 @@ const TOTAL_TOLERANCE = new Decimal('0.01');
  * Resolve the applicant's monthly obligations from questionnaire answers.
  *
  * Itemised path (the debt-type question was asked and answered): the total is the
- * SUM of the visible per-debt answers. It is authoritative — a client-submitted
- * `current_installments` is only cross-checked against it, never preferred, so
- * editing the total cannot buy affordability.
+ * SUM of the visible per-debt answers, each first converted to a monthly burden by
+ * `obligationMonthlyAmountFor` (identity for instalments, 5% for a card limit). It
+ * is authoritative — a client-submitted `current_installments` is only cross-checked
+ * against it, never preferred, so editing the total cannot buy affordability.
  *
  * Fallback path (the snapshot serves no debt-type question, i.e. it predates this
  * feature, or a historical application's answers): read `current_installments`
@@ -212,7 +273,9 @@ export function resolveObligations(args: {
     const raw = numericByCode.get(itemCode);
     if (raw === undefined) continue;
     itemisedCodes.push(itemCode);
-    total = total.plus(new Decimal(raw));
+    // Not `plus(raw)`: the credit-card answer is a LIMIT, and only its discounted
+    // share is a monthly burden. Every other type converts by identity.
+    total = total.plus(obligationMonthlyAmountFor(pick, new Decimal(raw)));
   }
 
   const carriesDebt = pickedDebtTypes.some(

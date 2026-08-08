@@ -122,12 +122,16 @@ List<String> pickedOptions(
 
 // ---- Itemised obligations ---------------------------------------------------
 
-/// The applicant's total monthly instalments, summed from the per-debt answers.
+/// The applicant's total monthly commitments, summed from the per-debt answers.
 ///
 /// Only debts whose TYPE is currently ticked contribute, so un-ticking a type
 /// drops its amount from the total even if the figure is still in state — the
 /// same rule the server applies, and the same rule `visibleAnswers` applies when
 /// deciding what to submit.
+///
+/// "Commitments", not "instalments": the credit-card answer is a LIMIT, and only
+/// [obligationMonthlyAmountFor]'s discounted share of it is a monthly burden.
+/// Every other type converts by identity.
 ///
 /// Returns null when the snapshot serves no debt-type question (a questionnaire
 /// published before this feature): the caller then falls back to the stated
@@ -139,7 +143,9 @@ double? obligationsTotalOf(Map<String, QuestionAnswer> answers) {
   for (final pick in picks.pickedOptionCodes) {
     final itemCode = obligationItemQuestionFor(pick);
     if (itemCode == null) continue; // `none`, or a type with no amount question
-    total += num.tryParse(numericOf(answers, itemCode) ?? '')?.toDouble() ?? 0;
+    final stated = num.tryParse(numericOf(answers, itemCode) ?? '')?.toDouble();
+    if (stated == null) continue;
+    total += obligationMonthlyAmountFor(pick, stated);
   }
   return total;
 }

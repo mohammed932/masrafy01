@@ -123,19 +123,20 @@ function makeService(): ScoringService {
   };
   const repo = { activeSet: async () => null, listByProgram: async () => [] };
   const audit = { write: async () => undefined };
+  // The catalog scope is a separate guard with its own tests; this suite only
+  // reaches the structure/type validators, which never read it.
+  const enums = { memberQuestionTemplate: async () => null };
   return new ScoringService(
     repo as never,
     audit as never,
     programs as never,
     questionnaire as never,
+    enums as never,
   );
 }
 
 /** Reach the private validator the save path runs, without a live save. */
-function assertKnownStructure(
-  service: ScoringService,
-  weights: SaveWeightsPayload,
-): Promise<void> {
+function assertKnownStructure(service: ScoringService, weights: SaveWeightsPayload): Promise<void> {
   return (
     service as unknown as {
       assertKnownStructure(w: SaveWeightsPayload): Promise<void>;
@@ -159,12 +160,7 @@ describe('the assignable list offers every question type', () => {
       'employer_name',
       'monthly_income',
     ]);
-    expect(listed.map((q) => q.type)).toEqual([
-      'SINGLE_SELECT',
-      'MULTI_SELECT',
-      'TEXT',
-      'NUMERIC',
-    ]);
+    expect(listed.map((q) => q.type)).toEqual(['SINGLE_SELECT', 'MULTI_SELECT', 'TEXT', 'NUMERIC']);
   });
 
   it('carries the bilingual labels and options of a choice question', async () => {
@@ -353,10 +349,11 @@ describe('existing single-choice scoring is unchanged when everything is asked',
     ).toBeCloseTo(0.4, 10);
     // A question outside the weight set adds zero rather than throwing.
     expect(
-      computeProbability(scoring, [pick('preferred_banks', 'abk')], [
-        ...ALL_ASKED,
-        'preferred_banks',
-      ]),
+      computeProbability(
+        scoring,
+        [pick('preferred_banks', 'abk')],
+        [...ALL_ASKED, 'preferred_banks'],
+      ),
     ).toBe(0);
   });
 

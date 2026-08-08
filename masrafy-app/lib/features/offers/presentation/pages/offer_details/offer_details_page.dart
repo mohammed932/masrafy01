@@ -31,9 +31,21 @@ class OfferDetailsPage extends StatelessWidget {
     final title = l.offer_title(typeLabel);
     // An unrated program scores 0 for want of configuration, not for want of
     // a fit — printing "0% match score" would state the opposite.
-    final subtitle =
-        offer.approvalUnrated ? l.offer_unrated : l.offer_approval(offer.approvalPct);
+    final subtitle = offer.approvalUnrated
+        ? l.offer_unrated
+        : l.offer_approval(offer.approvalPct);
     final grouped = NumberFormat.decimalPattern();
+
+    // What the bank booked, versus what the wizard asked for. They diverge
+    // whenever the program ceiling or the debt-burden cap reduced the ask, and
+    // the gap is exactly what made this screen unreadable: every figure below
+    // (installment, interest, total) is priced on the APPROVED amount.
+    // Rounded to the pound before comparing — a sub-EGP delta is fee rounding,
+    // not a reduction worth a second row.
+    final approvedAmount = offer.offeredPrincipal > 0
+        ? offer.offeredPrincipal
+        : summary.amount.round();
+    final approvedDiffers = approvedAmount != summary.amount.round();
 
     // Fee lines come from the engine's own breakdown. They used to be hardcoded
     // literals ("1% (EGP 1,500)", "12.5% / year") that contradicted the
@@ -76,260 +88,292 @@ class OfferDetailsPage extends StatelessWidget {
 
     void comingSoon() => MasrafyToast.success(context, l.offer_action_soon);
 
-    return Scaffold(
-      backgroundColor: colors.bg.layout,
-      body: BlocProvider<SaveOfferCubit>(
-        create: (_) => getIt<SaveOfferCubit>()..check(offer.bankOfferId),
-        child: BlocListener<SaveOfferCubit, SaveOfferState>(
-          listener: (ctx, state) {
-            if (state.isSuccess) {
-              MasrafyToast.success(
-                ctx,
-                state.isSaved ? l.offer_save_success : l.offer_removed_success,
-              );
-            } else if (state.isError) {
-              MasrafyToast.error(
-                ctx,
-                state.isSaved ? l.offer_remove_error : l.offer_save_error,
-              );
-            }
-          },
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics(),
+    final content = CustomScrollView(
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      slivers: [
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: MasrafySliverGradientHeaderDelegate(
+            title: title,
+            subtitle: subtitle,
+            onBack: () => context.router.maybePop(),
+            // Save/heart toggle lives in the app bar; only real offers (with a
+            // bankOfferId) can be saved, so placeholder views get no action.
+            action: offer.bankOfferId.isEmpty
+                ? null
+                : BlocBuilder<SaveOfferCubit, SaveOfferState>(
+                    builder: (ctx, state) => _HeartAction(
+                      isSaved: state.isSaved,
+                      isLoading: state.isBusy,
+                      onTap: () {
+                        final cubit = ctx.read<SaveOfferCubit>();
+                        if (state.isSaved) {
+                          cubit.remove(offer.bankOfferId);
+                        } else {
+                          cubit.save(offer.bankOfferId);
+                        }
+                      },
+                    ),
+                  ),
+            expandedHeight: MasrafyGradientHeader.expandedHeightFor(
+              context,
+              title: title,
+              subtitle: subtitle,
+              hasBack: true,
+              minHeight: 180.h,
             ),
-            slivers: [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: MasrafySliverGradientHeaderDelegate(
-                  title: title,
-                  subtitle: subtitle,
-                  onBack: () => context.router.maybePop(),
-                  // Save/heart toggle lives in the app bar; only real offers (with a
-                  // bankOfferId) can be saved, so placeholder views get no action.
-                  action: offer.bankOfferId.isEmpty
-                      ? null
-                      : BlocBuilder<SaveOfferCubit, SaveOfferState>(
-                          builder: (ctx, state) => _HeartAction(
-                            isSaved: state.isSaved,
-                            isLoading: state.isBusy,
-                            onTap: () {
-                              final cubit = ctx.read<SaveOfferCubit>();
-                              if (state.isSaved) {
-                                cubit.remove(offer.bankOfferId);
-                              } else {
-                                cubit.save(offer.bankOfferId);
-                              }
-                            },
-                          ),
-                        ),
-                  expandedHeight: MasrafyGradientHeader.expandedHeightFor(
-                    context,
-                    title: title,
-                    subtitle: subtitle,
-                    hasBack: true,
-                    minHeight: 180.h,
-                  ),
-                  collapsedHeight: topInset + kToolbarHeight + 14,
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Transform.translate(
-                  offset: Offset(0, -28.h),
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: colors.bg.layout,
-                      borderRadius: BorderRadiusDirectional.only(
-                        topStart: Radius.circular(28.r),
-                        topEnd: Radius.circular(28.r),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(
-                          24.w, 52.h, 24.w, 24.h),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          MatchSummaryCard(
-                            rows: [
-                              (label: l.results_loan_type, value: typeLabel),
-                              (
-                                label: l.results_amount,
-                                value: l.results_amount_egp(
-                                  grouped.format(summary.amount),
-                                ),
-                              ),
-                              (
-                                label: l.results_duration,
-                                value: l.results_months(offer.termMonths),
-                              ),
-                            ],
-                          ),
-                          Gap(25.h),
-                          _StatGrid(
-                            tiles: [
-                              OfferStatTile(
-                                label: l.offer_interest_rate,
-                                value: '${_trimRate(offer.ratePct)}%',
-                                caption: l.offer_fixed_apr,
-                                valueColor: colors.secondary.main,
-                              ),
-                              OfferStatTile(
-                                label: l.offer_monthly,
-                                value: grouped.format(offer.monthly),
-                                caption: l.offer_egp_month,
-                                valueColor: colors.textBase,
-                              ),
-                              OfferStatTile(
-                                label: l.offer_duration,
-                                value: '${offer.termMonths}',
-                                caption: l.offer_months,
-                                valueColor: colors.textBase,
-                              ),
-                              OfferStatTile(
-                                label: l.offer_total_interest,
-                                value: grouped.format(offer.totalInterest),
-                                caption: l.offer_egp_extra,
-                                valueColor: colors.warning.active,
-                              ),
-                              OfferStatTile(
-                                label: l.offer_national_id,
-                                value: l.offer_national_id_pending,
-                                caption: l.offer_personal_id,
-                                valueColor: colors.warning.active,
-                              ),
-                              OfferStatTile(
-                                label: l.offer_total_loan,
-                                value: grouped.format(offer.totalLoan),
-                                caption: l.offer_total_loan_caption,
-                                valueColor: colors.success.main,
-                              ),
-                              // Affordability: what this salary supports here,
-                              // and where this offer sits against the cap.
-                              if (offer.maxLoan != null)
-                                OfferStatTile(
-                                  label: l.offer_max_borrow,
-                                  value: grouped.format(offer.maxLoan),
-                                  caption: offer.dbrCapPct == null
-                                      ? l.offer_egp_extra
-                                      : l.offer_max_borrow_caption(
-                                          _trimRate(offer.dbrCapPct!),
-                                        ),
-                                  valueColor: colors.success.main,
-                                ),
-                              if (offer.dbrPct != null)
-                                OfferStatTile(
-                                  label: l.offer_dbr,
-                                  value: '${_trimRate(offer.dbrPct!)}%',
-                                  caption: l.offer_dbr_caption,
-                                  valueColor: colors.warning.active,
-                                ),
-                            ],
-                          ),
-                          if (offer.hasUnusedHeadroom) ...[
-                            Gap(10.h),
-                            Text(
-                              l.offer_headroom_hint,
-                              style: text.bodySmall.copyWith(
-                                color: colors.success.main,
-                              ),
-                            ),
-                          ],
-                          Gap(20.h),
-                          Text(
-                            l.offer_fees_title.toUpperCase(),
-                            style: text.bodySmall.copyWith(
-                              color: colors.primary.border,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.9,
-                            ),
-                          ),
-                          Gap(12.h),
-                          OfferFeesCard(rows: feeRows),
-                          if (offer.requiredDocuments.isNotEmpty) ...[
-                            Gap(20.h),
-                            OfferRequiredDocumentsCard(
-                              documentKeys: offer.requiredDocuments,
-                            ),
-                          ],
-                          Gap(25.h),
-                          // Already-applied offers (opened from the Applications
-                          // screen) can't be re-applied — hide the Apply CTA
-                          // entirely; only the Save CTA below remains.
-                          if (!offer.alreadyApplied) ...[
-                            // Real offers (from apply) proceed via select-offer;
-                            // saved-offer / past-application summaries have no
-                            // application to proceed on, so keep the placeholder and
-                            // avoid touching DI (widget tests pump this page directly).
-                            offer.applicationId.isEmpty
-                                ? MasrafyGradientButton(
-                                    label: l.offer_apply,
-                                    onPressed: comingSoon,
-                                  )
-                                : BlocProvider<SelectOfferCubit>(
-                                    create: (_) => getIt<SelectOfferCubit>(),
-                                    child: BlocConsumer<SelectOfferCubit,
-                                        SelectOfferState>(
-                                      listener: (ctx, state) async {
-                                        if (state.isSuccess) {
-                                          MasrafyToast.success(
-                                              ctx, l.offer_proceed_success);
-                                          // One-way gate: the backend blocks
-                                          // re-selecting once proceeded, so clear the
-                                          // now-stale wizard/results/details stack.
-                                          ctx.router.replaceAll([
-                                            const HomeRoute(),
-                                            const PreviousApplicationsRoute(),
-                                          ]);
-                                        } else if (state.needsDocuments) {
-                                          // Apply-time document gate (v9.0.1): collect
-                                          // photo + National ID on a focused screen,
-                                          // then auto-resume select-offer on return —
-                                          // no dialog, no dead end.
-                                          final done = await ctx.router
-                                              .push<bool>(
-                                                  const ApplyDocumentsRoute());
-                                          if (done == true && ctx.mounted) {
-                                            ctx.read<SelectOfferCubit>().select(
-                                                  offer.applicationId,
-                                                  offer.bankOfferId,
-                                                );
-                                          }
-                                        } else if (state.needsProfile) {
-                                          ctx.router
-                                              .push(CompleteProfileRoute());
-                                        } else if (state.isError) {
-                                          MasrafyToast.error(
-                                              ctx, l.offer_proceed_error);
-                                        }
-                                      },
-                                      builder: (ctx, state) =>
-                                          MasrafyGradientButton(
-                                        label: l.offer_apply,
-                                        isLoading: state.isLoading,
-                                        onPressed: state.isLoading
-                                            ? null
-                                            : () => ctx
-                                                .read<SelectOfferCubit>()
-                                                .select(
-                                                  offer.applicationId,
-                                                  offer.bankOfferId,
-                                                ),
-                                      ),
-                                    ),
-                                  ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            collapsedHeight: topInset + kToolbarHeight + 14,
           ),
         ),
-      ),
+        SliverToBoxAdapter(
+          child: Transform.translate(
+            offset: Offset(0, -28.h),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: colors.bg.layout,
+                borderRadius: BorderRadiusDirectional.only(
+                  topStart: Radius.circular(28.r),
+                  topEnd: Radius.circular(28.r),
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(24.w, 52.h, 24.w, 24.h),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MatchSummaryCard(
+                      rows: [
+                        (label: l.results_loan_type, value: typeLabel),
+                        // The ask and the offer are two different numbers
+                        // whenever the program ceiling or the debt-burden
+                        // cap bit. Printing only the ask (as this card
+                        // used to) put "EGP 1,000,000" directly above an
+                        // installment that priced 494,280.
+                        if (approvedDiffers)
+                          (
+                            label: l.results_requested,
+                            value: l.results_amount_egp(
+                              grouped.format(summary.amount),
+                            ),
+                          ),
+                        (
+                          label: approvedDiffers
+                              ? l.results_approved_amount
+                              : l.results_amount,
+                          value: l.results_amount_egp(
+                            grouped.format(approvedAmount),
+                          ),
+                        ),
+                        (
+                          label: l.results_duration,
+                          value: l.results_months(offer.termMonths),
+                        ),
+                      ],
+                    ),
+                    Gap(25.h),
+                    _StatGrid(
+                      tiles: [
+                        OfferStatTile(
+                          label: l.offer_interest_rate,
+                          value: '${_trimRate(offer.ratePct)}%',
+                          caption: l.offer_fixed_apr,
+                          valueColor: colors.secondary.main,
+                        ),
+                        OfferStatTile(
+                          label: l.offer_monthly,
+                          value: grouped.format(offer.monthly),
+                          caption: l.offer_egp_month,
+                          valueColor: colors.textBase,
+                        ),
+                        // The one number on this screen the customer can
+                        // actually spend: the booked principal minus the
+                        // fees financed into it. Sits next to the term so
+                        // "how much, for how long" reads as one row.
+                        if (offer.cashReceived != null)
+                          OfferStatTile(
+                            label: l.offer_cash_received,
+                            value: grouped.format(offer.cashReceived),
+                            caption: l.offer_cash_received_caption,
+                            valueColor: colors.success.main,
+                          ),
+                        OfferStatTile(
+                          label: l.offer_duration,
+                          value: '${offer.termMonths}',
+                          caption: l.offer_months,
+                          valueColor: colors.textBase,
+                        ),
+                        OfferStatTile(
+                          label: l.offer_total_interest,
+                          value: grouped.format(offer.totalInterest),
+                          caption: l.offer_total_interest_caption,
+                          valueColor: colors.warning.active,
+                        ),
+                        OfferStatTile(
+                          label: l.offer_total_loan,
+                          value: grouped.format(offer.totalLoan),
+                          caption: l.offer_total_loan_caption,
+                          valueColor: colors.success.main,
+                        ),
+                        // Affordability: what this salary supports here,
+                        // and where this offer sits against the cap.
+                        if (offer.maxLoan != null)
+                          OfferStatTile(
+                            label: l.offer_max_borrow,
+                            value: grouped.format(offer.maxLoan),
+                            caption: offer.dbrCapPct == null
+                                ? l.offer_egp_extra
+                                : l.offer_max_borrow_caption(
+                                    _trimRate(offer.dbrCapPct!),
+                                  ),
+                            valueColor: colors.success.main,
+                          ),
+                        if (offer.dbrPct != null)
+                          OfferStatTile(
+                            label: l.offer_dbr,
+                            value: '${_trimRate(offer.dbrPct!)}%',
+                            caption: l.offer_dbr_caption,
+                            valueColor: colors.warning.active,
+                          ),
+                        // Document status, not a figure — last, so the
+                        // money tiles read as one uninterrupted block.
+                        OfferStatTile(
+                          label: l.offer_national_id,
+                          value: l.offer_national_id_pending,
+                          caption: l.offer_personal_id,
+                          valueColor: colors.warning.active,
+                        ),
+                      ],
+                    ),
+                    if (offer.hasUnusedHeadroom) ...[
+                      Gap(10.h),
+                      Text(
+                        l.offer_headroom_hint,
+                        style: text.bodySmall.copyWith(
+                          color: colors.success.main,
+                        ),
+                      ),
+                    ],
+                    Gap(20.h),
+                    Text(
+                      l.offer_fees_title.toUpperCase(),
+                      style: text.bodySmall.copyWith(
+                        color: colors.primary.border,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
+                      ),
+                    ),
+                    Gap(12.h),
+                    OfferFeesCard(rows: feeRows),
+                    if (offer.requiredDocuments.isNotEmpty) ...[
+                      Gap(20.h),
+                      OfferRequiredDocumentsCard(
+                        documentKeys: offer.requiredDocuments,
+                      ),
+                    ],
+                    Gap(25.h),
+                    // Already-applied offers (opened from the Applications
+                    // screen) can't be re-applied — hide the Apply CTA
+                    // entirely; only the Save CTA below remains.
+                    if (!offer.alreadyApplied) ...[
+                      // Real offers (from apply) proceed via select-offer;
+                      // saved-offer / past-application summaries have no
+                      // application to proceed on, so keep the placeholder and
+                      // avoid touching DI (widget tests pump this page directly).
+                      offer.applicationId.isEmpty
+                          ? MasrafyGradientButton(
+                              label: l.offer_apply,
+                              onPressed: comingSoon,
+                            )
+                          : BlocProvider<SelectOfferCubit>(
+                              create: (_) => getIt<SelectOfferCubit>(),
+                              child: BlocConsumer<SelectOfferCubit,
+                                  SelectOfferState>(
+                                listener: (ctx, state) async {
+                                  if (state.isSuccess) {
+                                    MasrafyToast.success(
+                                        ctx, l.offer_proceed_success);
+                                    // One-way gate: the backend blocks
+                                    // re-selecting once proceeded, so clear the
+                                    // now-stale wizard/results/details stack.
+                                    ctx.router.replaceAll([
+                                      MainShellRoute(),
+                                      const PreviousApplicationsRoute(),
+                                    ]);
+                                  } else if (state.needsDocuments) {
+                                    // Apply-time document gate (v9.0.1): collect
+                                    // photo + National ID on a focused screen,
+                                    // then auto-resume select-offer on return —
+                                    // no dialog, no dead end.
+                                    final done = await ctx.router.push<bool>(
+                                        const ApplyDocumentsRoute());
+                                    if (done == true && ctx.mounted) {
+                                      ctx.read<SelectOfferCubit>().select(
+                                            offer.applicationId,
+                                            offer.bankOfferId,
+                                          );
+                                    }
+                                  } else if (state.needsProfile) {
+                                    ctx.router.push(CompleteProfileRoute());
+                                  } else if (state.isError) {
+                                    MasrafyToast.error(
+                                        ctx, l.offer_proceed_error);
+                                  }
+                                },
+                                builder: (ctx, state) => MasrafyGradientButton(
+                                  label: l.offer_apply,
+                                  isLoading: state.isLoading,
+                                  onPressed: state.isLoading
+                                      ? null
+                                      : () =>
+                                          ctx.read<SelectOfferCubit>().select(
+                                                offer.applicationId,
+                                                offer.bankOfferId,
+                                              ),
+                                ),
+                              ),
+                            ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    // Only a REAL offer can be saved, and the heart action above is already
+    // hidden without a `bankOfferId`. So placeholder views (mock previews,
+    // saved-offer / past-application summaries) get the page with no
+    // save machinery at all, rather than a cubit that can never be used.
+    return Scaffold(
+      backgroundColor: colors.bg.layout,
+      body: offer.bankOfferId.isEmpty
+          ? content
+          : BlocProvider<SaveOfferCubit>(
+              create: (_) => getIt<SaveOfferCubit>()..check(offer.bankOfferId),
+              child: BlocListener<SaveOfferCubit, SaveOfferState>(
+                listener: (ctx, state) {
+                  if (state.isSuccess) {
+                    MasrafyToast.success(
+                      ctx,
+                      state.isSaved
+                          ? l.offer_save_success
+                          : l.offer_removed_success,
+                    );
+                  } else if (state.isError) {
+                    MasrafyToast.error(
+                      ctx,
+                      state.isSaved ? l.offer_remove_error : l.offer_save_error,
+                    );
+                  }
+                },
+                child: content,
+              ),
+            ),
     );
   }
 

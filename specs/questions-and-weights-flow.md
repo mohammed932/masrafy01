@@ -267,7 +267,11 @@ existing instalments — *also* go to the **quote**, producing the instalment, t
 affordable amount. That is two jobs for one answer, not double counting: one prices the loan, the
 other grades the applicant. Both paths use the same mapper, so neither can drift from the other.
 
-**3. Score every active program in the category and rank by score.**
+**3. Score every active program the applicant asked about, and rank by score.**
+
+"Asked about" is a pair: the loan category, and — when the app's Home screen offered one under that
+category — the catalog program name they picked. Both narrow the list of programs; neither touches
+the score itself.
 
 Preview and apply must agree here. They used to build "what was asked" differently — preview read
 the whole pool, apply narrowed by category — and since v13.0.0 that difference would move the

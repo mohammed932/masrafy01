@@ -10,166 +10,209 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:app/core/features/biometric/presentation/biometric_lock_page.dart'
-    as _i3;
-import 'package:app/features/account/presentation/pages/account/account.imports.dart'
-    as _i1;
+    as _i2;
+import 'package:app/core/widgets/common/masrafy_app_bottom_nav.dart' as _i26;
 import 'package:app/features/account/presentation/pages/settings_security/settings_security.imports.dart'
-    as _i20;
+    as _i19;
 import 'package:app/features/applications/presentation/pages/previous_applications/previous_applications.imports.dart'
-    as _i17;
+    as _i16;
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart'
     as _i28;
-import 'package:app/features/auth/domain/entities/signup_draft.dart' as _i26;
+import 'package:app/features/auth/domain/entities/signup_draft.dart' as _i25;
 import 'package:app/features/auth/domain/enums/otp_purpose.dart' as _i29;
 import 'package:app/features/auth/presentation/pages/apply_documents/apply_documents.imports.dart'
-    as _i2;
+    as _i1;
 import 'package:app/features/auth/presentation/pages/change_password/change_password.imports.dart'
-    as _i6;
+    as _i5;
 import 'package:app/features/auth/presentation/pages/complete_profile/complete_profile.imports.dart'
-    as _i7;
+    as _i6;
 import 'package:app/features/auth/presentation/pages/forgot_password/forgot_password.imports.dart'
-    as _i8;
+    as _i7;
 import 'package:app/features/auth/presentation/pages/login/login.imports.dart'
-    as _i10;
+    as _i8;
 import 'package:app/features/auth/presentation/pages/otp/otp.imports.dart'
-    as _i15;
+    as _i14;
 import 'package:app/features/auth/presentation/pages/signup/signup.imports.dart'
-    as _i21;
+    as _i20;
 import 'package:app/features/auth/presentation/pages/social_phone/social_phone.imports.dart'
-    as _i22;
-import 'package:app/features/home/presentation/pages/home/home.imports.dart'
-    as _i9;
+    as _i21;
 import 'package:app/features/offers/presentation/models/match_results_args.dart'
     as _i27;
 import 'package:app/features/offers/presentation/pages/offer_details/offer_details.imports.dart'
-    as _i13;
+    as _i12;
 import 'package:app/features/offers/presentation/pages/results/results.imports.dart'
-    as _i11;
+    as _i10;
 import 'package:app/features/onboarding/presentation/pages/onboarding/onboarding.imports.dart'
-    as _i14;
+    as _i13;
 import 'package:app/features/profile/presentation/models/profile_data.dart'
     as _i30;
 import 'package:app/features/profile/presentation/pages/profile/profile.imports.dart'
-    as _i18;
+    as _i17;
 import 'package:app/features/questionnaire/presentation/pages/business/business_questionnaire_page.dart'
-    as _i4;
+    as _i3;
 import 'package:app/features/questionnaire/presentation/pages/car/car_questionnaire_page.dart'
-    as _i5;
+    as _i4;
 import 'package:app/features/questionnaire/presentation/pages/mortgage/mortgage_questionnaire_page.dart'
-    as _i12;
+    as _i11;
 import 'package:app/features/questionnaire/presentation/pages/personal/personal_questionnaire_page.dart'
-    as _i16;
+    as _i15;
 import 'package:app/features/saved_offers/presentation/pages/saved_offers/saved_offers.imports.dart'
-    as _i19;
+    as _i18;
+import 'package:app/features/shell/presentation/pages/main_shell/main_shell.imports.dart'
+    as _i9;
 import 'package:app/features/splash/presentation/pages/splash/splash.imports.dart'
-    as _i23;
-import 'package:auto_route/auto_route.dart' as _i24;
-import 'package:flutter/material.dart' as _i25;
+    as _i22;
+import 'package:auto_route/auto_route.dart' as _i23;
+import 'package:flutter/material.dart' as _i24;
 
 /// generated route for
-/// [_i1.AccountPage]
-class AccountRoute extends _i24.PageRouteInfo<void> {
-  const AccountRoute({List<_i24.PageRouteInfo>? children})
-    : super(AccountRoute.name, initialChildren: children);
-
-  static const String name = 'AccountRoute';
-
-  static _i24.PageInfo page = _i24.PageInfo(
-    name,
-    builder: (data) {
-      return const _i1.AccountPage();
-    },
-  );
-}
-
-/// generated route for
-/// [_i2.ApplyDocumentsPage]
-class ApplyDocumentsRoute extends _i24.PageRouteInfo<void> {
-  const ApplyDocumentsRoute({List<_i24.PageRouteInfo>? children})
+/// [_i1.ApplyDocumentsPage]
+class ApplyDocumentsRoute extends _i23.PageRouteInfo<void> {
+  const ApplyDocumentsRoute({List<_i23.PageRouteInfo>? children})
     : super(ApplyDocumentsRoute.name, initialChildren: children);
 
   static const String name = 'ApplyDocumentsRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i2.ApplyDocumentsPage();
+      return const _i1.ApplyDocumentsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i3.BiometricLockPage]
-class BiometricLockRoute extends _i24.PageRouteInfo<void> {
-  const BiometricLockRoute({List<_i24.PageRouteInfo>? children})
+/// [_i2.BiometricLockPage]
+class BiometricLockRoute extends _i23.PageRouteInfo<void> {
+  const BiometricLockRoute({List<_i23.PageRouteInfo>? children})
     : super(BiometricLockRoute.name, initialChildren: children);
 
   static const String name = 'BiometricLockRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i3.BiometricLockPage();
+      return const _i2.BiometricLockPage();
     },
   );
 }
 
 /// generated route for
-/// [_i4.BusinessQuestionnairePage]
-class BusinessQuestionnaireRoute extends _i24.PageRouteInfo<void> {
-  const BusinessQuestionnaireRoute({List<_i24.PageRouteInfo>? children})
-    : super(BusinessQuestionnaireRoute.name, initialChildren: children);
+/// [_i3.BusinessQuestionnairePage]
+class BusinessQuestionnaireRoute
+    extends _i23.PageRouteInfo<BusinessQuestionnaireRouteArgs> {
+  BusinessQuestionnaireRoute({
+    _i24.Key? key,
+    String? programNameKey,
+    List<_i23.PageRouteInfo>? children,
+  }) : super(
+         BusinessQuestionnaireRoute.name,
+         args: BusinessQuestionnaireRouteArgs(
+           key: key,
+           programNameKey: programNameKey,
+         ),
+         initialChildren: children,
+       );
 
   static const String name = 'BusinessQuestionnaireRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i4.BusinessQuestionnairePage();
+      final args = data.argsAs<BusinessQuestionnaireRouteArgs>(
+        orElse: () => const BusinessQuestionnaireRouteArgs(),
+      );
+      return _i3.BusinessQuestionnairePage(
+        key: args.key,
+        programNameKey: args.programNameKey,
+      );
     },
   );
 }
 
+class BusinessQuestionnaireRouteArgs {
+  const BusinessQuestionnaireRouteArgs({this.key, this.programNameKey});
+
+  final _i24.Key? key;
+
+  final String? programNameKey;
+
+  @override
+  String toString() {
+    return 'BusinessQuestionnaireRouteArgs{key: $key, programNameKey: $programNameKey}';
+  }
+}
+
 /// generated route for
-/// [_i5.CarQuestionnairePage]
-class CarQuestionnaireRoute extends _i24.PageRouteInfo<void> {
-  const CarQuestionnaireRoute({List<_i24.PageRouteInfo>? children})
-    : super(CarQuestionnaireRoute.name, initialChildren: children);
+/// [_i4.CarQuestionnairePage]
+class CarQuestionnaireRoute
+    extends _i23.PageRouteInfo<CarQuestionnaireRouteArgs> {
+  CarQuestionnaireRoute({
+    _i24.Key? key,
+    String? programNameKey,
+    List<_i23.PageRouteInfo>? children,
+  }) : super(
+         CarQuestionnaireRoute.name,
+         args: CarQuestionnaireRouteArgs(
+           key: key,
+           programNameKey: programNameKey,
+         ),
+         initialChildren: children,
+       );
 
   static const String name = 'CarQuestionnaireRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i5.CarQuestionnairePage();
+      final args = data.argsAs<CarQuestionnaireRouteArgs>(
+        orElse: () => const CarQuestionnaireRouteArgs(),
+      );
+      return _i4.CarQuestionnairePage(
+        key: args.key,
+        programNameKey: args.programNameKey,
+      );
     },
   );
 }
 
+class CarQuestionnaireRouteArgs {
+  const CarQuestionnaireRouteArgs({this.key, this.programNameKey});
+
+  final _i24.Key? key;
+
+  final String? programNameKey;
+
+  @override
+  String toString() {
+    return 'CarQuestionnaireRouteArgs{key: $key, programNameKey: $programNameKey}';
+  }
+}
+
 /// generated route for
-/// [_i6.ChangePasswordPage]
-class ChangePasswordRoute extends _i24.PageRouteInfo<void> {
-  const ChangePasswordRoute({List<_i24.PageRouteInfo>? children})
+/// [_i5.ChangePasswordPage]
+class ChangePasswordRoute extends _i23.PageRouteInfo<void> {
+  const ChangePasswordRoute({List<_i23.PageRouteInfo>? children})
     : super(ChangePasswordRoute.name, initialChildren: children);
 
   static const String name = 'ChangePasswordRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i6.ChangePasswordPage();
+      return const _i5.ChangePasswordPage();
     },
   );
 }
 
 /// generated route for
-/// [_i7.CompleteProfilePage]
+/// [_i6.CompleteProfilePage]
 class CompleteProfileRoute
-    extends _i24.PageRouteInfo<CompleteProfileRouteArgs> {
+    extends _i23.PageRouteInfo<CompleteProfileRouteArgs> {
   CompleteProfileRoute({
-    _i25.Key? key,
-    _i26.SignupDraft? draft,
-    List<_i24.PageRouteInfo>? children,
+    _i24.Key? key,
+    _i25.SignupDraft? draft,
+    List<_i23.PageRouteInfo>? children,
   }) : super(
          CompleteProfileRoute.name,
          args: CompleteProfileRouteArgs(key: key, draft: draft),
@@ -178,13 +221,13 @@ class CompleteProfileRoute
 
   static const String name = 'CompleteProfileRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<CompleteProfileRouteArgs>(
         orElse: () => const CompleteProfileRouteArgs(),
       );
-      return _i7.CompleteProfilePage(key: args.key, draft: args.draft);
+      return _i6.CompleteProfilePage(key: args.key, draft: args.draft);
     },
   );
 }
@@ -192,9 +235,9 @@ class CompleteProfileRoute
 class CompleteProfileRouteArgs {
   const CompleteProfileRouteArgs({this.key, this.draft});
 
-  final _i25.Key? key;
+  final _i24.Key? key;
 
-  final _i26.SignupDraft? draft;
+  final _i25.SignupDraft? draft;
 
   @override
   String toString() {
@@ -203,60 +246,86 @@ class CompleteProfileRouteArgs {
 }
 
 /// generated route for
-/// [_i8.ForgotPasswordPage]
-class ForgotPasswordRoute extends _i24.PageRouteInfo<void> {
-  const ForgotPasswordRoute({List<_i24.PageRouteInfo>? children})
+/// [_i7.ForgotPasswordPage]
+class ForgotPasswordRoute extends _i23.PageRouteInfo<void> {
+  const ForgotPasswordRoute({List<_i23.PageRouteInfo>? children})
     : super(ForgotPasswordRoute.name, initialChildren: children);
 
   static const String name = 'ForgotPasswordRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i8.ForgotPasswordPage();
+      return const _i7.ForgotPasswordPage();
     },
   );
 }
 
 /// generated route for
-/// [_i9.HomePage]
-class HomeRoute extends _i24.PageRouteInfo<void> {
-  const HomeRoute({List<_i24.PageRouteInfo>? children})
-    : super(HomeRoute.name, initialChildren: children);
-
-  static const String name = 'HomeRoute';
-
-  static _i24.PageInfo page = _i24.PageInfo(
-    name,
-    builder: (data) {
-      return const _i9.HomePage();
-    },
-  );
-}
-
-/// generated route for
-/// [_i10.LoginPage]
-class LoginRoute extends _i24.PageRouteInfo<void> {
-  const LoginRoute({List<_i24.PageRouteInfo>? children})
+/// [_i8.LoginPage]
+class LoginRoute extends _i23.PageRouteInfo<void> {
+  const LoginRoute({List<_i23.PageRouteInfo>? children})
     : super(LoginRoute.name, initialChildren: children);
 
   static const String name = 'LoginRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i10.LoginPage();
+      return const _i8.LoginPage();
     },
   );
 }
 
 /// generated route for
-/// [_i11.MatchResultsPage]
-class MatchResultsRoute extends _i24.PageRouteInfo<MatchResultsRouteArgs> {
+/// [_i9.MainShellPage]
+class MainShellRoute extends _i23.PageRouteInfo<MainShellRouteArgs> {
+  MainShellRoute({
+    _i24.Key? key,
+    _i26.MasrafyAppNavTab initialTab = _i26.MasrafyAppNavTab.home,
+    List<_i23.PageRouteInfo>? children,
+  }) : super(
+         MainShellRoute.name,
+         args: MainShellRouteArgs(key: key, initialTab: initialTab),
+         initialChildren: children,
+       );
+
+  static const String name = 'MainShellRoute';
+
+  static _i23.PageInfo page = _i23.PageInfo(
+    name,
+    builder: (data) {
+      final args = data.argsAs<MainShellRouteArgs>(
+        orElse: () => const MainShellRouteArgs(),
+      );
+      return _i9.MainShellPage(key: args.key, initialTab: args.initialTab);
+    },
+  );
+}
+
+class MainShellRouteArgs {
+  const MainShellRouteArgs({
+    this.key,
+    this.initialTab = _i26.MasrafyAppNavTab.home,
+  });
+
+  final _i24.Key? key;
+
+  final _i26.MasrafyAppNavTab initialTab;
+
+  @override
+  String toString() {
+    return 'MainShellRouteArgs{key: $key, initialTab: $initialTab}';
+  }
+}
+
+/// generated route for
+/// [_i10.MatchResultsPage]
+class MatchResultsRoute extends _i23.PageRouteInfo<MatchResultsRouteArgs> {
   MatchResultsRoute({
-    _i25.Key? key,
+    _i24.Key? key,
     required _i27.MatchResultsArgs args,
-    List<_i24.PageRouteInfo>? children,
+    List<_i23.PageRouteInfo>? children,
   }) : super(
          MatchResultsRoute.name,
          args: MatchResultsRouteArgs(key: key, args: args),
@@ -265,11 +334,11 @@ class MatchResultsRoute extends _i24.PageRouteInfo<MatchResultsRouteArgs> {
 
   static const String name = 'MatchResultsRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<MatchResultsRouteArgs>();
-      return _i11.MatchResultsPage(key: args.key, args: args.args);
+      return _i10.MatchResultsPage(key: args.key, args: args.args);
     },
   );
 }
@@ -277,7 +346,7 @@ class MatchResultsRoute extends _i24.PageRouteInfo<MatchResultsRouteArgs> {
 class MatchResultsRouteArgs {
   const MatchResultsRouteArgs({this.key, required this.args});
 
-  final _i25.Key? key;
+  final _i24.Key? key;
 
   final _i27.MatchResultsArgs args;
 
@@ -288,29 +357,59 @@ class MatchResultsRouteArgs {
 }
 
 /// generated route for
-/// [_i12.MortgageQuestionnairePage]
-class MortgageQuestionnaireRoute extends _i24.PageRouteInfo<void> {
-  const MortgageQuestionnaireRoute({List<_i24.PageRouteInfo>? children})
-    : super(MortgageQuestionnaireRoute.name, initialChildren: children);
+/// [_i11.MortgageQuestionnairePage]
+class MortgageQuestionnaireRoute
+    extends _i23.PageRouteInfo<MortgageQuestionnaireRouteArgs> {
+  MortgageQuestionnaireRoute({
+    _i24.Key? key,
+    String? programNameKey,
+    List<_i23.PageRouteInfo>? children,
+  }) : super(
+         MortgageQuestionnaireRoute.name,
+         args: MortgageQuestionnaireRouteArgs(
+           key: key,
+           programNameKey: programNameKey,
+         ),
+         initialChildren: children,
+       );
 
   static const String name = 'MortgageQuestionnaireRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i12.MortgageQuestionnairePage();
+      final args = data.argsAs<MortgageQuestionnaireRouteArgs>(
+        orElse: () => const MortgageQuestionnaireRouteArgs(),
+      );
+      return _i11.MortgageQuestionnairePage(
+        key: args.key,
+        programNameKey: args.programNameKey,
+      );
     },
   );
 }
 
+class MortgageQuestionnaireRouteArgs {
+  const MortgageQuestionnaireRouteArgs({this.key, this.programNameKey});
+
+  final _i24.Key? key;
+
+  final String? programNameKey;
+
+  @override
+  String toString() {
+    return 'MortgageQuestionnaireRouteArgs{key: $key, programNameKey: $programNameKey}';
+  }
+}
+
 /// generated route for
-/// [_i13.OfferDetailsPage]
-class OfferDetailsRoute extends _i24.PageRouteInfo<OfferDetailsRouteArgs> {
+/// [_i12.OfferDetailsPage]
+class OfferDetailsRoute extends _i23.PageRouteInfo<OfferDetailsRouteArgs> {
   OfferDetailsRoute({
-    _i25.Key? key,
+    _i24.Key? key,
     required _i27.MatchOffer offer,
     required _i27.MatchResultsArgs summary,
-    List<_i24.PageRouteInfo>? children,
+    List<_i23.PageRouteInfo>? children,
   }) : super(
          OfferDetailsRoute.name,
          args: OfferDetailsRouteArgs(key: key, offer: offer, summary: summary),
@@ -319,11 +418,11 @@ class OfferDetailsRoute extends _i24.PageRouteInfo<OfferDetailsRouteArgs> {
 
   static const String name = 'OfferDetailsRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OfferDetailsRouteArgs>();
-      return _i13.OfferDetailsPage(
+      return _i12.OfferDetailsPage(
         key: args.key,
         offer: args.offer,
         summary: args.summary,
@@ -339,7 +438,7 @@ class OfferDetailsRouteArgs {
     required this.summary,
   });
 
-  final _i25.Key? key;
+  final _i24.Key? key;
 
   final _i27.MatchOffer offer;
 
@@ -352,31 +451,31 @@ class OfferDetailsRouteArgs {
 }
 
 /// generated route for
-/// [_i14.OnboardingPage]
-class OnboardingRoute extends _i24.PageRouteInfo<void> {
-  const OnboardingRoute({List<_i24.PageRouteInfo>? children})
+/// [_i13.OnboardingPage]
+class OnboardingRoute extends _i23.PageRouteInfo<void> {
+  const OnboardingRoute({List<_i23.PageRouteInfo>? children})
     : super(OnboardingRoute.name, initialChildren: children);
 
   static const String name = 'OnboardingRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i14.OnboardingPage();
+      return const _i13.OnboardingPage();
     },
   );
 }
 
 /// generated route for
-/// [_i15.OtpPage]
-class OtpRoute extends _i24.PageRouteInfo<OtpRouteArgs> {
+/// [_i14.OtpPage]
+class OtpRoute extends _i23.PageRouteInfo<OtpRouteArgs> {
   OtpRoute({
-    _i25.Key? key,
+    _i24.Key? key,
     required _i28.OtpChallengeEntity challenge,
     required _i29.OtpPurpose purpose,
-    _i26.SignupDraft? draft,
+    _i25.SignupDraft? draft,
     String? phone,
-    List<_i24.PageRouteInfo>? children,
+    List<_i23.PageRouteInfo>? children,
   }) : super(
          OtpRoute.name,
          args: OtpRouteArgs(
@@ -391,11 +490,11 @@ class OtpRoute extends _i24.PageRouteInfo<OtpRouteArgs> {
 
   static const String name = 'OtpRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<OtpRouteArgs>();
-      return _i15.OtpPage(
+      return _i14.OtpPage(
         key: args.key,
         challenge: args.challenge,
         purpose: args.purpose,
@@ -415,13 +514,13 @@ class OtpRouteArgs {
     this.phone,
   });
 
-  final _i25.Key? key;
+  final _i24.Key? key;
 
   final _i28.OtpChallengeEntity challenge;
 
   final _i29.OtpPurpose purpose;
 
-  final _i26.SignupDraft? draft;
+  final _i25.SignupDraft? draft;
 
   final String? phone;
 
@@ -432,45 +531,75 @@ class OtpRouteArgs {
 }
 
 /// generated route for
-/// [_i16.PersonalQuestionnairePage]
-class PersonalQuestionnaireRoute extends _i24.PageRouteInfo<void> {
-  const PersonalQuestionnaireRoute({List<_i24.PageRouteInfo>? children})
-    : super(PersonalQuestionnaireRoute.name, initialChildren: children);
+/// [_i15.PersonalQuestionnairePage]
+class PersonalQuestionnaireRoute
+    extends _i23.PageRouteInfo<PersonalQuestionnaireRouteArgs> {
+  PersonalQuestionnaireRoute({
+    _i24.Key? key,
+    String? programNameKey,
+    List<_i23.PageRouteInfo>? children,
+  }) : super(
+         PersonalQuestionnaireRoute.name,
+         args: PersonalQuestionnaireRouteArgs(
+           key: key,
+           programNameKey: programNameKey,
+         ),
+         initialChildren: children,
+       );
 
   static const String name = 'PersonalQuestionnaireRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i16.PersonalQuestionnairePage();
+      final args = data.argsAs<PersonalQuestionnaireRouteArgs>(
+        orElse: () => const PersonalQuestionnaireRouteArgs(),
+      );
+      return _i15.PersonalQuestionnairePage(
+        key: args.key,
+        programNameKey: args.programNameKey,
+      );
     },
   );
 }
 
+class PersonalQuestionnaireRouteArgs {
+  const PersonalQuestionnaireRouteArgs({this.key, this.programNameKey});
+
+  final _i24.Key? key;
+
+  final String? programNameKey;
+
+  @override
+  String toString() {
+    return 'PersonalQuestionnaireRouteArgs{key: $key, programNameKey: $programNameKey}';
+  }
+}
+
 /// generated route for
-/// [_i17.PreviousApplicationsPage]
-class PreviousApplicationsRoute extends _i24.PageRouteInfo<void> {
-  const PreviousApplicationsRoute({List<_i24.PageRouteInfo>? children})
+/// [_i16.PreviousApplicationsPage]
+class PreviousApplicationsRoute extends _i23.PageRouteInfo<void> {
+  const PreviousApplicationsRoute({List<_i23.PageRouteInfo>? children})
     : super(PreviousApplicationsRoute.name, initialChildren: children);
 
   static const String name = 'PreviousApplicationsRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i17.PreviousApplicationsPage();
+      return const _i16.PreviousApplicationsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i18.ProfileEditContactPage]
+/// [_i17.ProfileEditContactPage]
 class ProfileEditContactRoute
-    extends _i24.PageRouteInfo<ProfileEditContactRouteArgs> {
+    extends _i23.PageRouteInfo<ProfileEditContactRouteArgs> {
   ProfileEditContactRoute({
-    _i25.Key? key,
+    _i24.Key? key,
     required _i30.ProfileContactDraft initial,
-    List<_i24.PageRouteInfo>? children,
+    List<_i23.PageRouteInfo>? children,
   }) : super(
          ProfileEditContactRoute.name,
          args: ProfileEditContactRouteArgs(key: key, initial: initial),
@@ -479,11 +608,11 @@ class ProfileEditContactRoute
 
   static const String name = 'ProfileEditContactRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ProfileEditContactRouteArgs>();
-      return _i18.ProfileEditContactPage(key: args.key, initial: args.initial);
+      return _i17.ProfileEditContactPage(key: args.key, initial: args.initial);
     },
   );
 }
@@ -491,7 +620,7 @@ class ProfileEditContactRoute
 class ProfileEditContactRouteArgs {
   const ProfileEditContactRouteArgs({this.key, required this.initial});
 
-  final _i25.Key? key;
+  final _i24.Key? key;
 
   final _i30.ProfileContactDraft initial;
 
@@ -502,13 +631,13 @@ class ProfileEditContactRouteArgs {
 }
 
 /// generated route for
-/// [_i18.ProfileEditPersonalPage]
+/// [_i17.ProfileEditPersonalPage]
 class ProfileEditPersonalRoute
-    extends _i24.PageRouteInfo<ProfileEditPersonalRouteArgs> {
+    extends _i23.PageRouteInfo<ProfileEditPersonalRouteArgs> {
   ProfileEditPersonalRoute({
-    _i25.Key? key,
+    _i24.Key? key,
     required _i30.ProfilePersonalDraft initial,
-    List<_i24.PageRouteInfo>? children,
+    List<_i23.PageRouteInfo>? children,
   }) : super(
          ProfileEditPersonalRoute.name,
          args: ProfileEditPersonalRouteArgs(key: key, initial: initial),
@@ -517,11 +646,11 @@ class ProfileEditPersonalRoute
 
   static const String name = 'ProfileEditPersonalRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<ProfileEditPersonalRouteArgs>();
-      return _i18.ProfileEditPersonalPage(key: args.key, initial: args.initial);
+      return _i17.ProfileEditPersonalPage(key: args.key, initial: args.initial);
     },
   );
 }
@@ -529,7 +658,7 @@ class ProfileEditPersonalRoute
 class ProfileEditPersonalRouteArgs {
   const ProfileEditPersonalRouteArgs({this.key, required this.initial});
 
-  final _i25.Key? key;
+  final _i24.Key? key;
 
   final _i30.ProfilePersonalDraft initial;
 
@@ -540,28 +669,28 @@ class ProfileEditPersonalRouteArgs {
 }
 
 /// generated route for
-/// [_i18.ProfilePage]
-class ProfileRoute extends _i24.PageRouteInfo<void> {
-  const ProfileRoute({List<_i24.PageRouteInfo>? children})
+/// [_i17.ProfilePage]
+class ProfileRoute extends _i23.PageRouteInfo<void> {
+  const ProfileRoute({List<_i23.PageRouteInfo>? children})
     : super(ProfileRoute.name, initialChildren: children);
 
   static const String name = 'ProfileRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i18.ProfilePage();
+      return const _i17.ProfilePage();
     },
   );
 }
 
 /// generated route for
-/// [_i19.SavedOffersPage]
-class SavedOffersRoute extends _i24.PageRouteInfo<SavedOffersRouteArgs> {
+/// [_i18.SavedOffersPage]
+class SavedOffersRoute extends _i23.PageRouteInfo<SavedOffersRouteArgs> {
   SavedOffersRoute({
-    _i25.Key? key,
+    _i24.Key? key,
     bool fromTab = false,
-    List<_i24.PageRouteInfo>? children,
+    List<_i23.PageRouteInfo>? children,
   }) : super(
          SavedOffersRoute.name,
          args: SavedOffersRouteArgs(key: key, fromTab: fromTab),
@@ -570,13 +699,13 @@ class SavedOffersRoute extends _i24.PageRouteInfo<SavedOffersRouteArgs> {
 
   static const String name = 'SavedOffersRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
       final args = data.argsAs<SavedOffersRouteArgs>(
         orElse: () => const SavedOffersRouteArgs(),
       );
-      return _i19.SavedOffersPage(key: args.key, fromTab: args.fromTab);
+      return _i18.SavedOffersPage(key: args.key, fromTab: args.fromTab);
     },
   );
 }
@@ -584,7 +713,7 @@ class SavedOffersRoute extends _i24.PageRouteInfo<SavedOffersRouteArgs> {
 class SavedOffersRouteArgs {
   const SavedOffersRouteArgs({this.key, this.fromTab = false});
 
-  final _i25.Key? key;
+  final _i24.Key? key;
 
   final bool fromTab;
 
@@ -595,65 +724,65 @@ class SavedOffersRouteArgs {
 }
 
 /// generated route for
-/// [_i20.SettingsSecurityPage]
-class SettingsSecurityRoute extends _i24.PageRouteInfo<void> {
-  const SettingsSecurityRoute({List<_i24.PageRouteInfo>? children})
+/// [_i19.SettingsSecurityPage]
+class SettingsSecurityRoute extends _i23.PageRouteInfo<void> {
+  const SettingsSecurityRoute({List<_i23.PageRouteInfo>? children})
     : super(SettingsSecurityRoute.name, initialChildren: children);
 
   static const String name = 'SettingsSecurityRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i20.SettingsSecurityPage();
+      return const _i19.SettingsSecurityPage();
     },
   );
 }
 
 /// generated route for
-/// [_i21.SignupPage]
-class SignupRoute extends _i24.PageRouteInfo<void> {
-  const SignupRoute({List<_i24.PageRouteInfo>? children})
+/// [_i20.SignupPage]
+class SignupRoute extends _i23.PageRouteInfo<void> {
+  const SignupRoute({List<_i23.PageRouteInfo>? children})
     : super(SignupRoute.name, initialChildren: children);
 
   static const String name = 'SignupRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i21.SignupPage();
+      return const _i20.SignupPage();
     },
   );
 }
 
 /// generated route for
-/// [_i22.SocialPhonePage]
-class SocialPhoneRoute extends _i24.PageRouteInfo<void> {
-  const SocialPhoneRoute({List<_i24.PageRouteInfo>? children})
+/// [_i21.SocialPhonePage]
+class SocialPhoneRoute extends _i23.PageRouteInfo<void> {
+  const SocialPhoneRoute({List<_i23.PageRouteInfo>? children})
     : super(SocialPhoneRoute.name, initialChildren: children);
 
   static const String name = 'SocialPhoneRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i22.SocialPhonePage();
+      return const _i21.SocialPhonePage();
     },
   );
 }
 
 /// generated route for
-/// [_i23.SplashPage]
-class SplashRoute extends _i24.PageRouteInfo<void> {
-  const SplashRoute({List<_i24.PageRouteInfo>? children})
+/// [_i22.SplashPage]
+class SplashRoute extends _i23.PageRouteInfo<void> {
+  const SplashRoute({List<_i23.PageRouteInfo>? children})
     : super(SplashRoute.name, initialChildren: children);
 
   static const String name = 'SplashRoute';
 
-  static _i24.PageInfo page = _i24.PageInfo(
+  static _i23.PageInfo page = _i23.PageInfo(
     name,
     builder: (data) {
-      return const _i23.SplashPage();
+      return const _i22.SplashPage();
     },
   );
 }

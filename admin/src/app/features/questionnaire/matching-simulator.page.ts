@@ -60,14 +60,35 @@ const DEBT_TYPES_QUESTION_CODE = 'current_loans';
 /** The DERIVED total. Summed from the parts, never typed — see `derivedTotalOf`. */
 const OBLIGATIONS_TOTAL_QUESTION_CODE = 'current_installments';
 
-/** Debt-type option code → the NUMERIC question capturing its instalment. */
+/** The pick whose amount question states a LIMIT rather than an instalment. */
+const CREDIT_CARD_DEBT_TYPE_OPTION = 'credit_cards';
+
+/**
+ * Share of the stated total card limit that counts as a monthly commitment.
+ * Mirrors `CREDIT_CARD_LIMIT_MONTHLY_PERCENT` on the backend: a card has no fixed
+ * instalment and an undrawn limit can be drawn tomorrow, so the portfolio limit is
+ * stated and discounted here rather than counted in full.
+ */
+const CREDIT_CARD_LIMIT_MONTHLY_PERCENT = 5;
+
+/** Debt-type option code → the NUMERIC question capturing its monthly figure. */
 const OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE: Readonly<Record<string, string>> = Object.freeze({
   car_loan: 'obligation_car_loan',
-  credit_cards: 'obligation_credit_card',
+  [CREDIT_CARD_DEBT_TYPE_OPTION]: 'credit_card_total_limit',
   personal_loan: 'obligation_personal_loan',
   mortgage: 'obligation_mortgage',
   other: 'obligation_other',
 });
+
+/**
+ * The monthly commitment one stated per-debt figure contributes: identity for a
+ * real instalment, the discounted share for a card limit. An unmapped pick passes
+ * through at face value rather than dropping out of the total.
+ */
+function obligationMonthlyAmount(debtTypeOptionCode: string, statedEGP: number): number {
+  if (debtTypeOptionCode !== CREDIT_CARD_DEBT_TYPE_OPTION) return statedEGP;
+  return Number(((statedEGP * CREDIT_CARD_LIMIT_MONTHLY_PERCENT) / 100).toFixed(2));
+}
 
 /** The debt types picked on the source question, across both single/multi shapes. */
 function pickedDebtTypes(answers: Record<string, AnswerValue>): readonly string[] {
@@ -95,7 +116,9 @@ function derivedTotalOf(answers: Record<string, AnswerValue>): string | null {
     const raw = answers[itemCode]?.numericValue?.trim() ?? '';
     if (raw === '') continue;
     const value = Number(raw);
-    if (Number.isFinite(value)) total += value;
+    // Not `+= value`: the credit-card answer is a LIMIT, and only its discounted
+    // share is a monthly burden — the same conversion `resolveObligations` applies.
+    if (Number.isFinite(value)) total += obligationMonthlyAmount(debtType, value);
   }
   return total.toFixed(2);
 }
@@ -308,6 +331,11 @@ function isVisible(
                     {{ questionText(q) }}
                     @if (!q.isRequired) { <span class="opt-tag" i18n="@@sim.optional">optional</span> }
                   </h2>
+                  <!-- The admin-authored sub-label the app shows under the prompt.
+                       Rendered here too or the simulator misrepresents the question:
+                       the credit-card figure means a total LIMIT across every card,
+                       which only this line says. -->
+                  @if (questionHelper(q); as helper) { <p class="hint q-helper">{{ helper }}</p> }
 
                   @switch (q.type) {
                     @case ('MULTI_SELECT') {
@@ -582,6 +610,14 @@ function isVisible(
         margin: 0 0 var(--space-3, 12px); font-size: var(--text-lg, 18px);
         font-weight: 700; line-height: 1.3; letter-spacing: -0.012em;
         display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+      }
+      /* Sits between the prompt and the control, so it owns the gap on BOTH sides:
+         the paired-column rule above zeroes the title's bottom margin, which would
+         otherwise leave this line touching the input. Sentence-cased and left at
+         hint weight — it explains the figure, it does not compete with the ask. */
+      .q-helper {
+        margin: calc(-1 * var(--space-1, 4px)) 0 var(--space-3, 12px);
+        line-height: 1.45; max-inline-size: 60ch;
       }
       /* Reads as a footnote to the question, not a second badge competing with
          it — the required case is the one that carries weight, and it is silent. */
@@ -1055,7 +1091,15 @@ export class MatchingSimulatorPage {
       const raw = answers[itemCode]?.numericValue?.trim() ?? '';
       if (raw === '') continue;
       const q = byCode.get(itemCode);
-      parts.push({ label: q ? this.questionText(q) : itemCode, value: grouped(raw) });
+      const value = Number(raw);
+      // The CONTRIBUTION, not the stated figure. Listing a 150 000 card limit as a
+      // line item under a 9 500 total reads as broken arithmetic; the stated limit
+      // is still on screen in its own field right above.
+      const monthly = Number.isFinite(value) ? obligationMonthlyAmount(debtType, value) : null;
+      parts.push({
+        label: q ? this.questionText(q) : itemCode,
+        value: grouped(monthly === null ? raw : monthly.toFixed(2)),
+      });
     }
     return parts;
   }
@@ -1089,6 +1133,13 @@ export class MatchingSimulatorPage {
 
   questionText(q: QuestionRow): string {
     return (this.isAr ? q.questionAr : q.questionEn) || q.questionEn;
+  }
+  /** The admin-authored sub-label, or null when the question carries none. Falls
+   *  back across locales the same way the prompt does, so a helper written in only
+   *  one language still reaches the reader instead of vanishing. */
+  questionHelper(q: QuestionRow): string | null {
+    const text = ((this.isAr ? q.helperTextAr : q.helperTextEn) || q.helperTextEn || '').trim();
+    return text === '' ? null : text;
   }
   optionText(o: Pick<OptionRow, 'labelAr' | 'labelEn'>): string {
     return (this.isAr ? o.labelAr : o.labelEn) || o.labelEn;

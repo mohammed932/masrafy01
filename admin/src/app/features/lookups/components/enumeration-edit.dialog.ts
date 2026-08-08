@@ -10,13 +10,14 @@ import { CloseCircleOutline } from '@ant-design/icons-angular/icons';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { LookupsApiService, type EnumerationRow } from '../lookups.api.service';
-import { lookupType } from '../lookups.constants';
 
 /**
  * Enumeration type edited by business name only: the dialog hides the machine-key
  * field and derives the key from the English label. Predefined program names are
- * curated by non-technical staff and are category-agnostic — one name is offerable
- * under every loan category — so there is nothing to pick beyond the two labels.
+ * curated by non-technical staff, and a new one starts offerable under all four
+ * loan categories (the server's default) — narrowing that is a separate job on
+ * the catalog's "Loan categories" tab, so there is nothing to pick here beyond
+ * the two labels.
  */
 const AUTO_KEY_TYPE = 'program_name';
 
@@ -41,15 +42,6 @@ export interface EnumerationEditDialogData {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="dialog-body">
-      <h2 class="dialog-title">
-        @if (data.mode === 'create') {
-          <span i18n="@@lookups.dialog.titleCreate">Add new value</span>
-        } @else {
-          <span i18n="@@lookups.dialog.titleEdit">Edit value</span>
-        }
-        <span class="type-chip">{{ typeLabel }}</span>
-      </h2>
-
       <form nz-form nzLayout="vertical" [formGroup]="form" class="form">
         @if (!autoKey) {
           <nz-form-item>
@@ -160,25 +152,6 @@ export interface EnumerationEditDialogData {
         flex-direction: column;
         gap: var(--space-4);
       }
-      .dialog-title {
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        margin: 0;
-        font-size: var(--text-lg);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .type-chip {
-        font-size: var(--text-xs);
-        font-weight: var(--font-weight-medium);
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        background: var(--color-tonal-accent-bg);
-        color: var(--color-tonal-accent);
-        padding: 2px 10px;
-        border-radius: var(--radius-pill);
-      }
       .form {
         margin: 0;
       }
@@ -208,9 +181,6 @@ export class EnumerationEditDialogComponent {
   private readonly errorCodes = inject(ErrorCodeService);
   private readonly dialogRef = inject(NzModalRef<EnumerationEditDialogComponent, boolean>);
   protected readonly data = inject<EnumerationEditDialogData>(NZ_MODAL_DATA);
-
-  /** Human category name in the header chip; falls back to the raw type key. */
-  protected readonly typeLabel = lookupType(this.data.type).label;
 
   /** True for program names: no machine-key field, key derived from the English label. */
   protected readonly autoKey = this.data.type === AUTO_KEY_TYPE;

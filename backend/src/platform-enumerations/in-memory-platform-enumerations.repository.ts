@@ -1,8 +1,10 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import type { LoanCategory } from '@prisma/client';
 import {
   EnumerationMember,
   EnumerationType,
   PlatformEnumerationsRepository,
+  type EnumerationQuestionTemplate,
 } from './platform-enumerations.repository';
 
 /**
@@ -50,6 +52,26 @@ export class InMemoryPlatformEnumerationsRepository
     return Array.from(all.values()).filter((m) => m.active && !m.deprecated);
   }
 
+  /**
+   * This stub seeds none of the categorised types, so the set is always empty.
+   * Note that on a categorised type empty means PARKED, so a caller enforcing
+   * assignment would reject everything here — which is moot: nothing wires this
+   * class up (it is feature-002 scaffolding kept for reference).
+   */
+  async memberCategories(): Promise<LoanCategory[]> {
+    return [];
+  }
+
+  /**
+   * This stub seeds no catalog names, so there is never a template to return —
+   * for any category. The signature takes one anyway (the abstract method does),
+   * so that an implementation which DID seed names could not quietly ignore it
+   * and serve one category's suggestions for another.
+   */
+  async memberQuestionTemplate(): Promise<EnumerationQuestionTemplate | null> {
+    return null;
+  }
+
   private add(type: EnumerationType, key: string, labelAr: string, labelEn: string): void {
     let bucket = this.members.get(type);
     if (!bucket) {
@@ -64,6 +86,7 @@ export class InMemoryPlatformEnumerationsRepository
       parentKey: null,
       active: true,
       deprecated: false,
+      categories: [],
     });
   }
 

@@ -20,10 +20,11 @@
  * The category comes from the MATRIX offering, not from the archetype: it sets
  * `productCategory`, the middle programCode segment and the skeleton.
  *
- * A catalog entry is only a NAME (labels, active, sort order) — every real bank
- * program authors its own specs — so the baseline is always the dev fixture in
- * `data/program-baselines.ts`; the enumeration row supplies existence plus
- * `labelEn` / `labelAr`, nothing more.
+ * A catalog entry carries no lending values (labels, active, sort order, and the
+ * loan categories it may be offered under) — every real bank program authors its
+ * own specs — so the baseline is always the dev fixture in
+ * `data/program-baselines.ts`; the enumeration row supplies existence, the two
+ * labels, and whether this offering's category is one the name is assigned to.
  *
  *   npm run seed:programs                # create what's missing
  *   npm run seed:programs -- --force     # also re-assert seed-owned fields
@@ -301,11 +302,18 @@ export async function seedBankPrograms(actorStaffId?: string): Promise<void> {
   const banks = await prisma.bank.findMany({ select: { id: true, nameEnglish: true } });
   const bankIdByName = new Map(banks.map((b) => [b.nameEnglish, b.id]));
 
-  // A predefined program is just a name: existence plus the two labels is all a
-  // bank program takes from it.
+  // A predefined program carries no lending values — the two labels are all a
+  // bank program takes from it. It does carry one binding: the loan categories
+  // it may be OFFERED under, which the API enforces on write, so the seed has
+  // to respect it or it would create rows the API itself would reject.
   const members = await prisma.platformEnumeration.findMany({
     where: { type: 'program_name', active: true, deprecatedAt: null },
-    select: { key: true, labelEn: true, labelAr: true },
+    select: {
+      key: true,
+      labelEn: true,
+      labelAr: true,
+      loanCategories: { select: { category: true } },
+    },
   });
   const memberByKey = new Map(members.map((m) => [m.key, m]));
 
@@ -325,6 +333,16 @@ export async function seedBankPrograms(actorStaffId?: string): Promise<void> {
       const member = memberByKey.get(offering.catalogKey);
       if (!member) {
         problems.push(`program_name '${offering.catalogKey}' not in the catalog — skipped`);
+        continue;
+      }
+
+      // The catalog decides which loan types may offer a name. Reported rather
+      // than thrown, like every other seed guard: an operator narrowing a
+      // category should not break `--wipe`, only shrink what it produces.
+      if (!member.loanCategories.some((c) => c.category === offering.category)) {
+        problems.push(
+          `program_name '${offering.catalogKey}' is not assigned to '${offering.category}' — skipped`,
+        );
         continue;
       }
 

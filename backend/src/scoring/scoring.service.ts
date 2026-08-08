@@ -7,8 +7,10 @@ import { ERROR_CODES } from '@/common/errors/error-codes';
 import { ScoringRepository } from './scoring.repository';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repository';
+import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { OBLIGATION_ITEM_QUESTION_CODES } from '@/matching/pipeline/money-field-bindings';
 import { Decimal } from '@prisma/client/runtime/library';
+import { LoanCategory } from '@prisma/client';
 import type { QuestionType, ScoringWeightSet } from '@prisma/client';
 import type { SaveWeightsDto } from './dto/scoring.dto';
 import {
@@ -22,6 +24,9 @@ export interface ScoringRequestContext {
   sourceIp: string | null;
 }
 
+/** The `platform_enumeration` type the program-name catalog lives under. */
+const PROGRAM_NAME_TYPE = 'program_name';
+
 /** Bank + program identity surfaced to the admin so weights are labelled, not raw IDs. */
 export interface ProgramMeta {
   programCode: string;
@@ -29,6 +34,22 @@ export interface ProgramMeta {
   friendlyNameAr: string | null;
   bankName: string;
   category: string; // lowercase LoanCategory
+  /** Catalog name this program is an instance of. Null on legacy rows only. */
+  programNameKey: string | null;
+  /**
+   * The questions this program scores on: the catalog set for
+   * (`programNameKey`, `category`), configured at `/program-catalog/:key`.
+   *
+   * NOT the bank program's to choose. Every program sharing a catalog name asks
+   * the same questions and differs only in weights + answer scores, so this is
+   * the scored set, not a suggestion — `saveWeights` rejects anything outside it.
+   *
+   * `null` = no `programNameKey`, so there is nothing to scope by (the admin is
+   * sent to the program form). `[]` = a catalog name with nothing set for this
+   * category yet (the admin is sent to the catalog). The two need different
+   * fixes, so they are not collapsed.
+   */
+  catalogQuestionCodes: string[] | null;
 }
 
 /** An answer option the admin assigns points to in the weights editor. */
@@ -74,6 +95,7 @@ export class ScoringService {
     private readonly audit: AuditEventWriter,
     private readonly programs: BankProgramRepository,
     private readonly questionnaire: QuestionnaireRepository,
+    private readonly enums: PlatformEnumerationsRepository,
   ) {}
 
   // ---- Weightable answers (assign + score editor) -------------------------
@@ -143,7 +165,42 @@ export class ScoringService {
       friendlyNameAr: p.friendlyNameAr ?? null,
       bankName: p.bankName,
       category: p.productCategory.toLowerCase(),
+      programNameKey: p.programNameKey ?? null,
+      catalogQuestionCodes: await this.catalogQuestionCodes(p.programNameKey, p.productCategory),
     };
+  }
+
+  /**
+   * The catalog set for a (`programNameKey`, category) pair, as question codes in
+   * pool display order — or `null` when there is no pair to look one up by.
+   *
+   * `productCategory` is a free-form column, so a value outside the
+   * constitution-locked four resolves to `null` (nothing to scope by) rather than
+   * throwing: the read path must still render the program so the admin can see
+   * what is wrong with it.
+   */
+  private async catalogQuestionCodes(
+    programNameKey: string | null,
+    productCategory: string,
+  ): Promise<string[] | null> {
+    if (!programNameKey) return null;
+    const category = this.asLoanCategory(productCategory);
+    if (!category) return null;
+    const template = await this.enums.memberQuestionTemplate(
+      PROGRAM_NAME_TYPE,
+      programNameKey,
+      category,
+    );
+    // A key that no longer resolves to a catalog member is the same fix as no key
+    // at all — pick a live name on the program form.
+    return template?.questionCodes ?? null;
+  }
+
+  private asLoanCategory(raw: string): LoanCategory | null {
+    const value = raw.toLowerCase();
+    return (Object.values(LoanCategory) as string[]).includes(value)
+      ? (value as LoanCategory)
+      : null;
   }
 
   /**
@@ -165,6 +222,7 @@ export class ScoringService {
     const program = await this.programs.findById(programId);
     if (!program) throw new DomainException(ERROR_CODES.BANK_PROGRAM_INVALID);
     await this.assertKnownStructure(dto.weights);
+    await this.assertWithinCatalogSet(program.programNameKey, program.productCategory, dto.weights);
     this.assertAnswerScoresInRange(dto.weights);
     this.assertQuestionWeightsSumTo100(dto.weights);
 
@@ -276,6 +334,40 @@ export class ScoringService {
       const type = requireKnown(questionCode);
       this.assertHasRule(questionCode, type, weights);
     }
+  }
+
+  /**
+   * The scored question set belongs to the CATALOG NAME, not to the bank program.
+   *
+   * Every program sold under one `program_name` asks its applicants the same
+   * questions — the bank's own configuration is the weights and the answer
+   * scores. Letting one program quietly weight a question its siblings do not
+   * would make two offers under the same name incomparable, and the admin screen
+   * that sets the set (`/program-catalog/:key`) would no longer be the truth.
+   *
+   * A program with no `programNameKey`, an unknown one, or a catalog set that is
+   * empty for its category has NOTHING it may score on, so any weighted question
+   * fails here. `allowedQuestionCodes` is returned in the meta either way so the
+   * screen can tell "fix the program" from "fill the catalog".
+   */
+  private async assertWithinCatalogSet(
+    programNameKey: string | null,
+    productCategory: string,
+    weights: SaveWeightsDto['weights'],
+  ): Promise<void> {
+    const codes = Object.keys(weights.questionWeights);
+    if (codes.length === 0) return; // the sum-to-100 check owns the empty case
+    const allowed = new Set(
+      (await this.catalogQuestionCodes(programNameKey, productCategory)) ?? [],
+    );
+    const outside = codes.filter((code) => !allowed.has(code));
+    if (outside.length === 0) return;
+    throw new DomainException(ERROR_CODES.WEIGHTS_QUESTION_NOT_IN_CATALOG, {
+      programNameKey,
+      productCategory: productCategory.toLowerCase(),
+      questionCodes: outside,
+      allowedQuestionCodes: [...allowed],
+    });
   }
 
   /**

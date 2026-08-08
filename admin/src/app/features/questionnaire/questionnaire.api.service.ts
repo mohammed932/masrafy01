@@ -55,6 +55,20 @@ export interface ProgramMeta {
   friendlyNameAr: string | null;
   bankName: string;
   category: string;
+  /** Catalog name this program is an instance of. Null on legacy rows only. */
+  programNameKey: string | null;
+  /**
+   * The questions this program scores on — the catalog set for
+   * (`programNameKey`, `category`), edited at `/program-catalog/:key`.
+   *
+   * Fixed, not a suggestion: every bank program under one catalog name scores on
+   * the same questions and differs only in weights + answer scores, so the editor
+   * renders this list read-only and the backend rejects anything outside it.
+   *
+   * `null` = no catalog name to scope by (fix the bank program); `[]` = a catalog
+   * name with nothing set for this category (fix the catalog).
+   */
+  catalogQuestionCodes: string[] | null;
 }
 
 export type WeightSetStatus = 'ACTIVE' | 'ARCHIVED';
@@ -174,6 +188,10 @@ export interface QuestionRow {
   type: QuestionType;
   questionAr: string;
   questionEn: string;
+  /** Sub-label under the prompt — where a question says what its figure IS when
+   *  the obvious reading is wrong (a card LIMIT, not a balance). */
+  helperTextAr: string | null;
+  helperTextEn: string | null;
   isRequired: boolean;
   displayOrder: number;
   isActive: boolean;
@@ -305,6 +323,8 @@ export interface CreateQuestionBody {
   groupId?: string;
   questionAr: string;
   questionEn: string;
+  helperTextAr?: string;
+  helperTextEn?: string;
   /** Omitted → appended to the end of the pool. Order is set by drag, not typed. */
   displayOrder?: number;
   isRequired?: boolean;
@@ -350,6 +370,9 @@ export interface CreateOptionBody {
 export interface UpdateQuestionBody {
   questionAr?: string;
   questionEn?: string;
+  /** Empty string CLEARS the sub-label. */
+  helperTextAr?: string;
+  helperTextEn?: string;
   displayOrder?: number;
   isRequired?: boolean;
   isActive?: boolean;

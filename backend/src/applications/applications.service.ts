@@ -29,6 +29,8 @@ import {
 import { EngineService } from '../matching/engine.service';
 import { BankProgramRepository } from '../bank-programs/bank-programs.repository';
 import { toBankProgramSnapshot } from '../bank-programs/bank-program-snapshot.mapper';
+import { matchesRequestedScope } from '../bank-programs/program-scope';
+import { ProgramNameScopeService } from '@/platform-enumerations/program-name-scope.service';
 import { SavedOfferRepository } from '../saved-offers/saved-offer.repository';
 import { AuditEventWriter } from '../audit/audit-event.writer';
 import {
@@ -100,6 +102,7 @@ export class ApplicationsService {
     private readonly weightedScoring: WeightedApprovalScoringService,
     private readonly completeness: CustomerProfileCompletenessService,
     private readonly savedOffers: SavedOfferRepository,
+    private readonly programNames: ProgramNameScopeService,
   ) {}
 
   /**
@@ -250,6 +253,21 @@ export class ApplicationsService {
       }
     }
 
+    // The applicant's catalog pick, validated before any matching work. An
+    // archetype is offered UNDER categories, so a key with no category has
+    // nothing to be checked against — rejected rather than quietly matched
+    // unscoped, which would return the whole catalog to a customer who asked for
+    // one product.
+    if (dto.programNameKey) {
+      if (!dto.category) {
+        throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+          field: 'programNameKey',
+          reason: 'category_required',
+        });
+      }
+      await this.programNames.assertOfferedUnder(dto.programNameKey, dto.category);
+    }
+
     // Feature 009/010 — resolve + validate dynamic questionnaire answers (if
     // sent) against the live GLOBAL questions, for atomic persistence. Scoped to
     // `dto.category`: required-question enforcement lives in `resolveAnswers`, so
@@ -260,7 +278,17 @@ export class ApplicationsService {
         : undefined;
     const dynamicAnswers = resolvedQuestionnaire?.resolved;
 
-    const activePrograms = await this.programsRepo.findAllActive();
+    // Only the programs the applicant actually asked about: their loan category,
+    // narrowed further by the catalog name they picked. Same filter, same
+    // helper, as the preview that showed them this shortlist a screen earlier.
+    //
+    // The category half is not cosmetic — apply used to run the engine over
+    // EVERY active program, so a personal-loan applicant was quoted mortgage and
+    // car programs, and each of those offers was persisted immutably (Principle
+    // I / A6) with a score computed from personal-loan answers.
+    const activePrograms = (await this.programsRepo.findAllActive()).filter((p) =>
+      matchesRequestedScope(p, dto.category ?? null, dto.programNameKey ?? null),
+    );
     const snapshots: BankProgramSnapshot[] = activePrograms.map(toBankProgramSnapshot);
 
     const scoringConfig: ScoringConfig = await loadActiveScoringConfig(this.scoringVersions);
@@ -364,6 +392,9 @@ export class ApplicationsService {
         age,
         applicantUserId: ctx.customerId,
         category: dto.category ?? null,
+        // The other half of the scope the offers below were matched under. Null
+        // means "the whole category", not "unknown".
+        programNameKey: dto.programNameKey ?? null,
         questionnaireVersionId: dto.questionnaireVersionId ?? null,
         applicantProfile: this.profileToJson(profile),
         summary: summaryJson,

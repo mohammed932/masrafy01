@@ -531,6 +531,11 @@
       <trans-unit id="bank_programs.contract.ijara" datatype="html"><source>Ijara</source><target>إجارة</target></trans-unit>
       <trans-unit id="bank_programs.contract.tawarruq" datatype="html"><source>Tawarruq</source><target>تورق</target></trans-unit>
       <trans-unit id="bank_programs.form.title_edit_named" datatype="html"><source>Edit <x id="bankName"/> bank program</source><target>تعديل برنامج بنك <x id="bankName"/></target></trans-unit>
+      <trans-unit id="bank_programs.field.sharia" datatype="html"><source>Sharia-compliant program</source><target>برنامج متوافق مع الشريعة</target></trans-unit>
+      <trans-unit id="bank_programs.field.sharia.hint" datatype="html"><source>Shown to customers who filter for Islamic finance.</source><target>يظهر للعملاء الذين يبحثون عن التمويل الإسلامي.</target></trans-unit>
+      <trans-unit id="bank_programs.form.loan_type" datatype="html"><source>Loan type</source><target>نوع القرض</target></trans-unit>
+      <trans-unit id="bank_programs.form.category_missing" datatype="html"><source>Start from a bank’s loan type so this program is filed under the right product.</source><target>ابدأ من نوع القرض داخل صفحة البنك حتى يُسجَّل البرنامج تحت المنتج الصحيح.</target></trans-unit>
+      <trans-unit id="bank_programs.form.category_missing_cta" datatype="html"><source>Go to banks</source><target>الذهاب إلى البنوك</target></trans-unit>
 
       <trans-unit id="questionnaire.overview.eyebrow" datatype="html"><source>Matching engine</source><target>محرّك المطابقة</target></trans-unit>
       <trans-unit id="questionnaire.overview.title" datatype="html"><source>Questionnaires</source><target>الاستبيانات</target></trans-unit>
@@ -670,6 +675,9 @@
       <trans-unit id="qedit.sec_content" datatype="html"><source>Content</source><target>المحتوى</target></trans-unit>
       <trans-unit id="qedit.q_en" datatype="html"><source>Question (English)</source><target>السؤال (إنجليزي)</target></trans-unit>
       <trans-unit id="qedit.q_ar" datatype="html"><source>السؤال (عربي)</source><target>السؤال (عربي)</target></trans-unit>
+      <trans-unit id="qedit.helper_en" datatype="html"><source>Helper text (English)</source><target>نص مساعد (إنجليزي)</target></trans-unit>
+      <trans-unit id="qedit.helper_ar" datatype="html"><source>نص مساعد (عربي)</source><target>نص مساعد (عربي)</target></trans-unit>
+      <trans-unit id="qedit.helper_hint" datatype="html"><source>Shown under the question in the app. Leave both empty for no sub-label.</source><target>يظهر أسفل السؤال في التطبيق. اتركه فارغًا في الحقلين إذا لم تكن هناك حاجة لنص مساعد.</target></trans-unit>
       <trans-unit id="qedit.sec_answer" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
       <trans-unit id="qedit.answer_type" datatype="html"><source>Answer type</source><target>نوع الإجابة</target></trans-unit>
       <trans-unit id="qedit.type_locked" datatype="html"><source>The answer type can&apos;t change once applicants have answered this question — their stored answers would no longer match it. Add a new question instead.</source><target>لا يمكن تغيير نوع الإجابة بعد أن أجاب المتقدمون على هذا السؤال — إجاباتهم المحفوظة لن تطابقه. أضف سؤالًا جديدًا بدلًا من ذلك.</target></trans-unit>
@@ -744,6 +752,95 @@
       <trans-unit id="qedit.lang_en" datatype="html"><source>English</source><target>الإنجليزية</target></trans-unit>
       <trans-unit id="qedit.lang_ar" datatype="html"><source>العربية</source><target>العربية</target></trans-unit>
 
+      <!-- Loan categories — the canonical four, used by every assignment surface -->
+      <trans-unit id="loan.cat.personal" datatype="html"><source>Personal Loan</source><target>تمويل شخصي</target></trans-unit>
+      <trans-unit id="loan.cat.car" datatype="html"><source>Auto Loan</source><target>تمويل سيارات</target></trans-unit>
+      <trans-unit id="loan.cat.mortgage" datatype="html"><source>Mortgage</source><target>تمويل عقاري</target></trans-unit>
+      <trans-unit id="loan.cat.business" datatype="html"><source>Business Loan</source><target>تمويل أعمال</target></trans-unit>
+
+      <!-- Program catalog — list chrome. Untranslated since the board shipped;
+           filled here because this list is now the catalog's front door. -->
+      <trans-unit id="program_catalog.eyebrow" datatype="html"><source>Reference data</source><target>بيانات مرجعية</target></trans-unit>
+      <trans-unit id="program_catalog.title" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
+      <trans-unit id="program_catalog.subtitle" datatype="html"><source>Curated loan program names — Doctor, Military, New Car. Pick these in the bank-program builder instead of free-typing. Open a name to set which loan types offer it and what each one scores on.</source><target>أسماء برامج تمويل منسّقة — أطباء، عسكريون، سيارة جديدة. اخترها عند إنشاء برنامج بنكي بدلاً من كتابتها يدوياً. افتح أي اسم لتحديد أنواع التمويل التي تطرحه وما يُقيَّم عليه كل نوع.</target></trans-unit>
+      <trans-unit id="program_catalog.stats.aria" datatype="html"><source>Program catalog statistics</source><target>إحصاءات كتالوج البرامج</target></trans-unit>
+      <trans-unit id="program_catalog.stat.total" datatype="html"><source>Programs</source><target>البرامج</target></trans-unit>
+      <trans-unit id="program_catalog.stat.total.hint" datatype="html"><source>across all loan types</source><target>في كل أنواع التمويل</target></trans-unit>
+      <trans-unit id="program_catalog.stat.active" datatype="html"><source>Active</source><target>مفعّل</target></trans-unit>
+      <trans-unit id="program_catalog.stat.deprecated" datatype="html"><source>Deprecated</source><target>ملغى</target></trans-unit>
+      <trans-unit id="program_catalog.search" datatype="html"><source>Search program names…</source><target>ابحث في أسماء البرامج…</target></trans-unit>
+      <trans-unit id="program_catalog.add" datatype="html"><source>Add program</source><target>إضافة برنامج</target></trans-unit>
+      <trans-unit id="program_catalog.no_matches" datatype="html"><source>No programs match “<x id="INTERPOLATION" equiv-text="search()"/>”.</source><target>لا توجد برامج مطابقة لـ «<x id="INTERPOLATION" equiv-text="search()"/>».</target></trans-unit>
+      <trans-unit id="program_catalog.empty" datatype="html"><source>No programs here yet — add the first one.</source><target>لا توجد برامج هنا بعد — أضف أول برنامج.</target></trans-unit>
+      <trans-unit id="program_catalog.status.inactive" datatype="html"><source>Inactive</source><target>غير مفعّل</target></trans-unit>
+      <trans-unit id="program_catalog.status.deprecated" datatype="html"><source>Deprecated</source><target>ملغى</target></trans-unit>
+      <trans-unit id="program_catalog.deprecated" datatype="html"><source>Deprecated</source><target>ملغى</target></trans-unit>
+      <trans-unit id="program_catalog.edit" datatype="html"><source>Edit</source><target>تعديل</target></trans-unit>
+      <trans-unit id="program_catalog.activate" datatype="html"><source>Activate</source><target>تفعيل</target></trans-unit>
+      <trans-unit id="program_catalog.deactivate" datatype="html"><source>Deactivate</source><target>إلغاء التفعيل</target></trans-unit>
+      <trans-unit id="program_catalog.deprecate" datatype="html"><source>Deprecate</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="program_catalog.deprecate.confirm" datatype="html"><source>Deprecate this program? It stops appearing in the picker.</source><target>إلغاء هذا البرنامج؟ سيتوقف عن الظهور في قائمة الاختيار.</target></trans-unit>
+      <trans-unit id="program_catalog.dialog.add" datatype="html"><source>Add program name</source><target>إضافة اسم برنامج</target></trans-unit>
+      <trans-unit id="program_catalog.dialog.edit" datatype="html"><source>Edit program name</source><target>تعديل اسم برنامج</target></trans-unit>
+
+      <!-- Program catalog — list card + health panel -->
+      <trans-unit id="program_catalog.health" datatype="html"><source><x id="INTERPOLATION" equiv-text="gaps().length + parked().length"/> to look at</source><target><x id="INTERPOLATION" equiv-text="gaps().length + parked().length"/> بحاجة إلى مراجعة</target></trans-unit>
+      <trans-unit id="program_catalog.health.gaps" datatype="html"><source>No name is offered under <x id="INTERPOLATION" equiv-text="labels(gaps())"/>, so the bank-program builder has nothing to pick there. Open a name and turn that loan type on.</source><target>لا يوجد اسم مطروح تحت <x id="INTERPOLATION" equiv-text="labels(gaps())"/>، لذا لا يجد منشئ البرامج البنكية ما يختاره هناك. افتح أحد الأسماء وفعّل نوع التمويل هذا.</target></trans-unit>
+      <trans-unit id="program_catalog.health.parked" datatype="html"><source>Offered under no loan type, so nobody can pick them: <x id="INTERPOLATION" equiv-text="names(parked())"/>.</source><target>غير مطروحة تحت أي نوع تمويل، فلا يمكن لأحد اختيارها: <x id="INTERPOLATION" equiv-text="names(parked())"/>.</target></trans-unit>
+      <trans-unit id="program_catalog.health.more" datatype="html"><source><x id="NAMES" equiv-text="list"/> and <x id="REST" equiv-text="rest"/> more</source><target><x id="NAMES" equiv-text="list"/> و<x id="REST" equiv-text="rest"/> غيرها</target></trans-unit>
+      <trans-unit id="program_catalog.card.parked" datatype="html"><source>No loan types yet</source><target>لا توجد أنواع تمويل بعد</target></trans-unit>
+      <trans-unit id="program_catalog.card.no_questions" datatype="html"><source>No questions picked</source><target>لم تُختر أسئلة</target></trans-unit>
+      <trans-unit id="program_catalog.card.questions" datatype="html"><source><x id="COUNT" equiv-text="count"/> questions scored</source><target><x id="COUNT" equiv-text="count"/> سؤالاً مُقيَّماً</target></trans-unit>
+      <trans-unit id="program_catalog.card.open" datatype="html"><source>Set up <x id="NAME" equiv-text="this.nameOf(row)"/></source><target>إعداد <x id="NAME" equiv-text="this.nameOf(row)"/></target></trans-unit>
+
+      <!-- Program catalog — one name, configured per loan type -->
+      <trans-unit id="pnd.back" datatype="html"><source>All program names</source><target>كل أسماء البرامج</target></trans-unit>
+      <trans-unit id="pnd.eyebrow" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
+      <trans-unit id="pnd.sub" datatype="html"><source>Pick the loan types this name is offered under, then the questions each type scores on. Every bank that offers it starts from your list and sets its own weights.</source><target>اختر أنواع التمويل التي يُطرح تحتها هذا الاسم، ثم الأسئلة التي يُقيَّم عليها كل نوع. يبدأ كل بنك يطرحه من قائمتك ويحدد أوزانه الخاصة.</target></trans-unit>
+      <trans-unit id="pnd.autosave" datatype="html"><source>Saves automatically</source><target>يُحفظ تلقائياً</target></trans-unit>
+      <trans-unit id="pnd.usage_none" datatype="html"><source>Not offered by any bank yet</source><target>لا يطرحه أي بنك بعد</target></trans-unit>
+      <trans-unit id="pnd.usage_value" datatype="html"><source><x id="PROGRAMS" equiv-text="row.usage.programs"/> bank programs · <x id="BANKS" equiv-text="row.usage.banks"/> banks</source><target><x id="PROGRAMS" equiv-text="row.usage.programs"/> برنامج بنكي · <x id="BANKS" equiv-text="row.usage.banks"/> بنك</target></trans-unit>
+      <trans-unit id="pnd.missing_title" datatype="html"><source>No program name matches “<x id="INTERPOLATION" equiv-text="routeKey()"/>”.</source><target>لا يوجد اسم برنامج مطابق لـ «<x id="INTERPOLATION" equiv-text="routeKey()"/>».</target></trans-unit>
+      <trans-unit id="pnd.missing_body" datatype="html"><source>It may have been renamed or deprecated. Open it from the catalog instead.</source><target>ربما أُعيد تسميته أو أُلغي. افتحه من الكتالوج بدلاً من ذلك.</target></trans-unit>
+      <trans-unit id="pnd.missing_cta" datatype="html"><source>Back to the catalog</source><target>العودة إلى الكتالوج</target></trans-unit>
+      <trans-unit id="pnd.tabs_aria" datatype="html"><source>Loan types</source><target>أنواع التمويل</target></trans-unit>
+      <trans-unit id="pnd.tab_not_offered" datatype="html"><source>Not offered</source><target>غير مطروح</target></trans-unit>
+      <trans-unit id="pnd.gate_label" datatype="html"><source>Offered as a <x id="category" equiv-text="this.categoryName()"/></source><target>مطروح كـ<x id="category" equiv-text="this.categoryName()"/></target></trans-unit>
+      <trans-unit id="pnd.gate_on_hint" datatype="html"><source>Banks can sell this name as a <x id="INTERPOLATION" equiv-text="categoryName()"/>.</source><target>يمكن للبنوك طرح هذا الاسم كـ<x id="INTERPOLATION" equiv-text="categoryName()"/>.</target></trans-unit>
+      <trans-unit id="pnd.gate_off_hint" datatype="html"><source>Turn this on to choose what <x id="INTERPOLATION" equiv-text="categoryName()"/> applicants are scored on.</source><target>فعّل هذا لاختيار ما يُقيَّم عليه متقدمو <x id="INTERPOLATION" equiv-text="categoryName()"/>.</target></trans-unit>
+      <trans-unit id="pnd.gate_off_kept_hint" datatype="html"><source><x id="INTERPOLATION" equiv-text="pickedCount()"/> questions are saved here and will apply again when you turn this on.</source><target>هناك <x id="INTERPOLATION" equiv-text="pickedCount()"/> من الأسئلة محفوظة هنا وستُطبَّق مرة أخرى عند تفعيل هذا.</target></trans-unit>
+      <trans-unit id="pnd.no_questions" datatype="html"><source><x id="INTERPOLATION" equiv-text="categoryName()"/> applicants aren’t asked any questions yet.</source><target>لا تُطرح أي أسئلة على متقدمي <x id="INTERPOLATION" equiv-text="categoryName()"/> بعد.</target></trans-unit>
+      <trans-unit id="pnd.no_questions_link" datatype="html"><source>Assign questions to this loan type</source><target>اربط أسئلة بنوع التمويل هذا</target></trans-unit>
+      <trans-unit id="pnd.locked" datatype="html"><source><x id="INTERPOLATION" equiv-text="scope().length"/> questions are asked here. Turn on “<x id="INTERPOLATION_1" equiv-text="offerLabel()"/>” to pick which ones this name scores on.</source><target>تُطرح هنا <x id="INTERPOLATION" equiv-text="scope().length"/> سؤالاً. فعّل «<x id="INTERPOLATION_1" equiv-text="offerLabel()"/>» لاختيار ما يُقيَّم عليه هذا الاسم.</target></trans-unit>
+      <trans-unit id="pnd.locked_more" datatype="html"><source>and <x id="INTERPOLATION" equiv-text="scope().length - lockedPreview().length"/> more</source><target>و<x id="INTERPOLATION" equiv-text="scope().length - lockedPreview().length"/> غيرها</target></trans-unit>
+      <trans-unit id="pnd.count" datatype="html"><source>of <x id="INTERPOLATION" equiv-text="scope().length"/> questions scored</source><target>من <x id="INTERPOLATION" equiv-text="scope().length"/> سؤالاً مُقيَّماً</target></trans-unit>
+      <trans-unit id="pnd.pick_all" datatype="html"><source>Tick everything listed</source><target>حدّد كل المعروض</target></trans-unit>
+      <trans-unit id="pnd.pick_all_tip" datatype="html"><source>Score this name on every question listed</source><target>قيّم هذا الاسم على كل سؤال معروض</target></trans-unit>
+      <trans-unit id="pnd.clear_all" datatype="html"><source>Untick everything listed</source><target>أزل تحديد كل المعروض</target></trans-unit>
+      <trans-unit id="pnd.clear_all_tip" datatype="html"><source>Stop scoring on every question listed</source><target>أوقف التقييم على كل سؤال معروض</target></trans-unit>
+      <trans-unit id="pnd.clear_all_confirm" datatype="html"><source>This clears the list for this loan type — bank programs created from it will start from nothing.</source><target>هذا يمسح القائمة لنوع التمويل هذا — ستبدأ البرامج البنكية المنشأة منه من الصفر.</target></trans-unit>
+      <trans-unit id="pnd.search_ph" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
+      <trans-unit id="pnd.search_aria" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
+      <trans-unit id="pnd.showing" datatype="html"><source><x id="INTERPOLATION" equiv-text="visibleScope().length"/> of <x id="INTERPOLATION_1" equiv-text="scope().length"/> questions</source><target><x id="INTERPOLATION" equiv-text="visibleScope().length"/> من <x id="INTERPOLATION_1" equiv-text="scope().length"/> سؤالاً</target></trans-unit>
+      <trans-unit id="pnd.clear" datatype="html"><source>Clear</source><target>مسح</target></trans-unit>
+      <trans-unit id="pnd.no_matches_title" datatype="html"><source>No questions match that search</source><target>لا توجد أسئلة مطابقة للبحث</target></trans-unit>
+      <trans-unit id="pnd.sec_scored" datatype="html"><source>Scored on</source><target>يُقيَّم عليها</target></trans-unit>
+      <trans-unit id="pnd.sec_rest" datatype="html"><source>Not scored on</source><target>لا يُقيَّم عليها</target></trans-unit>
+      <trans-unit id="pnd.none_scored" datatype="html"><source>Nothing yet — tap a question below, or use “Tick everything listed”.</source><target>لا شيء بعد — اضغط على سؤال بالأسفل، أو استخدم «حدّد كل المعروض».</target></trans-unit>
+      <trans-unit id="pnd.drift_tag" datatype="html"><source>not asked here</source><target>لا يُطرح هنا</target></trans-unit>
+      <trans-unit id="pnd.removed_tag" datatype="html"><source>removed from the pool</source><target>أُزيل من المخزن</target></trans-unit>
+      <trans-unit id="pnd.qtype_single" datatype="html"><source>One answer</source><target>إجابة واحدة</target></trans-unit>
+      <trans-unit id="pnd.qtype_multi" datatype="html"><source>Several answers</source><target>عدة إجابات</target></trans-unit>
+      <trans-unit id="pnd.qtype_number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
+      <trans-unit id="pnd.qtype_text" datatype="html"><source>Free text</source><target>نص حر</target></trans-unit>
+      <trans-unit id="pnd.cell_aria" datatype="html"><source>Score <x id="category" equiv-text="this.categoryName()"/> applicants on "<x id="question" equiv-text="q.label"/>"</source><target>قيّم متقدمي <x id="category" equiv-text="this.categoryName()"/> على «<x id="question" equiv-text="q.label"/>»</target></trans-unit>
+      <trans-unit id="pnd.live_added" datatype="html"><source><x id="count" equiv-text="count"/> questions added for <x id="category" equiv-text="category"/></source><target>أُضيف <x id="count" equiv-text="count"/> من الأسئلة لـ <x id="category" equiv-text="category"/></target></trans-unit>
+      <trans-unit id="pnd.live_removed" datatype="html"><source><x id="count" equiv-text="count"/> questions removed for <x id="category" equiv-text="category"/></source><target>أُزيل <x id="count" equiv-text="count"/> من الأسئلة من <x id="category" equiv-text="category"/></target></trans-unit>
+
+      <!-- Bank program form — name↔category assignment -->
+      <trans-unit id="bank_programs.warn.name_not_in_category" datatype="html"><source>“<x id="INTERPOLATION" equiv-text="mismatch.name"/>” isn’t offered for <x id="INTERPOLATION_1" equiv-text="mismatch.category"/>. Pick another name, or add it to this loan type in the program catalog.</source><target>«<x id="INTERPOLATION" equiv-text="mismatch.name"/>» غير مطروح لـ <x id="INTERPOLATION_1" equiv-text="mismatch.category"/>. اختر اسماً آخر، أو أضفه إلى نوع التمويل هذا من كتالوج البرامج.</target></trans-unit>
+      <trans-unit id="bank_programs.field.friendly_name.none_for_category" datatype="html"><source>No program names are set up for this loan type yet.</source><target>لا توجد أسماء برامج مهيأة لنوع التمويل هذا بعد.</target></trans-unit>
+
       <trans-unit id="qtabs.aria" datatype="html"><source>Questionnaire sections</source><target>أقسام الاستبيان</target></trans-unit>
       <trans-unit id="qtabs.pool" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
       <trans-unit id="qtabs.categories" datatype="html"><source>Loan categories</source><target>أنواع التمويل</target></trans-unit>
@@ -786,8 +883,27 @@
       <trans-unit id="sim.step_range" datatype="html"><source>Questions <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> of <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></source><target>الأسئلة <x id="INTERPOLATION" equiv-text="{{ pageStart() }}"/>–<x id="INTERPOLATION_1" equiv-text="{{ pageEnd() }}"/> من <x id="INTERPOLATION_2" equiv-text="{{ total() }}"/></target></trans-unit>
 
       <trans-unit id="scoring.editor.unasked_tag" datatype="html"><source>not asked</source><target>غير مطروح</target></trans-unit>
-      <trans-unit id="scoring.editor.unasked_lead" datatype="html"><source>These picked questions are never shown to <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> applicants.</source><target>هذه الأسئلة المحدّدة لا تُطرح إطلاقًا على متقدّمي <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/>.</target></trans-unit>
-      <trans-unit id="scoring.editor.unasked_hint" datatype="html"><source>They can never score, so any weight you give them is wasted. Untick them, or add <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> to them under Questionnaire → Loan categories.</source><target>لن تُحتسب لها أي درجة، لذا فأي وزن تمنحه لها يضيع بلا فائدة. ألغِ تحديدها، أو أضِف <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> إليها من الاستبيان ← أنواع التمويل.</target></trans-unit>
+      <trans-unit id="scoring.editor.unasked_lead" datatype="html"><source>These questions are never shown to <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> applicants.</source><target>هذه الأسئلة لا تُطرح إطلاقًا على متقدّمي <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/>.</target></trans-unit>
+      <trans-unit id="scoring.editor.unasked_hint2" datatype="html"><source>They can never score, so any weight you give them is wasted. Add <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> to them under Questionnaire → Loan categories, or drop them from this name in the program catalog.</source><target>لن تُحتسب لها أي درجة، لذا فأي وزن تمنحه لها يضيع بلا فائدة. أضِف <x id="INTERPOLATION" equiv-text="{{ programCategoryLabel() }}"/> إليها من الاستبيان ← أنواع التمويل، أو احذفها من هذا الاسم في دليل البرامج.</target></trans-unit>
+
+      <!-- The scored question set belongs to the program NAME in the catalog, not
+           to the bank program: step 1 is a roster, and its copy points at the one
+           screen that can change it. -->
+      <trans-unit id="scoring.editor.step_pick2" datatype="html"><source>Questions scored</source><target>الأسئلة المُقيَّمة</target></trans-unit>
+      <trans-unit id="scoring.editor.cap_pick2" datatype="html"><source>The questions this program scores on, set once for its program name in the catalog. Everything else in the pool is still asked of the applicant — it just doesn&apos;t move this program&apos;s approval odds.</source><target>الأسئلة التي يُقيَّم عليها هذا البرنامج، تُحدَّد مرة واحدة لاسم البرنامج في الدليل. باقي أسئلة القائمة تُطرح على المتقدّم كالمعتاد — لكنها لا تؤثر على فرص الموافقة لهذا البرنامج.</target></trans-unit>
+      <trans-unit id="scoring.editor.roster_count" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ roster().length }}"/> questions scored</source><target><x id="INTERPOLATION" equiv-text="{{ roster().length }}"/> أسئلة مُقيَّمة</target></trans-unit>
+      <trans-unit id="scoring.editor.cat_source" datatype="html"><source>These come from <x id="INTERPOLATION" equiv-text="{{ catalogNameLabel() }}"/> in the program catalog. Every bank offering this name scores on the same questions — here you set only the weights.</source><target>هذه الأسئلة مصدرها <x id="INTERPOLATION" equiv-text="{{ catalogNameLabel() }}"/> في دليل البرامج. كل بنك يقدّم هذا الاسم يُقيَّم على نفس الأسئلة — وهنا تحدّد الأوزان فقط.</target></trans-unit>
+      <trans-unit id="scoring.editor.cat_source_link" datatype="html"><source>Change the questions</source><target>تعديل الأسئلة</target></trans-unit>
+      <trans-unit id="scoring.editor.no_key_title" datatype="html"><source>This program has no catalog name.</source><target>هذا البرنامج بلا اسم في الدليل.</target></trans-unit>
+      <trans-unit id="scoring.editor.no_key_hint" datatype="html"><source>The questions a program scores on come from its program name in the catalog, so there is nothing to score until one is set.</source><target>الأسئلة التي يُقيَّم عليها أي برنامج مصدرها اسم البرنامج في الدليل، فلا شيء لتقييمه قبل تحديد اسم.</target></trans-unit>
+      <trans-unit id="scoring.editor.no_key_link" datatype="html"><source>Set a program name</source><target>حدّد اسم البرنامج</target></trans-unit>
+      <trans-unit id="scoring.editor.cat_empty_title" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ catalogNameLabel() }}"/> has no questions set for <x id="INTERPOLATION_1" equiv-text="{{ programCategoryLabel() }}"/>.</source><target>لا توجد أسئلة محدّدة لـ <x id="INTERPOLATION" equiv-text="{{ catalogNameLabel() }}"/> ضمن <x id="INTERPOLATION_1" equiv-text="{{ programCategoryLabel() }}"/>.</target></trans-unit>
+      <trans-unit id="scoring.editor.cat_empty_hint" datatype="html"><source>Pick them once in the program catalog and every bank offering this name scores on the same set.</source><target>اخترها مرة واحدة في دليل البرامج ليُقيَّم كل بنك يقدّم هذا الاسم على نفس المجموعة.</target></trans-unit>
+      <trans-unit id="scoring.editor.cat_empty_link" datatype="html"><source>Open the program catalog</source><target>افتح دليل البرامج</target></trans-unit>
+      <trans-unit id="scoring.editor.dropped_lead" datatype="html"><source>These were scored before and are no longer in the catalog set.</source><target>كانت هذه الأسئلة مُقيَّمة سابقًا ولم تعد ضمن مجموعة الدليل.</target></trans-unit>
+      <trans-unit id="scoring.editor.dropped_hint" datatype="html"><source>They stop counting the next time you save, so the remaining weights must add back up to 100%.</source><target>تتوقف عن الاحتساب عند الحفظ التالي، لذا يجب أن يعود مجموع الأوزان المتبقية إلى 100%.</target></trans-unit>
+      <trans-unit id="scoring.editor.fix_catalog_empty" datatype="html"><source>Set this program name&apos;s questions in the program catalog first.</source><target>حدّد أسئلة اسم البرنامج في دليل البرامج أولًا.</target></trans-unit>
+      <trans-unit id="scoring.editor.fix_no_name_key" datatype="html"><source>Give this program a catalog name before scoring it.</source><target>امنح هذا البرنامج اسمًا من الدليل قبل تقييمه.</target></trans-unit>
 
       <!-- Every question type is scored (Constitution V, v14.0.0): the control the
            admin sees follows the question's type, and so does its wording. -->

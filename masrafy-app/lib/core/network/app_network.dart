@@ -1,7 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
+import 'package:talker_dio_logger/talker_dio_logger.dart';
 
 import 'endpoint.dart';
 import 'network_interface.dart';
@@ -90,13 +90,36 @@ class AppNetwork implements BaseNetwork {
     Uint8List bytes, {
     required String contentType,
   }) async {
-    // Bare client: no base url, no interceptors — the presigned URL is fully
-    // self-authorising and must not carry the customer bearer header.
-    final raw = Dio();
+    // Bare client: no base url, no auth interceptor — the presigned URL is
+    // fully self-authorising and must not carry the customer bearer header.
+    // Timeouts are explicit: object storage is a different host from the API,
+    // so an unreachable/stalled bucket must fail as NETWORK_UNREACHABLE rather
+    // than hang the upload spinner forever.
+    final raw = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        sendTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+    if (kDebugMode) {
+      raw.interceptors.add(
+        TalkerDioLogger(
+          settings: const TalkerDioLoggerSettings(
+            printRequestHeaders: true,
+            printRequestData: false,
+          ),
+        ),
+      );
+    }
     await raw.put<void>(
       url,
       data: Stream<List<int>>.fromIterable([bytes]),
       options: Options(
+        // S3/Spaces/MinIO answer errors with an application/xml <Error> body;
+        // plain keeps it a String so `failureFromDio` can read the S3 code
+        // instead of collapsing it into INTERNAL_ERROR.
+        responseType: ResponseType.plain,
         headers: <String, dynamic>{
           Headers.contentTypeHeader: contentType,
           Headers.contentLengthHeader: bytes.length,

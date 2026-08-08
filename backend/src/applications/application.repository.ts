@@ -35,6 +35,8 @@ export interface CreateApplicationInput {
   age: number;
   applicantUserId: string;
   category?: string | null;
+  /** Catalog `program_name` the applicant narrowed to; null = whole category. */
+  programNameKey?: string | null;
   questionnaireVersionId?: string | null;
   applicantProfile: JsonValueInput;
   summary: JsonValueInput;

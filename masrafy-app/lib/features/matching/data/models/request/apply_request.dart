@@ -21,6 +21,7 @@ class ApplyRequest {
     this.mortgageDetails,
     this.carDetails,
     this.category,
+    this.programNameKey,
     this.questionnaireVersionId,
     this.questionnaireAnswers,
   });
@@ -46,6 +47,13 @@ class ApplyRequest {
   /// for the legacy structured-only wizards.
   final String? category;
 
+  /// Catalog program-name archetype the customer picked on top of [category]
+  /// (a `program_name` registry key). The backend matches ONLY programs that
+  /// instantiate it, so this is the second half of "which offers am I asking
+  /// for". Null means the whole category — what older builds sent, and what the
+  /// app falls back to when the catalog holds no name for the category.
+  final String? programNameKey;
+
   /// Published questionnaire version the [questionnaireAnswers] were collected
   /// against (echoed from the snapshot).
   final String? questionnaireVersionId;
@@ -66,6 +74,7 @@ class ApplyRequest {
         if (mortgageDetails != null) 'mortgageDetails': mortgageDetails!.toJson(),
         if (carDetails != null) 'carDetails': carDetails!.toJson(),
         if (category != null) 'category': category,
+        if (programNameKey != null) 'programNameKey': programNameKey,
         if (questionnaireVersionId != null)
           'questionnaireVersionId': questionnaireVersionId,
         if (questionnaireAnswers != null)

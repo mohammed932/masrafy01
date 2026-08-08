@@ -11,6 +11,8 @@ export type EnumerationType =
   | 'governorate'
   | 'program_name';
 
+import type { LoanCategory } from '@core/loan-category';
+
 export interface EnumerationMember {
   type: EnumerationType;
   key: string;
@@ -20,4 +22,11 @@ export interface EnumerationMember {
   parentKey: string | null;
   active: boolean;
   deprecated: boolean;
+  /**
+   * `program_name` only — the loan categories this name may be offered under.
+   * A present `[]` means PARKED: pickable nowhere. Optional so the bundle keeps
+   * working against a backend that has not deployed the assignment yet, and
+   * because the other ten types never carry it.
+   */
+  categories?: LoanCategory[];
 }

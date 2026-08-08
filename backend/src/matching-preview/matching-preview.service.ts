@@ -7,6 +7,8 @@ import { QuestionnaireRepository } from '@/questionnaire/questionnaire.repositor
 import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import { BankProgramRepository } from '@/bank-programs/bank-programs.repository';
 import { toBankProgramSnapshot } from '@/bank-programs/bank-program-snapshot.mapper';
+import { matchesRequestedScope } from '@/bank-programs/program-scope';
+import { ProgramNameScopeService } from '@/platform-enumerations/program-name-scope.service';
 import { quoteProgram } from '@/matching/pipeline/quote';
 import {
   DEBT_TYPES_QUESTION_CODE,
@@ -122,19 +124,40 @@ export class MatchingPreviewService {
     private readonly questionnaire: QuestionnaireRepository,
     private readonly weightedScoring: WeightedApprovalScoringService,
     private readonly programs: BankProgramRepository,
+    private readonly programNames: ProgramNameScopeService,
   ) {}
 
   /**
    * `age` prices the tenor through the age-at-maturity rule, so it must be the
    * SAME number apply would use: the customer controller derives it from the
    * caller's `birthday`, the admin simulator passes the sample applicant's.
+   *
+   * `programNameKey` narrows the matched set to one catalog archetype. Validated
+   * BEFORE any work: a stale key must come back as a typed rejection the app can
+   * act on ("pick again"), not as an empty shortlist indistinguishable from
+   * "no bank offers this".
    */
-  async preview(args: { category: LoanCategory; answers: SubmittedAnswerDto[]; age: number }) {
+  async preview(args: {
+    category: LoanCategory;
+    answers: SubmittedAnswerDto[];
+    age: number;
+    programNameKey?: string;
+  }) {
+    if (args.programNameKey) {
+      await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
+    }
     const { selected, money, askedQuestionCodes } = await this.resolveSelectedOptions(
       args.answers,
       args.category,
     );
-    return this.runAndAssemble(args.category, selected, money, args.age, askedQuestionCodes);
+    return this.runAndAssemble(
+      args.category,
+      selected,
+      money,
+      args.age,
+      askedQuestionCodes,
+      args.programNameKey ?? null,
+    );
   }
 
   /**
@@ -278,16 +301,22 @@ export class MatchingPreviewService {
     };
   }
 
-  /** Score every active program in the category and rank by approval probability. */
+  /**
+   * Score every active program in the requested scope and rank by approval
+   * probability. Scope is the (category, programNameKey) pair the applicant
+   * asked for — `programNameKey` null means the whole category, which is what a
+   * client that predates the catalog picker sends.
+   */
   private async runAndAssemble(
     category: LoanCategory,
     answers: SelectedAnswer[],
     money: MoneyInputs | null,
     age: number,
     askedQuestionCodes: readonly string[],
+    programNameKey: string | null,
   ) {
-    const rows = (await this.programs.findAllActive()).filter(
-      (p) => p.productCategory.toLowerCase() === category,
+    const rows = (await this.programs.findAllActive()).filter((p) =>
+      matchesRequestedScope(p, category, programNameKey),
     );
     const profile = money ? this.buildProfile(money, age) : null;
 

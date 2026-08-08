@@ -126,6 +126,8 @@ class MatchOffer {
     this.bankIsFeatured = false,
     this.requiredDocuments = const [],
     this.feesBreakdown,
+    this.loanAmount,
+    this.cashReceived,
     this.maxLoan,
     this.dbrPct,
     this.dbrCapPct,
@@ -172,6 +174,20 @@ class MatchOffer {
   /// Raw engine fee breakdown (shape TBD) — carried for the details screen.
   final Map<String, dynamic>? feesBreakdown;
 
+  /// The principal the bank actually books (EGP) — the ask after the program
+  /// ceiling and the debt-burden cap, plus the financed fees. Interest is
+  /// charged on THIS, not on what the customer typed in the wizard.
+  ///
+  /// Null on mock / legacy offers, where [totalLoanPrincipal] is the fallback.
+  final int? loanAmount;
+
+  /// Cash that lands in the account (EGP) = [loanAmount] − financed fees.
+  ///
+  /// Shown because it is the only figure on the screen the customer can spend:
+  /// every other amount is the bank's view of the deal. A 494 280 loan with
+  /// ~9 700 of financed fees pays out 484 588, and nothing else said so.
+  final int? cashReceived;
+
   /// Most this customer could borrow here (EGP): salary × DBR cap − existing
   /// obligations, present-valued over the term. Null on mock / legacy offers.
   final int? maxLoan;
@@ -183,10 +199,15 @@ class MatchOffer {
 
   /// True when the customer asked for less than they could have had. The only
   /// case where the ceiling tells them something the offer itself doesn't.
-  bool get hasUnusedHeadroom => maxLoan != null && maxLoan! > totalLoanPrincipal;
+  bool get hasUnusedHeadroom => maxLoan != null && maxLoan! > offeredPrincipal;
 
-  /// Financed principal (total repayable minus interest), for the comparison
-  /// above — [totalLoan] includes interest and would never be under the cap.
+  /// The booked principal, however this offer carries it: the explicit
+  /// [loanAmount] for real offers, else derived from the totals.
+  int get offeredPrincipal => loanAmount ?? totalLoanPrincipal;
+
+  /// Financed principal (total repayable minus interest) — the fallback for
+  /// mock / legacy offers that carry no [loanAmount]. [totalLoan] includes
+  /// interest and would never be under the cap.
   int get totalLoanPrincipal => totalLoan - totalInterest;
 
   final bool isBestMatch;
@@ -227,6 +248,13 @@ class MatchOffer {
       bankIsFeatured: e.bankIsFeatured,
       requiredDocuments: e.requiredDocuments,
       feesBreakdown: e.feesBreakdown,
+      // `requestedLoanAmountEGP` is the backend's name for the CASH leg
+      // (offered − financed fees), not for what the customer asked; the ask
+      // lives on `MatchResultsArgs.amount`. Reading it as the request is how
+      // the details screen ended up printing the wizard's 1 000 000 next to a
+      // 46 500 installment that priced 494 280.
+      loanAmount: e.effectiveLoanAmountEGP.round(),
+      cashReceived: e.requestedLoanAmountEGP.round(),
       maxLoan: e.maxLoanAvailableEGP?.round(),
       dbrPct: e.dbrPercent,
       dbrCapPct: e.dbrCapPercent,

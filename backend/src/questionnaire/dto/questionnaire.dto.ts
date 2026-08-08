@@ -315,6 +315,19 @@ export class SubmittedAnswerDto {
 
 export class PreviewMatchesDto {
   @ApiProperty({ enum: LoanCategory }) @IsEnum(LoanCategory) category!: LoanCategory;
+
+  /**
+   * Catalog program-name archetype to narrow to, on top of `category` (see
+   * `ApplyRequestDto.programNameKey`). Same field, same validation, same
+   * meaning-of-null on both endpoints — preview exists to show what apply would
+   * return, so a shortlist it produces has to survive the apply that follows.
+   */
+  @ApiPropertyOptional({ description: 'Catalog `program_name` key to narrow the matched set to' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 64)
+  programNameKey?: string;
+
   @ApiPropertyOptional() @IsOptional() @IsString() questionnaireVersionId?: string;
   @ApiProperty({ type: [SubmittedAnswerDto] })
   @IsArray()

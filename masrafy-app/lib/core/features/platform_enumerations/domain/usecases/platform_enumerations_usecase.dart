@@ -11,6 +11,13 @@ import 'package:app/core/result/failure.dart';
 abstract final class EnumerationTypes {
   static const String governorate = 'governorate';
   static const String requiredDocument = 'required_document';
+
+  /// The program-name catalog — the archetypes ("Doctor Loans", "Pharmacy") a
+  /// bank program instantiates. Members carry `categories`, so the picker must
+  /// filter to the chosen loan category (see
+  /// [PlatformEnumerationEntity.offeredUnder]) — the backend rejects a pair it
+  /// is not assigned to.
+  static const String programName = 'program_name';
 }
 
 /// Lookup-list reads (Principle XXXV — shared by profile + offers).

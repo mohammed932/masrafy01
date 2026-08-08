@@ -35,6 +35,18 @@ class SavedOffersCubit extends Cubit<SavedOffersState> {
     );
   }
 
+  /// Re-fetch without emptying the screen. As the My Loans tab the page stays
+  /// mounted, so re-entering it must not flash a shimmer over the list the
+  /// user is already looking at; a failed silent refresh keeps the old list.
+  Future<void> refresh() async {
+    if (state.status != RequestState.loaded) return load();
+    final res = await _useCase.list();
+    res.fold(
+      (_) {},
+      (offers) => emit(state.copyWith(offers: offers, error: null)),
+    );
+  }
+
   Future<void> remove(String bankOfferId) async {
     final previous = state.offers;
     final optimistic =

@@ -4,7 +4,8 @@
  *
  * A bank program is never a bespoke marketing name: it is one bank's take on a
  * predefined program archetype (`platform_enumeration` where
- * `type = 'program_name'`, which carries the NAME and nothing else). The seed's
+ * `type = 'program_name'`, which carries the NAME plus the loan categories it
+ * may be offered under, and no lending values of its own). The seed's
  * in-code fixture (`program-baselines.ts`) supplies plausible starting figures;
  * the bank supplies the SPREAD — its own rate, ceiling, income floor and fees.
  * That is exactly what a real comparison marketplace shows: the same product,

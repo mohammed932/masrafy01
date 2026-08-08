@@ -383,6 +383,8 @@ export const BINDING_CONSTRAINTS = [
   'program_max',
   'dbr_affordability',
   'tenor_max',
+  /** The asked-for term was below the program floor and was stretched up to it. */
+  'tenor_min',
   'age_at_maturity',
 ] as const;
 

@@ -211,8 +211,9 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerFactory(() => OnboardingCubit(getIt<SharedPrefsService>()));
 
-  // home
-  getIt.registerFactory(() => HomeCubit());
+  // home — reads the `program_name` catalog for the picker that sits beside the
+  // loan-category cards (registered lazily further down; resolved on call).
+  getIt.registerFactory(() => HomeCubit(getIt<PlatformEnumerationsUseCase>()));
 
   // questionnaire — personal + mortgage + car are backend-driven via the generic
   // dynamic renderer (QuestionnaireCubit fetches the published snapshot); only

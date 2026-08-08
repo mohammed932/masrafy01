@@ -70,7 +70,7 @@ class _LoginViewState extends State<_LoginView> {
             // mobile goes to the phone → OTP flow first; once the mobile is
             // bound it drops straight to the Complete-Profile birthday step.
             if (customer.profileComplete) {
-              ctx.router.replaceAll([const HomeRoute()]);
+              ctx.router.replaceAll([MainShellRoute()]);
             } else if (customer.mobileVerifiedAt == null) {
               ctx.router.replaceAll([const SocialPhoneRoute()]);
             } else {

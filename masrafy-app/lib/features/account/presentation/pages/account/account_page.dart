@@ -1,11 +1,10 @@
 part of 'account.imports.dart';
 
 /// Account menu (Figma `4028:4363`). A plain back-chip header over a list of
-/// navigable menu cards and the navy "Ask Masrafy anything" support card, with
-/// the shared bottom nav (the Menu tab is the active one). Reached from the
-/// home/profile bottom-nav Menu tab. The single route-level widget for this
-/// file (Principle XXXVI); the rows are static UI data, so no cubit is needed.
-@RoutePage()
+/// navigable menu cards and the navy "Ask Masrafy anything" support card.
+/// Rendered as the Menu tab of `MainShellPage`, which owns the bottom nav —
+/// this is not a route of its own. The rows are static UI data, so no cubit is
+/// needed.
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
 
@@ -65,16 +64,6 @@ class AccountPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: colors.bg.layout,
-      bottomNavigationBar: MasrafyAppBottomNav(
-        active: MasrafyAppNavTab.menu,
-        loansLabel: l.home_nav_loans,
-        homeLabel: l.home_nav_home,
-        menuLabel: l.home_nav_menu,
-        onLoans: () =>
-            context.router.replace(SavedOffersRoute(fromTab: true)),
-        onHome: () => context.router.replaceAll([const HomeRoute()]),
-        onMenu: () {},
-      ),
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(

@@ -9,6 +9,7 @@ import { AdminPlatformEnumerationsController } from './admin-platform-enumeratio
 import { MobilePlatformEnumerationsController } from './mobile-platform-enumerations.controller';
 import { PlatformEnumerationsRepository } from './platform-enumerations.repository';
 import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.service';
+import { ProgramNameScopeService } from './program-name-scope.service';
 
 /**
  * Operator-managed enumeration registry (feature 006).
@@ -36,7 +37,8 @@ import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.
       useExisting: PostgresPlatformEnumerationsRepository,
     },
     PlatformEnumerationsAdminService,
+    ProgramNameScopeService,
   ],
-  exports: [PlatformEnumerationsRepository],
+  exports: [PlatformEnumerationsRepository, ProgramNameScopeService],
 })
 export class PlatformEnumerationsModule {}

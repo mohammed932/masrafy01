@@ -1,17 +1,52 @@
 import { Injectable } from '@nestjs/common';
+import type { LoanCategory } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
+  EnumerationCategoriesNotApplicableException,
   EnumerationKeyDuplicateException,
+  EnumerationQuestionUnknownException,
+  EnumerationQuestionsNotApplicableException,
   EnumerationSystemOnlyException,
   NotFoundException,
 } from '@/common/errors/domain.exceptions';
+import { ALL_LOAN_CATEGORIES, dedupeCategories } from '@/common/loan-category.util';
+import {
+  isCategorisedEnumerationType,
+  isQuestionTemplateEnumerationType,
+  isUnscopedEnumerationType,
+  type QuestionCodesByCategory,
+} from './platform-enumerations.repository';
 import {
   PostgresPlatformEnumerationsRepository,
+  type CatalogQuestionRow,
+  type EnumerationCategoryAssignment,
   type EnumerationRow,
   type EnumerationUpdatePatch,
 } from './postgres-platform-enumerations.repository';
 import type { CreateEnumerationDto, UpdateEnumerationDto } from './dto/enumeration.dto';
+
+/** The only categorised type today; see `CATEGORISED_ENUMERATION_TYPES`. */
+const PROGRAM_NAME_TYPE = 'program_name';
+
+/**
+ * Lexical, so the audit no-op check compares SETS. Ordering everywhere else is
+ * the questionnaire's `displayOrder`, and a reshuffle there must not make an
+ * unchanged template look like an edit.
+ */
+function sortCodes(codes: readonly string[]): string[] {
+  return [...codes].sort();
+}
+
+function sameCodeSet(a: readonly string[], b: readonly string[]): boolean {
+  // Compared as SETS, with no delimiter: a joined form needs a separator that
+  // cannot occur in a code, and picking one wrong is how this line ended up
+  // with a raw NUL in it. `next` is deduped by the caller and `before` is
+  // unique by primary key, so length plus membership is exact.
+  if (a.length !== b.length) return false;
+  const seen = new Set(a);
+  return b.every((code) => seen.has(code));
+}
 
 export interface AdminActor {
   staffId: string;
@@ -44,6 +79,11 @@ export class PlatformEnumerationsAdminService {
     return this.repo.listTypeStats();
   }
 
+  /** Loan-category assignments for a type, keyed by enumeration id. */
+  async categoryAssignments(filter?: { type?: string }): Promise<Map<string, LoanCategory[]>> {
+    return this.repo.categoryAssignments(filter);
+  }
+
   async create(input: CreateEnumerationDto, actor: AdminActor): Promise<EnumerationRow> {
     const existing = await this.repo.findByTypeAndKey(input.type, input.key);
     if (existing) {
@@ -54,7 +94,17 @@ export class PlatformEnumerationsAdminService {
       key: input.key,
       labelAr: input.labelAr,
       labelEn: input.labelEn,
-      parentKey: input.parentKey ?? null,
+      // An unscoped type is a pure name — it belongs to no parent, and a caller
+      // sending one is a bug, not an intent to scope it.
+      parentKey: isUnscopedEnumerationType(input.type) ? null : (input.parentKey ?? null),
+      // Default a new categorised entry to ALL categories, never none: an entry
+      // assigned to nothing is offerable nowhere, so a create that named no
+      // categories would silently add an invisible catalog row. Operators add
+      // names on one tab and narrow them on the other, never the reverse.
+      // Dropped silently for other types, mirroring `parentKey` above.
+      categories: isCategorisedEnumerationType(input.type)
+        ? dedupeCategories(input.categories ?? [...ALL_LOAN_CATEGORIES])
+        : [],
       sortOrder: input.sortOrder ?? 0,
       createdBy: actor.staffId,
     });
@@ -90,7 +140,11 @@ export class PlatformEnumerationsAdminService {
 
     if (patch.labelAr !== undefined) repoPatch.labelAr = patch.labelAr;
     if (patch.labelEn !== undefined) repoPatch.labelEn = patch.labelEn;
-    if (patch.parentKey !== undefined) repoPatch.parentKey = patch.parentKey;
+    // Same rule as create: an unscoped type can never acquire a parent, so the
+    // field is dropped rather than written (and stays out of the audit diff).
+    if (patch.parentKey !== undefined && !isUnscopedEnumerationType(existing.type)) {
+      repoPatch.parentKey = patch.parentKey;
+    }
     if (patch.sortOrder !== undefined) repoPatch.sortOrder = patch.sortOrder;
 
     if (patch.deprecate === true && existing.deprecatedAt === null) {
@@ -118,6 +172,216 @@ export class PlatformEnumerationsAdminService {
     return updated;
   }
 
+  // ---- Loan-category assignment --------------------------------------------
+
+  /**
+   * Replace one entry's loan-category set. The submitted array IS the new set,
+   * not a delta, and MAY be empty — an empty set parks the entry: kept and
+   * editable, offerable under no category.
+   *
+   * Deliberately NOT guarded on `systemOnly`, unlike `active`/`deprecate` in
+   * `update()`. Which categories a name is offered under is an operational
+   * choice, not a system invariant — a system-managed name still has to be
+   * fileable. (No `program_name` row is `systemOnly` today; this is about what
+   * the rule means, not what it currently blocks.)
+   */
+  async setCategories(
+    id: string,
+    categories: LoanCategory[],
+    actor: AdminActor,
+  ): Promise<EnumerationRow> {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException();
+    if (!isCategorisedEnumerationType(existing.type)) {
+      throw new EnumerationCategoriesNotApplicableException({ type: existing.type });
+    }
+
+    const before = await this.repo.categoriesOf(id);
+    const next = dedupeCategories(categories);
+    await this.repo.setCategories(id, next);
+    this.repo.invalidateCache(PROGRAM_NAME_TYPE);
+
+    // No-op saves write no audit — the board autosaves on every tap, so an
+    // unchanged set is a re-render, not an operator decision.
+    if (before.join(',') !== next.join(',')) {
+      await this.writeCategoryAudit(existing, before, next, actor);
+    }
+    return existing;
+  }
+
+  /**
+   * Reassign many entries in ONE transaction — the board's per-category
+   * "offer all / remove all" actions.
+   *
+   * Every id is validated BEFORE anything is written: a bulk action that
+   * half-applies and then reports an error leaves the operator with no idea
+   * which half landed.
+   */
+  async setCategoriesBulk(
+    assignments: ReadonlyArray<{ id: string; categories: LoanCategory[] }>,
+    actor: AdminActor,
+  ): Promise<EnumerationRow[]> {
+    const rows = await this.repo.findAllOrdered({ type: PROGRAM_NAME_TYPE });
+    const byId = new Map(rows.map((r) => [r.id, r]));
+
+    const resolved: Array<{ row: EnumerationRow; next: LoanCategory[] }> = [];
+    for (const a of assignments) {
+      const row = byId.get(a.id) ?? (await this.repo.findById(a.id));
+      if (!row) throw new NotFoundException();
+      if (!isCategorisedEnumerationType(row.type)) {
+        throw new EnumerationCategoriesNotApplicableException({ type: row.type });
+      }
+      resolved.push({ row, next: dedupeCategories(a.categories) });
+    }
+
+    const before = await this.repo.categoryAssignments({ type: PROGRAM_NAME_TYPE });
+    const writes: EnumerationCategoryAssignment[] = resolved.map((r) => ({
+      enumerationId: r.row.id,
+      categories: r.next,
+    }));
+    await this.repo.setCategoriesBulk(writes);
+    this.repo.invalidateCache(PROGRAM_NAME_TYPE);
+
+    // One event per CHANGED row, after the transaction commits — the same
+    // per-row payload shape `update()` writes, so no audit consumer branches.
+    for (const { row, next } of resolved) {
+      const prev = dedupeCategories(before.get(row.id) ?? []);
+      if (prev.join(',') === next.join(',')) continue;
+      await this.writeCategoryAudit(row, prev, next, actor);
+    }
+    return this.repo.findAllOrdered({ type: PROGRAM_NAME_TYPE });
+  }
+
+  // ---- Question template ---------------------------------------------------
+
+  /**
+   * Suggested question sets for a type, keyed by enumeration id then by loan
+   * category (codes).
+   */
+  async questionAssignments(filter?: {
+    type?: string;
+  }): Promise<Map<string, QuestionCodesByCategory>> {
+    return this.repo.questionAssignments(filter);
+  }
+
+  /** The active question pool the template board picks from. */
+  async questionPool(): Promise<CatalogQuestionRow[]> {
+    return this.repo.questionTemplatePool();
+  }
+
+  /**
+   * Replace one catalog name's SUGGESTED question set FOR ONE loan category.
+   * Advisory data: it pre-ticks the per-program scoring wizard and is read by
+   * nothing at runtime, so this can never invalidate a weight set a bank already
+   * saved.
+   *
+   * Scoped to `category`; the other three sets are untouched. The name's own
+   * category ASSIGNMENT is a different axis with its own endpoint — a name can
+   * be templated for a category it is not currently offered under, and that is
+   * not an error (below).
+   *
+   * Deliberately NOT guarded on `systemOnly`, for the same reason as
+   * `setCategories`: which questions a name suggests is an operational choice,
+   * not a system invariant.
+   *
+   * Deliberately NOT guarded on scope either — neither a question code outside
+   * the category's asked set, nor a category the name is not assigned to, is
+   * rejected. This looks exactly like two missing validations and is neither:
+   * the detail screen surfaces both (a "no longer asked" tag, and a tab whose
+   * "offered under" switch is off), so the admin can see and fix them. Rejecting
+   * would make an existing drifted set unsaveable, and pruning would destroy
+   * configuration the admin never asked to lose.
+   */
+  async setQuestions(
+    id: string,
+    category: LoanCategory,
+    questionCodes: string[],
+    actor: AdminActor,
+  ): Promise<EnumerationRow> {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException();
+    if (!isQuestionTemplateEnumerationType(existing.type)) {
+      throw new EnumerationQuestionsNotApplicableException({ type: existing.type });
+    }
+
+    const next = [...new Set(questionCodes)];
+    if (next.length > 0) {
+      // Checked against EVERY question, not just the active pool: an admin
+      // re-saving a template that still names a soft-deleted question must not
+      // be blocked by a row they are being told to come here and remove.
+      const known = await this.repo.existingQuestionCodes(next);
+      const unknownCodes = next.filter((c) => !known.has(c));
+      if (unknownCodes.length > 0) {
+        throw new EnumerationQuestionUnknownException({
+          type: existing.type,
+          key: existing.key,
+          unknownCodes,
+        });
+      }
+    }
+
+    const before = await this.repo.questionsOfCategory(id, category);
+    await this.repo.setQuestions(id, category, next);
+    // No `invalidateCache` here, deliberately: question codes are kept OFF
+    // `EnumerationMember` precisely so the 60s registry cache cannot serve the
+    // wizard a stale suggestion. Invalidating would imply the cache holds this.
+
+    if (!sameCodeSet(before, next)) {
+      // Audited per category — `questions.personal`, not `questions`. One key for
+      // all four would make a diff on the Personal tab read as though the whole
+      // template had been replaced, and the log is what an operator reaches for
+      // when a bank asks why its wizard changed.
+      await this.writeAssignmentAudit(
+        existing,
+        `questions.${category}`,
+        sortCodes(before),
+        sortCodes(next),
+        actor,
+      );
+    }
+    return existing;
+  }
+
+  /**
+   * One audit shape for both assignment axes. Reuses
+   * PLATFORM_ENUMERATION_UPDATED rather than adding event types: `AuditEventType`
+   * is also a Postgres enum, so each new value costs an ALTER TYPE migration,
+   * and `payload` is JSONB — the diff rides free in the same
+   * `{type, key, id, changes}` shape every other update writes.
+   */
+  private async writeAssignmentAudit(
+    row: EnumerationRow,
+    // `questions.<category>` rather than a plain 'questions': the question
+    // template is per loan category, and a diff that did not say which one would
+    // be unreadable as soon as a name is templated twice.
+    field: 'categories' | `questions.${LoanCategory}`,
+    from: readonly string[],
+    to: readonly string[],
+    actor: AdminActor,
+  ): Promise<void> {
+    await this.audit.write({
+      actorId: actor.staffId,
+      targetId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: row.type,
+        key: row.key,
+        id: row.id,
+        changes: { [field]: { from: [...from], to: [...to] } },
+      },
+    });
+  }
+
+  private async writeCategoryAudit(
+    row: EnumerationRow,
+    from: LoanCategory[],
+    to: LoanCategory[],
+    actor: AdminActor,
+  ): Promise<void> {
+    await this.writeAssignmentAudit(row, 'categories', from, to, actor);
+  }
+
   private diffChanges(
     existing: EnumerationRow,
     patch: UpdateEnumerationDto,
@@ -132,7 +396,11 @@ export class PlatformEnumerationsAdminService {
     if (patch.active !== undefined && patch.active !== existing.active) {
       changes.active = { from: existing.active, to: patch.active };
     }
-    if (patch.parentKey !== undefined && patch.parentKey !== existing.parentKey) {
+    if (
+      patch.parentKey !== undefined &&
+      patch.parentKey !== existing.parentKey &&
+      !isUnscopedEnumerationType(existing.type)
+    ) {
       changes.parentKey = { from: existing.parentKey, to: patch.parentKey };
     }
     if (patch.sortOrder !== undefined && patch.sortOrder !== existing.sortOrder) {

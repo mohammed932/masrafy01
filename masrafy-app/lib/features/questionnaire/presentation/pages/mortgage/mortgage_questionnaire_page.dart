@@ -13,14 +13,21 @@ import 'package:app/features/questionnaire/presentation/pages/mortgage/mortgage_
 /// is unchanged, so existing navigation and `router.gr.dart` stay valid.
 @RoutePage()
 class MortgageQuestionnairePage extends StatelessWidget {
-  const MortgageQuestionnairePage({super.key});
+  const MortgageQuestionnairePage({super.key, this.programNameKey});
+
+  /// Catalog program name picked on Home alongside the loan category; narrows
+  /// the matched programs to that archetype. Null = whole category.
+  final String? programNameKey;
 
   @override
   Widget build(BuildContext context) {
     return QuestionnaireView(
       category: LoanCategory.mortgage,
       buildRequest: (QuestionnaireState state) =>
-          mapMortgageAnswersToApplyRequest(state.visibleAnswers),
+          mapMortgageAnswersToApplyRequest(
+        state.visibleAnswers,
+        programNameKey: programNameKey,
+      ),
     );
   }
 }

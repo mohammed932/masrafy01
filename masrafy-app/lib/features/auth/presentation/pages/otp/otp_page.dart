@@ -97,7 +97,7 @@ class _OtpView extends StatelessWidget {
             // retry), never landing an incomplete account on Home (Principle
             // XXXVII, narrowed v9.0.0: photo/National ID are optional and
             // collected later at loan-apply time).
-            ctx.router.replaceAll([const HomeRoute()]);
+            ctx.router.replaceAll([MainShellRoute()]);
           } else if (state.isFailure) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));
           }

@@ -54,6 +54,25 @@ export class CalculatorQuoteDto {
   existingObligationsEGP?: string;
 
   /**
+   * Total credit LIMIT across every card the caller holds — not the balance and
+   * not the minimum payment. Optional: a caller with no cards simply omits it.
+   *
+   * Kept OUT of `existingObligationsEGP` rather than folded into it by the client,
+   * because the two are different quantities: one is already a monthly figure, the
+   * other is exposure the server discounts by `CREDIT_CARD_LIMIT_MONTHLY_PERCENT`.
+   * Folding it in on the client would put the discount rate in three apps and let
+   * the calculator's answer drift from the one apply produces for the same person.
+   */
+  @ApiPropertyOptional({
+    example: '150000.00',
+    description:
+      'Affordability mode. Total limit across ALL cards; 5% of it counts as a monthly commitment.',
+  })
+  @IsOptional()
+  @IsDecimalString({ min: 0, scale: 2 })
+  creditCardTotalLimitEGP?: string;
+
+  /**
    * Generic mode only — the debt-burden cap to apply, as a percentage of income.
    * When `bankProgramId` is set the program's own cap (scalar or band table) is
    * the only source (FR-021b) and sending this is rejected rather than silently
@@ -121,7 +140,14 @@ export class AffordabilityQuoteResponseDto {
   @ApiProperty() effectiveRatePercent!: string;
   @ApiProperty({ description: 'The income the cap was applied to.' })
   recognisedIncomeEGP!: string;
-  @ApiProperty() existingObligationsEGP!: string;
+  @ApiProperty({
+    description: 'What the cap was measured against: stated obligations + the card notional below.',
+  })
+  existingObligationsEGP!: string;
+  @ApiProperty({
+    description: '5% of the stated total card limit, already inside `existingObligationsEGP`.',
+  })
+  creditCardMonthlyEGP!: string;
   @ApiProperty() dbrCapPercent!: string;
   @ApiProperty({ nullable: true, type: Number }) dbrBandIndex!: number | null;
   @ApiProperty({ description: 'income × cap ÷ 100 − obligations. Zero when the cap is consumed.' })

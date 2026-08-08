@@ -303,6 +303,40 @@ export class EnumerationSystemOnlyException extends DomainException {
   }
 }
 
+/**
+ * Loan categories were submitted for an enumeration type that has no such axis
+ * (only `CATEGORISED_ENUMERATION_TYPES` do). 422 rather than 404: the row
+ * exists, the request is well-formed, the content is meaningless for it.
+ */
+export class EnumerationCategoriesNotApplicableException extends DomainException {
+  constructor(meta: { type: string }) {
+    super(ERROR_CODES.ENUMERATION_CATEGORIES_NOT_APPLICABLE, meta);
+  }
+}
+
+/**
+ * A suggested question set was submitted for an enumeration type that carries no
+ * such template (only `QUESTION_TEMPLATE_ENUMERATION_TYPES` do). 422 for the same
+ * reason as its sibling above: the row exists and the request is well-formed, the
+ * content is simply meaningless for it.
+ */
+export class EnumerationQuestionsNotApplicableException extends DomainException {
+  constructor(meta: { type: string }) {
+    super(ERROR_CODES.ENUMERATION_QUESTIONS_NOT_APPLICABLE, meta);
+  }
+}
+
+/**
+ * The template named question codes that match no question at all — not even a
+ * soft-deleted one. Reports every offender so the board can say which rather
+ * than just refusing the save.
+ */
+export class EnumerationQuestionUnknownException extends DomainException {
+  constructor(meta: { type: string; key: string; unknownCodes: string[] }) {
+    super(ERROR_CODES.ENUMERATION_QUESTION_UNKNOWN, meta);
+  }
+}
+
 // --- User proceed (feature 008) --------------------------------------------
 
 export class BankOfferNotFoundException extends DomainException {
@@ -507,5 +541,21 @@ export class ProgramRangeInvalidException extends DomainException {
 export class ProgramNameKeyUnknownException extends DomainException {
   constructor(meta: { programNameKey: string; activeKeys: string[] }) {
     super(ERROR_CODES.PROGRAM_NAME_KEY_UNKNOWN, meta);
+  }
+}
+
+/**
+ * The catalog name is live, but is not assigned to the loan category the
+ * program is being saved under. `assignedCategories` is the set it IS offered
+ * under, so the admin form can name the alternatives instead of just refusing;
+ * an empty list means the name is parked (offerable nowhere).
+ */
+export class ProgramNameKeyNotInCategoryException extends DomainException {
+  constructor(meta: {
+    programNameKey: string;
+    productCategory: string;
+    assignedCategories: string[];
+  }) {
+    super(ERROR_CODES.PROGRAM_NAME_KEY_NOT_IN_CATEGORY, meta);
   }
 }

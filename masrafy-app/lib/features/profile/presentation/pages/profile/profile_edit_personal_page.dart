@@ -111,16 +111,8 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
 
     return Scaffold(
       backgroundColor: colors.bg.layout,
-      bottomNavigationBar: MasrafyAppBottomNav(
-        active: MasrafyAppNavTab.menu,
-        loansLabel: l.home_nav_loans,
-        homeLabel: l.home_nav_home,
-        menuLabel: l.home_nav_menu,
-        onLoans: () =>
-            context.router.replace(SavedOffersRoute(fromTab: true)),
-        onHome: () => context.router.replaceAll([const HomeRoute()]),
-        onMenu: () => context.router.maybePop(),
-      ),
+      bottomNavigationBar:
+          const MasrafyShellNavBar(active: MasrafyAppNavTab.menu),
       body: BlocConsumer<ProfileEditPersonalCubit, ProfileEditPersonalState>(
         listenWhen: (p, c) =>
             (p.photoError != c.photoError && c.photoError != null) ||

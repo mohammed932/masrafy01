@@ -51,8 +51,23 @@ Failure failureFromDio(DioException error) {
       httpStatus: response.statusCode,
     );
   }
+  // S3-compatible storage (presigned PUT) answers with an application/xml
+  // <Error><Code>…</Code></Error> body, not the backend envelope. Keep the
+  // localized code generic (Principle III) but carry the storage code in meta
+  // so the failure is diagnosable instead of anonymous.
+  final storageCode = _s3ErrorCode(data);
   return ServerFailure(
     code: 'INTERNAL_ERROR',
+    meta: storageCode == null
+        ? null
+        : <String, dynamic>{'storageCode': storageCode},
     httpStatus: response.statusCode,
   );
+}
+
+/// Pull `<Code>X</Code>` out of an S3/MinIO/Spaces XML error body.
+String? _s3ErrorCode(dynamic data) {
+  if (data is! String) return null;
+  final match = RegExp(r'<Code>([^<]+)</Code>').firstMatch(data);
+  return match?.group(1);
 }

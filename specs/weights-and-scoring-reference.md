@@ -34,8 +34,10 @@ a flat 100. Consequences:
   costs points.
 - An answer to a question that was not asked is ignored outright.
 
-No eligibility gating anywhere (dropped for MVP). Every active program in the category is returned,
-ranked by probability, in both preview and apply.
+No eligibility gating anywhere (dropped for MVP). Every active program **in the requested scope** is
+returned, ranked by probability, in both preview and apply. The scope is the pair the applicant asked
+for: the loan category, plus the catalog `program_name` archetype they picked on the app's Home
+screen when they picked one — see §2a. Nothing else narrows the list.
 
 ---
 
@@ -49,6 +51,35 @@ ranked by probability, in both preview and apply.
 The two are set on different screens by potentially different people. Their **intersection** is what
 actually moves a score. The admin editor warns when a program weights a question outside its own
 category's asked set (warn, never block).
+
+## 2a. The requested scope — which programs are scored at all
+
+Distinct from the two axes above, which decide what a score MEANS. This one decides which programs
+get a score in the first place, and it is chosen by the CUSTOMER, not an admin.
+
+| Half | Sent as | Compared against |
+|---|---|---|
+| Loan category | `category` | `bank_program.productCategory` (case-insensitive) |
+| Catalog archetype | `programNameKey` | `bank_program.programNameKey` (exact) |
+
+One filter, one file — [`matchesRequestedScope`](../backend/src/bank-programs/program-scope.ts) —
+used by apply and preview both, because a preview that showed a shortlist has to survive the apply
+that follows it (A25).
+
+Null means "not narrowed by this axis" on the REQUEST side (`programNameKey` absent = the whole
+category, which is what a pre-catalog client sends) but "instantiates no archetype" on the PROGRAM
+side — a program with no `programNameKey` can never satisfy a request that names one.
+
+`programNameKey` is validated before any matching work, by
+[`ProgramNameScopeService`](../backend/src/platform-enumerations/program-name-scope.service.ts):
+live in the registry (`PROGRAM_NAME_KEY_UNKNOWN`) and assigned to the requested category
+(`PROGRAM_NAME_KEY_NOT_IN_CATEGORY`), both 422. A stale key is rejected rather than ignored — an
+ignored filter returns the whole category and reads as a successful narrow. It requires `category`:
+an archetype is offered UNDER categories, so with none there is nothing to check the assignment
+against.
+
+The pair is persisted on `application.programNameKey`, because the offers a stored application
+carries are the ones that survived it.
 
 ---
 

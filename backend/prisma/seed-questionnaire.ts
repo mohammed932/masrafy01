@@ -26,107 +26,28 @@ import {
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
   OBLIGATION_ITEM_QUESTION_CODES,
 } from '../src/matching/pipeline/money-field-bindings';
+// Weight sets are written by ONE routine, shared with `seed-scoring-weights`, and
+// scoped to the program-name catalog's question template (see that file's header).
+import {
+  NEUTRAL_SCORE,
+  SEED_ACTOR,
+  writeProgramWeightSets,
+  type SeedCategory,
+  type SeedNumericRules,
+  type SeedPoolFacts,
+} from './program-weight-sets';
 
 const prisma = new PrismaClient();
-const SEED_ACTOR = 'seed-system';
 
-/**
- * The fixed system staff account created by the `lead_management_activity`
- * migration, which `seed-demo` passes to `seedScoringWeights` as the editor id.
- */
-const SYSTEM_STAFF_ID = 'clsysactor00000000000000000000';
-
-/**
- * Every author that means "written by a seeder, safe to rewrite". Anything else in
- * `ScoringWeightSet.createdBy` is a real staff id from an admin's dashboard save.
- */
-const SEED_AUTHORS: ReadonlySet<string> = new Set([SEED_ACTOR, SYSTEM_STAFF_ID]);
-
-type Category = 'personal' | 'mortgage' | 'car' | 'business';
-
-/** Per-program multipliers applied to the seed `points` so programs rank differently. */
-const PROGRAM_POINT_MULTIPLIERS = [1.0, 0.85, 1.15, 0.95];
-
-/**
- * Neutral score (0–100) given to every answer of a non-financial / content
- * question (loan purpose, governorate, vehicle condition…). Flat → the question
- * contributes a constant, never unfairly ranking one applicant over another, but
- * it is never 0 so no answer reads as "0".
- */
-const NEUTRAL_SCORE = 50;
-
-/** Equal question weights summing to exactly 100 (remainder spread over the first
- *  questions). Every question gets a non-zero share; no per-question tuning. */
-function equalWeights(questionCodes: readonly string[]): Record<string, number> {
-  const out: Record<string, number> = {};
-  const n = questionCodes.length;
-  if (n === 0) return out;
-  const base = Math.floor(100 / n);
-  let remainder = 100 - base * n;
-  for (const code of questionCodes) {
-    out[code] = base + (remainder > 0 ? 1 : 0);
-    if (remainder > 0) remainder -= 1;
-  }
-  return out;
-}
-
-/**
- * Which direction a seeded NUMERIC question's bands run. Demo judgement only —
- * a bank sets its own bands in the scoring editor, and nothing in the engine
- * reads this map (Principle II: no per-bank branch in code). Keyed by the four
- * bound money codes; anything else defaults to "more is better".
- */
-const SEED_BAND_DIRECTIONS: Record<string, 'higher_better' | 'lower_better'> = {
-  [MONEY_FIELD_BINDINGS.monthly_income]: 'higher_better',
-  [MONEY_FIELD_BINDINGS.existing_obligations]: 'lower_better',
-  [MONEY_FIELD_BINDINGS.requested_amount]: 'lower_better',
-  [MONEY_FIELD_BINDINGS.tenor_months]: 'lower_better',
-};
-
-/** The three band scores, worst → best, before the per-program multiplier. */
-const SEED_BAND_SCORES = [25, 60, 100] as const;
-
-/**
- * Three gapless, half-open `[from, to)` bands for a NUMERIC question, split at
- * the thirds of its own published range. The first opens at −∞ and the last
- * closes at +∞, as `assertNumericBands` requires, so a value outside the
- * question's bounds still scores instead of falling through a hole.
- *
- * Without bounds to split there is nothing to band on, so the question gets one
- * flat band — it then contributes a constant rather than silently earning 0.
- */
-export function seedNumericBands(
-  questionCode: string,
-  numeric: SeedNumericRules | undefined,
-  multiplier: number,
-): { from: string | null; to: string | null; score: number }[] {
-  const scale = (score: number): number => Math.min(100, Math.max(1, Math.round(score * multiplier)));
-  const min = numeric?.minValue != null ? Number(numeric.minValue) : null;
-  const max = numeric?.maxValue != null ? Number(numeric.maxValue) : null;
-  if (min === null || max === null || !Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
-    return [{ from: null, to: null, score: scale(NEUTRAL_SCORE) }];
-  }
-  const third = (max - min) / 3;
-  const lowerEdge = Math.round(min + third);
-  const upperEdge = Math.round(min + third * 2);
-  const [worst, mid, best] =
-    SEED_BAND_DIRECTIONS[questionCode] === 'lower_better'
-      ? [...SEED_BAND_SCORES].reverse()
-      : SEED_BAND_SCORES;
-  return [
-    { from: null, to: String(lowerEdge), score: scale(worst!) },
-    { from: String(lowerEdge), to: String(upperEdge), score: scale(mid!) },
-    { from: String(upperEdge), to: null, score: scale(best!) },
-  ];
-}
+type Category = SeedCategory;
 
 // Active platform-enumeration members → seed options (code = enum key). Cached
 // per type so a category seed reads each list at most once.
 const _enumOptionsCache = new Map<string, SeedOption[]>();
-async function enumOptions(type: string): Promise<SeedOption[]> {
+async function enumOptions(type: string, client: PrismaClient): Promise<SeedOption[]> {
   const cached = _enumOptionsCache.get(type);
   if (cached) return cached;
-  const rows = await prisma.platformEnumeration.findMany({
+  const rows = await client.platformEnumeration.findMany({
     where: { type, active: true },
     orderBy: { sortOrder: 'asc' },
   });
@@ -147,9 +68,9 @@ async function enumOptions(type: string): Promise<SeedOption[]> {
 // bank renamed in the registry seeds a NEW option code and the old one simply
 // deactivates — stored answers keep pointing at the name that was picked.
 let _bankOptionsCache: SeedOption[] | null = null;
-async function bankOptions(): Promise<SeedOption[]> {
+async function bankOptions(client: PrismaClient): Promise<SeedOption[]> {
   if (_bankOptionsCache) return _bankOptionsCache;
-  const rows = await prisma.bank.findMany({
+  const rows = await client.bank.findMany({
     where: { isActive: true },
     orderBy: [{ displayOrder: 'asc' }, { nameEnglish: 'asc' }],
     select: { nameEnglish: true, nameArabic: true },
@@ -182,13 +103,6 @@ interface SeedOption {
   /** Seed-only desirability hint (0..100). Becomes the program's per-answer points. */
   points?: number;
 }
-interface SeedNumericRules {
-  minValue: string;
-  maxValue: string;
-  step?: string;
-  unitEn: string;
-  unitAr: string;
-}
 interface SeedQuestion {
   code: string;
   /** Defaults to SINGLE_SELECT. Feature 010: all four types are real. */
@@ -197,6 +111,11 @@ interface SeedQuestion {
   numeric?: SeedNumericRules;
   questionEn: string;
   questionAr: string;
+  /** Sub-label under the question. Authored where the figure asked for is not the
+   *  one the applicant would assume — e.g. a credit-card LIMIT rather than its
+   *  minimum payment, or a total that counts that limit at a discount. */
+  helperTextEn?: string;
+  helperTextAr?: string;
   isRequired?: boolean; // default true
   /** When set, options are expanded from the active `platform_enumeration`
    *  members of this type at seed time — single source of truth (e.g. governorate),
@@ -482,8 +401,14 @@ const MONEY_QUESTIONS: ReadonlyArray<{ groupCode: string; question: SeedQuestion
       // stays the single SCORED obligations question (a total is the only
       // meaningful thing to band — see the assignment filter further down).
       // Zero is legitimate ("I have none"), hence minValue 0.
-      questionEn: 'Your total monthly payments',
-      questionAr: 'إجمالي أقساطك الشهرية',
+      //
+      // "Commitments", not "payments": the credit-card part of this sum is 5% of
+      // a LIMIT, not a payment anyone makes, so the old label would have named the
+      // figure something it is not the moment a card is ticked.
+      questionEn: 'Your total monthly commitments',
+      questionAr: 'إجمالي التزاماتك الشهرية',
+      helperTextEn: 'Credit cards count as 5% of your total credit limit.',
+      helperTextAr: 'تحتسب البطاقات الائتمانية بنسبة 5% من إجمالي حدك الائتماني.',
       numeric: { minValue: '0', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
       options: [],
     },
@@ -521,17 +446,59 @@ const OBLIGATION_QUESTIONS: ReadonlyArray<{
 }> = [
   ...(
     [
-      ['car_loan', 'How much is your car loan each month?', 'كم قسط سيارتك شهريًا؟'],
-      [
-        'credit_cards',
-        'How much do you pay on your credit card each month?',
-        'كم تسدد على بطاقتك الائتمانية شهريًا؟',
-      ],
-      ['personal_loan', 'How much is your personal loan each month?', 'كم قسط قرضك الشخصي شهريًا؟'],
-      ['mortgage', 'How much is your mortgage each month?', 'كم قسط قرضك العقاري شهريًا؟'],
-      ['other', 'How much are your other payments each month?', 'كم إجمالي التزاماتك الأخرى شهريًا؟'],
-    ] as ReadonlyArray<readonly [keyof typeof OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE, string, string]>
-  ).map(([debtType, questionEn, questionAr]) => ({
+      {
+        debtType: 'car_loan',
+        questionEn: 'How much is your car loan each month?',
+        questionAr: 'كم قسط سيارتك شهريًا؟',
+      },
+      {
+        // The one entry that does NOT ask for an instalment. A card has no fixed
+        // monthly payment and an undrawn limit is money that can be drawn
+        // tomorrow, so the limit — summed across EVERY card the applicant holds,
+        // at every bank — is what the burden is derived from
+        // (`CREDIT_CARD_LIMIT_MONTHLY_PERCENT`). Both the question and the helper
+        // say "all", because a customer holding a CIB and a QNB card will
+        // otherwise state one of them.
+        debtType: 'credit_cards',
+        questionEn: 'What is the total credit limit of ALL your credit cards?',
+        questionAr: 'ما إجمالي الحد الائتماني لجميع بطاقاتك الائتمانية؟',
+        helperTextEn:
+          'Add up the limit on every card you hold, at every bank — not what you owe. '
+          + 'Example: a 100,000 card at CIB plus a 50,000 card at QNB is 150,000. '
+          + 'Banks count 5% of this total as a monthly commitment.',
+        helperTextAr:
+          'اجمع الحد الائتماني لكل بطاقة لديك في كل البنوك — وليس المبلغ المستخدم. '
+          + 'مثال: بطاقة بحد 100,000 في CIB مع بطاقة بحد 50,000 في QNB تساوي 150,000. '
+          + 'تحتسب البنوك 5% من هذا الإجمالي كالتزام شهري.',
+        // A limit is an order of magnitude above an instalment, so it needs its
+        // own ceiling: 5 000 000 of instalment is absurd, 5 000 000 of card limit
+        // across a portfolio is not.
+        maxValue: '20000000',
+      },
+      {
+        debtType: 'personal_loan',
+        questionEn: 'How much is your personal loan each month?',
+        questionAr: 'كم قسط قرضك الشخصي شهريًا؟',
+      },
+      {
+        debtType: 'mortgage',
+        questionEn: 'How much is your mortgage each month?',
+        questionAr: 'كم قسط قرضك العقاري شهريًا؟',
+      },
+      {
+        debtType: 'other',
+        questionEn: 'How much are your other payments each month?',
+        questionAr: 'كم إجمالي التزاماتك الأخرى شهريًا؟',
+      },
+    ] as ReadonlyArray<{
+      debtType: keyof typeof OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE;
+      questionEn: string;
+      questionAr: string;
+      helperTextEn?: string;
+      helperTextAr?: string;
+      maxValue?: string;
+    }>
+  ).map(({ debtType, questionEn, questionAr, helperTextEn, helperTextAr, maxValue }) => ({
     groupCode: 'commitments',
     categories: ['personal', 'mortgage', 'car', 'business'] as readonly Category[],
     question: {
@@ -539,12 +506,15 @@ const OBLIGATION_QUESTIONS: ReadonlyArray<{
       type: 'NUMERIC' as QuestionType,
       questionEn,
       questionAr,
+      helperTextEn,
+      helperTextAr,
       // Required, so ticking a type and leaving the amount blank is already
       // blocked by the wizard's own `canAdvance` — no extra gate needed.
       isRequired: true,
-      // minValue 0 because a card carried at a zero minimum payment is real. That
-      // is exactly why `hasCurrentLoan` is derived from the PICK, not the amount.
-      numeric: { minValue: '0', maxValue: '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
+      // minValue 0 because a card carried at a zero limit (or a loan at a zero
+      // instalment) is real. That is exactly why `hasCurrentLoan` is derived from
+      // the PICK, not the amount.
+      numeric: { minValue: '0', maxValue: maxValue ?? '5000000', unitEn: 'EGP', unitAr: 'جنيه' },
       enabledWhen: {
         questionCode: DEBT_TYPES_QUESTION_CODE,
         operator: 'equals' as const,
@@ -891,13 +861,34 @@ interface MergedQuestion {
   numeric?: SeedNumericRules;
   questionEn: string;
   questionAr: string;
+  helperTextEn?: string;
+  helperTextAr?: string;
   isRequired: boolean;
   enabledWhen?: SeedEnabledWhen;
   options: { code: string; labelEn: string; labelAr: string }[];
 }
 
-export async function seedQuestionnaire(): Promise<void> {
-  // ---- 1. Merge all four category configs into ONE global deduped pool ------
+/**
+ * The merged pool, plus everything a weight set is built from. Exported as one
+ * value so `seed-scoring-weights` can write catalog-scoped weights from the SAME
+ * authored option points this file publishes questions from — two copies of the
+ * desirability data is how the two seeders drifted apart in the first place.
+ */
+export interface SeedPool extends SeedPoolFacts {
+  groupOrder: string[];
+  groupByCode: Map<string, SeedGroup>;
+  questionOrder: string[];
+  questionByCode: Map<string, MergedQuestion>;
+  pointsByAnswer: Record<string, Record<string, number>>;
+  categoriesByQuestion: Record<string, Set<Category>>;
+}
+
+/**
+ * Steps 1–1d: merge the four category configs into ONE global deduped pool.
+ * Reads only (the bank + enumeration registries back some option lists); writes
+ * nothing, so it is safe to call on its own.
+ */
+export async function mergeSeedPool(client: PrismaClient = prisma): Promise<SeedPool> {
   // Feature 010: questions carry no category. Groups + questions dedupe by code
   // (first config wins for content; option sets are UNIONed by code). Each
   // question remembers which categories it appeared in, so a program can be
@@ -921,9 +912,9 @@ export async function seedQuestionnaire(): Promise<void> {
         if (SUPERSEDED_BUCKET_CODES.has(q.code)) continue;
         (categoriesByQuestion[q.code] ??= new Set()).add(cfg.category);
         const optionList = q.optionsFromBanks
-          ? await bankOptions()
+          ? await bankOptions(client)
           : q.optionsFromEnum
-            ? await enumOptions(q.optionsFromEnum)
+            ? await enumOptions(q.optionsFromEnum, client)
             : q.options;
         let mq = questionByCode.get(q.code);
         if (!mq) {
@@ -934,6 +925,8 @@ export async function seedQuestionnaire(): Promise<void> {
             ...(q.numeric ? { numeric: q.numeric } : {}),
             questionEn: q.questionEn,
             questionAr: q.questionAr,
+            ...(q.helperTextEn ? { helperTextEn: q.helperTextEn } : {}),
+            ...(q.helperTextAr ? { helperTextAr: q.helperTextAr } : {}),
             isRequired: q.isRequired ?? true,
             ...(q.enabledWhen ? { enabledWhen: q.enabledWhen } : {}),
             options: [],
@@ -971,6 +964,8 @@ export async function seedQuestionnaire(): Promise<void> {
       ...(question.numeric ? { numeric: question.numeric } : {}),
       questionEn: question.questionEn,
       questionAr: question.questionAr,
+      ...(question.helperTextEn ? { helperTextEn: question.helperTextEn } : {}),
+      ...(question.helperTextAr ? { helperTextAr: question.helperTextAr } : {}),
       isRequired: question.isRequired ?? true,
       options: [],
     });
@@ -1004,6 +999,8 @@ export async function seedQuestionnaire(): Promise<void> {
       ...(question.enabledWhen ? { enabledWhen: question.enabledWhen } : {}),
       questionEn: question.questionEn,
       questionAr: question.questionAr,
+      ...(question.helperTextEn ? { helperTextEn: question.helperTextEn } : {}),
+      ...(question.helperTextAr ? { helperTextAr: question.helperTextAr } : {}),
       isRequired: question.isRequired ?? true,
       // Same code fallback as the merge path: every option here pins its code
       // explicitly (it is a join key), but the seed type allows omission.
@@ -1036,6 +1033,13 @@ export async function seedQuestionnaire(): Promise<void> {
     .filter((code) => !obligationBlock.includes(code))
     .reduce((max, code) => Math.max(max, questionOrder.indexOf(code)), -1);
   questionOrder.splice(lastMoneyIndex + 1, 0, ...obligationBlock);
+
+  return { groupOrder, groupByCode, questionOrder, questionByCode, pointsByAnswer, categoriesByQuestion };
+}
+
+export async function seedQuestionnaire(): Promise<void> {
+  const pool = await mergeSeedPool(prisma);
+  const { groupOrder, groupByCode, questionOrder, questionByCode, categoriesByQuestion } = pool;
 
   // ---- 2. Upsert the global groups / questions / options (unique by code) ---
   const groupIdByCode = new Map<string, string>();
@@ -1072,17 +1076,23 @@ export async function seedQuestionnaire(): Promise<void> {
         ? (q.enabledWhen as unknown as Prisma.InputJsonValue)
         : Prisma.DbNull,
     };
+    // Authored data like the branch rule: written on every run (null when the seed
+    // dropped it) so a helper removed here also disappears from the row.
+    const helperColumns = {
+      helperTextEn: q.helperTextEn ?? null,
+      helperTextAr: q.helperTextAr ?? null,
+    };
     const question = await prisma.question.upsert({
       where: { code },
       update: {
         groupId: groupIdByCode.get(q.groupCode)!, questionEn: q.questionEn, questionAr: q.questionAr,
         displayOrder: qOrder, isRequired: q.isRequired, isActive: true,
-        ...typeColumns, ...branchColumn,
+        ...helperColumns, ...typeColumns, ...branchColumn,
       },
       create: {
         groupId: groupIdByCode.get(q.groupCode)!, code,
         questionEn: q.questionEn, questionAr: q.questionAr, displayOrder: qOrder, isRequired: q.isRequired,
-        ...typeColumns, ...branchColumn,
+        ...helperColumns, ...typeColumns, ...branchColumn,
       },
     });
     const optionCodes: string[] = [];
@@ -1123,106 +1133,48 @@ export async function seedQuestionnaire(): Promise<void> {
   // ---- 3. Publish ONE global snapshot ---------------------------------------
   await publishVersion();
 
-  // ---- 4. Per-program weight sets: each active program is pre-assigned the
-  //         questions from its OWN category (equal weights sum 100 + the rule
-  //         each type is scored by). Assignment = questionWeights keys. ---------
-  const programs = await prisma.bankProgram.findMany({
-    where: { active: true },
-    select: { id: true, programCode: true, productCategory: true },
-  });
-  let setCount = 0;
-  /** Programs whose ACTIVE weights an admin tuned — left untouched, reported below. */
-  const skippedTuned: string[] = [];
-  for (let i = 0; i < programs.length; i++) {
-    const p = programs[i]!;
-    const cat = p.productCategory.toLowerCase() as Category;
-    // EVERY type is assignable (Constitution V, v14.0.0). A choice question scores
-    // by option, a NUMERIC one by band, a TEXT one by presence — so the four money
-    // figures finally move the match instead of only pricing it. A choice question
-    // with no seeded option points is skipped: weighted-but-unscored is exactly
-    // what `WEIGHTS_MISSING_RULE` rejects.
-    const assigned = questionOrder.filter((qc) => {
-      if (!categoriesByQuestion[qc]?.has(cat)) return false;
-      // The per-debt AMOUNT questions are capture-only and must never be banded.
-      // Debt burden is only meaningful as a TOTAL: band each debt separately and
-      // one 5 000 car loan reads "high debt" once (a single low score) while three
-      // 1 700 debts read "low debt" three times (three high scores) — the same
-      // 5 000-ish burden scoring opposite ways, with the v13.0.0 asked-weight
-      // denominator shifting underneath it too. Only `current_installments`, the
-      // derived total, carries the obligations weight and bands.
-      if (OBLIGATION_ITEM_QUESTION_CODES.includes(qc as never)) return false;
-      const type = questionByCode.get(qc)?.type ?? 'SINGLE_SELECT';
-      if (type === 'SINGLE_SELECT' || type === 'MULTI_SELECT') {
-        return Object.keys(pointsByAnswer[qc] ?? {}).length > 0;
-      }
-      return true;
-    });
-    if (assigned.length === 0) continue; // no questions for this category → scores 0
-    const mult = PROGRAM_POINT_MULTIPLIERS[i % PROGRAM_POINT_MULTIPLIERS.length]!;
-    const questionWeights = equalWeights(assigned);
-    const answerScores: Record<string, Record<string, number>> = {};
-    const multiSelectRules: Record<string, { aggregation: 'AVERAGE' }> = {};
-    const numericBands: Record<string, { from: string | null; to: string | null; score: number }[]> =
-      {};
-    const textRules: Record<string, { answeredScore: number }> = {};
-    // Floor at 1 so a low base × low multiplier never rounds down to 0.
-    const scaled = (pts: number): number => Math.min(100, Math.max(1, Math.round(pts * mult)));
-    for (const qc of assigned) {
-      const q = questionByCode.get(qc);
-      const type = q?.type ?? 'SINGLE_SELECT';
-      if (type === 'SINGLE_SELECT' || type === 'MULTI_SELECT') {
-        answerScores[qc] = {};
-        for (const [oCode, pts] of Object.entries(pointsByAnswer[qc] ?? {})) {
-          answerScores[qc][oCode] = scaled(pts);
-        }
-        // AVERAGE keeps a multi-pick answer inside 0..100 and treats one pick the
-        // same way every other mode would; admins retune per question in the editor.
-        if (type === 'MULTI_SELECT') multiSelectRules[qc] = { aggregation: 'AVERAGE' };
-      } else if (type === 'NUMERIC') {
-        numericBands[qc] = seedNumericBands(qc, q?.numeric, mult);
-      } else {
-        textRules[qc] = { answeredScore: scaled(NEUTRAL_SCORE) };
-      }
-    }
-    const weights = { questionWeights, answerScores, multiSelectRules, numericBands, textRules };
-    const existingActive = await prisma.scoringWeightSet.findFirst({
-      where: { bankProgramId: p.id, status: 'ACTIVE' },
-      select: { id: true, createdBy: true, versionNumber: true },
-    });
-    if (existingActive) {
-      // Only ever rewrite a set a SEEDER authored. A set whose ACTIVE version an
-      // admin saved is hand-tuned by the banking expert through the dashboard, and
-      // re-running the seed to pick up a new QUESTION must not silently throw that
-      // tuning away — mutating an ACTIVE set in place is A33's first clause, and the
-      // seed has no more licence to do it than the app does.
-      //
-      // Matched on the AUTHOR, not the row: `seed-scoring-weights` creates the row
-      // as the system staff account while this seeder writes the bare `SEED_ACTOR`
-      // string, and this seeder used to overwrite the other's rows in place — so a
-      // row can carry either author and still be entirely seed-authored. An admin
-      // save goes through `saveWeights`, which stamps the real editor's staff id.
-      if (!SEED_AUTHORS.has(existingActive.createdBy)) {
-        skippedTuned.push(`${p.programCode} (v${existingActive.versionNumber})`);
-        continue;
-      }
-      await prisma.scoringWeightSet.update({ where: { id: existingActive.id }, data: { weights } });
-      setCount += 1;
-      continue;
-    }
-    const last = await prisma.scoringWeightSet.findFirst({ where: { bankProgramId: p.id }, orderBy: { versionNumber: 'desc' }, select: { versionNumber: true } });
-    await prisma.scoringWeightSet.create({
-      data: { bankProgramId: p.id, status: 'ACTIVE', versionNumber: (last?.versionNumber ?? 0) + 1, weights, createdBy: SEED_ACTOR, approvedBy: SEED_ACTOR, approvedAt: new Date() },
-    });
-    setCount += 1;
-  }
+  // ---- 4. Per-program weight sets ------------------------------------------
+  // WHICH questions each program scores on comes from the program-name CATALOG
+  // (`platform_enumeration_question`), not from the program's category: assigning
+  // every question the category asks is what left seeded programs weighting
+  // questions `ScoringService.assertWithinCatalogSet` then refused to re-save.
+  // Run `npm run seed:catalog` first — a name with no set for its category is
+  // reported here and left unscored, exactly as the save endpoint would treat it.
+  const result = await writeProgramWeightSets(prisma, pool, { editorId: SEED_ACTOR });
 
   console.log(
-    `seed-questionnaire: ${groupOrder.length} groups, ${questionOrder.length} questions (global), ${setCount} program weight sets.`,
+    `seed-questionnaire: ${groupOrder.length} groups, ${questionOrder.length} questions (global), ${result.written} program weight sets.`,
   );
-  if (skippedTuned.length > 0) {
+  reportWeightSetRun(result, 'seed-questionnaire');
+}
+
+/** Shared reporting for both entrypoints into `writeProgramWeightSets`. */
+export function reportWeightSetRun(
+  result: {
+    noCatalogSet: string[];
+    keptTuned: string[];
+    droppedPicks: string[];
+  },
+  label: string,
+): void {
+  if (result.noCatalogSet.length > 0) {
+    console.warn(
+      `${label}: ${result.noCatalogSet.length} program(s) scored NOTHING — the catalog has no question ` +
+        `set for their (program name, category): ${result.noCatalogSet.join(', ')}. ` +
+        `Set it in /program-catalog/:key, then re-run.`,
+    );
+  }
+  if (result.keptTuned.length > 0) {
     console.log(
-      `seed-questionnaire: kept admin-tuned ACTIVE weights for ${skippedTuned.length} program(s): ` +
-        `${skippedTuned.join(', ')}. Assign any NEW question to them in the scoring editor.`,
+      `${label}: kept admin-tuned ACTIVE weights for ${result.keptTuned.length} program(s): ` +
+        `${result.keptTuned.join(', ')}. Re-run with --force to rebuild them from the catalog ` +
+        `(the tuned version is archived, not lost).`,
+    );
+  }
+  if (result.droppedPicks.length > 0) {
+    console.warn(
+      `${label}: ${result.droppedPicks.length} catalog pick(s) dropped as unscoreable: ` +
+        `${result.droppedPicks.join(', ')}`,
     );
   }
 }

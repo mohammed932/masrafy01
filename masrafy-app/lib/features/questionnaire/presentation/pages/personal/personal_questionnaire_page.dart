@@ -13,14 +13,23 @@ import 'package:app/features/questionnaire/presentation/pages/personal/personal_
 /// is unchanged, so existing navigation and `router.gr.dart` stay valid.
 @RoutePage()
 class PersonalQuestionnairePage extends StatelessWidget {
-  const PersonalQuestionnairePage({super.key});
+  const PersonalQuestionnairePage({super.key, this.programNameKey});
+
+  /// Catalog program name picked on Home alongside the loan category. Carried
+  /// straight through to the apply request, which is what narrows the matched
+  /// programs to that archetype. Null when the catalog offers no name under
+  /// this category — the match then spans the whole category, as before.
+  final String? programNameKey;
 
   @override
   Widget build(BuildContext context) {
     return QuestionnaireView(
       category: LoanCategory.personal,
       buildRequest: (QuestionnaireState state) =>
-          mapPersonalAnswersToApplyRequest(state.visibleAnswers),
+          mapPersonalAnswersToApplyRequest(
+        state.visibleAnswers,
+        programNameKey: programNameKey,
+      ),
     );
   }
 }

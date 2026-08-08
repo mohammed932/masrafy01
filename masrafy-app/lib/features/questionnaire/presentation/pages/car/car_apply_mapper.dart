@@ -14,7 +14,10 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// null — the results cubit fills it from the profile (`/auth/me`).
 ///
 /// Codes mirror `backend/prisma/seed-questionnaire.ts`.
-ApplyRequest mapCarAnswersToApplyRequest(Map<String, QuestionAnswer> answers) {
+ApplyRequest mapCarAnswersToApplyRequest(
+  Map<String, QuestionAnswer> answers, {
+  String? programNameKey,
+}) {
   final money = MoneyFigures.fromAnswers(answers);
   final employmentCode = pickedOption(answers, 'employment_status');
   final employmentType =
@@ -51,6 +54,7 @@ ApplyRequest mapCarAnswersToApplyRequest(Map<String, QuestionAnswer> answers) {
       downPaymentEGP: egp(downPayment),
     ),
     category: 'car',
+    programNameKey: programNameKey,
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }

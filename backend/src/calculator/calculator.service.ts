@@ -10,7 +10,8 @@
  *
  * The affordability answer is the reverse annuity:
  *
- *   maxInstallment = income × dbrCap ÷ 100 − existing obligations
+ *   obligations    = stated monthly obligations + 5% × total credit-card limit
+ *   maxInstallment = income × dbrCap ÷ 100 − obligations
  *   maxLoan        = maxInstallment × (1 − (1+r)⁻ⁿ) ÷ r        (r = APR ÷ 12)
  *
  * Persists nothing (Principle X — read-only, no repository writes).
@@ -23,6 +24,10 @@ import { BankProgramRepository } from '@/bank-programs/bank-programs.repository'
 import { toBankProgramSnapshot } from '@/bank-programs/bank-program-snapshot.mapper';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
+import {
+  CREDIT_CARD_DEBT_TYPE_OPTION,
+  obligationMonthlyAmountFor,
+} from '@/matching/pipeline/money-field-bindings';
 import { quoteProgram } from '@/matching/pipeline/quote';
 import type { ApplicantProfile, BankProgramSnapshot, Quote } from '@/matching/types';
 import {
@@ -119,9 +124,15 @@ export class CalculatorService {
     isRepresentativeRate: boolean,
   ): AffordabilityQuoteResponseDto {
     const income = new Decimal(this.required(dto.monthlyIncomeEGP, 'monthlyIncomeEGP'));
-    const obligations = new Decimal(
-      this.required(dto.existingObligationsEGP, 'existingObligationsEGP'),
+    const stated = new Decimal(this.required(dto.existingObligationsEGP, 'existingObligationsEGP'));
+    // Cards are stated as a limit and discounted here by the SAME constant the
+    // questionnaire path uses, so the calculator and the offer cards cannot answer
+    // the same person differently.
+    const creditCardMonthly = obligationMonthlyAmountFor(
+      CREDIT_CARD_DEBT_TYPE_OPTION,
+      new Decimal(dto.creditCardTotalLimitEGP ?? 0),
     );
+    const obligations = stated.plus(creditCardMonthly);
 
     // Price at the program ceiling and let the DBR reduction find the answer:
     // whatever the engine would offer someone asking for the maximum IS the
@@ -154,6 +165,7 @@ export class CalculatorService {
         effectiveRatePercent: this.representativeRate(program).toFixed(4),
         recognisedIncomeEGP: (u.recognisedIncomeEGP ?? income).toFixed(2),
         existingObligationsEGP: obligations.toFixed(2),
+        creditCardMonthlyEGP: creditCardMonthly.toFixed(2),
         dbrCapPercent: cap.toFixed(4),
         dbrBandIndex: u.dbrBandIndex ?? null,
         maxMonthlyInstallmentEGP: this.maxInstallment(income, cap, obligations).toFixed(2),
@@ -173,6 +185,7 @@ export class CalculatorService {
       effectiveRatePercent: quote.effectiveRatePercent.toFixed(4),
       recognisedIncomeEGP: quote.recognisedIncomeEGP.toFixed(2),
       existingObligationsEGP: obligations.toFixed(2),
+      creditCardMonthlyEGP: creditCardMonthly.toFixed(2),
       dbrCapPercent: quote.dbrCapPercent.toFixed(4),
       dbrBandIndex: quote.dbrBandIndex,
       maxMonthlyInstallmentEGP: this.maxInstallment(

@@ -616,6 +616,31 @@ type TypeFilter = QuestionType | 'ALL';
                 placeholder="مثال: ما هو دخلك الشهري؟"
               />
             </label>
+            <!-- Optional sub-label. It carries the sentence that stops a figure
+                 being misread — the credit-card question asks for a total LIMIT
+                 across every card, which an applicant answers with a balance
+                 unless the prompt says otherwise, and a wrong figure there moves
+                 the DBR. -->
+            <label class="field">
+              <span class="lbl" i18n="@@qedit.helper_en">Helper text (English)</span>
+              <input
+                nz-input
+                formControlName="helperTextEn"
+                placeholder="e.g. Add up the limit on every card, not what you owe."
+              />
+            </label>
+            <label class="field">
+              <span class="lbl" i18n="@@qedit.helper_ar">نص مساعد (عربي)</span>
+              <input
+                nz-input
+                formControlName="helperTextAr"
+                dir="rtl"
+                placeholder="مثال: اجمع الحد الائتماني لكل بطاقة، وليس المبلغ المستخدم."
+              />
+            </label>
+            <p class="hint" i18n="@@qedit.helper_hint">
+              Shown under the question in the app. Leave both empty for no sub-label.
+            </p>
 
             <p class="section-lbl" i18n="@@qedit.sec_answer">Answer type</p>
             <!-- Typed reactive control, not ngModel (Principle XXII / A16).
@@ -2214,6 +2239,10 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly questionForm = new FormGroup({
     questionEn: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     questionAr: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    // Optional both sides: most questions read fine without one, and an empty
+    // string is the CLEAR signal on update rather than "leave as it was".
+    helperTextEn: new FormControl('', { nonNullable: true }),
+    helperTextAr: new FormControl('', { nonNullable: true }),
     isRequired: new FormControl(true, { nonNullable: true }),
     /** Typed reactive control (Principle XXII) — the radiogroup writes to this. */
     type: new FormControl<QuestionType>('SINGLE_SELECT', { nonNullable: true }),
@@ -2424,6 +2453,8 @@ export class QuestionnaireEditorPage implements OnInit {
     this.questionForm.reset({
       questionEn: q.questionEn,
       questionAr: q.questionAr,
+      helperTextEn: q.helperTextEn ?? '',
+      helperTextAr: q.helperTextAr ?? '',
       isRequired: q.isRequired,
       type: q.type,
       numeric: {
@@ -2452,6 +2483,8 @@ export class QuestionnaireEditorPage implements OnInit {
     this.questionForm.reset({
       questionEn: '',
       questionAr: '',
+      helperTextEn: '',
+      helperTextAr: '',
       isRequired: true,
       type: 'SINGLE_SELECT',
       numeric: { minValue: '', maxValue: '', step: '', unitEn: '', unitAr: '' },
@@ -2584,6 +2617,10 @@ export class QuestionnaireEditorPage implements OnInit {
       await this.api.updateQuestion(id, {
         questionEn: v.questionEn,
         questionAr: v.questionAr,
+        // Always sent, empty included: an emptied box must CLEAR the sub-label,
+        // which omitting the key would silently decline to do.
+        helperTextEn: v.helperTextEn.trim(),
+        helperTextAr: v.helperTextAr.trim(),
         isRequired: v.isRequired,
         enabledWhen: branch,
         ...rules,
@@ -2596,6 +2633,8 @@ export class QuestionnaireEditorPage implements OnInit {
     const created = await this.api.createQuestion({
       questionEn: v.questionEn,
       questionAr: v.questionAr,
+      ...(v.helperTextEn.trim() ? { helperTextEn: v.helperTextEn.trim() } : {}),
+      ...(v.helperTextAr.trim() ? { helperTextAr: v.helperTextAr.trim() } : {}),
       isRequired: v.isRequired,
       type: v.type,
       ...(branch ? { enabledWhen: branch } : {}),

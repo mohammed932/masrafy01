@@ -138,6 +138,44 @@ describe('CalculatorService — affordability', () => {
     expect(data.programCode).toBeUndefined();
     expect(data.disclaimerCode).toBe('INDICATIVE_ESTIMATE_NOT_AN_OFFER');
   });
+
+  /**
+   * Cards reach the calculator as a LIMIT, discounted by the same constant the
+   * questionnaire path uses — otherwise the calculator and the offer cards would
+   * answer the same person differently, which is the one thing this endpoint
+   * shares `quoteProgram` to avoid.
+   */
+  it('counts 5% of the stated total card limit as a monthly commitment', async () => {
+    const data = await quoteAffordability(
+      affordability({ existingObligationsEGP: '30000.00', creditCardTotalLimitEGP: '150000.00' }),
+    );
+
+    // 30 000 stated + 7 500 notional = 37 500 measured against a 60 000 allowance.
+    expect(data.creditCardMonthlyEGP).toBe('7500.00');
+    expect(data.existingObligationsEGP).toBe('37500.00');
+    expect(data.maxMonthlyInstallmentEGP).toBe('22500.00');
+  });
+
+  it('treats an omitted card limit as no cards, not as a missing input', async () => {
+    const data = await quoteAffordability(affordability());
+
+    expect(data.creditCardMonthlyEGP).toBe('0.00');
+    expect(data.existingObligationsEGP).toBe('40000.00');
+    expect(data.maxMonthlyInstallmentEGP).toBe('20000.00');
+  });
+
+  it('shrinks the borrowable amount when a card limit is added', async () => {
+    const withoutCards = await quoteAffordability(affordability());
+    const withCards = await quoteAffordability(
+      affordability({ creditCardTotalLimitEGP: '150000.00' }),
+    );
+
+    expect(
+      new Decimal(withCards.maxAffordableAmountEGP).lessThan(
+        new Decimal(withoutCards.maxAffordableAmountEGP),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe('CalculatorService — cost', () => {

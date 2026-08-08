@@ -72,6 +72,12 @@ export const ERROR_CODES = {
   // --- Platform enumerations (feature 006) ---
   ENUMERATION_KEY_DUPLICATE: 'ENUMERATION_KEY_DUPLICATE',
   ENUMERATION_SYSTEM_ONLY: 'ENUMERATION_SYSTEM_ONLY',
+  /** Loan categories were submitted for an enumeration type that has no such axis. */
+  ENUMERATION_CATEGORIES_NOT_APPLICABLE: 'ENUMERATION_CATEGORIES_NOT_APPLICABLE',
+  /** A question template was submitted for an enumeration type that has no such axis. */
+  ENUMERATION_QUESTIONS_NOT_APPLICABLE: 'ENUMERATION_QUESTIONS_NOT_APPLICABLE',
+  /** A catalog question template named codes that are in no question, active or not. */
+  ENUMERATION_QUESTION_UNKNOWN: 'ENUMERATION_QUESTION_UNKNOWN',
 
   // --- User proceed (feature 008) ---
   BANK_OFFER_NOT_FOUND: 'BANK_OFFER_NOT_FOUND',
@@ -189,6 +195,16 @@ export const ERROR_CODES = {
   WEIGHTS_NUMERIC_BANDS_INVALID: 'WEIGHTS_NUMERIC_BANDS_INVALID',
   /** A rule block on a question of the wrong type, or an unknown aggregation. */
   WEIGHTS_RULE_TYPE_MISMATCH: 'WEIGHTS_RULE_TYPE_MISMATCH',
+  /**
+   * A weighted question is not in the program's catalog set — the questions a
+   * `program_name` scores on under this loan category (`/program-catalog/:key`).
+   * Every bank program sharing a catalog name scores on the SAME questions and
+   * differs only in weights, so the question set is not the bank program's to
+   * choose. Also raised when the program has no `programNameKey` at all (nothing
+   * to scope by) or the catalog set for its category is empty: the meta carries
+   * `programNameKey` + `allowedQuestionCodes` so the admin screen can say which.
+   */
+  WEIGHTS_QUESTION_NOT_IN_CATALOG: 'WEIGHTS_QUESTION_NOT_IN_CATALOG',
 
   // --- Feature 010 — simple program setup, banded DBR & calculator ---
   // Banded DBR + program ranges (admin)
@@ -197,6 +213,13 @@ export const ERROR_CODES = {
   PROGRAM_RANGE_INVALID: 'PROGRAM_RANGE_INVALID',
   /** Bank program named something outside the predefined `program_name` catalog. */
   PROGRAM_NAME_KEY_UNKNOWN: 'PROGRAM_NAME_KEY_UNKNOWN',
+  /**
+   * The catalog name exists and is live, but is not assigned to the loan
+   * category the program is being saved under (Program catalog → Loan
+   * categories). `meta.assignedCategories` is the set it IS offered under —
+   * empty means the name is parked.
+   */
+  PROGRAM_NAME_KEY_NOT_IN_CATEGORY: 'PROGRAM_NAME_KEY_NOT_IN_CATEGORY',
   // Typed questions + typed answers
   ANSWER_TYPE_MISMATCH: 'ANSWER_TYPE_MISMATCH',
   ANSWER_OUT_OF_RANGE: 'ANSWER_OUT_OF_RANGE',
@@ -294,6 +317,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
 
   ENUMERATION_KEY_DUPLICATE: 409,
   ENUMERATION_SYSTEM_ONLY: 403,
+  ENUMERATION_CATEGORIES_NOT_APPLICABLE: 422,
+  ENUMERATION_QUESTIONS_NOT_APPLICABLE: 422,
+  ENUMERATION_QUESTION_UNKNOWN: 422,
 
   BANK_NOT_FOUND: 404,
   BANK_NAME_DUPLICATE: 409,
@@ -382,11 +408,13 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   WEIGHTS_MISSING_RULE: 422,
   WEIGHTS_NUMERIC_BANDS_INVALID: 422,
   WEIGHTS_RULE_TYPE_MISMATCH: 422,
+  WEIGHTS_QUESTION_NOT_IN_CATALOG: 422,
 
   DBR_BANDS_INVALID: 422,
   DBR_BAND_CAP_OUT_OF_RANGE: 422,
   PROGRAM_RANGE_INVALID: 422,
   PROGRAM_NAME_KEY_UNKNOWN: 422,
+  PROGRAM_NAME_KEY_NOT_IN_CATEGORY: 422,
   ANSWER_TYPE_MISMATCH: 400,
   ANSWER_OUT_OF_RANGE: 400,
   ANSWER_TOO_LONG: 400,

@@ -16,16 +16,24 @@
  * obligations weight. These tests pin both halves: the sum is right, and the
  * scored figure is identical for two applicants with the same burden split
  * differently.
+ *
+ * Four of the five questions state an instalment. The fifth — credit cards —
+ * states a total LIMIT instead, discounted to a monthly burden by
+ * `CREDIT_CARD_LIMIT_MONTHLY_PERCENT`; that conversion has its own block below.
  */
 import { describe, expect, it } from 'vitest';
 import { Decimal } from '@prisma/client/runtime/library';
 import {
+  CREDIT_CARD_DEBT_TYPE_OPTION,
+  CREDIT_CARD_LIMIT_MONTHLY_PERCENT,
+  CREDIT_CARD_LIMIT_QUESTION_CODE,
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
   MONEY_FIELD_BINDINGS,
   OBLIGATION_ITEM_QUESTION_BY_DEBT_TYPE,
   OBLIGATION_ITEM_QUESTION_CODES,
   obligationItemQuestionFor,
+  obligationMonthlyAmountFor,
   resolveObligations,
 } from '@/matching/pipeline/money-field-bindings';
 import {
@@ -46,16 +54,16 @@ describe('resolveObligations — the sum', () => {
     const resolved = resolveObligations({
       numericByCode: numericAnswers({
         [ITEM.car_loan]: '2000.00',
-        [ITEM.credit_cards]: '500.00',
+        [ITEM.mortgage]: '500.00',
         // Answered earlier, then the type was un-ticked. Must NOT count.
         [ITEM.personal_loan]: '9999.00',
       }),
-      pickedDebtTypes: ['car_loan', 'credit_cards'],
+      pickedDebtTypes: ['car_loan', 'mortgage'],
     });
 
     expect(resolved?.totalEGP.toFixed(2)).toBe('2500.00');
     expect(resolved?.itemised).toBe(true);
-    expect(resolved?.itemisedCodes).toEqual([ITEM.car_loan, ITEM.credit_cards]);
+    expect(resolved?.itemisedCodes).toEqual([ITEM.car_loan, ITEM.mortgage]);
   });
 
   it('treats an explicit "none" pick as a stated zero, not as a missing figure', () => {
@@ -73,8 +81,8 @@ describe('resolveObligations — the sum', () => {
   });
 
   it('derives hasCurrentLoan from the PICK, not from the amount', () => {
-    // A credit card carried at a zero minimum payment is still a loan on book.
-    // The old `total > 0` derivation could never express that.
+    // A card the applicant holds but has no limit left on is still a facility on
+    // book. The old `total > 0` derivation could never express that.
     const resolved = resolveObligations({
       numericByCode: numericAnswers({ [ITEM.credit_cards]: '0.00' }),
       pickedDebtTypes: ['credit_cards'],
@@ -119,12 +127,12 @@ describe('resolveObligations — the stated total is cross-checked, never prefer
     const resolved = resolveObligations({
       numericByCode: numericAnswers({
         [ITEM.car_loan]: '2000.00',
-        [ITEM.credit_cards]: '500.00',
+        [ITEM.mortgage]: '500.00',
         // A tampered or stale client: the total is computed, not typed, so this
         // cannot be a user slip.
         [MONEY_FIELD_BINDINGS.existing_obligations]: '100.00',
       }),
-      pickedDebtTypes: ['car_loan', 'credit_cards'],
+      pickedDebtTypes: ['car_loan', 'mortgage'],
     });
 
     // The SUM stands regardless — editing the total must not buy affordability.
@@ -138,10 +146,10 @@ describe('resolveObligations — the stated total is cross-checked, never prefer
     const resolved = resolveObligations({
       numericByCode: numericAnswers({
         [ITEM.car_loan]: '2000.00',
-        [ITEM.credit_cards]: '500.00',
+        [ITEM.mortgage]: '500.00',
         [MONEY_FIELD_BINDINGS.existing_obligations]: '2500.00',
       }),
-      pickedDebtTypes: ['car_loan', 'credit_cards'],
+      pickedDebtTypes: ['car_loan', 'mortgage'],
     });
 
     expect(resolved?.statedTotalMismatch).toBeNull();
@@ -151,13 +159,98 @@ describe('resolveObligations — the stated total is cross-checked, never prefer
     const resolved = resolveObligations({
       numericByCode: numericAnswers({
         [ITEM.car_loan]: '1000.01',
-        [ITEM.credit_cards]: '500.00',
+        [ITEM.mortgage]: '500.00',
         [MONEY_FIELD_BINDINGS.existing_obligations]: '1500.00',
+      }),
+      pickedDebtTypes: ['car_loan', 'mortgage'],
+    });
+
+    expect(resolved?.statedTotalMismatch).toBeNull();
+  });
+});
+
+describe('credit cards state a LIMIT, and only a share of it is a monthly burden', () => {
+  /**
+   * A card has no fixed instalment and an undrawn limit is money the applicant can
+   * draw tomorrow, so the whole portfolio limit is stated and discounted. These
+   * tests pin the two halves that can silently go wrong: the discount is applied
+   * (or the applicant's affordability collapses under a limit counted in full),
+   * and it is applied to CARDS ONLY (or every real instalment shrinks to 5%).
+   */
+  it('converts the stated total limit at the platform percentage', () => {
+    // The worked example: a 100 000 card at one bank plus a 50 000 card at
+    // another is stated as one 150 000 figure, and 5% of it is 7 500 a month.
+    const resolved = resolveObligations({
+      numericByCode: numericAnswers({ [ITEM.credit_cards]: '150000.00' }),
+      pickedDebtTypes: ['credit_cards'],
+    });
+
+    expect(resolved?.totalEGP.toFixed(2)).toBe('7500.00');
+    expect(resolved?.hasCurrentLoan).toBe(true);
+  });
+
+  it('never counts the limit in full', () => {
+    // The regression this conversion exists to prevent: 150 000 of obligation
+    // against any realistic salary leaves no DBR room at all, so the applicant
+    // would see every program as unaffordable.
+    const resolved = resolveObligations({
+      numericByCode: numericAnswers({ [ITEM.credit_cards]: '150000.00' }),
+      pickedDebtTypes: ['credit_cards'],
+    });
+
+    expect(resolved?.totalEGP.lessThan(new Decimal('150000'))).toBe(true);
+  });
+
+  it('adds the card share alongside real instalments', () => {
+    const resolved = resolveObligations({
+      numericByCode: numericAnswers({
+        [ITEM.car_loan]: '2000.00',
+        [ITEM.credit_cards]: '150000.00',
       }),
       pickedDebtTypes: ['car_loan', 'credit_cards'],
     });
 
-    expect(resolved?.statedTotalMismatch).toBeNull();
+    // 2 000 instalment + 7 500 notional. The car loan is NOT discounted.
+    expect(resolved?.totalEGP.toFixed(2)).toBe('9500.00');
+  });
+
+  it('discounts cards and nothing else', () => {
+    const stated = new Decimal('150000.00');
+    expect(obligationMonthlyAmountFor(CREDIT_CARD_DEBT_TYPE_OPTION, stated).toFixed(2)).toBe(
+      '7500.00',
+    );
+    for (const debtType of ['car_loan', 'personal_loan', 'mortgage', 'other']) {
+      expect(obligationMonthlyAmountFor(debtType, stated).toFixed(2)).toBe('150000.00');
+    }
+  });
+
+  it('passes an unmapped debt type through at face value rather than dropping it', () => {
+    // A new option added to the multi-select before this map is updated must not
+    // silently vanish from the DBR.
+    expect(obligationMonthlyAmountFor('student_loan', new Decimal('500')).toFixed(2)).toBe('500.00');
+  });
+
+  it('rounds the share away from zero on a half, matching the clients', () => {
+    // Dart's `toStringAsFixed` and JS's `toFixed` both round a half away from
+    // zero. Banker's rounding here would land one cent under the figure the app
+    // computed and fail `OBLIGATIONS_TOTAL_MISMATCH` on a figure nobody typed.
+    // 100.10 × 5% = 5.005.
+    const share = obligationMonthlyAmountFor(CREDIT_CARD_DEBT_TYPE_OPTION, new Decimal('100.10'));
+    expect(share.toFixed(2)).toBe('5.01');
+  });
+
+  it('routes the credit-card pick at the LIMIT question, not the retired instalment one', () => {
+    expect(obligationItemQuestionFor(CREDIT_CARD_DEBT_TYPE_OPTION)).toBe(
+      CREDIT_CARD_LIMIT_QUESTION_CODE,
+    );
+    // The pre-limit question is retired: leaving it mapped would ask for a
+    // payment and then discount it by 95%.
+    expect(OBLIGATION_ITEM_QUESTION_CODES).not.toContain('obligation_credit_card');
+  });
+
+  it('keeps the discount a percentage of the limit, in Decimal', () => {
+    // Guards against the constant being re-expressed as a 0.05 float factor.
+    expect(CREDIT_CARD_LIMIT_MONTHLY_PERCENT.toFixed(2)).toBe('5.00');
   });
 });
 
@@ -213,10 +306,10 @@ describe('the scoring trap — burden is scored as a TOTAL, never per debt', () 
     const threeSmallDebts = scoreFor(
       {
         [ITEM.car_loan]: '1700.00',
-        [ITEM.credit_cards]: '1700.00',
+        [ITEM.mortgage]: '1700.00',
         [ITEM.personal_loan]: '1700.00',
       },
-      ['car_loan', 'credit_cards', 'personal_loan'],
+      ['car_loan', 'mortgage', 'personal_loan'],
     );
 
     // Same 5 100 burden → same band → same score, however it is split. Had the
@@ -228,7 +321,7 @@ describe('the scoring trap — burden is scored as a TOTAL, never per debt', () 
 
   it('still separates a genuinely lighter burden from a heavier one', () => {
     // The guard above must not be achieved by making obligations stop mattering.
-    const light = scoreFor({ [ITEM.credit_cards]: '400.00' }, ['credit_cards']);
+    const light = scoreFor({ [ITEM.personal_loan]: '400.00' }, ['personal_loan']);
     const heavy = scoreFor({ [ITEM.car_loan]: '7000.00' }, ['car_loan']);
 
     expect(light).toBeGreaterThan(heavy);
@@ -241,7 +334,9 @@ describe('the scoring trap — burden is scored as a TOTAL, never per debt', () 
     const fiveDebts = scoreFor(
       {
         [ITEM.car_loan]: '200.00',
-        [ITEM.credit_cards]: '200.00',
+        // A LIMIT, chosen so its 5% share is the same 200 as the instalments —
+        // the point of the test is the denominator, not the numerator.
+        [ITEM.credit_cards]: '4000.00',
         [ITEM.personal_loan]: '200.00',
         [ITEM.mortgage]: '200.00',
         [ITEM.other]: '200.00',
@@ -284,9 +379,9 @@ describe('Decimal discipline (Principle I)', () => {
     const resolved = resolveObligations({
       numericByCode: numericAnswers({
         [ITEM.car_loan]: '0.10',
-        [ITEM.credit_cards]: '0.20',
+        [ITEM.personal_loan]: '0.20',
       }),
-      pickedDebtTypes: ['car_loan', 'credit_cards'],
+      pickedDebtTypes: ['car_loan', 'personal_loan'],
     });
 
     // 0.1 + 0.2 in binary floating point is 0.30000000000000004.

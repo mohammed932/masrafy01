@@ -18,6 +18,7 @@ import {
   InvalidVariableRateConfigurationException,
   NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
+  ProgramNameKeyNotInCategoryException,
   ProgramNameKeyUnknownException,
   QualitativeReviewCeilingBelowBaseException,
   UnknownEnumerationKeyException,
@@ -184,8 +185,15 @@ export class BankProgramsService {
 
     // A copy stays the same archetype unless the admin re-classifies it. A
     // pre-catalog source has no archetype, so duplicating it forces a choice.
+    // A copy inherits `source.productCategory` (below), so that is the category
+    // the possibly-new name has to be assigned to. `DuplicateBankProgramDto`
+    // carries no category of its own.
     const programNameKey = dto.programNameKey ?? source.programNameKey ?? '';
-    await this.assertProgramNameKey(programNameKey);
+    await this.assertProgramNameKey(programNameKey, source.productCategory, {
+      // Same grandfather rule as `update()`: a straight copy that keeps the
+      // source's name and category is not moving anything.
+      skipProgramNameCategoryCheck: programNameKey === source.programNameKey,
+    });
 
     const program = await this.prisma.$transaction(async (tx) => {
       const created = await this.repo.create(
@@ -264,9 +272,10 @@ export class BankProgramsService {
 
   private async runCrossConfigChecks(
     dto: CreateBankProgramDto | UpdateBankProgramDto,
+    opts: { skipProgramNameCategoryCheck?: boolean } = {},
   ): Promise<void> {
     // A program names one predefined program from the catalog, never free text.
-    await this.assertProgramNameKey(dto.programNameKey);
+    await this.assertProgramNameKey(dto.programNameKey, dto.productCategory, opts);
 
     // FR-011a — variable-rate consistency.
     const { isVariableRate, baseRatePercent, currentEffectiveRatePercent } = dto.pricing;
@@ -385,13 +394,36 @@ export class BankProgramsService {
 
   /**
    * `programNameKey` MUST name a live member of the `program_name` catalog
-   * (Manage values → Program names). Kept out of `validateAgainstRegistry` on
-   * purpose: that helper collapses every miss into the generic
-   * `UNKNOWN_ENUMERATION_KEY`, and this one deserves its own code so the admin
-   * form can point at the catalog page.
+   * (Program catalog → Programs) AND that name must be assigned to the loan
+   * category the program is being saved under (Program catalog → Loan
+   * categories). Kept out of `validateAgainstRegistry` on purpose: that helper
+   * collapses every miss into the generic `UNKNOWN_ENUMERATION_KEY`, and these
+   * deserve their own codes so the admin form can point at the right page.
+   *
+   * Check order is deliberate: unknown and deprecated both win over
+   * not-in-category. Telling an operator a name "isn't offered under Mortgage"
+   * when the name no longer exists at all sends them to the wrong screen.
    */
-  private async assertProgramNameKey(programNameKey: string): Promise<void> {
-    if (await this.enums.isActiveMember('program_name', programNameKey)) return;
+  private async assertProgramNameKey(
+    programNameKey: string,
+    productCategory: string,
+    opts: { skipProgramNameCategoryCheck?: boolean } = {},
+  ): Promise<void> {
+    if (await this.enums.isActiveMember('program_name', programNameKey)) {
+      // Grandfathered: the pair is unchanged, so this save is not MOVING the
+      // program into an unassigned pair — it is editing a rate or a fee on a
+      // program that already sits there. Blocking it would mean an operator's
+      // catalog edit silently freezes unrelated programs (`update()` is a
+      // full-replacement PUT, so every save re-runs every check).
+      if (opts.skipProgramNameCategoryCheck) return;
+      const assigned = await this.enums.memberCategories('program_name', programNameKey);
+      if ((assigned as readonly string[]).includes(productCategory)) return;
+      throw new ProgramNameKeyNotInCategoryException({
+        programNameKey,
+        productCategory,
+        assignedCategories: [...assigned],
+      });
+    }
     if (await this.enums.isDeprecatedMember('program_name', programNameKey)) {
       throw new DeprecatedEnumerationKeyException({
         enumerationType: 'program_name',
@@ -515,12 +547,20 @@ export class BankProgramsService {
     if (!(await this.enums.isAvailable())) {
       throw new EnumerationRegistryUnavailableException();
     }
-    await this.runCrossConfigChecks(dto);
 
+    // Fetched BEFORE the cross-config pass so the catalog-assignment check can
+    // be skipped when the (name, category) pair is untouched — see
+    // `assertProgramNameKey`. The rule is "you may not MOVE a program into an
+    // unassigned pair", not "you may not save one that is already there".
     const existing = await this.repo.findByProgramCode(programCode);
     if (!existing) {
       throw new BankProgramNotFoundException({ programCode });
     }
+    await this.runCrossConfigChecks(dto, {
+      skipProgramNameCategoryCheck:
+        dto.programNameKey === existing.programNameKey &&
+        dto.productCategory === existing.productCategory,
+    });
 
     // FR-019 — programCode immutable; ignore any submitted change.
     const before = existing;

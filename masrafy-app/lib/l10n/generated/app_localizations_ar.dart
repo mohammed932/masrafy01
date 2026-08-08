@@ -291,6 +291,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get match_program_no_longer_matches => 'هذا العرض لم يعد متاحًا لإجاباتك.';
 
   @override
+  String get match_program_name_key_unknown => 'هذا البرنامج لم يعد متاحًا. اختر برنامجًا آخر.';
+
+  @override
+  String get match_program_name_not_in_category => 'هذا البرنامج غير متاح لهذا النوع من التمويل. اختر برنامجًا آخر.';
+
+  @override
   String get questionnaire_form_title => 'أخبرنا عن قرضك';
 
   @override
@@ -616,6 +622,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get home_loan_types => 'أنواع القروض';
+
+  @override
+  String get home_program_label => 'برنامج التمويل';
+
+  @override
+  String get home_program_hint => 'اختر البرنامج';
+
+  @override
+  String get home_program_search_hint => 'ابحث عن برنامج';
 
   @override
   String get home_continue => 'متابعة';
@@ -1653,6 +1668,15 @@ class AppLocalizationsAr extends AppLocalizations {
   String get results_amount => 'المبلغ';
 
   @override
+  String get results_requested => 'المبلغ المطلوب';
+
+  @override
+  String get results_requested_duration => 'المدة المطلوبة';
+
+  @override
+  String get results_approved_amount => 'المبلغ المعتمد';
+
+  @override
   String results_amount_egp(String amount) {
     return '$amount ج.م';
   }
@@ -1755,6 +1779,15 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get offer_total_interest => 'إجمالي الفائدة';
+
+  @override
+  String get offer_total_interest_caption => 'فائدة على مدة القرض';
+
+  @override
+  String get offer_cash_received => 'المبلغ اللي هتستلمه';
+
+  @override
+  String get offer_cash_received_caption => 'بعد خصم الرسوم';
 
   @override
   String get offer_egp_extra => 'ج.م إضافية';

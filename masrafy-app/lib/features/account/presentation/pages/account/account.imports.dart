@@ -6,7 +6,6 @@ import 'package:gap/gap.dart';
 import 'package:app/core/di/injection.dart';
 import 'package:app/core/router/router.gr.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
-import 'package:app/core/widgets/common/masrafy_app_bottom_nav.dart';
 import 'package:app/core/widgets/common/masrafy_back_title_header.dart';
 import 'package:app/core/widgets/common/masrafy_support_card.dart';
 import 'package:app/core/widgets/common/masrafy_toast.dart';

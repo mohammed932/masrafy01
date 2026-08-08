@@ -58,10 +58,27 @@ const String kDebtTypesQuestion = 'current_loans';
 /// decides whether obligations resolve to a real 0 or to "no figures".
 const String kDebtTypeNoneOption = 'none';
 
-/// Debt-type option code → the NUMERIC question capturing its instalment.
+/// The pick whose amount question states a LIMIT rather than an instalment.
+const String kCreditCardDebtTypeOption = 'credit_cards';
+
+/// Total credit limit across EVERY card the applicant holds, at every bank.
+///
+/// A card has no fixed monthly payment, and an undrawn limit is money that can be
+/// drawn tomorrow, so the minimum payment on today's statement understates what a
+/// bank underwrites against. The limit is stated instead and discounted by
+/// [kCreditCardLimitMonthlyPercent].
+const String kCreditCardLimitQuestion = 'credit_card_total_limit';
+
+/// Share of the stated card limit that counts as a monthly commitment. Mirrors
+/// `CREDIT_CARD_LIMIT_MONTHLY_PERCENT` on the backend — the server re-derives the
+/// same total and rejects a disagreement (`OBLIGATIONS_TOTAL_MISMATCH`), so the
+/// two constants must move together.
+const double kCreditCardLimitMonthlyPercent = 5;
+
+/// Debt-type option code → the NUMERIC question capturing its monthly figure.
 const Map<String, String> kObligationItemQuestionByDebtType = {
   'car_loan': 'obligation_car_loan',
-  'credit_cards': 'obligation_credit_card',
+  kCreditCardDebtTypeOption: kCreditCardLimitQuestion,
   'personal_loan': 'obligation_personal_loan',
   'mortgage': 'obligation_mortgage',
   'other': 'obligation_other',
@@ -74,3 +91,19 @@ final List<String> kObligationItemQuestionCodes =
 /// The amount question a debt-type pick unlocks, or `null` for `none`/unknown.
 String? obligationItemQuestionFor(String debtTypeOptionCode) =>
     kObligationItemQuestionByDebtType[debtTypeOptionCode];
+
+/// The monthly commitment one stated per-debt figure contributes.
+///
+/// Identity for every debt whose answer already IS a monthly instalment; for
+/// credit cards the stated figure is a limit, so it is discounted (150,000 of
+/// limit → 7,500 a month). An unmapped pick passes through at face value rather
+/// than dropping out of the total.
+///
+/// Rounded to two decimals so it lands on the server's `Decimal(18, 2)` column
+/// and matches the `ROUND_HALF_UP` the backend applies to the same product.
+double obligationMonthlyAmountFor(String debtTypeOptionCode, double statedEGP) {
+  if (debtTypeOptionCode != kCreditCardDebtTypeOption) return statedEGP;
+  return double.parse(
+    (statedEGP * kCreditCardLimitMonthlyPercent / 100).toStringAsFixed(2),
+  );
+}

@@ -99,9 +99,9 @@ describe('an unscoreable numeric answer earns nothing but still costs its weight
 
   it('clamps a stored score that escaped validation', () => {
     const wild: NumericBand[] = [{ from: null, to: null, score: 999 }];
-    expect(answerScoreFor({ ...SCORING, numericBands: { monthly_income: wild } }, numeric('1'))).toBe(
-      100,
-    );
+    expect(
+      answerScoreFor({ ...SCORING, numericBands: { monthly_income: wild } }, numeric('1')),
+    ).toBe(100);
     const negative: NumericBand[] = [{ from: null, to: null, score: -50 }];
     expect(
       answerScoreFor({ ...SCORING, numericBands: { monthly_income: negative } }, numeric('1')),
@@ -155,6 +155,7 @@ function makeService(): ScoringService {
     { write: async () => undefined } as never,
     { findById: async () => ({ productCategory: 'personal' }) } as never,
     questionnaire as never,
+    { memberQuestionTemplate: async () => null } as never,
   );
 }
 

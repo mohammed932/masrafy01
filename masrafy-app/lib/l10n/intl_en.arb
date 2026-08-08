@@ -97,6 +97,14 @@
   "match_unknown_question_code": "Your answers are out of date. Please restart the questionnaire.",
   "match_unknown_option_code": "Your answers are out of date. Please restart the questionnaire.",
   "match_program_no_longer_matches": "This offer is no longer available for your answers.",
+  "match_program_name_key_unknown": "That program is no longer available. Please pick another one.",
+  "@match_program_name_key_unknown": {
+    "description": "Backend PROGRAM_NAME_KEY_UNKNOWN error code"
+  },
+  "match_program_name_not_in_category": "That program isn't offered for this loan type. Please pick another one.",
+  "@match_program_name_not_in_category": {
+    "description": "Backend PROGRAM_NAME_KEY_NOT_IN_CATEGORY error code"
+  },
   "questionnaire_form_title": "Tell us about your loan",
   "questionnaire_form_action_submit": "See matches",
   "match_preview_title": "Your matches",
@@ -240,6 +248,18 @@
   "home_title": "What type of loan are you looking for?",
   "home_subtitle": "Your loan advisor is ready",
   "home_loan_types": "Loan types",
+  "home_program_label": "Loan program",
+  "@home_program_label": {
+    "description": "Home — catalog program-name picker above the Continue CTA"
+  },
+  "home_program_hint": "Choose a program",
+  "@home_program_hint": {
+    "description": "Home — program picker placeholder when nothing is picked yet"
+  },
+  "home_program_search_hint": "Search programs",
+  "@home_program_search_hint": {
+    "description": "Home — search placeholder inside the program select sheet"
+  },
   "home_continue": "Continue",
   "home_support_label": "Support",
   "home_support_title": "Ask Masrafy anything",
@@ -648,6 +668,9 @@
   "results_profile_action": "Complete profile",
   "results_loan_type": "Loan type",
   "results_amount": "Amount",
+  "results_requested": "Requested",
+  "results_requested_duration": "Requested duration",
+  "results_approved_amount": "Approved amount",
   "results_amount_egp": "EGP {amount}",
   "results_duration": "Loan Duration",
   "results_months": "{count} months",
@@ -688,6 +711,9 @@
   "offer_duration": "Duration",
   "offer_months": "months",
   "offer_total_interest": "Total interest",
+  "offer_total_interest_caption": "interest over the term",
+  "offer_cash_received": "Cash you receive",
+  "offer_cash_received_caption": "after fees",
   "offer_egp_extra": "EGP paid extra",
   "offer_national_id": "National ID",
   "offer_national_id_pending": "Pending",

@@ -3,6 +3,11 @@ import { LoanCategory, Prisma, QuestionType } from '@prisma/client';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import {
+  ALL_LOAN_CATEGORIES,
+  dedupeCategories,
+  sortCategories,
+} from '@/common/loan-category.util';
+import {
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
   MONEY_FIELD_BINDINGS,
@@ -723,31 +728,6 @@ const MIN_CHOICE_OPTIONS_AT_CREATE = 2;
 const DEFAULT_GROUP_CODE = 'general';
 const DEFAULT_GROUP_TITLE_EN = 'Questions';
 const DEFAULT_GROUP_TITLE_AR = 'الأسئلة';
-
-/**
- * The four scope-locked categories, in the order the admin sees them (Principle
- * II / A26). Derived from the Prisma enum so a fifth cannot be added here
- * without the amendment the enum itself requires.
- */
-const ALL_LOAN_CATEGORIES: readonly LoanCategory[] = [
-  LoanCategory.personal,
-  LoanCategory.car,
-  LoanCategory.mortgage,
-  LoanCategory.business,
-];
-
-const CATEGORY_ORDER = new Map(ALL_LOAN_CATEGORIES.map((c, i) => [c, i]));
-
-/** Canonical display order, so the same set always serialises the same way. */
-function sortCategories(categories: readonly LoanCategory[]): LoanCategory[] {
-  return [...categories].sort(
-    (a, b) => (CATEGORY_ORDER.get(a) ?? 0) - (CATEGORY_ORDER.get(b) ?? 0),
-  );
-}
-
-function dedupeCategories(categories: readonly LoanCategory[]): LoanCategory[] {
-  return sortCategories([...new Set(categories)]);
-}
 
 /** Publish-time warning: non-blocking, surfaced in the publish response. */
 export interface PublishWarning {

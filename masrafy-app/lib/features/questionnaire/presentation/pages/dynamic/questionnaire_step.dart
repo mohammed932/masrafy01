@@ -302,6 +302,7 @@ class _NumericFieldState extends State<_NumericField> {
     // of tailing the prompt — it stays visible once the user types.
     return _TitledField(
       title: widget.question.label(widget.isAr),
+      helper: widget.question.helper(widget.isAr),
       child: MasrafyTextField(
         hint: _boundsHint(rules, l),
         // The step rule is invisible in a `6 – 120` hint, so it stands under the
@@ -428,7 +429,13 @@ class _DerivedTotalField extends StatelessWidget {
           ),
           Gap(6.h),
           Text(
-            l.q_dyn_obligations_total_helper,
+            // The admin-authored line when the snapshot carries one (it says how
+            // a card limit enters this total), the shipped string otherwise —
+            // a snapshot published before the helper was authored must still
+            // explain why the field cannot be typed in.
+            question.helper(isAr)?.trim().isNotEmpty ?? false
+                ? question.helper(isAr)!.trim()
+                : l.q_dyn_obligations_total_helper,
             style: text.caption.regular().copyWith(color: colors.text.tertiary),
           ),
         ],
@@ -496,6 +503,7 @@ class _FreeTextFieldState extends State<_FreeTextField> {
 
     return _TitledField(
       title: widget.question.label(widget.isAr),
+      helper: widget.question.helper(widget.isAr),
       child: MasrafyTextField(
         hint: l.q_dyn_text_hint,
         controller: _controller,
@@ -513,15 +521,24 @@ class _FreeTextFieldState extends State<_FreeTextField> {
 /// same external uppercase title chrome the select fields use
 /// ([MasrafySelectField] default density), with a short hint left inside.
 class _TitledField extends StatelessWidget {
-  const _TitledField({required this.title, required this.child});
+  const _TitledField({required this.title, required this.child, this.helper});
 
   final String title;
+
+  /// The admin-authored sub-label (`Question.helperText*`), shown between the
+  /// title and the control. Carried by the snapshot for every question but never
+  /// rendered before: it is where a prompt says what a figure IS when the obvious
+  /// reading is wrong — the credit-card question asks for a total LIMIT, which an
+  /// applicant would otherwise answer with a balance or a minimum payment.
+  final String? helper;
+
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
+    final helperText = helper?.trim();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,6 +550,14 @@ class _TitledField extends StatelessWidget {
                 letterSpacing: 0.5,
               ),
         ),
+        if (helperText != null && helperText.isNotEmpty) ...[
+          Gap(4.h),
+          Text(
+            helperText,
+            style:
+                text.caption.regular().copyWith(color: colors.text.tertiary),
+          ),
+        ],
         Gap(8.h),
         child,
       ],

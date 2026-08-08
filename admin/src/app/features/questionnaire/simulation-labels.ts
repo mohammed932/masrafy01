@@ -45,6 +45,8 @@ export function bindingConstraintLabel(constraint: string): string {
       return $localize`:@@sim.binding.age:Age at maturity`;
     case 'tenor_max':
       return $localize`:@@sim.binding.tenor:Maximum term`;
+    case 'tenor_min':
+      return $localize`:@@sim.binding.tenor_min:Minimum term`;
     case 'requested_amount':
       return $localize`:@@sim.binding.requested:Nothing — the full request was priced`;
     default:

@@ -137,17 +137,22 @@ class _ResultsContent extends StatelessWidget {
     final typeLabel = loanTypeLabel(l, args.loanTypeKey);
     return Column(
       children: [
+        // Labelled as the REQUEST, not as the deal: each card below carries its
+        // own amount and term, and those legitimately differ per bank once the
+        // program ceiling or the debt-burden cap bites. Unlabelled, this card
+        // read as "your loan is 1,000,000 over 6 months" while every card under
+        // it said 12 months.
         MatchSummaryCard(
           rows: [
             (label: l.results_loan_type, value: typeLabel),
             (
-              label: l.results_amount,
+              label: l.results_requested,
               value: l.results_amount_egp(
                 NumberFormat.decimalPattern().format(args.amount),
               ),
             ),
             (
-              label: l.results_duration,
+              label: l.results_requested_duration,
               value: l.results_months(args.durationMonths),
             ),
           ],

@@ -17,7 +17,6 @@ import {
 } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzSelectModule } from 'ng-zorro-antd/select';
@@ -124,7 +123,6 @@ interface WizardStep {
     FormsModule,
     RouterLink,
     NzButtonModule,
-    NzCheckboxModule,
     NzIconModule,
     NzInputModule,
     NzSliderModule,
@@ -214,91 +212,142 @@ interface WizardStep {
         <p class="step-caption">{{ steps[stepIndex()]?.caption }}</p>
 
         <form class="stage" [formGroup]="form">
-          <!-- ─── Step 1 · pick the scored questions ───────────────────── -->
+          <!-- ─── Step 1 · the questions this program scores on ────────────
+               READ-ONLY. The set belongs to the catalog NAME, not to this bank
+               program: every program sold under "Government Employees" scores on
+               the same questions, and the bank's own configuration is the weights
+               in steps 2–3. Editing it here would silently fork siblings that are
+               supposed to be comparable. -->
           @if (stepIndex() === 0) {
             <div class="panel">
-              <div class="pick-bar">
-                <nz-input-group [nzPrefix]="searchIcon" class="pick-search">
-                  <input
-                    nz-input
-                    type="search"
-                    [ngModel]="query()"
-                    [ngModelOptions]="{ standalone: true }"
-                    (ngModelChange)="query.set($event)"
-                    placeholder="Search questions"
-                    i18n-placeholder="@@scoring.editor.search_ph"
-                    aria-label="Search questions"
-                    i18n-aria-label="@@scoring.editor.search_aria"
-                  />
-                </nz-input-group>
-                <ng-template #searchIcon>
-                  <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
-                </ng-template>
-                <span class="pick-count" aria-live="polite"
-                  >{{ assignedCount() }}<span i18n="@@scoring.editor.of"> of </span
-                  >{{ questions().length
-                  }}<span i18n="@@scoring.editor.picked_suffix"> picked</span></span
-                >
-                <button
-                  nz-button
-                  nzSize="small"
-                  type="button"
-                  [disabled]="visibleQuestions().length === 0"
-                  (click)="pickAllVisible(true)"
-                  i18n="@@scoring.editor.select_all"
-                >
-                  Select all
-                </button>
-                <button
-                  nz-button
-                  nzSize="small"
-                  type="button"
-                  [disabled]="assignedCount() === 0"
-                  (click)="pickAllVisible(false)"
-                  i18n="@@scoring.editor.clear_all"
-                >
-                  Clear
-                </button>
-              </div>
-
-              @if (unaskedPicked().length > 0) {
-                <div class="unasked-note" role="status">
+              @if (!program()?.programNameKey) {
+                <div class="catalog-block" role="status">
                   <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
-                  <p class="un-body">
-                    <span class="un-lead" i18n="@@scoring.editor.unasked_lead"
-                      >These picked questions are never shown to
-                      {{ programCategoryLabel() }} applicants.</span
+                  <p class="cb-body">
+                    <span class="cb-lead" i18n="@@scoring.editor.no_key_title"
+                      >This program has no catalog name.</span
                     >
-                    <span class="un-hint" i18n="@@scoring.editor.unasked_hint"
-                      >They can never score, so any weight you give them is wasted. Untick them, or
-                      add {{ programCategoryLabel() }} to them under Questionnaire → Loan
-                      categories.</span
+                    <span class="cb-hint" i18n="@@scoring.editor.no_key_hint"
+                      >The questions a program scores on come from its program name in the catalog,
+                      so there is nothing to score until one is set.</span
                     >
                   </p>
-                  <ul class="un-list">
-                    @for (q of unaskedPicked(); track q.code) {
-                      <li>{{ questionLabel(q) }}</li>
-                    }
-                  </ul>
+                  <a
+                    class="cb-link"
+                    [routerLink]="['/banks/programs', program()?.programCode, 'edit']"
+                    i18n="@@scoring.editor.no_key_link"
+                    >Set a program name</a
+                  >
                 </div>
-              }
-
-              @if (visibleQuestions().length === 0) {
-                <p class="empty-line" i18n="@@scoring.editor.no_match">
-                  No question matches that search.
-                </p>
+              } @else if (roster().length === 0) {
+                <div class="catalog-block" role="status">
+                  <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+                  <p class="cb-body">
+                    <span class="cb-lead" i18n="@@scoring.editor.cat_empty_title"
+                      >{{ catalogNameLabel() }} has no questions set for
+                      {{ programCategoryLabel() }}.</span
+                    >
+                    <span class="cb-hint" i18n="@@scoring.editor.cat_empty_hint"
+                      >Pick them once in the program catalog and every bank offering this name
+                      scores on the same set.</span
+                    >
+                  </p>
+                  <a
+                    class="cb-link"
+                    [routerLink]="['/program-catalog', program()?.programNameKey]"
+                    i18n="@@scoring.editor.cat_empty_link"
+                    >Open the program catalog</a
+                  >
+                </div>
               } @else {
-                <ul class="pick-list">
-                  @for (q of visibleQuestions(); track q.code) {
-                    <li>
-                      <label
-                        class="pick-row"
-                        [class.on]="isAssigned(q.code)"
-                        nz-checkbox
-                        [ngModel]="isAssigned(q.code)"
-                        [ngModelOptions]="{ standalone: true }"
-                        (ngModelChange)="toggleAssign(q.code, $event)"
+                <p class="catalog-source">
+                  <span i18n="@@scoring.editor.cat_source"
+                    >These come from {{ catalogNameLabel() }} in the program catalog. Every bank
+                    offering this name scores on the same questions — here you set only the
+                    weights.</span
+                  >
+                  <a
+                    [routerLink]="['/program-catalog', program()?.programNameKey]"
+                    i18n="@@scoring.editor.cat_source_link"
+                    >Change the questions</a
+                  >
+                </p>
+
+                <div class="pick-bar">
+                  <nz-input-group [nzPrefix]="searchIcon" class="pick-search">
+                    <input
+                      nz-input
+                      type="search"
+                      [ngModel]="query()"
+                      [ngModelOptions]="{ standalone: true }"
+                      (ngModelChange)="query.set($event)"
+                      placeholder="Search questions"
+                      i18n-placeholder="@@scoring.editor.search_ph"
+                      aria-label="Search questions"
+                      i18n-aria-label="@@scoring.editor.search_aria"
+                    />
+                  </nz-input-group>
+                  <ng-template #searchIcon>
+                    <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
+                  </ng-template>
+                  <span class="pick-count" aria-live="polite" i18n="@@scoring.editor.roster_count"
+                    >{{ roster().length }} questions scored</span
+                  >
+                </div>
+
+                @if (unaskedPicked().length > 0) {
+                  <div class="unasked-note" role="status">
+                    <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+                    <p class="un-body">
+                      <span class="un-lead" i18n="@@scoring.editor.unasked_lead"
+                        >These questions are never shown to
+                        {{ programCategoryLabel() }} applicants.</span
                       >
+                      <span class="un-hint" i18n="@@scoring.editor.unasked_hint2"
+                        >They can never score, so any weight you give them is wasted. Add
+                        {{ programCategoryLabel() }} to them under Questionnaire → Loan categories,
+                        or drop them from this name in the program catalog.</span
+                      >
+                    </p>
+                    <ul class="un-list">
+                      @for (q of unaskedPicked(); track q.code) {
+                        <li>{{ questionLabel(q) }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+
+                <!-- Weighted last time, gone from the catalog since. Shown rather
+                     than silently dropped: the weights they held are about to be
+                     redistributed, which the admin must see coming. -->
+                @if (droppedRows().length > 0) {
+                  <div class="unasked-note" role="status">
+                    <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+                    <p class="un-body">
+                      <span class="un-lead" i18n="@@scoring.editor.dropped_lead"
+                        >These were scored before and are no longer in the catalog set.</span
+                      >
+                      <span class="un-hint" i18n="@@scoring.editor.dropped_hint"
+                        >They stop counting the next time you save, so the remaining weights must
+                        add back up to 100%.</span
+                      >
+                    </p>
+                    <ul class="un-list">
+                      @for (row of droppedRows(); track row.code) {
+                        <li>{{ row.label }}</li>
+                      }
+                    </ul>
+                  </div>
+                }
+
+                @if (visibleQuestions().length === 0) {
+                  <p class="empty-line" i18n="@@scoring.editor.no_match">
+                    No question matches that search.
+                  </p>
+                } @else {
+                  <ul class="pick-list">
+                    @for (q of visibleQuestions(); track q.code) {
+                      <li class="pick-row">
                         <span class="pick-text">
                           <span class="pick-name">
                             {{ questionLabel(q) }}
@@ -309,13 +358,13 @@ interface WizardStep {
                             }
                           </span>
                           <!-- What the admin will be asked to score, so the type is
-                               known before picking, not after. -->
+                               known before step 3, not after. -->
                           <span class="pick-meta">{{ scoredByLabel(q) }}</span>
                         </span>
-                      </label>
-                    </li>
-                  }
-                </ul>
+                      </li>
+                    }
+                  </ul>
+                }
               }
             </div>
           }
@@ -931,8 +980,7 @@ interface WizardStep {
         line-height: var(--leading-normal);
         color: var(--text-secondary);
       }
-      /* Sits inside a <label>, so it must not swallow the click that toggles
-         the checkbox — no pointer cursor, no hit-target of its own. */
+      /* An inline marker on a static row — no pointer cursor, no hit-target. */
       .unasked-tag {
         margin-inline-start: var(--space-2);
         padding: 1px var(--space-2);
@@ -951,7 +999,61 @@ interface WizardStep {
         color: var(--text-tertiary);
       }
 
-      /* ── Step 1 · pick ────────────────────────────────────────────────── */
+      /* ── Step 1 · the catalog's question set (read-only) ──────────────── */
+      /* Says where the list comes from BEFORE the list, so the missing
+         checkboxes read as "owned elsewhere" rather than "broken". */
+      .catalog-source {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-1) var(--space-2);
+        margin: 0 0 var(--space-4);
+        padding: var(--space-3) var(--space-4);
+        background: var(--bg-subtle);
+        border-inline-start: 3px solid var(--primary);
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+        color: var(--text-secondary);
+      }
+      /* Same tinted surface as .unasked-note — one look for "something upstream
+         needs your attention", with the fix as a link rather than a control. */
+      .catalog-block {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: var(--space-2) var(--space-3);
+        padding: var(--space-4) var(--space-5);
+        background: color-mix(in srgb, var(--warning) 10%, var(--bg-surface));
+        border: 1px solid color-mix(in srgb, var(--warning) 32%, transparent);
+        border-radius: var(--radius-md);
+      }
+      .catalog-block > [nz-icon] {
+        margin-block-start: 2px;
+        font-size: var(--text-base);
+        color: var(--warning);
+      }
+      .cb-body {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: var(--text-sm);
+        line-height: var(--leading-normal);
+      }
+      .cb-lead {
+        font-weight: var(--font-medium);
+        color: var(--text-primary);
+      }
+      .cb-hint {
+        color: var(--text-secondary);
+      }
+      .cb-link {
+        grid-column: 2;
+        justify-self: start;
+        font-size: var(--text-sm);
+        font-weight: var(--font-medium);
+      }
+
       .pick-bar {
         display: flex;
         align-items: center;
@@ -980,25 +1082,16 @@ interface WizardStep {
         padding: 0;
         list-style: none;
       }
-      /* One tap target per question — the whole row toggles, not just the box. */
+      /* A roster row, not a control: no hover, no selected state, nothing that
+         invites a click the screen will not answer. */
       .pick-row {
         display: flex;
         align-items: flex-start;
         inline-size: 100%;
-        min-block-size: 44px;
         padding: var(--space-3);
         border: 1px solid var(--border-default);
         border-radius: var(--radius-md);
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          background var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .pick-row:hover {
         background: var(--bg-subtle);
-      }
-      .pick-row.on {
-        border-color: var(--primary);
-        background: color-mix(in srgb, var(--primary) 6%, transparent);
       }
       .pick-text {
         display: flex;
@@ -1566,7 +1659,6 @@ interface WizardStep {
 
       @media (prefers-reduced-motion: reduce) {
         .step,
-        .pick-row,
         .budget-strip,
         .budget-fill,
         .score-trigger,
@@ -1609,11 +1701,10 @@ export class ScoringWeightsEditorPage implements OnInit {
    */
   readonly openScore = signal<string | null>(null);
   /**
-   * The set of PICKED question codes — the checkbox state. This IS the
-   * program's `questionWeights` domain: picked → scored, unpicked → excluded.
-   * Stored as an immutable Set (replaced on every toggle) so signal reads react.
+   * Question codes the SAVED weight set scored on. Kept only to spot the ones the
+   * catalog has since dropped — the scored set itself comes from the catalog.
    */
-  readonly assigned = signal<ReadonlySet<string>>(new Set());
+  private readonly savedCodes = signal<readonly string[]>([]);
   /**
    * Per-type scoring rules that have no natural home in the flat number form:
    * NUMERIC band tables and MULTI_SELECT aggregations. Kept as signals for the
@@ -1627,8 +1718,8 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly steps: readonly WizardStep[] = [
     {
       id: 'pick',
-      label: $localize`:@@scoring.editor.step_pick:Pick questions`,
-      caption: $localize`:@@scoring.editor.cap_pick:Pick the questions this program scores on. Everything else in the pool is still asked of the applicant — it just doesn't move this program's approval odds.`,
+      label: $localize`:@@scoring.editor.step_pick2:Questions scored`,
+      caption: $localize`:@@scoring.editor.cap_pick2:The questions this program scores on, set once for its program name in the catalog. Everything else in the pool is still asked of the applicant — it just doesn't move this program's approval odds.`,
     },
     {
       id: 'weights',
@@ -1671,10 +1762,54 @@ export class ScoringWeightsEditorPage implements OnInit {
     () => this.scoring().answerScores,
   );
 
+  /**
+   * The questions this program scores on, resolved from the CATALOG set for its
+   * (`programNameKey`, category) pair against the live pool — in pool display
+   * order, so this list reads in the same sequence as the questionnaire itself.
+   *
+   * Not the bank program's to choose (Feature 010 / `/program-catalog/:key`):
+   * every program sold under one catalog name asks the same questions, and the
+   * per-bank configuration is the weights and answer scores. A catalog code with
+   * no live pool row is skipped here and surfaces in `droppedRows` instead.
+   */
+  readonly roster = computed<WeightableQuestion[]>(() => {
+    const codes = this.program()?.catalogQuestionCodes;
+    if (!codes) return [];
+    const wanted = new Set(codes);
+    return this.questions().filter((q) => wanted.has(q.code));
+  });
+
+  /**
+   * The scored set as a Set — what the payload, the weight budget and both later
+   * steps read. Derived, never toggled: step 1 is a roster, not a picker.
+   */
+  readonly assigned = computed<ReadonlySet<string>>(
+    () => new Set(this.roster().map((q) => q.code)),
+  );
+
+  /**
+   * Codes the saved weight set carried that the catalog no longer lists (or that
+   * have left the pool). They keep no weight and are omitted from the next save;
+   * shown on step 1 so the weight they used to hold does not simply vanish from
+   * the budget with no explanation.
+   */
+  readonly droppedRows = computed<{ code: string; label: string }[]>(() => {
+    const scored = this.assigned();
+    const byCode = new Map(this.questions().map((q) => [q.code, q]));
+    return this.savedCodes()
+      .filter((code) => !scored.has(code))
+      .map((code) => {
+        const q = byCode.get(code);
+        // A question deleted from the pool has no label left — its raw code is
+        // more useful than dropping the row and leaving the budget unexplained.
+        return { code, label: q ? this.questionLabel(q) : code };
+      });
+  });
+
   /** Step-1 list, filtered by the search box (label or code). */
   readonly visibleQuestions = computed<WeightableQuestion[]>(() => {
     const q = this.query().trim().toLowerCase();
-    const all = this.questions();
+    const all = this.roster();
     if (!q) return all;
     return all.filter(
       (x) => this.questionLabel(x).toLowerCase().includes(q) || x.code.toLowerCase().includes(q),
@@ -1682,10 +1817,7 @@ export class ScoringWeightsEditorPage implements OnInit {
   });
 
   /** How many questions this program scores on. */
-  readonly assignedCount = computed<number>(() => {
-    this.rev();
-    return this.assigned().size;
-  });
+  readonly assignedCount = computed<number>(() => this.assigned().size);
   /** Sum of PICKED question weights (1-decimal). Must equal 100 to save. */
   readonly weightSum = computed<number>(() => {
     const total = Object.values(this.weightValues()).reduce((a, b) => a + b, 0);
@@ -1694,11 +1826,8 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly weightSumOk = computed<boolean>(() => this.weightSum() === 100);
   readonly weightBarPct = computed<number>(() => Math.min(100, Math.max(0, this.weightSum())));
 
-  /** Picked questions, in pool order. */
-  readonly assignedQuestions = computed<WeightableQuestion[]>(() => {
-    const a = this.assigned();
-    return this.questions().filter((q) => a.has(q.code));
-  });
+  /** The scored questions, in pool order — the roster under another name. */
+  readonly assignedQuestions = computed<WeightableQuestion[]>(() => this.roster());
 
   /**
    * Does this program's loan category actually ask the question?
@@ -1732,6 +1861,18 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly programCategoryLabel = computed<string>(() => {
     const raw = this.program()?.category ?? '';
     return isLoanCategory(raw) ? categoryLabel(raw) : raw;
+  });
+
+  /**
+   * How the catalog name reads in the step-1 copy. The program's own friendly
+   * name IS the catalog name for every program created through the form, and it
+   * is the label the admin already sees in the header — falling back to the raw
+   * key only for a legacy row whose name drifted.
+   */
+  readonly catalogNameLabel = computed<string>(() => {
+    const p = this.program();
+    if (!p) return '';
+    return this.programName(p) || (p.programNameKey ?? '');
   });
   /** No picked question may be left at 0% weight. */
   readonly allWeightsPositive = computed<boolean>(() =>
@@ -1870,9 +2011,10 @@ export class ScoringWeightsEditorPage implements OnInit {
   readonly blocker = computed<string | null>(() => {
     switch (this.stepIndex()) {
       case 0:
-        return this.assignedCount() === 0
-          ? $localize`:@@scoring.editor.fix_none_assigned:Pick at least one question to score this program.`
-          : null;
+        if (this.assignedCount() > 0) return null;
+        return this.program()?.programNameKey
+          ? $localize`:@@scoring.editor.fix_catalog_empty:Set this program name's questions in the program catalog first.`
+          : $localize`:@@scoring.editor.fix_no_name_key:Give this program a catalog name before scoring it.`;
       case 1:
         if (!this.weightSumOk())
           return $localize`:@@scoring.editor.fix_weights:Question weights must total exactly 100%.`;
@@ -1919,12 +2061,10 @@ export class ScoringWeightsEditorPage implements OnInit {
       const active = weights.active?.weights;
       const seedWeights = active?.questionWeights ?? {};
       const seedScores = active?.answerScores ?? {};
-      // Pick set = the keys already in the saved weight set. A program with no
-      // saved set starts with nothing picked — the admin ticks what matters.
-      const assignedCodes = Object.keys(seedWeights).filter((c) =>
-        questions.some((q) => q.code === c),
-      );
-      this.assigned.set(new Set(assignedCodes));
+      // The scored set comes from the catalog (`roster`), NOT from the saved
+      // keys. These are kept only to name the ones the catalog has since dropped
+      // — their weights are not carried into the next save.
+      this.savedCodes.set(Object.keys(seedWeights));
       // A weight set saved before v14.0.0 carries no rule maps — absent reads as
       // "not configured yet", which the step-3 gate then asks the admin to fill in.
       this.bands.set({ ...(active?.numericBands ?? {}) });
@@ -2108,43 +2248,7 @@ export class ScoringWeightsEditorPage implements OnInit {
     return $localize`:@@scoring.editor.aria.field:${label}:name: — percent, type or use arrow keys`;
   }
 
-  isAssigned(code: string): boolean {
-    this.rev();
-    return this.assigned().has(code);
-  }
-
-  /**
-   * Tick / untick a question for this program. Ticking adds it to the scoring
-   * (weight starts at 0 for a fresh pick — step 2 spreads the budget);
-   * unticking removes it from the budget entirely.
-   */
-  toggleAssign(code: string, checked: boolean): void {
-    this.assigned.update((s) => {
-      const next = new Set(s);
-      if (checked) next.add(code);
-      else next.delete(code);
-      return next;
-    });
-    this.form.markAsDirty();
-    this.touch();
-  }
-
-  /** Tick (or untick) everything currently listed under the search filter. */
-  pickAllVisible(checked: boolean): void {
-    const codes = this.visibleQuestions().map((q) => q.code);
-    this.assigned.update((s) => {
-      const next = new Set(s);
-      for (const c of codes) {
-        if (checked) next.add(c);
-        else next.delete(c);
-      }
-      return next;
-    });
-    this.form.markAsDirty();
-    this.touch();
-  }
-
-  /** Spread 100% evenly across the picked questions (leaves answer scores untouched). */
+  /** Spread 100% evenly across the scored questions (leaves answer scores untouched). */
   balance(): void {
     const codes = [...this.assigned()];
     if (codes.length === 0) return;

@@ -659,6 +659,18 @@ abstract class AppLocalizations {
   /// **'هذا العرض لم يعد متاحًا لإجاباتك.'**
   String get match_program_no_longer_matches;
 
+  /// Backend PROGRAM_NAME_KEY_UNKNOWN error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البرنامج لم يعد متاحًا. اختر برنامجًا آخر.'**
+  String get match_program_name_key_unknown;
+
+  /// Backend PROGRAM_NAME_KEY_NOT_IN_CATEGORY error code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البرنامج غير متاح لهذا النوع من التمويل. اختر برنامجًا آخر.'**
+  String get match_program_name_not_in_category;
+
   /// Dynamic questionnaire form — app bar title
   ///
   /// In ar, this message translates to:
@@ -1264,6 +1276,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'أنواع القروض'**
   String get home_loan_types;
+
+  /// Home — catalog program-name picker above the Continue CTA
+  ///
+  /// In ar, this message translates to:
+  /// **'برنامج التمويل'**
+  String get home_program_label;
+
+  /// Home — program picker placeholder when nothing is picked yet
+  ///
+  /// In ar, this message translates to:
+  /// **'اختر البرنامج'**
+  String get home_program_hint;
+
+  /// Home — search placeholder inside the program select sheet
+  ///
+  /// In ar, this message translates to:
+  /// **'ابحث عن برنامج'**
+  String get home_program_search_hint;
 
   /// No description provided for @home_continue.
   ///
@@ -3287,6 +3317,24 @@ abstract class AppLocalizations {
   /// **'المبلغ'**
   String get results_amount;
 
+  /// No description provided for @results_requested.
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ المطلوب'**
+  String get results_requested;
+
+  /// No description provided for @results_requested_duration.
+  ///
+  /// In ar, this message translates to:
+  /// **'المدة المطلوبة'**
+  String get results_requested_duration;
+
+  /// No description provided for @results_approved_amount.
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ المعتمد'**
+  String get results_approved_amount;
+
   /// No description provided for @results_amount_egp.
   ///
   /// In ar, this message translates to:
@@ -3466,6 +3514,24 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'إجمالي الفائدة'**
   String get offer_total_interest;
+
+  /// No description provided for @offer_total_interest_caption.
+  ///
+  /// In ar, this message translates to:
+  /// **'فائدة على مدة القرض'**
+  String get offer_total_interest_caption;
+
+  /// No description provided for @offer_cash_received.
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ اللي هتستلمه'**
+  String get offer_cash_received;
+
+  /// No description provided for @offer_cash_received_caption.
+  ///
+  /// In ar, this message translates to:
+  /// **'بعد خصم الرسوم'**
+  String get offer_cash_received_caption;
 
   /// No description provided for @offer_egp_extra.
   ///

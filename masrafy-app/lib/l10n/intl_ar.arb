@@ -373,6 +373,14 @@
     "description": "Backend UNKNOWN_OPTION_CODE error code"
   },
   "match_program_no_longer_matches": "هذا العرض لم يعد متاحًا لإجاباتك.",
+  "match_program_name_key_unknown": "هذا البرنامج لم يعد متاحًا. اختر برنامجًا آخر.",
+  "@match_program_name_key_unknown": {
+    "description": "Backend PROGRAM_NAME_KEY_UNKNOWN error code"
+  },
+  "match_program_name_not_in_category": "هذا البرنامج غير متاح لهذا النوع من التمويل. اختر برنامجًا آخر.",
+  "@match_program_name_not_in_category": {
+    "description": "Backend PROGRAM_NAME_KEY_NOT_IN_CATEGORY error code"
+  },
   "@match_program_no_longer_matches": {
     "description": "Backend PROGRAM_NO_LONGER_MATCHES error code"
   },
@@ -564,6 +572,18 @@
   "home_title": "ما نوع القرض الذي تبحث عنه؟",
   "home_subtitle": "مستشار القروض جاهز لمساعدتك",
   "home_loan_types": "أنواع القروض",
+  "home_program_label": "برنامج التمويل",
+  "@home_program_label": {
+    "description": "Home — catalog program-name picker above the Continue CTA"
+  },
+  "home_program_hint": "اختر البرنامج",
+  "@home_program_hint": {
+    "description": "Home — program picker placeholder when nothing is picked yet"
+  },
+  "home_program_search_hint": "ابحث عن برنامج",
+  "@home_program_search_hint": {
+    "description": "Home — search placeholder inside the program select sheet"
+  },
   "home_continue": "متابعة",
   "home_support_label": "الدعم",
   "home_support_title": "اسأل مصرفي عن أي شيء",
@@ -975,6 +995,9 @@
   "results_profile_action": "إكمال الملف الشخصي",
   "results_loan_type": "نوع القرض",
   "results_amount": "المبلغ",
+  "results_requested": "المبلغ المطلوب",
+  "results_requested_duration": "المدة المطلوبة",
+  "results_approved_amount": "المبلغ المعتمد",
   "results_amount_egp": "{amount} ج.م",
   "@results_amount_egp": {
     "placeholders": {
@@ -1060,6 +1083,9 @@
   "offer_duration": "المدة",
   "offer_months": "أشهر",
   "offer_total_interest": "إجمالي الفائدة",
+  "offer_total_interest_caption": "فائدة على مدة القرض",
+  "offer_cash_received": "المبلغ اللي هتستلمه",
+  "offer_cash_received_caption": "بعد خصم الرسوم",
   "offer_egp_extra": "ج.م إضافية",
   "offer_national_id": "الرقم القومي",
   "offer_national_id_pending": "قيد الانتظار",

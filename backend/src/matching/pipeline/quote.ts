@@ -71,10 +71,14 @@ export interface QuoteInput {
  * smaller surprise than a cut amount.
  */
 const BINDING_PRECEDENCE: Record<BindingConstraint, number> = {
-  dbr_affordability: 4,
-  program_max: 3,
-  age_at_maturity: 2,
-  tenor_max: 1,
+  dbr_affordability: 5,
+  program_max: 4,
+  age_at_maturity: 3,
+  tenor_max: 2,
+  // Lowest of the real constraints: stretching a too-short term UP to the
+  // program floor gives the customer more time, not less money, so anything
+  // that actually reduced the ask outranks it as the headline.
+  tenor_min: 1,
   requested_amount: 0,
 };
 
@@ -152,6 +156,20 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     noteConstraint('tenor_max');
   }
 
+  // A term SHORTER than the program's floor is stretched UP to it — symmetrical
+  // with the ceiling clamp above, and for the same reason: the program is still
+  // sellable to this applicant, just on its own shortest term.
+  //
+  // Rejecting instead is what emptied whole shortlists: the questionnaire lets
+  // any applicant ask for 6 months while every personal program floors at 12, so
+  // "personal + Doctor Loans, 6 months" dropped BOTH doctor programs and the
+  // customer got an empty screen — reported, on top of that, as AGE_AT_MATURITY,
+  // which had nothing to do with it.
+  if (tenorMonths < minTenor) {
+    tenorMonths = minTenor;
+    noteConstraint('tenor_min');
+  }
+
   // The loan must be repaid before the applicant passes the program's age
   // ceiling, so the term is shortened rather than the program rejected.
   const maxAge = program.eligibility?.maxAge;
@@ -163,6 +181,8 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     }
   }
 
+  // Only the age ceiling can reach here now: the requested term was raised to
+  // `minTenor` above, so a term still under the floor means the age cap ate it.
   if (tenorMonths < 1 || tenorMonths < minTenor) {
     return { ok: false, unavailable: { reason: 'AGE_AT_MATURITY' } };
   }

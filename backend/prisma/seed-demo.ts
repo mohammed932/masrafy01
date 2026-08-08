@@ -21,6 +21,7 @@ import { randomUUID } from 'node:crypto';
 import { seedBanks } from './seed-banks';
 import { seedCustomers } from './seed-customers';
 import { seedBankPrograms } from './seed-bank-programs';
+import { seedProgramCatalog } from './seed-program-catalog';
 import { seedScoringWeights } from './seed-scoring-weights';
 
 const prisma = new PrismaClient();
@@ -213,6 +214,10 @@ async function main(): Promise<void> {
   // Banks BEFORE programs: a program's `bankId` FK needs the Bank row to exist,
   // otherwise the programs land orphaned and the admin banks list reads empty.
   await seedBanks(superAdminId);
+  // Catalog BEFORE programs: `seedBankPrograms` refuses to create a program
+  // under a (name, category) pair the catalog does not assign, so narrowing the
+  // assignments afterwards would silently leave rows the API itself rejects.
+  await seedProgramCatalog();
   await seedBankPrograms(superAdminId);
   await seedScoringWeights(prisma, superAdminId);
 
