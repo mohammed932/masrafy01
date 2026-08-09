@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/widgets/common/masrafy_gradient_header.dart';
+import 'package:app/core/widgets/keyboard/masrafy_keyboard_inset.dart';
 import 'package:app/core/widgets/slivers/masrafy_sliver_gradient_header_delegate.dart';
 import 'package:app/core/widgets/steppers/masrafy_segmented_progress.dart';
 
@@ -46,14 +47,25 @@ class QuestionnaireStepScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
-    final topInset = MediaQuery.of(context).viewPadding.top;
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+    final collapsedHeight = topInset + kToolbarHeight + 14;
+
+    // Hand the shrinking viewport back to the form: as the keyboard rises the
+    // delegate collapses the hero IN PLACE toward its compact toolbar, riding
+    // the platform inset 1:1 (see MasrafyKeyboardInset — never re-animate it).
+    //
+    // Collapsing the header rather than scrolling it away is deliberate:
+    // EditableText re-reveals the caret with a jumpTo on EVERY inset frame, and
+    // jumpTo starts with goIdle(), which would kill an in-flight animateTo on
+    // its second frame. This also works on a short step with no scroll extent.
+    final keyboardProgress = MasrafyKeyboardInset.progressOf(context);
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(
         parent: AlwaysScrollableScrollPhysics(),
       ),
-      // The step CTA is hidden while the keyboard is up, so scrolling away from
-      // the field must be enough to bring it back.
+      // The CTA sits in the Scaffold's bottom slot, so the keyboard occludes it
+      // rather than hiding it; dragging to dismiss uncovers it again.
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       slivers: [
         SliverPersistentHeader(
@@ -74,7 +86,8 @@ class QuestionnaireStepScaffold extends StatelessWidget {
               bottomExtent: 18.h + 4.h, // Gap(18) + progress bar height
               minHeight: 180.h,
             ),
-            collapsedHeight: topInset + kToolbarHeight + 14,
+            collapsedHeight: collapsedHeight,
+            keyboardProgress: keyboardProgress,
           ),
         ),
         SliverToBoxAdapter(

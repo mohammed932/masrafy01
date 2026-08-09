@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 import 'package:app/core/widgets/input_controls/masrafy_multi_select_sheet.dart';
 
 export 'package:app/core/widgets/input_controls/masrafy_multi_select_sheet.dart'
@@ -68,6 +69,9 @@ class MasrafyMultiSelectField<T> extends StatelessWidget {
   }
 
   Future<void> _open(BuildContext context) async {
+    // Drop any text field's keyboard BEFORE the sheet builds — see the note in
+    // MasrafySelectField._open (stale viewInsets pad = double-motion on entry).
+    FocusManager.instance.primaryFocus?.unfocus();
     final picked = await showMasrafyMultiSelectSheet<T>(
       context: context,
       title: sheetTitle ?? label,
@@ -99,20 +103,28 @@ class MasrafyMultiSelectField<T> extends StatelessWidget {
                 letterSpacing: 0.5,
               ),
         ),
-        Gap(8.h),
+        Gap(MasrafyFieldMetrics.labelGap),
         GestureDetector(
           onTap: isEnabled ? () => _open(context) : null,
           behavior: HitTestBehavior.opaque,
           child: Container(
-            constraints: BoxConstraints(minHeight: 44.h),
+            // Starts at the shared single-line height so an empty multi-select
+            // sits level with the selects and inputs around it, and grows only
+            // when the selection wraps to a second line.
+            constraints: BoxConstraints(minHeight: MasrafyFieldMetrics.height),
             padding: EdgeInsetsDirectional.symmetric(
-              horizontal: 14.w,
+              horizontal: MasrafyFieldMetrics.horizontalPadding,
               vertical: 8.h,
             ),
             decoration: BoxDecoration(
-              color: isEnabled ? colors.bg.container : colors.fill.quaternary,
-              border: Border.all(color: colors.border.main),
-              borderRadius: BorderRadius.circular(12.r),
+              // Same expression as the single-select sibling — the two sit in
+              // the same forms and must not read as different controls.
+              color: isEnabled ? Colors.transparent : colors.fill.quaternary,
+              border: Border.all(
+                color: isEnabled ? colors.border.field : colors.border.main,
+                width: MasrafyFieldMetrics.borderWidth,
+              ),
+              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
             ),
             child: Row(
               children: [

@@ -184,17 +184,36 @@ class MasrafyBorderColors {
     required this.main,
     required this.secondary,
     required this.split,
+    required this.field,
   });
 
   final Color main;
   final Color secondary;
   final Color split;
 
+  /// Outline of an **interactive form control** (text input, select, DOB, phone,
+  /// search) — deliberately darker than [main].
+  ///
+  /// [main] is a divider/card tone: at `#D5DBEC` on the `#E7ECF6` layout it
+  /// contrasts 1.17:1, which is invisible as the only thing carrying a
+  /// transparent field's box, so a control needs its own tone to out-read the
+  /// furniture around it.
+  ///
+  /// Softened for eye comfort: a full form of 3:1 outlines reads as a wall of
+  /// hard boxes. This tone sits at ≈ 1.7:1 on the light layout (`#E7ECF6`),
+  /// ≈ 2.0:1 on white containers and ≈ 1.7:1 over dark `#021331` — below the
+  /// WCAG 1.4.11 3:1 bar for a control boundary, which is accepted here
+  /// deliberately. Focus and error states (which DO carry meaning) keep their
+  /// full-strength brand / danger colours, so the low-contrast tone only ever
+  /// carries the resting outline.
+  final Color field;
+
   // Light: indigo-tinted neutrals (Ghost White Neutral as the soft divider).
   static const light = MasrafyBorderColors(
     main: Color(0xFFD5DBEC),
     secondary: Color(0xFFE7ECF6),
     split: Color(0x0F021331),
+    field: Color(0xFFB0B9D4),
   );
 
   // Dark: navy-tinted dividers.
@@ -202,6 +221,7 @@ class MasrafyBorderColors {
     main: Color(0xFF2A3556),
     secondary: Color(0xFF1A2540),
     split: Color(0x0FFFFFFF),
+    field: Color(0xFF333B5C),
   );
 
   MasrafyBorderColors lerp(MasrafyBorderColors other, double t) {
@@ -209,6 +229,7 @@ class MasrafyBorderColors {
       main: Color.lerp(main, other.main, t) ?? main,
       secondary: Color.lerp(secondary, other.secondary, t) ?? secondary,
       split: Color.lerp(split, other.split, t) ?? split,
+      field: Color.lerp(field, other.field, t) ?? field,
     );
   }
 }

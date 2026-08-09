@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
-import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
 import 'masrafy_base_input.dart';
 import 'masrafy_input.dart';
@@ -47,7 +46,6 @@ class _MasrafyTextFieldState extends State<MasrafyTextField>
   @override
   Widget buildField(BuildContext context, InputDecoration decoration) {
     final colors = MasrafyColorTheme.of(context);
-    final text = MasrafyTextTheme.of(context);
 
     return TextFormField(
       controller: controller,
@@ -69,7 +67,9 @@ class _MasrafyTextFieldState extends State<MasrafyTextField>
       onFieldSubmitted: widget.onSubmitted,
       onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
       cursorColor: colors.primary.main,
-      style: text.body.medium().copyWith(color: colors.text.primary),
+      // From the mixin, not built here: the field's height is derived from this
+      // exact style (see [MasrafyInput.inputTextStyle]).
+      style: inputTextStyle(context),
       decoration: decoration,
     );
   }

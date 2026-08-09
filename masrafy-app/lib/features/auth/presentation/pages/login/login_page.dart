@@ -56,7 +56,13 @@ class _LoginViewState extends State<_LoginView> {
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final l = AppLocalizations.of(context);
-    final topInset = MediaQuery.of(context).viewPadding.top;
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+    final collapsedHeight = topInset + kToolbarHeight + 14;
+    // Read ABOVE the Scaffold: resizeToAvoidBottomInset strips viewInsets.bottom
+    // from its body's MediaQuery, so nothing below it can see the keyboard.
+    final kbProgress = MasrafyKeyboardInset.progressForInset(
+      MediaQuery.viewInsetsOf(context).bottom,
+    );
 
     return Scaffold(
       backgroundColor: colors.bg.container,
@@ -86,6 +92,7 @@ class _LoginViewState extends State<_LoginView> {
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
               SliverPersistentHeader(
                 pinned: true,
@@ -98,7 +105,10 @@ class _LoginViewState extends State<_LoginView> {
                     subtitle: l.login_subtitle,
                     minHeight: 180.h,
                   ),
-                  collapsedHeight: topInset + kToolbarHeight + 14,
+                  collapsedHeight: collapsedHeight,
+                  // Collapses the hero toward the compact toolbar as the
+                  // keyboard rises, handing the height back to the form.
+                  keyboardProgress: kbProgress,
                 ),
               ),
               SliverToBoxAdapter(
@@ -269,8 +279,7 @@ class _LabeledField extends StatelessWidget {
             isDense: true,
             hintText: hint,
             hintStyle: text.body.copyWith(color: colors.text.placeholder),
-            filled: true,
-            fillColor: colors.bg.layout,
+            filled: false,
             suffixIcon: suffix,
             contentPadding: EdgeInsetsDirectional.symmetric(
               horizontal: 14.w,
@@ -278,11 +287,17 @@ class _LabeledField extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14.r),
-              borderSide: BorderSide(color: colors.border.main),
+              borderSide: BorderSide(
+                color: colors.border.field,
+                width: MasrafyFieldMetrics.borderWidth,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14.r),
-              borderSide: BorderSide(color: colors.secondary.main),
+              borderSide: BorderSide(
+                color: colors.secondary.main,
+                width: MasrafyFieldMetrics.borderWidth,
+              ),
             ),
           ),
         ),

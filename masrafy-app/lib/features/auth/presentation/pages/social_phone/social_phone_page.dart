@@ -39,7 +39,13 @@ class _SocialPhoneView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final l = AppLocalizations.of(context);
-    final topInset = MediaQuery.of(context).viewPadding.top;
+    final topInset = MediaQuery.viewPaddingOf(context).top;
+    final collapsedHeight = topInset + kToolbarHeight + 14;
+    // Read ABOVE the Scaffold: resizeToAvoidBottomInset strips viewInsets.bottom
+    // from its body's MediaQuery, so nothing below it can see the keyboard.
+    final kbProgress = MasrafyKeyboardInset.progressForInset(
+      MediaQuery.viewInsetsOf(context).bottom,
+    );
 
     return Scaffold(
       backgroundColor: colors.bg.container,
@@ -66,6 +72,7 @@ class _SocialPhoneView extends StatelessWidget {
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
               SliverPersistentHeader(
                 pinned: true,
@@ -79,7 +86,10 @@ class _SocialPhoneView extends StatelessWidget {
                     hasBack: true,
                     minHeight: 180.h,
                   ),
-                  collapsedHeight: topInset + kToolbarHeight + 14,
+                  collapsedHeight: collapsedHeight,
+                  // Collapses the hero toward the compact toolbar as the
+                  // keyboard rises, handing the height back to the form.
+                  keyboardProgress: kbProgress,
                   onBack: () => ctx.router.maybePop(),
                 ),
               ),

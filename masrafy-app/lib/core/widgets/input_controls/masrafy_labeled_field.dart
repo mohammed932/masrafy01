@@ -50,7 +50,7 @@ class MasrafyLabeledField extends StatelessWidget {
 
   Color _accent(MasrafyColorTheme colors) => status == MasrafyFieldStatus.error
       ? colors.error.main
-      : colors.border.main;
+      : colors.border.field;
 
   @override
   Widget build(BuildContext context) {
@@ -109,8 +109,8 @@ class MasrafyLabeledField extends StatelessWidget {
             isDense: true,
             hintText: hint,
             hintStyle: inputStyle.copyWith(color: colors.text.tertiary),
-            // Transparent box — the 1px border carries the field, so inputs,
-            // selects and the phone row read as one outlined family.
+            // Transparent box — the `border.field` stroke carries the field, so
+            // inputs, selects and the phone row read as one outlined family.
             filled: false,
             suffixIcon: suffix,
             // Caps the suffix (a 48² IconButton by default) so it cannot
@@ -127,14 +127,18 @@ class MasrafyLabeledField extends StatelessWidget {
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
-              borderSide: BorderSide(color: accent),
+              borderSide: BorderSide(
+                color: accent,
+                width: MasrafyFieldMetrics.borderWidth,
+              ),
             ),
-            // Same 1px width as the resting border: a thicker focus ring would
-            // grow the field by 1px and jitter the whole form on every focus.
+            // Same width as the resting border: a thicker focus ring would
+            // grow the field and jitter the whole form on every focus.
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
               borderSide: BorderSide(
                 color: isError ? accent : colors.secondary.main,
+                width: MasrafyFieldMetrics.borderWidth,
               ),
             ),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 
 import 'masrafy_base_input.dart';
 
@@ -153,7 +154,7 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
     final colors = MasrafyColorTheme.of(context);
     if (hasError) return colors.error.main;
     if (_focused) return colors.primary.main;
-    return colors.border.main;
+    return colors.border.field;
   }
 
   Color labelColor(BuildContext context) {
@@ -164,8 +165,11 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
   }
 
   OutlineInputBorder buildBorder(BuildContext context) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8.r),
-        borderSide: BorderSide(color: borderColor(context), width: 1),
+        borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
+        borderSide: BorderSide(
+          color: borderColor(context),
+          width: MasrafyFieldMetrics.borderWidth,
+        ),
       );
 
   /// The suffix icon to show. If the widget has an obscure-toggle, the
@@ -183,25 +187,64 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
     );
   }
 
+  /// The style the concrete field renders its text with. The box height is
+  /// derived from it ([MasrafyFieldMetrics.verticalPaddingFor]), so `buildField`
+  /// MUST pass this exact style to its `TextField` — a larger style set only on
+  /// the field would silently grow the box past the shared height.
+  TextStyle inputTextStyle(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    return MasrafyTextTheme.of(context)
+        .body
+        .medium()
+        .copyWith(color: colors.text.primary);
+  }
+
+  /// True while this field can honour [MasrafyFieldMetrics.height]. A floating
+  /// label needs room above the text and a multi-line box grows by definition —
+  /// neither fits 48px, so both keep a padding of their own instead of clipping.
+  bool get usesSharedHeight =>
+      widget.label.isEmpty && widget.maxLines == 1 && widget.minLines == null;
+
+  BoxConstraints get _affixConstraints => BoxConstraints(
+        minWidth: 40.w,
+        maxHeight: MasrafyFieldMetrics.height - 2,
+      );
+
   InputDecoration buildDecoration(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final border = buildBorder(context);
+    final style = inputTextStyle(context);
     return InputDecoration(
       labelText: widget.label.isEmpty ? null : widget.label,
       labelStyle: text.body.regular().copyWith(color: labelColor(context)),
       floatingLabelStyle:
           text.bodySmall.medium().copyWith(color: labelColor(context)),
       hintText: widget.hint,
-      hintStyle: text.body.regular().copyWith(color: colors.text.tertiary),
+      // Same metrics as the input text (weight aside) — a hint on a different
+      // line box would size the empty field differently from the filled one.
+      hintStyle: style.regular().copyWith(color: colors.text.tertiary),
       prefixIcon: widget.prefixIcon,
       suffixIcon: resolveSuffix(context),
-      filled: true,
-      fillColor: colors.bg.container,
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: 16.w,
-        vertical: 14.h,
-      ),
+      // Caps the affixes (a 48² IconButton by default, e.g. the obscure toggle)
+      // so they cannot inflate the box past [MasrafyFieldMetrics.height].
+      prefixIconConstraints: usesSharedHeight ? _affixConstraints : null,
+      suffixIconConstraints: usesSharedHeight ? _affixConstraints : null,
+      // Transparent like every other field in the family (labeled / select /
+      // phone / DOB): the `border.field` stroke carries the box, so a solid
+      // plate would only make this one control read as a different species
+      // next to them.
+      filled: false,
+      // One height across the whole single-line family (Principle XXXIII): the
+      // padding — not a SizedBox — is what sets it, because `OutlineInputBorder`
+      // paints around the decorator's own content rect.
+      isDense: usesSharedHeight,
+      contentPadding: usesSharedHeight
+          ? EdgeInsetsDirectional.symmetric(
+              horizontal: MasrafyFieldMetrics.horizontalPadding,
+              vertical: MasrafyFieldMetrics.verticalPaddingFor(style),
+            )
+          : EdgeInsetsDirectional.symmetric(horizontal: 16.w, vertical: 14.h),
       counterText: '',
       border: border,
       enabledBorder: border,

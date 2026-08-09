@@ -66,6 +66,11 @@ class MasrafySelectField<T> extends StatelessWidget {
   }
 
   Future<void> _open(BuildContext context) async {
+    // Drop any text field's keyboard BEFORE the sheet builds. The sheet pads
+    // itself with viewInsets.bottom read at build time, so opening it while a
+    // keyboard is still up gives it a stale ~300px bottom pad that then
+    // animates away — a visible double-motion on entry.
+    FocusManager.instance.primaryFocus?.unfocus();
     final picked = await showMasrafySingleSelectSheet<T>(
       context: context,
       title: sheetTitle ?? label,
@@ -108,7 +113,13 @@ class MasrafySelectField<T> extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: isEnabled ? Colors.transparent : colors.fill.quaternary,
-              border: Border.all(color: colors.border.main),
+              // Enabled controls carry the strong `border.field` stroke; a
+              // disabled one drops back to the divider tone so it reads as
+              // furniture, not as something to tap.
+              border: Border.all(
+                color: isEnabled ? colors.border.field : colors.border.main,
+                width: MasrafyFieldMetrics.borderWidth,
+              ),
               borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
             ),
             child: Row(
@@ -165,7 +176,10 @@ class MasrafySelectField<T> extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: isEnabled ? Colors.transparent : colors.fill.quaternary,
-              border: Border.all(color: colors.border.main),
+              border: Border.all(
+                color: isEnabled ? colors.border.field : colors.border.main,
+                width: MasrafyFieldMetrics.borderWidth,
+              ),
               borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
             ),
             child: Row(

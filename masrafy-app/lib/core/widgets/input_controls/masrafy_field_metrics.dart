@@ -21,6 +21,15 @@ abstract final class MasrafyFieldMetrics {
   /// Corner radius of the field box.
   static double get radius => 12.r;
 
+  /// Stroke width of a field's outline, in EVERY state (resting, focused,
+  /// error). One width across states on purpose: `OutlineInputBorder` strokes
+  /// centred on the box edge, so a thicker focus ring visibly grows the field
+  /// and jitters the form — focus is signalled by colour, never by weight.
+  ///
+  /// 1.5 rather than 1: paired with `border.field`, it is what makes an
+  /// unfilled control read as a box from arm's length on a tinted layout.
+  static double get borderWidth => 1.5;
+
   /// Gap between a field's label and the field itself.
   static double get labelGap => 6.h;
 

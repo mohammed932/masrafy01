@@ -109,6 +109,8 @@ class _ChangePasswordViewState extends State<_ChangePasswordView> {
                     physics: const BouncingScrollPhysics(
                       parent: AlwaysScrollableScrollPhysics(),
                     ),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: EdgeInsetsDirectional.fromSTEB(24.w, 8.h, 24.w, 30.h),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,

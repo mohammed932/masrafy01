@@ -15,7 +15,8 @@ import 'package:app/core/widgets/input_controls/phone_dial_codes.dart';
 ///   gap 16
 /// Each column has its own label above its control — pass [uppercaseLabels] to
 /// get the uppercase indigo `caption` label of the edit-form field family.
-/// Both controls: transparent, 1px `border.main`, [MasrafyFieldMetrics.radius],
+/// Both controls: transparent, `border.field` at
+/// [MasrafyFieldMetrics.borderWidth], [MasrafyFieldMetrics.radius],
 /// [MasrafyFieldMetrics.height] — the same height as every other single-line
 /// field, so a form mixing this row with text inputs / selects stays even. The
 /// select uses a 12r DownOutlined SVG (`kSetStudyChevronDown`).
@@ -149,7 +150,7 @@ class MasrafyPhoneField extends StatelessWidget {
 }
 
 /// Phone-number input — same chrome as the dial-code select so the two fields
-/// are vertically pixel-aligned: transparent + 1px `border.main` +
+/// are vertically pixel-aligned: transparent + `border.field` +
 /// [MasrafyFieldMetrics.radius] + [MasrafyFieldMetrics.height], `body` text.
 /// Wires through digits-only formatter + 20-char limit + optional
 /// validator (form-level error rendering left to the caller).
@@ -211,7 +212,10 @@ class _PhoneNumberInputState extends State<_PhoneNumberInput> {
       alignment: AlignmentDirectional.centerStart,
       decoration: BoxDecoration(
         color: Colors.transparent,
-        border: Border.all(color: colors.border.main),
+        border: Border.all(
+          color: colors.border.field,
+          width: MasrafyFieldMetrics.borderWidth,
+        ),
         borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
       ),
       child: TextField(
@@ -269,7 +273,7 @@ class _Label extends StatelessWidget {
   }
 }
 
-/// Tappable select — transparent + 1px `border.main` +
+/// Tappable select — transparent + `border.field` +
 /// [MasrafyFieldMetrics.radius] + [MasrafyFieldMetrics.height]. Trailing 12r
 /// `DownOutlined` SVG.
 class _DialCodeSelect extends StatelessWidget {
@@ -298,7 +302,10 @@ class _DialCodeSelect extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           color: Colors.transparent,
-          border: Border.all(color: colors.border.main),
+          border: Border.all(
+            color: colors.border.field,
+            width: MasrafyFieldMetrics.borderWidth,
+          ),
           borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
         ),
         child: Row(

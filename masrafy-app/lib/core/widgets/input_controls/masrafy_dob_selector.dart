@@ -69,7 +69,10 @@ class MasrafyDobSelector extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               color: enabled ? Colors.transparent : colors.fill.quaternary,
-              border: Border.all(color: colors.border.main),
+              border: Border.all(
+                color: enabled ? colors.border.field : colors.border.main,
+                width: MasrafyFieldMetrics.borderWidth,
+              ),
               borderRadius:
                   BorderRadius.circular(MasrafyFieldMetrics.radius),
             ),

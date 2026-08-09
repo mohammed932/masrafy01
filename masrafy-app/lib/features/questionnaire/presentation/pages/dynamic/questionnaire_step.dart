@@ -7,6 +7,7 @@ import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/utils/grouped_number_input_formatter.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 import 'package:app/core/widgets/input_controls/masrafy_multi_select_field.dart';
 import 'package:app/core/widgets/input_controls/masrafy_select_field.dart';
 import 'package:app/core/widgets/input_controls/masrafy_text_field/masrafy_text_field.dart';
@@ -395,16 +396,23 @@ class _DerivedTotalField extends StatelessWidget {
         children: [
           Container(
             width: double.infinity,
+            // Shared field geometry (Principle XXXIII) — it stands in a column
+            // of typed fields, so it must not read as a taller species just
+            // because it happens to be read-only.
+            constraints: BoxConstraints(minHeight: MasrafyFieldMetrics.height),
             padding: EdgeInsetsDirectional.symmetric(
-              horizontal: 16.w,
-              vertical: 14.h,
+              horizontal: MasrafyFieldMetrics.horizontalPadding,
+              vertical: 8.h,
             ),
             decoration: BoxDecoration(
               // Disabled-container fill, so the surface reads as "shown to you"
               // rather than as an input awaiting a tap.
               color: colors.bg.containerDisabled,
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: colors.border.main),
+              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
+              border: Border.all(
+                color: colors.border.main,
+                width: MasrafyFieldMetrics.borderWidth,
+              ),
             ),
             child: Row(
               children: [
@@ -558,7 +566,7 @@ class _TitledField extends StatelessWidget {
                 text.caption.regular().copyWith(color: colors.text.tertiary),
           ),
         ],
-        Gap(8.h),
+        Gap(MasrafyFieldMetrics.labelGap),
         child,
       ],
     );

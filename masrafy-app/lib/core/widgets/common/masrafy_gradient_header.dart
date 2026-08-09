@@ -73,10 +73,32 @@ class MasrafyGradientHeader extends StatelessWidget {
     double bottomExtent = 0,
     double minHeight = 0,
   }) {
-    final media = MediaQuery.of(context);
-    final text = MasrafyTextTheme.of(context);
-    final maxWidth = media.size.width - 48.w; // 24.w each side
+    final size = MediaQuery.sizeOf(context);
+    final topPadding = MediaQuery.viewPaddingOf(context).top;
+    final textScaler = MediaQuery.textScalerOf(context);
     final dir = Directionality.of(context);
+
+    // Callers that collapse the hero as the keyboard rises re-read this EVERY
+    // keyboard frame, per mounted screen, and each miss costs two
+    // TextPainter.layout() passes. Every input is captured in the key, so a hit
+    // is exact, never stale. `size` covers both the measuring width and the
+    // screenutil scale behind the `.h`/`.w` terms below.
+    final key = (
+      title,
+      subtitle,
+      size,
+      topPadding,
+      textScaler,
+      dir,
+      hasBack,
+      bottomExtent,
+      minHeight,
+    );
+    final cached = _expandedHeightCache[key];
+    if (cached != null) return cached;
+
+    final text = MasrafyTextTheme.of(context);
+    final maxWidth = size.width - 48.w; // 24.w each side
 
     double measure(String value, TextStyle style) {
       final painter = TextPainter(
@@ -94,10 +116,26 @@ class MasrafyGradientHeader extends StatelessWidget {
     final subH = measure(subtitle, text.bodySmall);
     // When there's a back button, reserve its toolbar band PLUS a clear gap so
     // the (bottom-aligned) title never rides up into / under the back button.
-    final top = media.viewPadding.top + (hasBack ? kToolbarHeight + 48.h : 8.h);
+    final top = topPadding + (hasBack ? kToolbarHeight + 48.h : 8.h);
     final content = top + titleH + 6.h + subH + bottomExtent + 36.h;
-    return content < minHeight ? minHeight : content;
+    final result = content < minHeight ? minHeight : content;
+
+    // Bounded: a rotation / split-screen resize or a locale switch strands the
+    // old entries, so drop the lot rather than grow without limit. The working
+    // set is one entry per visible header.
+    if (_expandedHeightCache.length >= _kExpandedHeightCacheMax) {
+      _expandedHeightCache.clear();
+    }
+    _expandedHeightCache[key] = result;
+    return result;
   }
+
+  static const int _kExpandedHeightCacheMax = 48;
+
+  static final Map<
+      (String, String, Size, double, TextScaler, TextDirection, bool, double,
+          double),
+      double> _expandedHeightCache = {};
 
   @override
   Widget build(BuildContext context) {
@@ -137,8 +175,17 @@ class MasrafyGradientHeader extends StatelessWidget {
           // 1. Expanded hero — full-size title + subtitle (+ optional bottom),
           //    bottom-aligned. Fades out as the header collapses.
           if (expandedOpacity > 0)
-            Align(
+            // Unbounded max height, NOT an Align: the hero block keeps its
+            // natural size as the header shrinks, sliding up out of the box
+            // (bottom-aligned) to be clipped by the delegate's ClipRect — which
+            // is the intended "title rises and fades" motion. With a bounded
+            // box the Column instead reports a RenderFlex overflow for the
+            // whole window between "box is shorter than the content" and
+            // "expandedOpacity hits 0", since Opacity fades without shrinking.
+            OverflowBox(
               alignment: AlignmentDirectional.bottomStart,
+              minHeight: 0,
+              maxHeight: double.infinity,
               child: Padding(
                 padding: EdgeInsetsDirectional.only(bottom: 36.h),
                 child: Opacity(

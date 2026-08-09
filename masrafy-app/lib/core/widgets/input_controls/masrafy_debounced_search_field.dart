@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 
 class MasrafyDebouncedSearchField extends StatefulWidget {
   const MasrafyDebouncedSearchField({
@@ -83,16 +84,24 @@ class _MasrafyDebouncedSearchFieldState
             EdgeInsets.symmetric(horizontal: 12.w, vertical: 10.h),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24.r),
-          borderSide: BorderSide(color: colors.border.main),
+          borderSide: BorderSide(
+            color: colors.border.field,
+            width: MasrafyFieldMetrics.borderWidth,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24.r),
-          borderSide: BorderSide(color: colors.border.main),
+          borderSide: BorderSide(
+            color: colors.border.field,
+            width: MasrafyFieldMetrics.borderWidth,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(24.r),
-          borderSide:
-              BorderSide(color: colors.primary.main, width: 1.5),
+          borderSide: BorderSide(
+            color: colors.primary.main,
+            width: MasrafyFieldMetrics.borderWidth,
+          ),
         ),
       ),
     );

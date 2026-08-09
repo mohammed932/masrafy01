@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 
 /// Boxed OTP entry (Figma `137:2708`): [length] cells rendered over a single
 /// transparent [TextField] that captures the keyboard input. The active cell
@@ -138,11 +139,14 @@ class _Cell extends StatelessWidget {
       bg = colors.success.main.withValues(alpha: 0.06);
     } else if (active) {
       border = colors.secondary.main;
-      bg = colors.bg.container;
+      bg = Colors.transparent;
     } else {
-      border = colors.border.main;
-      bg = colors.bg.layout;
+      border = colors.border.field;
+      bg = Colors.transparent;
     }
+    // Empty and active cells are transparent — the border colour already says
+    // which cell is next. The error/success tints above stay: those carry
+    // state, not field chrome.
 
     return AspectRatio(
       aspectRatio: 50 / 56,
@@ -150,7 +154,10 @@ class _Cell extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: bg,
-          border: Border.all(color: border),
+          border: Border.all(
+            color: border,
+            width: MasrafyFieldMetrics.borderWidth,
+          ),
           borderRadius: BorderRadius.circular(14.r),
         ),
         child: filled

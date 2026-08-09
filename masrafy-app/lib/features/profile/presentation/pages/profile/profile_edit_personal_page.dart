@@ -196,6 +196,8 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                     physics: const BouncingScrollPhysics(
                       parent: AlwaysScrollableScrollPhysics(),
                     ),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     padding:
                         EdgeInsetsDirectional.fromSTEB(20.w, 16.h, 20.w, 24.h),
                     child: Column(

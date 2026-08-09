@@ -99,6 +99,8 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                     physics: const BouncingScrollPhysics(
                       parent: AlwaysScrollableScrollPhysics(),
                     ),
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
                     padding: EdgeInsetsDirectional.fromSTEB(20.w, 16.h, 20.w, 24.h),
                     child: ProfileFormSection(
                       title: l.profile_section_contact,

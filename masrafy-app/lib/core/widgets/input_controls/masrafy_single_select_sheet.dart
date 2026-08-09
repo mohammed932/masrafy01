@@ -5,6 +5,7 @@ import 'package:gap/gap.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/utils/masrafy_assets.dart';
+import 'package:app/core/widgets/input_controls/masrafy_field_metrics.dart';
 
 /// One selectable option for the Masrafy selection surfaces. [value] is a
 /// stable, language-neutral identifier; [label] is the already-localized
@@ -289,8 +290,11 @@ class _SearchField extends StatelessWidget {
       height: 40.r,
       padding: EdgeInsets.symmetric(horizontal: 11.w),
       decoration: BoxDecoration(
-        color: colors.bg.container,
-        border: Border.all(color: colors.border.main),
+        color: Colors.transparent,
+        border: Border.all(
+          color: colors.border.field,
+          width: MasrafyFieldMetrics.borderWidth,
+        ),
         borderRadius: BorderRadius.circular(8.r),
       ),
       child: Row(

@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:app/core/widgets/common/masrafy_gradient_header.dart';
 
@@ -22,6 +25,7 @@ class MasrafySliverGradientHeaderDelegate
     required this.subtitle,
     required this.expandedHeight,
     required this.collapsedHeight,
+    this.keyboardProgress = 0,
     this.onBack,
     this.action,
     this.bottom,
@@ -36,6 +40,18 @@ class MasrafySliverGradientHeaderDelegate
   /// Fully-collapsed height in physical pixels: safe-area top + a compact bar
   /// (e.g. `MediaQuery.viewPadding.top + kToolbarHeight`).
   final double collapsedHeight;
+
+  /// 0..1 — how far the software keyboard has risen, from
+  /// `MasrafyKeyboardInset.progressOf` / `.progressForInset`. Collapses the hero
+  /// toward [collapsedHeight] IN PLACE, handing the shrinking viewport back to
+  /// the form instead of squeezing it against the keyboard. Default `0` leaves
+  /// scroll as the only collapse driver, so existing call sites are unchanged.
+  ///
+  /// It shortens [maxExtent], NOT `shrinkOffset`, so the collapse progress below
+  /// is derived from the header's CURRENT height rather than from the scroll
+  /// offset — shrinking the box while the hero still believed it was expanded is
+  /// what made its bottom-aligned title/subtitle/progress Column overflow.
+  final double keyboardProgress;
 
   final VoidCallback? onBack;
 
@@ -52,7 +68,10 @@ class MasrafySliverGradientHeaderDelegate
   final Widget? bottom;
 
   @override
-  double get maxExtent => expandedHeight;
+  double get maxExtent => math.max(
+        collapsedHeight,
+        lerpDouble(expandedHeight, collapsedHeight, keyboardProgress)!,
+      );
 
   @override
   double get minExtent => collapsedHeight;
@@ -63,10 +82,17 @@ class MasrafySliverGradientHeaderDelegate
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    final range = maxExtent - minExtent;
-    final t = range <= 0 ? 0.0 : (shrinkOffset / range).clamp(0.0, 1.0);
     final currentHeight =
         (maxExtent - shrinkOffset).clamp(minExtent, maxExtent);
+    // Normalised against the FULLY-expanded height, not [maxExtent] — the
+    // keyboard shrinks maxExtent, so measuring against it would keep reporting
+    // "expanded" (t = 0) at a toolbar-sized height. Both collapse sources feed
+    // in through currentHeight, and with keyboardProgress = 0 this reduces
+    // exactly to the old `shrinkOffset / (maxExtent - minExtent)`.
+    final range = expandedHeight - collapsedHeight;
+    final t = range <= 0
+        ? 1.0
+        : (1 - (currentHeight - collapsedHeight) / range).clamp(0.0, 1.0);
 
     return ClipRect(
       child: MasrafyGradientHeader(
@@ -89,6 +115,7 @@ class MasrafySliverGradientHeaderDelegate
         oldDelegate.subtitle != subtitle ||
         oldDelegate.expandedHeight != expandedHeight ||
         oldDelegate.collapsedHeight != collapsedHeight ||
+        oldDelegate.keyboardProgress != keyboardProgress ||
         oldDelegate.onBack != onBack ||
         oldDelegate.action != action ||
         oldDelegate.bottom != bottom;

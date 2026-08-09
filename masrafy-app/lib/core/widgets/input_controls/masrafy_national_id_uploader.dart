@@ -205,7 +205,7 @@ class _IdCardState extends State<_IdCard> {
       onTap: widget.onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        constraints: BoxConstraints(minHeight: 100.h),
+        constraints: BoxConstraints(minHeight: 72.h),
         decoration: BoxDecoration(
           // Token surface, not an alpha wash — the dark-theme tone carries its
           // own low-luminance plate instead of bleaching the card.
@@ -379,7 +379,7 @@ class _IdCardPlaceholder extends StatelessWidget {
     final text = MasrafyTextTheme.of(context);
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 11.w, vertical: 15.h),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         // Centred, so the shorter side's plate sits mid-card when the taller
@@ -387,21 +387,21 @@ class _IdCardPlaceholder extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 38.r,
-            height: 38.r,
+            width: 30.r,
+            height: 30.r,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(10.r),
+              borderRadius: BorderRadius.circular(8.r),
             ),
             child: Icon(
               uploaded
                   ? Icons.badge_outlined
                   : Icons.add_photo_alternate_outlined,
-              size: 20.r,
+              size: 17.r,
               color: accent,
             ),
           ),
-          Gap(8.h),
+          Gap(6.h),
           Text(
             label,
             textAlign: TextAlign.center,
