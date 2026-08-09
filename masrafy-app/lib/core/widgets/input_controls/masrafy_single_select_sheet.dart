@@ -195,11 +195,14 @@ class _SingleSelectSheetState<T> extends State<_SingleSelectSheet<T>> {
                 Flexible(
                   child: ListView.separated(
                     shrinkWrap: true,
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                    // Row spacing lives INSIDE _OptionRow (px16/py19) so the
+                    // whole band — label, radio and the gap around them — is
+                    // tappable. Padding here (or on the separator) would be
+                    // dead space between rows.
+                    padding: EdgeInsets.zero,
                     itemCount: totalCount,
                     separatorBuilder: (_, __) => Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.h),
+                      padding: EdgeInsets.symmetric(horizontal: 16.w),
                       child: SizedBox(
                         height: 0.75,
                         child: ColoredBox(color: colors.border.main),
@@ -369,7 +372,9 @@ class _OptionRow<T> extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 3.h),
+        // Owns the full row inset (list + separator contribute none) so the
+        // entire band is a hit target: 19 = the old 16 gap + 3 row padding.
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 19.h),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [

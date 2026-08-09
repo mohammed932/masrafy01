@@ -302,14 +302,14 @@ class _Content<T> extends StatelessWidget {
                     ),
                   )
                 : ListView.separated(
-                    // List wrapper: p-10 + gap-16 between flex children.
-                    // Separator padding is 16+16 (two gap-16 around the
-                    // 0.75px hairline) to match Figma `3391:127895` exactly.
+                    // List wrapper: p-10 + gap-16 between flex children, all
+                    // pushed into _OptionRow so no gap is dead to taps.
+                    // Hairline inset stays 10 per Figma `3391:127895`.
                     shrinkWrap: true,
-                    padding: EdgeInsets.all(10.r),
+                    padding: EdgeInsets.zero,
                     itemCount: rows.length,
                     separatorBuilder: (_, __) => Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16.h),
+                      padding: EdgeInsets.symmetric(horizontal: 10.r),
                       child: SizedBox(
                         height: 0.75,
                         child: ColoredBox(color: colors.border.main),
@@ -413,9 +413,11 @@ class _OptionRow<T> extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: option.isLocked ? null : onTap,
-      // Checkbox wrapper py-3 per Figma `I3391:127896;1810:45573`.
+      // Row owns the full inset (list + separator contribute none) so the
+      // whole band is a hit target: 19 = the old 16 gap + the py-3 checkbox
+      // wrapper per Figma `I3391:127896;1810:45573`.
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 3.h),
+        padding: EdgeInsets.symmetric(horizontal: 10.r, vertical: 19.h),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
