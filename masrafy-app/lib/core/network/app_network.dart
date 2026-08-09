@@ -97,7 +97,7 @@ class AppNetwork implements BaseNetwork {
     // than hang the upload spinner forever.
     final raw = Dio(
       BaseOptions(
-        connectTimeout: const Duration(seconds: 15),
+        connectTimeout: _uploadConnectTimeout,
         sendTimeout: const Duration(seconds: 60),
         receiveTimeout: const Duration(seconds: 30),
       ),
@@ -112,19 +112,61 @@ class AppNetwork implements BaseNetwork {
         ),
       );
     }
-    await raw.put<void>(
-      url,
-      data: Stream<List<int>>.fromIterable([bytes]),
-      options: Options(
-        // S3/Spaces/MinIO answer errors with an application/xml <Error> body;
-        // plain keeps it a String so `failureFromDio` can read the S3 code
-        // instead of collapsing it into INTERNAL_ERROR.
-        responseType: ResponseType.plain,
-        headers: <String, dynamic>{
-          Headers.contentTypeHeader: contentType,
-          Headers.contentLengthHeader: bytes.length,
-        },
-      ),
-    );
+
+    // Object storage sits on a different host + route than the API, and that
+    // route drops a measurable slice of TCP connects on mobile networks — a
+    // single stalled connect must not burn the whole capture. Retry only the
+    // transport-level failures (a rejected signature is deterministic and
+    // would just fail again), well inside the ticket's 5-minute expiry.
+    for (var attempt = 1; ; attempt++) {
+      try {
+        await raw.put<void>(
+          url,
+          data: Stream<List<int>>.fromIterable([bytes]),
+          options: Options(
+            // S3/Spaces/MinIO answer errors with an application/xml <Error>
+            // body; plain keeps it a String so `failureFromDio` can read the
+            // S3 code instead of collapsing it into INTERNAL_ERROR.
+            responseType: ResponseType.plain,
+            headers: <String, dynamic>{
+              Headers.contentTypeHeader: contentType,
+              Headers.contentLengthHeader: bytes.length,
+            },
+          ),
+        );
+        return;
+      } on DioException catch (error) {
+        if (attempt >= _uploadMaxAttempts || !_isRetryableUpload(error)) {
+          rethrow;
+        }
+        await Future<void>.delayed(_uploadRetryBackoff * attempt);
+      }
+    }
+  }
+
+  /// Transport failures only: the bucket was unreachable / stalled, or it
+  /// answered 5xx. A 4xx (expired ticket, bad signature, size cap) is a
+  /// deterministic rejection — retrying just spends the user's data.
+  static bool _isRetryableUpload(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.connectionError:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return true;
+      case DioExceptionType.badResponse:
+        final status = error.response?.statusCode ?? 0;
+        return status >= 500;
+      case DioExceptionType.badCertificate:
+      case DioExceptionType.cancel:
+      case DioExceptionType.unknown:
+        return false;
+    }
   }
 }
+
+/// Shorter than the API's 15s: a connect that has not landed in 8s on this
+/// route is a dropped one, and a fast fail buys a retry instead of a spinner.
+const Duration _uploadConnectTimeout = Duration(seconds: 8);
+const int _uploadMaxAttempts = 3;
+const Duration _uploadRetryBackoff = Duration(milliseconds: 800);

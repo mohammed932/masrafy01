@@ -157,9 +157,12 @@ class _ApplyDocumentsForm extends StatelessWidget {
               : () => _captureAndUpload(context, front: false),
         ),
         Gap(28.h),
+        // An upload's progress belongs on the tile that is uploading (which
+        // already shows it) — a spinner here reads as "your application is
+        // being sent". Dimmed until both sides are on file is the honest
+        // state: nothing is in flight on this button yet.
         MasrafyGradientButton(
           label: l.apply_docs_cta,
-          isLoading: state.anyUploading,
           onPressed: state.canSubmit
               ? () => context.router.maybePop<bool>(true)
               : null,

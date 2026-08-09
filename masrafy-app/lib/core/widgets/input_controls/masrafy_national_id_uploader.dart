@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:gap/gap.dart';
+import 'package:app/core/features/id_capture/id_frame_geometry.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 
@@ -91,38 +94,37 @@ class MasrafyNationalIdUploader extends StatelessWidget {
         ),
         Gap(8.h),
         // Both sides are one control, so the tiles read as a matched pair:
-        // `Expanded` equalises width, `IntrinsicHeight` + stretch equalises
-        // height whichever side is taller (a two-line placeholder subtitle used
-        // to outgrow the fixed-height preview beside it).
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _IdCard(
-                  label: frontLabel,
-                  subtitle: frontSubtitle,
-                  uploaded: frontUploaded,
-                  checking: frontChecking,
-                  unavailableSubtitle: unavailableSubtitle,
-                  image: frontImage,
-                  onTap: onTapFront,
-                ),
+        // `Expanded` equalises width and each card derives its height from that
+        // width alone, so the two line up without an `IntrinsicHeight` pass and
+        // a two-line placeholder subtitle can no longer outgrow the preview
+        // beside it.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _IdCard(
+                label: frontLabel,
+                subtitle: frontSubtitle,
+                uploaded: frontUploaded,
+                checking: frontChecking,
+                unavailableSubtitle: unavailableSubtitle,
+                image: frontImage,
+                onTap: onTapFront,
               ),
-              Gap(10.w),
-              Expanded(
-                child: _IdCard(
-                  label: backLabel,
-                  subtitle: backSubtitle,
-                  uploaded: backUploaded,
-                  checking: backChecking,
-                  unavailableSubtitle: unavailableSubtitle,
-                  image: backImage,
-                  onTap: onTapBack,
-                ),
+            ),
+            Gap(10.w),
+            Expanded(
+              child: _IdCard(
+                label: backLabel,
+                subtitle: backSubtitle,
+                uploaded: backUploaded,
+                checking: backChecking,
+                unavailableSubtitle: unavailableSubtitle,
+                image: backImage,
+                onTap: onTapBack,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
@@ -201,74 +203,109 @@ class _IdCardState extends State<_IdCard> {
     final accent = tone.main;
     final label = widget.label;
 
-    return GestureDetector(
-      onTap: widget.onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        constraints: BoxConstraints(minHeight: 72.h),
-        decoration: BoxDecoration(
-          // Token surface, not an alpha wash — the dark-theme tone carries its
-          // own low-luminance plate instead of bleaching the card.
-          color: tone.bg,
-          border: Border.all(
-            color: onFile || missing ? accent : accent.withValues(alpha: 0.4),
-          ),
-          borderRadius: BorderRadius.circular(14.r),
-        ),
-        // Clipped so a preview bleeds to the card's rounded edge instead of
-        // sitting in a padded box inside it.
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(13.r),
-          child: Stack(
-            // Expand, not passthrough: the pair share one height, so whichever
-            // face this side shows must fill the card rather than set it.
-            fit: StackFit.expand,
-            children: [
-              if (preview != null)
-                _IdCardPreview(
-                  image: preview,
-                  label: label,
-                  accent: accent,
-                  onFailed: _onPreviewFailed,
-                )
-              else
-                _IdCardPlaceholder(
-                  label: label,
-                  // A side the server claims but cannot show says so, instead
-                  // of the caller's "Uploaded" under a red cross.
-                  subtitle: _previewFailed && widget.uploaded
-                      ? (widget.unavailableSubtitle ?? widget.subtitle)
-                      : widget.subtitle,
-                  uploaded: onFile,
-                  missing: missing,
-                  accent: accent,
-                  accentDeep: tone.textActive,
-                ),
-              // Same mark, same corner, both ways round: ✓ on file, ✕ missing.
-              // Shape carries the meaning too, so it survives colour blindness.
-              if (onFile || missing)
-                PositionedDirectional(
-                  top: 4.h,
-                  end: 4.w,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.white,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The capture page crops every shot to ID-1 (85.60 × 53.98 mm), so the
+        // tile carries that exact ratio: a card shaped like the document shows
+        // the whole document. The old fixed 72.h let the tile run ~2.7:1 wide,
+        // and `BoxFit.cover` then sliced the top and bottom off the very
+        // rectangle the user had just lined up in the camera frame.
+        // Floored, so a narrow phone cannot squeeze the placeholder's icon
+        // plate and its two lines of copy into a sliver.
+        final height = math.max(
+          constraints.maxWidth / idCardAspectRatio,
+          _minIdCardHeight,
+        );
+
+        return GestureDetector(
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            height: height,
+            decoration: BoxDecoration(
+              // Token surface, not an alpha wash — the dark-theme tone carries
+              // its own low-luminance plate instead of bleaching the card.
+              color: tone.bg,
+              border: Border.all(
+                color:
+                    onFile || missing ? accent : accent.withValues(alpha: 0.4),
+              ),
+              borderRadius: BorderRadius.circular(14.r),
+            ),
+            // Clipped so a preview bleeds to the card's rounded edge instead of
+            // sitting in a padded box inside it.
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13.r),
+              child: Stack(
+                // Expand, not passthrough: the card owns the height, so
+                // whichever face this side shows fills it rather than sets it.
+                fit: StackFit.expand,
+                children: [
+                  if (preview != null)
+                    _IdCardPreview(
+                      image: preview,
+                      label: label,
+                      accent: accent,
+                      onFailed: _onPreviewFailed,
+                    )
+                  else
+                    _IdCardPlaceholder(
+                      label: label,
+                      // A side the server claims but cannot show says so,
+                      // instead of the caller's "Uploaded" under a red cross.
+                      subtitle: _previewFailed && widget.uploaded
+                          ? (widget.unavailableSubtitle ?? widget.subtitle)
+                          : widget.subtitle,
+                      uploaded: onFile,
+                      missing: missing,
+                      accent: accent,
+                      accentDeep: tone.textActive,
                     ),
-                    child: Icon(
-                      onFile ? Icons.check_circle : Icons.cancel,
-                      size: 18.r,
-                      color: accent,
+                  // Same mark, same corner, both ways round: ✓ on file,
+                  // ✕ missing. Shape carries the meaning too, so it survives
+                  // colour blindness. The white plate is padded into a ring:
+                  // the glyph is a filled disc, so an unpadded plate behind it
+                  // is invisible and the mark dissolves into a busy photo.
+                  if (onFile || missing)
+                    PositionedDirectional(
+                      top: 6.h,
+                      end: 6.w,
+                      child: Container(
+                        padding: const EdgeInsets.all(1.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: colors.white,
+                          boxShadow: [
+                            BoxShadow(
+                              color: colors.bg.spotlight
+                                  .withValues(alpha: 0.28),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          onFile ? Icons.check_circle : Icons.cancel,
+                          size: 18.r,
+                          color: accent,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-            ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
+
+/// Floor for a tile's height, in logical pixels. Below this the placeholder's
+/// icon plate + label + subtitle stop fitting, and a letterboxed preview beats
+/// a clipped one. A getter, not a top-level `final`: `.h` is resolved against
+/// the live screen metrics, which a rotation changes.
+double get _minIdCardHeight => 88.h;
 
 /// The captured/stored side, filling the card with the label legible over it.
 class _IdCardPreview extends StatelessWidget {
@@ -316,16 +353,25 @@ class _IdCardPreview extends StatelessWidget {
           ),
         ),
         // Bottom scrim: the ID artwork underneath is arbitrary, so the label
-        // needs its own contrast rather than borrowing the photo's.
-        Positioned.fill(
+        // needs its own contrast rather than borrowing the photo's. Held to the
+        // lower third and eased in — now that the tile is ID-shaped there is a
+        // real photo to look at, and a half-height veil over it was the reason
+        // the card read as a murky plate rather than a document.
+        PositionedDirectional(
+          start: 0,
+          end: 0,
+          bottom: 0,
+          height: 34.h,
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.center,
+                begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
+                stops: const [0, 0.45, 1],
                 colors: [
                   colors.bg.spotlight.withValues(alpha: 0),
-                  colors.bg.spotlight.withValues(alpha: 0.75),
+                  colors.bg.spotlight.withValues(alpha: 0.42),
+                  colors.bg.spotlight.withValues(alpha: 0.82),
                 ],
               ),
             ),
@@ -334,12 +380,24 @@ class _IdCardPreview extends StatelessWidget {
         PositionedDirectional(
           start: 8.w,
           end: 8.w,
-          bottom: 8.h,
+          bottom: 7.h,
           child: Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: text.caption.semiBold().copyWith(color: colors.white),
+            style: text.caption.semiBold().copyWith(
+              color: colors.white,
+              // The scrim handles the average case; a blown-out highlight in
+              // the ID artwork right under the baseline still needs the glyph
+              // to have an edge of its own.
+              shadows: [
+                Shadow(
+                  color: colors.bg.spotlight.withValues(alpha: 0.55),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -379,43 +437,51 @@ class _IdCardPlaceholder extends StatelessWidget {
     final text = MasrafyTextTheme.of(context);
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 10.h),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
-        // Centred, so the shorter side's plate sits mid-card when the taller
-        // side sets the shared height instead of hanging from the top.
+        // No `min`: the card hands down a tight height, so the column fills it
+        // and centres, and the `Flexible` copy below shrinks instead of
+        // overflowing when a translation runs long.
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 30.r,
-            height: 30.r,
+            width: 32.r,
+            height: 32.r,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(8.r),
+              borderRadius: BorderRadius.circular(9.r),
             ),
             child: Icon(
               uploaded
                   ? Icons.badge_outlined
                   : Icons.add_photo_alternate_outlined,
-              size: 17.r,
+              size: 18.r,
               color: accent,
             ),
           ),
           Gap(6.h),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: text.bodySmall.semiBold().copyWith(color: accent),
+          Flexible(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.bodySmall.semiBold().copyWith(color: accent),
+            ),
           ),
           Gap(2.h),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: text.caption.regular().copyWith(
-                  color: uploaded || missing
-                      ? accentDeep
-                      : colors.text.placeholder,
-                ),
+          Flexible(
+            child: Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: text.caption.regular().copyWith(
+                    color: uploaded || missing
+                        ? accentDeep
+                        : colors.text.placeholder,
+                  ),
+            ),
           ),
         ],
       ),

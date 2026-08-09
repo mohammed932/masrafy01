@@ -36,6 +36,19 @@ class OfferDetailsPage extends StatelessWidget {
         : l.offer_approval(offer.approvalPct);
     final grouped = NumberFormat.decimalPattern();
 
+    // A real, not-yet-applied offer is the only case with a live Apply CTA, and
+    // therefore the only one that needs the National ID document gate. It is
+    // also the only case allowed to touch DI: placeholder views (mock /
+    // saved-offer / past-application) are pumped straight into widget tests
+    // with no container.
+    final gated = offer.applicationId.isNotEmpty && !offer.alreadyApplied;
+    // Bank-facing name of the matched program. Real offers carry the friendly
+    // name (the code is the fallback for programs that never got one);
+    // saved-offer / past-application / mock views carry neither.
+    final programName = offer.programFriendlyName.isNotEmpty
+        ? offer.programFriendlyName
+        : offer.programCode;
+
     // What the bank booked, versus what the wizard asked for. They diverge
     // whenever the program ceiling or the debt-burden cap reduced the ask, and
     // the gap is exactly what made this screen unreadable: every figure below
@@ -146,6 +159,13 @@ class OfferDetailsPage extends StatelessWidget {
                   children: [
                     MatchSummaryCard(
                       rows: [
+                        // Which bank program this is — the hero says only
+                        // "Personal Loan", so without this row two offers from
+                        // two banks render identically. Falls back to the raw
+                        // code, and is dropped entirely on placeholder views
+                        // (saved offers / mocks) that carry neither.
+                        if (programName.isNotEmpty)
+                          (label: l.results_program, value: programName),
                         (label: l.results_loan_type, value: typeLabel),
                         // The ask and the offer are two different numbers
                         // whenever the program ceiling or the debt-burden
@@ -239,12 +259,7 @@ class OfferDetailsPage extends StatelessWidget {
                           ),
                         // Document status, not a figure — last, so the
                         // money tiles read as one uninterrupted block.
-                        OfferStatTile(
-                          label: l.offer_national_id,
-                          value: l.offer_national_id_pending,
-                          caption: l.offer_personal_id,
-                          valueColor: colors.warning.active,
-                        ),
+                        _NationalIdStatTile(tracked: gated),
                       ],
                     ),
                     if (offer.hasUnusedHeadroom) ...[
@@ -291,7 +306,7 @@ class OfferDetailsPage extends StatelessWidget {
                               create: (_) => getIt<SelectOfferCubit>(),
                               child: BlocConsumer<SelectOfferCubit,
                                   SelectOfferState>(
-                                listener: (ctx, state) async {
+                                listener: (ctx, state) {
                                   if (state.isSuccess) {
                                     MasrafyToast.success(
                                         ctx, l.offer_proceed_success);
@@ -303,18 +318,12 @@ class OfferDetailsPage extends StatelessWidget {
                                       const PreviousApplicationsRoute(),
                                     ]);
                                   } else if (state.needsDocuments) {
-                                    // Apply-time document gate (v9.0.1): collect
-                                    // photo + National ID on a focused screen,
-                                    // then auto-resume select-offer on return —
-                                    // no dialog, no dead end.
-                                    final done = await ctx.router.push<bool>(
-                                        const ApplyDocumentsRoute());
-                                    if (done == true && ctx.mounted) {
-                                      ctx.read<SelectOfferCubit>().select(
-                                            offer.applicationId,
-                                            offer.bankOfferId,
-                                          );
-                                    }
+                                    // Server-side half of the document gate —
+                                    // reached only when the local pre-check
+                                    // couldn't answer (status still loading, or
+                                    // the read failed). Same warning, same
+                                    // destination, so the two can't drift.
+                                    _promptForNationalId(ctx);
                                   } else if (state.needsProfile) {
                                     ctx.router.push(CompleteProfileRoute());
                                   } else if (state.isError) {
@@ -325,13 +334,8 @@ class OfferDetailsPage extends StatelessWidget {
                                 builder: (ctx, state) => MasrafyGradientButton(
                                   label: l.offer_apply,
                                   isLoading: state.isLoading,
-                                  onPressed: state.isLoading
-                                      ? null
-                                      : () =>
-                                          ctx.read<SelectOfferCubit>().select(
-                                                offer.applicationId,
-                                                offer.bankOfferId,
-                                              ),
+                                  onPressed:
+                                      state.isLoading ? null : () => _apply(ctx),
                                 ),
                               ),
                             ),
@@ -349,11 +353,9 @@ class OfferDetailsPage extends StatelessWidget {
     // hidden without a `bankOfferId`. So placeholder views (mock previews,
     // saved-offer / past-application summaries) get the page with no
     // save machinery at all, rather than a cubit that can never be used.
-    return Scaffold(
-      backgroundColor: colors.bg.layout,
-      body: offer.bankOfferId.isEmpty
-          ? content
-          : BlocProvider<SaveOfferCubit>(
+    final Widget saveScoped = offer.bankOfferId.isEmpty
+        ? content
+        : BlocProvider<SaveOfferCubit>(
               create: (_) => getIt<SaveOfferCubit>()..check(offer.bankOfferId),
               child: BlocListener<SaveOfferCubit, SaveOfferState>(
                 listener: (ctx, state) {
@@ -373,14 +375,117 @@ class OfferDetailsPage extends StatelessWidget {
                 },
                 child: content,
               ),
-            ),
+            );
+
+    return Scaffold(
+      backgroundColor: colors.bg.layout,
+      // Document-gate pre-check (Constitution v9.1.0). Read on open so the
+      // National ID stat tile reports the truth instead of a fixed "Pending",
+      // and so the Apply tap can warn locally rather than spend a select-offer
+      // call the backend would only reject.
+      body: gated
+          ? BlocProvider<NationalIdStatusCubit>(
+              create: (_) => getIt<NationalIdStatusCubit>()..load(),
+              child: saveScoped,
+            )
+          : saveScoped,
     );
+  }
+
+  /// Warns before the National ID gate takes the user off this screen, then —
+  /// on confirm — collects the missing sides and resumes the apply. Both the
+  /// local pre-check and the server's `NATIONAL_ID_REQUIRED` land here.
+  Future<void> _promptForNationalId(BuildContext context) async {
+    final l = AppLocalizations.of(context);
+    final id = context.read<NationalIdStatusCubit>().state;
+    final confirmed = await MasrafyDocumentsRequiredDialog.show(
+      context,
+      title: l.offer_national_id_required_title,
+      message: l.offer_national_id_required_body,
+      // Naming the two sides turns "something is missing" into "the back is
+      // missing" — the user leaves this dialog knowing what they're going to do.
+      documents: [
+        (label: l.signup_id_front, uploaded: id.frontUploaded),
+        (label: l.signup_id_back, uploaded: id.backUploaded),
+      ],
+      cancelLabel: l.common_cancel,
+      confirmLabel: l.offer_national_id_required_cta,
+    );
+    // Declining keeps the user on the offer with nothing sent — the CTA stays
+    // tappable, so this is a pause, not a dead end.
+    if (!confirmed || !context.mounted) return;
+    final done = await context.router.push<bool>(const ApplyDocumentsRoute());
+    if (!context.mounted) return;
+    // Re-read either way: the user may have uploaded one side and backed out,
+    // and the tile must not keep claiming otherwise.
+    context.read<NationalIdStatusCubit>().load();
+    if (done == true) {
+      context
+          .read<SelectOfferCubit>()
+          .select(offer.applicationId, offer.bankOfferId);
+    }
+  }
+
+  /// Apply tap. Only a KNOWN-incomplete National ID blocks: a status still
+  /// loading (or whose read failed) falls through to the server, which is the
+  /// authority on the gate — an offline user whose ID is already on file must
+  /// still be able to proceed.
+  void _apply(BuildContext context) {
+    if (context.read<NationalIdStatusCubit>().state.blocksApply) {
+      _promptForNationalId(context);
+      return;
+    }
+    context
+        .read<SelectOfferCubit>()
+        .select(offer.applicationId, offer.bankOfferId);
   }
 
   /// 9.5 → "9.5", 10.0 → "10".
   static String _trimRate(double rate) => rate == rate.truncateToDouble()
       ? rate.truncate().toString()
       : rate.toString();
+}
+
+/// National ID document status in the stat grid. [tracked] is false for
+/// placeholder views (mock / saved-offer / past-application): they have no
+/// status cubit above them and no Apply CTA to gate, so they keep the neutral
+/// "Pending" this tile has always shown.
+class _NationalIdStatTile extends StatelessWidget {
+  const _NationalIdStatTile({required this.tracked});
+
+  final bool tracked;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    final l = AppLocalizations.of(context);
+
+    OfferStatTile tile({required String value, required Color color}) =>
+        OfferStatTile(
+          label: l.offer_national_id,
+          value: value,
+          caption: l.offer_personal_id,
+          valueColor: color,
+        );
+
+    final pending = tile(
+      value: l.offer_national_id_pending,
+      color: colors.warning.active,
+    );
+    if (!tracked) return pending;
+
+    return BlocBuilder<NationalIdStatusCubit, NationalIdStatusState>(
+      builder: (_, state) => state.isReady
+          // Both sides on file — this offer's document gate is satisfied.
+          ? tile(
+              value: l.offer_national_id_uploaded,
+              color: colors.success.main,
+            )
+          // Unknown reads as pending: it is the status quo, and it never
+          // promises the gate is clear when nobody has checked.
+          : pending,
+    );
+  }
 }
 
 /// 2-column stat grid built from a flat list of tiles (Figma `2040:1452`).

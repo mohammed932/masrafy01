@@ -67,6 +67,7 @@ import 'package:app/features/matching/data/repositories/matching_repository_impl
 import 'package:app/features/matching/domain/repositories/matching_repository.dart';
 import 'package:app/features/matching/domain/usecases/matching_usecase.dart';
 import 'package:app/features/offers/presentation/pages/results/cubit/matching_results/matching_results_cubit.dart';
+import 'package:app/features/offers/presentation/pages/offer_details/cubit/national_id_status/national_id_status_cubit.dart';
 import 'package:app/features/offers/presentation/pages/offer_details/cubit/save_offer/save_offer_cubit.dart';
 import 'package:app/features/offers/presentation/pages/offer_details/cubit/select_offer/select_offer_cubit.dart';
 import 'package:app/features/profile/presentation/pages/profile/cubit/profile_edit_contact/profile_edit_contact_cubit.dart';
@@ -320,6 +321,11 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerFactory(() => MatchingResultsCubit(getIt<MatchingUseCase>()));
   getIt.registerFactory(() => SelectOfferCubit(getIt<MatchingUseCase>()));
+  // Offer-details pre-check for the select-offer document gate (v9.1.0) —
+  // reads the customer's own document status, hence the auth usecase.
+  getIt.registerFactory(
+    () => NationalIdStatusCubit(getIt<CustomerAuthUseCase>()),
+  );
 
   // account — settings & security (UI-only mock; toggles flip local state).
   // Screen-scoped (Principle XXXI).

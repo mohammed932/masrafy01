@@ -385,6 +385,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get common_coming_soon => 'Coming soon';
 
   @override
+  String get common_cancel => 'Cancel';
+
+  @override
   String get error_invalid_credentials => 'Incorrect phone or password.';
 
   @override
@@ -1665,6 +1668,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get results_loan_type => 'Loan type';
 
   @override
+  String get results_program => 'Program';
+
+  @override
   String get results_amount => 'Amount';
 
   @override
@@ -1799,6 +1805,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_national_id_pending => 'Pending';
 
   @override
+  String get offer_national_id_uploaded => 'Uploaded';
+
+  @override
   String get offer_personal_id => 'personal ID';
 
   @override
@@ -1883,7 +1892,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get offer_national_id_required_body => 'Upload the front and back of your National ID to continue with this application.';
 
   @override
-  String get offer_national_id_required_cta => 'Complete Profile';
+  String get offer_national_id_required_cta => 'Upload now';
 
   @override
   String get apply_docs_title => 'Complete your documents';

@@ -821,6 +821,12 @@ abstract class AppLocalizations {
   /// **'قريبًا'**
   String get common_coming_soon;
 
+  /// No description provided for @common_cancel.
+  ///
+  /// In ar, this message translates to:
+  /// **'إلغاء'**
+  String get common_cancel;
+
   /// No description provided for @error_invalid_credentials.
   ///
   /// In ar, this message translates to:
@@ -3317,6 +3323,12 @@ abstract class AppLocalizations {
   /// **'نوع القرض'**
   String get results_loan_type;
 
+  /// No description provided for @results_program.
+  ///
+  /// In ar, this message translates to:
+  /// **'البرنامج'**
+  String get results_program;
+
   /// No description provided for @results_amount.
   ///
   /// In ar, this message translates to:
@@ -3557,6 +3569,12 @@ abstract class AppLocalizations {
   /// **'قيد الانتظار'**
   String get offer_national_id_pending;
 
+  /// No description provided for @offer_national_id_uploaded.
+  ///
+  /// In ar, this message translates to:
+  /// **'تم الرفع'**
+  String get offer_national_id_uploaded;
+
   /// No description provided for @offer_personal_id.
   ///
   /// In ar, this message translates to:
@@ -3716,7 +3734,7 @@ abstract class AppLocalizations {
   /// No description provided for @offer_national_id_required_cta.
   ///
   /// In ar, this message translates to:
-  /// **'إكمال الملف الشخصي'**
+  /// **'ارفع الآن'**
   String get offer_national_id_required_cta;
 
   /// No description provided for @apply_docs_title.

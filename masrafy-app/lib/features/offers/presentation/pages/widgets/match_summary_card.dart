@@ -50,11 +50,20 @@ class MatchSummaryCard extends StatelessWidget {
                           color: colors.primary.border,
                         ),
                   ),
-                  Text(
-                    rows[i].value,
-                    style: text.bodySmall.copyWith(
-                      color: colors.textBase,
-                      fontWeight: FontWeight.w800,
+                  // Values used to be short money strings; a bank program name
+                  // is long enough to overflow the row, so it wraps toward the
+                  // label instead of painting past the card edge.
+                  Flexible(
+                    child: Padding(
+                      padding: EdgeInsetsDirectional.only(start: 12.w),
+                      child: Text(
+                        rows[i].value,
+                        textAlign: TextAlign.end,
+                        style: text.bodySmall.copyWith(
+                          color: colors.textBase,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                   ),
                 ],

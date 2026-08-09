@@ -388,6 +388,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get common_coming_soon => 'قريبًا';
 
   @override
+  String get common_cancel => 'إلغاء';
+
+  @override
   String get error_invalid_credentials => 'رقم الهاتف أو كلمة المرور غير صحيحة.';
 
   @override
@@ -1668,6 +1671,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get results_loan_type => 'نوع القرض';
 
   @override
+  String get results_program => 'البرنامج';
+
+  @override
   String get results_amount => 'المبلغ';
 
   @override
@@ -1802,6 +1808,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_national_id_pending => 'قيد الانتظار';
 
   @override
+  String get offer_national_id_uploaded => 'تم الرفع';
+
+  @override
   String get offer_personal_id => 'إثبات الهوية';
 
   @override
@@ -1886,7 +1895,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get offer_national_id_required_body => 'قم برفع صورة الرقم القومي من الأمام والخلف للمتابعة في هذا الطلب.';
 
   @override
-  String get offer_national_id_required_cta => 'إكمال الملف الشخصي';
+  String get offer_national_id_required_cta => 'ارفع الآن';
 
   @override
   String get apply_docs_title => 'أكمل مستنداتك';
