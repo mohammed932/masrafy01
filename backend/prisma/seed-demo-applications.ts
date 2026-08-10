@@ -510,10 +510,13 @@ function buildAnswers(spec: AppSpec): Record<string, AnswerValue> {
     governorate: { optionCode: spec.customer.governorate },
     property_value: { optionCode: propertyValueAnswer(spec.category === 'mortgage' ? spec.amountEGP * 1.4 : 1_500_000) },
     down_payment: {
+      // Active codes only: the merged global pool retired `more_than_30`,
+      // `20_40` and `less_than_20` (they survive as deactivated rows, so a
+      // lookup by code still finds them but the seeder's guard rejects them).
       optionCode:
         spec.category === 'mortgage'
-          ? byStrength('more_than_30', '20_30', '10_20')
-          : byStrength('20_40', 'less_than_20', 'no_down_payment'),
+          ? byStrength('more_than_40', '20_30', '10_20')
+          : byStrength('30_40', 'less_than_10', 'no_down_payment'),
     },
 
     // Vehicle
@@ -863,6 +866,13 @@ async function main(): Promise<void> {
       if (!q) continue; // question retired since this seeder was written
       if (value.optionCode && !q.optionCodes.includes(value.optionCode)) {
         throw new Error(`[seed:apps:demo] option "${value.optionCode}" not valid for question "${code}"`);
+      }
+      // MULTI_SELECT answers went unchecked, so a retired code here used to be
+      // written straight into application_answer instead of failing loudly.
+      for (const multiCode of value.optionCodes ?? []) {
+        if (!q.optionCodes.includes(multiCode)) {
+          throw new Error(`[seed:apps:demo] option "${multiCode}" not valid for question "${code}"`);
+        }
       }
       answerRows.push({
         questionId: q.id,

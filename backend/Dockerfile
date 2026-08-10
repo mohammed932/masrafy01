@@ -43,6 +43,11 @@ WORKDIR /app
 COPY --chown=node:node --from=builder /app/node_modules ./node_modules
 COPY --chown=node:node --from=builder /app/dist ./dist
 COPY --chown=node:node --from=builder /app/prisma ./prisma
+# The seed scripts import engine/scoring helpers straight from `../src/...` and run
+# through tsx, so the TypeScript sources must ship too — without them
+# `prisma db seed` (and SEED_ON_START) dies on MODULE_NOT_FOUND.
+COPY --chown=node:node --from=builder /app/src ./src
+COPY --chown=node:node --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --chown=node:node --from=builder /app/assets ./assets
 COPY --chown=node:node --from=builder /app/package.json ./package.json
 COPY --chown=node:node docker-entrypoint.sh ./docker-entrypoint.sh

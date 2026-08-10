@@ -45,15 +45,29 @@ FROM "question" q;
 
 -- 2a) Move each duplicate's options onto the canonical question, but only when
 --     the canonical doesn't already carry that option code (union by code).
+--
+--     The winning row per (canonical, option code) MUST be picked up front: a
+--     single UPDATE evaluates its NOT EXISTS against the pre-statement snapshot,
+--     so it cannot see the rows the same statement is moving. With four
+--     categories a code can have three duplicates, and two of them carrying the
+--     same option code (e.g. `no`) would both pass the guard and collide on
+--     question_option_questionId_code_key. DISTINCT ON keeps exactly one.
+CREATE TEMP TABLE _opt_move ON COMMIT DROP AS
+SELECT DISTINCT ON (c.canon_id, o."code")
+       o.id AS opt_id,
+       c.canon_id
+FROM "question_option" o
+JOIN _q_canon c ON c.dup_id = o."questionId" AND c.dup_id <> c.canon_id
+WHERE NOT EXISTS (
+  SELECT 1 FROM "question_option" o2
+  WHERE o2."questionId" = c.canon_id AND o2."code" = o."code"
+)
+ORDER BY c.canon_id, o."code", o."questionId", o.id;
+
 UPDATE "question_option" o
-SET "questionId" = c.canon_id
-FROM _q_canon c
-WHERE o."questionId" = c.dup_id
-  AND c.dup_id <> c.canon_id
-  AND NOT EXISTS (
-    SELECT 1 FROM "question_option" o2
-    WHERE o2."questionId" = c.canon_id AND o2."code" = o."code"
-  );
+SET "questionId" = m.canon_id
+FROM _opt_move m
+WHERE o.id = m.opt_id;
 
 -- 2b) Re-point application answers (FK is ON DELETE RESTRICT) to the canonical.
 --     One application only answers one category, so (applicationId, questionId)
@@ -70,10 +84,17 @@ WHERE q.id = c.dup_id AND c.dup_id <> c.canon_id;
 
 -- --------------------------------------------------------------------------
 -- 3) QUESTIONNAIRE VERSIONS — collapse the four per-category series into one
---    global series. Renumber to a single sequence (keeps them unique while the
---    old (category, versionNumber) index is still present), then keep exactly
---    one active (latest published).
+--    global series. Renumber to a single sequence, then keep exactly one active
+--    (latest published).
+--
+--    The old (category, versionNumber) unique index MUST go first: it is
+--    non-deferrable, so it is checked row-by-row as the renumber UPDATE walks
+--    the table. Renumbering mortgage v5 -> v2 collides with the mortgage row
+--    still holding v2 until the same statement reaches it, even though the final
+--    state is globally unique.
 -- --------------------------------------------------------------------------
+DROP INDEX "questionnaire_version_category_versionNumber_key";
+
 WITH renum AS (
   SELECT id, row_number() OVER (
     ORDER BY "publishedAt" ASC NULLS FIRST, "versionNumber" ASC, id ASC
@@ -105,7 +126,6 @@ DROP INDEX "question_group_category_code_key";
 DROP INDEX "idx_question_group_category_order";
 DROP INDEX "question_category_code_key";
 DROP INDEX "idx_question_group_order";
-DROP INDEX "questionnaire_version_category_versionNumber_key";
 DROP INDEX "idx_questionnaire_version_category_active";
 
 ALTER TABLE "question_group" DROP COLUMN "category";
