@@ -78,7 +78,7 @@ class _LoginViewState extends State<_LoginView> {
             if (customer.profileComplete) {
               ctx.router.replaceAll([MainShellRoute()]);
             } else if (customer.mobileVerifiedAt == null) {
-              ctx.router.replaceAll([const SocialPhoneRoute()]);
+              ctx.router.replaceAll([const PhoneVerificationRoute()]);
             } else {
               ctx.router.replaceAll([CompleteProfileRoute()]);
             }

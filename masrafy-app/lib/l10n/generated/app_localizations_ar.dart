@@ -588,13 +588,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get signup_sign_in => 'تسجيل الدخول';
 
   @override
-  String get social_phone_title => 'أضف رقم هاتفك';
+  String get phone_verification_title => 'أضف رقم هاتفك';
 
   @override
-  String get social_phone_subtitle => 'نحتاج رقم هاتفك لتأمين حسابك. سنرسل لك رمز تحقق.';
+  String get phone_verification_subtitle => 'نحتاج رقم هاتفك لتأمين حسابك. سنرسل لك رمز تحقق.';
 
   @override
-  String get social_phone_cta => 'إرسال رمز التحقق';
+  String get phone_verification_cta => 'إرسال رمز التحقق';
 
   @override
   String get otp_title => 'تحقّق من رقم هاتفك';

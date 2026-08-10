@@ -217,9 +217,9 @@
   "signup_cta": "Create Account",
   "signup_have_account": "Already have an account?",
   "signup_sign_in": "Sign in",
-  "social_phone_title": "Add your phone number",
-  "social_phone_subtitle": "We need your phone to secure your account. We'll send you a verification code.",
-  "social_phone_cta": "Send verification code",
+  "phone_verification_title": "Add your phone number",
+  "phone_verification_subtitle": "We need your phone to secure your account. We'll send you a verification code.",
+  "phone_verification_cta": "Send verification code",
   "otp_title": "Verify your phone number",
   "otp_subtitle": "We sent a 6-digit code to {destination}. Enter it below.",
   "@otp_subtitle": {

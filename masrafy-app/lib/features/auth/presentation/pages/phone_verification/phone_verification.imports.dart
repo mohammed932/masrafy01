@@ -16,8 +16,9 @@ import 'package:app/core/widgets/slivers/masrafy_sliver_gradient_header_delegate
 import 'package:app/core/widgets/input_controls/masrafy_phone_field.dart';
 import 'package:app/core/widgets/common/masrafy_toast.dart';
 import 'package:app/features/auth/domain/enums/otp_purpose.dart';
+import 'package:app/features/auth/domain/usecases/auth_usecase.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
-import 'cubit/social_phone/social_phone_cubit.dart';
+import 'cubit/phone_verification/phone_verification_cubit.dart';
 
-part 'social_phone_page.dart';
+part 'phone_verification_page.dart';

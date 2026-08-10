@@ -1,19 +1,19 @@
-part of 'social_phone_cubit.dart';
+part of 'phone_verification_cubit.dart';
 
-/// Editable fields on the SOCIAL phone-entry form (Principle XXXI `updateField`).
-enum SocialPhoneField { dialCode, phone }
+/// Editable fields on the phone-entry form (Principle XXXI `updateField`).
+enum PhoneVerificationField { dialCode, phone }
 
 @freezed
-class SocialPhoneState with _$SocialPhoneState {
-  const factory SocialPhoneState({
+class PhoneVerificationState with _$PhoneVerificationState {
+  const factory PhoneVerificationState({
     @Default('+20') String dialCode,
     @Default('') String phone,
     @Default(RequestState.initial) RequestState status,
     Failure? error,
     OtpChallengeEntity? challenge,
-  }) = _SocialPhoneState;
+  }) = _PhoneVerificationState;
 
-  const SocialPhoneState._();
+  const PhoneVerificationState._();
 
   /// Full number sent to the backend (dial code + national digits).
   String get fullPhone => '$dialCode$phone';

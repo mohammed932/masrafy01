@@ -69,9 +69,15 @@ class SplashCubit extends Cubit<SplashState> {
             ? SplashDestination.home
             : SplashDestination.login;
       },
+      // Same three-way gate as the post-login branch in `login_page.dart`: an
+      // incomplete account whose mobile was never verified (user abandoned the
+      // OTP step) resumes at phone-entry, NOT at Complete-Profile — that screen
+      // cannot bind a mobile, so landing there strands the account forever.
       (customer) async => customer.profileComplete
           ? SplashDestination.home
-          : SplashDestination.completeProfile,
+          : customer.mobileVerifiedAt == null
+              ? SplashDestination.phoneVerification
+              : SplashDestination.completeProfile,
     );
   }
 }

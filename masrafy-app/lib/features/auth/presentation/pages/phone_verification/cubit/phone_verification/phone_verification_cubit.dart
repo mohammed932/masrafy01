@@ -9,25 +9,26 @@ import 'package:app/features/auth/data/models/request/profile/profile_completion
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart';
 import 'package:app/features/auth/domain/usecases/customer_auth_usecase.dart';
 
-part 'social_phone_cubit.freezed.dart';
-part 'social_phone_state.dart';
+part 'phone_verification_cubit.freezed.dart';
+part 'phone_verification_state.dart';
 
-/// SOCIAL onboarding — mobile entry screen. After a Google sign-in creates
-/// a profile-incomplete lite account, the customer binds a phone here: on submit
+/// Mobile-entry screen for any account still missing a verified phone —
+/// today that is the Google lite account, but the gate is keyed on
+/// `mobileVerifiedAt`, not on registration path. On submit
 /// [profileMobileRequestOtp] issues an SMS OTP and the page hands the challenge
 /// (+ phone) to the shared OTP screen with [OtpPurpose.profileMobile].
-/// Orchestration only — derivations live on [SocialPhoneState] (Principle XXXI).
+/// Orchestration only — derivations live on [PhoneVerificationState] (Principle XXXI).
 @injectable
-class SocialPhoneCubit extends Cubit<SocialPhoneState> {
-  SocialPhoneCubit(this._auth) : super(const SocialPhoneState());
+class PhoneVerificationCubit extends Cubit<PhoneVerificationState> {
+  PhoneVerificationCubit(this._auth) : super(const PhoneVerificationState());
 
   final CustomerAuthUseCase _auth;
 
-  void updateField(SocialPhoneField field, String value) {
+  void updateField(PhoneVerificationField field, String value) {
     switch (field) {
-      case SocialPhoneField.dialCode:
+      case PhoneVerificationField.dialCode:
         emit(state.copyWith(dialCode: value, error: null));
-      case SocialPhoneField.phone:
+      case PhoneVerificationField.phone:
         emit(state.copyWith(phone: value, error: null));
     }
   }

@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'social_phone_cubit.dart';
+part of 'phone_verification_cubit.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -15,25 +15,25 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 /// @nodoc
-mixin _$SocialPhoneState {
+mixin _$PhoneVerificationState {
   String get dialCode => throw _privateConstructorUsedError;
   String get phone => throw _privateConstructorUsedError;
   RequestState get status => throw _privateConstructorUsedError;
   Failure? get error => throw _privateConstructorUsedError;
   OtpChallengeEntity? get challenge => throw _privateConstructorUsedError;
 
-  /// Create a copy of SocialPhoneState
+  /// Create a copy of PhoneVerificationState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
-  $SocialPhoneStateCopyWith<SocialPhoneState> get copyWith =>
+  $PhoneVerificationStateCopyWith<PhoneVerificationState> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
 /// @nodoc
-abstract class $SocialPhoneStateCopyWith<$Res> {
-  factory $SocialPhoneStateCopyWith(
-          SocialPhoneState value, $Res Function(SocialPhoneState) then) =
-      _$SocialPhoneStateCopyWithImpl<$Res, SocialPhoneState>;
+abstract class $PhoneVerificationStateCopyWith<$Res> {
+  factory $PhoneVerificationStateCopyWith(PhoneVerificationState value,
+          $Res Function(PhoneVerificationState) then) =
+      _$PhoneVerificationStateCopyWithImpl<$Res, PhoneVerificationState>;
   @useResult
   $Res call(
       {String dialCode,
@@ -44,16 +44,17 @@ abstract class $SocialPhoneStateCopyWith<$Res> {
 }
 
 /// @nodoc
-class _$SocialPhoneStateCopyWithImpl<$Res, $Val extends SocialPhoneState>
-    implements $SocialPhoneStateCopyWith<$Res> {
-  _$SocialPhoneStateCopyWithImpl(this._value, this._then);
+class _$PhoneVerificationStateCopyWithImpl<$Res,
+        $Val extends PhoneVerificationState>
+    implements $PhoneVerificationStateCopyWith<$Res> {
+  _$PhoneVerificationStateCopyWithImpl(this._value, this._then);
 
   // ignore: unused_field
   final $Val _value;
   // ignore: unused_field
   final $Res Function($Val) _then;
 
-  /// Create a copy of SocialPhoneState
+  /// Create a copy of PhoneVerificationState
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
@@ -90,11 +91,12 @@ class _$SocialPhoneStateCopyWithImpl<$Res, $Val extends SocialPhoneState>
 }
 
 /// @nodoc
-abstract class _$$SocialPhoneStateImplCopyWith<$Res>
-    implements $SocialPhoneStateCopyWith<$Res> {
-  factory _$$SocialPhoneStateImplCopyWith(_$SocialPhoneStateImpl value,
-          $Res Function(_$SocialPhoneStateImpl) then) =
-      __$$SocialPhoneStateImplCopyWithImpl<$Res>;
+abstract class _$$PhoneVerificationStateImplCopyWith<$Res>
+    implements $PhoneVerificationStateCopyWith<$Res> {
+  factory _$$PhoneVerificationStateImplCopyWith(
+          _$PhoneVerificationStateImpl value,
+          $Res Function(_$PhoneVerificationStateImpl) then) =
+      __$$PhoneVerificationStateImplCopyWithImpl<$Res>;
   @override
   @useResult
   $Res call(
@@ -106,14 +108,16 @@ abstract class _$$SocialPhoneStateImplCopyWith<$Res>
 }
 
 /// @nodoc
-class __$$SocialPhoneStateImplCopyWithImpl<$Res>
-    extends _$SocialPhoneStateCopyWithImpl<$Res, _$SocialPhoneStateImpl>
-    implements _$$SocialPhoneStateImplCopyWith<$Res> {
-  __$$SocialPhoneStateImplCopyWithImpl(_$SocialPhoneStateImpl _value,
-      $Res Function(_$SocialPhoneStateImpl) _then)
+class __$$PhoneVerificationStateImplCopyWithImpl<$Res>
+    extends _$PhoneVerificationStateCopyWithImpl<$Res,
+        _$PhoneVerificationStateImpl>
+    implements _$$PhoneVerificationStateImplCopyWith<$Res> {
+  __$$PhoneVerificationStateImplCopyWithImpl(
+      _$PhoneVerificationStateImpl _value,
+      $Res Function(_$PhoneVerificationStateImpl) _then)
       : super(_value, _then);
 
-  /// Create a copy of SocialPhoneState
+  /// Create a copy of PhoneVerificationState
   /// with the given fields replaced by the non-null parameter values.
   @pragma('vm:prefer-inline')
   @override
@@ -124,7 +128,7 @@ class __$$SocialPhoneStateImplCopyWithImpl<$Res>
     Object? error = freezed,
     Object? challenge = freezed,
   }) {
-    return _then(_$SocialPhoneStateImpl(
+    return _then(_$PhoneVerificationStateImpl(
       dialCode: null == dialCode
           ? _value.dialCode
           : dialCode // ignore: cast_nullable_to_non_nullable
@@ -151,8 +155,8 @@ class __$$SocialPhoneStateImplCopyWithImpl<$Res>
 
 /// @nodoc
 
-class _$SocialPhoneStateImpl extends _SocialPhoneState {
-  const _$SocialPhoneStateImpl(
+class _$PhoneVerificationStateImpl extends _PhoneVerificationState {
+  const _$PhoneVerificationStateImpl(
       {this.dialCode = '+20',
       this.phone = '',
       this.status = RequestState.initial,
@@ -176,14 +180,14 @@ class _$SocialPhoneStateImpl extends _SocialPhoneState {
 
   @override
   String toString() {
-    return 'SocialPhoneState(dialCode: $dialCode, phone: $phone, status: $status, error: $error, challenge: $challenge)';
+    return 'PhoneVerificationState(dialCode: $dialCode, phone: $phone, status: $status, error: $error, challenge: $challenge)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$SocialPhoneStateImpl &&
+            other is _$PhoneVerificationStateImpl &&
             (identical(other.dialCode, dialCode) ||
                 other.dialCode == dialCode) &&
             (identical(other.phone, phone) || other.phone == phone) &&
@@ -197,24 +201,24 @@ class _$SocialPhoneStateImpl extends _SocialPhoneState {
   int get hashCode =>
       Object.hash(runtimeType, dialCode, phone, status, error, challenge);
 
-  /// Create a copy of SocialPhoneState
+  /// Create a copy of PhoneVerificationState
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
   @pragma('vm:prefer-inline')
-  _$$SocialPhoneStateImplCopyWith<_$SocialPhoneStateImpl> get copyWith =>
-      __$$SocialPhoneStateImplCopyWithImpl<_$SocialPhoneStateImpl>(
-          this, _$identity);
+  _$$PhoneVerificationStateImplCopyWith<_$PhoneVerificationStateImpl>
+      get copyWith => __$$PhoneVerificationStateImplCopyWithImpl<
+          _$PhoneVerificationStateImpl>(this, _$identity);
 }
 
-abstract class _SocialPhoneState extends SocialPhoneState {
-  const factory _SocialPhoneState(
+abstract class _PhoneVerificationState extends PhoneVerificationState {
+  const factory _PhoneVerificationState(
       {final String dialCode,
       final String phone,
       final RequestState status,
       final Failure? error,
-      final OtpChallengeEntity? challenge}) = _$SocialPhoneStateImpl;
-  const _SocialPhoneState._() : super._();
+      final OtpChallengeEntity? challenge}) = _$PhoneVerificationStateImpl;
+  const _PhoneVerificationState._() : super._();
 
   @override
   String get dialCode;
@@ -227,10 +231,10 @@ abstract class _SocialPhoneState extends SocialPhoneState {
   @override
   OtpChallengeEntity? get challenge;
 
-  /// Create a copy of SocialPhoneState
+  /// Create a copy of PhoneVerificationState
   /// with the given fields replaced by the non-null parameter values.
   @override
   @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$SocialPhoneStateImplCopyWith<_$SocialPhoneStateImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+  _$$PhoneVerificationStateImplCopyWith<_$PhoneVerificationStateImpl>
+      get copyWith => throw _privateConstructorUsedError;
 }

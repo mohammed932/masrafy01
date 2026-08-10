@@ -15,9 +15,9 @@ import 'package:app/core/features/id_capture/presentation/id_capture_page.dart'
     as _i8;
 import 'package:app/core/widgets/common/masrafy_app_bottom_nav.dart' as _i28;
 import 'package:app/features/account/presentation/pages/settings_security/settings_security.imports.dart'
-    as _i20;
+    as _i21;
 import 'package:app/features/applications/presentation/pages/previous_applications/previous_applications.imports.dart'
-    as _i17;
+    as _i18;
 import 'package:app/features/auth/domain/entities/otp_challenge_entity.dart'
     as _i30;
 import 'package:app/features/auth/domain/entities/signup_draft.dart' as _i26;
@@ -34,9 +34,9 @@ import 'package:app/features/auth/presentation/pages/login/login.imports.dart'
     as _i9;
 import 'package:app/features/auth/presentation/pages/otp/otp.imports.dart'
     as _i15;
+import 'package:app/features/auth/presentation/pages/phone_verification/phone_verification.imports.dart'
+    as _i17;
 import 'package:app/features/auth/presentation/pages/signup/signup.imports.dart'
-    as _i21;
-import 'package:app/features/auth/presentation/pages/social_phone/social_phone.imports.dart'
     as _i22;
 import 'package:app/features/offers/presentation/models/match_results_args.dart'
     as _i29;
@@ -49,7 +49,7 @@ import 'package:app/features/onboarding/presentation/pages/onboarding/onboarding
 import 'package:app/features/profile/presentation/models/profile_data.dart'
     as _i32;
 import 'package:app/features/profile/presentation/pages/profile/profile.imports.dart'
-    as _i18;
+    as _i19;
 import 'package:app/features/questionnaire/presentation/pages/business/business_questionnaire_page.dart'
     as _i3;
 import 'package:app/features/questionnaire/presentation/pages/car/car_questionnaire_page.dart'
@@ -59,7 +59,7 @@ import 'package:app/features/questionnaire/presentation/pages/mortgage/mortgage_
 import 'package:app/features/questionnaire/presentation/pages/personal/personal_questionnaire_page.dart'
     as _i16;
 import 'package:app/features/saved_offers/presentation/pages/saved_offers/saved_offers.imports.dart'
-    as _i19;
+    as _i20;
 import 'package:app/features/shell/presentation/pages/main_shell/main_shell.imports.dart'
     as _i10;
 import 'package:app/features/splash/presentation/pages/splash/splash.imports.dart'
@@ -617,7 +617,23 @@ class PersonalQuestionnaireRouteArgs {
 }
 
 /// generated route for
-/// [_i17.PreviousApplicationsPage]
+/// [_i17.PhoneVerificationPage]
+class PhoneVerificationRoute extends _i24.PageRouteInfo<void> {
+  const PhoneVerificationRoute({List<_i24.PageRouteInfo>? children})
+    : super(PhoneVerificationRoute.name, initialChildren: children);
+
+  static const String name = 'PhoneVerificationRoute';
+
+  static _i24.PageInfo page = _i24.PageInfo(
+    name,
+    builder: (data) {
+      return const _i17.PhoneVerificationPage();
+    },
+  );
+}
+
+/// generated route for
+/// [_i18.PreviousApplicationsPage]
 class PreviousApplicationsRoute extends _i24.PageRouteInfo<void> {
   const PreviousApplicationsRoute({List<_i24.PageRouteInfo>? children})
     : super(PreviousApplicationsRoute.name, initialChildren: children);
@@ -627,13 +643,13 @@ class PreviousApplicationsRoute extends _i24.PageRouteInfo<void> {
   static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i17.PreviousApplicationsPage();
+      return const _i18.PreviousApplicationsPage();
     },
   );
 }
 
 /// generated route for
-/// [_i18.ProfileEditContactPage]
+/// [_i19.ProfileEditContactPage]
 class ProfileEditContactRoute
     extends _i24.PageRouteInfo<ProfileEditContactRouteArgs> {
   ProfileEditContactRoute({
@@ -652,7 +668,7 @@ class ProfileEditContactRoute
     name,
     builder: (data) {
       final args = data.argsAs<ProfileEditContactRouteArgs>();
-      return _i18.ProfileEditContactPage(key: args.key, initial: args.initial);
+      return _i19.ProfileEditContactPage(key: args.key, initial: args.initial);
     },
   );
 }
@@ -671,7 +687,7 @@ class ProfileEditContactRouteArgs {
 }
 
 /// generated route for
-/// [_i18.ProfileEditPersonalPage]
+/// [_i19.ProfileEditPersonalPage]
 class ProfileEditPersonalRoute
     extends _i24.PageRouteInfo<ProfileEditPersonalRouteArgs> {
   ProfileEditPersonalRoute({
@@ -690,7 +706,7 @@ class ProfileEditPersonalRoute
     name,
     builder: (data) {
       final args = data.argsAs<ProfileEditPersonalRouteArgs>();
-      return _i18.ProfileEditPersonalPage(key: args.key, initial: args.initial);
+      return _i19.ProfileEditPersonalPage(key: args.key, initial: args.initial);
     },
   );
 }
@@ -709,7 +725,7 @@ class ProfileEditPersonalRouteArgs {
 }
 
 /// generated route for
-/// [_i18.ProfilePage]
+/// [_i19.ProfilePage]
 class ProfileRoute extends _i24.PageRouteInfo<void> {
   const ProfileRoute({List<_i24.PageRouteInfo>? children})
     : super(ProfileRoute.name, initialChildren: children);
@@ -719,13 +735,13 @@ class ProfileRoute extends _i24.PageRouteInfo<void> {
   static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i18.ProfilePage();
+      return const _i19.ProfilePage();
     },
   );
 }
 
 /// generated route for
-/// [_i19.SavedOffersPage]
+/// [_i20.SavedOffersPage]
 class SavedOffersRoute extends _i24.PageRouteInfo<SavedOffersRouteArgs> {
   SavedOffersRoute({
     _i25.Key? key,
@@ -745,7 +761,7 @@ class SavedOffersRoute extends _i24.PageRouteInfo<SavedOffersRouteArgs> {
       final args = data.argsAs<SavedOffersRouteArgs>(
         orElse: () => const SavedOffersRouteArgs(),
       );
-      return _i19.SavedOffersPage(key: args.key, fromTab: args.fromTab);
+      return _i20.SavedOffersPage(key: args.key, fromTab: args.fromTab);
     },
   );
 }
@@ -764,7 +780,7 @@ class SavedOffersRouteArgs {
 }
 
 /// generated route for
-/// [_i20.SettingsSecurityPage]
+/// [_i21.SettingsSecurityPage]
 class SettingsSecurityRoute extends _i24.PageRouteInfo<void> {
   const SettingsSecurityRoute({List<_i24.PageRouteInfo>? children})
     : super(SettingsSecurityRoute.name, initialChildren: children);
@@ -774,13 +790,13 @@ class SettingsSecurityRoute extends _i24.PageRouteInfo<void> {
   static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i20.SettingsSecurityPage();
+      return const _i21.SettingsSecurityPage();
     },
   );
 }
 
 /// generated route for
-/// [_i21.SignupPage]
+/// [_i22.SignupPage]
 class SignupRoute extends _i24.PageRouteInfo<void> {
   const SignupRoute({List<_i24.PageRouteInfo>? children})
     : super(SignupRoute.name, initialChildren: children);
@@ -790,23 +806,7 @@ class SignupRoute extends _i24.PageRouteInfo<void> {
   static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i21.SignupPage();
-    },
-  );
-}
-
-/// generated route for
-/// [_i22.SocialPhonePage]
-class SocialPhoneRoute extends _i24.PageRouteInfo<void> {
-  const SocialPhoneRoute({List<_i24.PageRouteInfo>? children})
-    : super(SocialPhoneRoute.name, initialChildren: children);
-
-  static const String name = 'SocialPhoneRoute';
-
-  static _i24.PageInfo page = _i24.PageInfo(
-    name,
-    builder: (data) {
-      return const _i22.SocialPhonePage();
+      return const _i22.SignupPage();
     },
   );
 }
