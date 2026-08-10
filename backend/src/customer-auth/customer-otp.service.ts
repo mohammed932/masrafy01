@@ -155,14 +155,12 @@ export class CustomerOtpService {
   }
 
   private generateCode(): string {
-    if (process.env.NODE_ENV !== 'production') {
-      const fixed = this.config.get<string>('OTP_DEV_FIXED_CODE', '');
-      if (fixed && /^\d{6}$/u.test(fixed)) {
-        this.logger.warn(
-          `OTP_DEV_FIXED_CODE active — every OTP resolves to a fixed dev code. MUST be empty in production.`,
-        );
-        return fixed;
-      }
+    const fixed = this.config.get<string>('OTP_DEV_FIXED_CODE', '');
+    if (fixed && /^\d{6}$/u.test(fixed)) {
+      this.logger.warn(
+        `OTP_DEV_FIXED_CODE active — every OTP resolves to a fixed code. Phone verification is effectively disabled. MUST be empty before public launch.`,
+      );
+      return fixed;
     }
     const max = 10 ** CustomerOtpService.CODE_LEN;
     const n = crypto.randomInt(0, max);

@@ -2,7 +2,7 @@ import 'base_environment.dart';
 
 class ProdEnvironment extends BaseEnvironment {
   @override
-  String get baseUrl => 'https://api.masrafy.eg';
+  String get baseUrl => 'https://apis.masrafy.app';
 
   @override
   bool get isProduction => true;
@@ -11,5 +11,5 @@ class ProdEnvironment extends BaseEnvironment {
   bool get onboardingEnabled => false;
 
   @override
-  bool get biometricEnabled => true;
+  bool get biometricEnabled => false;
 }

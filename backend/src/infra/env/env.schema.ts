@@ -88,11 +88,15 @@ export const envSchema = z.object({
   SMS_GATEWAY_PROVIDER: z.enum(['mock']).default('mock'),
   SMS_GATEWAY_FROM: z.string().min(1).default('+201000000000'),
 
-  // DEV-ONLY OTP override. When set to a 6-digit string, every OTP issued
+  // Fixed-OTP override. When set to a 6-digit string, every OTP issued
   // resolves to this fixed value (codeHash stored with bcrypt against this
-  // fixed code). Empty string = disabled (random codes). The runtime guards
-  // this knob with NODE_ENV !== 'production' so a stray prod env file
-  // cannot weaken security in production. Use '000000' for local testing.
+  // fixed code). Empty string = disabled (random codes).
+  //
+  // Honoured in EVERY environment including production (the NODE_ENV guard was
+  // removed on request, so the pre-launch prod deploy can be exercised without
+  // a live SMS gateway). While set, phone verification proves nothing — anyone
+  // who knows the code owns any phone number. MUST be emptied before public
+  // launch; `CustomerOtpService` logs a warning on every issue while active.
   OTP_DEV_FIXED_CODE: z
     .string()
     .regex(/^\d{6}$|^$/u, 'OTP_DEV_FIXED_CODE must be 6 digits or empty')
