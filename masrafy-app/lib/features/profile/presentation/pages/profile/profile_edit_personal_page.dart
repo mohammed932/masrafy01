@@ -255,11 +255,25 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                           ],
                         ),
                         Gap(20.h),
+                        // One header per section, owned by the section: the
+                        // uploader's own label is left off so the two don't
+                        // compete, and the pair-level verdict sits beside the
+                        // heading instead of being spelled out twice in the
+                        // tile subtitles. Shown only once BOTH sides are known
+                        // on file — a half-answered pair is not a green light.
                         ProfileFormSection(
+                          title: l.profile_national_id,
+                          hint: l.profile_national_id_hint,
+                          trailing: _docsKnown(state) &&
+                                  state.frontUploaded &&
+                                  state.backUploaded
+                              ? MasrafyBadge(
+                                  label: l.profile_id_uploaded,
+                                  variant: MasrafyBadgeVariant.success,
+                                )
+                              : null,
                           children: [
                             MasrafyNationalIdUploader(
-                              sectionLabel: l.profile_national_id,
-                              sectionHint: l.profile_national_id_hint,
                               frontLabel: l.profile_id_front,
                               backLabel: l.profile_id_back,
                               frontSubtitle: _idSubtitle(
@@ -297,17 +311,17 @@ class _ProfileEditPersonalViewState extends State<_ProfileEditPersonalView> {
                             ),
                           ],
                         ),
+                        Gap(24.h),
+                        // In-flow CTA, not a pinned bar: it scrolls with the
+                        // form, so an open keyboard takes it off screen instead
+                        // of parking it over the field being typed into.
+                        MasrafyGradientButton(
+                          label: l.profile_save,
+                          isLoading: state.saving,
+                          onPressed: state.canSave ? cubit.save : null,
+                        ),
                       ],
                     ),
-                  ),
-                ),
-                Padding(
-                  padding:
-                      EdgeInsetsDirectional.fromSTEB(20.w, 8.h, 20.w, 12.h),
-                  child: MasrafyGradientButton(
-                    label: l.profile_save,
-                    isLoading: state.saving,
-                    onPressed: state.canSave ? cubit.save : null,
                   ),
                 ),
               ],

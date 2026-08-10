@@ -191,11 +191,9 @@ class _LoginViewState extends State<_LoginView> {
                           // Google is the only social provider (constitution
                           // v11.0.0), so the button spans the full width.
                           MasrafySocialButton(
-                            icon: Icons.g_mobiledata_rounded,
+                            iconAsset: MasrafyAssets.kSocialGoogle,
                             label: l.login_google,
-                            onTap: () {
-                              if (!state.isBusy) cubit.signInWithGoogle();
-                            },
+                            onTap: state.isBusy ? null : cubit.signInWithGoogle,
                           ),
                           Gap(20.h),
                           Row(

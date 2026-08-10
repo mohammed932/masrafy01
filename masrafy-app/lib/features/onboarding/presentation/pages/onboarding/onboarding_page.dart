@@ -138,7 +138,7 @@ class _FinalActions extends StatelessWidget {
         // Google is the only social provider (constitution v11.0.0). The Apple
         // button that used to sit beside this one ran the Google flow anyway.
         MasrafySocialButton(
-          icon: Icons.g_mobiledata_rounded,
+          iconAsset: MasrafyAssets.kSocialGoogle,
           label: l.onboarding_google,
           onTap: onSocial,
         ),

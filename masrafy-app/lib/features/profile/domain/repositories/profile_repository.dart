@@ -8,7 +8,8 @@ import 'package:app/features/profile/domain/entities/customer_profile_entity.dar
 
 /// Profile repository contract (Principle X + XXX). Every method returns
 /// `Either<Failure, T>`.
-abstract class ProfileRepository extends BaseRepository<ProfileRemoteDataSource> {
+abstract class ProfileRepository
+    extends BaseRepository<ProfileRemoteDataSource> {
   ProfileRepository(super.remoteDataSource);
 
   Future<Either<Failure, CustomerProfileEntity>> getMe();

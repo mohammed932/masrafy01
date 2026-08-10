@@ -103,12 +103,16 @@ class _OfferDetailsView extends StatelessWidget {
         : l.offer_approval(offer.approvalPct);
     final grouped = NumberFormat.decimalPattern();
 
-    // A real, not-yet-applied offer is the only case with a live Apply CTA, and
-    // therefore the only one that needs the National ID document gate. It is
-    // also the only case allowed to touch DI: placeholder views (mock /
-    // saved-offer / past-application) are pumped straight into widget tests
-    // with no container.
-    final gated = offer.applicationId.isNotEmpty && !offer.alreadyApplied;
+    // A real, not-yet-applied offer is the only case with a live Apply CTA and
+    // therefore the only one the National ID document GATE blocks — but every
+    // offer belonging to a signed-in customer (saved offer and past application
+    // included) must still REPORT the real ID status: those two variants used to
+    // print a hardcoded "Pending" over an ID that was already on file. So the
+    // status cubit is scoped wider than the gate. Only fixture/mock views (no
+    // offer and no application behind them) stay DI-free, so widget tests can
+    // pump the page with no container.
+    final tracked =
+        offer.bankOfferId.isNotEmpty || offer.applicationId.isNotEmpty;
     // Bank-facing name of the matched program. Real offers carry the friendly
     // name (the code is the fallback for programs that never got one);
     // saved-offer / past-application / mock views carry neither.
@@ -326,7 +330,7 @@ class _OfferDetailsView extends StatelessWidget {
                           ),
                         // Document status, not a figure — last, so the
                         // money tiles read as one uninterrupted block.
-                        _NationalIdStatTile(tracked: gated),
+                        _NationalIdStatTile(tracked: tracked),
                       ],
                     ),
                     if (offer.hasUnusedHeadroom) ...[
@@ -449,8 +453,9 @@ class _OfferDetailsView extends StatelessWidget {
       // Document-gate pre-check (Constitution v9.1.0). Read on open so the
       // National ID stat tile reports the truth instead of a fixed "Pending",
       // and so the Apply tap can warn locally rather than spend a select-offer
-      // call the backend would only reject.
-      body: gated
+      // call the backend would only reject. Scoped to `tracked` (a superset of
+      // `gated`), so the gate's readers below always have the cubit above them.
+      body: tracked
           ? BlocProvider<NationalIdStatusCubit>(
               create: (_) => getIt<NationalIdStatusCubit>()..load(),
               child: saveScoped,
@@ -655,10 +660,11 @@ class _OfferDetailsLoadingHero extends StatelessWidget {
   }
 }
 
-/// National ID document status in the stat grid. [tracked] is false for
-/// placeholder views (mock / saved-offer / past-application): they have no
-/// status cubit above them and no Apply CTA to gate, so they keep the neutral
-/// "Pending" this tile has always shown.
+/// National ID document status in the stat grid. [tracked] is true for any
+/// offer of a signed-in customer — new match, saved offer, or past application
+/// alike — since all three can read the real status. It is false only for
+/// fixture/mock views, which have no status cubit above them and keep the
+/// neutral "Pending".
 class _NationalIdStatTile extends StatelessWidget {
   const _NationalIdStatTile({required this.tracked});
 

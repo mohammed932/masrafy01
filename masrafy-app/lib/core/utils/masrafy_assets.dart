@@ -102,6 +102,10 @@ class MasrafyAssets {
   static const String kNavTestSaved = 'resources/icons/nav/nav_test_saved.svg';
   static const String kNavTests = 'resources/icons/nav/nav_tests.svg';
 
+  // ── Icons — social providers ──────────────────────────────────────────────
+  /// Official four-colour Google "G" mark (brand asset — render unrecoloured).
+  static const String kSocialGoogle = 'resources/icons/social/google.svg';
+
   // ── Icons — notifications ─────────────────────────────────────────────────
   static const String kNotifAchievement =
       'resources/icons/notifications/achievement.svg';

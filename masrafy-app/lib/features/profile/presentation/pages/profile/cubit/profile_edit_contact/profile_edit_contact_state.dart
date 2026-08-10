@@ -11,6 +11,7 @@ class ProfileEditContactState with _$ProfileEditContactState {
     String? governorate,
     @Default('') String city,
     @Default('') String address,
+
     /// Governorate list from the operator-managed registry, not a hardcoded copy.
     @Default(<PlatformEnumerationEntity>[])
     List<PlatformEnumerationEntity> governorates,

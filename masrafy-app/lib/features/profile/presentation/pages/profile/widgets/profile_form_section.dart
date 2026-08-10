@@ -9,16 +9,30 @@ import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 /// the edit screens the same white surface as the read-only profile view, so
 /// the grey-filled inputs read correctly and group into sections. Flow-local
 /// (Principle XXXII); tokens + logical insets only.
+///
+/// The header takes an optional [hint] and [trailing]: [trailing] is where a
+/// section-level status (e.g. "Uploaded") belongs — beside its heading rather
+/// than buried in the fields.
 class ProfileFormSection extends StatelessWidget {
   const ProfileFormSection({
     super.key,
     this.title,
+    this.hint,
+    this.trailing,
     required this.children,
   });
 
   /// Section label shown above the card; omitted when null (e.g. a card whose
   /// child already renders its own heading).
   final String? title;
+
+  /// Muted qualifier after [title] (e.g. "— required for loan eligibility").
+  /// Wraps to its own line on narrow screens rather than squeezing the title.
+  final String? hint;
+
+  /// Status affordance pinned to the header's end (e.g. a [MasrafyBadge]).
+  /// Ignored without a title.
+  final Widget? trailing;
 
   /// The section's fields, stacked with [Gap] separators inside the card.
   final List<Widget> children;
@@ -32,12 +46,32 @@ class ProfileFormSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (title != null) ...[
-          Text(
-            title!.toUpperCase(),
-            style: text.caption.semiBold().copyWith(
-                  color: colors.text.label,
-                  letterSpacing: 0.8,
+          Row(
+            children: [
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6.w,
+                  children: [
+                    Text(
+                      title!.toUpperCase(),
+                      style: text.caption.semiBold().copyWith(
+                            color: colors.text.label,
+                            letterSpacing: 0.8,
+                          ),
+                    ),
+                    if (hint != null)
+                      Text(
+                        hint!,
+                        style: text.caption
+                            .regular()
+                            .copyWith(color: colors.text.placeholder),
+                      ),
+                  ],
                 ),
+              ),
+              if (trailing != null) trailing!,
+            ],
           ),
           Gap(10.h),
         ],

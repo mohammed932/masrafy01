@@ -44,6 +44,16 @@ class CustomerProfileEntity extends Equatable {
   final String? address;
 
   @override
-  List<Object?> get props =>
-      [id, firstName, lastName, phone, email, birthday, photoUrl, governorate, city, address];
+  List<Object?> get props => [
+        id,
+        firstName,
+        lastName,
+        phone,
+        email,
+        birthday,
+        photoUrl,
+        governorate,
+        city,
+        address
+      ];
 }

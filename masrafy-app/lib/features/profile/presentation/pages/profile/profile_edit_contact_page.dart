@@ -79,7 +79,8 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
             MasrafyToast.error(ctx, _saveError(l, state.saveError!));
           } else if (state.saved) {
             MasrafyToast.success(ctx, l.profile_save_success);
-            ctx.router.maybePop(ctx.read<ProfileEditContactCubit>().state.toDraft());
+            ctx.router
+                .maybePop(ctx.read<ProfileEditContactCubit>().state.toDraft());
           }
         },
         builder: (ctx, state) {
@@ -101,7 +102,8 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                     ),
                     keyboardDismissBehavior:
                         ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: EdgeInsetsDirectional.fromSTEB(20.w, 16.h, 20.w, 24.h),
+                    padding:
+                        EdgeInsetsDirectional.fromSTEB(20.w, 16.h, 20.w, 24.h),
                     child: ProfileFormSection(
                       title: l.profile_section_contact,
                       children: [
@@ -165,7 +167,8 @@ class _ProfileEditContactViewState extends State<_ProfileEditContactView> {
                   ),
                 ),
                 Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(20.w, 8.h, 20.w, 12.h),
+                  padding:
+                      EdgeInsetsDirectional.fromSTEB(20.w, 8.h, 20.w, 12.h),
                   child: MasrafyGradientButton(
                     label: l.profile_save,
                     isLoading: state.saving,
@@ -243,7 +246,8 @@ class _ReadOnlyPhoneField extends StatelessWidget {
           padding: EdgeInsetsDirectional.only(start: 2.w),
           child: Text(
             lockedHint,
-            style: text.bodySmall.regular().copyWith(color: colors.text.tertiary),
+            style:
+                text.bodySmall.regular().copyWith(color: colors.text.tertiary),
           ),
         ),
       ],

@@ -77,7 +77,8 @@ class _ProfileView extends StatelessWidget {
                   if (state.isError || state.data == null) {
                     return MasrafyFetchErrorState(onRetry: cubit.load);
                   }
-                  return _ProfileBody(data: state.data!, cubit: cubit, view: this);
+                  return _ProfileBody(
+                      data: state.data!, cubit: cubit, view: this);
                 },
               ),
             ),

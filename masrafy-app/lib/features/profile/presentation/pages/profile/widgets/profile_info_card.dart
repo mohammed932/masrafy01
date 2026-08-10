@@ -45,7 +45,9 @@ class ProfileInfoCard extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               child: Text(
                 editLabel,
-                style: text.bodySmall.bold().copyWith(color: colors.secondary.main),
+                style: text.bodySmall
+                    .bold()
+                    .copyWith(color: colors.secondary.main),
               ),
             ),
           ],

@@ -56,5 +56,4 @@ class CustomerProfileModel {
         city: city,
         address: address,
       );
-
 }

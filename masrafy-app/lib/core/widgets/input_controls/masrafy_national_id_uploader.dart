@@ -17,8 +17,8 @@ import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 class MasrafyNationalIdUploader extends StatelessWidget {
   const MasrafyNationalIdUploader({
     super.key,
-    required this.sectionLabel,
-    required this.sectionHint,
+    this.sectionLabel,
+    this.sectionHint,
     required this.frontLabel,
     required this.backLabel,
     required this.frontSubtitle,
@@ -32,10 +32,14 @@ class MasrafyNationalIdUploader extends StatelessWidget {
     this.backImage,
     this.onTapFront,
     this.onTapBack,
+    this.trailing,
   });
 
-  final String sectionLabel;
-  final String sectionHint;
+  /// Section heading over the pair. Both are optional: a caller that already
+  /// renders its own section header (e.g. the profile editor's form sections)
+  /// passes neither, so the pair does not carry two competing headings.
+  final String? sectionLabel;
+  final String? sectionHint;
   final String frontLabel;
   final String backLabel;
   final String frontSubtitle;
@@ -65,6 +69,12 @@ class MasrafyNationalIdUploader extends StatelessWidget {
   final VoidCallback? onTapFront;
   final VoidCallback? onTapBack;
 
+  /// Optional status affordance pinned to the end of the section-label row
+  /// (e.g. a "Uploaded" badge once both sides are on file). A pair-level verdict
+  /// belongs beside the pair's heading; per-tile copy can only speak for one
+  /// side. Default `null` leaves every existing call site unchanged.
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
@@ -73,26 +83,41 @@ class MasrafyNationalIdUploader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 6.w,
-          children: [
-            Text(
-              sectionLabel.toUpperCase(),
-              style: text.caption.semiBold().copyWith(
-                    color: colors.primary.main,
-                    letterSpacing: 0.66,
-                  ),
-            ),
-            Text(
-              sectionHint,
-              style: text.caption
-                  .regular()
-                  .copyWith(color: colors.text.placeholder),
-            ),
-          ],
-        ),
-        Gap(8.h),
+        if (sectionLabel != null || trailing != null) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 6.w,
+                  children: [
+                    if (sectionLabel != null)
+                      Text(
+                        sectionLabel!.toUpperCase(),
+                        style: text.caption.semiBold().copyWith(
+                              color: colors.primary.main,
+                              letterSpacing: 0.66,
+                            ),
+                      ),
+                    if (sectionHint != null)
+                      Text(
+                        sectionHint!,
+                        style: text.caption
+                            .regular()
+                            .copyWith(color: colors.text.placeholder),
+                      ),
+                  ],
+                ),
+              ),
+              if (trailing != null) ...[
+                Gap(8.w),
+                trailing!,
+              ],
+            ],
+          ),
+          Gap(8.h),
+        ],
         // Both sides are one control, so the tiles read as a matched pair:
         // `Expanded` equalises width and each card derives its height from that
         // width alone, so the two line up without an `IntrinsicHeight` pass and
@@ -277,8 +302,8 @@ class _IdCardState extends State<_IdCard> {
                           color: colors.white,
                           boxShadow: [
                             BoxShadow(
-                              color: colors.bg.spotlight
-                                  .withValues(alpha: 0.28),
+                              color:
+                                  colors.bg.spotlight.withValues(alpha: 0.28),
                               blurRadius: 4,
                               offset: const Offset(0, 1),
                             ),
