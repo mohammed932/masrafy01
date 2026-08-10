@@ -24,6 +24,7 @@ class CustomerModel {
     required this.createdAt,
     this.phone,
     this.mobileVerifiedAt,
+    this.pendingMobile,
     this.email,
     this.age,
     this.birthday,
@@ -52,6 +53,7 @@ class CustomerModel {
       mobileVerifiedAt: json['mobileVerifiedAt'] == null
           ? null
           : DateTime.parse(json['mobileVerifiedAt'] as String),
+      pendingMobile: json['pendingMobile'] as String?,
       email: json['email'] as String?,
       age: (json['age'] as num?)?.toInt(),
       birthday: parseCalendarDate(json['birthday'] as String?),
@@ -85,6 +87,10 @@ class CustomerModel {
   final DateTime createdAt;
   final String? phone;
   final DateTime? mobileVerifiedAt;
+
+  /// Number whose PROFILE_MOBILE OTP was never completed; sent only while
+  /// [mobileVerifiedAt] is null (backend `pendingMobile`).
+  final String? pendingMobile;
   final String? email;
   final int? age;
 
@@ -107,6 +113,7 @@ class CustomerModel {
         createdAt: createdAt,
         phone: phone,
         mobileVerifiedAt: mobileVerifiedAt,
+        pendingMobile: pendingMobile,
         email: email,
         age: age,
         birthday: birthday,

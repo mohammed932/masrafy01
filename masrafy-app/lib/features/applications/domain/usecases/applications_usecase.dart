@@ -13,4 +13,7 @@ class ApplicationsUseCase extends BaseUseCase<ApplicationsRepository> {
 
   Future<Either<Failure, List<ApplicationSummaryEntity>>> list() =>
       repository.list();
+
+  Future<Either<Failure, ApplicationSummaryEntity>> get(String applicationId) =>
+      repository.get(applicationId);
 }

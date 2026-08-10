@@ -3,7 +3,6 @@ export { TabShellComponent, type TabShellTab } from './tab-shell.component';
 export { RailTabsComponent, type RailTabItem } from './rail-tabs.component';
 export { StatStripComponent, type StatStripItem } from './stat-strip.component';
 export { StatusPillComponent, type StatusTone } from './status-pill.component';
-export { KeyChipComponent } from './key-chip.component';
 export { SkeletonRowsComponent } from './skeleton-rows.component';
 export {
   DbrBandsEditorComponent,

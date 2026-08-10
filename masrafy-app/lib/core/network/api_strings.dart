@@ -38,6 +38,12 @@ class ApiStrings {
 
   // --- Applications ---
   static const String applications = '/api/v1/applications';
+
+  /// One application + its selected offer. Read when the customer opens an
+  /// application's offer, so the details screen shows the live offer instead of
+  /// the row the list cached (decision / saved flag move independently).
+  static String applicationById(String applicationId) =>
+      '/api/v1/applications/$applicationId';
   static String applicationSelectOffer(String applicationId) =>
       '/api/v1/applications/$applicationId/select-offer';
 

@@ -67,6 +67,7 @@ import 'package:app/features/matching/data/repositories/matching_repository_impl
 import 'package:app/features/matching/domain/repositories/matching_repository.dart';
 import 'package:app/features/matching/domain/usecases/matching_usecase.dart';
 import 'package:app/features/offers/presentation/pages/results/cubit/matching_results/matching_results_cubit.dart';
+import 'package:app/features/offers/presentation/pages/offer_details/cubit/application_offer/application_offer_cubit.dart';
 import 'package:app/features/offers/presentation/pages/offer_details/cubit/national_id_status/national_id_status_cubit.dart';
 import 'package:app/features/offers/presentation/pages/offer_details/cubit/save_offer/save_offer_cubit.dart';
 import 'package:app/features/offers/presentation/pages/offer_details/cubit/select_offer/select_offer_cubit.dart';
@@ -304,6 +305,11 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerFactory(
     () => PreviousApplicationsCubit(getIt<ApplicationsUseCase>()),
+  );
+  // Offer details opened from an application reads that ONE application back
+  // (GET /v1/applications/:id) instead of trusting the list row it came from.
+  getIt.registerFactory(
+    () => ApplicationOfferCubit(getIt<ApplicationsUseCase>()),
   );
 
   // matching — apply (real offers) + select-offer (proceed). Data-layer

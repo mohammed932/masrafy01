@@ -389,10 +389,6 @@ interface PortfolioHealth {
                             }
                           </header>
 
-                          <p class="prog-sub">
-                            <code class="code-cell">{{ p.programCode }}</code>
-                          </p>
-
                           <dl class="specs">
                             <div class="spec">
                               <dt i18n="@@bank_detail.spec.rate">Rate</dt>
@@ -1073,22 +1069,16 @@ interface PortfolioHealth {
         outline-offset: var(--focus-ring-offset);
       }
       .prog-head,
-      .prog-sub,
       .specs,
       .prog-foot {
         position: relative;
         z-index: 1;
         pointer-events: none;
       }
-      /* Re-armed above the card-wide link: controls must click, and the program
-         code must stay selectable — operators paste it into tickets. */
+      /* Re-armed above the card-wide link: controls must stay clickable. */
       .prog-foot,
-      .prog-head .tag,
-      .prog-sub .code-cell {
+      .prog-head .tag {
         pointer-events: auto;
-      }
-      .prog-sub .code-cell {
-        user-select: text;
       }
       .prog-head {
         display: flex;
@@ -1113,9 +1103,6 @@ interface PortfolioHealth {
         font-weight: var(--font-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.04em;
-      }
-      .prog-sub {
-        margin: 0;
       }
       /* Three figures on one baseline — the actual comparison surface. */
       .specs {
@@ -1203,12 +1190,6 @@ interface PortfolioHealth {
       }
       .row-link:hover {
         color: var(--color-text-link);
-      }
-      .code-cell {
-        font-family: var(--data-font);
-        font-size: var(--text-xs);
-        letter-spacing: 0.02em;
-        color: var(--color-text-secondary);
       }
       .actions {
         white-space: nowrap;

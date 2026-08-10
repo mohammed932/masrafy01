@@ -65,6 +65,13 @@ export class CustomerProfileResponseDto {
   linkedProviders!: SocialProvider[];
   @ApiPropertyOptional({ description: 'ISO timestamp the mobile was OTP-verified; null until verified.' })
   mobileVerifiedAt?: string;
+  @ApiPropertyOptional({
+    description:
+      'Number submitted for verification whose OTP was never completed — present only while ' +
+      'mobileVerifiedAt is null. Prefills the phone-entry field on re-login; a fresh OTP is ' +
+      'always issued on submit.',
+  })
+  pendingMobile?: string;
   @ApiProperty() createdAt!: string;
   @ApiPropertyOptional() lastLoginAt?: string;
 }
@@ -112,6 +119,7 @@ export function mapCustomerProfile(
   row: CustomerProfileRow,
   profileComplete: boolean,
   photoUrl?: string,
+  pendingMobile?: string,
 ): CustomerProfileResponseDto {
   const age = deriveAge(row.birthday);
   return {
@@ -133,6 +141,7 @@ export function mapCustomerProfile(
     hasPassword: row.passwordHash !== null,
     linkedProviders: row.providers.map((p) => p.provider),
     mobileVerifiedAt: row.mobileVerifiedAt ? row.mobileVerifiedAt.toISOString() : undefined,
+    pendingMobile,
     createdAt: row.createdAt.toISOString(),
     lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : undefined,
   };

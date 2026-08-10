@@ -12,4 +12,7 @@ abstract class ApplicationsRepository
   ApplicationsRepository(super.remoteDataSource);
 
   Future<Either<Failure, List<ApplicationSummaryEntity>>> list();
+
+  /// One application + its selected offer, fetched fresh (offer details).
+  Future<Either<Failure, ApplicationSummaryEntity>> get(String applicationId);
 }

@@ -68,10 +68,14 @@ class _PreviousApplicationsView extends StatelessWidget {
                         for (final app in state.applications) ...[
                           PastApplicationCard(
                             application: app,
+                            // Only the application id travels: the details
+                            // screen fetches the offer itself, so it never
+                            // renders the copy this list was drawn from (a bank
+                            // decision, a saved/unsaved toggle, or an erased
+                            // offer can land in between).
                             onViewOffer: () => context.router.push(
                               OfferDetailsRoute(
-                                offer: app.offer,
-                                summary: app.toSummary(),
+                                applicationId: app.applicationId,
                               ),
                             ),
                           ),

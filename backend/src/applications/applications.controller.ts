@@ -102,6 +102,27 @@ export class ApplicationsController {
     return this.service.listMine(customerId);
   }
 
+  @Get('applications/:applicationId')
+  @UseGuards(CustomerProfileCompleteGuard)
+  @ApiOperation({
+    summary:
+      "One of the customer's own applications with its selected offer (Offer Details screen — read fresh, not from the list row the client cached)",
+  })
+  @ApiResponse({ status: 200, description: 'The application + its selected offer' })
+  @ApiResponse({ status: 401, description: 'Customer JWT missing or invalid' })
+  @ApiResponse({ status: 403, description: 'Customer does not own this application' })
+  @ApiResponse({
+    status: 404,
+    description: 'No such application, or none proceeded with an offer',
+  })
+  async getMine(
+    @Param('applicationId') applicationId: string,
+    @Req() req: MobileAuthedRequest,
+  ): Promise<unknown> {
+    const customerId = this.requireCustomerId(req);
+    return this.service.getMine(applicationId, customerId);
+  }
+
   private requireCustomerId(req: MobileAuthedRequest): string {
     const user = (req as Request & { user?: { sub?: string } }).user;
     const sub = user?.sub;

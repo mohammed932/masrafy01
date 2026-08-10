@@ -137,7 +137,6 @@ import { ApplicantDocumentsComponent } from './components/applicant-documents.co
             <article class="offer-card">
               <header class="offer-head">
                 <div class="offer-title">
-                  <span class="program-code">{{ offer.programCode }}</span>
                   <span class="bank">{{ offer.bankName }} · {{ offer.programFriendlyName }}</span>
                 </div>
                 <app-approval-pill
@@ -352,13 +351,12 @@ import { ApplicantDocumentsComponent } from './components/applicant-documents.co
         display: flex;
         flex-direction: column;
       }
-      .program-code {
+      /* The bank + program name now carries the card's identity on its own —
+         the program code chip that used to head this row was removed. */
+      .bank {
+        font-size: var(--text-sm);
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
-      }
-      .bank {
-        font-size: 12px;
-        color: var(--color-text-tertiary);
       }
       .offer-stats {
         display: grid;

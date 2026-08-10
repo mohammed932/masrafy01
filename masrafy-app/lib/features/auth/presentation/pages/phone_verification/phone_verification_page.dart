@@ -9,12 +9,17 @@ part of 'phone_verification.imports.dart';
 /// XXXVI); the phone-binding flow continues on the OTP screen.
 @RoutePage()
 class PhoneVerificationPage extends StatelessWidget {
-  const PhoneVerificationPage({super.key});
+  const PhoneVerificationPage({super.key, this.pendingMobile});
+
+  /// Number this account already submitted for verification without finishing
+  /// the OTP (backend `pendingMobile`). Prefills the field so a returning
+  /// customer does not retype it; submitting still issues a fresh OTP.
+  final String? pendingMobile;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<PhoneVerificationCubit>(
-      create: (_) => getIt<PhoneVerificationCubit>(),
+      create: (_) => getIt<PhoneVerificationCubit>()..seedPhone(pendingMobile),
       child: const _PhoneVerificationView(),
     );
   }

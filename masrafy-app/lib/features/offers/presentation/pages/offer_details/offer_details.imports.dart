@@ -11,14 +11,18 @@ import 'package:app/core/router/router.gr.dart';
 import 'package:app/core/theme/colors/masrafy_color_theme.dart';
 import 'package:app/core/theme/typography/masrafy_text_theme.dart';
 import 'package:app/core/widgets/buttons/masrafy_gradient_button.dart';
+import 'package:app/core/widgets/common/masrafy_empty_state.dart';
 import 'package:app/core/widgets/common/masrafy_gradient_header.dart';
 import 'package:app/core/widgets/common/masrafy_toast.dart';
 import 'package:app/core/widgets/dialogs/masrafy_documents_required_dialog.dart';
+import 'package:app/core/widgets/shimmers/masrafy_shimmer.dart';
+import 'package:app/core/widgets/shimmers/masrafy_shimmer_box.dart';
 import 'package:app/core/widgets/slivers/masrafy_sliver_gradient_header_delegate.dart';
 import 'package:app/l10n/generated/app_localizations.dart';
 
 import '../../models/match_results_args.dart';
 import '../widgets/match_summary_card.dart';
+import 'cubit/application_offer/application_offer_cubit.dart';
 import 'cubit/national_id_status/national_id_status_cubit.dart';
 import 'cubit/save_offer/save_offer_cubit.dart';
 import 'cubit/select_offer/select_offer_cubit.dart';

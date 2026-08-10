@@ -5,7 +5,6 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
-import { KeyChipComponent } from '@shared/ui';
 import type { EnumerationRow } from '../lookups.api.service';
 
 /** Emitted when the operator flips a value's active flag. */
@@ -27,7 +26,6 @@ export interface LookupActiveToggle {
     NzInputModule,
     NzToolTipModule,
     NzPopconfirmModule,
-    KeyChipComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -90,7 +88,6 @@ export interface LookupActiveToggle {
                 <span class="label-en">{{ r.labelEn }}</span>
                 <span class="label-ar" dir="rtl">{{ r.labelAr }}</span>
               </span>
-              <app-key-chip [value]="r.key" />
               @if (r.systemOnly) {
                 <span
                   class="badge system"
@@ -162,7 +159,6 @@ export interface LookupActiveToggle {
                   <span class="label-en">{{ r.labelEn }}</span>
                   <span class="label-ar" dir="rtl">{{ r.labelAr }}</span>
                 </span>
-                <app-key-chip [value]="r.key" />
               </div>
               <div class="value-side">
                 <span class="status dep">{{ deprecatedLabel }}</span>

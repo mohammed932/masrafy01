@@ -74,10 +74,55 @@ import type {
 } from './dto/apply-response.dto';
 import type {
   ApplicationDecisionStatus,
+  ApplicationDetailResponse,
+  ApplicationListItemDto,
   ApplicationOfferDto,
   ApplicationsListResponse,
 } from './dto/applications-list-response.dto';
 import { ApplicationStatus } from './dto/enums';
+
+/**
+ * The persisted BankOffer columns a response projection reads. Named (rather
+ * than restated inline) so the list AND the single-application detail read can
+ * both hand a row to the same projection without a second copy of the shape.
+ */
+type PersistedOfferRow = {
+  id: string;
+  programCode: string;
+  programVersion: number;
+  bankName: string;
+  bankIsFeatured: boolean;
+  isShariaCompliant: boolean;
+  programFriendlyName: string;
+  currency: string;
+  effectiveRatePercent: Decimal;
+  monthlyInstallmentEGP: Decimal;
+  requestedLoanAmountEGP: Decimal;
+  effectiveLoanAmountEGP: Decimal;
+  requestedTenorMonths: number;
+  effectiveTenorMonths: number;
+  approvalScore: number;
+  approvalTier: string;
+  approvalFactors: unknown;
+  engineVersion: string;
+  requiredDocuments: string[];
+  matchReasons: string[];
+  feesBreakdown: unknown;
+  cascadeTrace: unknown;
+  qualitativeReviewBadge: boolean;
+  selfDeclared: boolean;
+  maxLoanAvailableEGP: Decimal | null;
+  dbrPercent: Decimal | null;
+  dbrCapPercent: Decimal | null;
+};
+
+/** An applied application's row + the offer the customer proceeded with. */
+type AppliedApplicationRow = {
+  id: string;
+  category: LoanCategory | null;
+  requestedAmountEGP: Decimal;
+  userProceededAt: Date;
+};
 
 export interface ApplyContext {
   /** Constitution v4.0.0 / Principle XIII — the authenticated customer (from
@@ -215,17 +260,70 @@ export class ApplicationsService {
       const offer = row.bankOffers.find((o) => o.id === row.userSelectedBankOfferId);
       if (!offer || !row.userProceededAt) return [];
       return [
-        {
-          applicationId: row.id,
-          category: row.category,
-          requestedAmountEGP: row.requestedAmountEGP.toFixed(2),
-          status: this.projectApplicationStatus(offer.decision?.outcome),
-          proceededAt: row.userProceededAt.toISOString(),
-          offer: this.toOfferDto(offer, savedOfferIds),
-        },
+        this.toApplicationListItem(
+          { ...row, userProceededAt: row.userProceededAt },
+          offer,
+          savedOfferIds,
+        ),
       ];
     });
     return { success: true, data: { applications } };
+  }
+
+  /**
+   * ONE of the customer's applications, read on demand: the Applications
+   * screen's "View offer" tap fetches the offer through here instead of
+   * reopening the row it cached when it drew the list. Everything on that row
+   * can move without the client hearing about it — the bank decision, the
+   * saved/heart flag, the offer being erased — and the details screen is where
+   * the customer acts on those numbers, so it reads them fresh.
+   *
+   * Ownership mirrors `selectOffer`: unknown id → 404, someone else's → 403.
+   * An application that exists but was never proceeded with has no selected
+   * offer to show and reads as 404 too (the list never showed it either).
+   */
+  async getMine(
+    applicationId: string,
+    customerId: string,
+  ): Promise<ApplicationDetailResponse> {
+    const row = await this.repo.findAppliedById(applicationId);
+    if (!row) throw new NotFoundException();
+    if (row.applicantUserId !== customerId) throw new ForbiddenException();
+
+    const offer = row.bankOffers.find((o) => o.id === row.userSelectedBankOfferId);
+    if (!offer || !row.userProceededAt) throw new NotFoundException();
+
+    const savedOfferIds = await this.savedOffers.findSavedBankOfferIds(customerId);
+    return {
+      success: true,
+      data: {
+        application: this.toApplicationListItem(
+          { ...row, userProceededAt: row.userProceededAt },
+          offer,
+          savedOfferIds,
+        ),
+      },
+    };
+  }
+
+  /**
+   * One Applications-screen row — shared by the list and the single-application
+   * detail read so the two can never drift (the mobile client parses one shape
+   * for both).
+   */
+  private toApplicationListItem(
+    row: AppliedApplicationRow,
+    offer: PersistedOfferRow & { decision: { outcome: DecisionOutcome } | null },
+    savedOfferIds: Set<string>,
+  ): ApplicationListItemDto {
+    return {
+      applicationId: row.id,
+      category: row.category,
+      requestedAmountEGP: row.requestedAmountEGP.toFixed(2),
+      status: this.projectApplicationStatus(offer.decision?.outcome),
+      proceededAt: row.userProceededAt.toISOString(),
+      offer: this.toOfferDto(offer, savedOfferIds),
+    };
   }
 
   async apply(dto: ApplyRequestDto, ctx: ApplyContext): Promise<ApplyResponse> {
@@ -646,35 +744,10 @@ export class ApplicationsService {
    * one mapper, two callers (Principle X keeps this the only place that reads
    * these BankOffer columns for a response).
    */
-  private toOfferDto(o: {
-    id: string;
-    programCode: string;
-    programVersion: number;
-    bankName: string;
-    bankIsFeatured: boolean;
-    isShariaCompliant: boolean;
-    programFriendlyName: string;
-    currency: string;
-    effectiveRatePercent: Decimal;
-    monthlyInstallmentEGP: Decimal;
-    requestedLoanAmountEGP: Decimal;
-    effectiveLoanAmountEGP: Decimal;
-    requestedTenorMonths: number;
-    effectiveTenorMonths: number;
-    approvalScore: number;
-    approvalTier: string;
-    approvalFactors: unknown;
-    engineVersion: string;
-    requiredDocuments: string[];
-    matchReasons: string[];
-    feesBreakdown: unknown;
-    cascadeTrace: unknown;
-    qualitativeReviewBadge: boolean;
-    selfDeclared: boolean;
-    maxLoanAvailableEGP: Decimal | null;
-    dbrPercent: Decimal | null;
-    dbrCapPercent: Decimal | null;
-  }, savedOfferIds: Set<string>): ApplicationOfferDto {
+  private toOfferDto(
+    o: PersistedOfferRow,
+    savedOfferIds: Set<string>,
+  ): ApplicationOfferDto {
     return {
       bankOfferId: o.id,
       isSaved: savedOfferIds.has(o.id),

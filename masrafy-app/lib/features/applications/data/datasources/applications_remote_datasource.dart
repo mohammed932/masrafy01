@@ -18,6 +18,19 @@ class ApplicationsRemoteDataSource extends BaseRemoteDataSource {
     return ApplicationsListModel.fromJson(_unwrap(json));
   }
 
+  /// One application + its selected offer — the read behind opening an
+  /// application's offer details.
+  Future<ApplicationSummaryModel> getApplication(String applicationId) async {
+    final json = await appNetwork.get(
+      MasrafyEndpoint(endpoint: ApiStrings.applicationById(applicationId)),
+    );
+    final data = _unwrap(json);
+    final application = data['application'];
+    return ApplicationSummaryModel.fromJson(
+      application is Map<String, dynamic> ? application : data,
+    );
+  }
+
   Map<String, dynamic> _unwrap(dynamic envelope) {
     if (envelope is Map<String, dynamic>) {
       final data = envelope['data'];

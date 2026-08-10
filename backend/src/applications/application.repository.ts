@@ -267,6 +267,30 @@ export class ApplicationRepository {
   }
 
   /**
+   * ONE application by id, same shape as {@link findAppliedByCustomer} — the
+   * read behind the Applications screen's "View offer" tap, which fetches the
+   * offer fresh instead of reopening the row the client cached when it drew the
+   * list (a decision, a saved-offer toggle, or an erased offer can land in
+   * between). Ownership is deliberately NOT filtered here: the service tells
+   * "no such application" (404) apart from "not yours" (403), exactly as
+   * `selectOffer` does.
+   */
+  async findAppliedById(id: string) {
+    return this.prisma.application.findFirst({
+      where: {
+        id,
+        status: { not: 'erased' as PrismaApplicationStatus },
+      },
+      include: {
+        bankOffers: {
+          where: { erasedAt: null },
+          include: { decision: true },
+        },
+      },
+    });
+  }
+
+  /**
    * Cross-feature read: returns just the fields needed to enforce
    * customer + device ownership. Used by the documents feature so the
    * documents service does not need direct Prisma access.

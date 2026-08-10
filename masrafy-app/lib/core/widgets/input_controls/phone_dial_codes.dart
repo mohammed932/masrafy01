@@ -69,3 +69,22 @@ const phoneDialCodes = <PhoneDialCode>[
   PhoneDialCode(code: '+974', label: 'QA'),
   PhoneDialCode(code: '+98', label: 'IR'),
 ];
+
+/// Splits an E.164 number (`+201012345678`) into the dial code the picker
+/// knows and the national digits the text field holds (`+20`, `1012345678`).
+///
+/// Matches the LONGEST known prefix, not the first: `+1` would otherwise
+/// swallow `+1268`, and `+9` variants overlap the same way. Returns null when
+/// [full] is null/blank or carries no known dial code, so callers keep their
+/// own default rather than rendering a code the picker cannot display.
+({String dialCode, String national})? splitDialCode(String? full) {
+  final raw = full?.replaceAll(RegExp(r'[\s\-]'), '') ?? '';
+  if (raw.isEmpty) return null;
+  PhoneDialCode? best;
+  for (final entry in phoneDialCodes) {
+    if (!raw.startsWith(entry.code)) continue;
+    if (best == null || entry.code.length > best.code.length) best = entry;
+  }
+  if (best == null) return null;
+  return (dialCode: best.code, national: raw.substring(best.code.length));
+}

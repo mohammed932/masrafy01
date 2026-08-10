@@ -58,7 +58,6 @@ function percent(value: string): string {
       <header class="hero">
         <div class="hero-id">
           <h3 class="prog">{{ match.programFriendlyName }}</h3>
-          <code class="code">{{ match.programCode }}</code>
         </div>
         <div
           class="score"
@@ -256,11 +255,6 @@ function percent(value: string): string {
       .hero { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4, 16px); }
       .hero-id { display: flex; flex-direction: column; gap: 6px; min-inline-size: 0; }
       .prog { margin: 0; font-size: var(--text-lg, 18px); font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
-      .code {
-        font-size: 11px; letter-spacing: 0.04em; align-self: flex-start;
-        color: var(--color-text-secondary, #6b7280);
-        background: var(--color-surface-elevated, #f4f6f8); padding: 2px 8px; border-radius: var(--radius-sm, 6px);
-      }
       .score { display: flex; flex-direction: column; align-items: flex-end; flex: none; }
       .score-num {
         font-size: 34px; font-weight: 800; line-height: 1;

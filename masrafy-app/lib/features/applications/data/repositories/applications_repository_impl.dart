@@ -19,4 +19,14 @@ class ApplicationsRepositoryImpl extends ApplicationsRepository {
         await ApiHandler.callApi(() => remoteDataSource.getApplications());
     return result.map((m) => m.toEntities());
   }
+
+  @override
+  Future<Either<Failure, ApplicationSummaryEntity>> get(
+    String applicationId,
+  ) async {
+    final result = await ApiHandler.callApi(
+      () => remoteDataSource.getApplication(applicationId),
+    );
+    return result.map((m) => m.toEntity());
+  }
 }

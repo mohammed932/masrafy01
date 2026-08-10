@@ -64,6 +64,28 @@ export class OtpChallengeRepository {
     });
   }
 
+  /**
+   * Latest phone a customer submitted for PROFILE_MOBILE verification and never
+   * confirmed — backs `pendingMobile` on the profile payload so a re-login can
+   * prefill the field instead of asking for the number again.
+   *
+   * Deliberately ignores `expiresAt`: the challenge is 5 minutes old and long
+   * dead by the time the customer returns, and the value is used ONLY to
+   * prefill an input. Submitting always issues a fresh OTP.
+   */
+  async findPendingMobileForCustomer(customerId: string): Promise<string | null> {
+    const row = await this.prisma.otpChallenge.findFirst({
+      where: {
+        customerId,
+        purpose: OtpPurpose.PROFILE_MOBILE as unknown as PrismaOtpPurpose,
+        consumedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { phone: true },
+    });
+    return row?.phone ?? null;
+  }
+
   async decrementAttempts(id: string): Promise<OtpChallenge> {
     return this.prisma.otpChallenge.update({
       where: { id },

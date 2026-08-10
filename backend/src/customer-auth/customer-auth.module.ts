@@ -12,6 +12,7 @@ import { AdminCustomerAccountsService } from './admin-customer-accounts.service'
 import { CustomerAccountRepository } from './customer-account.repository';
 import { CustomerProfileDocumentRepository } from './customer-profile-document.repository';
 import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
+import { CustomerPendingMobileService } from './customer-pending-mobile.service';
 import { CustomerProfileCompleteGuard } from './guards/customer-profile-complete.guard';
 import { CustomerRefreshTokenRepository } from './customer-refresh-token.repository';
 import { CustomerRefreshTokenService } from './customer-refresh-token.service';
@@ -73,6 +74,7 @@ import { PlatformEnumerationsModule } from '@/platform-enumerations/platform-enu
     AdminCustomerAccountsService,
     CustomerProfileDocumentRepository,
     CustomerProfileCompletenessService,
+    CustomerPendingMobileService,
     CustomerProfileCompleteGuard,
     CustomerRefreshTokenRepository,
     CustomerRefreshTokenService,

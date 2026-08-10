@@ -38,6 +38,7 @@ import {
   type CustomerProfileRow,
 } from './dto/customer-auth.dto';
 import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
+import { CustomerPendingMobileService } from './customer-pending-mobile.service';
 import { CustomerProfileDocumentRepository } from './customer-profile-document.repository';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { UnknownEnumerationKeyException } from '@/common/errors/domain.exceptions';
@@ -78,6 +79,7 @@ export class CustomerAuthMobileService {
     private readonly completeness: CustomerProfileCompletenessService,
     private readonly idDocs: CustomerProfileDocumentRepository,
     private readonly enumerations: PlatformEnumerationsRepository,
+    private readonly pendingMobile: CustomerPendingMobileService,
   ) {}
 
   // -------------------------------------------------------------------------
@@ -863,17 +865,29 @@ export class CustomerAuthMobileService {
     const { token: accessToken, expiresIn } = this.jwt.signAccessToken({ sub: args.customerId });
     const account = await this.accounts.findById(args.customerId);
     if (!account) throw new CustomerAccountInactiveException();
-    const profileComplete = await this.completeness.isComplete(args.customerId);
+    const [profileComplete, pendingMobile] = await Promise.all([
+      this.completeness.isComplete(args.customerId),
+      // Google sign-in lands here: an account that abandoned the OTP gets its
+      // pending number back so the phone screen can prefill it.
+      this.pendingMobile.resolve({
+        customerId: args.customerId,
+        mobileVerifiedAt: account.mobileVerifiedAt,
+      }),
+    ]);
     return {
       accessToken,
       accessTokenExpiresIn: expiresIn,
       refresh,
-      customer: this.toProfile(account, profileComplete),
+      customer: this.toProfile(account, profileComplete, pendingMobile),
     };
   }
 
-  private toProfile(row: CustomerProfileRow, profileComplete: boolean): CustomerProfileResponseDto {
-    return mapCustomerProfile(row, profileComplete);
+  private toProfile(
+    row: CustomerProfileRow,
+    profileComplete: boolean,
+    pendingMobile?: string,
+  ): CustomerProfileResponseDto {
+    return mapCustomerProfile(row, profileComplete, undefined, pendingMobile);
   }
 }
 

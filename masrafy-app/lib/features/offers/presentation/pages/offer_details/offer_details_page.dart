@@ -10,13 +10,80 @@ part of 'offer_details.imports.dart';
 /// toast and no navigation — both backend-wired for real offers
 /// (`offer.applicationId`/`offer.bankOfferId` set), while placeholder views
 /// (saved-offer / past-application / mock) get an inert Apply and no heart.
+///
+/// Two ways in:
+///  - [applicationId] set — an application the customer already proceeded with
+///    (the Applications screen's "View offer"). The offer is FETCHED on open
+///    (`GET /api/v1/applications/:id`, shimmer per Principle XXXIV) rather than
+///    reopened from the row the list was drawn from: the bank decision, the
+///    saved/heart flag and the offer's very existence all move without the
+///    client hearing about it, and this is the screen that acts on them.
+///  - [offer] + [summary] set — the live apply flow (already fresh: the results
+///    screen just ran `/apply`) and the placeholder views (saved offer / mock).
 @RoutePage()
 class OfferDetailsPage extends StatelessWidget {
   const OfferDetailsPage({
     super.key,
-    required this.offer,
-    required this.summary,
-  });
+    this.applicationId,
+    this.offer,
+    this.summary,
+  }) : assert(
+          applicationId != null || (offer != null && summary != null),
+          'OfferDetailsPage needs an applicationId to fetch, or an offer + '
+          'summary to render.',
+        );
+
+  /// Fetch key. When set, [offer] and [summary] are not read at all — the
+  /// screen loads its own data.
+  final String? applicationId;
+
+  final MatchOffer? offer;
+  final MatchResultsArgs? summary;
+
+  @override
+  Widget build(BuildContext context) {
+    final id = applicationId;
+    if (id != null) {
+      return BlocProvider<ApplicationOfferCubit>(
+        create: (_) => getIt<ApplicationOfferCubit>()..load(id),
+        child: _FetchedOfferDetails(applicationId: id),
+      );
+    }
+    return _OfferDetailsView(offer: offer!, summary: summary!);
+  }
+}
+
+/// Resolves an [ApplicationOfferCubit] read into the real screen: shimmer while
+/// the offer is in flight, a retryable error state if it never arrives, and
+/// [_OfferDetailsView] on the fetched data.
+class _FetchedOfferDetails extends StatelessWidget {
+  const _FetchedOfferDetails({required this.applicationId});
+
+  final String applicationId;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ApplicationOfferCubit, ApplicationOfferState>(
+      builder: (ctx, state) {
+        if (state.isLoading) return const _OfferDetailsShimmer();
+        final offer = state.offer;
+        final summary = state.summary;
+        if (state.isError || offer == null || summary == null) {
+          return _OfferDetailsErrorState(
+            onRetry: () =>
+                ctx.read<ApplicationOfferCubit>().load(applicationId),
+          );
+        }
+        return _OfferDetailsView(offer: offer, summary: summary);
+      },
+    );
+  }
+}
+
+/// The screen itself, on data that is already resolved — fetched by
+/// [_FetchedOfferDetails] or handed in by the caller.
+class _OfferDetailsView extends StatelessWidget {
+  const _OfferDetailsView({required this.offer, required this.summary});
 
   final MatchOffer offer;
   final MatchResultsArgs summary;
@@ -444,6 +511,148 @@ class OfferDetailsPage extends StatelessWidget {
   static String _trimRate(double rate) => rate == rate.truncateToDouble()
       ? rate.truncate().toString()
       : rate.toString();
+}
+
+/// Shape-matched skeleton for the fetched variant (Principle XXXIV): the same
+/// gradient hero, then the summary card / 2-column stat grid / fees table / CTA
+/// blocks the loaded screen draws. The hero is NOT shimmered — the sweep masks
+/// every opaque pixel, and a full-bleed gradient would sweep as one blob — so it
+/// renders for real with placeholder bars where its title and subtitle go.
+class _OfferDetailsShimmer extends StatelessWidget {
+  const _OfferDetailsShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    return Scaffold(
+      backgroundColor: colors.bg.layout,
+      body: SingleChildScrollView(
+        physics: const NeverScrollableScrollPhysics(),
+        child: Column(
+          children: [
+            const _OfferDetailsLoadingHero(),
+            Transform.translate(
+              offset: Offset(0, -28.h),
+              child: Container(
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: colors.bg.layout,
+                  borderRadius: BorderRadiusDirectional.only(
+                    topStart: Radius.circular(28.r),
+                    topEnd: Radius.circular(28.r),
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(24.w, 52.h, 24.w, 24.h),
+                  child: MasrafyShimmer(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Loan-summary card (program / type / amount / duration).
+                        MasrafyShimmerBox(height: 176, radius: 16),
+                        Gap(25.h),
+                        // 2×4 stat grid.
+                        for (int row = 0; row < 4; row++) ...[
+                          if (row > 0) Gap(10.h),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: MasrafyShimmerBox(height: 92, radius: 14),
+                              ),
+                              Gap(10.w),
+                              Expanded(
+                                child: MasrafyShimmerBox(height: 92, radius: 14),
+                              ),
+                            ],
+                          ),
+                        ],
+                        Gap(20.h),
+                        MasrafyShimmerBox(width: 90, height: 12, radius: 6),
+                        Gap(12.h),
+                        MasrafyShimmerBox(height: 150, radius: 16),
+                        Gap(25.h),
+                        MasrafyShimmerBox(height: 52, radius: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The offer read failed — retryable, and the back button still works, so a
+/// failed fetch is a pause rather than a dead end.
+class _OfferDetailsErrorState extends StatelessWidget {
+  const _OfferDetailsErrorState({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+    return Scaffold(
+      backgroundColor: colors.bg.layout,
+      body: Column(
+        children: [
+          const _OfferDetailsLoadingHero(),
+          Expanded(child: MasrafyFetchErrorState(onRetry: onRetry)),
+        ],
+      ),
+    );
+  }
+}
+
+/// The gradient hero with nothing in it yet: real gradient + working back
+/// button, two placeholder bars where the "{type} Loan" title and "{pct}% match
+/// score" subtitle land. Shared by the shimmer and the error state so a failed
+/// load doesn't jump to a different header.
+class _OfferDetailsLoadingHero extends StatelessWidget {
+  const _OfferDetailsLoadingHero();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = MasrafyColorTheme.of(context);
+
+    Widget bar({required double width, required double height}) => Container(
+          width: width.w,
+          height: height.h,
+          decoration: BoxDecoration(
+            color: colors.white.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+        );
+
+    // Height of the placeholder block below, INCLUDING the Gap(18) the header
+    // puts in front of `bottom` (see `expandedHeightFor`).
+    final bottomExtent = 18.h + 26.h + 8.h + 14.h;
+
+    return MasrafyGradientHeader(
+      title: '',
+      subtitle: '',
+      onBack: () => context.router.maybePop(),
+      bottom: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          bar(width: 200, height: 26),
+          Gap(8.h),
+          bar(width: 120, height: 14),
+        ],
+      ),
+      heightInPixels: MasrafyGradientHeader.expandedHeightFor(
+        context,
+        title: '',
+        subtitle: '',
+        hasBack: true,
+        bottomExtent: bottomExtent,
+        minHeight: 180.h,
+      ),
+    );
+  }
 }
 
 /// National ID document status in the stat grid. [tracked] is false for

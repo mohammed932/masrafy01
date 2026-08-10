@@ -72,15 +72,23 @@ class _LoginViewState extends State<_LoginView> {
         listener: (ctx, state) {
           if (state.isSuccess) {
             final customer = state.session!.customer;
-            // SOCIAL onboarding gate: an incomplete account with no verified
-            // mobile goes to the phone → OTP flow first; once the mobile is
-            // bound it drops straight to the Complete-Profile birthday step.
-            if (customer.profileComplete) {
-              ctx.router.replaceAll([MainShellRoute()]);
-            } else if (customer.mobileVerifiedAt == null) {
-              ctx.router.replaceAll([const PhoneVerificationRoute()]);
-            } else {
+            // Post-login onboarding gate, checked in this order:
+            //   1. mobile not verified (number never entered, or entered and
+            //      the OTP abandoned) → phone → OTP flow
+            //   2. mobile verified but profile data missing (birthday, names,
+            //      password for PHONE) → Complete-Profile
+            //   3. both satisfied → Home
+            // Order matters even though `profileComplete` already implies a
+            // verified mobile: it keeps the two gates independent, so a future
+            // completeness field cannot swallow the mobile check.
+            if (customer.mobileVerifiedAt == null) {
+              ctx.router.replaceAll([
+                PhoneVerificationRoute(pendingMobile: customer.pendingMobile),
+              ]);
+            } else if (!customer.profileComplete) {
               ctx.router.replaceAll([CompleteProfileRoute()]);
+            } else {
+              ctx.router.replaceAll([MainShellRoute()]);
             }
           } else if (state.isFailure) {
             MasrafyToast.error(ctx, _errorMessage(l, state.error!));

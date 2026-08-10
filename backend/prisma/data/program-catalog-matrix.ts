@@ -282,10 +282,13 @@ export const CATALOG_QUESTION_TEMPLATE: Readonly<
   },
 
   // ── Bankers: the one salaried segment with a readable card footprint, and
-  // card behaviour is the closest thing to a bureau score on this platform.
+  // card behaviour is the closest thing to a bureau score on this platform. The
+  // footprint is read off `current_loans` — the standalone card questions are
+  // gone (the multi-select already carries a `credit_cards` pick, and the card
+  // LIMIT it reveals is what the 5% monthly commitment is computed from).
   bankers: {
-    personal: [...PERSONAL_SALARIED, 'has_credit_card', 'card_usage'],
-    car: [...CAR_SPINE, 'salary_transfer', 'job_tenure', 'has_credit_card'],
+    personal: [...PERSONAL_SALARIED],
+    car: [...CAR_SPINE, 'salary_transfer', 'job_tenure', 'current_loans'],
     mortgage: [...MORTGAGE_SPINE, 'salary_transfer', 'additional_income'],
   },
 
@@ -323,12 +326,11 @@ export const CATALOG_QUESTION_TEMPLATE: Readonly<
       'job_tenure',
       'salary_transfer',
       'current_installments',
+      'current_loans',
       'amount_requested',
-      'has_credit_card',
-      'card_usage',
       'active_account',
     ],
-    car: [...CAR_SPINE, 'job_tenure', 'salary_transfer', 'has_credit_card'],
+    car: [...CAR_SPINE, 'job_tenure', 'salary_transfer', 'current_loans'],
   },
 
   // ── New car: the asset is the least of the worries (it is new, and it is worth

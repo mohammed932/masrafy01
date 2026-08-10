@@ -14,7 +14,7 @@ part 'splash_state.dart';
 /// Startup gate. Resolves the initial destination from persisted state
 /// (Constitution: tokens live only in secure storage, XXVIII):
 ///   • valid session, profile complete   → Home
-///   • valid session, profile incomplete → Complete-Profile (Principle XXXVII)
+///   • valid session, profile incomplete → Login (session dropped)
 ///   • token present but session dead     → Login
 ///   • no token, onboarding done/disabled → Login
 ///   • otherwise                          → Onboarding
@@ -69,15 +69,16 @@ class SplashCubit extends Cubit<SplashState> {
             ? SplashDestination.home
             : SplashDestination.login;
       },
-      // Same three-way gate as the post-login branch in `login_page.dart`: an
-      // incomplete account whose mobile was never verified (user abandoned the
-      // OTP step) resumes at phone-entry, NOT at Complete-Profile — that screen
-      // cannot bind a mobile, so landing there strands the account forever.
-      (customer) async => customer.profileComplete
-          ? SplashDestination.home
-          : customer.mobileVerifiedAt == null
-              ? SplashDestination.phoneVerification
-              : SplashDestination.completeProfile,
+      // Only a finished account resumes straight into the app. Onboarding
+      // screens — phone entry and Complete-Profile — are reached ONLY through
+      // an explicit sign-in, where `login_page.dart` reads the fresh response
+      // and picks between them. So an unfinished account drops its session
+      // here and starts at Login instead of resuming a step cold.
+      (customer) async {
+        if (customer.profileComplete) return SplashDestination.home;
+        await _auth.logout();
+        return SplashDestination.login;
+      },
     );
   }
 }

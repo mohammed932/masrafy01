@@ -21,6 +21,7 @@ class CustomerEntity extends Equatable {
     required this.createdAt,
     this.phone,
     this.mobileVerifiedAt,
+    this.pendingMobile,
     this.email,
     this.age,
     this.birthday,
@@ -48,6 +49,12 @@ class CustomerEntity extends Equatable {
 
   /// Null until OTP-verified. Once set, immutable.
   final DateTime? mobileVerifiedAt;
+
+  /// Number submitted for verification whose OTP was never completed. Present
+  /// only while [mobileVerifiedAt] is null — the phone screen prefills it so a
+  /// returning customer does not retype the number. A fresh OTP is always
+  /// issued on submit; the abandoned challenge is never reused.
+  final String? pendingMobile;
 
   /// May be null at registration for SOCIAL customers whose provider withheld it.
   final String? email;
@@ -83,6 +90,7 @@ class CustomerEntity extends Equatable {
         createdAt,
         phone,
         mobileVerifiedAt,
+        pendingMobile,
         email,
         age,
         birthday,

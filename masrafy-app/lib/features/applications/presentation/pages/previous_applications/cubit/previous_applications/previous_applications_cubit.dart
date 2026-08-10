@@ -4,10 +4,8 @@ import 'package:injectable/injectable.dart';
 
 import 'package:app/core/enums/request_state.dart';
 import 'package:app/core/result/failure.dart';
-import 'package:app/features/applications/domain/entities/application_summary_entity.dart';
 import 'package:app/features/applications/domain/usecases/applications_usecase.dart';
 import 'package:app/features/applications/presentation/models/previous_applications_args.dart';
-import 'package:app/features/offers/presentation/models/match_results_args.dart';
 
 part 'previous_applications_cubit.freezed.dart';
 part 'previous_applications_state.dart';
@@ -31,32 +29,9 @@ class PreviousApplicationsCubit extends Cubit<PreviousApplicationsState> {
       (err) => emit(state.copyWith(status: RequestState.error, error: err)),
       (entities) => emit(state.copyWith(
         status: RequestState.loaded,
-        applications: entities.map(_toPastApplication).toList(),
+        applications: entities.map(PastApplication.fromEntity).toList(),
         error: null,
       )),
     );
   }
-
-  PastApplication _toPastApplication(ApplicationSummaryEntity e) {
-    return PastApplication(
-      status: _toStatus(e.status),
-      loanTypeKey: e.category,
-      amount: e.requestedAmountEGP,
-      offer: MatchOffer.fromEntity(
-        e.offer,
-        applicationId: e.applicationId,
-        isBestMatch: false,
-        // Every row here is an application the customer already proceeded with
-        // (applied / approved / rejected) — the Offer Details Apply CTA is
-        // hidden for all of them.
-        alreadyApplied: true,
-      ),
-    );
-  }
-
-  PastApplicationStatus _toStatus(String status) => switch (status) {
-        'approved' => PastApplicationStatus.approved,
-        'rejected' => PastApplicationStatus.rejected,
-        _ => PastApplicationStatus.applied,
-      };
 }

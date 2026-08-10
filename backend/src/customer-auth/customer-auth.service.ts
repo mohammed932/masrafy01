@@ -10,6 +10,7 @@ import { CustomerAccountRepository } from './customer-account.repository';
 import { CustomerJwtTokenService } from './customer-jwt-token.service';
 import { CustomerIssueResult, CustomerRefreshTokenService } from './customer-refresh-token.service';
 import { CustomerProfileCompletenessService } from './customer-profile-completeness.service';
+import { CustomerPendingMobileService } from './customer-pending-mobile.service';
 import { S3StorageClient } from '@/documents/s3-storage.client';
 import {
   mapCustomerProfile,
@@ -57,6 +58,7 @@ export class CustomerAuthService {
     private readonly audit: AuditEventWriter,
     private readonly completeness: CustomerProfileCompletenessService,
     private readonly s3: S3StorageClient,
+    private readonly pendingMobile: CustomerPendingMobileService,
   ) {}
 
   // ---- Login ---------------------------------------------------------------
@@ -187,7 +189,13 @@ export class CustomerAuthService {
     row: CustomerProfileRow & { id: string },
     photoUrl?: string,
   ): Promise<CustomerProfileResponseDto> {
-    const profileComplete = await this.completeness.isComplete(row.id);
-    return mapCustomerProfile(row, profileComplete, photoUrl);
+    const [profileComplete, pendingMobile] = await Promise.all([
+      this.completeness.isComplete(row.id),
+      this.pendingMobile.resolve({
+        customerId: row.id,
+        mobileVerifiedAt: row.mobileVerifiedAt,
+      }),
+    ]);
+    return mapCustomerProfile(row, profileComplete, photoUrl, pendingMobile);
   }
 }

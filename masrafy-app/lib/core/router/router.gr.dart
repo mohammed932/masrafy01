@@ -447,12 +447,18 @@ class MortgageQuestionnaireRouteArgs {
 class OfferDetailsRoute extends _i24.PageRouteInfo<OfferDetailsRouteArgs> {
   OfferDetailsRoute({
     _i25.Key? key,
-    required _i29.MatchOffer offer,
-    required _i29.MatchResultsArgs summary,
+    String? applicationId,
+    _i29.MatchOffer? offer,
+    _i29.MatchResultsArgs? summary,
     List<_i24.PageRouteInfo>? children,
   }) : super(
          OfferDetailsRoute.name,
-         args: OfferDetailsRouteArgs(key: key, offer: offer, summary: summary),
+         args: OfferDetailsRouteArgs(
+           key: key,
+           applicationId: applicationId,
+           offer: offer,
+           summary: summary,
+         ),
          initialChildren: children,
        );
 
@@ -461,9 +467,12 @@ class OfferDetailsRoute extends _i24.PageRouteInfo<OfferDetailsRouteArgs> {
   static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      final args = data.argsAs<OfferDetailsRouteArgs>();
+      final args = data.argsAs<OfferDetailsRouteArgs>(
+        orElse: () => const OfferDetailsRouteArgs(),
+      );
       return _i13.OfferDetailsPage(
         key: args.key,
+        applicationId: args.applicationId,
         offer: args.offer,
         summary: args.summary,
       );
@@ -474,19 +483,22 @@ class OfferDetailsRoute extends _i24.PageRouteInfo<OfferDetailsRouteArgs> {
 class OfferDetailsRouteArgs {
   const OfferDetailsRouteArgs({
     this.key,
-    required this.offer,
-    required this.summary,
+    this.applicationId,
+    this.offer,
+    this.summary,
   });
 
   final _i25.Key? key;
 
-  final _i29.MatchOffer offer;
+  final String? applicationId;
 
-  final _i29.MatchResultsArgs summary;
+  final _i29.MatchOffer? offer;
+
+  final _i29.MatchResultsArgs? summary;
 
   @override
   String toString() {
-    return 'OfferDetailsRouteArgs{key: $key, offer: $offer, summary: $summary}';
+    return 'OfferDetailsRouteArgs{key: $key, applicationId: $applicationId, offer: $offer, summary: $summary}';
   }
 }
 
@@ -618,18 +630,48 @@ class PersonalQuestionnaireRouteArgs {
 
 /// generated route for
 /// [_i17.PhoneVerificationPage]
-class PhoneVerificationRoute extends _i24.PageRouteInfo<void> {
-  const PhoneVerificationRoute({List<_i24.PageRouteInfo>? children})
-    : super(PhoneVerificationRoute.name, initialChildren: children);
+class PhoneVerificationRoute
+    extends _i24.PageRouteInfo<PhoneVerificationRouteArgs> {
+  PhoneVerificationRoute({
+    _i25.Key? key,
+    String? pendingMobile,
+    List<_i24.PageRouteInfo>? children,
+  }) : super(
+         PhoneVerificationRoute.name,
+         args: PhoneVerificationRouteArgs(
+           key: key,
+           pendingMobile: pendingMobile,
+         ),
+         initialChildren: children,
+       );
 
   static const String name = 'PhoneVerificationRoute';
 
   static _i24.PageInfo page = _i24.PageInfo(
     name,
     builder: (data) {
-      return const _i17.PhoneVerificationPage();
+      final args = data.argsAs<PhoneVerificationRouteArgs>(
+        orElse: () => const PhoneVerificationRouteArgs(),
+      );
+      return _i17.PhoneVerificationPage(
+        key: args.key,
+        pendingMobile: args.pendingMobile,
+      );
     },
   );
+}
+
+class PhoneVerificationRouteArgs {
+  const PhoneVerificationRouteArgs({this.key, this.pendingMobile});
+
+  final _i25.Key? key;
+
+  final String? pendingMobile;
+
+  @override
+  String toString() {
+    return 'PhoneVerificationRouteArgs{key: $key, pendingMobile: $pendingMobile}';
+  }
 }
 
 /// generated route for

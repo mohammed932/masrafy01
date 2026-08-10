@@ -130,7 +130,6 @@ interface Archetype {
   currentLoansAnswer: string[];
   hasPreviousRejection: boolean;
   hasCreditCard: boolean;
-  cardUsageAnswer: string;
   employerApprovedAnswer: string;
   additionalIncomeAnswer: string;
 }
@@ -152,7 +151,6 @@ const ARCHETYPES: readonly Archetype[] = [
     currentLoansAnswer: ['none'],
     hasPreviousRejection: false,
     hasCreditCard: true,
-    cardUsageAnswer: 'less_than_egp_5000',
     employerApprovedAnswer: 'yes',
     additionalIncomeAnswer: 'yes',
   },
@@ -172,7 +170,6 @@ const ARCHETYPES: readonly Archetype[] = [
     currentLoansAnswer: ['credit_cards'],
     hasPreviousRejection: false,
     hasCreditCard: true,
-    cardUsageAnswer: 'egp_5000_15000',
     employerApprovedAnswer: 'yes',
     additionalIncomeAnswer: 'no',
   },
@@ -192,7 +189,6 @@ const ARCHETYPES: readonly Archetype[] = [
     currentLoansAnswer: ['personal_loan', 'credit_cards'],
     hasPreviousRejection: false,
     hasCreditCard: true,
-    cardUsageAnswer: 'egp_5000_15000',
     employerApprovedAnswer: 'not_sure',
     additionalIncomeAnswer: 'no',
   },
@@ -212,7 +208,6 @@ const ARCHETYPES: readonly Archetype[] = [
     currentLoansAnswer: ['personal_loan'],
     hasPreviousRejection: false,
     hasCreditCard: false,
-    cardUsageAnswer: 'less_than_egp_5000',
     employerApprovedAnswer: 'no',
     additionalIncomeAnswer: 'yes',
   },
@@ -232,7 +227,6 @@ const ARCHETYPES: readonly Archetype[] = [
     currentLoansAnswer: ['personal_loan', 'car_loan'],
     hasPreviousRejection: true,
     hasCreditCard: true,
-    cardUsageAnswer: 'more_than_egp_15000',
     employerApprovedAnswer: 'no',
     additionalIncomeAnswer: 'no',
   },
@@ -252,7 +246,6 @@ const ARCHETYPES: readonly Archetype[] = [
     currentLoansAnswer: ['none'],
     hasPreviousRejection: true,
     hasCreditCard: false,
-    cardUsageAnswer: 'less_than_egp_5000',
     employerApprovedAnswer: 'not_sure',
     additionalIncomeAnswer: 'no',
   },
@@ -272,7 +265,6 @@ const ARCHETYPES: readonly Archetype[] = [
     currentLoansAnswer: ['personal_loan', 'credit_cards', 'other'],
     hasPreviousRejection: true,
     hasCreditCard: true,
-    cardUsageAnswer: 'more_than_egp_15000',
     employerApprovedAnswer: 'no',
     additionalIncomeAnswer: 'no',
   },
@@ -484,8 +476,6 @@ function buildAnswers(spec: AppSpec): Record<string, AnswerValue> {
     // Commitments
     current_installments: { numericValue: a.obligationsEGP.toFixed(2) },
     current_loans: { optionCodes: a.currentLoansAnswer },
-    has_credit_card: { optionCode: a.hasCreditCard ? 'yes' : 'no' },
-    card_usage: { optionCode: a.cardUsageAnswer },
     current_facilities: { optionCode: a.hasCurrentLoan ? 'yes' : 'no' },
 
     // Preferences

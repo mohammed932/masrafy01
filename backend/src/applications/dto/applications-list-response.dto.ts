@@ -57,3 +57,16 @@ export interface ApplicationsListResponse {
     applications: ApplicationListItemDto[];
   };
 }
+
+/**
+ * `GET /v1/applications/:applicationId` — one row of the list above, read on
+ * demand so the mobile Offer Details screen renders a freshly-fetched offer
+ * instead of the copy the list handed it (bank decision, `isSaved`, and offer
+ * existence all move independently of that cached row).
+ */
+export interface ApplicationDetailResponse {
+  success: true;
+  data: {
+    application: ApplicationListItemDto;
+  };
+}

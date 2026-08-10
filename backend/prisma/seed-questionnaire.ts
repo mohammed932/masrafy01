@@ -285,24 +285,11 @@ const ACTIVE_ACCOUNT_Q: SeedQuestion = {
   isRequired: false, options: YESNO(100, 40),
 };
 
-const HAS_CREDIT_CARD_Q: SeedQuestion = {
-  code: 'has_credit_card', questionEn: 'Do you have a credit card?', questionAr: 'هل لديك بطاقة ائتمان؟',
-  isRequired: false, options: YESNO(),
-};
-
-// Only meaningful after a "yes" above — the mobile wording was literally "If yes,
-// …", which is a branch rule written as prose. Made a real rule so the step is
-// skipped instead of asking card spend of someone with no card.
-const CARD_USAGE_Q: SeedQuestion = {
-  code: 'card_usage', questionEn: 'How much do you spend on your card each month?', questionAr: 'متوسط استخدام البطاقة الشهري؟',
-  isRequired: false,
-  enabledWhen: { questionCode: 'has_credit_card', operator: 'equals', optionCode: 'yes' },
-  options: [
-    { code: 'less_than_egp_5000', labelEn: 'Less than 5,000 EGP', labelAr: 'أقل من 5,000 جنيه' },
-    { code: 'egp_5000_15000', labelEn: '5,000 – 15,000 EGP', labelAr: '5,000 – 15,000 جنيه' },
-    { code: 'more_than_egp_15000', labelEn: 'More than 15,000 EGP', labelAr: 'أكثر من 15,000 جنيه' },
-  ],
-};
+// `has_credit_card` + `card_usage` used to sit here. Both were removed: the
+// commitments step already asks `current_loans` (a multi-select that carries a
+// `credit_cards` option) and the credit-card LIMIT, off which the 5% monthly
+// commitment is computed. Card presence and card cost were therefore asked
+// three times, and the two option-based versions were the least precise.
 
 const PRIOR_REJECTION_Q: SeedQuestion = {
   code: 'prior_rejection', questionEn: 'Has a bank ever said no to you?', questionAr: 'هل سبق رفض طلب تمويل لك؟',
@@ -612,7 +599,7 @@ const PERSONAL: CategoryConfig = {
     },
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
-      questions: [CURRENT_LOANS_Q, HAS_CREDIT_CARD_Q, CARD_USAGE_Q],
+      questions: [CURRENT_LOANS_Q],
     },
     {
       code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات والأهلية',
@@ -756,7 +743,7 @@ const CAR: CategoryConfig = {
     },
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
-      questions: [CURRENT_LOANS_Q, HAS_CREDIT_CARD_Q, CARD_USAGE_Q],
+      questions: [CURRENT_LOANS_Q],
     },
     {
       code: 'preferences', titleEn: 'What matters to you', titleAr: 'التفضيلات',
