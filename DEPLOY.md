@@ -50,6 +50,20 @@ After the first boot, set `SEED_ON_START=false` in `.env` (or just run
 - Manual seed instead of `SEED_ON_START`:
   `docker compose exec backend npx prisma db seed`
 
+### Prod env checklist (easy to miss)
+
+| Var | Why it matters |
+|---|---|
+| `BOOTSTRAP_ADMIN_ENABLED` | Anything but the literal `false` recreates a super_admin on **every boot** — defaults to `admin@masrafy.com` / `123456` unless `BOOTSTRAP_ADMIN_EMAIL`/`_PASSWORD` are set. Separate from the seeded `SEED_ADMIN_*` account. |
+| `OTP_DEV_FIXED_CODE` | With `SMS_GATEWAY_PROVIDER=mock` no SMS is sent and the logged code is masked, so phone verification is impossible unless this is a 6-digit value. Honoured in production — empty it before public launch. |
+| `GOOGLE_OAUTH_CLIENT_IDS` | Define **once**. A duplicate key later in `.env` silently overrides the earlier one. |
+| `CORS_ORIGINS` | Must list the admin origin with scheme, no trailing slash; absent → falls back to `http://localhost:5173` and admin login breaks. |
+| `COOKIE_DOMAIN` | Root domain with a leading dot (`.example.com`) so the refresh cookie crosses `api.*` ↔ `admin.*`. |
+| `HIBP_DISABLED` | Set `true` only if the droplet has no outbound HTTPS; otherwise the admin password policy check stalls. |
+
+Stale keys (`APPLE_BUNDLE_ID`, removed in constitution v11.0.0) are ignored by the
+schema — delete them so `.env` keeps matching `.env.prod.example`.
+
 ## 2. Admin
 
 ```bash

@@ -53,9 +53,27 @@ export const envSchema = z.object({
   COOKIE_DOMAIN: z.string().min(1),
   COOKIE_SECURE: truthy.default('false'),
 
+  // Admin dashboard origin allow-list, comma-separated (read in `main.ts` before
+  // Nest config is available — declared here so a missing/misspelled value fails
+  // at boot instead of silently falling back to the dev origin in production.)
+  CORS_ORIGINS: z.string().min(1).default('http://localhost:5173'),
+
   SEED_ADMIN_EMAIL: z.string().email(),
   SEED_ADMIN_NAME: z.string().min(2).max(120),
   SEED_ADMIN_PASSWORD: z.string().min(12).max(128),
+
+  // Read by `docker-entrypoint.sh` (shell, not node) — declared for validation
+  // + documentation so the deploy contract lives in one place.
+  SEED_ON_START: truthy.default('false'),
+
+  // Convenience bootstrap super_admin created on EVERY boot by
+  // `AdminBootstrapService`, bypassing the password policy. Anything other than
+  // the literal 'false' leaves it ON, with weak built-in defaults — see the
+  // service for the exact fallbacks.
+  BOOTSTRAP_ADMIN_ENABLED: z.string().default('true'),
+  BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional(),
+  BOOTSTRAP_ADMIN_NAME: z.string().min(2).max(120).optional(),
+  BOOTSTRAP_ADMIN_PASSWORD: z.string().min(1).max(128).optional(),
 
   // Mobile API rate-limit knobs (Constitution v3.0.0 / Principle XV).
   // Per-client = per authenticated customer; per-applicant = per (customer, nationalId).
