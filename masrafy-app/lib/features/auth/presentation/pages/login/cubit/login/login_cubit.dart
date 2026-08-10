@@ -67,15 +67,13 @@ class LoginCubit extends Cubit<LoginState> {
     try {
       final tokens = await _google.obtainTokens();
       if (tokens == null) {
-        // User dismissed the Google account chooser — back to idle, no toast.
+        // No ID token: the user dismissed the Google account chooser (the usual
+        // case) or the native token request failed. Back to idle, no toast.
         emit(state.copyWith(status: RequestState.initial));
         return;
       }
       final res = await _customerAuth.signInWithGoogle(
-        SocialGoogleSignInRequest(
-          idToken: tokens.idToken,
-          accessToken: tokens.accessToken,
-        ),
+        SocialGoogleSignInRequest(idToken: tokens.idToken),
       );
       res.fold(
         (err) => emit(state.copyWith(status: RequestState.error, error: err)),

@@ -27,7 +27,6 @@ import { NzMessageService } from 'ng-zorro-antd/message';
 import {
   ArrowLeftOutline,
   ArrowRightOutline,
-  CheckOutline,
   ExclamationCircleOutline,
   RightOutline,
   SaveOutline,
@@ -37,8 +36,10 @@ import {
 import {
   PercentFieldComponent,
   ScoreBandsEditorComponent,
+  WizardStepsComponent,
   scoreBandsErrorFor,
   seedScoreBands,
+  type WizardStepItem,
 } from '@shared/ui';
 import { categoryLabel, isLoanCategory } from '@core/loan-category';
 import {
@@ -131,12 +132,12 @@ interface WizardStep {
     NzSpinModule,
     PercentFieldComponent,
     ScoreBandsEditorComponent,
+    WizardStepsComponent,
   ],
   providers: [
     provideNzIconsPatch([
       ArrowLeftOutline,
       ArrowRightOutline,
-      CheckOutline,
       ExclamationCircleOutline,
       RightOutline,
       SaveOutline,
@@ -177,39 +178,15 @@ interface WizardStep {
       } @else {
         <!-- ═══ STEP RAIL ═════════════════════════════════════════════════
              Navigation, not decoration: a step opens once the ones before it
-             are satisfied, and every step carries its state as a word, not
-             colour alone. -->
-        <ol class="steps" [attr.aria-label]="stepsAria">
-          @for (s of steps; track s.id; let i = $index, last = $last) {
-            <li class="steps-item" [class.is-last]="last">
-              <button
-                type="button"
-                class="step"
-                [class.active]="stepIndex() === i"
-                [class.done]="stepDone(i) && stepIndex() !== i"
-                [attr.aria-current]="stepIndex() === i ? 'step' : null"
-                [disabled]="!canJumpTo(i)"
-                (click)="goTo(i)"
-              >
-                <span class="step-num" aria-hidden="true">
-                  @if (stepDone(i) && stepIndex() !== i) {
-                    <span nz-icon nzType="check" nzTheme="outline"></span>
-                  } @else {
-                    {{ i + 1 }}
-                  }
-                </span>
-                <span class="step-label">{{ s.label }}</span>
-                @if (stepDone(i) && stepIndex() !== i) {
-                  <span class="step-state">{{ stepDoneLabel }}</span>
-                }
-              </button>
-              @if (!last) {
-                <span class="step-sep" aria-hidden="true"></span>
-              }
-            </li>
-          }
-        </ol>
-        <p class="step-caption">{{ steps[stepIndex()]?.caption }}</p>
+             are satisfied. Shared rail (app-wizard-steps) — done/blocked
+             semantics and the responsive collapse live there, once. -->
+        <app-wizard-steps
+          [steps]="railSteps()"
+          [activeIndex]="stepIndex()"
+          [ariaLabel]="stepsAria"
+          [caption]="steps[stepIndex()]?.caption ?? null"
+          (stepSelect)="goTo($event)"
+        />
 
         <form class="stage" [formGroup]="form">
           <!-- ─── Step 1 · the questions this program scores on ────────────
@@ -824,107 +801,8 @@ interface WizardStep {
         border-radius: var(--radius-pill);
       }
 
-      /* ── Step rail ────────────────────────────────────────────────────── */
-      .steps {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        margin: 0;
-        padding: var(--space-3) var(--space-4);
-        list-style: none;
-        background: var(--bg-surface);
-        border: 1px solid var(--border-default);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        overflow-x: auto;
-      }
-      .steps-item {
-        display: flex;
-        align-items: center;
-        flex: 1 1 auto;
-        min-inline-size: 0;
-      }
-      .steps-item.is-last {
-        flex: 0 0 auto;
-      }
-      .step {
-        appearance: none;
-        display: inline-flex;
-        align-items: center;
-        gap: var(--space-2);
-        flex: 0 0 auto;
-        min-block-size: 44px;
-        padding-block: var(--space-1);
-        padding-inline: var(--space-2-5);
-        background: transparent;
-        border: 0;
-        border-radius: var(--radius-pill);
-        cursor: pointer;
-        transition:
-          background var(--motion-duration-fast) var(--motion-easing-standard),
-          opacity var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .step:hover:not(:disabled) {
-        background: var(--bg-subtle);
-      }
-      .step:disabled {
-        cursor: not-allowed;
-        opacity: 0.45;
-      }
-      .step:focus-visible {
-        outline: none;
-        box-shadow: var(--focus-halo);
-      }
-      .step-num {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        flex: none;
-        inline-size: 24px;
-        block-size: 24px;
-        border-radius: var(--radius-pill);
-        background: var(--bg-muted);
-        color: var(--text-tertiary);
-        font-size: var(--text-xs);
-        font-weight: var(--font-bold);
-        line-height: 1;
-      }
-      .step.active .step-num {
-        background: var(--primary);
-        color: var(--text-on-primary);
-      }
-      .step.done .step-num {
-        background: var(--success);
-        color: var(--text-on-primary);
-      }
-      .step-label {
-        font-size: var(--text-sm);
-        font-weight: var(--font-semibold);
-        color: var(--text-secondary);
-        white-space: nowrap;
-      }
-      .step.active .step-label {
-        color: var(--text-primary);
-      }
-      .step-state {
-        font-size: var(--text-xs);
-        font-weight: var(--font-semibold);
-        color: var(--success);
-      }
-      .step-sep {
-        flex: 1 1 auto;
-        min-inline-size: var(--space-4);
-        block-size: 1px;
-        background: var(--border-default);
-      }
-      .step-caption {
-        margin: 0;
-        padding-inline: var(--space-1);
-        max-inline-size: 72ch;
-        font-size: var(--text-sm);
-        line-height: var(--leading-normal);
-        color: var(--text-secondary);
-      }
+      /* Step rail is app-wizard-steps (shared) — it owns its own layout, so
+         nothing about it is styled from here. */
 
       /* ── Stage + panels ───────────────────────────────────────────────── */
       .stage {
@@ -1841,7 +1719,6 @@ interface WizardStep {
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .step,
         .budget-strip,
         .budget-fill,
         .score-trigger,
@@ -1921,7 +1798,6 @@ export class ScoringWeightsEditorPage implements OnInit {
     },
   ];
   readonly stepsAria = $localize`:@@scoring.editor.steps_aria:Scoring setup steps`;
-  readonly stepDoneLabel = $localize`:@@scoring.editor.step_done:Done`;
 
   readonly form = new FormGroup<Record<string, FormControl<number>>>({});
   /**
@@ -2320,6 +2196,20 @@ export class ScoringWeightsEditorPage implements OnInit {
   }
 
   // ── Wizard navigation ─────────────────────────────────────────────────
+  /**
+   * The shared rail's model. Recomputed from the same gates the footer reads, so
+   * a step can never look reachable in the rail and refuse to open.
+   */
+  readonly railSteps = computed<readonly WizardStepItem[]>(() => {
+    this.rev();
+    return this.steps.map((s, i) => ({
+      id: s.id,
+      label: s.label,
+      status: this.stepDone(i) ? ('done' as const) : ('todo' as const),
+      disabled: !this.canJumpTo(i),
+    }));
+  });
+
   /** A step is done when its own gate is satisfied. */
   stepDone(i: number): boolean {
     switch (i) {

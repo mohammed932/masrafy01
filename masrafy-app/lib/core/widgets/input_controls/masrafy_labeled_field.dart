@@ -48,9 +48,11 @@ class MasrafyLabeledField extends StatelessWidget {
   final String? helperText;
   final bool showStatusDot;
 
+  /// Resting fields draw NO stroke — the plate + lift carry the box, so only
+  /// the error state tints a line (focus uses `secondary.main` below).
   Color _accent(MasrafyColorTheme colors) => status == MasrafyFieldStatus.error
       ? colors.error.main
-      : colors.border.field;
+      : Colors.transparent;
 
   @override
   Widget build(BuildContext context) {
@@ -95,50 +97,54 @@ class MasrafyLabeledField extends StatelessWidget {
           ],
         ),
         Gap(MasrafyFieldMetrics.labelGap),
-        TextField(
-          controller: controller,
-          onChanged: onChanged,
-          obscureText: obscure,
-          keyboardType: keyboardType,
-          textInputAction: textInputAction,
-          inputFormatters: inputFormatters,
-          style: inputStyle,
-          textAlignVertical: TextAlignVertical.center,
-          onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
-          decoration: InputDecoration(
-            isDense: true,
-            hintText: hint,
-            hintStyle: inputStyle.copyWith(color: colors.text.tertiary),
-            // Transparent box — the `border.field` stroke carries the field, so
-            // inputs, selects and the phone row read as one outlined family.
-            filled: false,
-            suffixIcon: suffix,
-            // Caps the suffix (a 48² IconButton by default) so it cannot
-            // inflate the box past [MasrafyFieldMetrics.height].
-            suffixIconConstraints: BoxConstraints(
-              minWidth: 40.w,
-              maxHeight: MasrafyFieldMetrics.height - 2,
-            ),
-            // Padding, not a SizedBox, sets the height — see
-            // [MasrafyFieldMetrics.verticalPaddingFor].
-            contentPadding: EdgeInsetsDirectional.symmetric(
-              horizontal: MasrafyFieldMetrics.horizontalPadding,
-              vertical: MasrafyFieldMetrics.verticalPaddingFor(inputStyle),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
-              borderSide: BorderSide(
-                color: accent,
-                width: MasrafyFieldMetrics.borderWidth,
+        DecoratedBox(
+          // Plate + lift only — the stroke below is the `TextField`'s own.
+          decoration: MasrafyFieldMetrics.surfaceFor(colors),
+          child: TextField(
+            controller: controller,
+            onChanged: onChanged,
+            obscureText: obscure,
+            keyboardType: keyboardType,
+            textInputAction: textInputAction,
+            inputFormatters: inputFormatters,
+            style: inputStyle,
+            textAlignVertical: TextAlignVertical.center,
+            onTapOutside: (_) => FocusManager.instance.primaryFocus?.unfocus(),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: hint,
+              hintStyle: inputStyle.copyWith(color: colors.text.tertiary),
+              // The plate is the wrapping [DecoratedBox]'s — `filled` here would
+              // paint inside the decorator with no shadow to hang off it.
+              filled: false,
+              suffixIcon: suffix,
+              // Caps the suffix (a 48² IconButton by default) so it cannot
+              // inflate the box past [MasrafyFieldMetrics.height].
+              suffixIconConstraints: BoxConstraints(
+                minWidth: 40.w,
+                maxHeight: MasrafyFieldMetrics.height - 2,
               ),
-            ),
-            // Same width as the resting border: a thicker focus ring would
-            // grow the field and jitter the whole form on every focus.
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
-              borderSide: BorderSide(
-                color: isError ? accent : colors.secondary.main,
-                width: MasrafyFieldMetrics.borderWidth,
+              // Padding, not a SizedBox, sets the height — see
+              // [MasrafyFieldMetrics.verticalPaddingFor].
+              contentPadding: EdgeInsetsDirectional.symmetric(
+                horizontal: MasrafyFieldMetrics.horizontalPadding,
+                vertical: MasrafyFieldMetrics.verticalPaddingFor(inputStyle),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
+                borderSide: BorderSide(
+                  color: accent,
+                  width: MasrafyFieldMetrics.borderWidth,
+                ),
+              ),
+              // Same width as the resting border: a thicker focus ring would
+              // grow the field and jitter the whole form on every focus.
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
+                borderSide: BorderSide(
+                  color: isError ? accent : colors.secondary.main,
+                  width: MasrafyFieldMetrics.borderWidth,
+                ),
               ),
             ),
           ),

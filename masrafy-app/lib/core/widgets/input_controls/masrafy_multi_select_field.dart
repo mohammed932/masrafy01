@@ -18,7 +18,7 @@ export 'package:app/core/widgets/input_controls/masrafy_multi_select_sheet.dart'
 /// [onChanged] (cancel / dismiss leaves the selection unchanged).
 ///
 /// Uses the same default questionnaire chrome as [MasrafySelectField]:
-/// uppercased `caption` label, 44h field, 12r border, down chevron.
+/// uppercased `caption` label, 44h field, borderless 12r plate, down chevron.
 /// Tokens only — no raw hex (Principle VIII / A18); logical insets only (A19).
 class MasrafyMultiSelectField<T> extends StatelessWidget {
   const MasrafyMultiSelectField({
@@ -116,16 +116,10 @@ class MasrafyMultiSelectField<T> extends StatelessWidget {
               horizontal: MasrafyFieldMetrics.horizontalPadding,
               vertical: 8.h,
             ),
-            decoration: BoxDecoration(
-              // Same expression as the single-select sibling — the two sit in
-              // the same forms and must not read as different controls.
-              color: isEnabled ? Colors.transparent : colors.fill.quaternary,
-              border: Border.all(
-                color: isEnabled ? colors.border.field : colors.border.main,
-                width: MasrafyFieldMetrics.borderWidth,
-              ),
-              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
-            ),
+            // Same expression as the single-select sibling — the two sit in
+            // the same forms and must not read as different controls.
+            decoration:
+                MasrafyFieldMetrics.decorationFor(colors, enabled: isEnabled),
             child: Row(
               children: [
                 Expanded(

@@ -1,16 +1,13 @@
 class SocialGoogleSignInRequest {
-  const SocialGoogleSignInRequest({required this.idToken, this.accessToken});
+  const SocialGoogleSignInRequest({required this.idToken});
   final String idToken;
 
-  /// Authorization-only token — lets the backend read the birthday from the
-  /// People API. Null when the customer declined the birthday scope; the field
-  /// is then omitted from the body rather than sent as null.
-  final String? accessToken;
-
-  Map<String, dynamic> toJson() => {
-        'idToken': idToken,
-        if (accessToken != null) 'accessToken': accessToken,
-      };
+  /// No `accessToken`: the app no longer asks for the restricted
+  /// `user.birthday.read` scope, so there is no People API call to authorize
+  /// (see `GoogleSignInService`). The backend still accepts the field as
+  /// optional and resolves a missing birthday to null, so nothing breaks by its
+  /// absence — the customer supplies the birthday at profile completion.
+  Map<String, dynamic> toJson() => {'idToken': idToken};
 }
 
 class SocialLoginRequest {

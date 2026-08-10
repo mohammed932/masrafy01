@@ -497,7 +497,7 @@
       <!-- Feature 008 — Sharia + functional toggles -->
       <trans-unit id="bank_programs.toggle.variable_rate" datatype="html"><source>Variable-rate program</source><target>برنامج بسعر متغير</target></trans-unit>
       <trans-unit id="bank_programs.toggle.income_surrogate" datatype="html"><source>Income-surrogate program</source><target>برنامج بدخل افتراضي</target></trans-unit>
-      <trans-unit id="bank_programs.toggle.tiered_rates" datatype="html"><source>Tiered interest rates (by loan amount)</source><target>أسعار فائدة متدرجة (حسب مبلغ القرض)</target></trans-unit>
+      <trans-unit id="bank_programs.toggle.tiered_rates" datatype="html"><source>Charge a different rate per loan-amount band</source><target>سعر فائدة مختلف لكل شريحة من مبلغ القرض</target></trans-unit>
       <trans-unit id="bank_programs.toggle.buyout" datatype="html"><source>Buyout / refinance program</source><target>برنامج سداد / إعادة تمويل</target></trans-unit>
       <trans-unit id="bank_programs.toggle.down_payment" datatype="html"><source>Requires down payment</source><target>يتطلب مقدم</target></trans-unit>
       <trans-unit id="bank_programs.toggle.sharia" datatype="html"><source>Sharia-compliant (Islamic)</source><target>متوافق مع الشريعة (إسلامي)</target></trans-unit>
@@ -505,12 +505,23 @@
       <trans-unit id="bank_programs.section.variable_rate" datatype="html"><source>Variable rate</source><target>السعر المتغير</target></trans-unit>
       <trans-unit id="bank_programs.section.variable_rate_sub" datatype="html"><source>CBE-linked or quarterly-reset programs.</source><target>برامج مرتبطة بسعر البنك المركزي أو يُعاد تقييمها ربع سنوياً.</target></trans-unit>
       <trans-unit id="bank_programs.section.tiered_rates" datatype="html"><source>Tiered interest rates</source><target>أسعار فائدة متدرجة</target></trans-unit>
-      <trans-unit id="bank_programs.section.tiered_rates_sub" datatype="html"><source>Rate by loan-amount band. Enter each band's lowest amount and its rate; the engine applies the highest band at or below the applicant's loan amount. Start the first band at 0.</source><target>سعر حسب شريحة مبلغ القرض. أدخل أقل مبلغ لكل شريحة وسعرها؛ يطبّق النظام أعلى شريحة تساوي مبلغ قرض العميل أو تقل عنه. ابدأ الشريحة الأولى من 0.</target></trans-unit>
-      <trans-unit id="bank_programs.bands.empty" datatype="html"><source>No bands yet. Add the first threshold to start.</source><target>لا توجد شرائح بعد. أضف الحدّ الأول للبدء.</target></trans-unit>
-      <trans-unit id="bank_programs.bands.col_min" datatype="html"><source>Loan amount from (EGP)</source><target>مبلغ القرض من (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.section.tiered_rates_sub" datatype="html"><source> Bigger loans often price differently. Each band covers a range of loan amounts and carries its own rate. </source><target>القروض الأكبر غالباً تُسعَّر بشكل مختلف. كل شريحة تغطي نطاقاً من مبالغ القروض ولها سعرها الخاص.</target></trans-unit>
+      <trans-unit id="bank_programs.bands.empty" datatype="html"><source> No bands — every loan uses the single rate above. </source><target>لا توجد شرائح — كل قرض يستخدم السعر الموحّد أعلاه.</target></trans-unit>
+      <trans-unit id="bank_programs.bands.seed" datatype="html"><source>Add the first band</source><target>أضف الشريحة الأولى</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_fix" datatype="html"><source>Something on this step needs fixing before you continue — see the message in red.</source><target>هناك ما يحتاج تصحيحاً في هذه الخطوة قبل المتابعة — راجع الرسالة باللون الأحمر.</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_one" datatype="html"><source>1 field on this step needs a value before you continue.</source><target>حقل واحد في هذه الخطوة يحتاج قيمة قبل المتابعة.</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_many" datatype="html"><source><x id="count" equiv-text="count"/> fields on this step need a value before you continue.</source><target><x id="count" equiv-text="count"/> حقول في هذه الخطوة تحتاج قيماً قبل المتابعة.</target></trans-unit>
+      <trans-unit id="bank_programs.bands.col_min" datatype="html"><source>Loan amount from</source><target>مبلغ القرض من</target></trans-unit>
+      <trans-unit id="bank_programs.bands.col_max" datatype="html"><source>to</source><target>إلى</target></trans-unit>
       <trans-unit id="bank_programs.bands.col_rate" datatype="html"><source>Rate</source><target>السعر</target></trans-unit>
+      <trans-unit id="bank_programs.bands.and_above" datatype="html"><source>and above</source><target>وما فوق</target></trans-unit>
       <trans-unit id="bank_programs.bands.add" datatype="html"><source>Add band</source><target>إضافة شريحة</target></trans-unit>
+      <trans-unit id="bank_programs.bands.link_hint" datatype="html"><source> A band&apos;s end is the next band&apos;s start — edit either box and the other follows. </source><target>نهاية الشريحة هي بداية الشريحة التالية — عدّل أي خانة وتتبعها الأخرى.</target></trans-unit>
+      <trans-unit id="bank_programs.bands.below_floor" datatype="html"><source>Loans under <x id="amount" equiv-text="amount"/> EGP fall outside every band and use the single rate above.</source><target>القروض الأقل من <x id="amount" equiv-text="amount"/> ج.م تقع خارج كل الشرائح وتستخدم السعر الموحّد أعلاه.</target></trans-unit>
+      <trans-unit id="bank_programs.bands.error_ascending" datatype="html"><source>Each band must start higher than the one before it.</source><target>كل شريحة يجب أن تبدأ من مبلغ أعلى من الشريحة التي قبلها.</target></trans-unit>
+      <trans-unit id="bank_programs.bands.error_duplicate" datatype="html"><source>Two bands start at the same amount — one would overwrite the other on save. Give each band its own starting amount.</source><target>شريحتان تبدآن من نفس المبلغ — إحداهما ستُلغي الأخرى عند الحفظ. اجعل لكل شريحة مبلغ بداية خاصاً بها.</target></trans-unit>
       <trans-unit id="bank_programs.bands.aria_min" datatype="html"><source>Loan amount lower bound, EGP</source><target>الحدّ الأدنى لمبلغ القرض، ج.م</target></trans-unit>
+      <trans-unit id="bank_programs.bands.aria_max" datatype="html"><source>Loan amount upper bound, EGP — the same value as the next band&apos;s lower bound</source><target>الحدّ الأعلى لمبلغ القرض، ج.م — نفس قيمة الحدّ الأدنى للشريحة التالية</target></trans-unit>
       <trans-unit id="bank_programs.bands.aria_rate" datatype="html"><source>Band rate, percent</source><target>سعر الشريحة، نسبة مئوية</target></trans-unit>
       <trans-unit id="bank_programs.bands.aria_remove" datatype="html"><source>Remove band</source><target>إزالة الشريحة</target></trans-unit>
       <trans-unit id="bank_programs.section.buyout" datatype="html"><source>Buyout / refinance</source><target>السداد / إعادة التمويل</target></trans-unit>
@@ -962,6 +973,10 @@
       <trans-unit id="scoreBands.aria.scoreSlider" datatype="html"><source>Band score — slider</source><target>درجة النطاق — شريط تمرير</target></trans-unit>
       <trans-unit id="scoreBands.aria.scoreField" datatype="html"><source>Band score — type or use arrow keys</source><target>درجة النطاق — اكتب أو استخدم مفاتيح الأسهم</target></trans-unit>
       <trans-unit id="scoreBands.aria.remove" datatype="html"><source>Remove this band</source><target>أزل هذا النطاق</target></trans-unit>
+
+      <!-- Shared wizard step rail (app-wizard-steps) — every stepped screen. -->
+      <trans-unit id="ui.wizard.step_done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
+      <trans-unit id="ui.wizard.step_attention" datatype="html"><source>Needs attention</source><target>يحتاج مراجعة</target></trans-unit>
     </body>
   </file>
 </xliff>

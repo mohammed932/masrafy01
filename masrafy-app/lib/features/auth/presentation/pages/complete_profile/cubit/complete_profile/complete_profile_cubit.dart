@@ -55,11 +55,11 @@ class CompleteProfileCubit extends Cubit<CompleteProfileState> {
   /// this fails — submission re-validates server-side.
   ///
   /// On the Google path the account already carries whatever the provider gave
-  /// us — name, and (when the customer granted the birthday scope) the date of
-  /// birth plus the avatar imported into our own storage. Those land here, so
-  /// the screen only asks for what is genuinely still missing. Every prefill is
-  /// still editable: [seed]'s values win, and the customer can overwrite any of
-  /// them before submitting.
+  /// us — name, plus the avatar imported into our own storage. Birthday is not
+  /// among them: the app no longer requests the restricted `user.birthday.read`
+  /// scope (see `GoogleSignInService`), so the customer always enters it here.
+  /// Every prefill is still editable: [seed]'s values win, and the customer can
+  /// overwrite any of them before submitting.
   Future<void> load() async {
     emit(state.copyWith(loadStatus: RequestState.loading));
     final res = await _auth.me();

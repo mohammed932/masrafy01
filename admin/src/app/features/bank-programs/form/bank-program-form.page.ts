@@ -17,6 +17,7 @@ import {
   FormBuilder,
   FormControl,
   FormGroup,
+  FormsModule,
   ReactiveFormsModule,
   ValidationErrors,
   Validators,
@@ -34,7 +35,6 @@ import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import {
   ArrowLeftOutline,
   ArrowRightOutline,
-  CheckOutline,
   ExclamationCircleOutline,
   PlusOutline,
   SaveOutline,
@@ -70,7 +70,13 @@ import type {
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
-import { DbrBandsEditorComponent, dbrBandsErrorFor, type DbrBandsError } from '@shared/ui';
+import {
+  DbrBandsEditorComponent,
+  WizardStepsComponent,
+  dbrBandsErrorFor,
+  type DbrBandsError,
+  type WizardStepItem,
+} from '@shared/ui';
 
 /** The one remaining genuine opt-in — see `BankProgramFormPage.toggles`. */
 type ToggleKey = 'tieredRates';
@@ -112,10 +118,39 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
   return null;
 }
 
+/**
+ * Cross-row guard for the tiered-rate table. Band floors become OBJECT KEYS on
+ * the wire, so two rows sharing a floor silently collapse into one on save —
+ * the admin watches a row they configured disappear with no message. Descending
+ * floors are just as bad: the engine picks the highest floor ≤ the applicant's
+ * amount, so a table read top-to-bottom would not mean what it appears to.
+ *
+ * Blank rows are the leaf `required`'s job, so they are skipped here rather than
+ * counted twice in the step's issue banner.
+ */
+function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
+  if (!(control instanceof FormArray)) return null;
+  let previous: number | null = null;
+  for (const row of control.controls) {
+    const raw = String(row.get('minAmountEGP')?.value ?? '').trim();
+    if (raw === '') continue;
+    const edge = Number(raw);
+    if (!Number.isFinite(edge)) continue;
+    if (previous !== null && edge === previous) return { bandDuplicate: true };
+    if (previous !== null && edge < previous) return { bandOrder: true };
+    previous = edge;
+  }
+  return null;
+}
+
 @Component({
   selector: 'app-bank-program-form-page',
   standalone: true,
   imports: [
+    // FormsModule is here for ONE control: the rate-band table's mirrored upper
+    // edge, a standalone `ngModel` view of the next band's reactive control. The
+    // form itself stays fully reactive and typed (Principle XXII).
+    FormsModule,
     ReactiveFormsModule,
     RouterLink,
     NzButtonModule,
@@ -129,12 +164,12 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
     DbrBandsEditorComponent,
     IncomeAssumptionSectionComponent,
     MoneyInputDirective,
+    WizardStepsComponent,
   ],
   providers: [
     provideNzIconsPatch([
       ArrowLeftOutline,
       ArrowRightOutline,
-      CheckOutline,
       ExclamationCircleOutline,
       PlusOutline,
       SaveOutline,
@@ -242,42 +277,18 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                has been visited, and a step that failed validation keeps a red
                marker so the admin can always see WHERE the blocker is. -->
           <div class="wizard-rail">
-          <ol class="steps" [attr.aria-label]="stepsAria">
-            @for (s of steps; track s.id; let i = $index, last = $last) {
-              <li class="steps-item" [class.is-last]="last">
-                <button
-                  type="button"
-                  class="step"
-                  [class.active]="stepIndex() === i"
-                  [class.done]="isStepComplete(i)"
-                  [class.invalid]="isStepInvalidTouched(i)"
-                  [attr.aria-current]="stepIndex() === i ? 'step' : null"
-                  [disabled]="!canJumpTo(i)"
-                  (click)="goTo(i)"
-                >
-                  <span class="step-num" aria-hidden="true">
-                    @if (isStepComplete(i)) {
-                      <span nz-icon nzType="check" nzTheme="outline"></span>
-                    } @else {
-                      {{ i + 1 }}
-                    }
-                  </span>
-                  <span class="step-label">{{ s.label }}</span>
-                  <!-- Done / needs-attention is carried by colour AND by a word,
-                       so the rail is not a colour-only signal. -->
-                  @if (isStepInvalidTouched(i)) {
-                    <span class="step-state">{{ stepNeedsAttentionLabel }}</span>
-                  } @else if (isStepComplete(i)) {
-                    <span class="step-state">{{ stepDoneLabel }}</span>
-                  }
-                </button>
-                @if (!last) {
-                  <span class="step-sep" aria-hidden="true"></span>
-                }
-              </li>
-            }
-          </ol>
-          <p class="step-caption sr-only">{{ stepCaption() }}</p>
+          <!-- Shared rail (app-wizard-steps): done / needs-attention markers,
+               the disabled gate and the responsive collapse all live there. The
+               caption is screen-reader-only here — the rail already names the
+               step in print and the sentence only repeated it. -->
+          <app-wizard-steps
+            [steps]="railSteps()"
+            [activeIndex]="stepIndex()"
+            [ariaLabel]="stepsAria"
+            [caption]="stepCaption()"
+            [captionSrOnly]="true"
+            (stepSelect)="goTo($event)"
+          />
 
           @if (showStepIssues() && stepIssueCount() > 0) {
             <div class="step-alert" role="alert">
@@ -429,7 +440,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               <nz-form-item>
                 <nz-form-label [nzFor]="'minAmountEGP'" nzRequired i18n="@@bank_programs.field.min_amount">Minimum amount</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnBefore="EGP" class="money-group">
+                  <nz-input-group nzAddOnAfter="EGP" class="money-group">
                     <input nz-input appMoneyInput id="minAmountEGP" formControlName="minAmountEGP" inputmode="numeric" placeholder="50,000" />
                   </nz-input-group>
                 </nz-form-control>
@@ -437,7 +448,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               <nz-form-item>
                 <nz-form-label [nzFor]="'maxAmountEGP'" nzRequired i18n="@@bank_programs.field.max_amount">Maximum amount</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnBefore="EGP" class="money-group">
+                  <nz-input-group nzAddOnAfter="EGP" class="money-group">
                     <input nz-input appMoneyInput id="maxAmountEGP" formControlName="maxAmountEGP" inputmode="numeric" placeholder="1,500,000" />
                   </nz-input-group>
                 </nz-form-control>
@@ -525,45 +536,78 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               <div>
                 <h2 class="card-title" i18n="@@bank_programs.section.tiered_rates">Tiered interest rates</h2>
                 <p class="card-sub" i18n="@@bank_programs.section.tiered_rates_sub">
-                  Rate by loan-amount band. Enter each band's lowest amount and its rate; the engine
-                  applies the highest band at or below the applicant's loan amount. Start the first band at 0.
+                  Bigger loans often price differently. Each band covers a range of loan amounts and
+                  carries its own rate.
                 </p>
               </div>
             </header>
+            <div class="card-body">
             <label
               nz-checkbox
               [nzChecked]="toggles.tieredRates()"
               (nzCheckedChange)="setToggle('tieredRates', $event)"
               i18n="@@bank_programs.toggle.tiered_rates"
-              >Tiered interest rates (by loan amount)</label
+              >Charge a different rate per loan-amount band</label
             >
 
             @if (toggles.tieredRates()) {
-              <div class="bands" formArrayName="rateByLoanAmountBands">
+              <div class="bands">
                 @if (rateBandsArray.length === 0) {
-                  <p class="bands-empty" i18n="@@bank_programs.bands.empty">
-                    No bands yet. Add the first threshold to start.
-                  </p>
+                  <div class="bands-empty">
+                    <p class="bands-empty-text" i18n="@@bank_programs.bands.empty">
+                      No bands — every loan uses the single rate above.
+                    </p>
+                    <button type="button" nz-button nzType="default" (click)="addRateBand()">
+                      <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                      <span i18n="@@bank_programs.bands.seed">Add the first band</span>
+                    </button>
+                  </div>
                 } @else {
                   <div class="bands-head" aria-hidden="true">
-                    <span i18n="@@bank_programs.bands.col_min">Loan amount from (EGP)</span>
+                    <span class="bands-head-range">
+                      <span i18n="@@bank_programs.bands.col_min">Loan amount from</span>
+                      <span class="band-arrow">→</span>
+                      <span i18n="@@bank_programs.bands.col_max">to</span>
+                    </span>
                     <span i18n="@@bank_programs.bands.col_rate">Rate</span>
                     <span></span>
                   </div>
                   @for (band of rateBandsArray.controls; track band; let i = $index) {
-                    <div class="band-row" [formGroupName]="i">
-                      <nz-form-item class="band-cell">
-                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                          <nz-input-group nzAddOnBefore="EGP" class="money-group">
-                            <input nz-input appMoneyInput formControlName="minAmountEGP" inputmode="numeric"
+                    <div class="band-row">
+                      <!-- The row reads as one sentence: 0 → 250,000 → and above. A
+                           band's upper box IS the next band's lower control (see
+                           setBandUpperEdge), so a gap or an overlap between bands
+                           cannot be typed — the boundary has one owner, not two. -->
+                      <div class="band-range">
+                        <nz-form-item class="band-cell">
+                          <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                            <input nz-input appMoneyInput class="band-edge" inputmode="numeric"
+                              [formControl]="bandEdgeControl(i)"
                               [attr.aria-label]="bandAriaMin" placeholder="0" />
-                          </nz-input-group>
-                        </nz-form-control>
-                      </nz-form-item>
+                          </nz-form-control>
+                        </nz-form-item>
+                        <span class="band-arrow" aria-hidden="true">→</span>
+                        @if (i < rateBandsArray.length - 1) {
+                          <!-- Mirror view of the NEXT band's lower edge. Standalone
+                               ngModel, not a second formControl binding: two views
+                               of one control do not repaint each other on typing. -->
+                          <input nz-input appMoneyInput class="band-edge" inputmode="numeric"
+                            [ngModel]="bandEdgeValue(i + 1)"
+                            (ngModelChange)="setBandUpperEdge(i, $event)"
+                            [ngModelOptions]="{ standalone: true }"
+                            [attr.aria-label]="bandAriaMax" />
+                        } @else {
+                          <span class="band-open" i18n="@@bank_programs.bands.and_above">and above</span>
+                        }
+                        <!-- Unit per row, not only in the column head: the head is
+                             hidden on narrow screens, and a loan-amount box with no
+                             visible unit is the ambiguity this pass exists to kill. -->
+                        <span class="band-unit">EGP</span>
+                      </div>
                       <nz-form-item class="band-cell">
                         <nz-form-control [nzErrorTip]="fieldErrorTpl">
                           <nz-input-group nzAddOnAfter="%" class="rate-group">
-                            <input nz-input formControlName="ratePercent" inputmode="decimal"
+                            <input nz-input inputmode="decimal" [formControl]="bandRateControl(i)"
                               [attr.aria-label]="bandAriaRate" placeholder="28.0000" />
                           </nz-input-group>
                         </nz-form-control>
@@ -574,14 +618,42 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                       </button>
                     </div>
                   }
-                }
 
-                <button type="button" nz-button nzType="dashed" class="bands-add" (click)="addRateBand()">
-                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                  <span i18n="@@bank_programs.bands.add">Add band</span>
-                </button>
+                  @if (rateBandsError(); as err) {
+                    <p class="bands-error" role="alert">
+                      @switch (err) {
+                        @case ('DUPLICATE') {
+                          <span i18n="@@bank_programs.bands.error_duplicate"
+                            >Two bands start at the same amount — one would overwrite the other on
+                            save. Give each band its own starting amount.</span
+                          >
+                        }
+                        @case ('ORDER') {
+                          <span i18n="@@bank_programs.bands.error_ascending"
+                            >Each band must start higher than the one before it.</span
+                          >
+                        }
+                      }
+                    </p>
+                  }
+                  @if (bandsBelowFloorNote(); as note) {
+                    <p class="bands-note">
+                      <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+                      <span>{{ note }}</span>
+                    </p>
+                  }
+                  <p class="bands-hint" i18n="@@bank_programs.bands.link_hint">
+                    A band's end is the next band's start — edit either box and the other follows.
+                  </p>
+
+                  <button type="button" nz-button nzType="dashed" class="bands-add" (click)="addRateBand()">
+                    <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@bank_programs.bands.add">Add band</span>
+                  </button>
+                }
               </div>
             }
+            </div>
           </section>
 
           <!-- Every fee the backend requires is on this step, in the open. -->
@@ -673,7 +745,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               <nz-form-item>
                 <nz-form-label [nzFor]="'minMonthlyIncomeEGP'" nzRequired i18n="@@bank_programs.field.min_income">Minimum monthly income</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnBefore="EGP" class="money-group">
+                  <nz-input-group nzAddOnAfter="EGP" class="money-group">
                     <input nz-input appMoneyInput id="minMonthlyIncomeEGP" formControlName="minMonthlyIncomeEGP" inputmode="numeric" placeholder="5,000" />
                   </nz-input-group>
                 </nz-form-control>
@@ -718,6 +790,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                 </p>
               </div>
             </header>
+            <div class="card-body">
             <!-- One number, one switch: stacked rather than side-by-side, so the
                  cap keeps a hand-sized field instead of stretching half the card,
                  and the toggle that overrides it reads as the wider decision. -->
@@ -758,6 +831,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                 (bandsChange)="dbrBands.set($event)"
                 [flatCapPercent]="dbrFlatCap()"
               ></app-dbr-bands-editor>
+            </div>
             </div>
           </section>
 
@@ -810,6 +884,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
               </div>
             </header>
 
+            <div class="card-body">
             @for (g of reviewGroups(); track g.step) {
               <div class="review-group">
                 <div class="review-group-head">
@@ -828,6 +903,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
                 </dl>
               </div>
             }
+            </div>
           </section>
           }
 
@@ -1009,7 +1085,7 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         block-size: 100%;
         min-block-size: 0;
         padding: var(--space-6);
-        max-width: 900px;
+        max-width: var(--content-max-width);
         margin-inline: auto;
       }
       .page {
@@ -1068,73 +1144,13 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         scrollbar-gutter: stable;
         display: flex;
         flex-direction: column;
-        gap: var(--space-4);
+        /* Sections are distinct decisions, fields inside one are not — so the
+           gap BETWEEN cards has to beat the gap between the rows inside them,
+           or the step reads as one undifferentiated wall. */
+        gap: var(--space-5);
         padding-block: var(--space-2);
         padding-inline: var(--space-2);
         margin-inline: calc(var(--space-2) * -1);
-      }
-
-      /* ── Wizard step bar ───────────────────────────────────────── */
-      .steps {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 0 0 var(--space-1);
-        background: transparent;
-        border: none;
-        overflow-x: auto;
-      }
-      .step {
-        appearance: none;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 10px;
-        border-radius: var(--radius-pill);
-        flex: 0 0 auto;
-        transition: background 150ms ease, color 150ms ease;
-      }
-      .step:hover { background: var(--bg-subtle, var(--color-surface-row-hover)); }
-      .step:focus-visible {
-        outline: 2px solid var(--primary, var(--color-brand-primary));
-        outline-offset: 2px;
-      }
-      .step-num {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        inline-size: 22px;
-        block-size: 22px;
-        border-radius: 50%;
-        background: var(--bg-muted, var(--color-surface-muted));
-        color: var(--text-tertiary, var(--color-text-tertiary));
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1;
-      }
-      .step.active .step-num {
-        background: var(--primary, var(--color-brand-primary));
-        color: var(--text-on-primary, var(--color-text-on-brand));
-      }
-      .step.done .step-num {
-        background: var(--success, var(--color-success));
-        color: var(--text-on-primary, var(--color-text-on-brand));
-      }
-      .step-label {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--text-secondary, var(--color-text-secondary));
-        letter-spacing: -0.005em;
-      }
-      .step.active .step-label { color: var(--text-primary, var(--color-text-primary)); }
-      .step-sep {
-        flex: 1 1 auto;
-        min-inline-size: 16px;
-        block-size: 1px;
-        background: var(--border-default, var(--color-border-default));
       }
 
       /* ── Given chips (bank + loan type) ─────────────────────────────
@@ -1266,9 +1282,43 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         font-size: var(--text-sm); margin: 0; max-width: 72ch;
         color: var(--text-secondary, var(--color-text-secondary));
       }
+
+      /* ── Section shape: label rail + controls ─────────────────────────────
+         What the extra page width buys is a scannable left edge of section
+         names — NOT a 900px-wide box for a 7-digit number. From 1024 up, the
+         section's title and the sentence explaining it move into a fixed rail
+         and every control sits in the column beside it, so each step reads as
+         a labelled list instead of a stack of near-empty panels. Below that,
+         the rail has nowhere to go and it collapses back to head-over-fields.
+         Children are placed by exclusion (:not(.card-head)) because the cards
+         hold different things — a grid, a checkbox, a band table, review
+         groups — and each of them belongs in the same right-hand column. */
+      @media (min-width: 1024px) {
+        .card {
+          display: grid;
+          grid-template-columns: minmax(0, 17rem) minmax(0, 1fr);
+          column-gap: var(--space-7);
+          row-gap: var(--space-4);
+          align-items: start;
+        }
+        .card-head { grid-column: 1; grid-row: 1; margin-block-end: 0; }
+        .card > :not(.card-head) { grid-column: 2; }
+      }
+      /* A card whose controls are more than one block wraps them here, so the
+         rail and the controls stay two grid items. Without it each block claims
+         its own row, and a tall rail (the tiered-rate explanation runs five
+         lines) sets row 1's height — leaving the second block stranded a
+         paragraph below the control it belongs to. */
+      .card-body { display: flex; flex-direction: column; gap: var(--space-4); }
+
+      /* Columns are bounded, not fractional: a min/max pair split across two
+         1fr columns of a 900px card strands the second label half a screen
+         from the first field. Capped columns keep the pair readable as a pair
+         at every width the card can take. */
       .grid {
-        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: var(--space-4) var(--space-4);
+        display: grid; grid-template-columns: repeat(2, minmax(0, 20rem));
+        justify-content: start;
+        column-gap: var(--space-5); row-gap: var(--space-4);
         align-items: start;
       }
       .grid > * { align-self: start; min-block-size: 0; }
@@ -1277,6 +1327,46 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
         .grid { grid-template-columns: minmax(0, 1fr); }
         .grid .span-2 { grid-column: span 1; }
       }
+
+      /* ── Numeric fields ───────────────────────────────────────────────────
+         Field width is a claim about the value. A rate is never longer than
+         "26.5500" and a term never longer than "600", so boxes sized for a
+         program name read as a different kind of question than they are.
+         Tabular figures keep a column of amounts comparable digit-by-digit,
+         which is the whole reason these numbers are here. */
+      .money-group { max-inline-size: 20rem; }
+      .rate-group { max-inline-size: 11rem; }
+      nz-input-number.num-field { inline-size: 9rem; }
+      :host ::ng-deep .money-group input.ant-input,
+      :host ::ng-deep .rate-group input.ant-input {
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: var(--font-feature-tabular);
+        letter-spacing: 0.01em;
+      }
+      /* The unit trails the number it belongs to — "50,000 EGP", the order it
+         is read and spoken. Logical start, never left: in Arabic the addon
+         flips to the other edge and the digits have to follow it. */
+      :host ::ng-deep .money-group input.ant-input,
+      :host ::ng-deep .rate-group input.ant-input { text-align: start; }
+      :host ::ng-deep .num-field .ant-input-number-input {
+        font-variant-numeric: tabular-nums lining-nums;
+        font-feature-settings: var(--font-feature-tabular);
+      }
+      /* The addon is a unit, not a value: muted chip, never competing with the
+         number it labels. */
+      :host ::ng-deep .money-group .ant-input-group-addon,
+      :host ::ng-deep .rate-group .ant-input-group-addon {
+        background: var(--bg-muted, var(--color-surface-muted));
+        color: var(--text-secondary, var(--color-text-secondary));
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        border-color: var(--border-default, var(--color-border-default));
+        min-inline-size: 56px;
+        text-align: center;
+      }
+      :host ::ng-deep .rate-group .ant-input-group-addon { min-inline-size: 44px; }
 
       /* Cross-field tenor error (max < min), shown under the Maximum input. */
       .field-error {
@@ -1312,23 +1402,84 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
       /* Tiered-rate band editor */
       .bands { display: flex; flex-direction: column; gap: var(--space-3); }
       .bands-empty {
-        margin: 0; padding: var(--space-4); text-align: center;
-        font-size: var(--text-sm); color: var(--text-secondary, var(--color-text-secondary));
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+        gap: var(--space-4);
+        margin: 0; padding: var(--space-4);
         border: 1px dashed var(--border-default, var(--color-border-default));
         border-radius: var(--radius-lg);
         background: var(--bg-subtle, var(--color-surface-row-hover));
       }
+      .bands-empty-text {
+        margin: 0; max-inline-size: 46ch;
+        font-size: var(--text-sm); color: var(--text-secondary, var(--color-text-secondary));
+      }
       .bands-head {
-        display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+        display: grid; grid-template-columns: minmax(0, 26rem) minmax(0, 11rem) 44px;
+        justify-content: start;
         gap: var(--space-3); padding-inline: var(--space-1);
         font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.02em;
         text-transform: uppercase;
         color: var(--text-tertiary, var(--color-text-tertiary));
       }
+      /* Mirrors .band-range so "From"/"To" sit over the boxes they name. */
+      .bands-head-range { display: inline-flex; align-items: center; gap: var(--space-2); }
+      .bands-head-range > span:first-child,
+      .bands-head-range > span:last-child { inline-size: 10.5rem; }
       .band-row {
-        display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 44px;
+        display: grid; grid-template-columns: minmax(0, 26rem) minmax(0, 11rem) 44px;
+        justify-content: start;
         gap: var(--space-3); align-items: start;
       }
+      /* from → to reads as one range, so the boundary being typed is the boundary
+         whose effect is visible. */
+      .band-range { display: flex; align-items: flex-start; gap: var(--space-2); min-inline-size: 0; }
+      /* The two edge boxes hold their width so the arrow, the open end and the
+         unit stay on one vertical line all the way down the table. */
+      .band-range > .band-cell,
+      .band-range > .band-edge { flex: 0 0 auto; }
+      .band-edge {
+        inline-size: 10.5rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .band-arrow {
+        display: inline-flex; align-items: center; block-size: 44px;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      /* The arrow points from the lower edge to the upper one, which is the
+         reading direction — it must flip in Arabic, and no logical property can
+         do that to a glyph. */
+      :host-context([dir='rtl']) .band-arrow {
+        transform: scaleX(-1);
+      }
+      .band-unit {
+        display: inline-flex; align-items: center; block-size: 44px;
+        font-size: var(--text-xs); color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      /* The open end. Sized like an edge box so the arrow stays on one vertical
+         line down the table instead of stepping in and out. */
+      .band-open {
+        display: inline-flex; align-items: center; justify-content: center;
+        inline-size: 10.5rem; block-size: 44px;
+        font-size: var(--text-sm); color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .bands-hint {
+        margin: 0; font-size: var(--text-xs);
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .bands-error {
+        margin: 0; font-size: var(--text-xs); color: var(--danger, #b42318);
+      }
+      /* Bands below the first floor fall through to the flat rate above — a
+         legal configuration, so this informs rather than blocks. */
+      .bands-note {
+        display: flex; align-items: flex-start; gap: var(--space-2);
+        margin: 0; padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-md, 8px);
+        font-size: var(--text-xs);
+        color: var(--text-secondary, var(--color-text-secondary));
+        background: var(--color-warning-bg, var(--bg-subtle));
+      }
+      .bands-note [nz-icon] { color: var(--color-warning); }
       .band-cell { margin: 0; }
       .band-remove {
         inline-size: 44px; block-size: 44px;
@@ -1356,98 +1507,39 @@ function tenorRangeValidator(group: AbstractControl): ValidationErrors | null {
       .bands-add { align-self: flex-start; }
       @media (max-width: 720px) {
         .bands-head { display: none; }
+        /* Range on its own line: two money boxes and a rate do not fit one row.
+           A band now spans two lines, so a hairline says where one band ends —
+           otherwise it is guesswork which rate belongs to which range. */
+        .band-row {
+          grid-template-columns: minmax(0, 1fr) 44px;
+          row-gap: var(--space-2);
+          padding-block-end: var(--space-3);
+          border-block-end: 1px dashed var(--border-default, var(--color-border-default));
+        }
+        .band-row:last-of-type { padding-block-end: 0; border-block-end: 0; }
+        /* Wrap rather than squeeze: a clipped "350,0" is worse than a second line. */
+        .band-range { grid-column: 1 / -1; flex-wrap: wrap; }
+        .band-range > .band-cell,
+        .band-range > .band-edge,
+        .band-open { flex: 1 1 8rem; min-inline-size: 0; inline-size: auto; }
+        .band-cell .band-edge { inline-size: 100%; }
       }
 
-      /* ── Wizard: rail semantics, step caption, issue banner ─────── */
-      /* The rail, its caption and the issue banner sit together as ONE block
-         above the scrolling body — a flex sibling of .form-scroll, so it holds
-         its place without sticky offsets or an opaque backdrop faking one. */
+      /* ── Wizard: rail block + issue banner ──────────────────────── */
+      /* The rail and the issue banner sit together as ONE block above the
+         scrolling body — a flex sibling of .form-scroll, so it holds its place
+         without sticky offsets or an opaque backdrop faking one. The rail's own
+         card edge is the boundary cards scroll under, so no extra hairline. */
       .wizard-rail {
-        position: relative;
         flex: 0 0 auto;
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
         padding-block-end: var(--space-3);
       }
-      /* Hairline under the pinned block so cards sliding beneath it read as
-         passing UNDER the rail rather than colliding with it. */
-      .wizard-rail::after {
-        content: '';
-        position: absolute;
-        inset-inline: 0;
-        inset-block-end: 0;
-        block-size: 1px;
-        background: var(--border-subtle, var(--color-border-default));
-        opacity: 0.6;
-        pointer-events: none;
-      }
-      .steps {
-        list-style: none;
-        margin: 0;
-      }
-      .steps-item {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        flex: 1 1 auto;
-        min-inline-size: 0;
-      }
-      .steps-item.is-last { flex: 0 0 auto; }
-      .step { position: relative; }
-      .step:disabled {
-        cursor: not-allowed;
-        opacity: 0.55;
-      }
-      .step:disabled:hover { background: transparent; }
-      .step.done .step-num .anticon { font-size: var(--text-xs); }
-      /* Error state carries a tinted chip + the error hue on TEXT, not white on
-         mid-red — that pairing fails contrast at this type size in both themes. */
-      .step.invalid .step-num {
-        background: color-mix(in oklab, var(--color-error) 18%, var(--bg-surface));
-        box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-error) 45%, transparent);
-        color: var(--error-500);
-      }
-      .step.invalid .step-label { color: var(--error-500); }
-      /* Visible on the active/hovered step, always present for assistive tech. */
-      .step-state {
-        font-size: var(--text-xxs);
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--text-tertiary, var(--color-text-tertiary));
-      }
-      .step.invalid .step-state { color: var(--error-500); }
-      .step.done .step-state { color: var(--success, var(--color-success)); }
-      @media (max-width: 900px) {
-        .step-state {
-          position: absolute;
-          inline-size: 1px;
-          block-size: 1px;
-          overflow: hidden;
-          clip-path: inset(50%);
-          white-space: nowrap;
-        }
-      }
-      /* The rail already names the step and marks it aria-current; the caption
-         repeated it in print. Kept for screen readers, which get the rail as a
-         row of buttons and benefit from the plain sentence. */
-      .sr-only {
-        position: absolute;
-        inline-size: 1px;
-        block-size: 1px;
-        margin: -1px;
-        padding: 0;
-        overflow: hidden;
-        clip-path: inset(50%);
-        white-space: nowrap;
-      }
-      /* Labels compete for width on narrow screens; only the current step keeps
-         its name so the rail never overflows into a horizontal scroll. */
-      @media (max-width: 720px) {
-        .step-label { display: none; }
-        .step.active .step-label { display: inline; }
-      }
+      /* The rail itself is app-wizard-steps — chip, marker words, disabled
+         gate and both responsive collapses are the component's, not this
+         page's. Only the banner that reports THIS form's validation is local. */
       .step-alert {
         display: flex;
         align-items: center;
@@ -1635,8 +1727,6 @@ export class BankProgramFormPage implements OnInit {
     { id: 'review', label: $localize`:@@bank_programs.step.review:Review`, groups: [] },
   ];
   readonly stepsAria = $localize`:@@bank_programs.steps.aria:Program setup steps`;
-  readonly stepDoneLabel = $localize`:@@bank_programs.steps.done:done`;
-  readonly stepNeedsAttentionLabel = $localize`:@@bank_programs.steps.needs_attention:needs attention`;
   readonly stepIndex = signal(0);
   /** Highest step reached — the rail only lets an admin jump to what they've seen. */
   readonly furthestStep = signal(0);
@@ -1650,6 +1740,37 @@ export class BankProgramFormPage implements OnInit {
     const label = this.steps[this.stepIndex()]?.label ?? '';
     return $localize`:@@bank_programs.step.caption:Step ${current}:current: of ${total}:total: · ${label}:label:`;
   });
+
+  /**
+   * The shared rail's model.
+   *
+   * Deliberately a method, not a `computed`: a step's marker turns on `touched`
+   * + `invalid`, and `touched` flips on blur without emitting through any of
+   * this page's `toSignal(valueChanges)` streams — a computed would show a stale
+   * rail until the next keystroke. Change detection already re-reads it; the
+   * cache keeps the child's input identity stable so re-reading is not a
+   * re-render.
+   */
+  railSteps(): readonly WizardStepItem[] {
+    const next = this.steps.map((s, i) => ({
+      id: s.id,
+      label: s.label,
+      status: this.isStepInvalidTouched(i)
+        ? ('invalid' as const)
+        : this.isStepComplete(i)
+          ? ('done' as const)
+          : ('todo' as const),
+      disabled: !this.canJumpTo(i),
+    }));
+    const key = next.map((s) => `${s.status}${s.disabled ? '!' : ''}`).join('|');
+    if (key !== this.railKey) {
+      this.railKey = key;
+      this.railCache = next;
+    }
+    return this.railCache;
+  }
+  private railKey = '';
+  private railCache: readonly WizardStepItem[] = [];
 
   private stepControls(index: number): AbstractControl[] {
     const step = this.steps[index];
@@ -1741,6 +1862,16 @@ export class BankProgramFormPage implements OnInit {
 
   stepIssueLabel(): string {
     const count = this.stepIssueCount();
+    // A cross-field verdict (tenor min > max, rate bands out of order) leaves
+    // every field filled, so "needs a value" would send the admin hunting for an
+    // empty box that does not exist.
+    const empties = this.stepControls(this.stepIndex()).reduce(
+      (sum, c) => sum + countInvalidFields(c),
+      0,
+    );
+    if (empties === 0 && count > 0) {
+      return $localize`:@@bank_programs.step.issue_fix:Something on this step needs fixing before you continue — see the message in red.`;
+    }
     return count === 1
       ? $localize`:@@bank_programs.step.issue_one:1 field on this step needs a value before you continue.`
       : $localize`:@@bank_programs.step.issue_many:${count}:count: fields on this step need a value before you continue.`;
@@ -1966,7 +2097,9 @@ export class BankProgramFormPage implements OnInit {
       baseRatePercent: new FormControl<string | null>('24.0000'),
       currentEffectiveRatePercent: new FormControl<string | null>(null),
       variableRateNote: new FormControl<string | null>(null),
-      rateByLoanAmountBands: new FormArray<FormGroup>([]),
+      rateByLoanAmountBands: new FormArray<FormGroup>([], {
+        validators: [rateBandsOrder],
+      }),
     }),
     eligibility: this.fb.nonNullable.group({
       acceptedEmploymentTypes: new FormControl<string[]>(['salaried'], {
@@ -2589,8 +2722,94 @@ export class BankProgramFormPage implements OnInit {
   }
 
   readonly bandAriaMin = $localize`:@@bank_programs.bands.aria_min:Loan amount lower bound, EGP`;
+  readonly bandAriaMax = $localize`:@@bank_programs.bands.aria_max:Loan amount upper bound, EGP — the same value as the next band's lower bound`;
   readonly bandAriaRate = $localize`:@@bank_programs.bands.aria_rate:Band rate, percent`;
   readonly bandAriaRemove = $localize`:@@bank_programs.bands.aria_remove:Remove band`;
+
+  /**
+   * Ordering verdict for the band table, mirroring `rateBandsOrder` so the inline
+   * message and the Continue gate read the same state. Depends on `formValue()`
+   * because control errors are not signals.
+   */
+  readonly rateBandsError = computed<'ORDER' | 'DUPLICATE' | null>(() => {
+    this.formValue();
+    const errors = this.rateBandsArray.errors;
+    if (errors?.['bandDuplicate']) return 'DUPLICATE';
+    if (errors?.['bandOrder']) return 'ORDER';
+    return null;
+  });
+
+  /**
+   * A first band starting above 0 is legal — the cascade simply finds no band and
+   * falls through to the flat rate — but it is invisible in a table that only
+   * shows bands, so it is said out loud where it happens instead of as an
+   * instruction in the section copy nobody re-reads.
+   */
+  readonly bandsBelowFloorNote = computed<string | null>(() => {
+    this.formValue();
+    if (!this.toggles.tieredRates() || this.rateBandsArray.length === 0) return null;
+    const raw = this.bandEdgeValue(0).trim();
+    const floor = Number(raw);
+    if (raw === '' || !Number.isFinite(floor) || floor <= 0) return null;
+    const amount = money(raw);
+    return $localize`:@@bank_programs.bands.below_floor:Loans under ${amount}:amount: EGP fall outside every band and use the single rate above.`;
+  });
+
+  bandEdgeControl(index: number): FormControl<string> {
+    return this.rateBandsArray.at(index).get('minAmountEGP') as FormControl<string>;
+  }
+
+  bandRateControl(index: number): FormControl<string> {
+    return this.rateBandsArray.at(index).get('ratePercent') as FormControl<string>;
+  }
+
+  /** Raw lower edge of a band, read by the previous row's mirrored upper box. */
+  bandEdgeValue(index: number): string {
+    return String(this.rateBandsArray.at(index)?.get('minAmountEGP')?.value ?? '');
+  }
+
+  /**
+   * Typing a band's UPPER edge is the same edit as typing the next band's LOWER
+   * edge, so it writes that control rather than a value of its own. Giving the
+   * boundary two owners is exactly how a gap or an overlap appears.
+   */
+  setBandUpperEdge(index: number, value: string): void {
+    const next = this.rateBandsArray.at(index + 1)?.get('minAmountEGP');
+    if (!next) return;
+    next.setValue(value ?? '');
+    next.markAsDirty();
+  }
+
+  /**
+   * Appends a band above the current top one, pre-filled: a blank row reads as
+   * disabled next to its grey placeholder, and an admin cannot tell which of the
+   * two states they are looking at. The floor doubles the previous one and the
+   * rate is inherited, so both numbers are edits rather than guesses.
+   */
+  addRateBand(): void {
+    const rows = this.rateBandsArray;
+    const last = rows.length > 0 ? rows.at(rows.length - 1) : null;
+    if (!last) {
+      // First band opens at 0 so every loan amount lands inside the table, and
+      // carries the rate the program already charges — banding starts as a
+      // restatement of today's pricing, which the admin then edits.
+      rows.push(this.bandRow('0', this.currentFlatRate()));
+      return;
+    }
+    const floor = Number(String(last.get('minAmountEGP')?.value ?? '').trim());
+    const next = Number.isFinite(floor) && floor > 0 ? Math.round(floor * 2) : 100000;
+    rows.push(this.bandRow(String(next), String(last.get('ratePercent')?.value ?? '')));
+  }
+
+  removeRateBand(index: number): void {
+    this.rateBandsArray.removeAt(index);
+  }
+
+  /** Whichever single rate this program charges today — base, or the variable one. */
+  private currentFlatRate(): string {
+    const key = this.isVariableRateSignal() ? 'currentEffectiveRatePercent' : 'baseRatePercent';
+    return String(this.pricingGroup.get(key)?.value ?? '');
+  }
 
   /** One editable band: a lower-bound loan amount (the floor key) → a rate. */
   private bandRow(minAmountEGP = '', ratePercent = ''): FormGroup {
@@ -2604,14 +2823,6 @@ export class BankProgramFormPage implements OnInit {
         validators: [Validators.required, Validators.pattern(/^\d{1,3}(\.\d{1,4})?$/)],
       }),
     });
-  }
-
-  addRateBand(): void {
-    this.rateBandsArray.push(this.bandRow());
-  }
-
-  removeRateBand(index: number): void {
-    this.rateBandsArray.removeAt(index);
   }
 
   /** Rows → wire map keyed by the integer floor amount (FR-008p floor-≤ resolver). */
@@ -2973,6 +3184,21 @@ function countInvalidLeaves(control: AbstractControl): number {
   if (control instanceof FormArray) {
     const own = control.errors ? 1 : 0;
     return own + control.controls.reduce((sum, c) => sum + countInvalidLeaves(c), 0);
+  }
+  return control.invalid ? 1 : 0;
+}
+
+/**
+ * Invalid LEAF controls only — the group's own cross-field errors are excluded,
+ * so a caller can tell "three boxes are empty" from "the boxes are all filled
+ * and disagree with each other".
+ */
+function countInvalidFields(control: AbstractControl): number {
+  if (control instanceof FormGroup) {
+    return Object.values(control.controls).reduce((sum, c) => sum + countInvalidFields(c), 0);
+  }
+  if (control instanceof FormArray) {
+    return control.controls.reduce((sum, c) => sum + countInvalidFields(c), 0);
   }
   return control.invalid ? 1 : 0;
 }

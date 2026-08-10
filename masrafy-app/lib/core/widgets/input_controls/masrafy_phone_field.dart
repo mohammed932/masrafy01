@@ -15,8 +15,8 @@ import 'package:app/core/widgets/input_controls/phone_dial_codes.dart';
 ///   gap 16
 /// Each column has its own label above its control — pass [uppercaseLabels] to
 /// get the uppercase indigo `caption` label of the edit-form field family.
-/// Both controls: transparent, `border.field` at
-/// [MasrafyFieldMetrics.borderWidth], [MasrafyFieldMetrics.radius],
+/// Both controls: the shared borderless field surface
+/// ([MasrafyFieldMetrics.decorationFor]) — [MasrafyFieldMetrics.radius],
 /// [MasrafyFieldMetrics.height] — the same height as every other single-line
 /// field, so a form mixing this row with text inputs / selects stays even. The
 /// select uses a 12r DownOutlined SVG (`kSetStudyChevronDown`).
@@ -150,8 +150,8 @@ class MasrafyPhoneField extends StatelessWidget {
 }
 
 /// Phone-number input — same chrome as the dial-code select so the two fields
-/// are vertically pixel-aligned: transparent + `border.field` +
-/// [MasrafyFieldMetrics.radius] + [MasrafyFieldMetrics.height], `body` text.
+/// are vertically pixel-aligned: [MasrafyFieldMetrics.decorationFor] plate +
+/// [MasrafyFieldMetrics.height], `body` text.
 /// Wires through digits-only formatter + 20-char limit + optional
 /// validator (form-level error rendering left to the caller).
 class _PhoneNumberInput extends StatefulWidget {
@@ -210,14 +210,7 @@ class _PhoneNumberInputState extends State<_PhoneNumberInput> {
         horizontal: MasrafyFieldMetrics.horizontalPadding,
       ),
       alignment: AlignmentDirectional.centerStart,
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        border: Border.all(
-          color: colors.border.field,
-          width: MasrafyFieldMetrics.borderWidth,
-        ),
-        borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
-      ),
+      decoration: MasrafyFieldMetrics.decorationFor(colors),
       child: TextField(
         controller: _controller,
         keyboardType: TextInputType.phone,
@@ -273,8 +266,8 @@ class _Label extends StatelessWidget {
   }
 }
 
-/// Tappable select — transparent + `border.field` +
-/// [MasrafyFieldMetrics.radius] + [MasrafyFieldMetrics.height]. Trailing 12r
+/// Tappable select — [MasrafyFieldMetrics.decorationFor] plate +
+/// [MasrafyFieldMetrics.height]. Trailing 12r
 /// `DownOutlined` SVG.
 class _DialCodeSelect extends StatelessWidget {
   const _DialCodeSelect({
@@ -300,14 +293,7 @@ class _DialCodeSelect extends StatelessWidget {
         padding: EdgeInsetsDirectional.symmetric(
           horizontal: MasrafyFieldMetrics.horizontalPadding,
         ),
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          border: Border.all(
-            color: colors.border.field,
-            width: MasrafyFieldMetrics.borderWidth,
-          ),
-          borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
-        ),
+        decoration: MasrafyFieldMetrics.decorationFor(colors),
         child: Row(
           children: [
             Expanded(

@@ -150,11 +150,14 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
 
   // ----- decoration helpers -----
 
+  /// Stroke tint. Resting is TRANSPARENT — the plate + lift painted in [build]
+  /// carry the box, so only focus and error draw a line (see
+  /// [MasrafyFieldMetrics.borderWidth]).
   Color borderColor(BuildContext context) {
     final colors = MasrafyColorTheme.of(context);
     if (hasError) return colors.error.main;
     if (_focused) return colors.primary.main;
-    return colors.border.field;
+    return Colors.transparent;
   }
 
   Color labelColor(BuildContext context) {
@@ -230,10 +233,9 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
       // so they cannot inflate the box past [MasrafyFieldMetrics.height].
       prefixIconConstraints: usesSharedHeight ? _affixConstraints : null,
       suffixIconConstraints: usesSharedHeight ? _affixConstraints : null,
-      // Transparent like every other field in the family (labeled / select /
-      // phone / DOB): the `border.field` stroke carries the box, so a solid
-      // plate would only make this one control read as a different species
-      // next to them.
+      // The plate is painted by the wrapper in [build] instead
+      // ([MasrafyFieldMetrics.surfaceFor]) — `filled` would fill the decorator's
+      // own rect with no way to hang a shadow off it.
       filled: false,
       // One height across the whole single-line family (Principle XXXIII): the
       // padding — not a SizedBox — is what sets it, because `OutlineInputBorder`
@@ -278,7 +280,17 @@ mixin MasrafyInput<T extends MasrafyBaseInput> on State<T> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        buildField(context, buildDecoration(context)),
+        // Plate + lift behind the field; the `TextField`'s own
+        // `OutlineInputBorder` still draws the stroke on top of it, so this
+        // surface carries no border of its own.
+        DecoratedBox(
+          decoration: MasrafyFieldMetrics.surfaceFor(
+            colors,
+            enabled: widget.enabled,
+            focused: isFocused,
+          ),
+          child: buildField(context, buildDecoration(context)),
+        ),
         if (belowField != null) ...[
           Gap(4.h),
           Text(

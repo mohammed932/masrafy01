@@ -12,6 +12,11 @@ export {
 } from './dbr-bands-editor.component';
 export { PercentFieldComponent } from './percent-field.component';
 export {
+  WizardStepsComponent,
+  type WizardStepItem,
+  type WizardStepStatus,
+} from './wizard-steps.component';
+export {
   ScoreBandsEditorComponent,
   scoreBandsErrorFor,
   seedScoreBands,

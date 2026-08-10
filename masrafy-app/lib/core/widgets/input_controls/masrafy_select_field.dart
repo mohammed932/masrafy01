@@ -18,11 +18,11 @@ export 'package:app/core/widgets/input_controls/masrafy_single_select_sheet.dart
 ///
 /// Two visual densities — both [MasrafyFieldMetrics.height] tall, like every
 /// other single-line field:
-/// - default — the questionnaire chrome (uppercased `caption` label, 12r border,
-///   down chevron).
+/// - default — the questionnaire chrome (uppercased `caption` label, borderless
+///   12r plate, down chevron).
 /// - [dense] — the edit-form chrome, aligned to `MasrafyLabeledField` so selects
 ///   and text inputs read as one family (uppercase indigo `caption` label,
-///   transparent fill, down chevron) used inside edit forms (e.g. profile).
+///   raised container plate, down chevron) used inside edit forms (e.g. profile).
 ///
 /// Long option lists pass [showSearch] `true` (the sheet scrolls natively).
 /// Tokens only — no raw hex (Principle VIII / A18); logical insets only (A19).
@@ -111,17 +111,11 @@ class MasrafySelectField<T> extends StatelessWidget {
             padding: EdgeInsetsDirectional.symmetric(
               horizontal: MasrafyFieldMetrics.horizontalPadding,
             ),
-            decoration: BoxDecoration(
-              color: isEnabled ? Colors.transparent : colors.fill.quaternary,
-              // Enabled controls carry the strong `border.field` stroke; a
-              // disabled one drops back to the divider tone so it reads as
-              // furniture, not as something to tap.
-              border: Border.all(
-                color: isEnabled ? colors.border.field : colors.border.main,
-                width: MasrafyFieldMetrics.borderWidth,
-              ),
-              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
-            ),
+            // Raised, borderless plate + lift. A disabled one drops to the flat
+            // fill and loses the shadow, so it reads as furniture, not as
+            // something to tap.
+            decoration:
+                MasrafyFieldMetrics.decorationFor(colors, enabled: isEnabled),
             child: Row(
               children: [
                 Expanded(
@@ -174,14 +168,8 @@ class MasrafySelectField<T> extends StatelessWidget {
             padding: EdgeInsetsDirectional.symmetric(
               horizontal: MasrafyFieldMetrics.horizontalPadding,
             ),
-            decoration: BoxDecoration(
-              color: isEnabled ? Colors.transparent : colors.fill.quaternary,
-              border: Border.all(
-                color: isEnabled ? colors.border.field : colors.border.main,
-                width: MasrafyFieldMetrics.borderWidth,
-              ),
-              borderRadius: BorderRadius.circular(MasrafyFieldMetrics.radius),
-            ),
+            decoration:
+                MasrafyFieldMetrics.decorationFor(colors, enabled: isEnabled),
             child: Row(
               children: [
                 Expanded(
