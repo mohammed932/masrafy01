@@ -207,6 +207,10 @@ export class ApplicationRepository {
         bankOffers: {
           where: { erasedAt: null },
           orderBy: [{ approvalScore: 'desc' }, { createdAt: 'asc' }],
+          // The bank's verdict on the offer the applicant committed to. Admins
+          // triage on "what loan did this person actually take, and what came
+          // back" — without it the detail page could only show candidates.
+          include: { decision: true },
         },
         // Identity + contact of the applicant behind this application, surfaced
         // to admins on the detail page. Only the fields already exposed by

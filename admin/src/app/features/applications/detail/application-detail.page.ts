@@ -30,6 +30,7 @@ import { WhyThisScorePanelComponent } from './components/why-this-score-panel.co
 import { ApplicantCardComponent } from './components/applicant-card.component';
 import { ApplicantQuestionnaireComponent } from './components/applicant-questionnaire.component';
 import { ApplicantDocumentsComponent } from './components/applicant-documents.component';
+import { SelectedLoanCardComponent } from './components/selected-loan-card.component';
 
 /**
  * Application detail page. A calm, read-only view of one application: header
@@ -53,6 +54,7 @@ import { ApplicantDocumentsComponent } from './components/applicant-documents.co
     ApplicantCardComponent,
     ApplicantQuestionnaireComponent,
     ApplicantDocumentsComponent,
+    SelectedLoanCardComponent,
   ],
   providers: [provideNzIconsPatch([ArrowLeftOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -109,8 +111,28 @@ import { ApplicantDocumentsComponent } from './components/applicant-documents.co
               <dt i18n="@@app.detail.meta.time">Submitted at</dt>
               <dd>{{ d.createdAt | date: 'shortTime' }}</dd>
             </div>
+            <div class="meta-item">
+              <dt i18n="@@app.detail.meta.tenor">Requested term</dt>
+              <dd i18n="@@app.detail.meta.months">{{ d.preferredTenorMonths }} months</dd>
+            </div>
+            <div class="meta-item">
+              <dt i18n="@@app.detail.meta.matched">Programs matched</dt>
+              <dd>{{ d.eligibleProgramsCount }} / {{ d.programsCheckedCount }}</dd>
+            </div>
           </dl>
         </header>
+
+        @if (d.selectedOffer) {
+          <app-selected-loan-card
+            [offer]="d.selectedOffer"
+            [proceededAt]="d.userProceededAt"
+            [requestedAmountEGP]="d.requestedAmountEGP"
+          />
+        } @else {
+          <p class="not-selected" i18n="@@app.detail.selected.none">
+            The applicant has not committed to an offer yet — the offers below are candidates only.
+          </p>
+        }
 
         @if (d.applicant) {
           <app-applicant-card [applicant]="d.applicant" />
@@ -133,11 +155,16 @@ import { ApplicantDocumentsComponent } from './components/applicant-documents.co
           @if (d.offers.length === 0) {
             <p class="muted" i18n="@@applications.detail.noOffers">No matched offers.</p>
           }
-          @for (offer of sortedOffers(d); track offer.programCode) {
-            <article class="offer-card">
+          @for (offer of sortedOffers(d); track offer.id) {
+            <article class="offer-card" [class.offer-card--selected]="offer.isSelected">
               <header class="offer-head">
                 <div class="offer-title">
                   <span class="bank">{{ offer.bankName }} · {{ offer.programFriendlyName }}</span>
+                  @if (offer.isSelected) {
+                    <span class="chosen-mark" i18n="@@applications.detail.chosen"
+                      >Chosen by applicant</span
+                    >
+                  }
                 </div>
                 <app-approval-pill
                   [bestOffer]="{
@@ -150,16 +177,24 @@ import { ApplicantDocumentsComponent } from './components/applicant-documents.co
 
               <dl class="offer-stats">
                 <div>
+                  <dt i18n="@@applications.detail.amount">Loan amount</dt>
+                  <dd>{{ formatAmount(offer.effectiveLoanAmountEGP) }} {{ offer.currency }}</dd>
+                </div>
+                <div>
                   <dt i18n="@@applications.detail.rate">Effective rate</dt>
                   <dd>{{ offer.effectiveRatePercent }}%</dd>
                 </div>
                 <div>
                   <dt i18n="@@applications.detail.installment">Monthly installment</dt>
-                  <dd>{{ offer.monthlyInstallmentEGP }} EGP</dd>
+                  <dd>{{ formatAmount(offer.monthlyInstallmentEGP) }} EGP</dd>
                 </div>
                 <div>
                   <dt i18n="@@applications.detail.tenor">Effective tenor</dt>
                   <dd>{{ offer.effectiveTenorMonths }} mo</dd>
+                </div>
+                <div>
+                  <dt i18n="@@applications.detail.totalPayable">Total payable</dt>
+                  <dd>{{ formatAmount(offer.totalPayableEGP) }} EGP</dd>
                 </div>
               </dl>
 
@@ -341,6 +376,27 @@ import { ApplicantDocumentsComponent } from './components/applicant-documents.co
         gap: var(--space-4);
         margin-block-end: var(--space-3);
       }
+      /* The applicant's pick keeps its place in the score ranking but is framed
+         in brand so the eye finds it without re-reading every card. */
+      .offer-card--selected {
+        border-color: var(--color-brand-primary);
+      }
+      .chosen-mark {
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--color-brand-primary);
+      }
+      .not-selected {
+        margin: 0;
+        padding: var(--space-3) var(--space-4);
+        border: 1px dashed var(--color-border-default);
+        border-radius: var(--radius-lg);
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+      }
       .offer-head {
         display: flex;
         justify-content: space-between;
@@ -410,8 +466,15 @@ export class ApplicationDetailPage implements OnInit {
     return leadStatusMeta(s).label;
   }
 
+  /**
+   * Score ranking, except the offer the applicant actually took leads — an agent
+   * opening this page is following up on that loan, not on the best-scoring one.
+   */
   protected sortedOffers(d: AdminApplicationDetail): AdminApplicationDetail['offers'] {
-    return [...d.offers].sort((a, b) => b.approvalProbability.score - a.approvalProbability.score);
+    return [...d.offers].sort((a, b) => {
+      if (a.isSelected !== b.isSelected) return a.isSelected ? -1 : 1;
+      return b.approvalProbability.score - a.approvalProbability.score;
+    });
   }
 
   async ngOnInit(): Promise<void> {

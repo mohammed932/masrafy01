@@ -149,6 +149,7 @@ export class AdminApplicationsController {
   }
 
   private projectDetail(row: NonNullable<Awaited<ReturnType<ApplicationRepository['findById']>>>) {
+    const offers = row.bankOffers.map((o) => this.projectOffer(o, o.id === row.userSelectedBankOfferId));
     return {
       id: row.id,
       status: row.status,
@@ -166,30 +167,66 @@ export class AdminApplicationsController {
       eligibleProgramsCount: row.eligibleProgramsCount,
       summary: row.summary,
       noMatchSummary: row.noMatchSummary,
+      // What narrowed the program set for this submission. `programNameKey` null
+      // means "every program in the category", not "unknown".
+      category: row.category,
+      programNameKey: row.programNameKey,
       applicant: this.projectApplicant(row.applicantCustomer),
       applicantProfile: maskApplicantProfile(row.applicantProfile as RawApplicantProfileJson),
-      offers: row.bankOffers.map((o) => ({
-        programCode: o.programCode,
-        programVersion: o.programVersion,
-        bankName: o.bankName,
-        isShariaCompliant: o.isShariaCompliant,
-        programFriendlyName: o.programFriendlyName,
-        currency: o.currency,
-        effectiveRatePercent: o.effectiveRatePercent.toFixed(4),
-        monthlyInstallmentEGP: o.monthlyInstallmentEGP.toFixed(2),
-        requestedLoanAmountEGP: o.requestedLoanAmountEGP.toFixed(2),
-        effectiveLoanAmountEGP: o.effectiveLoanAmountEGP.toFixed(2),
-        requestedTenorMonths: o.requestedTenorMonths,
-        effectiveTenorMonths: o.effectiveTenorMonths,
-        feesBreakdown: o.feesBreakdown,
-        approvalProbability: this.projectApprovalProbability(o),
-        requiredDocuments: o.requiredDocuments,
-        matchReasons: o.matchReasons,
-        cascadeTrace: o.cascadeTrace,
-        qualitativeReviewBadge: o.qualitativeReviewBadge,
-        selfDeclared: o.selfDeclared,
-        maxLoanAvailableEGP: o.maxLoanAvailableEGP?.toFixed(2),
-      })),
+      // The offer the applicant actually committed to (feature 008 proceed gate)
+      // — the loan this file is really about. Null for rows that never proceeded.
+      userSelectedBankOfferId: row.userSelectedBankOfferId ?? null,
+      userProceededAt: row.userProceededAt ? row.userProceededAt.toISOString() : null,
+      selectedOffer: offers.find((o) => o.isSelected) ?? null,
+      offers,
+    };
+  }
+
+  /**
+   * One matched offer, with the money figures an admin needs to describe the
+   * actual loan: what was borrowed, at what rate, for how long, what it costs in
+   * total, and what the bank came back with. Totals are Decimal arithmetic on
+   * the frozen offer — never floats, never recomputed from program config
+   * (Principles I + A6: the offer is immutable, so its own numbers are the truth).
+   */
+  private projectOffer(
+    o: NonNullable<Awaited<ReturnType<ApplicationRepository['findById']>>>['bankOffers'][number],
+    isSelected: boolean,
+  ) {
+    const totalPayable = o.monthlyInstallmentEGP.mul(o.effectiveTenorMonths);
+    return {
+      id: o.id,
+      isSelected,
+      programCode: o.programCode,
+      programVersion: o.programVersion,
+      bankName: o.bankName,
+      bankIsFeatured: o.bankIsFeatured,
+      isShariaCompliant: o.isShariaCompliant,
+      programFriendlyName: o.programFriendlyName,
+      currency: o.currency,
+      effectiveRatePercent: o.effectiveRatePercent.toFixed(4),
+      monthlyInstallmentEGP: o.monthlyInstallmentEGP.toFixed(2),
+      requestedLoanAmountEGP: o.requestedLoanAmountEGP.toFixed(2),
+      effectiveLoanAmountEGP: o.effectiveLoanAmountEGP.toFixed(2),
+      requestedTenorMonths: o.requestedTenorMonths,
+      effectiveTenorMonths: o.effectiveTenorMonths,
+      // installment × tenor, and the part of it that is not principal.
+      totalPayableEGP: totalPayable.toFixed(2),
+      totalCostOfCreditEGP: totalPayable.sub(o.effectiveLoanAmountEGP).toFixed(2),
+      feesBreakdown: o.feesBreakdown,
+      approvalProbability: this.projectApprovalProbability(o),
+      requiredDocuments: o.requiredDocuments,
+      matchReasons: o.matchReasons,
+      cascadeTrace: o.cascadeTrace,
+      qualitativeReviewBadge: o.qualitativeReviewBadge,
+      selfDeclared: o.selfDeclared,
+      maxLoanAvailableEGP: o.maxLoanAvailableEGP?.toFixed(2),
+      // The DBR verdict frozen with the offer — why the amount is what it is.
+      dbrPercent: o.dbrPercent?.toFixed(2) ?? null,
+      dbrCapPercent: o.dbrCapPercent?.toFixed(4) ?? null,
+      decision: o.decision
+        ? { outcome: o.decision.outcome, recordedAt: o.decision.recordedAt.toISOString() }
+        : null,
     };
   }
 

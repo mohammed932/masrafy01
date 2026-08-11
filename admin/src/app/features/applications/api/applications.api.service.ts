@@ -39,21 +39,54 @@ export interface AdminApplicationRow {
   selectedOfferDecision?: 'approved' | 'rejected' | 'withdrawn' | null;
 }
 
+/** Fee lines frozen on the offer at match time. All values are Decimal strings. */
+export interface OfferFeesBreakdown {
+  adminFeeEGP?: string;
+  adminFeeWaived?: boolean;
+  stampDutyEGP?: string;
+  lifeInsuranceEGP?: string;
+  lifeInsuranceWaived?: boolean;
+  collateralFeeEGP?: string;
+  effectiveRateAfterPenaltiesPercent?: string;
+}
+
+/** The bank's verdict on an offer the applicant committed to. */
+export interface OfferDecision {
+  outcome: 'approved' | 'rejected' | 'withdrawn';
+  recordedAt: string;
+}
+
 export interface AdminApplicationOffer {
+  id: string;
+  /** True for the offer the applicant proceeded with (feature 008 gate). */
+  isSelected: boolean;
   programCode: string;
   programVersion: number;
   bankName: string;
+  bankIsFeatured: boolean;
+  isShariaCompliant: boolean;
   programFriendlyName: string;
   currency: string;
   effectiveRatePercent: string;
   monthlyInstallmentEGP: string;
+  requestedLoanAmountEGP: string;
+  effectiveLoanAmountEGP: string;
+  requestedTenorMonths: number;
   effectiveTenorMonths: number;
+  /** installment × tenor, and the part of it that is not principal. */
+  totalPayableEGP: string;
+  totalCostOfCreditEGP: string;
+  feesBreakdown: OfferFeesBreakdown;
   approvalProbability: ApprovalProbability;
   requiredDocuments: string[];
   matchReasons: string[];
   cascadeTrace: unknown;
   qualitativeReviewBadge: boolean;
   selfDeclared: boolean;
+  maxLoanAvailableEGP?: string;
+  dbrPercent: string | null;
+  dbrCapPercent: string | null;
+  decision: OfferDecision | null;
 }
 
 /** Applicant identity + contact, joined from the owning customer account. */
@@ -122,6 +155,13 @@ export interface AdminApplicationDetail {
   // for the masked National ID number the documents card reads — not shown as data.
   questionnaire: ApplicantQuestionnaire | null;
   applicantProfile: Record<string, unknown>;
+  /** Loan category + catalog archetype that narrowed the matched program set. */
+  category: string | null;
+  programNameKey: string | null;
+  /** The offer the applicant actually committed to; null if they never proceeded. */
+  userSelectedBankOfferId: string | null;
+  userProceededAt: string | null;
+  selectedOffer: AdminApplicationOffer | null;
   offers: AdminApplicationOffer[];
 }
 

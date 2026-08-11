@@ -342,6 +342,45 @@
       <trans-unit id="applications.detail.legacyNotice" datatype="html"><source>Detailed factors unavailable for offers produced before engine version 1.1.0.</source><target>التفاصيل غير متاحة للعروض الصادرة قبل الإصدار 1.1.0 من المحرك.</target></trans-unit>
       <trans-unit id="applications.detail.loadingFactors" datatype="html"><source>Loading factor labels…</source><target>جارٍ تحميل تسميات العوامل…</target></trans-unit>
       <trans-unit id="applications.detail.noFactors" datatype="html"><source>Score reflects the base model only — no profile-specific adjustments applied.</source><target>النتيجة تعتمد على النموذج الأساسي فقط — لم تُطبَّق أي تعديلات خاصة بالملف الشخصي.</target></trans-unit>
+      <trans-unit id="applications.detail.amount" datatype="html"><source>Loan amount</source><target>مبلغ القرض</target></trans-unit>
+      <trans-unit id="applications.detail.totalPayable" datatype="html"><source>Total payable</source><target>إجمالي المدفوع</target></trans-unit>
+      <trans-unit id="applications.detail.chosen" datatype="html"><source>Chosen by applicant</source><target>اختاره مقدّم الطلب</target></trans-unit>
+      <trans-unit id="app.detail.meta.created" datatype="html"><source>Created</source><target>تاريخ الإنشاء</target></trans-unit>
+      <trans-unit id="app.detail.meta.time" datatype="html"><source>Submitted at</source><target>وقت الإرسال</target></trans-unit>
+      <trans-unit id="app.detail.meta.tenor" datatype="html"><source>Requested term</source><target>المدة المطلوبة</target></trans-unit>
+      <trans-unit id="app.detail.meta.months" datatype="html"><source><x id="INTERPOLATION"/> months</source><target><x id="INTERPOLATION"/> شهرًا</target></trans-unit>
+      <trans-unit id="app.detail.meta.matched" datatype="html"><source>Programs matched</source><target>البرامج المطابقة</target></trans-unit>
+      <trans-unit id="app.detail.selected.title" datatype="html"><source>Eligible for</source><target>مؤهَّل للحصول على</target></trans-unit>
+      <trans-unit id="app.detail.selected.none" datatype="html"><source>The applicant has not committed to an offer yet — the offers below are candidates only.</source><target>لم يلتزم مقدّم الطلب بأي عرض بعد — العروض أدناه مرشّحة فقط.</target></trans-unit>
+      <trans-unit id="app.detail.selected.awaitingDecision" datatype="html"><source>Awaiting bank decision</source><target>في انتظار قرار البنك</target></trans-unit>
+      <trans-unit id="app.detail.selected.decision.approved" datatype="html"><source>Approved by bank</source><target>موافقة من البنك</target></trans-unit>
+      <trans-unit id="app.detail.selected.decision.rejected" datatype="html"><source>Rejected by bank</source><target>مرفوض من البنك</target></trans-unit>
+      <trans-unit id="app.detail.selected.decision.withdrawn" datatype="html"><source>Withdrawn</source><target>مسحوب</target></trans-unit>
+      <trans-unit id="app.detail.selected.ofRequested" datatype="html"><source>of <x id="INTERPOLATION"/> requested</source><target>من أصل <x id="INTERPOLATION"/> مطلوبة</target></trans-unit>
+      <trans-unit id="app.detail.selected.asRequested" datatype="html"><source>Full amount requested</source><target>المبلغ المطلوب بالكامل</target></trans-unit>
+      <trans-unit id="app.detail.selected.rate" datatype="html"><source>Effective rate</source><target>المعدل الفعلي</target></trans-unit>
+      <trans-unit id="app.detail.selected.installment" datatype="html"><source>Monthly installment</source><target>القسط الشهري</target></trans-unit>
+      <trans-unit id="app.detail.selected.tenor" datatype="html"><source>Term</source><target>المدة</target></trans-unit>
+      <trans-unit id="app.detail.selected.months" datatype="html"><source><x id="INTERPOLATION"/> months</source><target><x id="INTERPOLATION"/> شهرًا</target></trans-unit>
+      <trans-unit id="app.detail.selected.tenorRequested" datatype="html"><source>asked for <x id="INTERPOLATION"/></source><target>طلب <x id="INTERPOLATION"/></target></trans-unit>
+      <trans-unit id="app.detail.selected.totalPayable" datatype="html"><source>Total payable</source><target>إجمالي المدفوع</target></trans-unit>
+      <trans-unit id="app.detail.selected.costOfCredit" datatype="html"><source>Cost of credit</source><target>تكلفة التمويل</target></trans-unit>
+      <trans-unit id="app.detail.selected.dbr" datatype="html"><source>Debt burden</source><target>نسبة عبء الدين</target></trans-unit>
+      <trans-unit id="app.detail.selected.dbrCap" datatype="html"><source>of <x id="INTERPOLATION"/>% cap</source><target>من حد <x id="INTERPOLATION"/>%</target></trans-unit>
+      <trans-unit id="app.detail.selected.fees" datatype="html"><source>Fees at signing</source><target>الرسوم عند التوقيع</target></trans-unit>
+      <trans-unit id="app.detail.selected.waived" datatype="html"><source>Waived</source><target>معفاة</target></trans-unit>
+      <trans-unit id="app.detail.selected.fee.admin" datatype="html"><source>Administrative fee</source><target>رسوم إدارية</target></trans-unit>
+      <trans-unit id="app.detail.selected.fee.stamp" datatype="html"><source>Stamp duty</source><target>رسم الدمغة</target></trans-unit>
+      <trans-unit id="app.detail.selected.fee.insurance" datatype="html"><source>Life insurance</source><target>تأمين على الحياة</target></trans-unit>
+      <trans-unit id="app.detail.selected.fee.collateral" datatype="html"><source>Collateral fee</source><target>رسوم الضمان</target></trans-unit>
+      <trans-unit id="app.detail.selected.program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
+      <trans-unit id="app.detail.selected.proceededAt" datatype="html"><source>Committed on</source><target>تاريخ الالتزام</target></trans-unit>
+      <trans-unit id="app.detail.selected.decidedAt" datatype="html"><source>Bank replied</source><target>رد البنك</target></trans-unit>
+      <trans-unit id="app.detail.selected.ceiling" datatype="html"><source>Ceiling at this bank</source><target>الحد الأقصى لدى هذا البنك</target></trans-unit>
+      <trans-unit id="app.detail.selected.type" datatype="html"><source>Financing type</source><target>نوع التمويل</target></trans-unit>
+      <trans-unit id="app.detail.selected.sharia" datatype="html"><source>Sharia-compliant</source><target>متوافق مع الشريعة</target></trans-unit>
+      <trans-unit id="app.detail.selected.conventional" datatype="html"><source>Conventional</source><target>تقليدي</target></trans-unit>
+      <trans-unit id="app.detail.selected.docs" datatype="html"><source>Bank requires</source><target>البنك يطلب</target></trans-unit>
       <trans-unit id="applications.detail.deprecatedBadge" datatype="html"><source>Deprecated</source><target>متوقف</target></trans-unit>
       <trans-unit id="applications.detail.deprecatedTooltip" datatype="html"><source>Deprecated in v<x id="PH"/></source><target>متوقف في الإصدار <x id="PH"/></target></trans-unit>
       <trans-unit id="applications.detail.deprecatedGeneric" datatype="html"><source>Deprecated in the active engine</source><target>متوقف في الإصدار النشط للمحرك</target></trans-unit>
