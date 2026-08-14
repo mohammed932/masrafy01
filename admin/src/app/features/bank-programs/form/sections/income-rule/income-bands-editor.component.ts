@@ -190,8 +190,8 @@ export { incomeBandsErrorFor, type IncomeBandsError };
             }
             @case ('NOT_ASCENDING') {
               <span i18n="@@bank_programs.income.err_not_ascending">
-                Each band must start higher than the one before it, and the last band must stay
-                open-ended.
+                Each band must start higher than the one before it, and the top band must end above
+                where it starts — or be left open.
               </span>
             }
             @case ('INCOME_INVALID') {
@@ -283,15 +283,6 @@ export { incomeBandsErrorFor, type IncomeBandsError };
 
       .ib__income {
         inline-size: 100%;
-      }
-
-      /* Sized like an edge box so the arrow column stays on one vertical line down
-         the table instead of stepping in and out on the last row. */
-      .ib__open {
-        inline-size: 7.5rem;
-        text-align: center;
-        font-size: var(--text-sm);
-        color: var(--color-text-tertiary);
       }
 
       .ib__arrow {
@@ -465,8 +456,8 @@ export class IncomeBandsEditorComponent {
    * Typing a band's UPPER edge is the same edit as typing the next band's lower
    * edge, so it routes through `setEdge` and `relink` mirrors the value straight
    * back. Writing `toExclusive` directly would give the boundary two owners, which
-   * is exactly how a gap appears. Never called on the last row — that one renders
-   * "No maximum" and has no box.
+   * is exactly how a gap appears. Never called on the LAST row: nothing follows it to
+   * mirror, so its ceiling is its own value and is written by `setLastUpperEdge`.
    */
   setUpperEdge(index: number, value: string): void {
     this.setEdge(index + 1, value);

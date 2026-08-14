@@ -168,6 +168,7 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
                 [enumerationType]="keyRegistry()!"
                 [estimatedKeys]="estimatedKeys()"
                 (estimatedKeysChange)="estimatedKeyChange.emit($event)"
+                (keyStructureChange)="keyStructureChange.emit($event)"
               ></app-income-key-table>
             </div>
           }
@@ -409,6 +410,13 @@ export class IncomeAssumptionSectionComponent implements OnInit {
    */
   readonly bandStructureChange = output<{ kind: 'remove'; index: number } | { kind: 'reset' }>();
 
+  /** The key table's equivalent — its paths are keyed by the registry key, not a position. */
+  readonly keyStructureChange = output<
+    | { kind: 'rename'; from: string; to: string }
+    | { kind: 'remove'; key: string }
+    | { kind: 'reset' }
+  >();
+
   readonly documentsPlaceholder = $localize`:@@bank_programs.income.docs_placeholder:Pick the documents`;
 
   /**
@@ -517,7 +525,7 @@ export class IncomeAssumptionSectionComponent implements OnInit {
       keyTable: this.keyTable(),
       bands: this.bands(),
       scalarValue: this.group().get('scalar.value')?.value as string | null,
-      legacyScalarPermitted: this.legacyScalarShown(),
+      isValueMethod: this.strategy() === 'byCDValue' || this.strategy() === 'byTotalDeposits',
     });
   });
 
@@ -603,7 +611,15 @@ export class IncomeAssumptionSectionComponent implements OnInit {
 
   /** Drop whatever the newly-selected method cannot use (FR-011). */
   private clearForeignShape(nextShape: IncomeMethodShape): void {
-    if (nextShape !== 'keyTable' && this.keyTable().length > 0) this.keyTable.set([]);
+    // BOTH tables clear their markers, not just the bands. Clearing the key table
+    // without them left `incomeAssumption.keyTable.<key>.incomeEGP` in the payload
+    // over a rule that no longer has a key table — 422 `VALUE_SOURCE_PATH_UNKNOWN` on
+    // create, with the key-table editor gone from the screen, so nothing the admin
+    // could click would clear it.
+    if (nextShape !== 'keyTable' && this.keyTable().length > 0) {
+      this.keyTable.set([]);
+      this.keyStructureChange.emit({ kind: 'reset' });
+    }
     if (nextShape !== 'bands' && this.bands().length > 0) {
       this.bands.set([]);
       // The rows those markers described are gone with the method, so the markers go

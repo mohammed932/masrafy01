@@ -353,6 +353,15 @@ export interface IncomeResolution {
   dbrCapPercent: Decimal;
   dbrCapSource: 'program_default' | 'rule_override';
   /**
+   * The band the cap came from, or `null` for a scalar cap / a rule override.
+   *
+   * Carried so `quoteProgram` can take the whole cap resolution from here instead of
+   * running `resolveDbrCap` a second time over the same income — the second run is
+   * both waste inside the per-program match loop and a second chance to disagree
+   * about a number the offer is about to freeze (Principle I).
+   */
+  dbrBandIndex: number | null;
+  /**
    * Which row or band produced the figure, for the check panel's "traced to
    * exactly one configured value" claim (FR-030). Absent when the income is
    * declared or unresolved.

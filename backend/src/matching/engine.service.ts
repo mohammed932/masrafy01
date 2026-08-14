@@ -4,6 +4,7 @@
  */
 
 import { Injectable } from '@nestjs/common';
+import { Decimal } from '@prisma/client/runtime/library';
 import type {
   ApplicantProfile,
   ApprovalProbabilityResult,
@@ -20,7 +21,7 @@ import { checkEligibility } from './pipeline/eligibility-checker';
 import { applyCompanyTypeAdjustment, resolveAssumedIncome } from './pipeline/income-resolver';
 import { calculateApprovalProbability } from './pipeline/approval-probability';
 import { rankOffers } from './pipeline/ranking';
-import { quoteProgram } from './pipeline/quote';
+import { quoteProgram, shouldConsultIncomeRule } from './pipeline/quote';
 
 export interface EngineInput {
   profile: ApplicantProfile;
@@ -123,15 +124,19 @@ export class EngineService {
     flags: { skipEligibility: boolean; skipDbrCheck: boolean },
   ): MatchResult {
     const { skipEligibility, skipDbrCheck } = flags;
-    // Resolved ONCE per program and handed to `quoteProgram` below. The resolver
-    // re-normalizes the rule blob and re-resolves the DBR cap on every call, and two
-    // independent runs could reach two answers about a figure that is about to be
-    // frozen onto an offer.
-    const incomeResolution = resolveAssumedIncome({
-      profile,
-      income: program.incomeAssumption,
-      eligibility: program.eligibility,
-    });
+    // Resolved at most ONCE per program and handed to `quoteProgram` below, through
+    // the SAME predicate the quote uses to decide whether the rule is read at all.
+    // Resolving unconditionally re-normalized the rule blob and re-resolved the DBR
+    // cap for every `income_proof` program in the loop, whose resolution the quote
+    // then threw away — and two independent runs could reach two answers about a
+    // figure that is about to be frozen onto an offer (Principle I).
+    const incomeResolution = shouldConsultIncomeRule(profile, program)
+      ? resolveAssumedIncome({
+          profile,
+          income: program.incomeAssumption,
+          eligibility: program.eligibility,
+        })
+      : null;
 
     // The bank's own recognition percentage (`commercialBankIncomePercent` /
     // `publicBankIncomePercent`, configured on live programs) applies HERE and only
@@ -141,11 +146,18 @@ export class EngineService {
     // the haircut is applied to the eligibility input rather than inside the
     // resolver. Applied only to a DECLARED figure: a surrogate income is the bank's
     // own table output and has no salary to discount.
+    //
+    // No resolution means the quote will run on the declared salary outright, so that
+    // is what the eligibility check measures — the same figure, one step earlier.
+    const rawIncome =
+      incomeResolution?.incomeEGP ?? profile.employment?.monthlyNetSalaryEGP ?? new Decimal(0);
     const declaredOrigin =
-      incomeResolution.origin === 'declared' || incomeResolution.origin === 'declared_over_surrogate';
+      incomeResolution === null ||
+      incomeResolution.origin === 'declared' ||
+      incomeResolution.origin === 'declared_over_surrogate';
     const assumedIncome = declaredOrigin
-      ? applyCompanyTypeAdjustment(incomeResolution.incomeEGP, profile, program.eligibility)
-      : incomeResolution.incomeEGP;
+      ? applyCompanyTypeAdjustment(rawIncome, profile, program.eligibility)
+      : rawIncome;
 
     const eligibility = checkEligibility(profile, program, assumedIncome);
     if (!eligibility.passed && !skipEligibility) {

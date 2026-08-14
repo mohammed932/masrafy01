@@ -161,8 +161,14 @@ function validateBands(
   const bands = config.bands;
   if (!bands || bands.length === 0) {
     if (BANDS_REQUIRED_STRATEGIES.has(strategy)) return { kind: 'empty', strategy };
-    // A value method may legitimately carry the legacy percent scalar instead.
-    return validateScalar(config, strategy, { optional: true });
+    // A value method may legitimately carry the legacy percent scalar INSTEAD of a
+    // band table — but only if it actually carries one. The escape hatch used to be
+    // unconditional, so a brand-new `byCDValue` program with no bands and no percent
+    // saved clean and the resolver then priced every applicant on its hardcoded
+    // `?? '3'` — a figure no admin authored, which is the substituted default FR-020
+    // exists to forbid. Nothing configured is `INCOME_RULE_EMPTY`, same as any other
+    // method with nothing configured.
+    return validateScalar(config, strategy, { optional: hasLegacyScalar(config) });
   }
 
   let previousTo: Prisma.Decimal | null = null;
@@ -219,6 +225,14 @@ function validateBands(
   }
 
   return undefined;
+}
+
+/** Does this blob still carry the strategy's own pre-canonical percentage? */
+function hasLegacyScalar(config: IncomeAssumptionConfig): boolean {
+  return legacyScalarKeysFor(config.strategy).some((key) => {
+    const raw = config[key];
+    return typeof raw === 'string' && raw.trim() !== '';
+  });
 }
 
 function validateScalar(

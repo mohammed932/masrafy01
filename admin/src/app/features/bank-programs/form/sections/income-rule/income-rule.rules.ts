@@ -108,22 +108,27 @@ export function incomeBandsErrorFor(rows: readonly IncomeBand[]): IncomeBandsErr
  * an admin could press Save on an empty key table, wait for the round trip, and get
  * `INCOME_RULE_EMPTY` back for a control that was three steps away.
  *
- * `legacyScalarPermitted` is the two value methods' escape hatch (FR-015): an empty
- * band table is legal while a legacy percentage is still doing the work, and refusing
- * it would make an untouched legacy program unsaveable.
+ * `isValueMethod` is the two value methods' escape hatch (FR-015): an empty band table
+ * is legal for them while a legacy percentage is still doing the work, and refusing it
+ * would make an untouched legacy program unsaveable. It is an escape from the TABLE,
+ * not from configuring anything — an empty table with no percentage behind it is
+ * `INCOME_RULE_EMPTY` on the server, and treating it as valid here let an admin save a
+ * rule the resolver then answered with a hardcoded 3%.
  */
 export function incomeRuleHasError(args: {
   shape: 'keyTable' | 'bands' | 'scalar' | 'none';
   keyTable: readonly IncomeKeyTableRow[];
   bands: readonly IncomeBand[];
   scalarValue: string | null | undefined;
-  legacyScalarPermitted: boolean;
+  isValueMethod: boolean;
 }): boolean {
   switch (args.shape) {
     case 'keyTable':
       return incomeKeyTableErrorFor(args.keyTable) !== null;
     case 'bands':
-      if (args.legacyScalarPermitted) return false;
+      // No table on a value method: the percentage IS the rule, so it is checked the
+      // same way a scalar method's figure is.
+      if (args.bands.length === 0 && args.isValueMethod) return !isPositiveNumeric(args.scalarValue);
       return incomeBandsErrorFor(args.bands) !== null;
     case 'scalar':
       return !isPositiveNumeric(args.scalarValue);

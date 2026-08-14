@@ -60,6 +60,7 @@ import {
   pruneValueSources,
   validateValueSources,
   type MarkableProgramConfig,
+  type ValueSourceMap,
   type ValueSourceViolation,
 } from './validation/value-sources.validator';
 import {
@@ -286,6 +287,12 @@ export class BankProgramsService {
           performanceCriteria: (source.performanceCriteria as JsonBlob) ?? null,
           incomeAssumption: source.incomeAssumption as JsonBlob,
           fees: source.fees as JsonBlob,
+          // The markers travel WITH the numbers they describe (FR-033). Omitting
+          // them laundered every team-estimated figure into a copy the activation
+          // gate no longer blocked: same guessed rate, `valueSources: {}`, and the
+          // copy could be switched live on it and never appeared on the waiting
+          // list. A duplicate is the same unconfirmed data under a new code.
+          valueSources: source.valueSources as JsonBlob,
           createdBy: actor.id,
           updatedBy: actor.id,
         },
@@ -810,10 +817,22 @@ export class BankProgramsService {
         },
       }),
     );
-    // Pruned AFTER validation: deleting a table row that carried a marker is a legal
-    // edit, and refusing it would trap the admin — the only escape would be to un-mark
-    // a number they can no longer see.
-    const persistedSources = pruneValueSources(dto.valueSources, markerConfig);
+    // ABSENT means "leave the stored map alone", NOT "clear it".
+    //
+    // `valueSources` is the one optional field on an otherwise full-replacement PUT, so
+    // a client that never learned about it — a script, an older admin build mid-deploy,
+    // a partial-update integration — used to erase every marker on the program by
+    // saying nothing. That silently opened the activation gate: `toggle()` reads the
+    // STORED map, found it empty, and let an unconfirmed number go live (FR-033). An
+    // omitted field must never be the most destructive input a request can carry.
+    //
+    // When it IS sent it is pruned AFTER validation: deleting a table row that carried
+    // a marker is a legal edit, and refusing it would trap the admin — the only escape
+    // would be to un-mark a number they can no longer see.
+    const persistedSources =
+      dto.valueSources === undefined
+        ? ((existing.valueSources ?? {}) as ValueSourceMap)
+        : pruneValueSources(dto.valueSources, markerConfig);
 
     // FR-035 — introducing an estimate on a LIVE program switches it off, in the SAME
     // transaction as the save. Only NEWLY added markers count: re-saving a program

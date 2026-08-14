@@ -852,6 +852,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
               (bandsChange)="incomeBands.set($event)"
               [estimatedKeys]="estimatedKeyTableKeys()"
               (estimatedKeyChange)="onKeyTableMarker($event)"
+              (keyStructureChange)="onKeyStructureChange($event)"
               [estimatedBandIndexes]="estimatedBandIndexes()"
               (estimatedBandChange)="onBandMarker($event)"
               (bandStructureChange)="onBandStructureChange($event)"
@@ -1998,7 +1999,14 @@ export class BankProgramFormPage implements OnInit {
   readonly saveLabel = signal($localize`:@@bank_programs.form.cta_save:Save changes`);
 
   private currentVersion = 0;
-  private currentProgramCode = '';
+  /**
+   * The code of the program actually LOADED from the API, or `null` while creating.
+   *
+   * A signal rather than a plain field because `editingProgramCode` derives from it:
+   * the rule-check panel must be enabled by "a saved program exists", not by "a code
+   * has been typed into the identity box", which on the create wizard is neither.
+   */
+  private readonly loadedProgramCode = signal<string | null>(null);
 
   // Enum-driven option signals
   readonly employmentOptions = computed(() =>
@@ -2558,6 +2566,48 @@ export class BankProgramFormPage implements OnInit {
     this.estimatedPaths.set(next);
   }
 
+  /**
+   * The key table's equivalent, keyed by the registry KEY rather than a position.
+   *
+   * A rename carries the marker to the new key: the number is the same guess under a
+   * different label, and leaving it behind un-marked the guess and let the program
+   * pass the activation gate on it.
+   */
+  onKeyStructureChange(
+    event:
+      | { kind: 'rename'; from: string; to: string }
+      | { kind: 'remove'; key: string }
+      | { kind: 'reset' },
+  ): void {
+    const pathFor = (key: string): string => `incomeAssumption.keyTable.${key}.incomeEGP`;
+    const next = new Set<string>();
+    for (const path of this.estimatedPaths()) {
+      const match = /^incomeAssumption\.keyTable\.(.+)\.incomeEGP$/.exec(path);
+      if (!match?.[1]) {
+        next.add(path);
+        continue;
+      }
+      if (event.kind === 'reset') continue;
+      const key = match[1];
+      if (event.kind === 'remove') {
+        if (key !== event.key) next.add(path);
+        continue;
+      }
+      next.add(key === event.from ? pathFor(event.to) : path);
+    }
+    this.estimatedPaths.set(next);
+  }
+
+  /** Every income-rule marker, dropped — both tables are gone (FR-032). */
+  private dropIncomeRuleMarkers(): void {
+    const next = new Set<string>();
+    for (const path of this.estimatedPaths()) {
+      if (/^incomeAssumption\.(bands|keyTable)\./.test(path)) continue;
+      next.add(path);
+    }
+    if (next.size !== this.estimatedPaths().size) this.estimatedPaths.set(next);
+  }
+
   /** The map as the API takes it: sparse, one value, sorted for a stable payload. */
   private valueSourcesPayload(): ValueSourceMap {
     const out: ValueSourceMap = {};
@@ -2593,9 +2643,13 @@ export class BankProgramFormPage implements OnInit {
    * produce an installment no bank would ever offer, which is worse than no check.
    */
   readonly editingProgramCode = computed<string | null>(() => {
-    this.formValue();
-    const code = this.identityGroup.get('programCode')?.value as string | null;
-    return code && code.length > 0 ? code : null;
+    // The LOADED program's code, not whatever is typed in the identity box. On the
+    // create wizard that box is editable and empty, so reading it enabled the Check
+    // button the moment an admin typed a code — and the check then 404'd
+    // `BANK_PROGRAM_NOT_FOUND` inside the panel, on a program that does not exist yet.
+    // `loadedProgramCode` is set only by `loadForEdit`, which is exactly the condition
+    // "there is a saved program to check against".
+    return this.loadedProgramCode() ?? null;
   });
 
   /**
@@ -2639,9 +2693,7 @@ export class BankProgramFormPage implements OnInit {
       keyTable: this.incomeKeyTable(),
       bands: this.incomeBands(),
       scalarValue: ia.scalar.value,
-      legacyScalarPermitted:
-        (ia.strategy === 'byCDValue' || ia.strategy === 'byTotalDeposits') &&
-        this.incomeBands().length === 0,
+      isValueMethod: ia.strategy === 'byCDValue' || ia.strategy === 'byTotalDeposits',
     });
   });
 
@@ -2782,6 +2834,10 @@ export class BankProgramFormPage implements OnInit {
         );
         if (this.incomeKeyTable().length > 0) this.incomeKeyTable.set([]);
         if (this.incomeBands().length > 0) this.incomeBands.set([]);
+        // …and the markers those tables carried, which the payload would otherwise
+        // still name over a rule that no longer has either table (422
+        // `VALUE_SOURCE_PATH_UNKNOWN`, with no control left on screen to clear it).
+        this.dropIncomeRuleMarkers();
       }
     });
     effect(() => {
@@ -3102,17 +3158,20 @@ export class BankProgramFormPage implements OnInit {
     try {
       if (this.isEditMode()) {
         const payload = this.buildUpdatePayload();
-        const res = await this.api.update(this.currentProgramCode, payload);
+        const res = await this.api.update(this.loadedProgramCode() ?? '', payload);
         this.message.success($localize`:@@bank_programs.form.updated:Bank program updated.`, { nzDuration: 4000 });
         // FR-035 — the save switched a LIVE program off. Said explicitly, because
         // otherwise the program simply goes dark and the admin has no way to connect
         // it to the marker they just set.
-        this.notifyIfDeactivatedByEstimate(res.data.deactivatedByEstimate);
+        this.notifyIfDeactivatedByEstimate(res.data.deactivatedByEstimate, 'updated');
         void this.router.navigate(['/banks/programs', res.data.programCode]);
       } else {
         const payload = this.buildCreatePayload();
         const res = await this.api.create(payload);
         this.message.success($localize`:@@bank_programs.form.created:Bank program created.`, { nzDuration: 4000 });
+        // A program created WITH an estimate is born inactive (FR-033). Said out loud
+        // for the same reason the update path says it.
+        this.notifyIfDeactivatedByEstimate(res.data.deactivatedByEstimate, 'created');
         void this.router.navigate(['/banks/programs', res.data.programCode]);
       }
     } catch (err: unknown) {
@@ -3127,7 +3186,7 @@ export class BankProgramFormPage implements OnInit {
       const res = await this.api.getByCode(programCode);
       this.applyInitial(res.data);
       this.currentVersion = res.data.version;
-      this.currentProgramCode = res.data.programCode;
+      this.loadedProgramCode.set(res.data.programCode);
       this.autodetectToggles(res.data);
     } catch (err) {
       this.handleError(err);
@@ -3393,8 +3452,28 @@ export class BankProgramFormPage implements OnInit {
    * the admin did the right thing by marking the guess. What they need is the reason,
    * so the program going dark does not read as someone else's edit.
    */
-  private notifyIfDeactivatedByEstimate(deactivated: boolean | undefined): void {
+  /**
+   * FR-035 — say WHY the program is off air.
+   *
+   * Two wordings, because the two situations read differently to the admin: an update
+   * switched a live program OFF, while a create was never on in the first place. The
+   * create path used to say nothing at all, so an admin who marked an estimate landed
+   * on a detail page showing an inactive program with nothing connecting it to the
+   * marker they had just set — the confusion this notification exists to prevent.
+   */
+  private notifyIfDeactivatedByEstimate(
+    deactivated: boolean | undefined,
+    mode: 'created' | 'updated',
+  ): void {
     if (!deactivated) return;
+    if (mode === 'created') {
+      this.notification.warning(
+        $localize`:@@bank_programs.form.created_inactive_title:Program created switched off`,
+        $localize`:@@bank_programs.form.created_inactive_body:It holds a number the team estimated. Switch it on once the bank has confirmed the figure.`,
+        { nzDuration: 8000 },
+      );
+      return;
+    }
     this.notification.warning(
       $localize`:@@bank_programs.form.deactivated_title:Program switched off`,
       $localize`:@@bank_programs.form.deactivated_body:It now holds a number the team estimated. Switch it back on once the bank has confirmed the figure.`,
@@ -3419,7 +3498,7 @@ export class BankProgramFormPage implements OnInit {
     // program (toggling `requiresQualitativeReview` off under a stored
     // ceiling), and the localized message names it.
     if (code === 'CONFLICT_STALE_DATA' && this.isEditMode()) {
-      void this.loadForEdit(this.currentProgramCode);
+      void this.loadForEdit(this.loadedProgramCode() ?? '');
     }
   }
 }

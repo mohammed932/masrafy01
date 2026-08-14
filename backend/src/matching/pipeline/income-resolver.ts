@@ -92,6 +92,7 @@ export function resolveAssumedIncome(args: ResolveIncomeArgs): IncomeResolution 
     ...(decided.matchedRow ? { matchedRow: decided.matchedRow } : {}),
     dbrCapPercent: cap.capPercent,
     dbrCapSource: cap.source,
+    dbrBandIndex: cap.bandIndex,
   };
 }
 
@@ -175,7 +176,11 @@ function resolveRuleDbrCap(args: {
   override: string | undefined;
   origin: IncomeResolution['origin'];
   incomeEGP: Decimal;
-}): { capPercent: Decimal; source: IncomeResolution['dbrCapSource'] } {
+}): {
+  capPercent: Decimal;
+  source: IncomeResolution['dbrCapSource'];
+  bandIndex: number | null;
+} {
   const surrogateDerived =
     args.origin === 'surrogate' || args.origin === 'surrogate_over_declared';
   const resolution = resolveDbrCap(
@@ -188,7 +193,11 @@ function resolveRuleDbrCap(args: {
     args.incomeEGP,
     surrogateDerived ? args.override : undefined,
   );
-  return { capPercent: resolution.capPercent, source: resolution.source };
+  return {
+    capPercent: resolution.capPercent,
+    source: resolution.source,
+    bandIndex: resolution.bandIndex ?? null,
+  };
 }
 
 /**

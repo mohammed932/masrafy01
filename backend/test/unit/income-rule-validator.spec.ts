@@ -59,6 +59,24 @@ describe('INCOME_RULE_EMPTY — a method with no configuration (FR-009)', () => 
       ),
     ).toBeUndefined();
   });
+
+  it('accepts a value method carrying only the pre-canonical percent key', async () => {
+    expect(
+      await validateIncomeRule({ strategy: 'byCDValue', bands: [], cdIncomePercent: '10' }, ctx),
+    ).toBeUndefined();
+  });
+
+  it.each(['byCDValue', 'byTotalDeposits'] as const)(
+    'rejects %s with NO bands and NO percent — the escape hatch is from the TABLE, not from configuring',
+    async (strategy) => {
+      // Accepting this let a brand-new program save clean and the resolver then priced
+      // every applicant on its hardcoded `?? '3'` — a figure no admin ever authored.
+      expect(await validateIncomeRule({ strategy, bands: [] }, ctx)).toEqual({
+        kind: 'empty',
+        strategy,
+      });
+    },
+  );
 });
 
 describe('INCOME_RULE_INCOME_INVALID — income ≤ 0 or unparseable (FR-010)', () => {

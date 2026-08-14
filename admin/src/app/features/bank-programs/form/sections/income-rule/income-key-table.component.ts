@@ -81,8 +81,8 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
     } @else if (rows().length === 0) {
       <div class="ikt__empty">
         <p class="ikt__emptyText" i18n="@@bank_programs.income.key_table_empty">
-          This method reads the applicant's answer and looks it up here. Add a row for every
-          value the bank recognises — anything not listed produces no figures, not a zero.
+          This method reads the applicant's answer and looks it up here. Add a row for every value
+          the bank recognises — anything not listed produces no figures, not a zero.
         </p>
         <button nz-button nzType="primary" type="button" (click)="seedAll()">
           <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
@@ -359,6 +359,17 @@ export class IncomeKeyTableComponent {
     this.estimatedKeysChange.emit({ key, estimated });
   }
 
+  /**
+   * A row's KEY changed or the row went away, so the marker path addressing it has to
+   * follow (FR-032). The band editor announces structural edits for the same reason;
+   * a key table needs it too, because its path is the key rather than the position.
+   */
+  readonly keyStructureChange = output<
+    | { kind: 'rename'; from: string; to: string }
+    | { kind: 'remove'; key: string }
+    | { kind: 'reset' }
+  >();
+
   readonly keyPlaceholder = $localize`:@@bank_programs.income.key_placeholder:Pick a key`;
   readonly keyAriaLabel = $localize`:@@bank_programs.income.aria.key:Registry key for this row`;
   readonly incomeAriaLabel = $localize`:@@bank_programs.income.aria.income:Assumed monthly income in EGP`;
@@ -386,6 +397,9 @@ export class IncomeKeyTableComponent {
    */
   seedAll(): void {
     this.rows.set(this.members().map((m) => ({ key: m.key, incomeEGP: '' })));
+    // Every income is blank now, so nothing carried over can still be "the figure we
+    // estimated" — the markers go with the numbers they described.
+    this.keyStructureChange.emit({ kind: 'reset' });
   }
 
   addRow(): void {
@@ -395,7 +409,11 @@ export class IncomeKeyTableComponent {
   }
 
   removeAt(index: number): void {
+    const removed = this.rows()[index];
     this.rows.set(this.rows().filter((_, i) => i !== index));
+    // The row is gone, so its marker names nothing. Left behind it would be pruned
+    // on save — silently un-marking a guessed income if that key ever came back.
+    if (removed) this.keyStructureChange.emit({ kind: 'remove', key: removed.key });
   }
 
   /** Swap with the neighbour. Order is stored, so this is real data, not a view state. */
@@ -411,7 +429,15 @@ export class IncomeKeyTableComponent {
   }
 
   setKey(index: number, key: string): void {
+    const previous = this.rows()[index];
     this.rows.set(this.rows().map((row, i) => (i === index ? { ...row, key } : row)));
+    // A key-table marker is addressed BY KEY, so re-picking the key renames the path
+    // the marker lives at. Without this the flag stayed on the old key: the row now
+    // rendered "Bank stated", the stale path was pruned away on save, and the guessed
+    // income sailed through the activation gate unmarked and off the waiting list.
+    if (previous && previous.key !== key) {
+      this.keyStructureChange.emit({ kind: 'rename', from: previous.key, to: key });
+    }
   }
 
   setIncome(index: number, incomeEGP: string): void {

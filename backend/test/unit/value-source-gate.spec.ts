@@ -192,6 +192,15 @@ describe('pruning — deleting a marked number is a legal edit', () => {
     const map = { 'pricing.baseRatePercent': ESTIMATED, 'fees.adminFeePercent': ESTIMATED };
     expect(pruneValueSources(map, CONFIG)).toEqual(map);
   });
+
+  it('an ABSENT map is not an empty one — pruning `undefined` must never be how a save clears the gate', () => {
+    // `pruneValueSources(undefined, …)` returning `{}` is correct for this pure
+    // function; the SERVICE is what must not call it on an omitted field. Pinned here
+    // because the two together are what silently wiped every marker on a PUT that
+    // said nothing about them, and let an unconfirmed program go live (FR-033).
+    expect(pruneValueSources(undefined, CONFIG)).toEqual({});
+    expect(estimatedPaths(undefined)).toEqual([]);
+  });
 });
 
 // --- 2. the refusal names EVERY path -----------------------------------------

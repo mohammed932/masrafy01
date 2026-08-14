@@ -26,6 +26,7 @@
  * two truths about what the rule is (research R1).
  */
 
+import { Decimal } from '@prisma/client/runtime/library';
 import type { IncomeAssumptionConfig, IncomeBand, IncomeKeyTableRow } from '../types';
 
 /**
@@ -105,12 +106,6 @@ export function normalizeIncomeAssumption(
 }
 
 /**
- * `combinationRule` / `dbrCapPercentOverride` / `requiredDocuments` are not part
- * of any method's shape — they are policy on top of it, and a legacy row may
- * already carry `combinationRule`. Spread explicitly so a future field cannot be
- * dropped silently by a `switch` branch that forgot it.
- */
-/**
  * An ALREADY-canonical blob, with any overlapping band lower edge raised to where
  * the previous band ends.
  *
@@ -130,6 +125,14 @@ function withRepairedBands(config: IncomeAssumptionConfig): IncomeAssumptionConf
   return repaired === config.bands ? config : { ...config, bands: repaired };
 }
 
+/**
+ * Edges are compared as `Decimal`, NEVER through `Number` — the rule
+ * `income-rule-bands.ts` states for these same strings, because
+ * `Number('10000000000000000001')` is not that number. This function decides whether
+ * to REWRITE an edge the admin authored, so a comparison that quietly loses precision
+ * could move a boundary on a table that never overlapped; and reading the same edges
+ * with a different numeric model from `bandFor` is how the repair and the lookup drift.
+ */
 function repairBandOverlaps(
   bands: IncomeAssumptionConfig['bands'],
 ): IncomeAssumptionConfig['bands'] {
@@ -137,15 +140,15 @@ function repairBandOverlaps(
 
   const next: IncomeBand[] = [];
   let changed = false;
-  // The previous band's upper edge, as it was WRITTEN — carried as the string so a
+  // The previous band's upper edge, as it was WRITTEN — the string is carried so a
   // raised edge reproduces the neighbour's own text rather than a re-formatted number.
-  let previousTo: { raw: string; value: number } | null = null;
+  let previousTo: { raw: string; value: Decimal } | null = null;
 
   for (const band of bands) {
-    const from = Number(band.fromInclusive);
+    const from = toDecimalOrNull(band.fromInclusive);
     // A non-numeric edge is left exactly as it is: the validator reports it as
     // `edge_not_decimal`, and guessing at a repair would hide the real problem.
-    if (previousTo !== null && Number.isFinite(from) && from < previousTo.value) {
+    if (previousTo !== null && from !== null && from.lessThan(previousTo.value)) {
       next.push({ ...band, fromInclusive: previousTo.raw });
       changed = true;
     } else {
@@ -153,13 +156,30 @@ function repairBandOverlaps(
     }
 
     const rawTo = band.toExclusive;
-    const to = rawTo === null || rawTo === undefined ? Number.NaN : Number(rawTo);
-    previousTo = rawTo != null && Number.isFinite(to) ? { raw: rawTo, value: to } : null;
+    const to = toDecimalOrNull(rawTo);
+    previousTo = rawTo != null && to !== null ? { raw: rawTo, value: to } : null;
   }
 
   return changed ? next : bands;
 }
 
+/** Tolerant parse, mirroring `bandFor`: a malformed edge yields `null`, never a throw. */
+function toDecimalOrNull(value: string | null | undefined): Decimal | null {
+  if (value === null || value === undefined) return null;
+  try {
+    const parsed = new Decimal(value);
+    return parsed.isFinite() ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `combinationRule` / `dbrCapPercentOverride` / `requiredDocuments` are not part
+ * of any method's shape — they are policy on top of it, and a legacy row may
+ * already carry `combinationRule`. Spread explicitly so a future field cannot be
+ * dropped silently by a `switch` branch that forgot it.
+ */
 function carryPolicyFields(config: IncomeAssumptionConfig): Partial<IncomeAssumptionConfig> {
   return {
     ...(config.combinationRule !== undefined ? { combinationRule: config.combinationRule } : {}),

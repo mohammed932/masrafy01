@@ -41,7 +41,10 @@ import type { PendingBankConfirmationRow } from '../bank-programs.types';
         i18n-subtitle="@@pending_confirmation.subtitle"
       ></app-page-header>
 
-      @if (loading()) {
+      <!-- The skeleton is the FIRST-load state only. Paging keeps the table (and its
+           pager) mounted and dims it via nzLoading instead, so the control the admin
+           just clicked does not vanish under them. -->
+      @if (firstLoad()) {
         <app-skeleton-rows [rows]="5"></app-skeleton-rows>
       } @else if (error()) {
         <p class="pbc__error" role="alert" i18n="@@pending_confirmation.error">
@@ -63,10 +66,20 @@ import type { PendingBankConfirmationRow } from '../bank-programs.types';
           </p>
         </div>
       } @else {
+        <!-- SERVER-side pagination. The list used to ask for one page of 100 and hide
+             the pager, so a queue longer than that was silently cut off — on the one
+             screen whose entire job is "what are we waiting on each bank for", and cut
+             off at the NEWEST end, since the rows come oldest-waiting first. -->
         <nz-table
           #table
           [nzData]="rows()"
-          [nzShowPagination]="false"
+          [nzFrontPagination]="false"
+          [nzShowPagination]="total() > pageSize()"
+          [nzTotal]="total()"
+          [nzPageIndex]="page()"
+          [nzPageSize]="pageSize()"
+          [nzLoading]="loading()"
+          (nzPageIndexChange)="goToPage($event)"
           [nzScroll]="{ x: '900px' }"
         >
           <thead>
@@ -195,12 +208,25 @@ export class PendingBankConfirmationPage {
   readonly notLiveLabel = $localize`:@@pending_confirmation.state_off:Not live`;
 
   readonly loading = signal(true);
+  /** True until the first response lands — what the shimmer skeleton is for. */
+  readonly firstLoad = signal(true);
   readonly error = signal(false);
-  private readonly data = signal<PendingBankConfirmationRow[]>([]);
+  private readonly data = signal<readonly PendingBankConfirmationRow[]>([]);
 
   readonly rows = computed(() => this.data());
 
+  /** Server-side paging state. `total` comes from the envelope, never from `rows`. */
+  readonly page = signal(1);
+  readonly pageSize = signal(25);
+  readonly total = signal(0);
+
   constructor() {
+    void this.load();
+  }
+
+  goToPage(page: number): void {
+    if (page === this.page()) return;
+    this.page.set(page);
     void this.load();
   }
 
@@ -208,12 +234,17 @@ export class PendingBankConfirmationPage {
     this.loading.set(true);
     this.error.set(false);
     try {
-      const response = await this.api.pendingBankConfirmation({ page: 1, pageSize: 100 });
+      const response = await this.api.pendingBankConfirmation({
+        page: this.page(),
+        pageSize: this.pageSize(),
+      });
       this.data.set(response.data);
+      this.total.set(response.pagination.total);
     } catch {
       this.error.set(true);
     } finally {
       this.loading.set(false);
+      this.firstLoad.set(false);
     }
   }
 }

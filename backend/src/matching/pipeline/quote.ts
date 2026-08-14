@@ -95,6 +95,31 @@ const BINDING_PRECEDENCE: Record<BindingConstraint, number> = {
   requested_amount: 0,
 };
 
+/**
+ * Whether this (applicant, program) pair reads the income RULE at all.
+ *
+ * On `income_proof` the resolver is still the FALLBACK it has always been, for an
+ * applicant who declared nothing at all — `SF-SELF-EMP` is `income_proof` with
+ * `byBankStatementPercent`, and dropping that path would blank it out for exactly the
+ * applicants it exists to serve. What feature 011 changed is only that a SURROGATE
+ * program consults the rule even when a salary was declared.
+ *
+ * Exported so the engine can decide whether resolving is worth doing before it calls
+ * `quoteProgram`: it needs a figure one step earlier for `checkEligibility`, and it
+ * used to resolve unconditionally — re-normalizing the rule blob and re-resolving the
+ * DBR cap for every `income_proof` program in the loop, whose resolution the quote
+ * then discarded. A second copy of this predicate in the engine would be the thing
+ * that drifts, so there is one.
+ */
+export function shouldConsultIncomeRule(
+  profile: ApplicantProfile,
+  program: BankProgramSnapshot,
+): boolean {
+  const declared = profile.employment?.monthlyNetSalaryEGP;
+  const hasDeclaredIncome = declared !== undefined && declared.greaterThan(0);
+  return program.programType === 'income_surrogate' || !hasDeclaredIncome;
+}
+
 export function quoteProgram(input: QuoteInput): QuoteOutcome {
   const { profile, program } = input;
   const currency = profile.requestedCurrency;
@@ -158,15 +183,9 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // ignored for every real applicant (research R4). The resolver takes the RAW
   // declared figure as its baseline, preserving the invariant above.
   const declaredIncomeEGP = profile.employment?.monthlyNetSalaryEGP;
-  const hasDeclaredIncome = declaredIncomeEGP !== undefined && declaredIncomeEGP.greaterThan(0);
   const isSurrogateProgram = program.programType === 'income_surrogate';
 
-  // On `income_proof` the resolver is still the FALLBACK it has always been, for
-  // an applicant who declared nothing at all — `SF-SELF-EMP` is `income_proof`
-  // with `byBankStatementPercent`, and dropping that path would blank it out for
-  // exactly the applicants it exists to serve. What changed is only that a
-  // SURROGATE program consults the rule even when a salary was declared.
-  const consultRule = isSurrogateProgram || !hasDeclaredIncome;
+  const consultRule = shouldConsultIncomeRule(profile, program);
 
   const incomeResolution: IncomeResolution | null = consultRule
     ? (input.incomeResolution ??
@@ -283,19 +302,20 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   //
   // FR-012 — when the recognised income came FROM the income rule, the rule's own
   // `dbrCapPercentOverride` applies. `resolveAssumedIncome` already decided that
-  // (it is the only place that knows the origin) and reports both the cap and its
-  // source, so the cap is taken from the resolution rather than re-derived here.
-  // Re-deriving would need the origin in two places, which is how the two drift.
-  const { capPercent: dbrCapPercent, bandIndex: dbrBandIndex } =
-    incomeResolution && incomeResolution.dbrCapSource === 'rule_override'
-      ? { capPercent: incomeResolution.dbrCapPercent, bandIndex: null }
-      : resolveDbrCap(
-          {
-            dbrCapPercent: program.eligibility.dbrCapPercent,
-            dbrBands: program.eligibility.dbrBands,
-          },
-          recognisedIncomeEGP,
-        );
+  // (it is the only place that knows the origin) and reports the cap, its source AND
+  // its band, so the WHOLE resolution is taken from there rather than re-derived.
+  // Re-deriving would need the origin in two places, which is how the two drift — and
+  // the band branch was re-running `resolveDbrCap` over the very income the resolver
+  // had just run it over, once per program per applicant.
+  const { capPercent: dbrCapPercent, bandIndex: dbrBandIndex } = incomeResolution
+    ? { capPercent: incomeResolution.dbrCapPercent, bandIndex: incomeResolution.dbrBandIndex }
+    : resolveDbrCap(
+        {
+          dbrCapPercent: program.eligibility.dbrCapPercent,
+          dbrBands: program.eligibility.dbrBands,
+        },
+        recognisedIncomeEGP,
+      );
   const dbrCapSource: 'program_default' | 'rule_override' =
     incomeResolution?.dbrCapSource === 'rule_override' ? 'rule_override' : 'program_default';
 
