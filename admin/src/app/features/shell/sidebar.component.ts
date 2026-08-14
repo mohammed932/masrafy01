@@ -84,25 +84,6 @@ import { CanDirective } from '../../shared/can.directive';
           <span class="item-label" i18n="@@sidebar.banks">Banks</span>
         </a>
 
-        <!-- Feature 011 / FR-036. Its own nav entry rather than a tab inside Banks:
-             it is a work queue read at a different time and by a different person than
-             the registry, and burying it one level down is how it stops being read. -->
-        <a
-          routerLink="/banks/programs/pending-bank-confirmation"
-          routerLinkActive="active"
-          class="item"
-        >
-          <span
-            nz-icon
-            nzType="clock-circle"
-            nzTheme="outline"
-            class="item-icon"
-            aria-hidden="true"
-          ></span>
-          <span class="item-label" i18n="@@sidebar.pending_bank_confirmation">
-            Waiting for the bank
-          </span>
-        </a>
 
         <a routerLink="/applications" routerLinkActive="active" class="item">
           <span

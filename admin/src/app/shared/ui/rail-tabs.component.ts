@@ -16,8 +16,14 @@ export interface RailTabItem {
   readonly count?: number;
   /** Short muted note under the label (e.g. "Not set up"). */
   readonly note?: string;
-  /** Draws the warn dot — something on this item needs attention. */
+  /** Draws the warn marker — something on this item needs attention. */
   readonly warn?: boolean;
+  /**
+   * What the warn marker MEANS, for screen readers. Optional, but pass it: the
+   * marker is otherwise a colour with no text, which is invisible to a screen
+   * reader and ambiguous to everyone else on a tab that also shows a count.
+   */
+  readonly warnLabel?: string;
   /**
    * Per-item accent, exposed to CSS as `--rail-item-accent`. Pass a token
    * reference (`var(--color-cat-car)`), not a raw colour.
@@ -73,11 +79,18 @@ export interface RailTabItem {
               <span class="tab-note">{{ item.note }}</span>
             }
           </span>
-          @if (item.warn) {
-            <span class="warn-dot" aria-hidden="true"></span>
-          }
           @if (item.count !== undefined) {
             <span class="tab-count">{{ item.count }}</span>
+          }
+          <!-- AFTER the count, and shaped rather than round. A 6px amber circle sat
+               immediately before a number read as a bullet separator ("Personal Loan
+               • 10") rather than as a warning, which is the one thing it exists to
+               say. -->
+          @if (item.warn) {
+            <span class="warn-mark" aria-hidden="true">!</span>
+            @if (item.warnLabel) {
+              <span class="sr-only">{{ item.warnLabel }}</span>
+            }
           }
         </button>
       }
@@ -183,12 +196,29 @@ export interface RailTabItem {
       .tab.on .tab-count {
         color: var(--color-text-secondary);
       }
-      .warn-dot {
+      .warn-mark {
         flex: none;
-        inline-size: 6px;
-        block-size: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        inline-size: 16px;
+        block-size: 16px;
         border-radius: var(--radius-pill);
-        background: var(--color-warning);
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        line-height: 1;
+      }
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
       @media (prefers-reduced-motion: reduce) {
         .tab {

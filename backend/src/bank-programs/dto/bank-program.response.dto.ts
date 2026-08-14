@@ -72,6 +72,13 @@ export class BankProgramListRowDto {
   programNameKey?: string | null;
   bankName!: string;
   productCategory!: string;
+  /**
+   * How this program establishes the income it lends against. On the LIST because it is
+   * the one property that changes what every other number on the row means — a rate
+   * quoted against an assumed income is not the same offer as the same rate against a
+   * payslip — and no list could show or filter it before.
+   */
+  programType!: 'income_proof' | 'income_surrogate';
   active!: boolean;
   isShariaCompliant!: boolean;
   currencies!: string[];
@@ -82,28 +89,3 @@ export class BankProgramListRowDto {
   updatedAt!: string;
 }
 
-/**
- * Feature 011 / FR-036 — one row of the "waiting for the bank" list.
- *
- * The list exists so the team has ONE place answering "what are we waiting on each
- * bank for", instead of auditing twenty programs to find the guesses.
- */
-export class PendingBankConfirmationRowDto {
-  programCode!: string;
-  friendlyName!: string;
-  bankName!: string;
-  /** Usually false — an estimate blocks going live — but a pre-flag live row can exist. */
-  active!: boolean;
-  /** EVERY estimated path, not the first: the admin asks the bank about all of them at once. */
-  estimatedPaths!: string[];
-  /** The oldest still-standing marker's audit timestamp. */
-  waitingSince!: string;
-  /**
-   * True when `waitingSince` fell back to the program's `updatedAt` because the marker
-   * carries no audit event (import, backfill, direct seed). Surfaced so the UI can say
-   * "about" — and NEVER `null`, which would render as "0 days waiting" and read as
-   * "flagged today", the one answer that is certainly wrong.
-   */
-  waitingSinceEstimated!: boolean;
-  waitingDays!: number;
-}

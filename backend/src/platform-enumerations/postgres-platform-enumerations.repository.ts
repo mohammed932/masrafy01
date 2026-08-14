@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { BankProgramType } from '@prisma/client';
 import type { LoanCategory, PlatformEnumeration, Prisma, QuestionType } from '@prisma/client';
 import { sortCategories } from '@/common/loan-category.util';
+import { SURROGATE_BOUND_QUESTION_CODES } from '@/matching/pipeline/surrogate-fact-bindings';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
   EnumerationMember,
@@ -41,6 +43,28 @@ export interface CatalogQuestionRow {
   type: QuestionType;
   /** The loan categories that ASK this question. Empty = parked. */
   categories: LoanCategory[];
+}
+
+/**
+ * How a catalog name is actually being SOLD, per name key — what the list screen
+ * needs to count the no-payslip programs behind a name, and to say which of those are
+ * still missing the bank's own income table.
+ *
+ * Derived from `bank_program`, never stored: the ticked surrogate facts say what a
+ * name MAY be sold as, this says what banks DID with it.
+ */
+export interface ProgramNameUsage {
+  programs: number;
+  banks: number;
+  /** Programs typed `income_surrogate` — the no-payslip ones. */
+  noPayslipPrograms: number;
+  /**
+   * No-payslip programs that assume NO income yet: the program says there is no
+   * payslip, but the rule still reads whatever salary the applicant typed, because
+   * the bank's own table was never entered. The silent failure feature 011 exists to
+   * close — an unconfigured table produces no figure and says nothing.
+   */
+  noPayslipProgramsWithoutTable: number;
 }
 
 export interface EnumerationTypeStats {
@@ -163,7 +187,16 @@ export class PostgresPlatformEnumerationsRepository
       // have to compose with this cache AND the admin's per-type signal store,
       // and the builder must re-filter the instant the operator changes the
       // product category — not on a refetch.
-      include: { loanCategories: { select: { category: true } } },
+      //
+      // The ticked QUESTIONS ride along for the same reason, but only their codes:
+      // the builder also filters by income basis, and a name is no-payslip exactly
+      // when one of the four surrogate facts is ticked. Reduced to
+      // `noPayslipCategories` in the mapper, so the payload gains one short array
+      // per name rather than every name's whole template.
+      include: {
+        loanCategories: { select: { category: true } },
+        questions: { select: { category: true, question: { select: { code: true } } } },
+      },
     });
     const members: EnumerationMember[] = rows.map(toEnumerationMember);
     this.cache.set(type, { members, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -212,23 +245,85 @@ export class PostgresPlatformEnumerationsRepository
    * because bank-programs already depends on this module; importing back would
    * close a cycle. Still a repository, so Principle X holds.
    */
-  async countProgramNameUsage(): Promise<Map<string, { programs: number; banks: number }>> {
+  async countProgramNameUsage(): Promise<Map<string, ProgramNameUsage>> {
     const rows = await this.prisma.bankProgram.findMany({
       where: { programNameKey: { not: null } },
-      select: { programNameKey: true, bankId: true },
+      select: {
+        programNameKey: true,
+        bankId: true,
+        programType: true,
+        productCategory: true,
+        incomeAssumption: true,
+      },
     });
-    const acc = new Map<string, { programs: number; banks: Set<string> }>();
+    const promisesAFact = await this.noPayslipPairs();
+    const acc = new Map<
+      string,
+      { programs: number; banks: Set<string>; noPayslip: number; withoutTable: number }
+    >();
     for (const r of rows) {
       const key = r.programNameKey;
       if (!key) continue;
-      const entry = acc.get(key) ?? { programs: 0, banks: new Set<string>() };
+      const entry =
+        acc.get(key) ?? { programs: 0, banks: new Set<string>(), noPayslip: 0, withoutTable: 0 };
       entry.programs += 1;
       if (r.bankId) entry.banks.add(r.bankId);
+      // The PROGRAM's own type, not its loan category (v16.0.0). This used to gate on
+      // the no-payslip CATEGORY, so dropping that category would have made the number
+      // read 0 for every name and killed the one warning an operator acts on — while
+      // the three live `personal` + `income_surrogate` programs stayed unconfigured.
+      if (r.programType === BankProgramType.income_surrogate) {
+        entry.noPayslip += 1;
+        // "No table" needs BOTH halves of a contradiction, not just an empty rule.
+        //
+        // `strategy: 'declared'` on a surrogate program is a legitimate configuration on
+        // its own — business and professional programs carry exactly that pair on purpose
+        // (the type marks the lane; the applicant's stated salary is the figure). The old
+        // category gate protected them by accident, and re-gating on the type alone would
+        // have put seven correctly-configured programs on the board's warning list, which
+        // is worse than the silence it replaced: an operator cannot clear them.
+        //
+        // The contradiction is with the NAME: its catalog entry promises that banks here
+        // work the income out from a fact, and this program reads the salary instead. That
+        // pair is unclearable-by-design only if one of the two is wrong, which is exactly
+        // what the badge should send someone to look at.
+        if (
+          assumesNoIncome(r.incomeAssumption) &&
+          promisesAFact.has(pairKey(key, r.productCategory))
+        ) {
+          entry.withoutTable += 1;
+        }
+      }
       acc.set(key, entry);
     }
     return new Map(
-      [...acc].map(([key, v]) => [key, { programs: v.programs, banks: v.banks.size }]),
+      [...acc].map(([key, v]) => [
+        key,
+        {
+          programs: v.programs,
+          banks: v.banks.size,
+          noPayslipPrograms: v.noPayslip,
+          noPayslipProgramsWithoutTable: v.withoutTable,
+        },
+      ]),
     );
+  }
+
+  /**
+   * Every `(program_name key, category)` pair whose catalog entry promises a fact-based
+   * income — i.e. one of the four surrogate facts is among its ticked questions.
+   *
+   * One query rather than a join onto the program read, because the two are different
+   * grains: a name's promise is per (name, category), and the programs are per bank. Read
+   * uncached — it backs the board's warning count, and a 60s window in which a just-ticked
+   * fact does not move the number reads as a broken screen.
+   */
+  private async noPayslipPairs(): Promise<Set<string>> {
+    const rows = await this.prisma.platformEnumerationQuestion.findMany({
+      where: { question: { code: { in: [...SURROGATE_BOUND_QUESTION_CODES] } } },
+      select: { category: true, enumeration: { select: { key: true } } },
+    });
+    return new Set(rows.map((r) => pairKey(r.enumeration.key, r.category)));
   }
 
   async listTypeStats(): Promise<EnumerationTypeStats[]> {
@@ -556,6 +651,21 @@ export class PostgresPlatformEnumerationsRepository
   static readonly KNOWN_TYPES = ALL_TYPES;
 }
 
+/**
+ * A program whose income rule names no METHOD — so nothing is assumed and the
+ * declared salary is all it has. `strategy: 'declared'` is exactly that state: correct
+ * on an `income_proof` program, but on a no-payslip one it means the bank's table is
+ * still missing.
+ *
+ * Reads the JSON defensively: the column is `Json`, so anything could be in it, and
+ * an unreadable blob is treated as "no method" rather than throwing on a list read.
+ */
+function assumesNoIncome(rule: unknown): boolean {
+  if (!rule || typeof rule !== 'object') return true;
+  const strategy = (rule as { strategy?: unknown }).strategy;
+  return typeof strategy !== 'string' || strategy === 'declared';
+}
+
 // ---- Boundary mapper (Prisma row -> domain row) --------------------------
 
 function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
@@ -575,9 +685,19 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
   };
 }
 
-/** `loanCategories` is optional so callers that don't `include` it still map. */
+/**
+ * `(catalog name, category)` as one map key. `productCategory` is a free-form column, so
+ * it is lowercased here — a program filed as "Personal" must match the `personal` tick
+ * rather than silently miss it and read as correctly configured.
+ */
+function pairKey(nameKey: string, category: string): string {
+  return `${nameKey}::${category.toLowerCase()}`;
+}
+
+/** Both relations are optional so callers that don't `include` them still map. */
 type PlatformEnumerationWithCategories = PlatformEnumeration & {
   loanCategories?: { category: LoanCategory }[];
+  questions?: { category: LoanCategory; question: { code: string } }[];
 };
 
 function toEnumerationMember(row: PlatformEnumerationWithCategories): EnumerationMember {
@@ -590,5 +710,33 @@ function toEnumerationMember(row: PlatformEnumerationWithCategories): Enumeratio
     active: row.active,
     deprecated: row.deprecatedAt !== null,
     categories: sortCategories((row.loanCategories ?? []).map((c) => c.category)),
+    noPayslipFacts: noPayslipFactsOf(row.questions),
   };
+}
+
+/**
+ * The surrogate FACTS this name is ticked to read, per loan category — so a category with
+ * a non-empty list is one under which the name is sold without a payslip.
+ *
+ * Derived here, on the cached member payload, for one reason: the bank-program form must
+ * both filter its name picker by income basis and tell the operator whether the fact their
+ * chosen method reads is actually set up — and it cannot read the picks any other way. The
+ * full question template is deliberately kept off this payload, and the screens that hold
+ * it (`/admin/enumerations`, the questionnaire tree) are gated to narrower roles than the
+ * program form. Only the four fact codes ride along, never the whole template.
+ *
+ * Per CATEGORY, because a name is legitimately no-payslip under Personal and payslip-only
+ * under Auto, and every consumer is asking about one category at a time.
+ */
+function noPayslipFactsOf(
+  questions: { category: LoanCategory; question: { code: string } }[] | undefined,
+): Partial<Record<LoanCategory, string[]>> | undefined {
+  if (questions === undefined) return undefined;
+  const facts = new Set<string>(SURROGATE_BOUND_QUESTION_CODES);
+  const out: Partial<Record<LoanCategory, string[]>> = {};
+  for (const q of questions) {
+    if (!facts.has(q.question.code)) continue;
+    (out[q.category] ??= []).push(q.question.code);
+  }
+  return out;
 }

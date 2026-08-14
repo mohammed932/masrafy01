@@ -12,6 +12,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { LoanCategory } from '@prisma/client';
+import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { PlatformEnumerationsAdminService } from '@/platform-enumerations/platform-enumerations-admin.service';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { DomainException } from '@/common/errors/domain.exceptions';
@@ -31,7 +32,10 @@ interface FakeRow {
   updatedAt: Date;
 }
 
-const ALL: LoanCategory[] = ['personal', 'car', 'mortgage', 'business'];
+// Read from the shared list rather than re-typed, so a category added or removed by
+// amendment cannot leave this test asserting yesterday's product scope — v15.0.0 added a
+// fifth (`fast`) and v16.0.0 took it away again, and this line needed no edit either time.
+const ALL: LoanCategory[] = [...ALL_LOAN_CATEGORIES];
 
 function row(over: Partial<FakeRow> & Pick<FakeRow, 'id' | 'type' | 'key'>): FakeRow {
   return {
@@ -252,7 +256,7 @@ describe('program-name loan-category assignment', () => {
   });
 
   describe('create', () => {
-    it('defaults a new catalog name to all four categories', async () => {
+    it('defaults a new catalog name to EVERY category', async () => {
       const repo = makeRepo([]);
       const { service } = makeService(repo);
 

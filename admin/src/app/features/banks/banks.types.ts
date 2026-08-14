@@ -26,6 +26,12 @@ export interface BankProgramSummary {
   /** Predefined catalog archetype this program instantiates. */
   programNameKey?: string | null;
   productCategory: string;
+  /**
+   * How this program establishes the income. Optional so the bundle still renders against
+   * a backend that has not deployed the field — absent shows no tag rather than defaulting
+   * to "reads a payslip", which would mislabel the riskier case as the ordinary one.
+   */
+  programType?: 'income_proof' | 'income_surrogate';
   active: boolean;
   isShariaCompliant: boolean;
   version: number;

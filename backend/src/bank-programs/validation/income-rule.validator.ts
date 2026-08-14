@@ -280,7 +280,17 @@ export function collectIncomeRuleWarnings(args: {
   const warnings: IncomeRuleWarning[] = [];
 
   const configured = hasMethodConfiguration(config);
-  const ruleIsRead = programType === 'income_surrogate' && productCategory === 'personal';
+  // `programType` ALONE, matching the engine's own gate
+  // (`quote.ts#shouldConsultIncomeRule`). This warning answers one question — "is the
+  // table I just typed ever read?" — and the type is the whole answer.
+  //
+  // v15.1.0 also narrowed on a hardcoded surrogate-CAPABLE category list, which made
+  // this report a rule as ignored on a category outside that list even though the engine
+  // WOULD price off it — a warning that contradicted the runtime. v16.0.0 dropped the
+  // list (capability is derived from which categories ask the facts, and is configurable),
+  // so the term goes with it. `meta.productCategory` is still reported, because "a grade
+  // table on a mortgage" is context the admin wants even when the type is correct.
+  const ruleIsRead = programType === 'income_surrogate';
   if (configured && !ruleIsRead) {
     warnings.push({
       kind: 'ruleIgnoredForProgramType',

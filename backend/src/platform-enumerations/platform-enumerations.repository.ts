@@ -102,6 +102,21 @@ export interface EnumerationMember {
   /** Loan categories this member may be offered under. Always `[]` outside
    *  `CATEGORISED_ENUMERATION_TYPES`; `[]` on a categorised type means parked. */
   categories: LoanCategory[];
+  /**
+   * `program_name` only — the surrogate FACTS this name is ticked to read, per loan
+   * category. A category with a non-empty list is one under which the name is sold
+   * WITHOUT a payslip.
+   *
+   * Derived, never stored: the fact ticks ARE the statement, so there is no flag that can
+   * disagree with them. The bank-program builder filters its name picker on this the
+   * moment the operator chooses the no-payslip basis — the rule that makes no-payslip
+   * programs their own set of names rather than a free-for-all — and uses the codes to say
+   * whether the fact a chosen method reads is set up at all.
+   *
+   * `undefined` means "not loaded" (a caller that did not `include` the relation) and must
+   * never be read as "none" — the picker treats it as unknown and does not filter.
+   */
+  noPayslipFacts?: Partial<Record<LoanCategory, string[]>>;
 }
 
 export abstract class PlatformEnumerationsRepository {

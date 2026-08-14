@@ -23,6 +23,7 @@ import {
   type EnumerationCategoryAssignment,
   type EnumerationRow,
   type EnumerationUpdatePatch,
+  type ProgramNameUsage,
 } from './postgres-platform-enumerations.repository';
 import type { CreateEnumerationDto, UpdateEnumerationDto } from './dto/enumeration.dto';
 
@@ -69,7 +70,7 @@ export class PlatformEnumerationsAdminService {
    * and across how many banks. Feeds the catalog board so an entry is never
    * deprecated blind.
    */
-  async programNameUsage(): Promise<Map<string, { programs: number; banks: number }>> {
+  async programNameUsage(): Promise<Map<string, ProgramNameUsage>> {
     return this.repo.countProgramNameUsage();
   }
 

@@ -98,7 +98,12 @@ const AMOUNT_STEP: Record<Purpose, number> = {
   mortgage: 200_000,
   business: 100_000,
 };
-const TENOR: Record<Purpose, number> = { personal: 36, car: 48, mortgage: 120, business: 60 };
+const TENOR: Record<Purpose, number> = {
+  personal: 36,
+  car: 48,
+  mortgage: 120,
+  business: 60,
+};
 
 function buildRows(count: number): RowSpec[] {
   const rows: RowSpec[] = [];

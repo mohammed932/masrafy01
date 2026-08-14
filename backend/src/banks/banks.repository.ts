@@ -103,6 +103,7 @@ export class BanksRepository {
         friendlyNameAr: true,
         programNameKey: true,
         productCategory: true,
+        programType: true,
         active: true,
         isShariaCompliant: true,
         version: true,

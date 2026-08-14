@@ -18,6 +18,7 @@ import {
   SURROGATE_BOUND_QUESTION_CODES,
   SURROGATE_FACT_KEYS,
   SURROGATE_FACT_SPECS,
+  type SurrogateBindingWarningReason,
 } from '@/matching/pipeline/surrogate-fact-bindings';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { QuestionnaireRepository } from './questionnaire.repository';
@@ -1010,6 +1011,18 @@ export interface SurrogateBindingContext {
  * `SURROGATE_FACT_MISSING` and the program is listed with a stated reason, never a
  * zero — so the correct response is to tell the admin loudly, not to refuse the
  * publish that might be fixing something else.
+ *
+ * The assignment check asks only whether the fact is asked by ANY category. It used to
+ * be a set difference against a hardcoded surrogate-capable list, which is wrong now
+ * that capability is derived from these very assignments (v16.0.0): a fact absent from
+ * `mortgage` is a category that does not sell no-payslip mortgages, not a defect, and
+ * warning about it would make the correct configuration noisy. A fact assigned to
+ * NOTHING is still a real break — no program anywhere can read it — so that one stands.
+ *
+ * The per-category question moved to where it can be answered precisely and acted on: the
+ * admin bank-program form tells the operator, as they pick the method, whether their own
+ * loan category asks the fact that method reads. Publish knows nothing about which
+ * programs exist, so it could only ever have guessed.
  */
 function collectSurrogateBindingWarnings(
   byCode: ReadonlyMap<string, { code: string; type: QuestionType }>,
@@ -1025,7 +1038,11 @@ function collectSurrogateBindingWarnings(
     if (!q) {
       warnings.push({
         code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
-        meta: { fact, questionCode, reason: 'missing_or_inactive' },
+        meta: {
+          fact,
+          questionCode,
+          reason: 'missing_or_inactive' satisfies SurrogateBindingWarningReason,
+        },
       });
       continue;
     }
@@ -1033,7 +1050,13 @@ function collectSurrogateBindingWarnings(
     if (q.type !== spec.type) {
       warnings.push({
         code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
-        meta: { fact, questionCode, reason: 'wrong_type', type: q.type, expected: spec.type },
+        meta: {
+          fact,
+          questionCode,
+          reason: 'wrong_type' satisfies SurrogateBindingWarningReason,
+          type: q.type,
+          expected: spec.type,
+        },
       });
       // Keep going: a wrong-typed question can also be unassigned, and an admin
       // fixing one only to find the other on the next publish is a wasted round.
@@ -1045,14 +1068,14 @@ function collectSurrogateBindingWarnings(
     // ABSENT and EMPTY differ. Absent means this caller does not know the
     // assignments (nothing to say); an EMPTY array means the question is assigned to
     // nothing, which is authoritative for "asked by nobody".
-    if (categories !== undefined && !categories.includes(spec.category)) {
+    if (categories !== undefined && categories.length === 0) {
       warnings.push({
         code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
         meta: {
           fact,
           questionCode,
-          reason: 'not_assigned_to_personal',
-          assignedCategories: [...categories],
+          reason: 'not_asked_by_any_category' satisfies SurrogateBindingWarningReason,
+          assignedCategories: [],
         },
       });
     }
@@ -1074,7 +1097,7 @@ function collectSurrogateBindingWarnings(
         meta: {
           fact,
           questionCode,
-          reason: 'option_codes_drifted',
+          reason: 'option_codes_drifted' satisfies SurrogateBindingWarningReason,
           registry: spec.registry,
           unknown,
         },

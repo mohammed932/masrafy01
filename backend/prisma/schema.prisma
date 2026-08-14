@@ -1023,6 +1023,17 @@ model OnboardingScreen {
 // `productCategory` string data (scope-locked to four — Principle II).
 // -----------------------------------------------------------------------------
 
+/// The retail loan categories the platform sells (Principle II scope-lock, A26).
+///
+/// Every value is named by WHAT is financed. The no-payslip product is deliberately
+/// NOT here: whether the bank reads a salary or works one out from a fact about the
+/// applicant (army grade, academic rank, years in practice, card limit) is an income
+/// BASIS, carried per program by `bank_program.programType`, and a personal or auto
+/// loan is sold both ways by different banks. v15.0.0 tried it as a fifth value
+/// (`fast`, "Fast Loans"); v16.0.0 removed it, because the questions a customer is
+/// asked would then depend on a bank attribute the customer never chose.
+///
+/// A fifth value is a constitution amendment (A26), not a schema edit.
 enum LoanCategory {
   personal
   car

@@ -166,63 +166,6 @@ export class BankProgramRepository {
   }
 
   /**
-   * Feature 011 / FR-036 — programs carrying at least one team-estimated number,
-   * with the audit timestamp of their OLDEST still-standing marker.
-   *
-   * Two reads rather than a join, because the two questions are different shapes: the
-   * programs come from a JSONB emptiness test, and `waitingSince` comes from the
-   * append-only audit trail, where the relevant event is the EARLIEST
-   * `BANK_PROGRAM_VALUE_SOURCE_CHANGED` that added a path still present today. A
-   * marker removed and re-added should read as waiting since the RE-add, which is why
-   * the payload's `added` array is matched rather than just taking the first event.
-   *
-   * `valueSources <> '{}'` is the filter, not `IS NOT NULL`: the column is non-null
-   * with a `{}` default, so every pre-existing program is excluded by construction —
-   * which is exactly FR-037 (they stay live and never appear here).
-   */
-  async findPendingBankConfirmation(args: {
-    page: number;
-    pageSize: number;
-  }): Promise<{ rows: BankProgram[]; totalCount: number }> {
-    const where: Prisma.BankProgramWhereInput = {
-      NOT: { valueSources: { equals: {} } },
-    };
-    const [rows, totalCount] = await this.prisma.$transaction([
-      this.prisma.bankProgram.findMany({
-        where,
-        // Oldest-updated first: the list is a work queue, and the program that has
-        // been waiting longest is the one to chase.
-        orderBy: { updatedAt: 'asc' },
-        skip: (args.page - 1) * args.pageSize,
-        take: args.pageSize,
-      }),
-      this.prisma.bankProgram.count({ where }),
-    ]);
-    return { rows, totalCount };
-  }
-
-  /**
-   * The marker-change events for these programs, oldest first.
-   *
-   * Returned raw so the service can decide which event a still-standing path came
-   * from — a decision that needs the CURRENT map, which this layer does not interpret
-   * (Principle X: the repository fetches, the service reasons).
-   */
-  async findValueSourceEvents(
-    bankProgramIds: readonly string[],
-  ): Promise<Array<{ bankProgramId: string | null; occurredAt: Date; payload: unknown }>> {
-    if (bankProgramIds.length === 0) return [];
-    return this.prisma.auditEvent.findMany({
-      where: {
-        bankProgramId: { in: [...bankProgramIds] },
-        eventType: 'BANK_PROGRAM_VALUE_SOURCE_CHANGED',
-      },
-      orderBy: { occurredAt: 'asc' },
-      select: { bankProgramId: true, occurredAt: true, payload: true },
-    });
-  }
-
-  /**
    * Return all active programs (used by matching engine).
    * No pagination — the engine needs the full set.
    */

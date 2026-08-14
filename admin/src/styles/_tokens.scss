@@ -172,6 +172,13 @@
   --color-cat-business: var(--chart-4); // green
   --color-cat-other: var(--color-border-strong);
 
+  // Income BASIS, not a category (v16.0.0). Keeps the plum the no-payslip product
+  // earned, out of the `--color-cat-*` family the catalog card interpolates by
+  // category name — a fifth `--color-cat-*` there would resolve for a category
+  // that does not exist.
+  --color-income-surrogate: var(--chart-5); // plum — sold without a payslip
+  --color-income-surrogate-bg: color-mix(in srgb, var(--chart-5) 10%, transparent);
+
   // Type-scale legacy mappings (px → rem equivalents kept for code that still
   // reads `--text-md`, `--text-xxs`, `--font-family-base`).
   --text-xxs: 0.6875rem;

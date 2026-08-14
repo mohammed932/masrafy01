@@ -18,6 +18,7 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import {
+  ClockCircleOutline,
   AppstoreOutline,
   ArrowLeftOutline,
   BankOutline,
@@ -40,6 +41,7 @@ import {
   isLoanCategory,
   type LoanCategory,
 } from '@core/loan-category';
+import { incomeBasisLabel } from '@core/income-basis';
 import { ErrorCodeService } from '../../core/errors/error-code.service';
 import { BankProgramsApiService } from '../bank-programs/bank-programs.api.service';
 import {
@@ -110,6 +112,7 @@ interface PortfolioHealth {
   ],
   providers: [
     provideNzIconsPatch([
+      ClockCircleOutline,
       ArrowLeftOutline,
       EditOutline,
       DeleteOutline,
@@ -377,6 +380,19 @@ interface PortfolioHealth {
 
                           <header class="prog-head">
                             <span class="prog-name">{{ p.friendlyName }}</span>
+                            <!-- Only the no-payslip case is tagged. Most programs read a
+                                 payslip, so a tag on all of them would cost a row of
+                                 colour to say nothing — absence means the ordinary case,
+                                 the same rule the Islamic tag and the catalog board use. -->
+                            @if (p.programType === 'income_surrogate') {
+                              <span
+                                class="tag no-payslip"
+                                nz-tooltip
+                                i18n-nzTooltipTitle="@@bank_detail.program.no_payslip_tip"
+                                nzTooltipTitle="The bank works the income out from a fact about the applicant"
+                                >{{ noPayslipLabel }}</span
+                              >
+                            }
                             @if (p.isShariaCompliant) {
                               <span
                                 class="tag sharia"
@@ -1104,6 +1120,19 @@ interface PortfolioHealth {
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
+      /* Same anatomy as the Islamic tag, plum ink: the two say different KINDS of thing
+         about a program and must not be told apart only by position. */
+      .tag.no-payslip {
+        flex: none;
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-pill);
+        background: var(--color-income-surrogate-bg);
+        color: var(--color-income-surrogate);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
       /* Three figures on one baseline — the actual comparison surface. */
       .specs {
         display: grid;
@@ -1239,6 +1268,9 @@ export class BankDetailPage implements OnInit {
   private get bankId(): string {
     return this.route.snapshot.paramMap.get('bankId') ?? '';
   }
+
+  /** Same words as the catalog board and the program wizard — one source (v16.0.0). */
+  protected readonly noPayslipLabel = incomeBasisLabel('no_payslip');
 
   /**
    * Programs grouped into the four constitution-locked categories (Principle II),

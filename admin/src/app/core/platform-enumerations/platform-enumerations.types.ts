@@ -29,4 +29,18 @@ export interface EnumerationMember {
    * because the other ten types never carry it.
    */
   categories?: LoanCategory[];
+  /**
+   * `program_name` only — the surrogate facts this name is ticked to read, per loan
+   * category (see `core/surrogate-facts.ts`). A category with a non-empty list is one
+   * under which the name is sold WITHOUT a payslip.
+   *
+   * Derived server-side from the ticks, so no flag can disagree with the catalog screen.
+   * The bank-program form filters its name picker on this the moment the operator chooses
+   * the no-payslip basis — which is what makes no-payslip programs their own set of names
+   * — and reads the codes to say whether the fact a chosen method needs is set up.
+   *
+   * `undefined` means NOT LOADED, never "none": a backend that has not deployed the field
+   * must leave the picker unfiltered rather than empty.
+   */
+  noPayslipFacts?: Partial<Record<LoanCategory, string[]>>;
 }

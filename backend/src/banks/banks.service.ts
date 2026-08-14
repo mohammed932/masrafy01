@@ -79,6 +79,7 @@ export class BanksService {
         friendlyNameAr: r.friendlyNameAr ?? null,
         programNameKey: r.programNameKey ?? null,
         productCategory: r.productCategory,
+        programType: r.programType as BankProgramSummaryDto['programType'],
         active: r.active,
         isShariaCompliant: r.isShariaCompliant,
         version: r.version,

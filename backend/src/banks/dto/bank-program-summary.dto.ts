@@ -15,6 +15,12 @@ export class BankProgramSummaryDto {
   /** Predefined catalog archetype this program instantiates. */
   programNameKey?: string | null;
   productCategory!: string;
+  /**
+   * How this program establishes the income it lends against. On the shelf because it
+   * changes what the rate beside it MEANS — the same 24% against an assumed income is a
+   * different product from 24% against a payslip — and the page could not show it before.
+   */
+  programType!: 'income_proof' | 'income_surrogate';
   active!: boolean;
   isShariaCompliant!: boolean;
   version!: number;

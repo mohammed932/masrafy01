@@ -1,5 +1,5 @@
 /**
- * T058 / FR-033 – FR-037 / SC-004 — a guessed number cannot reach a customer.
+ * T058 / FR-033 – FR-035 / SC-004 — a guessed number cannot reach a customer.
  *
  * The six claims, in the order they matter:
  *   1. Saving with an estimate SUCCEEDS (FR-034) — the marker is a note, not a
@@ -11,7 +11,8 @@
  *   4. Removing the last marker lets it go live.
  *   5. An unknown path is rejected rather than stored (research R8) — a stale path
  *      would block activation forever with nothing on screen to clear.
- *   6. A program with `{}` never appears on the waiting list (FR-037).
+ *   6. A program with `{}` reads as fully bank-stated, which is what keeps every
+ *      pre-existing program live on deploy (FR-037).
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -270,7 +271,7 @@ describe('FR-035 — a NEW estimate on a live program is what deactivates it', (
 
 // --- 4. and 6. the lifecycle ends and pre-existing programs are untouched ----
 
-describe('FR-034 / FR-036 / FR-037 — the rest of the lifecycle', () => {
+describe('FR-034 / FR-037 — the rest of the lifecycle', () => {
   it('never blocks a SAVE, only going live', () => {
     // `validateValueSources` is the only thing the save path can refuse on, and it
     // refuses unknown PATHS — never the mere presence of an estimate.
@@ -281,7 +282,7 @@ describe('FR-034 / FR-036 / FR-037 — the rest of the lifecycle', () => {
     expect(hasEstimatedValues(pruneValueSources({}, CONFIG))).toBe(false);
   });
 
-  it('a program with an EMPTY map is not on the waiting list (FR-037)', () => {
+  it('a program with an EMPTY map reads as fully bank-stated (FR-037)', () => {
     // Every program that existed before this feature carries `{}` by column default,
     // so this is what keeps them live on deploy rather than switching them all off.
     expect(estimatedPaths({})).toEqual([]);

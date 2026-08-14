@@ -1,6 +1,8 @@
 part of 'home_cubit.dart';
 
-/// The four constitution-locked retail loan categories (Principle II).
+/// The constitution-locked retail loan categories (Principle II). The no-payslip
+/// product is NOT one of them: v16.0.0 made it a property of the bank program
+/// (`programType`), not a card the customer taps.
 enum HomeLoanCategory { personal, mortgage, car, business }
 
 /// The category slug the backend speaks (`apply`'s `category`, and the value

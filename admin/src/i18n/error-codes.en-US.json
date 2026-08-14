@@ -124,6 +124,7 @@
   "PROGRAM_RANGE_INVALID": "This range is inverted or empty — the maximum must be greater than or equal to the minimum.",
   "PROGRAM_NAME_KEY_UNKNOWN": "That program name is not in the predefined catalog. Pick one from the list, or add it under Program catalog.",
   "PROGRAM_NAME_KEY_NOT_IN_CATEGORY": "That program name is not offered under this loan type. Pick another name, or assign it to this loan type under Program catalog → Loan categories.",
+  "PROGRAM_TYPE_INVALID_FOR_CATEGORY": "A Fast Loans program must work the income out from a fact about the applicant. Set the program type to Income-surrogate, or move it to another loan type.",
   "ANSWER_TYPE_MISMATCH": "The submitted answer does not match the question's type.",
   "ANSWER_OUT_OF_RANGE": "This number is outside the allowed range or does not match the required step.",
   "ANSWER_TOO_LONG": "This answer is longer than the allowed length.",

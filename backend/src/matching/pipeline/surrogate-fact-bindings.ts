@@ -68,13 +68,15 @@ export interface SurrogateFactSpec {
   readonly registry: string | null;
   /** Where the answer lands on `ApplicantProfile`. */
   readonly path: string;
-  /**
-   * The loan category the question is assigned to. Assignment is authoritative
-   * and lives ONLY in `question_loan_category` (A33, v12.0.0); this records what
-   * the seed must assign so publish can warn when it does not.
-   */
-  readonly category: 'personal';
 }
+
+/**
+ * No per-fact category field, and no expected set of categories anywhere. Assignment is
+ * authoritative and lives ONLY in `question_loan_category` (A33, v12.0.0) — and since
+ * v16.0.0 it is also the DEFINITION of which categories can sell a no-payslip program:
+ * a category whose applicants are asked one of these facts can, one whose applicants are
+ * not, cannot. Nothing to compare it against, so nothing here to drift.
+ */
 
 export const SURROGATE_FACT_SPECS: Readonly<Record<SurrogateFact, SurrogateFactSpec>> =
   Object.freeze({
@@ -83,7 +85,6 @@ export const SURROGATE_FACT_SPECS: Readonly<Record<SurrogateFact, SurrogateFactS
       type: 'SINGLE_SELECT',
       registry: 'military_grade',
       path: 'employment.militaryGrade',
-      category: 'personal',
     },
     academic_rank: {
       questionCode: SURROGATE_FACT_BINDINGS.academic_rank,
@@ -93,30 +94,43 @@ export const SURROGATE_FACT_SPECS: Readonly<Record<SurrogateFact, SurrogateFactS
       // that says so. The two names differing is intentional, not a typo.
       registry: 'professor_rank',
       path: 'employment.professorRank',
-      category: 'personal',
     },
     years_in_practice: {
       questionCode: SURROGATE_FACT_BINDINGS.years_in_practice,
       type: 'NUMERIC',
       registry: null,
       path: 'employment.yearsInPractice',
-      category: 'personal',
     },
     credit_card_limit: {
       questionCode: SURROGATE_FACT_BINDINGS.credit_card_limit,
       type: 'NUMERIC',
       registry: null,
       path: 'assets.creditCardLimitEGP',
-      category: 'personal',
     },
   });
 
-/** Why a binding does not resolve. Warning payload only — publish is never blocked. */
+/**
+ * Why a binding does not resolve. Warning payload only — publish is never blocked, and a
+ * program is never refused.
+ *
+ * All four ride ONE error code (`SURROGATE_FACT_BINDING_MISSING`) and are told apart by
+ * `meta.reason`, rather than minting a code per shade of the same fault.
+ *
+ * `not_asked_by_any_category` replaced `not_assigned_to_surrogate_categories` in v16.0.0:
+ * with capability derived from these assignments, a fact missing from one category is a
+ * product decision, and only a fact asked NOWHERE is broken.
+ *
+ * The per-CATEGORY question — "does this program's own category ask the fact its method
+ * reads?" — is answered in the admin bank-program form, at the moment the method is
+ * picked, from the question pool that screen already holds. It is not a publish warning:
+ * publish knows nothing about which programs exist, and at quote time the applicant
+ * already gets `SURROGATE_FACT_MISSING` with a stated reason rather than a zero.
+ */
 export type SurrogateBindingWarningReason =
   | 'missing_or_inactive'
   | 'wrong_type'
   | 'option_codes_drifted'
-  | 'not_assigned_to_personal';
+  | 'not_asked_by_any_category';
 
 /** The fact a bound question code serves, if any. */
 export function surrogateFactForQuestionCode(code: string): SurrogateFact | undefined {

@@ -22,7 +22,6 @@ import { CreateBankProgramDto } from './dto/create-bank-program.dto';
 import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
 import { ToggleBankProgramDto } from './dto/toggle-bank-program.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
-import { PendingBankConfirmationQuery } from './dto/pending-bank-confirmation.query';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { IncomeRuleCheckDto } from './dto/income-rule-check.dto';
 import { BankProgramsService } from './bank-programs.service';
@@ -44,36 +43,6 @@ export class BankProgramsController {
   @ApiResponse({ status: 200, description: 'Paginated list of bank programs.' })
   async list(@Query() query: ListBankProgramsQuery) {
     const result = await this.service.list(query);
-    return okPaginated(
-      result.rows,
-      result.pagination.page,
-      result.pagination.pageSize,
-      result.pagination.totalCount,
-    );
-  }
-
-  /**
-   * Declared BEFORE `@Get(':programCode')` on purpose. Nest matches routes in
-   * declaration order, and `:programCode` would otherwise swallow this path and
-   * answer with `BANK_PROGRAM_NOT_FOUND` for a program called
-   * "pending-bank-confirmation" — a 404 that looks like a data problem and is really
-   * a routing one.
-   */
-  @Get('pending-bank-confirmation')
-  @ApiOperation({
-    summary: 'Programs held back by a number the team estimated (FR-036)',
-    description:
-      'Every program with at least one team-estimated value, with the fields concerned and how ' +
-      'long it has been waiting. Programs that existed before this feature carry an empty map ' +
-      'and never appear (FR-037) — they stay live and are reviewed once, deliberately.',
-  })
-  @ApiResponse({ status: 200, description: 'Paginated waiting list.' })
-  @ApiResponse({ status: 422, description: 'VALIDATION_FAILED' })
-  async pendingBankConfirmation(@Query() query: PendingBankConfirmationQuery) {
-    const result = await this.service.pendingBankConfirmation({
-      ...(query.page !== undefined ? { page: query.page } : {}),
-      ...(query.pageSize !== undefined ? { pageSize: query.pageSize } : {}),
-    });
     return okPaginated(
       result.rows,
       result.pagination.page,

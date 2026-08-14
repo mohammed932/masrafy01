@@ -35,7 +35,19 @@ export interface EnumerationRow {
   systemOnly: boolean;
   parentKey: string | null;
   /** `program_name` rows only — how many bank programs instantiate this archetype. */
-  usage?: { programs: number; banks: number };
+  usage?: {
+    programs: number;
+    banks: number;
+    /** Of those, how many are typed `income_surrogate` — sold with no payslip. */
+    noPayslipPrograms: number;
+    /**
+     * No-payslip programs that assume no income yet — the program says there is no
+     * payslip, but the bank's own income table was never entered, so the rule falls
+     * back to the declared salary and the customer gets no figure. What the list
+     * badges as "no table yet".
+     */
+    noPayslipProgramsWithoutTable: number;
+  };
   /**
    * `program_name` rows only — which loan categories may offer this name.
    * Absent means the type has no such axis; a present `[]` means PARKED

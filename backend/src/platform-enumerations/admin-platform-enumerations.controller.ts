@@ -18,6 +18,7 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.decorator';
 import { sortCategories } from '@/common/loan-category.util';
 import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.service';
+import type { ProgramNameUsage } from './postgres-platform-enumerations.repository';
 import {
   CatalogQuestionDto,
   CreateEnumerationDto,
@@ -29,6 +30,19 @@ import {
 } from './dto/enumeration.dto';
 
 const PROGRAM_NAME_TYPE = 'program_name';
+
+/**
+ * A catalog name no bank has instantiated yet. Named rather than inlined because
+ * the projector needs the SAME zeroes on every field: a fresh name reporting only
+ * `programs: 0` would leave the no-payslip counters undefined, and the list reads
+ * that as "unknown", not as "none".
+ */
+const EMPTY_USAGE: ProgramNameUsage = {
+  programs: 0,
+  banks: 0,
+  noPayslipPrograms: 0,
+  noPayslipProgramsWithoutTable: 0,
+};
 
 @ApiTags('Admin · Platform enumerations')
 @ApiBearerAuth()
@@ -196,7 +210,7 @@ export class AdminPlatformEnumerationsController {
     ]);
     return (row) =>
       this.project(row, {
-        usage: usage.get(row.key) ?? { programs: 0, banks: 0 },
+        usage: usage.get(row.key) ?? EMPTY_USAGE,
         categories: [...sortCategories(categories.get(row.id) ?? [])],
         questionsByCategory: questions.get(row.id) ?? {},
       });
@@ -220,7 +234,7 @@ export class AdminPlatformEnumerationsController {
     // One `extras` bag rather than a fourth positional — the catalog now
     // attaches three optional things and the next one would be unreadable.
     extras: {
-      usage?: { programs: number; banks: number };
+      usage?: ProgramNameUsage;
       categories?: LoanCategory[];
       questionsByCategory?: Partial<Record<LoanCategory, string[]>>;
     } = {},

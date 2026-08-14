@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LoanCategory, QuestionType } from '@prisma/client';
 import { Type } from 'class-transformer';
+import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -53,13 +54,13 @@ export class CreateEnumerationDto {
 
   /**
    * Loan categories the new entry may be offered under. Ignored for types that
-   * are not categorisable. Omitted on a categorisable type defaults to ALL
-   * four — an entry created with none would be invisible in every picker.
+   * are not categorisable. Omitted on a categorisable type defaults to EVERY
+   * category — an entry created with none would be invisible in every picker.
    */
   @ApiPropertyOptional({ enum: LoanCategory, isArray: true })
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories?: LoanCategory[];
 
@@ -81,7 +82,7 @@ export class CreateEnumerationDto {
 export class SetEnumerationCategoriesDto {
   @ApiProperty({ enum: LoanCategory, isArray: true })
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories!: LoanCategory[];
 }
@@ -94,7 +95,7 @@ export class EnumerationCategoryAssignmentDto {
 
   @ApiProperty({ enum: LoanCategory, isArray: true })
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories!: LoanCategory[];
 }
@@ -104,10 +105,9 @@ export class EnumerationCategoryAssignmentDto {
  * array IS the new set, not a delta, and MAY be empty — empty means "not
  * configured", which makes the scoring wizard seed nothing (today's behaviour).
  *
- * `category` is REQUIRED, and scopes the whole write: the other three
- * categories' sets are untouched. A body without it would have to mean either
- * "all four" or "some default", and both readings silently destroy sets the
- * admin never opened.
+ * `category` is REQUIRED, and scopes the whole write: every other category's set
+ * is untouched. A body without it would have to mean either "all of them" or "some
+ * default", and both readings silently destroy sets the admin never opened.
  *
  * No `@ArrayMinSize`, deliberately, same as `SetEnumerationCategoriesDto`: that
  * omission is how a template is cleared. Do not "fix" it.
@@ -206,7 +206,20 @@ export class EnumerationRowDto {
    * Present on `program_name` rows only — other enumeration types are not
    * referenced by a dedicated column.
    */
-  @ApiPropertyOptional() usage?: { programs: number; banks: number };
+  @ApiPropertyOptional()
+  usage?: {
+    programs: number;
+    banks: number;
+    /** Of those, how many are typed `income_surrogate` — sold with no payslip. */
+    noPayslipPrograms: number;
+    /**
+     * No-payslip programs that assume no income yet — the program says there is no
+     * payslip, but the bank's own income table was never entered, so the rule reads
+     * the declared salary and the customer gets no figure. What the list badges as
+     * "programs with no table".
+     */
+    noPayslipProgramsWithoutTable: number;
+  };
   /**
    * Loan categories this entry may be offered under. Present on `program_name`
    * rows only — other types have no such axis, and an empty array on one of
@@ -222,7 +235,7 @@ export class EnumerationRowDto {
    *
    * A missing category key and an empty array both mean "not configured for that
    * category", which is the day-one state and not a problem. That is why this one
-   * is NOT keyed for all four the way `categories` is exhaustive — there is no
+   * is NOT keyed exhaustively the way `categories` is — there is no
    * third state to distinguish, unlike the assignment axis where `[]` means
    * parked.
    */

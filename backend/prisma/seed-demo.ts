@@ -43,7 +43,8 @@ const DEMO_STAFF: DemoStaff[] = [
   { email: 'analyst.a@masrafy.local', name: 'Analyst Ahmed', role: 'analyst' },
 ];
 
-// Constitution v1.7.0 / Principle II scope-lock — 4 active categories.
+// Constitution v16.0.0 / Principle II scope-lock — 4 active categories. The no-payslip
+// product is not one of them: it is `bank_program.programType`, chosen per program.
 const LOAN_PURPOSES = ['personal', 'car', 'mortgage', 'business'] as const;
 const PRIORITIES = [
   'lowest_installment',

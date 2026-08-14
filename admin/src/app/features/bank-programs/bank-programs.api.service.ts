@@ -11,7 +11,6 @@ import type {
   IncomeRuleCheckPayload,
   IncomeRuleCheckResult,
   ListBankProgramsQuery,
-  PendingBankConfirmationRow,
 } from './bank-programs.types';
 
 interface SuccessEnvelope<T> {
@@ -124,21 +123,4 @@ export class BankProgramsApiService {
     );
   }
 
-  /** Feature 011 / FR-036 — the programs held back by a team-estimated number. */
-  async pendingBankConfirmation(query: {
-    page?: number;
-    pageSize?: number;
-  }): Promise<PaginatedEnvelope<PendingBankConfirmationRow>> {
-    let params = new HttpParams();
-    for (const [k, v] of Object.entries(query)) {
-      if (v === undefined || v === null) continue;
-      params = params.set(k, String(v));
-    }
-    return firstValueFrom(
-      this.http.get<PaginatedEnvelope<PendingBankConfirmationRow>>(
-        `${this.base}/pending-bank-confirmation`,
-        { params },
-      ),
-    );
-  }
 }

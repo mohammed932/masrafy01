@@ -49,6 +49,8 @@ import {
   HomeOutline,
   ShopOutline,
   AppstoreOutline,
+  CalculatorOutline,
+  FileTextOutline,
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -57,6 +59,15 @@ import { MoneyInputDirective } from '../../../core/directives/money-input.direct
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { PlatformEnumerationsService } from '../../../core/platform-enumerations/platform-enumerations.service';
 import { categoryLabel, isLoanCategory, type LoanCategory } from '@core/loan-category';
+import {
+  INCOME_BASES,
+  basisOf,
+  incomeBasisHint,
+  incomeBasisLabel,
+  programTypeOf,
+  type IncomeBasis,
+} from '@core/income-basis';
+import { SURROGATE_FACT_BY_METHOD } from '@core/surrogate-facts';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import type {
   BankProgramCreatePayload,
@@ -71,7 +82,7 @@ import type {
   RateBandMap,
   ValueSourceMap,
 } from '../bank-programs.types';
-import { INCOME_METHOD_SHAPE } from '../bank-programs.types';
+import { INCOME_METHOD_SHAPE, incomeMethodLabel } from '../bank-programs.types';
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
 import { IncomeRuleCheckComponent } from './sections/income-rule/income-rule-check.component';
 import { incomeRuleHasError } from './sections/income-rule/income-rule.rules';
@@ -192,6 +203,8 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       HomeOutline,
       ShopOutline,
       AppstoreOutline,
+      CalculatorOutline,
+      FileTextOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -215,8 +228,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                so they sit with the title rather than inside step 1's body.
                Read-only: re-picking the loan type mid-form would silently
                re-classify the program (and invalidate the program-name list). -->
-          @if ((!isEditMode() && preselectedBank) || lockedCategory()) {
-            <div class="context-row">
+          <!-- Always rendered: the income basis is always decided, even when the bank and
+               loan type arrived from the URL and have no chip of their own. -->
+          <div class="context-row">
               @if (!isEditMode() && preselectedBank; as b) {
                 <div class="bank-chip">
                   <span class="bank-chip-avatar" aria-hidden="true">{{ initialsOf(b.nameEnglish) }}</span>
@@ -240,8 +254,20 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   </span>
                 </div>
               }
+              <!-- The income basis joins the two things that were already decided, because
+                   after step 1 it behaves like them: it is not re-asked, and it changes
+                   what steps 1 and 4 mean. Without it here, an operator four steps deep
+                   typing a grade table has nothing on screen saying why. -->
+              <div class="bank-chip" [style.--cat]="basisAccent()">
+                <span class="bank-chip-avatar cat-chip-avatar" aria-hidden="true">
+                  <span nz-icon [nzType]="basisIcon()" nzTheme="outline"></span>
+                </span>
+                <span class="bank-chip-body">
+                  <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.income">Income</span>
+                  <span class="bank-chip-name">{{ basisLabel(incomeBasis()) }}</span>
+                </span>
+              </div>
             </div>
-          }
         </div>
       </header>
 
@@ -333,10 +359,39 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
               <div>
                 <h2 class="card-title" i18n="@@bank_programs.form.core.title">Program</h2>
                 <p class="card-sub" i18n="@@bank_programs.form.core.sub">
-                  The name customers will see, and how the bank proves income.
+                  The name customers see, and how the bank reads an income.
                 </p>
               </div>
             </header>
+
+            <!-- FIRST, and as two cards rather than a select. This answer decides which
+                 names the picker below may offer AND whether step 4 carries a whole rule
+                 editor, so it is a decision, not the third field in a grid. It used to be
+                 an unlabelled dropdown reading "Income-proof / Income-surrogate" —
+                 schema nouns, defaulted, three fields down. -->
+            <fieldset class="basis-pick">
+              <legend class="basis-legend" i18n="@@bank_programs.field.income_basis">
+                How does the bank read the income?
+              </legend>
+              <div class="basis-cards">
+                @for (b of incomeBases; track b) {
+                  <label class="basis-card" [class.is-on]="incomeBasis() === b">
+                    <input
+                      type="radio"
+                      name="incomeBasis"
+                      class="sr-only"
+                      [checked]="incomeBasis() === b"
+                      (change)="pickBasis(b)"
+                    />
+                    <span class="basis-card-title">
+                      <span class="basis-radio" aria-hidden="true"></span>
+                      {{ basisLabel(b) }}
+                    </span>
+                    <span class="basis-card-hint">{{ basisHint(b) }}</span>
+                  </label>
+                }
+              </div>
+            </fieldset>
 
             <div class="grid">
               @if (!preselectedBank && !isEditMode()) {
@@ -377,7 +432,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                     formControlName="programNameKey"
                     nzShowSearch
                     [nzDropdownStyle]="dropdownStyle"
-                    [nzNotFoundContent]="noNamesForCategoryLabel"
+                    [nzNotFoundContent]="noNamesForCategoryLabel()"
                     nzPlaceHolder="Select a program"
                     i18n-nzPlaceHolder="@@bank_programs.field.friendly_name.placeholder"
                   >
@@ -396,30 +451,26 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   </ng-template>
                   @if (programNameMismatch(); as mismatch) {
                     <p class="field-warn" role="alert">
-                      <span i18n="@@bank_programs.warn.name_not_in_category"
-                        >“{{ mismatch.name }}” isn’t offered for {{ mismatch.category }}. Pick
-                        another name, or add it to this loan type in the program catalog.</span
-                      >
+                      @if (mismatch.reason === 'basis') {
+                        <span i18n="@@bank_programs.warn.name_not_no_payslip"
+                          >“{{ mismatch.name }}” isn’t sold without a payslip for
+                          {{ mismatch.category }}. Pick another name, or tick a fact on it in
+                          the program catalog.</span
+                        >
+                      } @else {
+                        <span i18n="@@bank_programs.warn.name_not_in_category"
+                          >“{{ mismatch.name }}” isn’t offered for {{ mismatch.category }}. Pick
+                          another name, or add it to this loan type in the program catalog.</span
+                        >
+                      }
                     </p>
                   }
                 </nz-form-control>
               </nz-form-item>
-              <!-- Product type is NOT a field here: it arrives decided (query
-                   param on create, the saved row on edit) and is shown in the
-                   context chip beside the page title. -->
-              <nz-form-item>
-                <nz-form-label [nzFor]="'programType'" nzRequired i18n="@@bank_programs.field.program_type">Program type</nz-form-label>
-                <nz-form-control [nzErrorTip]="programTypeErrorTpl">
-                  <nz-select id="programType" formControlName="programType" [nzDropdownStyle]="dropdownStyle">
-                    <nz-option nzValue="income_proof" nzLabel="Income-proof" i18n-nzLabel="@@program_type.proof"></nz-option>
-                    <nz-option nzValue="income_surrogate" nzLabel="Income-surrogate" i18n-nzLabel="@@program_type.surrogate"></nz-option>
-                  </nz-select>
-                  <ng-template #programTypeErrorTpl>
-                    <span i18n="@@bank_programs.err.program_type_required">Program type is required.</span>
-                  </ng-template>
-                </nz-form-control>
-              </nz-form-item>
-
+              <!-- Loan type is NOT a field here: it arrives decided (query param on
+                   create, the saved row on edit) and is shown in the context chip beside
+                   the page title, alongside the income basis chosen above. The program
+                   TYPE is not a field either any more — the two cards above set it. -->
               <label class="option-row span-2" [class.is-on]="isSharia" nz-checkbox formControlName="isShariaCompliant">
                 <span class="option-text">
                   <span class="option-title" i18n="@@bank_programs.field.sharia">Sharia-compliant program</span>
@@ -730,6 +781,56 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
 
           <!-- ═══ STEP 4 — ELIGIBILITY ════════════════════════════════════════ -->
           @if (stepIndex() === 3) {
+          <!-- FIRST on this step when the program has no payslip to read. The rule is the
+               defining property of such a program — it decides what income exists at all —
+               and it used to sit last, below eligibility fields it silently reframes. -->
+          @if (incomeSurrogateActive()) {
+            <app-income-assumption-section
+              [group]="incomeAssumptionGroup"
+              [keyTable]="incomeKeyTable()"
+              (keyTableChange)="incomeKeyTable.set($event)"
+              [bands]="incomeBands()"
+              (bandsChange)="incomeBands.set($event)"
+              [estimatedKeys]="estimatedKeyTableKeys()"
+              (estimatedKeyChange)="onKeyTableMarker($event)"
+              (keyStructureChange)="onKeyStructureChange($event)"
+              [estimatedBandIndexes]="estimatedBandIndexes()"
+              (estimatedBandChange)="onBandMarker($event)"
+              (bandStructureChange)="onBandStructureChange($event)"
+            >
+              <!-- The one thing the operator could not learn before saving: whether the
+                   fact this method reads is even asked of this loan type's applicants. It
+                   arrived as a toast after a failed save, or never — and an unasked fact
+                   means the rule produces no income for anyone, quietly. -->
+              @if (factBinding(); as fb) {
+                <p class="binding" [class.warn]="!fb.asked" role="status">
+                  @if (fb.asked) {
+                    <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@bank_programs.income.binding_ok"
+                      >{{ fb.category }} applicants are asked {{ fb.label }}.</span
+                    >
+                  } @else {
+                    <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@bank_programs.income.binding_missing"
+                      >{{ fb.category }} applicants are never asked {{ fb.label }}, so this rule
+                      will produce no income.</span
+                    >
+                    <a routerLink="/questionnaire/categories" i18n="@@bank_programs.income.binding_fix"
+                      >Ask it</a
+                    >
+                  }
+                </p>
+              }
+              <!-- Projected INTO the section so it sits directly below the table in
+                   the same tab order (FR-026), while reading the page's own live
+                   draft rather than a copy the section would have to mirror. -->
+              <app-income-rule-check
+                [programCode]="editingProgramCode()"
+                [draft]="liveIncomeRuleDraft()"
+              ></app-income-rule-check>
+            </app-income-assumption-section>
+          }
+
           <section class="card" formGroupName="eligibility">
             <header class="card-head">
               <div>
@@ -756,12 +857,25 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   <nz-input-group nzAddOnAfter="EGP" class="money-group">
                     <input nz-input appMoneyInput id="minMonthlyIncomeEGP" formControlName="minMonthlyIncomeEGP" inputmode="numeric" placeholder="5,000" />
                   </nz-input-group>
+                  <!-- Re-framed, never hidden: both fields still feed matching on a
+                       no-payslip program, so removing them would be a lie. What changes
+                       is which figure they are compared against. -->
+                  @if (incomeSurrogateActive()) {
+                    <p class="field-hint" i18n="@@bank_programs.field.min_income.no_payslip_hint">
+                      Checked against the figure the rule above produces, not a payslip.
+                    </p>
+                  }
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item>
                 <nz-form-label [nzFor]="'minMonthsInJob'" nzRequired i18n="@@bank_programs.field.min_months_job">Minimum months in job</nz-form-label>
                 <nz-form-control [nzErrorTip]="fieldErrorTpl">
                   <nz-input-number id="minMonthsInJob" class="num-field" formControlName="minMonthsInJob" [nzMin]="0" [nzMax]="240" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
+                  @if (incomeSurrogateActive()) {
+                    <p class="field-hint" i18n="@@bank_programs.field.min_months_job.no_payslip_hint">
+                      Still asked — tenure is not the same thing as a payslip.
+                    </p>
+                  }
                 </nz-form-control>
               </nz-form-item>
               <nz-form-item class="span-2">
@@ -843,29 +957,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             </div>
           </section>
 
-          @if (incomeSurrogateActive()) {
-            <app-income-assumption-section
-              [group]="incomeAssumptionGroup"
-              [keyTable]="incomeKeyTable()"
-              (keyTableChange)="incomeKeyTable.set($event)"
-              [bands]="incomeBands()"
-              (bandsChange)="incomeBands.set($event)"
-              [estimatedKeys]="estimatedKeyTableKeys()"
-              (estimatedKeyChange)="onKeyTableMarker($event)"
-              (keyStructureChange)="onKeyStructureChange($event)"
-              [estimatedBandIndexes]="estimatedBandIndexes()"
-              (estimatedBandChange)="onBandMarker($event)"
-              (bandStructureChange)="onBandStructureChange($event)"
-            >
-              <!-- Projected INTO the section so it sits directly below the table in
-                   the same tab order (FR-026), while reading the page's own live
-                   draft rather than a copy the section would have to mirror. -->
-              <app-income-rule-check
-                [programCode]="editingProgramCode()"
-                [draft]="liveIncomeRuleDraft()"
-              ></app-income-rule-check>
-            </app-income-assumption-section>
-          }
           }
 
           <!-- ═══ STEP 5 — DOCUMENTS & NOTES ══════════════════════════════════ -->
@@ -1094,6 +1185,124 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         font-size: var(--text-xs);
         line-height: var(--line-height-base);
         color: var(--color-warning);
+      }
+
+      /* ── Income-basis choice (step 1) ─────────────────────────────
+         Two cards, not a select: the answer reshapes step 1's own name picker and
+         the whole of step 4, and a collapsed dropdown gave a decision of that size
+         the same weight as a fee field. Radios stay real radios (visually hidden
+         input inside the label) so arrow-key group navigation and form semantics
+         come for free. */
+      .basis-pick {
+        margin: 0 0 var(--space-4);
+        padding: 0;
+        border: 0;
+      }
+      .basis-legend {
+        padding: 0;
+        margin-block-end: var(--space-2);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .basis-cards {
+        display: grid;
+        gap: var(--space-3);
+        grid-template-columns: 1fr;
+      }
+      @media (min-width: 40rem) {
+        .basis-cards {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      .basis-card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-3) var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-default);
+        cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-ease),
+          background-color var(--motion-duration-fast) var(--motion-ease);
+      }
+      .basis-card:hover {
+        border-color: var(--color-border-strong);
+      }
+      /* On the LABEL, driven by the hidden input inside it — the visible card is what
+         the operator perceives as focused. */
+      .basis-card:focus-within {
+        outline: 2px solid var(--color-brand-primary);
+        outline-offset: 2px;
+      }
+      .basis-card.is-on {
+        border-color: var(--basis-accent, var(--color-brand-primary));
+        background: color-mix(
+          in srgb,
+          var(--basis-accent, var(--color-brand-primary)) 6%,
+          var(--color-surface-default)
+        );
+      }
+      /* The no-payslip card carries the plum this concept owns board-wide, so the
+         chosen card matches the chip in the header and the edge on the catalog. */
+      .basis-cards .basis-card:last-child {
+        --basis-accent: var(--color-income-surrogate);
+      }
+      .basis-card-title {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .basis-radio {
+        flex: none;
+        inline-size: 14px;
+        block-size: 14px;
+        border: 2px solid var(--color-border-strong);
+        border-radius: 50%;
+      }
+      .basis-card.is-on .basis-radio {
+        border-color: var(--basis-accent, var(--color-brand-primary));
+        background: radial-gradient(
+          circle,
+          var(--basis-accent, var(--color-brand-primary)) 0 45%,
+          transparent 46%
+        );
+      }
+      .basis-card-hint {
+        font-size: var(--text-xs);
+        line-height: var(--line-height-base);
+        color: var(--color-text-secondary);
+      }
+
+      /* ── Fact-binding line (step 4) ───────────────────────────────
+         The answer to "is the fact this method reads even set up?", shown while the
+         method is being picked rather than as a toast after a failed save. */
+      .binding {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: var(--space-2) 0 0;
+        font-size: var(--text-xs);
+        color: var(--color-success);
+      }
+      .binding.warn {
+        color: var(--color-warning);
+      }
+      .binding a {
+        font-weight: var(--font-weight-semibold);
+        color: inherit;
+        text-decoration: underline;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .basis-card {
+          transition: none;
+        }
       }
 
       /* ── App-frame layout ────────────────────────────────────────
@@ -2296,6 +2505,94 @@ export class BankProgramFormPage implements OnInit {
     { initialValue: this.form.controls.identity.controls.programType.value },
   );
 
+  /**
+   * The same value in the words the operator sees. `programType` stays the stored value
+   * and the only source of truth; this is a lens over it, so there is no second field to
+   * keep in step.
+   */
+  readonly incomeBasis = computed<IncomeBasis>(() => basisOf(this.programTypeSignal()));
+
+  protected readonly incomeBases = INCOME_BASES;
+
+  /**
+   * Is the fact this program's chosen METHOD reads actually set up for this loan type?
+   *
+   * `null` when there is nothing to say: the basis is payslip, no name is picked yet, the
+   * method reads no question at all (six of the eleven read profile fields no question
+   * fills), or the backend has not shipped the derived field.
+   *
+   * "Set up" means ticked on this catalog name for this category — and a tick is only
+   * offerable when the category ASKS the question, so a tick implies asked. That chain is
+   * why this can be answered from the name registry the form already loads, without the
+   * questionnaire tree it has no role to read.
+   */
+  protected readonly factBinding = computed<{
+    label: string;
+    category: string;
+    asked: boolean;
+  } | null>(() => {
+    if (this.incomeBasis() !== 'no_payslip') return null;
+    const cat = this.productCategorySignal();
+    if (!isLoanCategory(cat)) return null;
+    // Read through the draft SIGNAL, not the control: a bare `.value` inside a computed
+    // registers no dependency, so the line would freeze on whichever method happened to be
+    // selected when the program loaded.
+    const fact = SURROGATE_FACT_BY_METHOD[this.liveIncomeRuleDraft().strategy] ?? null;
+    if (!fact) return null;
+    const key = this.programNameKeySignal();
+    const member = key ? this.programNameMembers().find((m) => m.key === key) : undefined;
+    if (!member || member.noPayslipFacts === undefined) return null;
+    return {
+      label: this.factLabel(fact),
+      category: categoryLabel(cat),
+      asked: (member.noPayslipFacts[cat] ?? []).includes(fact),
+    };
+  });
+
+  /**
+   * The fact's own words. Hardcoded rather than resolved from the question pool because
+   * this form cannot read that pool — and these four labels are the questions' own English
+   * wording, which the backend test pins to the binding codes.
+   */
+  private factLabel(fact: string): string {
+    switch (fact) {
+      case 'military_grade':
+        return $localize`:@@surrogate.fact.military_grade:Military grade`;
+      case 'academic_rank':
+        return $localize`:@@surrogate.fact.academic_rank:Academic rank`;
+      case 'years_in_practice':
+        return $localize`:@@surrogate.fact.years_in_practice:Years in practice`;
+      case 'credit_card_total_limit':
+        return $localize`:@@surrogate.fact.credit_card_total_limit:Total credit-card limit`;
+      default:
+        return fact;
+    }
+  }
+
+  /** Plum for no-payslip, neutral for the ordinary case — the board-wide pairing. */
+  protected basisAccent(): string {
+    return this.incomeBasis() === 'no_payslip'
+      ? 'var(--color-income-surrogate)'
+      : 'var(--color-text-secondary)';
+  }
+
+  protected basisIcon(): string {
+    return this.incomeBasis() === 'no_payslip' ? 'calculator' : 'file-text';
+  }
+
+  protected pickBasis(basis: IncomeBasis): void {
+    this.form.controls.identity.controls.programType.setValue(programTypeOf(basis));
+    this.form.controls.identity.controls.programType.markAsDirty();
+  }
+
+  protected basisLabel(basis: IncomeBasis): string {
+    return incomeBasisLabel(basis);
+  }
+
+  protected basisHint(basis: IncomeBasis): string {
+    return incomeBasisHint(basis);
+  }
+
   /** Reactive view of pricing.isVariableRate — decides which rate key ships. */
   readonly isVariableRateSignal = toSignal(
     this.form.controls.pricing.controls.isVariableRate.valueChanges,
@@ -2353,11 +2650,8 @@ export class BankProgramFormPage implements OnInit {
               : id.productCategory,
           },
           {
-            label: $localize`:@@bank_programs.review.program_type:Program type`,
-            value:
-              id.programType === 'income_surrogate'
-                ? $localize`:@@program_type.surrogate:Income-surrogate`
-                : $localize`:@@program_type.proof:Income-proof`,
+            label: $localize`:@@bank_programs.review.income_basis:Income`,
+            value: incomeBasisLabel(basisOf(id.programType)),
           },
         ],
       },
@@ -2396,6 +2690,11 @@ export class BankProgramFormPage implements OnInit {
         step: 3,
         title: this.steps[3]?.label ?? '',
         rows: [
+          // The rule leads the read-back for the same reason it leads the step: on a
+          // no-payslip program it decides what income exists at all. The review step
+          // carried NO income-rule row before, so an operator could reach Create having
+          // never seen the method or the table summarised.
+          ...(this.incomeSurrogateActive() ? [this.incomeRuleReviewRow()] : []),
           {
             label: $localize`:@@bank_programs.review.age:Age`,
             value: `${v.eligibility.ageMin} – ${v.eligibility.ageMax}`,
@@ -2442,6 +2741,25 @@ export class BankProgramFormPage implements OnInit {
       },
     ];
   });
+
+  /**
+   * How the income is worked out, in one row: the method, how much of its table is filled
+   * in, and — when the fact is not set up for this loan type — that the rule will produce
+   * nothing. The last part is why this is a row and not a heading: a table can be complete
+   * and still never fire.
+   */
+  private incomeRuleReviewRow(): ReviewRow {
+    const draft = this.liveIncomeRuleDraft();
+    const label = $localize`:@@bank_programs.review.income_rule:How the income is worked out`;
+    const parts: string[] = [incomeMethodLabel(draft.strategy)];
+    const rows = this.incomeKeyTable().length || this.incomeBands().length;
+    if (rows > 0) parts.push(this.countLabel(rows));
+    const binding = this.factBinding();
+    if (binding && !binding.asked) {
+      parts.push($localize`:@@bank_programs.review.income_rule_unbound:fact not set up — no income`);
+    }
+    return { label, value: parts.join(' · ') };
+  }
 
   /** Enum keys → their registry labels, joined for a review row. */
   private labelsFor(registry: string, keys: readonly string[]): string {
@@ -2732,9 +3050,19 @@ export class BankProgramFormPage implements OnInit {
     const cat = this.productCategorySignal();
     // An unrecognised product category is a registry-config problem, not a
     // reason to hand the admin an empty picker.
-    const pool = isLoanCategory(cat)
+    const byCategory = isLoanCategory(cat)
       ? all.filter((m) => (m.categories ?? []).includes(cat))
       : all;
+    // Then by income BASIS. A no-payslip program may only name a catalog entry that is
+    // marked no-payslip for this loan type, which is what makes these their own set of
+    // programs rather than any name typed differently. `undefined` means the backend has
+    // not deployed the field, so the picker stays unfiltered instead of empty.
+    const pool =
+      this.incomeBasis() === 'no_payslip' && isLoanCategory(cat)
+        ? byCategory.filter((m) =>
+            m.noPayslipFacts === undefined ? true : (m.noPayslipFacts[cat]?.length ?? 0) > 0,
+          )
+        : byCategory;
     const opts = pool.map((m) => ({
       value: m.key,
       label: this.localeIsAr ? m.labelAr : m.labelEn,
@@ -2761,7 +3089,11 @@ export class BankProgramFormPage implements OnInit {
    * pair is untouched on an existing program — the same grandfather rule the
    * backend applies, so the form and the API agree on what is refusable.
    */
-  readonly programNameMismatch = computed<{ name: string; category: string } | null>(() => {
+  readonly programNameMismatch = computed<{
+    name: string;
+    category: string;
+    reason: 'category' | 'basis';
+  } | null>(() => {
     const key = this.programNameKeySignal();
     const cat = this.productCategorySignal();
     if (!key || !isLoanCategory(cat)) return null;
@@ -2770,11 +3102,21 @@ export class BankProgramFormPage implements OnInit {
     }
     const member = this.programNameMembers().find((m) => m.key === key);
     if (!member || member.categories === undefined) return null;
-    if (member.categories.includes(cat)) return null;
-    return {
-      name: this.localeIsAr ? member.labelAr : member.labelEn,
-      category: categoryLabel(cat),
-    };
+    const name = this.localeIsAr ? member.labelAr : member.labelEn;
+    if (!member.categories.includes(cat)) {
+      return { name, category: categoryLabel(cat), reason: 'category' };
+    }
+    // The BASIS half of the same pairing rule. Reached by two routes worth catching: an
+    // edit whose name lost its fact ticks after the program was created, and a bound key
+    // the picker kept visible so a save could not silently re-classify the program.
+    if (
+      this.incomeBasis() === 'no_payslip' &&
+      member.noPayslipFacts !== undefined &&
+      (member.noPayslipFacts[cat]?.length ?? 0) === 0
+    ) {
+      return { name, category: categoryLabel(cat), reason: 'basis' };
+    }
+    return null;
   });
 
   /**
@@ -2794,7 +3136,18 @@ export class BankProgramFormPage implements OnInit {
    * `/program-catalog` is super-admin only, so that instruction would be a
    * dead end for most of the people who see it.
    */
-  protected readonly noNamesForCategoryLabel = $localize`:@@bank_programs.field.friendly_name.none_for_category:No program names are set up for this loan type yet.`;
+  private readonly noNamesForCategory = $localize`:@@bank_programs.field.friendly_name.none_for_category:No program names are set up for this loan type yet.`;
+
+  /**
+   * Two empty pickers, two different dead ends, so they get two messages. The basis one
+   * names the catalog because it is a one-tick fix there and the operator otherwise has no
+   * way to guess why a list that was full a second ago is empty.
+   */
+  private readonly noNoPayslipNames = $localize`:@@bank_programs.field.friendly_name.none_no_payslip:No program names are sold without a payslip for this loan type yet. Tick a fact on one in the program catalog, or choose “Reads a payslip”.`;
+
+  protected readonly noNamesForCategoryLabel = computed(() =>
+    this.incomeBasis() === 'no_payslip' ? this.noNoPayslipNames : this.noNamesForCategory,
+  );
 
   constructor() {
     // Bank picker valueChanges → mirror into identity.bankName.

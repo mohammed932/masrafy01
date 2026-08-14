@@ -248,8 +248,21 @@ const JOB_TENURE_Q: SeedQuestion = {
 // warning would say so. `test/unit/surrogate-binding-codes.spec.ts` asserts the
 // equality rather than trusting it.
 //
-// Assigned to `personal` ONLY, through `question_loan_category` — never a `category`
-// column (A33, v12.0.0). Assignment happens by which CategoryConfig references them.
+// These are the questions behind the NO-PAYSLIP basis. There is no no-payslip CATEGORY to
+// assign them to (v16.0.0): whether a bank reads a payslip or works an income out from one
+// of these facts is that program's own `programType`, not the product the customer picked.
+//
+// Which categories reference them here IS the configuration of where no-payslip programs
+// can be sold — a category whose applicants are never asked any of the four cannot have a
+// working one, and nothing else in the codebase asserts a list. `personal` and `car` are
+// the seeded DEFAULT, not a rule: assigning `military_grade` to `mortgage` on the admin
+// questionnaire screen is all it takes to sell no-payslip mortgages, and the seed must not
+// be re-run to allow it.
+//
+// Assignment lives ONLY in `question_loan_category`, never a `category` column (A33,
+// v12.0.0), and happens by which CategoryConfig references the question below. Publish
+// warns only when a fact is asked by NO category at all (`not_asked_by_any_category`) —
+// then no program anywhere could read it.
 //
 // **Both selects share ONE gate**, and that is an accepted limit rather than an
 // oversight: `enabledWhen` holds a single `optionCode` (not a list) and
@@ -681,10 +694,11 @@ const PERSONAL: CategoryConfig = {
         EMPLOYER_APPROVED_Q,
         ADDITIONAL_INCOME_Q,
         ACTIVE_ACCOUNT_Q,
-        // Feature 011 — the surrogate facts, referenced under PERSONAL ONLY. That
-        // reference is what assigns them to the category in `question_loan_category`
-        // (A33 — assignment lives only there), so a mortgage applicant is never asked
-        // their army rank. `credit_card_total_limit` is the FOURTH fact and is
+        // Feature 011 — the surrogate facts. That reference is what assigns them to
+        // the category in `question_loan_category` (A33 — assignment lives only
+        // there), so a mortgage applicant is never asked their army rank. CAR carries
+        // the same three, because an auto loan may also be sold with no payslip.
+        // `credit_card_total_limit` is the FOURTH fact and is
         // deliberately NOT re-seeded: it already exists in `commitments` feeding the
         // 5% card-limit obligation, and a second copy would ask the same thing twice
         // (research R2).
@@ -835,6 +849,19 @@ const CAR: CategoryConfig = {
         EMPLOYER_APPROVED_Q,
         ADDITIONAL_INCOME_Q,
         ACTIVE_ACCOUNT_Q,
+        // The surrogate facts, same three references PERSONAL carries. An auto loan
+        // is surrogate-CAPABLE (`SURROGATE_CAPABLE_CATEGORIES`): a bank may finance a
+        // car off an assumed income worked out from a grade or years in practice, and
+        // the fact question has to be ASKED for that table to fire at all — an
+        // unasked fact resolves to `SURROGATE_FACT_MISSING`, never a zero (FR-020).
+        // The reference IS the assignment (`question_loan_category`, A33); position is
+        // cosmetic, since `displayOrder` comes from the global question order and
+        // PERSONAL is merged first. `credit_card_total_limit` is the FOURTH fact and
+        // needs no reference here: it rides the `commitments` obligation block below,
+        // which CAR already asks.
+        MILITARY_GRADE_Q,
+        ACADEMIC_RANK_Q,
+        YEARS_IN_PRACTICE_Q,
       ],
     },
     {
@@ -931,6 +958,7 @@ const BUSINESS: CategoryConfig = {
     },
   ],
 };
+
 
 const CONFIGS: CategoryConfig[] = [PERSONAL, MORTGAGE, CAR, BUSINESS];
 

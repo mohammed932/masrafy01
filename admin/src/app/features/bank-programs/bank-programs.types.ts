@@ -130,6 +130,91 @@ export const INCOME_ASSUMPTION_STRATEGIES = [
 
 export type IncomeAssumptionStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number];
 
+/** One method as the picker and the review read-back render it. */
+export interface IncomeMethodOption {
+  value: IncomeAssumptionStrategy;
+  label: string;
+}
+
+export interface IncomeMethodGroup {
+  label: string;
+  options: IncomeMethodOption[];
+}
+
+function methodLabel(strategy: IncomeAssumptionStrategy): string {
+  switch (strategy) {
+    case 'declared':
+      return $localize`:@@bank_programs.strategy.declared:Declared (applicant-provided)`;
+    case 'byYearsInJob':
+      return $localize`:@@bank_programs.strategy.years_job:By years in job`;
+    case 'byYearsInPractice':
+      return $localize`:@@bank_programs.strategy.years_practice:By years in practice`;
+    case 'byProfessorRank':
+      return $localize`:@@bank_programs.strategy.professor_rank:By academic rank`;
+    case 'byMilitaryGrade':
+      return $localize`:@@bank_programs.strategy.military_grade:By military grade`;
+    case 'byCDValue':
+      return $localize`:@@bank_programs.strategy.cd_value:By certificate value`;
+    case 'byTotalDeposits':
+      return $localize`:@@bank_programs.strategy.total_deposits:By total deposits`;
+    case 'byCarInstallment':
+      return $localize`:@@bank_programs.strategy.car_installment:By car installment`;
+    case 'byCarLoanAmount':
+      return $localize`:@@bank_programs.strategy.car_loan_amount:By car loan amount`;
+    case 'byCreditCardLimit':
+      return $localize`:@@bank_programs.strategy.credit_card_limit:By credit card limit`;
+    case 'byBankStatementPercent':
+      return $localize`:@@bank_programs.strategy.bank_statement:By bank statement percent`;
+  }
+}
+
+/** The label for one method — same words the picker shows, for the review read-back. */
+export function incomeMethodLabel(strategy: IncomeAssumptionStrategy): string {
+  return methodLabel(strategy);
+}
+
+/**
+ * The eleven methods, grouped by what they actually READ.
+ *
+ * Eleven flat options was the weakest control in the wizard: nothing on screen separated
+ * the four that read an answer the customer gave — the only ones whose fact can be missing,
+ * and the only ones the binding line can check — from the six that read a figure off a
+ * document, or from `declared`, which reads nothing and is not really a rule at all.
+ *
+ * Built here rather than typed into the template so this list and the review read-back
+ * cannot disagree about a method's name.
+ */
+export function incomeMethodGroups(): IncomeMethodGroup[] {
+  const opts = (values: readonly IncomeAssumptionStrategy[]): IncomeMethodOption[] =>
+    values.map((value) => ({ value, label: methodLabel(value) }));
+  return [
+    {
+      label: $localize`:@@bank_programs.strategy.group.asked:Reads an answer the customer gives`,
+      options: opts([
+        'byMilitaryGrade',
+        'byProfessorRank',
+        'byYearsInPractice',
+        'byCreditCardLimit',
+      ]),
+    },
+    {
+      label: $localize`:@@bank_programs.strategy.group.documents:Reads a figure from documents`,
+      options: opts([
+        'byYearsInJob',
+        'byCDValue',
+        'byTotalDeposits',
+        'byCarInstallment',
+        'byCarLoanAmount',
+        'byBankStatementPercent',
+      ]),
+    },
+    {
+      label: $localize`:@@bank_programs.strategy.group.none:No rule`,
+      options: opts(['declared']),
+    },
+  ];
+}
+
 /** Which editor a method needs. Drives the type-driven rendering in step 3. */
 export type IncomeMethodShape = 'none' | 'keyTable' | 'bands' | 'scalar';
 
@@ -333,6 +418,12 @@ export interface BankProgramListRow {
   programNameKey?: string | null;
   bankName: string;
   productCategory: string;
+  /**
+   * How this program establishes the income. Optional so the bundle still renders against
+   * a backend that has not deployed the field — an absent value shows no basis tag rather
+   * than defaulting to "reads a payslip", which would mislabel the riskier case.
+   */
+  programType?: ProgramType;
   active: boolean;
   isShariaCompliant: boolean;
   currencies: string[];
@@ -433,20 +524,3 @@ export interface IncomeRuleCheckResult {
   matchedRow?: { key: string } | { fromInclusive: string; toExclusive: string | null };
 }
 
-/** One row of the "waiting for the bank" list (FR-036). */
-export interface PendingBankConfirmationRow {
-  programCode: string;
-  friendlyName: string;
-  bankName: string;
-  active: boolean;
-  estimatedPaths: string[];
-  waitingSince: string;
-  /**
-   * True when `waitingSince` fell back to the program's `updatedAt` because the
-   * marker carries no audit event (import, backfill, direct seed). Rendered as an
-   * approximation rather than as a precise date — and never as `null`, which the
-   * UI would print as "0 days waiting".
-   */
-  waitingSinceEstimated: boolean;
-  waitingDays: number;
-}

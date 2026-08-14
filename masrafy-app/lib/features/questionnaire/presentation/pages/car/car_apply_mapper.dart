@@ -13,12 +13,21 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// so the engine applies per-bank weighted scoring (Principle V). `age` stays
 /// null — the results cubit fills it from the profile (`/auth/me`).
 ///
+/// Carries the SURROGATE FACTS ([SurrogateFacts]) for the same reason the personal
+/// mapper does: an auto loan is surrogate-CAPABLE (backend
+/// `SURROGATE_CAPABLE_CATEGORIES`), so a bank may finance a car off an assumed income
+/// worked out from a grade, a rank, years in practice or a card limit. The backend
+/// derives the same facts from `questionnaireAnswers`, so these body fields are the
+/// documented duplicate rather than the only path — they exist so a car apply reads
+/// identically to a personal one (A25).
+///
 /// Codes mirror `backend/prisma/seed-questionnaire.ts`.
 ApplyRequest mapCarAnswersToApplyRequest(
   Map<String, QuestionAnswer> answers, {
   String? programNameKey,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
+  final facts = SurrogateFacts.fromAnswers(answers);
   final employmentCode = pickedOption(answers, 'employment_status');
   final employmentType =
       _employmentType[employmentCode] ?? employmentCode ?? 'salaried';
@@ -42,13 +51,21 @@ ApplyRequest mapCarAnswersToApplyRequest(
       ),
       companyName: 'N/A',
       companyType: companyTypeFor(employmentType),
+      // Omitted from the JSON when unanswered, never zeroed: a bank rule must be able
+      // to say "we never asked you this" rather than "your grade isn't in our table"
+      // (FR-020).
+      militaryGrade: facts.militaryGrade,
+      professorRank: facts.professorRank,
+      yearsInPractice: facts.yearsInPractice,
     ),
     obligations: ObligationsPayload(
       existingMonthlyObligationsEGP: money.existingObligationsEGP,
       hasCurrentLoan: money.hasCurrentLoan,
       hasPreviousRejection: false, // not asked in the car questions
     ),
-    assets: const AssetsPayload(),
+    // The card limit IS answered, in the commitments step, and feeds both the 5%
+    // obligation discount and a `byCreditCardLimit` income rule.
+    assets: facts.assets,
     carDetails: CarDetailsPayload(
       carValueEGP: egp(price),
       downPaymentEGP: egp(downPayment),

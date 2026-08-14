@@ -170,34 +170,21 @@ Body unchanged (`{ active, version }`).
 
 ---
 
-## 4. `GET /pending-bank-confirmation` — the waiting list
+## 4. ~~`GET /pending-bank-confirmation`~~ — REMOVED
 
-FR-036. Paginated with the standard envelope.
+FR-036 (the waiting-list screen) and its endpoint were **cut after review**. The endpoint, the
+`PendingBankConfirmationRowDto`, the `waitingSince` audit replay and the admin screen are gone; the
+`bank_program.value_sources` column, the marker UI and the activation refusal below all stay.
 
-```jsonc
-{
-  "success": true,
-  "data": [
-    {
-      "programCode": "ABK-MILITARY",
-      "friendlyName": "Egyptian Armed Forces",
-      "bankName": "ABK Egypt",
-      "active": false,
-      "estimatedPaths": ["incomeAssumption.keyTable.general.incomeEGP"],
-      "waitingSince": "2026-07-02T09:14:00.000Z",
-      "waitingSinceEstimated": false,
-      "waitingDays": 42
-    }
-  ],
-  "pagination": { "page": 1, "pageSize": 20, "total": 3 }
-}
-```
+Why: the queue had no workflow attached to it — no assignee, no due date, no reminder, no outbound
+mail — so the chasing it was meant to drive happened in email regardless, while the machinery behind
+its one derived number (`waitingSince`, reconstructed from add/remove/re-add audit history) was the
+most expensive and most defect-prone part of the feature. The property with actual teeth is
+§3: a program carrying an unconfirmed number cannot go live. That is retained in full.
 
-`waitingSince` = the oldest still-standing marker's audit timestamp; when a marker has no audit event
-(import, backfill, direct seed) the program's `updatedAt` is reported with
-`waitingSinceEstimated: true`, never `null`. Programs that existed before
-this feature carry `valueSources = {}` and therefore never appear (FR-037) — they are reported once
-for review through the same list's empty-state copy plus the one-off review task, not switched off.
+`BANK_PROGRAM_VALUE_SOURCE_CHANGED` is still emitted (FR-038) as append-only history, but nothing
+reads it at request time. FR-037 still holds and now means only that a pre-existing program carries
+`valueSources = {}`, reads as fully bank-stated, and stays live on deploy.
 
 ---
 

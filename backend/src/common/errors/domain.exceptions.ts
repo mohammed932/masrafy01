@@ -560,6 +560,11 @@ export class ProgramNameKeyNotInCategoryException extends DomainException {
   }
 }
 
+// NOTE (v16.0.0): `ProgramTypeInvalidForCategoryException` was deleted with the Fast
+// Loans category it enforced. No category constrains the program type any more — a
+// no-payslip loan is an income BASIS chosen per program, so the pair can never be a
+// contradiction.
+
 // --- Feature 011 — income-surrogate rule builder ----------------------------
 //
 // Every rejection below names the offending ROW (index or key), never just the

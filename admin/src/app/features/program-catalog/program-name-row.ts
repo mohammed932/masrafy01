@@ -26,7 +26,18 @@ export interface ProgramNameRow {
    * four keys — see `fillCategories`.
    */
   questions: QuestionsByCategory;
-  usage: { programs: number; banks: number };
+  /**
+   * The no-payslip counters are carried through rather than dropped at this boundary:
+   * the detail screen has to be able to say "2 bank programs read these facts and have
+   * no table yet", and it used to be structurally unable to, because this row narrowed
+   * `usage` to two fields while the LIST badged the gap from the other two.
+   */
+  usage: {
+    programs: number;
+    banks: number;
+    noPayslipPrograms: number;
+    noPayslipProgramsWithoutTable: number;
+  };
 }
 
 /**
@@ -72,7 +83,12 @@ export function absorbProgramNames(list: EnumerationRow[]): {
         active: r.active,
         categories: canonicalCategories(r.categories ?? []),
         questions: fillCategories(r.questionsByCategory),
-        usage: r.usage ?? { programs: 0, banks: 0 },
+        usage: r.usage ?? {
+          programs: 0,
+          banks: 0,
+          noPayslipPrograms: 0,
+          noPayslipProgramsWithoutTable: 0,
+        },
       })),
   };
 }

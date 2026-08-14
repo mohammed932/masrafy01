@@ -400,22 +400,43 @@ describe('FR-001 edge case — a rule the program type hides is IGNORED and REPO
     ]);
   });
 
-  it('warns on a non-personal category too — surrogate rules are personal-only (FR-001)', () => {
-    const warnings = collectIncomeRuleWarnings({
-      config: { strategy: 'byMilitaryGrade', keyTable: [OFFICER_ROW] },
-      programType: 'income_surrogate',
-      productCategory: 'business',
-      programRequiredDocuments: [],
-    });
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toMatchObject({ kind: 'ruleIgnoredForProgramType' });
-  });
+  // v16.0.0 — the warning answers "is the table I just typed ever read?", and the engine's
+  // own gate (`quote.ts#shouldConsultIncomeRule`) is `programType` ALONE. It used to also
+  // narrow on a hardcoded surrogate-capable category list, which made it report a rule as
+  // ignored on a category outside that list even though the engine WOULD price off it — a
+  // warning that contradicted the runtime. Any category with the surrogate type is read.
+  it.each(['car', 'mortgage', 'business'])(
+    'does not warn on a %s surrogate program — the type decides, not the category',
+    (productCategory) => {
+      const warnings = collectIncomeRuleWarnings({
+        config: { strategy: 'byMilitaryGrade', keyTable: [OFFICER_ROW] },
+        programType: 'income_surrogate',
+        productCategory,
+        programRequiredDocuments: [],
+      });
+      expect(warnings).toEqual([]);
+    },
+  );
 
   it('does not warn when the rule IS read', () => {
     const warnings = collectIncomeRuleWarnings({
       config: { strategy: 'byMilitaryGrade', keyTable: [OFFICER_ROW] },
       programType: 'income_surrogate',
       productCategory: 'personal',
+      programRequiredDocuments: [],
+    });
+    expect(warnings).toEqual([]);
+  });
+
+  it('does not warn on a free-form category column either', () => {
+    // `auto_cross_sell` / `wealth` / `clubs` exist in the seeded catalog as raw
+    // `productCategory` strings. They used to trip this warning, because an unrecognised
+    // category narrowed to null and null was "not capable" — but the engine reads the rule
+    // on those programs, so the warning was telling the admin to fix a correct program.
+    const warnings = collectIncomeRuleWarnings({
+      config: { strategy: 'byMilitaryGrade', keyTable: [OFFICER_ROW] },
+      programType: 'income_surrogate',
+      productCategory: 'auto_cross_sell',
       programRequiredDocuments: [],
     });
     expect(warnings).toEqual([]);

@@ -30,9 +30,9 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
   String? programNameKey,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
-  // Feature 011 — the surrogate-income facts. Personal is the only category these
-  // questions are assigned to (`question_loan_category`), so this is the only mapper
-  // that reads them.
+  // Feature 011 — the surrogate-income facts. Assigned to the surrogate-CAPABLE
+  // categories (`question_loan_category`: personal, car, fast), so the car and fast
+  // mappers read them the same way; mortgage and business never ask them.
   final facts = SurrogateFacts.fromAnswers(answers);
   final employmentCode = pickedOption(answers, 'employment_status');
   final employmentType =

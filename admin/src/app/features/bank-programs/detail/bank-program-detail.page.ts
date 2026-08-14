@@ -28,6 +28,8 @@ import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
 import type { BankProgramResponse } from '../bank-programs.types';
+import { incomeMethodLabel } from '../bank-programs.types';
+import { basisOf, incomeBasisLabel } from '@core/income-basis';
 
 /**
  * Bank-program detail — drill-down target of a bank's program list
@@ -90,7 +92,9 @@ import type { BankProgramResponse } from '../bank-programs.types';
               {{ p.active ? activeLabel() : inactiveLabel() }}
             </span>
           </h1>
-          <p class="sub">{{ p.productCategory | humanize }} · {{ p.programType | humanize }} · v{{ p.version }}</p>
+          <!-- The humanize pipe on the raw type printed "Income surrogate" — a schema noun
+               no operator uses. Same words as every other surface now. -->
+          <p class="sub">{{ p.productCategory | humanize }} · {{ basisLabel(p) }} · v{{ p.version }}</p>
         </div>
 
         <div class="hero-actions">
@@ -261,6 +265,73 @@ import type { BankProgramResponse } from '../bank-programs.types';
             </div>
           </dl>
         </section>
+
+        <!-- This page rendered NOTHING about the income rule until v16.0.0 — not the
+             method, not the table, not the estimate markers, not the warnings the API was
+             already returning. On a no-payslip program that rule decides what income
+             exists at all, so the one read-only view of the program was silent about its
+             single most consequential setting. Read-only: the wizard owns editing. -->
+        @if (p.programType === 'income_surrogate') {
+          <section class="card">
+            <h2 class="card-title" i18n="@@bank_programs.section.income">
+              How the income is worked out
+            </h2>
+            <dl class="kv">
+              <div class="row">
+                <dt i18n="@@bank_programs.field.income_basis_short">Income</dt>
+                <dd>{{ noPayslipLabel }}</dd>
+              </div>
+              <div class="row">
+                <dt i18n="@@bank_programs.field.strategy">Method</dt>
+                <dd>{{ methodLabel(p) }}</dd>
+              </div>
+              @if (incomeRows(p).length > 0) {
+                <div class="row">
+                  <dt i18n="@@bank_programs.income.table">The bank’s table</dt>
+                  <dd class="chips">
+                    @for (r of incomeRows(p); track r.label) {
+                      <span class="enum-chip" [class.estimated]="r.estimated">
+                        {{ r.label }} → {{ r.income }}
+                        @if (r.estimated) {
+                          <!-- An estimate is a number no bank confirmed; it blocks
+                               activation, so it cannot be a silent equal of a stated one. -->
+                          <span class="est-mark" i18n="@@bank_programs.value_source.estimated_short"
+                            >Estimate</span
+                          >
+                        }
+                      </span>
+                    }
+                  </dd>
+                </div>
+              } @else {
+                <div class="row">
+                  <dt i18n="@@bank_programs.income.table">The bank’s table</dt>
+                  <dd class="empty-dash" i18n="@@bank_programs.income.no_table">
+                    Not entered — this program quotes nothing
+                  </dd>
+                </div>
+              }
+              @if (p.incomeAssumption['dbrCapPercentOverride']; as override) {
+                <div class="row">
+                  <dt i18n="@@bank_programs.income.dbr_override">DBR cap for this rule</dt>
+                  <dd class="numeric">{{ override }}%</dd>
+                </div>
+              }
+            </dl>
+          </section>
+        }
+
+        <!-- Typed codes the API has always returned and no screen has ever shown. -->
+        @if (p.warnings && p.warnings.length > 0) {
+          <section class="card warnings">
+            <h2 class="card-title" i18n="@@bank_programs.section.warnings">Needs attention</h2>
+            <ul class="warn-list">
+              @for (w of p.warnings; track w.code + (w.meta ? '' : '')) {
+                <li>{{ warningText(w) }}</li>
+              }
+            </ul>
+          </section>
+        }
 
         <section class="card">
           <h2 class="card-title" i18n="@@bank_programs.section.fees">Fees</h2>
@@ -571,6 +642,31 @@ import type { BankProgramResponse } from '../bank-programs.types';
         line-height: 1.4;
         white-space: nowrap;
       }
+      /* A team-estimated figure is not an equal of a bank-stated one: it blocks
+         activation, so it reads as a warning wherever it appears. */
+      .enum-chip.estimated {
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+      }
+      .est-mark {
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-regular);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.85;
+      }
+      .card.warnings {
+        border-color: color-mix(in srgb, var(--color-warning) 35%, var(--color-border-default));
+      }
+      .warn-list {
+        margin: 0;
+        padding-inline-start: var(--space-5);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+      }
       .enum-chip::before {
         content: '';
         inline-size: 6px;
@@ -601,6 +697,57 @@ export class BankProgramDetailPage {
     { initialValue: '' },
   );
   readonly program = signal<BankProgramResponse | null>(null);
+
+  /** Same words as every other surface (v16.0.0) — one source in `@core/income-basis`. */
+  protected readonly noPayslipLabel = incomeBasisLabel('no_payslip');
+
+  protected basisLabel(p: BankProgramResponse): string {
+    return incomeBasisLabel(basisOf(p.programType));
+  }
+
+  protected methodLabel(p: BankProgramResponse): string {
+    return incomeMethodLabel(p.incomeAssumption.strategy);
+  }
+
+  /**
+   * The bank's table, flattened to one list of rows whichever SHAPE the method uses — a
+   * key table (grade → income) or bands (from–to → income). Both answer the reader's one
+   * question ("what does this bank actually pay out?"), so they are rendered as one list
+   * rather than as two blocks the reader has to know the difference between.
+   *
+   * Each row carries whether its number was team-ESTIMATED, because an estimate blocks
+   * activation and must not read as an equal of a bank-stated figure.
+   */
+  protected incomeRows(
+    p: BankProgramResponse,
+  ): Array<{ label: string; income: string; estimated: boolean }> {
+    const rule = p.incomeAssumption;
+    const sources = p.valueSources ?? {};
+    const keyRows = (rule.keyTable ?? []).map((r) => ({
+      label: r.key,
+      income: r.incomeEGP,
+      estimated: sources[`incomeAssumption.keyTable.${r.key}.incomeEGP`] === 'team_estimated',
+    }));
+    const bandRows = (rule.bands ?? []).map((b, i) => ({
+      // An open-ended last band is the normal case, not a missing value.
+      label: b.toExclusive === null ? `${b.fromInclusive}+` : `${b.fromInclusive}–${b.toExclusive}`,
+      income: b.incomeEGP,
+      estimated: sources[`incomeAssumption.bands.${i}.incomeEGP`] === 'team_estimated',
+    }));
+    return [...keyRows, ...bandRows];
+  }
+
+  /**
+   * A typed warning code → the operator's language, never English from the server (A22).
+   *
+   * The cast is the boundary being crossed honestly: `warnings[].code` is a plain string on
+   * the wire, and a code this bundle does not know about must still render — the service
+   * falls back rather than throwing, which is the right behaviour when the backend ships a
+   * new warning before the admin does.
+   */
+  protected warningText(w: { code: string; meta?: Record<string, unknown> }): string {
+    return this.errors.toLocalizedMessage(w.code as Parameters<ErrorCodeService['toLocalizedMessage']>[0], w.meta);
+  }
 
   /** Back / post-delete target: the owning bank's detail page (registry fallback). */
   readonly backLink = computed<unknown[]>(() => {

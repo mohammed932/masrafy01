@@ -34,6 +34,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import * as bcrypt from 'bcrypt';
 import { EngineService } from '../src/matching/engine.service';
+import { ALL_LOAN_CATEGORIES } from '../src/common/loan-category.util';
 import {
   askedWeightSum,
   computeProbability,
@@ -281,7 +282,10 @@ const ARCHETYPE_MIX: readonly number[] = [0, 2, 4, 1, 3, 5, 2, 6, 3, 4, 1, 5];
 // Per-category application shapes
 // ---------------------------------------------------------------------------
 
-type Category = 'personal' | 'car' | 'mortgage' | 'business';
+// Mirrors the Prisma enum via the shared list rather than re-typing it, so a category
+// added or removed by amendment cannot leave this seeder asserting yesterday's product
+// scope (v15.0.0 added `fast`; v16.0.0 removed it again).
+type Category = (typeof ALL_LOAN_CATEGORIES)[number];
 type Priority =
   | 'lowest_installment'
   | 'lowest_interest'
@@ -808,12 +812,10 @@ async function main(): Promise<void> {
     list.push(toSnapshot(p));
     byCategory.set(key, list);
   }
-  const seedable = (['personal', 'car', 'mortgage', 'business'] as const).filter(
-    (c) => (byCategory.get(c)?.length ?? 0) > 0,
-  );
-  const skipped = (['personal', 'car', 'mortgage', 'business'] as const).filter(
-    (c) => !seedable.includes(c),
-  );
+  // Read from the shared list, so a category added or removed by amendment is seeded — or
+  // explicitly reported as skipped — without an edit here.
+  const seedable = ALL_LOAN_CATEGORIES.filter((c) => (byCategory.get(c)?.length ?? 0) > 0);
+  const skipped = ALL_LOAN_CATEGORIES.filter((c) => !seedable.includes(c));
   if (skipped.length > 0) {
     console.log(
       `[seed:apps:demo] no active bank program for: ${skipped.join(', ')} — no applications generated for those categories.`,

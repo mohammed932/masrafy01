@@ -25,19 +25,49 @@ loan (1–2% personal, 0.5–1% mortgage, flat fees for cards). The platform
 NEVER charges users.
 
 **Four product lines (NON-NEGOTIABLE — see Principle II scope-lock,
-v1.5.0 → v1.7.0):** Personal loans (no down payment, mass market), Car
-loans (20–30% down payment, premium tier above 4M EGP gets discounted
-rates), Mortgages (20%+ down payment, multiple property types and
-construction stages, highest revenue per deal), and Business loans
-(SME / professional-use working-capital lending — larger ticket sizes,
-separate underwriting, added in v1.7.0 to align the platform with the
-mobile user-journey product surface). The platform supports EXACTLY
-these four retail loan categories. The `loanPurpose`
-platform-enumeration registry MUST contain only these four active
-members (`personal`, `car`, `mortgage`, `business`). Any other
-category is out of scope for v1.x and MUST be soft-deactivated rather
-than introduced. Adding a fifth category requires a constitution
-amendment.
+v1.5.0 → v1.7.0 → v15.0.0 → v16.0.0):** Personal loans (no down payment,
+mass market), Car loans (20–30% down payment, premium tier above 4M EGP
+gets discounted rates), Mortgages (20%+ down payment, multiple property
+types and construction stages, highest revenue per deal), and Business
+loans (SME / professional-use working-capital lending — larger ticket
+sizes, separate underwriting, added in v1.7.0 to align the platform with
+the mobile user-journey product surface).
+
+**The no-payslip product is an income BASIS, not a category (v16.0.0).**
+v15.0.0 added a fifth category, `fast` ("Fast Loans"), for the product
+where the bank cannot see a salary and works one out from a fact about the
+applicant (army grade, academic rank, years in practice, credit-card
+limit). v16.0.0 REMOVES it. The reasoning that put it there — a customer
+PICKS a product, so it needs a category — inverted on contact with the
+catalog: the same program name is sold against a payslip by one bank and
+against a grade table by another, so the customer would have had to choose
+between two cards describing one loan, and every catalog name worth
+selling would have needed duplicating across both. What the bank reads is
+a property of the BANK PROGRAM (`bank_program.programType`), decided per
+program, and the applicant is simply asked the four facts as well as the
+payslip questions. No category constrains the program type; the retired
+`PROGRAM_TYPE_INVALID_FOR_CATEGORY` code and its exception are deleted.
+
+**Which categories can sell a no-payslip program is DERIVED and
+admin-configurable (v16.0.0).** There is no `SURROGATE_CAPABLE_` or
+`SURROGATE_REQUIRED_CATEGORIES` list in any codebase — both are deleted,
+not renamed. A category can carry a working no-payslip program exactly
+when its applicants are ASKED at least one of the four surrogate facts,
+which is recorded per question in `question_loan_category` and edited by
+an admin on the questionnaire screen. This is not a proxy for the old
+list; it is the real precondition, because a bank cannot work an income
+out from a fact nobody was asked, whatever a constant says. `personal` and
+`car` are the SEEDED DEFAULT, not a rule — assigning `military_grade` to
+`mortgage` is all it takes to sell no-payslip mortgages, and the seed must
+not be re-run to allow it. A rule configured on a program whose type is
+`income_proof` is still reported as ignored; the report keys off the type
+alone, matching the engine's own gate.
+
+The platform supports EXACTLY these four retail loan categories. The
+`loanPurpose` platform-enumeration registry MUST contain only these four
+active members (`personal`, `car`, `mortgage`, `business`). Any other
+category is out of scope and MUST be soft-deactivated rather than
+introduced. Adding a FIFTH category requires a constitution amendment.
 
 **Five-step wizard:**
 1. About You — employment type, age, monthly income, time in job, salary transfer status
@@ -1705,8 +1735,10 @@ Changing approval probability scoring without recording weight changes in the PR
 ## A25. Half-Updated Dependents (Principle XXIX)
 Changing a field / enum / derivation / threshold / label-doubling-as-filter / numeric formatter / token / error code without updating every downstream reader in the same PR = review block. UI contradictions where the same business fact reads differently across list / detail / Kanban / drawer / analytics / timeline = automatic block. PR description MUST list "Dependents touched"; reviewers MUST scan for missing ones.
 
-## A26. Fifth Retail Loan Category Without Amendment / Ghost Rows After Removal (Principle II scope-lock, v1.5.0 → v1.6.0 → v1.7.0)
-Adding a FIFTH retail loan category (anything beyond `personal`, `car`, `mortgage`, `business`) via migration, seed row, DTO enum, UI multi-select, matching-engine branch, or analytics dimension — without first amending the constitution to widen the scope-lock — = review block. Removing a category requires a destructive migration that physically deletes the registry entry, all bank programs in that category, and all applications referencing it (cascade through bank offers, decisions, activities, documents). Append-only triggers must be temporarily disabled (`ALTER TABLE … DISABLE TRIGGER`) and re-enabled inside the same migration; a `DATA_ERASURE_COMPLETED` audit-event row records the wipe. Leaving deactivated rows behind = review block — operators see ghost categories in audit dashboards and registry pickers. Buyout pricing as a feature of an existing program (e.g. `pricing.buyoutRateDeltaPercent` on a `personal` program) is NOT a fifth category and is allowed.
+## A26. Fifth Retail Loan Category Without Amendment / Ghost Rows After Removal / A No-Payslip Category (Principle II scope-lock, v1.5.0 → v1.6.0 → v1.7.0 → v15.0.0 → v16.0.0)
+Adding a FIFTH retail loan category (anything beyond `personal`, `car`, `mortgage`, `business`) via migration, seed row, DTO enum, UI multi-select, matching-engine branch, or analytics dimension — without first amending the constitution to widen the scope-lock — = review block. The v15.0.0 → v16.0.0 round trip on `fast` is the reference for what an amendment must carry, in ONE change (A25): the Prisma enum value, the shared category list on every surface (backend `ALL_LOAN_CATEGORIES`, Angular `LOAN_CATEGORIES`, Flutter `LoanCategory`), the questionnaire's own question set for it, the catalog's assignments, a colour token, and the label in every locale.
+
+**Re-introducing the no-payslip product as a category is the same block (v16.0.0).** Whether the bank reads a payslip or works an income out from a fact about the applicant is `bank_program.programType`, chosen per program — not a category, not a `loanPurpose` member, and not a card on the mobile home screen. The same catalog name is sold both ways by different banks, so a category would force every such name to be duplicated and would ask the customer to choose between two descriptions of one loan. Equally a block: a hardcoded list of which categories MAY sell a no-payslip program (`SURROGATE_CAPABLE_CATEGORIES`, `SURROGATE_REQUIRED_CATEGORIES`, or any `isSurrogate*Category(category)` helper). Capability is DERIVED from whether a category's applicants are asked one of the four surrogate facts (`question_loan_category`), so widening the product is an admin action on the questionnaire screen, not a release. Removing a category requires a destructive migration that physically deletes the registry entry, all bank programs in that category, and all applications referencing it (cascade through bank offers, decisions, activities, documents). Append-only triggers must be temporarily disabled (`ALTER TABLE … DISABLE TRIGGER`) and re-enabled inside the same migration; a `DATA_ERASURE_COMPLETED` audit-event row records the wipe. Leaving deactivated rows behind = review block — operators see ghost categories in audit dashboards and registry pickers. Buyout pricing as a feature of an existing program (e.g. `pricing.buyoutRateDeltaPercent` on a `personal` program) is NOT a fifth category and is allowed.
 
 ## A27. Money / Amount Input Without the Grouping Directive (UI consistency, v1.6.1)
 Any editable money or amount input — EGP loan amounts, monthly income, balances, asset values, uplift ceilings, tier-band thresholds, prices — that does NOT use the shared `MoneyInputDirective` (`appMoneyInput`, `admin/src/app/core/directives/money-input.directive.ts`) = review block. The directive is the single owner of: thousands-grouping display (`1,000,000`), caret preservation across re-grouping, and the **raw-string contract** — the `FormControl` value, the request payload, and the backend DTO see digit-only strings (optionally one decimal point), never separators. The following are blocks: re-implementing a per-input `(input)` formatting handler, storing a comma-formatted string in a `FormControl`, or shipping an ungrouped raw money input. Percent fields (interest rate, fee %, spread, LTV %, down-payment %) are NOT money and MUST NOT use the directive.
@@ -1790,7 +1822,10 @@ Selecting a value for a form field with an inline / floating / overlay dropdown,
 | 5.1.0 | 2026-06-17 | MINOR | Principle XXXIII extended with the **Gradient hero header** rule: single shared `MasrafyGradientHeader`; expanded height bounded ≤ 240 logical px (compact band, ~210–230); mandatory breathing space between the hero and the content sheet; scrollable screens MUST host the hero as a collapsing sliver (`MasrafySliverGradientHeaderDelegate` + `SliverPersistentHeader(pinned)` in a `CustomScrollView` with `BouncingScrollPhysics`), collapsing to a compact toolbar (smaller `heading4` title centred on the back-button row, subtitle faded, gradient + glass back button preserved); non-scrollable `PageView` wizards keep the static header. New Anti-Pattern A35. |
 | 5.1.1 | 2026-06-17 | PATCH | Gradient hero height clarified from a fixed ≤240 bound to **content-sized**: callers compute it via `MasrafyGradientHeader.expandedHeightFor(context, …)` (`TextPainter` measure) — fed to the sliver `expandedHeight` and the static header's `heightInPixels`, with a ~180 logical-px `minHeight` floor — so it grows for long/two-line titles and never clips. Collapsed toolbar title MUST show in full via `FittedBox(scaleDown)` (no ellipsis truncation). A35 reworded accordingly. |
 | 5.1.2 | 2026-06-17 | PATCH | Wizard hero rule clarified: a button-driven `PageView` wizard step whose form scrolls MUST host its OWN per-step collapsing sliver hero (each `PageView` child = its own `CustomScrollView` + `SliverPersistentHeader(pinned)`); a single `NestedScrollView` over the PageView is forbidden (shared offset leaves short steps pre-collapsed). The static header is only for non-scrolling steps; the `bottom` progress bar fades with the hero on collapse. Principle XXXIII bullet + A35 reworded; first applied to the mortgage questionnaire. |
+| 15.0.0 | 2026-08-14 | MAJOR | **Principle II scope-lock widened from four retail loan categories to FIVE: `fast` (Fast Loans) added.** The no-payslip product: the bank cannot see a salary, so it works one out from a fact about the applicant (army grade, academic rank, years in practice, card limit) and prices off that. Its engine half already shipped as `bank_program.programType = 'income_surrogate'` (feature 011); this amendment gives it the customer-facing half — a category a customer picks, with its own question set, its own bank programs and its own ranked results — rather than a flag on `personal`, which would have made the questions asked depend on a program attribute the applicant never chose. Prisma `LoanCategory` gains `fast` (`20260814110000_fast_loan_category`, ADD VALUE, one-way). New rule + typed error: a Fast Loans program MUST be `income_surrogate` (`PROGRAM_TYPE_INVALID_FOR_CATEGORY`, 422, ar+en); the converse stays legal because business/professional programs use that type with `strategy: 'declared'`. A26 re-aimed at a SIXTH category and now records what an amendment must carry across all surfaces. |
+| 15.1.0 | 2026-08-14 | MINOR | **Principle II: surrogate-CAPABLE (`personal`, `car`, `fast`) split from surrogate-REQUIRED (`fast`).** A personal or auto loan may also be sold with no payslip, so those two categories now ask the four facts, have their surrogate income rules READ instead of reported as ignored, and show the fact picker on their catalog tab. Not an A26 amendment — no category added, `ALL_LOAN_CATEGORIES` untouched, no migration. Backend: `SURROGATE_LOAN_CATEGORIES`/`isSurrogateCategory` renamed to `SURROGATE_REQUIRED_CATEGORIES`/`requiresSurrogateProgramType` (still the only driver of `PROGRAM_TYPE_INVALID_FOR_CATEGORY`), new `SURROGATE_CAPABLE_CATEGORIES`/`isSurrogateCapableCategory`; `collectIncomeRuleWarnings` narrows the category term to the capable set rather than dropping it, so a grade table on a mortgage or business program still warns; `SurrogateFactSpec.category` dropped (the capable list is the single authority) and the publish warning became a set difference with `missingCategories` (`reason: 'not_assigned_to_surrogate_categories'`). Seed assigns `military_grade` / `academic_rank` / `years_in_practice` to `car` (the card-limit fact already rode the obligation block) — **requires a re-seed + re-publish** for car applicants to be asked. No new error code. |
+| 16.0.0 | 2026-08-14 | MAJOR | **Principle II scope-lock back to FOUR retail loan categories: `fast` (Fast Loans) removed, one day after v15.0.0 added it.** The no-payslip product is an income BASIS carried by `bank_program.programType`, not a product line: the same catalog name is sold against a payslip by one bank and against a grade table by another, so a category would have duplicated every sellable name and asked the customer to choose between two descriptions of one loan. Prisma `LoanCategory` back to four and the unapplied `20260814110000_fast_loan_category` migration deleted — the value never reached any database, so there is no destructive migration and no data to wipe. **Both category lists are DELETED, not renamed:** `SURROGATE_REQUIRED_CATEGORIES` / `requiresSurrogateProgramType` and `SURROGATE_CAPABLE_CATEGORIES` / `isSurrogateCapableCategory` are gone, and which categories can sell a no-payslip program is now derived from whether their applicants are asked one of the four surrogate facts (`question_loan_category`) — admin-configurable on the questionnaire screen, `personal` + `car` seeded as the default. `PROGRAM_TYPE_INVALID_FOR_CATEGORY` + its exception deleted across backend and both locale dictionaries (unthrowable once no category constrains the type). `collectIncomeRuleWarnings` drops the category term entirely and keys off `programType` alone, matching the engine's own gate — it previously reported a rule as ignored on categories the engine WOULD price off. Publish warning `not_assigned_to_surrogate_categories` → `not_asked_by_any_category` (a fact missing from one category is a product decision; a fact asked nowhere is a break). **Load-bearing fix:** the catalog usage counters were gated on the no-payslip CATEGORY, so removing it would have silently zeroed the board's only actionable warning while the three live `personal` + `income_surrogate` ABK programs stayed unconfigured — re-gated on `programType`, renamed `fastPrograms*` → `noPayslipPrograms` / `noPayslipProgramsWithoutTable`, pinned by `test/unit/no-payslip-usage-counters.spec.ts`. New derived `EnumerationMember.noPayslipFacts` (facts ticked per category) lets the program wizard filter its name picker by basis and warn, before saving, when the fact a method reads is not set up. Admin: catalog list is one grid with `All · Reads a payslip · No payslip` chips instead of two lanes; catalog name detail gains a "Sold without a payslip" switch on EVERY category tab; the wizard replaces the "Income-proof / Income-surrogate" dropdown with two step-1 choice cards, leads step 4 with the rule, groups the eleven methods by what they read, and gains an income row on the review step. `--color-cat-fast` → `--color-income-surrogate`. Flutter: enum member, home card, `pages/fast/`, route and ARB keys removed + regenerated. A26 re-aimed at a FIFTH category and now also blocks re-introducing the no-payslip product as a category or as a hardcoded capable-category list. |
 
 ---
 
-**Version**: 14.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-08-06
+**Version**: 16.0.0 | **Ratified**: 2026-05-12 | **Last Amended**: 2026-08-14

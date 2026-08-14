@@ -43,7 +43,6 @@ import {
   BankProgramListRowDto,
   BankProgramResponseDto,
   DeprecatedKeyDescriptor,
-  PendingBankConfirmationRowDto,
 } from './dto/bank-program.response.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
 import { BankProgramRepository, type JsonBlob } from './bank-programs.repository';
@@ -362,6 +361,9 @@ export class BankProgramsService {
   ): Promise<void> {
     // A program names one predefined program from the catalog, never free text.
     await this.assertProgramNameKey(dto.programNameKey, dto.productCategory, opts);
+    // No category CONSTRAINS the program type (v16.0.0). Both bases are legal under
+    // every category the catalog offers, and which one this program uses is its own
+    // `programType` — the category no longer implies it.
 
     // FR-011a — variable-rate consistency.
     const { isVariableRate, baseRatePercent, currentEffectiveRatePercent } = dto.pricing;
@@ -679,6 +681,7 @@ export class BankProgramsService {
           programNameKey: r.programNameKey ?? null,
           bankName: r.bankName,
           productCategory: r.productCategory,
+          programType: r.programType as BankProgramListRowDto['programType'],
           active: r.active,
           isShariaCompliant: r.isShariaCompliant,
           currencies: r.currencies,
@@ -914,9 +917,8 @@ export class BankProgramsService {
       );
 
       // FR-038 — one event per marker change, carrying the editor and the paths.
-      // This is also what makes `waitingSince` answerable on the waiting list: "how
-      // long have we been waiting on this bank" is a question about WHEN the marker
-      // arrived, which only an event can answer (FR-036).
+      // Append-only audit (Principle VI), not a feed for a screen: "who marked this,
+      // and when" has to be answerable after the fact, and only an event answers it.
       if (addedEstimates.length > 0 || removedEstimates.length > 0) {
         await this.audit.create(
           {
@@ -996,82 +998,6 @@ export class BankProgramsService {
 
     const deprecatedKeys = await this.collectDeprecatedKeys(updated);
     return this.toResponse(updated, deprecatedKeys, { warnings, deactivatedByEstimate });
-  }
-
-  // --- WAITING LIST (feature 011, US4) -------------------------------------
-
-  /**
-   * `GET /pending-bank-confirmation` — every program held back by a number the team
-   * estimated rather than the bank stated (FR-036).
-   *
-   * One list, so "what are we waiting on each bank for" is a single screen rather
-   * than an audit of twenty programs. Programs that existed before this feature carry
-   * `valueSources = {}` and never appear (FR-037) — they stay live and are reviewed
-   * once, deliberately, through the one-off pass rather than by being switched off.
-   */
-  async pendingBankConfirmation(query: { page?: number; pageSize?: number }): Promise<{
-    rows: PendingBankConfirmationRowDto[];
-    pagination: { page: number; pageSize: number; totalCount: number };
-  }> {
-    const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 20;
-    const { rows, totalCount } = await this.repo.findPendingBankConfirmation({ page, pageSize });
-
-    const events = await this.repo.findValueSourceEvents(rows.map((r) => r.id));
-    const now = Date.now();
-
-    const enriched = rows.map((row) => {
-      const paths = estimatedPaths(row.valueSources);
-      const standing = new Set(paths);
-
-      // Per still-standing path, the date its CURRENT wait began — and the oldest of
-      // those is what the row reports.
-      //
-      // Removals are replayed alongside additions, oldest-first: a marker added on day
-      // 0, confirmed and unmarked on day 30 and re-marked on day 60 has been waiting
-      // since day 60, not day 0. Reading only the additions claimed the team had been
-      // chasing the bank for two months about a number the bank already answered once,
-      // which is exactly the signal this screen exists to give.
-      const sinceByPath = new Map<string, Date>();
-      for (const event of events) {
-        if (event.bankProgramId !== row.id) continue;
-        const payload = event.payload as { added?: unknown; removed?: unknown };
-        for (const path of asStringArray(payload?.removed)) sinceByPath.delete(path);
-        for (const path of asStringArray(payload?.added)) {
-          if (!standing.has(path)) continue;
-          // First add of the CURRENT run wins; a re-save that re-lists the same path
-          // must not keep pushing the date forward.
-          if (!sinceByPath.has(path)) sinceByPath.set(path, event.occurredAt);
-        }
-      }
-      let waitingSince: Date | null = null;
-      for (const since of sinceByPath.values()) {
-        if (waitingSince === null || since.getTime() < waitingSince.getTime()) waitingSince = since;
-      }
-
-      // A marker with no event behind it (import, backfill, direct seed) still has to
-      // report SOMETHING. `updatedAt` is the honest approximation, flagged as such —
-      // `null` would render as "0 days waiting", which reads as "flagged today" and is
-      // the one answer that is definitely wrong.
-      const effective = waitingSince ?? row.updatedAt;
-      const waitingDays = Math.max(
-        0,
-        Math.floor((now - effective.getTime()) / (24 * 60 * 60 * 1000)),
-      );
-
-      return {
-        programCode: row.programCode,
-        friendlyName: row.friendlyName,
-        bankName: row.bankName,
-        active: row.active,
-        estimatedPaths: paths,
-        waitingSince: effective.toISOString(),
-        waitingSinceEstimated: waitingSince === null,
-        waitingDays,
-      } satisfies PendingBankConfirmationRowDto;
-    });
-
-    return { rows: enriched, pagination: { page, pageSize, totalCount } };
   }
 
   // --- INCOME RULE CHECK (feature 011, US3) --------------------------------
@@ -1422,11 +1348,6 @@ function incomeRuleException(violation: IncomeRuleViolation): Error {
     case 'dbrOverrideInvalid':
       return new IncomeRuleDbrOverrideInvalidException({ value: violation.value });
   }
-}
-
-/** A JSONB audit payload field, narrowed to the string paths it should hold. */
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
 }
 
 /**

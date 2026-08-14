@@ -31,6 +31,10 @@ import {
   type LoanCategory,
 } from '@core/loan-category';
 import {
+  SURROGATE_FACT_QUESTION_CODES,
+  categoryAsksAnySurrogateFact,
+} from '@core/surrogate-facts';
+import {
   LookupsApiService,
   type CatalogQuestion,
   type CatalogQuestionType,
@@ -189,6 +193,166 @@ interface QuestionRow {
               </button>
             </div>
 
+            @if (offered()) {
+              <!-- The no-payslip option, on EVERY loan type (v16.0.0). It used to be
+                   gated on a hardcoded list of categories, so a Mortgage could never be
+                   sold this way however the business changed. The gate is now the
+                   questionnaire: surrogateCapable() asks whether this category's
+                   applicants are asked any of the four facts, and when they are not the
+                   switch still shows — with the one link that fixes it — instead of the
+                   option silently not existing.
+
+                   The switch is DERIVED (on = a fact is ticked), so it cannot disagree
+                   with the list under it. Turning it off unticks all four, which deletes
+                   picks, so it asks first. -->
+              <section class="facts" [class.is-off]="!noPayslipOn()">
+                <div class="np-gate">
+                  @if (noPayslipOn() && factsPicked() > 0) {
+                    <button
+                      type="button"
+                      role="switch"
+                      class="np-switch"
+                      aria-checked="true"
+                      [attr.aria-busy]="busy()"
+                      nz-popconfirm
+                      nzPopconfirmTitle="Turn this off and untick all four facts? Banks reading them stop producing a figure."
+                      i18n-nzPopconfirmTitle="@@pnd.np_off_confirm"
+                      nzPopconfirmPlacement="bottomLeft"
+                      (nzOnConfirm)="toggleNoPayslip()"
+                    >
+                      <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+                      <span class="np-text">
+                        <span class="np-title" i18n="@@pnd.np_title">Sold without a payslip</span>
+                        <span class="np-hint" i18n="@@pnd.np_on_hint"
+                          >Banks may work the income out from a fact instead of reading a
+                          salary. Tick what they look up.</span
+                        >
+                      </span>
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      role="switch"
+                      class="np-switch"
+                      [attr.aria-checked]="noPayslipOn()"
+                      [attr.aria-busy]="busy()"
+                      (click)="toggleNoPayslip()"
+                    >
+                      <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+                      <span class="np-text">
+                        <span class="np-title" i18n="@@pnd.np_title">Sold without a payslip</span>
+                        <span class="np-hint">
+                          @if (noPayslipOn()) {
+                            <span i18n="@@pnd.np_on_hint"
+                              >Banks may work the income out from a fact instead of reading a
+                              salary. Tick what they look up.</span
+                            >
+                          } @else if (surrogateCapable()) {
+                            <span i18n="@@pnd.np_off_hint"
+                              >Off — banks selling this name as a {{ categoryName() }} must read a
+                              real payslip.</span
+                            >
+                          } @else {
+                            <span i18n="@@pnd.np_unavailable_hint"
+                              >{{ categoryName() }} applicants aren’t asked any of the four facts
+                              yet, so there is nothing for a bank to look up.</span
+                            >
+                          }
+                        </span>
+                      </span>
+                    </button>
+                    @if (!surrogateCapable()) {
+                      <a class="np-fix" routerLink="/questionnaire/categories" i18n="@@pnd.np_fix"
+                        >Ask one of them</a
+                      >
+                    }
+                  }
+                </div>
+
+                @if (noPayslipOn()) {
+                <h2 class="facts-title">
+                  <span i18n="@@pnd.facts_title">What the bank can work the income out from</span>
+                  <span class="facts-count">{{ factsPicked() }}/{{ surrogateFacts().length }}</span>
+                </h2>
+                <p class="facts-sub" i18n="@@pnd.facts_sub">
+                  Tick the facts this name’s banks look up. Each bank then enters its own table
+                  against that fact on its program — a table with no answer behind it gives the
+                  customer no figure at all.
+                </p>
+                <ul class="fact-list" role="list">
+                  @for (f of surrogateFacts(); track f.code) {
+                    <li class="fact" [attr.data-state]="factState(f)">
+                      @if (!f.picked && !f.asked) {
+                        <!-- Nothing to tick and nothing to untick: rendered as text with
+                             the one link that changes it, not as a disabled control. -->
+                        <span class="fact-main">
+                          <span class="fact-label">{{ f.label }}</span>
+                          <span class="fact-why" i18n="@@pnd.fact_not_asked"
+                            >{{ categoryName() }} applicants are never asked this, so no bank can
+                            use it yet.</span
+                          >
+                        </span>
+                        <a
+                          class="fact-fix"
+                          routerLink="/questionnaire/categories"
+                          i18n="@@pnd.fact_fix_ask"
+                          >Ask it</a
+                        >
+                      } @else {
+                        <button
+                          type="button"
+                          class="fact-main fact-toggle"
+                          role="checkbox"
+                          [attr.aria-checked]="f.picked"
+                          [attr.aria-busy]="saving().has(f.code) || busy()"
+                          (click)="toggleFact(f.code)"
+                        >
+                          <span class="tick" aria-hidden="true">
+                            @if (f.picked) {
+                              <span nz-icon nzType="check" nzTheme="outline"></span>
+                            }
+                          </span>
+                          <span class="fact-text">
+                            <span class="fact-label">{{ f.label }}</span>
+                            <span class="fact-type">{{ typeLabel(f.type) }}</span>
+                          </span>
+                        </button>
+                        <!-- Ticked, but this category stopped asking it. The worst state
+                             on the screen — a bank table is pointed at an answer that no
+                             longer arrives — so it is called out on the row, not only in
+                             the summary line below. -->
+                        @if (f.picked && !f.asked) {
+                          <a
+                            class="fact-fix warn"
+                            routerLink="/questionnaire/categories"
+                            i18n="@@pnd.fact_ticked_not_asked"
+                            >Not asked here — fix</a
+                          >
+                        }
+                      }
+                    </li>
+                  }
+                </ul>
+                @if (factsNotAsked() > 0) {
+                  <p class="facts-warn" i18n="@@pnd.facts_warn">
+                    {{ factsNotAsked() }} of these are not asked of {{ categoryName() }} applicants.
+                    A bank program that reads one of them produces no income until that changes.
+                  </p>
+                }
+                <!-- The gap the LIST screen badges, said here too. This screen could not
+                     show it before: the row mapper dropped the counters at the boundary,
+                     so the one place an operator opens to fix a name stayed silent about
+                     the reason they opened it. -->
+                @if (noPayslipWithoutTable() > 0) {
+                  <p class="facts-warn" i18n="@@pnd.facts_no_table">
+                    {{ noPayslipWithoutTable() }} bank programs read these and have no table yet,
+                    so they quote nothing.
+                  </p>
+                }
+                }
+              </section>
+            }
+
             @if (scope().length === 0) {
               <div class="notice">
                 <span i18n="@@pnd.no_questions"
@@ -239,12 +403,20 @@ interface QuestionRow {
                   <span class="cov-count">
                     {{ pickedInScope().length }}
                     <span class="cov-of" i18n="@@pnd.count"
-                      >of {{ scope().length }} questions scored</span
+                      >of {{ scope().length }} questions asked here</span
                     >
                   </span>
                   <span class="meter" aria-hidden="true">
                     <span class="meter-fill" [style.inline-size.%]="pct()"></span>
                   </span>
+                  <!-- The meter counts IN-SCOPE picks only, so without this line the
+                       section below ("Scored on 11") disagrees with it by exactly the
+                       drifted rows and reads as a bug in the page. -->
+                  @if (driftedCount() > 0) {
+                    <span class="cov-drift" i18n="@@pnd.count_drift"
+                      >+{{ driftedCount() }} kept from a change made elsewhere</span
+                    >
+                  }
                 </div>
 
                 <span class="controls-spacer"></span>
@@ -577,6 +749,222 @@ interface QuestionRow {
       .switch-hint {
         font-size: var(--text-xs);
         color: var(--color-text-secondary);
+      }
+
+      /* --- The facts block ------------------------------------------------- */
+      /* A tinted panel on the page surface rather than a card: the question grid
+         below is already the page's card layer, and a card holding cards is the
+         hierarchy failure this file avoids everywhere else (A34's cousin). */
+      /* Plum, not brand azure: the offered gate directly above is the brand-coloured
+         control on this screen, and two tinted panels in the same hue read as one
+         block with a stray heading. Plum is the hue this concept owns board-wide. */
+      .facts {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-4);
+        border: 1px solid color-mix(in srgb, var(--color-income-surrogate) 25%, var(--pnd-line));
+        border-radius: var(--radius-md);
+        background: color-mix(in srgb, var(--color-income-surrogate) 4%, var(--pnd-surface));
+      }
+      /* Switched off, the panel is one row: it must not compete with the question grid
+         that is the actual work on this tab. */
+      .facts.is-off {
+        border-color: var(--pnd-line);
+        background: transparent;
+        padding-block: var(--space-3);
+      }
+
+      /* --- The no-payslip switch -------------------------------------------- */
+      /* Same anatomy as the offered gate above, one level in, so the two read as
+         parent and child decision rather than as two unrelated toggles. */
+      .np-gate {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+      .np-switch {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: 0;
+        border: 0;
+        background: none;
+        font: inherit;
+        text-align: start;
+        cursor: pointer;
+      }
+      .np-switch:focus-visible {
+        outline: 2px solid var(--color-income-surrogate);
+        outline-offset: 3px;
+        border-radius: var(--radius-sm);
+      }
+      .np-switch .track {
+        flex: none;
+        inline-size: 34px;
+        block-size: 20px;
+        margin-block-start: 2px;
+        border-radius: var(--radius-pill);
+        background: var(--color-border-strong);
+        transition: background-color var(--motion-duration-fast) var(--motion-ease);
+      }
+      .np-switch .thumb {
+        display: block;
+        inline-size: 14px;
+        block-size: 14px;
+        margin: 3px;
+        border-radius: 50%;
+        background: var(--color-surface-default);
+        /* Logical, so RTL mirrors without a second rule (Principle IV / A19). */
+        margin-inline-start: 3px;
+        transition: margin-inline-start var(--motion-duration-fast) var(--motion-ease);
+      }
+      .np-switch[aria-checked='true'] .track {
+        background: var(--color-income-surrogate);
+      }
+      .np-switch[aria-checked='true'] .thumb {
+        margin-inline-start: 17px;
+      }
+      .np-text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .np-title {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .np-hint {
+        max-inline-size: 62ch;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+      .np-fix {
+        margin-inline-start: auto;
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--color-brand-primary);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .np-switch .track,
+        .np-switch .thumb {
+          transition: none;
+        }
+      }
+      .facts-title {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .facts-count {
+        font-family: var(--font-family-numeric);
+        font-feature-settings: var(--font-feature-tabular);
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-regular);
+        color: var(--color-text-tertiary);
+      }
+      .facts-sub {
+        margin: 0;
+        max-inline-size: 62ch;
+        font-size: var(--text-xs);
+        color: var(--color-text-secondary);
+      }
+      .fact-list {
+        list-style: none;
+        margin: var(--space-1) 0 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: var(--space-2);
+      }
+      .fact {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-block-size: 44px;
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--pnd-line);
+        border-radius: var(--radius-sm);
+        background: var(--pnd-surface);
+      }
+      .fact-main {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        flex: 1;
+        min-inline-size: 0;
+        border: none;
+        background: none;
+        padding: 0;
+        text-align: start;
+      }
+      .fact-toggle {
+        cursor: pointer;
+      }
+      .fact-toggle:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+        border-radius: var(--radius-sm);
+      }
+      .fact-text {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-inline-size: 0;
+      }
+      .fact-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        line-height: var(--leading-snug);
+        color: var(--color-text-primary);
+        overflow-wrap: break-word;
+      }
+      .fact-type,
+      .fact-why {
+        font-size: var(--text-xxs);
+        color: var(--color-text-tertiary);
+      }
+      .fact[data-state='picked'] {
+        border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--pnd-line));
+        background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--pnd-surface));
+      }
+      .fact[data-state='picked'] .tick {
+        border-color: var(--color-brand-primary);
+        background: var(--color-brand-primary);
+      }
+      /* Not-asked is the one state this screen cannot fix, so it carries the warn
+         tint AND a link out — a dimmed row would read as "off", which is wrong: the
+         operator has not chosen anything, the questionnaire has. */
+      .fact[data-state='not_asked'] {
+        border-color: var(--color-warning-bg);
+        background: color-mix(in srgb, var(--color-warning-bg) 55%, var(--pnd-surface));
+      }
+      .fact-fix {
+        flex: none;
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text-link);
+        white-space: nowrap;
+      }
+      /* The ticked-but-unasked row already sits on a warning tint, so the link takes the
+         warning ink too — a blue link on amber reads as unrelated to the row it fixes. */
+      .fact-fix.warn {
+        color: var(--color-warning);
+      }
+      .facts-warn {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--color-warning);
+      }
+      .cov-drift {
+        font-size: var(--text-xxs);
+        color: var(--color-text-tertiary);
       }
 
       /* --- Locked preview -------------------------------------------------- */
@@ -932,6 +1320,37 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly searchAria = $localize`:@@pnd.search_aria:Search questions`;
   private readonly notOfferedNote = $localize`:@@pnd.tab_not_offered:Not offered`;
 
+  /**
+   * Does the OPEN tab's category ASK any of the four facts? Derived from the question
+   * pool, never from a list of categories (v16.0.0).
+   *
+   * This screen used to gate the block on a hardcoded capable set, which meant a
+   * Mortgage could never be sold without a payslip however the business changed. Now the
+   * gate IS the questionnaire: assign `military_grade` to Mortgage on
+   * `/questionnaire/categories` and the block appears here, ready to configure. A
+   * category that asks nothing still shows the switch (see `noPayslipOn`) so the
+   * operator can see the option exists and where it is turned on — it just cannot be
+   * ticked into a lie.
+   */
+  protected readonly surrogateCapable = computed(() =>
+    categoryAsksAnySurrogateFact(this.pool(), this.activeCategory()),
+  );
+
+  /**
+   * The name's own no-payslip switch for this category: ON when a fact is ticked.
+   *
+   * Derived rather than stored, so the switch and the tick-list can never disagree —
+   * there is no third place holding "is this sold without a payslip". `switchedOn` is the
+   * operator's INTENT while the list is open with nothing ticked yet; without it, ticking
+   * the first fact would be impossible because the list only renders when the switch
+   * reads on.
+   */
+  private readonly switchedOn = signal<ReadonlySet<LoanCategory>>(new Set());
+
+  protected readonly noPayslipOn = computed(
+    () => this.factsPicked() > 0 || this.switchedOn().has(this.activeCategory()),
+  );
+
   /** True when the name may be OFFERED under the open tab's category. */
   protected readonly offered = computed(
     () => this.name()?.categories.includes(this.activeCategory()) ?? false,
@@ -1022,6 +1441,105 @@ export class ProgramNameDetailPage implements OnInit {
    * count is the fastest way to see that a name is configured for a loan type
    * nobody can sell it under.
    */
+  /**
+   * The facts an income-surrogate rule can read, resolved against the pool — the
+   * block that makes the surrogate lane different from a second question list.
+   *
+   * Three states, three different fixes, which is why they are not collapsed into
+   * "missing": the question can be absent from the applicant's questionnaire
+   * (`not_asked` — fix on the questionnaire board), present but not scored by this
+   * name (`not_picked` — one tap here), or already scored (`picked`). A rule whose
+   * fact is never asked resolves to no income at all, in silence, which is the
+   * defect this whole feature exists to close.
+   */
+  protected readonly surrogateFacts = computed(() => {
+    const category = this.activeCategory();
+    const byCode = new Map(this.pool().map((q) => [q.code, q]));
+    const picked = this.pickedCodes();
+    return SURROGATE_FACT_QUESTION_CODES.map((code) => {
+      const q = byCode.get(code);
+      // TICKED and ASKED are independent axes, so they are two booleans rather than one
+      // three-way state. Folding them lost the worst case: a fact ticked here that the
+      // category stopped asking reported as plain "not asked", which hid a live tick and
+      // (since the switch is derived from the ticks) made the whole block read as off
+      // while a bank table was still pointed at it.
+      return {
+        code,
+        label: q ? (this.isAr ? q.labelAr : q.labelEn) : code,
+        type: q?.type ?? ('TEXT' as CatalogQuestionType),
+        picked: picked.has(code),
+        asked: q?.categories.includes(category) ?? false,
+      };
+    });
+  });
+
+  /**
+   * The row's `data-state`, for the tint only. Four combinations collapse to three
+   * visuals: a tick the category asks is brand-tinted, anything unasked is warning-tinted
+   * (ticked or not — both need attention), and an untouched asked fact is plain.
+   */
+  protected factState(f: { picked: boolean; asked: boolean }): string {
+    if (!f.asked) return 'not_asked';
+    return f.picked ? 'picked' : 'not_picked';
+  }
+
+  /** How many of the four facts this name scores on here — ticks, whatever their state. */
+  protected readonly factsPicked = computed(
+    () => this.surrogateFacts().filter((f) => f.picked).length,
+  );
+
+  /** Facts the applicant is never asked — the one state this screen cannot fix alone. */
+  protected readonly factsNotAsked = computed(
+    () => this.surrogateFacts().filter((f) => !f.asked).length,
+  );
+
+  /**
+   * Turn the no-payslip option on or off for this category.
+   *
+   * ON is intent only — nothing is written until a fact is ticked, because a fact IS the
+   * configuration. OFF unticks every fact, which deletes picks, so the template asks
+   * first.
+   */
+  protected toggleNoPayslip(): void {
+    const category = this.activeCategory();
+    if (this.noPayslipOn()) {
+      void this.clearFacts();
+      this.switchedOn.update((s) => {
+        const next = new Set(s);
+        next.delete(category);
+        return next;
+      });
+      return;
+    }
+    this.switchedOn.update((s) => new Set(s).add(category));
+  }
+
+  /** Untick every fact for this category in ONE write, so the board cannot half-apply. */
+  private async clearFacts(): Promise<void> {
+    const facts = new Set(SURROGATE_FACT_QUESTION_CODES);
+    const remaining = [...this.pickedCodes()].filter((code) => !facts.has(code));
+    if (remaining.length === this.pickedCodes().size) return;
+    await this.writeQuestions(remaining);
+  }
+
+  /** How many bank programs behind this name are sold with no payslip and have no table. */
+  protected readonly noPayslipWithoutTable = computed(
+    () => this.name()?.usage.noPayslipProgramsWithoutTable ?? 0,
+  );
+
+  /**
+   * Picks kept for this lane that the category no longer asks, or whose question
+   * left the pool.
+   *
+   * Surfaced as its own number because the meter counts only IN-SCOPE picks: the
+   * screen used to show "10 of 25 questions scored" above a section headed "Scored
+   * on 11" with nothing explaining the eleventh, which reads as a bug in the page
+   * rather than as configuration needing attention.
+   */
+  protected readonly driftedCount = computed(
+    () => this.pickedRows().filter((r) => r.removed || !r.inScope).length,
+  );
+
   protected readonly tabs = computed<RailTabItem[]>(() => {
     const n = this.name();
     const byCode = new Map(this.pool().map((q) => [q.code, q]));
@@ -1064,6 +1582,23 @@ export class ProgramNameDetailPage implements OnInit {
 
   protected offerLabel(): string {
     return $localize`:@@pnd.gate_label:Offered as a ${this.categoryName()}:category:`;
+  }
+
+  /** Same write as any other question — the facts block is a different VIEW of it. */
+  protected async toggleFact(code: string): Promise<void> {
+    const row = [...this.pickedRows(), ...this.visibleScope()].find((r) => r.code === code);
+    if (row) {
+      await this.toggleQuestion(row);
+      return;
+    }
+    const q = this.pool().find((p) => p.code === code);
+    if (!q) return;
+    await this.toggleQuestion({ ...this.rowForPublic(q), removed: false });
+  }
+
+  /** `rowFor` is private; the facts block needs the same mapping. */
+  private rowForPublic(q: CatalogQuestion): QuestionRow {
+    return this.rowFor(q, q.categories.includes(this.activeCategory()));
   }
 
   protected isPicked(code: string): boolean {
@@ -1205,6 +1740,25 @@ export class ProgramNameDetailPage implements OnInit {
       const row = await this.api.setQuestions(n.id, category, next);
       this.absorb(row);
       this.announce(Math.abs(next.length - before.length), on);
+    } catch {
+      await this.load({ quiet: true });
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /**
+   * Write the OPEN category's whole pick set. Not optimistic, like `setAllVisible` and
+   * for the same reason: it can remove several picks at once, and a half-reverted grid
+   * is worse than a short wait.
+   */
+  private async writeQuestions(next: readonly string[]): Promise<void> {
+    const n = this.name();
+    if (!n || this.busy()) return;
+    this.busy.set(true);
+    try {
+      const row = await this.api.setQuestions(n.id, this.activeCategory(), [...next]);
+      this.absorb(row);
     } catch {
       await this.load({ quiet: true });
     } finally {

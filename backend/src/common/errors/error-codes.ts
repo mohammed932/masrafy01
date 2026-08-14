@@ -220,6 +220,11 @@ export const ERROR_CODES = {
    * empty means the name is parked.
    */
   PROGRAM_NAME_KEY_NOT_IN_CATEGORY: 'PROGRAM_NAME_KEY_NOT_IN_CATEGORY',
+  // NOTE (v16.0.0): `PROGRAM_TYPE_INVALID_FOR_CATEGORY` lived here for one day. It
+  // existed only to force a Fast Loans program to be `income_surrogate`; with that
+  // category gone, no category constrains the program type and the code became
+  // unthrowable. Deleted rather than retired, in one change with both locale
+  // dictionaries (Principle III) — nothing had shipped against it.
   // Typed questions + typed answers
   ANSWER_TYPE_MISMATCH: 'ANSWER_TYPE_MISMATCH',
   ANSWER_OUT_OF_RANGE: 'ANSWER_OUT_OF_RANGE',

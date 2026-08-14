@@ -150,6 +150,12 @@
   --chart-2: #A17C5B;
   --chart-3: #3D5A80;
   --chart-4: #2D5F3F;
+  // Fifth series. Arrived with the Fast Loans category (v15.0.0) and outlived it —
+  // v16.0.0 re-pointed it at the no-payslip income BASIS, which is the thing it was
+  // always really marking. A plum, because the four in use are azure / bronze /
+  // slate-blue / green: a fifth warm hue would read as a second bronze at 6px, and
+  // amber already means "warning" everywhere in this palette.
+  --chart-5: #6D4C8A;
 }
 
 // ============================================================================
@@ -263,4 +269,5 @@
   --chart-2: #D4B89F;
   --chart-3: #8B7355;
   --chart-4: #4A3D35;
+  --chart-5: #B48EE0;
 }

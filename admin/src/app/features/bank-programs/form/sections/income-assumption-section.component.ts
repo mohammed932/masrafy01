@@ -25,6 +25,7 @@ import {
   INCOME_BAND_UNIT,
   INCOME_KEY_REGISTRY,
   INCOME_METHOD_SHAPE,
+  incomeMethodGroups,
   type IncomeAssumptionStrategy,
   type IncomeBand,
   type IncomeKeyTableRow,
@@ -95,62 +96,17 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
             >Method</nz-form-label
           >
           <nz-form-control>
+            <!-- Grouped by what the method READS, so the four whose fact can simply be
+                 missing are visibly a different kind of choice from the six that read a
+                 document, and from Declared, which is not a rule at all. -->
             <nz-select id="strategy" formControlName="strategy">
-              <nz-option
-                nzValue="declared"
-                i18n-nzLabel="@@bank_programs.strategy.declared"
-                nzLabel="Declared (applicant-provided)"
-              ></nz-option>
-              <nz-option
-                nzValue="byYearsInJob"
-                i18n-nzLabel="@@bank_programs.strategy.years_job"
-                nzLabel="By years in job"
-              ></nz-option>
-              <nz-option
-                nzValue="byYearsInPractice"
-                i18n-nzLabel="@@bank_programs.strategy.years_practice"
-                nzLabel="By years in practice"
-              ></nz-option>
-              <nz-option
-                nzValue="byProfessorRank"
-                i18n-nzLabel="@@bank_programs.strategy.professor_rank"
-                nzLabel="By academic rank"
-              ></nz-option>
-              <nz-option
-                nzValue="byMilitaryGrade"
-                i18n-nzLabel="@@bank_programs.strategy.military_grade"
-                nzLabel="By military grade"
-              ></nz-option>
-              <nz-option
-                nzValue="byCDValue"
-                i18n-nzLabel="@@bank_programs.strategy.cd_value"
-                nzLabel="By certificate value"
-              ></nz-option>
-              <nz-option
-                nzValue="byTotalDeposits"
-                i18n-nzLabel="@@bank_programs.strategy.total_deposits"
-                nzLabel="By total deposits"
-              ></nz-option>
-              <nz-option
-                nzValue="byCarInstallment"
-                i18n-nzLabel="@@bank_programs.strategy.car_installment"
-                nzLabel="By car installment"
-              ></nz-option>
-              <nz-option
-                nzValue="byCarLoanAmount"
-                i18n-nzLabel="@@bank_programs.strategy.car_loan_amount"
-                nzLabel="By car loan amount"
-              ></nz-option>
-              <nz-option
-                nzValue="byCreditCardLimit"
-                i18n-nzLabel="@@bank_programs.strategy.credit_card_limit"
-                nzLabel="By credit card limit"
-              ></nz-option>
-              <nz-option
-                nzValue="byBankStatementPercent"
-                i18n-nzLabel="@@bank_programs.strategy.bank_statement"
-                nzLabel="By bank statement percent"
-              ></nz-option>
+              @for (g of methodGroups; track g.label) {
+                <nz-option-group [nzLabel]="g.label">
+                  @for (o of g.options; track o.value) {
+                    <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
+                  }
+                </nz-option-group>
+              }
             </nz-select>
           </nz-form-control>
         </nz-form-item>
@@ -379,6 +335,9 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   private readonly modal = inject(NzModalService);
   private readonly enums = inject(PlatformEnumerationsService);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Built once — the grouping and the labels are static. */
+  protected readonly methodGroups = incomeMethodGroups();
 
   /** The `incomeAssumption` form group: strategy, scalar, override, combination, docs. */
   readonly group = input.required<FormGroup>();

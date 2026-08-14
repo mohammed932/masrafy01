@@ -79,7 +79,13 @@ Publishing NEVER fails on a surrogate binding, exactly as it never fails on a mo
 `GET /api/admin/questionnaire/tree` returns the same warnings without publishing, via the existing
 `bindingWarnings()` (FR-021: reported to admins BEFORE a customer meets it).
 
-`reason` values: `missing_or_inactive` · `wrong_type` · `option_codes_drifted` · `not_assigned_to_personal`.
+`reason` values: `missing_or_inactive` · `wrong_type` · `option_codes_drifted` ·
+`not_assigned_to_surrogate_categories`.
+
+The last one is a SET DIFFERENCE against `SURROGATE_CAPABLE_CATEGORIES` (`personal`, `car`, `fast` —
+constitution v15.1.0), not a membership test, and its meta carries `missingCategories` alongside
+`assignedCategories`: a fact still assigned to `personal` but dropped from `car` is a car program whose
+table can never fire, which "assigned to at least one" would hide.
 
 ---
 

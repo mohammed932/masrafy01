@@ -1,12 +1,26 @@
 /**
- * The four constitution-locked loan categories (Principle II scope-lock, A26).
+ * The constitution-locked loan categories (Principle II scope-lock, A26).
  * Single canonical admin source so the questionnaire, scoring, banks, and the
- * bank-program form all agree on the set and its labels. Adding a fifth here
+ * bank-program form all agree on the set and its labels. Adding a FIFTH here
  * requires a constitution amendment — do not extend casually.
+ *
+ * Every value names WHAT is financed. The no-payslip product is deliberately not one of
+ * them: v15.0.0 shipped it as a fifth category (`fast`, "Fast Loans") and v16.0.0 removed
+ * it again, because whether the bank reads a payslip or works an income out from a fact
+ * about the applicant is an income BASIS — carried per program by
+ * `bank_program.programType` — and the same personal or auto loan is sold both ways by
+ * different banks. See `income-basis.ts`.
  */
 export type LoanCategory = 'personal' | 'car' | 'mortgage' | 'business';
 
 export const LOAN_CATEGORIES: LoanCategory[] = ['personal', 'car', 'mortgage', 'business'];
+
+// NO SURROGATE-CAPABLE OR -REQUIRED LIST LIVES HERE (v16.0.0).
+//
+// v15.x had both, and every widening of the product needed a code change. Which categories
+// can sell a no-payslip program is now DERIVED from whether their applicants are asked one
+// of the four surrogate facts, which the admin controls on `/questionnaire/categories`.
+// Ask `categoryAsksAnySurrogateFact(pool, category)` from `core/surrogate-facts.ts`.
 
 /** Type guard: is an arbitrary string one of the four loan categories? */
 export function isLoanCategory(value: string | null | undefined): value is LoanCategory {

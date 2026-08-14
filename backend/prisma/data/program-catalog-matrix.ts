@@ -79,23 +79,31 @@ export type CatalogCategory = 'personal' | 'car' | 'mortgage' | 'business';
 export const CATALOG_CATEGORY_ASSIGNMENTS: Readonly<
   Record<string, readonly CatalogCategory[]>
 > = {
-  // ── Four: the borrower owns the practice they work in, so the business line
-  // is a real product for them, not a courtesy.
+  // ── Four: the borrower owns the practice they work in, so the business line is
+  // a real product for them. Their fee income is not on a payslip either, which is
+  // what the NO-PAYSLIP basis is for — but that is a per-program property, not a
+  // category, so it shows up as the `years_in_practice` fact ticked on the name,
+  // not as a fifth entry here (v16.0.0).
   doctor: ['personal', 'car', 'mortgage', 'business'],
   professional: ['personal', 'car', 'mortgage', 'business'],
 
   // ── Three: salaried segments. Everything a payroll reaches, nothing more —
   // uniformed and government staff are barred from trading, and a bank's own
   // staff borrow as employees.
+  // Uniformed staff are also sold WITHOUT a payslip, priced off their GRADE — three
+  // live ABK programs do exactly that, as `personal` + `income_surrogate`. Again a
+  // basis, not a category: the `military_grade` fact carries it.
   armed_forces: ['personal', 'car', 'mortgage'],
   police: ['personal', 'car', 'mortgage'],
+  // University staff sit under this archetype, and an academic rank prices the same
+  // way a military grade does.
   govt_employee: ['personal', 'car', 'mortgage'],
   bankers: ['personal', 'car', 'mortgage'],
   private_sector: ['personal', 'car', 'mortgage'],
 
-  // Three, but a different three: a pharmacy is a licensed business, and the
-  // owner borrows both ways. Mortgage is out — the premises are financed as
-  // commercial real estate, which this platform does not sell.
+  // Three: a pharmacy is a licensed business, and the owner borrows both ways.
+  // Mortgage is out — the premises are financed as commercial real estate, which
+  // this platform does not sell.
   pharmacy: ['personal', 'car', 'business'],
 
   // ── Two: structurally capped segments.
@@ -228,8 +236,9 @@ const BUSINESS_SPINE = [
  * here reads as "not configured", which is the day-one state and not an error —
  * unlike an empty category ASSIGNMENT above, which means "parked".
  */
-export const CATALOG_QUESTION_TEMPLATE: Readonly<
-  Record<string, Partial<Record<CatalogCategory, readonly string[]>>>
+export const CATALOG_QUESTION_TEMPLATE: Record<
+  string,
+  Partial<Record<CatalogCategory, readonly string[]>>
 > = {
   // ── Doctors: hospital salary plus a private clinic. Both halves are scored —
   // the payroll one because most consultants still have one, `additional_income`
@@ -383,3 +392,58 @@ export const CATALOG_QUESTION_TEMPLATE: Readonly<
     car: [...CAR_SPINE, 'current_loans'],
   },
 };
+
+
+
+// ---------------------------------------------------------------------------
+// The NO-PAYSLIP fact, per archetype (constitution v16.0.0)
+//
+// v15.0.0 built a whole sixth `fast` question set per archetype here — the personal
+// set minus the four payslip questions, plus the fact. v16.0.0 deleted that category:
+// no payslip is an income BASIS carried by `bank_program.programType`, not a product
+// the customer picks, so there is no separate set to build.
+//
+// What survives is the FACT, appended to the archetype's `personal` set. That single
+// code is what marks the name as sellable without a payslip: the admin catalog derives
+// "sold without a payslip" from the overlap of a name's ticked questions with the four
+// surrogate facts, and the bank-program wizard offers only fact-carrying names when the
+// admin picks the no-payslip basis. Three live ABK programs (`ABK-MILITARY`,
+// `ABK-PROFESSORS`, `ABK-DOCTORS-PRACTICE`) are `personal` + `income_surrogate` and read
+// exactly these facts.
+//
+// The four payslip questions are NOT dropped, unlike the old `fast` delta: the same name
+// under `personal` is still sold the ordinary way by other banks, and the payslip
+// questions score those programs. A no-payslip applicant simply skips them — an
+// asked-but-unanswered question keeps its weight in the denominator and earns nothing
+// (Principle V, v13.0.0), which is the honest outcome.
+//
+// `car` is surrogate-CAPABLE too, and deliberately left alone: seeding a tick there
+// would assert a product decision nobody has made. It is one click on the catalog
+// screen when a bank actually sells it.
+// ---------------------------------------------------------------------------
+
+/** The fact each archetype's banks look an assumed income up by. */
+const NO_PAYSLIP_FACT: Readonly<Record<string, readonly string[]>> = {
+  armed_forces: ['military_grade'],
+  police: ['military_grade'],
+  govt_employee: ['academic_rank'],
+  doctor: ['years_in_practice'],
+  professional: ['years_in_practice'],
+  pharmacy: ['years_in_practice'],
+};
+
+/**
+ * Folded into the template map above rather than typed into each `personal` array, so a
+ * later edit to a name's personal set cannot silently drop the fact that makes the name
+ * sellable without a payslip.
+ */
+for (const [key, facts] of Object.entries(NO_PAYSLIP_FACT)) {
+  const personal = CATALOG_QUESTION_TEMPLATE[key]?.personal;
+  if (!personal) continue;
+  const missing = facts.filter((code) => !personal.includes(code));
+  if (missing.length === 0) continue;
+  (CATALOG_QUESTION_TEMPLATE[key] as Record<string, readonly string[]>).personal = [
+    ...personal,
+    ...missing,
+  ];
+}

@@ -17,6 +17,7 @@ import {
   registerDecorator,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LoanCategory, QuestionType } from '@prisma/client';
 import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
@@ -138,7 +139,7 @@ export class CreateQuestionDto {
   @ApiPropertyOptional({ enum: LoanCategory, isArray: true })
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories?: LoanCategory[];
 }
@@ -151,7 +152,7 @@ export class CreateQuestionDto {
 export class SetQuestionCategoriesDto {
   @ApiProperty({ enum: LoanCategory, isArray: true })
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories!: LoanCategory[];
 }
@@ -160,7 +161,7 @@ export class QuestionCategoryAssignmentDto {
   @ApiProperty() @IsString() @Length(1, 30) questionId!: string;
   @ApiProperty({ enum: LoanCategory, isArray: true })
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(ALL_LOAN_CATEGORIES.length)
   @IsEnum(LoanCategory, { each: true })
   categories!: LoanCategory[];
 }

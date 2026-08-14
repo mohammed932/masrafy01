@@ -7,7 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -40,7 +40,13 @@ import {
   categoryLabel,
   type LoanCategory,
 } from '@core/loan-category';
-import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.service';
+import { noPayslipFactsFor } from '@core/surrogate-facts';
+import { incomeBasisLabel, type IncomeBasis } from '@core/income-basis';
+import {
+  LookupsApiService,
+  type CatalogQuestion,
+  type EnumerationRow,
+} from '../lookups/lookups.api.service';
 import {
   EnumerationEditDialogComponent,
   type EnumerationEditDialogData,
@@ -50,6 +56,9 @@ const ENUM_TYPE = 'program_name';
 
 /** How many parked names the health panel names before it stops listing. */
 const PARKED_NAMES_SHOWN = 6;
+
+/** The board's income-basis facet. `all` is a filter value, never a basis. */
+type BasisFilter = 'all' | IncomeBasis;
 
 /**
  * Program catalog — the predefined loan program names that feed the bank-program
@@ -82,6 +91,7 @@ const PARKED_NAMES_SHOWN = 6;
     NzInputModule,
     NzToolTipModule,
     NzPopconfirmModule,
+    NgTemplateOutlet,
     PageHeaderComponent,
     StatStripComponent,
   ],
@@ -195,155 +205,199 @@ const PARKED_NAMES_SHOWN = 6;
           </div>
         }
       } @else {
-        <ul class="cards" role="list">
-          @for (r of live(); track r.id) {
-            <li class="card" [class.muted]="!r.active">
-              <!-- The whole card opens the name: one anchor, stretched over the
-                   card by ::after, with the action row lifted above it. A row of
-                   small "configure" links instead would give every card three
-                   competing targets and still leave the biggest one dead. -->
-              <a class="open" [routerLink]="[r.key]" [attr.aria-label]="openLabel(r)">
-                <!-- Same head anatomy as the stat cards above (tonal chip +
-                     label), so the board reads as one system rather than two
-                     grids that happen to share a page. -->
-                <span class="card-head">
-                  <span
-                    class="chip"
-                    [attr.data-tone]="r.active ? 'brand' : 'muted'"
-                    aria-hidden="true"
-                  >
-                    <span
-                      nz-icon
-                      [nzType]="r.active ? 'appstore' : 'poweroff'"
-                      nzTheme="outline"
-                    ></span>
-                  </span>
-                  <span class="name">{{ nameOf(r) }}</span>
-                </span>
-
-                <!-- What is configured, in the two axes the detail screen owns.
-                     Without this the list said only that a name exists, and
-                     "which of my sixteen names is still unconfigured?" meant
-                     opening all sixteen. -->
-                <span class="config">
-                  @if (categoriesOf(r).length === 0) {
-                    <span class="cat-none" i18n="@@program_catalog.card.parked"
-                      >No loan types yet</span
-                    >
-                  } @else {
-                    <span class="cats">
-                      @for (c of categoriesOf(r); track c) {
-                        <span class="cat" [style.--cat-accent]="'var(--color-cat-' + c + ')'">
-                          <span class="cat-dot" aria-hidden="true"></span>
-                          {{ label(c) }}
-                        </span>
-                      }
-                    </span>
-                    @if (questionCount(r) === 0) {
-                      <span class="q-none" i18n="@@program_catalog.card.no_questions"
-                        >No questions picked</span
-                      >
-                    } @else {
-                      <span class="q-count">{{ questionLabel(r) }}</span>
-                    }
-                  }
-                </span>
-              </a>
-
-              <div class="card-foot">
-                <!-- Does any bank actually sell this program? The row actions are
-                     hover-only, so the board has to answer it at rest. -->
-                <span class="usage" [class.zero]="usageOf(r).programs === 0">
-                  @if (usageOf(r).programs === 0) {
-                    <span i18n="@@program_catalog.usage.none">Not offered yet</span>
-                  } @else {
-                    {{ usageLabel(r) }}
-                  }
-                </span>
-                <!-- Only the EXCEPTION is badged. Nearly every name is active, so
-                     an ACTIVE pill on all sixteen cards said nothing and cost a
-                     row of colour; absence now means active. -->
-                @if (!r.active) {
-                  <span class="tag">{{ inactiveLabel }}</span>
-                }
-                <span class="foot-spacer"></span>
-                <div class="row-actions">
-                  <button
-                    class="icon-action"
-                    type="button"
-                    (click)="edit(r)"
-                    nz-tooltip
-                    nzTooltipTitle="Edit"
-                    i18n-nzTooltipTitle="@@program_catalog.edit"
-                    [attr.aria-label]="editLabel"
-                  >
-                    <span nz-icon nzType="edit" nzTheme="outline"></span>
-                  </button>
-                  <button
-                    class="icon-action"
-                    type="button"
-                    (click)="toggleActive(r, !r.active)"
-                    nz-tooltip
-                    [nzTooltipTitle]="r.active ? deactivateLabel : activateLabel"
-                    [attr.aria-label]="r.active ? deactivateLabel : activateLabel"
-                  >
-                    <span nz-icon nzType="poweroff" nzTheme="outline"></span>
-                  </button>
-                  <button
-                    class="icon-action danger"
-                    type="button"
-                    nz-popconfirm
-                    nzPopconfirmTitle="Deprecate this program? It stops appearing in the picker."
-                    i18n-nzPopconfirmTitle="@@program_catalog.deprecate.confirm"
-                    nzPopconfirmPlacement="topRight"
-                    (nzOnConfirm)="deprecate(r)"
-                    nz-tooltip
-                    nzTooltipTitle="Deprecate"
-                    i18n-nzTooltipTitle="@@program_catalog.deprecate"
-                    [attr.aria-label]="deprecateLabel"
-                  >
-                    <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
-                  </button>
-                </div>
-              </div>
-            </li>
+        <!-- ONE grid. Income basis is a facet of a name, not a class of name: the same
+             "Doctors — Practice" is sold against a payslip by one bank and against a
+             years-in-practice table by another, so a lane split printed it twice and
+             each copy told half the truth. The chips filter; the card states both. -->
+        <div class="basis-bar" role="group" [attr.aria-label]="basisFilterAria">
+          @for (c of basisChips(); track c.id) {
+            <button
+              type="button"
+              class="basis-chip"
+              [class.on]="basisFilter() === c.id"
+              [attr.aria-pressed]="basisFilter() === c.id"
+              (click)="basisFilter.set(c.id)"
+            >
+              <span class="basis-label">{{ c.label }}</span>
+              <span class="basis-n">{{ c.n }}</span>
+            </button>
           }
+        </div>
 
-          @if (deprecated().length > 0) {
-            <li class="cards-divider" aria-hidden="true">
-              <span nz-icon nzType="history" nzTheme="outline"></span>
-              <span i18n="@@program_catalog.deprecated">Deprecated</span>
-            </li>
-            @for (r of deprecated(); track r.id) {
-              <li class="card deprecated">
-                <div class="card-head">
-                  <span class="chip" data-tone="warning" aria-hidden="true">
-                    <span nz-icon nzType="history" nzTheme="outline"></span>
-                  </span>
-                  <span class="name">{{ nameOf(r) }}</span>
-                </div>
-                <div class="card-foot">
-                  <span class="tag warn">{{ deprecatedLabel }}</span>
-                  <span class="foot-spacer"></span>
-                  <div class="row-actions">
-                    <button
-                      class="icon-action"
-                      type="button"
-                      (click)="edit(r)"
-                      nz-tooltip
-                      nzTooltipTitle="Edit"
-                      i18n-nzTooltipTitle="@@program_catalog.edit"
-                      [attr.aria-label]="editLabel"
-                    >
-                      <span nz-icon nzType="edit" nzTheme="outline"></span>
-                    </button>
-                  </div>
-                </div>
-              </li>
+        @if (visible().length > 0) {
+          <ul class="cards" role="list">
+            @for (r of visible(); track r.id) {
+              <ng-container [ngTemplateOutlet]="nameCard" [ngTemplateOutletContext]="{ r: r }" />
             }
-          }
-        </ul>
+          </ul>
+        } @else {
+          <div class="board-empty">
+            <span nz-icon nzType="inbox" nzTheme="outline" aria-hidden="true"></span>
+            <p i18n="@@program_catalog.basis.empty">
+              No program names match this filter yet.
+            </p>
+          </div>
+        }
+
+        @if (deprecated().length > 0) {
+          <section class="lane-group">
+            <h2 class="lane-head muted">
+              <span nz-icon nzType="history" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@program_catalog.deprecated">Deprecated</span>
+              <span class="lane-n">{{ deprecated().length }}</span>
+            </h2>
+            <ul class="cards" role="list">
+              @for (r of deprecated(); track r.id) {
+                <li class="card deprecated">
+                  <div class="card-head">
+                    <span class="chip" data-tone="warning" aria-hidden="true">
+                      <span nz-icon nzType="history" nzTheme="outline"></span>
+                    </span>
+                    <span class="name">{{ nameOf(r) }}</span>
+                  </div>
+                  <div class="card-foot">
+                    <span class="tag warn">{{ deprecatedLabel }}</span>
+                    <span class="foot-spacer"></span>
+                    <div class="row-actions">
+                      <button
+                        class="icon-action"
+                        type="button"
+                        (click)="edit(r)"
+                        nz-tooltip
+                        nzTooltipTitle="Edit"
+                        i18n-nzTooltipTitle="@@program_catalog.edit"
+                        [attr.aria-label]="editLabel"
+                      >
+                        <span nz-icon nzType="edit" nzTheme="outline"></span>
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              }
+            </ul>
+          </section>
+        }
       }
+
+      <ng-template #nameCard let-r="r">
+        <li class="card" [class.muted]="!r.active" [class.is-surrogate]="isNoPayslip(r)">
+          <!-- The whole card opens the name: one anchor, stretched over the card by
+               ::after, with the action row lifted above it. A row of small
+               "configure" links instead would give every card three competing
+               targets and still leave the biggest one dead. -->
+          <a class="open" [routerLink]="[r.key]" [attr.aria-label]="openLabel(r)">
+            <span class="card-head">
+              <span class="chip" [attr.data-tone]="r.active ? 'brand' : 'muted'" aria-hidden="true">
+                <span nz-icon [nzType]="r.active ? 'appstore' : 'poweroff'" nzTheme="outline"></span>
+              </span>
+              <span class="name">{{ nameOf(r) }}</span>
+            </span>
+
+            <span class="config">
+              @if (categoriesOf(r).length === 0) {
+                <span class="cat-none" i18n="@@program_catalog.card.parked">No loan types yet</span>
+              } @else {
+                <span class="cats">
+                  @for (c of categoriesOf(r); track c) {
+                    <span class="cat" [style.--cat-accent]="'var(--color-cat-' + c + ')'">
+                      <span class="cat-dot" aria-hidden="true"></span>
+                      {{ label(c) }}
+                    </span>
+                  }
+                </span>
+                @if (questionCount(r) === 0) {
+                  <span class="q-none" i18n="@@program_catalog.card.no_questions"
+                    >No questions picked</span
+                  >
+                } @else {
+                  <span class="q-count">{{ questionLabel(r) }}</span>
+                }
+                <!-- Additive, not an alternative branch: a name sold both ways carries
+                     its loan types, its question count AND this line. -->
+                @if (isNoPayslip(r)) {
+                  <span class="reads">
+                    <span class="reads-label">{{ noPayslipLabel }}</span>
+                    <span class="reads-value">{{ factLabelsOf(r).join(' · ') }}</span>
+                  </span>
+                } @else if (noPayslipPrograms(r) > 0) {
+                  <!-- The contradiction worth colour: banks ARE selling this name with no
+                       payslip, but no fact is ticked, so their tables have nothing to
+                       look up and every one of those programs quotes nothing. -->
+                  <span class="q-none" i18n="@@program_catalog.card.no_fact"
+                    >Sold with no payslip, but no fact is picked — banks have nothing to
+                    look up</span
+                  >
+                }
+              }
+            </span>
+          </a>
+
+          <div class="card-foot">
+            <!-- Does any bank actually sell this name? The row actions are
+                 hover-only, so the board has to answer it at rest. -->
+            <span class="usage" [class.zero]="usageOf(r).programs === 0">
+              @if (usageOf(r).programs === 0) {
+                <span i18n="@@program_catalog.usage.none">Not offered yet</span>
+              } @else {
+                {{ usageLabel(r) }}
+              }
+            </span>
+            <!-- The one badge worth a colour on this board: a program typed "no
+                 payslip" whose bank never entered a table produces NO income and
+                 says nothing to the customer. Gated on the COUNT alone now — the
+                 lane flag it used to also require is gone, and the count is the
+                 fact. -->
+            @if (missingTables(r) > 0) {
+              <span class="tag warn">{{ missingTableLabel(r) }}</span>
+            }
+            <!-- Only the EXCEPTION is badged. Nearly every name is active, so an
+                 ACTIVE pill on all sixteen cards said nothing and cost a row of
+                 colour; absence now means active. -->
+            @if (!r.active) {
+              <span class="tag">{{ inactiveLabel }}</span>
+            }
+            <span class="foot-spacer"></span>
+            <div class="row-actions">
+              <button
+                class="icon-action"
+                type="button"
+                (click)="edit(r)"
+                nz-tooltip
+                nzTooltipTitle="Edit"
+                i18n-nzTooltipTitle="@@program_catalog.edit"
+                [attr.aria-label]="editLabel"
+              >
+                <span nz-icon nzType="edit" nzTheme="outline"></span>
+              </button>
+              <button
+                class="icon-action"
+                type="button"
+                (click)="toggleActive(r, !r.active)"
+                nz-tooltip
+                [nzTooltipTitle]="r.active ? deactivateLabel : activateLabel"
+                [attr.aria-label]="r.active ? deactivateLabel : activateLabel"
+              >
+                <span nz-icon nzType="poweroff" nzTheme="outline"></span>
+              </button>
+              <button
+                class="icon-action danger"
+                type="button"
+                nz-popconfirm
+                nzPopconfirmTitle="Deprecate this program? It stops appearing in the picker."
+                i18n-nzPopconfirmTitle="@@program_catalog.deprecate.confirm"
+                nzPopconfirmPlacement="topRight"
+                (nzOnConfirm)="deprecate(r)"
+                nz-tooltip
+                nzTooltipTitle="Deprecate"
+                i18n-nzTooltipTitle="@@program_catalog.deprecate"
+                [attr.aria-label]="deprecateLabel"
+              >
+                <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
+              </button>
+            </div>
+          </div>
+        </li>
+      </ng-template>
     </section>
   `,
   styles: [
@@ -408,6 +462,113 @@ const PARKED_NAMES_SHOWN = 6;
         font-size: var(--text-sm);
         color: var(--color-text-primary);
       }
+      /* --- Lane groups ------------------------------------------------------ */
+      /* Section HEADINGS, not cards. The cards are the page's card layer; wrapping
+         each group in a panel would put cards inside cards for no gain, and the
+         heading plus its count already separates the two lists. */
+      .lane-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .lane-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0;
+        font-size: var(--text-xxs);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text-secondary);
+      }
+      .lane-head.muted {
+        color: var(--color-text-tertiary);
+      }
+      .lane-n {
+        font-family: var(--font-family-numeric);
+        font-feature-settings: var(--font-feature-tabular);
+        letter-spacing: 0;
+        color: var(--color-text-tertiary);
+      }
+      /* --- Income-basis filter ---------------------------------------------- */
+      /* Toggle buttons with aria-pressed, NOT a tablist: one grid is being filtered,
+         not swapped for another panel, and a role the widget does not honour is worse
+         for a screen reader than the plain button it really is. Tab order is the
+         reading order, so no roving tabindex is needed either. */
+      .basis-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+      .basis-chip {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-3);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-pill);
+        background: var(--color-surface-default);
+        color: var(--color-text-secondary);
+        font: inherit;
+        font-size: var(--text-xs);
+        cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-ease),
+          background-color var(--motion-duration-fast) var(--motion-ease),
+          color var(--motion-duration-fast) var(--motion-ease);
+      }
+      .basis-chip:hover {
+        border-color: var(--color-border-strong);
+        color: var(--color-text-primary);
+      }
+      .basis-chip:focus-visible {
+        outline: 2px solid var(--color-brand-primary);
+        outline-offset: 2px;
+      }
+      .basis-chip.on {
+        border-color: var(--color-brand-primary);
+        background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
+        color: var(--color-text-primary);
+        font-weight: var(--font-weight-semibold);
+      }
+      .basis-n {
+        font-family: var(--font-family-numeric);
+        font-feature-settings: var(--font-feature-tabular);
+        color: var(--color-text-tertiary);
+      }
+      .basis-chip.on .basis-n {
+        color: var(--color-brand-primary);
+      }
+
+      /* The no-payslip card's identity is a leading edge, not a fill: a tinted card
+         would compete with the "inactive" muted state and with the warn tag it also
+         has to carry. Plum, the hue this concept already owns — not the brand azure,
+         which every active card's chip is already using. */
+      .card.is-surrogate {
+        border-inline-start: 3px solid
+          color-mix(in srgb, var(--color-income-surrogate) 70%, var(--color-surface-default));
+      }
+      /* One line, label then value: the facts sit BELOW the loan types and the question
+         count on the same card now, so a stacked two-line block read as a second
+         heading rather than as one more fact about the name. */
+      .reads {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-1) var(--space-2);
+        min-inline-size: 0;
+        font-size: var(--text-xs);
+      }
+      .reads-label {
+        color: var(--color-income-surrogate);
+        font-weight: var(--font-weight-semibold);
+      }
+      .reads-value {
+        color: var(--color-text-primary);
+        overflow-wrap: break-word;
+      }
+
       .board-empty {
         display: flex;
         flex-direction: column;
@@ -766,6 +927,19 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly loading = signal(true);
   protected readonly healthOpen = signal(false);
   private readonly rows = signal<EnumerationRow[]>([]);
+  /**
+   * The question pool, for one purpose: turning the surrogate lane's picked CODES
+   * into the labels a surrogate card shows. Codes are not readable on a card
+   * ("military_grade"), and the alternative — sending labels on the enumeration row
+   * — would put question content on an endpoint about program names.
+   *
+   * Failure is non-fatal: an empty map falls the cards back to codes, which is worse
+   * than labels and much better than an empty board.
+   */
+  private readonly pool = signal<CatalogQuestion[]>([]);
+  private readonly questionLabels = computed(
+    () => new Map(this.pool().map((q) => [q.code, this.isAr ? q.labelAr : q.labelEn])),
+  );
 
   /** Fixed-length placeholders for the shape-matched loading skeleton. */
   protected readonly skeletonCards = [0, 1, 2, 3, 4, 5];
@@ -780,6 +954,8 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly activateLabel = $localize`:@@program_catalog.activate:Activate`;
   protected readonly deactivateLabel = $localize`:@@program_catalog.deactivate:Deactivate`;
   protected readonly deprecateLabel = $localize`:@@program_catalog.deprecate:Deprecate`;
+  protected readonly noPayslipLabel = $localize`:@@program_catalog.card.reads:No payslip · reads`;
+  protected readonly basisFilterAria = $localize`:@@program_catalog.basis.aria:Filter by how the bank reads the income`;
 
   /** Search-filtered rows — one flat list, since a name may serve several loan
    *  types and so has no single lane. Deprecated names sit in their own tail
@@ -796,6 +972,64 @@ export class ProgramCatalogPage implements OnInit {
   });
 
   protected readonly live = computed(() => this.filtered().filter((r) => !r.deprecatedAt));
+
+  /**
+   * Income basis is a FACET, not a taxonomy — hence a filter over one grid rather than
+   * the two headed lanes this board used to carry.
+   *
+   * The lanes were split on "is this loan type the no-payslip category", which stopped
+   * being a question the moment that category was deleted (v16.0.0). Every name now lives
+   * under an ordinary loan type, and the SAME name is legitimately sold both ways by
+   * different banks — so a lane split would have printed those names twice, in two
+   * places, each half-true. One card that states both facts is the honest shape.
+   */
+  protected readonly basisFilter = signal<BasisFilter>('all');
+
+  /**
+   * Marked as sellable without a payslip: at least one of the four surrogate facts is
+   * ticked under a loan type this name is actually offered under.
+   *
+   * Derived, never stored. The fact tick-list on the detail screen IS the switch, so
+   * there is no flag that can disagree with it — and the wizard's name picker reads the
+   * same helper, so a name offered here is a name pickable there.
+   */
+  protected isNoPayslip(row: EnumerationRow): boolean {
+    return this.noPayslipFactCodes(row).length > 0;
+  }
+
+  private noPayslipFactCodes(row: EnumerationRow): string[] {
+    const picked = { questionsByCategory: row.questionsByCategory ?? {} };
+    const codes = this.categoriesOf(row).flatMap((c) => noPayslipFactsFor(picked, c));
+    return [...new Set(codes)];
+  }
+
+  protected readonly noPayslipCount = computed(
+    () => this.live().filter((r) => this.isNoPayslip(r)).length,
+  );
+  protected readonly payslipCount = computed(
+    () => this.live().filter((r) => !this.isNoPayslip(r)).length,
+  );
+
+  /**
+   * What the grid renders. A name matches `no_payslip` when it carries a fact and
+   * `payslip` when it does not — the two are complementary, so the counts add up to the
+   * board and no name is invisible under some filter.
+   */
+  protected readonly visible = computed(() => {
+    const basis = this.basisFilter();
+    if (basis === 'all') return this.live();
+    const wantNoPayslip = basis === 'no_payslip';
+    return this.live().filter((r) => this.isNoPayslip(r) === wantNoPayslip);
+  });
+
+  protected readonly basisChips = computed<Array<{ id: BasisFilter; label: string; n: number }>>(
+    () => [
+      { id: 'all', label: $localize`:@@program_catalog.basis.all:All`, n: this.live().length },
+      { id: 'payslip', label: incomeBasisLabel('payslip'), n: this.payslipCount() },
+      { id: 'no_payslip', label: incomeBasisLabel('no_payslip'), n: this.noPayslipCount() },
+    ],
+  );
+
   protected readonly deprecated = computed(() => this.filtered().filter((r) => r.deprecatedAt));
 
   protected readonly stats = computed<StatStripItem[]>(() => {
@@ -820,6 +1054,17 @@ export class ProgramCatalogPage implements OnInit {
         value: deprecated,
         tone: 'warning',
         icon: 'history',
+      },
+      // The only number on this strip an operator can ACT on today: a bank program
+      // sold without a payslip whose income table was never entered gives the
+      // customer no figure at all, silently. Counted across names, because the work
+      // is one email per bank, not one visit per name.
+      {
+        label: $localize`:@@program_catalog.stat.no_table:Programs with no table`,
+        value: all.reduce((n, r) => n + (r.usage?.noPayslipProgramsWithoutTable ?? 0), 0),
+        tone: 'warning',
+        icon: 'warning',
+        hint: $localize`:@@program_catalog.stat.no_table.hint:sold with no payslip, and no table entered`,
       },
     ];
   });
@@ -874,8 +1119,49 @@ export class ProgramCatalogPage implements OnInit {
   }
 
   /** Server omits `usage` for non-`program_name` types; treat that as unused. */
-  usageOf(row: EnumerationRow): { programs: number; banks: number } {
-    return row.usage ?? { programs: 0, banks: 0 };
+  usageOf(row: EnumerationRow): {
+    programs: number;
+    banks: number;
+    noPayslipPrograms: number;
+    noPayslipProgramsWithoutTable: number;
+  } {
+    return (
+      row.usage ?? {
+        programs: 0,
+        banks: 0,
+        noPayslipPrograms: 0,
+        noPayslipProgramsWithoutTable: 0,
+      }
+    );
+  }
+
+  /**
+   * The FACTS this name is marked as readable by, as question labels — what a bank's
+   * table looks the income up by.
+   *
+   * Read from the name's own ticked questions rather than from its programs: this is the
+   * catalog's statement of what the archetype is for, and it is set before any bank has
+   * instantiated it. Codes are unreadable on a card ("military_grade"), so they are
+   * resolved through the question pool; a pool that failed to load falls back to the code
+   * rather than to a blank line.
+   */
+  protected factLabelsOf(row: EnumerationRow): string[] {
+    const labels = this.questionLabels();
+    return this.noPayslipFactCodes(row).map((code) => labels.get(code) ?? code);
+  }
+
+  /** How many bank programs behind this name are sold with no payslip. */
+  protected noPayslipPrograms(row: EnumerationRow): number {
+    return this.usageOf(row).noPayslipPrograms;
+  }
+
+  protected missingTables(row: EnumerationRow): number {
+    return this.usageOf(row).noPayslipProgramsWithoutTable;
+  }
+
+  protected missingTableLabel(row: EnumerationRow): string {
+    const count = this.missingTables(row);
+    return $localize`:@@program_catalog.card.no_table:${count}:COUNT: with no table yet`;
   }
 
   usageLabel(row: EnumerationRow): string {
@@ -979,7 +1265,14 @@ export class ProgramCatalogPage implements OnInit {
   private async reload(opts: { silent?: boolean } = {}): Promise<void> {
     if (!opts.silent) this.loading.set(true);
     try {
-      this.rows.set(await this.api.list(ENUM_TYPE));
+      // One round trip for both: the surrogate cards need question LABELS, and a
+      // second sequential await would make the whole board wait on it.
+      const [rows, pool] = await Promise.all([
+        this.api.list(ENUM_TYPE),
+        this.api.catalogQuestions().catch(() => [] as CatalogQuestion[]),
+      ]);
+      this.rows.set(rows);
+      this.pool.set(pool);
     } finally {
       if (!opts.silent) this.loading.set(false);
     }

@@ -156,28 +156,48 @@ describe('branching matches what `enabledWhen` can actually express', () => {
 });
 
 describe('assignment and pool membership', () => {
-  it('seeds the three new questions under PERSONAL only', () => {
-    // Referencing them in one CategoryConfig is what assigns them in
-    // `question_loan_category` (A33 — assignment lives only there). A mortgage
-    // applicant must never be asked their army rank.
-    const personalStart = seedSource.indexOf('const PERSONAL');
-    const mortgageStart = seedSource.indexOf('const MORTGAGE');
-    expect(personalStart).toBeGreaterThan(-1);
-    expect(mortgageStart).toBeGreaterThan(personalStart);
-    const personalBlock = seedSource.slice(personalStart, mortgageStart);
+  it('seeds the three fact questions under every SURROGATE-CAPABLE category, nowhere else', () => {
+    // Referencing them in a CategoryConfig is what assigns them in
+    // `question_loan_category` (A33 — assignment lives only there). A MORTGAGE or
+    // BUSINESS applicant must never be asked their army rank: those two categories are
+    // payslip-only, and a weighted question they can never answer would eat the
+    // asked-weight denominator (Principle V).
+    //
+    // TWO references, `personal` and `car` — the seeded DEFAULT for where a no-payslip
+    // program can be sold, not a fixed rule: v16.0.0 derives capability from these very
+    // assignments, so an operator adds `mortgage` on the questionnaire screen without
+    // touching this seed. `personal` in particular must keep them because three live bank
+    // programs (`ABK-MILITARY`, `ABK-PROFESSORS`, `ABK-DOCTORS-PRACTICE`) are `personal` +
+    // `income_surrogate` and read them — dropping that assignment would make every one of
+    // those resolve to `SURROGATE_FACT_MISSING` on the next seed run.
+    //
+    // The count is asserted to catch an ACCIDENTAL extra reference (a copy-paste into
+    // MORTGAGE), not to forbid a deliberate one: widening the product is a seed edit plus
+    // this number.
+    const blockFor = (name: string, next: string): string => {
+      const start = seedSource.indexOf(`const ${name}`);
+      const end = seedSource.indexOf(`const ${next}`);
+      expect(start, `${name} config not found`).toBeGreaterThan(-1);
+      expect(end, `${next} config not found`).toBeGreaterThan(start);
+      return seedSource.slice(start, end);
+    };
+    const personalBlock = blockFor('PERSONAL', 'MORTGAGE');
+    const carBlock = blockFor('CAR', 'BUSINESS');
 
     for (const constName of ['MILITARY_GRADE_Q', 'ACADEMIC_RANK_Q', 'YEARS_IN_PRACTICE_Q']) {
       expect(personalBlock).toContain(`${constName},`);
-      // Referenced exactly ONCE as a category member — a second reference would
-      // assign the question to another category.
+      expect(carBlock).toContain(`${constName},`);
       const references = seedSource.split(`${constName},`).length - 1;
-      expect(references, `${constName} referenced ${references} times`).toBe(1);
+      expect(references, `${constName} referenced ${references} times`).toBe(2);
     }
   });
 
-  it('every fact spec targets the personal category', () => {
+  it('carries no per-fact category — the assignments are the single authority', () => {
+    // Four copies of the same category array on the specs is the shape that drifts. There
+    // is no expected set to copy any more either: v16.0.0 deleted the capable-category
+    // list, and `question_loan_category` alone says who is asked what.
     for (const fact of SURROGATE_FACT_KEYS) {
-      expect(SURROGATE_FACT_SPECS[fact].category).toBe('personal');
+      expect(SURROGATE_FACT_SPECS[fact]).not.toHaveProperty('category');
     }
   });
 
