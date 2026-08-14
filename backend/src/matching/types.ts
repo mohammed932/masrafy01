@@ -181,23 +181,130 @@ export interface PerformanceCriteriaConfig {
   requireCurrentLoanStatus?: string;
 }
 
-export type IncomeAssumptionStrategy =
-  | 'declared'
-  | 'byYearsInJob'
-  | 'byYearsInPractice'
-  | 'byProfessorRank'
-  | 'byMilitaryGrade'
-  | 'byCDValue'
-  | 'byTotalDeposits'
-  | 'byCarInstallment'
-  | 'byCarLoanAmount'
-  | 'byCreditCardLimit'
-  | 'byBankStatementPercent';
+export const INCOME_ASSUMPTION_STRATEGIES = [
+  'declared',
+  'byYearsInJob',
+  'byYearsInPractice',
+  'byProfessorRank',
+  'byMilitaryGrade',
+  'byCDValue',
+  'byTotalDeposits',
+  'byCarInstallment',
+  'byCarLoanAmount',
+  'byCreditCardLimit',
+  'byBankStatementPercent',
+] as const;
 
+export type IncomeAssumptionStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number];
+
+/** The two methods whose configuration is a table keyed by a registry member. */
+export const KEY_TABLE_STRATEGIES = ['byProfessorRank', 'byMilitaryGrade'] as const;
+
+/** The registry enumeration each key method draws its keys from (FR-006). */
+export const KEY_TABLE_REGISTRY: Readonly<Record<(typeof KEY_TABLE_STRATEGIES)[number], string>> =
+  Object.freeze({
+    byProfessorRank: 'professor_rank',
+    byMilitaryGrade: 'military_grade',
+  });
+
+/**
+ * The four methods whose configuration is a band table. Two read years, two read
+ * an EGP value — the band shape is identical, only the unit differs.
+ *
+ * `byCDValue` / `byTotalDeposits` accept EITHER a band table or the legacy
+ * percent-of-value scalar; the resolver branches on which is present, so a legacy
+ * row keeps its exact current output (FR-015).
+ */
+export const BAND_STRATEGIES = [
+  'byYearsInJob',
+  'byYearsInPractice',
+  'byCDValue',
+  'byTotalDeposits',
+] as const;
+
+/** The four methods configured by one number plus the unit it is applied in. */
+export const SCALAR_STRATEGIES = [
+  'byCarInstallment',
+  'byCarLoanAmount',
+  'byCreditCardLimit',
+  'byBankStatementPercent',
+] as const;
+
+/** One row of a key table: a registry member and the income the bank assigns it. */
+export interface IncomeKeyTableRow {
+  key: string;
+  /** Decimal string, > 0. Arrives from JSONB as a string — never a float (Principle I). */
+  incomeEGP: string;
+}
+
+/**
+ * One income band, half-open `[fromInclusive, toExclusive)`. `toExclusive: null`
+ * marks the open-ended last band.
+ *
+ * Edges only, exactly the v14.0.0 numeric-scoring-band idiom, so a gap or an
+ * overlap is unrepresentable rather than merely validated (research R6). Unlike
+ * the scoring bands these need NOT cover −∞…+∞: a bank's value table may
+ * legitimately start above zero, and a value below the first edge resolves to
+ * `no_matching_band` — a stated reason, never a substituted zero (FR-020).
+ */
+export interface IncomeBand {
+  fromInclusive: string;
+  toExclusive: string | null;
+  incomeEGP: string;
+}
+
+/**
+ * Feature 011 — the CANONICAL self-describing income rule (FR-014).
+ *
+ * One object per program, written on every save. The legacy shapes below it are
+ * upgraded on read by `normalizeIncomeAssumption()` — the `normalizeWeights`
+ * precedent, which shipped without a migration (research R1). A new method needs
+ * a new `strategy` token and nothing else: no column, no migration.
+ *
+ * Money is a Decimal STRING at every hop — admin form → DTO → JSONB → resolver,
+ * which constructs the `Decimal` (Principle I / A3).
+ */
 export interface IncomeAssumptionConfig {
   strategy: IncomeAssumptionStrategy;
-  incomeTable?: Array<{ minYears: number; maxYears: number; incomeEGP: string }>;
+
+  // --- canonical shapes (one per method family) ---
+
+  /** Key methods only. Order follows registry display order. */
+  keyTable?: IncomeKeyTableRow[];
+  /** Range methods only. Ordered, gapless, last band open-ended. */
+  bands?: IncomeBand[];
+  /** Scalar methods only. `unit` documents the arithmetic the resolver applies. */
+  scalar?: { value: string; unit: 'percent' | 'multiplier' };
+
+  /**
+   * FR-012 — the DBR cap to use when the recognised income CAME FROM this rule.
+   * Applied only then: a surrogate figure is a bank's own estimate of capacity,
+   * so a bank may cap it differently from a payslip it has seen.
+   */
+  dbrCapPercentOverride?: string;
+  /** FR-013 — `required_document` registry keys this method demands. Warning only. */
+  requiredDocuments?: string[];
+  /** How a surrogate figure combines with a declared salary. Absent = replace. */
+  combinationRule?: 'lesser_of' | 'greater_of';
+
+  // --- LEGACY shapes, read-only ------------------------------------------------
+  //
+  // Still typed because three seeded programs carry them and the normalizer has to
+  // accept them (`abk-egypt-2026.ts`). Nothing WRITES these any more: the save path
+  // emits the canonical shape above. Do not add a reader for them outside
+  // `income-rule-normalize.ts`, or the platform is back to two truths.
+
+  /** Legacy years / value table: inclusive `[minYears, maxYears]`, or CD-value rows. */
+  incomeTable?: Array<{
+    minYears?: number;
+    maxYears?: number;
+    minCDValueEGP?: string;
+    incomeEGP?: string;
+    assumedIncomeEGP?: string;
+  }>;
+  /** Legacy `byProfessorRank` table. */
   rankIncomeMap?: Record<string, string>;
+  /** Legacy `byMilitaryGrade` table. */
   gradeIncomeMap?: Record<string, string>;
   cdIncomePercent?: string;
   cdIncomePercentOfDeposits?: string;
@@ -206,7 +313,51 @@ export interface IncomeAssumptionConfig {
   carInstallmentMultiplier?: string;
   carLoanAmountPercent?: string;
   creditCardLimitMultiplier?: string;
-  combinationRule?: 'lesser_of' | 'greater_of';
+}
+
+/**
+ * Where the income a quote ran on actually came from (research R5).
+ *
+ * Three requirements need this and none can derive it from a number: the offer
+ * must record which side won (Principle I — frozen, not recomputed), the admin
+ * check panel must say "no row matched" instead of showing a zero (FR-031), and
+ * the per-rule DBR override applies ONLY when the income is surrogate-derived
+ * (FR-012). Returning a bare `Decimal` forced every caller to re-derive it.
+ */
+export type IncomeOrigin =
+  | 'declared'
+  | 'surrogate'
+  | 'declared_over_surrogate'
+  | 'surrogate_over_declared'
+  | 'none';
+
+/** Why no income could be resolved. Never a substituted default (FR-020). */
+export type IncomeUnresolvedReason =
+  | 'fact_not_answered'
+  | 'no_matching_row'
+  | 'no_matching_band'
+  | 'rule_unconfigured';
+
+export interface IncomeResolution {
+  /**
+   * 0 when unresolved — callers MUST check `origin` rather than testing the
+   * figure. A zero income and an unresolvable one produce the same number and
+   * mean entirely different things to the admin who has to fix it.
+   */
+  incomeEGP: Decimal;
+  origin: IncomeOrigin;
+  strategy: IncomeAssumptionStrategy;
+  /** Set only when `origin === 'none'`. */
+  unresolvedReason?: IncomeUnresolvedReason;
+  /** The DBR cap actually applied, and where it came from (FR-012, FR-027). */
+  dbrCapPercent: Decimal;
+  dbrCapSource: 'program_default' | 'rule_override';
+  /**
+   * Which row or band produced the figure, for the check panel's "traced to
+   * exactly one configured value" claim (FR-030). Absent when the income is
+   * declared or unresolved.
+   */
+  matchedRow?: { key: string } | { fromInclusive: string; toExclusive: string | null };
 }
 
 export interface FeesConfig {
@@ -335,6 +486,18 @@ export interface Offer {
   dbrCapPercent: Decimal;
   /** Which band resolved; `null` when the program uses the scalar cap. */
   dbrBandIndex: number | null;
+  /**
+   * Feature 011 — WHICH income this offer was priced on, and by which surrogate
+   * method when one produced it. Carried onto the offer so the apply path can FREEZE
+   * both (Principle I / A6): editing the program's table later must not rewrite what
+   * an immutable offer meant.
+   *
+   * `null` when the income rule was never consulted — an `income_proof` program with
+   * a declared salary. Saying `declared` there would claim a decision the engine did
+   * not make, and a reader must render the absence rather than assume a value.
+   */
+  incomeOrigin: IncomeOrigin | null;
+  incomeSurrogateStrategy: IncomeAssumptionStrategy | null;
 }
 
 export interface MatchResult {
@@ -402,6 +565,16 @@ export const FIGURES_UNAVAILABLE_REASONS = [
   'AGE_AT_MATURITY',
   'CURRENCY_NOT_OFFERED',
   'PROGRAM_MISCONFIGURED',
+  /**
+   * Feature 011 — the program's income rule reads a fact the applicant was never
+   * asked, or skipped (FR-020). Distinct from `NO_RECOGNISED_INCOME`, which keeps
+   * its meaning for every other cause: the two lead to DIFFERENT admin actions —
+   * assign the question to the category vs. add the missing table row (research
+   * R9). The program stays listed and stays ranked (FR-022, FR-024).
+   */
+  'SURROGATE_FACT_MISSING',
+  /** The fact was answered, but no key matched / the value fell in no band. */
+  'SURROGATE_NO_MATCHING_ROW',
 ] as const;
 
 export type FiguresUnavailableReason = (typeof FIGURES_UNAVAILABLE_REASONS)[number];
@@ -449,6 +622,18 @@ export interface Quote {
   bindingConstraint: BindingConstraint;
   /** The income every figure above keys off (see `quoteProgram` step 3). */
   recognisedIncomeEGP: Decimal;
+  /**
+   * Feature 011 — where that income came from, when the income rule was consulted.
+   *
+   * `null` on an `income_proof` program whose applicant declared a salary: the rule
+   * was never read, and reporting `declared` there would claim a decision the
+   * engine did not make. The apply path FREEZES `origin` + `strategy` on the offer
+   * (Principle I / A6) and the admin check panel reads `matchedRow` — neither
+   * re-runs the resolver, so neither can reach a different answer.
+   */
+  incomeResolution: IncomeResolution | null;
+  /** Whether `dbrCapPercent` above came from the program or the rule (FR-012). */
+  dbrCapSource: 'program_default' | 'rule_override';
   /** Itemised, always — fees are never folded in silently (FR-031). */
   feesBreakdown: FeesBreakdown;
   currency: string;

@@ -40,6 +40,17 @@ export interface ApplicationOfferDto {
   /** The ratio this offer lands at, and the cap it was measured against. */
   dbrPercent?: string;
   dbrCapPercent?: string;
+  /**
+   * Feature 011 — which income this offer was priced on:
+   * `declared` · `surrogate` · `declared_over_surrogate` · `surrogate_over_declared`,
+   * and the surrogate method that produced it.
+   *
+   * `null` means "recorded before provenance existed", NOT `declared`. Readers must
+   * render the absence rather than assume a value — an offer produced before this
+   * column existed made no such claim (contracts/matching-provenance.md § 3).
+   */
+  incomeOrigin?: string | null;
+  incomeSurrogateStrategy?: string | null;
 }
 
 export interface ApplicationListItemDto {

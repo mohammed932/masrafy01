@@ -1271,6 +1271,14 @@
   "@reason_program_misconfigured": {
     "description": "Backend PROGRAM_MISCONFIGURED reason code"
   },
+  "reason_surrogate_fact_missing": "هذا البرنامج يحتاج بيانًا لم نسألك عنه بعد، لذا لا يمكن عرض أرقام.",
+  "@reason_surrogate_fact_missing": {
+    "description": "Backend SURROGATE_FACT_MISSING reason code"
+  },
+  "reason_surrogate_no_matching_row": "جدول هذا البنك لا يغطي إجابتك، لذا لا يمكن عرض أرقام.",
+  "@reason_surrogate_no_matching_row": {
+    "description": "Backend SURROGATE_NO_MATCHING_ROW reason code"
+  },
   "disclaimer_indicative_estimate": "تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.",
   "@disclaimer_indicative_estimate": {
     "description": "Backend INDICATIVE_ESTIMATE_NOT_AN_OFFER disclaimer code"

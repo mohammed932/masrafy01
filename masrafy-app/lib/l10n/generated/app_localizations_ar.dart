@@ -2144,6 +2144,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get reason_program_misconfigured => 'لا يمكن تسعير هذا البرنامج حاليًا.';
 
   @override
+  String get reason_surrogate_fact_missing => 'هذا البرنامج يحتاج بيانًا لم نسألك عنه بعد، لذا لا يمكن عرض أرقام.';
+
+  @override
+  String get reason_surrogate_no_matching_row => 'جدول هذا البنك لا يغطي إجابتك، لذا لا يمكن عرض أرقام.';
+
+  @override
   String get disclaimer_indicative_estimate => 'تقدير استرشادي وليس عرضًا ملزمًا. الأرقام النهائية تصدر من البنك.';
 
   @override

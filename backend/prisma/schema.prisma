@@ -48,6 +48,15 @@ enum AuditEventType {
   BANK_PROGRAM_DELETED
   BANK_PROGRAM_RATE_UPDATED
   BANK_PROGRAM_QUALITATIVE_REVIEW_DECIDED
+  /// Feature 011 — a value-source marker was added or removed (FR-038). Also the
+  /// source of `waitingSince` on the waiting list: "how long have we been waiting on
+  /// this bank" is a question about WHEN the marker arrived, which only an event
+  /// records (FR-036).
+  BANK_PROGRAM_VALUE_SOURCE_CHANGED
+  /// Feature 011 — a save introduced a team-estimated number on a LIVE program and
+  /// switched it off in the same transaction (FR-035). Separate from an ordinary
+  /// toggle so "why did this go dark?" names the paths and the editor.
+  BANK_PROGRAM_DEACTIVATED_BY_ESTIMATE
   BANK_CREATED
   BANK_UPDATED
   BANK_TOGGLED
@@ -314,6 +323,21 @@ model BankProgram {
   incomeAssumption    Json
   fees                Json
 
+  /// Feature 011 — sparse map of config dot-path → 'team_estimated'
+  /// (`{"pricing.baseRatePercent": "team_estimated"}`).
+  ///
+  /// Only the NON-default state is stored: an ABSENT path is bank-stated. That is
+  /// what lets every pre-existing program stay live on deploy (FR-037) — the
+  /// default `{}` marks nothing estimated, so nothing goes dark. Storing both
+  /// states would need a backfill over every numeric path of every program, and
+  /// would make "a new field nobody has marked yet" indistinguishable from
+  /// "estimated".
+  ///
+  /// Read on activation: a non-empty map refuses going live (FR-033). Never read
+  /// by the matching engine — it is provenance about the configuration, not part
+  /// of it.
+  valueSources Json @default("{}")
+
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
   createdBy String   @db.VarChar(30)
@@ -484,6 +508,21 @@ model BankOffer {
   /// offer so a later policy change cannot rewrite why an amount was what it was.
   dbrPercent                 Decimal?     @db.Decimal(6, 2)
   dbrCapPercent              Decimal?     @db.Decimal(7, 4)
+  /// Feature 011 — WHICH income the quote actually ran on:
+  /// `declared` · `surrogate` · `declared_over_surrogate` · `surrogate_over_declared`.
+  ///
+  /// Frozen at match time for the same reason as `approvalUsedDefault` above:
+  /// editing the program's income rule later must not rewrite the meaning of an
+  /// immutable offer (Principle I / A6). Deriving it at read time would rewrite
+  /// history every time an admin fixed a table row.
+  ///
+  /// `null` means "recorded before provenance existed" — NOT `declared`. Readers
+  /// must render the absence rather than assume a value.
+  incomeOrigin               String?      @db.VarChar(32)
+  /// The surrogate method that produced the income, when one did — the strategy
+  /// token (`byMilitaryGrade`, …). `null` on a declared-income offer and on every
+  /// offer predating this column.
+  incomeSurrogateStrategy    String?      @db.VarChar(32)
   createdAt                  DateTime     @default(now()) @db.Timestamptz(6)
   erasedAt                   DateTime?    @db.Timestamptz(6)
 

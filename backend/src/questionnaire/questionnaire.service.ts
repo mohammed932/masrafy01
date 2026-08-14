@@ -14,6 +14,12 @@ import {
   MONEY_FIELD_BINDING_KEYS,
   obligationItemQuestionFor,
 } from '@/matching/pipeline/money-field-bindings';
+import {
+  SURROGATE_BOUND_QUESTION_CODES,
+  SURROGATE_FACT_KEYS,
+  SURROGATE_FACT_SPECS,
+} from '@/matching/pipeline/surrogate-fact-bindings';
+import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { QuestionnaireRepository } from './questionnaire.repository';
 import { uniqueSlug } from './slug.util';
 import {
@@ -42,7 +48,58 @@ import type {
 
 @Injectable()
 export class QuestionnaireService {
-  constructor(private readonly repo: QuestionnaireRepository) {}
+  constructor(
+    private readonly repo: QuestionnaireRepository,
+    /**
+     * Feature 011 — the registries the two choice FACTS draw their option codes from.
+     * Needed to warn when the two lists drift (FR-017): the admin's table keys and the
+     * customer's answers are supposed to be ONE list by construction, and a rename on
+     * either side must surface here rather than as a silent non-match.
+     */
+    private readonly enums: PlatformEnumerationsRepository,
+  ) {}
+
+  /**
+   * The option codes, category assignments and registry members the surrogate-fact
+   * checks read. Built once and shared by `publish()` and `bindingWarnings()`, so the
+   * banner in the editor and the payload on publish cannot disagree.
+   */
+  private async surrogateBindingContext(
+    activeQuestions: ReadonlyArray<{ id: string; code: string }>,
+  ): Promise<SurrogateBindingContext> {
+    const wanted = new Set<string>(SURROGATE_BOUND_QUESTION_CODES);
+    const optionCodesByQuestion = new Map<string, readonly string[]>();
+    for (const q of activeQuestions) {
+      if (!wanted.has(q.code)) continue;
+      const options = await this.repo.optionsByQuestion(q.id);
+      optionCodesByQuestion.set(
+        q.code,
+        options.filter((o) => o.isActive).map((o) => o.code),
+      );
+    }
+
+    const assignments = await this.repo.categoryAssignments();
+    const categoriesByQuestion = new Map<string, readonly string[]>();
+    for (const q of activeQuestions) {
+      if (!wanted.has(q.code)) continue;
+      categoriesByQuestion.set(q.code, assignments.get(q.id) ?? []);
+    }
+
+    const registryMembers = new Map<string, readonly string[]>();
+    for (const fact of SURROGATE_FACT_KEYS) {
+      const registry = SURROGATE_FACT_SPECS[fact].registry;
+      if (registry === null || registryMembers.has(registry)) continue;
+      const members = await this.enums.getActiveMembers(
+        registry as Parameters<PlatformEnumerationsRepository['getActiveMembers']>[0],
+      );
+      registryMembers.set(
+        registry,
+        members.map((m) => m.key),
+      );
+    }
+
+    return { optionCodesByQuestion, categoriesByQuestion, registryMembers };
+  }
 
   // ---- Public read --------------------------------------------------------
   /**
@@ -462,6 +519,7 @@ export class QuestionnaireService {
         .flatMap((g) => g.questions)
         .find((q) => q.code === DEBT_TYPES_QUESTION_CODE)
         ?.options.map((o) => o.code) ?? [],
+      await this.surrogateBindingContext(questions),
     );
 
     const versionNumber = await this.repo.nextVersionNumber();
@@ -490,7 +548,11 @@ export class QuestionnaireService {
           .filter((o) => o.isActive)
           .map((o) => o.code)
       : [];
-    return collectPublishWarnings(active, debtTypeOptionCodes);
+    return collectPublishWarnings(
+      active,
+      debtTypeOptionCodes,
+      await this.surrogateBindingContext(active),
+    );
   }
 
   /**
@@ -831,6 +893,13 @@ function textColumns(
 function collectPublishWarnings(
   activeQuestions: ReadonlyArray<{ code: string; type: QuestionType }>,
   debtTypeOptionCodes: readonly string[],
+  /**
+   * Feature 011 — what the surrogate-fact checks need beyond code and type: the
+   * question's option codes (which must BE the registry keys) and the categories it
+   * is assigned to. Optional so a caller that has neither still gets every
+   * money-binding warning rather than none.
+   */
+  surrogateContext?: SurrogateBindingContext,
 ): PublishWarning[] {
   const byCode = new Map(activeQuestions.map((q) => [q.code, q]));
   const warnings: PublishWarning[] = [];
@@ -898,6 +967,121 @@ function collectPublishWarnings(
       });
     }
   }
+
+  warnings.push(...collectSurrogateBindingWarnings(byCode, surrogateContext));
+  return warnings;
+}
+
+/**
+ * What the surrogate-fact checks read, beyond the question's code and type.
+ *
+ * The option codes matter because they must BE the registry keys the admin's table
+ * is keyed by (FR-017): matching by label could never work — there are two labels,
+ * ar and en. The category assignment matters because assignment is authoritative
+ * (v12.0.0): a question assigned to nothing is asked by nobody, however correctly it
+ * is otherwise configured.
+ */
+export interface SurrogateBindingContext {
+  /** Active option codes per question code. */
+  readonly optionCodesByQuestion: ReadonlyMap<string, readonly string[]>;
+  /** Categories each question is assigned to, per `question_loan_category`. */
+  readonly categoriesByQuestion: ReadonlyMap<string, readonly string[]>;
+  /** Active members of each registry a choice fact draws its options from. */
+  readonly registryMembers: ReadonlyMap<string, readonly string[]>;
+}
+
+/**
+ * The `dead_registry_key` half of FR-021 deliberately does NOT live here.
+ *
+ * It is a per-PROGRAM condition — a saved `keyTable` row pointing at a key the
+ * registry has dropped — and its fix is to open that program and re-pick the row.
+ * Reporting it from the questionnaire would mean this module reading bank programs,
+ * a dependency it has no other reason to carry, and would put the warning on a
+ * screen where nothing can be done about it. It is raised on the program read
+ * instead: `bank-programs.service.ts#collectIncomeRuleBindingWarnings`.
+ */
+
+/**
+ * FR-021 — the surrogate-fact bindings, checked exactly as the money bindings are.
+ *
+ * WARNINGS ONLY. Publishing never fails on a binding, for the reason
+ * `MONEY_FIELD_BINDING_MISSING` already records: a half-renamed binding must not lock
+ * the pool. The cost of the miss is real but bounded — the rule resolves to
+ * `SURROGATE_FACT_MISSING` and the program is listed with a stated reason, never a
+ * zero — so the correct response is to tell the admin loudly, not to refuse the
+ * publish that might be fixing something else.
+ */
+function collectSurrogateBindingWarnings(
+  byCode: ReadonlyMap<string, { code: string; type: QuestionType }>,
+  ctx: SurrogateBindingContext | undefined,
+): PublishWarning[] {
+  const warnings: PublishWarning[] = [];
+
+  for (const fact of SURROGATE_FACT_KEYS) {
+    const spec = SURROGATE_FACT_SPECS[fact];
+    const questionCode = spec.questionCode;
+    const q = byCode.get(questionCode);
+
+    if (!q) {
+      warnings.push({
+        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
+        meta: { fact, questionCode, reason: 'missing_or_inactive' },
+      });
+      continue;
+    }
+
+    if (q.type !== spec.type) {
+      warnings.push({
+        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
+        meta: { fact, questionCode, reason: 'wrong_type', type: q.type, expected: spec.type },
+      });
+      // Keep going: a wrong-typed question can also be unassigned, and an admin
+      // fixing one only to find the other on the next publish is a wasted round.
+    }
+
+    if (!ctx) continue;
+
+    const categories = ctx.categoriesByQuestion.get(questionCode);
+    // ABSENT and EMPTY differ. Absent means this caller does not know the
+    // assignments (nothing to say); an EMPTY array means the question is assigned to
+    // nothing, which is authoritative for "asked by nobody".
+    if (categories !== undefined && !categories.includes(spec.category)) {
+      warnings.push({
+        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
+        meta: {
+          fact,
+          questionCode,
+          reason: 'not_assigned_to_personal',
+          assignedCategories: [...categories],
+        },
+      });
+    }
+
+    if (spec.registry === null) continue;
+    const members = ctx.registryMembers.get(spec.registry);
+    const optionCodes = ctx.optionCodesByQuestion.get(questionCode);
+    if (members === undefined || optionCodes === undefined) continue;
+
+    // Drift in the direction that BREAKS the match: an option the registry no longer
+    // carries is an answer no table can be keyed by, so that applicant resolves to
+    // `no_matching_row` forever. The reverse (a registry key with no option) is NOT
+    // warned about here — it means a grade nobody can pick yet, which is a table row
+    // waiting for a questionnaire edit, not a broken binding.
+    const unknown = optionCodes.filter((code) => !members.includes(code));
+    if (unknown.length > 0) {
+      warnings.push({
+        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
+        meta: {
+          fact,
+          questionCode,
+          reason: 'option_codes_drifted',
+          registry: spec.registry,
+          unknown,
+        },
+      });
+    }
+  }
+
   return warnings;
 }
 

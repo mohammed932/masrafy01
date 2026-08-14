@@ -7,7 +7,8 @@
  */
 
 import type { BankProgram } from '@prisma/client';
-import type { BankProgramSnapshot } from '@/matching/types';
+import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
+import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 
 /** The row plus the optional joined bank, as `findAllActive` returns it. */
 export type BankProgramRow = BankProgram & { bank?: { isFeatured: boolean } | null };
@@ -31,7 +32,14 @@ export function toBankProgramSnapshot(p: BankProgramRow): BankProgramSnapshot {
     loanLimits: p.loanLimits as unknown as BankProgramSnapshot['loanLimits'],
     pricing: p.pricing as unknown as BankProgramSnapshot['pricing'],
     eligibility: normalizeEligibility(p.eligibility),
-    incomeAssumption: p.incomeAssumption as unknown as BankProgramSnapshot['incomeAssumption'],
+    // Canonical BEFORE the snapshot leaves this module (FR-014). The resolver also
+    // normalizes — the function is idempotent — but doing it here means every
+    // consumer of a snapshot sees one shape: the engine, the admin simulator, the
+    // calculator, and the US3 rule-check overlay, which merges a canonical draft
+    // onto this object and would otherwise be merging onto a legacy blob.
+    incomeAssumption: normalizeIncomeAssumption(
+      p.incomeAssumption as unknown as IncomeAssumptionConfig,
+    ) as unknown as BankProgramSnapshot['incomeAssumption'],
     fees: p.fees as unknown as BankProgramSnapshot['fees'],
     performanceCriteria: p.performanceCriteria as unknown as
       | BankProgramSnapshot['performanceCriteria']

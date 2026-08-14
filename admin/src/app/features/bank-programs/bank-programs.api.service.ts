@@ -8,7 +8,10 @@ import type {
   BankProgramResponse,
   BankProgramUpdatePayload,
   DuplicateBankProgramPayload,
+  IncomeRuleCheckPayload,
+  IncomeRuleCheckResult,
   ListBankProgramsQuery,
+  PendingBankConfirmationRow,
 } from './bank-programs.types';
 
 interface SuccessEnvelope<T> {
@@ -98,6 +101,44 @@ export class BankProgramsApiService {
       this.http.delete<void>(`${this.base}/${encodeURIComponent(programCode)}`, {
         headers: { 'X-Confirm-Program-Code': confirmHeader },
       }),
+    );
+  }
+
+  /**
+   * Feature 011 / FR-026 … FR-031 — run a sample applicant against the ON-SCREEN
+   * income rule.
+   *
+   * The draft rule travels in the BODY, not just the program code: the panel
+   * evaluates what the admin is looking at, including unsaved edits (FR-028).
+   * Persists nothing server-side — no application, no lead, no offer (FR-029).
+   */
+  async checkIncomeRule(
+    programCode: string,
+    payload: IncomeRuleCheckPayload,
+  ): Promise<SuccessEnvelope<IncomeRuleCheckResult>> {
+    return firstValueFrom(
+      this.http.post<SuccessEnvelope<IncomeRuleCheckResult>>(
+        `${this.base}/${encodeURIComponent(programCode)}/income-rule/check`,
+        payload,
+      ),
+    );
+  }
+
+  /** Feature 011 / FR-036 — the programs held back by a team-estimated number. */
+  async pendingBankConfirmation(query: {
+    page?: number;
+    pageSize?: number;
+  }): Promise<PaginatedEnvelope<PendingBankConfirmationRow>> {
+    let params = new HttpParams();
+    for (const [k, v] of Object.entries(query)) {
+      if (v === undefined || v === null) continue;
+      params = params.set(k, String(v));
+    }
+    return firstValueFrom(
+      this.http.get<PaginatedEnvelope<PendingBankConfirmationRow>>(
+        `${this.base}/pending-bank-confirmation`,
+        { params },
+      ),
     );
   }
 }

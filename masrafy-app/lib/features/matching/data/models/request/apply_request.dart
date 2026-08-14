@@ -146,6 +146,9 @@ class EmploymentPayload {
     required this.companyName,
     required this.companyType,
     this.bankCategory,
+    this.militaryGrade,
+    this.professorRank,
+    this.yearsInPractice,
   });
 
   final String employmentType;
@@ -160,6 +163,19 @@ class EmploymentPayload {
   /// 'public' | 'commercial' (optional).
   final String? bankCategory;
 
+  /// Feature 011 — the surrogate-income FACTS a bank's rule looks its table up by.
+  ///
+  /// Each is the answer's option code, which IS the platform-registry key the admin
+  /// picked the table's rows from — one list by construction, so a rename cannot
+  /// silently break the match.
+  ///
+  /// All three are nullable AND omitted from the JSON when null. That is the whole
+  /// point: an unanswered fact must reach the server as ABSENT, so the rule reports
+  /// "we haven't asked you this" rather than pricing the applicant on a zero.
+  final String? militaryGrade;
+  final String? professorRank;
+  final int? yearsInPractice;
+
   Map<String, dynamic> toJson() => {
         'employmentType': employmentType,
         'monthlyNetSalaryEGP': monthlyNetSalaryEGP,
@@ -168,6 +184,9 @@ class EmploymentPayload {
         'companyName': companyName,
         'companyType': companyType,
         if (bankCategory != null) 'bankCategory': bankCategory,
+        if (militaryGrade != null) 'militaryGrade': militaryGrade,
+        if (professorRank != null) 'professorRank': professorRank,
+        if (yearsInPractice != null) 'yearsInPractice': yearsInPractice,
       };
 }
 
@@ -194,9 +213,20 @@ class ObligationsPayload {
 /// them for this iteration, so an empty object is sent. Kept as a class so
 /// future asset inputs slot in without touching the request shape.
 class AssetsPayload {
-  const AssetsPayload();
+  const AssetsPayload({this.creditCardLimitEGP});
 
-  Map<String, dynamic> toJson() => const {};
+  /// Feature 011 — the total credit-card LIMIT, as a decimal string (Principle I).
+  ///
+  /// Was the reason this payload existed empty: the limit is answered in the
+  /// commitments step and fed the 5% obligation discount server-side, but never left
+  /// the phone as an ASSET — so every `byCreditCardLimit` income rule resolved to
+  /// nothing for every customer (FR-019). Omitted from the JSON when null, so an
+  /// unanswered limit stays absent rather than becoming a zero.
+  final String? creditCardLimitEGP;
+
+  Map<String, dynamic> toJson() => {
+        if (creditCardLimitEGP != null) 'creditCardLimitEGP': creditCardLimitEGP,
+      };
 }
 
 class MortgageDetailsPayload {

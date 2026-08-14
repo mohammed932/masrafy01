@@ -18,6 +18,15 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$MatchingResultsState {
   RequestState get status => throw _privateConstructorUsedError;
   List<MatchOffer> get offers => throw _privateConstructorUsedError;
+
+  /// Feature 011 — programs the engine checked but could not price, WITH the
+  /// reason. Surfaced rather than dropped: FR-022 requires the program to stay
+  /// listed and FR-023 requires the reason in plain language, because "we haven't
+  /// asked you this yet" and "your answer isn't in this bank's table" are things
+  /// the applicant (or an admin reading over their shoulder) can act on, while a
+  /// bank that silently vanishes reads as "this bank doesn't exist for me".
+  List<UnavailableProgramEntity> get unavailablePrograms =>
+      throw _privateConstructorUsedError;
   String get applicationId => throw _privateConstructorUsedError;
   bool get matched => throw _privateConstructorUsedError;
   Failure? get error => throw _privateConstructorUsedError;
@@ -38,6 +47,7 @@ abstract class $MatchingResultsStateCopyWith<$Res> {
   $Res call(
       {RequestState status,
       List<MatchOffer> offers,
+      List<UnavailableProgramEntity> unavailablePrograms,
       String applicationId,
       bool matched,
       Failure? error});
@@ -61,6 +71,7 @@ class _$MatchingResultsStateCopyWithImpl<$Res,
   $Res call({
     Object? status = null,
     Object? offers = null,
+    Object? unavailablePrograms = null,
     Object? applicationId = null,
     Object? matched = null,
     Object? error = freezed,
@@ -74,6 +85,10 @@ class _$MatchingResultsStateCopyWithImpl<$Res,
           ? _value.offers
           : offers // ignore: cast_nullable_to_non_nullable
               as List<MatchOffer>,
+      unavailablePrograms: null == unavailablePrograms
+          ? _value.unavailablePrograms
+          : unavailablePrograms // ignore: cast_nullable_to_non_nullable
+              as List<UnavailableProgramEntity>,
       applicationId: null == applicationId
           ? _value.applicationId
           : applicationId // ignore: cast_nullable_to_non_nullable
@@ -101,6 +116,7 @@ abstract class _$$MatchingResultsStateImplCopyWith<$Res>
   $Res call(
       {RequestState status,
       List<MatchOffer> offers,
+      List<UnavailableProgramEntity> unavailablePrograms,
       String applicationId,
       bool matched,
       Failure? error});
@@ -121,6 +137,7 @@ class __$$MatchingResultsStateImplCopyWithImpl<$Res>
   $Res call({
     Object? status = null,
     Object? offers = null,
+    Object? unavailablePrograms = null,
     Object? applicationId = null,
     Object? matched = null,
     Object? error = freezed,
@@ -134,6 +151,10 @@ class __$$MatchingResultsStateImplCopyWithImpl<$Res>
           ? _value._offers
           : offers // ignore: cast_nullable_to_non_nullable
               as List<MatchOffer>,
+      unavailablePrograms: null == unavailablePrograms
+          ? _value._unavailablePrograms
+          : unavailablePrograms // ignore: cast_nullable_to_non_nullable
+              as List<UnavailableProgramEntity>,
       applicationId: null == applicationId
           ? _value.applicationId
           : applicationId // ignore: cast_nullable_to_non_nullable
@@ -156,10 +177,13 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
   const _$MatchingResultsStateImpl(
       {this.status = RequestState.initial,
       final List<MatchOffer> offers = const <MatchOffer>[],
+      final List<UnavailableProgramEntity> unavailablePrograms =
+          const <UnavailableProgramEntity>[],
       this.applicationId = '',
       this.matched = false,
       this.error})
       : _offers = offers,
+        _unavailablePrograms = unavailablePrograms,
         super._();
 
   @override
@@ -174,6 +198,29 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
     return EqualUnmodifiableListView(_offers);
   }
 
+  /// Feature 011 — programs the engine checked but could not price, WITH the
+  /// reason. Surfaced rather than dropped: FR-022 requires the program to stay
+  /// listed and FR-023 requires the reason in plain language, because "we haven't
+  /// asked you this yet" and "your answer isn't in this bank's table" are things
+  /// the applicant (or an admin reading over their shoulder) can act on, while a
+  /// bank that silently vanishes reads as "this bank doesn't exist for me".
+  final List<UnavailableProgramEntity> _unavailablePrograms;
+
+  /// Feature 011 — programs the engine checked but could not price, WITH the
+  /// reason. Surfaced rather than dropped: FR-022 requires the program to stay
+  /// listed and FR-023 requires the reason in plain language, because "we haven't
+  /// asked you this yet" and "your answer isn't in this bank's table" are things
+  /// the applicant (or an admin reading over their shoulder) can act on, while a
+  /// bank that silently vanishes reads as "this bank doesn't exist for me".
+  @override
+  @JsonKey()
+  List<UnavailableProgramEntity> get unavailablePrograms {
+    if (_unavailablePrograms is EqualUnmodifiableListView)
+      return _unavailablePrograms;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_unavailablePrograms);
+  }
+
   @override
   @JsonKey()
   final String applicationId;
@@ -185,7 +232,7 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
 
   @override
   String toString() {
-    return 'MatchingResultsState(status: $status, offers: $offers, applicationId: $applicationId, matched: $matched, error: $error)';
+    return 'MatchingResultsState(status: $status, offers: $offers, unavailablePrograms: $unavailablePrograms, applicationId: $applicationId, matched: $matched, error: $error)';
   }
 
   @override
@@ -195,6 +242,8 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
             other is _$MatchingResultsStateImpl &&
             (identical(other.status, status) || other.status == status) &&
             const DeepCollectionEquality().equals(other._offers, _offers) &&
+            const DeepCollectionEquality()
+                .equals(other._unavailablePrograms, _unavailablePrograms) &&
             (identical(other.applicationId, applicationId) ||
                 other.applicationId == applicationId) &&
             (identical(other.matched, matched) || other.matched == matched) &&
@@ -206,6 +255,7 @@ class _$MatchingResultsStateImpl extends _MatchingResultsState {
       runtimeType,
       status,
       const DeepCollectionEquality().hash(_offers),
+      const DeepCollectionEquality().hash(_unavailablePrograms),
       applicationId,
       matched,
       error);
@@ -225,6 +275,7 @@ abstract class _MatchingResultsState extends MatchingResultsState {
   const factory _MatchingResultsState(
       {final RequestState status,
       final List<MatchOffer> offers,
+      final List<UnavailableProgramEntity> unavailablePrograms,
       final String applicationId,
       final bool matched,
       final Failure? error}) = _$MatchingResultsStateImpl;
@@ -234,6 +285,15 @@ abstract class _MatchingResultsState extends MatchingResultsState {
   RequestState get status;
   @override
   List<MatchOffer> get offers;
+
+  /// Feature 011 — programs the engine checked but could not price, WITH the
+  /// reason. Surfaced rather than dropped: FR-022 requires the program to stay
+  /// listed and FR-023 requires the reason in plain language, because "we haven't
+  /// asked you this yet" and "your answer isn't in this bank's table" are things
+  /// the applicant (or an admin reading over their shoulder) can act on, while a
+  /// bank that silently vanishes reads as "this bank doesn't exist for me".
+  @override
+  List<UnavailableProgramEntity> get unavailablePrograms;
   @override
   String get applicationId;
   @override

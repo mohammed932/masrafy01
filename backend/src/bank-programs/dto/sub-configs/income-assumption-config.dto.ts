@@ -1,41 +1,188 @@
-import { IsArray, IsIn, IsObject, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsObject,
+  IsOptional,
+  IsString,
+  Matches,
+  ValidateNested,
+} from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { INCOME_ASSUMPTION_STRATEGIES } from '@/matching/types';
 
 /**
- * Spec anchor: FR-006. Discriminated union over `strategy`.
+ * Spec anchor: FR-005 … FR-014. The CANONICAL income rule, as it crosses the wire.
  *
- * Boundary validation enforces strategy + presence of at-least-one-table-shape.
- * Deep structural validation of each strategy's table happens in the service layer
- * (where the `@ValidIncomeAssumption()` cross-field check is easier to express
- * than via class-validator).
+ * Boundary validation here is shape only — a strategy from the known set, rows
+ * that are objects with decimal-string money. The DEEP cross-field rules (table
+ * non-empty for the selected method, keys unique and live in the registry, bands
+ * ordered / gapless / open-ended last, income > 0, DBR override in range) live in
+ * `validation/income-rule.validator.ts` beside `dbr-bands.validator.ts`, because
+ * they need the platform-enumeration registry and because `class-validator` cannot
+ * express "this field is required depending on the value of that one" without a
+ * custom decorator per pair.
+ *
+ * Money is a decimal STRING at every hop (Principle I / A3). `@Matches` rather
+ * than `@IsNumberString` so a value like `1e5` or `Infinity` — both of which
+ * `Number()` accepts and `Decimal` would mangle — is refused at the boundary.
  */
-export type IncomeAssumptionStrategy =
-  | 'declared'
-  | 'byYearsInJob'
-  | 'byYearsInPractice'
-  | 'byProfessorRank'
-  | 'byMilitaryGrade'
-  | 'byCDValue'
-  | 'byCarInstallment'
-  | 'byCarLoanAmount'
-  | 'byCreditCardLimit'
-  | 'byBankStatementPercent';
 
-const STRATEGIES: readonly IncomeAssumptionStrategy[] = [
-  'declared',
-  'byYearsInJob',
-  'byYearsInPractice',
-  'byProfessorRank',
-  'byMilitaryGrade',
-  'byCDValue',
-  'byCarInstallment',
-  'byCarLoanAmount',
-  'byCreditCardLimit',
-  'byBankStatementPercent',
-];
+/** Decimal string: optional sign, digits, optional fraction. No exponents. */
+const DECIMAL_STRING = /^-?\d+(\.\d+)?$/;
+
+export type IncomeAssumptionStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number];
+
+const STRATEGIES: readonly IncomeAssumptionStrategy[] = INCOME_ASSUMPTION_STRATEGIES;
+
+/** One row of a key table: a registry member and the income the bank assigns it. */
+export class IncomeKeyTableRowDto {
+  @ApiProperty({ example: 'senior_officer', description: 'An ACTIVE registry key.' })
+  /**
+   * A registry key, e.g. `senior_officer`. Membership is checked in the service
+   * layer against the ACTIVE members of the method's enumeration
+   * (`INCOME_RULE_UNKNOWN_KEY`) — not here, because this DTO has no registry.
+   */
+  @IsString()
+  @Matches(/^[a-z0-9_]+$/, { message: 'key must match ^[a-z0-9_]+$' })
+  key!: string;
+
+  @ApiProperty({
+    example: '25000',
+    type: String,
+    description: 'Assumed monthly income, decimal STRING and > 0 (Principle I).',
+  })
+  @IsString()
+  @Matches(DECIMAL_STRING, { message: 'incomeEGP must be a decimal string' })
+  incomeEGP!: string;
+}
+
+/**
+ * One income band, half-open `[fromInclusive, toExclusive)`.
+ *
+ * `toExclusive: null` marks the open-ended last band, so the field is nullable
+ * rather than optional: an ABSENT key and an explicit `null` must not mean the
+ * same thing on a full-replacement PUT.
+ */
+export class IncomeBandDto {
+  @ApiProperty({ example: '0', type: String, description: 'Inclusive lower edge.' })
+  @IsString()
+  @Matches(DECIMAL_STRING, { message: 'fromInclusive must be a decimal string' })
+  fromInclusive!: string;
+
+  @ApiProperty({
+    example: '5',
+    type: String,
+    nullable: true,
+    description: 'EXCLUSIVE upper edge; null marks the open-ended last band.',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(DECIMAL_STRING, { message: 'toExclusive must be a decimal string or null' })
+  toExclusive!: string | null;
+
+  @ApiProperty({ example: '12000', type: String })
+  @IsString()
+  @Matches(DECIMAL_STRING, { message: 'incomeEGP must be a decimal string' })
+  incomeEGP!: string;
+}
+
+/** The single number a scalar method applies, plus the unit it is applied in. */
+export class IncomeScalarDto {
+  @ApiProperty({ example: '0.1', type: String })
+  @IsString()
+  @Matches(DECIMAL_STRING, { message: 'value must be a decimal string' })
+  value!: string;
+
+  /**
+   * Documents the arithmetic the resolver performs, so a reader of the stored blob
+   * can tell `0.1 × limit` from `0.1% of limit` without opening the resolver.
+   */
+  @ApiProperty({ enum: ['percent', 'multiplier'] })
+  @IsIn(['percent', 'multiplier'])
+  unit!: 'percent' | 'multiplier';
+}
 
 export class IncomeAssumptionConfigDto {
+  @ApiProperty({ enum: STRATEGIES as unknown as string[] })
   @IsIn(STRATEGIES)
   strategy!: IncomeAssumptionStrategy;
+
+  // --- canonical shapes ------------------------------------------------------
+  //
+  // All three are optional at the boundary and mutually exclusive in practice:
+  // configuration belonging to a method other than `strategy` is stripped before
+  // persistence (FR-011), and the selected method's own shape being absent or
+  // empty is `INCOME_RULE_EMPTY` (FR-009). Making them conditionally required here
+  // would need a custom decorator per method and would still not cover emptiness.
+
+  /**
+   * `ArrayMaxSize` is a denial-of-service bound, not a policy: a real rank or grade
+   * table runs 10–15 rows, and the whole blob is loaded per program inside the
+   * per-quote loop.
+   */
+  @ApiPropertyOptional({ type: [IncomeKeyTableRowDto], description: 'Key methods only.' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => IncomeKeyTableRowDto)
+  keyTable?: IncomeKeyTableRowDto[];
+
+  @ApiPropertyOptional({
+    type: [IncomeBandDto],
+    description: 'Range methods only. Ordered, gapless, last band open-ended.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => IncomeBandDto)
+  bands?: IncomeBandDto[];
+
+  @ApiPropertyOptional({ type: IncomeScalarDto, description: 'Scalar methods only.' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IncomeScalarDto)
+  scalar?: IncomeScalarDto;
+
+  // --- policy on top of the method -------------------------------------------
+
+  /** FR-012 — bounds checked in the service layer (`INCOME_RULE_DBR_OVERRIDE_INVALID`). */
+  @ApiPropertyOptional({
+    example: '45',
+    type: String,
+    description: 'FR-012 — (0, 100]. Applied only when the income came FROM this rule.',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(DECIMAL_STRING, { message: 'dbrCapPercentOverride must be a decimal string' })
+  dbrCapPercentOverride?: string;
+
+  /** FR-013 — `required_document` registry keys. Mismatch is a warning, never a rejection. */
+  @ApiPropertyOptional({ type: [String], example: ['military_id'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  requiredDocuments?: string[];
+
+  @ApiPropertyOptional({
+    enum: ['lesser_of', 'greater_of'],
+    description: 'Absent = the rule REPLACES a declared salary.',
+  })
+  @IsOptional()
+  @IsIn(['lesser_of', 'greater_of'])
+  combinationRule?: 'lesser_of' | 'greater_of';
+
+  // --- LEGACY shapes ---------------------------------------------------------
+  //
+  // Accepted so a client echoing back a program it just READ cannot be rejected by
+  // the global `forbidNonWhitelisted` pipe. Nothing writes them: the save path
+  // persists the canonical shape, and `normalizeIncomeAssumption` is the only
+  // reader. Removing them would break the read-modify-write cycle for any legacy
+  // program until it had been saved once through the new form.
 
   @IsOptional()
   @IsArray()
@@ -53,9 +200,6 @@ export class IncomeAssumptionConfigDto {
   @IsOptional() @IsString() cdIncomePercent?: string;
   @IsOptional() @IsString() cdIncomeMinEGP?: string;
   @IsOptional() @IsString() cdIncomePercentOfDeposits?: string;
-
-  @IsOptional() @IsIn(['lesser_of', 'greater_of']) combinationRule?: 'lesser_of' | 'greater_of';
-
   @IsOptional() @IsString() carInstallmentMultiplier?: string;
   @IsOptional() @IsString() carLoanAmountPercent?: string;
   @IsOptional() @IsString() creditCardLimitMultiplier?: string;

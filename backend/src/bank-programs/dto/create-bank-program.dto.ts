@@ -1,3 +1,4 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -5,6 +6,7 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -91,4 +93,26 @@ export class CreateBankProgramDto {
   @Type(() => IncomeAssumptionConfigDto)
   incomeAssumption!: IncomeAssumptionConfigDto;
   @ValidateNested() @Type(() => FeesConfigDto) fees!: FeesConfigDto;
+
+  /**
+   * Feature 011 / FR-032 — sparse map of config dot-path → `'team_estimated'`.
+   *
+   * Only the NON-default state is sent: an ABSENT path means the bank stated the
+   * number. That is what keeps every pre-existing program live on deploy (FR-037) —
+   * `{}` marks nothing estimated, so nothing goes dark.
+   *
+   * Shape only here. The paths are checked against the program's own numeric fields
+   * in the service (`VALUE_SOURCE_PATH_UNKNOWN`), because this DTO cannot see the
+   * configuration it is describing.
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'string', enum: ['team_estimated'] },
+    example: { 'incomeAssumption.keyTable.general.incomeEGP': 'team_estimated' },
+    description:
+      'FR-032 — sparse config dot-path → team_estimated. An ABSENT path is bank-stated.',
+  })
+  @IsOptional()
+  @IsObject()
+  valueSources?: Record<string, 'team_estimated'>;
 }

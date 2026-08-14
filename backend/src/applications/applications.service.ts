@@ -52,6 +52,11 @@ import {
   resolveObligations,
   type ObligationsResolution,
 } from '@/matching/pipeline/money-field-bindings';
+import {
+  surrogateFactsFromAnswers,
+  surrogateOptionPick,
+  type SurrogateFacts,
+} from '@/matching/pipeline/surrogate-facts-from-answers';
 import { WeightedApprovalScoringService } from '@/scoring/weighted-approval.service';
 import {
   toSelectedAnswers,
@@ -114,6 +119,9 @@ type PersistedOfferRow = {
   maxLoanAvailableEGP: Decimal | null;
   dbrPercent: Decimal | null;
   dbrCapPercent: Decimal | null;
+  /** Feature 011 — frozen provenance. `null` on offers predating the columns. */
+  incomeOrigin?: string | null;
+  incomeSurrogateStrategy?: string | null;
 };
 
 /** An applied application's row + the offer the customer proceeded with. */
@@ -395,7 +403,13 @@ export class ApplicationsService {
     // shortens the tenor, which moves the installment and the max loan.
     const age = await this.completeness.getApplicantAge(ctx.customerId);
     const obligations = this.resolveApplicantObligations(dto, resolvedQuestionnaire);
-    const profile = this.buildProfile(dto, age, obligations);
+    // Feature 011 — the surrogate income facts, from the SAME mapper preview reads.
+    // Answers are the authority here, not the request body: the body's `employment`
+    // block is client-supplied, the answers were validated against the published
+    // snapshot, and a rule reading two different sources on two surfaces is the drift
+    // A33 forbids (FR-019).
+    const surrogateFacts = this.resolveSurrogateFacts(resolvedQuestionnaire);
+    const profile = this.buildProfile(dto, age, obligations, surrogateFacts);
     // MVP simplification: eligibility gating is dropped on apply — every active
     // program yields an offer, ranked purely by the per-bank approval score.
     // DBR is NOT part of that: affordability shapes the amount offered, so it
@@ -700,6 +714,12 @@ export class ApplicationsService {
         : null,
       dbrPercent: new Decimal(offer.dbrPercent.toString()),
       dbrCapPercent: new Decimal(offer.dbrCapPercent.toString()),
+      // Frozen at creation, never updated (Principle I / A6). Nulls are preserved as
+      // nulls rather than defaulted to `declared`: on an `income_proof` program with a
+      // declared salary the rule was never read, and claiming otherwise would put a
+      // decision on the record that the engine did not make.
+      incomeOrigin: offer.incomeOrigin,
+      incomeSurrogateStrategy: offer.incomeSurrogateStrategy,
     };
   }
 
@@ -774,6 +794,12 @@ export class ApplicationsService {
       maxLoanAvailableEGP: o.maxLoanAvailableEGP?.toFixed(2),
       dbrPercent: o.dbrPercent?.toFixed(2),
       dbrCapPercent: o.dbrCapPercent?.toFixed(4),
+      // Feature 011 — read straight off the frozen columns. `?? null` rather than a
+      // fallback value: an offer written before these columns existed made no claim
+      // about which income it ran on, and inventing `declared` would put one on the
+      // record retroactively (contracts/matching-provenance.md § 3).
+      incomeOrigin: o.incomeOrigin ?? null,
+      incomeSurrogateStrategy: o.incomeSurrogateStrategy ?? null,
     };
   }
 
@@ -864,10 +890,36 @@ export class ApplicationsService {
     return resolved;
   }
 
+  /**
+   * Feature 011 / FR-018 – FR-020 — the surrogate facts, off the validated answers.
+   *
+   * Delegates entirely to the shared `surrogateFactsFromAnswers`; the only work here
+   * is reshaping `ResolvedAnswer[]` into the two lookup maps it takes. No dynamic
+   * answers (a category-less legacy submit) means no facts — and an absent fact is
+   * `SURROGATE_FACT_MISSING`, never a substituted zero.
+   */
+  private resolveSurrogateFacts(
+    questionnaire: { resolved: ResolvedAnswer[]; askedQuestionCodes: string[] } | undefined,
+  ): SurrogateFacts {
+    if (!questionnaire) return { employment: {}, assets: {} };
+    const optionByCode = new Map<string, string>();
+    const numericByCode = new Map<string, string>();
+    for (const a of questionnaire.resolved) {
+      // The SAME predicate preview applies. Testing `selectedOptionCode !== null`
+      // here accepted picks preview would have dropped, so the two paths could bind a
+      // fact differently for one set of answers.
+      const picked = surrogateOptionPick(a);
+      if (picked !== undefined) optionByCode.set(a.questionCode, picked);
+      if (a.numericValue !== null) numericByCode.set(a.questionCode, a.numericValue);
+    }
+    return surrogateFactsFromAnswers({ optionByCode, numericByCode });
+  }
+
   private buildProfile(
     dto: ApplyRequestDto,
     age: number,
     obligations: ObligationsResolution,
+    surrogateFacts: SurrogateFacts,
   ): ApplicantProfile {
     const dec = (v?: string): Decimal | undefined => (v !== undefined ? new Decimal(v) : undefined);
     return {
@@ -882,9 +934,14 @@ export class ApplicationsService {
         employmentType: dto.employment.employmentType,
         monthlyNetSalaryEGP: new Decimal(dto.employment.monthlyNetSalaryEGP),
         monthsInJob: dto.employment.monthsInJob,
-        yearsInPractice: dto.employment.yearsInPractice,
-        professorRank: dto.employment.professorRank,
-        militaryGrade: dto.employment.militaryGrade,
+        // Feature 011 — the ANSWER wins over the request body. The body's copies
+        // predate this feature and nothing on the client populated them (the mobile
+        // mapper sent an empty asset set entirely); they stay as the fallback for a
+        // caller that has no dynamic answers at all, so a legacy or server-to-server
+        // submit is not silently stripped of facts it did supply.
+        yearsInPractice: surrogateFacts.employment.yearsInPractice ?? dto.employment.yearsInPractice,
+        professorRank: surrogateFacts.employment.professorRank ?? dto.employment.professorRank,
+        militaryGrade: surrogateFacts.employment.militaryGrade ?? dto.employment.militaryGrade,
         salaryTransferType: dto.employment.salaryTransferType,
         companyName: dto.employment.companyName,
         companyType: dto.employment.companyType,
@@ -906,7 +963,11 @@ export class ApplicationsService {
         totalDepositsAtABKValueEGP: dec(dto.assets.totalDepositsAtABKValueEGP),
         bankStatementBalanceEGP: dec(dto.assets.bankStatementBalanceEGP),
         declaredAssetsValueEGP: dec(dto.assets.declaredAssetsValueEGP),
-        creditCardLimitEGP: dec(dto.assets.creditCardLimitEGP),
+        // Same precedence as the employment facts above: the validated ANSWER wins,
+        // the body is the fallback. This one is why the mobile app sent
+        // `const AssetsPayload()` and `byCreditCardLimit` resolved to nothing for
+        // every customer — the limit was answered and never left the phone (FR-019).
+        creditCardLimitEGP: surrogateFacts.assets.creditCardLimitEGP ?? dec(dto.assets.creditCardLimitEGP),
         autoLoanAtOtherBankEGP: dec(dto.assets.autoLoanAtOtherBankEGP),
         autoLoanAtABKEGP: dec(dto.assets.autoLoanAtABKEGP),
         carInstallmentEGP: dec(dto.assets.carInstallmentEGP),

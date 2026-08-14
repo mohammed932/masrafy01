@@ -157,5 +157,17 @@
   "SUPPORT_CONFIG_NOT_FOUND": "Support settings have not been configured yet.",
   "ONBOARDING_SCREEN_NOT_FOUND": "Onboarding screen not found.",
   "ONBOARDING_ORDER_DUPLICATE": "Another onboarding screen already uses this position.",
-  "TELEMETRY_EVENT_NOT_ALLOWED": "This telemetry event name is not allowed."
+  "TELEMETRY_EVENT_NOT_ALLOWED": "This telemetry event name is not allowed.",
+  "INCOME_RULE_EMPTY": "This income method needs a table. Add at least one row before saving.",
+  "INCOME_RULE_INCOME_INVALID": "Every assumed income must be greater than zero. Check the highlighted row.",
+  "INCOME_RULE_DUPLICATE_KEY": "This key already has a row. Each key may appear once.",
+  "INCOME_RULE_UNKNOWN_KEY": "This key is no longer offered by the registry. Pick a current one.",
+  "INCOME_RULE_BANDS_INVALID": "The income bands must ascend with no gaps or overlaps, and only the last band may be open-ended.",
+  "INCOME_RULE_DBR_OVERRIDE_INVALID": "The debt-burden override must be greater than 0 and at most 100.",
+  "VALUE_SOURCE_PATH_UNKNOWN": "This field cannot be marked as a source. Reload the program and try again.",
+  "VALUE_SOURCE_VALUE_INVALID": "A source marker holds an unexpected value. Reload the program and mark the field again.",
+  "PROGRAM_HAS_ESTIMATED_VALUES": "This program still holds numbers the team estimated, so it cannot go live yet: {paths}",
+  "SURROGATE_FACT_BINDING_MISSING": "A question this income method reads is missing, inactive, or the wrong type.",
+  "SURROGATE_FACT_MISSING": "This program needs a detail we haven't asked you for yet, so no figures can be shown.",
+  "SURROGATE_NO_MATCHING_ROW": "This bank's table doesn't cover your answer, so no figures can be shown."
 }

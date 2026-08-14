@@ -1016,6 +1016,158 @@
       <!-- Shared wizard step rail (app-wizard-steps) — every stepped screen. -->
       <trans-unit id="ui.wizard.step_done" datatype="html"><source>Done</source><target>تم</target></trans-unit>
       <trans-unit id="ui.wizard.step_attention" datatype="html"><source>Needs attention</source><target>يحتاج مراجعة</target></trans-unit>
+
+      <!-- ═══ Feature 011 — income-surrogate rule builder ═══════════════════ -->
+      <!-- The section shell + the ten methods. -->
+      <trans-unit id="bank_programs.section.income_assumption" datatype="html"><source>Income assumption</source><target>افتراض الدخل</target></trans-unit>
+      <trans-unit id="bank_programs.section.income_assumption_sub" datatype="html"><source>How this bank works out a monthly income when a payslip is not the figure it lends against. Switching method clears the previous table — you are asked first.</source><target>كيف يحسب هذا البنك دخلًا شهريًا عندما لا تكون مفردات الراتب هي الرقم الذي يقرض على أساسه. تغيير الطريقة يمسح الجدول السابق — ويُطلب تأكيدك أولًا.</target></trans-unit>
+      <trans-unit id="bank_programs.field.strategy" datatype="html"><source>Method</source><target>الطريقة</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.declared" datatype="html"><source>Declared (applicant-provided)</source><target>المُعلن (من مقدّم الطلب)</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.years_job" datatype="html"><source>By years in job</source><target>حسب سنوات العمل</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.years_practice" datatype="html"><source>By years in practice</source><target>حسب سنوات الممارسة</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.professor_rank" datatype="html"><source>By academic rank</source><target>حسب الدرجة العلمية</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.military_grade" datatype="html"><source>By military grade</source><target>حسب الرتبة العسكرية</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.cd_value" datatype="html"><source>By certificate value</source><target>حسب قيمة الشهادة</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.total_deposits" datatype="html"><source>By total deposits</source><target>حسب إجمالي الودائع</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.car_installment" datatype="html"><source>By car installment</source><target>حسب قسط السيارة</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.car_loan_amount" datatype="html"><source>By car loan amount</source><target>حسب مبلغ تمويل السيارة</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.credit_card_limit" datatype="html"><source>By credit card limit</source><target>حسب حد البطاقة الائتمانية</target></trans-unit>
+      <trans-unit id="bank_programs.strategy.bank_statement" datatype="html"><source>By bank statement percent</source><target>حسب نسبة من كشف الحساب</target></trans-unit>
+
+      <!-- Block titles + the declared/legacy hints. -->
+      <trans-unit id="bank_programs.income.key_table_title" datatype="html"><source>The bank's table</source><target>جدول البنك</target></trans-unit>
+      <trans-unit id="bank_programs.income.bands_title" datatype="html"><source>The bank's bands</source><target>شرائح البنك</target></trans-unit>
+      <trans-unit id="bank_programs.income.scalar_title" datatype="html"><source>The bank's figure</source><target>رقم البنك</target></trans-unit>
+      <trans-unit id="bank_programs.income.declared_hint" datatype="html"><source>The applicant's stated monthly income is used as-is. No table is needed.</source><target>يُستخدم الدخل الشهري الذي ذكره مقدّم الطلب كما هو. لا حاجة لجدول.</target></trans-unit>
+      <trans-unit id="bank_programs.income.legacy_scalar_hint" datatype="html"><source>This program still derives income from the single percentage below. Adding bands replaces it; leaving the table empty keeps the current behaviour unchanged.</source><target>ما زال هذا البرنامج يحسب الدخل من النسبة الواحدة أدناه. إضافة شرائح تحل محلها؛ وترك الجدول فارغًا يُبقي السلوك الحالي كما هو.</target></trans-unit>
+      <trans-unit id="bank_programs.income.legacy_scalar_label" datatype="html"><source>Current percentage of value</source><target>النسبة الحالية من القيمة</target></trans-unit>
+
+      <!-- Scalar labels, one per method, so the unit is never a guess. -->
+      <trans-unit id="bank_programs.income.scalar_car_installment" datatype="html"><source>Multiple of the car installment</source><target>مضاعف قسط السيارة</target></trans-unit>
+      <trans-unit id="bank_programs.income.scalar_car_loan" datatype="html"><source>Percent of the car loan amount</source><target>نسبة من مبلغ تمويل السيارة</target></trans-unit>
+      <trans-unit id="bank_programs.income.scalar_card_limit" datatype="html"><source>Multiple of the card limit</source><target>مضاعف حد البطاقة</target></trans-unit>
+      <trans-unit id="bank_programs.income.scalar_bank_statement" datatype="html"><source>Percent of the statement balance</source><target>نسبة من رصيد كشف الحساب</target></trans-unit>
+      <trans-unit id="bank_programs.income.scalar_generic" datatype="html"><source>Figure</source><target>الرقم</target></trans-unit>
+
+      <!-- Policy on top of the method: DBR override, combination, documents. -->
+      <trans-unit id="bank_programs.income.dbr_override_label" datatype="html"><source>Debt-burden cap for this rule (%)</source><target>حد عبء الدين لهذه القاعدة (٪)</target></trans-unit>
+      <trans-unit id="bank_programs.income.dbr_override_hint" datatype="html"><source>Applied only when the income came from this rule. Leave empty to use the program's own cap.</source><target>يُطبّق فقط عندما يأتي الدخل من هذه القاعدة. اتركه فارغًا لاستخدام حد البرنامج نفسه.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_dbr_override" datatype="html"><source>The cap must be greater than 0 and at most 100.</source><target>يجب أن يكون الحد أكبر من ٠ و١٠٠ على الأكثر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.combination_label" datatype="html"><source>When the applicant also states a salary</source><target>عندما يذكر مقدّم الطلب راتبًا أيضًا</target></trans-unit>
+      <trans-unit id="bank_programs.income.combination_replace" datatype="html"><source>Use this rule's figure instead</source><target>استخدم رقم هذه القاعدة بدلًا منه</target></trans-unit>
+      <trans-unit id="bank_programs.income.combination_greater" datatype="html"><source>Use whichever is higher</source><target>استخدم الأعلى منهما</target></trans-unit>
+      <trans-unit id="bank_programs.income.combination_lesser" datatype="html"><source>Use whichever is lower</source><target>استخدم الأقل منهما</target></trans-unit>
+      <trans-unit id="bank_programs.income.required_docs_label" datatype="html"><source>Documents this method needs</source><target>المستندات التي تحتاجها هذه الطريقة</target></trans-unit>
+      <trans-unit id="bank_programs.income.required_docs_hint" datatype="html"><source>Checked against the program's own document list on save. A gap is reported, never blocked.</source><target>تُراجَع مقابل قائمة مستندات البرنامج عند الحفظ. النقص يُبلَّغ عنه ولا يمنع الحفظ.</target></trans-unit>
+      <trans-unit id="bank_programs.income.docs_placeholder" datatype="html"><source>Pick the documents</source><target>اختر المستندات</target></trans-unit>
+
+      <!-- Confirm-then-clear on a method switch (FR-011). -->
+      <trans-unit id="bank_programs.income.switch_confirm_title" datatype="html"><source>Discard this method's table?</source><target>حذف جدول هذه الطريقة؟</target></trans-unit>
+      <trans-unit id="bank_programs.income.switch_confirm_body" datatype="html"><source>The rows you entered for the previous method will be removed. This cannot be undone from here.</source><target>ستُحذف الصفوف التي أدخلتها للطريقة السابقة. لا يمكن التراجع عن ذلك من هنا.</target></trans-unit>
+      <trans-unit id="bank_programs.income.switch_confirm_ok" datatype="html"><source>Discard and switch</source><target>احذف وغيّر الطريقة</target></trans-unit>
+      <trans-unit id="bank_programs.income.switch_confirm_cancel" datatype="html"><source>Keep the table</source><target>أبقِ الجدول</target></trans-unit>
+
+      <!-- The key table (app-income-key-table). -->
+      <trans-unit id="bank_programs.income.registry_unavailable" datatype="html"><source>The key registry is unavailable, so rows cannot be added yet. Retry shortly.</source><target>سجل المفاتيح غير متاح، لذا لا يمكن إضافة صفوف الآن. أعد المحاولة قريبًا.</target></trans-unit>
+      <trans-unit id="bank_programs.income.key_table_empty" datatype="html"><source>This method reads the applicant's answer and looks it up here. Add a row for every value the bank recognises — anything not listed produces no figures, not a zero.</source><target>تقرأ هذه الطريقة إجابة مقدّم الطلب وتبحث عنها هنا. أضف صفًا لكل قيمة يعتمدها البنك — أي قيمة غير مدرجة لا تُنتج أرقامًا، ولا تُعرض كصفر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.key_table_seed" datatype="html"><source>Add a row for every key</source><target>أضف صفًا لكل مفتاح</target></trans-unit>
+      <trans-unit id="bank_programs.income.key_table_add" datatype="html"><source>Add a row</source><target>أضف صفًا</target></trans-unit>
+      <trans-unit id="bank_programs.income.key_table_all_used" datatype="html"><source>Every key in the registry already has a row.</source><target>كل مفتاح في السجل له صف بالفعل.</target></trans-unit>
+      <trans-unit id="bank_programs.income.col_key" datatype="html"><source>Key</source><target>المفتاح</target></trans-unit>
+      <trans-unit id="bank_programs.income.col_income" datatype="html"><source>Assumed monthly income (EGP)</source><target>الدخل الشهري المفترض (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.key_placeholder" datatype="html"><source>Pick a key</source><target>اختر مفتاحًا</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_duplicate_key" datatype="html"><source>Each key may appear once. Remove the repeated row.</source><target>يظهر كل مفتاح مرة واحدة. احذف الصف المتكرر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_key_missing" datatype="html"><source>Every row needs a key from the registry.</source><target>كل صف يحتاج مفتاحًا من السجل.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_income_invalid" datatype="html"><source>Every assumed income must be greater than zero.</source><target>يجب أن يكون كل دخل مفترض أكبر من صفر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_no_rows" datatype="html"><source>Add at least one row, or this method produces no figures at all.</source><target>أضف صفًا واحدًا على الأقل، وإلا فلن تُنتج هذه الطريقة أي أرقام.</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.key" datatype="html"><source>Registry key for this row</source><target>مفتاح السجل لهذا الصف</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.income" datatype="html"><source>Assumed monthly income in EGP</source><target>الدخل الشهري المفترض بالجنيه المصري</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.move_up" datatype="html"><source>Move this row up</source><target>انقل هذا الصف للأعلى</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.move_down" datatype="html"><source>Move this row down</source><target>انقل هذا الصف للأسفل</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.remove_row" datatype="html"><source>Remove this row</source><target>أزل هذا الصف</target></trans-unit>
+
+      <!-- The bands editor (app-income-bands-editor) — edges only. -->
+      <trans-unit id="bank_programs.income.bands_empty" datatype="html"><source>This method reads a number and looks up the band it falls in. Enter the edges — a band's end is the next band's start, so no gap or overlap is possible.</source><target>تقرأ هذه الطريقة رقمًا وتبحث عن الشريحة التي يقع فيها. أدخل الحدود — نهاية الشريحة هي بداية الشريحة التالية، فلا يمكن حدوث فاصل أو تداخل.</target></trans-unit>
+      <trans-unit id="bank_programs.income.bands_seed" datatype="html"><source>Start with three bands</source><target>ابدأ بثلاث شرائح</target></trans-unit>
+      <trans-unit id="bank_programs.income.bands_add" datatype="html"><source>Add a band</source><target>أضف شريحة</target></trans-unit>
+      <trans-unit id="bank_programs.income.bands_clear" datatype="html"><source>Remove all bands</source><target>أزل كل الشرائح</target></trans-unit>
+      <trans-unit id="bank_programs.income.col_from" datatype="html"><source>From</source><target>من</target></trans-unit>
+      <trans-unit id="bank_programs.income.col_to" datatype="html"><source>To</source><target>إلى</target></trans-unit>
+      <trans-unit id="bank_programs.income.no_maximum" datatype="html"><source>No maximum</source><target>بلا حد أقصى</target></trans-unit>
+      <trans-unit id="bank_programs.income.bands_link_hint" datatype="html"><source>A band's end is the next band's start — edit either box and the other follows. A value below the first edge produces no figures, which is stated to the customer, never shown as zero.</source><target>نهاية الشريحة هي بداية الشريحة التالية — عدّل أي خانة وتتبعها الأخرى. القيمة الأقل من أول حد لا تُنتج أرقامًا، ويُوضَّح ذلك للعميل ولا يُعرض كصفر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_edge_missing" datatype="html"><source>Every band needs a starting value.</source><target>كل شريحة تحتاج قيمة بداية.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_not_ascending" datatype="html"><source>Each band must start higher than the one before it, and the last band must stay open-ended.</source><target>يجب أن تبدأ كل شريحة أعلى من التي قبلها، وأن تبقى الشريحة الأخيرة مفتوحة.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_band_income_invalid" datatype="html"><source>Every assumed income must be greater than zero.</source><target>يجب أن يكون كل دخل مفترض أكبر من صفر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_no_bands" datatype="html"><source>Add at least one band, or this method produces no figures at all.</source><target>أضف شريحة واحدة على الأقل، وإلا فلن تُنتج هذه الطريقة أي أرقام.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_scalar_invalid" datatype="html"><source>This figure must be greater than zero.</source><target>يجب أن يكون هذا الرقم أكبر من صفر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.band_from" datatype="html"><source>Band starts at</source><target>تبدأ الشريحة عند</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.band_to" datatype="html"><source>Band ends at — also the next band's start</source><target>تنتهي الشريحة عند — وهي أيضًا بداية الشريحة التالية</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.band_last_to" datatype="html"><source>Top band ends at — leave empty for no maximum</source><target>تنتهي الشريحة العليا عند — اتركه فارغًا لبلا حد أقصى</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.band_income" datatype="html"><source>Assumed monthly income in EGP</source><target>الدخل الشهري المفترض بالجنيه المصري</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria.remove_band" datatype="html"><source>Remove this band</source><target>أزل هذه الشريحة</target></trans-unit>
+
+      <!-- The in-place rule check panel (US3). -->
+      <trans-unit id="bank_programs.income.check_title" datatype="html"><source>Check this rule before anyone else sees it</source><target>راجع هذه القاعدة قبل أن يراها أحد</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_sub" datatype="html"><source>Runs a sample applicant against what is on screen right now, including edits you have not saved. Nothing is stored.</source><target>يشغّل مقدّم طلب تجريبي على ما هو معروض الآن، بما في ذلك تعديلات لم تحفظها. لا يتم حفظ أي شيء.</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_run" datatype="html"><source>Check</source><target>افحص</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_needs_save" datatype="html"><source>Save the program once before checking — the check runs against this program's own rate, fees and limits.</source><target>احفظ البرنامج مرة قبل الفحص — يعتمد الفحص على سعر هذا البرنامج ورسومه وحدوده.</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_key_placeholder" datatype="html"><source>Pick a value to test</source><target>اختر قيمة للاختبار</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_grade" datatype="html"><source>Sample military grade</source><target>رتبة عسكرية تجريبية</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_rank" datatype="html"><source>Sample academic rank</source><target>درجة علمية تجريبية</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_years_job" datatype="html"><source>Sample years in job</source><target>سنوات عمل تجريبية</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_years_practice" datatype="html"><source>Sample years in practice</source><target>سنوات ممارسة تجريبية</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_cd" datatype="html"><source>Sample certificate value (EGP)</source><target>قيمة شهادة تجريبية (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_deposits" datatype="html"><source>Sample total deposits (EGP)</source><target>إجمالي ودائع تجريبي (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_car_installment" datatype="html"><source>Sample car installment (EGP)</source><target>قسط سيارة تجريبي (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_car_loan" datatype="html"><source>Sample car loan amount (EGP)</source><target>مبلغ تمويل سيارة تجريبي (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_card_limit" datatype="html"><source>Sample card limit (EGP)</source><target>حد بطاقة تجريبي (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_statement" datatype="html"><source>Sample statement balance (EGP)</source><target>رصيد كشف حساب تجريبي (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_value" datatype="html"><source>Sample value</source><target>قيمة تجريبية</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_age" datatype="html"><source>Age</source><target>السن</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_salary" datatype="html"><source>Declared salary (EGP)</source><target>الراتب المُعلن (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_obligations" datatype="html"><source>Current monthly payments (EGP)</source><target>الأقساط الشهرية الحالية (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_amount" datatype="html"><source>Amount asked for (EGP)</source><target>المبلغ المطلوب (ج.م)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_tenor" datatype="html"><source>Term (months)</source><target>المدة (بالشهور)</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_income" datatype="html"><source>Recognised income</source><target>الدخل المعتمد</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_dbr" datatype="html"><source>Debt-burden cap applied</source><target>حد عبء الدين المطبَّق</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_dbr_rule" datatype="html"><source>from this rule</source><target>من هذه القاعدة</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_dbr_program" datatype="html"><source>from the program</source><target>من البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_installment" datatype="html"><source>Affordable installment</source><target>القسط الممكن تحمله</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_loan" datatype="html"><source>Estimated loan</source><target>القرض التقديري</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_qualifies" datatype="html"><source>Covers the amount asked for</source><target>يغطي المبلغ المطلوب</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_yes" datatype="html"><source>Yes</source><target>نعم</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_no" datatype="html"><source>No</source><target>لا</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_traced" datatype="html"><source>Traced to <x id="INTERPOLATION"/>.</source><target>مستمد من <x id="INTERPOLATION"/>.</target></trans-unit>
+      <!-- The "no figures" sentences. Shown where the income would be — never a zero (FR-031). -->
+      <trans-unit id="bank_programs.income.check_no_row" datatype="html"><source>No row matched this value</source><target>لا يوجد صف يطابق هذه القيمة</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_no_fact" datatype="html"><source>This applicant was not asked for the detail this method reads</source><target>لم يُسأل مقدّم الطلب عن البيان الذي تقرؤه هذه الطريقة</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_unconfigured" datatype="html"><source>This method has no configuration yet</source><target>هذه الطريقة غير مُهيأة بعد</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_no_figures" datatype="html"><source>No figures for this applicant</source><target>لا توجد أرقام لمقدّم الطلب هذا</target></trans-unit>
+
+      <!-- Value-source marker + the waiting list (US4). -->
+      <trans-unit id="bank_programs.value_source.stated" datatype="html"><source>The bank stated this</source><target>البنك ذكر هذا</target></trans-unit>
+      <trans-unit id="bank_programs.value_source.estimated" datatype="html"><source>We estimated this</source><target>نحن قدّرنا هذا</target></trans-unit>
+      <trans-unit id="bank_programs.value_source.aria" datatype="html"><source>Where this number came from</source><target>مصدر هذا الرقم</target></trans-unit>
+      <trans-unit id="bank_programs.value_source.aria_for" datatype="html"><source>Source of <x id="field"/></source><target>مصدر <x id="field"/></target></trans-unit>
+      <trans-unit id="bank_programs.form.deactivated_title" datatype="html"><source>Program switched off</source><target>تم إيقاف البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.form.deactivated_body" datatype="html"><source>It now holds a number the team estimated. Switch it back on once the bank has confirmed the figure.</source><target>أصبح يحتوي رقمًا قدّره الفريق. أعد تشغيله بعد أن يؤكد البنك الرقم.</target></trans-unit>
+      <trans-unit id="sidebar.pending_bank_confirmation" datatype="html"><source>Waiting for the bank</source><target>في انتظار البنك</target></trans-unit>
+      <trans-unit id="pending_confirmation.title" datatype="html"><source>Waiting for the bank</source><target>في انتظار البنك</target></trans-unit>
+      <trans-unit id="pending_confirmation.subtitle" datatype="html"><source>Programs we cannot switch on yet, because a number on them is our estimate rather than the bank's.</source><target>برامج لا يمكن تشغيلها بعد، لأن رقمًا فيها تقديرنا نحن وليس رقم البنك.</target></trans-unit>
+      <trans-unit id="pending_confirmation.error" datatype="html"><source>The list could not be loaded. Refresh to try again.</source><target>تعذّر تحميل القائمة. أعد التحميل للمحاولة مرة أخرى.</target></trans-unit>
+      <trans-unit id="pending_confirmation.empty_title" datatype="html"><source>Nothing is waiting on a bank</source><target>لا شيء في انتظار أي بنك</target></trans-unit>
+      <trans-unit id="pending_confirmation.empty_body" datatype="html"><source>Programs created before source marking are not listed here — they carry no source information either way, and are reviewed once as a separate pass rather than being switched off.</source><target>البرامج التي أُنشئت قبل تحديد المصادر لا تظهر هنا — فهي لا تحمل معلومات مصدر من الأساس، وتُراجَع مرة واحدة كمهمة منفصلة بدلًا من إيقافها.</target></trans-unit>
+      <trans-unit id="pending_confirmation.col_program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
+      <trans-unit id="pending_confirmation.col_bank" datatype="html"><source>Bank</source><target>البنك</target></trans-unit>
+      <trans-unit id="pending_confirmation.col_fields" datatype="html"><source>Numbers we estimated</source><target>الأرقام التي قدّرناها</target></trans-unit>
+      <trans-unit id="pending_confirmation.col_waiting" datatype="html"><source>Waiting</source><target>مدة الانتظار</target></trans-unit>
+      <trans-unit id="pending_confirmation.col_state" datatype="html"><source>State</source><target>الحالة</target></trans-unit>
+      <trans-unit id="pending_confirmation.days" datatype="html"><source>days</source><target>يومًا</target></trans-unit>
+      <trans-unit id="pending_confirmation.approx" datatype="html"><source>(approx.)</source><target>(تقريبًا)</target></trans-unit>
+      <trans-unit id="pending_confirmation.state_live" datatype="html"><source>Live — switch off</source><target>يعمل — يجب إيقافه</target></trans-unit>
+      <trans-unit id="pending_confirmation.state_off" datatype="html"><source>Not live</source><target>متوقف</target></trans-unit>
+      <trans-unit id="bank_programs.value_source.stated_short" datatype="html"><source>Bank</source><target>البنك</target></trans-unit>
+      <trans-unit id="bank_programs.value_source.estimated_short" datatype="html"><source>Estimate</source><target>تقدير</target></trans-unit>
     </body>
   </file>
 </xliff>

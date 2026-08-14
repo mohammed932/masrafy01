@@ -4229,6 +4229,18 @@ abstract class AppLocalizations {
   /// **'لا يمكن تسعير هذا البرنامج حاليًا.'**
   String get reason_program_misconfigured;
 
+  /// Backend SURROGATE_FACT_MISSING reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البرنامج يحتاج بيانًا لم نسألك عنه بعد، لذا لا يمكن عرض أرقام.'**
+  String get reason_surrogate_fact_missing;
+
+  /// Backend SURROGATE_NO_MATCHING_ROW reason code
+  ///
+  /// In ar, this message translates to:
+  /// **'جدول هذا البنك لا يغطي إجابتك، لذا لا يمكن عرض أرقام.'**
+  String get reason_surrogate_no_matching_row;
+
   /// Backend INDICATIVE_ESTIMATE_NOT_AN_OFFER disclaimer code
   ///
   /// In ar, this message translates to:

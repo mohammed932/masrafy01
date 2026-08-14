@@ -16,6 +16,7 @@ library;
 
 import 'package:app/features/matching/data/models/request/apply_request.dart';
 import 'package:app/features/questionnaire/domain/constants/money_field_bindings.dart';
+import 'package:app/features/questionnaire/domain/constants/surrogate_fact_bindings.dart';
 import 'package:app/features/questionnaire/domain/entities/question_answer.dart';
 
 /// Backend apply bounds (`ApplyRequestDto`) for the values we still derive.
@@ -269,4 +270,60 @@ class MoneyFigures {
   /// derivation could never express that. Falls back to `total > 0` only on the
   /// pre-itemisation path, where the picks do not exist.
   final bool hasCurrentLoan;
+}
+
+// ---- Surrogate-income facts (feature 011) -----------------------------------
+
+/// The facts a bank's income rule looks its table up by, read off the answers.
+///
+/// Returned as a typed value object rather than four out-parameters (Principle XXX /
+/// A28 — a >2-param method is promoted to a request DTO), and mirrored on the backend
+/// by `matching/pipeline/surrogate-facts-from-answers.ts`. Both sides read the same
+/// binding constants, so a rename breaks the build rather than the match.
+///
+/// **Every field is nullable and every null is OMITTED from the request.** That is the
+/// contract, not an implementation detail: an unanswered fact must arrive absent so the
+/// rule reports `SURROGATE_FACT_MISSING` — a stated reason the customer can read —
+/// instead of being priced on a zero or on a plausible-looking default (FR-020).
+class SurrogateFacts {
+  const SurrogateFacts({
+    this.militaryGrade,
+    this.professorRank,
+    this.yearsInPractice,
+    this.creditCardLimitEGP,
+  });
+
+  /// Reads the four bound answers. Never throws and never blocks: unlike the money
+  /// figures, a missing fact is a normal state — the grade question does not apply to
+  /// most applicants, and the wizard must not gate Finish on it.
+  factory SurrogateFacts.fromAnswers(Map<String, QuestionAnswer> answers) {
+    final years = numericOf(answers, kYearsInPracticeQuestion);
+    final cardLimit = numericOf(answers, kCreditCardLimitFactQuestion);
+    final parsedYears = years == null ? null : num.tryParse(years);
+    final parsedLimit = cardLimit == null ? null : num.tryParse(cardLimit);
+
+    return SurrogateFacts(
+      // The picked OPTION CODE, sent as-is. It is the platform-registry key the
+      // admin's table rows are keyed by, so translating it here would introduce a
+      // third list to keep in step — the drift FR-017 exists to prevent.
+      militaryGrade: pickedOption(answers, kMilitaryGradeQuestion),
+      professorRank: pickedOption(answers, kAcademicRankQuestion),
+      // Whole completed years: the band edges are integers, and 11.9 years in
+      // practice is 11 completed years, not 12.
+      yearsInPractice: parsedYears?.floor(),
+      // EXACT pass-through, no bucket midpoint (FR-018) — the same rule the money
+      // figures follow.
+      creditCardLimitEGP: parsedLimit == null ? null : egp(parsedLimit),
+    );
+  }
+
+  final String? militaryGrade;
+  final String? professorRank;
+  final int? yearsInPractice;
+
+  /// Decimal string (Principle I), or null when the limit was never answered.
+  final String? creditCardLimitEGP;
+
+  /// The asset half, ready to hand straight to `ApplyRequest`.
+  AssetsPayload get assets => AssetsPayload(creditCardLimitEGP: creditCardLimitEGP);
 }

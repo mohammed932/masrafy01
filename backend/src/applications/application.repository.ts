@@ -77,6 +77,14 @@ export interface CreateBankOfferInput {
   /** The DBR verdict, frozen with the offer (see `BankOffer.dbrPercent`). */
   dbrPercent?: Decimal | null;
   dbrCapPercent?: Decimal | null;
+  /**
+   * Feature 011 — which income the quote ran on, and the surrogate method that
+   * produced it. Written ONCE at creation and never updated (Principle I / A6):
+   * editing the program's rule later must not rewrite an immutable offer's meaning.
+   * `null` = the rule was not consulted, which is NOT the same as `declared`.
+   */
+  incomeOrigin?: string | null;
+  incomeSurrogateStrategy?: string | null;
 }
 
 export interface PersistMatchInput {

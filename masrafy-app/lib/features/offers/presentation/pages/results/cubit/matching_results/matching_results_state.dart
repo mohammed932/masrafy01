@@ -8,6 +8,13 @@ class MatchingResultsState with _$MatchingResultsState {
   const factory MatchingResultsState({
     @Default(RequestState.initial) RequestState status,
     @Default(<MatchOffer>[]) List<MatchOffer> offers,
+    /// Feature 011 — programs the engine checked but could not price, WITH the
+    /// reason. Surfaced rather than dropped: FR-022 requires the program to stay
+    /// listed and FR-023 requires the reason in plain language, because "we haven't
+    /// asked you this yet" and "your answer isn't in this bank's table" are things
+    /// the applicant (or an admin reading over their shoulder) can act on, while a
+    /// bank that silently vanishes reads as "this bank doesn't exist for me".
+    @Default(<UnavailableProgramEntity>[]) List<UnavailableProgramEntity> unavailablePrograms,
     @Default('') String applicationId,
     @Default(false) bool matched,
     Failure? error,
@@ -19,9 +26,14 @@ class MatchingResultsState with _$MatchingResultsState {
   bool get isError => status.isError;
   bool get isLoaded => status.isLoaded;
 
-  /// Nothing to show. Programs the backend could not quote are not surfaced to
-  /// the customer, so a load that yields no offers is empty regardless of them.
-  bool get isEmpty => status.isLoaded && offers.isEmpty;
+  /// Nothing to show at all.
+  ///
+  /// Deliberately counts the unavailable programs: a shortlist of banks that each
+  /// explain why they cannot price yet is NOT an empty screen, and rendering the
+  /// generic "no matches" state over it would throw away the only actionable thing
+  /// the applicant was told (FR-022).
+  bool get isEmpty =>
+      status.isLoaded && offers.isEmpty && unavailablePrograms.isEmpty;
 
   /// A gate rather than a transient failure — the profile must be finished.
   /// Documents (photo/National ID) are NOT gated on the matching call anymore

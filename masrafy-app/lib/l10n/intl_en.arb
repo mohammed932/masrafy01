@@ -854,6 +854,8 @@
   "reason_age_at_maturity": "No available term keeps you within this program's age limit.",
   "reason_currency_not_offered": "This program doesn't offer the requested currency.",
   "reason_program_misconfigured": "This program can't be priced right now.",
+  "reason_surrogate_fact_missing": "This program needs a detail we haven't asked you for yet, so no figures can be shown.",
+  "reason_surrogate_no_matching_row": "This bank's table doesn't cover your answer, so no figures can be shown.",
   "disclaimer_indicative_estimate": "Indicative estimate — not a binding offer. Final figures come from the bank.",
 
   "id_capture_title_front": "Front side of your ID",

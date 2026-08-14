@@ -2141,6 +2141,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get reason_program_misconfigured => 'This program can\'t be priced right now.';
 
   @override
+  String get reason_surrogate_fact_missing => 'This program needs a detail we haven\'t asked you for yet, so no figures can be shown.';
+
+  @override
+  String get reason_surrogate_no_matching_row => 'This bank\'s table doesn\'t cover your answer, so no figures can be shown.';
+
+  @override
   String get disclaimer_indicative_estimate => 'Indicative estimate — not a binding offer. Final figures come from the bank.';
 
   @override

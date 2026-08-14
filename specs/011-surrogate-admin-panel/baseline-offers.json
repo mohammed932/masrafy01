@@ -1,0 +1,3818 @@
+{
+  "ABK-BIZ-WORKING_CAPITAL": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "202552.87",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "632977.73",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "493722.63",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "835530.60",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "126595.55",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "ABK-CAR-32F5": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "6000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "184038.72",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "869022.17",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "677837.29",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1147109.26",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "ABK-CAR-NEW_CAR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "20.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "228032.38",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "20.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1045835.30",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "20.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "812389.92",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "20.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1546804.16",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "20.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "117587.84",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "ABK-MTG-HOME_PURCHASE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "21.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1024313.52",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "21.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "795672.11",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "21.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1510257.75",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "ABK-PER-BANKERS": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "22.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "220277.13",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "22.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1003442.34",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "22.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "779459.68",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "22.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1474997.67",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "22.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "114435.51",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "ABK-PER-DOCTOR": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "23.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "218398.71",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "23.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "993243.42",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "23.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "771537.30",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "23.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1457833.09",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "23.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "113666.54",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "ABK-PER-PRIVATE_SECTOR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "209351.37",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "944504.38",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "733677.51",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33261.89",
+        "ratePercent": "25.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1100000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "109931.99",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "ABK-PERSONAL-002C": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "245384.96",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "869022.17",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "677837.29",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1147109.26",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "127444.21",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "ADIB-BIZ-EQUIPMENT_FINANCE": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "22.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "250668.54",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "22.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "891360.23",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "22.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "695260.98",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "22.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1176595.50",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "ADIB-CAR-NEW_CAR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "20.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "229029.71",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "20.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1051320.22",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21711.37",
+        "ratePercent": "20.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "816650.53",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "20.2500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1556148.31",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "20.2500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "117990.66",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "ADIB-MTG-HOME_PURCHASE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "21.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1029632.04",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "21.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "799803.46",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "21.2500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1519271.60",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "ADIB-PER-PRIVATE_SECTOR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "25.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "210230.94",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "25.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "949214.64",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "25.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "737336.37",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "30088.03",
+        "ratePercent": "25.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1000000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "25.2500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "110297.34",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "BANK-CAR-B506": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "245384.96",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "869022.17",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "677837.29",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1147109.26",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "127444.21",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "BDC-BIZ-WORKING_CAPITAL": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "199215.27",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "622547.71",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "485587.21",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "821762.98",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "124509.54",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "BDC-CAR-USED_CAR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "24.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "213804.45",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "24.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "968413.85",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "24.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "752250.05",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "35528.61",
+        "ratePercent": "24.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1200000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "24.2500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "111776.59",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "BDC-PER-GOVT_EMPLOYEE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "212006.57",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "23948.05",
+        "ratePercent": "24.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "800000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "744737.06",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "23948.05",
+        "ratePercent": "24.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "800000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "111033.38",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "BDC-PER-PENSIONER": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "27.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "169784.88",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "10142.25",
+        "ratePercent": "27.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "240000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "10142.25",
+        "ratePercent": "27.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "240000.00",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "10142.25",
+        "ratePercent": "27.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "240000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "27.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "106721.93",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "BDC-PER-PHARMACY": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "208477.24",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "24429.97",
+        "ratePercent": "25.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "800000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "730045.97",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "24429.97",
+        "ratePercent": "25.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "800000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "109568.40",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "BM-BIZ-EQUIPMENT_FINANCE": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "22.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "252828.85",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "22.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "900536.10",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "22.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "702418.16",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "22.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1188707.65",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "BM-CAR-NEW_CAR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "19.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "231043.52",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "19.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1062418.13",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21431.86",
+        "ratePercent": "19.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "825271.22",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "19.7500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1575091.97",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "19.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "118802.29",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "BM-MTG-HOME_PURCHASE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "20.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1040392.55",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "20.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "808162.07",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "20.7500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1537543.93",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "BM-PER-GOVT_EMPLOYEE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "22.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "219334.97",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25684.06",
+        "ratePercent": "22.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "900000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21749.99",
+        "ratePercent": "22.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "775483.40",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "25684.06",
+        "ratePercent": "22.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "900000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "22.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "114050.09",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "BM-PER-POLICE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "19.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "232060.08",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "24007.71",
+        "ratePercent": "19.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "900000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21340.19",
+        "ratePercent": "19.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "829631.92",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "21670.20",
+        "ratePercent": "19.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "900000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "19.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "119211.11",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "CIB-BIZ-PHARMACY": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "246428.47",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "873422.26",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "681269.36",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1152917.39",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "127871.65",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "CIB-BIZ-WORKING_CAPITAL": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "201878.87",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "630871.47",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "492079.74",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "832750.33",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "126174.29",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "CIB-CAR-NEW_CAR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "20.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "227041.36",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "20.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1040392.55",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "20.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "808162.07",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "20.7500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1537543.93",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "20.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "117186.99",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "CIB-MTG-HOME_PURCHASE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "21.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1019035.66",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "21.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "791572.34",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "21.7500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1501324.29",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "CIB-PER-DOCTOR": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "217468.31",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "988201.89",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "767621.11",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1449364.29",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "113284.86",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "CIB-PER-PRIVATE_SECTOR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "208477.24",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "939829.30",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "730045.97",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1258699.96",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "25.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "109568.40",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "CIB-PER-PROFESSIONAL": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "212006.57",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "958741.96",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21749.99",
+        "ratePercent": "24.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "744737.06",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "35602.60",
+        "ratePercent": "24.7500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1300000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "24.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "111033.38",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "HDB-MTG-HOME_FINISHING": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "21.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "226056.61",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "21.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1034991.59",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "21.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "803966.68",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "21.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1528366.70",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "21.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "116788.11",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "HDB-MTG-HOME_PURCHASE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "20.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1056847.70",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21640.20",
+        "ratePercent": "20.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "820944.19",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "20.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1565577.27",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "HDB-PER-PRIVATE_SECTOR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "214711.84",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "973304.83",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "756049.29",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "29343.33",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1000000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "112150.91",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "HSBC-MTG-HOME_PURCHASE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "20.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1051320.22",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "20.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "816650.53",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "20.2500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1556148.31",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "HSBC-PER-BANKERS": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "21.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "225078.08",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "21.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1029632.04",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "21.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "799803.46",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "21.2500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1519271.60",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "21.2500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "116391.19",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "HSBC-PER-PROFESSIONAL": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "217468.31",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "988201.89",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "767621.11",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1449364.29",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "113284.86",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NBE-CAR-NEW_CAR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "19.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "232060.08",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "19.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1068031.90",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21319.21",
+        "ratePercent": "19.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "829631.92",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "19.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1584693.33",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "19.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "119211.11",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NBE-MTG-HOME_PURCHASE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "20.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1045835.30",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "20.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "812389.92",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "20.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1546804.16",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NBE-PER-ARMED_FORCES": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "19.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "232060.08",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "24007.71",
+        "ratePercent": "19.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "900000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21340.19",
+        "ratePercent": "19.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "829631.92",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "21670.20",
+        "ratePercent": "19.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "900000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "19.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "119211.11",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NBE-PER-GOVT_EMPLOYEE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "22.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "220277.13",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25553.04",
+        "ratePercent": "22.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "900000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "22.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "779459.68",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "25553.04",
+        "ratePercent": "22.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "900000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "22.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "114435.51",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NBE-PER-PENSIONER": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "174891.80",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "10995.80",
+        "ratePercent": "25.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "270000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "10995.80",
+        "ratePercent": "25.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "270000.00",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "10995.80",
+        "ratePercent": "25.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "270000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "109931.99",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NXT-BIZ-WORKING_CAPITAL": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 24,
+        "maxLoanEGP": "147800.35",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 24,
+        "maxLoanEGP": "461876.09",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 24,
+        "maxLoanEGP": "360263.35",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 24,
+        "maxLoanEGP": "609676.43",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "NXT-CAR-USED_CAR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "211115.99",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "844463.97",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "655967.55",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "35998.69",
+        "ratePercent": "25.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "1050000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "110664.47",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NXT-MTG-HOME_FINISHING": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "212902.70",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "963559.67",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "748479.39",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1400000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "24.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "111404.08",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NXT-PER-PRIVATE_SECTOR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "27.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "202507.39",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25043.53",
+        "ratePercent": "27.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "700000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "27.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "629219.38",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "25043.53",
+        "ratePercent": "27.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "700000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "27.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "107071.77",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "NXT-PER-YOUTH": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": null,
+        "unavailableReason": "AGE_AT_MATURITY"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": null,
+        "unavailableReason": "AGE_AT_MATURITY"
+      },
+      "self-employed-doctor": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": null,
+        "unavailableReason": "AGE_AT_MATURITY"
+      },
+      "business-owner": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": null,
+        "unavailableReason": "AGE_AT_MATURITY"
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": null,
+        "unavailableReason": "AGE_AT_MATURITY"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": null,
+        "unavailableReason": "AGE_AT_MATURITY"
+      }
+    }
+  },
+  "QNB-CAR-USED_CAR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "215624.92",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "978232.93",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "759877.37",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1310133.39",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "23.7500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "112527.05",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "QNB-MTG-HOME_PURCHASE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "22.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1008600.43",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "22.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "783466.40",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "22.2500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1483695.09",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "QNB-PER-BANKERS": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "217468.31",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "988201.89",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "767621.11",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "37500.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1449364.29",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "23.2500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "113284.86",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "QNB-PER-PRIVATE_SECTOR": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "7000.00",
+        "ratePercent": "26.2500",
+        "tenorMonths": 48,
+        "maxLoanEGP": "206745.15",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "28000.00",
+        "ratePercent": "26.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "930583.42",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "21750.00",
+        "ratePercent": "26.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "722863.91",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33759.47",
+        "ratePercent": "26.2500",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1100000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "4400.00",
+        "ratePercent": "26.2500",
+        "tenorMonths": 36,
+        "maxLoanEGP": "108846.46",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "OBLIGATIONS_EXCEED_ALLOWANCE"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-COMPOUND-OWNER": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "239258.71",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "843307.48",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "657779.84",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1211240.37",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "124922.71",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-CD-HOLDERS": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "245384.96",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "869022.17",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "677837.29",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1253474.08",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "127444.21",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-AUTO-XSELL-OTHER": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "237266.87",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "834990.25",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "651292.40",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1197646.84",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "124098.36",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-AUTO-XSELL-ABK": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "241275.42",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "851750.35",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "664365.27",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1225072.69",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "125755.08",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-CC-XSELL": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "233356.38",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "818723.82",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "638604.58",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1171156.37",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "122473.33",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-DOCTORS-CLINIC": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "235299.55",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "826796.43",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "644901.21",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1184287.12",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "123281.93",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-DOCTORS-PRACTICE": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "30.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "222185.23",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "30.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "772716.41",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "30.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "602718.80",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "30.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1096922.57",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "30.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "117781.26",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-BANKERS": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "22.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "253919.26",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "22.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "905176.86",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "22.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "706037.95",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "22.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1313373.90",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "22.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "130922.77",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-PROFESSORS": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "239258.71",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "843307.48",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "657779.84",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1211240.37",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "25.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "124922.71",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-MILITARY": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "241275.42",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "851750.35",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "664365.27",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1225072.69",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "125755.08",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-SALARIED-NO-XFER": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "233356.38",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "818723.82",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "638604.58",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1171156.37",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "122473.33",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-WEALTH": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "23.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "886824.48",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "23.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "691723.10",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "23.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1282893.12",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-PAYROLL-CAT-C": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "245384.96",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "869022.17",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "677837.29",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1253474.08",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "127444.21",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-STL": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "245384.96",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "869022.17",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "677837.29",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1253474.08",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "24.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "127444.21",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-ITL": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "241275.42",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "851750.35",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "664365.27",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1225072.69",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "25.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "125755.08",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-CLUBS": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "30.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "222185.23",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "818723.82",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "638604.58",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "30.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1096922.57",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "30.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "117781.26",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:abk-egypt-2026:ABK-FOOTBALL": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "31.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "218639.40",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "31.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "758257.80",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "31.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "591441.08",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "31.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1073807.34",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "31.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "116275.97",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:bank-nxt-2026:NXT-SALARIED": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "235299.55",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "826796.43",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "644901.21",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1184287.12",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "26.5000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "123281.93",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:salesfloor-egp-2026:SF-BLUE-PLUS": {
+    "programType": "income_surrogate",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "233356.38",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "24019.09",
+        "ratePercent": "27.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "760000.00",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "638604.58",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "22164.25",
+        "ratePercent": "27.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "760000.00",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "27.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "122473.33",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:salesfloor-egp-2026:SF-SELF-EMP": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "29.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "225818.27",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "28.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "802933.71",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "29.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "614330.53",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "28.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1145562.95",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "29.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "119315.47",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:salesfloor-egp-2026:SF-HIGH-END": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "self-employed-doctor": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "28.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "1059872.50",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  },
+  "catalog:salesfloor-egp-2026:SF-AUTO": {
+    "programType": "income_proof",
+    "samples": {
+      "salaried-mid": {
+        "installmentEGP": "8000.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 48,
+        "maxLoanEGP": "237266.87",
+        "recognisedIncomeEGP": "20000.00",
+        "unavailableReason": null
+      },
+      "salaried-high-commercial-bank": {
+        "installmentEGP": "25000.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "834990.25",
+        "recognisedIncomeEGP": "60000.00",
+        "unavailableReason": null
+      },
+      "self-employed-doctor": {
+        "installmentEGP": "19500.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 60,
+        "maxLoanEGP": "651292.40",
+        "recognisedIncomeEGP": "45000.00",
+        "unavailableReason": null
+      },
+      "business-owner": {
+        "installmentEGP": "33000.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 72,
+        "maxLoanEGP": "1197646.84",
+        "recognisedIncomeEGP": "90000.00",
+        "unavailableReason": null
+      },
+      "government-employee-with-facts": {
+        "installmentEGP": "5000.00",
+        "ratePercent": "26.0000",
+        "tenorMonths": 36,
+        "maxLoanEGP": "124098.36",
+        "recognisedIncomeEGP": "12000.00",
+        "unavailableReason": null
+      },
+      "low-income-tight": {
+        "installmentEGP": null,
+        "ratePercent": null,
+        "tenorMonths": null,
+        "maxLoanEGP": null,
+        "recognisedIncomeEGP": "7000.00",
+        "unavailableReason": "BELOW_PROGRAM_MIN_AMOUNT"
+      }
+    }
+  }
+}

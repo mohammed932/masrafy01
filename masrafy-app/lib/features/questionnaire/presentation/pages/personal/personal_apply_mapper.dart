@@ -15,6 +15,11 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 /// (`/auth/me`); the sub-purpose has no backend field so `loanPurpose` carries
 /// the category id `personal`.
 ///
+/// Feature 011 adds the SURROGATE FACTS ([SurrogateFacts]) — military grade, academic
+/// rank, years in practice and the credit-card limit. Each is omitted when unanswered
+/// rather than defaulted, so a bank's rule can say "we haven't asked you this" instead
+/// of pricing a guess.
+///
 /// `questionnaireVersionId` is deliberately unset: the snapshot exposes a
 /// version NUMBER, not the version id the DTO wants, and the backend falls back
 /// to the active version.
@@ -25,6 +30,10 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
   String? programNameKey,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
+  // Feature 011 — the surrogate-income facts. Personal is the only category these
+  // questions are assigned to (`question_loan_category`), so this is the only mapper
+  // that reads them.
+  final facts = SurrogateFacts.fromAnswers(answers);
   final employmentCode = pickedOption(answers, 'employment_status');
   final employmentType =
       _employmentType[employmentCode] ?? employmentCode ?? 'salaried';
@@ -43,6 +52,13 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
       ),
       companyName: 'N/A',
       companyType: companyTypeFor(employmentType),
+      // Each stays null — and is therefore omitted from the JSON — when the fact was
+      // not answered, which is the normal case for most applicants. Sending a zero or
+      // an empty string instead would make the bank's rule report "your grade isn't in
+      // this table" when the truth is "we never asked you" (FR-020).
+      militaryGrade: facts.militaryGrade,
+      professorRank: facts.professorRank,
+      yearsInPractice: facts.yearsInPractice,
     ),
     obligations: ObligationsPayload(
       existingMonthlyObligationsEGP: money.existingObligationsEGP,
@@ -52,7 +68,11 @@ ApplyRequest mapPersonalAnswersToApplyRequest(
       hasCurrentLoan: money.hasCurrentLoan,
       hasPreviousRejection: pickedOption(answers, 'prior_rejection') == 'yes',
     ),
-    assets: const AssetsPayload(),
+    // Was `const AssetsPayload()` — an empty object. The card limit IS answered, in
+    // the commitments step, and fed the 5% obligation discount server-side; it just
+    // never left the phone as an asset, so every `byCreditCardLimit` income rule
+    // resolved to nothing for every customer alive (FR-019).
+    assets: facts.assets,
     category: 'personal',
     programNameKey: programNameKey,
     questionnaireAnswers: toSubmittedAnswers(answers),

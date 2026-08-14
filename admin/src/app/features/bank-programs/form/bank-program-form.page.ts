@@ -64,10 +64,17 @@ import type {
   BankProgramUpdatePayload,
   DbrBand,
   IncomeAssumptionStrategy,
+  IncomeAssumptionConfig,
+  IncomeBand,
+  IncomeKeyTableRow,
   ProgramType,
   RateBandMap,
+  ValueSourceMap,
 } from '../bank-programs.types';
+import { INCOME_METHOD_SHAPE } from '../bank-programs.types';
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
+import { IncomeRuleCheckComponent } from './sections/income-rule/income-rule-check.component';
+import { incomeRuleHasError } from './sections/income-rule/income-rule.rules';
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
@@ -163,6 +170,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
     NzSwitchModule,
     DbrBandsEditorComponent,
     IncomeAssumptionSectionComponent,
+    IncomeRuleCheckComponent,
     MoneyInputDirective,
     WizardStepsComponent,
   ],
@@ -836,7 +844,26 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           </section>
 
           @if (incomeSurrogateActive()) {
-            <app-income-assumption-section [group]="incomeAssumptionGroup"></app-income-assumption-section>
+            <app-income-assumption-section
+              [group]="incomeAssumptionGroup"
+              [keyTable]="incomeKeyTable()"
+              (keyTableChange)="incomeKeyTable.set($event)"
+              [bands]="incomeBands()"
+              (bandsChange)="incomeBands.set($event)"
+              [estimatedKeys]="estimatedKeyTableKeys()"
+              (estimatedKeyChange)="onKeyTableMarker($event)"
+              [estimatedBandIndexes]="estimatedBandIndexes()"
+              (estimatedBandChange)="onBandMarker($event)"
+              (bandStructureChange)="onBandStructureChange($event)"
+            >
+              <!-- Projected INTO the section so it sits directly below the table in
+                   the same tab order (FR-026), while reading the page's own live
+                   draft rather than a copy the section would have to mirror. -->
+              <app-income-rule-check
+                [programCode]="editingProgramCode()"
+                [draft]="liveIncomeRuleDraft()"
+              ></app-income-rule-check>
+            </app-income-assumption-section>
           }
           }
 
@@ -1790,6 +1817,10 @@ export class BankProgramFormPage implements OnInit {
     // would sail past it and the save would fail on the server
     // (`PROGRAM_NAME_KEY_NOT_IN_CATEGORY`).
     if (this.steps[index]?.id === 'program' && this.programNameMismatch() !== null) return false;
+    // Same reason again for the income rule's two tables, which are signals too.
+    // Without this the wizard's "which step is blocked" search could not find the one
+    // holding a broken rule, and `submit()` would return having moved nowhere.
+    if (this.steps[index]?.id === 'eligibility' && this.incomeRuleError()) return false;
     return true;
   }
 
@@ -2153,10 +2184,22 @@ export class BankProgramFormPage implements OnInit {
         nonNullable: true,
         validators: [Validators.required],
       }),
-      carInstallmentMultiplier: new FormControl<string | null>(null),
-      carLoanAmountPercent: new FormControl<string | null>(null),
-      creditCardLimitMultiplier: new FormControl<string | null>(null),
-      bankStatementPercent: new FormControl<string | null>(null),
+      /**
+       * Feature 011 — the CANONICAL scalar shape replaces the four per-method
+       * fields. `unit` travels with the value so the stored blob says what
+       * arithmetic it means, and the read path normalizes a legacy
+       * `carInstallmentMultiplier` into exactly this pair.
+       */
+      scalar: this.fb.group({
+        value: new FormControl<string | null>(null),
+        unit: new FormControl<'percent' | 'multiplier'>('percent', { nonNullable: true }),
+      }),
+      /** FR-012 — empty means "use the program's own cap", which is the common case. */
+      dbrCapPercentOverride: new FormControl<string | null>(null),
+      /** FR-013 — `required_document` keys. A gap is warned about, never blocked. */
+      requiredDocuments: new FormControl<string[]>([], { nonNullable: true }),
+      /** Absent = the rule's figure REPLACES a declared salary. */
+      combinationRule: new FormControl<'lesser_of' | 'greater_of' | null>(null),
     }),
     fees: this.fb.nonNullable.group({
       adminFeePercent: new FormControl('1.0000', {
@@ -2420,6 +2463,142 @@ export class BankProgramFormPage implements OnInit {
   readonly dbrBands = signal<DbrBand[]>([]);
 
   /**
+   * Feature 011 — the two TABLE shapes of the income rule.
+   *
+   * Signals rather than `FormArray`s, mirroring `dbrBands` above. The band table's
+   * edges are LINKED (a band's end is the next band's start), so a `FormArray` would
+   * give each boundary two owners — the array's control and the relink — which is
+   * precisely how a gap nobody typed appears.
+   */
+  readonly incomeKeyTable = signal<IncomeKeyTableRow[]>([]);
+  readonly incomeBands = signal<IncomeBand[]>([]);
+
+  /**
+   * Feature 011 — the sparse value-source map (FR-032).
+   *
+   * Only the NON-default state is held: a path in this set is team-estimated, and an
+   * absent path is bank-stated. Storing both would make "a field nobody has looked at
+   * yet" indistinguishable from "confirmed with the bank", and would need a backfill
+   * over every numeric path of every program to mean anything.
+   */
+  readonly estimatedPaths = signal<ReadonlySet<string>>(new Set());
+
+  /** Whether this number is currently marked as a team estimate. */
+  isEstimated(path: string): boolean {
+    return this.estimatedPaths().has(path);
+  }
+
+  /** Flip one marker. Saving is never blocked by it (FR-034) — only going live is. */
+  setEstimated(path: string, estimated: boolean): void {
+    const next = new Set(this.estimatedPaths());
+    if (estimated) next.add(path);
+    else next.delete(path);
+    this.estimatedPaths.set(next);
+  }
+
+  /**
+   * The rule markers, projected back out of the flat path map for the editors.
+   *
+   * The stored path is the source of truth in ONE place — a second per-editor map
+   * would have to be kept in step with it, and the two would disagree the first time
+   * a row was renamed.
+   */
+  readonly estimatedKeyTableKeys = computed<ReadonlySet<string>>(() => {
+    const keys = new Set<string>();
+    for (const path of this.estimatedPaths()) {
+      const match = /^incomeAssumption\.keyTable\.(.+)\.incomeEGP$/.exec(path);
+      if (match?.[1]) keys.add(match[1]);
+    }
+    return keys;
+  });
+
+  readonly estimatedBandIndexes = computed<ReadonlySet<number>>(() => {
+    const indexes = new Set<number>();
+    for (const path of this.estimatedPaths()) {
+      const match = /^incomeAssumption\.bands\.(\d+)\.incomeEGP$/.exec(path);
+      if (match?.[1] !== undefined) indexes.add(Number(match[1]));
+    }
+    return indexes;
+  });
+
+  onKeyTableMarker(event: { key: string; estimated: boolean }): void {
+    this.setEstimated(`incomeAssumption.keyTable.${event.key}.incomeEGP`, event.estimated);
+  }
+
+  onBandMarker(event: { index: number; estimated: boolean }): void {
+    this.setEstimated(`incomeAssumption.bands.${event.index}.incomeEGP`, event.estimated);
+  }
+
+  /**
+   * Move the band markers with their rows (FR-032).
+   *
+   * A band's marker path is its INDEX, and an index only names the same row for as
+   * long as the rows above it stay put. Without this the incomes moved on a removal
+   * and the markers did not: the flag ended up on whatever row inherited the index —
+   * a figure the bank DID state — while the guessed one went unmarked and the program
+   * could go live on it. The key table needs no equivalent because it is addressed by
+   * registry key, which is a name rather than a position.
+   *
+   * A reset (seed / remove-all) drops them all: the rows those markers described are
+   * gone, and a marker with no row is the stale path the save can no longer show.
+   */
+  onBandStructureChange(event: { kind: 'remove'; index: number } | { kind: 'reset' }): void {
+    const next = new Set<string>();
+    for (const path of this.estimatedPaths()) {
+      const match = /^incomeAssumption\.bands\.(\d+)\.incomeEGP$/.exec(path);
+      if (!match?.[1]) {
+        next.add(path);
+        continue;
+      }
+      if (event.kind === 'reset') continue;
+      const index = Number(match[1]);
+      if (index === event.index) continue;
+      next.add(index > event.index ? `incomeAssumption.bands.${index - 1}.incomeEGP` : path);
+    }
+    this.estimatedPaths.set(next);
+  }
+
+  /** The map as the API takes it: sparse, one value, sorted for a stable payload. */
+  private valueSourcesPayload(): ValueSourceMap {
+    const out: ValueSourceMap = {};
+    for (const path of [...this.estimatedPaths()].sort()) out[path] = 'team_estimated';
+    return out;
+  }
+
+  /**
+   * The rule EXACTLY as it stands on screen, including unsaved edits (FR-028).
+   *
+   * Recomputed from the same form value the save payload is built from, so the panel
+   * can never check something different from what Save would send — which is the one
+   * way an in-place checker becomes worse than useless.
+   */
+  readonly liveIncomeRuleDraft = computed<IncomeAssumptionConfig>(() => {
+    // Touching the two table signals registers them as dependencies, so editing a row
+    // re-derives the draft the panel holds.
+    this.incomeKeyTable();
+    this.incomeBands();
+    // `formValue` is the existing any-value mirror of `form.valueChanges` — reading it
+    // is what makes this recompute when the method select or a policy control moves.
+    // The RAW value is then used, because `getRawValue()` includes disabled controls
+    // and `formValue` alone would not.
+    this.formValue();
+    return this.incomeAssumptionPayload(this.form.getRawValue().incomeAssumption);
+  });
+
+  /**
+   * The saved program's code, or `null` while creating.
+   *
+   * The check panel needs it because the check runs against THIS program's own rate,
+   * fees, tenor and limits — a rule checked against nothing in particular would
+   * produce an installment no bank would ever offer, which is worse than no check.
+   */
+  readonly editingProgramCode = computed<string | null>(() => {
+    this.formValue();
+    const code = this.identityGroup.get('programCode')?.value as string | null;
+    return code && code.length > 0 ? code : null;
+  });
+
+  /**
    * The flat cap, live, so the editor seeds new rows with what the admin just
    * typed above rather than a value read once at construction.
    */
@@ -2438,6 +2617,33 @@ export class BankProgramFormPage implements OnInit {
    * not on screen. The backend re-validates on save (`DBR_BANDS_INVALID`).
    */
   readonly dbrBandsError = computed<DbrBandsError>(() => dbrBandsErrorFor(this.dbrBands()));
+
+  /**
+   * Feature 011 — the same verdict the income section renders inline, through the
+   * same shared function, so the wizard can refuse a broken rule from a step where
+   * that section is not on screen. Without it an admin pressed Save on an empty key
+   * table, waited for a round trip, and got `INCOME_RULE_EMPTY` pointing at a control
+   * three steps back.
+   *
+   * Only consulted for programs that actually read a rule — a program typed
+   * `income_proof` carries the section's controls but nothing reads what they hold,
+   * so gating on them would block a save the server would have accepted.
+   */
+  readonly incomeRuleError = computed<boolean>(() => {
+    if (!this.incomeSurrogateActive()) return false;
+    this.formValue();
+    const ia = this.form.getRawValue().incomeAssumption;
+    const shape = INCOME_METHOD_SHAPE[ia.strategy] ?? 'none';
+    return incomeRuleHasError({
+      shape,
+      keyTable: this.incomeKeyTable(),
+      bands: this.incomeBands(),
+      scalarValue: ia.scalar.value,
+      legacyScalarPermitted:
+        (ia.strategy === 'byCDValue' || ia.strategy === 'byTotalDeposits') &&
+        this.incomeBands().length === 0,
+    });
+  });
 
   /** Reactive view of the bound key so the option list keeps a legacy value visible. */
   readonly programNameKeySignal = toSignal(
@@ -2558,19 +2764,24 @@ export class BankProgramFormPage implements OnInit {
         );
       }
     });
-    // A program that no longer estimates income must not keep surrogate settings.
+    // A program that no longer estimates income must not keep surrogate settings
+    // (FR-011). The two table signals are cleared with the controls — leaving them
+    // would send a table the server then reports as ignored, on a program the admin
+    // deliberately moved off surrogate income.
     effect(() => {
       if (!this.incomeSurrogateActive()) {
         this.incomeAssumptionGroup.patchValue(
           {
             strategy: 'declared',
-            carInstallmentMultiplier: null,
-            carLoanAmountPercent: null,
-            creditCardLimitMultiplier: null,
-            bankStatementPercent: null,
+            scalar: { value: null, unit: 'percent' },
+            dbrCapPercentOverride: null,
+            requiredDocuments: [],
+            combinationRule: null,
           },
           { emitEvent: false },
         );
+        if (this.incomeKeyTable().length > 0) this.incomeKeyTable.set([]);
+        if (this.incomeBands().length > 0) this.incomeBands.set([]);
       }
     });
     effect(() => {
@@ -2870,7 +3081,12 @@ export class BankProgramFormPage implements OnInit {
     // Signal-derived verdicts are tested alongside `form.invalid`: they are
     // invisible to it, so `goTo()`-ing back to an early step and hitting Create
     // would otherwise slip past them and fail on the server.
-    if (this.form.invalid || this.programNameMismatch() !== null || this.dbrBandsError() !== null) {
+    if (
+      this.form.invalid ||
+      this.programNameMismatch() !== null ||
+      this.dbrBandsError() !== null ||
+      this.incomeRuleError()
+    ) {
       revealErrors(this.form);
       const blocked = this.steps.findIndex((_, i) => !this.isStepValid(i));
       if (blocked >= 0) {
@@ -2888,6 +3104,10 @@ export class BankProgramFormPage implements OnInit {
         const payload = this.buildUpdatePayload();
         const res = await this.api.update(this.currentProgramCode, payload);
         this.message.success($localize`:@@bank_programs.form.updated:Bank program updated.`, { nzDuration: 4000 });
+        // FR-035 — the save switched a LIVE program off. Said explicitly, because
+        // otherwise the program simply goes dark and the admin has no way to connect
+        // it to the marker they just set.
+        this.notifyIfDeactivatedByEstimate(res.data.deactivatedByEstimate);
         void this.router.navigate(['/banks/programs', res.data.programCode]);
       } else {
         const payload = this.buildCreatePayload();
@@ -2933,6 +3153,43 @@ export class BankProgramFormPage implements OnInit {
 
   private buildUpdatePayload(): BankProgramUpdatePayload {
     return { ...this.payloadFromForm(this.form.getRawValue()), version: this.currentVersion };
+  }
+
+  /**
+   * The canonical `incomeAssumption` (FR-014), assembled from the method select, the
+   * two table signals and the policy controls.
+   *
+   * Shape-gated so exactly one of `keyTable` / `bands` / `scalar` is sent. An empty
+   * table is sent as an empty array rather than omitted, so the backend's
+   * `INCOME_RULE_EMPTY` fires instead of the request silently reading as "this
+   * method has no table configured yet" — the defect this feature removes.
+   */
+  private incomeAssumptionPayload(
+    ia: ReturnType<typeof this.form.getRawValue>['incomeAssumption'],
+  ): BankProgramCreatePayload['incomeAssumption'] {
+    const shape = INCOME_METHOD_SHAPE[ia.strategy] ?? 'none';
+    const scalarValue = ia.scalar.value;
+
+    return {
+      strategy: ia.strategy,
+      ...(shape === 'keyTable' ? { keyTable: this.incomeKeyTable() } : {}),
+      ...(shape === 'bands' ? { bands: this.incomeBands() } : {}),
+      // A value method keeps its legacy percent while no bands are authored, so the
+      // scalar rides along for `bands` too — dropping it would silently change what
+      // an untouched legacy program derives (FR-015).
+      ...((shape === 'scalar' || (shape === 'bands' && this.incomeBands().length === 0)) &&
+      scalarValue !== null &&
+      scalarValue !== ''
+        ? { scalar: { value: scalarValue, unit: ia.scalar.unit } }
+        : {}),
+      ...(shape !== 'none' && ia.dbrCapPercentOverride
+        ? { dbrCapPercentOverride: ia.dbrCapPercentOverride }
+        : {}),
+      ...(shape !== 'none' && ia.requiredDocuments.length > 0
+        ? { requiredDocuments: ia.requiredDocuments }
+        : {}),
+      ...(shape !== 'none' && ia.combinationRule ? { combinationRule: ia.combinationRule } : {}),
+    };
   }
 
   private payloadFromForm(v: ReturnType<typeof this.form.getRawValue>): BankProgramCreatePayload {
@@ -2999,13 +3256,14 @@ export class BankProgramFormPage implements OnInit {
         minAssetsValueEGP: el.minAssetsValueEGP ?? undefined,
       },
       performanceCriteria: undefined,
-      incomeAssumption: {
-        strategy: ia.strategy,
-        carInstallmentMultiplier: ia.strategy === 'byCarInstallment' ? (ia.carInstallmentMultiplier ?? undefined) : undefined,
-        carLoanAmountPercent: ia.strategy === 'byCarLoanAmount' ? (ia.carLoanAmountPercent ?? undefined) : undefined,
-        creditCardLimitMultiplier: ia.strategy === 'byCreditCardLimit' ? (ia.creditCardLimitMultiplier ?? undefined) : undefined,
-        bankStatementPercent: ia.strategy === 'byBankStatementPercent' ? (ia.bankStatementPercent ?? undefined) : undefined,
-      },
+      // Feature 011 — the CANONICAL rule. Only the selected method's shape is sent:
+      // the server strips foreign configuration anyway (FR-011), but sending it would
+      // make the request disagree with what the admin is looking at.
+      incomeAssumption: this.incomeAssumptionPayload(ia),
+      // The sparse marker map (FR-032). Sent on every save, including when empty —
+      // an empty map is the statement "nothing here is a guess", and omitting it
+      // would leave a previously-flagged program flagged forever.
+      valueSources: this.valueSourcesPayload(),
       fees: {
         adminFeePercent: fe.adminFeePercent,
         stampDutyPercent: fe.stampDutyPercent,
@@ -3101,13 +3359,21 @@ export class BankProgramFormPage implements OnInit {
     this.setArr('eligibility.acceptedEmploymentTypes', initial.eligibility.acceptedEmploymentTypes);
     this.setArr('eligibility.acceptedTransferTypes', initial.eligibility.acceptedTransferTypes);
 
+    // Feature 011 — the server normalizes on read, so this is always the canonical
+    // shape even for a program whose rule has never been re-saved through this form.
     this.incomeAssumptionGroup.patchValue({
       strategy: initial.incomeAssumption.strategy,
-      carInstallmentMultiplier: initial.incomeAssumption.carInstallmentMultiplier ?? null,
-      carLoanAmountPercent: initial.incomeAssumption.carLoanAmountPercent ?? null,
-      creditCardLimitMultiplier: initial.incomeAssumption.creditCardLimitMultiplier ?? null,
-      bankStatementPercent: initial.incomeAssumption.bankStatementPercent ?? null,
+      scalar: {
+        value: initial.incomeAssumption.scalar?.value ?? null,
+        unit: initial.incomeAssumption.scalar?.unit ?? 'percent',
+      },
+      dbrCapPercentOverride: initial.incomeAssumption.dbrCapPercentOverride ?? null,
+      requiredDocuments: initial.incomeAssumption.requiredDocuments ?? [],
+      combinationRule: initial.incomeAssumption.combinationRule ?? null,
     });
+    this.incomeKeyTable.set(initial.incomeAssumption.keyTable ?? []);
+    this.incomeBands.set(initial.incomeAssumption.bands ?? []);
+    this.estimatedPaths.set(new Set(Object.keys(initial.valueSources ?? {})));
     this.feesGroup.patchValue({
       adminFeePercent: initial.fees.adminFeePercent,
       stampDutyPercent: initial.fees.stampDutyPercent,
@@ -3119,6 +3385,21 @@ export class BankProgramFormPage implements OnInit {
     });
     this.documentsGroup.patchValue({ operatorNotes: initial.operatorNotes ?? null });
     this.setArr('documents.requiredDocuments', initial.requiredDocuments);
+  }
+
+  /**
+   * FR-035 — a save that introduced a team-estimated number on a LIVE program takes it
+   * off air in the same transaction. A warning, not an error: the save SUCCEEDED and
+   * the admin did the right thing by marking the guess. What they need is the reason,
+   * so the program going dark does not read as someone else's edit.
+   */
+  private notifyIfDeactivatedByEstimate(deactivated: boolean | undefined): void {
+    if (!deactivated) return;
+    this.notification.warning(
+      $localize`:@@bank_programs.form.deactivated_title:Program switched off`,
+      $localize`:@@bank_programs.form.deactivated_body:It now holds a number the team estimated. Switch it back on once the bank has confirmed the figure.`,
+      { nzDuration: 8000 },
+    );
   }
 
   private handleError(err: unknown): void {

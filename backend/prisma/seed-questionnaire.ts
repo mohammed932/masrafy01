@@ -234,6 +234,92 @@ const JOB_TENURE_Q: SeedQuestion = {
   ],
 };
 
+// ── Feature 011 — the surrogate-income FACTS ────────────────────────────────
+//
+// Three questions the income-surrogate rules read (FR-016 … FR-018). Before them,
+// six of the ten methods could be configured perfectly and still resolve to nothing
+// for every customer alive, because no question ever asked the fact they look up.
+//
+// **The English labels are LOAD-BEARING.** `slug.util.ts` derives a question's
+// immutable `code` from its English label and A33 forbids hand-typing codes, so each
+// label is chosen such that its slug IS the binding constant in
+// `matching/pipeline/surrogate-fact-bindings.ts`. "Your military grade" would slug to
+// `your_military_grade`, the fact would silently never bind, and only a publish
+// warning would say so. `test/unit/surrogate-binding-codes.spec.ts` asserts the
+// equality rather than trusting it.
+//
+// Assigned to `personal` ONLY, through `question_loan_category` — never a `category`
+// column (A33, v12.0.0). Assignment happens by which CategoryConfig references them.
+//
+// **Both selects share ONE gate**, and that is an accepted limit rather than an
+// oversight: `enabledWhen` holds a single `optionCode` (not a list) and
+// `EMPLOYMENT_OPTIONS` has no option separating a soldier from a professor. So a
+// government employee is asked both and skips the one that does not apply — which
+// FR-020 already defines as a stated reason, never a zero. Splitting
+// `government_employee` into military / academic / civil would ripple into every
+// category's employment scoring and three other questionnaires for a cosmetic gain
+// (research R11).
+//
+// None is REQUIRED. A required fact question would block apply for every applicant
+// the fact does not describe, which is the opposite of what these are for.
+
+const MILITARY_GRADE_Q: SeedQuestion = {
+  // = slugify('Military grade') = the `military_grade` binding constant.
+  code: 'military_grade',
+  questionEn: 'Military grade',
+  questionAr: 'الرتبة العسكرية',
+  helperTextEn: 'Some banks set an assumed income from your grade. Skip this if it does not apply.',
+  helperTextAr: 'بعض البنوك تحدد دخلًا مفترضًا حسب رتبتك. تجاوز هذا السؤال إن لم ينطبق عليك.',
+  isRequired: false,
+  enabledWhen: {
+    questionCode: 'employment_status',
+    operator: 'equals',
+    optionCode: 'government_employee',
+  },
+  // Option codes ARE the active `military_grade` registry keys, generated rather
+  // than hand-typed (FR-017, research R3). That makes the admin's table keys and the
+  // customer's answers ONE list by construction, so a rename shows up on the other
+  // side as a publish warning instead of a silent non-match. Matching by LABEL could
+  // never work: there are two of them, ar and en.
+  optionsFromEnum: 'military_grade',
+  options: [],
+};
+
+const ACADEMIC_RANK_Q: SeedQuestion = {
+  // = slugify('Academic rank') = the `academic_rank` binding constant. The REGISTRY
+  // is called `professor_rank`; the QUESTION is not, because a lecturer is not a
+  // professor and would not answer a question that says so.
+  code: 'academic_rank',
+  questionEn: 'Academic rank',
+  questionAr: 'الدرجة العلمية',
+  helperTextEn: 'Some banks set an assumed income from your rank. Skip this if it does not apply.',
+  helperTextAr: 'بعض البنوك تحدد دخلًا مفترضًا حسب درجتك العلمية. تجاوز هذا السؤال إن لم ينطبق عليك.',
+  isRequired: false,
+  enabledWhen: {
+    questionCode: 'employment_status',
+    operator: 'equals',
+    optionCode: 'government_employee',
+  },
+  optionsFromEnum: 'professor_rank',
+  options: [],
+};
+
+const YEARS_IN_PRACTICE_Q: SeedQuestion = {
+  // = slugify('Years in practice') = the `years_in_practice` binding constant.
+  code: 'years_in_practice',
+  type: 'NUMERIC',
+  questionEn: 'Years in practice',
+  questionAr: 'سنوات الممارسة',
+  helperTextEn: 'How long you have practised your profession, if you have one.',
+  helperTextAr: 'عدد سنوات ممارستك لمهنتك، إن كانت لديك مهنة.',
+  isRequired: false,
+  // UNGATED: this population spans `freelancer` and `business_owner_company_owner`,
+  // and one `enabledWhen` cannot express two options. Optional, so an applicant it
+  // does not describe simply leaves it blank.
+  numeric: { minValue: '0', maxValue: '60', step: '1', unitEn: 'years', unitAr: 'سنة' },
+  options: [],
+};
+
 const EMPLOYER_APPROVED_Q: SeedQuestion = {
   code: 'employer_approved',
   questionEn: "Is the place you work at on the banks' approved list?",
@@ -595,6 +681,16 @@ const PERSONAL: CategoryConfig = {
         EMPLOYER_APPROVED_Q,
         ADDITIONAL_INCOME_Q,
         ACTIVE_ACCOUNT_Q,
+        // Feature 011 — the surrogate facts, referenced under PERSONAL ONLY. That
+        // reference is what assigns them to the category in `question_loan_category`
+        // (A33 — assignment lives only there), so a mortgage applicant is never asked
+        // their army rank. `credit_card_total_limit` is the FOURTH fact and is
+        // deliberately NOT re-seeded: it already exists in `commitments` feeding the
+        // 5% card-limit obligation, and a second copy would ask the same thing twice
+        // (research R2).
+        MILITARY_GRADE_Q,
+        ACADEMIC_RANK_Q,
+        YEARS_IN_PRACTICE_Q,
       ],
     },
     {

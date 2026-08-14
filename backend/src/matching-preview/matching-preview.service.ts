@@ -16,6 +16,11 @@ import {
   resolveObligations,
   type ObligationsResolution,
 } from '@/matching/pipeline/money-field-bindings';
+import {
+  surrogateFactsFromAnswers,
+  surrogateOptionPick,
+  type SurrogateFacts,
+} from '@/matching/pipeline/surrogate-facts-from-answers';
 import type { ApplicantProfile, ApprovalFactors, Quote } from '@/matching/types';
 import type { SelectedAnswer } from '@/matching/scoring/approval-probability.scorer';
 import { toSelectedAnswer } from '@/matching/scoring/answer-to-selected';
@@ -146,10 +151,8 @@ export class MatchingPreviewService {
     if (args.programNameKey) {
       await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
     }
-    const { selected, money, askedQuestionCodes } = await this.resolveSelectedOptions(
-      args.answers,
-      args.category,
-    );
+    const { selected, money, askedQuestionCodes, surrogateFacts } =
+      await this.resolveSelectedOptions(args.answers, args.category);
     return this.runAndAssemble(
       args.category,
       selected,
@@ -157,6 +160,7 @@ export class MatchingPreviewService {
       args.age,
       askedQuestionCodes,
       args.programNameKey ?? null,
+      surrogateFacts,
     );
   }
 
@@ -187,6 +191,8 @@ export class MatchingPreviewService {
     selected: SelectedAnswer[];
     money: MoneyInputs | null;
     askedQuestionCodes: string[];
+    /** Feature 011 — the facts an income rule looks its table up by (FR-018). */
+    surrogateFacts: SurrogateFacts;
   }> {
     const version = await this.questionnaire.activeVersion();
     if (!version) throw new DomainException(ERROR_CODES.QUESTIONNAIRE_NOT_PUBLISHED);
@@ -212,6 +218,13 @@ export class MatchingPreviewService {
     const byCode = new Map(questions.map((q) => [q.code, q]));
     const selected: SelectedAnswer[] = [];
     const numeric = new Map<string, string>();
+    /**
+     * Feature 011 — the SINGLE_SELECT picks, for the surrogate facts. Collected here
+     * rather than re-derived later because `validateAnswer` has already normalised
+     * them against the snapshot, and re-reading the raw answers would be a second
+     * derivation of the same input (A33).
+     */
+    const optionByCode = new Map<string, string>();
     /** The debt-type picks, once validated — the basis for the obligations sum. */
     let pickedDebtTypes: readonly string[] | undefined;
     for (const ans of answers) {
@@ -236,6 +249,13 @@ export class MatchingPreviewService {
       // A numeric answer feeds BOTH sides: it prices the loan here and, if the
       // program banded it, also scores. Two different jobs, not double counting.
       if (normalised?.numericValue != null) numeric.set(q.code, normalised.numericValue);
+      // A single pick — the option code, which IS the registry key an income rule's
+      // table is keyed by (FR-017). Through the SAME predicate apply uses, so the two
+      // paths cannot bind a fact differently for one set of answers (A33).
+      const picked = normalised
+        ? surrogateOptionPick({ type: q.type, selectedOptionCodes: normalised.selectedOptionCodes })
+        : undefined;
+      if (picked !== undefined) optionByCode.set(q.code, picked);
       if (q.code === DEBT_TYPES_QUESTION_CODE && normalised) {
         pickedDebtTypes = normalised.selectedOptionCodes;
       }
@@ -269,6 +289,10 @@ export class MatchingPreviewService {
       selected,
       money: this.resolveMoneyInputs(numeric, obligations),
       askedQuestionCodes,
+      // Feature 011 — the SAME mapper apply reads (FR-019). Preview and apply
+      // deriving the same engine input differently is a review block (A33), and this
+      // is the input an income rule looks its table up by.
+      surrogateFacts: surrogateFactsFromAnswers({ optionByCode, numericByCode: numeric }),
     };
   }
 
@@ -314,11 +338,12 @@ export class MatchingPreviewService {
     age: number,
     askedQuestionCodes: readonly string[],
     programNameKey: string | null,
+    surrogateFacts: SurrogateFacts,
   ) {
     const rows = (await this.programs.findAllActive()).filter((p) =>
       matchesRequestedScope(p, category, programNameKey),
     );
-    const profile = money ? this.buildProfile(money, age) : null;
+    const profile = money ? this.buildProfile(money, age, surrogateFacts) : null;
 
     const matches: PreviewMatch[] = [];
     for (const p of rows) {
@@ -377,7 +402,11 @@ export class MatchingPreviewService {
    * to the program's base rate — preview is an estimate, and apply, which has
    * the full employment block, is the one that prices exactly.
    */
-  private buildProfile(money: MoneyInputs, age: number): ApplicantProfile {
+  private buildProfile(
+    money: MoneyInputs,
+    age: number,
+    surrogateFacts: SurrogateFacts,
+  ): ApplicantProfile {
     return {
       age,
       loanPurpose: 'personal',
@@ -392,6 +421,11 @@ export class MatchingPreviewService {
         salaryTransferType: 'none',
         companyName: '',
         companyType: '',
+        // Feature 011 — spread from the shared mapper, so preview looks a bank's
+        // table up by exactly the value apply will (FR-019). Each field stays
+        // `undefined` when the fact was not answered, which the resolver reports as
+        // `SURROGATE_FACT_MISSING` rather than pricing a guess (FR-020).
+        ...surrogateFacts.employment,
       },
       obligations: {
         existingMonthlyObligationsEGP: money.existingObligationsEGP,
@@ -401,7 +435,9 @@ export class MatchingPreviewService {
         hasCurrentLoan: money.hasCurrentLoan,
         hasPreviousRejection: false,
       },
-      assets: {},
+      // Was `{}` — which is exactly why `byCreditCardLimit` resolved to nothing on
+      // preview even for an applicant who had answered the card-limit question.
+      assets: { ...surrogateFacts.assets },
     };
   }
 }

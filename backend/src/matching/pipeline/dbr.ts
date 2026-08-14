@@ -31,6 +31,14 @@ export interface DbrCapResolution {
   capPercent: Decimal;
   /** Index of the band that matched; `null` when the scalar cap was used. */
   bandIndex: number | null;
+  /**
+   * Feature 011 / FR-012 — whether the cap came from the program's own setting or
+   * from the income rule's `dbrCapPercentOverride`. Reported rather than derived
+   * because every surface that shows a DBR figure has to say which policy it
+   * measured against: an admin looking at 45% cannot otherwise tell whether the
+   * program says 45 or the rule does.
+   */
+  source: 'program_default' | 'rule_override';
 }
 
 /**
@@ -51,10 +59,36 @@ export interface DbrCapResolution {
  * Well-formed tables are guaranteed by `validateDbrBands` at write time; this
  * tolerance only covers legacy or hand-edited rows.
  */
-export function resolveDbrCap(setting: DbrSetting, recognisedIncomeEGP: Decimal): DbrCapResolution {
+export function resolveDbrCap(
+  setting: DbrSetting,
+  recognisedIncomeEGP: Decimal,
+  /**
+   * Feature 011 / FR-012 — the income rule's `dbrCapPercentOverride`, passed ONLY
+   * when the recognised income is surrogate-derived. The caller decides that
+   * (`income-resolver.ts` reads `origin`), not this function: a surrogate figure is
+   * the bank's own estimate of capacity, so a bank may cap it differently from a
+   * payslip it has actually seen — but a declared salary on a surrogate program is
+   * still a payslip figure and gets the program's own cap.
+   *
+   * Wins over both the scalar and the band table when present. It is the most
+   * specific statement of policy available: per program AND per income rule.
+   */
+  ruleOverridePercent?: string,
+): DbrCapResolution {
+  const override = toDecimalOrNull(ruleOverridePercent);
+  // Bounds are re-checked here rather than trusted: the save path validates the
+  // override (`INCOME_RULE_DBR_OVERRIDE_INVALID`), but a hand-edited or legacy
+  // JSONB row reaching the engine with `0` would silently cap every applicant at
+  // zero affordability, and Principle V forbids failing the match on bad config.
+  if (override !== null && override.greaterThan(0) && override.lessThanOrEqualTo(100)) {
+    return { capPercent: override, bandIndex: null, source: 'rule_override' };
+  }
+
   const scalar = toDecimalOrNull(setting.dbrCapPercent) ?? new Decimal(0);
   const bands = setting.dbrBands;
-  if (!bands || bands.length === 0) return { capPercent: scalar, bandIndex: null };
+  if (!bands || bands.length === 0) {
+    return { capPercent: scalar, bandIndex: null, source: 'program_default' };
+  }
 
   for (const [index, band] of bands.entries()) {
     const cap = toDecimalOrNull(band.capPercent);
@@ -62,19 +96,19 @@ export function resolveDbrCap(setting: DbrSetting, recognisedIncomeEGP: Decimal)
 
     // The open-ended band terminates the table and matches any remaining income.
     if (band.upToIncomeEGP === null || band.upToIncomeEGP === undefined) {
-      return { capPercent: cap, bandIndex: index };
+      return { capPercent: cap, bandIndex: index, source: 'program_default' };
     }
 
     const bound = toDecimalOrNull(band.upToIncomeEGP);
     if (bound === null) continue;
     if (recognisedIncomeEGP.lessThanOrEqualTo(bound)) {
-      return { capPercent: cap, bandIndex: index };
+      return { capPercent: cap, bandIndex: index, source: 'program_default' };
     }
   }
 
   // Fell off the end — the table has no open-ended band (rejected on write, so
   // only reachable for legacy rows). Treat it as "no usable table".
-  return { capPercent: scalar, bandIndex: null };
+  return { capPercent: scalar, bandIndex: null, source: 'program_default' };
 }
 
 /** Tolerant parse: a bad decimal string yields null instead of throwing. */

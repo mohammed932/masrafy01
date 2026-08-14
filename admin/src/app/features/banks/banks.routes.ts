@@ -16,6 +16,16 @@ export const BANKS_ROUTES: Routes = [
     loadComponent: () => import('./banks-list.page').then((m) => m.BanksListPage),
   },
   {
+    // Feature 011 / FR-036 — the waiting list. Declared BEFORE `programs/:programCode`
+    // for the same reason the backend route is: a param segment would otherwise
+    // swallow it and try to open a program by that name.
+    path: 'programs/pending-bank-confirmation',
+    loadComponent: () =>
+      import('../bank-programs/pending-bank-confirmation/pending-bank-confirmation.page').then(
+        (m) => m.PendingBankConfirmationPage,
+      ),
+  },
+  {
     path: 'programs/new',
     loadComponent: () =>
       import('../bank-programs/form/bank-program-form.page').then((m) => m.BankProgramFormPage),

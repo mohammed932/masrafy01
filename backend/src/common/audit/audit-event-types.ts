@@ -33,6 +33,20 @@ export enum AuditEventType {
   BANK_PROGRAM_TOGGLED = 'BANK_PROGRAM_TOGGLED',
   BANK_PROGRAM_DELETED = 'BANK_PROGRAM_DELETED',
   BANK_PROGRAM_RATE_UPDATED = 'BANK_PROGRAM_RATE_UPDATED',
+  /**
+   * Feature 011 / FR-038 — a value-source marker was added or removed, with the
+   * editor's identity. This is the audit trail the waiting list reads `waitingSince`
+   * from: "how long have we been waiting on this bank" is answerable only because the
+   * marker's arrival was recorded as an event (FR-036).
+   */
+  BANK_PROGRAM_VALUE_SOURCE_CHANGED = 'BANK_PROGRAM_VALUE_SOURCE_CHANGED',
+  /**
+   * Feature 011 / FR-035 — a save introduced a team-estimated number on a LIVE
+   * program, and the program was switched off in the SAME transaction. Recorded
+   * separately from the ordinary toggle so "why did this go dark?" has an answer that
+   * names the paths and the editor, rather than looking like someone flipped a switch.
+   */
+  BANK_PROGRAM_DEACTIVATED_BY_ESTIMATE = 'BANK_PROGRAM_DEACTIVATED_BY_ESTIMATE',
   BANK_PROGRAM_QUALITATIVE_REVIEW_DECIDED = 'BANK_PROGRAM_QUALITATIVE_REVIEW_DECIDED',
 
   // Banks (entity, not programs)

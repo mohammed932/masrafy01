@@ -248,6 +248,64 @@ export const ERROR_CODES = {
   // Disclaimer shown alongside every indicative figure (not an error)
   INDICATIVE_ESTIMATE_NOT_AN_OFFER: 'INDICATIVE_ESTIMATE_NOT_AN_OFFER',
 
+  // --- Feature 011 — income-surrogate rule builder (admin) ---
+  // Rule save rejections (FR-006 … FR-012). Every one names the offending row so
+  // the admin form can point at it rather than reporting "the table is invalid".
+  /** A table method was selected and its table is absent or empty (FR-009). */
+  INCOME_RULE_EMPTY: 'INCOME_RULE_EMPTY',
+  /** A row's `incomeEGP` is ≤ 0 or not Decimal-parseable (FR-010). */
+  INCOME_RULE_INCOME_INVALID: 'INCOME_RULE_INCOME_INVALID',
+  /** Two rows of a key table carry the same registry key (FR-006). */
+  INCOME_RULE_DUPLICATE_KEY: 'INCOME_RULE_DUPLICATE_KEY',
+  /**
+   * A key table row names a key that is not an ACTIVE member of the method's
+   * platform enumeration. Fails CLOSED (AS-1.9): the engine's lookup is by key,
+   * so a dead key would resolve to nothing for every applicant, silently.
+   */
+  INCOME_RULE_UNKNOWN_KEY: 'INCOME_RULE_UNKNOWN_KEY',
+  /**
+   * Band edges unordered, gapped, overlapping, or an OPEN band with rows after it
+   * (FR-008). `meta.reason` names which, `meta.index` the offending band. A closed
+   * LAST band is legal — it means the rule yields nothing above that edge.
+   */
+  INCOME_RULE_BANDS_INVALID: 'INCOME_RULE_BANDS_INVALID',
+  /** Per-rule DBR override outside (0, 100] (FR-012). */
+  INCOME_RULE_DBR_OVERRIDE_INVALID: 'INCOME_RULE_DBR_OVERRIDE_INVALID',
+  /**
+   * A `valueSources` marker names a dot-path that is not on the program's
+   * numeric allow-list AND never was on the stored one. A path that WAS markable
+   * and no longer is (a row deleted, a method switched) is stale, not unknown: it
+   * is pruned with the number it described, because rejecting it would trap the
+   * admin behind a control that no longer exists (research R8).
+   */
+  VALUE_SOURCE_PATH_UNKNOWN: 'VALUE_SOURCE_PATH_UNKNOWN',
+  /**
+   * A `valueSources` entry carries something other than `team_estimated`. Its own
+   * code, not `VALUE_SOURCE_PATH_UNKNOWN`: the path is fine, so "reload the
+   * program and try again" would send the admin to fix the one thing that is right.
+   */
+  VALUE_SOURCE_VALUE_INVALID: 'VALUE_SOURCE_VALUE_INVALID',
+  /**
+   * Activation refused: the program still carries team-estimated numbers
+   * (FR-033). `meta.paths` lists EVERY one, not the first — the admin has to ask
+   * the bank about all of them, and a one-at-a-time reveal wastes a round trip.
+   */
+  PROGRAM_HAS_ESTIMATED_VALUES: 'PROGRAM_HAS_ESTIMATED_VALUES',
+  /**
+   * Publish/tree WARNING payload (never thrown): a surrogate fact's bound
+   * question is missing, inactive, the wrong type, drifted from its registry, or
+   * not assigned to `personal`. Sibling of `MONEY_FIELD_BINDING_MISSING` —
+   * publishing is never blocked, or a half-renamed binding would lock the pool.
+   */
+  SURROGATE_FACT_BINDING_MISSING: 'SURROGATE_FACT_BINDING_MISSING',
+  // Reason codes: returned inside a 200 payload, the program still listed and
+  // still ranked (FR-022, FR-024). They exist as a PAIR because the two lead to
+  // different admin actions — assign the question vs. add the table row.
+  /** The rule's fact is absent from the profile — not asked, or skipped (FR-020). */
+  SURROGATE_FACT_MISSING: 'SURROGATE_FACT_MISSING',
+  /** The fact was answered, but no key matched / the value fell in no band. */
+  SURROGATE_NO_MATCHING_ROW: 'SURROGATE_NO_MATCHING_ROW',
+
   // --- Generic ---
   RATE_LIMITED: 'RATE_LIMITED',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
@@ -434,6 +492,20 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   AGE_AT_MATURITY: 200,
   CURRENCY_NOT_OFFERED: 200,
   INDICATIVE_ESTIMATE_NOT_AN_OFFER: 200,
+
+  INCOME_RULE_EMPTY: 422,
+  INCOME_RULE_INCOME_INVALID: 422,
+  INCOME_RULE_DUPLICATE_KEY: 422,
+  INCOME_RULE_UNKNOWN_KEY: 422,
+  INCOME_RULE_BANDS_INVALID: 422,
+  INCOME_RULE_DBR_OVERRIDE_INVALID: 422,
+  VALUE_SOURCE_PATH_UNKNOWN: 422,
+  VALUE_SOURCE_VALUE_INVALID: 422,
+  PROGRAM_HAS_ESTIMATED_VALUES: 409,
+  SURROGATE_FACT_BINDING_MISSING: 422,
+  // Reason codes: only ever returned inside a 200 payload.
+  SURROGATE_FACT_MISSING: 200,
+  SURROGATE_NO_MATCHING_ROW: 200,
 
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,

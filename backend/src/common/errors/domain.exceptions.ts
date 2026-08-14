@@ -559,3 +559,95 @@ export class ProgramNameKeyNotInCategoryException extends DomainException {
     super(ERROR_CODES.PROGRAM_NAME_KEY_NOT_IN_CATEGORY, meta);
   }
 }
+
+// --- Feature 011 — income-surrogate rule builder ----------------------------
+//
+// Every rejection below names the offending ROW (index or key), never just the
+// table: a bank's grade table runs 10–15 rows, and "the table is invalid" makes
+// the admin re-read all of them.
+
+/** FR-009 — a table method was selected and its table is absent or empty. */
+export class IncomeRuleEmptyException extends DomainException {
+  constructor(meta: { strategy: string }) {
+    super(ERROR_CODES.INCOME_RULE_EMPTY, meta);
+  }
+}
+
+/** FR-010 — a row's income is ≤ 0 or not Decimal-parseable. */
+export class IncomeRuleIncomeInvalidException extends DomainException {
+  constructor(meta: { index?: number; key?: string; incomeEGP: string }) {
+    super(ERROR_CODES.INCOME_RULE_INCOME_INVALID, meta);
+  }
+}
+
+/** FR-006 — two key-table rows carry the same registry key. */
+export class IncomeRuleDuplicateKeyException extends DomainException {
+  constructor(meta: { key: string }) {
+    super(ERROR_CODES.INCOME_RULE_DUPLICATE_KEY, meta);
+  }
+}
+
+/**
+ * FR-006 / AS-1.9 — the key is not an ACTIVE member of the method's registry.
+ * Fails closed: the engine looks up by key, so a dead key resolves to nothing
+ * for every applicant and nothing on screen would say why.
+ */
+export class IncomeRuleUnknownKeyException extends DomainException {
+  constructor(meta: { key: string; registry: string; activeKeys?: string[] }) {
+    super(ERROR_CODES.INCOME_RULE_UNKNOWN_KEY, meta);
+  }
+}
+
+export type IncomeRuleBandsInvalidReason =
+  | 'unordered'
+  | 'gap'
+  | 'overlap'
+  /** An open-ended band with rows after it — those rows can never be reached. */
+  | 'open_band_not_last'
+  /**
+   * Retired: a CLOSED last band is legal (it means "above this the rule yields
+   * nothing"). Retained in the union so a stored or in-flight payload carrying it
+   * still type-checks, the same treatment `QUESTION_TYPE_NOT_SCOREABLE` got.
+   */
+  | 'last_band_not_open'
+  | 'empty'
+  | 'edge_not_decimal';
+
+/** FR-008 — band edges unordered, gapped, overlapping, or an open band not last. */
+export class IncomeRuleBandsInvalidException extends DomainException {
+  constructor(meta: { index: number | null; reason: IncomeRuleBandsInvalidReason }) {
+    super(ERROR_CODES.INCOME_RULE_BANDS_INVALID, meta);
+  }
+}
+
+/** FR-012 — per-rule DBR override outside (0, 100]. */
+export class IncomeRuleDbrOverrideInvalidException extends DomainException {
+  constructor(meta: { value: string }) {
+    super(ERROR_CODES.INCOME_RULE_DBR_OVERRIDE_INVALID, meta);
+  }
+}
+
+/** Research R8 — a marker named a path outside the program's numeric allow-list. */
+export class ValueSourcePathUnknownException extends DomainException {
+  constructor(meta: { path: string }) {
+    super(ERROR_CODES.VALUE_SOURCE_PATH_UNKNOWN, meta);
+  }
+}
+
+/** A marker on a valid path carrying something other than `team_estimated`. */
+export class ValueSourceValueInvalidException extends DomainException {
+  constructor(meta: { path: string; value: string }) {
+    super(ERROR_CODES.VALUE_SOURCE_VALUE_INVALID, meta);
+  }
+}
+
+/**
+ * FR-033 — activation refused while team-estimated numbers stand. `paths` is
+ * EVERY offending path: the admin has one conversation with the bank, not one
+ * per number.
+ */
+export class ProgramHasEstimatedValuesException extends DomainException {
+  constructor(meta: { paths: string[] }) {
+    super(ERROR_CODES.PROGRAM_HAS_ESTIMATED_VALUES, meta);
+  }
+}

@@ -114,20 +114,106 @@ export interface PerformanceCriteriaConfig {
   requireCurrentLoanStatus: boolean;
 }
 
-export type IncomeAssumptionStrategy =
-  | 'declared'
-  | 'byYearsInJob'
-  | 'byYearsInPractice'
-  | 'byProfessorRank'
-  | 'byMilitaryGrade'
-  | 'byCDValue'
-  | 'byCarInstallment'
-  | 'byCarLoanAmount'
-  | 'byCreditCardLimit'
-  | 'byBankStatementPercent';
+export const INCOME_ASSUMPTION_STRATEGIES = [
+  'declared',
+  'byYearsInJob',
+  'byYearsInPractice',
+  'byProfessorRank',
+  'byMilitaryGrade',
+  'byCDValue',
+  'byTotalDeposits',
+  'byCarInstallment',
+  'byCarLoanAmount',
+  'byCreditCardLimit',
+  'byBankStatementPercent',
+] as const;
 
+export type IncomeAssumptionStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number];
+
+/** Which editor a method needs. Drives the type-driven rendering in step 3. */
+export type IncomeMethodShape = 'none' | 'keyTable' | 'bands' | 'scalar';
+
+/**
+ * The shape each method is configured with, mirroring the backend's own grouping.
+ *
+ * `byCDValue` / `byTotalDeposits` are `bands` here even though the backend accepts a
+ * legacy scalar for them: the editor offers the band table (the shape an admin should
+ * author now), and a legacy scalar arrives already normalized into `scalar`, which the
+ * section still renders so an untouched legacy program is readable and its value is
+ * never silently dropped.
+ */
+export const INCOME_METHOD_SHAPE: Readonly<Record<IncomeAssumptionStrategy, IncomeMethodShape>> = {
+  declared: 'none',
+  byProfessorRank: 'keyTable',
+  byMilitaryGrade: 'keyTable',
+  byYearsInJob: 'bands',
+  byYearsInPractice: 'bands',
+  byCDValue: 'bands',
+  byTotalDeposits: 'bands',
+  byCarInstallment: 'scalar',
+  byCarLoanAmount: 'scalar',
+  byCreditCardLimit: 'scalar',
+  byBankStatementPercent: 'scalar',
+};
+
+/** The platform enumeration a key method draws its row keys from (FR-006). */
+export const INCOME_KEY_REGISTRY: Readonly<
+  Partial<Record<IncomeAssumptionStrategy, 'professor_rank' | 'military_grade'>>
+> = {
+  byProfessorRank: 'professor_rank',
+  byMilitaryGrade: 'military_grade',
+};
+
+/** The unit a band table's edges are expressed in — label only, never arithmetic. */
+export const INCOME_BAND_UNIT: Readonly<Partial<Record<IncomeAssumptionStrategy, 'years' | 'EGP'>>> =
+  {
+    byYearsInJob: 'years',
+    byYearsInPractice: 'years',
+    byCDValue: 'EGP',
+    byTotalDeposits: 'EGP',
+  };
+
+/** One row of a key table: a registry member and the income the bank assigns it. */
+export interface IncomeKeyTableRow {
+  key: string;
+  /** Decimal string, > 0. */
+  incomeEGP: string;
+}
+
+/**
+ * One income band, half-open `[fromInclusive, toExclusive)`; `toExclusive: null`
+ * is the open-ended last band.
+ *
+ * Unlike the numeric SCORE bands, the FIRST edge is real and editable: a bank's
+ * value table may legitimately start above zero, and below that floor the rule
+ * yields a stated reason rather than a zero.
+ */
+export interface IncomeBand {
+  fromInclusive: string;
+  toExclusive: string | null;
+  incomeEGP: string;
+}
+
+/**
+ * The CANONICAL income rule (FR-014). The backend normalizes on read, so the form
+ * never sees a legacy blob — the legacy fields below are kept only so a
+ * read-modify-write cycle on an un-migrated program cannot lose them.
+ */
 export interface IncomeAssumptionConfig {
   strategy: IncomeAssumptionStrategy;
+
+  keyTable?: IncomeKeyTableRow[];
+  bands?: IncomeBand[];
+  scalar?: { value: string; unit: 'percent' | 'multiplier' };
+
+  /** FR-012 — DBR cap used when the recognised income came FROM this rule. (0, 100]. */
+  dbrCapPercentOverride?: string;
+  /** FR-013 — `required_document` keys this method demands. Warning only. */
+  requiredDocuments?: string[];
+  /** How a surrogate figure combines with a declared salary. Absent = replace. */
+  combinationRule?: 'lesser_of' | 'greater_of';
+
+  // --- legacy, read-only ---
   incomeTable?: Array<{
     minYears?: number;
     maxYears?: number;
@@ -140,7 +226,6 @@ export interface IncomeAssumptionConfig {
   cdIncomePercent?: string;
   cdIncomeMinEGP?: string;
   cdIncomePercentOfDeposits?: string;
-  combinationRule?: 'lesser_of' | 'greater_of';
   carInstallmentMultiplier?: string;
   carLoanAmountPercent?: string;
   creditCardLimitMultiplier?: string;
@@ -186,6 +271,14 @@ export interface BankProgramCreatePayload {
   performanceCriteria?: PerformanceCriteriaConfig;
   incomeAssumption: IncomeAssumptionConfig;
   fees: FeesConfig;
+  /**
+   * Feature 011 / FR-032 — sparse dot-path → `'team_estimated'`.
+   *
+   * Sent on every save, including when empty: `{}` is the statement "nothing here is
+   * a guess", and omitting it would leave a previously-flagged program flagged for
+   * good.
+   */
+  valueSources?: ValueSourceMap;
 }
 
 export interface BankProgramUpdatePayload extends BankProgramCreatePayload {
@@ -222,7 +315,13 @@ export interface BankProgramResponse {
   performanceCriteria?: PerformanceCriteriaConfig | null;
   incomeAssumption: IncomeAssumptionConfig;
   fees: FeesConfig;
+  /** Feature 011 — sparse dot-path → `'team_estimated'`; absent path = bank-stated. */
+  valueSources?: ValueSourceMap;
   deprecatedKeys: DeprecatedKeyDescriptor[];
+  /** Feature 011 — non-blocking findings from the save. Resolved through i18n (A22). */
+  warnings?: Array<{ code: string; meta?: Record<string, unknown> }>;
+  /** Feature 011 / FR-035 — this save switched a live program off. */
+  deactivatedByEstimate?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -270,4 +369,84 @@ export interface DuplicateBankProgramPayload {
   programCode?: string;
   friendlyName: string;
   friendlyNameAr?: string;
+}
+
+// --- Feature 011: value-source markers + the rule check --------------------
+
+/**
+ * Sparse map of config dot-path → `'team_estimated'` (FR-032).
+ *
+ * Two states, and only the non-default one is stored: an ABSENT path means the
+ * bank stated the number. That is what keeps every pre-existing program live
+ * (FR-037) — `{}` marks nothing estimated, so nothing goes dark on deploy.
+ */
+export type ValueSourceMap = Record<string, 'team_estimated'>;
+
+/** The sample applicant the rule-check panel runs (data-model § 7). */
+export interface IncomeRuleCheckSample {
+  /** Admin-side sample age. Permitted here, never on a customer body (A31). */
+  age: number;
+  militaryGrade?: string;
+  professorRank?: string;
+  yearsInPractice?: number;
+  monthsInJob?: number;
+  creditCardLimitEGP?: string;
+  cdValueEGP?: string;
+  totalDepositsEGP?: string;
+  bankStatementBalanceEGP?: string;
+  carInstallmentEGP?: string;
+  carLoanAmountEGP?: string;
+  declaredMonthlySalaryEGP?: string;
+  existingMonthlyObligationsEGP: string;
+  requestedAmountEGP: string;
+  tenorMonths: number;
+}
+
+export interface IncomeRuleCheckPayload {
+  /** The ON-SCREEN draft, including unsaved edits (FR-028). */
+  incomeAssumption: IncomeAssumptionConfig;
+  sample: IncomeRuleCheckSample;
+}
+
+export type IncomeOrigin =
+  | 'declared'
+  | 'surrogate'
+  | 'declared_over_surrogate'
+  | 'surrogate_over_declared'
+  | 'none';
+
+export interface IncomeRuleCheckResult {
+  /** `null` ⇒ read `unresolvedReason`. NEVER rendered as a zero (FR-031). */
+  resolvedIncomeEGP: string | null;
+  origin: IncomeOrigin;
+  unresolvedReason?: 'fact_not_answered' | 'no_matching_row' | 'no_matching_band' | 'rule_unconfigured';
+  dbrCapPercent: string;
+  dbrCapSource: 'program_default' | 'rule_override';
+  affordableInstallmentEGP: string | null;
+  estimatedLoanAmountEGP: string | null;
+  /**
+   * Derived from the quote's own figures only — no eligibility rule is consulted,
+   * so gating cannot re-enter the platform through this panel (FR-027, A33).
+   */
+  qualifies: boolean;
+  unavailableReason?: string;
+  matchedRow?: { key: string } | { fromInclusive: string; toExclusive: string | null };
+}
+
+/** One row of the "waiting for the bank" list (FR-036). */
+export interface PendingBankConfirmationRow {
+  programCode: string;
+  friendlyName: string;
+  bankName: string;
+  active: boolean;
+  estimatedPaths: string[];
+  waitingSince: string;
+  /**
+   * True when `waitingSince` fell back to the program's `updatedAt` because the
+   * marker carries no audit event (import, backfill, direct seed). Rendered as an
+   * approximation rather than as a precise date — and never as `null`, which the
+   * UI would print as "0 days waiting".
+   */
+  waitingSinceEstimated: boolean;
+  waitingDays: number;
 }

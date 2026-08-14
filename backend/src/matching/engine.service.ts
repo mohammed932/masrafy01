@@ -17,7 +17,7 @@ import type {
   Suggestion,
 } from './types';
 import { checkEligibility } from './pipeline/eligibility-checker';
-import { resolveAssumedIncome } from './pipeline/income-resolver';
+import { applyCompanyTypeAdjustment, resolveAssumedIncome } from './pipeline/income-resolver';
 import { calculateApprovalProbability } from './pipeline/approval-probability';
 import { rankOffers } from './pipeline/ranking';
 import { quoteProgram } from './pipeline/quote';
@@ -123,11 +123,29 @@ export class EngineService {
     flags: { skipEligibility: boolean; skipDbrCheck: boolean },
   ): MatchResult {
     const { skipEligibility, skipDbrCheck } = flags;
-    const assumedIncome = resolveAssumedIncome(
+    // Resolved ONCE per program and handed to `quoteProgram` below. The resolver
+    // re-normalizes the rule blob and re-resolves the DBR cap on every call, and two
+    // independent runs could reach two answers about a figure that is about to be
+    // frozen onto an offer.
+    const incomeResolution = resolveAssumedIncome({
       profile,
-      program.incomeAssumption,
-      program.eligibility,
-    );
+      income: program.incomeAssumption,
+      eligibility: program.eligibility,
+    });
+
+    // The bank's own recognition percentage (`commercialBankIncomePercent` /
+    // `publicBankIncomePercent`, configured on live programs) applies HERE and only
+    // here: `checkEligibility` asks "would this bank lend to them", which is a
+    // question about what the bank recognises. The customer-facing figures
+    // deliberately keep the raw salary — see the note on `resolveAssumedIncome` — so
+    // the haircut is applied to the eligibility input rather than inside the
+    // resolver. Applied only to a DECLARED figure: a surrogate income is the bank's
+    // own table output and has no salary to discount.
+    const declaredOrigin =
+      incomeResolution.origin === 'declared' || incomeResolution.origin === 'declared_over_surrogate';
+    const assumedIncome = declaredOrigin
+      ? applyCompanyTypeAdjustment(incomeResolution.incomeEGP, profile, program.eligibility)
+      : incomeResolution.incomeEGP;
 
     const eligibility = checkEligibility(profile, program, assumedIncome);
     if (!eligibility.passed && !skipEligibility) {
@@ -143,7 +161,7 @@ export class EngineService {
     // All money math lives in `quoteProgram` — the one implementation shared by
     // matching preview, apply, the admin draft preview and the calculator. That
     // sharing is what makes FR-025 preview/apply parity structural.
-    const outcome = quoteProgram({ profile, program, skipDbrCheck });
+    const outcome = quoteProgram({ profile, program, skipDbrCheck, incomeResolution });
     if (!outcome.ok) {
       return {
         programCode: program.programCode,
@@ -220,6 +238,13 @@ export class EngineService {
       dbrPercent: quote.dbrPercent,
       dbrCapPercent: quote.dbrCapPercent,
       dbrBandIndex: quote.dbrBandIndex,
+      // Feature 011 — provenance, carried straight off the quote rather than
+      // re-derived. Re-running the resolver here could reach a different answer, and
+      // the offer is about to become immutable.
+      incomeOrigin: quote.incomeResolution?.origin ?? null,
+      incomeSurrogateStrategy: quote.incomeResolution
+        ? quote.incomeResolution.strategy
+        : null,
     };
   }
 
@@ -280,6 +305,12 @@ function reasonToCheckCode(reason: FiguresUnavailableReason): string {
     case 'BELOW_PROGRAM_MIN_AMOUNT':
       return 'dbr_exceeded';
     case 'NO_RECOGNISED_INCOME':
+    // Both surrogate reasons are an income problem from the applicant's side —
+    // the check that could not be satisfied is the same one. They stay SEPARATE
+    // reasons because the admin fix differs (research R9), but a customer-facing
+    // failed-check list has one income check, not three.
+    case 'SURROGATE_FACT_MISSING':
+    case 'SURROGATE_NO_MATCHING_ROW':
       return 'monthly_income';
     case 'CURRENCY_NOT_OFFERED':
       return 'currency';

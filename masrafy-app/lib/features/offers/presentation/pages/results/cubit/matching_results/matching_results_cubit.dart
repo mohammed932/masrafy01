@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:app/core/enums/request_state.dart';
 import 'package:app/core/result/failure.dart';
 import 'package:app/features/matching/data/models/request/apply_request.dart';
+import 'package:app/features/matching/domain/entities/apply_result_entity.dart';
 import 'package:app/features/matching/domain/usecases/matching_usecase.dart';
 import 'package:app/features/offers/presentation/models/match_results_args.dart';
 
@@ -41,6 +42,9 @@ class MatchingResultsCubit extends Cubit<MatchingResultsState> {
         emit(state.copyWith(
           status: RequestState.loaded,
           offers: offers,
+          // Carried straight through, in the order the engine returned them —
+          // ordering is not this screen's to invent (FR-024).
+          unavailablePrograms: entity.unavailablePrograms,
           applicationId: entity.applicationId,
           matched: entity.matched,
           error: null,

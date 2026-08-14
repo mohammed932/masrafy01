@@ -13,13 +13,22 @@ import {
   DeprecatedEnumerationKeyException,
   DerivationArithmeticMismatchException,
   EnumerationRegistryUnavailableException,
+  IncomeRuleBandsInvalidException,
+  IncomeRuleDbrOverrideInvalidException,
+  IncomeRuleDuplicateKeyException,
+  IncomeRuleEmptyException,
+  IncomeRuleIncomeInvalidException,
+  IncomeRuleUnknownKeyException,
   ProgramRangeInvalidException,
   InvalidQualitativeReviewCeilingException,
   InvalidVariableRateConfigurationException,
   NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
   ProgramNameKeyNotInCategoryException,
+  ProgramHasEstimatedValuesException,
   ProgramNameKeyUnknownException,
+  ValueSourcePathUnknownException,
+  ValueSourceValueInvalidException,
   QualitativeReviewCeilingBelowBaseException,
   UnknownEnumerationKeyException,
 } from '../common/errors/domain.exceptions';
@@ -34,6 +43,7 @@ import {
   BankProgramListRowDto,
   BankProgramResponseDto,
   DeprecatedKeyDescriptor,
+  PendingBankConfirmationRowDto,
 } from './dto/bank-program.response.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
 import { BankProgramRepository, type JsonBlob } from './bank-programs.repository';
@@ -44,7 +54,39 @@ import {
   ValidationContext,
 } from './validation/cross-config.validators';
 import { validateDbrBands } from './validation/dbr-bands.validator';
+import {
+  estimatedPaths,
+  newlyEstimatedPaths,
+  pruneValueSources,
+  validateValueSources,
+  type MarkableProgramConfig,
+  type ValueSourceViolation,
+} from './validation/value-sources.validator';
+import {
+  collectIncomeRuleWarnings,
+  stripForeignMethodConfig,
+  validateIncomeRule,
+  type IncomeRuleValidationContext,
+  type IncomeRuleViolation,
+  type IncomeRuleWarning,
+} from './validation/income-rule.validator';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
+import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
+import { quoteProgram } from '@/matching/pipeline/quote';
+import { resolveAssumedIncome } from '@/matching/pipeline/income-resolver';
+import { toBankProgramSnapshot } from './bank-program-snapshot.mapper';
+import {
+  IncomeRuleCheckDto,
+  type IncomeRuleCheckResponseDto,
+} from './dto/income-rule-check.dto';
+import {
+  KEY_TABLE_REGISTRY,
+  KEY_TABLE_STRATEGIES,
+  type ApplicantProfile,
+  type BankProgramSnapshot,
+  type IncomeAssumptionConfig,
+} from '@/matching/types';
+import { ERROR_CODES } from '../common/errors/error-codes';
 
 /**
  * Bank-program orchestration service.
@@ -80,8 +122,13 @@ export class BankProgramsService {
       throw new EnumerationRegistryUnavailableException();
     }
 
+    // The rule AS IT WILL BE STORED, not as it arrived: `runCrossConfigChecks`
+    // validates this exact object, so the save can never persist a shape nothing
+    // checked (see `persistableIncomeAssumption`).
+    const persistedRule = this.persistableIncomeAssumption(dto);
+
     // Cross-config + registry validation.
-    await this.runCrossConfigChecks(dto);
+    await this.runCrossConfigChecks(dto, { incomeAssumption: persistedRule });
 
     // Resolve the program code: auto-generated when the admin doesn't supply one
     // (A33 — codes are never hand-typed). The generation loop already guarantees
@@ -93,6 +140,19 @@ export class BankProgramsService {
     if (existing) {
       throw new ProgramCodeAlreadyInUseException(programCode);
     }
+
+    const warnings = this.incomeRuleWarnings({ dto, persisted: persistedRule });
+
+    // Feature 011 — markers are validated on create too. A program created WITH an
+    // estimate SAVES fine (FR-034) but must not be born LIVE: programs are created
+    // active by default, so without this a create would walk straight past the
+    // activation gate `toggle` enforces and ship an unconfirmed number.
+    const markerConfig = { ...dto, incomeAssumption: persistedRule };
+    // No `previousConfig`: a program being created has no past, so no marker on it
+    // can be stale — every unknown path here really is a client error.
+    throwOnValueSourceViolation(validateValueSources(dto.valueSources, markerConfig));
+    const persistedSources = pruneValueSources(dto.valueSources, markerConfig);
+    const createdWithEstimates = estimatedPaths(persistedSources).length > 0;
 
     // Persist + emit audit in one transaction.
     const program = await this.prisma.$transaction(async (tx) => {
@@ -107,7 +167,10 @@ export class BankProgramsService {
           programType: dto.programType,
           productCategory: dto.productCategory,
           currencies: dto.currencies,
-          active: true,
+          // Inactive when it carries an unconfirmed number (FR-033). The admin
+          // switches it on from the detail page once the bank has confirmed, which is
+          // the same gate every other program passes through.
+          active: !createdWithEstimates,
           isShariaCompliant: dto.isShariaCompliant ?? false,
           operatorNotes: dto.operatorNotes,
           operatorTips: dto.operatorTips,
@@ -117,8 +180,9 @@ export class BankProgramsService {
           pricing: dto.pricing,
           eligibility: dto.eligibility,
           performanceCriteria: dto.performanceCriteria ?? null,
-          incomeAssumption: dto.incomeAssumption,
+          incomeAssumption: persistedRule,
           fees: dto.fees,
+          valueSources: persistedSources,
           createdBy: actor.id,
           updatedBy: actor.id,
         },
@@ -147,7 +211,10 @@ export class BankProgramsService {
       return created;
     });
 
-    return this.toResponse(program, []);
+    return this.toResponse(program, [], {
+      warnings,
+      ...(createdWithEstimates ? { deactivatedByEstimate: true } : {}),
+    });
   }
 
   // --- DUPLICATE (feature 010, FR-013) -------------------------------------
@@ -272,7 +339,19 @@ export class BankProgramsService {
 
   private async runCrossConfigChecks(
     dto: CreateBankProgramDto | UpdateBankProgramDto,
-    opts: { skipProgramNameCategoryCheck?: boolean } = {},
+    opts: {
+      skipProgramNameCategoryCheck?: boolean;
+      /**
+       * The income rule to validate. ALWAYS the shape that is about to be persisted
+       * (`persistableIncomeAssumption`), never the raw DTO: the two differ — the raw
+       * body may carry a legacy table the normalizer turns into bands, and the
+       * canonical bands are what the engine reads. Validating the raw body let an
+       * unchecked shape reach the database and rejected legacy shapes the strip was
+       * written to preserve, so the save path and the check endpoint (US3, which
+       * validates the normalized draft) disagreed about the same rule.
+       */
+      incomeAssumption?: IncomeAssumptionConfig;
+    } = {},
   ): Promise<void> {
     // A program names one predefined program from the catalog, never free text.
     await this.assertProgramNameKey(dto.programNameKey, dto.productCategory, opts);
@@ -350,6 +429,19 @@ export class BankProgramsService {
         index: bandViolation.index,
       });
     }
+
+    // FR-006 … FR-012 (feature 011) — the income rule's rows, bands, keys and
+    // DBR override. Validated for EVERY program type, not only
+    // `income_surrogate`: a rule that the program's type currently hides is
+    // ignored and reported rather than deleted (FR-001 edge case), and a table
+    // saved with a duplicate key or a zero income would be just as broken the day
+    // someone re-typed the program.
+    const ruleViolation = await validateIncomeRule(
+      opts.incomeAssumption ??
+        this.persistableIncomeAssumption(dto as CreateBankProgramDto | UpdateBankProgramDto),
+      this.incomeRuleContext(),
+    );
+    if (ruleViolation) throw incomeRuleException(ruleViolation);
 
     // FR-008s — derivation arithmetic.
     const mismatch = validateDerivationArithmetic(dto.pricing);
@@ -437,11 +529,73 @@ export class BankProgramsService {
     });
   }
 
+  // --- Feature 011 — income-rule plumbing ---------------------------------
+
+  /**
+   * Registry lookups for the rule validator. Injected rather than imported into the
+   * validator so that module stays pure and the rule-CHECK endpoint (US3) can
+   * validate an unsaved draft through the same code path.
+   */
+  private incomeRuleContext(): IncomeRuleValidationContext {
+    return {
+      isActiveMember: (type, key) =>
+        this.enums.isActiveMember(type as Parameters<typeof this.enums.isActiveMember>[0], key),
+      activeMembers: async (type) => {
+        const members = await this.enums.getActiveMembers(
+          type as Parameters<typeof this.enums.getActiveMembers>[0],
+        );
+        return members.map((m) => m.key);
+      },
+    };
+  }
+
+  /**
+   * What actually gets persisted for `incomeAssumption`.
+   *
+   * Two steps, in this order and for different reasons:
+   *
+   *   1. `stripForeignMethodConfig` — drop configuration belonging to a method other
+   *      than the selected one (FR-011), so the stored blob says what the form shows.
+   *      It deliberately declines to strip when the save carries NO canonical shape
+   *      for the selected method, which is the mis-typed-seed case: three seeded
+   *      programs hold a legacy table under a type that hides it, and stripping
+   *      would destroy them on the first unrelated save.
+   *   2. `normalizeIncomeAssumption` — write the CANONICAL shape (FR-014), so the
+   *      legacy shapes converge to one truth as programs are saved, without a
+   *      migration and without the engine keeping two readers.
+   */
+  private persistableIncomeAssumption(
+    dto: CreateBankProgramDto | UpdateBankProgramDto,
+  ): IncomeAssumptionConfig {
+    const stripped = stripForeignMethodConfig(
+      dto.incomeAssumption as unknown as IncomeAssumptionConfig,
+    );
+    return normalizeIncomeAssumption(stripped);
+  }
+
+  /** FR-001 edge case + FR-013 — reported, never a rejection. */
+  private incomeRuleWarnings(args: {
+    dto: CreateBankProgramDto | UpdateBankProgramDto;
+    persisted: IncomeAssumptionConfig;
+  }): Array<{ code: string; meta?: Record<string, unknown> }> {
+    const warnings = collectIncomeRuleWarnings({
+      config: args.persisted,
+      programType: args.dto.programType,
+      productCategory: args.dto.productCategory,
+      programRequiredDocuments: args.dto.requiredDocuments ?? [],
+    });
+    return warnings.map(toWarningPayload);
+  }
+
   // --- Response mapping ---------------------------------------------------
 
   private toResponse(
     program: Awaited<ReturnType<BankProgramRepository['create']>>,
     deprecatedKeys: DeprecatedKeyDescriptor[],
+    extra: {
+      warnings?: Array<{ code: string; meta?: Record<string, unknown> }>;
+      deactivatedByEstimate?: boolean;
+    } = {},
   ): BankProgramResponseDto {
     return {
       id: program.id,
@@ -464,9 +618,19 @@ export class BankProgramsService {
       pricing: program.pricing as Record<string, unknown>,
       eligibility: program.eligibility as Record<string, unknown>,
       performanceCriteria: (program.performanceCriteria as Record<string, unknown>) ?? null,
-      incomeAssumption: program.incomeAssumption as Record<string, unknown>,
+      // FR-014 — the admin form NEVER sees a legacy blob. Normalizing on the way out
+      // (as well as on the way in) means a program written before this feature opens
+      // in the new editors correctly without having been re-saved first; without it
+      // the form would render an empty table over a rule that is really there, and
+      // the next save would persist that emptiness.
+      incomeAssumption: normalizeIncomeAssumption(
+        program.incomeAssumption as unknown as IncomeAssumptionConfig,
+      ) as unknown as Record<string, unknown>,
       fees: program.fees as Record<string, unknown>,
+      valueSources: (program.valueSources ?? {}) as Record<string, 'team_estimated'>,
       deprecatedKeys,
+      warnings: extra.warnings ?? [],
+      ...(extra.deactivatedByEstimate ? { deactivatedByEstimate: true } : {}),
       createdAt: program.createdAt.toISOString(),
       updatedAt: program.updatedAt.toISOString(),
     };
@@ -534,7 +698,64 @@ export class BankProgramsService {
       throw new BankProgramNotFoundException({ programCode });
     }
     const deprecatedKeys = await this.collectDeprecatedKeys(program);
-    return this.toResponse(program, deprecatedKeys);
+    // FR-021 — reported on the READ, not only after a save: a rule that has gone
+    // stale did so because someone edited the REGISTRY, on a different screen,
+    // possibly months ago. The admin has to see it when they open the program,
+    // before a customer meets it.
+    const warnings = await this.incomeRuleReadWarnings(program);
+    return this.toResponse(program, deprecatedKeys, { warnings });
+  }
+
+  /**
+   * Warnings a plain READ of one program can raise about its income rule.
+   *
+   * Two kinds, both non-blocking:
+   *
+   *   - the rule is configured but this program's type/category hides it (FR-001
+   *     edge case) — the same check the save path runs, repeated here so the
+   *     condition is visible without editing anything;
+   *   - `dead_registry_key`: a saved `keyTable` row names a key the registry no
+   *     longer carries (FR-021 edge case). This one lives HERE rather than in the
+   *     questionnaire's publish warnings because it is per-program and its fix is
+   *     per-program: open this program, re-pick that row.
+   */
+  private async incomeRuleReadWarnings(
+    program: Awaited<ReturnType<BankProgramRepository['create']>>,
+  ): Promise<Array<{ code: string; meta?: Record<string, unknown> }>> {
+    const rule = normalizeIncomeAssumption(
+      program.incomeAssumption as unknown as IncomeAssumptionConfig,
+    );
+    const warnings = collectIncomeRuleWarnings({
+      config: rule,
+      programType: program.programType,
+      productCategory: program.productCategory,
+      programRequiredDocuments: program.requiredDocuments,
+    }).map(toWarningPayload);
+
+    const registry =
+      KEY_TABLE_REGISTRY[rule.strategy as (typeof KEY_TABLE_STRATEGIES)[number]] ?? null;
+    if (registry === null || !rule.keyTable?.length) return warnings;
+
+    const active = new Set(
+      (
+        await this.enums.getActiveMembers(
+          registry as Parameters<PlatformEnumerationsRepository['getActiveMembers']>[0],
+        )
+      ).map((m) => m.key),
+    );
+    for (const row of rule.keyTable) {
+      if (active.has(row.key)) continue;
+      warnings.push({
+        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
+        meta: {
+          reason: 'dead_registry_key',
+          programCode: program.programCode,
+          registry,
+          key: row.key,
+        },
+      });
+    }
+    return warnings;
   }
 
   // --- UPDATE (US3) --------------------------------------------------------
@@ -556,11 +777,60 @@ export class BankProgramsService {
     if (!existing) {
       throw new BankProgramNotFoundException({ programCode });
     }
+    const persistedRule = this.persistableIncomeAssumption(dto);
     await this.runCrossConfigChecks(dto, {
       skipProgramNameCategoryCheck:
         dto.programNameKey === existing.programNameKey &&
         dto.productCategory === existing.productCategory,
+      incomeAssumption: persistedRule,
     });
+
+    const warnings = this.incomeRuleWarnings({ dto, persisted: persistedRule });
+
+    // Feature 011 — the value-source markers (FR-032 … FR-035).
+    //
+    // Validated against the INCOMING configuration, not the stored one: the admin
+    // marks a number in the same save that introduces it, and checking against the
+    // database would reject the first marker on every new field.
+    const markerConfig = { ...dto, incomeAssumption: persistedRule };
+    // The STORED configuration is passed too, so a marker whose row this save deletes
+    // is recognised as stale rather than unknown. Without it the rejection below fired
+    // first and `pruneValueSources` could never run — the admin was left with a marker
+    // whose control had disappeared with its row, and a program that would never save
+    // again.
+    throwOnValueSourceViolation(
+      validateValueSources(dto.valueSources, markerConfig, {
+        // NORMALIZED, because that is the shape the admin form was given (`toResponse`
+        // normalizes on the way out) and therefore the shape its marker paths address.
+        previousConfig: {
+          ...(existing as unknown as MarkableProgramConfig),
+          incomeAssumption: normalizeIncomeAssumption(
+            existing.incomeAssumption as unknown as IncomeAssumptionConfig,
+          ),
+        },
+      }),
+    );
+    // Pruned AFTER validation: deleting a table row that carried a marker is a legal
+    // edit, and refusing it would trap the admin — the only escape would be to un-mark
+    // a number they can no longer see.
+    const persistedSources = pruneValueSources(dto.valueSources, markerConfig);
+
+    // FR-035 — introducing an estimate on a LIVE program switches it off, in the SAME
+    // transaction as the save. Only NEWLY added markers count: re-saving a program
+    // that already carried one must not keep re-deactivating it, or editing an
+    // unrelated field on a known-unconfirmed program would fight the gate every time.
+    const addedEstimates = newlyEstimatedPaths({
+      before: existing.valueSources,
+      after: persistedSources,
+    });
+    const deactivatedByEstimate = existing.active && addedEstimates.length > 0;
+
+    // FR-038 — every marker change is audited with the editor's identity. Computed
+    // here so the event names exactly what moved rather than the whole map.
+    const stillEstimated = new Set(estimatedPaths(persistedSources));
+    const removedEstimates = estimatedPaths(existing.valueSources).filter(
+      (path) => !stillEstimated.has(path),
+    );
 
     // FR-019 — programCode immutable; ignore any submitted change.
     const before = existing;
@@ -588,8 +858,14 @@ export class BankProgramsService {
           pricing: dto.pricing,
           eligibility: dto.eligibility,
           performanceCriteria: dto.performanceCriteria ?? null,
-          incomeAssumption: dto.incomeAssumption,
+          incomeAssumption: persistedRule,
           fees: dto.fees,
+          valueSources: persistedSources,
+          // The forced deactivation rides on the SAME compare-and-swap write as the
+          // save (FR-035). A second update would leave a window in which the program
+          // is live with a number nobody has confirmed — which is the exact state the
+          // gate exists to make impossible.
+          ...(deactivatedByEstimate ? { active: false } : {}),
         },
         actor.id,
       );
@@ -617,6 +893,47 @@ export class BankProgramsService {
         },
         tx,
       );
+
+      // FR-038 — one event per marker change, carrying the editor and the paths.
+      // This is also what makes `waitingSince` answerable on the waiting list: "how
+      // long have we been waiting on this bank" is a question about WHEN the marker
+      // arrived, which only an event can answer (FR-036).
+      if (addedEstimates.length > 0 || removedEstimates.length > 0) {
+        await this.audit.create(
+          {
+            actorId: actor.id,
+            targetId: null,
+            bankProgramId: next.id,
+            eventType: AuditEventType.BANK_PROGRAM_VALUE_SOURCE_CHANGED,
+            sourceIp: actor.sourceIp,
+            payload: {
+              programCode: next.programCode,
+              added: addedEstimates,
+              removed: removedEstimates,
+            },
+          },
+          tx,
+        );
+      }
+
+      // FR-035 — recorded separately from an ordinary toggle so "why did this go
+      // dark?" names the paths and the editor instead of reading as a flipped switch.
+      if (deactivatedByEstimate) {
+        await this.audit.create(
+          {
+            actorId: actor.id,
+            targetId: null,
+            bankProgramId: next.id,
+            eventType: AuditEventType.BANK_PROGRAM_DEACTIVATED_BY_ESTIMATE,
+            sourceIp: actor.sourceIp,
+            payload: {
+              programCode: next.programCode,
+              paths: addedEstimates,
+            },
+          },
+          tx,
+        );
+      }
 
       // Rate-update sister event (FR-031).
       const beforePricing = before.pricing as {
@@ -659,7 +976,238 @@ export class BankProgramsService {
     });
 
     const deprecatedKeys = await this.collectDeprecatedKeys(updated);
-    return this.toResponse(updated, deprecatedKeys);
+    return this.toResponse(updated, deprecatedKeys, { warnings, deactivatedByEstimate });
+  }
+
+  // --- WAITING LIST (feature 011, US4) -------------------------------------
+
+  /**
+   * `GET /pending-bank-confirmation` — every program held back by a number the team
+   * estimated rather than the bank stated (FR-036).
+   *
+   * One list, so "what are we waiting on each bank for" is a single screen rather
+   * than an audit of twenty programs. Programs that existed before this feature carry
+   * `valueSources = {}` and never appear (FR-037) — they stay live and are reviewed
+   * once, deliberately, through the one-off pass rather than by being switched off.
+   */
+  async pendingBankConfirmation(query: { page?: number; pageSize?: number }): Promise<{
+    rows: PendingBankConfirmationRowDto[];
+    pagination: { page: number; pageSize: number; totalCount: number };
+  }> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const { rows, totalCount } = await this.repo.findPendingBankConfirmation({ page, pageSize });
+
+    const events = await this.repo.findValueSourceEvents(rows.map((r) => r.id));
+    const now = Date.now();
+
+    const enriched = rows.map((row) => {
+      const paths = estimatedPaths(row.valueSources);
+      const standing = new Set(paths);
+
+      // Per still-standing path, the date its CURRENT wait began — and the oldest of
+      // those is what the row reports.
+      //
+      // Removals are replayed alongside additions, oldest-first: a marker added on day
+      // 0, confirmed and unmarked on day 30 and re-marked on day 60 has been waiting
+      // since day 60, not day 0. Reading only the additions claimed the team had been
+      // chasing the bank for two months about a number the bank already answered once,
+      // which is exactly the signal this screen exists to give.
+      const sinceByPath = new Map<string, Date>();
+      for (const event of events) {
+        if (event.bankProgramId !== row.id) continue;
+        const payload = event.payload as { added?: unknown; removed?: unknown };
+        for (const path of asStringArray(payload?.removed)) sinceByPath.delete(path);
+        for (const path of asStringArray(payload?.added)) {
+          if (!standing.has(path)) continue;
+          // First add of the CURRENT run wins; a re-save that re-lists the same path
+          // must not keep pushing the date forward.
+          if (!sinceByPath.has(path)) sinceByPath.set(path, event.occurredAt);
+        }
+      }
+      let waitingSince: Date | null = null;
+      for (const since of sinceByPath.values()) {
+        if (waitingSince === null || since.getTime() < waitingSince.getTime()) waitingSince = since;
+      }
+
+      // A marker with no event behind it (import, backfill, direct seed) still has to
+      // report SOMETHING. `updatedAt` is the honest approximation, flagged as such —
+      // `null` would render as "0 days waiting", which reads as "flagged today" and is
+      // the one answer that is definitely wrong.
+      const effective = waitingSince ?? row.updatedAt;
+      const waitingDays = Math.max(
+        0,
+        Math.floor((now - effective.getTime()) / (24 * 60 * 60 * 1000)),
+      );
+
+      return {
+        programCode: row.programCode,
+        friendlyName: row.friendlyName,
+        bankName: row.bankName,
+        active: row.active,
+        estimatedPaths: paths,
+        waitingSince: effective.toISOString(),
+        waitingSinceEstimated: waitingSince === null,
+        waitingDays,
+      } satisfies PendingBankConfirmationRowDto;
+    });
+
+    return { rows: enriched, pagination: { page, pageSize, totalCount } };
+  }
+
+  // --- INCOME RULE CHECK (feature 011, US3) --------------------------------
+
+  /**
+   * Run a sample applicant against the ON-SCREEN income rule (FR-026 – FR-031).
+   *
+   * Persists NOTHING — no application, no lead, no offer (FR-029).
+   *
+   * The parity guarantee (FR-030 / SC-007) is STRUCTURAL, not asserted: this loads
+   * the saved program's snapshot, overlays only the draft `incomeAssumption`, and
+   * calls the SAME `quoteProgram` the admin simulator and the customer preview call.
+   * Any second implementation of "income → DBR → affordable installment → max loan"
+   * would be a divergence waiting to happen — v13.0.0 recorded that lesson when
+   * preview and apply derived the asked set differently.
+   */
+  async checkIncomeRule(
+    programCode: string,
+    dto: IncomeRuleCheckDto,
+  ): Promise<IncomeRuleCheckResponseDto> {
+    const program = await this.repo.findByProgramCode(programCode);
+    if (!program) throw new BankProgramNotFoundException({ programCode });
+
+    // The SAME validator the save path runs. A rule that could not be saved must not
+    // silently "work" here, or the panel would be reassuring the admin about a
+    // configuration the server is about to reject (contracts § 2).
+    const draft = normalizeIncomeAssumption(
+      dto.incomeAssumption as unknown as IncomeAssumptionConfig,
+    );
+    const violation = await validateIncomeRule(draft, this.incomeRuleContext());
+    if (violation) throw incomeRuleException(violation);
+
+    const snapshot: BankProgramSnapshot = {
+      ...toBankProgramSnapshot(program),
+      // The overlay, and the ONLY thing overlaid: pricing, fees, tenor, limits and
+      // the DBR band table all stay as saved, so the figures the panel shows are this
+      // program's figures rather than a hypothetical program's.
+      incomeAssumption: draft,
+      // Forced so an INACTIVE program can still be checked. An admin configures a
+      // rule precisely while the program is off — refusing to check it then would
+      // make the panel useless exactly when it is needed (and `quoteProgram` does
+      // not read `active` anyway; this keeps the snapshot honest).
+      active: true,
+      // Feature 011 exists for surrogate rules, and `quoteProgram` only consults the
+      // rule for this type. Checking a rule on a program still typed `income_proof`
+      // must show what the rule DOES, not what the program's type currently ignores —
+      // the mis-typed seeds are exactly that case, and the save path already warns
+      // about it separately.
+      programType: 'income_surrogate',
+    };
+
+    const profile = this.sampleProfile(dto.sample);
+    // Resolved once and handed to the quote. The panel reports the provenance AND the
+    // figures, and running the resolver twice over the same draft is both wasted work
+    // (it re-normalizes the blob and re-resolves the DBR cap) and a second chance for
+    // the two halves of one screen to disagree.
+    const resolution = resolveAssumedIncome({
+      profile,
+      income: draft,
+      eligibility: snapshot.eligibility,
+    });
+    const outcome = quoteProgram({ profile, program: snapshot, incomeResolution: resolution });
+
+    if (!outcome.ok) {
+      return {
+        // `null`, never `'0'` (FR-031).
+        resolvedIncomeEGP: null,
+        origin: resolution.origin,
+        ...(resolution.unresolvedReason ? { unresolvedReason: resolution.unresolvedReason } : {}),
+        dbrCapPercent: resolution.dbrCapPercent.toFixed(4),
+        dbrCapSource: resolution.dbrCapSource,
+        affordableInstallmentEGP: null,
+        estimatedLoanAmountEGP: null,
+        qualifies: false,
+        unavailableReason: outcome.unavailable.reason,
+        ...(resolution.matchedRow ? { matchedRow: resolution.matchedRow } : {}),
+      };
+    }
+
+    const { quote } = outcome;
+    // The most this income supports at this program's cap, from the quote's own
+    // figures: income × cap ÷ 100 − obligations. Not a second formula — the same
+    // expression `quoteProgram` uses internally to decide whether to shrink an offer.
+    const affordableInstallment = quote.recognisedIncomeEGP
+      .mul(quote.dbrCapPercent)
+      .div(100)
+      .minus(profile.obligations.existingMonthlyObligationsEGP);
+
+    return {
+      resolvedIncomeEGP: quote.recognisedIncomeEGP.toFixed(2),
+      origin: quote.incomeResolution?.origin ?? resolution.origin,
+      dbrCapPercent: quote.dbrCapPercent.toFixed(4),
+      dbrCapSource: quote.dbrCapSource,
+      affordableInstallmentEGP: affordableInstallment.greaterThan(0)
+        ? affordableInstallment.toFixed(2)
+        : '0.00',
+      estimatedLoanAmountEGP: quote.maxAffordableAmountEGP.toFixed(2),
+      // Derived from the quote's OWN figures only — no eligibility rule is consulted,
+      // so gating cannot re-enter the platform through this panel (FR-027, A33).
+      // `offeredAmountEGP` is what the applicant would actually be offered after the
+      // program ceiling and the affordability loop; if it still covers what they
+      // asked for, the rule supports the request.
+      qualifies:
+        quote.offeredAmountEGP.greaterThan(0) &&
+        quote.cashToCustomerEGP.greaterThanOrEqualTo(profile.requestedAmountEGP),
+      ...(quote.incomeResolution?.matchedRow
+        ? { matchedRow: quote.incomeResolution.matchedRow }
+        : resolution.matchedRow
+          ? { matchedRow: resolution.matchedRow }
+          : {}),
+    };
+  }
+
+  /**
+   * The sample applicant, as an `ApplicantProfile`.
+   *
+   * Every fact is passed through EXACTLY as typed — the panel is a dry run of what a
+   * real applicant would get, so approximating here would make FR-030 parity a
+   * coincidence. Absent facts stay `undefined`, which is what lets an admin
+   * deliberately reproduce the `SURROGATE_FACT_MISSING` outcome.
+   */
+  private sampleProfile(sample: IncomeRuleCheckDto['sample']): ApplicantProfile {
+    const dec = (v?: string): Decimal | undefined => (v !== undefined ? new Decimal(v) : undefined);
+    return {
+      age: sample.age,
+      loanPurpose: 'personal',
+      requestedAmountEGP: new Decimal(sample.requestedAmountEGP),
+      requestedCurrency: 'EGP',
+      preferredTenorMonths: sample.tenorMonths,
+      priority: 'lowest_installment',
+      employment: {
+        employmentType: 'salaried',
+        monthlyNetSalaryEGP: new Decimal(sample.declaredMonthlySalaryEGP ?? '0'),
+        monthsInJob: sample.monthsInJob ?? 0,
+        yearsInPractice: sample.yearsInPractice,
+        professorRank: sample.professorRank,
+        militaryGrade: sample.militaryGrade,
+        salaryTransferType: 'payroll',
+        companyName: '',
+        companyType: '',
+      },
+      obligations: {
+        existingMonthlyObligationsEGP: new Decimal(sample.existingMonthlyObligationsEGP),
+        hasCurrentLoan: new Decimal(sample.existingMonthlyObligationsEGP).greaterThan(0),
+        hasPreviousRejection: false,
+      },
+      assets: {
+        cdAtABKValueEGP: dec(sample.cdValueEGP),
+        totalDepositsAtABKValueEGP: dec(sample.totalDepositsEGP),
+        bankStatementBalanceEGP: dec(sample.bankStatementBalanceEGP),
+        creditCardLimitEGP: dec(sample.creditCardLimitEGP),
+        carInstallmentEGP: dec(sample.carInstallmentEGP),
+        autoLoanAtOtherBankEGP: dec(sample.carLoanAmountEGP),
+      },
+    };
   }
 
   // --- TOGGLE (US3) --------------------------------------------------------
@@ -674,6 +1222,21 @@ export class BankProgramsService {
     if (!existing) {
       throw new BankProgramNotFoundException({ programCode });
     }
+
+    // FR-033 — a program holding team-estimated numbers cannot GO LIVE.
+    //
+    // Only on the way ON: switching a program OFF is never blocked (FR-034), because
+    // the whole point of the marker is that the team can keep working on a program
+    // they have not confirmed with the bank. Blocking the off-switch would also trap
+    // an already-live program that a save had just flagged.
+    //
+    // Every path is named, not the first: the admin has ONE conversation with the
+    // bank, and revealing the numbers one at a time costs a round trip each.
+    if (active) {
+      const paths = estimatedPaths(existing.valueSources);
+      if (paths.length > 0) throw new ProgramHasEstimatedValuesException({ paths });
+    }
+
     const before = existing.active;
     const updated = await this.prisma.$transaction(async (tx) => {
       const next = await this.repo.toggleWithVersion(existing.id, version, active, actor.id);
@@ -803,6 +1366,89 @@ export class BankProgramsService {
     }
 
     return found;
+  }
+}
+
+// --- Feature 011 — violation → typed exception -----------------------------
+
+/**
+ * One place mapping rule violations to typed exceptions, so the save path and the
+ * US3 rule-check endpoint reject an identical draft identically. Two mappers would
+ * be two vocabularies, and the panel's whole promise is that a rule which cannot be
+ * saved does not silently "work" there (contracts § 2).
+ */
+function incomeRuleException(violation: IncomeRuleViolation): Error {
+  switch (violation.kind) {
+    case 'empty':
+      return new IncomeRuleEmptyException({ strategy: violation.strategy });
+    case 'incomeInvalid':
+      return new IncomeRuleIncomeInvalidException({
+        ...(violation.index !== undefined ? { index: violation.index } : {}),
+        ...(violation.key !== undefined ? { key: violation.key } : {}),
+        incomeEGP: violation.incomeEGP,
+      });
+    case 'duplicateKey':
+      return new IncomeRuleDuplicateKeyException({ key: violation.key });
+    case 'unknownKey':
+      return new IncomeRuleUnknownKeyException({
+        key: violation.key,
+        registry: violation.registry,
+        activeKeys: violation.activeKeys,
+      });
+    case 'bandsInvalid':
+      return new IncomeRuleBandsInvalidException({
+        index: violation.index,
+        reason: violation.reason,
+      });
+    case 'dbrOverrideInvalid':
+      return new IncomeRuleDbrOverrideInvalidException({ value: violation.value });
+  }
+}
+
+/** A JSONB audit payload field, narrowed to the string paths it should hold. */
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
+
+/**
+ * Marker violation → its own typed exception.
+ *
+ * Two codes, not one: a path this program has never carried and a value that is not
+ * `team_estimated` are different mistakes with different fixes, and collapsing them
+ * told the admin to reload a program whose paths were all fine.
+ */
+function throwOnValueSourceViolation(violation: ValueSourceViolation | undefined): void {
+  if (!violation) return;
+  if (violation.kind === 'invalidValue') {
+    throw new ValueSourceValueInvalidException({ path: violation.path, value: violation.value });
+  }
+  throw new ValueSourcePathUnknownException({ path: violation.path });
+}
+
+/** Warning → the `{ code, meta }` payload the admin resolves through i18n (A22). */
+function toWarningPayload(warning: IncomeRuleWarning): {
+  code: string;
+  meta?: Record<string, unknown>;
+} {
+  switch (warning.kind) {
+    case 'ruleIgnoredForProgramType':
+      return {
+        // Reuses the surrogate-binding code rather than minting a twelfth: both say
+        // "this income rule will not be read as configured", and the meta's `reason`
+        // is what tells the admin which fix applies.
+        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
+        meta: {
+          reason: 'rule_ignored_for_program_type',
+          programType: warning.programType,
+          productCategory: warning.productCategory,
+          strategy: warning.strategy,
+        },
+      };
+    case 'requiredDocumentsMissing':
+      return {
+        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
+        meta: { reason: 'required_documents_missing', missing: warning.missing },
+      };
   }
 }
 

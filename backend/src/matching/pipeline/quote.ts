@@ -32,6 +32,7 @@ import type {
   BankProgramSnapshot,
   BindingConstraint,
   CascadeTrace,
+  IncomeResolution,
   QuoteOutcome,
 } from '../types';
 import { runCascade, type CascadeBundle } from './cascade-adapter';
@@ -62,6 +63,18 @@ export interface QuoteInput {
   overrideAmountEGP?: Decimal;
   /** Calculator override of the requested tenor. */
   overrideTenorMonths?: number;
+  /**
+   * An income resolution the caller has ALREADY computed for this
+   * (profile, program) pair. Passed through rather than recomputed: the resolver
+   * re-normalizes the whole rule blob and re-resolves the DBR cap on every call, and
+   * the engine needs the figure one step earlier for its eligibility check. Two runs
+   * also mean two chances to disagree about a number that is about to be frozen onto
+   * an offer (Principle I) — the same reasoning step 6 already applies to the cap.
+   *
+   * Only honoured when the rule would be consulted at all; an `income_proof` program
+   * with a declared salary ignores it, exactly as it ignores its own resolver call.
+   */
+  incomeResolution?: IncomeResolution | null;
 }
 
 /**
@@ -126,20 +139,70 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   }
 
   // ── 3. Income ───────────────────────────────────────────────────────────
-  // The DECLARED monthly salary, as typed by the applicant. Programs may only
-  // recognise a fraction of a declared salary for their own credit policy, but
-  // the customer-facing figures deliberately do NOT apply that haircut: two
-  // screens quoting the same person must show the same number, and the
-  // affordability answer is "what your salary supports", not "what this bank
-  // would concede". `resolveAssumedIncome` remains the fallback for
-  // `income_surrogate` programs, where the applicant declares no salary at all
-  // and the income is derived from deposits / car installment / card limit —
-  // without it those programs would fail `NO_RECOGNISED_INCOME` outright.
+  //
+  // Two paths, split on `programType`, and the split is the whole of feature 011's
+  // engine change.
+  //
+  // `income_proof`: the DECLARED monthly salary, as typed by the applicant —
+  // byte-identical to the pre-011 behaviour (SC-009). Programs may recognise only
+  // a fraction of a declared salary for their own credit policy, but the
+  // customer-facing figures deliberately do NOT apply that haircut: two screens
+  // quoting the same person must show the same number, and the affordability
+  // answer is "what your salary supports", not "what this bank would concede".
+  //
+  // `income_surrogate`: delegate to `resolveAssumedIncome`, which owns the rule.
+  // Before this change the declared salary won outright whenever it was > 0, and
+  // `monthly_income` is a bound REQUIRED numeric question — so a submitted
+  // application ALWAYS carried one, and the program's stored `combinationRule` had
+  // never executed on the apply path. A perfectly configured grade table was
+  // ignored for every real applicant (research R4). The resolver takes the RAW
+  // declared figure as its baseline, preserving the invariant above.
   const declaredIncomeEGP = profile.employment?.monthlyNetSalaryEGP;
-  const recognisedIncomeEGP =
-    declaredIncomeEGP && declaredIncomeEGP.greaterThan(0)
-      ? declaredIncomeEGP
-      : resolveAssumedIncome(profile, program.incomeAssumption, program.eligibility);
+  const hasDeclaredIncome = declaredIncomeEGP !== undefined && declaredIncomeEGP.greaterThan(0);
+  const isSurrogateProgram = program.programType === 'income_surrogate';
+
+  // On `income_proof` the resolver is still the FALLBACK it has always been, for
+  // an applicant who declared nothing at all — `SF-SELF-EMP` is `income_proof`
+  // with `byBankStatementPercent`, and dropping that path would blank it out for
+  // exactly the applicants it exists to serve. What changed is only that a
+  // SURROGATE program consults the rule even when a salary was declared.
+  const consultRule = isSurrogateProgram || !hasDeclaredIncome;
+
+  const incomeResolution: IncomeResolution | null = consultRule
+    ? (input.incomeResolution ??
+      resolveAssumedIncome({
+        profile,
+        income: program.incomeAssumption,
+        eligibility: program.eligibility,
+      }))
+    : null;
+
+  // The two new reasons are raised for SURROGATE programs only. On `income_proof`
+  // a failed fallback keeps reporting `NO_RECOGNISED_INCOME`, exactly as today:
+  // that program never promised to read a fact, so "we didn't ask you about your
+  // military grade" would be a confusing thing to tell its applicant.
+  if (isSurrogateProgram && incomeResolution && incomeResolution.origin === 'none') {
+    // These two WIN over the generic `NO_RECOGNISED_INCOME` below, which keeps its
+    // meaning for every other cause. The distinction is the point: "we never asked
+    // you" and "your grade isn't in this bank's table" lead to different admin
+    // fixes — assign the question to the category, vs. add the row (research R9).
+    // The program stays LISTED and stays RANKED either way (FR-022, FR-024).
+    const reason =
+      incomeResolution.unresolvedReason === 'no_matching_row' ||
+      incomeResolution.unresolvedReason === 'no_matching_band'
+        ? 'SURROGATE_NO_MATCHING_ROW'
+        : incomeResolution.unresolvedReason === 'fact_not_answered'
+          ? 'SURROGATE_FACT_MISSING'
+          : // `rule_unconfigured` with no declared salary is not a surrogate
+            // problem — the program simply has no income to work from, which is
+            // what `NO_RECOGNISED_INCOME` has always meant.
+            'NO_RECOGNISED_INCOME';
+    return { ok: false, unavailable: { reason } };
+  }
+
+  const recognisedIncomeEGP = incomeResolution
+    ? incomeResolution.incomeEGP
+    : (declaredIncomeEGP ?? new Decimal(0));
   if (recognisedIncomeEGP.lessThanOrEqualTo(0)) {
     return { ok: false, unavailable: { reason: 'NO_RECOGNISED_INCOME' } };
   }
@@ -217,10 +280,24 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   };
 
   // ── 6. Fees → booked principal → installment → DBR ──────────────────────
-  const { capPercent: dbrCapPercent, bandIndex: dbrBandIndex } = resolveDbrCap(
-    { dbrCapPercent: program.eligibility.dbrCapPercent, dbrBands: program.eligibility.dbrBands },
-    recognisedIncomeEGP,
-  );
+  //
+  // FR-012 — when the recognised income came FROM the income rule, the rule's own
+  // `dbrCapPercentOverride` applies. `resolveAssumedIncome` already decided that
+  // (it is the only place that knows the origin) and reports both the cap and its
+  // source, so the cap is taken from the resolution rather than re-derived here.
+  // Re-deriving would need the origin in two places, which is how the two drift.
+  const { capPercent: dbrCapPercent, bandIndex: dbrBandIndex } =
+    incomeResolution && incomeResolution.dbrCapSource === 'rule_override'
+      ? { capPercent: incomeResolution.dbrCapPercent, bandIndex: null }
+      : resolveDbrCap(
+          {
+            dbrCapPercent: program.eligibility.dbrCapPercent,
+            dbrBands: program.eligibility.dbrBands,
+          },
+          recognisedIncomeEGP,
+        );
+  const dbrCapSource: 'program_default' | 'rule_override' =
+    incomeResolution?.dbrCapSource === 'rule_override' ? 'rule_override' : 'program_default';
 
   const obligations = profile.obligations.existingMonthlyObligationsEGP;
   const dbrAt = (installment: Decimal) =>
@@ -351,6 +428,16 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       maxAffordableAmountEGP,
       bindingConstraint: binding,
       recognisedIncomeEGP,
+      // Feature 011 — WHERE that income came from. Carried out of the quote so the
+      // apply path can FREEZE it on the immutable offer (Principle I / A6) and the
+      // admin check panel can name the row it traced to, without either of them
+      // re-running the resolver and risking a different answer.
+      //
+      // `null` on an `income_proof` program that declared a salary: the rule was
+      // never consulted, and saying `declared` there would claim a decision the
+      // engine did not make.
+      incomeResolution,
+      dbrCapSource,
       feesBreakdown: priced.fees.breakdown,
       currency,
       cascadeTrace: buildCascadeTrace(cascade),
