@@ -57,6 +57,39 @@ export class QuestionnaireRepository {
     return this.prisma.question.create({ data });
   }
 
+  /**
+   * Question + its answers + its category assignment, atomically.
+   *
+   * The three-call sequence (`createQuestion`, then N × `createOption`, then
+   * `setCategories`) can leave a live question with half its answers or none of
+   * its assignment when a later call fails, and each call publishes. Here either
+   * the whole question exists or none of it does, and the caller publishes ONCE
+   * afterwards.
+   *
+   * Option `displayOrder` is the array index — a new question has no existing
+   * options, so there is nothing to append after.
+   */
+  createQuestionWithOptions(
+    question: Prisma.QuestionUncheckedCreateInput,
+    options: ReadonlyArray<{ code: string; labelAr: string; labelEn: string }>,
+    categories: readonly LoanCategory[],
+  ): Promise<Question> {
+    return this.prisma.$transaction(async (tx) => {
+      const created = await tx.question.create({ data: question });
+      if (options.length > 0) {
+        await tx.questionOption.createMany({
+          data: options.map((o, i) => ({ ...o, questionId: created.id, displayOrder: i })),
+        });
+      }
+      if (categories.length > 0) {
+        await tx.questionLoanCategory.createMany({
+          data: categories.map((category) => ({ questionId: created.id, category })),
+        });
+      }
+      return created;
+    });
+  }
+
   findQuestion(id: string): Promise<Question | null> {
     return this.prisma.question.findUnique({ where: { id } });
   }

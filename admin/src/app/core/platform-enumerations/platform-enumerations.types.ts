@@ -7,9 +7,10 @@ export type EnumerationType =
   | 'product_category'
   | 'company_type'
   | 'required_document'
-  | 'currency'
   | 'governorate'
-  | 'program_name';
+  | 'program_name'
+  /** The income FACTS a no-payslip rule can be keyed by — operator-managed since v16.2.0. */
+  | 'surrogate_fact';
 
 import type { LoanCategory } from '@core/loan-category';
 import type { IncomeBasis } from '@core/income-basis';
@@ -44,15 +45,26 @@ export interface EnumerationMember {
    */
   incomeBases?: Partial<Record<LoanCategory, IncomeBasis[]>>;
   /**
-   * `program_name` only — the surrogate facts this name is ticked to read, per loan
-   * category (see `core/surrogate-facts.ts`).
+   * `surrogate_fact` only — the question whose ANSWER is this fact, with the option
+   * codes a bank's table for it may be keyed by.
    *
-   * NOT the basis above. This is the next question down: given that the name is sold
-   * without a payslip here, WHICH fact do its banks look up, and does the questionnaire
-   * ask it at all. The program form uses it to warn that a chosen method reads a fact
-   * nobody is asked — a rule that resolves to no income, silently.
-   *
-   * `undefined` means NOT LOADED, never "none".
+   * `null` is a fact nobody has pointed at a question yet: real, and unpriceable, so
+   * the program form must be able to say so rather than offer the method. `undefined`
+   * means NOT LOADED.
    */
-  noPayslipFacts?: Partial<Record<LoanCategory, string[]>>;
+  boundQuestion?: {
+    code: string;
+    type: 'SINGLE_SELECT' | 'NUMERIC';
+    labelAr: string;
+    labelEn: string;
+    active: boolean;
+    /** Active options in display order; empty for a NUMERIC fact. */
+    options: Array<{ code: string; labelAr: string; labelEn: string }>;
+    /**
+     * Loan categories whose applicants are ASKED this question — the questionnaire's
+     * own assignment, not a per-name tick. A program in a category outside this list
+     * reads an answer that never arrives, so its table quotes nothing.
+     */
+    askedIn: LoanCategory[];
+  } | null;
 }

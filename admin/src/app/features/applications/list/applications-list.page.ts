@@ -28,10 +28,7 @@ import {
   StatusPillComponent,
   type StatStripItem,
 } from '@shared/ui';
-import {
-  ApplicationsApiService,
-  type AdminApplicationRow,
-} from '../api/applications.api.service';
+import { ApplicationsApiService, type AdminApplicationRow } from '../api/applications.api.service';
 import { leadStatusMeta, type LeadStatusMeta } from '../shared/lead-status';
 import { ApprovalPillComponent, type ApprovalTier } from './components/approval-pill.component';
 import {
@@ -76,7 +73,13 @@ import {
 
       <div class="toolbar">
         <div class="search">
-          <span nz-icon nzType="search" nzTheme="outline" class="search-icon" aria-hidden="true"></span>
+          <span
+            nz-icon
+            nzType="search"
+            nzTheme="outline"
+            class="search-icon"
+            aria-hidden="true"
+          ></span>
           <input
             nz-input
             type="search"
@@ -152,7 +155,9 @@ import {
                   </td>
                   <td>
                     <div class="loan">
-                      <span class="loan-amount tabular">{{ formatAmount(row.requestedAmountEGP) }}</span>
+                      <span class="loan-amount tabular">{{
+                        formatAmount(row.requestedAmountEGP)
+                      }}</span>
                       <span class="loan-purpose">{{ purposeLabel(row.loanPurpose) }}</span>
                     </div>
                   </td>
@@ -164,7 +169,12 @@ import {
                   </td>
                   <td>
                     <span class="submitted-age">
-                      <span nz-icon nzType="clock-circle" nzTheme="outline" aria-hidden="true"></span>
+                      <span
+                        nz-icon
+                        nzType="clock-circle"
+                        nzTheme="outline"
+                        aria-hidden="true"
+                      ></span>
                       {{ relativeAge(row) }}
                     </span>
                   </td>

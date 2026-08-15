@@ -22,7 +22,7 @@ import {
   HistoryOutline,
   LockOutline,
   EditOutline,
-  MinusCircleOutline,
+  DeleteOutline,
   PoweroffOutline,
   PlusOutline,
   CloseCircleOutline,
@@ -30,6 +30,9 @@ import {
   TagsOutline,
   CheckCircleOutline,
   InboxOutline,
+  CalculatorOutline,
+  LinkOutline,
+  CheckOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -89,7 +92,7 @@ import {
       HistoryOutline,
       LockOutline,
       EditOutline,
-      MinusCircleOutline,
+      DeleteOutline,
       PoweroffOutline,
       PlusOutline,
       CloseCircleOutline,
@@ -97,6 +100,9 @@ import {
       TagsOutline,
       CheckCircleOutline,
       InboxOutline,
+      CalculatorOutline,
+      LinkOutline,
+      CheckOutline,
     ]),
   ],
   template: `
@@ -137,7 +143,7 @@ import {
                 [rows]="rows()"
                 (edit)="openEdit($event)"
                 (toggleActive)="setActive($event)"
-                (deprecate)="deprecate($event)"
+                (remove)="remove($event)"
               />
             }
           </section>
@@ -297,14 +303,22 @@ export class LookupsPage implements OnInit {
     }
   }
 
-  protected async deprecate(row: EnumerationRow): Promise<void> {
-    this.patchRow(row.id, { deprecatedAt: new Date().toISOString(), active: false });
+  /**
+   * Hard delete. NOT optimistic, unlike the two above: dropping the row locally
+   * and putting it back on failure would flash the one state the operator must not
+   * doubt — a value that is still there reading as gone. So the list only changes
+   * once the server has agreed, and the refusal (`ENUMERATION_IN_USE`, which names
+   * how many places still use it) arrives as the interceptor's toast.
+   */
+  protected async remove(row: EnumerationRow): Promise<void> {
     try {
-      await this.api.update(row.id, { deprecate: true });
-      await this.reloadAfterMutation({ silent: true });
+      await this.api.remove(row.id);
     } catch {
-      this.patchRow(row.id, { deprecatedAt: null, active: row.active });
+      // Swallowed deliberately: the toast interceptor has already said why, and an
+      // unhandled rejection out of a template handler is noise on top of it.
+      return;
     }
+    await this.reloadAfterMutation({ silent: true });
   }
 
   private patchRow(id: string, patch: Partial<EnumerationRow>): void {

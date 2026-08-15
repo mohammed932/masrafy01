@@ -312,7 +312,6 @@ model BankProgram {
   programNameKey    String?         @db.VarChar(64)
   programType       BankProgramType
   productCategory   String          @db.VarChar(64)
-  currencies        String[]        @db.VarChar(3)
   active            Boolean         @default(true)
   isShariaCompliant Boolean         @default(false)
   version           Int             @default(1)
@@ -411,7 +410,6 @@ model Application {
   leadStatus              LeadStatus          @default(pending)
   priority                ApplicationPriority
   requestedAmountEGP      Decimal             @db.Decimal(13, 2)
-  requestedCurrency       String              @default("EGP") @db.VarChar(3)
   preferredTenorMonths    Int
   loanPurpose             String              @db.VarChar(64)
   // Feature 00X — dynamic questionnaire: chosen category + the published
@@ -472,7 +470,6 @@ model BankOffer {
   programVersion             Int
   bankName                   String       @db.VarChar(80)
   programFriendlyName        String       @db.VarChar(120)
-  currency                   String       @db.VarChar(3)
   /// Snapshot of the owning bank's `isFeatured` at match time (Constitution
   /// Principle I — BankOffer is immutable; the partner-bank flag is frozen
   /// here so a bank toggling its featured state later doesn't rewrite
@@ -539,7 +536,6 @@ model BankOffer {
 
   @@index([applicationId], name: "idx_bank_offer_application")
   @@index([programCode, createdAt(sort: Desc)], name: "idx_bank_offer_program_created")
-  @@index([currency], name: "idx_bank_offer_currency")
   @@index([approvalScore], name: "idx_bank_offer_approval_score")
   @@index([engineVersion], name: "idx_bank_offer_engine_version")
   @@map("bank_offer")
@@ -660,6 +656,29 @@ model PlatformEnumeration {
   systemOnly   Boolean   @default(false)
   parentKey    String?   @db.VarChar(64)
   sortOrder    Int       @default(0)
+  /// `surrogate_fact` only — the question whose ANSWER is this fact.
+  ///
+  /// The fact registry used to be a code constant
+  /// (`matching/pipeline/surrogate-fact-bindings.ts`, four entries), which meant a
+  /// bank that works income out from a fact nobody had foreseen — a taxi licence
+  /// class, a clinic's patient count — needed a release. The four facts are now
+  /// rows of `type = 'surrogate_fact'` and an operator adds a fifth on Manage
+  /// values by picking the question that answers it.
+  ///
+  /// A COLUMN HERE, NOT A FIELD ON `question` — A33 forbids a scoring or
+  /// profile-mapping field on `Question`, and this is the same binding
+  /// `question_loan_category` is: it says what the REGISTRY reads, not what the
+  /// question is. The question stays pure content.
+  ///
+  /// `ON DELETE SET NULL`, deliberately not cascade: a fact whose question left the
+  /// pool is a fact that still has bank tables written against it, and the operator
+  /// must see it unbound (publish warns `missing_or_inactive`) rather than watch the
+  /// fact vanish and take every table's meaning with it.
+  ///
+  /// Only SINGLE_SELECT and NUMERIC questions may be bound (service-enforced): the
+  /// first gives a key table, the second gives bands, and nothing else is a figure a
+  /// bank can look an income up against.
+  boundQuestionId String? @db.VarChar(30)
   createdAt    DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
   createdBy    String?   @db.VarChar(30)
@@ -667,10 +686,12 @@ model PlatformEnumeration {
 
   loanCategories PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
   questions      PlatformEnumerationQuestion[]     @relation("PlatformEnumerationQuestions")
+  boundQuestion  Question?                         @relation("QuestionSurrogateFactBindings", fields: [boundQuestionId], references: [id], onDelete: SetNull)
 
   @@unique([type, key], name: "idx_platform_enumeration_type_key")
   @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
   @@index([type, parentKey], name: "idx_platform_enumeration_type_parent")
+  @@index([boundQuestionId], name: "idx_platform_enumeration_bound_question")
   @@map("platform_enumeration")
 }
 
@@ -687,7 +708,7 @@ model PlatformEnumeration {
 ///
 /// Generic by shape, meaningful only for the types in
 /// `CATEGORISED_ENUMERATION_TYPES`. The service layer — not a CHECK constraint —
-/// keeps a `currency` row from acquiring a loan category, the same posture
+/// keeps a `governorate` row from acquiring a loan category, the same posture
 /// `bank_program.programNameKey` already takes (no FK, validated in the service).
 ///
 /// Orthogonal to `parentKey`, which stays NULL for `program_name`
@@ -1139,6 +1160,9 @@ model Question {
   loanCategories QuestionLoanCategory[] @relation("QuestionLoanCategories")
   /// Catalog program names that suggest scoring on this question (template only).
   catalogNames   PlatformEnumerationQuestion[] @relation("QuestionPlatformEnumerations")
+  /// Surrogate income FACTS answered by this question — registry rows, not a
+  /// property of the question (see `PlatformEnumeration.boundQuestionId`).
+  surrogateFacts PlatformEnumeration[]         @relation("QuestionSurrogateFactBindings")
 
   @@index([groupId, displayOrder], name: "idx_question_group_question_order")
   @@map("question")

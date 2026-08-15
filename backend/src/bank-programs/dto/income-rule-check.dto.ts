@@ -5,6 +5,7 @@ import {
   IsString,
   Matches,
   Max,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -104,6 +105,25 @@ export class IncomeRuleCheckSampleDto {
   @IsString()
   @Matches(DECIMAL_STRING)
   carLoanAmountEGP?: string;
+
+  /**
+   * A registry FACT's sample answer — an option code for a choice fact, a decimal
+   * string for a numeric one.
+   *
+   * One field for every operator-defined fact, rather than a named field each: the set
+   * is data now, so a DTO field per fact would be the release this feature removes. The
+   * ten above stay named because live offers carry the built-in method tokens that read
+   * them (Principle I).
+   *
+   * Which fact this value belongs to is the RULE's own `fact:<key>` strategy, so no key
+   * travels with it: sending a value for a fact the rule does not read would let the
+   * panel show a figure produced by something the admin cannot see on screen.
+   */
+  @ApiPropertyOptional({ example: 'senior_officer', description: 'Sample answer for a fact rule.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  factValue?: string;
 
   // --- the economics the quote needs ---------------------------------------
 

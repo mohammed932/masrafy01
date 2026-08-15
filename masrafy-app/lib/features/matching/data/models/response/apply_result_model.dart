@@ -47,10 +47,11 @@ class ApplyResultModel {
         matched: true,
         applicationId: (data['applicationId'] as String?) ?? '',
         offers: offers,
-        unavailablePrograms: (rawUnavailable is List ? rawUnavailable : const [])
-            .whereType<Map<String, dynamic>>()
-            .map(UnavailableProgramModel.fromJson)
-            .toList(),
+        unavailablePrograms:
+            (rawUnavailable is List ? rawUnavailable : const [])
+                .whereType<Map<String, dynamic>>()
+                .map(UnavailableProgramModel.fromJson)
+                .toList(),
         summary: rawSummary is Map<String, dynamic>
             ? SummaryModel.fromJson(rawSummary)
             : null,
@@ -130,7 +131,6 @@ class OfferModel {
     required this.bankName,
     required this.bankIsFeatured,
     required this.programFriendlyName,
-    required this.currency,
     required this.effectiveRatePercent,
     required this.monthlyInstallmentEGP,
     required this.requestedLoanAmountEGP,
@@ -156,7 +156,6 @@ class OfferModel {
   final String bankName;
   final bool bankIsFeatured;
   final String programFriendlyName;
-  final String currency;
   final double effectiveRatePercent;
   final double monthlyInstallmentEGP;
   final double requestedLoanAmountEGP;
@@ -193,7 +192,6 @@ class OfferModel {
       bankName: (json['bankName'] as String?) ?? '',
       bankIsFeatured: json['bankIsFeatured'] == true,
       programFriendlyName: (json['programFriendlyName'] as String?) ?? '',
-      currency: (json['currency'] as String?) ?? 'EGP',
       effectiveRatePercent: _toDouble(json['effectiveRatePercent']),
       monthlyInstallmentEGP: _toDouble(json['monthlyInstallmentEGP']),
       requestedLoanAmountEGP: _toDouble(json['requestedLoanAmountEGP']),
@@ -214,8 +212,9 @@ class OfferModel {
           : _toDouble(json['maxLoanAvailableEGP']),
       dbrPercent:
           json['dbrPercent'] == null ? null : _toDouble(json['dbrPercent']),
-      dbrCapPercent:
-          json['dbrCapPercent'] == null ? null : _toDouble(json['dbrCapPercent']),
+      dbrCapPercent: json['dbrCapPercent'] == null
+          ? null
+          : _toDouble(json['dbrCapPercent']),
       isSaved: json['isSaved'] == true,
     );
   }
@@ -227,7 +226,6 @@ class OfferModel {
         bankName: bankName,
         bankIsFeatured: bankIsFeatured,
         programFriendlyName: programFriendlyName,
-        currency: currency,
         effectiveRatePercent: effectiveRatePercent,
         monthlyInstallmentEGP: monthlyInstallmentEGP,
         requestedLoanAmountEGP: requestedLoanAmountEGP,

@@ -21,6 +21,8 @@
  */
 
 import { Decimal } from '@prisma/client/runtime/library';
+import type { SurrogateFactValue } from '../types';
+import type { SurrogateFactBinding } from './surrogate-fact-registry';
 import {
   SURROGATE_FACT_KEYS,
   SURROGATE_FACT_SPECS,
@@ -42,6 +44,17 @@ export interface SurrogateAssetFacts {
 export interface SurrogateFacts {
   employment: SurrogateEmploymentFacts;
   assets: SurrogateAssetFacts;
+  /**
+   * Every REGISTRY fact the applicant answered, by fact key — including the four
+   * above, which are registry rows too since the code constant became data.
+   *
+   * The typed fields are NOT redundant with this map. They have readers that predate
+   * the registry and are not about surrogate income at all: the card limit feeds the
+   * 5% obligation discount, and the four legacy `strategy` tokens frozen onto live
+   * offers still read the typed fields by name (Principle I — an immutable offer's
+   * meaning cannot be rewritten by a refactor).
+   */
+  byKey: Record<string, SurrogateFactValue>;
 }
 
 export interface SurrogateFactAnswers {
@@ -83,13 +96,25 @@ export function surrogateOptionPick(answer: {
 /**
  * Build the facts from validated answers.
  *
- * Driven off `SURROGATE_FACT_SPECS` rather than a hand-written list of four reads:
- * the spec already declares each fact's question code, type and destination, and a
- * second enumeration of the same four would be the thing that goes stale when a
- * fifth fact is added.
+ * Two passes over the same answers, deliberately not collapsed:
+ *
+ *   1. The four LEGACY facts land in their typed profile fields, driven off
+ *      `SURROGATE_FACT_SPECS`. Their bindings stay code constants because live offers
+ *      carry `byMilitaryGrade`-style tokens that read those fields by name, and an
+ *      immutable offer's meaning may not be rewritten by a refactor (Principle I).
+ *   2. Every REGISTRY fact lands in `byKey`, driven off the rows an operator manages.
+ *      This is the pass that makes a fifth fact an admin action.
+ *
+ * The four appear in both, and that is not drift: they are the same answer reaching two
+ * readers with different lifetimes, from ONE parse. What would be drift is a second
+ * place deciding WHICH answer a fact is — hence one `registry` argument, loaded once by
+ * the caller and shared by preview and apply.
  */
-export function surrogateFactsFromAnswers(answers: SurrogateFactAnswers): SurrogateFacts {
-  const facts: SurrogateFacts = { employment: {}, assets: {} };
+export function surrogateFactsFromAnswers(
+  answers: SurrogateFactAnswers,
+  registry: readonly SurrogateFactBinding[] = [],
+): SurrogateFacts {
+  const facts: SurrogateFacts = { employment: {}, assets: {}, byKey: {} };
 
   for (const fact of SURROGATE_FACT_KEYS) {
     const spec = SURROGATE_FACT_SPECS[fact];
@@ -110,7 +135,46 @@ export function surrogateFactsFromAnswers(answers: SurrogateFactAnswers): Surrog
     assignNumericFact(facts, fact, raw);
   }
 
+  for (const binding of registry) {
+    const value = registryFactValue(binding, answers);
+    if (value) facts.byKey[binding.key] = value;
+  }
+
   return facts;
+}
+
+/**
+ * One registry fact's answer, or `undefined` when it was not answered.
+ *
+ * Reads the answer through the SHAPE the binding declares, never through whichever map
+ * happens to hold the question code. A numeric fact must not pick up a stray option
+ * pick, because the two configure different tables — the bank entered bands, and a key
+ * lookup against them would miss every time while reading as "your answer isn't in our
+ * table".
+ */
+function registryFactValue(
+  binding: SurrogateFactBinding,
+  answers: SurrogateFactAnswers,
+): SurrogateFactValue | undefined {
+  if (binding.type === 'SINGLE_SELECT') {
+    const picked = answers.optionByCode.get(binding.questionCode);
+    if (picked === undefined || picked === '') return undefined;
+    return { kind: 'choice', optionCode: picked };
+  }
+
+  const raw = answers.numericByCode.get(binding.questionCode);
+  if (raw === undefined || raw === '') return undefined;
+  // EXACT, via Decimal (Principle I / A3). A fact can be money — a card limit, a
+  // deposit — and `Number` would round it before any bank table ever saw it. Years are
+  // safe under the same parse: `bandFor` compares Decimals, so `11.9` sits in the same
+  // band an integer 11 does, without a floor step this function would have to guess at.
+  let value: Decimal;
+  try {
+    value = new Decimal(raw);
+  } catch {
+    return undefined;
+  }
+  return value.isFinite() ? { kind: 'numeric', value } : undefined;
 }
 
 /** `employment.militaryGrade` / `employment.professorRank`. */

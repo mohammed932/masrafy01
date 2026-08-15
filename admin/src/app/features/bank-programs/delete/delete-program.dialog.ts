@@ -9,10 +9,7 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzMessageService } from 'ng-zorro-antd/message';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
-import {
-  WarningOutline,
-  CloseCircleOutline,
-} from '@ant-design/icons-angular/icons';
+import { WarningOutline, CloseCircleOutline } from '@ant-design/icons-angular/icons';
 import { ErrorCodeService } from '../../../core/errors/error-code.service';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 
@@ -38,7 +35,13 @@ export interface DeleteProgramDialogData {
   template: `
     <header class="dialog-header">
       <h2 class="dialog-title">
-        <span class="warn-icon" nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+        <span
+          class="warn-icon"
+          nz-icon
+          nzType="warning"
+          nzTheme="outline"
+          aria-hidden="true"
+        ></span>
         <span i18n="@@bank_programs.delete.title">Permanently delete this program?</span>
       </h2>
     </header>

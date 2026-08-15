@@ -3,6 +3,9 @@
  * Decimals transported as canonical strings (research.md R1).
  */
 
+import type { EnumerationMember } from '@core/platform-enumerations/platform-enumerations.types';
+import type { LoanCategory } from '@core/loan-category';
+
 export type ProgramType = 'income_proof' | 'income_surrogate';
 
 export interface DerivationChain {
@@ -18,11 +21,6 @@ export interface RateBandValue {
 
 export type RateBandMap = Record<string, RateBandValue>;
 
-export interface PerCurrencyBounds {
-  minAmount: string;
-  maxAmount: string;
-}
-
 export interface TenorConfig {
   minMonths: number;
   maxMonths: number;
@@ -30,7 +28,8 @@ export interface TenorConfig {
 }
 
 export interface LoanLimitsConfig {
-  perCurrency: Record<string, PerCurrencyBounds>;
+  minAmountEGP: string;
+  maxAmountEGP: string;
   maxByCDTier?: Array<{ minCDValueEGP: string; maxAmountEGP: string }>;
   maxByPropertyType?: Record<string, string>;
   maxByTransferType?: Record<string, string>;
@@ -128,7 +127,84 @@ export const INCOME_ASSUMPTION_STRATEGIES = [
   'byBankStatementPercent',
 ] as const;
 
-export type IncomeAssumptionStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number];
+export type BuiltinIncomeStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number];
+
+/**
+ * The prefix that makes a strategy name a REGISTRY FACT rather than a built-in method.
+ * Mirrors the backend `FACT_STRATEGY_PREFIX` (`matching/types.ts`).
+ */
+export const FACT_STRATEGY_PREFIX = 'fact:';
+
+export type IncomeAssumptionStrategy = BuiltinIncomeStrategy | `${typeof FACT_STRATEGY_PREFIX}${string}`;
+
+/** The `fact:<key>` token for a registry fact key. */
+export function factStrategy(factKey: string): IncomeAssumptionStrategy {
+  return `${FACT_STRATEGY_PREFIX}${factKey}`;
+}
+
+/** The fact key a strategy names, or `null` for a built-in method. */
+export function factKeyOf(strategy: string): string | null {
+  if (!strategy.startsWith(FACT_STRATEGY_PREFIX)) return null;
+  const key = strategy.slice(FACT_STRATEGY_PREFIX.length);
+  return key.length > 0 ? key : null;
+}
+
+/**
+ * One operator-defined FACT, as the form needs it — the registry row plus enough of its
+ * bound question to render the right editor and offer the right keys.
+ *
+ * Reduced from `EnumerationMember` by `registryFacts()` below rather than passed around
+ * whole, so a component cannot start reading some other part of the member and quietly
+ * grow a second idea of what a fact is.
+ */
+export interface RegistryFact {
+  key: string;
+  label: string;
+  /** Absent when the fact points at no question — it cannot be offered as a method. */
+  question: {
+    code: string;
+    label: string;
+    type: 'SINGLE_SELECT' | 'NUMERIC';
+    active: boolean;
+    options: Array<{ code: string; labelAr: string; labelEn: string }>;
+    /** Loan categories the questionnaire actually asks this question of. */
+    askedIn: readonly LoanCategory[];
+  } | null;
+}
+
+/**
+ * The facts a program may actually be keyed by, from the loaded registry members.
+ *
+ * Unbound facts are dropped, matching the backend's own registry read: offering a method
+ * whose fact reads no question would let an operator configure a whole table that
+ * resolves to nothing for every applicant — the silent failure this feature closes.
+ * A bound-but-INACTIVE question is kept, because the program form warns about it in
+ * words the operator can act on; hiding it would make an existing rule's method vanish
+ * from its own picker.
+ */
+export function registryFacts(
+  members: readonly EnumerationMember[],
+  isAr: boolean,
+): RegistryFact[] {
+  return members.flatMap((m) => {
+    const q = m.boundQuestion;
+    if (!q) return [];
+    return [
+      {
+        key: m.key,
+        label: isAr ? m.labelAr : m.labelEn,
+        question: {
+          code: q.code,
+          label: isAr ? q.labelAr : q.labelEn,
+          type: q.type,
+          active: q.active,
+          options: q.options,
+          askedIn: q.askedIn ?? [],
+        },
+      },
+    ];
+  });
+}
 
 /** One method as the picker and the review read-back render it. */
 export interface IncomeMethodOption {
@@ -141,7 +217,7 @@ export interface IncomeMethodGroup {
   options: IncomeMethodOption[];
 }
 
-function methodLabel(strategy: IncomeAssumptionStrategy): string {
+function methodLabel(strategy: BuiltinIncomeStrategy): string {
   switch (strategy) {
     case 'declared':
       return $localize`:@@bank_programs.strategy.declared:Declared (applicant-provided)`;
@@ -168,9 +244,27 @@ function methodLabel(strategy: IncomeAssumptionStrategy): string {
   }
 }
 
-/** The label for one method — same words the picker shows, for the review read-back. */
-export function incomeMethodLabel(strategy: IncomeAssumptionStrategy): string {
-  return methodLabel(strategy);
+/**
+ * The label for one method — the same words the picker shows, for the review read-back
+ * and the read-only detail page.
+ *
+ * `facts` is optional so a caller that has not loaded the registry still renders
+ * something honest for a `fact:` rule: the key, not a blank and not a guess. A program
+ * whose fact was retired reads the same way, which is correct — the key is all that is
+ * left of it.
+ */
+export function incomeMethodLabel(
+  strategy: IncomeAssumptionStrategy,
+  facts: readonly RegistryFact[] = [],
+): string {
+  const factKey = factKeyOf(strategy);
+  if (factKey !== null) {
+    const fact = facts.find((f) => f.key === factKey);
+    return fact
+      ? $localize`:@@bank_programs.strategy.fact:By ${fact.label}:fact:`
+      : $localize`:@@bank_programs.strategy.fact_unknown:By “${factKey}:fact:” (not in the registry)`;
+  }
+  return methodLabel(strategy as BuiltinIncomeStrategy);
 }
 
 /**
@@ -184,18 +278,31 @@ export function incomeMethodLabel(strategy: IncomeAssumptionStrategy): string {
  * Built here rather than typed into the template so this list and the review read-back
  * cannot disagree about a method's name.
  */
-export function incomeMethodGroups(): IncomeMethodGroup[] {
-  const opts = (values: readonly IncomeAssumptionStrategy[]): IncomeMethodOption[] =>
+export function incomeMethodGroups(facts: readonly RegistryFact[] = []): IncomeMethodGroup[] {
+  const opts = (values: readonly BuiltinIncomeStrategy[]): IncomeMethodOption[] =>
     values.map((value) => ({ value, label: methodLabel(value) }));
+  // The four built-in fact methods and the registry facts sit in ONE group, because to
+  // the operator they are the same kind of thing: a table keyed by something the
+  // customer answered. The four keep their own tokens only because live offers froze
+  // them (Principle I) — that is a storage detail, and surfacing it as two groups would
+  // ask the operator to care about it.
+  const askedOptions: IncomeMethodOption[] = [
+    ...opts(['byMilitaryGrade', 'byProfessorRank', 'byYearsInPractice', 'byCreditCardLimit']),
+    ...facts
+      // The four seeded facts ARE registry rows now, so without this they would appear
+      // twice — once under their frozen token, once under `fact:`. The built-in wins:
+      // it is what existing programs carry, and two ways to say one thing is how two
+      // programs end up meaning the same rule by different names.
+      .filter((f) => !BUILTIN_FACT_KEYS.has(f.key))
+      .map((f) => ({
+        value: factStrategy(f.key),
+        label: $localize`:@@bank_programs.strategy.fact:By ${f.label}:fact:`,
+      })),
+  ];
   return [
     {
       label: $localize`:@@bank_programs.strategy.group.asked:Reads an answer the customer gives`,
-      options: opts([
-        'byMilitaryGrade',
-        'byProfessorRank',
-        'byYearsInPractice',
-        'byCreditCardLimit',
-      ]),
+      options: askedOptions,
     },
     {
       label: $localize`:@@bank_programs.strategy.group.documents:Reads a figure from documents`,
@@ -215,6 +322,21 @@ export function incomeMethodGroups(): IncomeMethodGroup[] {
   ];
 }
 
+/**
+ * The registry keys the four built-in fact methods already cover.
+ *
+ * Mirrors the seeded `surrogate_fact` rows in migration
+ * `20260815130000_surrogate_fact_registry`. Their tokens stay `byMilitaryGrade` &c. on
+ * stored programs, so the picker must not offer the same fact a second time as
+ * `fact:military_grade`.
+ */
+const BUILTIN_FACT_KEYS = new Set([
+  'military_grade',
+  'academic_rank',
+  'years_in_practice',
+  'credit_card_limit',
+]);
+
 /** Which editor a method needs. Drives the type-driven rendering in step 3. */
 export type IncomeMethodShape = 'none' | 'keyTable' | 'bands' | 'scalar';
 
@@ -227,7 +349,7 @@ export type IncomeMethodShape = 'none' | 'keyTable' | 'bands' | 'scalar';
  * section still renders so an untouched legacy program is readable and its value is
  * never silently dropped.
  */
-export const INCOME_METHOD_SHAPE: Readonly<Record<IncomeAssumptionStrategy, IncomeMethodShape>> = {
+export const INCOME_METHOD_SHAPE: Readonly<Record<BuiltinIncomeStrategy, IncomeMethodShape>> = {
   declared: 'none',
   byProfessorRank: 'keyTable',
   byMilitaryGrade: 'keyTable',
@@ -243,20 +365,62 @@ export const INCOME_METHOD_SHAPE: Readonly<Record<IncomeAssumptionStrategy, Inco
 
 /** The platform enumeration a key method draws its row keys from (FR-006). */
 export const INCOME_KEY_REGISTRY: Readonly<
-  Partial<Record<IncomeAssumptionStrategy, 'professor_rank' | 'military_grade'>>
+  Partial<Record<BuiltinIncomeStrategy, 'professor_rank' | 'military_grade'>>
 > = {
   byProfessorRank: 'professor_rank',
   byMilitaryGrade: 'military_grade',
 };
 
 /** The unit a band table's edges are expressed in — label only, never arithmetic. */
-export const INCOME_BAND_UNIT: Readonly<Partial<Record<IncomeAssumptionStrategy, 'years' | 'EGP'>>> =
-  {
-    byYearsInJob: 'years',
-    byYearsInPractice: 'years',
-    byCDValue: 'EGP',
-    byTotalDeposits: 'EGP',
-  };
+export const INCOME_BAND_UNIT: Readonly<Partial<Record<BuiltinIncomeStrategy, 'years' | 'EGP'>>> = {
+  byYearsInJob: 'years',
+  byYearsInPractice: 'years',
+  byCDValue: 'EGP',
+  byTotalDeposits: 'EGP',
+};
+
+/**
+ * Which editor a method needs — built-in or registry fact.
+ *
+ * For a fact the shape follows the QUESTION, exactly as the backend resolves it: a
+ * one-answer question keys a table, a number question bands one. Nothing is stored
+ * saying which, so the two sides cannot disagree.
+ *
+ * An unknown fact (retired from the registry, or not loaded yet) is `none`: the form
+ * shows no editor rather than an empty table the operator would fill in for a method
+ * the server is about to reject with `INCOME_RULE_FACT_UNAVAILABLE`.
+ */
+export function incomeMethodShape(
+  strategy: IncomeAssumptionStrategy,
+  facts: readonly RegistryFact[] = [],
+): IncomeMethodShape {
+  const factKey = factKeyOf(strategy);
+  if (factKey !== null) {
+    const question = facts.find((f) => f.key === factKey)?.question;
+    if (!question) return 'none';
+    return question.type === 'SINGLE_SELECT' ? 'keyTable' : 'bands';
+  }
+  return INCOME_METHOD_SHAPE[strategy as BuiltinIncomeStrategy] ?? 'none';
+}
+
+/**
+ * The rows a fact's key table may carry — the bound question's own options.
+ *
+ * NOT an enumeration, unlike the two built-in key methods. That is the whole point of
+ * binding a question: the keys the bank picks from and the answers the customer picks
+ * from are ONE list, so a renamed option cannot leave a table pointing at a key nobody
+ * can answer. Empty for a built-in method (its keys come from `INCOME_KEY_REGISTRY`)
+ * and for a numeric fact.
+ */
+export function factKeyOptions(
+  strategy: IncomeAssumptionStrategy,
+  facts: readonly RegistryFact[] = [],
+): Array<{ code: string; labelAr: string; labelEn: string }> {
+  const factKey = factKeyOf(strategy);
+  if (factKey === null) return [];
+  const question = facts.find((f) => f.key === factKey)?.question;
+  return question?.type === 'SINGLE_SELECT' ? question.options : [];
+}
 
 /** One row of a key table: a registry member and the income the bank assigns it. */
 export interface IncomeKeyTableRow {
@@ -344,7 +508,6 @@ export interface BankProgramCreatePayload {
   programNameKey: string;
   programType: ProgramType;
   productCategory: string;
-  currencies: string[];
   isShariaCompliant?: boolean;
   operatorNotes?: string;
   operatorTips?: string[];
@@ -386,7 +549,6 @@ export interface BankProgramResponse {
   bankId?: string | null;
   programType: ProgramType;
   productCategory: string;
-  currencies: string[];
   active: boolean;
   isShariaCompliant: boolean;
   version: number;
@@ -426,7 +588,6 @@ export interface BankProgramListRow {
   programType?: ProgramType;
   active: boolean;
   isShariaCompliant: boolean;
-  currencies: string[];
   baseRatePercent?: string | null;
   currentEffectiveRatePercent?: string | null;
   deprecatedKeyCount: number;
@@ -510,7 +671,11 @@ export interface IncomeRuleCheckResult {
   /** `null` ⇒ read `unresolvedReason`. NEVER rendered as a zero (FR-031). */
   resolvedIncomeEGP: string | null;
   origin: IncomeOrigin;
-  unresolvedReason?: 'fact_not_answered' | 'no_matching_row' | 'no_matching_band' | 'rule_unconfigured';
+  unresolvedReason?:
+    | 'fact_not_answered'
+    | 'no_matching_row'
+    | 'no_matching_band'
+    | 'rule_unconfigured';
   dbrCapPercent: string;
   dbrCapSource: 'program_default' | 'rule_override';
   affordableInstallmentEGP: string | null;
@@ -523,4 +688,3 @@ export interface IncomeRuleCheckResult {
   unavailableReason?: string;
   matchedRow?: { key: string } | { fromInclusive: string; toExclusive: string | null };
 }
-

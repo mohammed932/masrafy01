@@ -19,7 +19,6 @@ export interface ApplicationOfferDto {
   /** Islamic-finance program, frozen at match time. */
   isShariaCompliant: boolean;
   programFriendlyName: string;
-  currency: string;
   effectiveRatePercent: string;
   monthlyInstallmentEGP: string;
   requestedLoanAmountEGP: string;

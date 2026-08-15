@@ -19,7 +19,6 @@ export class BankProgramResponseDto {
   bankName!: string;
   programType!: ProgramType;
   productCategory!: string;
-  currencies!: string[];
   active!: boolean;
   isShariaCompliant!: boolean;
   version!: number;
@@ -81,7 +80,6 @@ export class BankProgramListRowDto {
   programType!: 'income_proof' | 'income_surrogate';
   active!: boolean;
   isShariaCompliant!: boolean;
-  currencies!: string[];
   baseRatePercent?: string | null;
   currentEffectiveRatePercent?: string | null;
   deprecatedKeyCount!: number;

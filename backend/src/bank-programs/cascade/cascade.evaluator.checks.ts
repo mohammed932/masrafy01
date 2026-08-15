@@ -28,7 +28,8 @@ const skeleton: BankProgramConfig = {
     baseRatePercent: '26.0000',
   },
   loanLimits: {
-    perCurrency: { EGP: { minAmount: '50000', maxAmount: '2000000' } },
+    minAmountEGP: '50000',
+    maxAmountEGP: '2000000',
   },
   tenor: { minMonths: 12, maxMonths: 84 },
   eligibility: { requiresQualitativeReview: false, requiresNoDocuments: false },
@@ -181,7 +182,8 @@ check('FR-003a: no approval → base maxEGP', () => {
   const cfg: BankProgramConfig = {
     ...skeleton,
     loanLimits: {
-      perCurrency: { EGP: { minAmount: '100000', maxAmount: '2000000' } },
+      minAmountEGP: '100000',
+      maxAmountEGP: '2000000',
       qualitativeReviewMaxEGP: '3000000',
     },
     eligibility: { ...skeleton.eligibility, requiresQualitativeReview: true },
@@ -195,7 +197,8 @@ check('FR-003a: operator approval → uplift', () => {
   const cfg: BankProgramConfig = {
     ...skeleton,
     loanLimits: {
-      perCurrency: { EGP: { minAmount: '100000', maxAmount: '2000000' } },
+      minAmountEGP: '100000',
+      maxAmountEGP: '2000000',
       qualitativeReviewMaxEGP: '3000000',
     },
     eligibility: { ...skeleton.eligibility, requiresQualitativeReview: true },

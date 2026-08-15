@@ -14,7 +14,7 @@ export const bankNxt2026: SeedCatalog = {
       friendlyName: 'Salaried — Tenor × Tenure tiered',
       programNameKey: 'private_sector',
       tenor: { minMonths: 12, maxMonths: 84 },
-      loanLimits: { perCurrency: { EGP: { minAmount: '50000', maxAmount: '2000000' } } },
+      loanLimits: { minAmountEGP: '50000', maxAmountEGP: '2000000' },
       pricing: {
         isVariableRate: false,
         baseRatePercent: '26.5000',

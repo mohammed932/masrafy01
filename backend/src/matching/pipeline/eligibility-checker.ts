@@ -66,14 +66,8 @@ export function checkEligibility(
     accepts(elig.acceptedSalaryTransferTypes, profile.employment.salaryTransferType),
     'salary_transfer_type',
   );
-  push(accepts(program.currencies, profile.requestedCurrency), 'currency');
-
-  const minAmount = new Decimal(
-    program.loanLimits.perCurrency[profile.requestedCurrency]?.minAmount ?? '0',
-  );
-  const maxAmount = new Decimal(
-    program.loanLimits.perCurrency[profile.requestedCurrency]?.maxAmount ?? '0',
-  );
+  const minAmount = new Decimal(program.loanLimits.minAmountEGP ?? '0');
+  const maxAmount = new Decimal(program.loanLimits.maxAmountEGP ?? '0');
   push(
     profile.requestedAmountEGP.greaterThanOrEqualTo(minAmount) &&
       profile.requestedAmountEGP.lessThanOrEqualTo(maxAmount),

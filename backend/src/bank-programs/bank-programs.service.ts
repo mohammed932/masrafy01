@@ -15,6 +15,7 @@ import {
   EnumerationRegistryUnavailableException,
   IncomeRuleBandsInvalidException,
   IncomeRuleDbrOverrideInvalidException,
+  IncomeRuleFactUnavailableException,
   IncomeRuleDuplicateKeyException,
   IncomeRuleEmptyException,
   IncomeRuleIncomeInvalidException,
@@ -85,6 +86,7 @@ import {
 import {
   KEY_TABLE_REGISTRY,
   KEY_TABLE_STRATEGIES,
+  factKeyOf,
   type ApplicantProfile,
   type BankProgramSnapshot,
   type IncomeAssumptionConfig,
@@ -169,7 +171,6 @@ export class BankProgramsService {
           programNameKey: dto.programNameKey,
           programType: dto.programType,
           productCategory: dto.productCategory,
-          currencies: dto.currencies,
           // Inactive when it carries an unconfirmed number (FR-033). The admin
           // switches it on from the detail page once the bank has confirmed, which is
           // the same gate every other program passes through.
@@ -279,7 +280,6 @@ export class BankProgramsService {
           programNameKey,
           programType: source.programType,
           productCategory: source.productCategory,
-          currencies: source.currencies,
           active: false,
           isShariaCompliant: source.isShariaCompliant,
           operatorNotes: source.operatorNotes,
@@ -415,7 +415,7 @@ export class BankProgramsService {
       if (!dto.eligibility.requiresQualitativeReview) {
         throw new InvalidQualitativeReviewCeilingException();
       }
-      const baseMax = dto.loanLimits.perCurrency?.['EGP']?.maxAmount;
+      const baseMax = dto.loanLimits.maxAmountEGP;
       if (!baseMax) {
         throw new QualitativeReviewCeilingBelowBaseException({
           qualitativeReviewMaxEGP: qrMax,
@@ -604,6 +604,8 @@ export class BankProgramsService {
         );
         return members.map((m) => m.key);
       },
+      surrogateFacts: () => this.enums.surrogateFactRegistry(),
+      questionOptionCodes: (questionCode) => this.enums.questionOptionCodes(questionCode),
     };
   }
 
@@ -664,7 +666,6 @@ export class BankProgramsService {
       bankName: program.bankName,
       programType: program.programType as BankProgramResponseDto['programType'],
       productCategory: program.productCategory,
-      currencies: program.currencies,
       active: program.active,
       isShariaCompliant: program.isShariaCompliant,
       version: program.version,
@@ -733,7 +734,6 @@ export class BankProgramsService {
           programType: r.programType as BankProgramListRowDto['programType'],
           active: r.active,
           isShariaCompliant: r.isShariaCompliant,
-          currencies: r.currencies,
           baseRatePercent: pricing?.baseRatePercent ?? null,
           currentEffectiveRatePercent: pricing?.currentEffectiveRatePercent ?? null,
           deprecatedKeyCount,
@@ -925,7 +925,6 @@ export class BankProgramsService {
           programNameKey: dto.programNameKey,
           programType: dto.programType,
           productCategory: dto.productCategory,
-          currencies: dto.currencies,
           isShariaCompliant: dto.isShariaCompliant ?? false,
           operatorNotes: dto.operatorNotes ?? null,
           operatorTips: dto.operatorTips ?? [],
@@ -1104,7 +1103,7 @@ export class BankProgramsService {
       programType: 'income_surrogate',
     };
 
-    const profile = this.sampleProfile(dto.sample);
+    const profile = this.sampleProfile(dto.sample, draft.strategy);
     // Resolved once and handed to the quote. The panel reports the provenance AND the
     // figures, and running the resolver twice over the same draft is both wasted work
     // (it re-normalizes the blob and re-resolves the DBR cap) and a second chance for
@@ -1174,13 +1173,25 @@ export class BankProgramsService {
    * coincidence. Absent facts stay `undefined`, which is what lets an admin
    * deliberately reproduce the `SURROGATE_FACT_MISSING` outcome.
    */
-  private sampleProfile(sample: IncomeRuleCheckDto['sample']): ApplicantProfile {
+  private sampleProfile(
+    sample: IncomeRuleCheckDto['sample'],
+    strategy: string,
+  ): ApplicantProfile {
     const dec = (v?: string): Decimal | undefined => (v !== undefined ? new Decimal(v) : undefined);
+    // A registry fact's sample answer lands under the key the RULE reads, and only
+    // there. The shape is decided by what parses, not by a second lookup of the fact's
+    // bound question: the resolver reads a choice or a number, and a value that is a
+    // clean decimal is a number by every reading either side could make.
+    const factKey = factKeyOf(strategy);
+    const factValue = sample.factValue;
+    const surrogateFacts =
+      factKey !== null && factValue !== undefined && factValue !== ''
+        ? { [factKey]: sampleFactValue(factValue) }
+        : undefined;
     return {
       age: sample.age,
       loanPurpose: 'personal',
       requestedAmountEGP: new Decimal(sample.requestedAmountEGP),
-      requestedCurrency: 'EGP',
       preferredTenorMonths: sample.tenorMonths,
       priority: 'lowest_installment',
       employment: {
@@ -1207,6 +1218,7 @@ export class BankProgramsService {
         carInstallmentEGP: dec(sample.carInstallmentEGP),
         autoLoanAtOtherBankEGP: dec(sample.carLoanAmountEGP),
       },
+      ...(surrogateFacts ? { surrogateFacts } : {}),
     };
   }
 
@@ -1402,7 +1414,30 @@ function incomeRuleException(violation: IncomeRuleViolation): Error {
       });
     case 'dbrOverrideInvalid':
       return new IncomeRuleDbrOverrideInvalidException({ value: violation.value });
+    case 'factUnavailable':
+      return new IncomeRuleFactUnavailableException({
+        factKey: violation.factKey,
+        availableFacts: violation.availableFacts,
+      });
   }
+}
+
+/**
+ * One sample answer, read as the resolver will read it.
+ *
+ * A clean decimal string is a NUMBER; anything else is an option code. Deciding here
+ * rather than from the fact's bound question keeps the dry run a pure function of its
+ * body — and the two cannot disagree in a way that matters: a numeric fact whose sample
+ * is not a number resolves to `no_matching_band` either way, which is the honest answer
+ * to "what does this rule do with that".
+ */
+function sampleFactValue(
+  raw: string,
+): { kind: 'choice'; optionCode: string } | { kind: 'numeric'; value: Decimal } {
+  if (/^-?\d+(\.\d+)?$/.test(raw)) {
+    return { kind: 'numeric', value: new Decimal(raw) };
+  }
+  return { kind: 'choice', optionCode: raw };
 }
 
 /**
@@ -1476,7 +1511,6 @@ function computeStructuralDiff(
     }
   }
   const jsonFields: Array<keyof typeof before> = [
-    'currencies',
     'operatorTips',
     'requiredDocuments',
     'tenor',

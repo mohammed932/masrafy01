@@ -46,13 +46,58 @@ export const LOOKUP_TYPES: readonly LookupType[] = [
     description: $localize`:@@lookups.type.governorate.desc:Egyptian governorates — the address picker in the mobile app and the mortgage wizard.`,
     icon: 'environment',
   },
-  {
-    type: 'currency',
-    label: $localize`:@@lookups.type.currency:Currencies`,
-    description: $localize`:@@lookups.type.currency.desc:Currencies a bank program can lend in — checked against the amount the applicant asks for.`,
-    icon: 'dollar',
-  },
 ];
+
+/** One realistic value of a type, shown as the label placeholders in the add/edit dialog. */
+export interface LookupExample {
+  readonly en: string;
+  readonly ar: string;
+}
+
+/**
+ * Examples are PER TYPE, not one generic sample: the add dialog is the same form
+ * for every enumeration, so "English label" alone never said whether the box wants
+ * a governorate, a document type or a catalog product name. A shared example is
+ * worse than none — under "Governorates" it reads as an instruction to type a job
+ * title. `program_name` is here too although it has no rail entry: the same dialog
+ * creates catalog names from the program-catalog screen.
+ */
+const EXAMPLES: Readonly<Record<string, LookupExample>> = {
+  transfer_type: {
+    en: $localize`:@@lookups.example.transferType.en:e.g. Salary transferred to the bank`,
+    ar: $localize`:@@lookups.example.transferType.ar:مثال: تحويل الراتب على البنك`,
+  },
+  employment_type: {
+    en: $localize`:@@lookups.example.employmentType.en:e.g. Private sector employee`,
+    ar: $localize`:@@lookups.example.employmentType.ar:مثال: موظف قطاع خاص`,
+  },
+  product_category: {
+    en: $localize`:@@lookups.example.productCategory.en:e.g. Personal loans`,
+    ar: $localize`:@@lookups.example.productCategory.ar:مثال: قروض شخصية`,
+  },
+  required_document: {
+    en: $localize`:@@lookups.example.requiredDocument.en:e.g. Bank statement — last 6 months`,
+    ar: $localize`:@@lookups.example.requiredDocument.ar:مثال: كشف حساب بنكي — آخر ٦ شهور`,
+  },
+  governorate: {
+    en: $localize`:@@lookups.example.governorate.en:e.g. Giza`,
+    ar: $localize`:@@lookups.example.governorate.ar:مثال: الجيزة`,
+  },
+  program_name: {
+    en: $localize`:@@lookups.example.programName.en:e.g. Personal Loan Plus`,
+    ar: $localize`:@@lookups.example.programName.ar:مثال: قرض شخصي بلس`,
+  },
+};
+
+const FALLBACK_EXAMPLE: LookupExample = {
+  en: $localize`:@@lookups.example.fallback.en:e.g. Salaried employee`,
+  ar: $localize`:@@lookups.example.fallback.ar:مثال: موظف براتب`,
+};
+
+/** Example value for a type — falls back to a neutral one for an unmapped type. */
+export function lookupExample(type: string): LookupExample {
+  return EXAMPLES[type] ?? FALLBACK_EXAMPLE;
+}
 
 const BY_TYPE = new Map(LOOKUP_TYPES.map((t) => [t.type, t]));
 

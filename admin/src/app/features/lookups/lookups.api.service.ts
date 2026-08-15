@@ -146,10 +146,12 @@ export class LookupsApiService {
    * Hard-delete an entry — the row and its per-category assignments are gone,
    * not parked.
    *
-   * `program_name` only, and only while nothing points at it: the server refuses
-   * with `ENUMERATION_IN_USE` (409) when any bank program or application still
-   * names the key, and the toast interceptor renders that. Callers do NOT need to
-   * pre-check — the counts on the row are a UX shortcut, the server is the rule.
+   * Allowed only while nothing points at the key: the server counts every surface
+   * that reads the value's type and refuses with `ENUMERATION_IN_USE` (409) if any
+   * still names it, `ENUMERATION_DELETE_NOT_SUPPORTED` (422) for a type whose
+   * readers it cannot count, and the toast interceptor renders both. Callers do NOT
+   * need to pre-check — the counts on the row are a UX shortcut, the server is the
+   * rule.
    */
   async remove(id: string): Promise<void> {
     await firstValueFrom(this.http.delete<SuccessEnvelope<{ id: string }>>(`${this.base}/${id}`));

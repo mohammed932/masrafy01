@@ -81,7 +81,7 @@ import { SelectedLoanCardComponent } from './components/selected-loan-card.compo
           <div class="hero-grid">
             <div class="hero-amount">
               <span class="amount-value">{{ formatAmount(d.requestedAmountEGP) }}</span>
-              <span class="amount-currency">{{ d.requestedCurrency }}</span>
+              <span class="amount-currency">EGP</span>
             </div>
 
             <div class="hero-status">
@@ -178,7 +178,7 @@ import { SelectedLoanCardComponent } from './components/selected-loan-card.compo
               <dl class="offer-stats">
                 <div>
                   <dt i18n="@@applications.detail.amount">Loan amount</dt>
-                  <dd>{{ formatAmount(offer.effectiveLoanAmountEGP) }} {{ offer.currency }}</dd>
+                  <dd>{{ formatAmount(offer.effectiveLoanAmountEGP) }} EGP</dd>
                 </div>
                 <div>
                   <dt i18n="@@applications.detail.rate">Effective rate</dt>

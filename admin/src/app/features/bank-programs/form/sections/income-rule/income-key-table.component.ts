@@ -71,7 +71,9 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    @if (enums.unavailable()) {
+    <!-- The registry-unavailable banner is about the ENUMERATION service; a fact's keys
+         come with the form's own registry read, so it cannot be unavailable separately. -->
+    @if (!keyOptions() && enums.unavailable()) {
       <div class="ikt__unavailable" role="alert">
         <span nz-icon nzType="disconnect" nzTheme="outline" aria-hidden="true"></span>
         <span i18n="@@bank_programs.income.registry_unavailable">
@@ -338,8 +340,29 @@ export class IncomeKeyTableComponent {
   /** Two-way bound table. `[]` is a real state the backend rejects on save. */
   readonly rows = model.required<IncomeKeyTableRow[]>();
 
-  /** Which registry the keys come from — `professor_rank` or `military_grade`. */
-  readonly enumerationType = input.required<EnumerationType>();
+  /**
+   * Which registry the keys come from — `professor_rank` or `military_grade`.
+   *
+   * `null` for a REGISTRY FACT, whose keys are the bound question's own options and
+   * arrive through `keyOptions` instead. Not two components: the table, its ordering,
+   * its markers and its validation are identical, and only where the list of legal keys
+   * comes from differs.
+   */
+  readonly enumerationType = input<EnumerationType | null>(null);
+
+  /**
+   * The legal keys, supplied directly — a registry fact's bound question options.
+   *
+   * Takes precedence over `enumerationType` when non-null. That precedence is the point:
+   * a fact's keys are the QUESTION's options, so the list the bank picks from and the
+   * list the applicant answers from are one list, and no enumeration sits between them
+   * to drift.
+   */
+  readonly keyOptions = input<ReadonlyArray<{
+    key: string;
+    labelAr: string;
+    labelEn: string;
+  }> | null>(null);
 
   /**
    * Feature 011 — which row incomes are team-estimated, by registry KEY.
@@ -377,7 +400,14 @@ export class IncomeKeyTableComponent {
   readonly moveDownAriaLabel = $localize`:@@bank_programs.income.aria.move_down:Move this row down`;
   readonly removeAriaLabel = $localize`:@@bank_programs.income.aria.remove_row:Remove this row`;
 
-  readonly members = computed(() => this.enums.membersFor(this.enumerationType())());
+  readonly members = computed<ReadonlyArray<{ key: string; labelAr: string; labelEn: string }>>(
+    () => {
+      const supplied = this.keyOptions();
+      if (supplied) return supplied;
+      const type = this.enumerationType();
+      return type ? this.enums.membersFor(type)() : [];
+    },
+  );
 
   readonly error = computed<IncomeKeyTableError>(() => incomeKeyTableErrorFor(this.rows()));
 

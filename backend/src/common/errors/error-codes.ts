@@ -55,7 +55,6 @@ export const ERROR_CODES = {
   DBR_EXCEEDED: 'DBR_EXCEEDED',
   TENOR_OUT_OF_RANGE: 'TENOR_OUT_OF_RANGE',
   AMOUNT_OUT_OF_RANGE: 'AMOUNT_OUT_OF_RANGE',
-  CURRENCY_NOT_SUPPORTED: 'CURRENCY_NOT_SUPPORTED',
   MISSING_CD_RECORD: 'MISSING_CD_RECORD',
   MISSING_CAR_LOAN_RECORD: 'MISSING_CAR_LOAN_RECORD',
   MISSING_BANK_STATEMENT: 'MISSING_BANK_STATEMENT',
@@ -79,6 +78,20 @@ export const ERROR_CODES = {
   /** A catalog question template named codes that are in no question, active or not. */
   ENUMERATION_QUESTION_UNKNOWN: 'ENUMERATION_QUESTION_UNKNOWN',
   /**
+   * A question BINDING was submitted for an enumeration type that binds no question —
+   * anything other than `surrogate_fact`. Its own code rather than the template one
+   * above: those are a catalog name SUGGESTING many questions, this is a fact READING
+   * one, and telling an operator their governorate has no question template would send
+   * them looking for a screen that does not exist.
+   */
+  ENUMERATION_QUESTION_BINDING_NOT_APPLICABLE: 'ENUMERATION_QUESTION_BINDING_NOT_APPLICABLE',
+  /**
+   * A fact was pointed at a question no bank table can be keyed by — TEXT or
+   * MULTI_SELECT. A free-text answer is not a key anyone can enumerate in advance, and
+   * a multi-pick answer has no single value to look up.
+   */
+  SURROGATE_FACT_QUESTION_TYPE_INVALID: 'SURROGATE_FACT_QUESTION_TYPE_INVALID',
+  /**
    * An income basis was set for a loan category the catalog name is not offered
    * under. Setting a basis may not ASSIGN the category as a side effect — the two
    * are separate decisions on separate controls — so the write is refused and the
@@ -88,20 +101,19 @@ export const ERROR_CODES = {
   /**
    * A hard DELETE was refused because something still names this entry's key.
    *
-   * `bank_program.programNameKey` and `application.programNameKey` carry no FK (the
-   * catalog's unique key is the composite `(type, key)`), so the database would let
-   * the row go and leave both pointing at nothing — exactly the ghost rows A26
-   * forbids. Deprecating is the reversible answer and the meta says so by naming
-   * the counts.
+   * No enumeration key carries an FK anywhere — the registry's unique key is the
+   * composite `(type, key)` — so the database would let the row go and leave every
+   * reader pointing at nothing, exactly the ghost rows A26 forbids. Deprecating is
+   * the reversible answer, and the meta says so by naming each surface and its count.
    */
   ENUMERATION_IN_USE: 'ENUMERATION_IN_USE',
   /**
    * Delete was asked for on an enumeration type this endpoint cannot vouch for.
    *
-   * Only `program_name` has an exhaustive, checkable reference list (two columns,
-   * above). Every other type is referenced by key from places no single count
-   * covers — `bank_program.transferTypeKeys`, currency codes on offers, document
-   * keys — so a delete there would be a silent dangle. Deactivate or deprecate
+   * `PostgresPlatformEnumerationsRepository.countReferences` enumerates the readers
+   * of each deletable type by hand (no FK exists to lean on). A type absent from
+   * that switch — the seeded-but-deactivated ones — has no checkable reference
+   * list, so a delete there would be a silent dangle. Deactivate or deprecate
    * instead.
    */
   ENUMERATION_DELETE_NOT_SUPPORTED: 'ENUMERATION_DELETE_NOT_SUPPORTED',
@@ -287,7 +299,6 @@ export const ERROR_CODES = {
   OBLIGATIONS_EXCEED_ALLOWANCE: 'OBLIGATIONS_EXCEED_ALLOWANCE',
   BELOW_PROGRAM_MIN_AMOUNT: 'BELOW_PROGRAM_MIN_AMOUNT',
   AGE_AT_MATURITY: 'AGE_AT_MATURITY',
-  CURRENCY_NOT_OFFERED: 'CURRENCY_NOT_OFFERED',
   // Disclaimer shown alongside every indicative figure (not an error)
   INDICATIVE_ESTIMATE_NOT_AN_OFFER: 'INDICATIVE_ESTIMATE_NOT_AN_OFFER',
 
@@ -314,6 +325,18 @@ export const ERROR_CODES = {
   INCOME_RULE_BANDS_INVALID: 'INCOME_RULE_BANDS_INVALID',
   /** Per-rule DBR override outside (0, 100] (FR-012). */
   INCOME_RULE_DBR_OVERRIDE_INVALID: 'INCOME_RULE_DBR_OVERRIDE_INVALID',
+  /**
+   * The rule reads a `fact:<key>` that the registry cannot serve — no such fact, it
+   * was deactivated, or its question was deleted / deactivated / changed to a type no
+   * table can be keyed by.
+   *
+   * Fails CLOSED, exactly like `INCOME_RULE_UNKNOWN_KEY` and for the same reason: the
+   * engine resolves an unserveable fact to `fact_not_answered` for every applicant,
+   * forever, and the program keeps quoting off the declared salary as though the bank's
+   * table were not there. `meta.factKey` names it; `meta.availableFacts` lists what the
+   * registry does serve, so the form can offer the fix rather than state the problem.
+   */
+  INCOME_RULE_FACT_UNAVAILABLE: 'INCOME_RULE_FACT_UNAVAILABLE',
   /**
    * A `valueSources` marker names a dot-path that is not on the program's
    * numeric allow-list AND never was on the stored one. A path that WAS markable
@@ -403,7 +426,6 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   DBR_EXCEEDED: 200,
   TENOR_OUT_OF_RANGE: 200,
   AMOUNT_OUT_OF_RANGE: 200,
-  CURRENCY_NOT_SUPPORTED: 200,
   MISSING_CD_RECORD: 200,
   MISSING_CAR_LOAN_RECORD: 200,
   MISSING_BANK_STATEMENT: 200,
@@ -421,6 +443,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_CATEGORIES_NOT_APPLICABLE: 422,
   ENUMERATION_QUESTIONS_NOT_APPLICABLE: 422,
   ENUMERATION_QUESTION_UNKNOWN: 422,
+  ENUMERATION_QUESTION_BINDING_NOT_APPLICABLE: 422,
+  SURROGATE_FACT_QUESTION_TYPE_INVALID: 422,
   ENUMERATION_CATEGORY_NOT_ASSIGNED: 422,
   // 409, like `BANK_HAS_PROGRAMS`: the request is well-formed and the row exists —
   // it is the current state of the world that refuses it, and it stops refusing
@@ -540,7 +564,6 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   OBLIGATIONS_EXCEED_ALLOWANCE: 200,
   BELOW_PROGRAM_MIN_AMOUNT: 200,
   AGE_AT_MATURITY: 200,
-  CURRENCY_NOT_OFFERED: 200,
   INDICATIVE_ESTIMATE_NOT_AN_OFFER: 200,
 
   INCOME_RULE_EMPTY: 422,
@@ -549,6 +572,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   INCOME_RULE_UNKNOWN_KEY: 422,
   INCOME_RULE_BANDS_INVALID: 422,
   INCOME_RULE_DBR_OVERRIDE_INVALID: 422,
+  INCOME_RULE_FACT_UNAVAILABLE: 422,
   VALUE_SOURCE_PATH_UNKNOWN: 422,
   VALUE_SOURCE_VALUE_INVALID: 422,
   PROGRAM_HAS_ESTIMATED_VALUES: 409,

@@ -1,21 +1,20 @@
 import type { LoanCategory } from './loan-category';
 
 /**
- * The question codes a no-payslip income rule can read a FACT from — the fact the
- * bank's table looks up to produce an assumed income.
+ * The question codes the FOUR BUILT-IN methods read.
  *
- * Mirrors the backend `SURROGATE_FACT_SPECS`
- * (`matching/pipeline/surrogate-fact-bindings.ts`), which is a CODE CONSTANT there
- * for the same reason it is one here: A33 forbids a scoring or profile-mapping field
- * on `Question`, so the binding cannot be data. Duplicating four strings across the
- * two surfaces is the accepted cost — the backend asserts each one resolves to a
- * live question (`test/unit/surrogate-binding-codes.spec.ts`), so a rename fails
- * there, loudly, before this list can go quietly stale.
+ * No longer the whole list. Which questions are facts is the registry's answer now
+ * (`surrogate_fact` members and their bound question), read from the API by the screens
+ * that need it — this constant survives only because four income methods
+ * (`byMilitaryGrade` &c.) are frozen onto live offers and read these questions by name.
  *
- * `credit_card_total_limit` is not a new question: the card limit already feeds the
- * 5% obligation discount, and one fact asked once serves both.
+ * Anything that prices a rule must read the registry, not this: a fact beyond the four is
+ * absent here and always will be. Legitimate uses left are the coarse ones — "does this
+ * loan type ask ANY income fact at all", where the four are the practical set, since no
+ * admin screen creates a fifth any more (v16.3.0). The backend asserts each of the four
+ * resolves to a live question (`test/unit/surrogate-binding-codes.spec.ts`).
  */
-export const SURROGATE_FACT_QUESTION_CODES: readonly string[] = [
+export const BUILTIN_FACT_QUESTION_CODES: readonly string[] = [
   'military_grade',
   'academic_rank',
   'years_in_practice',
@@ -52,11 +51,6 @@ export interface FactAssignable {
   readonly categories: readonly LoanCategory[];
 }
 
-/** The shape of a catalog name for the derivations below. */
-export interface FactPickable {
-  readonly questionsByCategory: Partial<Record<LoanCategory, readonly string[]>>;
-}
-
 /**
  * Which of the four facts a loan category's applicants are actually ASKED.
  *
@@ -71,8 +65,9 @@ export interface FactPickable {
 export function surrogateFactsAskedIn(
   pool: readonly FactAssignable[],
   category: LoanCategory,
+  factCodes: readonly string[],
 ): string[] {
-  return SURROGATE_FACT_QUESTION_CODES.filter((code) =>
+  return factCodes.filter((code) =>
     pool.some((q) => q.code === code && q.categories.includes(category)),
   );
 }
@@ -87,29 +82,7 @@ export function surrogateFactsAskedIn(
 export function categoryAsksAnySurrogateFact(
   pool: readonly FactAssignable[],
   category: LoanCategory,
+  factCodes: readonly string[],
 ): boolean {
-  return surrogateFactsAskedIn(pool, category).length > 0;
-}
-
-/**
- * The facts a catalog NAME is marked as readable under one category — the overlap of the
- * questions ticked for that (name, category) pair with the four facts.
- *
- * A non-empty result is the statement "this name may be sold without a payslip here".
- * Nothing new is stored to say so: the tick-list on the catalog screen IS the switch, and
- * the bank-program wizard offers only fact-carrying names when the no-payslip basis is
- * picked. One function, so the list, the detail screen and the wizard cannot each derive
- * it their own way — the drift v13.0.0 had to undo for the two weighting axes.
- */
-export function noPayslipFactsFor(row: FactPickable, category: LoanCategory): string[] {
-  const picked = row.questionsByCategory[category] ?? [];
-  return SURROGATE_FACT_QUESTION_CODES.filter((code) => picked.includes(code));
-}
-
-/** Is this name marked as sellable without a payslip under ANY loan category? */
-export function sellsWithoutPayslip(
-  row: FactPickable,
-  categories: readonly LoanCategory[],
-): boolean {
-  return categories.some((c) => noPayslipFactsFor(row, c).length > 0);
+  return surrogateFactsAskedIn(pool, category, factCodes).length > 0;
 }

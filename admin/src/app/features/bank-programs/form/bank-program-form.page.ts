@@ -82,7 +82,12 @@ import type {
   RateBandMap,
   ValueSourceMap,
 } from '../bank-programs.types';
-import { INCOME_METHOD_SHAPE, incomeMethodLabel } from '../bank-programs.types';
+import {
+  factKeyOf,
+  incomeMethodLabel,
+  incomeMethodShape,
+  registryFacts,
+} from '../bank-programs.types';
 import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
 import { IncomeRuleCheckComponent } from './sections/income-rule/income-rule-check.component';
 import { incomeRuleHasError } from './sections/income-rule/income-rule.rules';
@@ -2426,6 +2431,20 @@ export class BankProgramFormPage implements OnInit {
   private readonly notification = inject(NzNotificationService);
   private readonly errorsService = inject(ErrorCodeService);
   readonly enums = inject(PlatformEnumerationsService);
+
+  /**
+   * The operator-defined income FACTS, from the same signal cache every picker reads.
+   *
+   * Held here as well as in the section because two things outside it need the list:
+   * the review read-back (a fact's NAME, not its key) and the payload builder (which
+   * shape the rule is, which for a fact follows its bound question).
+   */
+  protected readonly incomeFacts = computed(() =>
+    registryFacts(
+      this.enums.membersFor('surrogate_fact')(),
+      document.documentElement.lang.startsWith('ar'),
+    ),
+  );
   private readonly banksApi = inject(BanksApiService);
   private readonly localeIsAr = inject(LOCALE_ID).toLowerCase().startsWith('ar');
 
@@ -2821,7 +2840,6 @@ export class BankProgramFormPage implements OnInit {
         nonNullable: true,
         validators: [Validators.required],
       }),
-      currencies: this.fb.nonNullable.array<string>(['EGP'], { validators: [Validators.required] }),
       /**
        * Islamic-finance program. HIDDEN from the form UI — the customer-facing
        * half (offer badge, Islamic-only filter, "profit rate" wording) was never
@@ -3031,11 +3049,6 @@ export class BankProgramFormPage implements OnInit {
     return $localize`:@@bank_programs.tenor.m:${months}:months: mo`;
   };
 
-  // Live array view for the FormArray-backed currencies field (kept as FormArray to
-  // preserve per-item validation hooks). Other multi-select fields are now typed
-  // FormControl<string[]> bound directly via [formControl] / formControlName.
-  readonly currenciesArrValue = signal<string[]>(['EGP']);
-
   // Reactive view of identity.productCategory so the template + effects react.
   readonly productCategorySignal = toSignal(
     this.form.controls.identity.controls.productCategory.valueChanges,
@@ -3057,16 +3070,17 @@ export class BankProgramFormPage implements OnInit {
   protected readonly incomeBases = INCOME_BASES;
 
   /**
-   * Is the fact this program's chosen METHOD reads actually set up for this loan type?
+   * Is the figure this program's chosen METHOD reads actually asked of this loan type?
    *
-   * `null` when there is nothing to say: the basis is payslip, no name is picked yet, the
-   * method reads no question at all (six of the eleven read profile fields no question
-   * fills), or the backend has not shipped the derived field.
+   * `null` when there is nothing to say: the basis is payslip, the method reads no
+   * question at all (six of the eleven read profile fields no question fills), or the
+   * registry has not loaded.
    *
-   * "Set up" means ticked on this catalog name for this category — and a tick is only
-   * offerable when the category ASKS the question, so a tick implies asked. That chain is
-   * why this can be answered from the name registry the form already loads, without the
-   * questionnaire tree it has no role to read.
+   * Answered from the QUESTIONNAIRE's own assignment, carried on the fact's bound
+   * question. It used to be answered from a per-name tick-list on the catalog screen —
+   * a second claim an operator had to keep in step by hand, which no quote, publish
+   * check or save validation ever read. A rule whose figure is never asked resolves to
+   * no income at all, in silence, and that depends on the question, not on the name.
    */
   protected readonly factBinding = computed<{
     label: string;
@@ -3079,24 +3093,37 @@ export class BankProgramFormPage implements OnInit {
     // Read through the draft SIGNAL, not the control: a bare `.value` inside a computed
     // registers no dependency, so the line would freeze on whichever method happened to be
     // selected when the program loaded.
-    const fact = SURROGATE_FACT_BY_METHOD[this.liveIncomeRuleDraft().strategy] ?? null;
-    if (!fact) return null;
-    const key = this.programNameKeySignal();
-    const member = key ? this.programNameMembers().find((m) => m.key === key) : undefined;
-    if (!member || member.noPayslipFacts === undefined) return null;
+    const strategy = this.liveIncomeRuleDraft().strategy;
+    // A registry fact names its own question; the four built-in methods are looked up in
+    // the frozen map, because their tokens say nothing about what they read.
+    const factKey = factKeyOf(strategy);
+    const code =
+      factKey !== null
+        ? (this.incomeFacts().find((f) => f.key === factKey)?.question?.code ?? null)
+        : (SURROGATE_FACT_BY_METHOD[strategy] ?? null);
+    if (!code) return null;
+    const question = this.incomeFacts().find((f) => f.question?.code === code)?.question;
+    // The registry has not answered yet. Silence beats "never asked here": the warning
+    // would fire on every load and clear a moment later.
+    if (!question) return null;
     return {
-      label: this.factLabel(fact),
+      label: this.factLabel(code),
       category: categoryLabel(cat),
-      asked: (member.noPayslipFacts[cat] ?? []).includes(fact),
+      asked: question.askedIn.includes(cat),
     };
   });
 
   /**
-   * The fact's own words. Hardcoded rather than resolved from the question pool because
-   * this form cannot read that pool — and these four labels are the questions' own English
-   * wording, which the backend test pins to the binding codes.
+   * The fact's own words.
+   *
+   * A REGISTRY fact carries its question's label, so it is used as-is — that is the whole
+   * benefit of the binding being data. The four built-ins keep hardcoded wording: this
+   * form cannot read the question pool, and those four labels are the questions' own
+   * English text, which the backend test pins to the binding codes.
    */
   private factLabel(fact: string): string {
+    const fromRegistry = this.incomeFacts().find((f) => f.question?.code === fact);
+    if (fromRegistry?.question) return fromRegistry.question.label;
     switch (fact) {
       case 'military_grade':
         return $localize`:@@surrogate.fact.military_grade:Military grade`;
@@ -3305,7 +3332,7 @@ export class BankProgramFormPage implements OnInit {
   private incomeRuleReviewRow(): ReviewRow {
     const draft = this.liveIncomeRuleDraft();
     const label = $localize`:@@bank_programs.review.income_rule:How the income is worked out`;
-    const parts: string[] = [incomeMethodLabel(draft.strategy)];
+    const parts: string[] = [incomeMethodLabel(draft.strategy, this.incomeFacts())];
     const rows = this.incomeKeyTable().length || this.incomeBands().length;
     if (rows > 0) parts.push(this.countLabel(rows));
     const binding = this.factBinding();
@@ -3559,7 +3586,7 @@ export class BankProgramFormPage implements OnInit {
     if (!this.incomeSurrogateActive()) return false;
     this.formValue();
     const ia = this.form.getRawValue().incomeAssumption;
-    const shape = INCOME_METHOD_SHAPE[ia.strategy] ?? 'none';
+    const shape = incomeMethodShape(ia.strategy, this.incomeFacts());
     return incomeRuleHasError({
       shape,
       keyTable: this.incomeKeyTable(),
@@ -3795,15 +3822,9 @@ export class BankProgramFormPage implements OnInit {
       'transfer_type',
       'employment_type',
       'property_type',
-      'currency',
       'required_document',
       'program_name',
     ]);
-
-    // Mirror the currencies FormArray into a signal for read-only consumers.
-    // The eligibility / documents multi-selects are now typed FormControl<string[]>
-    // and bind directly via formControlName — no signal mirror needed.
-    this.syncArr(this.identityGroup.get('currencies'), this.currenciesArrValue);
 
     void this.loadActiveBanks();
 
@@ -3889,7 +3910,6 @@ export class BankProgramFormPage implements OnInit {
       'transfer_type',
       'employment_type',
       'property_type',
-      'currency',
       'required_document',
       'program_name',
     ]);
@@ -4026,7 +4046,6 @@ export class BankProgramFormPage implements OnInit {
 
   setArr(
     path:
-      | 'identity.currencies'
       | 'eligibility.acceptedEmploymentTypes'
       | 'eligibility.acceptedTransferTypes'
       | 'documents.requiredDocuments',
@@ -4161,7 +4180,10 @@ export class BankProgramFormPage implements OnInit {
   private incomeAssumptionPayload(
     ia: ReturnType<typeof this.form.getRawValue>['incomeAssumption'],
   ): BankProgramCreatePayload['incomeAssumption'] {
-    const shape = INCOME_METHOD_SHAPE[ia.strategy] ?? 'none';
+    // Through the SAME derivation the section renders with: if the payload's idea of a
+    // fact's shape disagreed with the editor's, the operator would fill in a table and
+    // the request would carry the other one — empty.
+    const shape = incomeMethodShape(ia.strategy, this.incomeFacts());
     const scalarValue = ia.scalar.value;
 
     return {
@@ -4204,14 +4226,14 @@ export class BankProgramFormPage implements OnInit {
       programNameKey: id.programNameKey,
       programType: id.programType,
       productCategory: id.productCategory,
-      currencies: id.currencies,
       isShariaCompliant: id.isShariaCompliant,
       operatorNotes: dc.operatorNotes ?? undefined,
       operatorTips: dc.operatorTips,
       requiredDocuments: dc.requiredDocuments,
       tenor: { minMonths: tn.minMonths, maxMonths: tn.maxMonths },
       loanLimits: {
-        perCurrency: { EGP: { minAmount: ll.minAmountEGP, maxAmount: ll.maxAmountEGP } },
+        minAmountEGP: ll.minAmountEGP,
+        maxAmountEGP: ll.maxAmountEGP,
         qualitativeReviewMaxEGP: ll.qualitativeReviewMaxEGP ?? undefined,
       },
       pricing: {
@@ -4301,16 +4323,15 @@ export class BankProgramFormPage implements OnInit {
     // programCode is immutable on edit — show it read-only.
     this.identityGroup.controls.programCode?.disable();
     if (initial.bankId) this.bankIdControl.setValue(initial.bankId);
-    this.setArr('identity.currencies', initial.currencies);
 
     this.tenorGroup.patchValue({
       minMonths: initial.tenor.minMonths,
       maxMonths: initial.tenor.maxMonths,
     });
-    const egp = initial.loanLimits.perCurrency['EGP'];
-    if (egp) {
-      this.loanLimitsGroup.patchValue({ minAmountEGP: egp.minAmount, maxAmountEGP: egp.maxAmount });
-    }
+    this.loanLimitsGroup.patchValue({
+      minAmountEGP: initial.loanLimits.minAmountEGP,
+      maxAmountEGP: initial.loanLimits.maxAmountEGP,
+    });
     this.loanLimitsGroup.patchValue({
       qualitativeReviewMaxEGP: initial.loanLimits.qualitativeReviewMaxEGP ?? null,
     });

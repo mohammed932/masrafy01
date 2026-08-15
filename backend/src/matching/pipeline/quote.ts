@@ -122,15 +122,8 @@ export function shouldConsultIncomeRule(
 
 export function quoteProgram(input: QuoteInput): QuoteOutcome {
   const { profile, program } = input;
-  const currency = profile.requestedCurrency;
 
-  // ── 1. Currency ─────────────────────────────────────────────────────────
-  const limitsForCurrency = program.loanLimits?.perCurrency?.[currency];
-  if (!program.currencies.includes(currency) || !limitsForCurrency) {
-    return { ok: false, unavailable: { reason: 'CURRENCY_NOT_OFFERED' } };
-  }
-
-  // ── 2. Misconfiguration — collect every offending path, don't fail fast ──
+  // ── 1. Misconfiguration — collect every offending path, don't fail fast ──
   const cascade = runCascade(program, profile);
   const problems: string[] = [];
 
@@ -145,7 +138,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
 
   const programMax = toFiniteDecimal(cascade.loanLimit.maxAmount);
   if (programMax === null || programMax.lessThanOrEqualTo(0)) {
-    problems.push(`loanLimits.perCurrency.${currency}.maxAmount`);
+    problems.push('loanLimits.maxAmountEGP');
   }
 
   const minTenor = program.tenor?.minMonths ?? 0;
@@ -163,7 +156,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     return { ok: false, unavailable: { reason: 'PROGRAM_MISCONFIGURED', missing: problems } };
   }
 
-  // ── 3. Income ───────────────────────────────────────────────────────────
+  // ── 2. Income ───────────────────────────────────────────────────────────
   //
   // Two paths, split on `programType`, and the split is the whole of feature 011's
   // engine change.
@@ -226,7 +219,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     return { ok: false, unavailable: { reason: 'NO_RECOGNISED_INCOME' } };
   }
 
-  // ── 4. Tenor: program ceiling, then age at maturity ─────────────────────
+  // ── 3. Tenor: program ceiling, then age at maturity ─────────────────────
   let binding: BindingConstraint = 'requested_amount';
   const noteConstraint = (candidate: BindingConstraint): void => {
     if (BINDING_PRECEDENCE[candidate] > BINDING_PRECEDENCE[binding]) binding = candidate;
@@ -269,8 +262,8 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     return { ok: false, unavailable: { reason: 'AGE_AT_MATURITY' } };
   }
 
-  // ── 5. Amount: clamp down to the program ceiling ────────────────────────
-  const minAmount = toFiniteDecimal(limitsForCurrency.minAmount) ?? new Decimal(0);
+  // ── 4. Amount: clamp down to the program ceiling ────────────────────────
+  const minAmount = toFiniteDecimal(program.loanLimits?.minAmountEGP) ?? new Decimal(0);
   let cash = round2(input.overrideAmountEGP ?? profile.requestedAmountEGP);
   if (cash.greaterThan(programMax)) {
     cash = round2(programMax);
@@ -298,7 +291,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     return { fees, booked, installment };
   };
 
-  // ── 6. Fees → booked principal → installment → DBR ──────────────────────
+  // ── 5. Fees → booked principal → installment → DBR ──────────────────────
   //
   // FR-012 — when the recognised income came FROM the income rule, the rule's own
   // `dbrCapPercentOverride` applies. `resolveAssumedIncome` already decided that
@@ -358,7 +351,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     recognisedIncomeEGP,
   };
 
-  // ── 7. Affordability (FR-022b) ──────────────────────────────────────────
+  // ── 6. Affordability (FR-022b) ──────────────────────────────────────────
   //
   // The check must use the SAME installment the customer is shown, so a quote
   // can never be presented that breaks its own cap.
@@ -421,7 +414,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     noteConstraint('dbr_affordability');
   }
 
-  // ── 8. Assemble ─────────────────────────────────────────────────────────
+  // ── 7. Assemble ─────────────────────────────────────────────────────────
   const totalFeesEGP = round2(priced.fees.totalFinancedFeesEGP);
   const offeredAmountEGP = round2(priced.booked);
   const cashToCustomerEGP = round2(offeredAmountEGP.minus(totalFeesEGP));
@@ -459,7 +452,6 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       incomeResolution,
       dbrCapSource,
       feesBreakdown: priced.fees.breakdown,
-      currency,
       cascadeTrace: buildCascadeTrace(cascade),
     },
   };

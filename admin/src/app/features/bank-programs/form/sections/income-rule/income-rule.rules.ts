@@ -128,7 +128,8 @@ export function incomeRuleHasError(args: {
     case 'bands':
       // No table on a value method: the percentage IS the rule, so it is checked the
       // same way a scalar method's figure is.
-      if (args.bands.length === 0 && args.isValueMethod) return !isPositiveNumeric(args.scalarValue);
+      if (args.bands.length === 0 && args.isValueMethod)
+        return !isPositiveNumeric(args.scalarValue);
       return incomeBandsErrorFor(args.bands) !== null;
     case 'scalar':
       return !isPositiveNumeric(args.scalarValue);

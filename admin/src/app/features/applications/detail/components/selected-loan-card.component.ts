@@ -63,7 +63,7 @@ interface FeeLine {
       <div class="principal">
         <div class="principal-figure">
           <span class="principal-value">{{ money(o.effectiveLoanAmountEGP) }}</span>
-          <span class="principal-currency">{{ o.currency }}</span>
+          <span class="principal-currency">EGP</span>
         </div>
         <p class="principal-note">
           @if (requestedAmountEGP(); as asked) {
@@ -159,7 +159,7 @@ interface FeeLine {
         @if (showCeiling()) {
           <div class="meta-item">
             <dt i18n="@@app.detail.selected.ceiling">Ceiling at this bank</dt>
-            <dd>{{ money(o.maxLoanAvailableEGP!) }} {{ o.currency }}</dd>
+            <dd>{{ money(o.maxLoanAvailableEGP!) }} EGP</dd>
           </div>
         }
         <div class="meta-item">

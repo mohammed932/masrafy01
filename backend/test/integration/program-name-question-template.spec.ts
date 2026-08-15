@@ -242,15 +242,15 @@ describe('catalog program-name question template', () => {
   });
 
   it('refuses an enumeration type that carries no template', async () => {
-    const rows = [row({ id: 'cur_1', type: 'currency', key: 'EGP' })];
+    const rows = [row({ id: 'gov_1', type: 'governorate', key: 'cairo' })];
     const repo = makeRepo(rows);
     const { service } = makeService(repo);
 
     await expect(
-      service.setQuestions('cur_1', PERSONAL, ['monthly_income'], ACTOR),
+      service.setQuestions('gov_1', PERSONAL, ['monthly_income'], ACTOR),
     ).rejects.toMatchObject({
       code: ERROR_CODES.ENUMERATION_QUESTIONS_NOT_APPLICABLE,
-      meta: { type: 'currency' },
+      meta: { type: 'governorate' },
     });
     expect(repo.setQuestions).not.toHaveBeenCalled();
   });

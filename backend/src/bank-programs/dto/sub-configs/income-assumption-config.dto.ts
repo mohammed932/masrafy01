@@ -105,8 +105,25 @@ export class IncomeScalarDto {
 }
 
 export class IncomeAssumptionConfigDto {
-  @ApiProperty({ enum: STRATEGIES as unknown as string[] })
-  @IsIn(STRATEGIES)
+  /**
+   * A built-in method token, or `fact:<key>` naming a row of the operator-managed fact
+   * registry.
+   *
+   * `@Matches` rather than `@IsIn`, because the legal set is no longer knowable at
+   * compile time — that is the whole point of the registry. The pattern is the SHAPE
+   * check this layer owns; whether the fact exists and can be served is decided in
+   * `validateIncomeRule`, which has the registry and answers with
+   * `INCOME_RULE_FACT_UNAVAILABLE` naming the alternatives. A `@IsIn` here would have
+   * refused every operator-defined method with a shape error listing eleven tokens.
+   */
+  @ApiProperty({
+    example: 'fact:military_grade',
+    description: `One of ${STRATEGIES.join(', ')} — or \`fact:<key>\` for a registry fact.`,
+  })
+  @IsString()
+  @Matches(/^(?:[a-zA-Z]+|fact:[a-z0-9_]+)$/, {
+    message: 'strategy must be a built-in method or `fact:<key>`',
+  })
   strategy!: IncomeAssumptionStrategy;
 
   // --- canonical shapes ------------------------------------------------------

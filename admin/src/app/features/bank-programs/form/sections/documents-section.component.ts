@@ -27,7 +27,13 @@ import {
   template: `
     <section class="section" [formGroup]="group" id="documents">
       <header class="section-header">
-        <span class="section-icon" nz-icon nzType="file-text" nzTheme="outline" aria-hidden="true"></span>
+        <span
+          class="section-icon"
+          nz-icon
+          nzType="file-text"
+          nzTheme="outline"
+          aria-hidden="true"
+        ></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.documents">Documents & notes</h3>
           <p class="section-sub" i18n="@@bank_programs.section.documents_sub">

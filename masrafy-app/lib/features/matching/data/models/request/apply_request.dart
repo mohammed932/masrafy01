@@ -17,7 +17,6 @@ class ApplyRequest {
     required this.employment,
     required this.obligations,
     required this.assets,
-    this.requestedCurrency = 'EGP',
     this.mortgageDetails,
     this.carDetails,
     this.category,
@@ -30,7 +29,6 @@ class ApplyRequest {
 
   /// Decimal string, 5000–50,000,000 (Principle I).
   final String requestedAmountEGP;
-  final String requestedCurrency;
   final int preferredTenorMonths;
 
   /// One of: lowest_installment | lowest_interest | fastest_approval | least_paperwork.
@@ -65,13 +63,13 @@ class ApplyRequest {
   Map<String, dynamic> toJson() => {
         'loanPurpose': loanPurpose,
         'requestedAmountEGP': requestedAmountEGP,
-        'requestedCurrency': requestedCurrency,
         'preferredTenorMonths': preferredTenorMonths,
         'priority': priority,
         'employment': employment.toJson(),
         'obligations': obligations.toJson(),
         'assets': assets.toJson(),
-        if (mortgageDetails != null) 'mortgageDetails': mortgageDetails!.toJson(),
+        if (mortgageDetails != null)
+          'mortgageDetails': mortgageDetails!.toJson(),
         if (carDetails != null) 'carDetails': carDetails!.toJson(),
         if (category != null) 'category': category,
         if (programNameKey != null) 'programNameKey': programNameKey,
@@ -225,7 +223,8 @@ class AssetsPayload {
   final String? creditCardLimitEGP;
 
   Map<String, dynamic> toJson() => {
-        if (creditCardLimitEGP != null) 'creditCardLimitEGP': creditCardLimitEGP,
+        if (creditCardLimitEGP != null)
+          'creditCardLimitEGP': creditCardLimitEGP,
       };
 }
 

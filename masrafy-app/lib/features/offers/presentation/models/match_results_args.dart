@@ -120,7 +120,6 @@ class MatchOffer {
     this.bankName = '',
     this.programCode = '',
     this.programFriendlyName = '',
-    this.currency = 'EGP',
     this.tier = ApprovalTier.veryLow,
     this.approvalUnrated = false,
     this.bankIsFeatured = false,
@@ -163,7 +162,6 @@ class MatchOffer {
   final String bankName;
   final String programCode;
   final String programFriendlyName;
-  final String currency;
   final ApprovalTier tier;
 
   /// No ACTIVE weight set behind [approvalPct] — show "Not rated", not "0%".
@@ -242,7 +240,6 @@ class MatchOffer {
       bankName: e.bankName,
       programCode: e.programCode,
       programFriendlyName: e.programFriendlyName,
-      currency: e.currency,
       tier: e.approvalTier,
       approvalUnrated: e.approvalUnrated,
       bankIsFeatured: e.bankIsFeatured,

@@ -144,13 +144,13 @@ describe('program-name loan-category assignment', () => {
   });
 
   it('refuses an enumeration type that has no category axis', async () => {
-    const rows = [row({ id: 'cur_1', type: 'currency', key: 'EGP' })];
+    const rows = [row({ id: 'gov_1', type: 'governorate', key: 'cairo' })];
     const repo = makeRepo(rows);
     const { service } = makeService(repo);
 
-    await expect(service.setCategories('cur_1', ['personal'], ACTOR)).rejects.toMatchObject({
+    await expect(service.setCategories('gov_1', ['personal'], ACTOR)).rejects.toMatchObject({
       code: ERROR_CODES.ENUMERATION_CATEGORIES_NOT_APPLICABLE,
-      meta: { type: 'currency' },
+      meta: { type: 'governorate' },
     });
     expect(repo.setCategories).not.toHaveBeenCalled();
   });
@@ -275,7 +275,7 @@ describe('program-name loan-category assignment', () => {
 
       await service.create(
         {
-          type: 'currency',
+          type: 'governorate',
           key: 'USD',
           labelAr: 'دولار',
           labelEn: 'Dollar',

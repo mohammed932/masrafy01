@@ -77,7 +77,6 @@ export class SeedService {
             programNameKey: dto.programNameKey,
             programType: dto.programType,
             productCategory: dto.productCategory,
-            currencies: dto.currencies,
             active: true,
             operatorNotes: dto.operatorNotes,
             operatorTips: dto.operatorTips,

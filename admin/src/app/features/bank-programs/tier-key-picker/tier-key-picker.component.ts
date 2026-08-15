@@ -35,10 +35,7 @@ import type { EnumerationType } from '../../../core/platform-enumerations/platfo
       <nz-form-item>
         <nz-form-label>{{ label() }}</nz-form-label>
         <nz-form-control>
-          <nz-select
-            [nzMode]="multiple() ? 'multiple' : 'default'"
-            [formControl]="control"
-          >
+          <nz-select [nzMode]="multiple() ? 'multiple' : 'default'" [formControl]="control">
             @for (m of members(); track m.key) {
               <nz-option [nzValue]="m.key" [nzLabel]="m.labelEn"></nz-option>
             }

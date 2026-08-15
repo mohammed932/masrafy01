@@ -45,7 +45,6 @@ export function buildApplicantContext(profile: ApplicantProfile): ApplicantConte
     assetsValueEGP: profile.assets.declaredAssetsValueEGP
       ? Number(profile.assets.declaredAssetsValueEGP.toString())
       : undefined,
-    requestedCurrency: profile.requestedCurrency,
   };
 }
 
@@ -79,7 +78,7 @@ export function runCascade(
 
   const pricing = evaluatePricing(config, ctx);
   const tenor = evaluateTenor(config, ctx);
-  const loanLimit = evaluateLoanLimit(config, ctx, profile.requestedCurrency);
+  const loanLimit = evaluateLoanLimit(config, ctx);
 
   return {
     pricing,

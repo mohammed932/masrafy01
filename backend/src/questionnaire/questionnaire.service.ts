@@ -15,11 +15,13 @@ import {
   obligationItemQuestionFor,
 } from '@/matching/pipeline/money-field-bindings';
 import {
-  SURROGATE_BOUND_QUESTION_CODES,
   SURROGATE_FACT_KEYS,
   SURROGATE_FACT_SPECS,
   type SurrogateBindingWarningReason,
+  type SurrogateFact,
+  type SurrogateFactSpec,
 } from '@/matching/pipeline/surrogate-fact-bindings';
+import { isBindableQuestionType } from '@/matching/pipeline/surrogate-fact-registry';
 import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { QuestionnaireRepository } from './questionnaire.repository';
 import { uniqueSlug } from './slug.util';
@@ -40,6 +42,7 @@ import type {
   CreateGroupDto,
   CreateOptionDto,
   CreateQuestionDto,
+  CreateQuestionWithOptionsDto,
   NumericRulesDto,
   TextRulesDto,
   UpdateGroupDto,
@@ -68,7 +71,14 @@ export class QuestionnaireService {
   private async surrogateBindingContext(
     activeQuestions: ReadonlyArray<{ id: string; code: string }>,
   ): Promise<SurrogateBindingContext> {
-    const wanted = new Set<string>(SURROGATE_BOUND_QUESTION_CODES);
+    // WHICH facts exist is the registry's answer now, not a code constant's. Read with
+    // the broken rows included (`getActiveMembers`, not `surrogateFactRegistry`): an
+    // unbound fact is exactly what this check exists to report, and the engine's read
+    // filters those out by design.
+    const facts = await this.enums.getActiveMembers('surrogate_fact');
+    const wanted = new Set<string>(
+      facts.flatMap((f) => (f.boundQuestion ? [f.boundQuestion.code] : [])),
+    );
     const optionCodesByQuestion = new Map<string, readonly string[]>();
     for (const q of activeQuestions) {
       if (!wanted.has(q.code)) continue;
@@ -86,6 +96,11 @@ export class QuestionnaireService {
       categoriesByQuestion.set(q.code, assignments.get(q.id) ?? []);
     }
 
+    // The enumeration each of the two LEGACY choice facts draws its option codes from.
+    // Only they have one: a fact an operator adds keys its table off the bound
+    // question's own options, so the two lists are one list by construction and there
+    // is no second list to drift from. Kept for the two that DO pair with an
+    // enumeration, because that pairing is real and its drift is silent.
     const registryMembers = new Map<string, readonly string[]>();
     for (const fact of SURROGATE_FACT_KEYS) {
       const registry = SURROGATE_FACT_SPECS[fact].registry;
@@ -99,7 +114,16 @@ export class QuestionnaireService {
       );
     }
 
-    return { optionCodesByQuestion, categoriesByQuestion, registryMembers };
+    return {
+      facts: facts.map((f) => ({
+        key: f.key,
+        questionCode: f.boundQuestion?.code ?? null,
+        questionType: f.boundQuestion?.type ?? null,
+      })),
+      optionCodesByQuestion,
+      categoriesByQuestion,
+      registryMembers,
+    };
   }
 
   // ---- Public read --------------------------------------------------------
@@ -248,6 +272,87 @@ export class QuestionnaireService {
     await this.repo.setCategories(created.id, dto.categories ?? ALL_LOAN_CATEGORIES);
     await this.publish(actor);
     return { ...created, categories: dto.categories ?? [...ALL_LOAN_CATEGORIES] };
+  }
+
+  /**
+   * Create a question AND its answers in one transaction, then publish ONCE.
+   *
+   * Backs the catalog's "New question" dialog, which authors a whole question —
+   * wording, type rules and every answer — before it commits anything. Composing
+   * it out of `createQuestion` + N × `createOption` would publish N+1 times, and
+   * the intermediate versions are not merely noisy: `GET /v1/questionnaire`
+   * serves the ACTIVE version, so each one is a real questionnaire, briefly
+   * asking a choice question that has one answer.
+   *
+   * The second reason it is not sugar: `createQuestion` cannot know how many
+   * options are coming, so it passes `MIN_CHOICE_OPTIONS_AT_CREATE` to satisfy
+   * the rule check. Here the count IS known, so a one-answer choice question and
+   * a NUMERIC arriving with answers are both refused before a row is written,
+   * instead of being published and flagged afterwards.
+   */
+  async createQuestionWithOptions(dto: CreateQuestionWithOptionsDto, actor: string) {
+    const groupId = dto.groupId ?? (await this.resolveDefaultGroupId());
+    const group = await this.repo.findGroup(groupId);
+    if (!group) {
+      throw new DomainException(ERROR_CODES.QUESTION_GROUP_NOT_FOUND);
+    }
+    const displayOrder = dto.displayOrder ?? (await this.repo.maxQuestionOrder()) + 1;
+    if (dto.enabledWhen) {
+      await this.assertEnabledWhenValid(displayOrder, dto.enabledWhen);
+    }
+    const type = dto.type ?? 'SINGLE_SELECT';
+    const options = dto.options ?? [];
+    // The real count, unlike `createQuestion`. Both directions bite: a choice
+    // type below MIN_CHOICE_OPTIONS, and a value type carrying answers at all.
+    assertQuestionTypeRules({
+      type,
+      numeric: dto.numeric ?? null,
+      text: dto.text ?? null,
+      activeOptionCount: options.length,
+    });
+
+    const existing = new Set((await this.repo.questionCodes()).map((q) => q.code));
+    const code = uniqueSlug(dto.questionEn, existing);
+    // Option codes are unique per QUESTION (`@@unique([questionId, code])`), so
+    // they collide only with their own siblings — accumulated as we go, because
+    // the question does not exist yet and has nothing to read them from.
+    const optionCodes = new Set<string>();
+    const optionRows = options.map((o) => {
+      const optionCode = uniqueSlug(o.labelEn, optionCodes);
+      optionCodes.add(optionCode);
+      return { code: optionCode, labelAr: o.labelAr, labelEn: o.labelEn };
+    });
+
+    // Same default as `createQuestion`: a question assigned to nothing is asked
+    // by nobody, so an omitted set means all four rather than none.
+    const categories = dedupeCategories(dto.categories ?? [...ALL_LOAN_CATEGORIES]);
+
+    const created = await this.repo.createQuestionWithOptions(
+      {
+        groupId,
+        code,
+        type,
+        questionAr: dto.questionAr,
+        questionEn: dto.questionEn,
+        helperTextAr: dto.helperTextAr ?? null,
+        helperTextEn: dto.helperTextEn ?? null,
+        isRequired: dto.isRequired ?? true,
+        displayOrder,
+        enabledWhen: dto.enabledWhen
+          ? (dto.enabledWhen as unknown as Prisma.InputJsonValue)
+          : Prisma.DbNull,
+        ...numericColumns(type, dto.numeric ?? null),
+        ...textColumns(type, dto.text ?? null),
+      },
+      optionRows,
+      categories,
+    );
+    await this.publish(actor);
+    return {
+      ...created,
+      categories,
+      options: optionRows.map((o, i) => ({ ...o, displayOrder: i })),
+    };
   }
 
   // ---- Loan-category assignment -------------------------------------------
@@ -983,6 +1088,19 @@ function collectPublishWarnings(
  * is otherwise configured.
  */
 export interface SurrogateBindingContext {
+  /**
+   * The facts as the REGISTRY holds them — every active one, including those whose
+   * binding is broken, because those are the ones worth a warning.
+   *
+   * `questionCode: null` is an unbound fact; `questionType: null` accompanies it, or
+   * marks a question of a type no table can be keyed by (the read that produced this
+   * drops the type in both cases, so the two collapse into one reported reason).
+   */
+  readonly facts: ReadonlyArray<{
+    key: string;
+    questionCode: string | null;
+    questionType: string | null;
+  }>;
   /** Active option codes per question code. */
   readonly optionCodesByQuestion: ReadonlyMap<string, readonly string[]>;
   /** Categories each question is assigned to, per `question_loan_category`. */
@@ -1029,12 +1147,30 @@ function collectSurrogateBindingWarnings(
   ctx: SurrogateBindingContext | undefined,
 ): PublishWarning[] {
   const warnings: PublishWarning[] = [];
+  // No context = no registry read, so there are no facts to check. Not a fallback to
+  // the four legacy specs: that would report a fact this environment may have retired.
+  if (!ctx) return warnings;
 
-  for (const fact of SURROGATE_FACT_KEYS) {
-    const spec = SURROGATE_FACT_SPECS[fact];
-    const questionCode = spec.questionCode;
+  for (const entry of ctx.facts) {
+    const fact = entry.key;
+    const questionCode = entry.questionCode;
+
+    // Unbound, or bound to a question that has left the pool / cannot key a table.
+    // One reason for all of them because the customer-facing outcome is identical —
+    // no figure at all — and the fix always starts on the same screen.
+    if (!questionCode || !isBindableQuestionType(entry.questionType ?? '')) {
+      warnings.push({
+        code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
+        meta: {
+          fact,
+          ...(questionCode ? { questionCode } : {}),
+          reason: 'missing_or_inactive' satisfies SurrogateBindingWarningReason,
+        },
+      });
+      continue;
+    }
+
     const q = byCode.get(questionCode);
-
     if (!q) {
       warnings.push({
         code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
@@ -1047,7 +1183,11 @@ function collectSurrogateBindingWarnings(
       continue;
     }
 
-    if (q.type !== spec.type) {
+    // The question's type as the POOL holds it, against the type the binding was made
+    // with. Normally equal; they part when an operator changes the type of a question
+    // some fact is bound to, which silently turns every bank table keyed by it into a
+    // table nothing can look up.
+    if (q.type !== entry.questionType) {
       warnings.push({
         code: ERROR_CODES.SURROGATE_FACT_BINDING_MISSING,
         meta: {
@@ -1055,14 +1195,12 @@ function collectSurrogateBindingWarnings(
           questionCode,
           reason: 'wrong_type' satisfies SurrogateBindingWarningReason,
           type: q.type,
-          expected: spec.type,
+          expected: entry.questionType,
         },
       });
       // Keep going: a wrong-typed question can also be unassigned, and an admin
       // fixing one only to find the other on the next publish is a wasted round.
     }
-
-    if (!ctx) continue;
 
     const categories = ctx.categoriesByQuestion.get(questionCode);
     // ABSENT and EMPTY differ. Absent means this caller does not know the
@@ -1080,7 +1218,12 @@ function collectSurrogateBindingWarnings(
       });
     }
 
-    if (spec.registry === null) continue;
+    // The enumeration pairing, for the two legacy choice facts that have one. A fact
+    // added on Manage values keys its table off this question's own options, so there
+    // is no second list for it to drift from — `spec` is undefined and the check is
+    // skipped, not defaulted to some enumeration guessed from the key.
+    const spec = SURROGATE_FACT_SPECS[fact as SurrogateFact] as SurrogateFactSpec | undefined;
+    if (!spec?.registry) continue;
     const members = ctx.registryMembers.get(spec.registry);
     const optionCodes = ctx.optionCodesByQuestion.get(questionCode);
     if (members === undefined || optionCodes === undefined) continue;

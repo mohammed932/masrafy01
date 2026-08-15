@@ -27,7 +27,7 @@ export const TEAM_ESTIMATED = 'team_estimated' as const;
 export type ValueSourceMap = Record<string, typeof TEAM_ESTIMATED>;
 
 /**
- * The config blobs a marker may point into. `programType`, `currencies`, names and
+ * The config blobs a marker may point into. `programType`, names and
  * flags are deliberately absent: they are not numbers a bank quotes, so "did the bank
  * state this?" is not a question about them.
  */

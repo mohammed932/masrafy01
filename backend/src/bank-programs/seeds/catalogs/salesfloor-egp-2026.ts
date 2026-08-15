@@ -16,7 +16,7 @@ export const salesfloorEgp2026: SeedCatalog = {
       programType: 'income_surrogate',
       productCategory: 'personal',
       tenor: { minMonths: 12, maxMonths: 84 },
-      loanLimits: { perCurrency: { EGP: { minAmount: '20000', maxAmount: '760000' } } },
+      loanLimits: { minAmountEGP: '20000', maxAmountEGP: '760000' },
       pricing: { isVariableRate: false, baseRatePercent: '27.0000' },
       eligibility: {
         acceptedEmploymentTypes: ['salaried', 'self_employed'],
@@ -57,7 +57,8 @@ export const salesfloorEgp2026: SeedCatalog = {
       productCategory: 'personal',
       tenor: { minMonths: 12, maxMonths: 84 },
       loanLimits: {
-        perCurrency: { EGP: { minAmount: '100000', maxAmount: '2000000' } },
+        minAmountEGP: '100000',
+        maxAmountEGP: '2000000',
         qualitativeReviewMaxEGP: '3000000',
       },
       pricing: {
@@ -100,7 +101,7 @@ export const salesfloorEgp2026: SeedCatalog = {
       programType: 'income_proof',
       productCategory: 'wealth',
       tenor: { minMonths: 12, maxMonths: 60 },
-      loanLimits: { perCurrency: { EGP: { minAmount: '1000000', maxAmount: '10000000' } } },
+      loanLimits: { minAmountEGP: '1000000', maxAmountEGP: '10000000' },
       pricing: { isVariableRate: false, baseRatePercent: '28.0000' },
       eligibility: {
         acceptedEmploymentTypes: ['salaried', 'self_employed'],
@@ -136,7 +137,7 @@ export const salesfloorEgp2026: SeedCatalog = {
       programType: 'income_proof',
       productCategory: 'car',
       tenor: { minMonths: 12, maxMonths: 84 },
-      loanLimits: { perCurrency: { EGP: { minAmount: '100000', maxAmount: '5000000' } } },
+      loanLimits: { minAmountEGP: '100000', maxAmountEGP: '5000000' },
       pricing: {
         isVariableRate: false,
         baseRatePercent: '26.0000',

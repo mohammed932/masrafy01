@@ -218,6 +218,37 @@ export class CreateOptionDto {
 }
 
 /**
+ * A question AND its answers in one request — the composite the catalog's
+ * "New question" dialog posts.
+ *
+ * `POST questions` + N × `POST questions/:id/options` would express the same
+ * thing, but every one of those writes ends in `publish()`, so a four-answer
+ * question would freeze FIVE versions and versions 2..4 would each carry a
+ * choice question with too few options. `GET /v1/questionnaire` serves the
+ * active version, so a customer fetching mid-create would be asked a
+ * half-built question. One request, one transaction, one publish.
+ *
+ * Extends `CreateQuestionDto` and reuses `CreateOptionDto` so neither half's
+ * validation can drift from the endpoint that already writes it.
+ */
+export class CreateQuestionWithOptionsDto extends CreateQuestionDto {
+  /**
+   * Omitted or empty is legal for TEXT / NUMERIC and rejected for the choice
+   * types — the service passes this length to `assertQuestionTypeRules`, which
+   * is the whole point: `createQuestion` cannot know the count yet and passes a
+   * placeholder, so a one-answer choice question gets published and flagged
+   * later. Here it is refused before anything is written.
+   */
+  @ApiPropertyOptional({ type: [CreateOptionDto] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => CreateOptionDto)
+  options?: CreateOptionDto[];
+}
+
+/**
  * Reorder the whole flat pool in one call: `ids` is the new order, front to back,
  * and `displayOrder` becomes each id's index. Sent as a full sequence rather than
  * a single moved id so a drag can never leave two questions sharing an order.

@@ -17,7 +17,7 @@
 /** Partial bank-program shape the seed composes a program from. */
 export interface ProgramBaseline {
   tenor?: { minMonths?: number; maxMonths?: number };
-  loanLimits?: { perCurrency?: Record<string, { minAmount?: string; maxAmount?: string }> };
+  loanLimits?: { minAmountEGP?: string; maxAmountEGP?: string };
   eligibility?: {
     ageMin?: number;
     ageMax?: number;
@@ -43,7 +43,7 @@ export interface ProgramBaseline {
   requiredDocuments?: string[];
 }
 
-const egp = (minAmount: string, maxAmount: string) => ({ perCurrency: { EGP: { minAmount, maxAmount } } });
+const egp = (minAmountEGP: string, maxAmountEGP: string) => ({ minAmountEGP, maxAmountEGP });
 
 /**
  * A plausible income-banded DBR curve: lower earners keep a larger share of

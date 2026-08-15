@@ -66,10 +66,10 @@ export class BanksService {
         currentEffectiveRatePercent?: string;
       };
       const limits = (r.loanLimits ?? {}) as {
-        perCurrency?: Record<string, { minAmount?: string; maxAmount?: string }>;
+        minAmountEGP?: string;
+        maxAmountEGP?: string;
       };
       const tenor = (r.tenor ?? {}) as { minMonths?: number; maxMonths?: number };
-      const egp = limits.perCurrency?.['EGP'];
       const isVariableRate = pricing.isVariableRate === true;
 
       return {
@@ -86,8 +86,8 @@ export class BanksService {
         ratePercent:
           (isVariableRate ? pricing.currentEffectiveRatePercent : pricing.baseRatePercent) ?? null,
         isVariableRate,
-        minAmountEGP: egp?.minAmount ?? null,
-        maxAmountEGP: egp?.maxAmount ?? null,
+        minAmountEGP: limits.minAmountEGP ?? null,
+        maxAmountEGP: limits.maxAmountEGP ?? null,
         minMonths: tenor.minMonths ?? null,
         maxMonths: tenor.maxMonths ?? null,
         updatedAt: r.updatedAt.toISOString(),

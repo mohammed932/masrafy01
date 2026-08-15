@@ -57,11 +57,6 @@ export class CreateBankProgramDto {
   /** Resolves to `product_category` enumeration; validated at service layer. */
   @IsString() productCategory!: string;
 
-  @IsArray()
-  @ArrayMinSize(1)
-  @IsString({ each: true })
-  currencies!: string[];
-
   /** Feature 008: Sharia / Islamic banking flag. Pricing semantics + UI labels shift. */
   @IsOptional() @IsBoolean() isShariaCompliant?: boolean;
 

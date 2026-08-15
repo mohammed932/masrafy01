@@ -9,6 +9,7 @@ import { BankProgramRepository } from '@/bank-programs/bank-programs.repository'
 import { toBankProgramSnapshot } from '@/bank-programs/bank-program-snapshot.mapper';
 import { matchesRequestedScope } from '@/bank-programs/program-scope';
 import { ProgramNameScopeService } from '@/platform-enumerations/program-name-scope.service';
+import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { quoteProgram } from '@/matching/pipeline/quote';
 import {
   DEBT_TYPES_QUESTION_CODE,
@@ -130,6 +131,7 @@ export class MatchingPreviewService {
     private readonly weightedScoring: WeightedApprovalScoringService,
     private readonly programs: BankProgramRepository,
     private readonly programNames: ProgramNameScopeService,
+    private readonly enumerations: PlatformEnumerationsRepository,
   ) {}
 
   /**
@@ -292,7 +294,13 @@ export class MatchingPreviewService {
       // Feature 011 — the SAME mapper apply reads (FR-019). Preview and apply
       // deriving the same engine input differently is a review block (A33), and this
       // is the input an income rule looks its table up by.
-      surrogateFacts: surrogateFactsFromAnswers({ optionByCode, numericByCode: numeric }),
+      surrogateFacts: surrogateFactsFromAnswers(
+        { optionByCode, numericByCode: numeric },
+        // Read here, not at construction: a fact an operator adds or repoints must
+        // move the next preview, and this service is a singleton that would otherwise
+        // hold the registry it booted with until the process restarted.
+        await this.enumerations.surrogateFactRegistry(),
+      ),
     };
   }
 
@@ -411,7 +419,6 @@ export class MatchingPreviewService {
       age,
       loanPurpose: 'personal',
       requestedAmountEGP: money.requestedAmountEGP,
-      requestedCurrency: 'EGP',
       preferredTenorMonths: money.tenorMonths,
       priority: 'lowest_installment',
       employment: {
@@ -438,6 +445,9 @@ export class MatchingPreviewService {
       // Was `{}` — which is exactly why `byCreditCardLimit` resolved to nothing on
       // preview even for an applicant who had answered the card-limit question.
       assets: { ...surrogateFacts.assets },
+      // The operator-defined facts, keyed — the same map apply builds, from the same
+      // mapper, so a `fact:` rule prices identically before and after apply (A33).
+      surrogateFacts: surrogateFacts.byKey,
     };
   }
 }

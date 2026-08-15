@@ -35,7 +35,13 @@ import {
   template: `
     <section class="section" [formGroup]="group" id="eligibility">
       <header class="section-header">
-        <span class="section-icon" nz-icon nzType="check-square" nzTheme="outline" aria-hidden="true"></span>
+        <span
+          class="section-icon"
+          nz-icon
+          nzType="check-square"
+          nzTheme="outline"
+          aria-hidden="true"
+        ></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.eligibility">Eligibility</h3>
           <p class="section-sub" i18n="@@bank_programs.section.eligibility_sub">
@@ -118,9 +124,7 @@ import {
           </nz-form-control>
         </nz-form-item>
         <nz-form-item class="numeric">
-          <nz-form-label
-            [nzFor]="'minMonthsInJob'"
-            i18n="@@bank_programs.field.min_months_in_job"
+          <nz-form-label [nzFor]="'minMonthsInJob'" i18n="@@bank_programs.field.min_months_in_job"
             >Minimum months in job</nz-form-label
           >
           <nz-form-control>
@@ -246,9 +250,7 @@ import {
           </nz-form-control>
         </nz-form-item>
         <nz-form-item class="numeric span-2">
-          <nz-form-label
-            [nzFor]="'minAssetsValueEGP'"
-            i18n="@@bank_programs.field.min_assets_value"
+          <nz-form-label [nzFor]="'minAssetsValueEGP'" i18n="@@bank_programs.field.min_assets_value"
             >Wealth gate — minimum assets value (EGP)</nz-form-label
           >
           <nz-form-control>

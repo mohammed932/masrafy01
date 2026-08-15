@@ -23,12 +23,17 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
   template: `
     <section class="section" [formGroup]="group" id="loan-limits">
       <header class="section-header">
-        <span class="section-icon" nz-icon nzType="credit-card" nzTheme="outline" aria-hidden="true"></span>
+        <span
+          class="section-icon"
+          nz-icon
+          nzType="credit-card"
+          nzTheme="outline"
+          aria-hidden="true"
+        ></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h3>
           <p class="section-sub" i18n="@@bank_programs.section.loan_limits_sub">
-            Min / max loan amount in EGP. Multi-currency editing and tier overrides land in the next
-            increment.
+            Min / max loan amount in EGP. Tier overrides land in the next increment.
           </p>
         </div>
       </header>
@@ -103,7 +108,6 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
 })
 export class LoanLimitsSectionComponent implements OnChanges {
   @Input({ required: true }) group!: FormGroup;
-  @Input() currencies: string[] = ['EGP'];
   @Input() requiresQualitativeReview = false;
 
   ngOnChanges(_changes: SimpleChanges): void {

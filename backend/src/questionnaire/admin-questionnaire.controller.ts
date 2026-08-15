@@ -21,6 +21,7 @@ import {
   CreateGroupDto,
   CreateOptionDto,
   CreateQuestionDto,
+  CreateQuestionWithOptionsDto,
   ReorderQuestionsDto,
   SetQuestionCategoriesBulkDto,
   SetQuestionCategoriesDto,
@@ -79,6 +80,21 @@ export class AdminQuestionnaireController {
   @ApiOperation({ summary: 'Create a question (code auto-generated)' })
   async createQuestion(@Body() dto: CreateQuestionDto, @CurrentUser() user: JwtPayload) {
     return ok(await this.service.createQuestion(dto, user.sub));
+  }
+
+  // Static segment declared BEFORE `questions/:id`, same posture as
+  // `questions/reorder` below — `with-options` must never be read as an id.
+  @Post('questions/with-options')
+  @ApiOperation({
+    summary: 'Create a question AND its answers in one transaction + ONE publish',
+    description:
+      'The composite the catalog’s “New question” dialog posts. Doing it as POST questions + N × POST questions/:id/options publishes N+1 times, and each intermediate version is served live by GET /v1/questionnaire — briefly asking a choice question that has one answer. Unlike POST questions, the option count is known here, so a choice question below two answers (and a NUMERIC/TEXT carrying any) is rejected before a row is written.',
+  })
+  async createQuestionWithOptions(
+    @Body() dto: CreateQuestionWithOptionsDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return ok(await this.service.createQuestionWithOptions(dto, user.sub));
   }
 
   // POST rather than PATCH `questions/order`: a PATCH under `questions/` would sit

@@ -753,9 +753,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get q_common_no => 'No';
 
   @override
-  String get q_common_currency_egp => 'EGP';
-
-  @override
   String get q_common_save => 'Save';
 
   @override
@@ -2133,9 +2130,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get reason_age_at_maturity => 'No available term keeps you within this program\'s age limit.';
-
-  @override
-  String get reason_currency_not_offered => 'This program doesn\'t offer the requested currency.';
 
   @override
   String get reason_program_misconfigured => 'This program can\'t be priced right now.';

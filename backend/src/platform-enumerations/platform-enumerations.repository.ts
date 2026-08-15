@@ -8,6 +8,10 @@
 
 import type { LoanCategory } from '@prisma/client';
 import type { IncomeBasis } from '@/common/income-basis.util';
+import type {
+  BindableQuestionType,
+  SurrogateFactBinding,
+} from '@/matching/pipeline/surrogate-fact-registry';
 
 export type EnumerationType =
   | 'transfer_type'
@@ -18,9 +22,15 @@ export type EnumerationType =
   | 'product_category'
   | 'company_type'
   | 'required_document'
-  | 'currency'
   | 'governorate'
-  | 'program_name';
+  | 'program_name'
+  /**
+   * The surrogate income FACTS a no-payslip rule can be keyed by — military grade,
+   * academic rank, years in practice, card limit, and whatever the next bank's table
+   * reads. Was a code constant with four entries; a fifth needed a release, while the
+   * table keyed by it was already data.
+   */
+  | 'surrogate_fact';
 
 /**
  * Types whose members carry no scoping PARENT. `parentKey` is force-nulled on
@@ -69,6 +79,82 @@ export const QUESTION_TEMPLATE_ENUMERATION_TYPES: readonly EnumerationType[] = [
 /** True when members of `type` carry a question template (see above). */
 export function isQuestionTemplateEnumerationType(type: string): boolean {
   return (QUESTION_TEMPLATE_ENUMERATION_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * Types whose members BIND ONE QUESTION — the answer that IS the member.
+ *
+ * Exactly one type today, and the reason it exists at all: a surrogate income fact
+ * is not a label, it is "the thing the bank's table is keyed by", which is
+ * meaningless without saying which question answers it. The other ten types are
+ * pickable values in their own right and bind nothing.
+ *
+ * Orthogonal to `QUESTION_TEMPLATE_ENUMERATION_TYPES`, which is a `program_name`
+ * SUGGESTING many questions to score on. This is one member reading one answer, and
+ * the engine reads it at quote time — an advisory template never is.
+ */
+export const QUESTION_BOUND_ENUMERATION_TYPES: readonly EnumerationType[] = ['surrogate_fact'];
+
+/** True when members of `type` bind a single question (see above). */
+export function isQuestionBoundEnumerationType(type: string): boolean {
+  return (QUESTION_BOUND_ENUMERATION_TYPES as readonly string[]).includes(type);
+}
+
+/**
+ * Which question types may be bound, and the fact shape the engine reads — both owned
+ * by `matching/pipeline/surrogate-fact-registry.ts` and re-exported here.
+ *
+ * The engine may not import from this layer (Principle V), so the contract lives on its
+ * side and the registry that fills it lives here. Re-exported rather than redeclared so
+ * the admin's validation and the resolver's lookup cannot disagree about what "bindable"
+ * means.
+ */
+export {
+  BINDABLE_QUESTION_TYPES,
+  isBindableQuestionType,
+} from '@/matching/pipeline/surrogate-fact-registry';
+export type {
+  BindableQuestionType,
+  SurrogateFactBinding,
+} from '@/matching/pipeline/surrogate-fact-registry';
+
+/**
+ * The question a `surrogate_fact` member reads, resolved.
+ *
+ * Carries the CODE as well as the id because the code is what every downstream
+ * reader speaks — answers arrive keyed by question code, and the publish check
+ * compares codes. `active` is carried rather than filtered on: a fact bound to a
+ * deactivated question must render as broken, not as unbound, because those have
+ * different fixes.
+ */
+export interface BoundQuestion {
+  id: string;
+  code: string;
+  type: BindableQuestionType;
+  labelAr: string;
+  labelEn: string;
+  active: boolean;
+  /**
+   * The question's ACTIVE options, in display order — the keys a bank's table for this
+   * fact may carry. Empty for a NUMERIC fact (its table is bands over the answer).
+   *
+   * Carried on the member so the bank-program key-table editor can offer the rows
+   * WITHOUT a second lookup, and — the point of FR-017 — so the keys it offers are the
+   * same list the applicant picks from, by construction rather than by a mapping someone
+   * has to keep in step.
+   */
+  options: Array<{ code: string; labelAr: string; labelEn: string }>;
+  /**
+   * The loan categories whose applicants are ASKED this question — the questionnaire's
+   * own answer, read straight off `question_loan_category`.
+   *
+   * Carried here because it is the only honest source for "can a program in this
+   * category be priced off this fact at all". The bank-program form used to ask a
+   * catalog NAME instead (a per-name tick-list the operator had to keep in step by
+   * hand, which no quote, publish check or save validation ever read); the question's
+   * own assignment is the thing the engine actually depends on.
+   */
+  askedIn: LoanCategory[];
 }
 
 /**
@@ -127,19 +213,15 @@ export interface EnumerationMember {
    */
   incomeBases?: IncomeBasesByCategory;
   /**
-   * `program_name` only — the surrogate FACTS this name is ticked to read, per loan
-   * category (`military_grade`, `years_in_practice`, …).
+   * `surrogate_fact` only — the question whose answer IS this fact.
    *
-   * NOT the income basis, which is `incomeBases` above. This answers the next
-   * question down: given that the name is sold without a payslip here, WHICH fact
-   * do its banks look up, and is the questionnaire asking it at all. The
-   * bank-program form uses it to warn that the method a program selected reads a
-   * fact nobody is asked — a rule that resolves to no income, silently.
-   *
-   * Derived from the ticked questions, never stored. `undefined` means "not
-   * loaded", never "none".
+   * `null` is a real, representable state, not a loading artefact: a fact can be
+   * created before its question exists, and a bound question can be deleted out from
+   * under it (`ON DELETE SET NULL`). Both read as "no bank can price this fact yet",
+   * which the questionnaire's publish check reports and the bank-program form warns
+   * on. `undefined` still means "not loaded".
    */
-  noPayslipFacts?: Partial<Record<LoanCategory, string[]>>;
+  boundQuestion?: BoundQuestion | null;
 }
 
 export abstract class PlatformEnumerationsRepository {
@@ -209,4 +291,33 @@ export abstract class PlatformEnumerationsRepository {
     key: string,
     category: LoanCategory,
   ): Promise<EnumerationQuestionTemplate | null>;
+
+  /**
+   * The surrogate income FACT registry — every ACTIVE fact with a resolvable bound
+   * question, as the engine needs it.
+   *
+   * Narrower than `getActiveMembers('surrogate_fact')` on purpose. That returns what
+   * the ADMIN must see, including the facts that are broken (unbound question, question
+   * deactivated) because those are the ones needing a fix. This returns what can
+   * actually be READ off an applicant, so the answer-to-fact mapping cannot silently
+   * produce a fact no question fills.
+   *
+   * Uncached by contract, like `memberCategories`: it feeds a quote, and a 60s window
+   * in which a repointed fact still resolves against the old question is a wrong
+   * income, not a stale picker.
+   */
+  abstract surrogateFactRegistry(): Promise<SurrogateFactBinding[]>;
+
+  /**
+   * The option codes one SINGLE_SELECT question offers, in display order.
+   *
+   * Here rather than in the questionnaire repository because the only caller is the
+   * income-rule validator, reached from bank-programs, which already depends on this
+   * module and does not depend on the questionnaire — and because the question is
+   * asked ABOUT a fact ("what keys may this fact's table use?"), which is this
+   * registry's business. Options of a non-select question, or of no question at all,
+   * are the empty list: every table row is then unknown, which is the correct
+   * rejection rather than a silent pass.
+   */
+  abstract questionOptionCodes(questionCode: string): Promise<string[]>;
 }

@@ -16,6 +16,7 @@ import {
   IsString,
   Length,
   Matches,
+  MaxLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -307,7 +308,47 @@ export class EnumerationRowDto {
     example: { personal: ['monthly_income', 'employer_name'], business: ['business_age'] },
   })
   questionsByCategory?: Partial<Record<LoanCategory, string[]>>;
+  /**
+   * The question whose ANSWER is this fact. `surrogate_fact` rows only.
+   *
+   * Three states, all meaningful: absent (this type binds no question), `null` (a fact
+   * nobody has pointed at a question yet, or whose question was deleted — no bank can
+   * price it), and present. A present-but-`active: false` question is a fourth: the
+   * binding stands, but the question has left the questionnaire, so no new applicant
+   * answers it. The screen renders all four differently because each has its own fix.
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    nullable: true,
+    example: { code: 'military_grade', type: 'SINGLE_SELECT', active: true },
+  })
+  boundQuestion?: {
+    code: string;
+    type: string;
+    labelAr: string;
+    labelEn: string;
+    active: boolean;
+  } | null;
   @ApiProperty() sortOrder!: number;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
+}
+
+/**
+ * Point one FACT at the question that answers it — the picker on Manage values.
+ *
+ * `questionCode: null` UNBINDS, and is why the field is nullable rather than optional:
+ * an absent key and an explicit `null` must not mean the same thing when the write is a
+ * full replacement of the binding.
+ */
+export class SetEnumerationBoundQuestionDto {
+  @ApiProperty({
+    nullable: true,
+    example: 'military_grade',
+    description: 'Question code, or null to unbind.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  questionCode!: string | null;
 }

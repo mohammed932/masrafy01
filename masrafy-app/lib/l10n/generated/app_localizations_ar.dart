@@ -756,9 +756,6 @@ class AppLocalizationsAr extends AppLocalizations {
   String get q_common_no => 'لا';
 
   @override
-  String get q_common_currency_egp => 'ج.م';
-
-  @override
   String get q_common_save => 'حفظ';
 
   @override
@@ -2136,9 +2133,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get reason_age_at_maturity => 'لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.';
-
-  @override
-  String get reason_currency_not_offered => 'هذا البرنامج لا يوفر العملة المطلوبة.';
 
   @override
   String get reason_program_misconfigured => 'لا يمكن تسعير هذا البرنامج حاليًا.';

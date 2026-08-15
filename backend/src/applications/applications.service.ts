@@ -31,6 +31,7 @@ import { BankProgramRepository } from '../bank-programs/bank-programs.repository
 import { toBankProgramSnapshot } from '../bank-programs/bank-program-snapshot.mapper';
 import { matchesRequestedScope } from '../bank-programs/program-scope';
 import { ProgramNameScopeService } from '@/platform-enumerations/program-name-scope.service';
+import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import { SavedOfferRepository } from '../saved-offers/saved-offer.repository';
 import { AuditEventWriter } from '../audit/audit-event.writer';
 import {
@@ -99,7 +100,6 @@ type PersistedOfferRow = {
   bankIsFeatured: boolean;
   isShariaCompliant: boolean;
   programFriendlyName: string;
-  currency: string;
   effectiveRatePercent: Decimal;
   monthlyInstallmentEGP: Decimal;
   requestedLoanAmountEGP: Decimal;
@@ -156,6 +156,7 @@ export class ApplicationsService {
     private readonly completeness: CustomerProfileCompletenessService,
     private readonly savedOffers: SavedOfferRepository,
     private readonly programNames: ProgramNameScopeService,
+    private readonly enumerations: PlatformEnumerationsRepository,
   ) {}
 
   /**
@@ -408,7 +409,7 @@ export class ApplicationsService {
     // block is client-supplied, the answers were validated against the published
     // snapshot, and a rule reading two different sources on two surfaces is the drift
     // A33 forbids (FR-019).
-    const surrogateFacts = this.resolveSurrogateFacts(resolvedQuestionnaire);
+    const surrogateFacts = await this.resolveSurrogateFacts(resolvedQuestionnaire);
     const profile = this.buildProfile(dto, age, obligations, surrogateFacts);
     // MVP simplification: eligibility gating is dropped on apply — every active
     // program yields an offer, ranked purely by the per-bank approval score.
@@ -496,7 +497,6 @@ export class ApplicationsService {
           result.status === 'matched' ? ApplicationStatus.matched : ApplicationStatus.no_match,
         priority: dto.priority,
         requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
-        requestedCurrency: dto.requestedCurrency ?? 'EGP',
         preferredTenorMonths: dto.preferredTenorMonths,
         loanPurpose: dto.loanPurpose,
         // Snapshot of the age the engine actually priced on (derived, not stored
@@ -533,7 +533,6 @@ export class ApplicationsService {
               customerId: ctx.customerId,
               loanPurpose: dto.loanPurpose,
               requestedAmountEGP: dto.requestedAmountEGP,
-              requestedCurrency: dto.requestedCurrency ?? 'EGP',
             },
           },
           tx,
@@ -690,7 +689,6 @@ export class ApplicationsService {
       bankIsFeatured: offer.bankIsFeatured,
       isShariaCompliant: offer.isShariaCompliant,
       programFriendlyName: offer.programFriendlyName,
-      currency: offer.currency,
       effectiveRatePercent: new Decimal(offer.effectiveRatePercent.toString()),
       monthlyInstallmentEGP: new Decimal(offer.monthlyInstallmentEGP.toString()),
       requestedLoanAmountEGP: new Decimal(offer.requestedLoanAmountEGP.toString()),
@@ -777,7 +775,6 @@ export class ApplicationsService {
       bankIsFeatured: o.bankIsFeatured,
       isShariaCompliant: o.isShariaCompliant,
       programFriendlyName: o.programFriendlyName,
-      currency: o.currency,
       effectiveRatePercent: o.effectiveRatePercent.toFixed(4),
       monthlyInstallmentEGP: o.monthlyInstallmentEGP.toFixed(2),
       requestedLoanAmountEGP: o.requestedLoanAmountEGP.toFixed(2),
@@ -824,7 +821,6 @@ export class ApplicationsService {
       JSON.stringify({
         loanPurpose: dto.loanPurpose,
         requestedAmountEGP: dto.requestedAmountEGP,
-        requestedCurrency: dto.requestedCurrency ?? 'EGP',
         preferredTenorMonths: dto.preferredTenorMonths,
         priority: dto.priority,
         employment: dto.employment,
@@ -898,10 +894,10 @@ export class ApplicationsService {
    * answers (a category-less legacy submit) means no facts — and an absent fact is
    * `SURROGATE_FACT_MISSING`, never a substituted zero.
    */
-  private resolveSurrogateFacts(
+  private async resolveSurrogateFacts(
     questionnaire: { resolved: ResolvedAnswer[]; askedQuestionCodes: string[] } | undefined,
-  ): SurrogateFacts {
-    if (!questionnaire) return { employment: {}, assets: {} };
+  ): Promise<SurrogateFacts> {
+    if (!questionnaire) return { employment: {}, assets: {}, byKey: {} };
     const optionByCode = new Map<string, string>();
     const numericByCode = new Map<string, string>();
     for (const a of questionnaire.resolved) {
@@ -912,7 +908,12 @@ export class ApplicationsService {
       if (picked !== undefined) optionByCode.set(a.questionCode, picked);
       if (a.numericValue !== null) numericByCode.set(a.questionCode, a.numericValue);
     }
-    return surrogateFactsFromAnswers({ optionByCode, numericByCode });
+    // The registry is read per apply, uncached. A quote priced off a fact the operator
+    // repointed an hour ago would be wrong in the one direction that matters — the
+    // offer freezes it (Principle I) — and one indexed read per application is not a
+    // budget worth defending against that.
+    const registry = await this.enumerations.surrogateFactRegistry();
+    return surrogateFactsFromAnswers({ optionByCode, numericByCode }, registry);
   }
 
   private buildProfile(
@@ -926,7 +927,6 @@ export class ApplicationsService {
       age,
       loanPurpose: dto.loanPurpose,
       requestedAmountEGP: new Decimal(dto.requestedAmountEGP),
-      requestedCurrency: dto.requestedCurrency ?? 'EGP',
       preferredTenorMonths: dto.preferredTenorMonths,
       priority: dto.priority,
       nationalId: dto.nationalId,
@@ -989,6 +989,11 @@ export class ApplicationsService {
             downPaymentEGP: new Decimal(dto.carDetails.downPaymentEGP),
           }
         : undefined,
+      // Registry facts, keyed. No request-body fallback like the four typed fields
+      // above have: an operator-defined fact has never existed on the apply DTO, so
+      // there is no legacy caller whose figures could be stripped by leaving it out —
+      // and adding one would let a client state a fact the questionnaire never asked.
+      surrogateFacts: surrogateFacts.byKey,
     };
   }
 }

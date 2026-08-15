@@ -631,7 +631,6 @@
   "home_cat_business": "أعمال",
   "q_common_yes": "نعم",
   "q_common_no": "لا",
-  "q_common_currency_egp": "ج.م",
   "q_common_save": "حفظ",
   "q_common_cancel": "إلغاء",
   "q_common_search": "بحث",
@@ -1262,10 +1261,6 @@
   "reason_age_at_maturity": "لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.",
   "@reason_age_at_maturity": {
     "description": "Backend AGE_AT_MATURITY reason code"
-  },
-  "reason_currency_not_offered": "هذا البرنامج لا يوفر العملة المطلوبة.",
-  "@reason_currency_not_offered": {
-    "description": "Backend CURRENCY_NOT_OFFERED reason code"
   },
   "reason_program_misconfigured": "لا يمكن تسعير هذا البرنامج حاليًا.",
   "@reason_program_misconfigured": {

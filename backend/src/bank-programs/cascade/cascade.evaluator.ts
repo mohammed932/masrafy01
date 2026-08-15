@@ -41,7 +41,8 @@ interface PricingConfig {
 }
 
 interface LoanLimitsConfig {
-  perCurrency: Record<string, { minAmount: string; maxAmount: string }>;
+  minAmountEGP: string;
+  maxAmountEGP: string;
   maxByCDTier?: Array<{ minCDValueEGP: string; maxAmountEGP: string }>;
   maxByPropertyType?: Record<string, string>;
   maxByCityTier?: Record<string, string>;
@@ -174,7 +175,6 @@ function floorBand(map: RateBandMap, applicantValue: number): TierMatch | null {
 export function evaluateLoanLimit(
   config: BankProgramConfig,
   ctx: ApplicantContext,
-  currency = 'EGP',
 ): LoanLimitResult {
   const ll = config.loanLimits;
   const trace: CascadeTraceStep[] = [];
@@ -216,9 +216,9 @@ export function evaluateLoanLimit(
     trace.push({ level: c.level, matched: false, reason: 'no key matched' });
   }
 
-  // Fallback to base perCurrency.maxAmount.
-  const baseMax = ll.perCurrency[currency]?.maxAmount ?? '0';
-  trace.push({ level: 'maxEGP', matched: true, value: baseMax, reason: `currency=${currency}` });
+  // Fallback to the program's own ceiling.
+  const baseMax = ll.maxAmountEGP ?? '0';
+  trace.push({ level: 'maxEGP', matched: true, value: baseMax, reason: 'base ceiling' });
   return {
     maxAmount: applyUpliftIfApproved(baseMax, ll, ctx, config.eligibility, trace),
     matchedLevel: 'maxEGP',

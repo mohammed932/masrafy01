@@ -7,15 +7,21 @@ import {
   flagsOfBases,
   type IncomeBasis,
 } from '@/common/income-basis.util';
-import { SURROGATE_BOUND_QUESTION_CODES } from '@/matching/pipeline/surrogate-fact-bindings';
+import { factKeyOf, factStrategy } from '@/matching/types';
+import { SURROGATE_FACTS_BY_STRATEGY } from '@/matching/pipeline/surrogate-fact-bindings';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
   EnumerationMember,
   EnumerationType,
   PlatformEnumerationsRepository,
+  BINDABLE_QUESTION_TYPES,
+  isBindableQuestionType,
+  type BindableQuestionType,
+  type BoundQuestion,
   type EnumerationQuestionTemplate,
   type IncomeBasesByCategory,
   type QuestionCodesByCategory,
+  type SurrogateFactBinding,
 } from './platform-enumerations.repository';
 
 export interface CreateEnumerationInput {
@@ -79,6 +85,20 @@ export interface ProgramNameUsage {
   noPayslipProgramsWithoutTable: number;
 }
 
+/**
+ * One surface that still names a registry key, and how many rows there are.
+ *
+ * A LIST of named sources rather than one total, because the number alone never
+ * tells the operator what to go fix: "12" is a repointing job when it is bank
+ * programs and an unfixable one when it is stored applications. `source` is the
+ * table, machine-readable — the client localises it, nothing here emits English
+ * to a caller (Principle III).
+ */
+export interface EnumerationReference {
+  source: string;
+  count: number;
+}
+
 export interface EnumerationTypeStats {
   type: string;
   total: number;
@@ -128,10 +148,38 @@ const ALL_TYPES: readonly EnumerationType[] = [
   'product_category',
   'company_type',
   'required_document',
-  'currency',
   'governorate',
   'program_name',
+  'surrogate_fact',
 ];
+
+/**
+ * What a bound question is read as, everywhere it is read.
+ *
+ * One constant because the two readers — the member payload and the admin's per-page
+ * map — must produce the same object: a screen that saw the options and a screen that
+ * did not would disagree about whether a fact's table can be filled in.
+ */
+const BOUND_QUESTION_SELECT = {
+  id: true,
+  code: true,
+  type: true,
+  questionAr: true,
+  questionEn: true,
+  isActive: true,
+  options: {
+    where: { isActive: true },
+    orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
+    select: { code: true, labelAr: true, labelEn: true },
+  },
+  // Who is ASKED this question. Rides along because it is what the bank-program form
+  // needs to say "this loan type is never asked the figure your rule reads" — the one
+  // condition under which a fact-keyed table quotes nothing at all.
+  loanCategories: { select: { category: true } },
+} as const satisfies Prisma.QuestionSelect;
+
+/** The one type whose members bind a question; see `QUESTION_BOUND_ENUMERATION_TYPES`. */
+const FACT_TYPE: EnumerationType = 'surrogate_fact';
 
 interface CacheEntry {
   members: EnumerationMember[];
@@ -204,19 +252,146 @@ export class PostgresPlatformEnumerationsRepository
       // can narrow its name picker in BOTH directions the instant the operator
       // picks a basis — no extra query, no extra round-trip.
       //
-      // The ticked QUESTIONS ride along too, but only their codes, and for a
-      // different job: the builder warns when the fact the chosen METHOD reads is
-      // not asked of this category's applicants. Reduced to the four fact codes in
-      // the mapper, so the payload gains one short array per name rather than
-      // every name's whole template.
       include: {
         loanCategories: { select: { category: true, payslip: true, noPayslip: true } },
-        questions: { select: { category: true, question: { select: { code: true } } } },
+        // `surrogate_fact` only in practice, but included unconditionally: the column
+        // is null on every other type, so a `where`-dependent include would buy one
+        // saved join on rows that have nothing to join to, at the cost of two shapes
+        // of member coming out of one mapper.
+        boundQuestion: { select: BOUND_QUESTION_SELECT },
       },
     });
     const members: EnumerationMember[] = rows.map(toEnumerationMember);
     this.cache.set(type, { members, expiresAt: Date.now() + CACHE_TTL_MS });
     return members;
+  }
+
+  /**
+   * The fact registry the ENGINE reads: active facts, bound to an active question of a
+   * shape a table can be keyed by.
+   *
+   * Every filter here is load-bearing, and each drops a fact the engine could otherwise
+   * "resolve" into a wrong number rather than into a stated reason:
+   *   · inactive / deprecated fact — the operator retired it; its programs must report
+   *     an unconfigured rule, not keep quoting off it
+   *   · unbound or deleted question — there is no answer to read
+   *   · inactive question — it has left the questionnaire, so no new application carries it
+   *   · TEXT / MULTI_SELECT — nothing a key table or a band table can be keyed by
+   */
+  async surrogateFactRegistry(): Promise<SurrogateFactBinding[]> {
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: {
+        type: FACT_TYPE,
+        active: true,
+        deprecatedAt: null,
+        boundQuestion: { isActive: true, type: { in: [...BINDABLE_QUESTION_TYPES] } },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+      select: { key: true, boundQuestion: { select: { code: true, type: true } } },
+    });
+    return rows.flatMap((row) => {
+      const q = row.boundQuestion;
+      // Unreachable given the `where` above; narrowed rather than asserted, because a
+      // `!` here would turn a future query edit into a runtime crash on the quote path.
+      if (!q || !isBindableQuestionType(q.type)) return [];
+      return [{ key: row.key, questionCode: q.code, type: q.type }];
+    });
+  }
+
+  /**
+   * Point a fact at a question, or unbind it (`null`).
+   *
+   * Takes the question CODE — what the operator picked and what every other surface
+   * speaks — and resolves it here, so no caller has to hold a question id. An unknown
+   * code is a validation failure the SERVICE raises with a typed error; returning
+   * `null` here would let a typo silently unbind a live fact.
+   */
+  async setBoundQuestion(
+    id: string,
+    questionCode: string | null,
+    updatedBy: string,
+  ): Promise<EnumerationRow> {
+    let boundQuestionId: string | null = null;
+    if (questionCode !== null) {
+      const question = await this.prisma.question.findUnique({
+        where: { code: questionCode },
+        select: { id: true },
+      });
+      if (!question) throw new Error(`question '${questionCode}' does not exist`);
+      boundQuestionId = question.id;
+    }
+    const row = await this.prisma.platformEnumeration.update({
+      where: { id },
+      data: { boundQuestionId, updatedBy },
+    });
+    return toEnumerationRow(row);
+  }
+
+  /**
+   * A question's ACTIVE option codes, in display order — the keys a fact's key table
+   * may carry.
+   *
+   * Inactive options are excluded: an option that has left the questionnaire can no
+   * longer be answered, so a table row keyed by it is dead weight the save should
+   * refuse, exactly as `isActiveMember` refuses a retired enumeration key.
+   */
+  async questionOptionCodes(questionCode: string): Promise<string[]> {
+    const rows = await this.prisma.questionOption.findMany({
+      where: { question: { code: questionCode }, isActive: true },
+      orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
+      select: { code: true },
+    });
+    return rows.map((r) => r.code);
+  }
+
+  /**
+   * Every fact's bound question, keyed by enumeration id — what the admin list needs
+   * to render a fact row.
+   *
+   * One query for the page, like `categoryAssignments` and `questionAssignments`, not
+   * one per row. Includes INACTIVE facts and inactive questions: this is the screen
+   * where a broken binding gets fixed, so filtering either out would hide exactly the
+   * rows the operator came for.
+   */
+  async boundQuestions(filter?: { type?: string }): Promise<Map<string, BoundQuestion>> {
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: {
+        ...(filter?.type ? { type: filter.type } : { type: FACT_TYPE }),
+        boundQuestionId: { not: null },
+      },
+      select: { id: true, boundQuestion: { select: BOUND_QUESTION_SELECT } },
+    });
+    const out = new Map<string, BoundQuestion>();
+    for (const row of rows) {
+      const q = row.boundQuestion;
+      // A bound question of an unbindable type is reported as UNBOUND rather than
+      // rendered: the fact is equally unpriceable either way, and the engine's registry
+      // read drops it for the same reason.
+      if (!q || !isBindableQuestionType(q.type)) continue;
+      out.set(row.id, {
+        id: q.id,
+        code: q.code,
+        type: q.type,
+        labelAr: q.questionAr,
+        labelEn: q.questionEn,
+        active: q.isActive,
+        options: q.options,
+        askedIn: sortCategories(q.loanCategories.map((c) => c.category)),
+      });
+    }
+    return out;
+  }
+
+  /** One question by code, as the fact-binding validation needs to judge it. */
+  async findBindableQuestion(code: string): Promise<{
+    code: string;
+    type: string;
+    isActive: boolean;
+  } | null> {
+    return this.prisma.question.findUnique({
+      where: { code },
+      select: { code: true, type: true, isActive: true },
+    });
   }
 
   /**
@@ -293,7 +468,6 @@ export class PostgresPlatformEnumerationsRepository
         incomeAssumption: true,
       },
     });
-    const promisesAFact = await this.noPayslipPairs();
     const acc = new Map<
       string,
       { programs: number; banks: Set<string>; noPayslip: number; withoutTable: number }
@@ -311,25 +485,20 @@ export class PostgresPlatformEnumerationsRepository
       // the three live `personal` + `income_surrogate` programs stayed unconfigured.
       if (r.programType === BankProgramType.income_surrogate) {
         entry.noPayslip += 1;
-        // "No table" needs BOTH halves of a contradiction, not just an empty rule.
+        // "No table" is a contradiction INSIDE one program: its rule says the income is
+        // worked out from a fact about the applicant, and the table that does the working
+        // out is empty. Such a program quotes nothing, to every applicant, in silence.
         //
-        // `strategy: 'declared'` on a surrogate program is a legitimate configuration on
-        // its own — business and professional programs carry exactly that pair on purpose
-        // (the type marks the lane; the applicant's stated salary is the figure). The old
-        // category gate protected them by accident, and re-gating on the type alone would
-        // have put seven correctly-configured programs on the board's warning list, which
-        // is worse than the silence it replaced: an operator cannot clear them.
+        // Read off the program alone. It used to also require the catalog NAME to be
+        // ticked for a fact — a second, hand-maintained claim that no quote, publish
+        // check or save validation ever read, and the ticks are gone with it.
         //
-        // The contradiction is with the NAME: its catalog entry promises that banks here
-        // work the income out from a fact, and this program reads the salary instead. That
-        // pair is unclearable-by-design only if one of the two is wrong, which is exactly
-        // what the badge should send someone to look at.
-        if (
-          assumesNoIncome(r.incomeAssumption) &&
-          promisesAFact.has(pairKey(key, r.productCategory))
-        ) {
-          entry.withoutTable += 1;
-        }
+        // `strategy: 'declared'` is deliberately NOT counted: on a surrogate program it
+        // is a legitimate configuration that business and professional programs carry on
+        // purpose (the type marks the lane; the applicant's stated salary is the figure).
+        // Flagging those would put correctly-configured programs on a warning list an
+        // operator has no way to clear.
+        if (readsAFactWithNoTable(r.incomeAssumption)) entry.withoutTable += 1;
       }
       acc.set(key, entry);
     }
@@ -344,23 +513,6 @@ export class PostgresPlatformEnumerationsRepository
         },
       ]),
     );
-  }
-
-  /**
-   * Every `(program_name key, category)` pair whose catalog entry promises a fact-based
-   * income — i.e. one of the four surrogate facts is among its ticked questions.
-   *
-   * One query rather than a join onto the program read, because the two are different
-   * grains: a name's promise is per (name, category), and the programs are per bank. Read
-   * uncached — it backs the board's warning count, and a 60s window in which a just-ticked
-   * fact does not move the number reads as a broken screen.
-   */
-  private async noPayslipPairs(): Promise<Set<string>> {
-    const rows = await this.prisma.platformEnumerationQuestion.findMany({
-      where: { question: { code: { in: [...SURROGATE_BOUND_QUESTION_CODES] } } },
-      select: { category: true, enumeration: { select: { key: true } } },
-    });
-    return new Set(rows.map((r) => pairKey(r.enumeration.key, r.category)));
   }
 
   async listTypeStats(): Promise<EnumerationTypeStats[]> {
@@ -806,14 +958,116 @@ export class PostgresPlatformEnumerationsRepository
   }
 
   /**
+   * Everywhere a value of `type` is still named, per referencing surface — the
+   * check EVERY hard delete hangs on, not just the catalog's.
+   *
+   * `null` means "this type's references cannot be counted", which is a refusal,
+   * not zero. The distinction is the whole point: no enumeration key carries an FK
+   * anywhere (the registry's unique key is the composite `(type, key)`), so Postgres
+   * will happily delete a row half the platform still reads. A type whose readers
+   * are not enumerated here must therefore be refused rather than guessed at — the
+   * ghost rows A26 forbids.
+   *
+   * Every read lives here rather than in the owning feature's repository for the
+   * same reason `countProgramNameUsage` does: bank-programs already depends on this
+   * module, so importing back would close a cycle.
+   */
+  async countReferences(
+    type: EnumerationType,
+    key: string,
+  ): Promise<EnumerationReference[] | null> {
+    switch (type) {
+      case 'program_name': {
+        const refs = await this.countProgramNameReferences(key);
+        return [
+          { source: 'bank_program', count: refs.programs },
+          { source: 'application', count: refs.applications },
+        ];
+      }
+      case 'product_category': {
+        const programs = await this.prisma.bankProgram.count({
+          where: { productCategory: key },
+        });
+        return [{ source: 'bank_program', count: programs }];
+      }
+      case 'required_document': {
+        // Two surfaces with different consequences: a program DEMANDS the key,
+        // an uploaded document IS one. Deleting under either leaves a string
+        // nothing can render a label for.
+        const [programs, documents] = await Promise.all([
+          this.prisma.bankProgram.count({ where: { requiredDocuments: { has: key } } }),
+          this.prisma.document.count({ where: { documentType: key } }),
+        ]);
+        return [
+          { source: 'bank_program', count: programs },
+          { source: 'document', count: documents },
+        ];
+      }
+      case 'governorate': {
+        const customers = await this.prisma.customerAccount.count({ where: { governorate: key } });
+        return [{ source: 'customer', count: customers }];
+      }
+      case 'employment_type': {
+        const programs = await this.prisma.bankProgram.count({
+          where: {
+            eligibility: {
+              path: ['acceptedEmploymentTypes'],
+              array_contains: key,
+            } as Prisma.JsonFilter,
+          },
+        });
+        return [{ source: 'bank_program', count: programs }];
+      }
+      case 'transfer_type': {
+        // BOTH spellings, because `normalizeEligibility` still reads the legacy
+        // `acceptedTransferTypes` — counting only the current one would report a
+        // program the engine actively filters on as not using the key at all.
+        const programs = await this.prisma.bankProgram.count({
+          where: {
+            OR: [
+              {
+                eligibility: {
+                  path: ['acceptedSalaryTransferTypes'],
+                  array_contains: key,
+                } as Prisma.JsonFilter,
+              },
+              {
+                eligibility: {
+                  path: ['acceptedTransferTypes'],
+                  array_contains: key,
+                } as Prisma.JsonFilter,
+              },
+            ],
+          },
+        });
+        return [{ source: 'bank_program', count: programs }];
+      }
+      case 'surrogate_fact': {
+        // A fact is named by the income rule's STRATEGY TOKEN, not by a column:
+        // `fact:<key>` is how a bank's table says which figure it reads.
+        const programs = await this.prisma.bankProgram.count({
+          where: {
+            incomeAssumption: {
+              path: ['strategy'],
+              equals: factStrategy(key),
+            } as Prisma.JsonFilter,
+          },
+        });
+        return [{ source: 'bank_program', count: programs }];
+      }
+      default:
+        return null;
+    }
+  }
+
+  /**
    * Hard delete. `platform_enumeration_loan_category` and
    * `platform_enumeration_question` cascade with the row (both declare
    * `onDelete: Cascade`), so this is one statement and leaves no orphan
    * assignment behind.
    *
-   * Callers check references FIRST — see `countProgramNameReferences`. Nothing at
-   * this layer can refuse the delete, because nothing here knows what the key is
-   * worth.
+   * Callers check references FIRST — see `countReferences`. Nothing at this layer
+   * can refuse the delete, because nothing here knows what the key is worth.
    */
   async deleteById(id: string): Promise<void> {
     await this.prisma.platformEnumeration.delete({ where: { id } });
@@ -823,18 +1077,27 @@ export class PostgresPlatformEnumerationsRepository
 }
 
 /**
- * A program whose income rule names no METHOD — so nothing is assumed and the
- * declared salary is all it has. `strategy: 'declared'` is exactly that state: correct
- * on an `income_proof` program, but on a no-payslip one it means the bank's table is
- * still missing.
+ * A program whose rule reads a FACT about the applicant but carries no table to read
+ * it with — the state in which it produces no income figure at all.
  *
- * Reads the JSON defensively: the column is `Json`, so anything could be in it, and
- * an unreadable blob is treated as "no method" rather than throwing on a list read.
+ * "Reads a fact" is either of the two token families: the four frozen built-in methods
+ * (`byMilitaryGrade` &c., which name a question in `SURROGATE_FACTS_BY_STRATEGY`) and
+ * the registry's `fact:<key>`. Every other method reads a profile field or a scalar and
+ * has nothing to key a table by, so an empty table is not a gap for them.
+ *
+ * Reads the JSON defensively: the column is `Json`, so anything could be in it, and an
+ * unreadable blob is NOT counted rather than throwing on a list read.
  */
-function assumesNoIncome(rule: unknown): boolean {
-  if (!rule || typeof rule !== 'object') return true;
-  const strategy = (rule as { strategy?: unknown }).strategy;
-  return typeof strategy !== 'string' || strategy === 'declared';
+function readsAFactWithNoTable(rule: unknown): boolean {
+  if (!rule || typeof rule !== 'object') return false;
+  const r = rule as { strategy?: unknown; keyTable?: unknown; bands?: unknown };
+  if (typeof r.strategy !== 'string') return false;
+  const readsAFact =
+    factKeyOf(r.strategy) !== null || (SURROGATE_FACTS_BY_STRATEGY[r.strategy]?.length ?? 0) > 0;
+  if (!readsAFact) return false;
+  const rows = Array.isArray(r.keyTable) ? r.keyTable.length : 0;
+  const bands = Array.isArray(r.bands) ? r.bands.length : 0;
+  return rows === 0 && bands === 0;
 }
 
 // ---- Boundary mapper (Prisma row -> domain row) --------------------------
@@ -856,19 +1119,19 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
   };
 }
 
-/**
- * `(catalog name, category)` as one map key. `productCategory` is a free-form column, so
- * it is lowercased here — a program filed as "Personal" must match the `personal` tick
- * rather than silently miss it and read as correctly configured.
- */
-function pairKey(nameKey: string, category: string): string {
-  return `${nameKey}::${category.toLowerCase()}`;
-}
-
-/** Both relations are optional so callers that don't `include` them still map. */
+/** Every relation is optional so callers that don't `include` them still map. */
 type PlatformEnumerationWithCategories = PlatformEnumeration & {
   loanCategories?: { category: LoanCategory; payslip?: boolean; noPayslip?: boolean }[];
-  questions?: { category: LoanCategory; question: { code: string } }[];
+  boundQuestion?: {
+    id: string;
+    code: string;
+    type: QuestionType;
+    questionAr: string;
+    questionEn: string;
+    isActive: boolean;
+    options: Array<{ code: string; labelAr: string; labelEn: string }>;
+    loanCategories?: Array<{ category: LoanCategory }>;
+  } | null;
 };
 
 function toEnumerationMember(row: PlatformEnumerationWithCategories): EnumerationMember {
@@ -882,7 +1145,32 @@ function toEnumerationMember(row: PlatformEnumerationWithCategories): Enumeratio
     deprecated: row.deprecatedAt !== null,
     categories: sortCategories((row.loanCategories ?? []).map((c) => c.category)),
     incomeBases: incomeBasesOf(row.loanCategories),
-    noPayslipFacts: noPayslipFactsOf(row.questions),
+    boundQuestion: boundQuestionOf(row),
+  };
+}
+
+/**
+ * The bound question, as the admin needs to see it — including the two broken states.
+ *
+ * A question of an UNBINDABLE type (TEXT, MULTI_SELECT) cannot arrive through the write
+ * path, which rejects it. It can still be read: an operator may change a bound
+ * question's type on the questionnaire screen afterwards. Reported as unbound rather
+ * than mapped, because a fact bound to a TEXT answer is exactly as unpriceable as a fact
+ * bound to nothing, and the engine's registry read drops it for the same reason.
+ */
+function boundQuestionOf(row: PlatformEnumerationWithCategories): BoundQuestion | null | undefined {
+  if (row.boundQuestion === undefined) return undefined;
+  const q = row.boundQuestion;
+  if (!q || !isBindableQuestionType(q.type)) return null;
+  return {
+    id: q.id,
+    code: q.code,
+    type: q.type as BindableQuestionType,
+    labelAr: q.questionAr,
+    labelEn: q.questionEn,
+    active: q.isActive,
+    options: q.options,
+    askedIn: sortCategories((q.loanCategories ?? []).map((c) => c.category)),
   };
 }
 
@@ -906,29 +1194,3 @@ function incomeBasesOf(
   return out;
 }
 
-/**
- * The surrogate FACTS this name is ticked to read, per loan category — so a category with
- * a non-empty list is one under which the name is sold without a payslip.
- *
- * Derived here, on the cached member payload, for one reason: the bank-program form must
- * both filter its name picker by income basis and tell the operator whether the fact their
- * chosen method reads is actually set up — and it cannot read the picks any other way. The
- * full question template is deliberately kept off this payload, and the screens that hold
- * it (`/admin/enumerations`, the questionnaire tree) are gated to narrower roles than the
- * program form. Only the four fact codes ride along, never the whole template.
- *
- * Per CATEGORY, because a name is legitimately no-payslip under Personal and payslip-only
- * under Auto, and every consumer is asking about one category at a time.
- */
-function noPayslipFactsOf(
-  questions: { category: LoanCategory; question: { code: string } }[] | undefined,
-): Partial<Record<LoanCategory, string[]>> | undefined {
-  if (questions === undefined) return undefined;
-  const facts = new Set<string>(SURROGATE_BOUND_QUESTION_CODES);
-  const out: Partial<Record<LoanCategory, string[]>> = {};
-  for (const q of questions) {
-    if (!facts.has(q.question.code)) continue;
-    (out[q.category] ??= []).push(q.question.code);
-  }
-  return out;
-}

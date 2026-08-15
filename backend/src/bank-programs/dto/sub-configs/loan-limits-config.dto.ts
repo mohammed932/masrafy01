@@ -3,12 +3,17 @@ import { DecimalRange } from '../../../common/decorators/decimal-range.decorator
 
 /**
  * Spec anchors: FR-003, FR-003a (qualitativeReviewMaxEGP semantics).
- * `perCurrency` keys MUST be a superset of the program's `currencies[]` list — enforced at service layer.
+ *
+ * EGP-only: the platform lends in one currency, so the floor and ceiling are two
+ * scalars rather than the per-currency map they used to be
+ * (`20260815140000_drop_currency`).
  */
 export class LoanLimitsConfigDto {
-  /** Per-currency min/max. Shape: { EGP: { minAmount, maxAmount }, USD?: { ... }, EUR?: { ... } } */
-  @IsObject()
-  perCurrency!: Record<string, { minAmount: string; maxAmount: string }>;
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
+  minAmountEGP!: string;
+
+  @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
+  maxAmountEGP!: string;
 
   @IsOptional()
   @IsArray()

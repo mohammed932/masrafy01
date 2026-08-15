@@ -4,9 +4,11 @@ import {
   KEY_TABLE_REGISTRY,
   KEY_TABLE_STRATEGIES,
   SCALAR_STRATEGIES,
+  factKeyOf,
   type IncomeAssumptionConfig,
   type IncomeAssumptionStrategy,
 } from '@/matching/types';
+import type { SurrogateFactBinding } from '@/matching/pipeline/surrogate-fact-registry';
 import { legacyScalarKeysFor } from '@/matching/pipeline/income-rule-normalize';
 import type { IncomeRuleBandsInvalidReason } from '@/common/errors/domain.exceptions';
 
@@ -35,7 +37,9 @@ export type IncomeRuleViolation =
   | { kind: 'duplicateKey'; key: string }
   | { kind: 'unknownKey'; key: string; registry: string; activeKeys: string[] }
   | { kind: 'bandsInvalid'; index: number | null; reason: IncomeRuleBandsInvalidReason }
-  | { kind: 'dbrOverrideInvalid'; value: string };
+  | { kind: 'dbrOverrideInvalid'; value: string }
+  /** The rule reads a registry fact the registry cannot serve (see the error code). */
+  | { kind: 'factUnavailable'; factKey: string; availableFacts: string[] };
 
 /** Non-blocking findings. Reported in `data.warnings`, never a rejection. */
 export type IncomeRuleWarning =
@@ -52,6 +56,20 @@ export interface IncomeRuleValidationContext {
   isActiveMember(enumerationType: string, key: string): Promise<boolean>;
   /** The active members of `enumerationType`, for the rejection's `meta`. */
   activeMembers(enumerationType: string): Promise<readonly string[]>;
+  /**
+   * The operator-managed FACT registry — every fact the engine can currently read.
+   *
+   * Injected like the two above, and for the same reason: the validator stays pure, and
+   * the admin rule-CHECK endpoint validates a draft through the identical code path the
+   * save uses. Passed as the whole list rather than a per-key probe because a rejection
+   * has to name the alternatives, and asking twice invites the two answers to differ.
+   */
+  surrogateFacts(): Promise<readonly SurrogateFactBinding[]>;
+  /**
+   * The option codes a SINGLE_SELECT question offers — the keys a fact's key table may
+   * use. Empty for a question with no options, which makes any row unknown.
+   */
+  questionOptionCodes(questionCode: string): Promise<readonly string[]>;
 }
 
 const ZERO = new Prisma.Decimal(0);
@@ -99,6 +117,12 @@ export async function validateIncomeRule(
   const overrideViolation = validateDbrOverride(config.dbrCapPercentOverride);
   if (overrideViolation) return overrideViolation;
 
+  // A registry fact, checked before the built-in sets: `fact:` names the registry
+  // whatever else the key spells, and the table's SHAPE follows the bound question
+  // rather than a hardcoded per-method set.
+  const factKey = factKeyOf(strategy);
+  if (factKey !== null) return validateFactRule(config, factKey, ctx);
+
   if (KEY_STRATEGY_SET.has(strategy)) {
     return validateKeyTable(config, strategy, ctx);
   }
@@ -109,6 +133,69 @@ export async function validateIncomeRule(
     return validateScalar(config, strategy);
   }
   // `declared` carries no configuration and nothing to check.
+  return undefined;
+}
+
+/**
+ * A `fact:<key>` rule — the generic form of the four hand-written fact methods.
+ *
+ * Two checks, in this order:
+ *
+ *   1. CAN THE REGISTRY SERVE THE FACT? An unserveable fact is refused rather than
+ *      warned about, because the alternative is a program that saves clean and then
+ *      quotes every applicant off their declared salary as though the bank's table did
+ *      not exist — the exact silent failure this feature was built to end.
+ *   2. IS THE TABLE VALID FOR THE FACT'S SHAPE? A choice fact is a key table whose keys
+ *      are the QUESTION'S OPTION CODES — not an enumeration's members. That is the
+ *      whole point of binding a question: the two lists are one list by construction,
+ *      so a renamed option cannot leave a table pointing at a key nobody can answer.
+ */
+async function validateFactRule(
+  config: IncomeAssumptionConfig,
+  factKey: string,
+  ctx: IncomeRuleValidationContext,
+): Promise<IncomeRuleViolation | undefined> {
+  const registry = await ctx.surrogateFacts();
+  const fact = registry.find((f) => f.key === factKey);
+  if (!fact) {
+    return { kind: 'factUnavailable', factKey, availableFacts: registry.map((f) => f.key) };
+  }
+
+  if (fact.type === 'NUMERIC') {
+    // No scalar escape hatch, unlike `byCDValue`: a fact method has no legacy percent
+    // form to preserve (FR-015 protects figures that already exist, and no stored rule
+    // predates the registry). Nothing configured is `INCOME_RULE_EMPTY`.
+    return validateBands(config, config.strategy, { bandsRequired: true });
+  }
+
+  const table = config.keyTable;
+  if (!table || table.length === 0) return { kind: 'empty', strategy: config.strategy };
+
+  const optionCodes = new Set(await ctx.questionOptionCodes(fact.questionCode));
+  const seen = new Set<string>();
+  for (const row of table) {
+    if (seen.has(row.key)) return { kind: 'duplicateKey', key: row.key };
+    seen.add(row.key);
+
+    const income = toDecimalOrNull(row.incomeEGP);
+    if (income === null || income.lessThanOrEqualTo(ZERO)) {
+      return { kind: 'incomeInvalid', key: row.key, incomeEGP: row.incomeEGP };
+    }
+
+    if (!optionCodes.has(row.key)) {
+      // Reported through `unknownKey` with the QUESTION as the registry: the admin's
+      // fix is identical ("this key is not offered — pick a current one"), and a second
+      // code for the same sentence would need its own entry in every locale dictionary
+      // to say the same thing.
+      return {
+        kind: 'unknownKey',
+        key: row.key,
+        registry: fact.questionCode,
+        activeKeys: [...optionCodes],
+      };
+    }
+  }
+
   return undefined;
 }
 
@@ -157,10 +244,13 @@ async function validateKeyTable(
 function validateBands(
   config: IncomeAssumptionConfig,
   strategy: IncomeAssumptionStrategy,
+  opts: { bandsRequired?: boolean } = {},
 ): IncomeRuleViolation | undefined {
   const bands = config.bands;
   if (!bands || bands.length === 0) {
-    if (BANDS_REQUIRED_STRATEGIES.has(strategy)) return { kind: 'empty', strategy };
+    if (opts.bandsRequired || BANDS_REQUIRED_STRATEGIES.has(strategy)) {
+      return { kind: 'empty', strategy };
+    }
     // A value method may legitimately carry the legacy percent scalar INSTEAD of a
     // band table — but only if it actually carries one. The escape hatch used to be
     // unconditional, so a brand-new `byCDValue` program with no bands and no percent
@@ -366,7 +456,17 @@ export function stripForeignMethodConfig(
     ...(config.combinationRule !== undefined ? { combinationRule: config.combinationRule } : {}),
   };
 
-  if (KEY_STRATEGY_SET.has(strategy) && config.keyTable) {
+  if (factKeyOf(strategy) !== null) {
+    // A REGISTRY fact keeps whichever canonical shape the save carries — this function
+    // is synchronous and has no registry, so it cannot know whether the bound question
+    // is a choice or a number. Keeping both is safe in the only direction that matters:
+    // `validateIncomeRule` runs first and REJECTS the wrong shape for the fact, so a
+    // blob reaching persistence has already been judged against the binding. Guessing
+    // here instead would silently delete the bank's table on a rule the validator was
+    // about to accept.
+    if (config.keyTable) keep.keyTable = config.keyTable;
+    if (config.bands) keep.bands = config.bands;
+  } else if (KEY_STRATEGY_SET.has(strategy) && config.keyTable) {
     keep.keyTable = config.keyTable;
   } else if (BAND_STRATEGY_SET.has(strategy) && config.bands) {
     keep.bands = config.bands;

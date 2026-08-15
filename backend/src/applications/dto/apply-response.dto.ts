@@ -84,7 +84,6 @@ export interface ApplyMatchedResponse {
       bankIsFeatured: boolean;
       isShariaCompliant: boolean;
       programFriendlyName: string;
-      currency: string;
       effectiveRatePercent: string;
       monthlyInstallmentEGP: string;
       requestedLoanAmountEGP: string;

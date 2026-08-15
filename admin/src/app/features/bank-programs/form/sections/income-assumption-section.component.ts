@@ -24,8 +24,12 @@ import type { EnumerationType } from '@core/platform-enumerations/platform-enume
 import {
   INCOME_BAND_UNIT,
   INCOME_KEY_REGISTRY,
-  INCOME_METHOD_SHAPE,
+  factKeyOf,
+  factKeyOptions,
   incomeMethodGroups,
+  incomeMethodShape,
+  registryFacts,
+  type BuiltinIncomeStrategy,
   type IncomeAssumptionStrategy,
   type IncomeBand,
   type IncomeKeyTableRow,
@@ -100,7 +104,7 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
                  missing are visibly a different kind of choice from the six that read a
                  document, and from Declared, which is not a rule at all. -->
             <nz-select id="strategy" formControlName="strategy">
-              @for (g of methodGroups; track g.label) {
+              @for (g of methodGroups(); track g.label) {
                 <nz-option-group [nzLabel]="g.label">
                   @for (o of g.options; track o.value) {
                     <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
@@ -121,7 +125,8 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
               <app-income-key-table
                 [rows]="keyTable()"
                 (rowsChange)="keyTable.set($event)"
-                [enumerationType]="keyRegistry()!"
+                [enumerationType]="keyRegistry()"
+                [keyOptions]="factKeyRows()"
                 [estimatedKeys]="estimatedKeys()"
                 (estimatedKeysChange)="estimatedKeyChange.emit($event)"
                 (keyStructureChange)="keyStructureChange.emit($event)"
@@ -336,8 +341,20 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   private readonly enums = inject(PlatformEnumerationsService);
   private readonly destroyRef = inject(DestroyRef);
 
-  /** Built once — the grouping and the labels are static. */
-  protected readonly methodGroups = incomeMethodGroups();
+  /**
+   * The facts an operator has defined on Manage values, from the same signal cache the
+   * key pickers read. A computed, not a snapshot: the four built-in methods are static
+   * but the registry is not, and a fact added while this form is open must appear in
+   * the picker on the next read rather than after a reload.
+   */
+  protected readonly facts = computed(() =>
+    registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
+  );
+
+  private readonly isAr = document.documentElement.lang.startsWith('ar');
+
+  /** Built-in methods plus one entry per operator-defined fact. */
+  protected readonly methodGroups = computed(() => incomeMethodGroups(this.facts()));
 
   /** The `incomeAssumption` form group: strategy, scalar, override, combination, docs. */
   readonly group = input.required<FormGroup>();
@@ -402,15 +419,35 @@ export class IncomeAssumptionSectionComponent implements OnInit {
     this.revision.update((n) => n + 1);
   }
 
-  readonly shape = computed<IncomeMethodShape>(
-    () => INCOME_METHOD_SHAPE[this.strategy()] ?? 'none',
+  readonly shape = computed<IncomeMethodShape>(() =>
+    incomeMethodShape(this.strategy(), this.facts()),
   );
 
   readonly keyRegistry = computed<EnumerationType | null>(
-    () => INCOME_KEY_REGISTRY[this.strategy()] ?? null,
+    () => INCOME_KEY_REGISTRY[this.strategy() as BuiltinIncomeStrategy] ?? null,
   );
 
-  readonly bandUnit = computed<string | null>(() => INCOME_BAND_UNIT[this.strategy()] ?? null);
+  /**
+   * A fact's key rows — its bound question's options. `null` for the built-in key
+   * methods, which draw theirs from an enumeration instead.
+   */
+  readonly factKeyRows = computed(() => {
+    const options = factKeyOptions(this.strategy(), this.facts());
+    return options.length > 0 ? options.map((o) => ({ key: o.code, labelAr: o.labelAr, labelEn: o.labelEn })) : null;
+  });
+
+  /**
+   * The chosen fact, when the method is one — for the line that tells the operator
+   * which answer this table will be looked up by, and whether it is still asked.
+   */
+  readonly selectedFact = computed(() => {
+    const key = factKeyOf(this.strategy());
+    return key === null ? null : (this.facts().find((f) => f.key === key) ?? null);
+  });
+
+  readonly bandUnit = computed<string | null>(
+    () => INCOME_BAND_UNIT[this.strategy() as BuiltinIncomeStrategy] ?? null,
+  );
 
   readonly documentMembers = computed(() => this.enums.membersFor('required_document')());
 
@@ -499,7 +536,14 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    void this.enums.preload(['required_document', 'professor_rank', 'military_grade']);
+    void this.enums.preload([
+      'required_document',
+      'professor_rank',
+      'military_grade',
+      // The fact registry — without it the picker offers the four built-ins only, and
+      // an operator who just defined a fact would not find it here.
+      'surrogate_fact',
+    ]);
 
     // Typing in a control does not mark it touched, but it does dirty it — and both
     // states gate the messages below, so the form's own stream drives the tick.
@@ -530,8 +574,8 @@ export class IncomeAssumptionSectionComponent implements OnInit {
       // admin keeps the old table.
       this.strategyValue.set(next);
 
-      const previousShape = INCOME_METHOD_SHAPE[previous] ?? 'none';
-      const nextShape = INCOME_METHOD_SHAPE[next] ?? 'none';
+      const previousShape = incomeMethodShape(previous, this.facts());
+      const nextShape = incomeMethodShape(next, this.facts());
       const losing =
         (previousShape === 'keyTable' && this.keyTable().length > 0 && nextShape !== 'keyTable') ||
         (previousShape === 'bands' && this.bands().length > 0 && nextShape !== 'bands');

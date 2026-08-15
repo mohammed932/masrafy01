@@ -52,7 +52,6 @@ function profile(over: {
     age: 35,
     loanPurpose: 'personal',
     requestedAmountEGP: new Decimal(over.amountEGP ?? '300000'),
-    requestedCurrency: 'EGP',
     preferredTenorMonths: over.tenorMonths ?? 48,
     priority: 'lowest_installment',
     employment: {
@@ -95,14 +94,13 @@ function program(over: {
     friendlyName: 'Test Program',
     programType: over.programType ?? 'income_surrogate',
     productCategory: 'personal',
-    currencies: ['EGP'],
     active: true,
     isShariaCompliant: false,
     version: 1,
     requiredDocuments: [],
     createdAt: new Date('2026-01-01T00:00:00.000Z'),
     tenor: { minMonths: 12, maxMonths: 84 },
-    loanLimits: { perCurrency: { EGP: { minAmount: '10000', maxAmount: '5000000' } } },
+    loanLimits: { minAmountEGP: '10000', maxAmountEGP: '5000000' },
     pricing: { isVariableRate: false, baseRatePercent: '24.0000' },
     eligibility: normalizeEligibility({
       acceptedEmploymentTypes: ['salaried'],

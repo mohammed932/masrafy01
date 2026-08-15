@@ -47,6 +47,9 @@ export function incomeBasisLabel(basis: IncomeBasis): string {
  */
 export function incomeBasisHint(basis: IncomeBasis): string {
   return basis === 'no_payslip'
-    ? $localize`:@@income_basis.no_payslip.hint:The bank works the income out from a fact about the applicant — military grade, academic rank, years in practice, card limit. You enter its own table in step 4.`
+    ? // Which facts exist is the registry's answer (operator-managed on Manage values),
+      // so this line names none of them: a hardcoded four went stale the day someone
+      // added a fifth, and the screens below already list the live set.
+      $localize`:@@income_basis.no_payslip.hint:The bank works the income out from one of the income facts about the applicant. You enter its own table in step 4.`
     : $localize`:@@income_basis.payslip.hint:A salary transfer or payslip proves the income the bank lends against.`;
 }

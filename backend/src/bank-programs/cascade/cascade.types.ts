@@ -87,8 +87,6 @@ export interface ApplicantContext {
   qualitativeReviewApproved?: boolean;
   /** Whether the applicant uploaded income documents (FR-005d candidate-pool gate). */
   uploadedIncomeDocuments?: boolean;
-  /** Currency the applicant requested (FR-008h). */
-  requestedCurrency?: string;
 }
 
 // --- Cascade trace + result -------------------------------------------------

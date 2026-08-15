@@ -34,9 +34,6 @@ export async function validateAgainstRegistry(
 
   // Top-level
   checks.push({ enumerationType: 'product_category', key: dto.productCategory });
-  for (const c of dto.currencies) {
-    checks.push({ enumerationType: 'currency', key: c });
-  }
   for (const d of dto.requiredDocuments ?? []) {
     checks.push({ enumerationType: 'required_document', key: d });
   }
@@ -111,7 +108,7 @@ function pushKeys(
 // --- FR-014 range sanity (feature 010) ------------------------------------
 
 export interface RangeViolation {
-  /** Dot path of the offending range, e.g. `loanLimits.perCurrency.EGP`, `tenor`, `eligibility`. */
+  /** Dot path of the offending range, e.g. `loanLimits`, `tenor`, `eligibility`. */
   field: string;
   min: string | number | null;
   max: string | number | null;
@@ -119,7 +116,7 @@ export interface RangeViolation {
 
 interface RangeCheckable {
   tenor: { minMonths: number; maxMonths: number };
-  loanLimits: { perCurrency: Record<string, { minAmount: string; maxAmount: string }> };
+  loanLimits: { minAmountEGP: string; maxAmountEGP: string };
   eligibility: { ageMin: number; ageMax: number };
 }
 
@@ -137,19 +134,21 @@ export function validateRanges(dto: RangeCheckable): RangeViolation | undefined 
   if (dto.eligibility.ageMin > dto.eligibility.ageMax) {
     return { field: 'eligibility', min: dto.eligibility.ageMin, max: dto.eligibility.ageMax };
   }
-  for (const [currency, range] of Object.entries(dto.loanLimits.perCurrency ?? {})) {
-    const field = `loanLimits.perCurrency.${currency}`;
-    let min: Prisma.Decimal;
-    let max: Prisma.Decimal;
-    try {
-      min = new Prisma.Decimal(range.minAmount);
-      max = new Prisma.Decimal(range.maxAmount);
-    } catch {
-      return { field, min: range.minAmount ?? null, max: range.maxAmount ?? null };
-    }
-    if (max.lessThanOrEqualTo(0) || min.greaterThan(max)) {
-      return { field, min: range.minAmount, max: range.maxAmount };
-    }
+  const limits = dto.loanLimits ?? { minAmountEGP: '0', maxAmountEGP: '0' };
+  let min: Prisma.Decimal;
+  let max: Prisma.Decimal;
+  try {
+    min = new Prisma.Decimal(limits.minAmountEGP);
+    max = new Prisma.Decimal(limits.maxAmountEGP);
+  } catch {
+    return {
+      field: 'loanLimits',
+      min: limits.minAmountEGP ?? null,
+      max: limits.maxAmountEGP ?? null,
+    };
+  }
+  if (max.lessThanOrEqualTo(0) || min.greaterThan(max)) {
+    return { field: 'loanLimits', min: limits.minAmountEGP, max: limits.maxAmountEGP };
   }
   return undefined;
 }

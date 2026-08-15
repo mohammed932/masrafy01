@@ -326,6 +326,23 @@ export class EnumerationQuestionsNotApplicableException extends DomainException 
   }
 }
 
+/** A question binding was submitted for a type that binds none (only facts do). */
+export class EnumerationQuestionBindingNotApplicableException extends DomainException {
+  constructor(meta: { type: string }) {
+    super(ERROR_CODES.ENUMERATION_QUESTION_BINDING_NOT_APPLICABLE, meta);
+  }
+}
+
+/**
+ * A fact was pointed at a TEXT or MULTI_SELECT question — nothing a bank's table can
+ * be keyed by. `allowed` rides along so the screen can say what would work.
+ */
+export class SurrogateFactQuestionTypeInvalidException extends DomainException {
+  constructor(meta: { key: string; questionCode: string; type: string; allowed: string[] }) {
+    super(ERROR_CODES.SURROGATE_FACT_QUESTION_TYPE_INVALID, meta);
+  }
+}
+
 /**
  * An income basis was submitted for a (name, category) pair that does not exist —
  * the name is not offered under that loan type.
@@ -340,23 +357,29 @@ export class EnumerationCategoryNotAssignedException extends DomainException {
 }
 
 /**
- * A hard delete was refused: bank programs and/or applications still name this
- * catalog key.
+ * A hard delete was refused: something still names this registry key.
  *
- * Both counts ride in the meta, and both are needed — a name with no live
- * programs but 40 applications behind it is still undeletable, and an operator
- * told only "in use" would go repoint the programs and try again for nothing.
+ * The per-surface breakdown rides in the meta alongside the total, and it is
+ * needed — a value with no live bank programs but 40 stored applications behind
+ * it is still undeletable, and an operator told only "in use" would go repoint
+ * the programs and try again for nothing.
  */
 export class EnumerationInUseException extends DomainException {
-  constructor(meta: { type: string; key: string; programs: number; applications: number }) {
+  constructor(meta: {
+    type: string;
+    key: string;
+    /** Total across every surface — what the operator-facing message renders. */
+    references: number;
+    usedBy: Array<{ source: string; count: number }>;
+  }) {
     super(ERROR_CODES.ENUMERATION_IN_USE, meta);
   }
 }
 
 /**
- * Hard delete was asked for on a type whose references cannot be counted (every
- * type except `program_name` — see the error code's note). 422, not 403: the
- * caller is not forbidden, the operation is meaningless for this row.
+ * Hard delete was asked for on a type whose readers `countReferences` does not
+ * enumerate, so nothing can prove the row is unused. 422, not 403: the caller is
+ * not forbidden, the operation is meaningless for this row.
  */
 export class EnumerationDeleteNotSupportedException extends DomainException {
   constructor(meta: { type: string }) {
@@ -687,6 +710,19 @@ export class IncomeRuleBandsInvalidException extends DomainException {
 export class IncomeRuleDbrOverrideInvalidException extends DomainException {
   constructor(meta: { value: string }) {
     super(ERROR_CODES.INCOME_RULE_DBR_OVERRIDE_INVALID, meta);
+  }
+}
+
+/**
+ * The rule reads a registry fact the registry cannot serve — unknown, deactivated, or
+ * bound to a question that is gone, inactive, or of a type no table can be keyed by.
+ *
+ * `availableFacts` rides along so the form can offer the fix. Naming only the broken key
+ * would leave the admin to go and read Manage values to find out what else exists.
+ */
+export class IncomeRuleFactUnavailableException extends DomainException {
+  constructor(meta: { factKey: string; availableFacts: string[] }) {
+    super(ERROR_CODES.INCOME_RULE_FACT_UNAVAILABLE, meta);
   }
 }
 

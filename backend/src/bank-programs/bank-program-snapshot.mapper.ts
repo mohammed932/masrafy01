@@ -22,7 +22,6 @@ export function toBankProgramSnapshot(p: BankProgramRow): BankProgramSnapshot {
     friendlyName: p.friendlyName,
     programType: p.programType,
     productCategory: p.productCategory,
-    currencies: (p.currencies as string[]) ?? [],
     active: p.active,
     isShariaCompliant: p.isShariaCompliant,
     version: p.version,

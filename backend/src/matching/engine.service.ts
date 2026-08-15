@@ -239,7 +239,6 @@ export class EngineService {
       requiredDocuments: args.program.requiredDocuments,
       matchReasons: buildMatchReasons(args.profile, args.program),
       cascadeTrace: quote.cascadeTrace,
-      currency: quote.currency,
       qualitativeReviewBadge: args.program.eligibility.requiresQualitativeReview,
       selfDeclared: args.program.programType === 'income_surrogate',
       // The applicant's ceiling at this program, always — not only when DBR
@@ -324,8 +323,6 @@ function reasonToCheckCode(reason: FiguresUnavailableReason): string {
     case 'SURROGATE_FACT_MISSING':
     case 'SURROGATE_NO_MATCHING_ROW':
       return 'monthly_income';
-    case 'CURRENCY_NOT_OFFERED':
-      return 'currency';
     case 'AGE_AT_MATURITY':
       return 'age';
     case 'PROGRAM_MISCONFIGURED':
@@ -369,8 +366,6 @@ function pickPrimaryReason(noMatchDetails: NoMatchDetail[]): string | undefined 
       return 'TENOR_OUT_OF_RANGE';
     case 'loan_amount':
       return 'AMOUNT_OUT_OF_RANGE';
-    case 'currency':
-      return 'CURRENCY_NOT_SUPPORTED';
     case 'requires_cd':
       return 'MISSING_CD_RECORD';
     default:

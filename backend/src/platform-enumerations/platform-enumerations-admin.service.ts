@@ -8,17 +8,24 @@ import {
   EnumerationDeleteNotSupportedException,
   EnumerationInUseException,
   EnumerationKeyDuplicateException,
+  EnumerationQuestionBindingNotApplicableException,
   EnumerationQuestionUnknownException,
   EnumerationQuestionsNotApplicableException,
+  SurrogateFactQuestionTypeInvalidException,
   EnumerationSystemOnlyException,
   NotFoundException,
 } from '@/common/errors/domain.exceptions';
 import { ALL_LOAN_CATEGORIES, dedupeCategories } from '@/common/loan-category.util';
 import { dedupeBases, type IncomeBasis } from '@/common/income-basis.util';
 import {
+  BINDABLE_QUESTION_TYPES,
+  isBindableQuestionType,
   isCategorisedEnumerationType,
+  isQuestionBoundEnumerationType,
   isQuestionTemplateEnumerationType,
   isUnscopedEnumerationType,
+  type BoundQuestion,
+  type EnumerationType,
   type IncomeBasesByCategory,
   type QuestionCodesByCategory,
 } from './platform-enumerations.repository';
@@ -186,26 +193,25 @@ export class PlatformEnumerationsAdminService {
   }
 
   /**
-   * Hard-delete a catalog entry — row gone, loan-category and question
+   * Hard-delete a registry entry — row gone, loan-category and question
    * assignments cascaded with it.
    *
-   * Not a second flavour of deprecate. Deprecating parks a name that IS in use:
-   * it stops appearing in the picker, every bank program that already names it
-   * keeps working, and the row survives to explain those keys. This is for the
-   * other case — a name added by mistake, or one nothing ever instantiated —
-   * where leaving a tombstone on the board is just noise an operator has to
-   * re-read forever.
+   * Not a second flavour of deprecate. Deprecating parks a value that IS in use:
+   * it stops appearing in every picker, everything that already names it keeps
+   * working, and the row survives to explain those keys. This is for the other
+   * case — a value added by mistake, or one nothing ever used — where leaving a
+   * tombstone on the board is just noise an operator has to re-read forever.
    *
    * Three guards, in the order an operator meets them:
-   *  - `program_name` only. Every other type is referenced by key from places no
-   *    single count covers, so a delete there would dangle silently.
    *  - never `systemOnly`, matching `update()`'s rule for active/deprecate: a
    *    system-managed row is not the operator's to remove.
-   *  - never while referenced. There is no FK on either `programNameKey` column
-   *    (the catalog's unique key is composite), so Postgres would happily let the
-   *    row go and leave both pointing at nothing — the ghost rows A26 forbids.
-   *    The exception names both counts so the operator knows whether repointing
-   *    the programs would even help.
+   *  - only a type whose readers `countReferences` enumerates. No enumeration key
+   *    carries an FK anywhere, so a type nobody has counted is refused rather than
+   *    guessed at.
+   *  - never while referenced. Postgres would happily let the row go and leave
+   *    every reader pointing at nothing — the ghost rows A26 forbids. The
+   *    exception names each surface and its count, so the operator knows whether
+   *    repointing anything would even help.
    *
    * The audit event carries the labels, not just the id: once the row is gone it
    * is the only remaining record that the key ever existed.
@@ -213,20 +219,23 @@ export class PlatformEnumerationsAdminService {
   async remove(id: string, actor: AdminActor): Promise<void> {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException();
-    if (existing.type !== PROGRAM_NAME_TYPE) {
-      throw new EnumerationDeleteNotSupportedException({ type: existing.type });
-    }
     if (existing.systemOnly) {
       throw new EnumerationSystemOnlyException({ type: existing.type, key: existing.key });
     }
 
-    const refs = await this.repo.countProgramNameReferences(existing.key);
-    if (refs.programs > 0 || refs.applications > 0) {
+    const usedBy = await this.repo.countReferences(existing.type as EnumerationType, existing.key);
+    if (usedBy === null) {
+      throw new EnumerationDeleteNotSupportedException({ type: existing.type });
+    }
+    const references = usedBy.reduce((sum, r) => sum + r.count, 0);
+    if (references > 0) {
       throw new EnumerationInUseException({
         type: existing.type,
         key: existing.key,
-        programs: refs.programs,
-        applications: refs.applications,
+        references,
+        // Only the surfaces that actually hold something — a meta line reading
+        // `document: 0` invites the operator to go looking for rows there are none of.
+        usedBy: usedBy.filter((r) => r.count > 0),
       });
     }
 
@@ -472,6 +481,82 @@ export class PlatformEnumerationsAdminService {
     return existing;
   }
 
+  // ---- Surrogate fact binding ---------------------------------------------
+
+  /** The bound question of every fact of a type, keyed by enumeration id. */
+  async boundQuestions(filter?: { type?: string }): Promise<Map<string, BoundQuestion>> {
+    return this.repo.boundQuestions(filter);
+  }
+
+  /**
+   * Point one FACT at the question that answers it, or unbind it (`null`).
+   *
+   * Three rejections, each naming a different fix:
+   *   · not a fact type → the caller addressed the wrong row entirely
+   *   · unknown code → the question does not exist (a typo, or it was deleted)
+   *   · wrong type → TEXT/MULTI_SELECT, which no bank table can be keyed by
+   *
+   * An INACTIVE question is accepted, deliberately. Binding is how an operator sets a
+   * fact up, and questionnaire edits land in their own order: refusing here would make
+   * "create the question, bind the fact, activate the question" impossible in the one
+   * order an operator naturally works in. The consequence is visible rather than
+   * silent — publish reports the fact as `missing_or_inactive` and the engine's
+   * registry read drops it, so no applicant is priced off an answer nobody was asked.
+   *
+   * Not guarded on `systemOnly`, like the assignment axes: the four seeded facts are
+   * system rows so their KEYS cannot be renamed out from under a stored `fact:` token,
+   * but which question answers "military grade" is exactly the operational choice this
+   * feature exists to hand over.
+   */
+  async setBoundQuestion(
+    id: string,
+    questionCode: string | null,
+    actor: AdminActor,
+  ): Promise<EnumerationRow> {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException();
+    if (!isQuestionBoundEnumerationType(existing.type)) {
+      throw new EnumerationQuestionBindingNotApplicableException({ type: existing.type });
+    }
+
+    if (questionCode !== null) {
+      const question = await this.repo.findBindableQuestion(questionCode);
+      if (!question) {
+        throw new EnumerationQuestionUnknownException({
+          type: existing.type,
+          key: existing.key,
+          unknownCodes: [questionCode],
+        });
+      }
+      if (!isBindableQuestionType(question.type)) {
+        throw new SurrogateFactQuestionTypeInvalidException({
+          key: existing.key,
+          questionCode,
+          type: question.type,
+          allowed: [...BINDABLE_QUESTION_TYPES],
+        });
+      }
+    }
+
+    const before = (await this.repo.boundQuestions({ type: existing.type })).get(id)?.code ?? null;
+    const row = await this.repo.setBoundQuestion(id, questionCode, actor.staffId);
+    // Invalidated: the binding rides on the cached member payload (the catalog board
+    // derives its fact tick-list from it), so a 60s window would show the operator a
+    // screen that does not yet know about the fact they just bound.
+    this.repo.invalidateCache('surrogate_fact');
+
+    if (before !== questionCode) {
+      await this.writeAssignmentAudit(
+        existing,
+        'boundQuestion',
+        before ? [before] : [],
+        questionCode ? [questionCode] : [],
+        actor,
+      );
+    }
+    return row;
+  }
+
   /**
    * One audit shape for both assignment axes. Reuses
    * PLATFORM_ENUMERATION_UPDATED rather than adding event types: `AuditEventType`
@@ -486,7 +571,13 @@ export class PlatformEnumerationsAdminService {
     // be unreadable as soon as a name is templated twice. `incomeBasis.<category>`
     // is per category for the same reason — a name sold without a payslip as a
     // personal loan and against one as a car loan produces two independent diffs.
-    field: 'categories' | `questions.${LoanCategory}` | `incomeBasis.${LoanCategory}`,
+    field:
+      | 'categories'
+      | `questions.${LoanCategory}`
+      | `incomeBasis.${LoanCategory}`
+      // Not per category: a fact reads ONE question whoever is asking, which is what
+      // makes it a fact rather than a per-product rule.
+      | 'boundQuestion',
     from: readonly string[],
     to: readonly string[],
     actor: AdminActor,

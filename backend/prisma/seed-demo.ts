@@ -186,7 +186,6 @@ async function createOneApplication(s: AppShape, customerId: string): Promise<vo
       status: 'matched',
       priority: randomFromSet(PRIORITIES),
       requestedAmountEGP: new Prisma.Decimal(s.amount),
-      requestedCurrency: 'EGP',
       preferredTenorMonths: s.tenor,
       loanPurpose: s.loanPurpose,
       age: s.age,

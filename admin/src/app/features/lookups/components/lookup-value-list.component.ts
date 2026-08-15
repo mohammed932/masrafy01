@@ -20,13 +20,7 @@ export interface LookupActiveToggle {
 @Component({
   selector: 'app-lookup-value-list',
   standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    NzIconModule,
-    NzInputModule,
-    NzToolTipModule,
-    NzPopconfirmModule,
-  ],
+  imports: [ReactiveFormsModule, NzIconModule, NzInputModule, NzToolTipModule, NzPopconfirmModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="toolbar">
@@ -70,7 +64,7 @@ export interface LookupActiveToggle {
             Nothing matches “{{ query() }}”
           </p>
           <p class="empty-text" i18n="@@lookups.empty.filtered.text">
-            Filtering searches the English label, the Arabic label and the key.
+            Filtering searches the label and the key.
           </p>
         } @else {
           <p class="empty-title" i18n="@@lookups.empty.title">No values yet</p>
@@ -86,7 +80,6 @@ export interface LookupActiveToggle {
             <div class="value-main">
               <span class="labels">
                 <span class="label-en">{{ r.labelEn }}</span>
-                <span class="label-ar" dir="rtl">{{ r.labelAr }}</span>
               </span>
               @if (r.systemOnly) {
                 <span
@@ -127,20 +120,26 @@ export interface LookupActiveToggle {
                 >
                   <span nz-icon nzType="poweroff" nzTheme="outline"></span>
                 </button>
+                <!-- Two ways out, not three. Deactivate parks a value something
+                     already uses (reversible, keeps every saved reference working);
+                     delete removes one nothing uses. Deprecate was a third state that
+                     did what deactivate does and could never be undone from here, so
+                     the board no longer offers it — existing deprecated rows still
+                     render below, they just cannot be created any more. -->
                 <button
                   class="icon-action danger"
                   type="button"
                   [disabled]="r.systemOnly"
                   nz-popconfirm
-                  nzPopconfirmTitle="Deprecate this value? It stops appearing in every picker."
-                  i18n-nzPopconfirmTitle="@@lookups.deprecate.confirm"
+                  nzPopconfirmTitle="Delete this value for good? Only possible while nothing uses it."
+                  i18n-nzPopconfirmTitle="@@lookups.delete.confirm"
                   nzPopconfirmPlacement="topRight"
-                  (nzOnConfirm)="deprecate.emit(r)"
+                  (nzOnConfirm)="remove.emit(r)"
                   nz-tooltip
-                  [nzTooltipTitle]="deprecateLabel"
-                  [attr.aria-label]="deprecateLabel"
+                  [nzTooltipTitle]="deleteLabel"
+                  [attr.aria-label]="deleteLabel"
                 >
-                  <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
+                  <span nz-icon nzType="delete" nzTheme="outline"></span>
                 </button>
               </div>
             </div>
@@ -157,7 +156,6 @@ export interface LookupActiveToggle {
               <div class="value-main">
                 <span class="labels">
                   <span class="label-en">{{ r.labelEn }}</span>
-                  <span class="label-ar" dir="rtl">{{ r.labelAr }}</span>
                 </span>
               </div>
               <div class="value-side">
@@ -172,6 +170,23 @@ export interface LookupActiveToggle {
                     [attr.aria-label]="editLabel"
                   >
                     <span nz-icon nzType="edit" nzTheme="outline"></span>
+                  </button>
+                  <!-- The tombstone case: deprecating was the safe move at the time,
+                       and once the last reference is gone the row is pure noise. -->
+                  <button
+                    class="icon-action danger"
+                    type="button"
+                    [disabled]="r.systemOnly"
+                    nz-popconfirm
+                    nzPopconfirmTitle="Delete this value for good? Only possible while nothing uses it."
+                    i18n-nzPopconfirmTitle="@@lookups.delete.confirm"
+                    nzPopconfirmPlacement="topRight"
+                    (nzOnConfirm)="remove.emit(r)"
+                    nz-tooltip
+                    [nzTooltipTitle]="deleteLabel"
+                    [attr.aria-label]="deleteLabel"
+                  >
+                    <span nz-icon nzType="delete" nzTheme="outline"></span>
                   </button>
                 </div>
               </div>
@@ -271,12 +286,6 @@ export interface LookupActiveToggle {
         line-height: var(--leading-snug);
         color: var(--color-text-primary);
         letter-spacing: -0.005em;
-        overflow-wrap: anywhere;
-      }
-      .label-ar {
-        font-size: var(--text-xs);
-        line-height: var(--leading-snug);
-        color: var(--color-text-secondary);
         overflow-wrap: anywhere;
       }
       .badge {
@@ -415,7 +424,8 @@ export class LookupValueListComponent {
 
   readonly edit = output<EnumerationRow>();
   readonly toggleActive = output<LookupActiveToggle>();
-  readonly deprecate = output<EnumerationRow>();
+  /** Hard delete — the row is gone, not parked. The server refuses one still in use. */
+  readonly remove = output<EnumerationRow>();
 
   protected readonly filter = new FormControl<string>('', { nonNullable: true });
   protected readonly query = toSignal(this.filter.valueChanges, { initialValue: '' });
@@ -452,7 +462,7 @@ export class LookupValueListComponent {
   protected readonly searchLabel = $localize`:@@lookups.search:Filter values…`;
   protected readonly clearLabel = $localize`:@@lookups.search.clear:Clear filter`;
   protected readonly editLabel = $localize`:@@lookups.edit:Edit`;
-  protected readonly deprecateLabel = $localize`:@@lookups.deprecate:Deprecate`;
+  protected readonly deleteLabel = $localize`:@@lookups.delete:Delete`;
   protected readonly activateLabel = $localize`:@@lookups.activate:Activate`;
   protected readonly deactivateLabel = $localize`:@@lookups.deactivate:Deactivate`;
   protected readonly activeLabel = $localize`:@@lookups.status.active:Active`;

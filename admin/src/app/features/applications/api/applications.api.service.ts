@@ -25,7 +25,6 @@ export interface AdminApplicationRow {
   leadStatus: LeadStatus;
   priority: string;
   requestedAmountEGP: string;
-  requestedCurrency: string;
   loanPurpose: string;
   age: number;
   createdAt: string;
@@ -66,7 +65,6 @@ export interface AdminApplicationOffer {
   bankIsFeatured: boolean;
   isShariaCompliant: boolean;
   programFriendlyName: string;
-  currency: string;
   effectiveRatePercent: string;
   monthlyInstallmentEGP: string;
   requestedLoanAmountEGP: string;
@@ -139,7 +137,6 @@ export interface AdminApplicationDetail {
   leadStatus: LeadStatus;
   priority: string;
   requestedAmountEGP: string;
-  requestedCurrency: string;
   preferredTenorMonths: number;
   loanPurpose: string;
   age: number;

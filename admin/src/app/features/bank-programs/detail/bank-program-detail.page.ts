@@ -72,290 +72,293 @@ import { basisOf, incomeBasisLabel } from '@core/income-basis';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (program(); as p) {
-    <section class="page">
-      <a [routerLink]="backLink()" class="back">
-        <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
-        <span i18n="@@bank_programs.detail.back">Back to bank</span>
-      </a>
+      <section class="page">
+        <a [routerLink]="backLink()" class="back">
+          <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
+          <span i18n="@@bank_programs.detail.back">Back to bank</span>
+        </a>
 
-      <header class="hero">
-        <span class="cat-badge" aria-hidden="true">
-          <span nz-icon [nzType]="catIcon(p.productCategory)" nzTheme="outline"></span>
-        </span>
-
-        <div class="hero-text">
-          <span class="eyebrow">{{ p.bankName }}</span>
-          <h1 class="title">
-            {{ p.friendlyName }}
-            <span class="status-chip" [class.active]="p.active">
-              <span class="dot" aria-hidden="true"></span>
-              {{ p.active ? activeLabel() : inactiveLabel() }}
-            </span>
-          </h1>
-          <!-- The humanize pipe on the raw type printed "Income surrogate" — a schema noun
-               no operator uses. Same words as every other surface now. -->
-          <p class="sub">{{ p.productCategory | humanize }} · {{ basisLabel(p) }} · v{{ p.version }}</p>
-        </div>
-
-        <div class="hero-actions">
-          <a
-            *can="['super_admin', 'sales_manager']"
-            nz-button
-            [routerLink]="['/banks/programs', p.programCode, 'edit']"
-          >
-            <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@bank_programs.action.edit">Edit</span>
-          </a>
-          <a
-            *can="['super_admin', 'sales_manager']"
-            nz-button
-            [routerLink]="['/scoring', 'weights', p.id]"
-          >
-            <span nz-icon nzType="sliders" nzTheme="outline" aria-hidden="true"></span>
-            <span i18n="@@bank_programs.action.scoring_weights">Scoring weights</span>
-          </a>
-          <button
-            *can="['super_admin']"
-            nz-button
-            [nzLoading]="duplicating()"
-            [disabled]="duplicating()"
-            (click)="duplicate()"
-          >
-            @if (!duplicating()) {
-              <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
-            }
-            <span i18n="@@bank_programs.action.duplicate">Duplicate</span>
-          </button>
-          <button
-            *can="['super_admin']"
-            nz-button
-            nzType="text"
-            nzShape="circle"
-            nzDanger
-            (click)="openDelete()"
-            aria-label="Delete program"
-            i18n-aria-label="@@bank_programs.action.delete"
-          >
-            <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
-          </button>
-        </div>
-      </header>
-
-      @if (p.deprecatedKeys.length > 0) {
-        <div class="deprecated-banner" role="status">
-          <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.detail.deprecated_banner">
-            {{ p.deprecatedKeys.length }} tier key(s) have been deprecated in the registry — review.
+        <header class="hero">
+          <span class="cat-badge" aria-hidden="true">
+            <span nz-icon [nzType]="catIcon(p.productCategory)" nzTheme="outline"></span>
           </span>
-        </div>
-      }
 
-      <div class="grid">
-        <section class="card">
-          <h2 class="card-title" i18n="@@bank_programs.section.identity">Identity</h2>
-          <dl class="kv">
-            <div class="row">
-              <dt i18n="@@bank_programs.field.program_code">Program code</dt>
-              <dd>{{ p.programCode }}</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.bank_name">Bank</dt>
-              <dd>{{ p.bankName }}</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.friendly_name">Friendly name</dt>
-              <dd>{{ p.friendlyName }}</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.product_category">Category</dt>
-              <dd>{{ p.productCategory | humanize }}</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.currencies">Currencies</dt>
-              <dd>{{ p.currencies.join(', ') }}</dd>
-            </div>
-          </dl>
-        </section>
+          <div class="hero-text">
+            <span class="eyebrow">{{ p.bankName }}</span>
+            <h1 class="title">
+              {{ p.friendlyName }}
+              <span class="status-chip" [class.active]="p.active">
+                <span class="dot" aria-hidden="true"></span>
+                {{ p.active ? activeLabel() : inactiveLabel() }}
+              </span>
+            </h1>
+            <!-- The humanize pipe on the raw type printed "Income surrogate" — a schema noun
+               no operator uses. Same words as every other surface now. -->
+            <p class="sub">
+              {{ p.productCategory | humanize }} · {{ basisLabel(p) }} · v{{ p.version }}
+            </p>
+          </div>
 
-        <section class="card">
-          <h2 class="card-title" i18n="@@bank_programs.section.tenor">Tenor</h2>
-          <dl class="kv">
-            <div class="row">
-              <dt i18n="@@bank_programs.field.min_months">Min months</dt>
-              <dd class="numeric">{{ p.tenor.minMonths }}</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.max_months">Max months</dt>
-              <dd class="numeric">{{ p.tenor.maxMonths }}</dd>
-            </div>
-          </dl>
-        </section>
+          <div class="hero-actions">
+            <a
+              *can="['super_admin', 'sales_manager']"
+              nz-button
+              [routerLink]="['/banks/programs', p.programCode, 'edit']"
+            >
+              <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@bank_programs.action.edit">Edit</span>
+            </a>
+            <a
+              *can="['super_admin', 'sales_manager']"
+              nz-button
+              [routerLink]="['/scoring', 'weights', p.id]"
+            >
+              <span nz-icon nzType="sliders" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@bank_programs.action.scoring_weights">Scoring weights</span>
+            </a>
+            <button
+              *can="['super_admin']"
+              nz-button
+              [nzLoading]="duplicating()"
+              [disabled]="duplicating()"
+              (click)="duplicate()"
+            >
+              @if (!duplicating()) {
+                <span nz-icon nzType="copy" nzTheme="outline" aria-hidden="true"></span>
+              }
+              <span i18n="@@bank_programs.action.duplicate">Duplicate</span>
+            </button>
+            <button
+              *can="['super_admin']"
+              nz-button
+              nzType="text"
+              nzShape="circle"
+              nzDanger
+              (click)="openDelete()"
+              aria-label="Delete program"
+              i18n-aria-label="@@bank_programs.action.delete"
+            >
+              <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
+            </button>
+          </div>
+        </header>
 
-        <section class="card">
-          <h2 class="card-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h2>
-          <dl class="kv">
-            <div class="row">
-              <dt>EGP min</dt>
-              <dd class="numeric">{{ p.loanLimits.perCurrency['EGP']?.minAmount }}</dd>
-            </div>
-            <div class="row">
-              <dt>EGP max</dt>
-              <dd class="numeric">{{ p.loanLimits.perCurrency['EGP']?.maxAmount }}</dd>
-            </div>
-            @if (p.loanLimits.qualitativeReviewMaxEGP; as qr) {
-              <div class="row">
-                <dt i18n="@@bank_programs.detail.qr_max">Uplift ceiling (qualitative review)</dt>
-                <dd class="numeric">{{ qr }}</dd>
-              </div>
-            }
-          </dl>
-        </section>
+        @if (p.deprecatedKeys.length > 0) {
+          <div class="deprecated-banner" role="status">
+            <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.detail.deprecated_banner">
+              {{ p.deprecatedKeys.length }} tier key(s) have been deprecated in the registry —
+              review.
+            </span>
+          </div>
+        }
 
-        <section class="card">
-          <h2 class="card-title" i18n="@@bank_programs.section.pricing">Pricing</h2>
-          <dl class="kv">
-            <div class="row">
-              <dt i18n="@@bank_programs.field.is_variable_rate">Variable rate</dt>
-              <dd>{{ p.pricing.isVariableRate ? 'Yes' : 'No' }}</dd>
-            </div>
-            @if (!p.pricing.isVariableRate) {
-              <div class="row">
-                <dt i18n="@@bank_programs.field.base_rate">Base rate</dt>
-                <dd class="numeric">{{ p.pricing.baseRatePercent }}%</dd>
-              </div>
-            } @else {
-              <div class="row">
-                <dt i18n="@@bank_programs.field.current_effective_rate">Current effective rate</dt>
-                <dd class="numeric">{{ p.pricing.currentEffectiveRatePercent }}%</dd>
-              </div>
-            }
-            @if (p.pricing.variableRateNote) {
-              <div class="row">
-                <dt i18n="@@bank_programs.field.variable_rate_note">Disclosure note</dt>
-                <dd>{{ p.pricing.variableRateNote }}</dd>
-              </div>
-            }
-          </dl>
-        </section>
-
-        <section class="card">
-          <h2 class="card-title" i18n="@@bank_programs.section.eligibility">Eligibility</h2>
-          <dl class="kv">
-            <div class="row">
-              <dt i18n="@@bank_programs.field.accepted_employment_types">Employment</dt>
-              <dd class="chips">
-                @for (t of p.eligibility.acceptedEmploymentTypes; track t) {
-                  <span class="enum-chip">{{ t | humanize }}</span>
-                } @empty {
-                  <span class="empty-dash">—</span>
-                }
-              </dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.age_min">Age</dt>
-              <dd class="numeric">{{ p.eligibility.ageMin }}–{{ p.eligibility.ageMax }}</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.min_monthly_income_egp">Min income (EGP)</dt>
-              <dd class="numeric">{{ p.eligibility.minMonthlyIncomeEGP }}</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.dbr_cap">DBR cap</dt>
-              <dd class="numeric">{{ p.eligibility.dbrCapPercent }}%</dd>
-            </div>
-          </dl>
-        </section>
-
-        <!-- This page rendered NOTHING about the income rule until v16.0.0 — not the
-             method, not the table, not the estimate markers, not the warnings the API was
-             already returning. On a no-payslip program that rule decides what income
-             exists at all, so the one read-only view of the program was silent about its
-             single most consequential setting. Read-only: the wizard owns editing. -->
-        @if (p.programType === 'income_surrogate') {
+        <div class="grid">
           <section class="card">
-            <h2 class="card-title" i18n="@@bank_programs.section.income">
-              How the income is worked out
-            </h2>
+            <h2 class="card-title" i18n="@@bank_programs.section.identity">Identity</h2>
             <dl class="kv">
               <div class="row">
-                <dt i18n="@@bank_programs.field.income_basis_short">Income</dt>
-                <dd>{{ noPayslipLabel }}</dd>
+                <dt i18n="@@bank_programs.field.program_code">Program code</dt>
+                <dd>{{ p.programCode }}</dd>
               </div>
               <div class="row">
-                <dt i18n="@@bank_programs.field.strategy">Method</dt>
-                <dd>{{ methodLabel(p) }}</dd>
+                <dt i18n="@@bank_programs.field.bank_name">Bank</dt>
+                <dd>{{ p.bankName }}</dd>
               </div>
-              @if (incomeRows(p).length > 0) {
+              <div class="row">
+                <dt i18n="@@bank_programs.field.friendly_name">Friendly name</dt>
+                <dd>{{ p.friendlyName }}</dd>
+              </div>
+              <div class="row">
+                <dt i18n="@@bank_programs.field.product_category">Category</dt>
+                <dd>{{ p.productCategory | humanize }}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="card">
+            <h2 class="card-title" i18n="@@bank_programs.section.tenor">Tenor</h2>
+            <dl class="kv">
+              <div class="row">
+                <dt i18n="@@bank_programs.field.min_months">Min months</dt>
+                <dd class="numeric">{{ p.tenor.minMonths }}</dd>
+              </div>
+              <div class="row">
+                <dt i18n="@@bank_programs.field.max_months">Max months</dt>
+                <dd class="numeric">{{ p.tenor.maxMonths }}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section class="card">
+            <h2 class="card-title" i18n="@@bank_programs.section.loan_limits">Loan limits</h2>
+            <dl class="kv">
+              <div class="row">
+                <dt>EGP min</dt>
+                <dd class="numeric">{{ p.loanLimits.minAmountEGP }}</dd>
+              </div>
+              <div class="row">
+                <dt>EGP max</dt>
+                <dd class="numeric">{{ p.loanLimits.maxAmountEGP }}</dd>
+              </div>
+              @if (p.loanLimits.qualitativeReviewMaxEGP; as qr) {
                 <div class="row">
-                  <dt i18n="@@bank_programs.income.table">The bank’s table</dt>
-                  <dd class="chips">
-                    @for (r of incomeRows(p); track r.label) {
-                      <span class="enum-chip" [class.estimated]="r.estimated">
-                        {{ r.label }} → {{ r.income }}
-                        @if (r.estimated) {
-                          <!-- An estimate is a number no bank confirmed; it blocks
-                               activation, so it cannot be a silent equal of a stated one. -->
-                          <span class="est-mark" i18n="@@bank_programs.value_source.estimated_short"
-                            >Estimate</span
-                          >
-                        }
-                      </span>
-                    }
-                  </dd>
-                </div>
-              } @else {
-                <div class="row">
-                  <dt i18n="@@bank_programs.income.table">The bank’s table</dt>
-                  <dd class="empty-dash" i18n="@@bank_programs.income.no_table">
-                    Not entered — this program quotes nothing
-                  </dd>
-                </div>
-              }
-              @if (p.incomeAssumption['dbrCapPercentOverride']; as override) {
-                <div class="row">
-                  <dt i18n="@@bank_programs.income.dbr_override">DBR cap for this rule</dt>
-                  <dd class="numeric">{{ override }}%</dd>
+                  <dt i18n="@@bank_programs.detail.qr_max">Uplift ceiling (qualitative review)</dt>
+                  <dd class="numeric">{{ qr }}</dd>
                 </div>
               }
             </dl>
           </section>
-        }
 
-        <!-- Typed codes the API has always returned and no screen has ever shown. -->
-        @if (p.warnings && p.warnings.length > 0) {
-          <section class="card warnings">
-            <h2 class="card-title" i18n="@@bank_programs.section.warnings">Needs attention</h2>
-            <ul class="warn-list">
-              @for (w of p.warnings; track w.code + (w.meta ? '' : '')) {
-                <li>{{ warningText(w) }}</li>
+          <section class="card">
+            <h2 class="card-title" i18n="@@bank_programs.section.pricing">Pricing</h2>
+            <dl class="kv">
+              <div class="row">
+                <dt i18n="@@bank_programs.field.is_variable_rate">Variable rate</dt>
+                <dd>{{ p.pricing.isVariableRate ? 'Yes' : 'No' }}</dd>
+              </div>
+              @if (!p.pricing.isVariableRate) {
+                <div class="row">
+                  <dt i18n="@@bank_programs.field.base_rate">Base rate</dt>
+                  <dd class="numeric">{{ p.pricing.baseRatePercent }}%</dd>
+                </div>
+              } @else {
+                <div class="row">
+                  <dt i18n="@@bank_programs.field.current_effective_rate">
+                    Current effective rate
+                  </dt>
+                  <dd class="numeric">{{ p.pricing.currentEffectiveRatePercent }}%</dd>
+                </div>
               }
-            </ul>
+              @if (p.pricing.variableRateNote) {
+                <div class="row">
+                  <dt i18n="@@bank_programs.field.variable_rate_note">Disclosure note</dt>
+                  <dd>{{ p.pricing.variableRateNote }}</dd>
+                </div>
+              }
+            </dl>
           </section>
-        }
 
-        <section class="card">
-          <h2 class="card-title" i18n="@@bank_programs.section.fees">Fees</h2>
-          <dl class="kv">
-            <div class="row">
-              <dt i18n="@@bank_programs.field.admin_fee">Admin fee</dt>
-              <dd class="numeric">{{ p.fees.adminFeePercent }}%</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.stamp_duty">Stamp duty</dt>
-              <dd class="numeric">{{ p.fees.stampDutyPercent }}%</dd>
-            </div>
-            <div class="row">
-              <dt i18n="@@bank_programs.field.life_insurance_pct">Life insurance</dt>
-              <dd class="numeric">
-                {{ p.fees.lifeInsurancePercent }}%{{
-                  p.fees.lifeInsuranceMandatory ? ' (mandatory)' : ''
-                }}
-              </dd>
-            </div>
-          </dl>
-        </section>
-      </div>
-    </section>
+          <section class="card">
+            <h2 class="card-title" i18n="@@bank_programs.section.eligibility">Eligibility</h2>
+            <dl class="kv">
+              <div class="row">
+                <dt i18n="@@bank_programs.field.accepted_employment_types">Employment</dt>
+                <dd class="chips">
+                  @for (t of p.eligibility.acceptedEmploymentTypes; track t) {
+                    <span class="enum-chip">{{ t | humanize }}</span>
+                  } @empty {
+                    <span class="empty-dash">—</span>
+                  }
+                </dd>
+              </div>
+              <div class="row">
+                <dt i18n="@@bank_programs.field.age_min">Age</dt>
+                <dd class="numeric">{{ p.eligibility.ageMin }}–{{ p.eligibility.ageMax }}</dd>
+              </div>
+              <div class="row">
+                <dt i18n="@@bank_programs.field.min_monthly_income_egp">Min income (EGP)</dt>
+                <dd class="numeric">{{ p.eligibility.minMonthlyIncomeEGP }}</dd>
+              </div>
+              <div class="row">
+                <dt i18n="@@bank_programs.field.dbr_cap">DBR cap</dt>
+                <dd class="numeric">{{ p.eligibility.dbrCapPercent }}%</dd>
+              </div>
+            </dl>
+          </section>
+
+          <!-- This page rendered NOTHING about the income rule until v16.0.0 — not the
+             method, not the table, not the estimate markers, not the warnings the API was
+             already returning. On a no-payslip program that rule decides what income
+             exists at all, so the one read-only view of the program was silent about its
+             single most consequential setting. Read-only: the wizard owns editing. -->
+          @if (p.programType === 'income_surrogate') {
+            <section class="card">
+              <h2 class="card-title" i18n="@@bank_programs.section.income">
+                How the income is worked out
+              </h2>
+              <dl class="kv">
+                <div class="row">
+                  <dt i18n="@@bank_programs.field.income_basis_short">Income</dt>
+                  <dd>{{ noPayslipLabel }}</dd>
+                </div>
+                <div class="row">
+                  <dt i18n="@@bank_programs.field.strategy">Method</dt>
+                  <dd>{{ methodLabel(p) }}</dd>
+                </div>
+                @if (incomeRows(p).length > 0) {
+                  <div class="row">
+                    <dt i18n="@@bank_programs.income.table">The bank’s table</dt>
+                    <dd class="chips">
+                      @for (r of incomeRows(p); track r.label) {
+                        <span class="enum-chip" [class.estimated]="r.estimated">
+                          {{ r.label }} → {{ r.income }}
+                          @if (r.estimated) {
+                            <!-- An estimate is a number no bank confirmed; it blocks
+                               activation, so it cannot be a silent equal of a stated one. -->
+                            <span
+                              class="est-mark"
+                              i18n="@@bank_programs.value_source.estimated_short"
+                              >Estimate</span
+                            >
+                          }
+                        </span>
+                      }
+                    </dd>
+                  </div>
+                } @else {
+                  <div class="row">
+                    <dt i18n="@@bank_programs.income.table">The bank’s table</dt>
+                    <dd class="empty-dash" i18n="@@bank_programs.income.no_table">
+                      Not entered — this program quotes nothing
+                    </dd>
+                  </div>
+                }
+                @if (p.incomeAssumption['dbrCapPercentOverride']; as override) {
+                  <div class="row">
+                    <dt i18n="@@bank_programs.income.dbr_override">DBR cap for this rule</dt>
+                    <dd class="numeric">{{ override }}%</dd>
+                  </div>
+                }
+              </dl>
+            </section>
+          }
+
+          <!-- Typed codes the API has always returned and no screen has ever shown. -->
+          @if (p.warnings && p.warnings.length > 0) {
+            <section class="card warnings">
+              <h2 class="card-title" i18n="@@bank_programs.section.warnings">Needs attention</h2>
+              <ul class="warn-list">
+                @for (w of p.warnings; track w.code + (w.meta ? '' : '')) {
+                  <li>{{ warningText(w) }}</li>
+                }
+              </ul>
+            </section>
+          }
+
+          <section class="card">
+            <h2 class="card-title" i18n="@@bank_programs.section.fees">Fees</h2>
+            <dl class="kv">
+              <div class="row">
+                <dt i18n="@@bank_programs.field.admin_fee">Admin fee</dt>
+                <dd class="numeric">{{ p.fees.adminFeePercent }}%</dd>
+              </div>
+              <div class="row">
+                <dt i18n="@@bank_programs.field.stamp_duty">Stamp duty</dt>
+                <dd class="numeric">{{ p.fees.stampDutyPercent }}%</dd>
+              </div>
+              <div class="row">
+                <dt i18n="@@bank_programs.field.life_insurance_pct">Life insurance</dt>
+                <dd class="numeric">
+                  {{ p.fees.lifeInsurancePercent }}%{{
+                    p.fees.lifeInsuranceMandatory ? ' (mandatory)' : ''
+                  }}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      </section>
     } @else {
       <div class="loading" aria-busy="true"><nz-spin nzSimple></nz-spin></div>
     }
@@ -746,7 +749,10 @@ export class BankProgramDetailPage {
    * new warning before the admin does.
    */
   protected warningText(w: { code: string; meta?: Record<string, unknown> }): string {
-    return this.errors.toLocalizedMessage(w.code as Parameters<ErrorCodeService['toLocalizedMessage']>[0], w.meta);
+    return this.errors.toLocalizedMessage(
+      w.code as Parameters<ErrorCodeService['toLocalizedMessage']>[0],
+      w.meta,
+    );
   }
 
   /** Back / post-delete target: the owning bank's detail page (registry fallback). */
@@ -804,8 +810,7 @@ export class BankProgramDetailPage {
       );
       void this.router.navigate(['/banks/programs', res.data.programCode, 'edit']);
     } catch (err: unknown) {
-      const code =
-        (err as { error?: { code?: string } }).error?.code ?? 'INTERNAL_ERROR';
+      const code = (err as { error?: { code?: string } }).error?.code ?? 'INTERNAL_ERROR';
       this.message.error(this.errors.toLocalizedMessage(code as never));
     } finally {
       this.duplicating.set(false);
@@ -815,7 +820,11 @@ export class BankProgramDetailPage {
   openDelete(): void {
     const p = this.program();
     if (!p) return;
-    const ref = this.modal.create<DeleteProgramDialog, DeleteProgramDialogData, boolean | undefined>({
+    const ref = this.modal.create<
+      DeleteProgramDialog,
+      DeleteProgramDialogData,
+      boolean | undefined
+    >({
       nzContent: DeleteProgramDialog,
       nzData: { programCode: p.programCode, friendlyName: p.friendlyName },
       nzWidth: 480,

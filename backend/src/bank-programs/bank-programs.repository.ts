@@ -41,7 +41,6 @@ export interface BankProgramCreate {
   programNameKey: string;
   programType: string;
   productCategory: string;
-  currencies: readonly string[];
   active?: boolean;
   isShariaCompliant?: boolean;
   operatorNotes?: string | null;
@@ -69,7 +68,6 @@ export interface BankProgramUpdate {
   programNameKey?: string;
   programType?: string;
   productCategory?: string;
-  currencies?: readonly string[];
   active?: boolean;
   isShariaCompliant?: boolean;
   operatorNotes?: string | null;
@@ -191,7 +189,6 @@ export class BankProgramRepository {
         programNameKey: input.programNameKey,
         programType: input.programType as BankProgramType,
         productCategory: input.productCategory,
-        currencies: [...input.currencies] as Prisma.BankProgramCreateInput['currencies'],
         active: input.active ?? true,
         isShariaCompliant: input.isShariaCompliant ?? false,
         operatorNotes: input.operatorNotes ?? null,
@@ -243,9 +240,6 @@ export class BankProgramRepository {
       prismaData.programType = data.programType as BankProgramType;
     }
     if (data.productCategory !== undefined) prismaData.productCategory = data.productCategory;
-    if (data.currencies !== undefined) {
-      prismaData.currencies = [...data.currencies] as Prisma.BankProgramUpdateInput['currencies'];
-    }
     if (data.active !== undefined) prismaData.active = data.active;
     if (data.isShariaCompliant !== undefined) prismaData.isShariaCompliant = data.isShariaCompliant;
     if (data.operatorNotes !== undefined) prismaData.operatorNotes = data.operatorNotes;

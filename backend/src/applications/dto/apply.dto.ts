@@ -187,12 +187,6 @@ export class ApplyRequestDto {
   @IsDecimalString({ min: 5000, max: 50_000_000, scale: 2, allowZero: false })
   requestedAmountEGP!: string;
 
-  @IsOptional()
-  @IsString()
-  @Length(3, 3)
-  @IsIn(['EGP', 'USD', 'EUR', 'GBP'])
-  requestedCurrency?: string;
-
   @IsInt()
   @Min(6)
   @Max(360)

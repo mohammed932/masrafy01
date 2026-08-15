@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, Input } from '@angular/core';
-import { FormArray, FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -29,7 +29,13 @@ import {
   template: `
     <section class="section" [formGroup]="group" id="identity">
       <header class="section-header">
-        <span class="section-icon" nz-icon nzType="idcard" nzTheme="outline" aria-hidden="true"></span>
+        <span
+          class="section-icon"
+          nz-icon
+          nzType="idcard"
+          nzTheme="outline"
+          aria-hidden="true"
+        ></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.identity">Identity</h3>
           <p class="section-sub" i18n="@@bank_programs.section.identity_sub">
@@ -89,18 +95,6 @@ import {
           i18n-label="@@bank_programs.field.product_category"
           label="Product category"
         ></app-brand-select>
-
-        <app-brand-select
-          class="span-2"
-          [options]="currencyOptions()"
-          [multiple]="true"
-          [value]="currentCurrencies"
-          (valueChange)="onCurrenciesChange($event)"
-          i18n-label="@@bank_programs.field.currencies"
-          label="Currencies"
-          i18n-hint="@@bank_programs.hint.currencies"
-          hint="EGP is the default. Add USD / EUR for secured loans."
-        ></app-brand-select>
       </div>
     </section>
   `,
@@ -113,7 +107,6 @@ export class IdentitySectionComponent {
   @Input() editMode = false;
 
   readonly productCategories = this.enums.membersFor('product_category');
-  readonly currencies = this.enums.membersFor('currency');
 
   readonly programTypeOptions: BrandSelectOption[] = [
     { value: 'income_proof', label: 'Income-proof' },
@@ -123,26 +116,4 @@ export class IdentitySectionComponent {
   readonly productCategoryOptions = computed<BrandSelectOption[]>(() =>
     this.productCategories().map((m) => ({ value: m.key, label: m.labelEn })),
   );
-
-  readonly currencyOptions = computed<BrandSelectOption[]>(() =>
-    this.currencies().map((m) => ({ value: m.key, label: m.key, secondary: m.labelEn })),
-  );
-
-  get currentCurrencies(): string[] {
-    const arr = this.group?.get('currencies') as FormArray | null;
-    return (arr?.value as string[] | undefined) ?? ['EGP'];
-  }
-
-  setCurrencies(next: string[]): void {
-    const arr = this.group.get('currencies') as FormArray;
-    arr.clear();
-    for (const c of next) {
-      arr.push(new FormControl(c, { nonNullable: true }));
-    }
-    arr.markAsDirty();
-  }
-
-  onCurrenciesChange(next: string | string[]): void {
-    this.setCurrencies(Array.isArray(next) ? next : [next]);
-  }
 }

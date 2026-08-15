@@ -175,7 +175,7 @@ export const abkEgypt2026: SeedCatalog = {
       programNameKey: 'professional',
       productCategory: 'wealth',
       pricing: { isVariableRate: false, baseRatePercent: '23.0000' },
-      loanLimits: { perCurrency: { EGP: { minAmount: '500000', maxAmount: '5000000' } } },
+      loanLimits: { minAmountEGP: '500000', maxAmountEGP: '5000000' },
       eligibility: {
         ...skeletonEligibility('salaried'),
         minBankStatementBalanceEGP: '50000000',

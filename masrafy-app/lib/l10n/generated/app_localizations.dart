@@ -1541,12 +1541,6 @@ abstract class AppLocalizations {
   /// **'لا'**
   String get q_common_no;
 
-  /// No description provided for @q_common_currency_egp.
-  ///
-  /// In ar, this message translates to:
-  /// **'ج.م'**
-  String get q_common_currency_egp;
-
   /// No description provided for @q_common_save.
   ///
   /// In ar, this message translates to:
@@ -4216,12 +4210,6 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'لا توجد مدة متاحة تُبقيك داخل حد السن لهذا البرنامج.'**
   String get reason_age_at_maturity;
-
-  /// Backend CURRENCY_NOT_OFFERED reason code
-  ///
-  /// In ar, this message translates to:
-  /// **'هذا البرنامج لا يوفر العملة المطلوبة.'**
-  String get reason_currency_not_offered;
 
   /// Backend PROGRAM_MISCONFIGURED reason code
   ///

@@ -516,21 +516,39 @@
       <trans-unit id="lookups.systemTooltip" datatype="html"><source>System-managed — labels editable, key locked</source><target>تحت إدارة النظام — التسميات قابلة للتعديل، المفتاح مقفول</target></trans-unit>
       <trans-unit id="lookups.editAria" datatype="html"><source>Edit</source><target>تعديل</target></trans-unit>
       <trans-unit id="lookups.deprecateAria" datatype="html"><source>Deprecate</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="lookups.delete" datatype="html"><source>Delete</source><target>حذف</target></trans-unit>
+      <trans-unit id="lookups.delete.confirm" datatype="html"><source>Delete this value for good? Only possible while nothing uses it.</source><target>حذف هذه القيمة نهائياً؟ ممكن فقط طالما لا يستخدمها شيء.</target></trans-unit>
       <trans-unit id="lookups.empty" datatype="html"><source>No values yet. Click <x id="START_TAG_STRONG"/>Add value<x id="CLOSE_TAG_STRONG"/> to seed the first one.</source><target>لا توجد قيم بعد. اضغط <x id="START_TAG_STRONG"/>إضافة قيمة<x id="CLOSE_TAG_STRONG"/> لإنشاء أول قيمة.</target></trans-unit>
 
       <trans-unit id="lookups.dialog.titleCreate" datatype="html"><source>Add new value</source><target>إضافة قيمة جديدة</target></trans-unit>
       <trans-unit id="lookups.dialog.titleEdit" datatype="html"><source>Edit value</source><target>تعديل القيمة</target></trans-unit>
       <trans-unit id="lookups.dialog.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
       <trans-unit id="lookups.dialog.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
-      <trans-unit id="lookups.field.key" datatype="html"><source>Key (machine-readable)</source><target>المفتاح (للنظام)</target></trans-unit>
-      <trans-unit id="lookups.field.keyHint" datatype="html"><source>letters, digits, underscore or hyphen only — used in API + database</source><target>الأحرف والأرقام والشرطة السفلية والشرطة فقط — يُستخدم في الـ API وقاعدة البيانات</target></trans-unit>
       <trans-unit id="lookups.field.labelEn" datatype="html"><source>Label (English)</source><target>التسمية (الإنجليزية)</target></trans-unit>
       <trans-unit id="lookups.field.labelAr" datatype="html"><source>Label (Arabic)</source><target>التسمية (العربية)</target></trans-unit>
+      <trans-unit id="lookups.example.transferType.en" datatype="html"><source>e.g. Salary transferred to the bank</source><target>مثال: تحويل الراتب على البنك</target></trans-unit>
+      <trans-unit id="lookups.example.transferType.ar" datatype="html"><source>مثال: تحويل الراتب على البنك</source><target>مثال: تحويل الراتب على البنك</target></trans-unit>
+      <trans-unit id="lookups.example.employmentType.en" datatype="html"><source>e.g. Private sector employee</source><target>مثال: موظف قطاع خاص</target></trans-unit>
+      <trans-unit id="lookups.example.employmentType.ar" datatype="html"><source>مثال: موظف قطاع خاص</source><target>مثال: موظف قطاع خاص</target></trans-unit>
+      <trans-unit id="lookups.example.productCategory.en" datatype="html"><source>e.g. Personal loans</source><target>مثال: قروض شخصية</target></trans-unit>
+      <trans-unit id="lookups.example.productCategory.ar" datatype="html"><source>مثال: قروض شخصية</source><target>مثال: قروض شخصية</target></trans-unit>
+      <trans-unit id="lookups.example.requiredDocument.en" datatype="html"><source>e.g. Bank statement — last 6 months</source><target>مثال: كشف حساب بنكي — آخر ٦ شهور</target></trans-unit>
+      <trans-unit id="lookups.example.requiredDocument.ar" datatype="html"><source>مثال: كشف حساب بنكي — آخر ٦ شهور</source><target>مثال: كشف حساب بنكي — آخر ٦ شهور</target></trans-unit>
+      <trans-unit id="lookups.example.governorate.en" datatype="html"><source>e.g. Giza</source><target>مثال: الجيزة</target></trans-unit>
+      <trans-unit id="lookups.example.governorate.ar" datatype="html"><source>مثال: الجيزة</source><target>مثال: الجيزة</target></trans-unit>
+      <trans-unit id="lookups.example.programName.en" datatype="html"><source>e.g. Personal Loan Plus</source><target>مثال: قرض شخصي بلس</target></trans-unit>
+      <trans-unit id="lookups.example.programName.ar" datatype="html"><source>مثال: قرض شخصي بلس</source><target>مثال: قرض شخصي بلس</target></trans-unit>
+      <trans-unit id="lookups.example.fallback.en" datatype="html"><source>e.g. Salaried employee</source><target>مثال: موظف براتب</target></trans-unit>
+      <trans-unit id="lookups.example.fallback.ar" datatype="html"><source>مثال: موظف براتب</source><target>مثال: موظف براتب</target></trans-unit>
       <trans-unit id="lookups.field.sortOrder" datatype="html"><source>Sort order</source><target>الترتيب</target></trans-unit>
       <trans-unit id="lookups.field.sortOrderHint" datatype="html"><source>controls the order in dropdowns</source><target>يتحكم في ترتيب العناصر في القوائم المنسدلة</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis" datatype="html"><source>How do banks prove the income?</source><target>كيف تثبت البنوك الدخل؟</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis.required" datatype="html"><source>Pick at least one — a name banks cannot sell either way is a name no program can use.</source><target>اختر طريقة واحدة على الأقل — الاسم الذي لا تستطيع البنوك بيعه بأي طريقة لا يصلح لأي برنامج.</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis.note" datatype="html"><source>Applies to every loan type this name starts under. Change it per loan type later, on the name’s own page.</source><target>ينطبق على كل أنواع التمويل التي يبدأ بها هذا الاسم. يمكنك تغييره لكل نوع تمويل لاحقًا من صفحة الاسم.</target></trans-unit>
+      <trans-unit id="lookups.field.incomeBasis.noteEdit" datatype="html"><source>Applies to every loan type this name is offered under (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>). To set them apart, use the name’s own page.</source><target>ينطبق على كل أنواع التمويل المعروض تحتها هذا الاسم (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>). لضبط كل نوع على حدة، استخدم صفحة الاسم.</target></trans-unit>
+      <trans-unit id="lookups.field.incomeBasis.mixed" datatype="html"><source>Set on <x id="INTERPOLATION" equiv-text="{{ mixedCategoryNames(b) }}"/> only — tick to set it everywhere.</source><target>مضبوط على <x id="INTERPOLATION" equiv-text="{{ mixedCategoryNames(b) }}"/> فقط — حدّد لضبطه على الكل.</target></trans-unit>
+      <trans-unit id="lookups.field.incomeBasis.parked" datatype="html"><source>This name isn’t offered under any loan type yet, so there’s nothing to sell it against. Pick its loan types on the name’s own page first.</source><target>هذا الاسم غير معروض تحت أي نوع تمويل بعد، فلا يوجد ما يُباع عليه. اختر أنواع التمويل من صفحة الاسم أولًا.</target></trans-unit>
+      <trans-unit id="lookups.list.separator" datatype="html"><source>, </source><target>، </target></trans-unit>
 
       <!-- Theme toggle -->
       <trans-unit id="topBar.theme.switchLight" datatype="html"><source>Switch to light theme</source><target>التبديل إلى الوضع الفاتح</target></trans-unit>
@@ -874,9 +892,10 @@
       <trans-unit id="pnd.locked" datatype="html"><source><x id="INTERPOLATION" equiv-text="scope().length"/> questions are asked here. Turn on the switch above to pick which ones this name scores on.</source><target>تُطرح هنا <x id="INTERPOLATION" equiv-text="scope().length"/> سؤالاً. فعّل المفتاح بالأعلى لاختيار ما يُقيَّم عليه هذا الاسم.</target></trans-unit>
       <trans-unit id="pnd.locked_more" datatype="html"><source>and <x id="INTERPOLATION" equiv-text="scope().length - lockedPreview().length"/> more</source><target>و<x id="INTERPOLATION" equiv-text="scope().length - lockedPreview().length"/> غيرها</target></trans-unit>
       <trans-unit id="pnd.count" datatype="html"><source>of <x id="INTERPOLATION" equiv-text="scope().length"/> questions asked here</source><target>من <x id="INTERPOLATION" equiv-text="scope().length"/> سؤالاً يُسأل هنا</target></trans-unit>
-      <trans-unit id="pnd.pick_all" datatype="html"><source>Tick everything listed</source><target>حدّد كل المعروض</target></trans-unit>
+      <trans-unit id="pnd.pick_all" datatype="html"><source>Tick all listed</source><target>حدّد كل المعروض</target></trans-unit>
       <trans-unit id="pnd.pick_all_tip" datatype="html"><source>Score this name on every question listed</source><target>قيّم هذا الاسم على كل سؤال معروض</target></trans-unit>
-      <trans-unit id="pnd.clear_all" datatype="html"><source>Untick everything listed</source><target>أزل تحديد كل المعروض</target></trans-unit>
+      <trans-unit id="pnd.bulk_aria" datatype="html"><source>Tick or untick every question listed</source><target>حدّد أو أزل تحديد كل سؤال معروض</target></trans-unit>
+      <trans-unit id="pnd.clear_all" datatype="html"><source>Untick all listed</source><target>أزل تحديد كل المعروض</target></trans-unit>
       <trans-unit id="pnd.clear_all_tip" datatype="html"><source>Stop scoring on every question listed</source><target>أوقف التقييم على كل سؤال معروض</target></trans-unit>
       <trans-unit id="pnd.clear_all_confirm" datatype="html"><source>This clears the list for this loan type — bank programs created from it will start from nothing.</source><target>هذا يمسح القائمة لنوع التمويل هذا — ستبدأ البرامج البنكية المنشأة منه من الصفر.</target></trans-unit>
       <trans-unit id="pnd.search_ph" datatype="html"><source>Search questions</source><target>ابحث في الأسئلة</target></trans-unit>
@@ -886,7 +905,7 @@
       <trans-unit id="pnd.no_matches_title" datatype="html"><source>No questions match that search</source><target>لا توجد أسئلة مطابقة للبحث</target></trans-unit>
       <trans-unit id="pnd.sec_scored" datatype="html"><source>Scored on</source><target>يُقيَّم عليها</target></trans-unit>
       <trans-unit id="pnd.sec_rest" datatype="html"><source>Not scored on</source><target>لا يُقيَّم عليها</target></trans-unit>
-      <trans-unit id="pnd.none_scored" datatype="html"><source>Nothing yet — tap a question below, or use “Tick everything listed”.</source><target>لا شيء بعد — اضغط على سؤال بالأسفل، أو استخدم «حدّد كل المعروض».</target></trans-unit>
+      <trans-unit id="pnd.none_scored" datatype="html"><source>Nothing yet — tap a question below, or use “Tick all listed”.</source><target>لا شيء بعد — اضغط على سؤال بالأسفل، أو استخدم «حدّد كل المعروض».</target></trans-unit>
       <trans-unit id="pnd.drift_tag" datatype="html"><source>not asked here</source><target>لا يُطرح هنا</target></trans-unit>
       <trans-unit id="pnd.removed_tag" datatype="html"><source>removed from the pool</source><target>أُزيل من المخزن</target></trans-unit>
       <trans-unit id="pnd.qtype_single" datatype="html"><source>One answer</source><target>إجابة واحدة</target></trans-unit>
@@ -1165,22 +1184,15 @@
       <trans-unit id="bank_programs.form.created_inactive_body" datatype="html"><source>It holds a number the team estimated. Switch it on once the bank has confirmed the figure.</source><target>يحتوي رقمًا قدّره الفريق. شغّله بعد أن يؤكد البنك الرقم.</target></trans-unit>
       <trans-unit id="bank_programs.value_source.stated_short" datatype="html"><source>Bank</source><target>البنك</target></trans-unit>
       <trans-unit id="bank_programs.value_source.estimated_short" datatype="html"><source>Estimate</source><target>تقدير</target></trans-unit>
-      <trans-unit id="pnd.facts_title" datatype="html"><source>What the bank can work the income out from</source><target>ما يمكن للبنك حساب الدخل منه</target></trans-unit>
-      <trans-unit id="pnd.facts_sub" datatype="html"><source>Tick the facts this name’s banks look up. Each bank then enters its own table against that fact on its program — a table with no answer behind it gives the customer no figure at all.</source><target>حدّد المعلومات التي تعتمد عليها بنوك هذا الاسم. ثم يُدخل كل بنك جدوله الخاص مقابل تلك المعلومة في برنامجه — وجدول بدون إجابة خلفه لا يعطي العميل أي رقم.</target></trans-unit>
-      <trans-unit id="pnd.fact_not_asked" datatype="html"><source><x id="INTERPOLATION" equiv-text="categoryName()"/> applicants are never asked this, so no bank can use it yet.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="categoryName()"/> لا يُسألون هذا السؤال، لذا لا يمكن لأي بنك استخدامه بعد.</target></trans-unit>
-      <trans-unit id="pnd.fact_fix_ask" datatype="html"><source>Ask it</source><target>أضف السؤال</target></trans-unit>
-      <trans-unit id="program_catalog.card.reads" datatype="html"><source>No payslip · reads</source><target>بدون إثبات راتب · يقرأ</target></trans-unit>
-      <trans-unit id="program_catalog.card.no_fact" datatype="html"><source>Sold with no payslip, but no fact is picked — banks have nothing to look up</source><target>يُباع بدون إثبات راتب، لكن لم تُحدَّد أي معلومة — لا يوجد ما تعتمد عليه البنوك</target></trans-unit>
       <trans-unit id="program_catalog.card.unmarked_no_payslip" datatype="html"><source>Banks sell this without a payslip, but the name is not marked for it</source><target>البنوك تبيع هذا الاسم بدون إثبات راتب، لكن الاسم غير محدَّد لذلك</target></trans-unit>
       <trans-unit id="program_catalog.stat.no_table" datatype="html"><source>Programs with no table</source><target>برامج بدون جدول</target></trans-unit>
       <trans-unit id="program_catalog.stat.no_table.hint" datatype="html"><source>sold with no payslip, and no table entered</source><target>تُباع بدون إثبات راتب، وبدون إدخال جدول</target></trans-unit>
       <trans-unit id="pnd.count_drift" datatype="html"><source>+<x id="INTERPOLATION" equiv-text="driftedCount()"/> kept from a change made elsewhere</source><target>+<x id="INTERPOLATION" equiv-text="driftedCount()"/> محفوظة من تغيير حدث في مكان آخر</target></trans-unit>
-      <trans-unit id="pnd.facts_warn" datatype="html"><source><x id="INTERPOLATION" equiv-text="factsNotAsked()"/> of these are not asked of <x id="INTERPOLATION_1" equiv-text="categoryName()"/> applicants. A bank program that reads one of them produces no income until that changes.</source><target><x id="INTERPOLATION" equiv-text="factsNotAsked()"/> من هذه المعلومات لا يُسأل عنها متقدمو <x id="INTERPOLATION_1" equiv-text="categoryName()"/>. أي برنامج بنكي يعتمد عليها لا ينتج دخلًا حتى يتغير ذلك.</target></trans-unit>
       <trans-unit id="program_catalog.card.no_table" datatype="html"><source><x id="COUNT" equiv-text="count"/> with no table yet</source><target><x id="COUNT" equiv-text="count"/> بدون جدول بعد</target></trans-unit>
       <trans-unit id="income_basis.payslip" datatype="html"><source>Reads a payslip</source><target>يقرأ إثبات الراتب</target></trans-unit>
       <trans-unit id="income_basis.no_payslip" datatype="html"><source>No payslip</source><target>بدون إثبات راتب</target></trans-unit>
       <trans-unit id="income_basis.payslip.hint" datatype="html"><source>A salary transfer or payslip proves the income the bank lends against.</source><target>تحويل الراتب أو إثبات الراتب هو ما يثبت الدخل الذي يمنح البنك التمويل على أساسه.</target></trans-unit>
-      <trans-unit id="income_basis.no_payslip.hint" datatype="html"><source>The bank works the income out from a fact about the applicant — military grade, academic rank, years in practice, card limit. You enter its own table in step 4.</source><target>يحسب البنك الدخل من معلومة عن العميل — الرتبة العسكرية، الدرجة العلمية، سنوات الممارسة، حد البطاقة. تُدخل جدوله الخاص في الخطوة الرابعة.</target></trans-unit>
+      <trans-unit id="income_basis.no_payslip.hint" datatype="html"><source>The bank works the income out from one of the income facts about the applicant. You enter its own table in step 4.</source><target>يحسب البنك الدخل من إحدى معلومات الدخل عن العميل. تُدخل جدوله الخاص في الخطوة الرابعة.</target></trans-unit>
       <trans-unit id="program_catalog.basis.all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
       <trans-unit id="program_catalog.basis.aria" datatype="html"><source>Filter by how the bank reads the income</source><target>تصفية حسب طريقة قراءة البنك للدخل</target></trans-unit>
       <trans-unit id="program_catalog.basis.empty" datatype="html"><source>No program names match this filter yet.</source><target>لا توجد أسماء برامج مطابقة لهذه التصفية بعد.</target></trans-unit>
@@ -1189,10 +1201,103 @@
       <trans-unit id="pnd.basis_saved_np" datatype="html"><source>Sold without a payslip here.</source><target>يُباع هنا بدون إثبات راتب.</target></trans-unit>
       <trans-unit id="pnd.basis_saved_payslip" datatype="html"><source>Reads a payslip here.</source><target>يقرأ إثبات الراتب هنا.</target></trans-unit>
       <trans-unit id="pnd.basis_failed" datatype="html"><source>Could not save. Try again.</source><target>تعذّر الحفظ. حاول مرة أخرى.</target></trans-unit>
-      <trans-unit id="pnd.np_unavailable_hint" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants aren’t asked any of the four facts yet, so there is nothing for a bank to look up.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> لا يُسألون أي من المعلومات الأربع بعد، لذا لا يوجد ما يعتمد عليه البنك.</target></trans-unit>
+      <trans-unit id="pnd.np_unavailable_hint" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants aren’t asked any income fact yet, so there is nothing for a bank to look up.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> لا يُسألون أي معلومة دخل بعد، لذا لا يوجد ما يعتمد عليه البنك.</target></trans-unit>
       <trans-unit id="pnd.np_fix" datatype="html"><source>Ask one of them</source><target>أضف أحدها كسؤال</target></trans-unit>
-      <trans-unit id="pnd.fact_ticked_not_asked" datatype="html"><source>Not asked here — fix</source><target>غير مطلوب هنا — أصلِح</target></trans-unit>
-      <trans-unit id="pnd.facts_no_table" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> bank programs read these and have no table yet, so they quote nothing.</source><target><x id="INTERPOLATION" equiv-text="x"/> برامج بنكية تعتمد على هذه المعلومات وبدون جدول بعد، لذا لا تعطي أي عرض.</target></trans-unit>
+
+      <trans-unit id="pnd.new_question" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
+      <trans-unit id="pnd.new_question_title" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
+      <trans-unit id="pnd.new_question_tip" datatype="html"><source>Write a question and tick it into this name in one go</source><target>اكتب سؤالاً وأضفه لهذا الاسم في خطوة واحدة</target></trans-unit>
+      <trans-unit id="pnd.write_first" datatype="html"><source>Write the first question</source><target>اكتب أول سؤال</target></trans-unit>
+      <trans-unit id="pnd.create_searched" datatype="html"><source>Create “<x id="INTERPOLATION" equiv-text="query()"/>” as a new question</source><target>أنشئ «<x id="INTERPOLATION" equiv-text="query()"/>» كسؤال جديد</target></trans-unit>
+      <trans-unit id="pnd.tick_failed" datatype="html"><source>“<x id="INTERPOLATION" equiv-text="failed"/>” was created, but ticking it here didn’t save. Tap it below to score this name on it.</source><target>أُنشئ «<x id="INTERPOLATION" equiv-text="failed"/>» بالفعل، لكن إضافته هنا لم تُحفظ. اضغط عليه بالأسفل لتقييم هذا الاسم عليه.</target></trans-unit>
+      <trans-unit id="pnd.dismiss" datatype="html"><source>Dismiss</source><target>إخفاء</target></trans-unit>
+      <trans-unit id="pnd.live_created" datatype="html"><source>“<x id="question" equiv-text="result.label"/>” was added to the question pool</source><target>أُضيف «<x id="question" equiv-text="result.label"/>» إلى مجموعة الأسئلة</target></trans-unit>
+
+      <trans-unit id="pnq.type_h" datatype="html"><source>What kind of answer do you want back?</source><target>ما نوع الإجابة التي تريدها؟</target></trans-unit>
+      <trans-unit id="pnq.type_single" datatype="html"><source>Pick one</source><target>اختيار واحد</target></trans-unit>
+      <trans-unit id="pnq.type_single_hint" datatype="html"><source>One answer from a list you write.</source><target>إجابة واحدة من قائمة تكتبها.</target></trans-unit>
+      <trans-unit id="pnq.type_multi" datatype="html"><source>Pick several</source><target>اختيار متعدد</target></trans-unit>
+      <trans-unit id="pnq.type_multi_hint" datatype="html"><source>Any number of answers from your list.</source><target>أي عدد من الإجابات من قائمتك.</target></trans-unit>
+      <trans-unit id="pnq.type_number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
+      <trans-unit id="pnq.type_number_hint" datatype="html"><source>A figure — salary, rent, years.</source><target>قيمة — راتب أو إيجار أو عدد سنوات.</target></trans-unit>
+      <trans-unit id="pnq.type_text" datatype="html"><source>Free text</source><target>نص حر</target></trans-unit>
+      <trans-unit id="pnq.type_text_hint" datatype="html"><source>Typed in freely. Scored on being answered.</source><target>يُكتب بحرية. يُقيَّم على الإجابة نفسها لا على محتواها.</target></trans-unit>
+
+      <trans-unit id="pnq.wording_h" datatype="html"><source>How is it worded?</source><target>كيف يُصاغ السؤال؟</target></trans-unit>
+      <trans-unit id="pnq.q_en" datatype="html"><source>Question — English</source><target>السؤال — بالإنجليزية</target></trans-unit>
+      <trans-unit id="pnq.q_en_ph" datatype="html"><source>How old is the company?</source><target>How old is the company?</target></trans-unit>
+      <trans-unit id="pnq.q_ar" datatype="html"><source>Question — Arabic</source><target>السؤال — بالعربية</target></trans-unit>
+      <trans-unit id="pnq.q_ar_ph" datatype="html"><source>عمر الشركة؟</source><target>عمر الشركة؟</target></trans-unit>
+      <trans-unit id="pnq.help_en" datatype="html"><source>Sub-label — English</source><target>سطر توضيحي — بالإنجليزية</target></trans-unit>
+      <trans-unit id="pnq.help_ar" datatype="html"><source>Sub-label — Arabic</source><target>سطر توضيحي — بالعربية</target></trans-unit>
+      <trans-unit id="pnq.help_hint" datatype="html"><source>Optional. Says what you want, when the question alone could be read two ways — “the limit, not the balance”.</source><target>اختياري. يوضّح المقصود عندما يحتمل السؤال أكثر من قراءة — «الحد، لا الرصيد».</target></trans-unit>
+      <trans-unit id="pnq.code" datatype="html"><source>code</source><target>الكود</target></trans-unit>
+      <trans-unit id="pnq.code_hint" datatype="html"><source>made from the English wording, and permanent</source><target>مشتق من الصياغة الإنجليزية، ولا يتغير بعد ذلك</target></trans-unit>
+
+      <trans-unit id="pnq.answers_h" datatype="html"><source>The answers to pick from</source><target>الإجابات المتاحة للاختيار</target></trans-unit>
+      <trans-unit id="pnq.ans_en_ph" datatype="html"><source>English</source><target>بالإنجليزية</target></trans-unit>
+      <trans-unit id="pnq.ans_ar_ph" datatype="html"><source>عربي</source><target>بالعربية</target></trans-unit>
+      <trans-unit id="pnq.add_answer" datatype="html"><source>Add an answer</source><target>أضف إجابة</target></trans-unit>
+      <trans-unit id="pnq.answers_hint" datatype="html"><source>Drag to reorder, or use the arrows. Enter in the Arabic box adds the next one.</source><target>اسحب لإعادة الترتيب، أو استخدم الأسهم. الضغط على Enter في الخانة العربية يضيف الإجابة التالية.</target></trans-unit>
+      <trans-unit id="pnq.aria_up" datatype="html"><source>Move this answer up</source><target>حرّك هذه الإجابة لأعلى</target></trans-unit>
+      <trans-unit id="pnq.aria_down" datatype="html"><source>Move this answer down</source><target>حرّك هذه الإجابة لأسفل</target></trans-unit>
+      <trans-unit id="pnq.aria_remove" datatype="html"><source>Remove this answer</source><target>احذف هذه الإجابة</target></trans-unit>
+      <trans-unit id="pnq.min_answers_tip" datatype="html"><source>A pick-one question needs at least two answers</source><target>سؤال الاختيار يحتاج إجابتين على الأقل</target></trans-unit>
+      <trans-unit id="pnq.aria_ans_en" datatype="html"><source>Answer <x id="n" equiv-text="n"/>, English</source><target>الإجابة <x id="n" equiv-text="n"/>، بالإنجليزية</target></trans-unit>
+      <trans-unit id="pnq.aria_ans_ar" datatype="html"><source>Answer <x id="n" equiv-text="n"/>, Arabic</source><target>الإجابة <x id="n" equiv-text="n"/>، بالعربية</target></trans-unit>
+      <trans-unit id="pnq.live_added" datatype="html"><source>Answer added, <x id="n" equiv-text="n"/> in total</source><target>أُضيفت إجابة، الإجمالي <x id="n" equiv-text="n"/></target></trans-unit>
+      <trans-unit id="pnq.live_removed" datatype="html"><source>Answer removed, <x id="n" equiv-text="n"/> left</source><target>حُذفت إجابة، تبقّى <x id="n" equiv-text="n"/></target></trans-unit>
+      <trans-unit id="pnq.live_moved" datatype="html"><source>Answer moved to position <x id="pos" equiv-text="pos"/> of <x id="n" equiv-text="n"/></source><target>انتقلت الإجابة إلى الموضع <x id="pos" equiv-text="pos"/> من <x id="n" equiv-text="n"/></target></trans-unit>
+
+      <trans-unit id="pnq.number_h" datatype="html"><source>What counts as a valid number?</source><target>ما الرقم المقبول؟</target></trans-unit>
+      <trans-unit id="pnq.num_min" datatype="html"><source>Smallest allowed</source><target>أقل قيمة مسموحة</target></trans-unit>
+      <trans-unit id="pnq.num_max" datatype="html"><source>Largest allowed</source><target>أكبر قيمة مسموحة</target></trans-unit>
+      <trans-unit id="pnq.num_step" datatype="html"><source>Step</source><target>خطوة الزيادة</target></trans-unit>
+      <trans-unit id="pnq.unit_en" datatype="html"><source>Unit — English</source><target>الوحدة — بالإنجليزية</target></trans-unit>
+      <trans-unit id="pnq.unit_ar" datatype="html"><source>Unit — Arabic</source><target>الوحدة — بالعربية</target></trans-unit>
+      <trans-unit id="pnq.number_hint" datatype="html"><source>All optional. Leave them empty to accept any number.</source><target>كلها اختيارية. اتركها فارغة لقبول أي رقم.</target></trans-unit>
+
+      <trans-unit id="pnq.text_h" datatype="html"><source>How long can the answer be?</source><target>ما أقصى طول للإجابة؟</target></trans-unit>
+      <trans-unit id="pnq.text_len" datatype="html"><source>Longest answer, in characters</source><target>أطول إجابة، بعدد الحروف</target></trans-unit>
+      <trans-unit id="pnq.text_hint" datatype="html"><source>Free text is scored on whether it was answered at all — never on what it says.</source><target>النص الحر يُقيَّم على مجرد الإجابة عليه — لا على ما يحتويه.</target></trans-unit>
+
+      <trans-unit id="pnq.where_h" datatype="html"><source>Who gets asked this?</source><target>من يُسأل هذا السؤال؟</target></trans-unit>
+      <trans-unit id="pnq.where_none" datatype="html"><source>Pick at least one loan type — a question no one is asked is a question that does nothing.</source><target>اختر نوع تمويل واحداً على الأقل — سؤال لا يُطرح على أحد سؤال بلا فائدة.</target></trans-unit>
+      <trans-unit id="pnq.where_note" datatype="html"><source>Every <x id="types" equiv-text="list"/> applicant will be asked this, in every program — not only “<x id="name" equiv-text="this.data.nameLabel"/>”. Questions are one shared pool.</source><target>سيُسأل كل متقدم <x id="types" equiv-text="list"/> هذا السؤال، في كل البرامج — وليس في «<x id="name" equiv-text="this.data.nameLabel"/>» فقط. الأسئلة مجموعة واحدة مشتركة.</target></trans-unit>
+      <trans-unit id="pnq.tick" datatype="html"><source>Also score “<x id="name" equiv-text="this.data.nameLabel"/>” on it</source><target>قيّم «<x id="name" equiv-text="this.data.nameLabel"/>» عليه أيضاً</target></trans-unit>
+      <trans-unit id="pnq.tick_hint" datatype="html"><source>Adds it to this name's list here, so every bank program under it can weight it.</source><target>يضيفه إلى قائمة هذا الاسم هنا، ليتمكن كل برنامج بنكي تحته من وزنه.</target></trans-unit>
+      <trans-unit id="pnq.tick_off_hint" datatype="html"><source>Turn <x id="INTERPOLATION" equiv-text="openCategoryName()"/> back on above — a name cannot score on a question its applicants are never asked.</source><target>أعد تفعيل <x id="INTERPOLATION" equiv-text="openCategoryName()"/> بالأعلى — لا يمكن لاسم أن يُقيَّم على سؤال لا يُطرح على متقدميه.</target></trans-unit>
+      <trans-unit id="pnq.required" datatype="html"><source>Must be answered</source><target>إجابته إلزامية</target></trans-unit>
+      <trans-unit id="pnq.required_hint" datatype="html"><source>Applicants cannot move on without it.</source><target>لا يستطيع المتقدم المتابعة بدونه.</target></trans-unit>
+
+      <trans-unit id="pnq.branch_toggle" datatype="html"><source>Ask this only sometimes</source><target>اطرحه في حالات معينة فقط</target></trans-unit>
+      <trans-unit id="pnq.branch_loading" datatype="html"><source>Loading the other questions…</source><target>جارٍ تحميل بقية الأسئلة…</target></trans-unit>
+      <trans-unit id="pnq.branch_none" datatype="html"><source>No earlier pick-one question to depend on yet, so this one is always asked.</source><target>لا يوجد سؤال اختيار سابق يعتمد عليه، لذا يُطرح هذا السؤال دائماً.</target></trans-unit>
+      <trans-unit id="pnq.branch_q" datatype="html"><source>Only when this question</source><target>فقط عندما يكون هذا السؤال</target></trans-unit>
+      <trans-unit id="pnq.branch_q_ph" datatype="html"><source>Pick a question</source><target>اختر سؤالاً</target></trans-unit>
+      <trans-unit id="pnq.branch_op" datatype="html"><source>was</source><target>الحالة</target></trans-unit>
+      <trans-unit id="pnq.op_equals" datatype="html"><source>was answered</source><target>أُجيب بـ</target></trans-unit>
+      <trans-unit id="pnq.op_not_equals" datatype="html"><source>was NOT answered</source><target>لم يُجب بـ</target></trans-unit>
+      <trans-unit id="pnq.branch_a" datatype="html"><source>this answer</source><target>هذه الإجابة</target></trans-unit>
+      <trans-unit id="pnq.branch_a_ph" datatype="html"><source>Pick an answer</source><target>اختر إجابة</target></trans-unit>
+
+      <trans-unit id="pnq.block_wording" datatype="html"><source>Write the question in English and Arabic</source><target>اكتب السؤال بالإنجليزية والعربية</target></trans-unit>
+      <trans-unit id="pnq.block_min_answers" datatype="html"><source>Add one more answer</source><target>أضف إجابة أخرى</target></trans-unit>
+      <trans-unit id="pnq.block_answer_labels" datatype="html"><source>Every answer needs both languages</source><target>كل إجابة تحتاج اللغتين</target></trans-unit>
+      <trans-unit id="pnq.block_decimal" datatype="html"><source>Numbers take at most two decimal places</source><target>الأرقام تقبل رقمين عشريين على الأكثر</target></trans-unit>
+      <trans-unit id="pnq.block_range" datatype="html"><source>The largest allowed cannot be below the smallest</source><target>أكبر قيمة لا يمكن أن تقل عن أصغر قيمة</target></trans-unit>
+      <trans-unit id="pnq.block_step" datatype="html"><source>The step has to be more than zero</source><target>خطوة الزيادة يجب أن تكون أكبر من صفر</target></trans-unit>
+      <trans-unit id="pnq.block_step_wide" datatype="html"><source>The step is wider than the whole range</source><target>خطوة الزيادة أوسع من المدى كله</target></trans-unit>
+      <trans-unit id="pnq.block_unit" datatype="html"><source>Give the unit in both languages, or in neither</source><target>اكتب الوحدة باللغتين، أو لا تكتبها إطلاقاً</target></trans-unit>
+      <trans-unit id="pnq.block_len" datatype="html"><source>The longest answer has to be between 1 and 2000</source><target>أطول إجابة يجب أن تكون بين ١ و٢٠٠٠</target></trans-unit>
+      <trans-unit id="pnq.block_categories" datatype="html"><source>Pick at least one loan type</source><target>اختر نوع تمويل واحداً على الأقل</target></trans-unit>
+      <trans-unit id="pnq.block_branch" datatype="html"><source>Finish the condition, or close it</source><target>أكمل الشرط، أو أغلقه</target></trans-unit>
+
+      <trans-unit id="pnq.summary_ticked" datatype="html"><source>A <x id="kind" equiv-text="kind"/> question, asked of <x id="types" equiv-text="where"/> applicants, and ticked into “<x id="name" equiv-text="this.data.nameLabel"/>”.</source><target>سؤال <x id="kind" equiv-text="kind"/>، يُطرح على متقدمي <x id="types" equiv-text="where"/>، ومُضاف إلى «<x id="name" equiv-text="this.data.nameLabel"/>».</target></trans-unit>
+      <trans-unit id="pnq.summary_plain" datatype="html"><source>A <x id="kind" equiv-text="kind"/> question, asked of <x id="types" equiv-text="where"/> applicants. Not ticked here.</source><target>سؤال <x id="kind" equiv-text="kind"/>، يُطرح على متقدمي <x id="types" equiv-text="where"/>. غير مُضاف هنا.</target></trans-unit>
+      <trans-unit id="pnq.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
+      <trans-unit id="pnq.save" datatype="html"><source>Create question</source><target>أنشئ السؤال</target></trans-unit>
+
       <trans-unit id="bank_programs.field.income_basis" datatype="html"><source>How does the bank read the income?</source><target>كيف يقرأ البنك الدخل؟</target></trans-unit>
       <trans-unit id="bank_programs.form.income" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
       <trans-unit id="bank_programs.warn.name_not_sold_this_way" datatype="html"><source>“<x id="INTERPOLATION" equiv-text="x"/>” isn’t sold this way for <x id="INTERPOLATION_1" equiv-text="x"/>. Pick another name, or change how it is sold in the program catalog.</source><target>«<x id="INTERPOLATION" equiv-text="x"/>» لا يُباع بهذه الطريقة لـ<x id="INTERPOLATION_1" equiv-text="x"/>. اختر اسمًا آخر، أو غيّر طريقة بيعه في كتالوج البرامج.</target></trans-unit>

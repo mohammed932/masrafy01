@@ -83,7 +83,7 @@ export class CalculatorService {
       skipDbrCheck: true, // …so DBR must not shrink the amount that was asked for.
     });
 
-    const limits = program.loanLimits.perCurrency['EGP'];
+    const limits = program.loanLimits;
     return {
       mode: 'cost',
       ...(isRepresentativeRate ? {} : { programCode: program.programCode }),
@@ -106,8 +106,8 @@ export class CalculatorService {
         tenor: quote.effectiveTenorMonths !== dto.tenorMonths,
       },
       limits: {
-        minAmountEGP: new Decimal(limits?.minAmount ?? 0).toFixed(2),
-        maxAmountEGP: new Decimal(limits?.maxAmount ?? 0).toFixed(2),
+        minAmountEGP: new Decimal(limits?.minAmountEGP ?? 0).toFixed(2),
+        maxAmountEGP: new Decimal(limits?.maxAmountEGP ?? 0).toFixed(2),
         minTenorMonths: program.tenor.minMonths,
         maxTenorMonths: program.tenor.maxMonths,
       },
@@ -137,7 +137,7 @@ export class CalculatorService {
     // Price at the program ceiling and let the DBR reduction find the answer:
     // whatever the engine would offer someone asking for the maximum IS the
     // maximum. Same code path as a real offer, so the two cannot diverge.
-    const ceiling = new Decimal(program.loanLimits.perCurrency['EGP']?.maxAmount ?? 0);
+    const ceiling = new Decimal(program.loanLimits.maxAmountEGP ?? 0);
     const outcome = quoteProgram({
       profile: this.buildProfile({ dto, age, income, obligations, requested: ceiling }),
       program,
@@ -262,7 +262,6 @@ export class CalculatorService {
       age: args.age,
       loanPurpose: 'personal',
       requestedAmountEGP: args.requested,
-      requestedCurrency: 'EGP',
       preferredTenorMonths: args.dto.tenorMonths,
       priority: 'lowest_installment',
       employment: {
@@ -311,7 +310,6 @@ export class CalculatorService {
       friendlyName: '',
       programType: 'income_proof',
       productCategory: 'personal',
-      currencies: ['EGP'],
       active: true,
       isShariaCompliant: false,
       version: 1,
@@ -322,9 +320,8 @@ export class CalculatorService {
         maxMonths: GENERIC_PROGRAM.maxTenorMonths,
       },
       loanLimits: {
-        perCurrency: {
-          EGP: { minAmount: GENERIC_PROGRAM.minAmountEGP, maxAmount: GENERIC_PROGRAM.maxAmountEGP },
-        },
+        minAmountEGP: GENERIC_PROGRAM.minAmountEGP,
+        maxAmountEGP: GENERIC_PROGRAM.maxAmountEGP,
       },
       pricing: {
         isVariableRate: false,

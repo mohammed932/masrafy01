@@ -47,7 +47,6 @@ function profileWith(facts: {
     age: 35,
     loanPurpose: 'personal',
     requestedAmountEGP: new Decimal('300000'),
-    requestedCurrency: 'EGP',
     preferredTenorMonths: 48,
     priority: 'lowest_installment',
     employment: {

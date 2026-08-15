@@ -14,13 +14,18 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import {
   ArrowLeftOutline,
   CheckOutline,
+  CheckSquareOutline,
+  CloseCircleOutline,
   LockOutline,
+  MinusSquareOutline,
+  PlusOutline,
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
 import { PageHeaderComponent, RailTabsComponent, type RailTabItem } from '@shared/ui';
@@ -30,7 +35,7 @@ import {
   isLoanCategory,
   type LoanCategory,
 } from '@core/loan-category';
-import { SURROGATE_FACT_QUESTION_CODES, categoryAsksAnySurrogateFact } from '@core/surrogate-facts';
+import { BUILTIN_FACT_QUESTION_CODES, categoryAsksAnySurrogateFact } from '@core/surrogate-facts';
 import {
   INCOME_BASES,
   incomeBasisHint,
@@ -43,6 +48,11 @@ import {
   type CatalogQuestionType,
 } from '../lookups/lookups.api.service';
 import { ENUM_TYPE, absorbProgramNames, type ProgramNameRow } from './program-name-row';
+import {
+  NewQuestionDialogComponent,
+  type NewQuestionDialogData,
+  type NewQuestionResult,
+} from './components/new-question.dialog';
 
 /** Long enough to read as a move, short enough not to queue behind a fast tapper. */
 const LAND_ANIMATION_MS = 260;
@@ -109,7 +119,18 @@ interface QuestionRow {
     PageHeaderComponent,
     RailTabsComponent,
   ],
-  providers: [provideNzIconsPatch([ArrowLeftOutline, CheckOutline, LockOutline, SearchOutline])],
+  providers: [
+    provideNzIconsPatch([
+      ArrowLeftOutline,
+      CheckOutline,
+      CheckSquareOutline,
+      CloseCircleOutline,
+      LockOutline,
+      MinusSquareOutline,
+      PlusOutline,
+      SearchOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
@@ -191,8 +212,8 @@ interface QuestionRow {
                       >
                     } @else {
                       <span i18n="@@pnd.gate_off_hint"
-                        >A bank adding a {{ categoryName() }} program can’t pick this name. Turn this
-                        on to allow it, then choose what those applicants are scored on.</span
+                        >A bank adding a {{ categoryName() }} program can’t pick this name. Turn
+                        this on to allow it, then choose what those applicants are scored on.</span
                       >
                     }
                   </span>
@@ -210,7 +231,7 @@ interface QuestionRow {
                    only ever express "also sold without a payslip" and left "sold ONLY
                    without one" unsayable. The same pair of rows is what the Add-name
                    dialog asks, so the vocabulary matches end to end. -->
-              <section class="facts" [class.is-off]="!noPayslipOn()">
+              <section class="facts">
                 <fieldset class="np-basis">
                   <legend class="np-title" i18n="@@pnd.basis_title">
                     How banks prove the income
@@ -239,13 +260,13 @@ interface QuestionRow {
                   </div>
                   <!-- The questionnaire caveat, kept where it was: a name may be marked
                        no-payslip whatever the questionnaire asks, but until this loan
-                       type asks one of the four facts there is nothing for a bank's
+                       type asks one of the registry's facts there is nothing for a bank's
                        table to read, so the mark alone quotes nothing. -->
                   @if (noPayslipOn() && !surrogateCapable()) {
                     <p class="np-warn">
                       <span i18n="@@pnd.np_unavailable_hint"
-                        >{{ categoryName() }} applicants aren’t asked any of the four facts yet, so
-                        there is nothing for a bank to look up.</span
+                        >{{ categoryName() }} applicants aren’t asked any income fact yet, so there
+                        is nothing for a bank to look up.</span
                       >
                       <a routerLink="/questionnaire/categories" i18n="@@pnd.np_fix"
                         >Ask one of them</a
@@ -253,99 +274,29 @@ interface QuestionRow {
                     </p>
                   }
                 </fieldset>
-
-                @if (noPayslipOn()) {
-                  <h2 class="facts-title">
-                    <span i18n="@@pnd.facts_title">What the bank can work the income out from</span>
-                    <span class="facts-count"
-                      >{{ factsPicked() }}/{{ surrogateFacts().length }}</span
-                    >
-                  </h2>
-                  <p class="facts-sub" i18n="@@pnd.facts_sub">
-                    Tick the facts this name’s banks look up. Each bank then enters its own table
-                    against that fact on its program — a table with no answer behind it gives the
-                    customer no figure at all.
-                  </p>
-                  <ul class="fact-list" role="list">
-                    @for (f of surrogateFacts(); track f.code) {
-                      <li class="fact" [attr.data-state]="factState(f)">
-                        @if (!f.picked && !f.asked) {
-                          <!-- Nothing to tick and nothing to untick: rendered as text with
-                             the one link that changes it, not as a disabled control. -->
-                          <span class="fact-main">
-                            <span class="fact-label">{{ f.label }}</span>
-                            <span class="fact-why" i18n="@@pnd.fact_not_asked"
-                              >{{ categoryName() }} applicants are never asked this, so no bank can
-                              use it yet.</span
-                            >
-                          </span>
-                          <a
-                            class="fact-fix"
-                            routerLink="/questionnaire/categories"
-                            i18n="@@pnd.fact_fix_ask"
-                            >Ask it</a
-                          >
-                        } @else {
-                          <button
-                            type="button"
-                            class="fact-main fact-toggle"
-                            role="checkbox"
-                            [attr.aria-checked]="f.picked"
-                            [attr.aria-busy]="saving().has(f.code) || busy()"
-                            (click)="toggleFact(f.code)"
-                          >
-                            <span class="tick" aria-hidden="true">
-                              @if (f.picked) {
-                                <span nz-icon nzType="check" nzTheme="outline"></span>
-                              }
-                            </span>
-                            <span class="fact-text">
-                              <span class="fact-label">{{ f.label }}</span>
-                              <span class="fact-type">{{ typeLabel(f.type) }}</span>
-                            </span>
-                          </button>
-                          <!-- Ticked, but this category stopped asking it. The worst state
-                             on the screen — a bank table is pointed at an answer that no
-                             longer arrives — so it is called out on the row, not only in
-                             the summary line below. -->
-                          @if (f.picked && !f.asked) {
-                            <a
-                              class="fact-fix warn"
-                              routerLink="/questionnaire/categories"
-                              i18n="@@pnd.fact_ticked_not_asked"
-                              >Not asked here — fix</a
-                            >
-                          }
-                        }
-                      </li>
-                    }
-                  </ul>
-                  @if (factsNotAsked() > 0) {
-                    <p class="facts-warn" i18n="@@pnd.facts_warn">
-                      {{ factsNotAsked() }} of these are not asked of
-                      {{ categoryName() }} applicants. A bank program that reads one of them
-                      produces no income until that changes.
-                    </p>
-                  }
-                  <!-- The gap the LIST screen badges, said here too. This screen could not
-                     show it before: the row mapper dropped the counters at the boundary,
-                     so the one place an operator opens to fix a name stayed silent about
-                     the reason they opened it. -->
-                  @if (noPayslipWithoutTable() > 0) {
-                    <p class="facts-warn" i18n="@@pnd.facts_no_table">
-                      {{ noPayslipWithoutTable() }} bank programs read these and have no table yet,
-                      so they quote nothing.
-                    </p>
-                  }
-                }
               </section>
             }
 
             @if (scope().length === 0) {
+              <!-- The pool having nothing for this loan type is the one dead end on
+                   this screen where the existing exit (assign something) can be the
+                   WRONG advice — there may be nothing to assign. So the primary way
+                   out is to write the question, and the assign link stays as the
+                   secondary. -->
               <div class="notice">
                 <span i18n="@@pnd.no_questions"
                   >{{ categoryName() }} applicants aren’t asked any questions yet.</span
                 >
+                <button
+                  nz-button
+                  nzType="primary"
+                  nzSize="small"
+                  type="button"
+                  (click)="openNewQuestion()"
+                >
+                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@pnd.write_first">Write the first question</span>
+                </button>
                 <a routerLink="/questionnaire/categories" i18n="@@pnd.no_questions_link"
                   >Assign questions to this loan type</a
                 >
@@ -412,37 +363,46 @@ interface QuestionRow {
 
                 <span class="controls-spacer"></span>
 
-                <button
-                  nz-button
-                  nzSize="small"
-                  type="button"
-                  [disabled]="busy()"
-                  nz-tooltip
-                  nzTooltipTitle="Score this name on every question listed"
-                  i18n-nzTooltipTitle="@@pnd.pick_all_tip"
-                  (click)="setAllVisible(true)"
-                  i18n="@@pnd.pick_all"
-                >
-                  Tick everything listed
-                </button>
-                <button
-                  nz-button
-                  nzSize="small"
-                  type="button"
-                  [disabled]="busy()"
-                  nz-popconfirm
-                  [nzCondition]="!wouldClearAll()"
-                  nzPopconfirmTitle="This clears the list for this loan type — bank programs created from it will start from nothing."
-                  i18n-nzPopconfirmTitle="@@pnd.clear_all_confirm"
-                  nzPopconfirmPlacement="bottomRight"
-                  (nzOnConfirm)="setAllVisible(false)"
-                  nz-tooltip
-                  nzTooltipTitle="Stop scoring on every question listed"
-                  i18n-nzTooltipTitle="@@pnd.clear_all_tip"
-                  i18n="@@pnd.clear_all"
-                >
-                  Untick everything listed
-                </button>
+                <!-- One segmented pair, not two loose buttons: they are the two
+                     directions of a single set operation over the same list, and
+                     rendering them as separate pills made three peer actions on a
+                     row where only one of them authors anything. The two icons are
+                     the checkbox states the operation LEAVES BEHIND, which is what
+                     lets the labels drop the long "everything listed" phrasing and
+                     give the row back the width the search needed. -->
+                <span class="bulk" role="group" [attr.aria-label]="bulkAria">
+                  <button
+                    nz-button
+                    type="button"
+                    class="bulk-tick"
+                    [disabled]="busy()"
+                    nz-tooltip
+                    nzTooltipTitle="Score this name on every question listed"
+                    i18n-nzTooltipTitle="@@pnd.pick_all_tip"
+                    (click)="setAllVisible(true)"
+                  >
+                    <span nz-icon nzType="check-square" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@pnd.pick_all">Tick all listed</span>
+                  </button>
+                  <button
+                    nz-button
+                    type="button"
+                    class="bulk-untick"
+                    [disabled]="busy()"
+                    nz-popconfirm
+                    [nzCondition]="!wouldClearAll()"
+                    nzPopconfirmTitle="This clears the list for this loan type — bank programs created from it will start from nothing."
+                    i18n-nzPopconfirmTitle="@@pnd.clear_all_confirm"
+                    nzPopconfirmPlacement="bottomRight"
+                    (nzOnConfirm)="setAllVisible(false)"
+                    nz-tooltip
+                    nzTooltipTitle="Stop scoring on every question listed"
+                    i18n-nzTooltipTitle="@@pnd.clear_all_tip"
+                  >
+                    <span nz-icon nzType="minus-square" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@pnd.clear_all">Untick all listed</span>
+                  </button>
+                </span>
 
                 <nz-input-group [nzPrefix]="searchIcon" class="search">
                   <input
@@ -456,7 +416,50 @@ interface QuestionRow {
                 <ng-template #searchIcon>
                   <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
                 </ng-template>
+
+                <!-- Its own zone behind a hairline, not a third peer of the two
+                     bulk buttons: those are set operations over content that
+                     already exists, this authors new content for the whole
+                     platform. Rendering them alike would say they are the same
+                     kind of act. -->
+                <span class="controls-sep" aria-hidden="true"></span>
+                <button
+                  nz-button
+                  nzType="primary"
+                  type="button"
+                  class="new-q"
+                  [disabled]="busy()"
+                  nz-tooltip
+                  nzTooltipTitle="Write a question and tick it into this name in one go"
+                  i18n-nzTooltipTitle="@@pnd.new_question_tip"
+                  (click)="openNewQuestion()"
+                >
+                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@pnd.new_question">New question</span>
+                </button>
               </div>
+
+              <!-- The one outcome the autosave chip would otherwise lie about: the
+                   question IS created and live, only the tick did not land. Stated
+                   inline and persistently, because a toast for a state the operator
+                   has to act on is a toast they will miss. -->
+              @if (tickFailed(); as failed) {
+                <p class="tick-failed" role="alert">
+                  <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@pnd.tick_failed"
+                    >“{{ failed }}” was created, but ticking it here didn’t save. Tap it below to
+                    score this name on it.</span
+                  >
+                  <button
+                    type="button"
+                    class="linkish"
+                    (click)="dismissTickFailed()"
+                    i18n="@@pnd.dismiss"
+                  >
+                    Dismiss
+                  </button>
+                </p>
+              }
 
               @if (filtering()) {
                 <p class="filter-note">
@@ -485,7 +488,7 @@ interface QuestionRow {
 
                     @if (s.rows.length === 0) {
                       <p class="sec-empty" i18n="@@pnd.none_scored">
-                        Nothing yet — tap a question below, or use “Tick everything listed”.
+                        Nothing yet — tap a question below, or use “Tick all listed”.
                       </p>
                     } @else {
                       <ul class="grid" role="list">
@@ -534,6 +537,20 @@ interface QuestionRow {
               @if (filtering() && visibleScope().length === 0 && pickedRows().length === 0) {
                 <div class="no-match">
                   <p i18n="@@pnd.no_matches_title">No questions match that search</p>
+                  <!-- They just typed the exact wording they were hunting for.
+                       Offering to create it costs one seeded field. -->
+                  <button
+                    nz-button
+                    nzType="primary"
+                    nzSize="small"
+                    type="button"
+                    (click)="openNewQuestion(query())"
+                  >
+                    <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@pnd.create_searched"
+                      >Create “{{ query() }}” as a new question</span
+                    >
+                  </button>
                   <button type="button" class="linkish" (click)="clearFilter()" i18n="@@pnd.clear">
                     Clear
                   </button>
@@ -742,28 +759,19 @@ interface QuestionRow {
         color: var(--color-text-secondary);
       }
 
-      /* --- The facts block ------------------------------------------------- */
-      /* A tinted panel on the page surface rather than a card: the question grid
-         below is already the page's card layer, and a card holding cards is the
-         hierarchy failure this file avoids everywhere else (A34's cousin). */
-      /* Plum, not brand azure: the offered gate directly above is the brand-coloured
-         control on this screen, and two tinted panels in the same hue read as one
-         block with a stray heading. Plum is the hue this concept owns board-wide. */
+      /* --- The income-basis block ------------------------------------------ */
+      /* A LABELLED REGION, not a panel: the two rows below already carry a border
+         each, and the tinted box that used to wrap them made a bordered container
+         holding bordered children — the card-in-card the rest of this file avoids
+         (A34's cousin). Whitespace and the small-caps legend do the grouping the
+         box was doing, and the block stops competing with the question grid that is
+         the actual work on this tab. The plum this concept owns board-wide now lives
+         only where it means something: the picked no-payslip row. */
       .facts {
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
-        padding: var(--space-4);
-        border: 1px solid color-mix(in srgb, var(--color-income-surrogate) 25%, var(--pnd-line));
-        border-radius: var(--radius-md);
-        background: color-mix(in srgb, var(--color-income-surrogate) 4%, var(--pnd-surface));
-      }
-      /* Switched off, the panel is one row: it must not compete with the question grid
-         that is the actual work on this tab. */
-      .facts.is-off {
-        border-color: var(--pnd-line);
-        background: transparent;
-        padding-block: var(--space-3);
+        padding-block-start: var(--space-1);
       }
 
       /* --- How the income is proved (two tickable rows) ---------------------- */
@@ -776,22 +784,27 @@ interface QuestionRow {
         margin: 0;
         min-inline-size: 0;
       }
+      /* Side by side on anything wide enough: they are the two halves of ONE
+         decision, and stacking full-width slabs read as two unrelated settings with
+         a metre of dead space beside each hint. Falls to one column below ~640px. */
       .np-rows {
         display: grid;
-        gap: var(--space-2);
+        grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+        gap: var(--space-3);
         margin-block-start: var(--space-2);
       }
       .np-row {
         display: flex;
         align-items: flex-start;
         gap: var(--space-3);
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-3);
         border: 1px solid var(--pnd-line);
         border-radius: var(--radius-md);
         background: var(--pnd-surface);
         cursor: pointer;
         transition:
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
           background-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .np-row:hover {
@@ -804,8 +817,12 @@ interface QuestionRow {
         outline: var(--focus-ring-width) solid var(--focus-ring-color);
         outline-offset: var(--focus-ring-offset);
       }
+      /* The picked edge is drawn twice — border plus a 1px inset ring — so "picked"
+         is legible at a glance without a 2px border that would shift the text by a
+         pixel on every toggle. */
       .np-row.is-on {
         border-color: var(--np-accent, var(--color-brand-primary));
+        box-shadow: inset 0 0 0 1px var(--np-accent, var(--color-brand-primary));
         background: color-mix(
           in srgb,
           var(--np-accent, var(--color-brand-primary)) 7%,
@@ -841,11 +858,16 @@ interface QuestionRow {
         flex-direction: column;
         gap: 2px;
       }
+      /* The same small-caps section label the question sections below use ("SCORED
+         ON 11"), not a --text-sm heading: at the row labels' own size and weight it
+         read as a third peer choice rather than the name of the pair. */
       .np-title {
         padding: 0;
-        font-size: var(--text-sm);
+        font-size: var(--text-xxs);
         font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--color-text-tertiary);
       }
       .np-label {
         font-size: var(--text-sm);
@@ -877,115 +899,6 @@ interface QuestionRow {
         .np-row {
           transition: none;
         }
-      }
-      .facts-title {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        margin: 0;
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
-      }
-      .facts-count {
-        font-family: var(--font-family-numeric);
-        font-feature-settings: var(--font-feature-tabular);
-        font-size: var(--text-xxs);
-        font-weight: var(--font-weight-regular);
-        color: var(--color-text-tertiary);
-      }
-      .facts-sub {
-        margin: 0;
-        max-inline-size: 62ch;
-        font-size: var(--text-xs);
-        color: var(--color-text-secondary);
-      }
-      .fact-list {
-        list-style: none;
-        margin: var(--space-1) 0 0;
-        padding: 0;
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: var(--space-2);
-      }
-      .fact {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        min-block-size: 44px;
-        padding: var(--space-2) var(--space-3);
-        border: 1px solid var(--pnd-line);
-        border-radius: var(--radius-sm);
-        background: var(--pnd-surface);
-      }
-      .fact-main {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        flex: 1;
-        min-inline-size: 0;
-        border: none;
-        background: none;
-        padding: 0;
-        text-align: start;
-      }
-      .fact-toggle {
-        cursor: pointer;
-      }
-      .fact-toggle:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-        border-radius: var(--radius-sm);
-      }
-      .fact-text {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-        min-inline-size: 0;
-      }
-      .fact-label {
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-medium);
-        line-height: var(--leading-snug);
-        color: var(--color-text-primary);
-        overflow-wrap: break-word;
-      }
-      .fact-type,
-      .fact-why {
-        font-size: var(--text-xxs);
-        color: var(--color-text-tertiary);
-      }
-      .fact[data-state='picked'] {
-        border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--pnd-line));
-        background: color-mix(in srgb, var(--color-brand-primary) 6%, var(--pnd-surface));
-      }
-      .fact[data-state='picked'] .tick {
-        border-color: var(--color-brand-primary);
-        background: var(--color-brand-primary);
-      }
-      /* Not-asked is the one state this screen cannot fix, so it carries the warn
-         tint AND a link out — a dimmed row would read as "off", which is wrong: the
-         operator has not chosen anything, the questionnaire has. */
-      .fact[data-state='not_asked'] {
-        border-color: var(--color-warning-bg);
-        background: color-mix(in srgb, var(--color-warning-bg) 55%, var(--pnd-surface));
-      }
-      .fact-fix {
-        flex: none;
-        font-size: var(--text-xxs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text-link);
-        white-space: nowrap;
-      }
-      /* The ticked-but-unasked row already sits on a warning tint, so the link takes the
-         warning ink too — a blue link on amber reads as unrelated to the row it fixes. */
-      .fact-fix.warn {
-        color: var(--color-warning);
-      }
-      .facts-warn {
-        margin: 0;
-        font-size: var(--text-xs);
-        color: var(--color-warning);
       }
       .cov-drift {
         font-size: var(--text-xxs);
@@ -1061,6 +974,7 @@ interface QuestionRow {
         flex-direction: column;
         gap: var(--space-1);
         min-inline-size: 180px;
+        max-inline-size: 260px;
       }
       .cov-count {
         font-size: var(--text-lg);
@@ -1076,11 +990,14 @@ interface QuestionRow {
         font-weight: var(--font-weight-regular);
         color: var(--color-text-tertiary);
       }
+      /* 4px on a tinted track, not a 3px hairline on the page's own muted grey: at
+         3px the fill and the track were within a shade of each other and the bar
+         read as a stray rule under the number. */
       .meter {
         display: block;
-        block-size: 3px;
+        block-size: 4px;
         border-radius: var(--radius-pill);
-        background: var(--color-surface-muted);
+        background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-surface-muted));
         overflow: hidden;
       }
       .meter-fill {
@@ -1092,9 +1009,104 @@ interface QuestionRow {
       .controls-spacer {
         flex: 1;
       }
+      /* Separates authoring from the set operations beside it. Logical inline
+         border, so it lands on the correct side in Arabic without a second rule. */
+      .controls-sep {
+        align-self: stretch;
+        inline-size: 1px;
+        min-block-size: 24px;
+        background: var(--pnd-line-strong);
+      }
+      /* One control that happens to have two halves, not two buttons pushed
+         together: the hairline track belongs to the GROUP, the halves inside are
+         borderless and transparent, and the seam is drawn once by the second half
+         so the two can never double it into a 2px rule. Two welded outlined
+         buttons read as a slab of grey text at rest — a third of the row's width
+         spent on the least authoring action on it. Logical corner and border
+         properties, so the pair flips correctly in Arabic without a second rule. */
+      /* The track is drawn with an inset OUTLINE, not a border: a border would add
+         its 2px to the group and leave the pair standing taller than the search
+         field and the primary beside it, which is the misalignment this pass was
+         partly here to fix. An outline takes no layout box, so the group is
+         exactly one control tall. */
+      .bulk {
+        display: inline-flex;
+        align-items: stretch;
+        border-radius: var(--radius-md);
+        outline: 1px solid var(--pnd-line-strong);
+        outline-offset: -1px;
+        background: var(--pnd-surface);
+      }
+      .bulk button {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        color: var(--color-text-secondary);
+        font-weight: var(--font-weight-medium);
+        transition:
+          background var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .bulk button:first-child {
+        border-start-start-radius: var(--radius-md);
+        border-end-start-radius: var(--radius-md);
+      }
+      .bulk button:last-child {
+        border-start-end-radius: var(--radius-md);
+        border-end-end-radius: var(--radius-md);
+      }
+      .bulk button + button {
+        border-inline-start: 1px solid var(--pnd-line);
+      }
+      /* The additive half warms toward the brand, the subtractive half toward the
+         error hue: they are opposite directions of one operation and must not feel
+         like the same act. Tint only — a filled red button here would out-shout
+         the primary that authors new questions. */
+      .bulk .bulk-tick:hover:not([disabled]) {
+        background: color-mix(in srgb, var(--color-brand-primary) 9%, transparent);
+        color: var(--color-brand-primary);
+      }
+      .bulk .bulk-untick:hover:not([disabled]) {
+        background: color-mix(in srgb, var(--color-error) 9%, transparent);
+        color: var(--color-error);
+      }
+      .bulk .bulk-tick:active:not([disabled]) {
+        background: color-mix(in srgb, var(--color-brand-primary) 16%, transparent);
+      }
+      .bulk .bulk-untick:active:not([disabled]) {
+        background: color-mix(in srgb, var(--color-error) 16%, transparent);
+      }
+      /* Rides above the seam so the ring is never clipped by the neighbouring
+         half, and takes the group's full radius so a focused middle edge does not
+         show a square corner against the round track. */
+      .bulk button:focus-visible {
+        z-index: 1;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-focus-ring);
+        outline: none;
+      }
+      /* ng-zorro fills a disabled button with its own grey, which would paint one
+         half of the track a different colour from the other. */
+      .bulk button[disabled],
+      .bulk button[disabled]:hover {
+        background: transparent;
+        color: var(--color-text-tertiary);
+      }
       .search {
         max-inline-size: 240px;
         flex: 0 1 200px;
+      }
+      /* Matches the segmented pair's leading-icon rhythm; nz-button's own icon gap
+         is tuned for a button that has no sibling to line up with. */
+      .new-q {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
       }
       .filter-note {
         margin: 0;
@@ -1120,9 +1132,37 @@ interface QuestionRow {
         border-radius: var(--radius-sm);
       }
       .no-match {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-3);
         padding: var(--space-6);
         text-align: center;
         color: var(--color-text-tertiary);
+      }
+      .no-match p {
+        margin: 0;
+      }
+      /* Persistent, not a toast: the question is live and the operator still has
+         one tap to make. A message that fades leaves them thinking it saved. */
+      .tick-failed {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-3) var(--space-4);
+        border-radius: var(--radius-md);
+        background: var(--color-error-bg);
+        color: var(--color-error);
+        font-size: var(--text-sm);
+        line-height: var(--line-height-base);
+      }
+      .tick-failed [nz-icon] {
+        flex: none;
+        margin-block-start: 3px;
+      }
+      .tick-failed .linkish {
+        color: inherit;
       }
 
       /* --- Sections + question cards --------------------------------------- */
@@ -1307,7 +1347,8 @@ interface QuestionRow {
         .meter-fill,
         .track,
         .thumb,
-        .gate {
+        .gate,
+        .bulk button {
           transition: none;
         }
         .card.landed {
@@ -1321,6 +1362,7 @@ export class ProgramNameDetailPage implements OnInit {
   private readonly api = inject(LookupsApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly modal = inject(NzModalService);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   /** How many rows the locked preview shows before it stops listing. */
@@ -1329,6 +1371,7 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly routeKey = signal<string>(this.route.snapshot.paramMap.get('key') ?? '');
   protected readonly name = signal<ProgramNameRow | null>(null);
   protected readonly pool = signal<CatalogQuestion[]>([]);
+
   protected readonly loading = signal(true);
   /** Question codes with a write in flight (a toggle is one whole-set PUT). */
   protected readonly saving = signal<ReadonlySet<string>>(new Set<string>());
@@ -1339,26 +1382,35 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly activeCategory = signal<LoanCategory>(this.initialCategory());
 
   protected readonly searchCtrl = new FormControl<string>('', { nonNullable: true });
-  private readonly query = toSignal(this.searchCtrl.valueChanges, { initialValue: '' });
+  /** Protected: the search-dead-end CTA seeds the new-question dialog with it. */
+  protected readonly query = toSignal(this.searchCtrl.valueChanges, { initialValue: '' });
+
+  /**
+   * Set when a question was CREATED but its tick into this name failed — the one
+   * outcome the "Saves automatically" chip would otherwise misreport. Holds the
+   * question's label so the notice can name it.
+   */
+  protected readonly tickFailed = signal<string | null>(null);
 
   protected readonly tabsAria = $localize`:@@pnd.tabs_aria:Loan types`;
   protected readonly searchAria = $localize`:@@pnd.search_aria:Search questions`;
+  /** Names the segmented pair for a screen reader, which sees two loose buttons. */
+  protected readonly bulkAria = $localize`:@@pnd.bulk_aria:Tick or untick every question listed`;
   private readonly notOfferedNote = $localize`:@@pnd.tab_not_offered:Not offered`;
 
   /**
-   * Does the OPEN tab's category ASK any of the four facts? Derived from the question
-   * pool, never from a list of categories (v16.0.0).
+   * Does the OPEN tab’s category ASK any income fact? Derived from the question pool,
+   * never from a list of categories (v16.0.0).
    *
-   * This screen used to gate the block on a hardcoded capable set, which meant a
-   * Mortgage could never be sold without a payslip however the business changed. Now the
+   * This screen used to gate the answer on a hardcoded capable set, which meant a
+   * Mortgage could never be sold without a payslip however the business changed. The
    * gate IS the questionnaire: assign `military_grade` to Mortgage on
-   * `/questionnaire/categories` and the block appears here, ready to configure. A
-   * category that asks nothing still shows the switch (see `noPayslipOn`) so the
-   * operator can see the option exists and where it is turned on — it just cannot be
-   * ticked into a lie.
+   * `/questionnaire/categories` and the caveat below the basis rows clears. The
+   * built-in fact questions are the whole set the screen needs — which name reads
+   * which fact is the BANK's answer, entered on its own program, not a tick here.
    */
   protected readonly surrogateCapable = computed(() =>
-    categoryAsksAnySurrogateFact(this.pool(), this.activeCategory()),
+    categoryAsksAnySurrogateFact(this.pool(), this.activeCategory(), BUILTIN_FACT_QUESTION_CODES),
   );
 
   /**
@@ -1483,58 +1535,6 @@ export class ProgramNameDetailPage implements OnInit {
    * nobody can sell it under.
    */
   /**
-   * The facts an income-surrogate rule can read, resolved against the pool — the
-   * block that makes the surrogate lane different from a second question list.
-   *
-   * Three states, three different fixes, which is why they are not collapsed into
-   * "missing": the question can be absent from the applicant's questionnaire
-   * (`not_asked` — fix on the questionnaire board), present but not scored by this
-   * name (`not_picked` — one tap here), or already scored (`picked`). A rule whose
-   * fact is never asked resolves to no income at all, in silence, which is the
-   * defect this whole feature exists to close.
-   */
-  protected readonly surrogateFacts = computed(() => {
-    const category = this.activeCategory();
-    const byCode = new Map(this.pool().map((q) => [q.code, q]));
-    const picked = this.pickedCodes();
-    return SURROGATE_FACT_QUESTION_CODES.map((code) => {
-      const q = byCode.get(code);
-      // TICKED and ASKED are independent axes, so they are two booleans rather than one
-      // three-way state. Folding them lost the worst case: a fact ticked here that the
-      // category stopped asking reported as plain "not asked", which hid a live tick and
-      // (since the switch is derived from the ticks) made the whole block read as off
-      // while a bank table was still pointed at it.
-      return {
-        code,
-        label: q ? (this.isAr ? q.labelAr : q.labelEn) : code,
-        type: q?.type ?? ('TEXT' as CatalogQuestionType),
-        picked: picked.has(code),
-        asked: q?.categories.includes(category) ?? false,
-      };
-    });
-  });
-
-  /**
-   * The row's `data-state`, for the tint only. Four combinations collapse to three
-   * visuals: a tick the category asks is brand-tinted, anything unasked is warning-tinted
-   * (ticked or not — both need attention), and an untouched asked fact is plain.
-   */
-  protected factState(f: { picked: boolean; asked: boolean }): string {
-    if (!f.asked) return 'not_asked';
-    return f.picked ? 'picked' : 'not_picked';
-  }
-
-  /** How many of the four facts this name scores on here — ticks, whatever their state. */
-  protected readonly factsPicked = computed(
-    () => this.surrogateFacts().filter((f) => f.picked).length,
-  );
-
-  /** Facts the applicant is never asked — the one state this screen cannot fix alone. */
-  protected readonly factsNotAsked = computed(
-    () => this.surrogateFacts().filter((f) => !f.asked).length,
-  );
-
-  /**
    * Tick or untick one basis for this category, autosaved like every other control on
    * this screen.
    *
@@ -1578,11 +1578,6 @@ export class ProgramNameDetailPage implements OnInit {
       this.savingBasis.set(false);
     }
   }
-
-  /** How many bank programs behind this name are sold with no payslip and have no table. */
-  protected readonly noPayslipWithoutTable = computed(
-    () => this.name()?.usage.noPayslipProgramsWithoutTable ?? 0,
-  );
 
   /**
    * Picks kept for this lane that the category no longer asks, or whose question
@@ -1644,23 +1639,6 @@ export class ProgramNameDetailPage implements OnInit {
    */
   protected offerLabel(row: ProgramNameRow): string {
     return $localize`:@@pnd.gate_label:Banks can offer “${this.nameOf(row)}:name:” as a ${this.categoryName()}:category:`;
-  }
-
-  /** Same write as any other question — the facts block is a different VIEW of it. */
-  protected async toggleFact(code: string): Promise<void> {
-    const row = [...this.pickedRows(), ...this.visibleScope()].find((r) => r.code === code);
-    if (row) {
-      await this.toggleQuestion(row);
-      return;
-    }
-    const q = this.pool().find((p) => p.code === code);
-    if (!q) return;
-    await this.toggleQuestion({ ...this.rowForPublic(q), removed: false });
-  }
-
-  /** `rowFor` is private; the facts block needs the same mapping. */
-  private rowForPublic(q: CatalogQuestion): QuestionRow {
-    return this.rowFor(q, q.categories.includes(this.activeCategory()));
   }
 
   protected isPicked(code: string): boolean {
@@ -1813,18 +1791,102 @@ export class ProgramNameDetailPage implements OnInit {
    * Write the OPEN category's whole pick set. Not optimistic, like `setAllVisible` and
    * for the same reason: it can remove several picks at once, and a half-reverted grid
    * is worse than a short wait.
+   *
+   * Reports whether the write landed, because one caller — the new-question flow —
+   * has already created something by the time it gets here and must say so
+   * rather than silently reloading a screen the operator expects to have changed.
    */
-  private async writeQuestions(next: readonly string[]): Promise<void> {
+  private async writeQuestions(next: readonly string[]): Promise<boolean> {
     const n = this.name();
-    if (!n || this.busy()) return;
+    if (!n || this.busy()) return false;
     this.busy.set(true);
     try {
       const row = await this.api.setQuestions(n.id, this.activeCategory(), [...next]);
       this.absorb(row);
+      return true;
     } catch {
       await this.load({ quiet: true });
+      return false;
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  // --- Authoring a new question ----------------------------------------------
+
+  /**
+   * Author a question in the GLOBAL pool without leaving this name, then tick it
+   * into the open tab's template.
+   *
+   * The dialog owns the create (one request, one published version) and hands
+   * back what it made; the tick stays here because the template is a whole-set
+   * write this page already owns, and doing it here is what lets the new card
+   * arrive through the same landing animation and live region as a tap.
+   *
+   * `seed` prefills the wording — used by the search dead end, where the
+   * operator has just typed the exact question they were looking for.
+   */
+  protected openNewQuestion(seed?: string): void {
+    const n = this.name();
+    if (!n) return;
+    const data: NewQuestionDialogData = {
+      nameLabel: this.nameOf(n),
+      category: this.activeCategory(),
+      existingCodes: this.pool().map((q) => q.code),
+      ...(seed && seed.trim() !== '' ? { seedQuestionEn: seed.trim() } : {}),
+    };
+    const ref = this.modal.create<
+      NewQuestionDialogComponent,
+      NewQuestionDialogData,
+      NewQuestionResult | null
+    >({
+      nzContent: NewQuestionDialogComponent,
+      nzData: data,
+      nzTitle: $localize`:@@pnd.new_question_title:New question`,
+      nzWidth: 'min(880px, calc(100vw - 48px))',
+      nzFooter: null,
+      // Unlike the label dialog on the catalog list, this form can hold twenty
+      // fields and a list of answers — a stray click on the mask would bin it.
+      nzMaskClosable: false,
+    });
+    ref.afterClose.subscribe((result: NewQuestionResult | null | undefined) => {
+      if (result) void this.absorbNewQuestion(result);
+    });
+  }
+
+  protected dismissTickFailed(): void {
+    this.tickFailed.set(null);
+  }
+
+  /**
+   * Land a freshly created question: refresh the pool so the card exists, then
+   * tick it if that was asked for.
+   *
+   * The pick set is rebuilt from the CURRENT row rather than from anything the
+   * dialog captured when it opened — same discipline as `toggleQuestion`, since
+   * a colleague may have written the set in the meantime.
+   */
+  private async absorbNewQuestion(result: NewQuestionResult): Promise<void> {
+    this.tickFailed.set(null);
+    await this.load({ quiet: true });
+    if (!result.tick) {
+      this.status.set(
+        $localize`:@@pnd.live_created:“${result.label}:question:” was added to the question pool`,
+      );
+      return;
+    }
+    const n = this.name();
+    if (!n) return;
+    const category = this.activeCategory();
+    const before = n.questions[category] ?? [];
+    if (before.includes(result.code)) return;
+    this.markLanded(result.code);
+    const saved = await this.writeQuestions([...before, result.code]);
+    if (saved) {
+      this.announce(1, true);
+    } else {
+      // Created and live, but not ticked. Says so where the operator is looking.
+      this.tickFailed.set(result.label);
     }
   }
 

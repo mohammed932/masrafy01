@@ -18,7 +18,8 @@ class MatchingRepositoryImpl extends MatchingRepository {
 
   @override
   Future<Either<Failure, ApplyResultEntity>> apply(ApplyRequest request) async {
-    final result = await ApiHandler.callApi(() => remoteDataSource.apply(request));
+    final result =
+        await ApiHandler.callApi(() => remoteDataSource.apply(request));
     return result.map((m) => m.toEntity());
   }
 

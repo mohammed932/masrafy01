@@ -29,7 +29,6 @@ export interface CreateApplicationInput {
   status: ApplicationStatus;
   priority: ApplicationPriority;
   requestedAmountEGP: Decimal;
-  requestedCurrency: string;
   preferredTenorMonths: number;
   loanPurpose: string;
   age: number;
@@ -53,7 +52,6 @@ export interface CreateBankOfferInput {
   bankIsFeatured: boolean;
   isShariaCompliant: boolean;
   programFriendlyName: string;
-  currency: string;
   effectiveRatePercent: Decimal;
   monthlyInstallmentEGP: Decimal;
   requestedLoanAmountEGP: Decimal;

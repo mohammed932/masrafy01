@@ -366,6 +366,25 @@ export interface CreateOptionBody {
   displayOrder?: number;
 }
 
+/**
+ * A whole question — wording, type rules, assignment AND every answer — in one
+ * request.
+ *
+ * Not sugar over `createQuestion` + N × `createOption`: each of those publishes a
+ * new questionnaire version, and `GET /v1/questionnaire` serves the active one,
+ * so the intermediate versions briefly ask a choice question that has a single
+ * answer. The composite writes in one transaction and publishes once. It is also
+ * the only path where the server knows the real answer count, so a choice
+ * question below two answers is refused instead of published and flagged later.
+ */
+export interface CreateQuestionWithOptionsBody extends CreateQuestionBody {
+  /** Required (≥2) for the choice types, forbidden for NUMERIC / TEXT. */
+  options?: CreateOptionBody[];
+}
+
+/** What the composite create returns — the row plus the answers it just wrote. */
+export type CreatedQuestion = QuestionRow;
+
 /** Question edits — `code` and `category` are immutable (A33). */
 export interface UpdateQuestionBody {
   questionAr?: string;
@@ -455,6 +474,19 @@ export class QuestionnaireApiService {
 
   createQuestion(body: CreateQuestionBody): Promise<QuestionRow> {
     return this.post<QuestionRow>(`/questionnaire/questions`, body);
+  }
+
+  /**
+   * Create a question and its answers together — ONE transaction, ONE published
+   * version. Used by the catalog's "New question" dialog, which holds the whole
+   * question in a form before it commits anything.
+   *
+   * Prefer this over `createQuestion` + `createOption` whenever the answers are
+   * already known: the split path publishes a version per call, and every
+   * intermediate one is live on `GET /v1/questionnaire`.
+   */
+  createQuestionWithOptions(body: CreateQuestionWithOptionsBody): Promise<CreatedQuestion> {
+    return this.post<CreatedQuestion>(`/questionnaire/questions/with-options`, body);
   }
 
   /**

@@ -6,6 +6,7 @@ import {
   EnumerationType,
   PlatformEnumerationsRepository,
   type EnumerationQuestionTemplate,
+  type SurrogateFactBinding,
 } from './platform-enumerations.repository';
 
 /**
@@ -81,6 +82,20 @@ export class InMemoryPlatformEnumerationsRepository
    */
   async memberQuestionTemplate(): Promise<EnumerationQuestionTemplate | null> {
     return null;
+  }
+
+  /**
+   * This stub seeds no `surrogate_fact` members, so no rule can be keyed by a fact
+   * here. Empty is the honest answer AND the safe one: the resolver reads a missing
+   * fact as `rule_unconfigured`, never as a zero income.
+   */
+  async surrogateFactRegistry(): Promise<SurrogateFactBinding[]> {
+    return [];
+  }
+
+  /** No questions in this stub, so no fact table can name a valid key. */
+  async questionOptionCodes(): Promise<string[]> {
+    return [];
   }
 
   private add(type: EnumerationType, key: string, labelAr: string, labelEn: string): void {
@@ -171,11 +186,6 @@ export class InMemoryPlatformEnumerationsRepository
     this.add('required_document', 'tax_card', 'بطاقة ضريبية', 'Tax Card');
     this.add('required_document', 'utility_bill', 'إيصال مرافق', 'Utility Bill');
     this.add('required_document', 'property_deed', 'سند ملكية', 'Property Deed');
-
-    // currencies (ISO 4217)
-    this.add('currency', 'EGP', 'جنيه مصري', 'Egyptian Pound');
-    this.add('currency', 'USD', 'دولار أمريكي', 'US Dollar');
-    this.add('currency', 'EUR', 'يورو', 'Euro');
   }
 
   private verify(): void {
@@ -183,7 +193,7 @@ export class InMemoryPlatformEnumerationsRepository
       'transfer_type',
       'employment_type',
       'product_category',
-      'currency',
+      'required_document',
     ];
     for (const t of required) {
       const bucket = this.members.get(t);

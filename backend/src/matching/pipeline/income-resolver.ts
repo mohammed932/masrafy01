@@ -16,12 +16,13 @@
  */
 
 import { Decimal } from '@prisma/client/runtime/library';
-import type {
-  ApplicantProfile,
-  EligibilityConfig,
-  IncomeAssumptionConfig,
-  IncomeResolution,
-  IncomeUnresolvedReason,
+import {
+  factKeyOf,
+  type ApplicantProfile,
+  type EligibilityConfig,
+  type IncomeAssumptionConfig,
+  type IncomeResolution,
+  type IncomeUnresolvedReason,
 } from '../types';
 import { normalizeIncomeAssumption } from './income-rule-normalize';
 import { bandFor } from './income-rule-bands';
@@ -245,6 +246,12 @@ function resolveSurrogateIncome(
   profile: ApplicantProfile,
   config: IncomeAssumptionConfig,
 ): SurrogateOutcome {
+  // A REGISTRY fact, resolved before the built-in switch. Checked first rather than
+  // in the `default` branch so that a fact key which happens to collide with a
+  // built-in token can never be shadowed by it: `fact:` names the registry, always.
+  const factKey = factKeyOf(config.strategy);
+  if (factKey !== null) return resolveRegistryFact(profile, config, factKey);
+
   switch (config.strategy) {
     case 'declared':
       // Not a miss: this method has nothing to resolve. `rule_unconfigured` is
@@ -344,6 +351,38 @@ function resolveSurrogateIncome(
     default:
       return { resolved: false, reason: 'rule_unconfigured' };
   }
+}
+
+/**
+ * A fact from the REGISTRY — the generic form of the four hand-written fact methods
+ * above, and the reason a fifth one is an operator action rather than a release.
+ *
+ * The shape of the bank's table follows the ANSWER, not a stored declaration: a picked
+ * option is a key-table lookup, a number is a band lookup. Nothing here has to know
+ * which question the fact is bound to; that binding was applied when the profile was
+ * built, and re-deciding it here would be the two-places-one-truth drift A33 names.
+ *
+ * A fact the applicant did not answer is `fact_not_answered` — never a zero, and never
+ * a fall-through to the declared salary without saying so (FR-020).
+ */
+function resolveRegistryFact(
+  profile: ApplicantProfile,
+  config: IncomeAssumptionConfig,
+  factKey: string,
+): SurrogateOutcome {
+  const answered = profile.surrogateFacts?.[factKey];
+  // Covers all three ways this reads as unanswered — the applicant skipped the
+  // question, the fact is bound to no question, or the fact was retired from the
+  // registry — because the customer-facing consequence is identical and the admin's
+  // fix is found from the program's own rule either way.
+  if (!answered) return { resolved: false, reason: 'fact_not_answered' };
+
+  if (answered.kind === 'choice') return lookupKey(answered.optionCode, config);
+  // `reportUnconfigured: true` — an empty band table means the BANK never entered one,
+  // which is a different fix from "your number is outside our table". Reporting
+  // `no_matching_band` there would send the admin to add a row to a table that does
+  // not exist yet.
+  return lookupBands(answered.value, config, true);
 }
 
 /** Key-table lookup: fail CLOSED on a key the table does not carry (AS-1.9). */

@@ -20,11 +20,13 @@ import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.d
 import { sortCategories } from '@/common/loan-category.util';
 import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.service';
 import type { ProgramNameUsage } from './postgres-platform-enumerations.repository';
+import type { BoundQuestion } from './platform-enumerations.repository';
 import type { IncomeBasis } from '@/common/income-basis.util';
 import {
   CatalogQuestionDto,
   CreateEnumerationDto,
   EnumerationRowDto,
+  SetEnumerationBoundQuestionDto,
   SetEnumerationCategoriesBulkDto,
   SetEnumerationCategoriesDto,
   SetEnumerationIncomeBasisDto,
@@ -33,6 +35,9 @@ import {
 } from './dto/enumeration.dto';
 
 const PROGRAM_NAME_TYPE = 'program_name';
+
+/** The one question-bound type; see `QUESTION_BOUND_ENUMERATION_TYPES`. */
+const FACT_TYPE = 'surrogate_fact';
 
 /**
  * A catalog name no bank has instantiated yet. Named rather than inlined because
@@ -89,11 +94,23 @@ export class AdminPlatformEnumerationsController {
     // whole page beat three per row.
     const isCatalog = type === PROGRAM_NAME_TYPE || rows.some((r) => r.type === PROGRAM_NAME_TYPE);
     const projectCatalog = isCatalog ? await this.catalogProjector() : null;
+    // Same one-query-per-page rule as the catalog's three side reads: a fact row is
+    // unreadable without the question it binds, and per-row lookups would be one query
+    // per fact for a list that is normally the whole registry.
+    const hasFacts = type === FACT_TYPE || rows.some((r) => r.type === FACT_TYPE);
+    const bound = hasFacts ? await this.service.boundQuestions({ type: FACT_TYPE }) : null;
     return {
       success: true,
-      data: rows.map((r) =>
-        r.type === PROGRAM_NAME_TYPE && projectCatalog ? projectCatalog(r) : this.project(r),
-      ),
+      data: rows.map((r) => {
+        if (r.type === PROGRAM_NAME_TYPE && projectCatalog) return projectCatalog(r);
+        // `?? null` rather than leaving it absent: on a fact row, "no binding" is a
+        // state the screen must render (and offer to fix), not a field that does not
+        // apply — which is what an absent key means everywhere else in this projection.
+        if (r.type === FACT_TYPE && bound) {
+          return this.project(r, { boundQuestion: bound.get(r.id) ?? null });
+        }
+        return this.project(r);
+      }),
     };
   }
 
@@ -205,6 +222,30 @@ export class AdminPlatformEnumerationsController {
     return { success: true, data: projectCatalog(row) };
   }
 
+  /**
+   * Point one surrogate FACT at the question that answers it, or unbind it.
+   *
+   * Its own endpoint rather than a field on `PATCH :id`, for the reason the two
+   * assignment axes have theirs: that route is a label/flag patch whose diff the audit
+   * writes as scalar changes, while this one has its own validation (the question must
+   * exist and be of a type a table can be keyed by) and its own audit key.
+   */
+  @Put(':id/bound-question')
+  @ApiOperation({ summary: 'Bind a surrogate fact to the question that answers it' })
+  async setBoundQuestion(
+    @Param('id') id: string,
+    @Body() body: SetEnumerationBoundQuestionDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ): Promise<{ success: true; data: EnumerationRowDto }> {
+    const row = await this.service.setBoundQuestion(id, body.questionCode ?? null, {
+      staffId: user.sub,
+      sourceIp: ip ?? null,
+    });
+    const bound = await this.service.boundQuestions({ type: row.type });
+    return { success: true, data: this.project(row, { boundQuestion: bound.get(row.id) ?? null }) };
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Update label / active / deprecate / sort order' })
   async update(
@@ -221,16 +262,16 @@ export class AdminPlatformEnumerationsController {
   }
 
   /**
-   * Hard-delete a catalog program name. Refuses a name any bank program or
-   * application still points at (409 `ENUMERATION_IN_USE`) — deprecate those
-   * instead — and any type other than `program_name`.
+   * Hard-delete a registry entry. Refuses a value anything still points at (409
+   * `ENUMERATION_IN_USE`) — deprecate those instead — a `systemOnly` row, and any
+   * type whose readers are not counted (422 `ENUMERATION_DELETE_NOT_SUPPORTED`).
    *
    * Returns the id rather than 204, matching `DELETE /admin/banks/:id`: the
    * envelope is the platform's contract (Principle XIV) and a bodiless success
    * would be the one response the admin client cannot read through it.
    */
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a catalog program name (refuses if any program uses it)' })
+  @ApiOperation({ summary: 'Delete an enumeration entry (refuses if anything still uses it)' })
   async remove(
     @Param('id') id: string,
     @CurrentUser() user: JwtPayload,
@@ -291,9 +332,11 @@ export class AdminPlatformEnumerationsController {
       categories?: LoanCategory[];
       incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
       questionsByCategory?: Partial<Record<LoanCategory, string[]>>;
+      /** `null` = this fact binds nothing yet; absent = this type binds nothing ever. */
+      boundQuestion?: BoundQuestion | null;
     } = {},
   ): EnumerationRowDto {
-    const { usage, categories, incomeBasesByCategory, questionsByCategory } = extras;
+    const { usage, categories, incomeBasesByCategory, questionsByCategory, boundQuestion } = extras;
     return {
       id: row.id,
       type: row.type,
@@ -307,7 +350,7 @@ export class AdminPlatformEnumerationsController {
       ...(usage ? { usage } : {}),
       // Spread conditionally, like `usage`: absent means "this type has no such
       // axis", while a present `[]` means parked. Collapsing the two would make
-      // every currency row read as deliberately offerable nowhere.
+      // every governorate row read as deliberately offerable nowhere.
       ...(categories ? { categories } : {}),
       // Same rule again: absent = this type has no income basis; present and keyed
       // only by the categories the name is actually offered under.
@@ -315,6 +358,22 @@ export class AdminPlatformEnumerationsController {
       // Same rule: absent = no template axis; present `{}` = nothing suggested
       // for any category yet, which is the day-one state.
       ...(questionsByCategory ? { questionsByCategory } : {}),
+      // `!== undefined`, not truthiness: `null` is the state that MUST reach the client
+      // — a fact bound to nothing — and a truthy check would erase it into "this type
+      // has no binding", which is the one reading that hides the problem.
+      ...(boundQuestion !== undefined
+        ? {
+            boundQuestion: boundQuestion
+              ? {
+                  code: boundQuestion.code,
+                  type: boundQuestion.type,
+                  labelAr: boundQuestion.labelAr,
+                  labelEn: boundQuestion.labelEn,
+                  active: boundQuestion.active,
+                }
+              : null,
+          }
+        : {}),
       sortOrder: row.sortOrder,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

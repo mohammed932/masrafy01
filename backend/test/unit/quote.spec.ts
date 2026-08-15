@@ -46,14 +46,18 @@ describe('quoteProgram', () => {
     });
 
     it('computes the installment on the fee-inflated principal, not the ask', () => {
-      const withoutFees = expectQuoted(quoteProgram({ profile: profileFixture(), program: programFixture() }));
+      const withoutFees = expectQuoted(
+        quoteProgram({ profile: profileFixture(), program: programFixture() }),
+      );
       const withFees = expectQuoted(
         quoteProgram({
           profile: profileFixture(),
           program: programFixture({ fees: { adminFeePercent: '5.0000' } }),
         }),
       );
-      expect(withFees.monthlyInstallmentEGP.greaterThan(withoutFees.monthlyInstallmentEGP)).toBe(true);
+      expect(withFees.monthlyInstallmentEGP.greaterThan(withoutFees.monthlyInstallmentEGP)).toBe(
+        true,
+      );
       expect(withFees.cashToCustomerEGP.toFixed(2)).toBe(withoutFees.cashToCustomerEGP.toFixed(2));
     });
   });
@@ -85,14 +89,18 @@ describe('quoteProgram', () => {
     });
 
     it('charges nothing when neither key is set', () => {
-      const quote = expectQuoted(quoteProgram({ profile: profileFixture(), program: programFixture() }));
+      const quote = expectQuoted(
+        quoteProgram({ profile: profileFixture(), program: programFixture() }),
+      );
       expect(quote.feesBreakdown.stampDutyEGP).toBe('0.00');
     });
   });
 
   describe('binding constraint (FR-023)', () => {
     it('reports requested_amount when nothing reduced the ask', () => {
-      const quote = expectQuoted(quoteProgram({ profile: profileFixture(), program: programFixture() }));
+      const quote = expectQuoted(
+        quoteProgram({ profile: profileFixture(), program: programFixture() }),
+      );
       expect(quote.bindingConstraint).toBe('requested_amount');
     });
 
@@ -101,7 +109,7 @@ describe('quoteProgram', () => {
         quoteProgram({
           profile: profileFixture(),
           program: programFixture({
-            loanLimits: { perCurrency: { EGP: { minAmount: '10000', maxAmount: '100000' } } },
+            loanLimits: { minAmountEGP: '10000', maxAmountEGP: '100000' },
           }),
         }),
       );
@@ -174,7 +182,7 @@ describe('quoteProgram', () => {
           profile: profileFixture({ preferredTenorMonths: 120 }),
           program: programFixture({
             tenor: { minMonths: 6, maxMonths: 36 },
-            loanLimits: { perCurrency: { EGP: { minAmount: '10000', maxAmount: '100000' } } },
+            loanLimits: { minAmountEGP: '10000', maxAmountEGP: '100000' },
           }),
         }),
       );
@@ -204,7 +212,10 @@ describe('quoteProgram', () => {
       // on principal + financed fees, so a single pass lands back over the cap.
       for (const adminFeePercent of ['0', '1.0000', '5.0000', '10.0000']) {
         const quote = expectQuoted(
-          quoteProgram({ profile: squeezed, program: programFixture({ fees: { adminFeePercent } }) }),
+          quoteProgram({
+            profile: squeezed,
+            program: programFixture({ fees: { adminFeePercent } }),
+          }),
         );
         expect(
           quote.dbrPercent.lessThanOrEqualTo(quote.dbrCapPercent),
@@ -215,7 +226,10 @@ describe('quoteProgram', () => {
 
     it('reports the DBR of the installment actually offered', () => {
       const quote = expectQuoted(
-        quoteProgram({ profile: squeezed, program: programFixture({ fees: { adminFeePercent: '5.0000' } }) }),
+        quoteProgram({
+          profile: squeezed,
+          program: programFixture({ fees: { adminFeePercent: '5.0000' } }),
+        }),
       );
       const recomputed = quote.monthlyInstallmentEGP
         .plus(squeezed.obligations.existingMonthlyObligationsEGP)
@@ -326,21 +340,15 @@ describe('quoteProgram', () => {
     });
 
     it('reports the scalar cap with a null band index when no table is set', () => {
-      const quote = expectQuoted(quoteProgram({ profile: profileFixture(), program: programFixture() }));
+      const quote = expectQuoted(
+        quoteProgram({ profile: profileFixture(), program: programFixture() }),
+      );
       expect(quote.dbrCapPercent.toFixed(4)).toBe('50.0000');
       expect(quote.dbrBandIndex).toBeNull();
     });
   });
 
   describe('figures unavailable (FR-024 — the program is still listed)', () => {
-    it('CURRENCY_NOT_OFFERED', () => {
-      expect(
-        expectUnavailable(
-          quoteProgram({ profile: profileFixture({ requestedCurrency: 'USD' }), program: programFixture() }),
-        ),
-      ).toBe('CURRENCY_NOT_OFFERED');
-    });
-
     it('NO_RECOGNISED_INCOME — never a zero installment', () => {
       expect(
         expectUnavailable(
@@ -365,13 +373,13 @@ describe('quoteProgram', () => {
       const outcome = quoteProgram({
         profile: profileFixture(),
         program: programFixture({
-          loanLimits: { perCurrency: { EGP: { minAmount: '10000', maxAmount: '0' } } },
+          loanLimits: { minAmountEGP: '10000', maxAmountEGP: '0' },
         }),
       });
       expect(outcome.ok).toBe(false);
       if (outcome.ok) return;
       expect(outcome.unavailable.reason).toBe('PROGRAM_MISCONFIGURED');
-      expect(outcome.unavailable.missing).toContain('loanLimits.perCurrency.EGP.maxAmount');
+      expect(outcome.unavailable.missing).toContain('loanLimits.maxAmountEGP');
     });
 
     it('AGE_AT_MATURITY when the term cannot reach the program minimum', () => {
@@ -417,7 +425,7 @@ describe('quoteProgram', () => {
               },
             }),
             program: programFixture({
-              loanLimits: { perCurrency: { EGP: { minAmount: '200000', maxAmount: '1000000' } } },
+              loanLimits: { minAmountEGP: '200000', maxAmountEGP: '1000000' },
             }),
           }),
         ),

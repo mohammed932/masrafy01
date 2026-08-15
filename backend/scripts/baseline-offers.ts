@@ -71,7 +71,6 @@ function sample(
       age: over.age ?? 35,
       loanPurpose: 'personal',
       requestedAmountEGP: new Decimal(over.amountEGP),
-      requestedCurrency: 'EGP',
       preferredTenorMonths: over.tenorMonths,
       priority: 'lowest_installment',
       employment: {
@@ -271,7 +270,6 @@ function catalogRows(): Baseline {
         friendlyName: p.friendlyName,
         programType: p.programType,
         productCategory: p.productCategory,
-        currencies: p.currencies,
         active: true,
         isShariaCompliant: p.isShariaCompliant ?? false,
         version: 1,

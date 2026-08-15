@@ -36,13 +36,8 @@ import {
   categoryLabel,
   type LoanCategory,
 } from '@core/loan-category';
-import { noPayslipFactsFor } from '@core/surrogate-facts';
 import { incomeBasisLabel, type IncomeBasis } from '@core/income-basis';
-import {
-  LookupsApiService,
-  type CatalogQuestion,
-  type EnumerationRow,
-} from '../lookups/lookups.api.service';
+import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.service';
 import {
   EnumerationEditDialogComponent,
   type EnumerationEditDialogData,
@@ -323,25 +318,11 @@ type BasisFilter = 'all' | IncomeBasis;
                 } @else {
                   <span class="q-count">{{ questionLabel(r) }}</span>
                 }
-                <!-- Additive, not an alternative branch: a name sold both ways carries
-                     its loan types, its question count AND this line. -->
-                @if (isNoPayslip(r)) {
-                  @if (factLabelsOf(r).length > 0) {
-                    <span class="reads">
-                      <span class="reads-label">{{ noPayslipLabel }}</span>
-                      <span class="reads-value">{{ factLabelsOf(r).join(' · ') }}</span>
-                    </span>
-                  } @else {
-                    <!-- Marked as sold without a payslip, with nothing named for the bank
-                         to work the income out FROM. Its own state now that the two are
-                         stored separately, and the more common one: the mark is one tick
-                         on the create screen, the fact is a visit to the name's page. -->
-                    <span class="q-none" i18n="@@program_catalog.card.no_fact"
-                      >Sold with no payslip, but no fact is picked — banks have nothing to look
-                      up</span
-                    >
-                  }
-                } @else if (noPayslipPrograms(r) > 0) {
+                <!-- WHICH figure a bank works the income out from is the BANK's answer,
+                     entered on its own program. The board says only how this name may be
+                     sold; naming a fact here was a second, weaker claim that no quote
+                     ever read. -->
+                @if (!isNoPayslip(r) && noPayslipPrograms(r) > 0) {
                   <!-- The contradiction worth colour: banks ARE selling this name without a
                        payslip, on a name the catalog says is payslip-only. One of the two
                        is wrong, and only a human knows which. -->
@@ -573,26 +554,6 @@ type BasisFilter = 'all' | IncomeBasis;
         border-inline-start: 3px solid
           color-mix(in srgb, var(--color-income-surrogate) 70%, var(--color-surface-default));
       }
-      /* One line, label then value: the facts sit BELOW the loan types and the question
-         count on the same card now, so a stacked two-line block read as a second
-         heading rather than as one more fact about the name. */
-      .reads {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: var(--space-1) var(--space-2);
-        min-inline-size: 0;
-        font-size: var(--text-xs);
-      }
-      .reads-label {
-        color: var(--color-income-surrogate);
-        font-weight: var(--font-weight-semibold);
-      }
-      .reads-value {
-        color: var(--color-text-primary);
-        overflow-wrap: break-word;
-      }
-
       .board-empty {
         display: flex;
         flex-direction: column;
@@ -952,19 +913,6 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly loading = signal(true);
   protected readonly healthOpen = signal(false);
   private readonly rows = signal<EnumerationRow[]>([]);
-  /**
-   * The question pool, for one purpose: turning the surrogate lane's picked CODES
-   * into the labels a surrogate card shows. Codes are not readable on a card
-   * ("military_grade"), and the alternative — sending labels on the enumeration row
-   * — would put question content on an endpoint about program names.
-   *
-   * Failure is non-fatal: an empty map falls the cards back to codes, which is worse
-   * than labels and much better than an empty board.
-   */
-  private readonly pool = signal<CatalogQuestion[]>([]);
-  private readonly questionLabels = computed(
-    () => new Map(this.pool().map((q) => [q.code, this.isAr ? q.labelAr : q.labelEn])),
-  );
 
   /** Fixed-length placeholders for the shape-matched loading skeleton. */
   protected readonly skeletonCards = [0, 1, 2, 3, 4, 5];
@@ -979,7 +927,6 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly activateLabel = $localize`:@@program_catalog.activate:Activate`;
   protected readonly deactivateLabel = $localize`:@@program_catalog.deactivate:Deactivate`;
   protected readonly deleteLabel = $localize`:@@program_catalog.delete:Delete`;
-  protected readonly noPayslipLabel = $localize`:@@program_catalog.card.reads:No payslip · reads`;
   protected readonly basisFilterAria = $localize`:@@program_catalog.basis.aria:Filter by how the bank reads the income`;
 
   /** Search-filtered rows — one flat list, since a name may serve several loan
@@ -1038,12 +985,6 @@ export class ProgramCatalogPage implements OnInit {
     if (!byCategory) return ['payslip'];
     const bases = this.categoriesOf(row).flatMap((c) => byCategory[c] ?? []);
     return bases.length > 0 ? [...new Set(bases)] : ['payslip'];
-  }
-
-  private noPayslipFactCodes(row: EnumerationRow): string[] {
-    const picked = { questionsByCategory: row.questionsByCategory ?? {} };
-    const codes = this.categoriesOf(row).flatMap((c) => noPayslipFactsFor(picked, c));
-    return [...new Set(codes)];
   }
 
   protected readonly noPayslipCount = computed(
@@ -1181,21 +1122,6 @@ export class ProgramCatalogPage implements OnInit {
         noPayslipProgramsWithoutTable: 0,
       }
     );
-  }
-
-  /**
-   * The FACTS this name is marked as readable by, as question labels — what a bank's
-   * table looks the income up by.
-   *
-   * Read from the name's own ticked questions rather than from its programs: this is the
-   * catalog's statement of what the archetype is for, and it is set before any bank has
-   * instantiated it. Codes are unreadable on a card ("military_grade"), so they are
-   * resolved through the question pool; a pool that failed to load falls back to the code
-   * rather than to a blank line.
-   */
-  protected factLabelsOf(row: EnumerationRow): string[] {
-    const labels = this.questionLabels();
-    return this.noPayslipFactCodes(row).map((code) => labels.get(code) ?? code);
   }
 
   /** How many bank programs behind this name are sold with no payslip. */
@@ -1359,14 +1285,7 @@ export class ProgramCatalogPage implements OnInit {
   private async reload(opts: { silent?: boolean } = {}): Promise<void> {
     if (!opts.silent) this.loading.set(true);
     try {
-      // One round trip for both: the surrogate cards need question LABELS, and a
-      // second sequential await would make the whole board wait on it.
-      const [rows, pool] = await Promise.all([
-        this.api.list(ENUM_TYPE),
-        this.api.catalogQuestions().catch(() => [] as CatalogQuestion[]),
-      ]);
-      this.rows.set(rows);
-      this.pool.set(pool);
+      this.rows.set(await this.api.list(ENUM_TYPE));
     } finally {
       if (!opts.silent) this.loading.set(false);
     }

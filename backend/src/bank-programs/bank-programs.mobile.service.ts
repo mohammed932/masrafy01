@@ -42,7 +42,8 @@ export class BankProgramsMobileService {
       spreadMaxPercent?: string;
     };
     const loanLimits = program.loanLimits as {
-      perCurrency: Record<string, { minAmount: string; maxAmount: string }>;
+      minAmountEGP?: string;
+      maxAmountEGP?: string;
     };
     const eligibility = program.eligibility as {
       acceptedEmploymentTypes: string[];
@@ -62,21 +63,18 @@ export class BankProgramsMobileService {
     const minRate = pricing?.spreadMinPercent ?? baseRate ?? '0';
     const maxRate = pricing?.spreadMaxPercent ?? baseRate ?? '0';
 
-    const egp = loanLimits.perCurrency['EGP'] ?? { minAmount: '0', maxAmount: '0' };
-
     return {
       programCode: program.programCode,
       friendlyName: program.friendlyName,
       bankName: program.bankName,
       productCategory: program.productCategory,
       isShariaCompliant: program.isShariaCompliant,
-      currencies: program.currencies,
       displayRateRange: {
         minPercent: minRate,
         maxPercent: maxRate,
       },
-      displayMinEGP: egp.minAmount,
-      displayMaxEGP: egp.maxAmount,
+      displayMinEGP: loanLimits.minAmountEGP ?? '0',
+      displayMaxEGP: loanLimits.maxAmountEGP ?? '0',
       displayMinMonths: (program.tenor as { minMonths: number }).minMonths,
       displayMaxMonths: (program.tenor as { maxMonths: number }).maxMonths,
       requiredDocuments: program.requiredDocuments,

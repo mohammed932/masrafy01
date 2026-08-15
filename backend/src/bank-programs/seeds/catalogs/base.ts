@@ -17,10 +17,10 @@ export function skeletonProgram(
     friendlyName: 'Placeholder',
     programType: 'income_proof',
     productCategory: 'personal',
-    currencies: ['EGP'],
     tenor: { minMonths: 12, maxMonths: 84 },
     loanLimits: {
-      perCurrency: { EGP: { minAmount: '50000', maxAmount: '1500000' } },
+      minAmountEGP: '50000',
+      maxAmountEGP: '1500000',
     },
     pricing: {
       isVariableRate: false,

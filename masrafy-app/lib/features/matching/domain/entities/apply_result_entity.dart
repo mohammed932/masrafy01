@@ -86,7 +86,6 @@ class OfferEntity extends Equatable {
     required this.bankName,
     required this.bankIsFeatured,
     required this.programFriendlyName,
-    required this.currency,
     required this.effectiveRatePercent,
     required this.monthlyInstallmentEGP,
     required this.requestedLoanAmountEGP,
@@ -112,7 +111,6 @@ class OfferEntity extends Equatable {
   final String bankName;
   final bool bankIsFeatured;
   final String programFriendlyName;
-  final String currency;
   final double effectiveRatePercent;
   final double monthlyInstallmentEGP;
   final double requestedLoanAmountEGP;
@@ -121,6 +119,7 @@ class OfferEntity extends Equatable {
   final int effectiveTenorMonths;
   final int approvalScore;
   final ApprovalTier approvalTier;
+
   /// The program had no ACTIVE scoring weight set at match time, so
   /// [approvalScore] is 0 for want of configuration rather than for want of a
   /// fit. Rendered as "Not rated" instead of a 0% match.
@@ -167,7 +166,6 @@ class OfferEntity extends Equatable {
         bankName,
         bankIsFeatured,
         programFriendlyName,
-        currency,
         effectiveRatePercent,
         monthlyInstallmentEGP,
         requestedLoanAmountEGP,
@@ -203,6 +201,10 @@ class ApplySummaryEntity extends Equatable {
   final double bestRatePercent;
 
   @override
-  List<Object?> get props =>
-      [totalProgramsChecked, eligiblePrograms, bestInstallmentEGP, bestRatePercent];
+  List<Object?> get props => [
+        totalProgramsChecked,
+        eligiblePrograms,
+        bestInstallmentEGP,
+        bestRatePercent
+      ];
 }

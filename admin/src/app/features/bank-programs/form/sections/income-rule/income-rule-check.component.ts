@@ -12,7 +12,11 @@ import { PlatformEnumerationsService } from '@core/platform-enumerations/platfor
 import { BankProgramsApiService } from '../../../bank-programs.api.service';
 import {
   INCOME_KEY_REGISTRY,
-  INCOME_METHOD_SHAPE,
+  factKeyOf,
+  factKeyOptions,
+  incomeMethodShape,
+  registryFacts,
+  type BuiltinIncomeStrategy,
   type IncomeAssumptionConfig,
   type IncomeRuleCheckResult,
 } from '../../../bank-programs.types';
@@ -59,8 +63,8 @@ import {
             Check this rule before anyone else sees it
           </h4>
           <p class="chk__sub" i18n="@@bank_programs.income.check_sub">
-            Runs a sample applicant against what is on screen right now, including edits you
-            have not saved. Nothing is stored.
+            Runs a sample applicant against what is on screen right now, including edits you have
+            not saved. Nothing is stored.
           </p>
         </div>
       </header>
@@ -68,11 +72,19 @@ import {
       <div class="chk__grid">
         <!-- The fact the selected method reads. Only the relevant one is asked for:
              showing all ten would bury it. -->
-        @if (registry(); as reg) {
+        <!-- Gated on the SHAPE plus a list to pick from, not on the enumeration: a
+             registry fact's keys come from its bound question's options, so keying off
+             the enumeration would leave a fact rule with no way to enter a sample
+             answer. -->
+        @if (shape() === 'keyTable' && keyMembers().length > 0) {
           <nz-form-item>
             <nz-form-label [nzFor]="'sampleKey'">{{ keyLabel() }}</nz-form-label>
             <nz-form-control>
-              <nz-select id="sampleKey" formControlName="factKey" [nzPlaceHolder]="anyKeyPlaceholder">
+              <nz-select
+                id="sampleKey"
+                formControlName="factKey"
+                [nzPlaceHolder]="anyKeyPlaceholder"
+              >
                 @for (m of keyMembers(); track m.key) {
                   <nz-option [nzValue]="m.key" [nzLabel]="m.labelEn"></nz-option>
                 }
@@ -173,8 +185,8 @@ import {
         </button>
         @if (!programCode()) {
           <span class="chk__hint" i18n="@@bank_programs.income.check_needs_save">
-            Save the program once before checking — the check runs against this program's own
-            rate, fees and limits.
+            Save the program once before checking — the check runs against this program's own rate,
+            fees and limits.
           </span>
         }
       </div>
@@ -191,7 +203,9 @@ import {
       @if (!error() && result(); as r) {
         <div class="chk__result" role="status">
           <div class="chk__row">
-            <span class="chk__label" i18n="@@bank_programs.income.check_income">Recognised income</span>
+            <span class="chk__label" i18n="@@bank_programs.income.check_income"
+              >Recognised income</span
+            >
             @if (r.resolvedIncomeEGP; as income) {
               <span class="chk__value">{{ income }}</span>
             } @else {
@@ -201,7 +215,9 @@ import {
           </div>
 
           <div class="chk__row">
-            <span class="chk__label" i18n="@@bank_programs.income.check_dbr">Debt-burden cap applied</span>
+            <span class="chk__label" i18n="@@bank_programs.income.check_dbr"
+              >Debt-burden cap applied</span
+            >
             <span class="chk__value">
               {{ r.dbrCapPercent }}%
               <span class="chk__source">
@@ -428,18 +444,52 @@ export class IncomeRuleCheckComponent {
     tenorMonths: this.fb.nonNullable.control('60', [Validators.required]),
   });
 
-  readonly shape = computed(() => INCOME_METHOD_SHAPE[this.draft().strategy] ?? 'none');
-  readonly registry = computed(() => INCOME_KEY_REGISTRY[this.draft().strategy] ?? null);
-  readonly keyMembers = computed(() => {
-    const type = this.registry();
-    return type ? this.enums.membersFor(type)() : [];
-  });
-
-  readonly keyLabel = computed(() =>
-    this.draft().strategy === 'byMilitaryGrade'
-      ? $localize`:@@bank_programs.income.check_grade:Sample military grade`
-      : $localize`:@@bank_programs.income.check_rank:Sample academic rank`,
+  readonly shape = computed(() => incomeMethodShape(this.draft().strategy, this.facts()));
+  readonly registry = computed(
+    () => INCOME_KEY_REGISTRY[this.draft().strategy as BuiltinIncomeStrategy] ?? null,
   );
+
+  /** The operator-defined facts, so this panel can test a `fact:` rule too. */
+  private readonly facts = computed(() =>
+    registryFacts(
+      this.enums.membersFor('surrogate_fact')(),
+      document.documentElement.lang.startsWith('ar'),
+    ),
+  );
+
+  /**
+   * The sample values the key picker offers.
+   *
+   * A built-in key method draws them from its enumeration; a registry fact draws them
+   * from its bound question's options — the same list the applicant answers from, so
+   * what is testable here is exactly what is answerable there.
+   */
+  readonly keyMembers = computed<ReadonlyArray<{ key: string; labelAr: string; labelEn: string }>>(
+    () => {
+      const options = factKeyOptions(this.draft().strategy, this.facts());
+      if (options.length > 0) {
+        return options.map((o) => ({ key: o.code, labelAr: o.labelAr, labelEn: o.labelEn }));
+      }
+      const type = this.registry();
+      return type ? this.enums.membersFor(type)() : [];
+    },
+  );
+
+  readonly keyLabel = computed(() => {
+    const factKey = factKeyOf(this.draft().strategy);
+    if (factKey !== null) {
+      const fact = this.facts().find((f) => f.key === factKey);
+      // Named after the FACT the operator picked, not after a built-in method. Falling
+      // back to the key keeps the label honest for a fact that has since been retired,
+      // rather than labelling it as somebody else's grade.
+      return fact
+        ? $localize`:@@bank_programs.income.check_fact:Sample ${fact.label}:fact:`
+        : $localize`:@@bank_programs.income.check_fact_key:Sample answer for “${factKey}:fact:”`;
+    }
+    return this.draft().strategy === 'byMilitaryGrade'
+      ? $localize`:@@bank_programs.income.check_grade:Sample military grade`
+      : $localize`:@@bank_programs.income.check_rank:Sample academic rank`;
+  });
 
   readonly valueLabel = computed(() => {
     switch (this.draft().strategy) {
@@ -542,6 +592,14 @@ export class IncomeRuleCheckComponent {
     value: string | null,
   ): Record<string, string | number | undefined> {
     const strategy = this.draft().strategy;
+    // A registry fact travels under ONE generic field, keyed by the rule's own
+    // `fact:<key>`: the ten named fields below exist because live offers carry the
+    // built-in tokens that read them, and adding an eleventh per new fact is the
+    // release this feature removed.
+    if (factKeyOf(strategy) !== null) {
+      const answer = key ?? value;
+      return answer ? { factValue: answer } : {};
+    }
     if (key) {
       if (strategy === 'byMilitaryGrade') return { militaryGrade: key };
       if (strategy === 'byProfessorRank') return { professorRank: key };

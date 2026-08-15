@@ -23,10 +23,10 @@ class FiguresUnavailableReasons {
   const FiguresUnavailableReasons._();
 
   static const String noRecognisedIncome = 'NO_RECOGNISED_INCOME';
-  static const String obligationsExceedAllowance = 'OBLIGATIONS_EXCEED_ALLOWANCE';
+  static const String obligationsExceedAllowance =
+      'OBLIGATIONS_EXCEED_ALLOWANCE';
   static const String belowProgramMinAmount = 'BELOW_PROGRAM_MIN_AMOUNT';
   static const String ageAtMaturity = 'AGE_AT_MATURITY';
-  static const String currencyNotOffered = 'CURRENCY_NOT_OFFERED';
   static const String programMisconfigured = 'PROGRAM_MISCONFIGURED';
 
   /// Feature 011 — the rule's fact was never asked, or was skipped.
@@ -41,7 +41,6 @@ class FiguresUnavailableReasons {
     obligationsExceedAllowance,
     belowProgramMinAmount,
     ageAtMaturity,
-    currencyNotOffered,
     programMisconfigured,
     surrogateFactMissing,
     surrogateNoMatchingRow,
@@ -59,8 +58,6 @@ String figuresUnavailableLabel(AppLocalizations l10n, String? reasonCode) {
       return l10n.reason_below_program_min_amount;
     case FiguresUnavailableReasons.ageAtMaturity:
       return l10n.reason_age_at_maturity;
-    case FiguresUnavailableReasons.currencyNotOffered:
-      return l10n.reason_currency_not_offered;
     case FiguresUnavailableReasons.programMisconfigured:
       return l10n.reason_program_misconfigured;
     case FiguresUnavailableReasons.surrogateFactMissing:

@@ -29,7 +29,8 @@ class MatchingRemoteDataSource extends BaseRemoteDataSource {
     SelectOfferRequest request,
   ) async {
     await appNetwork.post(
-      MasrafyEndpoint(endpoint: ApiStrings.applicationSelectOffer(applicationId)),
+      MasrafyEndpoint(
+          endpoint: ApiStrings.applicationSelectOffer(applicationId)),
       data: request.toJson(),
     );
   }

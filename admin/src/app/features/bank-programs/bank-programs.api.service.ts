@@ -122,5 +122,4 @@ export class BankProgramsApiService {
       ),
     );
   }
-
 }

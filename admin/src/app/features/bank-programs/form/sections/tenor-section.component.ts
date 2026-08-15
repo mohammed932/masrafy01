@@ -15,7 +15,13 @@ import { ClockCircleOutline } from '@ant-design/icons-angular/icons';
   template: `
     <section class="section" [formGroup]="group" id="tenor">
       <header class="section-header">
-        <span class="section-icon" nz-icon nzType="clock-circle" nzTheme="outline" aria-hidden="true"></span>
+        <span
+          class="section-icon"
+          nz-icon
+          nzType="clock-circle"
+          nzTheme="outline"
+          aria-hidden="true"
+        ></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.tenor">Tenor</h3>
           <p class="section-sub" i18n="@@bank_programs.section.tenor_sub">

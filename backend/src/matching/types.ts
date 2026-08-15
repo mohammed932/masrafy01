@@ -71,7 +71,6 @@ export interface ApplicantProfile {
   age: number;
   loanPurpose: string;
   requestedAmountEGP: Decimal;
-  requestedCurrency: string;
   preferredTenorMonths: number;
   priority: ApplicationPriority;
   nationalId?: string;
@@ -80,7 +79,34 @@ export interface ApplicantProfile {
   assets: AssetsProfile;
   mortgageDetails?: MortgageDetails;
   carDetails?: CarDetails;
+  /**
+   * The applicant's answer to every REGISTRY surrogate fact, by fact key.
+   *
+   * The generic half of what `employment.militaryGrade` / `assets.creditCardLimitEGP`
+   * do for the four facts that were code constants. Those stay — they have other
+   * readers (the card limit also feeds the obligation discount) and the four legacy
+   * strategies still read them — but a fact an operator ADDS on Manage values has no
+   * typed field to land in, and inventing one per fact is the release this map exists
+   * to avoid.
+   *
+   * Absent key = not answered. Never defaulted, never zero: the resolver reports
+   * `fact_not_answered` and the customer gets a stated reason rather than a price
+   * derived from a number nobody gave us (FR-020).
+   */
+  surrogateFacts?: Readonly<Record<string, SurrogateFactValue>>;
 }
+
+/**
+ * One answered fact — a picked option code, or a number. Never both.
+ *
+ * Mirrors the two bindable question types: a SINGLE_SELECT answer is a key into the
+ * bank's key table, a NUMERIC answer is a value the bank's bands are searched with.
+ * A union rather than two optional fields, so "answered as a choice" and "answered as
+ * a number" cannot both be true and leave the resolver picking one.
+ */
+export type SurrogateFactValue =
+  | { kind: 'choice'; optionCode: string }
+  | { kind: 'numeric'; value: Decimal };
 
 // ---------------------------------------------------------------------------
 // Bank Program snapshot (read-only input from feature 002 JSONB)
@@ -102,7 +128,8 @@ export interface PricingConfig {
 }
 
 export interface LoanLimitsConfig {
-  perCurrency: Record<string, { minAmount: string; maxAmount: string }>;
+  minAmountEGP: string;
+  maxAmountEGP: string;
   amountStepEGP?: string;
   maxByCDTier?: Array<{ minCDValueEGP: string; maxAmountEGP: string }>;
   maxByPropertyType?: Record<string, string>;
@@ -181,6 +208,17 @@ export interface PerformanceCriteriaConfig {
   requireCurrentLoanStatus?: string;
 }
 
+/**
+ * The BUILT-IN methods — the ones whose arithmetic lives in `resolveSurrogateIncome`
+ * because it is more than a table lookup (a percent of a deposit, a multiple of an
+ * instalment) or because it reads a profile field no question fills.
+ *
+ * Closed, and staying closed. A method that reads AN ANSWER and looks it up in the
+ * bank's table needs no branch here — it is a registry fact, `fact:<key>`, and an
+ * operator adds one on Manage values. The four legacy fact methods below are kept
+ * verbatim because live programs' `strategy` tokens name them and an offer is
+ * immutable (Principle I); they are not the pattern for the next one.
+ */
 export const INCOME_ASSUMPTION_STRATEGIES = [
   'declared',
   'byYearsInJob',
@@ -195,7 +233,47 @@ export const INCOME_ASSUMPTION_STRATEGIES = [
   'byBankStatementPercent',
 ] as const;
 
-export type IncomeAssumptionStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number];
+export type BuiltinIncomeAssumptionStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number];
+
+/**
+ * The prefix that makes a strategy token name a REGISTRY FACT rather than a built-in
+ * method: `fact:taxi_licence_class` reads the fact keyed `taxi_licence_class`.
+ *
+ * A namespaced token, not a `factKey` field beside the strategy, for one reason: every
+ * existing reader — the offer's frozen `strategy`, the admin's method picker, the audit
+ * payload, `stripForeignMethodConfig` — already switches on this one string. A parallel
+ * field would leave each of them able to disagree about which method a rule is.
+ */
+export const FACT_STRATEGY_PREFIX = 'fact:';
+
+export type FactIncomeAssumptionStrategy = `${typeof FACT_STRATEGY_PREFIX}${string}`;
+
+export type IncomeAssumptionStrategy =
+  | BuiltinIncomeAssumptionStrategy
+  | FactIncomeAssumptionStrategy;
+
+/** The `fact:<key>` token for a registry fact key. */
+export function factStrategy(factKey: string): FactIncomeAssumptionStrategy {
+  return `${FACT_STRATEGY_PREFIX}${factKey}`;
+}
+
+/**
+ * The fact key a strategy token names, or `null` for a built-in method.
+ *
+ * `fact:` with nothing after it is `null`, not `''`: an empty key matches no registry
+ * row, and returning it would have the resolver look one up and report "your fact is
+ * missing" for a rule that is simply malformed.
+ */
+export function factKeyOf(strategy: string): string | null {
+  if (!strategy.startsWith(FACT_STRATEGY_PREFIX)) return null;
+  const key = strategy.slice(FACT_STRATEGY_PREFIX.length);
+  return key.length > 0 ? key : null;
+}
+
+/** True for the built-in tokens — i.e. every method that predates the fact registry. */
+export function isBuiltinIncomeStrategy(strategy: string): strategy is BuiltinIncomeAssumptionStrategy {
+  return (INCOME_ASSUMPTION_STRATEGIES as readonly string[]).includes(strategy);
+}
 
 /** The two methods whose configuration is a table keyed by a registry member. */
 export const KEY_TABLE_STRATEGIES = ['byProfessorRank', 'byMilitaryGrade'] as const;
@@ -409,7 +487,6 @@ export interface BankProgramSnapshot {
   friendlyName: string;
   programType: string;
   productCategory: string;
-  currencies: string[];
   active: boolean;
   /** Islamic-finance program. Carried onto every offer so the badge cannot go stale. */
   isShariaCompliant: boolean;
@@ -477,7 +554,6 @@ export interface Offer {
   requiredDocuments: string[];
   matchReasons: string[];
   cascadeTrace: CascadeTrace;
-  currency: string;
   qualitativeReviewBadge: boolean;
   selfDeclared: boolean;
   /**
@@ -572,7 +648,6 @@ export const FIGURES_UNAVAILABLE_REASONS = [
   'OBLIGATIONS_EXCEED_ALLOWANCE',
   'BELOW_PROGRAM_MIN_AMOUNT',
   'AGE_AT_MATURITY',
-  'CURRENCY_NOT_OFFERED',
   'PROGRAM_MISCONFIGURED',
   /**
    * Feature 011 — the program's income rule reads a fact the applicant was never
@@ -645,7 +720,6 @@ export interface Quote {
   dbrCapSource: 'program_default' | 'rule_override';
   /** Itemised, always — fees are never folded in silently (FR-031). */
   feesBreakdown: FeesBreakdown;
-  currency: string;
   cascadeTrace: CascadeTrace;
 }
 

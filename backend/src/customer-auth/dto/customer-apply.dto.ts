@@ -19,11 +19,6 @@ export class ApplyOfferSelectionDto {
   @Length(10, 64)
   bankProgramId!: string;
 
-  @ApiProperty({ default: 'EGP' })
-  @IsString()
-  @Length(3, 3)
-  currency!: string;
-
   @ApiProperty({ minimum: 6, maximum: 360 })
   @IsInt()
   @Min(6)

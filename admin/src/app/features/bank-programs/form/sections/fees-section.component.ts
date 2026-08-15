@@ -23,7 +23,13 @@ import { SnippetsOutline } from '@ant-design/icons-angular/icons';
   template: `
     <section class="section" [formGroup]="group" id="fees">
       <header class="section-header">
-        <span class="section-icon" nz-icon nzType="snippets" nzTheme="outline" aria-hidden="true"></span>
+        <span
+          class="section-icon"
+          nz-icon
+          nzType="snippets"
+          nzTheme="outline"
+          aria-hidden="true"
+        ></span>
         <div>
           <h3 class="section-title" i18n="@@bank_programs.section.fees">Fees</h3>
           <p class="section-sub" i18n="@@bank_programs.section.fees_sub">
@@ -60,7 +66,9 @@ import { SnippetsOutline } from '@ant-design/icons-angular/icons';
           </nz-form-control>
         </nz-form-item>
         <nz-form-item class="numeric">
-          <nz-form-label [nzFor]="'lifeInsurancePercent'" i18n="@@bank_programs.field.life_insurance_pct"
+          <nz-form-label
+            [nzFor]="'lifeInsurancePercent'"
+            i18n="@@bank_programs.field.life_insurance_pct"
             >Life insurance %</nz-form-label
           >
           <nz-form-control>

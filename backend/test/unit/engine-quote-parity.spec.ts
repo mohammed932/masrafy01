@@ -26,9 +26,16 @@ const engine = new EngineService();
 describe('engine ↔ quote parity', () => {
   it('copies every money figure from the quote onto the offer', () => {
     const profile = profileFixture();
-    const program = programFixture({ fees: { adminFeePercent: '1.5000', stampDutyPercent: '0.5000' } });
+    const program = programFixture({
+      fees: { adminFeePercent: '1.5000', stampDutyPercent: '0.5000' },
+    });
 
-    const result = engine.run({ profile, programs: [program], scoringConfig, skipEligibility: true });
+    const result = engine.run({
+      profile,
+      programs: [program],
+      scoringConfig,
+      skipEligibility: true,
+    });
     const offer = result.offers[0];
     expect(offer).toBeDefined();
     if (!offer) return;
@@ -52,12 +59,21 @@ describe('engine ↔ quote parity', () => {
 
   it('exposes the quote on the match result so callers need not recompute', () => {
     const profile = profileFixture();
-    const program = programFixture({ eligibility: eligibilityFixture({ dbrBands: [
-      { upToIncomeEGP: '10000', capPercent: '35.0000' },
-      { upToIncomeEGP: null, capPercent: '45.0000' },
-    ] }) });
+    const program = programFixture({
+      eligibility: eligibilityFixture({
+        dbrBands: [
+          { upToIncomeEGP: '10000', capPercent: '35.0000' },
+          { upToIncomeEGP: null, capPercent: '45.0000' },
+        ],
+      }),
+    });
 
-    const result = engine.run({ profile, programs: [program], scoringConfig, skipEligibility: true });
+    const result = engine.run({
+      profile,
+      programs: [program],
+      scoringConfig,
+      skipEligibility: true,
+    });
     expect(result.offers).toHaveLength(1);
     // The resolved band + cap ride along, so the apply path can persist them
     // (FR-021) without running the engine twice.
@@ -111,9 +127,7 @@ describe('engine ↔ quote parity', () => {
       });
       const offer = result.offers[0];
       expect(offer?.requestedLoanAmountEGP.lessThan(300000)).toBe(true);
-      expect(offer?.requestedLoanAmountEGP.toFixed(2)).toBe(
-        offer?.maxLoanAvailableEGP?.toFixed(2),
-      );
+      expect(offer?.requestedLoanAmountEGP.toFixed(2)).toBe(offer?.maxLoanAvailableEGP?.toFixed(2));
     });
 
     it('quotes the full ask when DBR is explicitly skipped', () => {
@@ -129,12 +143,12 @@ describe('engine ↔ quote parity', () => {
 
   it('lists a no-match reason rather than throwing when a program cannot be quoted', () => {
     const result = engine.run({
-      profile: profileFixture({ requestedCurrency: 'USD' }),
-      programs: [programFixture()],
+      profile: profileFixture(),
+      programs: [programFixture({ loanLimits: { minAmountEGP: '10000', maxAmountEGP: '0' } })],
       scoringConfig,
       skipEligibility: true,
     });
     expect(result.status).toBe('no_match');
-    expect(result.noMatchDetails?.[0]?.failedChecks).toContain('currency');
+    expect(result.noMatchDetails?.[0]?.failedChecks).toContain('program_misconfigured');
   });
 });

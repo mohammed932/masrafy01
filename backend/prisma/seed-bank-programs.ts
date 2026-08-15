@@ -15,7 +15,7 @@
  *     → bank posture   (BANK_POSTURE: this bank's spread over any archetype)
  *     → offering delta (per-program tweak)
  *     → category skeleton (the fields the baseline never carries: programType,
- *        currencies, employment + transfer types, income assumption, flags)
+ *        employment + transfer types, income assumption, flags)
  *
  * The category comes from the MATRIX offering, not from the archetype: it sets
  * `productCategory`, the middle programCode segment and the skeleton.
@@ -112,7 +112,10 @@ function mergeDeltas(posture: BankDelta | undefined, offering: BankDelta | undef
 }
 
 /** Money + rates stay Decimal end to end (Principle I) and serialise as strings. */
-function addPercent(value: string | undefined, deltaPercent: string | undefined): string | undefined {
+function addPercent(
+  value: string | undefined,
+  deltaPercent: string | undefined,
+): string | undefined {
   if (!value) return value;
   if (!deltaPercent) return value;
   const next = new Decimal(value).plus(new Decimal(deltaPercent));
@@ -126,7 +129,10 @@ function scaleAmount(value: string | undefined, factor: number | undefined): str
   return new Decimal(value).times(new Decimal(factor.toString())).toFixed(2);
 }
 
-function clampPercent(value: string | undefined, deltaPercent: string | undefined): string | undefined {
+function clampPercent(
+  value: string | undefined,
+  deltaPercent: string | undefined,
+): string | undefined {
   if (!value || !deltaPercent) return value;
   let next = new Decimal(value).plus(new Decimal(deltaPercent));
   if (next.lessThan(1)) next = new Decimal(1);
@@ -158,16 +164,21 @@ function compose(args: {
   const delta = mergeDeltas(BANK_POSTURE[bankName], offering.delta);
   const skeleton = skeletonFor(offering.catalogKey, offering.category);
 
-  const alias = BANK_ALIASES[bankName] ?? bankName.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6);
+  const alias =
+    BANK_ALIASES[bankName] ??
+    bankName
+      .replace(/[^A-Za-z0-9]/g, '')
+      .toUpperCase()
+      .slice(0, 6);
   const programCode = `${alias}-${CATEGORY_CODES[offering.category] ?? 'GEN'}-${offering.catalogKey.toUpperCase()}`;
 
   const minMonths = baseline.tenor?.minMonths ?? 12;
   const maxMonthsBase = baseline.tenor?.maxMonths ?? 60;
   const maxMonths = Math.max(minMonths, maxMonthsBase + (delta.tenorMaxMonthsDelta ?? 0));
 
-  const egpBase = baseline.loanLimits?.perCurrency?.['EGP'];
-  const minAmount = scaleAmount(egpBase?.minAmount, delta.minAmountFactor) ?? '10000.00';
-  const maxAmountScaled = scaleAmount(egpBase?.maxAmount, delta.maxAmountFactor) ?? '1000000.00';
+  const egpBase = baseline.loanLimits;
+  const minAmount = scaleAmount(egpBase?.minAmountEGP, delta.minAmountFactor) ?? '10000.00';
+  const maxAmountScaled = scaleAmount(egpBase?.maxAmountEGP, delta.maxAmountFactor) ?? '1000000.00';
   // A factor must never invert the range.
   const maxAmount = new Decimal(maxAmountScaled).lessThan(new Decimal(minAmount))
     ? minAmount
@@ -206,7 +217,6 @@ function compose(args: {
     programNameKey: offering.catalogKey,
     programType: skeleton.programType,
     productCategory: offering.category,
-    currencies: ['EGP'],
     active: true,
     isShariaCompliant: delta.isShariaCompliant ?? false,
     version: 1,
@@ -214,7 +224,7 @@ function compose(args: {
     operatorTips: [...(delta.operatorTips ?? [])],
     requiredDocuments,
     tenor: { minMonths, maxMonths },
-    loanLimits: { perCurrency: { EGP: { minAmount, maxAmount } } },
+    loanLimits: { minAmountEGP: minAmount, maxAmountEGP: maxAmount },
     pricing,
     eligibility: {
       acceptedEmploymentTypes: skeleton.acceptedEmploymentTypes,
@@ -389,7 +399,9 @@ export async function seedBankPrograms(actorStaffId?: string): Promise<void> {
     `[seed-bank-programs] ${created} created, ${updated} updated, ${skipped} left untouched.`,
   );
   if (created > 0 || updated > 0) {
-    console.log('[seed-bank-programs] next: `npm run seed:weights` (no ACTIVE weight set → 0% offers).');
+    console.log(
+      '[seed-bank-programs] next: `npm run seed:weights` (no ACTIVE weight set → 0% offers).',
+    );
   }
 }
 
