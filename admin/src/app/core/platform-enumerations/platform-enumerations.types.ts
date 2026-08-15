@@ -12,6 +12,7 @@ export type EnumerationType =
   | 'program_name';
 
 import type { LoanCategory } from '@core/loan-category';
+import type { IncomeBasis } from '@core/income-basis';
 
 export interface EnumerationMember {
   type: EnumerationType;
@@ -30,17 +31,28 @@ export interface EnumerationMember {
    */
   categories?: LoanCategory[];
   /**
-   * `program_name` only — the surrogate facts this name is ticked to read, per loan
-   * category (see `core/surrogate-facts.ts`). A category with a non-empty list is one
-   * under which the name is sold WITHOUT a payslip.
+   * `program_name` only — how this name may be SOLD under each category it is offered
+   * under: against a payslip, without one, or both. Chosen when the name is created and
+   * edited per tab on the catalog detail screen.
    *
-   * Derived server-side from the ticks, so no flag can disagree with the catalog screen.
-   * The bank-program form filters its name picker on this the moment the operator chooses
-   * the no-payslip basis — which is what makes no-payslip programs their own set of names
-   * — and reads the codes to say whether the fact a chosen method needs is set up.
+   * The bank-program form filters its name picker on this in BOTH directions, and the API
+   * refuses a program whose basis is not in the set — so this is the pairing rule, not a
+   * hint. A category absent from the map is one the name is not offered under at all.
    *
    * `undefined` means NOT LOADED, never "none": a backend that has not deployed the field
    * must leave the picker unfiltered rather than empty.
+   */
+  incomeBases?: Partial<Record<LoanCategory, IncomeBasis[]>>;
+  /**
+   * `program_name` only — the surrogate facts this name is ticked to read, per loan
+   * category (see `core/surrogate-facts.ts`).
+   *
+   * NOT the basis above. This is the next question down: given that the name is sold
+   * without a payslip here, WHICH fact do its banks look up, and does the questionnaire
+   * ask it at all. The program form uses it to warn that a chosen method reads a fact
+   * nobody is asked — a rule that resolves to no income, silently.
+   *
+   * `undefined` means NOT LOADED, never "none".
    */
   noPayslipFacts?: Partial<Record<LoanCategory, string[]>>;
 }

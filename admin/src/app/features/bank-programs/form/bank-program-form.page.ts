@@ -219,8 +219,8 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           <div class="title-block">
             <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
             <p class="page-subtitle" i18n="@@bank_programs.form.subtitle">
-              Six short steps. Every number belongs to this program alone, and nothing is saved until you
-              confirm on the last step.
+              Six short steps. Every number belongs to this program alone, and nothing is saved
+              until you confirm on the last step.
             </p>
           </div>
           <!-- What was already decided BEFORE this form opened — the bank and
@@ -231,49 +231,61 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           <!-- Always rendered: the income basis is always decided, even when the bank and
                loan type arrived from the URL and have no chip of their own. -->
           <div class="context-row">
-              @if (!isEditMode() && preselectedBank; as b) {
-                <div class="bank-chip">
-                  <span class="bank-chip-avatar" aria-hidden="true">{{ initialsOf(b.nameEnglish) }}</span>
-                  <span class="bank-chip-body">
-                    <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.for_bank">For bank</span>
-                    <span class="bank-chip-name">{{ b.nameEnglish }}</span>
-                  </span>
-                  <button type="button" class="bank-chip-change" (click)="clearBank()">
-                    <span i18n="@@bank_programs.form.change_bank">Change</span>
-                  </button>
-                </div>
-              }
-              @if (lockedCategory(); as cat) {
-                <div class="bank-chip" [style.--cat]="catColor(cat)">
-                  <span class="bank-chip-avatar cat-chip-avatar" aria-hidden="true">
-                    <span nz-icon [nzType]="catIcon(cat)" nzTheme="outline"></span>
-                  </span>
-                  <span class="bank-chip-body">
-                    <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.loan_type">Loan type</span>
-                    <span class="bank-chip-name">{{ categoryLabelOf(cat) }}</span>
-                  </span>
-                </div>
-              }
-              <!-- The income basis joins the two things that were already decided, because
+            @if (!isEditMode() && preselectedBank; as b) {
+              <div class="bank-chip">
+                <span class="bank-chip-avatar" aria-hidden="true">{{
+                  initialsOf(b.nameEnglish)
+                }}</span>
+                <span class="bank-chip-body">
+                  <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.for_bank"
+                    >For bank</span
+                  >
+                  <span class="bank-chip-name">{{ b.nameEnglish }}</span>
+                </span>
+                <button type="button" class="bank-chip-change" (click)="clearBank()">
+                  <span i18n="@@bank_programs.form.change_bank">Change</span>
+                </button>
+              </div>
+            }
+            @if (lockedCategory(); as cat) {
+              <div class="bank-chip" [style.--cat]="catColor(cat)">
+                <span class="bank-chip-avatar cat-chip-avatar" aria-hidden="true">
+                  <span nz-icon [nzType]="catIcon(cat)" nzTheme="outline"></span>
+                </span>
+                <span class="bank-chip-body">
+                  <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.loan_type"
+                    >Loan type</span
+                  >
+                  <span class="bank-chip-name">{{ categoryLabelOf(cat) }}</span>
+                </span>
+              </div>
+            }
+            <!-- The income basis joins the two things that were already decided, because
                    after step 1 it behaves like them: it is not re-asked, and it changes
                    what steps 1 and 4 mean. Without it here, an operator four steps deep
                    typing a grade table has nothing on screen saying why. -->
-              <div class="bank-chip" [style.--cat]="basisAccent()">
-                <span class="bank-chip-avatar cat-chip-avatar" aria-hidden="true">
-                  <span nz-icon [nzType]="basisIcon()" nzTheme="outline"></span>
-                </span>
-                <span class="bank-chip-body">
-                  <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.income">Income</span>
-                  <span class="bank-chip-name">{{ basisLabel(incomeBasis()) }}</span>
-                </span>
-              </div>
+            <div class="bank-chip" [style.--cat]="basisAccent()">
+              <span class="bank-chip-avatar cat-chip-avatar" aria-hidden="true">
+                <span nz-icon [nzType]="basisIcon()" nzTheme="outline"></span>
+              </span>
+              <span class="bank-chip-body">
+                <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.income">Income</span>
+                <span class="bank-chip-name">{{ basisLabel(incomeBasis()) }}</span>
+              </span>
             </div>
+          </div>
         </div>
       </header>
 
       @if (enums.unavailable()) {
         <div class="unavailable">
-          <span class="unavailable-icon" nz-icon nzType="cloud" nzTheme="outline" aria-hidden="true"></span>
+          <span
+            class="unavailable-icon"
+            nz-icon
+            nzType="cloud"
+            nzTheme="outline"
+            aria-hidden="true"
+          ></span>
           <p class="unavailable-text" i18n="@@bank_programs.form.enums_unavailable">
             Enumerations unavailable, retry shortly.
           </p>
@@ -305,31 +317,35 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         </ng-template>
 
         <form [formGroup]="form" (ngSubmit)="submit()" class="form-body">
-
           <!-- ═══ STEP RAIL ═══════════════════════════════════════════════════
                Navigation, not decoration: every step is reachable the moment it
                has been visited, and a step that failed validation keeps a red
                marker so the admin can always see WHERE the blocker is. -->
           <div class="wizard-rail">
-          <!-- Shared rail (app-wizard-steps): done / needs-attention markers,
+            <!-- Shared rail (app-wizard-steps): done / needs-attention markers,
                the disabled gate and the responsive collapse all live there. The
                caption is screen-reader-only here — the rail already names the
                step in print and the sentence only repeated it. -->
-          <app-wizard-steps
-            [steps]="railSteps()"
-            [activeIndex]="stepIndex()"
-            [ariaLabel]="stepsAria"
-            [caption]="stepCaption()"
-            [captionSrOnly]="true"
-            (stepSelect)="goTo($event)"
-          />
+            <app-wizard-steps
+              [steps]="railSteps()"
+              [activeIndex]="stepIndex()"
+              [ariaLabel]="stepsAria"
+              [caption]="stepCaption()"
+              [captionSrOnly]="true"
+              (stepSelect)="goTo($event)"
+            />
 
-          @if (showStepIssues() && stepIssueCount() > 0) {
-            <div class="step-alert" role="alert">
-              <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
-              <span>{{ stepIssueLabel() }}</span>
-            </div>
-          }
+            @if (showStepIssues() && stepIssueCount() > 0) {
+              <div class="step-alert" role="alert">
+                <span
+                  nz-icon
+                  nzType="exclamation-circle"
+                  nzTheme="outline"
+                  aria-hidden="true"
+                ></span>
+                <span>{{ stepIssueLabel() }}</span>
+              </div>
+            }
           </div>
 
           <!-- ═══ STEP BODY ═══════════════════════════════════════════════════
@@ -338,694 +354,1018 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                position: sticky — so no opaque-backdrop bleed, no z-index race,
                and nothing ever scrolls through the gaps between them. -->
           <div class="form-scroll">
-
-          <!-- ═══ STEP 1 — PROGRAM ════════════════════════════════════════════ -->
-          @if (stepIndex() === 0) {
-          <!-- Create reached without a loan type (direct URL): the value is not
+            <!-- ═══ STEP 1 — PROGRAM ════════════════════════════════════════════ -->
+            @if (stepIndex() === 0) {
+              <!-- Create reached without a loan type (direct URL): the value is not
                guessable, and defaulting it would file the program under the
                wrong product. Say where the choice is made instead. -->
-          @if (!isEditMode() && !lockedCategory()) {
-            <div class="ctx-missing" role="alert">
-              <span nz-icon nzType="compass" nzTheme="outline" aria-hidden="true"></span>
-              <span i18n="@@bank_programs.form.category_missing"
-                >Start from a bank’s loan type so this program is filed under the right product.</span
-              >
-              <a routerLink="/banks" i18n="@@bank_programs.form.category_missing_cta">Go to banks</a>
-            </div>
-          }
+              @if (!isEditMode() && !lockedCategory()) {
+                <div class="ctx-missing" role="alert">
+                  <span nz-icon nzType="compass" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@bank_programs.form.category_missing"
+                    >Start from a bank’s loan type so this program is filed under the right
+                    product.</span
+                  >
+                  <a routerLink="/banks" i18n="@@bank_programs.form.category_missing_cta"
+                    >Go to banks</a
+                  >
+                </div>
+              }
 
-          <section class="card" formGroupName="identity">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.core.title">Program</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.core.sub">
-                  The name customers see, and how the bank reads an income.
-                </p>
-              </div>
-            </header>
+              <section class="card" formGroupName="identity">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.core.title">Program</h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.core.sub">
+                      The name customers see, and how the bank reads an income.
+                    </p>
+                  </div>
+                </header>
 
-            <!-- FIRST, and as two cards rather than a select. This answer decides which
+                <!-- FIRST, and as two cards rather than a select. This answer decides which
                  names the picker below may offer AND whether step 4 carries a whole rule
                  editor, so it is a decision, not the third field in a grid. It used to be
                  an unlabelled dropdown reading "Income-proof / Income-surrogate" —
                  schema nouns, defaulted, three fields down. -->
-            <fieldset class="basis-pick">
-              <legend class="basis-legend" i18n="@@bank_programs.field.income_basis">
-                How does the bank read the income?
-              </legend>
-              <div class="basis-cards">
-                @for (b of incomeBases; track b) {
-                  <label class="basis-card" [class.is-on]="incomeBasis() === b">
-                    <input
-                      type="radio"
-                      name="incomeBasis"
-                      class="sr-only"
-                      [checked]="incomeBasis() === b"
-                      (change)="pickBasis(b)"
-                    />
-                    <span class="basis-card-title">
-                      <span class="basis-radio" aria-hidden="true"></span>
-                      {{ basisLabel(b) }}
-                    </span>
-                    <span class="basis-card-hint">{{ basisHint(b) }}</span>
-                  </label>
-                }
-              </div>
-            </fieldset>
+                <fieldset class="basis-pick">
+                  <legend class="basis-legend" i18n="@@bank_programs.field.income_basis">
+                    How does the bank read the income?
+                  </legend>
+                  <div class="basis-cards">
+                    @for (b of incomeBases; track b) {
+                      <label class="basis-card" [class.is-on]="incomeBasis() === b">
+                        <input
+                          type="radio"
+                          name="incomeBasis"
+                          class="sr-only"
+                          [checked]="incomeBasis() === b"
+                          (change)="pickBasis(b)"
+                        />
+                        <span class="basis-card-title">
+                          <span class="basis-radio" aria-hidden="true"></span>
+                          {{ basisLabel(b) }}
+                        </span>
+                        <span class="basis-card-hint">{{ basisHint(b) }}</span>
+                      </label>
+                    }
+                  </div>
+                </fieldset>
 
-            <div class="grid">
-              @if (!preselectedBank && !isEditMode()) {
-                <nz-form-item>
-                  <nz-form-label [nzFor]="'bankId'" nzRequired i18n="@@bank_programs.field.bank">Bank</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-select
-                      id="bankId"
-                      [formControl]="bankIdControl"
-                      [nzDropdownStyle]="dropdownStyle"
-                      nzShowSearch
-                      nzAllowClear
-                      nzPlaceHolder="Pick a bank"
+                <div class="grid">
+                  @if (!preselectedBank && !isEditMode()) {
+                    <nz-form-item>
+                      <nz-form-label [nzFor]="'bankId'" nzRequired i18n="@@bank_programs.field.bank"
+                        >Bank</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-select
+                          id="bankId"
+                          [formControl]="bankIdControl"
+                          [nzDropdownStyle]="dropdownStyle"
+                          nzShowSearch
+                          nzAllowClear
+                          nzPlaceHolder="Pick a bank"
+                        >
+                          @for (b of activeBanks(); track b.id) {
+                            <nz-option [nzValue]="b.id" [nzLabel]="b.nameEnglish"></nz-option>
+                          }
+                        </nz-select>
+                        @if (identityGroup.controls['bankName']?.touched && !selectedBankId()) {
+                          <div class="manual-error" i18n="@@bank_programs.err.bank_required">
+                            Bank is required.
+                          </div>
+                        }
+                      </nz-form-control>
+                    </nz-form-item>
+                  }
+                  @if (isEditMode()) {
+                    <nz-form-item class="span-2">
+                      <nz-form-label
+                        [nzFor]="'programCode'"
+                        i18n="@@bank_programs.field.program_code"
+                        >Program code</nz-form-label
+                      >
+                      <nz-form-control>
+                        <input nz-input id="programCode" formControlName="programCode" />
+                      </nz-form-control>
+                    </nz-form-item>
+                  }
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'programNameKey'"
+                      nzRequired
+                      i18n="@@bank_programs.field.friendly_name"
+                      >Program name</nz-form-label
                     >
-                      @for (b of activeBanks(); track b.id) {
-                        <nz-option [nzValue]="b.id" [nzLabel]="b.nameEnglish"></nz-option>
-                      }
-                    </nz-select>
-                    @if (identityGroup.controls['bankName']?.touched && !selectedBankId()) {
-                      <div class="manual-error" i18n="@@bank_programs.err.bank_required">Bank is required.</div>
-                    }
-                  </nz-form-control>
-                </nz-form-item>
-              }
-              @if (isEditMode()) {
-                <nz-form-item class="span-2">
-                  <nz-form-label [nzFor]="'programCode'" i18n="@@bank_programs.field.program_code">Program code</nz-form-label>
-                  <nz-form-control>
-                    <input nz-input id="programCode" formControlName="programCode" />
-                  </nz-form-control>
-                </nz-form-item>
-              }
-              <nz-form-item>
-                <nz-form-label [nzFor]="'programNameKey'" nzRequired i18n="@@bank_programs.field.friendly_name">Program name</nz-form-label>
-                <nz-form-control [nzErrorTip]="friendlyNameErrorTpl">
-                  <nz-select
-                    id="programNameKey"
-                    formControlName="programNameKey"
-                    nzShowSearch
-                    [nzDropdownStyle]="dropdownStyle"
-                    [nzNotFoundContent]="noNamesForCategoryLabel()"
-                    nzPlaceHolder="Select a program"
-                    i18n-nzPlaceHolder="@@bank_programs.field.friendly_name.placeholder"
-                  >
-                    @for (opt of programNameOptions(); track opt.value) {
-                      <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
-                    }
-                  </nz-select>
-                  <!-- Required is the only CONTROL error reachable: the value
+                    <nz-form-control [nzErrorTip]="friendlyNameErrorTpl">
+                      <nz-select
+                        id="programNameKey"
+                        formControlName="programNameKey"
+                        nzShowSearch
+                        [nzDropdownStyle]="dropdownStyle"
+                        [nzNotFoundContent]="noNamesForCategoryLabel()"
+                        nzPlaceHolder="Select a program"
+                        i18n-nzPlaceHolder="@@bank_programs.field.friendly_name.placeholder"
+                      >
+                        @for (opt of programNameOptions(); track opt.value) {
+                          <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
+                        }
+                      </nz-select>
+                      <!-- Required is the only CONTROL error reachable: the value
                        comes from a fixed option list, so it cannot overflow the
                        key length. The name-vs-category mismatch is not a control
                        error — it is rendered as a warning below. -->
-                  <ng-template #friendlyNameErrorTpl let-control>
-                    @if (control.hasError('required')) {
-                      <span i18n="@@bank_programs.err.friendly_name_required">Program name is required.</span>
-                    }
-                  </ng-template>
-                  @if (programNameMismatch(); as mismatch) {
-                    <p class="field-warn" role="alert">
-                      @if (mismatch.reason === 'basis') {
-                        <span i18n="@@bank_programs.warn.name_not_no_payslip"
-                          >“{{ mismatch.name }}” isn’t sold without a payslip for
-                          {{ mismatch.category }}. Pick another name, or tick a fact on it in
-                          the program catalog.</span
-                        >
-                      } @else {
-                        <span i18n="@@bank_programs.warn.name_not_in_category"
-                          >“{{ mismatch.name }}” isn’t offered for {{ mismatch.category }}. Pick
-                          another name, or add it to this loan type in the program catalog.</span
-                        >
+                      <ng-template #friendlyNameErrorTpl let-control>
+                        @if (control.hasError('required')) {
+                          <span i18n="@@bank_programs.err.friendly_name_required"
+                            >Program name is required.</span
+                          >
+                        }
+                      </ng-template>
+                      @if (programNameMismatch(); as mismatch) {
+                        <p class="field-warn" role="alert">
+                          @if (mismatch.reason === 'basis') {
+                            <span i18n="@@bank_programs.warn.name_not_sold_this_way"
+                              >“{{ mismatch.name }}” isn’t sold this way for
+                              {{ mismatch.category }}. Pick another name, or change how it is sold
+                              in the program catalog.</span
+                            >
+                          } @else {
+                            <span i18n="@@bank_programs.warn.name_not_in_category"
+                              >“{{ mismatch.name }}” isn’t offered for {{ mismatch.category }}. Pick
+                              another name, or add it to this loan type in the program
+                              catalog.</span
+                            >
+                          }
+                        </p>
                       }
-                    </p>
-                  }
-                </nz-form-control>
-              </nz-form-item>
-              <!-- Loan type is NOT a field here: it arrives decided (query param on
+                    </nz-form-control>
+                  </nz-form-item>
+                  <!-- Loan type is NOT a field here: it arrives decided (query param on
                    create, the saved row on edit) and is shown in the context chip beside
                    the page title, alongside the income basis chosen above. The program
                    TYPE is not a field either any more — the two cards above set it. -->
-              <label class="option-row span-2" [class.is-on]="isSharia" nz-checkbox formControlName="isShariaCompliant">
-                <span class="option-text">
-                  <span class="option-title" i18n="@@bank_programs.field.sharia">Sharia-compliant program</span>
-                  <span class="option-hint" i18n="@@bank_programs.field.sharia.hint">
-                    Shown to customers who filter for Islamic finance.
-                  </span>
-                </span>
-              </label>
-            </div>
-          </section>
-
-          }
-
-          <!-- ═══ STEP 2 — AMOUNT & DURATION ══════════════════════════════════ -->
-          @if (stepIndex() === 1) {
-          <section class="card" formGroupName="loanLimits">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.amount.title">Loan amount</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.amount.sub">
-                  Minimum and maximum loan size in EGP.
-                </p>
-              </div>
-            </header>
-            <div class="grid">
-              <nz-form-item>
-                <nz-form-label [nzFor]="'minAmountEGP'" nzRequired i18n="@@bank_programs.field.min_amount">Minimum amount</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="EGP" class="money-group">
-                    <input nz-input appMoneyInput id="minAmountEGP" formControlName="minAmountEGP" inputmode="numeric" placeholder="50,000" />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label [nzFor]="'maxAmountEGP'" nzRequired i18n="@@bank_programs.field.max_amount">Maximum amount</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="EGP" class="money-group">
-                    <input nz-input appMoneyInput id="maxAmountEGP" formControlName="maxAmountEGP" inputmode="numeric" placeholder="1,500,000" />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-            </div>
-          </section>
-
-          <!-- Tenor -->
-          <section class="card" formGroupName="tenor">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.tenor.title">Loan duration</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.tenor.sub">Minimum and maximum months a customer can borrow over.</p>
-              </div>
-            </header>
-            <div class="grid">
-              <nz-form-item>
-                <nz-form-label [nzFor]="'minMonths'" nzRequired i18n="@@bank_programs.field.min_months">Minimum months</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-number id="minMonths" class="num-field" formControlName="minMonths" [nzMin]="1" [nzMax]="600" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
-                  <span class="field-hint">≈ {{ minMonthsHint() }}</span>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label [nzFor]="'maxMonths'" nzRequired i18n="@@bank_programs.field.max_months">Maximum months</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-number id="maxMonths" class="num-field" formControlName="maxMonths" [nzMin]="1" [nzMax]="600" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
-                  <span class="field-hint">≈ {{ maxMonthsHint() }}</span>
-                  @if (tenorGroup.hasError('minGtMax') && tenorGroup.controls['maxMonths']?.touched) {
-                    <span class="field-error" role="alert" i18n="@@bank_programs.tenor.min_gt_max">Maximum must be greater than or equal to minimum.</span>
-                  }
-                </nz-form-control>
-              </nz-form-item>
-            </div>
-          </section>
-
-          }
-
-          <!-- ═══ STEP 3 — PRICING & FEES ═════════════════════════════════════ -->
-          @if (stepIndex() === 2) {
-          <section class="card" formGroupName="pricing">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.rate.title">Interest rate</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.rate.sub">One annual rate. Switch to a band table below if the rate depends on loan size.</p>
-              </div>
-            </header>
-            <div class="grid">
-              @if (!isVariableRateSignal()) {
-                <nz-form-item>
-                  <nz-form-label [nzFor]="'baseRatePercent'" nzRequired i18n="@@bank_programs.field.base_rate">Base rate</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-input-group nzAddOnAfter="%" class="rate-group">
-                      <input nz-input id="baseRatePercent" formControlName="baseRatePercent" inputmode="decimal" placeholder="24.0000" />
-                    </nz-input-group>
-                  </nz-form-control>
-                </nz-form-item>
-              }
-              <nz-form-item class="span-2">
-                <label nz-checkbox formControlName="isVariableRate" i18n="@@bank_programs.field.is_variable_rate">Variable rate (CBE-linked, quarterly reset)</label>
-              </nz-form-item>
-              @if (isVariableRateSignal()) {
-                <nz-form-item>
-                  <nz-form-label i18n="@@bank_programs.field.current_effective_rate">Current effective rate</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <nz-input-group nzAddOnAfter="%" class="rate-group">
-                      <input nz-input formControlName="currentEffectiveRatePercent" inputmode="decimal" placeholder="26.5500" />
-                    </nz-input-group>
-                  </nz-form-control>
-                </nz-form-item>
-                <nz-form-item class="span-2">
-                  <nz-form-label i18n="@@bank_programs.field.variable_rate_note">Disclosure note</nz-form-label>
-                  <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                    <textarea nz-input formControlName="variableRateNote" rows="2" placeholder="CBE policy rate + 3%, reviewed quarterly"></textarea>
-                  </nz-form-control>
-                </nz-form-item>
-              }
-            </div>
-          </section>
-
-          <!-- Tiered rates: a real shape change (single rate → band table), so it
-               stays an opt-in rather than a hidden field. -->
-          <section class="card" formGroupName="pricing">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.section.tiered_rates">Tiered interest rates</h2>
-                <p class="card-sub" i18n="@@bank_programs.section.tiered_rates_sub">
-                  Bigger loans often price differently. Each band covers a range of loan amounts and
-                  carries its own rate.
-                </p>
-              </div>
-            </header>
-            <div class="card-body">
-            <label
-              nz-checkbox
-              [nzChecked]="toggles.tieredRates()"
-              (nzCheckedChange)="setToggle('tieredRates', $event)"
-              i18n="@@bank_programs.toggle.tiered_rates"
-              >Charge a different rate per loan-amount band</label
-            >
-
-            @if (toggles.tieredRates()) {
-              <div class="bands">
-                @if (rateBandsArray.length === 0) {
-                  <div class="bands-empty">
-                    <p class="bands-empty-text" i18n="@@bank_programs.bands.empty">
-                      No bands — every loan uses the single rate above.
-                    </p>
-                    <button type="button" nz-button nzType="default" (click)="addRateBand()">
-                      <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                      <span i18n="@@bank_programs.bands.seed">Add the first band</span>
-                    </button>
-                  </div>
-                } @else {
-                  <div class="bands-head" aria-hidden="true">
-                    <span class="bands-head-range">
-                      <span i18n="@@bank_programs.bands.col_min">Loan amount from</span>
-                      <span class="band-arrow">→</span>
-                      <span i18n="@@bank_programs.bands.col_max">to</span>
+                  <label
+                    class="option-row span-2"
+                    [class.is-on]="isSharia"
+                    nz-checkbox
+                    formControlName="isShariaCompliant"
+                  >
+                    <span class="option-text">
+                      <span class="option-title" i18n="@@bank_programs.field.sharia"
+                        >Sharia-compliant program</span
+                      >
+                      <span class="option-hint" i18n="@@bank_programs.field.sharia.hint">
+                        Shown to customers who filter for Islamic finance.
+                      </span>
                     </span>
-                    <span i18n="@@bank_programs.bands.col_rate">Rate</span>
-                    <span></span>
+                  </label>
+                </div>
+              </section>
+            }
+
+            <!-- ═══ STEP 2 — AMOUNT & DURATION ══════════════════════════════════ -->
+            @if (stepIndex() === 1) {
+              <section class="card" formGroupName="loanLimits">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.amount.title">Loan amount</h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.amount.sub">
+                      Minimum and maximum loan size in EGP.
+                    </p>
                   </div>
-                  @for (band of rateBandsArray.controls; track band; let i = $index) {
-                    <div class="band-row">
-                      <!-- The row reads as one sentence: 0 → 250,000 → and above. A
+                </header>
+                <div class="grid">
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'minAmountEGP'"
+                      nzRequired
+                      i18n="@@bank_programs.field.min_amount"
+                      >Minimum amount</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="EGP" class="money-group">
+                        <input
+                          nz-input
+                          appMoneyInput
+                          id="minAmountEGP"
+                          formControlName="minAmountEGP"
+                          inputmode="numeric"
+                          placeholder="50,000"
+                        />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'maxAmountEGP'"
+                      nzRequired
+                      i18n="@@bank_programs.field.max_amount"
+                      >Maximum amount</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="EGP" class="money-group">
+                        <input
+                          nz-input
+                          appMoneyInput
+                          id="maxAmountEGP"
+                          formControlName="maxAmountEGP"
+                          inputmode="numeric"
+                          placeholder="1,500,000"
+                        />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                </div>
+              </section>
+
+              <!-- Tenor -->
+              <section class="card" formGroupName="tenor">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.tenor.title">
+                      Loan duration
+                    </h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.tenor.sub">
+                      Minimum and maximum months a customer can borrow over.
+                    </p>
+                  </div>
+                </header>
+                <div class="grid">
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'minMonths'"
+                      nzRequired
+                      i18n="@@bank_programs.field.min_months"
+                      >Minimum months</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-number
+                        id="minMonths"
+                        class="num-field"
+                        formControlName="minMonths"
+                        [nzMin]="1"
+                        [nzMax]="600"
+                        [nzStep]="1"
+                        [nzPrecision]="0"
+                      ></nz-input-number>
+                      <span class="field-hint">≈ {{ minMonthsHint() }}</span>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'maxMonths'"
+                      nzRequired
+                      i18n="@@bank_programs.field.max_months"
+                      >Maximum months</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-number
+                        id="maxMonths"
+                        class="num-field"
+                        formControlName="maxMonths"
+                        [nzMin]="1"
+                        [nzMax]="600"
+                        [nzStep]="1"
+                        [nzPrecision]="0"
+                      ></nz-input-number>
+                      <span class="field-hint">≈ {{ maxMonthsHint() }}</span>
+                      @if (
+                        tenorGroup.hasError('minGtMax') && tenorGroup.controls['maxMonths']?.touched
+                      ) {
+                        <span
+                          class="field-error"
+                          role="alert"
+                          i18n="@@bank_programs.tenor.min_gt_max"
+                          >Maximum must be greater than or equal to minimum.</span
+                        >
+                      }
+                    </nz-form-control>
+                  </nz-form-item>
+                </div>
+              </section>
+            }
+
+            <!-- ═══ STEP 3 — PRICING & FEES ═════════════════════════════════════ -->
+            @if (stepIndex() === 2) {
+              <section class="card" formGroupName="pricing">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.rate.title">Interest rate</h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.rate.sub">
+                      One annual rate. Switch to a band table below if the rate depends on loan
+                      size.
+                    </p>
+                  </div>
+                </header>
+                <div class="grid">
+                  @if (!isVariableRateSignal()) {
+                    <nz-form-item>
+                      <nz-form-label
+                        [nzFor]="'baseRatePercent'"
+                        nzRequired
+                        i18n="@@bank_programs.field.base_rate"
+                        >Base rate</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-input-group nzAddOnAfter="%" class="rate-group">
+                          <input
+                            nz-input
+                            id="baseRatePercent"
+                            formControlName="baseRatePercent"
+                            inputmode="decimal"
+                            placeholder="24.0000"
+                          />
+                        </nz-input-group>
+                      </nz-form-control>
+                    </nz-form-item>
+                  }
+                  <nz-form-item class="span-2">
+                    <label
+                      nz-checkbox
+                      formControlName="isVariableRate"
+                      i18n="@@bank_programs.field.is_variable_rate"
+                      >Variable rate (CBE-linked, quarterly reset)</label
+                    >
+                  </nz-form-item>
+                  @if (isVariableRateSignal()) {
+                    <nz-form-item>
+                      <nz-form-label i18n="@@bank_programs.field.current_effective_rate"
+                        >Current effective rate</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-input-group nzAddOnAfter="%" class="rate-group">
+                          <input
+                            nz-input
+                            formControlName="currentEffectiveRatePercent"
+                            inputmode="decimal"
+                            placeholder="26.5500"
+                          />
+                        </nz-input-group>
+                      </nz-form-control>
+                    </nz-form-item>
+                    <nz-form-item class="span-2">
+                      <nz-form-label i18n="@@bank_programs.field.variable_rate_note"
+                        >Disclosure note</nz-form-label
+                      >
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <textarea
+                          nz-input
+                          formControlName="variableRateNote"
+                          rows="2"
+                          placeholder="CBE policy rate + 3%, reviewed quarterly"
+                        ></textarea>
+                      </nz-form-control>
+                    </nz-form-item>
+                  }
+                </div>
+              </section>
+
+              <!-- Tiered rates: a real shape change (single rate → band table), so it
+               stays an opt-in rather than a hidden field. -->
+              <section class="card" formGroupName="pricing">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.section.tiered_rates">
+                      Tiered interest rates
+                    </h2>
+                    <p class="card-sub" i18n="@@bank_programs.section.tiered_rates_sub">
+                      Bigger loans often price differently. Each band covers a range of loan amounts
+                      and carries its own rate.
+                    </p>
+                  </div>
+                </header>
+                <div class="card-body">
+                  <label
+                    nz-checkbox
+                    [nzChecked]="toggles.tieredRates()"
+                    (nzCheckedChange)="setToggle('tieredRates', $event)"
+                    i18n="@@bank_programs.toggle.tiered_rates"
+                    >Charge a different rate per loan-amount band</label
+                  >
+
+                  @if (toggles.tieredRates()) {
+                    <div class="bands">
+                      @if (rateBandsArray.length === 0) {
+                        <div class="bands-empty">
+                          <p class="bands-empty-text" i18n="@@bank_programs.bands.empty">
+                            No bands — every loan uses the single rate above.
+                          </p>
+                          <button type="button" nz-button nzType="default" (click)="addRateBand()">
+                            <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                            <span i18n="@@bank_programs.bands.seed">Add the first band</span>
+                          </button>
+                        </div>
+                      } @else {
+                        <div class="bands-head" aria-hidden="true">
+                          <span class="bands-head-range">
+                            <span i18n="@@bank_programs.bands.col_min">Loan amount from</span>
+                            <span class="band-arrow">→</span>
+                            <span i18n="@@bank_programs.bands.col_max">to</span>
+                          </span>
+                          <span i18n="@@bank_programs.bands.col_rate">Rate</span>
+                          <span></span>
+                        </div>
+                        @for (band of rateBandsArray.controls; track band; let i = $index) {
+                          <div class="band-row">
+                            <!-- The row reads as one sentence: 0 → 250,000 → and above. A
                            band's upper box IS the next band's lower control (see
                            setBandUpperEdge), so a gap or an overlap between bands
                            cannot be typed — the boundary has one owner, not two. -->
-                      <div class="band-range">
-                        <nz-form-item class="band-cell">
-                          <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                            <input nz-input appMoneyInput class="band-edge" inputmode="numeric"
-                              [formControl]="bandEdgeControl(i)"
-                              [attr.aria-label]="bandAriaMin" placeholder="0" />
-                          </nz-form-control>
-                        </nz-form-item>
-                        <span class="band-arrow" aria-hidden="true">→</span>
-                        @if (i < rateBandsArray.length - 1) {
-                          <!-- Mirror view of the NEXT band's lower edge. Standalone
+                            <div class="band-range">
+                              <nz-form-item class="band-cell">
+                                <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                                  <input
+                                    nz-input
+                                    appMoneyInput
+                                    class="band-edge"
+                                    inputmode="numeric"
+                                    [formControl]="bandEdgeControl(i)"
+                                    [attr.aria-label]="bandAriaMin"
+                                    placeholder="0"
+                                  />
+                                </nz-form-control>
+                              </nz-form-item>
+                              <span class="band-arrow" aria-hidden="true">→</span>
+                              @if (i < rateBandsArray.length - 1) {
+                                <!-- Mirror view of the NEXT band's lower edge. Standalone
                                ngModel, not a second formControl binding: two views
                                of one control do not repaint each other on typing. -->
-                          <input nz-input appMoneyInput class="band-edge" inputmode="numeric"
-                            [ngModel]="bandEdgeValue(i + 1)"
-                            (ngModelChange)="setBandUpperEdge(i, $event)"
-                            [ngModelOptions]="{ standalone: true }"
-                            [attr.aria-label]="bandAriaMax" />
-                        } @else {
-                          <span class="band-open" i18n="@@bank_programs.bands.and_above">and above</span>
-                        }
-                        <!-- Unit per row, not only in the column head: the head is
+                                <input
+                                  nz-input
+                                  appMoneyInput
+                                  class="band-edge"
+                                  inputmode="numeric"
+                                  [ngModel]="bandEdgeValue(i + 1)"
+                                  (ngModelChange)="setBandUpperEdge(i, $event)"
+                                  [ngModelOptions]="{ standalone: true }"
+                                  [attr.aria-label]="bandAriaMax"
+                                />
+                              } @else {
+                                <span class="band-open" i18n="@@bank_programs.bands.and_above"
+                                  >and above</span
+                                >
+                              }
+                              <!-- Unit per row, not only in the column head: the head is
                              hidden on narrow screens, and a loan-amount box with no
                              visible unit is the ambiguity this pass exists to kill. -->
-                        <span class="band-unit">EGP</span>
-                      </div>
-                      <nz-form-item class="band-cell">
-                        <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                          <nz-input-group nzAddOnAfter="%" class="rate-group">
-                            <input nz-input inputmode="decimal" [formControl]="bandRateControl(i)"
-                              [attr.aria-label]="bandAriaRate" placeholder="28.0000" />
-                          </nz-input-group>
-                        </nz-form-control>
-                      </nz-form-item>
-                      <button type="button" class="band-remove" (click)="removeRateBand(i)"
-                        [attr.aria-label]="bandAriaRemove">
-                        <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
-                      </button>
+                              <span class="band-unit">EGP</span>
+                            </div>
+                            <nz-form-item class="band-cell">
+                              <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                                <nz-input-group nzAddOnAfter="%" class="rate-group">
+                                  <input
+                                    nz-input
+                                    inputmode="decimal"
+                                    [formControl]="bandRateControl(i)"
+                                    [attr.aria-label]="bandAriaRate"
+                                    placeholder="28.0000"
+                                  />
+                                </nz-input-group>
+                              </nz-form-control>
+                            </nz-form-item>
+                            <button
+                              type="button"
+                              class="band-remove"
+                              (click)="removeRateBand(i)"
+                              [attr.aria-label]="bandAriaRemove"
+                            >
+                              <span
+                                nz-icon
+                                nzType="delete"
+                                nzTheme="outline"
+                                aria-hidden="true"
+                              ></span>
+                            </button>
+                          </div>
+                        }
+
+                        @if (rateBandsError(); as err) {
+                          <p class="bands-error" role="alert">
+                            @switch (err) {
+                              @case ('DUPLICATE') {
+                                <span i18n="@@bank_programs.bands.error_duplicate"
+                                  >Two bands start at the same amount — one would overwrite the
+                                  other on save. Give each band its own starting amount.</span
+                                >
+                              }
+                              @case ('ORDER') {
+                                <span i18n="@@bank_programs.bands.error_ascending"
+                                  >Each band must start higher than the one before it.</span
+                                >
+                              }
+                            }
+                          </p>
+                        }
+                        @if (bandsBelowFloorNote(); as note) {
+                          <p class="bands-note">
+                            <span
+                              nz-icon
+                              nzType="exclamation-circle"
+                              nzTheme="outline"
+                              aria-hidden="true"
+                            ></span>
+                            <span>{{ note }}</span>
+                          </p>
+                        }
+                        <p class="bands-hint" i18n="@@bank_programs.bands.link_hint">
+                          A band's end is the next band's start — edit either box and the other
+                          follows.
+                        </p>
+
+                        <button
+                          type="button"
+                          nz-button
+                          nzType="dashed"
+                          class="bands-add"
+                          (click)="addRateBand()"
+                        >
+                          <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                          <span i18n="@@bank_programs.bands.add">Add band</span>
+                        </button>
+                      }
                     </div>
                   }
+                </div>
+              </section>
 
-                  @if (rateBandsError(); as err) {
-                    <p class="bands-error" role="alert">
-                      @switch (err) {
-                        @case ('DUPLICATE') {
-                          <span i18n="@@bank_programs.bands.error_duplicate"
-                            >Two bands start at the same amount — one would overwrite the other on
-                            save. Give each band its own starting amount.</span
-                          >
-                        }
-                        @case ('ORDER') {
-                          <span i18n="@@bank_programs.bands.error_ascending"
-                            >Each band must start higher than the one before it.</span
-                          >
-                        }
-                      }
+              <!-- Every fee the backend requires is on this step, in the open. -->
+              <section class="card" formGroupName="fees">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.fees_core.title">Fees</h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.fees_core.sub">
+                      Pre-filled with platform defaults — change only what this program charges
+                      differently.
                     </p>
-                  }
-                  @if (bandsBelowFloorNote(); as note) {
-                    <p class="bands-note">
-                      <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
-                      <span>{{ note }}</span>
-                    </p>
-                  }
-                  <p class="bands-hint" i18n="@@bank_programs.bands.link_hint">
-                    A band's end is the next band's start — edit either box and the other follows.
-                  </p>
-
-                  <button type="button" nz-button nzType="dashed" class="bands-add" (click)="addRateBand()">
-                    <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                    <span i18n="@@bank_programs.bands.add">Add band</span>
-                  </button>
-                }
-              </div>
+                  </div>
+                </header>
+                <div class="grid">
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'adminFeePercent2'"
+                      nzRequired
+                      i18n="@@bank_programs.field.admin_fee"
+                      >Admin fee</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="%" class="rate-group">
+                        <input
+                          nz-input
+                          id="adminFeePercent2"
+                          formControlName="adminFeePercent"
+                          inputmode="decimal"
+                          placeholder="1.0000"
+                        />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.stamp_duty"
+                      >Stamp duty</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="%" class="rate-group">
+                        <input
+                          nz-input
+                          formControlName="stampDutyPercent"
+                          inputmode="decimal"
+                          placeholder="0.5000"
+                        />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.life_insurance"
+                      >Life insurance</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="%" class="rate-group">
+                        <input
+                          nz-input
+                          formControlName="lifeInsurancePercent"
+                          inputmode="decimal"
+                          placeholder="0.5000"
+                        />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.late_fee"
+                      >Late payment fee</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="%" class="rate-group">
+                        <input
+                          nz-input
+                          formControlName="latePaymentFeePercent"
+                          inputmode="decimal"
+                          placeholder="4.0000"
+                        />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_cash"
+                      >Payoff (cash)</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="%" class="rate-group">
+                        <input
+                          nz-input
+                          formControlName="payoffCashPercent"
+                          inputmode="decimal"
+                          placeholder="12.0000"
+                        />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_buyout"
+                      >Payoff (buyout)</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="%" class="rate-group">
+                        <input
+                          nz-input
+                          formControlName="payoffBuyoutPercent"
+                          inputmode="decimal"
+                          placeholder="15.0000"
+                        />
+                      </nz-input-group>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item class="span-2">
+                    <label
+                      nz-checkbox
+                      formControlName="lifeInsuranceMandatory"
+                      i18n="@@bank_programs.field.life_insurance_mandatory"
+                      >Life insurance mandatory</label
+                    >
+                  </nz-form-item>
+                </div>
+              </section>
             }
-            </div>
-          </section>
 
-          <!-- Every fee the backend requires is on this step, in the open. -->
-          <section class="card" formGroupName="fees">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.fees_core.title">Fees</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.fees_core.sub">Pre-filled with platform defaults — change only what this program charges differently.</p>
-              </div>
-            </header>
-            <div class="grid">
-              <nz-form-item>
-                <nz-form-label [nzFor]="'adminFeePercent2'" nzRequired i18n="@@bank_programs.field.admin_fee">Admin fee</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="%" class="rate-group">
-                    <input nz-input id="adminFeePercent2" formControlName="adminFeePercent" inputmode="decimal" placeholder="1.0000" />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label nzRequired i18n="@@bank_programs.field.stamp_duty">Stamp duty</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="%" class="rate-group">
-                    <input nz-input formControlName="stampDutyPercent" inputmode="decimal" placeholder="0.5000" />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label nzRequired i18n="@@bank_programs.field.life_insurance">Life insurance</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="%" class="rate-group">
-                    <input nz-input formControlName="lifeInsurancePercent" inputmode="decimal" placeholder="0.5000" />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label nzRequired i18n="@@bank_programs.field.late_fee">Late payment fee</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="%" class="rate-group">
-                    <input nz-input formControlName="latePaymentFeePercent" inputmode="decimal" placeholder="4.0000" />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_cash">Payoff (cash)</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="%" class="rate-group">
-                    <input nz-input formControlName="payoffCashPercent" inputmode="decimal" placeholder="12.0000" />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label nzRequired i18n="@@bank_programs.field.payoff_buyout">Payoff (buyout)</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="%" class="rate-group">
-                    <input nz-input formControlName="payoffBuyoutPercent" inputmode="decimal" placeholder="15.0000" />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item class="span-2">
-                <label nz-checkbox formControlName="lifeInsuranceMandatory" i18n="@@bank_programs.field.life_insurance_mandatory">Life insurance mandatory</label>
-              </nz-form-item>
-            </div>
-          </section>
-          }
-
-          <!-- ═══ STEP 4 — ELIGIBILITY ════════════════════════════════════════ -->
-          @if (stepIndex() === 3) {
-          <!-- FIRST on this step when the program has no payslip to read. The rule is the
+            <!-- ═══ STEP 4 — ELIGIBILITY ════════════════════════════════════════ -->
+            @if (stepIndex() === 3) {
+              <!-- FIRST on this step when the program has no payslip to read. The rule is the
                defining property of such a program — it decides what income exists at all —
                and it used to sit last, below eligibility fields it silently reframes. -->
-          @if (incomeSurrogateActive()) {
-            <app-income-assumption-section
-              [group]="incomeAssumptionGroup"
-              [keyTable]="incomeKeyTable()"
-              (keyTableChange)="incomeKeyTable.set($event)"
-              [bands]="incomeBands()"
-              (bandsChange)="incomeBands.set($event)"
-              [estimatedKeys]="estimatedKeyTableKeys()"
-              (estimatedKeyChange)="onKeyTableMarker($event)"
-              (keyStructureChange)="onKeyStructureChange($event)"
-              [estimatedBandIndexes]="estimatedBandIndexes()"
-              (estimatedBandChange)="onBandMarker($event)"
-              (bandStructureChange)="onBandStructureChange($event)"
-            >
-              <!-- The one thing the operator could not learn before saving: whether the
+              @if (incomeSurrogateActive()) {
+                <app-income-assumption-section
+                  [group]="incomeAssumptionGroup"
+                  [keyTable]="incomeKeyTable()"
+                  (keyTableChange)="incomeKeyTable.set($event)"
+                  [bands]="incomeBands()"
+                  (bandsChange)="incomeBands.set($event)"
+                  [estimatedKeys]="estimatedKeyTableKeys()"
+                  (estimatedKeyChange)="onKeyTableMarker($event)"
+                  (keyStructureChange)="onKeyStructureChange($event)"
+                  [estimatedBandIndexes]="estimatedBandIndexes()"
+                  (estimatedBandChange)="onBandMarker($event)"
+                  (bandStructureChange)="onBandStructureChange($event)"
+                >
+                  <!-- The one thing the operator could not learn before saving: whether the
                    fact this method reads is even asked of this loan type's applicants. It
                    arrived as a toast after a failed save, or never — and an unasked fact
                    means the rule produces no income for anyone, quietly. -->
-              @if (factBinding(); as fb) {
-                <p class="binding" [class.warn]="!fb.asked" role="status">
-                  @if (fb.asked) {
-                    <span nz-icon nzType="check-circle" nzTheme="outline" aria-hidden="true"></span>
-                    <span i18n="@@bank_programs.income.binding_ok"
-                      >{{ fb.category }} applicants are asked {{ fb.label }}.</span
-                    >
-                  } @else {
-                    <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
-                    <span i18n="@@bank_programs.income.binding_missing"
-                      >{{ fb.category }} applicants are never asked {{ fb.label }}, so this rule
-                      will produce no income.</span
-                    >
-                    <a routerLink="/questionnaire/categories" i18n="@@bank_programs.income.binding_fix"
-                      >Ask it</a
-                    >
+                  @if (factBinding(); as fb) {
+                    <p class="binding" [class.warn]="!fb.asked" role="status">
+                      @if (fb.asked) {
+                        <span
+                          nz-icon
+                          nzType="check-circle"
+                          nzTheme="outline"
+                          aria-hidden="true"
+                        ></span>
+                        <span i18n="@@bank_programs.income.binding_ok"
+                          >{{ fb.category }} applicants are asked {{ fb.label }}.</span
+                        >
+                      } @else {
+                        <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+                        <span i18n="@@bank_programs.income.binding_missing"
+                          >{{ fb.category }} applicants are never asked {{ fb.label }}, so this rule
+                          will produce no income.</span
+                        >
+                        <a
+                          routerLink="/questionnaire/categories"
+                          i18n="@@bank_programs.income.binding_fix"
+                          >Ask it</a
+                        >
+                      }
+                    </p>
                   }
-                </p>
-              }
-              <!-- Projected INTO the section so it sits directly below the table in
+                  <!-- Projected INTO the section so it sits directly below the table in
                    the same tab order (FR-026), while reading the page's own live
                    draft rather than a copy the section would have to mirror. -->
-              <app-income-rule-check
-                [programCode]="editingProgramCode()"
-                [draft]="liveIncomeRuleDraft()"
-              ></app-income-rule-check>
-            </app-income-assumption-section>
-          }
+                  <app-income-rule-check
+                    [programCode]="editingProgramCode()"
+                    [draft]="liveIncomeRuleDraft()"
+                  ></app-income-rule-check>
+                </app-income-assumption-section>
+              }
 
-          <section class="card" formGroupName="eligibility">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.eligibility_core.title">Eligibility</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.eligibility_core.sub">Who qualifies — age, income, employment.</p>
-              </div>
-            </header>
-            <div class="grid">
-              <nz-form-item>
-                <nz-form-label [nzFor]="'ageMin'" nzRequired i18n="@@bank_programs.field.age_min">Minimum age</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-number id="ageMin" class="num-field" formControlName="ageMin" [nzMin]="18" [nzMax]="80" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label [nzFor]="'ageMax'" nzRequired i18n="@@bank_programs.field.age_max">Maximum age</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-number id="ageMax" class="num-field" formControlName="ageMax" [nzMin]="18" [nzMax]="80" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label [nzFor]="'minMonthlyIncomeEGP'" nzRequired i18n="@@bank_programs.field.min_income">Minimum monthly income</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="EGP" class="money-group">
-                    <input nz-input appMoneyInput id="minMonthlyIncomeEGP" formControlName="minMonthlyIncomeEGP" inputmode="numeric" placeholder="5,000" />
-                  </nz-input-group>
-                  <!-- Re-framed, never hidden: both fields still feed matching on a
+              <section class="card" formGroupName="eligibility">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.eligibility_core.title">
+                      Eligibility
+                    </h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.eligibility_core.sub">
+                      Who qualifies — age, income, employment.
+                    </p>
+                  </div>
+                </header>
+                <div class="grid">
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'ageMin'"
+                      nzRequired
+                      i18n="@@bank_programs.field.age_min"
+                      >Minimum age</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-number
+                        id="ageMin"
+                        class="num-field"
+                        formControlName="ageMin"
+                        [nzMin]="18"
+                        [nzMax]="80"
+                        [nzStep]="1"
+                        [nzPrecision]="0"
+                      ></nz-input-number>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'ageMax'"
+                      nzRequired
+                      i18n="@@bank_programs.field.age_max"
+                      >Maximum age</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-number
+                        id="ageMax"
+                        class="num-field"
+                        formControlName="ageMax"
+                        [nzMin]="18"
+                        [nzMax]="80"
+                        [nzStep]="1"
+                        [nzPrecision]="0"
+                      ></nz-input-number>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'minMonthlyIncomeEGP'"
+                      nzRequired
+                      i18n="@@bank_programs.field.min_income"
+                      >Minimum monthly income</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-group nzAddOnAfter="EGP" class="money-group">
+                        <input
+                          nz-input
+                          appMoneyInput
+                          id="minMonthlyIncomeEGP"
+                          formControlName="minMonthlyIncomeEGP"
+                          inputmode="numeric"
+                          placeholder="5,000"
+                        />
+                      </nz-input-group>
+                      <!-- Re-framed, never hidden: both fields still feed matching on a
                        no-payslip program, so removing them would be a lie. What changes
                        is which figure they are compared against. -->
-                  @if (incomeSurrogateActive()) {
-                    <p class="field-hint" i18n="@@bank_programs.field.min_income.no_payslip_hint">
-                      Checked against the figure the rule above produces, not a payslip.
-                    </p>
-                  }
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-label [nzFor]="'minMonthsInJob'" nzRequired i18n="@@bank_programs.field.min_months_job">Minimum months in job</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-number id="minMonthsInJob" class="num-field" formControlName="minMonthsInJob" [nzMin]="0" [nzMax]="240" [nzStep]="1" [nzPrecision]="0"></nz-input-number>
-                  @if (incomeSurrogateActive()) {
-                    <p class="field-hint" i18n="@@bank_programs.field.min_months_job.no_payslip_hint">
-                      Still asked — tenure is not the same thing as a payslip.
-                    </p>
-                  }
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item class="span-2">
-                <nz-form-label nzRequired i18n="@@bank_programs.field.accepted_employment">Accepted employment types</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-select formControlName="acceptedEmploymentTypes" nzMode="multiple" nzPlaceHolder="Pick one or more" [nzDropdownStyle]="dropdownStyle">
-                    @for (o of employmentOptions(); track o.value) {
-                      <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
-                    }
-                  </nz-select>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item class="span-2">
-                <nz-form-label nzRequired i18n="@@bank_programs.field.accepted_transfer">Accepted transfer types</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-select formControlName="acceptedTransferTypes" nzMode="multiple" nzPlaceHolder="Pick one or more" [nzDropdownStyle]="dropdownStyle">
-                    @for (o of transferOptions(); track o.value) {
-                      <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
-                    }
-                  </nz-select>
-                </nz-form-control>
-              </nz-form-item>
-            </div>
-          </section>
+                      @if (incomeSurrogateActive()) {
+                        <p
+                          class="field-hint"
+                          i18n="@@bank_programs.field.min_income.no_payslip_hint"
+                        >
+                          Checked against the figure the rule above produces, not a payslip.
+                        </p>
+                      }
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item>
+                    <nz-form-label
+                      [nzFor]="'minMonthsInJob'"
+                      nzRequired
+                      i18n="@@bank_programs.field.min_months_job"
+                      >Minimum months in job</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-input-number
+                        id="minMonthsInJob"
+                        class="num-field"
+                        formControlName="minMonthsInJob"
+                        [nzMin]="0"
+                        [nzMax]="240"
+                        [nzStep]="1"
+                        [nzPrecision]="0"
+                      ></nz-input-number>
+                      @if (incomeSurrogateActive()) {
+                        <p
+                          class="field-hint"
+                          i18n="@@bank_programs.field.min_months_job.no_payslip_hint"
+                        >
+                          Still asked — tenure is not the same thing as a payslip.
+                        </p>
+                      }
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item class="span-2">
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.accepted_employment"
+                      >Accepted employment types</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-select
+                        formControlName="acceptedEmploymentTypes"
+                        nzMode="multiple"
+                        nzPlaceHolder="Pick one or more"
+                        [nzDropdownStyle]="dropdownStyle"
+                      >
+                        @for (o of employmentOptions(); track o.value) {
+                          <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
+                        }
+                      </nz-select>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item class="span-2">
+                    <nz-form-label nzRequired i18n="@@bank_programs.field.accepted_transfer"
+                      >Accepted transfer types</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-select
+                        formControlName="acceptedTransferTypes"
+                        nzMode="multiple"
+                        nzPlaceHolder="Pick one or more"
+                        [nzDropdownStyle]="dropdownStyle"
+                      >
+                        @for (o of transferOptions(); track o.value) {
+                          <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
+                        }
+                      </nz-select>
+                    </nz-form-control>
+                  </nz-form-item>
+                </div>
+              </section>
 
-          <!-- Debt burden: cap is REQUIRED, so it is visible on the step that
+              <!-- Debt burden: cap is REQUIRED, so it is visible on the step that
                owns eligibility rather than buried in an "advanced" panel. -->
-          <section class="card" formGroupName="eligibility">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.dbr.title">Debt burden</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.dbr.sub">
-                  Share of monthly income that may go to instalments.
-                </p>
-              </div>
-            </header>
-            <div class="card-body">
-            <!-- One number, one switch: stacked rather than side-by-side, so the
+              <section class="card" formGroupName="eligibility">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.dbr.title">Debt burden</h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.dbr.sub">
+                      Share of monthly income that may go to instalments.
+                    </p>
+                  </div>
+                </header>
+                <div class="card-body">
+                  <!-- One number, one switch: stacked rather than side-by-side, so the
                  cap keeps a hand-sized field instead of stretching half the card,
                  and the toggle that overrides it reads as the wider decision. -->
-            <div class="dbr-grid">
-              <nz-form-item class="dbr-cap" [class.is-muted]="skipDbr">
-                <nz-form-label [nzFor]="'dbrCapPercent'" nzRequired>
-                  <span i18n="@@bank_programs.field.dbr_cap">DBR cap</span>
-                </nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-input-group nzAddOnAfter="%" class="rate-group">
-                    <input nz-input id="dbrCapPercent" formControlName="dbrCapPercent" inputmode="decimal" placeholder="50.0000" />
-                  </nz-input-group>
-                  <p class="field-hint" i18n="@@bank_programs.field.dbr_cap.hint">
-                    Counts every instalment the customer already carries.
-                  </p>
-                </nz-form-control>
-              </nz-form-item>
+                  <div class="dbr-grid">
+                    <nz-form-item class="dbr-cap" [class.is-muted]="skipDbr">
+                      <nz-form-label [nzFor]="'dbrCapPercent'" nzRequired>
+                        <span i18n="@@bank_programs.field.dbr_cap">DBR cap</span>
+                      </nz-form-label>
+                      <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                        <nz-input-group nzAddOnAfter="%" class="rate-group">
+                          <input
+                            nz-input
+                            id="dbrCapPercent"
+                            formControlName="dbrCapPercent"
+                            inputmode="decimal"
+                            placeholder="50.0000"
+                          />
+                        </nz-input-group>
+                        <p class="field-hint" i18n="@@bank_programs.field.dbr_cap.hint">
+                          Counts every instalment the customer already carries.
+                        </p>
+                      </nz-form-control>
+                    </nz-form-item>
 
-              <label class="option-row" [class.is-on]="skipDbr" nz-checkbox formControlName="skipDbrCheck">
-                <span class="option-text">
-                  <span class="option-title" i18n="@@bank_programs.field.skip_dbr">Skip DBR check</span>
-                  <span class="option-hint" i18n="@@bank_programs.field.skip_dbr.hint">
-                    Secured loans only. The cap above is ignored while matching.
-                  </span>
-                </span>
-              </label>
-            </div>
+                    <label
+                      class="option-row"
+                      [class.is-on]="skipDbr"
+                      nz-checkbox
+                      formControlName="skipDbrCheck"
+                    >
+                      <span class="option-text">
+                        <span class="option-title" i18n="@@bank_programs.field.skip_dbr"
+                          >Skip DBR check</span
+                        >
+                        <span class="option-hint" i18n="@@bank_programs.field.skip_dbr.hint">
+                          Secured loans only. The cap above is ignored while matching.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
 
-            <!-- The cap above is this program's floor for every income; the table
+                  <!-- The cap above is this program's floor for every income; the table
                  below refines it per income band. Dimmed — never disabled — while
                  the DBR check is skipped, exactly like the cap field. -->
-            <div class="dbr-bands" [class.is-muted]="skipDbr">
-              <h3 class="dbr-bands-title" i18n="@@bank_programs.eligibility.dbr_bands">
-                Caps by income band
-              </h3>
-              <app-dbr-bands-editor
-                [bands]="dbrBands()"
-                (bandsChange)="dbrBands.set($event)"
-                [flatCapPercent]="dbrFlatCap()"
-              ></app-dbr-bands-editor>
-            </div>
-            </div>
-          </section>
+                  <div class="dbr-bands" [class.is-muted]="skipDbr">
+                    <h3 class="dbr-bands-title" i18n="@@bank_programs.eligibility.dbr_bands">
+                      Caps by income band
+                    </h3>
+                    <app-dbr-bands-editor
+                      [bands]="dbrBands()"
+                      (bandsChange)="dbrBands.set($event)"
+                      [flatCapPercent]="dbrFlatCap()"
+                    ></app-dbr-bands-editor>
+                  </div>
+                </div>
+              </section>
+            }
 
-          }
+            <!-- ═══ STEP 5 — DOCUMENTS & NOTES ══════════════════════════════════ -->
+            @if (stepIndex() === 4) {
+              <section class="card" formGroupName="documents">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.documents.title">
+                      Documents &amp; notes
+                    </h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.documents.sub">
+                      Required uploads and free-form operator notes.
+                    </p>
+                  </div>
+                </header>
+                <div class="grid">
+                  <nz-form-item class="span-2">
+                    <nz-form-label i18n="@@bank_programs.field.required_documents"
+                      >Required documents</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <nz-select
+                        formControlName="requiredDocuments"
+                        nzMode="multiple"
+                        nzPlaceHolder="Pick required documents"
+                      >
+                        @for (o of documentOptions(); track o.value) {
+                          <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
+                        }
+                      </nz-select>
+                    </nz-form-control>
+                  </nz-form-item>
+                  <nz-form-item class="span-2">
+                    <nz-form-label [nzFor]="'operatorNotes'" i18n="@@bank_programs.field.notes"
+                      >Notes</nz-form-label
+                    >
+                    <nz-form-control [nzErrorTip]="fieldErrorTpl">
+                      <textarea
+                        nz-input
+                        id="operatorNotes"
+                        formControlName="operatorNotes"
+                        rows="3"
+                        placeholder="Operator-facing notes (optional)"
+                      ></textarea>
+                    </nz-form-control>
+                  </nz-form-item>
+                </div>
+              </section>
+            }
 
-          <!-- ═══ STEP 5 — DOCUMENTS & NOTES ══════════════════════════════════ -->
-          @if (stepIndex() === 4) {
-          <section class="card" formGroupName="documents">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.documents.title">Documents &amp; notes</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.documents.sub">Required uploads and free-form operator notes.</p>
-              </div>
-            </header>
-            <div class="grid">
-              <nz-form-item class="span-2">
-                <nz-form-label i18n="@@bank_programs.field.required_documents">Required documents</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <nz-select formControlName="requiredDocuments" nzMode="multiple" nzPlaceHolder="Pick required documents">
-                    @for (o of documentOptions(); track o.value) {
-                      <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
-                    }
-                  </nz-select>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item class="span-2">
-                <nz-form-label [nzFor]="'operatorNotes'" i18n="@@bank_programs.field.notes">Notes</nz-form-label>
-                <nz-form-control [nzErrorTip]="fieldErrorTpl">
-                  <textarea nz-input id="operatorNotes" formControlName="operatorNotes" rows="3" placeholder="Operator-facing notes (optional)"></textarea>
-                </nz-form-control>
-              </nz-form-item>
-            </div>
-          </section>
-          }
-
-          <!-- ═══ STEP 6 — REVIEW ═════════════════════════════════════════════
+            <!-- ═══ STEP 6 — REVIEW ═════════════════════════════════════════════
                A read-back, not a form: every row is a value the admin typed, and
                every group jumps straight back to the step that owns it. -->
-          @if (stepIndex() === 5) {
-          <section class="card review">
-            <header class="card-head">
-              <div>
-                <h2 class="card-title" i18n="@@bank_programs.form.review.title">Review</h2>
-                <p class="card-sub" i18n="@@bank_programs.form.review.sub">
-                  Last look before this program starts producing offers. Any row can be corrected in place.
-                </p>
-              </div>
-            </header>
+            @if (stepIndex() === 5) {
+              <section class="card review">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.review.title">Review</h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.review.sub">
+                      Last look before this program starts producing offers. Any row can be
+                      corrected in place.
+                    </p>
+                  </div>
+                </header>
 
-            <div class="card-body">
-            @for (g of reviewGroups(); track g.step) {
-              <div class="review-group">
-                <div class="review-group-head">
-                  <h3 class="review-group-title">{{ g.title }}</h3>
-                  <button type="button" class="review-edit" (click)="goTo(g.step)">
-                    <span i18n="@@bank_programs.form.review.edit">Edit</span>
-                  </button>
-                </div>
-                <dl class="review-list">
-                  @for (r of g.rows; track r.label) {
-                    <div class="review-row">
-                      <dt>{{ r.label }}</dt>
-                      <dd [class.is-empty]="!r.value">{{ r.value || emptyValueLabel }}</dd>
+                <div class="card-body">
+                  @for (g of reviewGroups(); track g.step) {
+                    <div class="review-group">
+                      <div class="review-group-head">
+                        <h3 class="review-group-title">{{ g.title }}</h3>
+                        <button type="button" class="review-edit" (click)="goTo(g.step)">
+                          <span i18n="@@bank_programs.form.review.edit">Edit</span>
+                        </button>
+                      </div>
+                      <dl class="review-list">
+                        @for (r of g.rows; track r.label) {
+                          <div class="review-row">
+                            <dt>{{ r.label }}</dt>
+                            <dd [class.is-empty]="!r.value">{{ r.value || emptyValueLabel }}</dd>
+                          </div>
+                        }
+                      </dl>
                     </div>
                   }
-                </dl>
-              </div>
+                </div>
+              </section>
             }
-            </div>
-          </section>
-          }
-
           </div>
 
           <!-- Pinned below the scrolling body, so the next action is always one
@@ -1225,8 +1565,8 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         background: var(--color-surface-default);
         cursor: pointer;
         transition:
-          border-color var(--motion-duration-fast) var(--motion-ease),
-          background-color var(--motion-duration-fast) var(--motion-ease);
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          background-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .basis-card:hover {
         border-color: var(--color-border-strong);
@@ -1331,7 +1671,12 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         flex: 1 1 auto;
         min-block-size: 0;
       }
-      .page-header { display: flex; flex-direction: column; gap: var(--space-2); margin-block-end: var(--space-4); }
+      .page-header {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        margin-block-end: var(--space-4);
+      }
       .header-row {
         display: flex;
         flex-wrap: wrap;
@@ -1339,31 +1684,54 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         justify-content: space-between;
         gap: var(--space-3) var(--space-5);
       }
-      .title-block { flex: 1 1 340px; }
-      .back-link {
-        display: inline-flex; align-items: center; gap: var(--space-1);
-        color: var(--text-secondary, var(--color-text-secondary));
-        text-decoration: none; font-size: var(--text-sm); width: max-content;
+      .title-block {
+        flex: 1 1 340px;
       }
-      .back-link:hover { color: var(--primary, var(--color-brand-primary)); }
-      .title-block { display: flex; flex-direction: column; gap: var(--space-1); }
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        color: var(--text-secondary, var(--color-text-secondary));
+        text-decoration: none;
+        font-size: var(--text-sm);
+        width: max-content;
+      }
+      .back-link:hover {
+        color: var(--primary, var(--color-brand-primary));
+      }
+      .title-block {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
       .page-title {
-        font-size: var(--text-2xl); font-weight: 700; margin: 0;
-        color: var(--text-primary, var(--color-text-primary)); letter-spacing: -0.01em;
+        font-size: var(--text-2xl);
+        font-weight: 700;
+        margin: 0;
+        color: var(--text-primary, var(--color-text-primary));
+        letter-spacing: -0.01em;
       }
       .page-subtitle {
-        margin: 0; font-size: var(--text-md); max-width: 72ch;
+        margin: 0;
+        font-size: var(--text-md);
+        max-width: 72ch;
         color: var(--text-secondary, var(--color-text-secondary));
       }
       /* Title + rail + action bar are all permanent chrome now. On a short
          laptop viewport the once-read intro is the first thing to go, so the
          step body keeps a workable height. */
       @media (max-height: 860px) {
-        .page-subtitle { display: none; }
-        .page-header { margin-block-end: var(--space-4); }
+        .page-subtitle {
+          display: none;
+        }
+        .page-header {
+          margin-block-end: var(--space-4);
+        }
       }
       .form-body {
-        display: flex; flex-direction: column; gap: var(--space-4);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
         flex: 0 1 auto;
         min-block-size: 0;
       }
@@ -1418,7 +1786,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         font-weight: 700;
         letter-spacing: 0.02em;
       }
-      .bank-chip-body { display: flex; flex-direction: column; gap: 2px; }
+      .bank-chip-body {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
       .bank-chip-eyebrow {
         font-size: 10px;
         font-weight: 700;
@@ -1448,7 +1820,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         font-weight: 600;
         transition: color 150ms var(--motion-easing-standard, ease);
       }
-      .bank-chip-change:hover { color: var(--text-primary, var(--color-text-primary)); }
+      .bank-chip-change:hover {
+        color: var(--text-primary, var(--color-text-primary));
+      }
       .bank-chip-change:focus-visible {
         outline: 2px solid var(--primary, var(--color-brand-primary));
         outline-offset: 3px;
@@ -1482,7 +1856,8 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         padding: var(--space-3) var(--space-4);
         border-radius: var(--radius-lg);
         background: var(--color-warning-bg, var(--accent-subtle, var(--color-tonal-accent-bg)));
-        border: 1px solid color-mix(in srgb, var(--color-warning, var(--color-brand-primary)) 28%, transparent);
+        border: 1px solid
+          color-mix(in srgb, var(--color-warning, var(--color-brand-primary)) 28%, transparent);
         color: var(--text-primary, var(--color-text-primary));
         font-size: var(--text-sm);
       }
@@ -1497,26 +1872,41 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         outline: 2px solid var(--primary, var(--color-brand-primary));
         outline-offset: 2px;
       }
-      .footer-spacer { flex: 1 1 auto; }
+      .footer-spacer {
+        flex: 1 1 auto;
+      }
 
       .card {
         background: var(--bg-surface, var(--color-surface-default));
         border: 1px solid var(--border-default, var(--color-border-default));
         border-radius: var(--radius-lg);
         padding: var(--space-6);
-        display: flex; flex-direction: column; gap: var(--space-4);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
       }
       .card-head {
-        display: flex; align-items: flex-start; gap: var(--space-3);
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
         margin-block-end: var(--space-1);
       }
-      .card-icon { font-size: 22px; color: var(--accent, var(--color-tonal-accent)); flex-shrink: 0; }
+      .card-icon {
+        font-size: 22px;
+        color: var(--accent, var(--color-tonal-accent));
+        flex-shrink: 0;
+      }
       .card-title {
-        font-size: var(--text-lg); font-weight: 700; margin: 0 0 var(--space-1);
-        color: var(--text-primary, var(--color-text-primary)); letter-spacing: -0.005em;
+        font-size: var(--text-lg);
+        font-weight: 700;
+        margin: 0 0 var(--space-1);
+        color: var(--text-primary, var(--color-text-primary));
+        letter-spacing: -0.005em;
       }
       .card-sub {
-        font-size: var(--text-sm); margin: 0; max-width: 72ch;
+        font-size: var(--text-sm);
+        margin: 0;
+        max-width: 72ch;
         color: var(--text-secondary, var(--color-text-secondary));
       }
 
@@ -1538,31 +1928,52 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           row-gap: var(--space-4);
           align-items: start;
         }
-        .card-head { grid-column: 1; grid-row: 1; margin-block-end: 0; }
-        .card > :not(.card-head) { grid-column: 2; }
+        .card-head {
+          grid-column: 1;
+          grid-row: 1;
+          margin-block-end: 0;
+        }
+        .card > :not(.card-head) {
+          grid-column: 2;
+        }
       }
       /* A card whose controls are more than one block wraps them here, so the
          rail and the controls stay two grid items. Without it each block claims
          its own row, and a tall rail (the tiered-rate explanation runs five
          lines) sets row 1's height — leaving the second block stranded a
          paragraph below the control it belongs to. */
-      .card-body { display: flex; flex-direction: column; gap: var(--space-4); }
+      .card-body {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
 
       /* Columns are bounded, not fractional: a min/max pair split across two
          1fr columns of a 900px card strands the second label half a screen
          from the first field. Capped columns keep the pair readable as a pair
          at every width the card can take. */
       .grid {
-        display: grid; grid-template-columns: repeat(2, minmax(0, 20rem));
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 20rem));
         justify-content: start;
-        column-gap: var(--space-5); row-gap: var(--space-4);
+        column-gap: var(--space-5);
+        row-gap: var(--space-4);
         align-items: start;
       }
-      .grid > * { align-self: start; min-block-size: 0; }
-      .grid .span-2 { grid-column: span 2; }
+      .grid > * {
+        align-self: start;
+        min-block-size: 0;
+      }
+      .grid .span-2 {
+        grid-column: span 2;
+      }
       @media (max-width: 720px) {
-        .grid { grid-template-columns: minmax(0, 1fr); }
-        .grid .span-2 { grid-column: span 1; }
+        .grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .grid .span-2 {
+          grid-column: span 1;
+        }
       }
 
       /* ── Numeric fields ───────────────────────────────────────────────────
@@ -1571,9 +1982,15 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
          program name read as a different kind of question than they are.
          Tabular figures keep a column of amounts comparable digit-by-digit,
          which is the whole reason these numbers are here. */
-      .money-group { max-inline-size: 20rem; }
-      .rate-group { max-inline-size: 11rem; }
-      nz-input-number.num-field { inline-size: 9rem; }
+      .money-group {
+        max-inline-size: 20rem;
+      }
+      .rate-group {
+        max-inline-size: 11rem;
+      }
+      nz-input-number.num-field {
+        inline-size: 9rem;
+      }
       :host ::ng-deep .money-group input.ant-input,
       :host ::ng-deep .rate-group input.ant-input {
         font-variant-numeric: tabular-nums lining-nums;
@@ -1584,7 +2001,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
          is read and spoken. Logical start, never left: in Arabic the addon
          flips to the other edge and the digits have to follow it. */
       :host ::ng-deep .money-group input.ant-input,
-      :host ::ng-deep .rate-group input.ant-input { text-align: start; }
+      :host ::ng-deep .rate-group input.ant-input {
+        text-align: start;
+      }
       :host ::ng-deep .num-field .ant-input-number-input {
         font-variant-numeric: tabular-nums lining-nums;
         font-feature-settings: var(--font-feature-tabular);
@@ -1603,17 +2022,23 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         min-inline-size: 56px;
         text-align: center;
       }
-      :host ::ng-deep .rate-group .ant-input-group-addon { min-inline-size: 44px; }
+      :host ::ng-deep .rate-group .ant-input-group-addon {
+        min-inline-size: 44px;
+      }
 
       /* Cross-field tenor error (max < min), shown under the Maximum input. */
       .field-error {
-        display: block; margin-block-start: var(--space-1);
-        font-size: var(--text-xs); font-weight: var(--font-weight-medium);
+        display: block;
+        margin-block-start: var(--space-1);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-medium);
         color: var(--color-error);
       }
 
       .form-footer {
-        display: flex; align-items: center; justify-content: flex-end;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
         gap: var(--space-3);
         padding: var(--space-4) 0 0;
         background: transparent;
@@ -1627,59 +2052,104 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         line-height: 1.4;
       }
       .unavailable {
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        padding: var(--space-10); gap: var(--space-3); text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: var(--space-10);
+        gap: var(--space-3);
+        text-align: center;
         background: var(--bg-surface, var(--color-surface-default));
         border: 1px solid var(--border-default, var(--color-border-default));
         border-radius: var(--radius-lg);
       }
-      .unavailable-icon { font-size: 56px; width: 56px; height: 56px; color: var(--text-tertiary, var(--color-text-tertiary)); }
-      .unavailable-text { margin: 0; font-size: var(--text-md); color: var(--text-primary, var(--color-text-primary)); }
+      .unavailable-icon {
+        font-size: 56px;
+        width: 56px;
+        height: 56px;
+        color: var(--text-tertiary, var(--color-text-tertiary));
+      }
+      .unavailable-text {
+        margin: 0;
+        font-size: var(--text-md);
+        color: var(--text-primary, var(--color-text-primary));
+      }
 
       /* Tiered-rate band editor */
-      .bands { display: flex; flex-direction: column; gap: var(--space-3); }
+      .bands {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
       .bands-empty {
-        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
         gap: var(--space-4);
-        margin: 0; padding: var(--space-4);
+        margin: 0;
+        padding: var(--space-4);
         border: 1px dashed var(--border-default, var(--color-border-default));
         border-radius: var(--radius-lg);
         background: var(--bg-subtle, var(--color-surface-row-hover));
       }
       .bands-empty-text {
-        margin: 0; max-inline-size: 46ch;
-        font-size: var(--text-sm); color: var(--text-secondary, var(--color-text-secondary));
+        margin: 0;
+        max-inline-size: 46ch;
+        font-size: var(--text-sm);
+        color: var(--text-secondary, var(--color-text-secondary));
       }
       .bands-head {
-        display: grid; grid-template-columns: minmax(0, 26rem) minmax(0, 11rem) 44px;
+        display: grid;
+        grid-template-columns: minmax(0, 26rem) minmax(0, 11rem) 44px;
         justify-content: start;
-        gap: var(--space-3); padding-inline: var(--space-1);
-        font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.02em;
+        gap: var(--space-3);
+        padding-inline: var(--space-1);
+        font-size: var(--text-xs);
+        font-weight: 600;
+        letter-spacing: 0.02em;
         text-transform: uppercase;
         color: var(--text-tertiary, var(--color-text-tertiary));
       }
       /* Mirrors .band-range so "From"/"To" sit over the boxes they name. */
-      .bands-head-range { display: inline-flex; align-items: center; gap: var(--space-2); }
+      .bands-head-range {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+      }
       .bands-head-range > span:first-child,
-      .bands-head-range > span:last-child { inline-size: 10.5rem; }
+      .bands-head-range > span:last-child {
+        inline-size: 10.5rem;
+      }
       .band-row {
-        display: grid; grid-template-columns: minmax(0, 26rem) minmax(0, 11rem) 44px;
+        display: grid;
+        grid-template-columns: minmax(0, 26rem) minmax(0, 11rem) 44px;
         justify-content: start;
-        gap: var(--space-3); align-items: start;
+        gap: var(--space-3);
+        align-items: start;
       }
       /* from → to reads as one range, so the boundary being typed is the boundary
          whose effect is visible. */
-      .band-range { display: flex; align-items: flex-start; gap: var(--space-2); min-inline-size: 0; }
+      .band-range {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        min-inline-size: 0;
+      }
       /* The two edge boxes hold their width so the arrow, the open end and the
          unit stay on one vertical line all the way down the table. */
       .band-range > .band-cell,
-      .band-range > .band-edge { flex: 0 0 auto; }
+      .band-range > .band-edge {
+        flex: 0 0 auto;
+      }
       .band-edge {
         inline-size: 10.5rem;
         font-variant-numeric: tabular-nums;
       }
       .band-arrow {
-        display: inline-flex; align-items: center; block-size: 44px;
+        display: inline-flex;
+        align-items: center;
+        block-size: 44px;
         color: var(--text-tertiary, var(--color-text-tertiary));
       }
       /* The arrow points from the lower edge to the upper one, which is the
@@ -1689,38 +2159,58 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         transform: scaleX(-1);
       }
       .band-unit {
-        display: inline-flex; align-items: center; block-size: 44px;
-        font-size: var(--text-xs); color: var(--text-tertiary, var(--color-text-tertiary));
+        display: inline-flex;
+        align-items: center;
+        block-size: 44px;
+        font-size: var(--text-xs);
+        color: var(--text-tertiary, var(--color-text-tertiary));
       }
       /* The open end. Sized like an edge box so the arrow stays on one vertical
          line down the table instead of stepping in and out. */
       .band-open {
-        display: inline-flex; align-items: center; justify-content: center;
-        inline-size: 10.5rem; block-size: 44px;
-        font-size: var(--text-sm); color: var(--text-tertiary, var(--color-text-tertiary));
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        inline-size: 10.5rem;
+        block-size: 44px;
+        font-size: var(--text-sm);
+        color: var(--text-tertiary, var(--color-text-tertiary));
       }
       .bands-hint {
-        margin: 0; font-size: var(--text-xs);
+        margin: 0;
+        font-size: var(--text-xs);
         color: var(--text-tertiary, var(--color-text-tertiary));
       }
       .bands-error {
-        margin: 0; font-size: var(--text-xs); color: var(--danger, #b42318);
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--danger, #b42318);
       }
       /* Bands below the first floor fall through to the flat rate above — a
          legal configuration, so this informs rather than blocks. */
       .bands-note {
-        display: flex; align-items: flex-start; gap: var(--space-2);
-        margin: 0; padding: var(--space-2) var(--space-3);
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-2) var(--space-3);
         border-radius: var(--radius-md, 8px);
         font-size: var(--text-xs);
         color: var(--text-secondary, var(--color-text-secondary));
         background: var(--color-warning-bg, var(--bg-subtle));
       }
-      .bands-note [nz-icon] { color: var(--color-warning); }
-      .band-cell { margin: 0; }
+      .bands-note [nz-icon] {
+        color: var(--color-warning);
+      }
+      .band-cell {
+        margin: 0;
+      }
       .band-remove {
-        inline-size: 44px; block-size: 44px;
-        display: inline-flex; align-items: center; justify-content: center;
+        inline-size: 44px;
+        block-size: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         border: 1px solid var(--border-default, var(--color-border-default));
         border-radius: var(--radius-md, 8px);
         background: var(--bg-surface, var(--color-surface-default));
@@ -1741,9 +2231,13 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         border-color: var(--danger, #b42318);
         box-shadow: var(--focus-halo);
       }
-      .bands-add { align-self: flex-start; }
+      .bands-add {
+        align-self: flex-start;
+      }
       @media (max-width: 720px) {
-        .bands-head { display: none; }
+        .bands-head {
+          display: none;
+        }
         /* Range on its own line: two money boxes and a rate do not fit one row.
            A band now spans two lines, so a hairline says where one band ends —
            otherwise it is guesswork which rate belongs to which range. */
@@ -1753,13 +2247,25 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           padding-block-end: var(--space-3);
           border-block-end: 1px dashed var(--border-default, var(--color-border-default));
         }
-        .band-row:last-of-type { padding-block-end: 0; border-block-end: 0; }
+        .band-row:last-of-type {
+          padding-block-end: 0;
+          border-block-end: 0;
+        }
         /* Wrap rather than squeeze: a clipped "350,0" is worse than a second line. */
-        .band-range { grid-column: 1 / -1; flex-wrap: wrap; }
+        .band-range {
+          grid-column: 1 / -1;
+          flex-wrap: wrap;
+        }
         .band-range > .band-cell,
         .band-range > .band-edge,
-        .band-open { flex: 1 1 8rem; min-inline-size: 0; inline-size: auto; }
-        .band-cell .band-edge { inline-size: 100%; }
+        .band-open {
+          flex: 1 1 8rem;
+          min-inline-size: 0;
+          inline-size: auto;
+        }
+        .band-cell .band-edge {
+          inline-size: 100%;
+        }
       }
 
       /* ── Wizard: rail block + issue banner ──────────────────────── */
@@ -1797,16 +2303,28 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       .form-scroll > .ctx-missing {
         animation: step-enter var(--motion-duration-base) var(--motion-easing-standard) both;
       }
-      .form-scroll > section.card:nth-of-type(2) { animation-delay: 30ms; }
-      .form-scroll > section.card:nth-of-type(3) { animation-delay: 60ms; }
+      .form-scroll > section.card:nth-of-type(2) {
+        animation-delay: 30ms;
+      }
+      .form-scroll > section.card:nth-of-type(3) {
+        animation-delay: 60ms;
+      }
       @keyframes step-enter {
-        from { opacity: 0; transform: translateY(6px); }
-        to { opacity: 1; transform: none; }
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .form-scroll > .card,
         .form-scroll > app-income-assumption-section,
-        .form-scroll > .ctx-missing { animation: none; }
+        .form-scroll > .ctx-missing {
+          animation: none;
+        }
       }
 
       /* ── Review step ────────────────────────────────────────────── */
@@ -1841,7 +2359,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         color: var(--primary, var(--color-brand-primary));
         transition: background var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .review-edit:hover { background: var(--accent-subtle, var(--color-tonal-accent-bg)); }
+      .review-edit:hover {
+        background: var(--accent-subtle, var(--color-tonal-accent-bg));
+      }
       .review-edit:focus-visible {
         outline: var(--focus-ring-width) solid var(--primary, var(--color-brand-primary));
         outline-offset: var(--focus-ring-offset);
@@ -1877,7 +2397,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         color: var(--text-tertiary, var(--color-text-tertiary));
       }
       @media (max-width: 720px) {
-        .review-list { grid-template-columns: minmax(0, 1fr); }
+        .review-list {
+          grid-template-columns: minmax(0, 1fr);
+        }
       }
 
       /* Pinned action bar: the next step is always reachable without scrolling
@@ -2095,10 +2617,7 @@ export class BankProgramFormPage implements OnInit {
 
   /** Number of fields on the current step that still fail validation. */
   stepIssueCount(): number {
-    return this.stepControls(this.stepIndex()).reduce(
-      (sum, c) => sum + countInvalidLeaves(c),
-      0,
-    );
+    return this.stepControls(this.stepIndex()).reduce((sum, c) => sum + countInvalidLeaves(c), 0);
   }
 
   stepIssueLabel(): string {
@@ -2180,10 +2699,7 @@ export class BankProgramFormPage implements OnInit {
    * switch — an `income_surrogate` program by definition estimates income, and
    * having two controls that had to agree was a standing source of bad data.
    */
-  readonly incomeSurrogateActive = computed(
-    () => this.programTypeSignal() === 'income_surrogate',
-  );
-
+  readonly incomeSurrogateActive = computed(() => this.programTypeSignal() === 'income_surrogate');
 
   readonly mode = toSignal(
     this.route.url.pipe(map((seg) => (seg[seg.length - 1]?.path === 'edit' ? 'edit' : 'create'))),
@@ -2219,13 +2735,19 @@ export class BankProgramFormPage implements OnInit {
 
   // Enum-driven option signals
   readonly employmentOptions = computed(() =>
-    this.enums.membersFor('employment_type')().map((m) => ({ value: m.key, label: m.labelEn })),
+    this.enums
+      .membersFor('employment_type')()
+      .map((m) => ({ value: m.key, label: m.labelEn })),
   );
   readonly transferOptions = computed(() =>
-    this.enums.membersFor('transfer_type')().map((m) => ({ value: m.key, label: m.labelEn })),
+    this.enums
+      .membersFor('transfer_type')()
+      .map((m) => ({ value: m.key, label: m.labelEn })),
   );
   readonly documentOptions = computed(() =>
-    this.enums.membersFor('required_document')().map((m) => ({ value: m.key, label: m.labelEn })),
+    this.enums
+      .membersFor('required_document')()
+      .map((m) => ({ value: m.key, label: m.labelEn })),
   );
   /**
    * The loan type this form is operating under, or `null` when it has not been
@@ -2452,17 +2974,37 @@ export class BankProgramFormPage implements OnInit {
     }),
   });
 
-  get identityGroup(): FormGroup { return this.form.controls.identity as FormGroup; }
-  get tenorGroup(): FormGroup { return this.form.controls.tenor as FormGroup; }
-  get loanLimitsGroup(): FormGroup { return this.form.controls.loanLimits as FormGroup; }
-  get pricingGroup(): FormGroup { return this.form.controls.pricing as FormGroup; }
-  get eligibilityGroup(): FormGroup { return this.form.controls.eligibility as FormGroup; }
+  get identityGroup(): FormGroup {
+    return this.form.controls.identity as FormGroup;
+  }
+  get tenorGroup(): FormGroup {
+    return this.form.controls.tenor as FormGroup;
+  }
+  get loanLimitsGroup(): FormGroup {
+    return this.form.controls.loanLimits as FormGroup;
+  }
+  get pricingGroup(): FormGroup {
+    return this.form.controls.pricing as FormGroup;
+  }
+  get eligibilityGroup(): FormGroup {
+    return this.form.controls.eligibility as FormGroup;
+  }
   /** Drives the dimmed cap field + the lit toggle row on the Debt burden card. */
-  get skipDbr(): boolean { return this.eligibilityGroup.get('skipDbrCheck')?.value === true; }
-  get isSharia(): boolean { return this.identityGroup.get('isShariaCompliant')?.value === true; }
-  get incomeAssumptionGroup(): FormGroup { return this.form.controls.incomeAssumption as FormGroup; }
-  get feesGroup(): FormGroup { return this.form.controls.fees as FormGroup; }
-  get documentsGroup(): FormGroup { return this.form.controls.documents as FormGroup; }
+  get skipDbr(): boolean {
+    return this.eligibilityGroup.get('skipDbrCheck')?.value === true;
+  }
+  get isSharia(): boolean {
+    return this.identityGroup.get('isShariaCompliant')?.value === true;
+  }
+  get incomeAssumptionGroup(): FormGroup {
+    return this.form.controls.incomeAssumption as FormGroup;
+  }
+  get feesGroup(): FormGroup {
+    return this.form.controls.fees as FormGroup;
+  }
+  get documentsGroup(): FormGroup {
+    return this.form.controls.documents as FormGroup;
+  }
 
   // ── Loan-duration helpers ────────────────────────────────────────────────
   // Plain min/max month inputs (consistent with the rest of the form, e.g. the
@@ -2674,16 +3216,28 @@ export class BankProgramFormPage implements OnInit {
         title: this.steps[2]?.label ?? '',
         rows: [
           ...rateRows,
-          { label: $localize`:@@bank_programs.review.admin_fee:Admin fee`, value: pct(v.fees.adminFeePercent) },
-          { label: $localize`:@@bank_programs.review.stamp_duty:Stamp duty`, value: pct(v.fees.stampDutyPercent) },
+          {
+            label: $localize`:@@bank_programs.review.admin_fee:Admin fee`,
+            value: pct(v.fees.adminFeePercent),
+          },
+          {
+            label: $localize`:@@bank_programs.review.stamp_duty:Stamp duty`,
+            value: pct(v.fees.stampDutyPercent),
+          },
           {
             label: $localize`:@@bank_programs.review.life_insurance:Life insurance`,
             value: v.fees.lifeInsuranceMandatory
               ? $localize`:@@bank_programs.review.life_insurance_mandatory:${pct(v.fees.lifeInsurancePercent)}:rate: · mandatory`
               : pct(v.fees.lifeInsurancePercent),
           },
-          { label: $localize`:@@bank_programs.review.late_fee:Late payment fee`, value: pct(v.fees.latePaymentFeePercent) },
-          { label: $localize`:@@bank_programs.review.payoff:Payoff (cash / buyout)`, value: `${pct(v.fees.payoffCashPercent)} / ${pct(v.fees.payoffBuyoutPercent)}` },
+          {
+            label: $localize`:@@bank_programs.review.late_fee:Late payment fee`,
+            value: pct(v.fees.latePaymentFeePercent),
+          },
+          {
+            label: $localize`:@@bank_programs.review.payoff:Payoff (cash / buyout)`,
+            value: `${pct(v.fees.payoffCashPercent)} / ${pct(v.fees.payoffBuyoutPercent)}`,
+          },
         ],
       },
       {
@@ -2756,7 +3310,9 @@ export class BankProgramFormPage implements OnInit {
     if (rows > 0) parts.push(this.countLabel(rows));
     const binding = this.factBinding();
     if (binding && !binding.asked) {
-      parts.push($localize`:@@bank_programs.review.income_rule_unbound:fact not set up — no income`);
+      parts.push(
+        $localize`:@@bank_programs.review.income_rule_unbound:fact not set up — no income`,
+      );
     }
     return { label, value: parts.join(' · ') };
   }
@@ -2765,9 +3321,7 @@ export class BankProgramFormPage implements OnInit {
   private labelsFor(registry: string, keys: readonly string[]): string {
     if (keys.length === 0) return '';
     const members = this.enums.membersFor(registry as never)();
-    return keys
-      .map((k) => members.find((m) => m.key === k)?.labelEn ?? k)
-      .join(', ');
+    return keys.map((k) => members.find((m) => m.key === k)?.labelEn ?? k).join(', ');
   }
 
   private countLabel(n: number): string {
@@ -3053,16 +3607,18 @@ export class BankProgramFormPage implements OnInit {
     const byCategory = isLoanCategory(cat)
       ? all.filter((m) => (m.categories ?? []).includes(cat))
       : all;
-    // Then by income BASIS. A no-payslip program may only name a catalog entry that is
-    // marked no-payslip for this loan type, which is what makes these their own set of
-    // programs rather than any name typed differently. `undefined` means the backend has
-    // not deployed the field, so the picker stays unfiltered instead of empty.
-    const pool =
-      this.incomeBasis() === 'no_payslip' && isLoanCategory(cat)
-        ? byCategory.filter((m) =>
-            m.noPayslipFacts === undefined ? true : (m.noPayslipFacts[cat]?.length ?? 0) > 0,
-          )
-        : byCategory;
+    // Then by income BASIS, in BOTH directions: the catalog says how each name is sold
+    // under this loan type, and a program may only name one sold the way it proves
+    // income. It used to narrow only the no-payslip side (the mark was inferred from
+    // fact ticks, and "no ticks" could not be told from "not configured yet"), so a
+    // name sold exclusively without a payslip still turned up under "Reads a payslip".
+    //
+    // `undefined` means the backend has not deployed the field: unknown is not "sold
+    // no way", so the picker stays unfiltered rather than empty.
+    const basis = this.incomeBasis();
+    const pool = isLoanCategory(cat)
+      ? byCategory.filter((m) => m.incomeBases === undefined || m.incomeBases[cat]?.includes(basis))
+      : byCategory;
     const opts = pool.map((m) => ({
       value: m.key,
       label: this.localeIsAr ? m.labelAr : m.labelEn,
@@ -3097,7 +3653,10 @@ export class BankProgramFormPage implements OnInit {
     const key = this.programNameKeySignal();
     const cat = this.productCategorySignal();
     if (!key || !isLoanCategory(cat)) return null;
-    if (key === this.grandfatheredPair()?.programNameKey && cat === this.grandfatheredPair()?.productCategory) {
+    if (
+      key === this.grandfatheredPair()?.programNameKey &&
+      cat === this.grandfatheredPair()?.productCategory
+    ) {
       return null;
     }
     const member = this.programNameMembers().find((m) => m.key === key);
@@ -3106,14 +3665,13 @@ export class BankProgramFormPage implements OnInit {
     if (!member.categories.includes(cat)) {
       return { name, category: categoryLabel(cat), reason: 'category' };
     }
-    // The BASIS half of the same pairing rule. Reached by two routes worth catching: an
-    // edit whose name lost its fact ticks after the program was created, and a bound key
-    // the picker kept visible so a save could not silently re-classify the program.
-    if (
-      this.incomeBasis() === 'no_payslip' &&
-      member.noPayslipFacts !== undefined &&
-      (member.noPayslipFacts[cat]?.length ?? 0) === 0
-    ) {
+    // The BASIS half of the same pairing rule — now the one the API enforces too, so
+    // this signal and the save agree on what is refusable. Reached by two routes worth
+    // catching: an edit whose name stopped being sold this way after the program was
+    // created, and a bound key the picker kept visible so a save could not silently
+    // re-classify the program.
+    const bases = member.incomeBases?.[cat];
+    if (bases !== undefined && !bases.includes(this.incomeBasis())) {
       return { name, category: categoryLabel(cat), reason: 'basis' };
     }
     return null;
@@ -3139,15 +3697,26 @@ export class BankProgramFormPage implements OnInit {
   private readonly noNamesForCategory = $localize`:@@bank_programs.field.friendly_name.none_for_category:No program names are set up for this loan type yet.`;
 
   /**
-   * Two empty pickers, two different dead ends, so they get two messages. The basis one
-   * names the catalog because it is a one-tick fix there and the operator otherwise has no
-   * way to guess why a list that was full a second ago is empty.
+   * Three empty pickers, three different dead ends, so they get three messages. The two
+   * basis ones name the catalog because it is a one-tick fix there, and the operator
+   * otherwise has no way to guess why a list that was full a second ago is empty.
    */
-  private readonly noNoPayslipNames = $localize`:@@bank_programs.field.friendly_name.none_no_payslip:No program names are sold without a payslip for this loan type yet. Tick a fact on one in the program catalog, or choose “Reads a payslip”.`;
+  private readonly noNoPayslipNames = $localize`:@@bank_programs.field.friendly_name.none_no_payslip:No program names are sold without a payslip for this loan type yet. Mark one that way in the program catalog, or choose “Reads a payslip”.`;
 
-  protected readonly noNamesForCategoryLabel = computed(() =>
-    this.incomeBasis() === 'no_payslip' ? this.noNoPayslipNames : this.noNamesForCategory,
-  );
+  private readonly noPayslipNames = $localize`:@@bank_programs.field.friendly_name.none_payslip:No program names are sold against a payslip for this loan type yet. Mark one that way in the program catalog, or choose “No payslip”.`;
+
+  protected readonly noNamesForCategoryLabel = computed(() => {
+    const cat = this.productCategorySignal();
+    // "Nothing for this loan type at all" outranks either basis message: telling an
+    // operator to change how a name is sold is a dead end when there is no name.
+    if (
+      !isLoanCategory(cat) ||
+      this.programNameMembers().every((m) => !(m.categories ?? []).includes(cat))
+    ) {
+      return this.noNamesForCategory;
+    }
+    return this.incomeBasis() === 'no_payslip' ? this.noNoPayslipNames : this.noPayslipNames;
+  });
 
   constructor() {
     // Bank picker valueChanges → mirror into identity.bankName.
@@ -3255,9 +3824,7 @@ export class BankProgramFormPage implements OnInit {
    */
   private preselectCategoryFromQuery(): void {
     const cat = this.route.snapshot.queryParamMap.get('category');
-    this.form.controls.identity.controls.productCategory.setValue(
-      isLoanCategory(cat) ? cat : '',
-    );
+    this.form.controls.identity.controls.productCategory.setValue(isLoanCategory(cat) ? cat : '');
   }
 
   private async loadActiveBanks(): Promise<void> {
@@ -3457,13 +4024,21 @@ export class BankProgramFormPage implements OnInit {
     return out;
   }
 
-  setArr(path: 'identity.currencies' | 'eligibility.acceptedEmploymentTypes' | 'eligibility.acceptedTransferTypes' | 'documents.requiredDocuments', values: readonly unknown[]): void {
+  setArr(
+    path:
+      | 'identity.currencies'
+      | 'eligibility.acceptedEmploymentTypes'
+      | 'eligibility.acceptedTransferTypes'
+      | 'documents.requiredDocuments',
+    values: readonly unknown[],
+  ): void {
     const ctl = this.form.get(path);
     if (!ctl) return;
     const stringValues = values.map((v) => String(v));
     if (ctl instanceof FormArray) {
       ctl.clear({ emitEvent: false });
-      for (const v of stringValues) ctl.push(new FormControl(v, { nonNullable: true }), { emitEvent: false });
+      for (const v of stringValues)
+        ctl.push(new FormControl(v, { nonNullable: true }), { emitEvent: false });
       ctl.updateValueAndValidity();
       return;
     }
@@ -3471,7 +4046,10 @@ export class BankProgramFormPage implements OnInit {
     ctl.setValue(stringValues);
   }
 
-  private syncArr(ctl: ReturnType<FormGroup['get']>, sig: ReturnType<typeof signal<string[]>>): void {
+  private syncArr(
+    ctl: ReturnType<FormGroup['get']>,
+    sig: ReturnType<typeof signal<string[]>>,
+  ): void {
     if (!ctl) return;
     sig.set((ctl.value as string[]) ?? []);
     ctl.valueChanges.subscribe((v) => sig.set((v as string[]) ?? []));
@@ -3512,7 +4090,9 @@ export class BankProgramFormPage implements OnInit {
       if (this.isEditMode()) {
         const payload = this.buildUpdatePayload();
         const res = await this.api.update(this.loadedProgramCode() ?? '', payload);
-        this.message.success($localize`:@@bank_programs.form.updated:Bank program updated.`, { nzDuration: 4000 });
+        this.message.success($localize`:@@bank_programs.form.updated:Bank program updated.`, {
+          nzDuration: 4000,
+        });
         // FR-035 — the save switched a LIVE program off. Said explicitly, because
         // otherwise the program simply goes dark and the admin has no way to connect
         // it to the marker they just set.
@@ -3521,7 +4101,9 @@ export class BankProgramFormPage implements OnInit {
       } else {
         const payload = this.buildCreatePayload();
         const res = await this.api.create(payload);
-        this.message.success($localize`:@@bank_programs.form.created:Bank program created.`, { nzDuration: 4000 });
+        this.message.success($localize`:@@bank_programs.form.created:Bank program created.`, {
+          nzDuration: 4000,
+        });
         // A program created WITH an estimate is born inactive (FR-033). Said out loud
         // for the same reason the update path says it.
         this.notifyIfDeactivatedByEstimate(res.data.deactivatedByEstimate, 'created');
@@ -3635,7 +4217,9 @@ export class BankProgramFormPage implements OnInit {
       pricing: {
         isVariableRate: pr.isVariableRate,
         baseRatePercent: pr.isVariableRate ? undefined : (pr.baseRatePercent ?? undefined),
-        currentEffectiveRatePercent: pr.isVariableRate ? (pr.currentEffectiveRatePercent ?? undefined) : undefined,
+        currentEffectiveRatePercent: pr.isVariableRate
+          ? (pr.currentEffectiveRatePercent ?? undefined)
+          : undefined,
         variableRateNote: pr.variableRateNote ?? undefined,
         ...(this.toggles.tieredRates() && this.rateBandsArray.length > 0
           ? { rateByLoanAmountBand: this.serializeRateBands() }
@@ -3889,10 +4473,7 @@ function revealErrors(control: AbstractControl): void {
 function countInvalidLeaves(control: AbstractControl): number {
   if (control instanceof FormGroup) {
     const own = control.errors ? 1 : 0;
-    return (
-      own +
-      Object.values(control.controls).reduce((sum, c) => sum + countInvalidLeaves(c), 0)
-    );
+    return own + Object.values(control.controls).reduce((sum, c) => sum + countInvalidLeaves(c), 0);
   }
   if (control instanceof FormArray) {
     const own = control.errors ? 1 : 0;

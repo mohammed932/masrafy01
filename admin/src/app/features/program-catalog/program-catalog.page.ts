@@ -14,13 +14,13 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
 import { NzModalService } from 'ng-zorro-antd/modal';
+import { NzMessageService } from 'ng-zorro-antd/message';
 import { RouterLink } from '@angular/router';
 import {
   PlusOutline,
   EditOutline,
-  MinusCircleOutline,
+  DeleteOutline,
   SearchOutline,
   HistoryOutline,
   InboxOutline,
@@ -29,11 +29,7 @@ import {
   PoweroffOutline,
   WarningOutline,
 } from '@ant-design/icons-angular/icons';
-import {
-  PageHeaderComponent,
-  StatStripComponent,
-  type StatStripItem,
-} from '@shared/ui';
+import { PageHeaderComponent, StatStripComponent, type StatStripItem } from '@shared/ui';
 import {
   LOAN_CATEGORIES,
   canonicalCategories,
@@ -90,7 +86,6 @@ type BasisFilter = 'all' | IncomeBasis;
     NzButtonModule,
     NzInputModule,
     NzToolTipModule,
-    NzPopconfirmModule,
     NgTemplateOutlet,
     PageHeaderComponent,
     StatStripComponent,
@@ -99,7 +94,7 @@ type BasisFilter = 'all' | IncomeBasis;
     provideNzIconsPatch([
       PlusOutline,
       EditOutline,
-      MinusCircleOutline,
+      DeleteOutline,
       SearchOutline,
       HistoryOutline,
       InboxOutline,
@@ -149,8 +144,7 @@ type BasisFilter = 'all' | IncomeBasis;
           @if (parked().length > 0) {
             <p class="hp-line">
               <span i18n="@@program_catalog.health.parked"
-                >Offered under no loan type, so nobody can pick them:
-                {{ names(parked()) }}.</span
+                >Offered under no loan type, so nobody can pick them: {{ names(parked()) }}.</span
               >
             </p>
           }
@@ -233,9 +227,7 @@ type BasisFilter = 'all' | IncomeBasis;
         } @else {
           <div class="board-empty">
             <span nz-icon nzType="inbox" nzTheme="outline" aria-hidden="true"></span>
-            <p i18n="@@program_catalog.basis.empty">
-              No program names match this filter yet.
-            </p>
+            <p i18n="@@program_catalog.basis.empty">No program names match this filter yet.</p>
           </div>
         }
 
@@ -270,6 +262,21 @@ type BasisFilter = 'all' | IncomeBasis;
                       >
                         <span nz-icon nzType="edit" nzTheme="outline"></span>
                       </button>
+                      <!-- Delete belongs here most of all: a deprecated name is one
+                           somebody already decided is finished, and the row only stays
+                           to explain keys old programs carry. When nothing carries it,
+                           the tombstone is noise. -->
+                      <button
+                        class="icon-action danger"
+                        type="button"
+                        (click)="confirmDelete(r)"
+                        nz-tooltip
+                        nzTooltipTitle="Delete"
+                        i18n-nzTooltipTitle="@@program_catalog.delete"
+                        [attr.aria-label]="deleteLabel"
+                      >
+                        <span nz-icon nzType="delete" nzTheme="outline"></span>
+                      </button>
                     </div>
                   </div>
                 </li>
@@ -288,7 +295,11 @@ type BasisFilter = 'all' | IncomeBasis;
           <a class="open" [routerLink]="[r.key]" [attr.aria-label]="openLabel(r)">
             <span class="card-head">
               <span class="chip" [attr.data-tone]="r.active ? 'brand' : 'muted'" aria-hidden="true">
-                <span nz-icon [nzType]="r.active ? 'appstore' : 'poweroff'" nzTheme="outline"></span>
+                <span
+                  nz-icon
+                  [nzType]="r.active ? 'appstore' : 'poweroff'"
+                  nzTheme="outline"
+                ></span>
               </span>
               <span class="name">{{ nameOf(r) }}</span>
             </span>
@@ -315,17 +326,27 @@ type BasisFilter = 'all' | IncomeBasis;
                 <!-- Additive, not an alternative branch: a name sold both ways carries
                      its loan types, its question count AND this line. -->
                 @if (isNoPayslip(r)) {
-                  <span class="reads">
-                    <span class="reads-label">{{ noPayslipLabel }}</span>
-                    <span class="reads-value">{{ factLabelsOf(r).join(' · ') }}</span>
-                  </span>
+                  @if (factLabelsOf(r).length > 0) {
+                    <span class="reads">
+                      <span class="reads-label">{{ noPayslipLabel }}</span>
+                      <span class="reads-value">{{ factLabelsOf(r).join(' · ') }}</span>
+                    </span>
+                  } @else {
+                    <!-- Marked as sold without a payslip, with nothing named for the bank
+                         to work the income out FROM. Its own state now that the two are
+                         stored separately, and the more common one: the mark is one tick
+                         on the create screen, the fact is a visit to the name's page. -->
+                    <span class="q-none" i18n="@@program_catalog.card.no_fact"
+                      >Sold with no payslip, but no fact is picked — banks have nothing to look
+                      up</span
+                    >
+                  }
                 } @else if (noPayslipPrograms(r) > 0) {
-                  <!-- The contradiction worth colour: banks ARE selling this name with no
-                       payslip, but no fact is ticked, so their tables have nothing to
-                       look up and every one of those programs quotes nothing. -->
-                  <span class="q-none" i18n="@@program_catalog.card.no_fact"
-                    >Sold with no payslip, but no fact is picked — banks have nothing to
-                    look up</span
+                  <!-- The contradiction worth colour: banks ARE selling this name without a
+                       payslip, on a name the catalog says is payslip-only. One of the two
+                       is wrong, and only a human knows which. -->
+                  <span class="q-none" i18n="@@program_catalog.card.unmarked_no_payslip"
+                    >Banks sell this without a payslip, but the name is not marked for it</span
                   >
                 }
               }
@@ -379,20 +400,23 @@ type BasisFilter = 'all' | IncomeBasis;
               >
                 <span nz-icon nzType="poweroff" nzTheme="outline"></span>
               </button>
+              <!-- Delete, with no deprecate beside it. Two ways to retire a name
+                   read as a choice the operator has to understand, and the safe one
+                   left a tombstone card nobody could ever clear. This board now
+                   offers deactivate (reversible, keeps the name pickable-later) and
+                   delete (permanent, refused while anything points at the key) —
+                   deprecation stays a stored state the tail section still renders,
+                   it is simply no longer something this screen creates. -->
               <button
                 class="icon-action danger"
                 type="button"
-                nz-popconfirm
-                nzPopconfirmTitle="Deprecate this program? It stops appearing in the picker."
-                i18n-nzPopconfirmTitle="@@program_catalog.deprecate.confirm"
-                nzPopconfirmPlacement="topRight"
-                (nzOnConfirm)="deprecate(r)"
+                (click)="confirmDelete(r)"
                 nz-tooltip
-                nzTooltipTitle="Deprecate"
-                i18n-nzTooltipTitle="@@program_catalog.deprecate"
-                [attr.aria-label]="deprecateLabel"
+                nzTooltipTitle="Delete"
+                i18n-nzTooltipTitle="@@program_catalog.delete"
+                [attr.aria-label]="deleteLabel"
               >
-                <span nz-icon nzType="minus-circle" nzTheme="outline"></span>
+                <span nz-icon nzType="delete" nzTheme="outline"></span>
               </button>
             </div>
           </div>
@@ -514,9 +538,9 @@ type BasisFilter = 'all' | IncomeBasis;
         font-size: var(--text-xs);
         cursor: pointer;
         transition:
-          border-color var(--motion-duration-fast) var(--motion-ease),
-          background-color var(--motion-duration-fast) var(--motion-ease),
-          color var(--motion-duration-fast) var(--motion-ease);
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          background-color var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .basis-chip:hover {
         border-color: var(--color-border-strong);
@@ -922,6 +946,7 @@ type BasisFilter = 'all' | IncomeBasis;
 export class ProgramCatalogPage implements OnInit {
   private readonly api = inject(LookupsApiService);
   private readonly modal = inject(NzModalService);
+  private readonly message = inject(NzMessageService);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   protected readonly loading = signal(true);
@@ -953,7 +978,7 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly editLabel = $localize`:@@program_catalog.edit:Edit`;
   protected readonly activateLabel = $localize`:@@program_catalog.activate:Activate`;
   protected readonly deactivateLabel = $localize`:@@program_catalog.deactivate:Deactivate`;
-  protected readonly deprecateLabel = $localize`:@@program_catalog.deprecate:Deprecate`;
+  protected readonly deleteLabel = $localize`:@@program_catalog.delete:Delete`;
   protected readonly noPayslipLabel = $localize`:@@program_catalog.card.reads:No payslip · reads`;
   protected readonly basisFilterAria = $localize`:@@program_catalog.basis.aria:Filter by how the bank reads the income`;
 
@@ -986,15 +1011,33 @@ export class ProgramCatalogPage implements OnInit {
   protected readonly basisFilter = signal<BasisFilter>('all');
 
   /**
-   * Marked as sellable without a payslip: at least one of the four surrogate facts is
-   * ticked under a loan type this name is actually offered under.
+   * Marked as sellable without a payslip under at least one loan type it is offered
+   * under — the STORED basis, chosen when the name was added and edited per tab.
    *
-   * Derived, never stored. The fact tick-list on the detail screen IS the switch, so
-   * there is no flag that can disagree with it — and the wizard's name picker reads the
-   * same helper, so a name offered here is a name pickable there.
+   * Read from the same field the bank-program picker filters on and the API enforces,
+   * so a name that reads "No payslip" here is a name that can actually be picked
+   * there. It used to be inferred from the surrogate fact ticks, which answered a
+   * narrower question (which figure a table reads) and left a brand-new name silently
+   * unsellable that way.
    */
   protected isNoPayslip(row: EnumerationRow): boolean {
-    return this.noPayslipFactCodes(row).length > 0;
+    return this.basesOf(row).includes('no_payslip');
+  }
+
+  /** True when some offered loan type still sells this name against a payslip. */
+  protected isPayslip(row: EnumerationRow): boolean {
+    return this.basesOf(row).includes('payslip');
+  }
+
+  /** Every basis this name carries, across the loan types it is offered under. */
+  private basesOf(row: EnumerationRow): IncomeBasis[] {
+    const byCategory = row.incomeBasesByCategory;
+    // Not deployed / not a catalog row: say "payslip" rather than nothing, so the
+    // grid keeps every name reachable under a filter instead of hiding rows the
+    // board is simultaneously counting.
+    if (!byCategory) return ['payslip'];
+    const bases = this.categoriesOf(row).flatMap((c) => byCategory[c] ?? []);
+    return bases.length > 0 ? [...new Set(bases)] : ['payslip'];
   }
 
   private noPayslipFactCodes(row: EnumerationRow): string[] {
@@ -1007,19 +1050,24 @@ export class ProgramCatalogPage implements OnInit {
     () => this.live().filter((r) => this.isNoPayslip(r)).length,
   );
   protected readonly payslipCount = computed(
-    () => this.live().filter((r) => !this.isNoPayslip(r)).length,
+    () => this.live().filter((r) => this.isPayslip(r)).length,
   );
 
   /**
-   * What the grid renders. A name matches `no_payslip` when it carries a fact and
-   * `payslip` when it does not — the two are complementary, so the counts add up to the
-   * board and no name is invisible under some filter.
+   * What the grid renders — MEMBERSHIP, not an either/or split.
+   *
+   * A name sold both ways appears under both chips, which is why the two counts can
+   * add up to more than the board. That is the honest reading: filtering to "no
+   * payslip" asks "which names can I sell that way", and a name that also reads a
+   * payslip is still one of them. Complementary counting would have to pick a side
+   * for it and hide it from the other list.
    */
   protected readonly visible = computed(() => {
     const basis = this.basisFilter();
     if (basis === 'all') return this.live();
-    const wantNoPayslip = basis === 'no_payslip';
-    return this.live().filter((r) => this.isNoPayslip(r) === wantNoPayslip);
+    return this.live().filter((r) =>
+      basis === 'no_payslip' ? this.isNoPayslip(r) : this.isPayslip(r),
+    );
   });
 
   protected readonly basisChips = computed<Array<{ id: BasisFilter; label: string; n: number }>>(
@@ -1194,7 +1242,9 @@ export class ProgramCatalogPage implements OnInit {
     const shown = rows.slice(0, PARKED_NAMES_SHOWN).map((r) => this.nameOf(r));
     const rest = rows.length - shown.length;
     const list = shown.join(this.isAr ? '، ' : ', ');
-    return rest > 0 ? $localize`:@@program_catalog.health.more:${list}:NAMES: and ${rest}:REST: more` : list;
+    return rest > 0
+      ? $localize`:@@program_catalog.health.more:${list}:NAMES: and ${rest}:REST: more`
+      : list;
   }
 
   /**
@@ -1228,13 +1278,55 @@ export class ProgramCatalogPage implements OnInit {
     }
   }
 
-  async deprecate(row: EnumerationRow): Promise<void> {
-    const stampedAt = new Date().toISOString();
-    this.patchRow(row.id, { deprecatedAt: stampedAt, active: false });
+  /**
+   * Delete, behind a confirmation popup — the one irreversible action on this
+   * board.
+   *
+   * Two different popups, because the two outcomes are not the same conversation:
+   * a name bank programs are using cannot be deleted at all, and offering a
+   * "Delete" button that always fails would teach operators to distrust the
+   * dialog. So a used name gets an explanation and the way out that is still on
+   * this board (switch it off — same disappearance from the picker, reversible),
+   * and a free one gets a danger confirm that names what is about to go.
+   *
+   * The count is only a shortcut. The server re-checks — including applications,
+   * which this board does not count — and refuses with `ENUMERATION_IN_USE`; the
+   * toast interceptor renders that, so a stale board cannot delete anything.
+   *
+   * NOT optimistic, unlike `toggleActive` above. That is one boolean that can be
+   * flipped back; a card that vanishes and then reappears reads as a bug, and the
+   * operator has just been told the action is permanent.
+   */
+  protected confirmDelete(row: EnumerationRow): void {
+    const inUse = this.usageOf(row).programs;
+    if (inUse > 0) {
+      this.modal.info({
+        nzTitle: $localize`:@@program_catalog.delete.blocked.title:This name is still in use`,
+        nzContent: $localize`:@@program_catalog.delete.blocked.body:${inUse}:PROGRAMS: bank programs use ${this.nameOf(row)}:NAME:, so it cannot be deleted. Switch it off instead — it leaves the picker and every saved program keeps working.`,
+        nzOkText: $localize`:@@program_catalog.delete.blocked.ok:Got it`,
+      });
+      return;
+    }
+    this.modal.confirm({
+      nzTitle: $localize`:@@program_catalog.delete.title:Delete this program name?`,
+      nzContent: $localize`:@@program_catalog.delete.body:${this.nameOf(row)}:NAME: is removed for good, along with its loan types and picked questions. This cannot be undone.`,
+      nzOkText: this.deleteLabel,
+      nzOkDanger: true,
+      nzOnOk: () => this.remove(row),
+    });
+  }
+
+  private async remove(row: EnumerationRow): Promise<void> {
     try {
-      await this.api.update(row.id, { deprecate: true });
+      await this.api.remove(row.id);
+      this.rows.update((list) => list.filter((r) => r.id !== row.id));
+      this.message.success($localize`:@@program_catalog.delete.success:Program name deleted.`);
     } catch {
-      this.patchRow(row.id, { deprecatedAt: null });
+      // Refused — almost always `ENUMERATION_IN_USE`, which the toast interceptor
+      // has already explained. Reload instead of leaving the board untouched: a
+      // refusal means these counts are stale, and without the refresh the next
+      // click would ask the same question and get the same surprise.
+      void this.reload({ silent: true });
     }
   }
 
@@ -1243,19 +1335,21 @@ export class ProgramCatalogPage implements OnInit {
   }
 
   private openDialog(data: EnumerationEditDialogData): void {
-    const ref = this.modal.create<EnumerationEditDialogComponent, EnumerationEditDialogData, boolean>(
-      {
-        nzContent: EnumerationEditDialogComponent,
-        nzData: data,
-        nzTitle:
-          data.mode === 'create'
-            ? $localize`:@@program_catalog.dialog.add:Add program name`
-            : $localize`:@@program_catalog.dialog.edit:Edit program name`,
-        nzWidth: 'min(640px, calc(100vw - 48px))',
-        nzFooter: null,
-        nzMaskClosable: true,
-      },
-    );
+    const ref = this.modal.create<
+      EnumerationEditDialogComponent,
+      EnumerationEditDialogData,
+      boolean
+    >({
+      nzContent: EnumerationEditDialogComponent,
+      nzData: data,
+      nzTitle:
+        data.mode === 'create'
+          ? $localize`:@@program_catalog.dialog.add:Add program name`
+          : $localize`:@@program_catalog.dialog.edit:Edit program name`,
+      nzWidth: 'min(640px, calc(100vw - 48px))',
+      nzFooter: null,
+      nzMaskClosable: true,
+    });
     ref.afterClose.subscribe((saved: boolean | undefined) => {
       if (saved) void this.reload({ silent: true });
     });

@@ -30,10 +30,13 @@ import {
   isLoanCategory,
   type LoanCategory,
 } from '@core/loan-category';
+import { SURROGATE_FACT_QUESTION_CODES, categoryAsksAnySurrogateFact } from '@core/surrogate-facts';
 import {
-  SURROGATE_FACT_QUESTION_CODES,
-  categoryAsksAnySurrogateFact,
-} from '@core/surrogate-facts';
+  INCOME_BASES,
+  incomeBasisHint,
+  incomeBasisLabel,
+  type IncomeBasis,
+} from '@core/income-basis';
 import {
   LookupsApiService,
   type CatalogQuestion,
@@ -162,30 +165,34 @@ interface QuestionRow {
                 role="switch"
                 class="switch"
                 [attr.aria-checked]="offered()"
-                [attr.aria-label]="offerLabel()"
+                [attr.aria-label]="offerLabel(n)"
                 [attr.aria-busy]="savingOffer()"
                 (click)="toggleOffered()"
               >
                 <span class="track" aria-hidden="true"><span class="thumb"></span></span>
                 <span class="switch-text">
-                  <span class="switch-title">{{ offerLabel() }}</span>
+                  <span class="switch-title">{{ offerLabel(n) }}</span>
                   <span class="switch-hint">
                     @if (offered()) {
+                      <!-- Says WHO sees the effect and WHERE. "Banks can sell it"
+                         described a business fact the admin cannot see; the name
+                         appearing in a picker is the thing they can go and check. -->
                       <span i18n="@@pnd.gate_on_hint"
-                        >Banks can sell this name as a {{ categoryName() }}.</span
+                        >A bank adding a {{ categoryName() }} program can pick this name.</span
                       >
                     } @else if (pickedCount() > 0) {
                       <!-- The one state that needs explaining: picks exist but are
                          inert. Saying they survive is what stops an admin from
                          "fixing" it by re-entering them somewhere else. -->
                       <span i18n="@@pnd.gate_off_kept_hint"
-                        >{{ pickedCount() }} questions are saved here and will apply again when you
-                        turn this on.</span
+                        >A bank adding a {{ categoryName() }} program can’t pick this name. Your
+                        {{ pickedCount() }} chosen questions stay saved and come back when you turn
+                        this on.</span
                       >
                     } @else {
                       <span i18n="@@pnd.gate_off_hint"
-                        >Turn this on to choose what {{ categoryName() }} applicants are scored
-                        on.</span
+                        >A bank adding a {{ categoryName() }} program can’t pick this name. Turn this
+                        on to allow it, then choose what those applicants are scored on.</span
                       >
                     }
                   </span>
@@ -194,161 +201,142 @@ interface QuestionRow {
             </div>
 
             @if (offered()) {
-              <!-- The no-payslip option, on EVERY loan type (v16.0.0). It used to be
-                   gated on a hardcoded list of categories, so a Mortgage could never be
-                   sold this way however the business changed. The gate is now the
-                   questionnaire: surrogateCapable() asks whether this category's
-                   applicants are asked any of the four facts, and when they are not the
-                   switch still shows — with the one link that fixes it — instead of the
-                   option silently not existing.
+              <!-- How this name is SOLD as a {{ categoryName() }}: stored, and both marks
+                   are tickable because one bank reads a payslip while another works the
+                   income out from a fact — the same name, two ways, which is exactly why
+                   the platform has no separate no-payslip product.
 
-                   The switch is DERIVED (on = a fact is ticked), so it cannot disagree
-                   with the list under it. Turning it off unticks all four, which deletes
-                   picks, so it asks first. -->
+                   Two rows rather than one switch: with the basis stored, a switch could
+                   only ever express "also sold without a payslip" and left "sold ONLY
+                   without one" unsayable. The same pair of rows is what the Add-name
+                   dialog asks, so the vocabulary matches end to end. -->
               <section class="facts" [class.is-off]="!noPayslipOn()">
-                <div class="np-gate">
-                  @if (noPayslipOn() && factsPicked() > 0) {
-                    <button
-                      type="button"
-                      role="switch"
-                      class="np-switch"
-                      aria-checked="true"
-                      [attr.aria-busy]="busy()"
-                      nz-popconfirm
-                      nzPopconfirmTitle="Turn this off and untick all four facts? Banks reading them stop producing a figure."
-                      i18n-nzPopconfirmTitle="@@pnd.np_off_confirm"
-                      nzPopconfirmPlacement="bottomLeft"
-                      (nzOnConfirm)="toggleNoPayslip()"
-                    >
-                      <span class="track" aria-hidden="true"><span class="thumb"></span></span>
-                      <span class="np-text">
-                        <span class="np-title" i18n="@@pnd.np_title">Sold without a payslip</span>
-                        <span class="np-hint" i18n="@@pnd.np_on_hint"
-                          >Banks may work the income out from a fact instead of reading a
-                          salary. Tick what they look up.</span
-                        >
-                      </span>
-                    </button>
-                  } @else {
-                    <button
-                      type="button"
-                      role="switch"
-                      class="np-switch"
-                      [attr.aria-checked]="noPayslipOn()"
-                      [attr.aria-busy]="busy()"
-                      (click)="toggleNoPayslip()"
-                    >
-                      <span class="track" aria-hidden="true"><span class="thumb"></span></span>
-                      <span class="np-text">
-                        <span class="np-title" i18n="@@pnd.np_title">Sold without a payslip</span>
-                        <span class="np-hint">
-                          @if (noPayslipOn()) {
-                            <span i18n="@@pnd.np_on_hint"
-                              >Banks may work the income out from a fact instead of reading a
-                              salary. Tick what they look up.</span
-                            >
-                          } @else if (surrogateCapable()) {
-                            <span i18n="@@pnd.np_off_hint"
-                              >Off — banks selling this name as a {{ categoryName() }} must read a
-                              real payslip.</span
-                            >
-                          } @else {
-                            <span i18n="@@pnd.np_unavailable_hint"
-                              >{{ categoryName() }} applicants aren’t asked any of the four facts
-                              yet, so there is nothing for a bank to look up.</span
-                            >
+                <fieldset class="np-basis">
+                  <legend class="np-title" i18n="@@pnd.basis_title">
+                    How banks prove the income
+                  </legend>
+                  <div class="np-rows">
+                    @for (b of incomeBases; track b) {
+                      <label class="np-row" [class.is-on]="basisOn(b)">
+                        <input
+                          type="checkbox"
+                          class="sr-only"
+                          [checked]="basisOn(b)"
+                          [attr.aria-busy]="savingBasis()"
+                          (change)="toggleBasis(b)"
+                        />
+                        <span class="tick np-tick" aria-hidden="true">
+                          @if (basisOn(b)) {
+                            <span nz-icon nzType="check" nzTheme="outline"></span>
                           }
                         </span>
-                      </span>
-                    </button>
-                    @if (!surrogateCapable()) {
-                      <a class="np-fix" routerLink="/questionnaire/categories" i18n="@@pnd.np_fix"
+                        <span class="np-text">
+                          <span class="np-label">{{ basisLabel(b) }}</span>
+                          <span class="np-hint">{{ basisHint(b) }}</span>
+                        </span>
+                      </label>
+                    }
+                  </div>
+                  <!-- The questionnaire caveat, kept where it was: a name may be marked
+                       no-payslip whatever the questionnaire asks, but until this loan
+                       type asks one of the four facts there is nothing for a bank's
+                       table to read, so the mark alone quotes nothing. -->
+                  @if (noPayslipOn() && !surrogateCapable()) {
+                    <p class="np-warn">
+                      <span i18n="@@pnd.np_unavailable_hint"
+                        >{{ categoryName() }} applicants aren’t asked any of the four facts yet, so
+                        there is nothing for a bank to look up.</span
+                      >
+                      <a routerLink="/questionnaire/categories" i18n="@@pnd.np_fix"
                         >Ask one of them</a
                       >
-                    }
+                    </p>
                   }
-                </div>
+                </fieldset>
 
                 @if (noPayslipOn()) {
-                <h2 class="facts-title">
-                  <span i18n="@@pnd.facts_title">What the bank can work the income out from</span>
-                  <span class="facts-count">{{ factsPicked() }}/{{ surrogateFacts().length }}</span>
-                </h2>
-                <p class="facts-sub" i18n="@@pnd.facts_sub">
-                  Tick the facts this name’s banks look up. Each bank then enters its own table
-                  against that fact on its program — a table with no answer behind it gives the
-                  customer no figure at all.
-                </p>
-                <ul class="fact-list" role="list">
-                  @for (f of surrogateFacts(); track f.code) {
-                    <li class="fact" [attr.data-state]="factState(f)">
-                      @if (!f.picked && !f.asked) {
-                        <!-- Nothing to tick and nothing to untick: rendered as text with
+                  <h2 class="facts-title">
+                    <span i18n="@@pnd.facts_title">What the bank can work the income out from</span>
+                    <span class="facts-count"
+                      >{{ factsPicked() }}/{{ surrogateFacts().length }}</span
+                    >
+                  </h2>
+                  <p class="facts-sub" i18n="@@pnd.facts_sub">
+                    Tick the facts this name’s banks look up. Each bank then enters its own table
+                    against that fact on its program — a table with no answer behind it gives the
+                    customer no figure at all.
+                  </p>
+                  <ul class="fact-list" role="list">
+                    @for (f of surrogateFacts(); track f.code) {
+                      <li class="fact" [attr.data-state]="factState(f)">
+                        @if (!f.picked && !f.asked) {
+                          <!-- Nothing to tick and nothing to untick: rendered as text with
                              the one link that changes it, not as a disabled control. -->
-                        <span class="fact-main">
-                          <span class="fact-label">{{ f.label }}</span>
-                          <span class="fact-why" i18n="@@pnd.fact_not_asked"
-                            >{{ categoryName() }} applicants are never asked this, so no bank can
-                            use it yet.</span
-                          >
-                        </span>
-                        <a
-                          class="fact-fix"
-                          routerLink="/questionnaire/categories"
-                          i18n="@@pnd.fact_fix_ask"
-                          >Ask it</a
-                        >
-                      } @else {
-                        <button
-                          type="button"
-                          class="fact-main fact-toggle"
-                          role="checkbox"
-                          [attr.aria-checked]="f.picked"
-                          [attr.aria-busy]="saving().has(f.code) || busy()"
-                          (click)="toggleFact(f.code)"
-                        >
-                          <span class="tick" aria-hidden="true">
-                            @if (f.picked) {
-                              <span nz-icon nzType="check" nzTheme="outline"></span>
-                            }
-                          </span>
-                          <span class="fact-text">
+                          <span class="fact-main">
                             <span class="fact-label">{{ f.label }}</span>
-                            <span class="fact-type">{{ typeLabel(f.type) }}</span>
+                            <span class="fact-why" i18n="@@pnd.fact_not_asked"
+                              >{{ categoryName() }} applicants are never asked this, so no bank can
+                              use it yet.</span
+                            >
                           </span>
-                        </button>
-                        <!-- Ticked, but this category stopped asking it. The worst state
+                          <a
+                            class="fact-fix"
+                            routerLink="/questionnaire/categories"
+                            i18n="@@pnd.fact_fix_ask"
+                            >Ask it</a
+                          >
+                        } @else {
+                          <button
+                            type="button"
+                            class="fact-main fact-toggle"
+                            role="checkbox"
+                            [attr.aria-checked]="f.picked"
+                            [attr.aria-busy]="saving().has(f.code) || busy()"
+                            (click)="toggleFact(f.code)"
+                          >
+                            <span class="tick" aria-hidden="true">
+                              @if (f.picked) {
+                                <span nz-icon nzType="check" nzTheme="outline"></span>
+                              }
+                            </span>
+                            <span class="fact-text">
+                              <span class="fact-label">{{ f.label }}</span>
+                              <span class="fact-type">{{ typeLabel(f.type) }}</span>
+                            </span>
+                          </button>
+                          <!-- Ticked, but this category stopped asking it. The worst state
                              on the screen — a bank table is pointed at an answer that no
                              longer arrives — so it is called out on the row, not only in
                              the summary line below. -->
-                        @if (f.picked && !f.asked) {
-                          <a
-                            class="fact-fix warn"
-                            routerLink="/questionnaire/categories"
-                            i18n="@@pnd.fact_ticked_not_asked"
-                            >Not asked here — fix</a
-                          >
+                          @if (f.picked && !f.asked) {
+                            <a
+                              class="fact-fix warn"
+                              routerLink="/questionnaire/categories"
+                              i18n="@@pnd.fact_ticked_not_asked"
+                              >Not asked here — fix</a
+                            >
+                          }
                         }
-                      }
-                    </li>
+                      </li>
+                    }
+                  </ul>
+                  @if (factsNotAsked() > 0) {
+                    <p class="facts-warn" i18n="@@pnd.facts_warn">
+                      {{ factsNotAsked() }} of these are not asked of
+                      {{ categoryName() }} applicants. A bank program that reads one of them
+                      produces no income until that changes.
+                    </p>
                   }
-                </ul>
-                @if (factsNotAsked() > 0) {
-                  <p class="facts-warn" i18n="@@pnd.facts_warn">
-                    {{ factsNotAsked() }} of these are not asked of {{ categoryName() }} applicants.
-                    A bank program that reads one of them produces no income until that changes.
-                  </p>
-                }
-                <!-- The gap the LIST screen badges, said here too. This screen could not
+                  <!-- The gap the LIST screen badges, said here too. This screen could not
                      show it before: the row mapper dropped the counters at the boundary,
                      so the one place an operator opens to fix a name stayed silent about
                      the reason they opened it. -->
-                @if (noPayslipWithoutTable() > 0) {
-                  <p class="facts-warn" i18n="@@pnd.facts_no_table">
-                    {{ noPayslipWithoutTable() }} bank programs read these and have no table yet,
-                    so they quote nothing.
-                  </p>
-                }
+                  @if (noPayslipWithoutTable() > 0) {
+                    <p class="facts-warn" i18n="@@pnd.facts_no_table">
+                      {{ noPayslipWithoutTable() }} bank programs read these and have no table yet,
+                      so they quote nothing.
+                    </p>
+                  }
                 }
               </section>
             }
@@ -369,9 +357,12 @@ interface QuestionRow {
               <div class="locked" aria-live="polite">
                 <p class="locked-line">
                   <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+                  <!-- Points at the switch by POSITION, not by quoting its label: the
+                     label now carries the name, and nesting that inside quotes read
+                     as two sentences fighting for the same pair of quote marks. -->
                   <span i18n="@@pnd.locked"
-                    >{{ scope().length }} questions are asked here. Turn on “{{ offerLabel() }}” to
-                    pick which ones this name scores on.</span
+                    >{{ scope().length }} questions are asked here. Turn on the switch above to pick
+                    which ones this name scores on.</span
                   >
                 </p>
                 <ul class="grid grid-locked" role="list">
@@ -775,56 +766,75 @@ interface QuestionRow {
         padding-block: var(--space-3);
       }
 
-      /* --- The no-payslip switch -------------------------------------------- */
-      /* Same anatomy as the offered gate above, one level in, so the two read as
-         parent and child decision rather than as two unrelated toggles. */
-      .np-gate {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-3);
-        flex-wrap: wrap;
-      }
-      .np-switch {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-3);
-        padding: 0;
+      /* --- How the income is proved (two tickable rows) ---------------------- */
+      /* Rows, not the parent gate's switch anatomy: the gate above is one binary
+         decision (offered here or not) while this is a SET, and reusing the switch
+         for it made "sold only without a payslip" unsayable. */
+      .np-basis {
         border: 0;
-        background: none;
-        font: inherit;
-        text-align: start;
+        padding: 0;
+        margin: 0;
+        min-inline-size: 0;
+      }
+      .np-rows {
+        display: grid;
+        gap: var(--space-2);
+        margin-block-start: var(--space-2);
+      }
+      .np-row {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--pnd-line);
+        border-radius: var(--radius-md);
+        background: var(--pnd-surface);
         cursor: pointer;
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          background-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .np-switch:focus-visible {
-        outline: 2px solid var(--color-income-surrogate);
-        outline-offset: 3px;
-        border-radius: var(--radius-sm);
+      .np-row:hover {
+        border-color: var(--color-border-strong);
       }
-      .np-switch .track {
-        flex: none;
-        inline-size: 34px;
-        block-size: 20px;
-        margin-block-start: 2px;
-        border-radius: var(--radius-pill);
-        background: var(--color-border-strong);
-        transition: background-color var(--motion-duration-fast) var(--motion-ease);
+      /* On the LABEL — the row is what the operator perceives as focused. Keyed on
+         :focus-visible, not :focus-within: clicking a label focuses its input, so the
+         plain form drew a ring around every row the mouse had touched. */
+      .np-row:has(input:focus-visible) {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
       }
-      .np-switch .thumb {
-        display: block;
-        inline-size: 14px;
-        block-size: 14px;
-        margin: 3px;
-        border-radius: 50%;
-        background: var(--color-surface-default);
-        /* Logical, so RTL mirrors without a second rule (Principle IV / A19). */
-        margin-inline-start: 3px;
-        transition: margin-inline-start var(--motion-duration-fast) var(--motion-ease);
+      .np-row.is-on {
+        border-color: var(--np-accent, var(--color-brand-primary));
+        background: color-mix(
+          in srgb,
+          var(--np-accent, var(--color-brand-primary)) 7%,
+          var(--pnd-surface)
+        );
       }
-      .np-switch[aria-checked='true'] .track {
-        background: var(--color-income-surrogate);
+      /* The no-payslip row carries the colour this concept owns board-wide. */
+      .np-rows .np-row:last-child {
+        --np-accent: var(--color-income-surrogate);
       }
-      .np-switch[aria-checked='true'] .thumb {
-        margin-inline-start: 17px;
+      /* Anatomy comes from .tick — the box every other tickable thing on this screen
+         uses, including the fact tiles directly below these rows. The local copy drew a
+         2px border and a --text-xs glyph, so the panel showed two different checkbox
+         shapes stacked on each other, and its ink token (--color-text-inverse) is
+         defined nowhere: the check fell back to inherited body ink, i.e. dark navy on a
+         solid azure/plum fill. Only the overrides live here.
+         Specificity note: .tick is declared later in this sheet, so these must out-rank
+         it, hence .np-row .np-tick rather than .np-tick. */
+      .np-row .np-tick {
+        /* Centred on the label's FIRST LINE, not top-aligned: these rows are two lines
+           tall, and .tick's flat 2px nudge left the box riding above the cap-height. */
+        margin-block-start: calc((var(--text-sm) * var(--leading-snug) - 18px) / 2);
+      }
+      .np-row:hover .np-tick {
+        border-color: var(--np-accent, var(--color-brand-primary));
+      }
+      .np-row.is-on .np-tick {
+        border-color: var(--np-accent, var(--color-brand-primary));
+        background: var(--np-accent, var(--color-brand-primary));
       }
       .np-text {
         display: flex;
@@ -832,24 +842,39 @@ interface QuestionRow {
         gap: 2px;
       }
       .np-title {
+        padding: 0;
         font-size: var(--text-sm);
         font-weight: var(--font-weight-semibold);
+        color: var(--color-text-primary);
+      }
+      .np-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        /* Matches .fact-label / .q-label, and is the figure the tick centres on. */
+        line-height: var(--leading-snug);
         color: var(--color-text-primary);
       }
       .np-hint {
         max-inline-size: 62ch;
         font-size: var(--text-xs);
+        line-height: var(--line-height-base);
         color: var(--color-text-secondary);
       }
-      .np-fix {
-        margin-inline-start: auto;
+      .np-warn {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: var(--space-2) 0 0;
         font-size: var(--text-xs);
-        font-weight: var(--font-weight-medium);
-        color: var(--color-brand-primary);
+        color: var(--color-warning);
+      }
+      .np-warn a {
+        font-weight: var(--font-weight-semibold);
+        color: inherit;
+        text-decoration: underline;
       }
       @media (prefers-reduced-motion: reduce) {
-        .np-switch .track,
-        .np-switch .thumb {
+        .np-row {
           transition: none;
         }
       }
@@ -1337,19 +1362,35 @@ export class ProgramNameDetailPage implements OnInit {
   );
 
   /**
-   * The name's own no-payslip switch for this category: ON when a fact is ticked.
+   * How this name is sold under the OPEN tab — the stored basis, not an inference.
    *
-   * Derived rather than stored, so the switch and the tick-list can never disagree —
-   * there is no third place holding "is this sold without a payslip". `switchedOn` is the
-   * operator's INTENT while the list is open with nothing ticked yet; without it, ticking
-   * the first fact would be impossible because the list only renders when the switch
-   * reads on.
+   * It used to be derived from the fact ticks, which made the two impossible to
+   * disagree at the cost of making them impossible to state separately: a name could
+   * not be marked as sold without a payslip until someone had also decided WHICH fact
+   * its banks read, and unticking the last fact silently un-sold the product.
    */
-  private readonly switchedOn = signal<ReadonlySet<LoanCategory>>(new Set());
+  protected readonly incomeBases = INCOME_BASES;
 
-  protected readonly noPayslipOn = computed(
-    () => this.factsPicked() > 0 || this.switchedOn().has(this.activeCategory()),
+  protected readonly bases = computed<readonly IncomeBasis[]>(
+    () => this.name()?.bases[this.activeCategory()] ?? [],
   );
+
+  protected readonly noPayslipOn = computed(() => this.bases().includes('no_payslip'));
+
+  /** A basis write is in flight for the open tab (both rows go read-only, not disabled). */
+  protected readonly savingBasis = signal(false);
+
+  protected basisOn(basis: IncomeBasis): boolean {
+    return this.bases().includes(basis);
+  }
+
+  protected basisLabel(basis: IncomeBasis): string {
+    return incomeBasisLabel(basis);
+  }
+
+  protected basisHint(basis: IncomeBasis): string {
+    return incomeBasisHint(basis);
+  }
 
   /** True when the name may be OFFERED under the open tab's category. */
   protected readonly offered = computed(
@@ -1494,32 +1535,48 @@ export class ProgramNameDetailPage implements OnInit {
   );
 
   /**
-   * Turn the no-payslip option on or off for this category.
+   * Tick or untick one basis for this category, autosaved like every other control on
+   * this screen.
    *
-   * ON is intent only — nothing is written until a fact is ticked, because a fact IS the
-   * configuration. OFF unticks every fact, which deletes picks, so the template asks
-   * first.
+   * Unticking the LAST one is refused rather than sent: the API rejects an empty set
+   * (a pair sold no way at all is one no program can name), and letting the row go
+   * visually off before the failure arrives would be a lie. Turning the loan type off
+   * entirely is the control for "we do not sell this here", one switch above.
+   *
+   * Fact ticks are deliberately NOT cleared when no-payslip goes off. They are the
+   * answer to a different question — which figure a bank's table reads — and deleting
+   * them on a basis change is how the previous design lost configuration nobody asked
+   * to lose.
    */
-  protected toggleNoPayslip(): void {
+  protected async toggleBasis(basis: IncomeBasis): Promise<void> {
+    const row = this.name();
+    if (!row || this.savingBasis()) return;
     const category = this.activeCategory();
-    if (this.noPayslipOn()) {
-      void this.clearFacts();
-      this.switchedOn.update((s) => {
-        const next = new Set(s);
-        next.delete(category);
-        return next;
-      });
+    const current = this.bases();
+    const next = current.includes(basis)
+      ? current.filter((b) => b !== basis)
+      : INCOME_BASES.filter((b) => b === basis || current.includes(b));
+    if (next.length === 0) {
+      this.status.set(
+        $localize`:@@pnd.basis_last:Keep at least one — turn the loan type off instead.`,
+      );
       return;
     }
-    this.switchedOn.update((s) => new Set(s).add(category));
-  }
 
-  /** Untick every fact for this category in ONE write, so the board cannot half-apply. */
-  private async clearFacts(): Promise<void> {
-    const facts = new Set(SURROGATE_FACT_QUESTION_CODES);
-    const remaining = [...this.pickedCodes()].filter((code) => !facts.has(code));
-    if (remaining.length === this.pickedCodes().size) return;
-    await this.writeQuestions(remaining);
+    this.savingBasis.set(true);
+    try {
+      const updated = await this.api.setIncomeBasis(row.id, category, [...next]);
+      this.absorb(updated);
+      this.status.set(
+        next.includes('no_payslip')
+          ? $localize`:@@pnd.basis_saved_np:Sold without a payslip here.`
+          : $localize`:@@pnd.basis_saved_payslip:Reads a payslip here.`,
+      );
+    } catch {
+      this.status.set($localize`:@@pnd.basis_failed:Could not save. Try again.`);
+    } finally {
+      this.savingBasis.set(false);
+    }
   }
 
   /** How many bank programs behind this name are sold with no payslip and have no table. */
@@ -1580,8 +1637,13 @@ export class ProgramNameDetailPage implements OnInit {
     return categoryLabel(this.activeCategory());
   }
 
-  protected offerLabel(): string {
-    return $localize`:@@pnd.gate_label:Offered as a ${this.categoryName()}:category:`;
+  /**
+   * Quotes the name when the caller has the row. "Offered as a Personal Loan" read
+   * as a property of nothing in particular on a page that already shows the name in
+   * the H1 — spelling out who does the offering is what makes the switch a sentence.
+   */
+  protected offerLabel(row: ProgramNameRow): string {
+    return $localize`:@@pnd.gate_label:Banks can offer “${this.nameOf(row)}:name:” as a ${this.categoryName()}:category:`;
   }
 
   /** Same write as any other question — the facts block is a different VIEW of it. */

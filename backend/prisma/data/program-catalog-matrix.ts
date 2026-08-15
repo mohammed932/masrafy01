@@ -423,7 +423,7 @@ export const CATALOG_QUESTION_TEMPLATE: Record<
 // ---------------------------------------------------------------------------
 
 /** The fact each archetype's banks look an assumed income up by. */
-const NO_PAYSLIP_FACT: Readonly<Record<string, readonly string[]>> = {
+export const NO_PAYSLIP_FACT: Readonly<Record<string, readonly string[]>> = {
   armed_forces: ['military_grade'],
   police: ['military_grade'],
   govt_employee: ['academic_rank'],
@@ -447,3 +447,22 @@ for (const [key, facts] of Object.entries(NO_PAYSLIP_FACT)) {
     ...missing,
   ];
 }
+
+/**
+ * Which (name, category) pairs are SOLD without a payslip — the stored income
+ * basis, seeded alongside the fact ticks above.
+ *
+ * The two are no longer the same statement. A ticked fact says WHICH figure a
+ * bank's table reads; this says the name may be sold that way at all, and it is
+ * what the bank-program picker filters on and the API enforces. Derived from the
+ * same source so the seed cannot assert one without the other, but written to its
+ * own columns — an operator who unticks the last fact has not thereby stopped
+ * selling the product, and used to.
+ *
+ * `payslip` is NOT turned off anywhere here. Every one of these names is also sold
+ * the ordinary way by other banks (that is the whole reason v16.0.0 refused to
+ * make no-payslip a category), so the seed marks them BOTH and leaves the
+ * narrowing to whoever actually knows a given name is one-basis-only.
+ */
+export const CATALOG_NO_PAYSLIP: Readonly<Record<string, readonly CatalogCategory[]>> =
+  Object.fromEntries(Object.keys(NO_PAYSLIP_FACT).map((key) => [key, ['personal'] as const]));

@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { SuccessEnvelope } from '@core/auth/auth.types';
 import type { LoanCategory } from '@core/loan-category';
+import type { IncomeBasis } from '@core/income-basis';
 
 /** One entry's new assignment set, for the bulk write. */
 export interface EnumerationCategoryAssignment {
@@ -56,6 +57,14 @@ export interface EnumerationRow {
    */
   categories?: LoanCategory[];
   /**
+   * `program_name` rows only — how this name may be SOLD under each category it is
+   * offered under. Keyed by the assignment, so a category absent here is one the
+   * name is not offered under; an offered category always carries at least one
+   * basis. This is the rule the bank-program picker filters on and the API
+   * enforces, not a hint.
+   */
+  incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
+  /**
    * `program_name` rows only — question codes this name SUGGESTS scoring on,
    * PER loan category. Advisory: it pre-ticks the per-program scoring wizard and
    * constrains nothing. A missing category key and an empty array both mean "not
@@ -81,6 +90,11 @@ export interface CreateEnumerationRequest {
   labelAr: string;
   labelEn: string;
   parentKey?: string;
+  /**
+   * `program_name` only — how the new name is sold, applied to every loan
+   * category it starts under. Omitted means `['payslip']` server-side.
+   */
+  incomeBases?: IncomeBasis[];
   sortOrder?: number;
 }
 
@@ -129,6 +143,19 @@ export class LookupsApiService {
   }
 
   /**
+   * Hard-delete an entry — the row and its per-category assignments are gone,
+   * not parked.
+   *
+   * `program_name` only, and only while nothing points at it: the server refuses
+   * with `ENUMERATION_IN_USE` (409) when any bank program or application still
+   * names the key, and the toast interceptor renders that. Callers do NOT need to
+   * pre-check — the counts on the row are a UX shortcut, the server is the rule.
+   */
+  async remove(id: string): Promise<void> {
+    await firstValueFrom(this.http.delete<SuccessEnvelope<{ id: string }>>(`${this.base}/${id}`));
+  }
+
+  /**
    * Replace one name's loan-category set. The array IS the new set, not a
    * delta; an empty array parks the name (pickable nowhere).
    *
@@ -145,12 +172,32 @@ export class LookupsApiService {
   }
 
   /** Reassign many names in ONE transaction; returns the refreshed catalog. */
-  async setCategoriesBulk(
-    assignments: EnumerationCategoryAssignment[],
-  ): Promise<EnumerationRow[]> {
+  async setCategoriesBulk(assignments: EnumerationCategoryAssignment[]): Promise<EnumerationRow[]> {
     const res = await firstValueFrom(
       this.http.post<SuccessEnvelope<EnumerationRow[]>>(`${this.base}/categories`, {
         assignments,
+      }),
+    );
+    return res.data;
+  }
+
+  /**
+   * Replace ONE (name, loan category) pair's income basis — how the name is sold
+   * there. The array IS the new set and may never be empty: a pair offered under
+   * no basis is one no bank program could name.
+   *
+   * Scoped to the category, like `setQuestions`: a name is legitimately sold
+   * without a payslip as a personal loan and only against one as a car loan.
+   */
+  async setIncomeBasis(
+    id: string,
+    category: LoanCategory,
+    bases: IncomeBasis[],
+  ): Promise<EnumerationRow> {
+    const res = await firstValueFrom(
+      this.http.put<SuccessEnvelope<EnumerationRow>>(`${this.base}/${id}/income-basis`, {
+        category,
+        bases,
       }),
     );
     return res.data;

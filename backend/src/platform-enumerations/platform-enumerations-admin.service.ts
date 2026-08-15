@@ -4,6 +4,9 @@ import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
 import {
   EnumerationCategoriesNotApplicableException,
+  EnumerationCategoryNotAssignedException,
+  EnumerationDeleteNotSupportedException,
+  EnumerationInUseException,
   EnumerationKeyDuplicateException,
   EnumerationQuestionUnknownException,
   EnumerationQuestionsNotApplicableException,
@@ -11,10 +14,12 @@ import {
   NotFoundException,
 } from '@/common/errors/domain.exceptions';
 import { ALL_LOAN_CATEGORIES, dedupeCategories } from '@/common/loan-category.util';
+import { dedupeBases, type IncomeBasis } from '@/common/income-basis.util';
 import {
   isCategorisedEnumerationType,
   isQuestionTemplateEnumerationType,
   isUnscopedEnumerationType,
+  type IncomeBasesByCategory,
   type QuestionCodesByCategory,
 } from './platform-enumerations.repository';
 import {
@@ -106,6 +111,13 @@ export class PlatformEnumerationsAdminService {
       categories: isCategorisedEnumerationType(input.type)
         ? dedupeCategories(input.categories ?? [...ALL_LOAN_CATEGORIES])
         : [],
+      // Asked once on the create screen and applied to every category above; the
+      // detail screen's tabs are where it gets split per loan type. Defaulted
+      // rather than required so an API client that predates the field creates the
+      // name it used to create, instead of failing validation.
+      incomeBases: isCategorisedEnumerationType(input.type)
+        ? dedupeBases(input.incomeBases ?? ['payslip'])
+        : [],
       sortOrder: input.sortOrder ?? 0,
       createdBy: actor.staffId,
     });
@@ -171,6 +183,68 @@ export class PlatformEnumerationsAdminService {
       },
     });
     return updated;
+  }
+
+  /**
+   * Hard-delete a catalog entry — row gone, loan-category and question
+   * assignments cascaded with it.
+   *
+   * Not a second flavour of deprecate. Deprecating parks a name that IS in use:
+   * it stops appearing in the picker, every bank program that already names it
+   * keeps working, and the row survives to explain those keys. This is for the
+   * other case — a name added by mistake, or one nothing ever instantiated —
+   * where leaving a tombstone on the board is just noise an operator has to
+   * re-read forever.
+   *
+   * Three guards, in the order an operator meets them:
+   *  - `program_name` only. Every other type is referenced by key from places no
+   *    single count covers, so a delete there would dangle silently.
+   *  - never `systemOnly`, matching `update()`'s rule for active/deprecate: a
+   *    system-managed row is not the operator's to remove.
+   *  - never while referenced. There is no FK on either `programNameKey` column
+   *    (the catalog's unique key is composite), so Postgres would happily let the
+   *    row go and leave both pointing at nothing — the ghost rows A26 forbids.
+   *    The exception names both counts so the operator knows whether repointing
+   *    the programs would even help.
+   *
+   * The audit event carries the labels, not just the id: once the row is gone it
+   * is the only remaining record that the key ever existed.
+   */
+  async remove(id: string, actor: AdminActor): Promise<void> {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException();
+    if (existing.type !== PROGRAM_NAME_TYPE) {
+      throw new EnumerationDeleteNotSupportedException({ type: existing.type });
+    }
+    if (existing.systemOnly) {
+      throw new EnumerationSystemOnlyException({ type: existing.type, key: existing.key });
+    }
+
+    const refs = await this.repo.countProgramNameReferences(existing.key);
+    if (refs.programs > 0 || refs.applications > 0) {
+      throw new EnumerationInUseException({
+        type: existing.type,
+        key: existing.key,
+        programs: refs.programs,
+        applications: refs.applications,
+      });
+    }
+
+    await this.repo.deleteById(id);
+    this.repo.invalidateCache(existing.type as never);
+    await this.audit.write({
+      actorId: actor.staffId,
+      targetId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_DELETED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: existing.type,
+        key: existing.key,
+        id: existing.id,
+        labelAr: existing.labelAr,
+        labelEn: existing.labelEn,
+      },
+    });
   }
 
   // ---- Loan-category assignment --------------------------------------------
@@ -251,6 +325,61 @@ export class PlatformEnumerationsAdminService {
       await this.writeCategoryAudit(row, prev, next, actor);
     }
     return this.repo.findAllOrdered({ type: PROGRAM_NAME_TYPE });
+  }
+
+  // ---- Income basis (per name, per category) --------------------------------
+
+  /** Income bases for a type, keyed by enumeration id then by loan category. */
+  async incomeBasisAssignments(filter?: {
+    type?: string;
+  }): Promise<Map<string, IncomeBasesByCategory>> {
+    return this.repo.incomeBasisAssignments(filter);
+  }
+
+  /**
+   * Replace ONE (name, category) pair's income basis — "Sold without a payslip"
+   * on the catalog detail screen.
+   *
+   * Refuses a category the name is not offered under rather than creating the
+   * assignment: the two switches sit next to each other on the same tab and mean
+   * different things, so a basis write that silently offered the name somewhere
+   * new would be the screen doing something the operator did not ask for.
+   *
+   * Not guarded on `systemOnly`, like both assignment axes above: how a name is
+   * sold is an operational choice, not a system invariant.
+   */
+  async setIncomeBases(
+    id: string,
+    category: LoanCategory,
+    bases: IncomeBasis[],
+    actor: AdminActor,
+  ): Promise<EnumerationRow> {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException();
+    if (!isCategorisedEnumerationType(existing.type)) {
+      throw new EnumerationCategoriesNotApplicableException({ type: existing.type });
+    }
+
+    const before = (await this.repo.incomeBasesOf(id))[category] ?? [];
+    const next = dedupeBases(bases);
+    const written = await this.repo.setIncomeBases(id, category, next);
+    if (written === 0) {
+      throw new EnumerationCategoryNotAssignedException({
+        type: existing.type,
+        key: existing.key,
+        category,
+      });
+    }
+    // Invalidated, unlike `setQuestions`: the basis DOES ride on the cached member
+    // payload (the bank-program picker filters on it), so a 60s window would let a
+    // name the operator just marked no-payslip stay missing from the picker they
+    // opened it for.
+    this.repo.invalidateCache(PROGRAM_NAME_TYPE);
+
+    if (before.join(',') !== next.join(',')) {
+      await this.writeAssignmentAudit(existing, `incomeBasis.${category}`, before, next, actor);
+    }
+    return existing;
   }
 
   // ---- Question template ---------------------------------------------------
@@ -354,8 +483,10 @@ export class PlatformEnumerationsAdminService {
     row: EnumerationRow,
     // `questions.<category>` rather than a plain 'questions': the question
     // template is per loan category, and a diff that did not say which one would
-    // be unreadable as soon as a name is templated twice.
-    field: 'categories' | `questions.${LoanCategory}`,
+    // be unreadable as soon as a name is templated twice. `incomeBasis.<category>`
+    // is per category for the same reason — a name sold without a payslip as a
+    // personal loan and against one as a car loan produces two independent diffs.
+    field: 'categories' | `questions.${LoanCategory}` | `incomeBasis.${LoanCategory}`,
     from: readonly string[],
     to: readonly string[],
     actor: AdminActor,

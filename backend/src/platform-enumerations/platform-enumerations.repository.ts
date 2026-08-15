@@ -7,6 +7,7 @@
  */
 
 import type { LoanCategory } from '@prisma/client';
+import type { IncomeBasis } from '@/common/income-basis.util';
 
 export type EnumerationType =
   | 'transfer_type'
@@ -78,6 +79,16 @@ export function isQuestionTemplateEnumerationType(type: string): boolean {
  */
 export type QuestionCodesByCategory = Partial<Record<LoanCategory, string[]>>;
 
+/**
+ * One catalog name's income BASES, per loan category — how the name may be sold
+ * under each: against a payslip, without one, or both.
+ *
+ * `Partial` because a category the name is not assigned to has no basis at all;
+ * an assigned category ALWAYS has at least one (the writers reject the empty set,
+ * which would be a pair offerable under no basis).
+ */
+export type IncomeBasesByCategory = Partial<Record<LoanCategory, IncomeBasis[]>>;
+
 /** One catalog name's suggested question set for ONE loan category, by key. */
 export interface EnumerationQuestionTemplate {
   key: string;
@@ -103,18 +114,30 @@ export interface EnumerationMember {
    *  `CATEGORISED_ENUMERATION_TYPES`; `[]` on a categorised type means parked. */
   categories: LoanCategory[];
   /**
+   * `program_name` only — how this name may be sold under each category it is
+   * assigned to: `['payslip']`, `['no_payslip']`, or both. STORED (chosen when the
+   * name is created, edited per tab on the catalog detail screen), which is what
+   * makes it the pairing rule the bank-program picker filters on in BOTH
+   * directions and the API enforces on save.
+   *
+   * `undefined` means "not loaded" (a caller that did not `include` the relation)
+   * and must never be read as "none" — the picker treats it as unknown and does
+   * not filter, so a client running against an older API is not handed an empty
+   * list.
+   */
+  incomeBases?: IncomeBasesByCategory;
+  /**
    * `program_name` only — the surrogate FACTS this name is ticked to read, per loan
-   * category. A category with a non-empty list is one under which the name is sold
-   * WITHOUT a payslip.
+   * category (`military_grade`, `years_in_practice`, …).
    *
-   * Derived, never stored: the fact ticks ARE the statement, so there is no flag that can
-   * disagree with them. The bank-program builder filters its name picker on this the
-   * moment the operator chooses the no-payslip basis — the rule that makes no-payslip
-   * programs their own set of names rather than a free-for-all — and uses the codes to say
-   * whether the fact a chosen method reads is set up at all.
+   * NOT the income basis, which is `incomeBases` above. This answers the next
+   * question down: given that the name is sold without a payslip here, WHICH fact
+   * do its banks look up, and is the questionnaire asking it at all. The
+   * bank-program form uses it to warn that the method a program selected reads a
+   * fact nobody is asked — a rule that resolves to no income, silently.
    *
-   * `undefined` means "not loaded" (a caller that did not `include` the relation) and must
-   * never be read as "none" — the picker treats it as unknown and does not filter.
+   * Derived from the ticked questions, never stored. `undefined` means "not
+   * loaded", never "none".
    */
   noPayslipFacts?: Partial<Record<LoanCategory, string[]>>;
 }
@@ -144,6 +167,23 @@ export abstract class PlatformEnumerationsRepository {
    * picker.
    */
   abstract memberCategories(type: EnumerationType, key: string): Promise<LoanCategory[]>;
+
+  /**
+   * The income bases a member may be sold under FOR ONE loan category, by key.
+   * Empty = the name is not assigned to that category at all (the caller has
+   * already rejected that pair with a better message, so this never has to
+   * distinguish it from "assigned but basis-less" — the writers make the second
+   * state unreachable).
+   *
+   * Uncached, for the same reason as `memberCategories`: it backs a write-time
+   * rejection, and a 60s window in which a mismatched pair still saves is a
+   * correctness bug rather than a stale picker.
+   */
+  abstract memberIncomeBases(
+    type: EnumerationType,
+    key: string,
+    category: LoanCategory,
+  ): Promise<IncomeBasis[]>;
 
   /**
    * A catalog name's SUGGESTED question set for ONE loan category, by key.

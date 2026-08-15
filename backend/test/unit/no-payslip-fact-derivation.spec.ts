@@ -1,22 +1,19 @@
 /**
- * Where "sold without a payslip" comes from (v16.0.0).
+ * WHICH figure a bank works the income out from — not whether the name is sold that
+ * way, which is now the stored `incomeBases` (`program-name-income-basis.spec.ts`).
  *
- * There is no column, no flag and no hardcoded category list. A catalog name is sold
- * without a payslip under a loan category exactly when one of the four surrogate FACTS is
- * among the questions ticked for that (name, category) pair — so the tick-list on the
- * catalog screen IS the switch, and nothing else can contradict it.
+ * The two were one statement until the basis was given its own columns: a name counted
+ * as no-payslip exactly when one of the four surrogate FACTS was ticked for that (name,
+ * category) pair. That conflation is gone, and this derivation keeps the narrower job it
+ * was always doing — telling the operator, while they are choosing a method in the
+ * bank-program wizard, whether the fact that method reads is asked of this category's
+ * applicants at all. A method reading a fact nobody is asked resolves to no income, in
+ * silence, which is the failure this field exists to surface.
  *
- * That derivation is served to the admin on the cached `program_name` member payload as
- * `noPayslipFacts`, and two behaviours ride on it:
- *
- *   - the bank-program wizard offers ONLY fact-carrying names once the operator picks the
- *     no-payslip basis (which is what makes these their own set of programs), and
- *   - it tells the operator whether the fact their chosen method reads is set up at all,
- *     while they are choosing, instead of after a failed save.
- *
- * Both break silently if the derivation drifts, so it is pinned here. The specs run
- * against `getActiveMembers`, i.e. through the real mapper, rather than against a private
- * helper — the field only matters if it survives to the payload.
+ * Served on the cached `program_name` member payload as `noPayslipFacts`, and pinned
+ * here because it breaks silently. The specs run against `getActiveMembers`, i.e.
+ * through the real mapper, rather than against a private helper — the field only matters
+ * if it survives to the payload.
  */
 import { describe, expect, it } from 'vitest';
 import { LoanCategory } from '@prisma/client';

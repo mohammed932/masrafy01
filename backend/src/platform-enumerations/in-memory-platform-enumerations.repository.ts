@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
+import type { IncomeBasis } from '@/common/income-basis.util';
 import {
   EnumerationMember,
   EnumerationType,
@@ -59,6 +60,16 @@ export class InMemoryPlatformEnumerationsRepository
    * class up (it is feature-002 scaffolding kept for reference).
    */
   async memberCategories(): Promise<LoanCategory[]> {
+    return [];
+  }
+
+  /**
+   * No categorised members here (see above), so no pair has an income basis
+   * either. Empty rather than `['payslip']`: a default would let this stub answer
+   * a question it has no data for, and the one caller reads empty as "that pair
+   * does not exist".
+   */
+  async memberIncomeBases(): Promise<IncomeBasis[]> {
     return [];
   }
 

@@ -80,6 +80,12 @@ enum AuditEventType {
   PLATFORM_ENUMERATION_UPDATED
   PLATFORM_ENUMERATION_DEACTIVATED
   PLATFORM_ENUMERATION_DEPRECATED
+  /// A catalog entry was hard-DELETED (row gone, join rows cascaded). Distinct
+  /// from DEPRECATED on purpose: deprecation is reversible and the row survives
+  /// to explain old data, deletion leaves the audit event as the only remaining
+  /// record that the key ever existed — so the payload carries the labels, not
+  /// just the id.
+  PLATFORM_ENUMERATION_DELETED
   CUSTOMER_SIGNED_UP
   CUSTOMER_LOGGED_IN
   CUSTOMER_LOGGED_OUT
@@ -690,6 +696,27 @@ model PlatformEnumeration {
 model PlatformEnumerationLoanCategory {
   enumerationId String       @db.VarChar(30)
   category      LoanCategory
+  /// How income is proved when this name is sold under this category — the
+  /// INCOME BASIS, stored per (name, category) pair.
+  ///
+  /// Two booleans rather than one enum because a name legitimately carries BOTH:
+  /// one bank sells "Doctor Loans" against a payslip while another works the
+  /// income out from years in practice, and v16.0.0 deleted the `fast` category
+  /// precisely because that pair is one product, not two. A single-valued column
+  /// would force the second bank to duplicate the catalog entry.
+  ///
+  /// Stored, not derived. It used to be inferred from the name's ticked surrogate
+  /// FACTS (`platform_enumeration_question`), which meant a name could not be
+  /// marked no-payslip until someone found the fact tick-list, and a brand-new
+  /// name was silently payslip-only with nothing on the create screen saying so.
+  /// The facts keep their own job — WHICH fact a bank's table reads, and whether
+  /// the questionnaire asks it — they just no longer stand in for this.
+  ///
+  /// Both false is meaningless (a pair offerable under no basis is unsellable) and
+  /// is rejected in the service, the same posture this table already takes for
+  /// "only `program_name` may be categorised".
+  payslip       Boolean      @default(true)
+  noPayslip     Boolean      @default(false)
   createdAt     DateTime     @default(now()) @db.Timestamptz(6)
 
   enumeration PlatformEnumeration @relation("PlatformEnumerationLoanCategories", fields: [enumerationId], references: [id], onDelete: Cascade)

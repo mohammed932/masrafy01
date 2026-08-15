@@ -2,12 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { LoanCategory, QuestionType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
+import { ALL_INCOME_BASES, type IncomeBasis } from '@/common/income-basis.util';
 import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -64,11 +66,55 @@ export class CreateEnumerationDto {
   @IsEnum(LoanCategory, { each: true })
   categories?: LoanCategory[];
 
+  /**
+   * How the new name may be sold — against a payslip, without one, or both —
+   * applied to EVERY category above. Ignored for types that are not categorisable.
+   *
+   * `@ArrayMinSize(1)`, unlike the category array: an empty basis set is not a
+   * "parked" state with a meaning, it is a pair no bank program could ever name.
+   * Omitted defaults to `['payslip']`, which is what every name meant before the
+   * basis was recorded.
+   */
+  @ApiPropertyOptional({ enum: ALL_INCOME_BASES, isArray: true, default: ['payslip'] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(ALL_INCOME_BASES.length)
+  @IsIn([...ALL_INCOME_BASES], { each: true })
+  incomeBases?: IncomeBasis[];
+
   @ApiPropertyOptional({ minimum: 0, default: 0 })
   @IsOptional()
   @IsInt()
   @Min(0)
   sortOrder?: number;
+}
+
+/**
+ * Replace ONE (name, category) pair's income basis — the "Sold without a payslip"
+ * switch on the catalog detail screen, one tab at a time.
+ *
+ * `category` is REQUIRED and scopes the whole write, exactly as in
+ * `SetEnumerationQuestionsDto`: a name is legitimately sold without a payslip as a
+ * personal loan and only against a payslip as a car loan, so a body without a
+ * category would have to guess which of those the operator meant.
+ *
+ * `@ArrayMinSize(1)` here and NOT on the category / question DTOs, deliberately.
+ * Empty means "parked" there — a real state with a real screen affordance. Here it
+ * would mean a pair that is offered but unsellable, which no control can produce
+ * and no picker could render.
+ */
+export class SetEnumerationIncomeBasisDto {
+  @ApiProperty({ enum: LoanCategory })
+  @IsEnum(LoanCategory)
+  category!: LoanCategory;
+
+  @ApiProperty({ enum: ALL_INCOME_BASES, isArray: true })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(ALL_INCOME_BASES.length)
+  @IsIn([...ALL_INCOME_BASES], { each: true })
+  bases!: IncomeBasis[];
 }
 
 /**
@@ -227,6 +273,22 @@ export class EnumerationRowDto {
    * `program_name` row `[]` DOES mean parked: offerable nowhere.
    */
   @ApiPropertyOptional({ enum: LoanCategory, isArray: true }) categories?: LoanCategory[];
+  /**
+   * How this name may be sold under each category it is assigned to —
+   * `{ personal: ['payslip','no_payslip'], car: ['payslip'] }`. Present on
+   * `program_name` rows only.
+   *
+   * Keyed by the ASSIGNMENT, so a category absent here is one the name is not
+   * offered under at all; an assigned category always carries at least one basis.
+   * The bank-program picker filters on this in both directions and the API rejects
+   * a program whose basis is not in the set (`PROGRAM_NAME_KEY_BASIS_MISMATCH`).
+   */
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { type: 'array', items: { type: 'string', enum: [...ALL_INCOME_BASES] } },
+    example: { personal: ['payslip', 'no_payslip'], car: ['payslip'] },
+  })
+  incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
   /**
    * Question codes this catalog name SUGGESTS scoring on, PER LOAN CATEGORY —
    * `{ personal: ['monthly_income'], business: [] }`. Present on `program_name`

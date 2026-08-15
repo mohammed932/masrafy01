@@ -2,6 +2,11 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BankProgramType } from '@prisma/client';
 import type { LoanCategory, PlatformEnumeration, Prisma, QuestionType } from '@prisma/client';
 import { sortCategories } from '@/common/loan-category.util';
+import {
+  basesOfFlags,
+  flagsOfBases,
+  type IncomeBasis,
+} from '@/common/income-basis.util';
 import { SURROGATE_BOUND_QUESTION_CODES } from '@/matching/pipeline/surrogate-fact-bindings';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
@@ -9,6 +14,7 @@ import {
   EnumerationType,
   PlatformEnumerationsRepository,
   type EnumerationQuestionTemplate,
+  type IncomeBasesByCategory,
   type QuestionCodesByCategory,
 } from './platform-enumerations.repository';
 
@@ -21,6 +27,12 @@ export interface CreateEnumerationInput {
   sortOrder?: number;
   /** Loan categories to assign at creation. Empty / omitted = parked. */
   categories?: readonly LoanCategory[];
+  /**
+   * How the new name may be sold under EVERY category above — the create screen
+   * asks once, the detail screen's tabs refine it afterwards. Omitted means
+   * `['payslip']`, which is what a name meant before the column existed.
+   */
+  incomeBases?: readonly IncomeBasis[];
   createdBy: string;
 }
 
@@ -188,13 +200,17 @@ export class PostgresPlatformEnumerationsRepository
       // and the builder must re-filter the instant the operator changes the
       // product category — not on a refetch.
       //
-      // The ticked QUESTIONS ride along for the same reason, but only their codes:
-      // the builder also filters by income basis, and a name is no-payslip exactly
-      // when one of the four surrogate facts is ticked. Reduced to
-      // `noPayslipCategories` in the mapper, so the payload gains one short array
-      // per name rather than every name's whole template.
+      // The stored income BASIS rides on the same assignment row, so the builder
+      // can narrow its name picker in BOTH directions the instant the operator
+      // picks a basis — no extra query, no extra round-trip.
+      //
+      // The ticked QUESTIONS ride along too, but only their codes, and for a
+      // different job: the builder warns when the fact the chosen METHOD reads is
+      // not asked of this category's applicants. Reduced to the four fact codes in
+      // the mapper, so the payload gains one short array per name rather than
+      // every name's whole template.
       include: {
-        loanCategories: { select: { category: true } },
+        loanCategories: { select: { category: true, payslip: true, noPayslip: true } },
         questions: { select: { category: true, question: { select: { code: true } } } },
       },
     });
@@ -217,6 +233,27 @@ export class PostgresPlatformEnumerationsRepository
       select: { category: true },
     });
     return sortCategories(rows.map((r) => r.category));
+  }
+
+  /**
+   * The income bases one member may be sold under for ONE category, by catalog
+   * KEY. Empty when the pair is not assigned at all — the caller has already
+   * rejected that with `PROGRAM_NAME_KEY_NOT_IN_CATEGORY`, which names the right
+   * screen; a basis error there would send the operator to the wrong one.
+   *
+   * Uncached for the same reason as `memberCategories` above: it backs a hard
+   * write-time rejection.
+   */
+  async memberIncomeBases(
+    type: EnumerationType,
+    key: string,
+    category: LoanCategory,
+  ): Promise<IncomeBasis[]> {
+    const row = await this.prisma.platformEnumerationLoanCategory.findFirst({
+      where: { category, enumeration: { type, key } },
+      select: { payslip: true, noPayslip: true },
+    });
+    return row ? basesOfFlags(row) : [];
   }
 
   invalidateCache(type?: EnumerationType): void {
@@ -375,8 +412,18 @@ export class PostgresPlatformEnumerationsRepository
         // Written with the row, not after it: an entry that exists with no
         // assignment — even for one round-trip — is offerable nowhere, and the
         // whole point of the caller's default is that it can never happen.
+        // The basis is written with the assignment, on the same row: a name that
+        // exists for even one round-trip with no basis is one the bank-program
+        // picker would list under neither card.
         loanCategories: input.categories?.length
-          ? { createMany: { data: input.categories.map((category) => ({ category })) } }
+          ? {
+              createMany: {
+                data: input.categories.map((category) => ({
+                  category,
+                  ...flagsOfBases(input.incomeBases ?? ['payslip']),
+                })),
+              },
+            }
           : undefined,
       },
     });
@@ -404,6 +451,65 @@ export class PostgresPlatformEnumerationsRepository
     return map;
   }
 
+  /**
+   * Every assignment row's income BASES, keyed by enumeration id then category —
+   * the sibling of `categoryAssignments`, read the same way and for the same
+   * screen (the catalog list needs "which of these are sold without a payslip"
+   * for all 16 names at once).
+   *
+   * Separate method rather than a widened return on `categoryAssignments`: that
+   * one is also what the assignment board diffs for its audit payload, and a
+   * shape change there would ripple into the audit log.
+   */
+  async incomeBasisAssignments(filter?: {
+    type?: string;
+  }): Promise<Map<string, IncomeBasesByCategory>> {
+    const rows = await this.prisma.platformEnumerationLoanCategory.findMany({
+      where: filter?.type ? { enumeration: { type: filter.type } } : undefined,
+      select: { enumerationId: true, category: true, payslip: true, noPayslip: true },
+    });
+    const map = new Map<string, IncomeBasesByCategory>();
+    for (const row of rows) {
+      let byCategory = map.get(row.enumerationId);
+      if (!byCategory) {
+        byCategory = {};
+        map.set(row.enumerationId, byCategory);
+      }
+      byCategory[row.category] = basesOfFlags(row);
+    }
+    return map;
+  }
+
+  /** One entry's bases per assigned category — what the detail screen's tabs read. */
+  async incomeBasesOf(enumerationId: string): Promise<IncomeBasesByCategory> {
+    const rows = await this.prisma.platformEnumerationLoanCategory.findMany({
+      where: { enumerationId },
+      select: { category: true, payslip: true, noPayslip: true },
+    });
+    const byCategory: IncomeBasesByCategory = {};
+    for (const row of rows) byCategory[row.category] = basesOfFlags(row);
+    return byCategory;
+  }
+
+  /**
+   * Replace ONE pair's income basis. `updateMany` rather than `update`, so an
+   * unassigned pair comes back as `0` for the service to reject instead of
+   * throwing a Prisma not-found — and so this can never CREATE an assignment as a
+   * side effect of setting a basis. Offering a name under a category is a
+   * different decision, made on a different control.
+   */
+  async setIncomeBases(
+    enumerationId: string,
+    category: LoanCategory,
+    bases: readonly IncomeBasis[],
+  ): Promise<number> {
+    const { count } = await this.prisma.platformEnumerationLoanCategory.updateMany({
+      where: { enumerationId, category },
+      data: flagsOfBases(bases),
+    });
+    return count;
+  }
+
   /** One entry's current assignment set. */
   async categoriesOf(enumerationId: string): Promise<LoanCategory[]> {
     const rows = await this.prisma.platformEnumerationLoanCategory.findMany({
@@ -426,10 +532,23 @@ export class PostgresPlatformEnumerationsRepository
     return this.prisma.$transaction(async (tx) => {
       // Same parent lock, same reason, as `setQuestions`.
       await tx.$executeRaw`SELECT 1 FROM platform_enumeration WHERE id = ${enumerationId} FOR UPDATE`;
+      // Delete-then-insert would reset the income basis of every SURVIVING pair to
+      // the column default, so a name offered under Personal + Car that loses Car
+      // would quietly stop being sold without a payslip under Personal too. The
+      // basis is carried across; only genuinely new pairs take the default.
+      const before = await tx.platformEnumerationLoanCategory.findMany({
+        where: { enumerationId },
+        select: { category: true, payslip: true, noPayslip: true },
+      });
+      const kept = new Map(before.map((r) => [r.category, { payslip: r.payslip, noPayslip: r.noPayslip }]));
       await tx.platformEnumerationLoanCategory.deleteMany({ where: { enumerationId } });
       if (categories.length === 0) return;
       await tx.platformEnumerationLoanCategory.createMany({
-        data: categories.map((category) => ({ enumerationId, category })),
+        data: categories.map((category) => ({
+          enumerationId,
+          category,
+          ...(kept.get(category) ?? flagsOfBases(['payslip'])),
+        })),
       });
     });
   }
@@ -619,12 +738,25 @@ export class PostgresPlatformEnumerationsRepository
         await tx.$executeRaw`SELECT 1 FROM platform_enumeration WHERE id = ${id} FOR UPDATE`;
       }
       for (const a of assignments) {
+        // Carried across exactly as in `setCategories` — a column action on the
+        // board must not silently re-set the basis of pairs it keeps.
+        const before = await tx.platformEnumerationLoanCategory.findMany({
+          where: { enumerationId: a.enumerationId },
+          select: { category: true, payslip: true, noPayslip: true },
+        });
+        const kept = new Map(
+          before.map((r) => [r.category, { payslip: r.payslip, noPayslip: r.noPayslip }]),
+        );
         await tx.platformEnumerationLoanCategory.deleteMany({
           where: { enumerationId: a.enumerationId },
         });
         if (a.categories.length === 0) continue;
         await tx.platformEnumerationLoanCategory.createMany({
-          data: a.categories.map((category) => ({ enumerationId: a.enumerationId, category })),
+          data: a.categories.map((category) => ({
+            enumerationId: a.enumerationId,
+            category,
+            ...(kept.get(category) ?? flagsOfBases(['payslip'])),
+          })),
         });
       }
     });
@@ -646,6 +778,45 @@ export class PostgresPlatformEnumerationsRepository
 
     const row = await this.prisma.platformEnumeration.update({ where: { id }, data });
     return toEnumerationRow(row);
+  }
+
+  /**
+   * Everything that still names a `program_name` key — the check a hard delete
+   * hangs on.
+   *
+   * Counted, not joined: neither column carries an FK (the catalog's unique key is
+   * the composite `(type, key)`, so Postgres cannot enforce this), which is exactly
+   * why the count has to exist in code. Applications count as much as programs: a
+   * stored application uses the key to explain which programs it was narrowed to,
+   * and deleting the row underneath it makes that explanation unrecoverable.
+   *
+   * Both reads live here rather than in their own feature repositories for the
+   * same reason `countProgramNameUsage` does — bank-programs already depends on
+   * this module, so importing back would close a cycle.
+   */
+  async countProgramNameReferences(key: string): Promise<{
+    programs: number;
+    applications: number;
+  }> {
+    const [programs, applications] = await Promise.all([
+      this.prisma.bankProgram.count({ where: { programNameKey: key } }),
+      this.prisma.application.count({ where: { programNameKey: key } }),
+    ]);
+    return { programs, applications };
+  }
+
+  /**
+   * Hard delete. `platform_enumeration_loan_category` and
+   * `platform_enumeration_question` cascade with the row (both declare
+   * `onDelete: Cascade`), so this is one statement and leaves no orphan
+   * assignment behind.
+   *
+   * Callers check references FIRST — see `countProgramNameReferences`. Nothing at
+   * this layer can refuse the delete, because nothing here knows what the key is
+   * worth.
+   */
+  async deleteById(id: string): Promise<void> {
+    await this.prisma.platformEnumeration.delete({ where: { id } });
   }
 
   static readonly KNOWN_TYPES = ALL_TYPES;
@@ -696,7 +867,7 @@ function pairKey(nameKey: string, category: string): string {
 
 /** Both relations are optional so callers that don't `include` them still map. */
 type PlatformEnumerationWithCategories = PlatformEnumeration & {
-  loanCategories?: { category: LoanCategory }[];
+  loanCategories?: { category: LoanCategory; payslip?: boolean; noPayslip?: boolean }[];
   questions?: { category: LoanCategory; question: { code: string } }[];
 };
 
@@ -710,8 +881,29 @@ function toEnumerationMember(row: PlatformEnumerationWithCategories): Enumeratio
     active: row.active,
     deprecated: row.deprecatedAt !== null,
     categories: sortCategories((row.loanCategories ?? []).map((c) => c.category)),
+    incomeBases: incomeBasesOf(row.loanCategories),
     noPayslipFacts: noPayslipFactsOf(row.questions),
   };
+}
+
+/**
+ * The stored basis flags, per category — what the bank-program picker filters on.
+ *
+ * `undefined` when the relation was not included, so an older client (or a caller
+ * that selected only the category) is told "unknown" rather than "sold under
+ * nothing", which would empty the picker. A row selected WITHOUT the two boolean
+ * columns is treated the same way, for the same reason.
+ */
+function incomeBasesOf(
+  rows: { category: LoanCategory; payslip?: boolean; noPayslip?: boolean }[] | undefined,
+): IncomeBasesByCategory | undefined {
+  if (rows === undefined) return undefined;
+  const out: IncomeBasesByCategory = {};
+  for (const row of rows) {
+    if (row.payslip === undefined || row.noPayslip === undefined) return undefined;
+    out[row.category] = basesOfFlags({ payslip: row.payslip, noPayslip: row.noPayslip });
+  }
+  return out;
 }
 
 /**

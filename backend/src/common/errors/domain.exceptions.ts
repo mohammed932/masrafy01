@@ -327,6 +327,44 @@ export class EnumerationQuestionsNotApplicableException extends DomainException 
 }
 
 /**
+ * An income basis was submitted for a (name, category) pair that does not exist —
+ * the name is not offered under that loan type.
+ *
+ * 422 rather than 404: the name and the category both exist, it is their PAIRING
+ * that does not, and a 404 would read as "this catalog entry is gone".
+ */
+export class EnumerationCategoryNotAssignedException extends DomainException {
+  constructor(meta: { type: string; key: string; category: string }) {
+    super(ERROR_CODES.ENUMERATION_CATEGORY_NOT_ASSIGNED, meta);
+  }
+}
+
+/**
+ * A hard delete was refused: bank programs and/or applications still name this
+ * catalog key.
+ *
+ * Both counts ride in the meta, and both are needed — a name with no live
+ * programs but 40 applications behind it is still undeletable, and an operator
+ * told only "in use" would go repoint the programs and try again for nothing.
+ */
+export class EnumerationInUseException extends DomainException {
+  constructor(meta: { type: string; key: string; programs: number; applications: number }) {
+    super(ERROR_CODES.ENUMERATION_IN_USE, meta);
+  }
+}
+
+/**
+ * Hard delete was asked for on a type whose references cannot be counted (every
+ * type except `program_name` — see the error code's note). 422, not 403: the
+ * caller is not forbidden, the operation is meaningless for this row.
+ */
+export class EnumerationDeleteNotSupportedException extends DomainException {
+  constructor(meta: { type: string }) {
+    super(ERROR_CODES.ENUMERATION_DELETE_NOT_SUPPORTED, meta);
+  }
+}
+
+/**
  * The template named question codes that match no question at all — not even a
  * soft-deleted one. Reports every offender so the board can say which rather
  * than just refusing the save.
@@ -557,6 +595,26 @@ export class ProgramNameKeyNotInCategoryException extends DomainException {
     assignedCategories: string[];
   }) {
     super(ERROR_CODES.PROGRAM_NAME_KEY_NOT_IN_CATEGORY, meta);
+  }
+}
+
+/**
+ * The catalog name is offered under this loan category, but not on the income
+ * BASIS the program is being saved with.
+ *
+ * Raised only when the save MOVES the program onto a new (name, basis) pair —
+ * the same grandfather rule the category check applies, for the same reason: an
+ * operator editing a fee must not be blocked by a catalog change they did not
+ * make and cannot see from this screen.
+ */
+export class ProgramNameKeyBasisMismatchException extends DomainException {
+  constructor(meta: {
+    programNameKey: string;
+    productCategory: string;
+    basis: string;
+    allowedBases: string[];
+  }) {
+    super(ERROR_CODES.PROGRAM_NAME_KEY_BASIS_MISMATCH, meta);
   }
 }
 

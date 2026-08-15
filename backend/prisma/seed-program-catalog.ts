@@ -34,6 +34,7 @@ import { PrismaClient, type LoanCategory } from '@prisma/client';
 
 import {
   CATALOG_CATEGORY_ASSIGNMENTS,
+  CATALOG_NO_PAYSLIP,
   CATALOG_QUESTION_TEMPLATE,
   type CatalogCategory,
 } from './data/program-catalog-matrix';
@@ -58,7 +59,7 @@ export async function seedProgramCatalog(): Promise<void> {
       id: true,
       key: true,
       labelEn: true,
-      loanCategories: { select: { category: true } },
+      loanCategories: { select: { category: true, payslip: true, noPayslip: true } },
     },
   });
   const nameByKey = new Map(names.map((n) => [n.key, n]));
@@ -122,13 +123,22 @@ export async function seedProgramCatalog(): Promise<void> {
     if (dryRun) continue;
 
     // Delete-then-insert, so the written set is exactly the intended set — the
-    // same shape the repository uses, for the same reason.
+    // same shape the repository uses, for the same reason. The income BASIS of a
+    // surviving pair is carried across, also as the repository does: re-running
+    // the seed must not silently un-sell a name someone marked no-payslip.
+    const keptBasis = new Map(
+      name.loanCategories.map((c) => [
+        c.category as CatalogCategory,
+        { payslip: c.payslip, noPayslip: c.noPayslip },
+      ]),
+    );
     await prisma.$transaction([
       prisma.platformEnumerationLoanCategory.deleteMany({ where: { enumerationId: name.id } }),
       prisma.platformEnumerationLoanCategory.createMany({
         data: next.map((category) => ({
           enumerationId: name.id,
           category: category as LoanCategory,
+          ...(keptBasis.get(category) ?? { payslip: true, noPayslip: false }),
         })),
         skipDuplicates: true,
       }),
@@ -200,12 +210,52 @@ export async function seedProgramCatalog(): Promise<void> {
     }
   }
 
+  // ---- Axis 3: income basis ------------------------------------------------
+  //
+  // Only ever turns the no-payslip flag ON, and never touches `payslip`. The seed
+  // knows which names ARE sold without a payslip; it does not know which are sold
+  // ONLY that way, and guessing would make live payslip programs unsaveable on
+  // their next edit.
+
+  let basisWritten = 0;
+
+  for (const [key, categories] of Object.entries(CATALOG_NO_PAYSLIP)) {
+    const name = nameByKey.get(key);
+    if (!name) continue; // already reported by axis 1
+
+    for (const category of categories) {
+      const assigned = name.loanCategories.find((c) => c.category === category);
+      if (!assigned) {
+        notes.push(`'${key}/${category}': not offered under this loan type — no-payslip not set`);
+        continue;
+      }
+      // Read from the pre-axis-1 snapshot, which axis 1 carries across verbatim,
+      // so this stays a no-op on a re-run.
+      if (assigned.noPayslip) continue;
+
+      basisWritten += 1;
+      console.log(`  basis       ${key.padEnd(18)} ${category.padEnd(9)} + no payslip`);
+      if (dryRun) continue;
+
+      await prisma.platformEnumerationLoanCategory.update({
+        where: {
+          pk_platform_enumeration_loan_category: {
+            enumerationId: name.id,
+            category: category as LoanCategory,
+          },
+        },
+        data: { noPayslip: true },
+      });
+    }
+  }
+
   // ---- Report -------------------------------------------------------------
 
   console.log(
     `[seed-program-catalog]${dryRun ? ' (dry run)' : ''} ` +
       `${categoriesChanged} category set(s) changed · ` +
-      `${templatesWritten} template(s) written (${picksWritten} picks)`,
+      `${templatesWritten} template(s) written (${picksWritten} picks) · ` +
+      `${basisWritten} pair(s) marked no-payslip`,
   );
   const untouched = names.filter((n) => !(n.key in CATALOG_CATEGORY_ASSIGNMENTS));
   if (untouched.length > 0) {

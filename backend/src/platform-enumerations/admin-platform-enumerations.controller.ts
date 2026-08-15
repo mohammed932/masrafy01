@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Ip,
   Param,
@@ -19,12 +20,14 @@ import { CurrentUser, type JwtPayload } from '@/common/decorators/current-user.d
 import { sortCategories } from '@/common/loan-category.util';
 import { PlatformEnumerationsAdminService } from './platform-enumerations-admin.service';
 import type { ProgramNameUsage } from './postgres-platform-enumerations.repository';
+import type { IncomeBasis } from '@/common/income-basis.util';
 import {
   CatalogQuestionDto,
   CreateEnumerationDto,
   EnumerationRowDto,
   SetEnumerationCategoriesBulkDto,
   SetEnumerationCategoriesDto,
+  SetEnumerationIncomeBasisDto,
   SetEnumerationQuestionsDto,
   UpdateEnumerationDto,
 } from './dto/enumeration.dto';
@@ -143,6 +146,34 @@ export class AdminPlatformEnumerationsController {
   }
 
   /**
+   * Replace one (name, category) pair's INCOME BASIS — how the name may be sold
+   * under that loan type: against a payslip, without one, or both.
+   *
+   * Its own endpoint rather than a field on `PUT :id/categories`, for the same
+   * reason the question template has one: that array's empty case means "parked",
+   * and a per-pair attribute cannot ride a whole-set replacement without inventing
+   * a rule for pairs the submitted set adds or drops.
+   *
+   * The category rides in the BODY, exactly as in `PUT :id/questions` — it names
+   * which of the entry's tabs this write lands on, not a sub-resource.
+   */
+  @Put(':id/income-basis')
+  @ApiOperation({ summary: 'Replace one catalog name’s income basis for one loan category' })
+  async setIncomeBasis(
+    @Param('id') id: string,
+    @Body() body: SetEnumerationIncomeBasisDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ): Promise<{ success: true; data: EnumerationRowDto }> {
+    const row = await this.service.setIncomeBases(id, body.category, body.bases, {
+      staffId: user.sub,
+      sourceIp: ip ?? null,
+    });
+    const projectCatalog = await this.catalogProjector();
+    return { success: true, data: projectCatalog(row) };
+  }
+
+  /**
    * Replace one catalog name's SUGGESTED question set FOR ONE loan category
    * (`body.category`). Advisory: it pre-ticks the per-program scoring wizard and
    * constrains nothing — `saveWeights` never reads it, so this can never
@@ -190,6 +221,26 @@ export class AdminPlatformEnumerationsController {
   }
 
   /**
+   * Hard-delete a catalog program name. Refuses a name any bank program or
+   * application still points at (409 `ENUMERATION_IN_USE`) — deprecate those
+   * instead — and any type other than `program_name`.
+   *
+   * Returns the id rather than 204, matching `DELETE /admin/banks/:id`: the
+   * envelope is the platform's contract (Principle XIV) and a bodiless success
+   * would be the one response the admin client cannot read through it.
+   */
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a catalog program name (refuses if any program uses it)' })
+  async remove(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ): Promise<{ success: true; data: { id: string } }> {
+    await this.service.remove(id, { staffId: user.sub, sourceIp: ip ?? null });
+    return { success: true, data: { id } };
+  }
+
+  /**
    * Loads the three catalog-only side reads ONCE and returns the projector every
    * handler here used to hand-roll.
    *
@@ -203,15 +254,17 @@ export class AdminPlatformEnumerationsController {
   private async catalogProjector(): Promise<
     (row: Parameters<AdminPlatformEnumerationsController['project']>[0]) => EnumerationRowDto
   > {
-    const [usage, categories, questions] = await Promise.all([
+    const [usage, categories, bases, questions] = await Promise.all([
       this.service.programNameUsage(),
       this.service.categoryAssignments({ type: PROGRAM_NAME_TYPE }),
+      this.service.incomeBasisAssignments({ type: PROGRAM_NAME_TYPE }),
       this.service.questionAssignments({ type: PROGRAM_NAME_TYPE }),
     ]);
     return (row) =>
       this.project(row, {
         usage: usage.get(row.key) ?? EMPTY_USAGE,
         categories: [...sortCategories(categories.get(row.id) ?? [])],
+        incomeBasesByCategory: bases.get(row.id) ?? {},
         questionsByCategory: questions.get(row.id) ?? {},
       });
   }
@@ -236,10 +289,11 @@ export class AdminPlatformEnumerationsController {
     extras: {
       usage?: ProgramNameUsage;
       categories?: LoanCategory[];
+      incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
       questionsByCategory?: Partial<Record<LoanCategory, string[]>>;
     } = {},
   ): EnumerationRowDto {
-    const { usage, categories, questionsByCategory } = extras;
+    const { usage, categories, incomeBasesByCategory, questionsByCategory } = extras;
     return {
       id: row.id,
       type: row.type,
@@ -255,6 +309,9 @@ export class AdminPlatformEnumerationsController {
       // axis", while a present `[]` means parked. Collapsing the two would make
       // every currency row read as deliberately offerable nowhere.
       ...(categories ? { categories } : {}),
+      // Same rule again: absent = this type has no income basis; present and keyed
+      // only by the categories the name is actually offered under.
+      ...(incomeBasesByCategory ? { incomeBasesByCategory } : {}),
       // Same rule: absent = no template axis; present `{}` = nothing suggested
       // for any category yet, which is the day-one state.
       ...(questionsByCategory ? { questionsByCategory } : {}),
