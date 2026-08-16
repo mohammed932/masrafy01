@@ -346,11 +346,11 @@ export class PlatformEnumerationsAdminService {
   }
 
   /**
-   * Replace ONE (name, category) pair's income basis — "Sold without a payslip"
-   * on the catalog detail screen.
+   * Replace ONE (name, category) pair's income basis — "How do banks prove the
+   * income" on the catalog detail screen and in the Add / Edit dialog.
    *
    * Refuses a category the name is not offered under rather than creating the
-   * assignment: the two switches sit next to each other on the same tab and mean
+   * assignment: the two controls sit next to each other on the same tab and mean
    * different things, so a basis write that silently offered the name somewhere
    * new would be the screen doing something the operator did not ask for.
    *
@@ -379,10 +379,9 @@ export class PlatformEnumerationsAdminService {
         category,
       });
     }
-    // Invalidated, unlike `setQuestions`: the basis DOES ride on the cached member
-    // payload (the bank-program picker filters on it), so a 60s window would let a
-    // name the operator just marked no-payslip stay missing from the picker they
-    // opened it for.
+    // Invalidated for the same reason as `setCategories`: the catalog board reads
+    // this off the same list the cache serves, so a 60s window would show the
+    // operator the old answer on the screen they just changed it from.
     this.repo.invalidateCache(PROGRAM_NAME_TYPE);
 
     if (before.join(',') !== next.join(',')) {
@@ -569,8 +568,8 @@ export class PlatformEnumerationsAdminService {
     // `questions.<category>` rather than a plain 'questions': the question
     // template is per loan category, and a diff that did not say which one would
     // be unreadable as soon as a name is templated twice. `incomeBasis.<category>`
-    // is per category for the same reason — a name sold without a payslip as a
-    // personal loan and against one as a car loan produces two independent diffs.
+    // is per category for the same reason — a name meant for no-payslip lending as a
+    // personal loan and payslip-only as a car loan produces two independent diffs.
     field:
       | 'categories'
       | `questions.${LoanCategory}`

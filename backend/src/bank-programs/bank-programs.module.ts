@@ -9,6 +9,8 @@ import { BankProgramsMobileController } from './bank-programs.mobile.controller'
 import { BankProgramsService } from './bank-programs.service';
 import { BankProgramsMobileService } from './bank-programs.mobile.service';
 import { BankProgramRepository } from './bank-programs.repository';
+import { ProgramOptionsController } from './program-options.controller';
+import { ProgramOptionsService } from './program-options.service';
 import { SeedService } from './seeds/seed.service';
 import { SeedAbkController } from './seeds/seed-abk.controller';
 import { SeedCompetitorController } from './seeds/seed-competitor.controller';
@@ -18,6 +20,7 @@ import { SeedCompetitorController } from './seeds/seed-competitor.controller';
   controllers: [
     BankProgramsController,
     BankProgramsMobileController,
+    ProgramOptionsController,
     SeedAbkController,
     SeedCompetitorController,
   ],
@@ -26,6 +29,7 @@ import { SeedCompetitorController } from './seeds/seed-competitor.controller';
     BankProgramsService,
     BankProgramsMobileService,
     BankProgramRepository,
+    ProgramOptionsService,
     SeedService,
   ],
   exports: [BankProgramsService, BankProgramRepository],

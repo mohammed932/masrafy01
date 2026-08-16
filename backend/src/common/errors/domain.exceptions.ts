@@ -304,6 +304,19 @@ export class EnumerationSystemOnlyException extends DomainException {
 }
 
 /**
+ * An income basis was submitted for a (name, category) pair that does not exist —
+ * the name is not offered under that loan type.
+ *
+ * 422 rather than 404: the name and the category both exist, it is their PAIRING
+ * that does not, and a 404 would read as "this catalog entry is gone".
+ */
+export class EnumerationCategoryNotAssignedException extends DomainException {
+  constructor(meta: { type: string; key: string; category: string }) {
+    super(ERROR_CODES.ENUMERATION_CATEGORY_NOT_ASSIGNED, meta);
+  }
+}
+
+/**
  * Loan categories were submitted for an enumeration type that has no such axis
  * (only `CATEGORISED_ENUMERATION_TYPES` do). 422 rather than 404: the row
  * exists, the request is well-formed, the content is meaningless for it.
@@ -340,19 +353,6 @@ export class EnumerationQuestionBindingNotApplicableException extends DomainExce
 export class SurrogateFactQuestionTypeInvalidException extends DomainException {
   constructor(meta: { key: string; questionCode: string; type: string; allowed: string[] }) {
     super(ERROR_CODES.SURROGATE_FACT_QUESTION_TYPE_INVALID, meta);
-  }
-}
-
-/**
- * An income basis was submitted for a (name, category) pair that does not exist —
- * the name is not offered under that loan type.
- *
- * 422 rather than 404: the name and the category both exist, it is their PAIRING
- * that does not, and a 404 would read as "this catalog entry is gone".
- */
-export class EnumerationCategoryNotAssignedException extends DomainException {
-  constructor(meta: { type: string; key: string; category: string }) {
-    super(ERROR_CODES.ENUMERATION_CATEGORY_NOT_ASSIGNED, meta);
   }
 }
 
@@ -621,25 +621,9 @@ export class ProgramNameKeyNotInCategoryException extends DomainException {
   }
 }
 
-/**
- * The catalog name is offered under this loan category, but not on the income
- * BASIS the program is being saved with.
- *
- * Raised only when the save MOVES the program onto a new (name, basis) pair —
- * the same grandfather rule the category check applies, for the same reason: an
- * operator editing a fee must not be blocked by a catalog change they did not
- * make and cannot see from this screen.
- */
-export class ProgramNameKeyBasisMismatchException extends DomainException {
-  constructor(meta: {
-    programNameKey: string;
-    productCategory: string;
-    basis: string;
-    allowedBases: string[];
-  }) {
-    super(ERROR_CODES.PROGRAM_NAME_KEY_BASIS_MISMATCH, meta);
-  }
-}
+// NOTE (v16.4.0): `ProgramNameKeyBasisMismatchException` was deleted with the stored
+// per-name income basis it enforced. The bank states the basis on its own program
+// (`programType`); the catalog counts what banks picked and refuses nothing.
 
 // NOTE (v16.0.0): `ProgramTypeInvalidForCategoryException` was deleted with the Fast
 // Loans category it enforced. No category constrains the program type any more — a

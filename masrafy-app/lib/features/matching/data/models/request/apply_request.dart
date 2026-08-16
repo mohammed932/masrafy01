@@ -21,6 +21,7 @@ class ApplyRequest {
     this.carDetails,
     this.category,
     this.programNameKey,
+    this.programType,
     this.questionnaireVersionId,
     this.questionnaireAnswers,
   });
@@ -52,6 +53,17 @@ class ApplyRequest {
   /// app falls back to when the catalog holds no name for the category.
   final String? programNameKey;
 
+  /// The income basis the customer said they can prove — `income_proof` (the
+  /// bank reads a payslip) or `income_surrogate` (it works the income out some
+  /// other way). The third and last axis of "which offers am I asking for":
+  /// the backend matches ONLY programs whose own `programType` is this.
+  ///
+  /// This is NOT a loan category (Principle II / A26) — it is a property of the
+  /// bank's program, picked as a filter. Null means both bases, which is what
+  /// every build before the income-type step sent and what they are still
+  /// served.
+  final String? programType;
+
   /// Published questionnaire version the [questionnaireAnswers] were collected
   /// against (echoed from the snapshot).
   final String? questionnaireVersionId;
@@ -73,6 +85,7 @@ class ApplyRequest {
         if (carDetails != null) 'carDetails': carDetails!.toJson(),
         if (category != null) 'category': category,
         if (programNameKey != null) 'programNameKey': programNameKey,
+        if (programType != null) 'programType': programType,
         if (questionnaireVersionId != null)
           'questionnaireVersionId': questionnaireVersionId,
         if (questionnaireAnswers != null)

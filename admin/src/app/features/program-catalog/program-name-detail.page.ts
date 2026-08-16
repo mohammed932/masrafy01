@@ -35,13 +35,6 @@ import {
   isLoanCategory,
   type LoanCategory,
 } from '@core/loan-category';
-import { BUILTIN_FACT_QUESTION_CODES, categoryAsksAnySurrogateFact } from '@core/surrogate-facts';
-import {
-  INCOME_BASES,
-  incomeBasisHint,
-  incomeBasisLabel,
-  type IncomeBasis,
-} from '@core/income-basis';
 import {
   LookupsApiService,
   type CatalogQuestion,
@@ -220,62 +213,6 @@ interface QuestionRow {
                 </span>
               </button>
             </div>
-
-            @if (offered()) {
-              <!-- How this name is SOLD as a {{ categoryName() }}: stored, and both marks
-                   are tickable because one bank reads a payslip while another works the
-                   income out from a fact — the same name, two ways, which is exactly why
-                   the platform has no separate no-payslip product.
-
-                   Two rows rather than one switch: with the basis stored, a switch could
-                   only ever express "also sold without a payslip" and left "sold ONLY
-                   without one" unsayable. The same pair of rows is what the Add-name
-                   dialog asks, so the vocabulary matches end to end. -->
-              <section class="facts">
-                <fieldset class="np-basis">
-                  <legend class="np-title" i18n="@@pnd.basis_title">
-                    How banks prove the income
-                  </legend>
-                  <div class="np-rows">
-                    @for (b of incomeBases; track b) {
-                      <label class="np-row" [class.is-on]="basisOn(b)">
-                        <input
-                          type="checkbox"
-                          class="sr-only"
-                          [checked]="basisOn(b)"
-                          [attr.aria-busy]="savingBasis()"
-                          (change)="toggleBasis(b)"
-                        />
-                        <span class="tick np-tick" aria-hidden="true">
-                          @if (basisOn(b)) {
-                            <span nz-icon nzType="check" nzTheme="outline"></span>
-                          }
-                        </span>
-                        <span class="np-text">
-                          <span class="np-label">{{ basisLabel(b) }}</span>
-                          <span class="np-hint">{{ basisHint(b) }}</span>
-                        </span>
-                      </label>
-                    }
-                  </div>
-                  <!-- The questionnaire caveat, kept where it was: a name may be marked
-                       no-payslip whatever the questionnaire asks, but until this loan
-                       type asks one of the registry's facts there is nothing for a bank's
-                       table to read, so the mark alone quotes nothing. -->
-                  @if (noPayslipOn() && !surrogateCapable()) {
-                    <p class="np-warn">
-                      <span i18n="@@pnd.np_unavailable_hint"
-                        >{{ categoryName() }} applicants aren’t asked any income fact yet, so there
-                        is nothing for a bank to look up.</span
-                      >
-                      <a routerLink="/questionnaire/categories" i18n="@@pnd.np_fix"
-                        >Ask one of them</a
-                      >
-                    </p>
-                  }
-                </fieldset>
-              </section>
-            }
 
             @if (scope().length === 0) {
               <!-- The pool having nothing for this loan type is the one dead end on
@@ -759,147 +696,6 @@ interface QuestionRow {
         color: var(--color-text-secondary);
       }
 
-      /* --- The income-basis block ------------------------------------------ */
-      /* A LABELLED REGION, not a panel: the two rows below already carry a border
-         each, and the tinted box that used to wrap them made a bordered container
-         holding bordered children — the card-in-card the rest of this file avoids
-         (A34's cousin). Whitespace and the small-caps legend do the grouping the
-         box was doing, and the block stops competing with the question grid that is
-         the actual work on this tab. The plum this concept owns board-wide now lives
-         only where it means something: the picked no-payslip row. */
-      .facts {
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        padding-block-start: var(--space-1);
-      }
-
-      /* --- How the income is proved (two tickable rows) ---------------------- */
-      /* Rows, not the parent gate's switch anatomy: the gate above is one binary
-         decision (offered here or not) while this is a SET, and reusing the switch
-         for it made "sold only without a payslip" unsayable. */
-      .np-basis {
-        border: 0;
-        padding: 0;
-        margin: 0;
-        min-inline-size: 0;
-      }
-      /* Side by side on anything wide enough: they are the two halves of ONE
-         decision, and stacking full-width slabs read as two unrelated settings with
-         a metre of dead space beside each hint. Falls to one column below ~640px. */
-      .np-rows {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
-        gap: var(--space-3);
-        margin-block-start: var(--space-2);
-      }
-      .np-row {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-3);
-        padding: var(--space-3);
-        border: 1px solid var(--pnd-line);
-        border-radius: var(--radius-md);
-        background: var(--pnd-surface);
-        cursor: pointer;
-        transition:
-          border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
-          background-color var(--motion-duration-fast) var(--motion-easing-standard);
-      }
-      .np-row:hover {
-        border-color: var(--color-border-strong);
-      }
-      /* On the LABEL — the row is what the operator perceives as focused. Keyed on
-         :focus-visible, not :focus-within: clicking a label focuses its input, so the
-         plain form drew a ring around every row the mouse had touched. */
-      .np-row:has(input:focus-visible) {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-      }
-      /* The picked edge is drawn twice — border plus a 1px inset ring — so "picked"
-         is legible at a glance without a 2px border that would shift the text by a
-         pixel on every toggle. */
-      .np-row.is-on {
-        border-color: var(--np-accent, var(--color-brand-primary));
-        box-shadow: inset 0 0 0 1px var(--np-accent, var(--color-brand-primary));
-        background: color-mix(
-          in srgb,
-          var(--np-accent, var(--color-brand-primary)) 7%,
-          var(--pnd-surface)
-        );
-      }
-      /* The no-payslip row carries the colour this concept owns board-wide. */
-      .np-rows .np-row:last-child {
-        --np-accent: var(--color-income-surrogate);
-      }
-      /* Anatomy comes from .tick — the box every other tickable thing on this screen
-         uses, including the fact tiles directly below these rows. The local copy drew a
-         2px border and a --text-xs glyph, so the panel showed two different checkbox
-         shapes stacked on each other, and its ink token (--color-text-inverse) is
-         defined nowhere: the check fell back to inherited body ink, i.e. dark navy on a
-         solid azure/plum fill. Only the overrides live here.
-         Specificity note: .tick is declared later in this sheet, so these must out-rank
-         it, hence .np-row .np-tick rather than .np-tick. */
-      .np-row .np-tick {
-        /* Centred on the label's FIRST LINE, not top-aligned: these rows are two lines
-           tall, and .tick's flat 2px nudge left the box riding above the cap-height. */
-        margin-block-start: calc((var(--text-sm) * var(--leading-snug) - 18px) / 2);
-      }
-      .np-row:hover .np-tick {
-        border-color: var(--np-accent, var(--color-brand-primary));
-      }
-      .np-row.is-on .np-tick {
-        border-color: var(--np-accent, var(--color-brand-primary));
-        background: var(--np-accent, var(--color-brand-primary));
-      }
-      .np-text {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      /* The same small-caps section label the question sections below use ("SCORED
-         ON 11"), not a --text-sm heading: at the row labels' own size and weight it
-         read as a third peer choice rather than the name of the pair. */
-      .np-title {
-        padding: 0;
-        font-size: var(--text-xxs);
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: var(--color-text-tertiary);
-      }
-      .np-label {
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-medium);
-        /* Matches .fact-label / .q-label, and is the figure the tick centres on. */
-        line-height: var(--leading-snug);
-        color: var(--color-text-primary);
-      }
-      .np-hint {
-        max-inline-size: 62ch;
-        font-size: var(--text-xs);
-        line-height: var(--line-height-base);
-        color: var(--color-text-secondary);
-      }
-      .np-warn {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-2);
-        margin: var(--space-2) 0 0;
-        font-size: var(--text-xs);
-        color: var(--color-warning);
-      }
-      .np-warn a {
-        font-weight: var(--font-weight-semibold);
-        color: inherit;
-        text-decoration: underline;
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .np-row {
-          transition: none;
-        }
-      }
       .cov-drift {
         font-size: var(--text-xxs);
         color: var(--color-text-tertiary);
@@ -1398,52 +1194,6 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly bulkAria = $localize`:@@pnd.bulk_aria:Tick or untick every question listed`;
   private readonly notOfferedNote = $localize`:@@pnd.tab_not_offered:Not offered`;
 
-  /**
-   * Does the OPEN tab’s category ASK any income fact? Derived from the question pool,
-   * never from a list of categories (v16.0.0).
-   *
-   * This screen used to gate the answer on a hardcoded capable set, which meant a
-   * Mortgage could never be sold without a payslip however the business changed. The
-   * gate IS the questionnaire: assign `military_grade` to Mortgage on
-   * `/questionnaire/categories` and the caveat below the basis rows clears. The
-   * built-in fact questions are the whole set the screen needs — which name reads
-   * which fact is the BANK's answer, entered on its own program, not a tick here.
-   */
-  protected readonly surrogateCapable = computed(() =>
-    categoryAsksAnySurrogateFact(this.pool(), this.activeCategory(), BUILTIN_FACT_QUESTION_CODES),
-  );
-
-  /**
-   * How this name is sold under the OPEN tab — the stored basis, not an inference.
-   *
-   * It used to be derived from the fact ticks, which made the two impossible to
-   * disagree at the cost of making them impossible to state separately: a name could
-   * not be marked as sold without a payslip until someone had also decided WHICH fact
-   * its banks read, and unticking the last fact silently un-sold the product.
-   */
-  protected readonly incomeBases = INCOME_BASES;
-
-  protected readonly bases = computed<readonly IncomeBasis[]>(
-    () => this.name()?.bases[this.activeCategory()] ?? [],
-  );
-
-  protected readonly noPayslipOn = computed(() => this.bases().includes('no_payslip'));
-
-  /** A basis write is in flight for the open tab (both rows go read-only, not disabled). */
-  protected readonly savingBasis = signal(false);
-
-  protected basisOn(basis: IncomeBasis): boolean {
-    return this.bases().includes(basis);
-  }
-
-  protected basisLabel(basis: IncomeBasis): string {
-    return incomeBasisLabel(basis);
-  }
-
-  protected basisHint(basis: IncomeBasis): string {
-    return incomeBasisHint(basis);
-  }
-
   /** True when the name may be OFFERED under the open tab's category. */
   protected readonly offered = computed(
     () => this.name()?.categories.includes(this.activeCategory()) ?? false,
@@ -1529,57 +1279,6 @@ export class ProgramNameDetailPage implements OnInit {
   });
 
   /**
-   * The four tabs. Every category always gets one, offered or not: a hidden tab
-   * would make picks left behind by a narrowed assignment unreachable, and the
-   * count is the fastest way to see that a name is configured for a loan type
-   * nobody can sell it under.
-   */
-  /**
-   * Tick or untick one basis for this category, autosaved like every other control on
-   * this screen.
-   *
-   * Unticking the LAST one is refused rather than sent: the API rejects an empty set
-   * (a pair sold no way at all is one no program can name), and letting the row go
-   * visually off before the failure arrives would be a lie. Turning the loan type off
-   * entirely is the control for "we do not sell this here", one switch above.
-   *
-   * Fact ticks are deliberately NOT cleared when no-payslip goes off. They are the
-   * answer to a different question — which figure a bank's table reads — and deleting
-   * them on a basis change is how the previous design lost configuration nobody asked
-   * to lose.
-   */
-  protected async toggleBasis(basis: IncomeBasis): Promise<void> {
-    const row = this.name();
-    if (!row || this.savingBasis()) return;
-    const category = this.activeCategory();
-    const current = this.bases();
-    const next = current.includes(basis)
-      ? current.filter((b) => b !== basis)
-      : INCOME_BASES.filter((b) => b === basis || current.includes(b));
-    if (next.length === 0) {
-      this.status.set(
-        $localize`:@@pnd.basis_last:Keep at least one — turn the loan type off instead.`,
-      );
-      return;
-    }
-
-    this.savingBasis.set(true);
-    try {
-      const updated = await this.api.setIncomeBasis(row.id, category, [...next]);
-      this.absorb(updated);
-      this.status.set(
-        next.includes('no_payslip')
-          ? $localize`:@@pnd.basis_saved_np:Sold without a payslip here.`
-          : $localize`:@@pnd.basis_saved_payslip:Reads a payslip here.`,
-      );
-    } catch {
-      this.status.set($localize`:@@pnd.basis_failed:Could not save. Try again.`);
-    } finally {
-      this.savingBasis.set(false);
-    }
-  }
-
-  /**
    * Picks kept for this lane that the category no longer asks, or whose question
    * left the pool.
    *
@@ -1592,6 +1291,12 @@ export class ProgramNameDetailPage implements OnInit {
     () => this.pickedRows().filter((r) => r.removed || !r.inScope).length,
   );
 
+  /**
+   * The four tabs. Every category always gets one, offered or not: a hidden tab
+   * would make picks left behind by a narrowed assignment unreachable, and the
+   * count is the fastest way to see that a name is configured for a loan type
+   * nobody can sell it under.
+   */
   protected readonly tabs = computed<RailTabItem[]>(() => {
     const n = this.name();
     const byCode = new Map(this.pool().map((q) => [q.code, q]));

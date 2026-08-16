@@ -17,6 +17,7 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 ApplyRequest mapBusinessAnswersToApplyRequest(
   Map<String, QuestionAnswer> answers, {
   String? programNameKey,
+  String? programType,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
 
@@ -41,6 +42,7 @@ ApplyRequest mapBusinessAnswersToApplyRequest(
     assets: const AssetsPayload(),
     category: 'business',
     programNameKey: programNameKey,
+    programType: programType,
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }

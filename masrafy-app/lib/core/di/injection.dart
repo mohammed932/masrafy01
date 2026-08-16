@@ -41,6 +41,11 @@ import 'package:app/features/auth/presentation/pages/otp/cubit/otp/otp_cubit.dar
 import 'package:app/features/auth/presentation/pages/signup/cubit/signup/signup_cubit.dart';
 import 'package:app/features/auth/presentation/pages/phone_verification/cubit/phone_verification/phone_verification_cubit.dart';
 import 'package:app/features/home/presentation/pages/home/cubit/home/home_cubit.dart';
+import 'package:app/features/loan_setup/data/datasources/program_options_remote_datasource.dart';
+import 'package:app/features/loan_setup/data/repositories/program_options_repository_impl.dart';
+import 'package:app/features/loan_setup/domain/repositories/program_options_repository.dart';
+import 'package:app/features/loan_setup/domain/usecases/program_options_usecase.dart';
+import 'package:app/features/loan_setup/presentation/pages/loan_setup/cubit/loan_setup/loan_setup_cubit.dart';
 import 'package:app/features/questionnaire/data/datasources/questionnaire_remote_datasource.dart';
 import 'package:app/features/questionnaire/data/repositories/questionnaire_repository_impl.dart';
 import 'package:app/features/questionnaire/domain/repositories/questionnaire_repository.dart';
@@ -223,9 +228,25 @@ Future<void> configureDependencies({BaseEnvironment? environment}) async {
   );
   getIt.registerFactory(() => OnboardingCubit(getIt<SharedPrefsService>()));
 
-  // home — reads the `program_name` catalog for the picker that sits beside the
-  // loan-category cards (registered lazily further down; resolved on call).
-  getIt.registerFactory(() => HomeCubit(getIt<PlatformEnumerationsUseCase>()));
+  // home — the four loan-category cards and nothing else. The catalog picker
+  // that used to sit beside them moved into the loan-setup wizard, which asks
+  // the income basis first and can therefore offer only names a bank actually
+  // sells that way.
+  getIt.registerFactory(() => HomeCubit());
+
+  // loan setup — the three-step wizard between Home and the questionnaire.
+  // Reads `GET /v1/program-options`, which derives the pickable income bases and
+  // catalog names from live bank programs. Screen-scoped cubit (Principle XXXI).
+  getIt.registerLazySingleton(
+    () => ProgramOptionsRemoteDataSource(getIt<BaseNetwork>()),
+  );
+  getIt.registerLazySingleton<ProgramOptionsRepository>(
+    () => ProgramOptionsRepositoryImpl(getIt<ProgramOptionsRemoteDataSource>()),
+  );
+  getIt.registerLazySingleton(
+    () => ProgramOptionsUseCase(getIt<ProgramOptionsRepository>()),
+  );
+  getIt.registerFactory(() => LoanSetupCubit(getIt<ProgramOptionsUseCase>()));
 
   // questionnaire — personal + mortgage + car are backend-driven via the generic
   // dynamic renderer (QuestionnaireCubit fetches the published snapshot); only

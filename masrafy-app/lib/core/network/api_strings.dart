@@ -36,6 +36,12 @@ class ApiStrings {
   static const String questionnaire = '/api/v1/questionnaire';
   static const String matchingPreview = '/api/v1/matching/preview';
 
+  /// What the customer can actually pick for one loan category: which income
+  /// bases have live bank programs behind them, and which catalog names sit on
+  /// each. Derived server-side from `bank_program`, so it never offers a
+  /// combination that would match nothing at apply. Sends `?category=`.
+  static const String programOptions = '/api/v1/program-options';
+
   // --- Applications ---
   static const String applications = '/api/v1/applications';
 

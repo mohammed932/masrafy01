@@ -41,15 +41,23 @@ export function incomeBasisLabel(basis: IncomeBasis): string {
 }
 
 /**
- * The one-line explanation under a choice card. Long enough to say what the bank DOES,
- * because "income-surrogate" told the operator nothing and the wrong pick here silently
- * changes what two later wizard steps mean.
+ * The plain-English explanation under a choice card.
+ *
+ * Says what the bank DOES, in the words someone who has never read the schema would
+ * use: "income-surrogate" told the operator nothing, and the wrong pick here changes
+ * what two later wizard steps mean.
+ *
+ * Names no STEP NUMBER. This line is rendered by the program wizard AND by the catalog
+ * name dialog, which has no steps at all — and the number it used to give ("step 4")
+ * silently became wrong the day the wizard gained a step. Where the table is entered is
+ * the wizard's own business, so the wizard says it, by step NAME.
  */
 export function incomeBasisHint(basis: IncomeBasis): string {
   return basis === 'no_payslip'
     ? // Which facts exist is the registry's answer (operator-managed on Manage values),
       // so this line names none of them: a hardcoded four went stale the day someone
-      // added a fifth, and the screens below already list the live set.
-      $localize`:@@income_basis.no_payslip.hint:The bank works the income out from one of the income facts about the applicant. You enter its own table in step 4.`
-    : $localize`:@@income_basis.payslip.hint:A salary transfer or payslip proves the income the bank lends against.`;
+      // added a fifth, and the screens below already list the live set. The two
+      // examples are illustrative and flagged as such by "such as".
+      $localize`:@@income_basis.no_payslip.hint:The customer has no payslip. The bank works out what they earn from something else about them, such as their job grade or years of work.`
+    : $localize`:@@income_basis.payslip.hint:The customer is paid a salary into a bank account. The bank lends against that salary.`;
 }

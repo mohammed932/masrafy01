@@ -48,6 +48,10 @@ import {
   type BankOffering,
 } from './data/bank-program-matrix';
 import { PROGRAM_BASELINES, type ProgramBaseline } from './data/program-baselines';
+// Archetypes underwritten on declared revenue rather than a salary certificate.
+// Imported, not re-declared: the catalog seed states the same rule as the income
+// BASIS it writes on each program name, and two copies of it would drift (A25).
+import { SELF_EMPLOYED_ARCHETYPES } from './data/program-catalog-matrix';
 
 const prisma = new PrismaClient();
 
@@ -61,9 +65,6 @@ interface CategorySkeleton {
   acceptedTransferTypes: string[];
   minMonthsInJob: number;
 }
-
-/** Archetypes underwritten on declared revenue rather than a salary certificate. */
-const SELF_EMPLOYED_ARCHETYPES = new Set(['doctor', 'professional', 'pharmacy']);
 
 function skeletonFor(catalogKey: string, category: string): CategorySkeleton {
   if (category === 'business') {

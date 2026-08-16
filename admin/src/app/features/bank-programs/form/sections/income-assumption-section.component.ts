@@ -95,15 +95,29 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
       </header>
 
       <div class="grid">
-        <nz-form-item class="span-2">
+        <nz-form-item class="span-2 method-field">
           <nz-form-label [nzFor]="'strategy'" i18n="@@bank_programs.field.strategy"
             >Method</nz-form-label
           >
           <nz-form-control>
             <!-- Grouped by what the method READS, so the four whose fact can simply be
                  missing are visibly a different kind of choice from the six that read a
-                 document, and from Declared, which is not a rule at all. -->
-            <nz-select id="strategy" formControlName="strategy">
+                 document, and from Declared, which is not a rule at all.
+
+                 The panel is styled by 'select-grouped-dropdown' (global — it renders in
+                 a CDK overlay, outside every component's scope), which gives each group
+                 heading its own band so three headings cannot read as three more options.
+                 That class sets 40px rows, and the list is virtual-scrolled, so
+                 nzOptionHeightPx MUST stay equal to it or every row slides out from
+                 under its own slot. 8.5 rows of viewport, not 8: a half-visible row is
+                 the only thing that says the list continues. -->
+            <nz-select
+              id="strategy"
+              formControlName="strategy"
+              nzDropdownClassName="select-grouped-dropdown"
+              [nzOptionHeightPx]="40"
+              [nzOptionOverflowSize]="8.5"
+            >
               @for (g of methodGroups(); track g.label) {
                 <nz-option-group [nzLabel]="g.label">
                   @for (o of g.options; track o.value) {
@@ -332,6 +346,30 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
         margin: var(--space-1) 0 0;
         font-size: var(--text-xs);
         color: var(--color-error);
+      }
+
+      /* The method picker holds eleven short labels. Left at the section's full
+         two-column width it renders a trigger the better part of two thousand
+         pixels wide — and, because the panel matches the trigger, a dropdown of
+         the same width with one twenty-character label per row. Capped to a
+         width a single value reads at; the panel follows the trigger. */
+      .method-field ::ng-deep nz-select {
+        display: block;
+        max-inline-size: 34rem;
+      }
+      /* The caret answers "is it open?" without the panel in view. .anticon-down
+         only — there is no search here today, but the arrow slot swaps the glyph
+         if one is ever added, and a rotated magnifier just reads as broken. */
+      .method-field ::ng-deep .ant-select-arrow .anticon-down {
+        transition: transform var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .method-field ::ng-deep nz-select.ant-select-open .ant-select-arrow .anticon-down {
+        transform: rotate(180deg);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .method-field ::ng-deep .ant-select-arrow .anticon-down {
+          transition: none;
+        }
       }
     `,
   ],

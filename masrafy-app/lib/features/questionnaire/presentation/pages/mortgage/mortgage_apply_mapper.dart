@@ -17,6 +17,7 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 ApplyRequest mapMortgageAnswersToApplyRequest(
   Map<String, QuestionAnswer> answers, {
   String? programNameKey,
+  String? programType,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
   final employmentCode = pickedOption(answers, 'employment_status');
@@ -60,6 +61,7 @@ ApplyRequest mapMortgageAnswersToApplyRequest(
     ),
     category: 'mortgage',
     programNameKey: programNameKey,
+    programType: programType,
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }

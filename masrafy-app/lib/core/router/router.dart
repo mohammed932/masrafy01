@@ -53,6 +53,10 @@ class AppRouter extends RootStackRouter {
           transitionsBuilder: TransitionsBuilders.fadeIn,
           durationInMilliseconds: _fadeMs,
         ),
+        // Sits between Home and the questionnaire: the customer picks the income
+        // basis and the catalog program here, because only this screen knows
+        // which of those combinations a bank actually offers.
+        AutoRoute(page: LoanSetupRoute.page),
         AutoRoute(page: MortgageQuestionnaireRoute.page),
         AutoRoute(page: CarQuestionnaireRoute.page),
         AutoRoute(page: BusinessQuestionnaireRoute.page),

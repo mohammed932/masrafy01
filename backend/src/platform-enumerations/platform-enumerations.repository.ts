@@ -166,12 +166,17 @@ export interface BoundQuestion {
 export type QuestionCodesByCategory = Partial<Record<LoanCategory, string[]>>;
 
 /**
- * One catalog name's income BASES, per loan category — how the name may be sold
- * under each: against a payslip, without one, or both.
+ * One catalog name's income BASES, per loan category — how the name is MEANT to be
+ * sold under each: against a payslip, without one, or both.
  *
- * `Partial` because a category the name is not assigned to has no basis at all;
- * an assigned category ALWAYS has at least one (the writers reject the empty set,
- * which would be a pair offerable under no basis).
+ * `Partial` because a category the name is not assigned to has no basis at all; an
+ * assigned category ALWAYS has at least one (the writers reject the empty set, which
+ * would be a pair offerable under no basis).
+ *
+ * This states INTENT and is carried on the member for READING only: nothing in the
+ * matching or bank-program write path consults it, so it can never refuse a program the
+ * bank is entitled to save (v16.4.0's point, kept). What a bank actually did is counted
+ * from `bank_program.programType` — see `ProgramNameUsage.byCategory`.
  */
 export type IncomeBasesByCategory = Partial<Record<LoanCategory, IncomeBasis[]>>;
 
@@ -200,16 +205,17 @@ export interface EnumerationMember {
    *  `CATEGORISED_ENUMERATION_TYPES`; `[]` on a categorised type means parked. */
   categories: LoanCategory[];
   /**
-   * `program_name` only — how this name may be sold under each category it is
-   * assigned to: `['payslip']`, `['no_payslip']`, or both. STORED (chosen when the
-   * name is created, edited per tab on the catalog detail screen), which is what
-   * makes it the pairing rule the bank-program picker filters on in BOTH
-   * directions and the API enforces on save.
+   * `program_name` only — how the catalog says this name is MEANT to be sold under
+   * each category it is assigned to: `['payslip']`, `['no_payslip']`, or both.
    *
-   * `undefined` means "not loaded" (a caller that did not `include` the relation)
-   * and must never be read as "none" — the picker treats it as unknown and does
-   * not filter, so a client running against an older API is not handed an empty
-   * list.
+   * READ-ONLY here. Nothing in the bank-program write path consults it and no picker
+   * filters on it: the bank states the basis on its own program, and a stale value
+   * here used to refuse a save the bank was entitled to make (v16.4.0). What banks
+   * actually picked is counted separately (`ProgramNameUsage.byCategory`), and the
+   * two are allowed to disagree.
+   *
+   * `undefined` means "not loaded" (a caller that did not `include` the relation) and
+   * must never be read as "none".
    */
   incomeBases?: IncomeBasesByCategory;
   /**
@@ -249,23 +255,6 @@ export abstract class PlatformEnumerationsRepository {
    * picker.
    */
   abstract memberCategories(type: EnumerationType, key: string): Promise<LoanCategory[]>;
-
-  /**
-   * The income bases a member may be sold under FOR ONE loan category, by key.
-   * Empty = the name is not assigned to that category at all (the caller has
-   * already rejected that pair with a better message, so this never has to
-   * distinguish it from "assigned but basis-less" — the writers make the second
-   * state unreachable).
-   *
-   * Uncached, for the same reason as `memberCategories`: it backs a write-time
-   * rejection, and a 60s window in which a mismatched pair still saves is a
-   * correctness bug rather than a stale picker.
-   */
-  abstract memberIncomeBases(
-    type: EnumerationType,
-    key: string,
-    category: LoanCategory,
-  ): Promise<IncomeBasis[]>;
 
   /**
    * A catalog name's SUGGESTED question set for ONE loan category, by key.

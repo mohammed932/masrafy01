@@ -51,6 +51,7 @@ import {
   AppstoreOutline,
   CalculatorOutline,
   FileTextOutline,
+  QuestionCircleOutline,
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -104,8 +105,15 @@ import {
 /** The one remaining genuine opt-in — see `BankProgramFormPage.toggles`. */
 type ToggleKey = 'tieredRates';
 
-/** Wizard steps, in order. `review` owns no controls — it reads the form back. */
-type StepId = 'program' | 'terms' | 'pricing' | 'eligibility' | 'documents' | 'review';
+/**
+ * Wizard steps, in order.
+ *
+ * `income` and `review` own no CONTROL groups: the first writes `identity.programType`
+ * through a signal, the last only reads the form back. Both therefore need their
+ * validity and their "done" marker answered explicitly rather than by walking a group
+ * — see `isStepValid` / `isStepComplete`.
+ */
+type StepId = 'income' | 'program' | 'terms' | 'pricing' | 'eligibility' | 'documents' | 'review';
 
 interface WizardStep {
   readonly id: StepId;
@@ -210,6 +218,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       AppstoreOutline,
       CalculatorOutline,
       FileTextOutline,
+      QuestionCircleOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -224,7 +233,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           <div class="title-block">
             <h1 class="page-title">{{ isEditMode() ? editTitle() : createTitle() }}</h1>
             <p class="page-subtitle" i18n="@@bank_programs.form.subtitle">
-              Six short steps. Every number belongs to this program alone, and nothing is saved
+              Seven short steps. Every number belongs to this program alone, and nothing is saved
               until you confirm on the last step.
             </p>
           </div>
@@ -275,7 +284,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
               </span>
               <span class="bank-chip-body">
                 <span class="bank-chip-eyebrow" i18n="@@bank_programs.form.income">Income</span>
-                <span class="bank-chip-name">{{ basisLabel(incomeBasis()) }}</span>
+                <span class="bank-chip-name">{{ basisChipLabel() }}</span>
               </span>
             </div>
           </div>
@@ -354,13 +363,73 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           </div>
 
           <!-- ═══ STEP BODY ═══════════════════════════════════════════════════
-               The ONLY scrolling region on the page. The rail above it and the
-               action bar below it are flex siblings pinned by the layout, not by
-               position: sticky — so no opaque-backdrop bleed, no z-index race,
-               and nothing ever scrolls through the gaps between them. -->
-          <div class="form-scroll">
-            <!-- ═══ STEP 1 — PROGRAM ════════════════════════════════════════════ -->
+               A plain stack. It owns no scrollport: the shell scrolls the whole
+               page, so a long step never squeezes itself into a short box with
+               its own scrollbar. The action bar below scrolls with it. -->
+          <div class="step-stack">
+            <!-- ═══ STEP 1 — INCOME ═════════════════════════════════════════════
+                 A step of its own, and the first one, because everything after it is
+                 downstream: it narrows the program names step 2 may offer, and it
+                 decides whether Eligibility carries a whole rate-table editor. Asked
+                 as two full cards rather than the pills it used to be — a step with
+                 one question on it can afford to say what each answer commits to,
+                 and the line at the foot of each card is the dependency said out
+                 loud instead of discovered two steps later. -->
             @if (stepIndex() === 0) {
+              <section class="card">
+                <header class="card-head">
+                  <div>
+                    <h2 class="card-title" i18n="@@bank_programs.form.income_step.title">Income</h2>
+                    <p class="card-sub" i18n="@@bank_programs.form.income_step.sub">
+                      How does this bank check what the customer earns? Your answer decides which
+                      program names you can pick next.
+                    </p>
+                  </div>
+                </header>
+
+                <div
+                  class="basis-cards"
+                  [class.is-unanswered]="!basisAnswered()"
+                  role="radiogroup"
+                  [attr.aria-label]="incomeStepAria"
+                >
+                  @for (b of incomeBases; track b) {
+                    <label
+                      class="basis-card"
+                      [class.is-on]="basisAnswered() === b"
+                      [attr.data-basis]="b"
+                    >
+                      <input
+                        type="radio"
+                        name="incomeBasis"
+                        class="sr-only"
+                        [checked]="basisAnswered() === b"
+                        (change)="pickBasis(b)"
+                      />
+                      <span class="basis-card-top">
+                        <!-- The radio mark is drawn on BOTH cards from the start: an
+                         empty circle waiting to be filled is the only thing here that
+                         says an answer is still owed. -->
+                        <span class="basis-card-dot" aria-hidden="true"></span>
+                        <span
+                          class="basis-card-icon"
+                          nz-icon
+                          [nzType]="basisIconFor(b)"
+                          nzTheme="outline"
+                          aria-hidden="true"
+                        ></span>
+                      </span>
+                      <span class="basis-card-title">{{ basisLabel(b) }}</span>
+                      <span class="basis-card-hint">{{ basisHint(b) }}</span>
+                      <span class="basis-card-effect">{{ basisEffect(b) }}</span>
+                    </label>
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- ═══ STEP 2 — PROGRAM ════════════════════════════════════════════ -->
+            @if (stepIndex() === 1) {
               <!-- Create reached without a loan type (direct URL): the value is not
                guessable, and defaulting it would file the program under the
                wrong product. Say where the choice is made instead. -->
@@ -382,39 +451,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.core.title">Program</h2>
                     <p class="card-sub" i18n="@@bank_programs.form.core.sub">
-                      The name customers see, and how the bank reads an income.
+                      The name customers see. The catalog fills in how the bank reads an income —
+                      change it if this bank differs.
                     </p>
                   </div>
                 </header>
-
-                <!-- FIRST, and as two cards rather than a select. This answer decides which
-                 names the picker below may offer AND whether step 4 carries a whole rule
-                 editor, so it is a decision, not the third field in a grid. It used to be
-                 an unlabelled dropdown reading "Income-proof / Income-surrogate" —
-                 schema nouns, defaulted, three fields down. -->
-                <fieldset class="basis-pick">
-                  <legend class="basis-legend" i18n="@@bank_programs.field.income_basis">
-                    How does the bank read the income?
-                  </legend>
-                  <div class="basis-cards">
-                    @for (b of incomeBases; track b) {
-                      <label class="basis-card" [class.is-on]="incomeBasis() === b">
-                        <input
-                          type="radio"
-                          name="incomeBasis"
-                          class="sr-only"
-                          [checked]="incomeBasis() === b"
-                          (change)="pickBasis(b)"
-                        />
-                        <span class="basis-card-title">
-                          <span class="basis-radio" aria-hidden="true"></span>
-                          {{ basisLabel(b) }}
-                        </span>
-                        <span class="basis-card-hint">{{ basisHint(b) }}</span>
-                      </label>
-                    }
-                  </div>
-                </fieldset>
 
                 <div class="grid">
                   @if (!preselectedBank && !isEditMode()) {
@@ -430,6 +471,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                           nzShowSearch
                           nzAllowClear
                           nzPlaceHolder="Pick a bank"
+                          i18n-nzPlaceHolder="@@bank_programs.field.bank.placeholder"
                         >
                           @for (b of activeBanks(); track b.id) {
                             <nz-option [nzValue]="b.id" [nzLabel]="b.nameEnglish"></nz-option>
@@ -455,7 +497,10 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       </nz-form-control>
                     </nz-form-item>
                   }
-                  <nz-form-item>
+                  <!-- Filtered by the answer given on the Income step, so the list is
+                   already narrowed by the time it is opened. Full width whenever it is
+                   not sharing the row with the bank picker. -->
+                  <nz-form-item [class.span-2]="!!preselectedBank || isEditMode()">
                     <nz-form-label
                       [nzFor]="'programNameKey'"
                       nzRequired
@@ -467,10 +512,10 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                         id="programNameKey"
                         formControlName="programNameKey"
                         nzShowSearch
+                        [nzDisabled]="!basisAnswered()"
                         [nzDropdownStyle]="dropdownStyle"
-                        [nzNotFoundContent]="noNamesForCategoryLabel()"
-                        nzPlaceHolder="Select a program"
-                        i18n-nzPlaceHolder="@@bank_programs.field.friendly_name.placeholder"
+                        [nzNotFoundContent]="emptyPickerLabel()"
+                        [nzPlaceHolder]="namePlaceholder()"
                       >
                         @for (opt of programNameOptions(); track opt.value) {
                           <nz-option [nzValue]="opt.value" [nzLabel]="opt.label"></nz-option>
@@ -487,42 +532,65 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                           >
                         }
                       </ng-template>
-                      @if (programNameMismatch(); as mismatch) {
-                        <p class="field-warn" role="alert">
-                          @if (mismatch.reason === 'basis') {
-                            <span i18n="@@bank_programs.warn.name_not_sold_this_way"
-                              >“{{ mismatch.name }}” isn’t sold this way for
-                              {{ mismatch.category }}. Pick another name, or change how it is sold
-                              in the program catalog.</span
+                      <!-- The catalog's basis is INTENT, and a bank may legitimately sell
+                       a name the other way — the API refuses nothing on it. So the filter
+                       above is a default view, never a wall: whatever it hides stays one
+                       click away, with the count said out loud rather than left as a
+                       shorter list nobody can explain. -->
+                      @if (namesHiddenByBasis() > 0) {
+                        <button type="button" class="link-btn" (click)="toggleAllNames()">
+                          @if (showAllNames()) {
+                            <span i18n="@@bank_programs.field.friendly_name.show_matching"
+                              >Show only names filed under this income</span
                             >
                           } @else {
-                            <span i18n="@@bank_programs.warn.name_not_in_category"
-                              >“{{ mismatch.name }}” isn’t offered for {{ mismatch.category }}. Pick
-                              another name, or add it to this loan type in the program
-                              catalog.</span
+                            <span i18n="@@bank_programs.field.friendly_name.show_all"
+                              >Show {{ namesHiddenByBasis() }} more names filed under the other
+                              income</span
                             >
                           }
+                        </button>
+                      }
+                      @if (programNameMismatch(); as mismatch) {
+                        <p class="field-warn" role="alert">
+                          <span i18n="@@bank_programs.warn.name_not_in_category"
+                            >“{{ mismatch.name }}” isn’t offered for {{ mismatch.category }}. Pick
+                            another name, or add it to this loan type in the program catalog.</span
+                          >
                         </p>
                       }
                     </nz-form-control>
                   </nz-form-item>
+
                   <!-- Loan type is NOT a field here: it arrives decided (query param on
                    create, the saved row on edit) and is shown in the context chip beside
-                   the page title, alongside the income basis chosen above. The program
-                   TYPE is not a field either any more — the two cards above set it. -->
+                   the page title, alongside the income basis above. -->
+                  <!-- Locked until the income question is answered, like the name picker
+                   above it: step 1 is read top to bottom, and a tickable row sitting under
+                   two dead controls invited the operator to start at the bottom. The value
+                   is never disabled on the CONTROL — an edit-mode program keeps submitting
+                   its saved flag; only the pointer is refused. -->
                   <label
                     class="option-row span-2"
                     [class.is-on]="isSharia"
+                    [class.is-locked]="!basisAnswered()"
                     nz-checkbox
+                    [nzDisabled]="!basisAnswered()"
                     formControlName="isShariaCompliant"
                   >
                     <span class="option-text">
                       <span class="option-title" i18n="@@bank_programs.field.sharia"
                         >Sharia-compliant program</span
                       >
-                      <span class="option-hint" i18n="@@bank_programs.field.sharia.hint">
-                        Shown to customers who filter for Islamic finance.
-                      </span>
+                      @if (basisAnswered()) {
+                        <span class="option-hint" i18n="@@bank_programs.field.sharia.hint">
+                          Shown to customers who filter for Islamic finance.
+                        </span>
+                      } @else {
+                        <span class="option-hint" i18n="@@bank_programs.field.sharia.locked">
+                          Answer the income question first.
+                        </span>
+                      }
                     </span>
                   </label>
                 </div>
@@ -530,7 +598,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             }
 
             <!-- ═══ STEP 2 — AMOUNT & DURATION ══════════════════════════════════ -->
-            @if (stepIndex() === 1) {
+            @if (stepIndex() === 2) {
               <section class="card" formGroupName="loanLimits">
                 <header class="card-head">
                   <div>
@@ -652,7 +720,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             }
 
             <!-- ═══ STEP 3 — PRICING & FEES ═════════════════════════════════════ -->
-            @if (stepIndex() === 2) {
+            @if (stepIndex() === 3) {
               <section class="card" formGroupName="pricing">
                 <header class="card-head">
                   <div>
@@ -1013,7 +1081,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             }
 
             <!-- ═══ STEP 4 — ELIGIBILITY ════════════════════════════════════════ -->
-            @if (stepIndex() === 3) {
+            @if (stepIndex() === 4) {
               <!-- FIRST on this step when the program has no payslip to read. The rule is the
                defining property of such a program — it decides what income exists at all —
                and it used to sit last, below eligibility fields it silently reframes. -->
@@ -1287,7 +1355,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             }
 
             <!-- ═══ STEP 5 — DOCUMENTS & NOTES ══════════════════════════════════ -->
-            @if (stepIndex() === 4) {
+            @if (stepIndex() === 5) {
               <section class="card" formGroupName="documents">
                 <header class="card-head">
                   <div>
@@ -1337,7 +1405,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
             <!-- ═══ STEP 6 — REVIEW ═════════════════════════════════════════════
                A read-back, not a form: every row is a value the admin typed, and
                every group jumps straight back to the step that owns it. -->
-            @if (stepIndex() === 5) {
+            @if (stepIndex() === 6) {
               <section class="card review">
                 <header class="card-head">
                   <div>
@@ -1452,12 +1520,20 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           border-color 160ms cubic-bezier(0.4, 0, 0.2, 1),
           background-color 160ms cubic-bezier(0.4, 0, 0.2, 1);
       }
-      label.option-row:hover {
+      label.option-row:hover:not(.is-locked) {
         border-color: color-mix(
           in oklab,
           var(--primary, var(--color-brand-primary)) 38%,
           var(--border-default, var(--color-border-default))
         );
+      }
+      /* Muted, not hidden: the row still says what it is and what unlocks it.
+         The pointer is refused on the whole label because the hit area IS the
+         label — a not-allowed cursor over the text and a live one over the box
+         would read as two different controls. */
+      label.option-row.is-locked {
+        opacity: 0.55;
+        cursor: not-allowed;
       }
       label.option-row:focus-within {
         border-color: var(--primary, var(--color-brand-primary));
@@ -1532,96 +1608,197 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         color: var(--color-warning);
       }
 
-      /* ── Income-basis choice (step 1) ─────────────────────────────
-         Two cards, not a select: the answer reshapes step 1's own name picker and
-         the whole of step 4, and a collapsed dropdown gave a decision of that size
-         the same weight as a fee field. Radios stay real radios (visually hidden
-         input inside the label) so arrow-key group navigation and form semantics
-         come for free. */
-      .basis-pick {
-        margin: 0 0 var(--space-4);
+      /* Visually hidden but still focusable and still a real form control. Declared
+         here because this component had none: the choice cards this block replaced
+         set class="sr-only" on their radio and nothing defined it, so the native
+         input rendered VISIBLE beside the faux dot — two radio affordances per
+         card. The pills below use the same pattern and would inherit that. */
+      .sr-only {
+        position: absolute;
+        inline-size: 1px;
+        block-size: 1px;
+        margin: -1px;
         padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
         border: 0;
       }
-      .basis-legend {
+
+      /* Lifts the basis filter on the name picker. Quiet: the filtered view is the
+         right one nearly always, and this is the exception. */
+      .link-btn {
+        align-self: flex-start;
+        margin-block-start: var(--space-1);
         padding: 0;
-        margin-block-end: var(--space-2);
-        font-size: var(--text-sm);
+        border: 0;
+        background: transparent;
+        font: inherit;
+        font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
-        color: var(--color-text-primary);
+        color: var(--color-brand-primary);
+        cursor: pointer;
+        text-align: start;
       }
+      .link-btn:hover {
+        text-decoration: underline;
+      }
+      .link-btn:focus-visible {
+        outline: 2px solid var(--color-brand-primary);
+        outline-offset: 2px;
+        border-radius: var(--radius-sm);
+      }
+
+      /* ── Income step (step 1) ─────────────────────────────────────
+         The one question on its own step, so it is asked as two full cards: there is
+         room to say what each answer COMMITS to, and the step exists precisely
+         because that commitment reaches two later steps. Radios stay real radios
+         (visually hidden input inside the label) so arrow-key group navigation and
+         form semantics come for free. */
       .basis-cards {
         display: grid;
-        gap: var(--space-3);
+        gap: var(--space-4);
         grid-template-columns: 1fr;
       }
-      @media (min-width: 40rem) {
+      @media (min-width: 48rem) {
         .basis-cards {
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
       .basis-card {
+        --basis-accent: var(--color-brand-primary);
         display: flex;
         flex-direction: column;
-        gap: var(--space-1);
-        padding: var(--space-3) var(--space-4);
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-5);
         border: 1px solid var(--color-border-default);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-lg);
         background: var(--color-surface-default);
         cursor: pointer;
         transition:
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
-          background-color var(--motion-duration-fast) var(--motion-easing-standard);
+          background-color var(--motion-duration-fast) var(--motion-easing-standard),
+          box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
+          transform var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .basis-card:hover {
-        border-color: var(--color-border-strong);
-      }
-      /* On the LABEL, driven by the hidden input inside it — the visible card is what
-         the operator perceives as focused. */
-      .basis-card:focus-within {
-        outline: 2px solid var(--color-brand-primary);
-        outline-offset: 2px;
-      }
-      .basis-card.is-on {
-        border-color: var(--basis-accent, var(--color-brand-primary));
-        background: color-mix(
-          in srgb,
-          var(--basis-accent, var(--color-brand-primary)) 6%,
-          var(--color-surface-default)
-        );
-      }
-      /* The no-payslip card carries the plum this concept owns board-wide, so the
-         chosen card matches the chip in the header and the edge on the catalog. */
-      .basis-cards .basis-card:last-child {
+      .basis-card[data-basis='no_payslip'] {
         --basis-accent: var(--color-income-surrogate);
       }
-      .basis-card-title {
+      /* Hover previews the card's OWN accent rather than a neutral darkening, so the
+         plum of the no-payslip answer is visible before it is committed to. */
+      .basis-card:hover:not(.is-on) {
+        border-color: color-mix(in srgb, var(--basis-accent) 45%, var(--color-border-default));
+        background: color-mix(in srgb, var(--basis-accent) 4%, var(--color-surface-default));
+        transform: translateY(-1px);
+      }
+      .basis-card:active:not(.is-on) {
+        transform: none;
+      }
+      /* Same split as the pills: an always-on ring for engines without :has(), and
+         focus-visible only where it is available — otherwise clicking a card leaves a
+         ring on it for the session and selection and focus become one picture. */
+      .basis-card:focus-within {
+        outline: 2px solid var(--basis-accent);
+        outline-offset: 3px;
+      }
+      @supports selector(:has(*)) {
+        .basis-card:focus-within {
+          outline: none;
+        }
+        .basis-card:has(:focus-visible) {
+          outline: 2px solid var(--basis-accent);
+          outline-offset: 3px;
+        }
+      }
+      .basis-cards.is-unanswered .basis-card {
+        border-color: color-mix(in srgb, var(--basis-accent) 28%, var(--color-border-default));
+      }
+      .basis-card.is-on {
+        border-color: var(--basis-accent);
+        background: color-mix(in srgb, var(--basis-accent) 7%, var(--color-surface-default));
+        box-shadow: 0 2px 10px color-mix(in srgb, var(--basis-accent) 22%, transparent);
+      }
+      .basis-card-top {
         display: flex;
         align-items: center;
-        gap: var(--space-2);
-        font-size: var(--text-sm);
+        justify-content: space-between;
+        gap: var(--space-3);
+      }
+      /* The concept's own glyph, the pair the header chip uses — so the mark chosen
+         here is the mark carried in the chip for the remaining six steps. */
+      .basis-card-icon {
+        font-size: 22px;
+        line-height: 1;
+        color: var(--color-text-tertiary, var(--color-text-secondary));
+        transition: color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .basis-card.is-on .basis-card-icon {
+        color: var(--basis-accent);
+      }
+      .basis-card-title {
+        font-size: var(--text-md);
         font-weight: var(--font-weight-semibold);
         color: var(--color-text-primary);
       }
-      .basis-radio {
-        flex: none;
-        inline-size: 14px;
-        block-size: 14px;
-        border: 2px solid var(--color-border-strong);
-        border-radius: 50%;
-      }
-      .basis-card.is-on .basis-radio {
-        border-color: var(--basis-accent, var(--color-brand-primary));
-        background: radial-gradient(
-          circle,
-          var(--basis-accent, var(--color-brand-primary)) 0 45%,
-          transparent 46%
-        );
+      .basis-card.is-on .basis-card-title {
+        color: color-mix(in srgb, var(--basis-accent) 82%, var(--color-text-primary));
       }
       .basis-card-hint {
-        font-size: var(--text-xs);
+        font-size: var(--text-sm);
         line-height: var(--line-height-base);
         color: var(--color-text-secondary);
+      }
+      /* The dependency, said before it is committed to rather than discovered two
+         steps later. Divided off so it reads as a consequence, not more description. */
+      .basis-card-effect {
+        margin-block-start: var(--space-1);
+        padding-block-start: var(--space-3);
+        border-block-start: 1px solid
+          color-mix(in srgb, var(--basis-accent) 22%, var(--color-border-default));
+        font-size: var(--text-xs);
+        line-height: var(--line-height-base);
+        font-weight: var(--font-weight-medium);
+        color: color-mix(in srgb, var(--basis-accent) 72%, var(--color-text-secondary));
+      }
+
+      /* The radio mark. Drawn on both cards at rest, because an empty circle is the
+         only thing here that says an answer is still owed — the fill, the icon and
+         the title describe the options, they do not report that one was chosen. */
+      .basis-card-dot {
+        flex: none;
+        display: grid;
+        place-items: center;
+        inline-size: 18px;
+        block-size: 18px;
+        border: 2px solid var(--color-border-strong);
+        border-radius: 50%;
+        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      /* Scale-in rather than a swapped background — the dot is the smallest mark on
+         the step, and appearing instantly at 9px reads as a rendering glitch. */
+      .basis-card-dot::after {
+        content: '';
+        inline-size: 9px;
+        block-size: 9px;
+        border-radius: 50%;
+        background: var(--basis-accent);
+        transform: scale(0);
+        transition: transform 140ms cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .basis-card:hover:not(.is-on) .basis-card-dot {
+        border-color: color-mix(in srgb, var(--basis-accent) 60%, var(--color-border-strong));
+      }
+      /* Unanswered, both cards: the ring picks up the accent so the pair reads as one
+         live question rather than two grey outlines. */
+      .basis-cards.is-unanswered .basis-card-dot {
+        border-color: color-mix(in srgb, var(--basis-accent) 45%, var(--color-border-strong));
+      }
+      .basis-card.is-on .basis-card-dot {
+        border-color: var(--basis-accent);
+      }
+      .basis-card.is-on .basis-card-dot::after {
+        transform: scale(1);
       }
 
       /* ── Fact-binding line (step 4) ───────────────────────────────
@@ -1645,36 +1822,41 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         text-decoration: underline;
       }
       @media (prefers-reduced-motion: reduce) {
-        .basis-card {
+        .basis-card,
+        .basis-card-icon,
+        .basis-card-dot,
+        .basis-card-dot::after {
           transition: none;
+        }
+        .basis-card:hover:not(.is-on) {
+          transform: none;
         }
       }
 
       /* ── App-frame layout ────────────────────────────────────────
-         The page fills the shell scrollport EXACTLY (<main class="content"> in
-         app.component owns overflow-y; its height is definite, so a 100% child
-         is definite too) and hands its own overflow to .form-scroll. That is
-         what pins the rail and the action bar: they are flex siblings of the
-         scroller, never scrolled at all — no sticky offsets, no opaque backdrop
-         bleeding past the host padding, no z-index race with ng-zorro overlays.
+         The page grows to its content and lets the SHELL scroll it
+         (<main class="content"> in app.component owns overflow-y). It used to
+         pin itself to the scrollport and hand its overflow to an inner band,
+         which squeezed the step body into whatever height the rail and the
+         action bar left over — about 400px on a laptop — so a six-field step
+         grew a scrollbar inside the white card while the window itself had
+         none. One scrollbar, on the window, is the honest one.
+         padding-block is 0 because .content already spends --space-6 top and
+         bottom; the page was paying it twice, for 128px of dead vertical room.
          box-sizing is set here because this app has no global border-box
-         reset — without it the padding would push the host 48px past the
-         scrollport and hand the shell a second scrollbar. */
+         reset — without it the inline padding would push the host past the
+         scrollport and hand the shell a horizontal scrollbar. */
       :host {
         box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        block-size: 100%;
-        min-block-size: 0;
-        padding: var(--space-6);
+        display: block;
+        padding-block: 0;
+        padding-inline: var(--space-6);
         max-width: var(--content-max-width);
         margin-inline: auto;
       }
       .page {
         display: flex;
         flex-direction: column;
-        flex: 1 1 auto;
-        min-block-size: 0;
       }
       .page-header {
         display: flex;
@@ -1722,36 +1904,16 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         max-width: 72ch;
         color: var(--text-secondary, var(--color-text-secondary));
       }
-      /* Title + rail + action bar are all permanent chrome now. On a short
-         laptop viewport the once-read intro is the first thing to go, so the
-         step body keeps a workable height. */
-      @media (max-height: 860px) {
-        .page-subtitle {
-          display: none;
-        }
-        .page-header {
-          margin-block-end: var(--space-4);
-        }
-      }
       .form-body {
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
-        flex: 0 1 auto;
-        min-block-size: 0;
       }
-      /* The scrolling step body. min-block-size:0 is load-bearing: without it a
-         flex item refuses to shrink below its content and the whole page — rail
-         and action bar included — scrolls in the shell instead.
-         scrollbar-gutter keeps the column from shifting sideways when a short
-         step (Documents) has no scrollbar and a tall one (Pricing) does.
-         The inline padding + matching negative margin let focus halos and card
-         shadows breathe instead of being clipped at the scrollport edge. */
-      .form-scroll {
-        flex: 0 1 auto;
-        min-block-size: 0;
-        overflow-y: auto;
-        scrollbar-gutter: stable;
+      /* The step body. Named for what it is — a stack of step cards — since it
+         stopped owning a scrollport: the window scrolls it now. The inline
+         padding + matching negative margin let focus halos and card shadows
+         breathe instead of being clipped at the column edge. */
+      .step-stack {
         display: flex;
         flex-direction: column;
         /* Sections are distinct decisions, fields inside one are not — so the
@@ -2045,8 +2207,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         align-items: center;
         justify-content: flex-end;
         gap: var(--space-3);
-        padding: var(--space-4) 0 0;
-        background: transparent;
         border: none;
         border-block-start: 1px solid var(--border-default, var(--color-border-default));
       }
@@ -2274,12 +2434,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       }
 
       /* ── Wizard: rail block + issue banner ──────────────────────── */
-      /* The rail and the issue banner sit together as ONE block above the
-         scrolling body — a flex sibling of .form-scroll, so it holds its place
-         without sticky offsets or an opaque backdrop faking one. The rail's own
-         card edge is the boundary cards scroll under, so no extra hairline. */
+      /* The rail and the issue banner sit together as ONE block above the step
+         body. It scrolls away with the page — the action bar is what has to stay
+         reachable, and two pinned bars on a 800px viewport is most of the screen
+         spent on chrome. */
       .wizard-rail {
-        flex: 0 0 auto;
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
@@ -2303,15 +2462,15 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
 
       /* Cards are re-created on every step change, so the entry animation plays
          once per step — a directional cue, not decoration. */
-      .form-scroll > .card,
-      .form-scroll > app-income-assumption-section,
-      .form-scroll > .ctx-missing {
+      .step-stack > .card,
+      .step-stack > app-income-assumption-section,
+      .step-stack > .ctx-missing {
         animation: step-enter var(--motion-duration-base) var(--motion-easing-standard) both;
       }
-      .form-scroll > section.card:nth-of-type(2) {
+      .step-stack > section.card:nth-of-type(2) {
         animation-delay: 30ms;
       }
-      .form-scroll > section.card:nth-of-type(3) {
+      .step-stack > section.card:nth-of-type(3) {
         animation-delay: 60ms;
       }
       @keyframes step-enter {
@@ -2325,9 +2484,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        .form-scroll > .card,
-        .form-scroll > app-income-assumption-section,
-        .form-scroll > .ctx-missing {
+        .step-stack > .card,
+        .step-stack > app-income-assumption-section,
+        .step-stack > .ctx-missing {
           animation: none;
         }
       }
@@ -2407,11 +2566,17 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         }
       }
 
-      /* Pinned action bar: the next step is always reachable without scrolling
-         back to the bottom of a long panel. Pinned by the flex layout (the body
-         above it owns the overflow), not by sticky. */
+      /* In-flow action bar, at the END of the step — not pinned. It used to be
+         position: sticky / inset-block-end: 0 against the shell scrollport, so
+         on a short step it floated in the middle of empty page and on a long one
+         it hovered over the cards it belongs after. The step body is the thing
+         being read; the bar is what you reach when it is done.
+         Inline padding + matching negative margin are kept so the top rule spans
+         the full width of .step-stack rather than stopping inside it. */
       .form-footer {
-        flex: 0 0 auto;
+        padding-block: var(--space-4);
+        padding-inline: var(--space-2);
+        margin-inline: calc(var(--space-2) * -1);
       }
       /* Direction arrows are glyphs, not logical properties — flip them in RTL
          so "Back" and "Continue" keep pointing the way the reader travels. */
@@ -2470,13 +2635,23 @@ export class BankProgramFormPage implements OnInit {
 
   // ── Wizard (FR-011 revisited) ────────────────────────────────────────────
   /**
-   * The form is a 6-step wizard again, with the defect that killed the previous
-   * one designed out: **no control hides behind a disclosure.** Every fee, the
-   * DBR cap and the rate all render in the open on the step that owns them, so
-   * an admin can never be blocked by a field they were never shown, and the rail
-   * marks the exact step that still needs attention.
+   * A 7-step wizard, with the defect that killed the previous one designed out:
+   * **no control hides behind a disclosure.** Every fee, the DBR cap and the rate
+   * all render in the open on the step that owns them, so an admin can never be
+   * blocked by a field they were never shown, and the rail marks the exact step
+   * that still needs attention.
+   *
+   * `income` is a step of its own rather than the first field of `program`, because
+   * the rest of the wizard is downstream of it: it narrows the program names step 2
+   * may offer, and it decides whether `eligibility` carries a whole rate-table
+   * editor. A question that reshapes two later steps is not a field.
    */
   readonly steps: readonly WizardStep[] = [
+    {
+      id: 'income',
+      label: $localize`:@@bank_programs.step.income:Income`,
+      groups: [],
+    },
     {
       id: 'program',
       label: $localize`:@@bank_programs.step.program:Program`,
@@ -2560,6 +2735,11 @@ export class BankProgramFormPage implements OnInit {
 
   isStepValid(index: number): boolean {
     if (!this.stepControls(index).every((c) => c.valid)) return false;
+    // The income step owns no control — `programType` has a default, so the group it
+    // lives in is valid before anybody has answered. Its answer is a signal, and this
+    // is what stops Continue walking past an unanswered question into a name picker
+    // that would then have nothing to filter on.
+    if (this.steps[index]?.id === 'income' && this.basisAnswered() === null) return false;
     // The DBR band table lives in a signal, not a control, so step validity has
     // to ask it directly — otherwise a broken table would sail past Continue and
     // only fail on the server (`DBR_BANDS_INVALID`).
@@ -2575,10 +2755,17 @@ export class BankProgramFormPage implements OnInit {
     return true;
   }
 
-  /** Green check: a step already visited, left behind, and holding valid values. */
+  /**
+   * Green check: a step already visited, left behind, and holding valid values.
+   *
+   * Keyed off the review step by NAME, not by "owns no groups" — `income` owns none
+   * either, and it is the one step that most deserves a tick: the rest of the wizard
+   * is filtered by its answer. Only `review` is never complete, because reading the
+   * form back is not a thing that can be finished.
+   */
   isStepComplete(index: number): boolean {
     const step = this.steps[index];
-    if (!step || step.groups.length === 0) return false;
+    if (!step || step.id === 'review') return false;
     return index !== this.stepIndex() && index <= this.furthestStep() && this.isStepValid(index);
   }
 
@@ -2623,6 +2810,13 @@ export class BankProgramFormPage implements OnInit {
    * the admin never has to hunt for what blocked them.
    */
   private commitStep(): boolean {
+    // A step whose verdict is a SIGNAL rather than a control — today only `income` —
+    // has nothing for the control walk below to reject, so it is checked first.
+    // Without this Continue advanced silently past an unanswered income question.
+    if (!this.isStepValid(this.stepIndex()) && this.stepControls(this.stepIndex()).length === 0) {
+      this.showStepIssues.set(true);
+      return false;
+    }
     const controls = this.stepControls(this.stepIndex());
     if (controls.every((c) => c.valid)) {
       this.showStepIssues.set(false);
@@ -2634,12 +2828,24 @@ export class BankProgramFormPage implements OnInit {
     return false;
   }
 
-  /** Number of fields on the current step that still fail validation. */
+  /**
+   * Number of fields on the current step that still fail validation.
+   *
+   * The income step has no field, so its unanswered question counts as one — the
+   * rail's alert is gated on this being above zero, and a step that blocks Continue
+   * while reporting nothing is the worst of both.
+   */
   stepIssueCount(): number {
+    if (this.steps[this.stepIndex()]?.id === 'income') {
+      return this.basisAnswered() === null ? 1 : 0;
+    }
     return this.stepControls(this.stepIndex()).reduce((sum, c) => sum + countInvalidLeaves(c), 0);
   }
 
   stepIssueLabel(): string {
+    if (this.steps[this.stepIndex()]?.id === 'income') {
+      return $localize`:@@bank_programs.step.issue_income:Choose how the bank reads the income before you continue.`;
+    }
     const count = this.stepIssueCount();
     // A cross-field verdict (tenor min > max, rate bands out of order) leaves
     // every field filled, so "needs a value" would send the admin hunting for an
@@ -2661,16 +2867,22 @@ export class BankProgramFormPage implements OnInit {
   }
 
   /**
-   * A new step starts at its own top. The rail is fixed chrome now, so there is
-   * nothing to scroll INTO view — the step body is the scroller, and it keeps
-   * the outgoing step's offset unless it is reset here.
+   * A new step starts at its own top.
+   *
+   * The scroller is the SHELL's (`<main class="content">`), not a band inside this
+   * page — so the reset has to reach up to it. Landing halfway down step 4 because
+   * step 3 was scrolled that far is the same disorientation the old inner scroller
+   * was reset to avoid; only the element that holds the offset changed.
+   * Falls back to the window in case the page is ever hosted outside the shell.
    */
   private revealStepStart(): void {
-    const body = this.host.nativeElement.querySelector<HTMLElement>('.form-scroll');
-    body?.scrollTo({
-      top: 0,
-      behavior: this.prefersReducedMotion ? 'auto' : 'smooth',
-    });
+    const behavior = this.prefersReducedMotion ? 'auto' : 'smooth';
+    const scroller = this.host.nativeElement.closest<HTMLElement>('.content');
+    if (scroller) {
+      scroller.scrollTo({ top: 0, behavior });
+      return;
+    }
+    globalThis.scrollTo?.({ top: 0, behavior });
   }
 
   private focusFirstInvalid(): void {
@@ -2841,12 +3053,13 @@ export class BankProgramFormPage implements OnInit {
         validators: [Validators.required],
       }),
       /**
-       * Islamic-finance program. HIDDEN from the form UI — the customer-facing
-       * half (offer badge, Islamic-only filter, "profit rate" wording) was never
-       * built, so the checkbox let admins set a flag nobody could see. The
-       * control stays so an existing program's stored value round-trips through
-       * edit unchanged; the API field, DB column and offer snapshot are intact.
-       * Re-expose the checkbox when the customer-facing surfaces ship.
+       * Islamic-finance program, asked as the last row of step 1.
+       *
+       * (The comment here used to say the checkbox was hidden because the
+       * customer-facing half — offer badge, Islamic-only filter, "profit rate"
+       * wording — was never built. It has been on screen for some time; the
+       * customer-facing caveat is still true, so what the flag reaches remains
+       * the API field, the DB column and the offer snapshot.)
        */
       isShariaCompliant: new FormControl(false, { nonNullable: true }),
     }),
@@ -2882,7 +3095,7 @@ export class BankProgramFormPage implements OnInit {
     }),
     pricing: this.fb.nonNullable.group({
       isVariableRate: new FormControl(false, { nonNullable: true }),
-      baseRatePercent: new FormControl<string | null>('24.0000'),
+      baseRatePercent: new FormControl<string | null>('24.0'),
       currentEffectiveRatePercent: new FormControl<string | null>(null),
       variableRateNote: new FormControl<string | null>(null),
       rateByLoanAmountBands: new FormArray<FormGroup>([], {
@@ -2917,7 +3130,7 @@ export class BankProgramFormPage implements OnInit {
         nonNullable: true,
         validators: [Validators.required, Validators.min(0)],
       }),
-      dbrCapPercent: new FormControl('50.0000', {
+      dbrCapPercent: new FormControl('50.0', {
         nonNullable: true,
         validators: [Validators.required],
       }),
@@ -2959,28 +3172,28 @@ export class BankProgramFormPage implements OnInit {
       combinationRule: new FormControl<'lesser_of' | 'greater_of' | null>(null),
     }),
     fees: this.fb.nonNullable.group({
-      adminFeePercent: new FormControl('1.0000', {
+      adminFeePercent: new FormControl('1.0', {
         nonNullable: true,
         validators: [Validators.required],
       }),
-      stampDutyPercent: new FormControl('0.5000', {
+      stampDutyPercent: new FormControl('0.5', {
         nonNullable: true,
         validators: [Validators.required],
       }),
-      lifeInsurancePercent: new FormControl('0.5000', {
+      lifeInsurancePercent: new FormControl('0.5', {
         nonNullable: true,
         validators: [Validators.required],
       }),
       lifeInsuranceMandatory: new FormControl(false, { nonNullable: true }),
-      latePaymentFeePercent: new FormControl('4.0000', {
+      latePaymentFeePercent: new FormControl('4.0', {
         nonNullable: true,
         validators: [Validators.required],
       }),
-      payoffCashPercent: new FormControl('12.0000', {
+      payoffCashPercent: new FormControl('12.0', {
         nonNullable: true,
         validators: [Validators.required],
       }),
-      payoffBuyoutPercent: new FormControl('15.0000', {
+      payoffBuyoutPercent: new FormControl('15.0', {
         nonNullable: true,
         validators: [Validators.required],
       }),
@@ -3138,18 +3351,71 @@ export class BankProgramFormPage implements OnInit {
     }
   }
 
-  /** Plum for no-payslip, neutral for the ordinary case — the board-wide pairing. */
+  /** Plum for no-payslip, neutral for the ordinary case (and for the unanswered
+   * one) — the board-wide pairing. */
   protected basisAccent(): string {
-    return this.incomeBasis() === 'no_payslip'
+    return this.basisAnswered() === 'no_payslip'
       ? 'var(--color-income-surrogate)'
       : 'var(--color-text-secondary)';
   }
 
+  /**
+   * The chip's glyph follows the chip's WORDS: a payslip page for the ordinary case,
+   * a calculator for the worked-out one, and a question mark while the chip is still
+   * saying "Not set yet" — a document icon beside those words reads as an answer.
+   */
   protected basisIcon(): string {
-    return this.incomeBasis() === 'no_payslip' ? 'calculator' : 'file-text';
+    const basis = this.basisAnswered();
+    if (!basis) return 'question-circle';
+    return this.basisIconFor(basis);
   }
 
+  /**
+   * The glyph for a named basis, so the two pills carry the SAME marks as the header
+   * chip they set. A radio dot said only "one of these" — the icons say which is
+   * which before the label is read, and they are what the operator will keep seeing
+   * in the chip for the remaining five steps.
+   */
+  protected basisIconFor(basis: IncomeBasis): string {
+    return basis === 'no_payslip' ? 'calculator' : 'file-text';
+  }
+
+  protected readonly incomeStepAria = $localize`:@@bank_programs.income.aria:How the bank reads the income`;
+
+  /**
+   * What the answer COMMITS the operator to, said on the card before it is picked.
+   *
+   * The income step reshapes two later steps — it filters the program names step 2
+   * offers, and a no-payslip program has a whole rate-table editor on Eligibility
+   * that a payslip one does not. Discovering that two steps in reads as the wizard
+   * changing under you; naming it here makes the dependency the point of the step.
+   */
+  protected basisEffect(basis: IncomeBasis): string {
+    return basis === 'no_payslip'
+      ? // NOT "you fill in the bank's table". Of the eleven methods only two
+        // (`byProfessorRank`, `byMilitaryGrade`) are a key table — four are bands, four
+        // are a single number, and `declared` is nothing at all, which seven seeded
+        // business/professional programs use on purpose. Promising a table here
+        // described one method in eleven, so it named the SETTING instead.
+        $localize`:@@bank_programs.income.effect.no_payslip:Pick this and the next step shows the program names that work without a payslip. On the Eligibility step you then set how the bank works the income out.`
+      : $localize`:@@bank_programs.income.effect.payslip:Pick this and the next step shows the program names that need a payslip.`;
+  }
+
+  /**
+   * Answer the income question. `programType` stays the stored value and the only
+   * thing that ships; `basisPicked` records that a human answered, which the control's
+   * default cannot express.
+   *
+   * Changing the answer re-narrows the name list, so the "show the rest" escape is
+   * dropped: it was granted against the previous basis, and leaving it on would hand
+   * the operator an unfiltered list they never asked to see twice. A name already
+   * picked is deliberately left alone — the catalog refuses nothing, so a program
+   * whose name the new basis hides is legal, and clearing it would throw away a
+   * choice over a disagreement the API does not care about.
+   */
   protected pickBasis(basis: IncomeBasis): void {
+    this.basisPicked.set(basis);
+    this.showAllNamesSignal.set(false);
     this.form.controls.identity.controls.programType.setValue(programTypeOf(basis));
     this.form.controls.identity.controls.programType.markAsDirty();
   }
@@ -3206,18 +3472,13 @@ export class BankProgramFormPage implements OnInit {
     }
 
     return [
+      // The income row is its own group now, because it is its own step: a review
+      // that folds it back under "Program" would send an operator who wants to change
+      // it to the step that no longer asks it.
       {
         step: 0,
         title: this.steps[0]?.label ?? '',
         rows: [
-          { label: $localize`:@@bank_programs.review.bank:Bank`, value: id.bankName },
-          { label: $localize`:@@bank_programs.review.name:Program name`, value: id.friendlyName },
-          {
-            label: $localize`:@@bank_programs.review.product:Product`,
-            value: isLoanCategory(id.productCategory)
-              ? categoryLabel(id.productCategory)
-              : id.productCategory,
-          },
           {
             label: $localize`:@@bank_programs.review.income_basis:Income`,
             value: incomeBasisLabel(basisOf(id.programType)),
@@ -3227,6 +3488,20 @@ export class BankProgramFormPage implements OnInit {
       {
         step: 1,
         title: this.steps[1]?.label ?? '',
+        rows: [
+          { label: $localize`:@@bank_programs.review.bank:Bank`, value: id.bankName },
+          { label: $localize`:@@bank_programs.review.name:Program name`, value: id.friendlyName },
+          {
+            label: $localize`:@@bank_programs.review.product:Product`,
+            value: isLoanCategory(id.productCategory)
+              ? categoryLabel(id.productCategory)
+              : id.productCategory,
+          },
+        ],
+      },
+      {
+        step: 2,
+        title: this.steps[2]?.label ?? '',
         rows: [
           {
             label: $localize`:@@bank_programs.review.amount:Loan amount`,
@@ -3239,8 +3514,8 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: 2,
-        title: this.steps[2]?.label ?? '',
+        step: 3,
+        title: this.steps[3]?.label ?? '',
         rows: [
           ...rateRows,
           {
@@ -3268,8 +3543,8 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: 3,
-        title: this.steps[3]?.label ?? '',
+        step: 4,
+        title: this.steps[4]?.label ?? '',
         rows: [
           // The rule leads the read-back for the same reason it leads the step: on a
           // no-payslip program it decides what income exists at all. The review step
@@ -3307,8 +3582,8 @@ export class BankProgramFormPage implements OnInit {
         ],
       },
       {
-        step: 4,
-        title: this.steps[4]?.label ?? '',
+        step: 5,
+        title: this.steps[5]?.label ?? '',
         rows: [
           {
             label: $localize`:@@bank_programs.review.documents:Required documents`,
@@ -3561,7 +3836,7 @@ export class BankProgramFormPage implements OnInit {
   );
   readonly dbrFlatCap = computed(() => {
     const cap = this.dbrCapValue();
-    return typeof cap === 'string' && cap.trim() !== '' ? cap : '50.0000';
+    return typeof cap === 'string' && cap.trim() !== '' ? cap : '50.0';
   });
 
   /**
@@ -3626,27 +3901,84 @@ export class BankProgramFormPage implements OnInit {
    * label is resolved from the FULL registry so a known name never renders as a
    * raw machine key.
    */
-  readonly programNameOptions = computed(() => {
+  private readonly namesForCategory = computed(() => {
     const all = this.programNameMembers().filter((m) => m.active && !m.deprecated);
     const cat = this.productCategorySignal();
     // An unrecognised product category is a registry-config problem, not a
     // reason to hand the admin an empty picker.
-    const byCategory = isLoanCategory(cat)
-      ? all.filter((m) => (m.categories ?? []).includes(cat))
-      : all;
-    // Then by income BASIS, in BOTH directions: the catalog says how each name is sold
-    // under this loan type, and a program may only name one sold the way it proves
-    // income. It used to narrow only the no-payslip side (the mark was inferred from
-    // fact ticks, and "no ticks" could not be told from "not configured yet"), so a
-    // name sold exclusively without a payslip still turned up under "Reads a payslip".
-    //
-    // `undefined` means the backend has not deployed the field: unknown is not "sold
-    // no way", so the picker stays unfiltered rather than empty.
-    const basis = this.incomeBasis();
-    const pool = isLoanCategory(cat)
-      ? byCategory.filter((m) => m.incomeBases === undefined || m.incomeBases[cat]?.includes(basis))
-      : byCategory;
-    const opts = pool.map((m) => ({
+    return isLoanCategory(cat) ? all.filter((m) => (m.categories ?? []).includes(cat)) : all;
+  });
+
+  /**
+   * Does the catalog file this name under the ANSWERED basis for this loan type?
+   *
+   * Only an explicit disagreement hides a name. A pair the catalog has not settled —
+   * field absent (older backend), name not offered under this category, or a legacy
+   * row holding both — is shown under either answer: the filter is a shortcut through
+   * the list, and silence is not a statement that the name is sold the other way.
+   */
+  private matchesBasis(key: string, basis: IncomeBasis): boolean {
+    const cat = this.productCategorySignal();
+    if (!isLoanCategory(cat)) return true;
+    const bases = this.programNameMembers().find((m) => m.key === key)?.incomeBases?.[cat];
+    if (!bases || bases.length !== 1) return true;
+    return bases[0] === basis;
+  }
+
+  /** The operator asked to see past the basis filter. Reset whenever the answer changes. */
+  private readonly showAllNamesSignal = signal(false);
+  protected readonly showAllNames = this.showAllNamesSignal.asReadonly();
+
+  protected toggleAllNames(): void {
+    this.showAllNamesSignal.update((on) => !on);
+  }
+
+  /**
+   * How many names this loan type offers that the answered basis is hiding.
+   *
+   * Rendered as the toggle's own count, so a list shortened by the filter can always
+   * be explained — and so an operator who knows this bank sells a name the other way
+   * can reach it. Zero while the basis is unanswered: nothing is hidden then, the
+   * picker is simply not open for business yet.
+   */
+  protected readonly namesHiddenByBasis = computed(() => {
+    const basis = this.basisAnswered();
+    if (!basis) return 0;
+    return this.namesForCategory().filter((m) => !this.matchesBasis(m.key, basis)).length;
+  });
+
+  /**
+   * Program-name options, sourced from the live `program_name` registry
+   * (Principle II — names are DATA, no hardcoded list), narrowed to the names
+   * assigned to the picked product category (Program catalog → Loan
+   * categories) and then to the ANSWERED income basis. The API enforces the
+   * category pair, so offering a name the save would reject is just a slower way
+   * to show the error; the basis half it does NOT enforce, which is why that half
+   * is a default view with a "show the rest" escape rather than a filter with no
+   * way out (v16.4.0's finding: a stale catalog entry must never make a program
+   * the bank is entitled to sell unreachable).
+   *
+   * A name assigned to NOTHING is parked and appears nowhere — there is no
+   * "show all" escape hatch for that, or the catalog's own parked warning would be
+   * a lie.
+   *
+   * Empty until the basis is answered: this picker is the second question on the
+   * step now, and an open list would invite the operator to skip the first.
+   *
+   * Options carry the catalog KEY, which is what the API stores; a bound key
+   * that is not in the filtered list stays visible so saving does not silently
+   * re-classify the program — that now covers four cases (a pre-catalog key, a
+   * deprecated one, a live one valid under a different category, and one the
+   * catalog files under the other basis), and the label is resolved from the FULL
+   * registry so a known name never renders as a raw machine key.
+   */
+  readonly programNameOptions = computed(() => {
+    const basis = this.basisAnswered();
+    if (!basis) return [];
+    const byBasis = this.showAllNames()
+      ? this.namesForCategory()
+      : this.namesForCategory().filter((m) => this.matchesBasis(m.key, basis));
+    const opts = byBasis.map((m) => ({
       value: m.key,
       label: this.localeIsAr ? m.labelAr : m.labelEn,
     }));
@@ -3672,11 +4004,7 @@ export class BankProgramFormPage implements OnInit {
    * pair is untouched on an existing program — the same grandfather rule the
    * backend applies, so the form and the API agree on what is refusable.
    */
-  readonly programNameMismatch = computed<{
-    name: string;
-    category: string;
-    reason: 'category' | 'basis';
-  } | null>(() => {
+  readonly programNameMismatch = computed<{ name: string; category: string } | null>(() => {
     const key = this.programNameKeySignal();
     const cat = this.productCategorySignal();
     if (!key || !isLoanCategory(cat)) return null;
@@ -3690,16 +4018,7 @@ export class BankProgramFormPage implements OnInit {
     if (!member || member.categories === undefined) return null;
     const name = this.localeIsAr ? member.labelAr : member.labelEn;
     if (!member.categories.includes(cat)) {
-      return { name, category: categoryLabel(cat), reason: 'category' };
-    }
-    // The BASIS half of the same pairing rule — now the one the API enforces too, so
-    // this signal and the save agree on what is refusable. Reached by two routes worth
-    // catching: an edit whose name stopped being sold this way after the program was
-    // created, and a bound key the picker kept visible so a save could not silently
-    // re-classify the program.
-    const bases = member.incomeBases?.[cat];
-    if (bases !== undefined && !bases.includes(this.incomeBasis())) {
-      return { name, category: categoryLabel(cat), reason: 'basis' };
+      return { name, category: categoryLabel(cat) };
     }
     return null;
   });
@@ -3715,6 +4034,39 @@ export class BankProgramFormPage implements OnInit {
     productCategory: string;
   } | null>(null);
 
+  // ── Income basis, asked first ────────────────────────────────────────────
+  /**
+   * The basis the operator has actually answered on THIS form. `null` on create
+   * until they pick one.
+   *
+   * Distinct from {@link incomeBasis}, which reads `programType` — a control with a
+   * default (`income_proof`), so it always has a value and can never say "nobody has
+   * answered". That distinction is what lets the pills start with neither on and the
+   * name picker stay shut until the question is answered.
+   */
+  private readonly basisPicked = signal<IncomeBasis | null>(null);
+
+  /**
+   * The answer in force: the operator's pick, or — on edit — the stored
+   * `programType`, which IS an answer (a saved program states its own basis).
+   */
+  protected readonly basisAnswered = computed<IncomeBasis | null>(
+    () => this.basisPicked() ?? (this.isEditMode() ? this.incomeBasis() : null),
+  );
+
+  /**
+   * The header chip's words.
+   *
+   * `programType` defaults to `income_proof`, so an unanswered form would have the
+   * chip asserting "Reads a payslip" — a claim about a bank nobody has described
+   * yet. It reports the ANSWER, and says so only once there is one.
+   */
+  protected basisChipLabel(): string {
+    const basis = this.basisAnswered();
+    if (!basis) return $localize`:@@bank_programs.form.income.not_set:Not set yet`;
+    return incomeBasisLabel(basis);
+  }
+
   /**
    * Empty-picker copy. Deliberately does NOT tell the operator to go fix it in
    * the program catalog: this form is reachable by four roles, while
@@ -3724,26 +4076,28 @@ export class BankProgramFormPage implements OnInit {
   private readonly noNamesForCategory = $localize`:@@bank_programs.field.friendly_name.none_for_category:No program names are set up for this loan type yet.`;
 
   /**
-   * Three empty pickers, three different dead ends, so they get three messages. The two
-   * basis ones name the catalog because it is a one-tick fix there, and the operator
-   * otherwise has no way to guess why a list that was full a second ago is empty.
+   * Two dead ends, two messages. "None at all" is a catalog gap; "none under this
+   * income" is a filter the operator can lift on the spot, so the copy says so
+   * rather than reading as the same emptiness.
    */
-  private readonly noNoPayslipNames = $localize`:@@bank_programs.field.friendly_name.none_no_payslip:No program names are sold without a payslip for this loan type yet. Mark one that way in the program catalog, or choose “Reads a payslip”.`;
-
-  private readonly noPayslipNames = $localize`:@@bank_programs.field.friendly_name.none_payslip:No program names are sold against a payslip for this loan type yet. Mark one that way in the program catalog, or choose “No payslip”.`;
-
-  protected readonly noNamesForCategoryLabel = computed(() => {
-    const cat = this.productCategorySignal();
-    // "Nothing for this loan type at all" outranks either basis message: telling an
-    // operator to change how a name is sold is a dead end when there is no name.
-    if (
-      !isLoanCategory(cat) ||
-      this.programNameMembers().every((m) => !(m.categories ?? []).includes(cat))
-    ) {
-      return this.noNamesForCategory;
+  protected readonly emptyPickerLabel = computed(() => {
+    if (this.namesForCategory().length === 0) return this.noNamesForCategory;
+    if (this.namesHiddenByBasis() > 0 && !this.showAllNames()) {
+      return $localize`:@@bank_programs.field.friendly_name.none_for_basis:No name in this loan type is filed under this income — use the link below to see the rest.`;
     }
-    return this.incomeBasis() === 'no_payslip' ? this.noNoPayslipNames : this.noPayslipNames;
+    return this.noNamesForCategory;
   });
+
+  /**
+   * The picker's placeholder doubles as the order of the step: while the income is
+   * unanswered it names the question that unlocks it, instead of inviting a pick the
+   * disabled control will not accept.
+   */
+  protected readonly namePlaceholder = computed(() =>
+    this.basisAnswered()
+      ? $localize`:@@bank_programs.field.friendly_name.placeholder:Select a program`
+      : $localize`:@@bank_programs.field.friendly_name.awaiting_basis:Answer the income question first`,
+  );
 
   constructor() {
     // Bank picker valueChanges → mirror into identity.bankName.
@@ -3815,6 +4169,10 @@ export class BankProgramFormPage implements OnInit {
     // `friendlyNameAr` (derived above), leaving a program with no key and a
     // stale display name — worse than the problem. `programNameMismatch` warns
     // and blocks the step instead, so the operator decides which field is wrong.
+
+    // No catalog → basis effect. The basis is asked FIRST now and narrows the name
+    // list, so deriving it back from the name would be a loop: the catalog's entry
+    // is intent, the bank's answer is the fact, and this form collects the fact.
   }
 
   ngOnInit(): void {
@@ -4336,10 +4694,13 @@ export class BankProgramFormPage implements OnInit {
       qualitativeReviewMaxEGP: initial.loanLimits.qualitativeReviewMaxEGP ?? null,
     });
 
+    // Percent strings arrive as Prisma `Decimal(_, 4)` — `24.0000` for a flat 24%.
+    // Trimmed for DISPLAY only, on the string, so the value the admin reads back is
+    // the one they typed and no digit is ever parsed through a float.
     this.pricingGroup.patchValue({
       isVariableRate: initial.pricing.isVariableRate,
-      baseRatePercent: initial.pricing.baseRatePercent ?? null,
-      currentEffectiveRatePercent: initial.pricing.currentEffectiveRatePercent ?? null,
+      baseRatePercent: trimZeros(initial.pricing.baseRatePercent) ?? null,
+      currentEffectiveRatePercent: trimZeros(initial.pricing.currentEffectiveRatePercent) ?? null,
       variableRateNote: initial.pricing.variableRateNote ?? null,
     });
 
@@ -4348,7 +4709,9 @@ export class BankProgramFormPage implements OnInit {
     if (bands) {
       Object.entries(bands)
         .sort(([a], [b]) => Number(a) - Number(b))
-        .forEach(([key, band]) => this.rateBandsArray.push(this.bandRow(key, band.value)));
+        .forEach(([key, band]) =>
+          this.rateBandsArray.push(this.bandRow(key, trimZeros(band.value))),
+        );
     }
 
     this.eligibilityGroup.patchValue({
@@ -4356,7 +4719,7 @@ export class BankProgramFormPage implements OnInit {
       ageMax: initial.eligibility.ageMax,
       minMonthlyIncomeEGP: initial.eligibility.minMonthlyIncomeEGP,
       minMonthsInJob: initial.eligibility.minMonthsInJob,
-      dbrCapPercent: initial.eligibility.dbrCapPercent,
+      dbrCapPercent: trimZeros(initial.eligibility.dbrCapPercent),
       skipDbrCheck: initial.eligibility.skipDbrCheck,
       requiresCD: initial.eligibility.requiresCD,
       requiresAutoLoanAtABK: initial.eligibility.requiresAutoLoanAtABK,
@@ -4381,10 +4744,10 @@ export class BankProgramFormPage implements OnInit {
     this.incomeAssumptionGroup.patchValue({
       strategy: initial.incomeAssumption.strategy,
       scalar: {
-        value: initial.incomeAssumption.scalar?.value ?? null,
+        value: trimZeros(initial.incomeAssumption.scalar?.value) ?? null,
         unit: initial.incomeAssumption.scalar?.unit ?? 'percent',
       },
-      dbrCapPercentOverride: initial.incomeAssumption.dbrCapPercentOverride ?? null,
+      dbrCapPercentOverride: trimZeros(initial.incomeAssumption.dbrCapPercentOverride) ?? null,
       requiredDocuments: initial.incomeAssumption.requiredDocuments ?? [],
       combinationRule: initial.incomeAssumption.combinationRule ?? null,
     });
@@ -4392,13 +4755,13 @@ export class BankProgramFormPage implements OnInit {
     this.incomeBands.set(initial.incomeAssumption.bands ?? []);
     this.estimatedPaths.set(new Set(Object.keys(initial.valueSources ?? {})));
     this.feesGroup.patchValue({
-      adminFeePercent: initial.fees.adminFeePercent,
-      stampDutyPercent: initial.fees.stampDutyPercent,
-      lifeInsurancePercent: initial.fees.lifeInsurancePercent,
+      adminFeePercent: trimZeros(initial.fees.adminFeePercent),
+      stampDutyPercent: trimZeros(initial.fees.stampDutyPercent),
+      lifeInsurancePercent: trimZeros(initial.fees.lifeInsurancePercent),
       lifeInsuranceMandatory: initial.fees.lifeInsuranceMandatory,
-      latePaymentFeePercent: initial.fees.latePaymentFeePercent,
-      payoffCashPercent: initial.fees.payoffCashPercent,
-      payoffBuyoutPercent: initial.fees.payoffBuyoutPercent,
+      latePaymentFeePercent: trimZeros(initial.fees.latePaymentFeePercent),
+      payoffCashPercent: trimZeros(initial.fees.payoffCashPercent),
+      payoffBuyoutPercent: trimZeros(initial.fees.payoffBuyoutPercent),
     });
     this.documentsGroup.patchValue({ operatorNotes: initial.operatorNotes ?? null });
     this.setArr('documents.requiredDocuments', initial.requiredDocuments);
@@ -4518,11 +4881,28 @@ function countInvalidFields(control: AbstractControl): number {
   return control.invalid ? 1 : 0;
 }
 
+/**
+ * `'24.0000'` → `'24.0'`, `'1.5000'` → `'1.5'`, `'1'` → `'1.0'`, `'1.2500'` → `'1.25'`.
+ *
+ * A percent, written the way a rate is spoken: padding out to four decimals reads
+ * as precision nobody chose, and cutting to a bare `1` reads as a count rather than
+ * a rate. So trailing zeros go, but ONE decimal always stays — significant digits
+ * beyond it are never dropped.
+ *
+ * String-only, never parsed to a float, so every digit the bank typed survives
+ * (Principle I).
+ */
+function trimZeros<T extends string | null | undefined>(raw: T): T {
+  if (raw == null || raw === '') return raw;
+  if (!raw.includes('.')) return `${raw}.0` as T;
+  const trimmed = raw.replace(/0+$/, '');
+  return (trimmed.endsWith('.') ? `${trimmed}0` : trimmed) as T;
+}
+
 /** `'24.0000'` → `'24%'`, `'1.5000'` → `'1.5%'`. String-only — never parsed to a float. */
 function pct(raw: string | null | undefined): string {
   if (raw == null || raw === '') return '';
-  const trimmed = raw.includes('.') ? raw.replace(/0+$/, '').replace(/\.$/, '') : raw;
-  return `${trimmed}%`;
+  return `${trimZeros(raw)}%`;
 }
 
 /** `'1500000'` → `'1,500,000'`. Digit grouping on the string, so no precision loss. */

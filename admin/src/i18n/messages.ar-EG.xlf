@@ -543,10 +543,8 @@
       <trans-unit id="lookups.field.sortOrder" datatype="html"><source>Sort order</source><target>الترتيب</target></trans-unit>
       <trans-unit id="lookups.field.sortOrderHint" datatype="html"><source>controls the order in dropdowns</source><target>يتحكم في ترتيب العناصر في القوائم المنسدلة</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis" datatype="html"><source>How do banks prove the income?</source><target>كيف تثبت البنوك الدخل؟</target></trans-unit>
-      <trans-unit id="lookups.field.incomeBasis.required" datatype="html"><source>Pick at least one — a name banks cannot sell either way is a name no program can use.</source><target>اختر طريقة واحدة على الأقل — الاسم الذي لا تستطيع البنوك بيعه بأي طريقة لا يصلح لأي برنامج.</target></trans-unit>
-      <trans-unit id="lookups.field.incomeBasis.note" datatype="html"><source>Applies to every loan type this name starts under. Change it per loan type later, on the name’s own page.</source><target>ينطبق على كل أنواع التمويل التي يبدأ بها هذا الاسم. يمكنك تغييره لكل نوع تمويل لاحقًا من صفحة الاسم.</target></trans-unit>
-      <trans-unit id="lookups.field.incomeBasis.noteEdit" datatype="html"><source>Applies to every loan type this name is offered under (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>). To set them apart, use the name’s own page.</source><target>ينطبق على كل أنواع التمويل المعروض تحتها هذا الاسم (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>). لضبط كل نوع على حدة، استخدم صفحة الاسم.</target></trans-unit>
-      <trans-unit id="lookups.field.incomeBasis.mixed" datatype="html"><source>Set on <x id="INTERPOLATION" equiv-text="{{ mixedCategoryNames(b) }}"/> only — tick to set it everywhere.</source><target>مضبوط على <x id="INTERPOLATION" equiv-text="{{ mixedCategoryNames(b) }}"/> فقط — حدّد لضبطه على الكل.</target></trans-unit>
+      <trans-unit id="lookups.field.incomeBasis.note" datatype="html"><source>Applies to every loan type this name starts under. Change it here any time.</source><target>ينطبق على كل أنواع التمويل التي يبدأ بها هذا الاسم. يمكنك تغييره من هنا في أي وقت.</target></trans-unit>
+      <trans-unit id="lookups.field.incomeBasis.noteEdit" datatype="html"><source>Applies to every loan type this name is offered under (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>).</source><target>ينطبق على كل أنواع التمويل المعروض تحتها هذا الاسم (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>).</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis.parked" datatype="html"><source>This name isn’t offered under any loan type yet, so there’s nothing to sell it against. Pick its loan types on the name’s own page first.</source><target>هذا الاسم غير معروض تحت أي نوع تمويل بعد، فلا يوجد ما يُباع عليه. اختر أنواع التمويل من صفحة الاسم أولًا.</target></trans-unit>
       <trans-unit id="lookups.list.separator" datatype="html"><source>, </source><target>، </target></trans-unit>
 
@@ -604,6 +602,7 @@
       <trans-unit id="bank_programs.form.title_edit_named" datatype="html"><source>Edit <x id="bankName"/> bank program</source><target>تعديل برنامج بنك <x id="bankName"/></target></trans-unit>
       <trans-unit id="bank_programs.field.sharia" datatype="html"><source>Sharia-compliant program</source><target>برنامج متوافق مع الشريعة</target></trans-unit>
       <trans-unit id="bank_programs.field.sharia.hint" datatype="html"><source>Shown to customers who filter for Islamic finance.</source><target>يظهر للعملاء الذين يبحثون عن التمويل الإسلامي.</target></trans-unit>
+      <trans-unit id="bank_programs.field.sharia.locked" datatype="html"><source>Answer the income question first.</source><target>أجب عن سؤال الدخل أولًا.</target></trans-unit>
       <trans-unit id="bank_programs.form.loan_type" datatype="html"><source>Loan type</source><target>نوع القرض</target></trans-unit>
       <trans-unit id="bank_programs.form.category_missing" datatype="html"><source>Start from a bank’s loan type so this program is filed under the right product.</source><target>ابدأ من نوع القرض داخل صفحة البنك حتى يُسجَّل البرنامج تحت المنتج الصحيح.</target></trans-unit>
       <trans-unit id="bank_programs.form.category_missing_cta" datatype="html"><source>Go to banks</source><target>الذهاب إلى البنوك</target></trans-unit>
@@ -919,6 +918,7 @@
       <!-- Bank program form — name↔category assignment -->
       <trans-unit id="bank_programs.warn.name_not_in_category" datatype="html"><source>“<x id="INTERPOLATION" equiv-text="mismatch.name"/>” isn’t offered for <x id="INTERPOLATION_1" equiv-text="mismatch.category"/>. Pick another name, or add it to this loan type in the program catalog.</source><target>«<x id="INTERPOLATION" equiv-text="mismatch.name"/>» غير مطروح لـ <x id="INTERPOLATION_1" equiv-text="mismatch.category"/>. اختر اسماً آخر، أو أضفه إلى نوع التمويل هذا من كتالوج البرامج.</target></trans-unit>
       <trans-unit id="bank_programs.field.friendly_name.none_for_category" datatype="html"><source>No program names are set up for this loan type yet.</source><target>لا توجد أسماء برامج مهيأة لنوع التمويل هذا بعد.</target></trans-unit>
+      <trans-unit id="bank_programs.field.friendly_name.none_for_basis" datatype="html"><source>No name in this loan type is filed under this income — use the link below to see the rest.</source><target>لا يوجد اسم في نوع التمويل هذا مصنف تحت هذا الدخل — استخدم الرابط بالأسفل لعرض البقية.</target></trans-unit>
 
       <trans-unit id="qtabs.aria" datatype="html"><source>Questionnaire sections</source><target>أقسام الاستبيان</target></trans-unit>
       <trans-unit id="qtabs.pool" datatype="html"><source>Questions</source><target>الأسئلة</target></trans-unit>
@@ -1191,18 +1191,11 @@
       <trans-unit id="program_catalog.card.no_table" datatype="html"><source><x id="COUNT" equiv-text="count"/> with no table yet</source><target><x id="COUNT" equiv-text="count"/> بدون جدول بعد</target></trans-unit>
       <trans-unit id="income_basis.payslip" datatype="html"><source>Reads a payslip</source><target>يقرأ إثبات الراتب</target></trans-unit>
       <trans-unit id="income_basis.no_payslip" datatype="html"><source>No payslip</source><target>بدون إثبات راتب</target></trans-unit>
-      <trans-unit id="income_basis.payslip.hint" datatype="html"><source>A salary transfer or payslip proves the income the bank lends against.</source><target>تحويل الراتب أو إثبات الراتب هو ما يثبت الدخل الذي يمنح البنك التمويل على أساسه.</target></trans-unit>
-      <trans-unit id="income_basis.no_payslip.hint" datatype="html"><source>The bank works the income out from one of the income facts about the applicant. You enter its own table in step 4.</source><target>يحسب البنك الدخل من إحدى معلومات الدخل عن العميل. تُدخل جدوله الخاص في الخطوة الرابعة.</target></trans-unit>
+      <trans-unit id="income_basis.payslip.hint" datatype="html"><source>The customer is paid a salary into a bank account. The bank lends against that salary.</source><target>العميل يتقاضى راتبًا يُحوَّل إلى حساب بنكي. ويُقرض البنك على أساس هذا الراتب.</target></trans-unit>
+      <trans-unit id="income_basis.no_payslip.hint" datatype="html"><source>The customer has no payslip. The bank works out what they earn from something else about them, such as their job grade or years of work.</source><target>العميل ليس لديه إثبات راتب. فيحسب البنك دخله من معلومة أخرى عنه، مثل درجته الوظيفية أو سنوات عمله.</target></trans-unit>
       <trans-unit id="program_catalog.basis.all" datatype="html"><source>All</source><target>الكل</target></trans-unit>
       <trans-unit id="program_catalog.basis.aria" datatype="html"><source>Filter by how the bank reads the income</source><target>تصفية حسب طريقة قراءة البنك للدخل</target></trans-unit>
       <trans-unit id="program_catalog.basis.empty" datatype="html"><source>No program names match this filter yet.</source><target>لا توجد أسماء برامج مطابقة لهذه التصفية بعد.</target></trans-unit>
-      <trans-unit id="pnd.basis_title" datatype="html"><source>How banks prove the income</source><target>كيف تثبت البنوك الدخل</target></trans-unit>
-      <trans-unit id="pnd.basis_last" datatype="html"><source>Keep at least one — turn the loan type off instead.</source><target>أبقِ طريقة واحدة على الأقل — أو أوقف نوع التمويل بدلًا من ذلك.</target></trans-unit>
-      <trans-unit id="pnd.basis_saved_np" datatype="html"><source>Sold without a payslip here.</source><target>يُباع هنا بدون إثبات راتب.</target></trans-unit>
-      <trans-unit id="pnd.basis_saved_payslip" datatype="html"><source>Reads a payslip here.</source><target>يقرأ إثبات الراتب هنا.</target></trans-unit>
-      <trans-unit id="pnd.basis_failed" datatype="html"><source>Could not save. Try again.</source><target>تعذّر الحفظ. حاول مرة أخرى.</target></trans-unit>
-      <trans-unit id="pnd.np_unavailable_hint" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants aren’t asked any income fact yet, so there is nothing for a bank to look up.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> لا يُسألون أي معلومة دخل بعد، لذا لا يوجد ما يعتمد عليه البنك.</target></trans-unit>
-      <trans-unit id="pnd.np_fix" datatype="html"><source>Ask one of them</source><target>أضف أحدها كسؤال</target></trans-unit>
 
       <trans-unit id="pnd.new_question" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
       <trans-unit id="pnd.new_question_title" datatype="html"><source>New question</source><target>سؤال جديد</target></trans-unit>
@@ -1298,11 +1291,39 @@
       <trans-unit id="pnq.cancel" datatype="html"><source>Cancel</source><target>إلغاء</target></trans-unit>
       <trans-unit id="pnq.save" datatype="html"><source>Create question</source><target>أنشئ السؤال</target></trans-unit>
 
-      <trans-unit id="bank_programs.field.income_basis" datatype="html"><source>How does the bank read the income?</source><target>كيف يقرأ البنك الدخل؟</target></trans-unit>
+      <trans-unit id="bank_programs.form.back" datatype="html"><source>Back</source><target>رجوع</target></trans-unit>
+      <trans-unit id="bank_programs.form.title_create" datatype="html"><source>Add bank program</source><target>إضافة برنامج بنكي</target></trans-unit>
+      <trans-unit id="bank_programs.form.subtitle" datatype="html"><source>Seven short steps. Every number belongs to this program alone, and nothing is saved until you confirm on the last step.</source><target>سبع خطوات قصيرة. كل رقم يخص هذا البرنامج وحده، ولا يُحفظ شيء حتى تؤكد في الخطوة الأخيرة.</target></trans-unit>
+      <trans-unit id="bank_programs.steps.aria" datatype="html"><source>Program setup steps</source><target>خطوات إعداد البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.step.caption" datatype="html"><source>Step <x id="INTERPOLATION" equiv-text="x"/> of <x id="INTERPOLATION_1" equiv-text="x"/> · <x id="INTERPOLATION_2" equiv-text="x"/></source><target>الخطوة <x id="INTERPOLATION" equiv-text="x"/> من <x id="INTERPOLATION_1" equiv-text="x"/> · <x id="INTERPOLATION_2" equiv-text="x"/></target></trans-unit>
+      <trans-unit id="bank_programs.step.program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.form.for_bank" datatype="html"><source>For bank</source><target>لبنك</target></trans-unit>
+      <trans-unit id="bank_programs.form.change_bank" datatype="html"><source>Change</source><target>تغيير</target></trans-unit>
+      <trans-unit id="bank_programs.form.core.title" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.form.core.sub" datatype="html"><source>The name customers see. The catalog fills in how the bank reads an income — change it if this bank differs.</source><target>الاسم الذي يراه العملاء. الكتالوج يملأ كيف يقرأ البنك الدخل — غيّره إذا كان هذا البنك مختلفًا.</target></trans-unit>
+      <trans-unit id="bank_programs.field.bank" datatype="html"><source>Bank</source><target>البنك</target></trans-unit>
+      <trans-unit id="bank_programs.field.bank.placeholder" datatype="html"><source>Pick a bank</source><target>اختر بنكًا</target></trans-unit>
+      <trans-unit id="bank_programs.err.bank_required" datatype="html"><source>Bank is required.</source><target>البنك مطلوب.</target></trans-unit>
+      <trans-unit id="bank_programs.field.friendly_name" datatype="html"><source>Program name</source><target>اسم البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.field.friendly_name.placeholder" datatype="html"><source>Select a program</source><target>اختر برنامجًا</target></trans-unit>
+      <trans-unit id="bank_programs.field.friendly_name.awaiting_basis" datatype="html"><source>Answer the income question first</source><target>أجب عن سؤال الدخل أولًا</target></trans-unit>
+      <trans-unit id="bank_programs.field.friendly_name.show_all" datatype="html"><source>Show <x id="INTERPOLATION" equiv-text="x"/> more names filed under the other income</source><target>اعرض <x id="INTERPOLATION" equiv-text="x"/> أخرى يصنفها الكتالوج تحت الدخل الآخر</target></trans-unit>
+      <trans-unit id="bank_programs.field.friendly_name.show_matching" datatype="html"><source>Show only names filed under this income</source><target>اعرض الأسماء المصنفة تحت هذا الدخل فقط</target></trans-unit>
+      <trans-unit id="bank_programs.err.friendly_name_required" datatype="html"><source>Program name is required.</source><target>اسم البرنامج مطلوب.</target></trans-unit>
       <trans-unit id="bank_programs.form.income" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
-      <trans-unit id="bank_programs.warn.name_not_sold_this_way" datatype="html"><source>“<x id="INTERPOLATION" equiv-text="x"/>” isn’t sold this way for <x id="INTERPOLATION_1" equiv-text="x"/>. Pick another name, or change how it is sold in the program catalog.</source><target>«<x id="INTERPOLATION" equiv-text="x"/>» لا يُباع بهذه الطريقة لـ<x id="INTERPOLATION_1" equiv-text="x"/>. اختر اسمًا آخر، أو غيّر طريقة بيعه في كتالوج البرامج.</target></trans-unit>
-      <trans-unit id="bank_programs.field.friendly_name.none_no_payslip" datatype="html"><source>No program names are sold without a payslip for this loan type yet. Mark one that way in the program catalog, or choose “Reads a payslip”.</source><target>لا توجد أسماء برامج تُباع بدون إثبات راتب لنوع التمويل هذا بعد. حدّد أحدها بهذه الطريقة في كتالوج البرامج، أو اختر «يقرأ إثبات الراتب».</target></trans-unit>
-      <trans-unit id="bank_programs.field.friendly_name.none_payslip" datatype="html"><source>No program names are sold against a payslip for this loan type yet. Mark one that way in the program catalog, or choose “No payslip”.</source><target>لا توجد أسماء برامج تُباع بإثبات راتب لنوع التمويل هذا بعد. حدّد أحدها بهذه الطريقة في كتالوج البرامج، أو اختر «بدون إثبات راتب».</target></trans-unit>
+      <trans-unit id="bank_programs.form.income.not_set" datatype="html"><source>Not set yet</source><target>لم يُحدَّد بعد</target></trans-unit>
+      <trans-unit id="bank_programs.step.income" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
+      <trans-unit id="bank_programs.step.terms" datatype="html"><source>Amount &amp; duration</source><target>المبلغ والمدة</target></trans-unit>
+      <trans-unit id="bank_programs.step.pricing" datatype="html"><source>Pricing &amp; fees</source><target>التسعير والرسوم</target></trans-unit>
+      <trans-unit id="bank_programs.step.eligibility" datatype="html"><source>Eligibility</source><target>الأهلية</target></trans-unit>
+      <trans-unit id="bank_programs.step.documents" datatype="html"><source>Documents</source><target>المستندات</target></trans-unit>
+      <trans-unit id="bank_programs.step.review" datatype="html"><source>Review</source><target>المراجعة</target></trans-unit>
+      <trans-unit id="bank_programs.income.aria" datatype="html"><source>How the bank reads the income</source><target>كيف يقرأ البنك الدخل</target></trans-unit>
+      <trans-unit id="bank_programs.form.income_step.title" datatype="html"><source>Income</source><target>الدخل</target></trans-unit>
+      <trans-unit id="bank_programs.form.income_step.sub" datatype="html"><source> How does this bank check what the customer earns? Your answer decides which program names you can pick next. </source><target> كيف يتحقق هذا البنك مما يكسبه العميل؟ إجابتك تحدد أسماء البرامج التي يمكنك اختيارها بعد ذلك. </target></trans-unit>
+      <trans-unit id="bank_programs.income.effect.payslip" datatype="html"><source>Pick this and the next step shows the program names that need a payslip.</source><target>اختر هذا لتعرض الخطوة التالية أسماء البرامج التي تحتاج إثبات راتب.</target></trans-unit>
+      <trans-unit id="bank_programs.income.effect.no_payslip" datatype="html"><source>Pick this and the next step shows the program names that work without a payslip. On the Eligibility step you then set how the bank works the income out.</source><target>اختر هذا لتعرض الخطوة التالية أسماء البرامج التي تعمل بدون إثبات راتب. ثم تحدد في خطوة الأهلية كيف يحسب البنك الدخل.</target></trans-unit>
+      <trans-unit id="bank_programs.step.issue_income" datatype="html"><source>Choose how the bank reads the income before you continue.</source><target>اختر كيف يقرأ البنك الدخل قبل المتابعة.</target></trans-unit>
       <trans-unit id="bank_programs.income.binding_ok" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants are asked <x id="INTERPOLATION_1" equiv-text="x"/>.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> يُسألون <x id="INTERPOLATION_1" equiv-text="x"/>.</target></trans-unit>
       <trans-unit id="bank_programs.income.binding_missing" datatype="html"><source><x id="INTERPOLATION" equiv-text="x"/> applicants are never asked <x id="INTERPOLATION_1" equiv-text="x"/>, so this rule will produce no income.</source><target>متقدمو <x id="INTERPOLATION" equiv-text="x"/> لا يُسألون <x id="INTERPOLATION_1" equiv-text="x"/> أبدًا، لذا لن تنتج هذه القاعدة أي دخل.</target></trans-unit>
       <trans-unit id="bank_programs.income.binding_fix" datatype="html"><source>Ask it</source><target>أضف السؤال</target></trans-unit>

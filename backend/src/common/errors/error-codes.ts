@@ -73,6 +73,12 @@ export const ERROR_CODES = {
   ENUMERATION_SYSTEM_ONLY: 'ENUMERATION_SYSTEM_ONLY',
   /** Loan categories were submitted for an enumeration type that has no such axis. */
   ENUMERATION_CATEGORIES_NOT_APPLICABLE: 'ENUMERATION_CATEGORIES_NOT_APPLICABLE',
+  /**
+   * An income basis was submitted for a (name, loan category) pair that is not
+   * assigned — the name is not offered under that loan type, so there is nothing
+   * there to describe.
+   */
+  ENUMERATION_CATEGORY_NOT_ASSIGNED: 'ENUMERATION_CATEGORY_NOT_ASSIGNED',
   /** A question template was submitted for an enumeration type that has no such axis. */
   ENUMERATION_QUESTIONS_NOT_APPLICABLE: 'ENUMERATION_QUESTIONS_NOT_APPLICABLE',
   /** A catalog question template named codes that are in no question, active or not. */
@@ -91,13 +97,6 @@ export const ERROR_CODES = {
    * a multi-pick answer has no single value to look up.
    */
   SURROGATE_FACT_QUESTION_TYPE_INVALID: 'SURROGATE_FACT_QUESTION_TYPE_INVALID',
-  /**
-   * An income basis was set for a loan category the catalog name is not offered
-   * under. Setting a basis may not ASSIGN the category as a side effect — the two
-   * are separate decisions on separate controls — so the write is refused and the
-   * operator is sent to the assignment switch.
-   */
-  ENUMERATION_CATEGORY_NOT_ASSIGNED: 'ENUMERATION_CATEGORY_NOT_ASSIGNED',
   /**
    * A hard DELETE was refused because something still names this entry's key.
    *
@@ -259,17 +258,11 @@ export const ERROR_CODES = {
    * empty means the name is parked.
    */
   PROGRAM_NAME_KEY_NOT_IN_CATEGORY: 'PROGRAM_NAME_KEY_NOT_IN_CATEGORY',
-  /**
-   * The catalog name is live and offered under this loan category, but not on the
-   * income BASIS the program is being saved with: a no-payslip program named an
-   * entry sold only against a payslip, or the reverse.
-   *
-   * Its own code rather than a reuse of `PROGRAM_NAME_KEY_NOT_IN_CATEGORY`,
-   * because the two send the operator to two different controls on the catalog
-   * screen — the loan-type switch and the income-basis switch. `meta.basis` is
-   * what the program asked for, `meta.allowedBases` what the name allows here.
-   */
-  PROGRAM_NAME_KEY_BASIS_MISMATCH: 'PROGRAM_NAME_KEY_BASIS_MISMATCH',
+  // NOTE (v16.4.0): `PROGRAM_NAME_KEY_BASIS_MISMATCH` was deleted with the stored
+  // per-name income basis. A catalog tick could refuse a save whose basis the bank had
+  // legitimately chosen on its own program; the program is now the only authority, so
+  // there is nothing left to disagree with. Deleted in one change with both locale
+  // dictionaries (Principle III).
   // NOTE (v16.0.0): `PROGRAM_TYPE_INVALID_FOR_CATEGORY` lived here for one day. It
   // existed only to force a Fast Loans program to be `income_surrogate`; with that
   // category gone, no category constrains the program type and the code became
@@ -441,11 +434,11 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_KEY_DUPLICATE: 409,
   ENUMERATION_SYSTEM_ONLY: 403,
   ENUMERATION_CATEGORIES_NOT_APPLICABLE: 422,
+  ENUMERATION_CATEGORY_NOT_ASSIGNED: 422,
   ENUMERATION_QUESTIONS_NOT_APPLICABLE: 422,
   ENUMERATION_QUESTION_UNKNOWN: 422,
   ENUMERATION_QUESTION_BINDING_NOT_APPLICABLE: 422,
   SURROGATE_FACT_QUESTION_TYPE_INVALID: 422,
-  ENUMERATION_CATEGORY_NOT_ASSIGNED: 422,
   // 409, like `BANK_HAS_PROGRAMS`: the request is well-formed and the row exists —
   // it is the current state of the world that refuses it, and it stops refusing
   // once the last program is repointed.
@@ -546,7 +539,6 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   PROGRAM_RANGE_INVALID: 422,
   PROGRAM_NAME_KEY_UNKNOWN: 422,
   PROGRAM_NAME_KEY_NOT_IN_CATEGORY: 422,
-  PROGRAM_NAME_KEY_BASIS_MISMATCH: 422,
   ANSWER_TYPE_MISMATCH: 400,
   ANSWER_OUT_OF_RANGE: 400,
   ANSWER_TOO_LONG: 400,

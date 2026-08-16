@@ -255,17 +255,98 @@
   "home_title": "What type of loan are you looking for?",
   "home_subtitle": "Your loan advisor is ready",
   "home_loan_types": "Loan types",
-  "home_program_label": "Loan program",
-  "@home_program_label": {
-    "description": "Home — catalog program-name picker above the Continue CTA"
+  "loan_setup_step_category_title": "Loan type",
+  "@loan_setup_step_category_title": {
+    "description": "Loan setup wizard step 1 — hero title"
   },
-  "home_program_hint": "Choose a program",
-  "@home_program_hint": {
-    "description": "Home — program picker placeholder when nothing is picked yet"
+  "loan_setup_step_category_subtitle": "Step 1 of 3",
+  "@loan_setup_step_category_subtitle": {
+    "description": "Loan setup wizard step 1 — hero subtitle; there is no earlier choice to name here"
   },
-  "home_program_search_hint": "Search programs",
-  "@home_program_search_hint": {
-    "description": "Home — search placeholder inside the program select sheet"
+  "loan_setup_step_category_heading": "What are you financing?",
+  "@loan_setup_step_category_heading": {
+    "description": "Loan setup wizard step 1 — in-sheet heading above the four category cards"
+  },
+  "loan_setup_step_income_title": "Proof of income",
+  "@loan_setup_step_income_title": {
+    "description": "Loan setup wizard step 2 — hero title"
+  },
+  "loan_setup_step_income_heading": "How do you prove your income?",
+  "@loan_setup_step_income_heading": {
+    "description": "Loan setup wizard step 2 — in-sheet heading above the two income-basis cards"
+  },
+  "loan_setup_step_income_helper": "We will only show programs the bank accepts on that basis.",
+  "@loan_setup_step_income_helper": {
+    "description": "Loan setup wizard step 2 — one-liner explaining that the answer filters programs"
+  },
+  "loan_setup_income_proof_title": "With a payslip",
+  "@loan_setup_income_proof_title": {
+    "description": "Income basis income_proof — customer-facing name. Never render the raw value"
+  },
+  "loan_setup_income_proof_desc": "You have a payslip or a salary transfer from your employer.",
+  "@loan_setup_income_proof_desc": {
+    "description": "Income basis income_proof — what it means"
+  },
+  "loan_setup_income_surrogate_title": "Without a payslip",
+  "@loan_setup_income_surrogate_title": {
+    "description": "Income basis income_surrogate — customer-facing name. Never render the raw value"
+  },
+  "loan_setup_income_surrogate_desc": "The bank works your income out from other details, such as your grade or years of experience.",
+  "@loan_setup_income_surrogate_desc": {
+    "description": "Income basis income_surrogate — what it means"
+  },
+  "loan_setup_income_unavailable": "No bank offers this yet.",
+  "@loan_setup_income_unavailable": {
+    "description": "Loan setup wizard step 2 — shown on an income basis with zero active programs; the card stays visible and disabled"
+  },
+  "loan_setup_step_program_title": "Program",
+  "@loan_setup_step_program_title": {
+    "description": "Loan setup wizard step 3 — hero title"
+  },
+  "loan_setup_step_program_heading": "Choose a program",
+  "@loan_setup_step_program_heading": {
+    "description": "Loan setup wizard step 3 — in-sheet heading above the program list"
+  },
+  "loan_setup_step_program_helper": "These are available for the choices you made.",
+  "@loan_setup_step_program_helper": {
+    "description": "Loan setup wizard step 3 — one-liner explaining the list is filtered by the two earlier answers"
+  },
+  "loan_setup_no_programs": "No named program here — continue and we will show you every available offer.",
+  "@loan_setup_no_programs": {
+    "description": "Loan setup wizard step 3 — the basis has programs but none instantiates a catalog name; the customer continues without picking one"
+  },
+  "loan_setup_bank_count": "{count, plural, =0{No banks} =1{1 bank} other{{count} banks}}",
+  "@loan_setup_bank_count": {
+    "description": "Loan setup wizard — how many banks stand behind a choice",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "loan_setup_next": "Next",
+  "@loan_setup_next": {
+    "description": "Loan setup wizard — CTA on every step but the last"
+  },
+  "loan_setup_finish": "Continue",
+  "@loan_setup_finish": {
+    "description": "Loan setup wizard — CTA on the last step; leads into the questionnaire"
+  },
+  "loan_setup_error_title": "Could not load programs",
+  "@loan_setup_error_title": {
+    "description": "Loan setup wizard — error state title"
+  },
+  "loan_setup_error_message": "Check your connection and try again.",
+  "@loan_setup_error_message": {
+    "description": "Loan setup wizard — error state body"
+  },
+  "loan_setup_retry": "Try again",
+  "@loan_setup_retry": {
+    "description": "Loan setup wizard — error state retry CTA"
+  },
+  "loan_setup_no_options": "No programs are available for this loan type right now.",
+  "@loan_setup_no_options": {
+    "description": "Loan setup wizard — the category has no active bank program on either income basis"
   },
   "home_continue": "Continue",
   "home_support_label": "Support",

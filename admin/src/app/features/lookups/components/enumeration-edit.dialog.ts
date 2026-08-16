@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -6,13 +6,7 @@ import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
-import {
-  CheckOutline,
-  CloseCircleOutline,
-  ExclamationCircleOutline,
-  InfoCircleOutline,
-  MinusOutline,
-} from '@ant-design/icons-angular/icons';
+import { CloseCircleOutline, InfoCircleOutline } from '@ant-design/icons-angular/icons';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import {
@@ -33,12 +27,23 @@ import { lookupExample } from '../lookups.constants';
  *
  * Program names carry two extras. A new one starts offerable under all four loan
  * categories (the server's default) — narrowing that is a separate job on the
- * catalog's "Loan categories" tab. And the INCOME BASIS is asked here, nowhere
- * else at create time: it decides which bank programs may ever name this entry,
- * so a name created without it is a name the no-payslip half of the program
- * wizard cannot see. It used to be inferred later, from whether someone ticked a
- * surrogate fact on the detail screen — a screen the person adding the name had
- * no reason to open.
+ * catalog's "Loan categories" tab. And the INCOME BASIS is asked here, in BOTH
+ * modes: what the catalog says the name is FOR, so a fresh name is not silently
+ * described as payslip-only, and so an operator who got it wrong can fix it from
+ * the screen labelled "Edit".
+ *
+ * It states intent and nothing else (v16.4.1). It filters no picker and refuses no
+ * save: the bank chooses the basis on its own program (step 1 of the wizard →
+ * `bank_program.programType`), and a stale tick here used to refuse a program that
+ * bank was entitled to create. What banks actually did is counted separately and
+ * shown on the catalog board, and the two are allowed to disagree.
+ *
+ * The basis is asked as ONE choice — radios, not ticks. The wire shape stays an
+ * array (`IncomeBasis[]`, what the API takes and what legacy rows may hold two of),
+ * but this screen writes exactly one: the operator is stating what the name IS,
+ * and a control that let both be true asked them to describe the product twice.
+ * "Two banks sell it two ways" is still fully expressible — it is expressed where
+ * it happens, on each bank's own program, and counted back on the catalog board.
  */
 const PROGRAM_NAME_TYPE = 'program_name';
 
@@ -59,15 +64,7 @@ export interface EnumerationEditDialogData {
     NzFormModule,
     NzIconModule,
   ],
-  providers: [
-    provideNzIconsPatch([
-      CheckOutline,
-      CloseCircleOutline,
-      ExclamationCircleOutline,
-      InfoCircleOutline,
-      MinusOutline,
-    ]),
-  ],
+  providers: [provideNzIconsPatch([CloseCircleOutline, InfoCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="dialog-body">
@@ -120,17 +117,17 @@ export interface EnumerationEditDialogData {
         </div>
 
         @if (asksBasis) {
-          <!-- Two tickable rows, not a select and not radios: a name can be sold BOTH
-               ways (one bank reads a payslip, another works the income out), which is
-               the reason the platform has no separate no-payslip product. A radio pair
-               would force whoever adds the name to pick a side the business has not
-               taken.
+          <!-- ONE choice, so: radios. Native inputs sharing a name, not two
+               checkboxes and not a select — the group gives arrow-key traversal and
+               "one of these" for free, and a select would hide both hints behind a
+               click on the only real decision this form makes.
 
-               The SAME two rows on edit, over the stored per-loan-type map. They were
-               create-only, which meant the one product decision on this form could be
-               made but never corrected here — and the operator who opened "Edit" to
-               fix it found a label and a sort order. -->
-          <section class="basis" role="group" aria-labelledby="lk-basis-heading">
+               The SAME two rows on edit, over the stored per-loan-type map, and one of
+               them is ALWAYS checked: this dialog is the only place the basis is set,
+               so an unchecked group would be a question the operator cannot see the
+               current answer to. A map that disagrees across loan types resolves to
+               one on open (see resolveBasis) and is written flat on save. -->
+          <section class="basis" role="radiogroup" aria-labelledby="lk-basis-heading">
             <h3 class="basis-heading" id="lk-basis-heading" i18n="@@lookups.field.incomeBasis">
               How do banks prove the income?
             </h3>
@@ -139,69 +136,37 @@ export interface EnumerationEditDialogData {
                 <!-- The accent is keyed off the basis itself, not the row's position:
                      the plum belongs to the no-payslip concept board-wide, and a
                      position-based rule would hand it to whatever lands there next. -->
-                @let state = basisState(b);
-                <label
-                  class="basis-row"
-                  [attr.data-basis]="b"
-                  [class.is-on]="state === 'on'"
-                  [class.is-mixed]="state === 'mixed'"
-                >
+                @let picked = basisPicked(b);
+                <label class="basis-row" [attr.data-basis]="b" [class.is-on]="picked">
                   <input
-                    type="checkbox"
+                    type="radio"
                     class="sr-only"
-                    [checked]="state === 'on'"
-                    [attr.aria-checked]="state === 'mixed' ? 'mixed' : state === 'on'"
-                    (change)="toggleBasis(b)"
+                    name="lk-income-basis"
+                    [checked]="picked"
+                    (change)="pickBasis(b)"
                   />
-                  <span class="basis-tick" aria-hidden="true">
-                    @if (state === 'on') {
-                      <span nz-icon nzType="check" nzTheme="outline"></span>
-                    } @else if (state === 'mixed') {
-                      <span nz-icon nzType="minus" nzTheme="outline"></span>
-                    }
-                  </span>
+                  <span class="basis-tick" aria-hidden="true"></span>
                   <span class="basis-text">
                     <span class="basis-title">{{ basisLabel(b) }}</span>
                     <span class="basis-hint">{{ basisHint(b) }}</span>
-                    <!-- A half-set row has to say WHICH loan types, or the dash is
-                         just an unexplained third state. Ticking it turns the rest on. -->
-                    @if (state === 'mixed') {
-                      <span class="basis-mixed" i18n="@@lookups.field.incomeBasis.mixed"
-                        >Set on {{ mixedCategoryNames(b) }} only — tick to set it everywhere.</span
-                      >
-                    }
                   </span>
                 </label>
               }
             </div>
-            @if (basisInvalid()) {
-              <p class="basis-error" role="alert">
-                <span
-                  nz-icon
-                  nzType="exclamation-circle"
-                  nzTheme="outline"
-                  aria-hidden="true"
-                ></span>
-                <span i18n="@@lookups.field.incomeBasis.required"
-                  >Pick at least one — a name banks cannot sell either way is a name no program can
-                  use.</span
-                >
-              </p>
-            } @else if (isEdit) {
+            @if (isEdit) {
               <p class="basis-note">
                 <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
                 <span i18n="@@lookups.field.incomeBasis.noteEdit"
                   >Applies to every loan type this name is offered under ({{
                     assignedCategoryNames
-                  }}). To set them apart, use the name’s own page.</span
+                  }}).</span
                 >
               </p>
             } @else {
               <p class="basis-note">
                 <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
                 <span i18n="@@lookups.field.incomeBasis.note"
-                  >Applies to every loan type this name starts under. Change it per loan type later,
-                  on the name's own page.</span
+                  >Applies to every loan type this name starts under. Change it here any time.</span
                 >
               </p>
             }
@@ -252,7 +217,7 @@ export interface EnumerationEditDialogData {
           nzType="primary"
           type="button"
           (click)="save()"
-          [disabled]="!form.valid || !canSave()"
+          [disabled]="!form.valid || submitting()"
           [nzLoading]="submitting()"
           i18n="@@lookups.dialog.save"
         >
@@ -371,6 +336,10 @@ export interface EnumerationEditDialogData {
       .basis-row[data-basis='no_payslip'] {
         --basis-accent: var(--color-income-surrogate);
       }
+      /* Circle, not a rounded square: the shape IS the affordance. A square box says
+         "tick as many as apply", and it said that here for as long as both could be
+         true — now that exactly one can, the anatomy has to say so before the
+         operator clicks the second row and watches the first go out. */
       .basis-tick {
         flex: none;
         display: grid;
@@ -380,33 +349,31 @@ export interface EnumerationEditDialogData {
         /* Optical centring on the title's cap height, not on its line box. */
         margin-block-start: 1px;
         border: 1.5px solid var(--color-border-strong);
-        border-radius: var(--radius-sm);
-        font-size: var(--text-xs);
-        color: var(--text-inverse);
+        border-radius: 50%;
         transition:
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
           background-color var(--motion-duration-fast) var(--motion-easing-standard);
       }
-      .basis-row.is-on .basis-tick,
-      .basis-row.is-mixed .basis-tick {
+      /* The dot is always in the DOM and scales in, so selection animates from the
+         centre of the ring the eye is already on rather than popping into place.
+         --text-on-primary is the real token — the check glyph this replaces was
+         inked with --text-inverse, which is defined nowhere, so it fell back to
+         body ink: dark navy on a solid azure fill. */
+      .basis-tick::after {
+        content: '';
+        inline-size: 8px;
+        block-size: 8px;
+        border-radius: 50%;
+        background: var(--text-on-primary);
+        transform: scale(0);
+        transition: transform var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .basis-row.is-on .basis-tick {
         border-color: var(--basis-accent, var(--color-brand-primary));
         background: var(--basis-accent, var(--color-brand-primary));
       }
-      /* Mixed borrows the accent edge but NOT the tinted fill: it is a state to
-         resolve, not a state to rest in, and matching "on" exactly would let a
-         half-set row read as done at a glance. */
-      .basis-row.is-mixed {
-        border-color: color-mix(
-          in srgb,
-          var(--basis-accent, var(--color-brand-primary)) 55%,
-          var(--color-border-default)
-        );
-      }
-      .basis-mixed {
-        font-size: var(--text-xs);
-        line-height: var(--line-height-base);
-        font-weight: var(--font-weight-medium);
-        color: var(--basis-accent, var(--color-brand-primary));
+      .basis-row.is-on .basis-tick::after {
+        transform: scale(1);
       }
       .basis-text {
         display: flex;
@@ -427,8 +394,7 @@ export interface EnumerationEditDialogData {
            characters a line, and read as a paragraph instead of a caption. */
         max-inline-size: 58ch;
       }
-      .basis-note,
-      .basis-error {
+      .basis-note {
         display: flex;
         align-items: flex-start;
         gap: var(--space-2);
@@ -436,21 +402,16 @@ export interface EnumerationEditDialogData {
         font-size: var(--text-xs);
         line-height: var(--line-height-base);
         max-inline-size: 62ch;
-      }
-      .basis-note {
         color: var(--color-text-tertiary);
       }
-      .basis-error {
-        color: var(--color-error);
-      }
-      .basis-note [nz-icon],
-      .basis-error [nz-icon] {
+      .basis-note [nz-icon] {
         flex: none;
         margin-block-start: 2px;
       }
       @media (prefers-reduced-motion: reduce) {
         .basis-row,
-        .basis-tick {
+        .basis-tick,
+        .basis-tick::after {
           transition: none;
         }
       }
@@ -498,14 +459,17 @@ export class EnumerationEditDialogComponent {
    * would otherwise be reported as parked.
    */
   protected readonly isParkedName =
-    this.isProgramName && this.isEdit && this.categoriesKnown && this.assignedCategories.length === 0;
+    this.isProgramName &&
+    this.isEdit &&
+    this.categoriesKnown &&
+    this.assignedCategories.length === 0;
   /**
    * On CREATE one answer applies to every loan type the name starts under. On EDIT
-   * the basis is already per loan type, so the same two rows read the stored map
-   * and can land in a THIRD state — set on some loan types and not others — which
-   * is why the row below is tri-state instead of a checkbox.
+   * the same two rows read the stored per-loan-type map — which may disagree across
+   * loan types — and resolve it to the ONE answer the group shows and writes.
    */
-  protected readonly asksBasis = this.isProgramName && !this.isParkedName;
+  protected readonly asksBasis =
+    this.isProgramName && (!this.isEdit || (this.categoriesKnown && !this.isParkedName));
   /** The CREATE-time single answer — the only mode where the form control is read. */
   private readonly asksFlatBasis = this.asksBasis && !this.isEdit;
   protected readonly incomeBases = INCOME_BASES;
@@ -529,9 +493,27 @@ export class EnumerationEditDialogComponent {
         [...(this.data.row?.incomeBasesByCategory?.[c] ?? ['payslip'])],
       ]),
     );
-  protected readonly basisMap = signal<Partial<Record<LoanCategory, IncomeBasis[]>>>({
-    ...this.initialBasisMap,
-  });
+  /**
+   * The ONE answer the radio group opens on.
+   *
+   * A stored map that disagrees across loan types (or a legacy row carrying both on
+   * one loan type) used to leave both radios empty, which read as "nobody has
+   * answered this" over a value that IS stored — and since this dialog is the only
+   * place the basis is set, there was nowhere to go and look at the real split.
+   * Resolved by loan-type count, ties going to `payslip` (the ordinary case, and the
+   * default a name that predates the column carries).
+   */
+  private readonly resolvedBasis: IncomeBasis = this.resolveBasis();
+
+  /**
+   * The working map. Seeded FLAT from `resolvedBasis`, not from the stored map: what
+   * the group shows is what a save writes, so a name opened on a disagreeing map and
+   * saved is normalized to the answer the operator was looking at. `initialBasisMap`
+   * stays the stored shape, so the PUTs still fire only where the value moved.
+   */
+  protected readonly basisMap = signal<Partial<Record<LoanCategory, IncomeBasis[]>>>(
+    Object.fromEntries(this.assignedCategories.map((c) => [c, [this.resolvedBasis]])),
+  );
   /** Label length cap — program names must fit the bank_program.friendlyName column (120). */
   protected readonly labelMax = this.isProgramName ? 120 : 160;
 
@@ -565,38 +547,15 @@ export class EnumerationEditDialogComponent {
     /**
      * Defaults to "reads a payslip" — the ordinary case, and what every name meant
      * before the basis was recorded, so an operator who does not touch this row
-     * creates the name they used to create. `Validators.required` rejects `[]` on
-     * an array control, which is the only invalid state here.
+     * creates the name they used to create. No validator: a radio group always holds
+     * exactly one, so there is no invalid state left to guard.
+     *
+     * Still an ARRAY, not a scalar. It is what the API takes and what a legacy row
+     * may hold two of — narrowing the type here would only move the widening to the
+     * call site.
      */
-    incomeBases: new FormControl<IncomeBasis[]>(['payslip'], {
-      nonNullable: true,
-      validators: this.asksFlatBasis ? [Validators.required] : [],
-    }),
+    incomeBases: new FormControl<IncomeBasis[]>(['payslip'], { nonNullable: true }),
   });
-
-  /** EDIT only — the rows have been touched, so an empty basis may be reported. */
-  private readonly basisTouched = signal(false);
-  /**
-   * EDIT only. Every offered loan type must keep at least one basis: a pair offered
-   * under none is one no bank program could name, and the API refuses it.
-   */
-  private readonly basisMapValid = computed(() =>
-    this.assignedCategories.every((c) => (this.basisMap()[c] ?? []).length > 0),
-  );
-  /**
-   * A method, not a `computed`: the CREATE branch reads `touched`/`valid` off a
-   * reactive-form control, which is not a signal, so a computed would latch the
-   * first answer and the "pick at least one" line would never appear.
-   */
-  protected basisInvalid(): boolean {
-    return this.isEdit
-      ? this.basisTouched() && !this.basisMapValid()
-      : this.form.controls.incomeBases.touched && !this.form.controls.incomeBases.valid;
-  }
-  /** Gates the primary alongside the reactive form, which does not model the map. */
-  protected readonly canSave = computed(
-    () => !this.submitting() && (!this.isEdit || !this.asksBasis || this.basisMapValid()),
-  );
 
   protected basisLabel(basis: IncomeBasis): string {
     return incomeBasisLabel(basis);
@@ -607,64 +566,55 @@ export class EnumerationEditDialogComponent {
   }
 
   /**
-   * Tri-state. `mixed` exists only on EDIT and only because the basis is genuinely
-   * stored per loan type — collapsing it to a plain tick would make the row lie
-   * about a name sold one way as a personal loan and another as a car loan.
+   * Exactly one row is checked, always — on CREATE from the form control, on EDIT
+   * from the working map, which is flat by construction.
    */
-  protected basisState(basis: IncomeBasis): 'on' | 'mixed' | 'off' {
-    if (!this.isEdit) {
-      return this.form.controls.incomeBases.value.includes(basis) ? 'on' : 'off';
-    }
-    const count = this.categoriesWith(basis).length;
-    if (count === 0) return 'off';
-    return count === this.assignedCategories.length ? 'on' : 'mixed';
-  }
-
-  /** Names the loan types a partly-set row IS on, so `mixed` says which ones. */
-  protected mixedCategoryNames(basis: IncomeBasis): string {
-    return this.categoriesWith(basis)
-      .map((c) => categoryLabel(c))
-      .join(this.listSeparator());
+  protected basisPicked(basis: IncomeBasis): boolean {
+    if (!this.isEdit) return this.form.controls.incomeBases.value[0] === basis;
+    const map = this.basisMap();
+    return (
+      this.assignedCategories.length > 0 &&
+      this.assignedCategories.every((c) => (map[c] ?? [])[0] === basis)
+    );
   }
 
   /**
-   * Toggle one basis. Unticking the last one is ALLOWED and leaves the form
-   * invalid, rather than being silently refused: a control that ignores a click
-   * reads as broken, and the error line under the rows says what to do instead.
-   *
-   * On EDIT a `mixed` row resolves UP to "on everywhere". The other reading —
-   * clearing it — would drop the loan types that already had it, which is the one
-   * outcome an operator clicking a half-set row is certainly not asking for.
+   * Collapse the stored per-loan-type map to one answer: the basis the most loan
+   * types carry. A row holding BOTH on one loan type counts for each of them, so a
+   * legacy row offered nowhere else resolves to the tie-break rather than to
+   * whichever happened to be stored first.
    */
-  protected toggleBasis(basis: IncomeBasis): void {
-    if (!this.isEdit) {
-      const control = this.form.controls.incomeBases;
-      const current = control.value;
-      const next = current.includes(basis)
-        ? current.filter((b) => b !== basis)
-        : // Kept in INCOME_BASES order so the value does not depend on click order.
-          INCOME_BASES.filter((b) => b === basis || current.includes(b));
-      control.setValue([...next]);
-      control.markAsTouched();
-      return;
+  private resolveBasis(): IncomeBasis {
+    let noPayslip = 0;
+    let payslip = 0;
+    for (const category of this.assignedCategories) {
+      const set = this.initialBasisMap[category] ?? [];
+      if (set.includes('no_payslip')) noPayslip += 1;
+      if (set.includes('payslip')) payslip += 1;
     }
-    const turnOn = this.basisState(basis) !== 'on';
-    this.basisMap.update((map) => {
-      const next: Partial<Record<LoanCategory, IncomeBasis[]>> = { ...map };
-      for (const category of this.assignedCategories) {
-        const current = next[category] ?? [];
-        next[category] = turnOn
-          ? INCOME_BASES.filter((b) => b === basis || current.includes(b))
-          : current.filter((b) => b !== basis);
-      }
-      return next;
-    });
-    this.basisTouched.set(true);
+    return noPayslip > payslip ? 'no_payslip' : 'payslip';
   }
 
-  private categoriesWith(basis: IncomeBasis): LoanCategory[] {
-    const map = this.basisMap();
-    return this.assignedCategories.filter((c) => (map[c] ?? []).includes(basis));
+  /**
+   * Pick one basis — there is no unpick. A radio group has no empty state to fall
+   * back to, which is the point: the old ticks could be cleared into "sold no way at
+   * all", a state the API refuses, so the form carried an error line for a value the
+   * operator could only reach by mistake. Now unreachable, so the line is gone.
+   *
+   * On EDIT the pick applies to EVERY offered loan type — this dialog writes the
+   * basis flat, which is what the note under the rows says.
+   */
+  protected pickBasis(basis: IncomeBasis): void {
+    if (!this.isEdit) {
+      this.form.controls.incomeBases.setValue([basis]);
+      this.form.controls.incomeBases.markAsTouched();
+      return;
+    }
+    this.basisMap.update((map) => {
+      const next: Partial<Record<LoanCategory, IncomeBasis[]>> = { ...map };
+      for (const category of this.assignedCategories) next[category] = [basis];
+      return next;
+    });
   }
 
   /** Arabic separates a list with its own comma; a hardcoded ", " reads as Latin. */
@@ -719,9 +669,8 @@ export class EnumerationEditDialogComponent {
         // Basis FIRST, and only for the loan types whose set actually moved. It is
         // the write the server can refuse (an unoffered pair, an empty set), so
         // failing here leaves the row exactly as it was rather than half-saved with
-        // a new label. Untouched rows send nothing at all, which is what keeps
-        // editing a label from flattening a per-loan-type basis someone set on the
-        // name's own page.
+        // a new label. A loan type already carrying the resolved answer sends
+        // nothing, so editing a label writes nothing about the basis.
         await this.saveBasisChanges(this.data.row.id);
         await this.api.update(this.data.row.id, {
           labelEn: v.labelEn,

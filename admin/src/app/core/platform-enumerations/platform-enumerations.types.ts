@@ -32,16 +32,23 @@ export interface EnumerationMember {
    */
   categories?: LoanCategory[];
   /**
-   * `program_name` only — how this name may be SOLD under each category it is offered
-   * under: against a payslip, without one, or both. Chosen when the name is created and
-   * edited per tab on the catalog detail screen.
+   * `program_name` only — what this name IS under each category it is offered under:
+   * a product sold against a payslip, or one whose income the bank works out. Chosen
+   * when the name is created and edited per tab on the catalog detail screen.
    *
-   * The bank-program form filters its name picker on this in BOTH directions, and the API
-   * refuses a program whose basis is not in the set — so this is the pairing rule, not a
-   * hint. A category absent from the map is one the name is not offered under at all.
+   * INTENT, and read-only everywhere else. It filters no picker and refuses no save:
+   * v16.4.0 deleted the save-time rejection because a stale mark here could block a
+   * program the bank was entitled to create, and the API now checks only that the name
+   * is offered under the category (`assertProgramNameKey`). What it DOES do is pre-fill
+   * step 1 of the bank-program wizard, which the operator may then override — that is
+   * where "another bank sells this name the other way" is expressed. A category absent
+   * from the map is one the name is not offered under at all.
+   *
+   * The catalog writes exactly ONE basis per pair; the array predates that rule and
+   * legacy rows may hold two, which reads as "unsettled", never as "take the first".
    *
    * `undefined` means NOT LOADED, never "none": a backend that has not deployed the field
-   * must leave the picker unfiltered rather than empty.
+   * must leave the wizard asking rather than assert an answer.
    */
   incomeBases?: Partial<Record<LoanCategory, IncomeBasis[]>>;
   /**

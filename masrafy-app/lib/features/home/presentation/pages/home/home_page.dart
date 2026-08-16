@@ -12,7 +12,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<HomeCubit>(
-      create: (_) => getIt<HomeCubit>()..loadProgramNames(),
+      create: (_) => getIt<HomeCubit>(),
       child: const _HomeView(),
     );
   }
@@ -37,7 +37,6 @@ class _HomeView extends StatelessWidget {
     final colors = MasrafyColorTheme.of(context);
     final text = MasrafyTextTheme.of(context);
     final l = AppLocalizations.of(context);
-    final isArabic = l.localeName.startsWith('ar');
     final cards = _cards(l);
     void soon() => MasrafyToast.info(context, l.common_coming_soon);
     final topInset = MediaQuery.of(context).viewPadding.top;
@@ -117,33 +116,6 @@ class _HomeView extends StatelessWidget {
                               Expanded(child: card(3)),
                             ],
                           ),
-                          // The second half of the request: which catalog
-                          // program the customer is asking about, inside the
-                          // category they picked above. Hidden — not shown
-                          // empty — when the catalog offers none here, so a
-                          // category an operator has not filled in still leads
-                          // somewhere instead of dead-ending the customer.
-                          if (state.isLoadingPrograms ||
-                              state.programsForCategory.isNotEmpty) ...[
-                            Gap(20.h),
-                            MasrafySelectField<String>(
-                              label: l.home_program_label,
-                              hint: l.home_program_hint,
-                              sheetTitle: l.home_program_label,
-                              showSearch: state.programsForCategory.length > 8,
-                              searchHint: l.home_program_search_hint,
-                              isEnabled: !state.isLoadingPrograms,
-                              value: state.programKey,
-                              options: [
-                                for (final p in state.programsForCategory)
-                                  MasrafySelectOption(
-                                    value: p.key,
-                                    label: p.label(isArabic: isArabic),
-                                  ),
-                              ],
-                              onSelected: cubit.selectProgram,
-                            ),
-                          ],
                           Gap(25.h),
                           MasrafySupportCard(
                             label: l.home_support_label,
@@ -153,33 +125,20 @@ class _HomeView extends StatelessWidget {
                           Gap(25.h),
                           MasrafyGradientButton(
                             label: l.home_continue,
-                            // Locked until the pair is complete: a category
-                            // whose catalog offers names is not a request on
-                            // its own. `canContinue` also covers the two cases
-                            // where no name can be picked (still loading, or
-                            // none offered) so the CTA is never dead.
+                            // Hands the category to the loan-setup wizard, which
+                            // asks the two questions this screen cannot answer:
+                            // whether the customer has a payslip, and which
+                            // catalog names have a live bank program under that
+                            // answer. Never disabled — a category is always
+                            // selected, and everything that could block is now
+                            // decided on a screen that knows what is on offer.
                             onPressed: !state.canContinue
                                 ? null
-                                : () {
-                                    final program = state.programKey;
-                                    switch (state.selected) {
-                                      case HomeLoanCategory.mortgage:
-                                        ctx.router.push(
-                                            MortgageQuestionnaireRoute(
-                                                programNameKey: program));
-                                      case HomeLoanCategory.car:
-                                        ctx.router.push(CarQuestionnaireRoute(
-                                            programNameKey: program));
-                                      case HomeLoanCategory.business:
-                                        ctx.router.push(
-                                            BusinessQuestionnaireRoute(
-                                                programNameKey: program));
-                                      case HomeLoanCategory.personal:
-                                        ctx.router.push(
-                                            PersonalQuestionnaireRoute(
-                                                programNameKey: program));
-                                    }
-                                  },
+                                : () => ctx.router.push(
+                                      LoanSetupRoute(
+                                        categoryCode: state.selected.code,
+                                      ),
+                                    ),
                           ),
                         ],
                       ),

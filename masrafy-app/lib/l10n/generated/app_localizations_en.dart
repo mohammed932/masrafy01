@@ -642,13 +642,79 @@ class AppLocalizationsEn extends AppLocalizations {
   String get home_loan_types => 'Loan types';
 
   @override
-  String get home_program_label => 'Loan program';
+  String get loan_setup_step_category_title => 'Loan type';
 
   @override
-  String get home_program_hint => 'Choose a program';
+  String get loan_setup_step_category_subtitle => 'Step 1 of 3';
 
   @override
-  String get home_program_search_hint => 'Search programs';
+  String get loan_setup_step_category_heading => 'What are you financing?';
+
+  @override
+  String get loan_setup_step_income_title => 'Proof of income';
+
+  @override
+  String get loan_setup_step_income_heading => 'How do you prove your income?';
+
+  @override
+  String get loan_setup_step_income_helper => 'We will only show programs the bank accepts on that basis.';
+
+  @override
+  String get loan_setup_income_proof_title => 'With a payslip';
+
+  @override
+  String get loan_setup_income_proof_desc => 'You have a payslip or a salary transfer from your employer.';
+
+  @override
+  String get loan_setup_income_surrogate_title => 'Without a payslip';
+
+  @override
+  String get loan_setup_income_surrogate_desc => 'The bank works your income out from other details, such as your grade or years of experience.';
+
+  @override
+  String get loan_setup_income_unavailable => 'No bank offers this yet.';
+
+  @override
+  String get loan_setup_step_program_title => 'Program';
+
+  @override
+  String get loan_setup_step_program_heading => 'Choose a program';
+
+  @override
+  String get loan_setup_step_program_helper => 'These are available for the choices you made.';
+
+  @override
+  String get loan_setup_no_programs => 'No named program here — continue and we will show you every available offer.';
+
+  @override
+  String loan_setup_bank_count(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count banks',
+      one: '1 bank',
+      zero: 'No banks',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get loan_setup_next => 'Next';
+
+  @override
+  String get loan_setup_finish => 'Continue';
+
+  @override
+  String get loan_setup_error_title => 'Could not load programs';
+
+  @override
+  String get loan_setup_error_message => 'Check your connection and try again.';
+
+  @override
+  String get loan_setup_retry => 'Try again';
+
+  @override
+  String get loan_setup_no_options => 'No programs are available for this loan type right now.';
 
   @override
   String get home_continue => 'Continue';

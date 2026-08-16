@@ -25,6 +25,7 @@ import 'package:app/features/questionnaire/presentation/mappers/apply_mapping.da
 ApplyRequest mapCarAnswersToApplyRequest(
   Map<String, QuestionAnswer> answers, {
   String? programNameKey,
+  String? programType,
 }) {
   final money = MoneyFigures.fromAnswers(answers);
   final facts = SurrogateFacts.fromAnswers(answers);
@@ -72,6 +73,7 @@ ApplyRequest mapCarAnswersToApplyRequest(
     ),
     category: 'car',
     programNameKey: programNameKey,
+    programType: programType,
     questionnaireAnswers: toSubmittedAnswers(answers),
   );
 }

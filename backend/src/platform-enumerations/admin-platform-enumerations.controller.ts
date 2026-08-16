@@ -50,6 +50,10 @@ const EMPTY_USAGE: ProgramNameUsage = {
   banks: 0,
   noPayslipPrograms: 0,
   noPayslipProgramsWithoutTable: 0,
+  // `{}`, not four zeroed categories: a tab with no program says "no bank offers this
+  // name here yet", which is the true sentence for a fresh name and a different one
+  // from "0 of the programs here read a payslip".
+  byCategory: {},
 };
 
 @ApiTags('Admin · Platform enumerations')
@@ -163,8 +167,12 @@ export class AdminPlatformEnumerationsController {
   }
 
   /**
-   * Replace one (name, category) pair's INCOME BASIS — how the name may be sold
-   * under that loan type: against a payslip, without one, or both.
+   * Replace one (name, category) pair's INCOME BASIS — how the catalog says the name
+   * is meant to be sold under that loan type: against a payslip, without one, or both.
+   *
+   * A statement of intent, NOT a constraint: nothing in the bank-program write path
+   * reads it, so it can never refuse a program the bank is entitled to save. What the
+   * banks actually did is counted separately (`usage.byCategory`).
    *
    * Its own endpoint rather than a field on `PUT :id/categories`, for the same
    * reason the question template has one: that array's empty case means "parked",

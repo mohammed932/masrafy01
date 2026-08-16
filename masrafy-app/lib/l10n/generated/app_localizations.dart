@@ -1319,23 +1319,137 @@ abstract class AppLocalizations {
   /// **'أنواع القروض'**
   String get home_loan_types;
 
-  /// Home — catalog program-name picker above the Continue CTA
+  /// Loan setup wizard step 1 — hero title
   ///
   /// In ar, this message translates to:
-  /// **'برنامج التمويل'**
-  String get home_program_label;
+  /// **'نوع التمويل'**
+  String get loan_setup_step_category_title;
 
-  /// Home — program picker placeholder when nothing is picked yet
+  /// Loan setup wizard step 1 — hero subtitle; there is no earlier choice to name here
+  ///
+  /// In ar, this message translates to:
+  /// **'الخطوة الأولى من ثلاث'**
+  String get loan_setup_step_category_subtitle;
+
+  /// Loan setup wizard step 1 — in-sheet heading above the four category cards
+  ///
+  /// In ar, this message translates to:
+  /// **'ما الذي تريد تمويله؟'**
+  String get loan_setup_step_category_heading;
+
+  /// Loan setup wizard step 2 — hero title
+  ///
+  /// In ar, this message translates to:
+  /// **'إثبات الدخل'**
+  String get loan_setup_step_income_title;
+
+  /// Loan setup wizard step 2 — in-sheet heading above the two income-basis cards
+  ///
+  /// In ar, this message translates to:
+  /// **'كيف تثبت دخلك؟'**
+  String get loan_setup_step_income_heading;
+
+  /// Loan setup wizard step 2 — one-liner explaining that the answer filters programs
+  ///
+  /// In ar, this message translates to:
+  /// **'نعرض لك البرامج التي يقبلها البنك بهذه الطريقة فقط.'**
+  String get loan_setup_step_income_helper;
+
+  /// Income basis income_proof — customer-facing name. Never render the raw value
+  ///
+  /// In ar, this message translates to:
+  /// **'بكشف راتب'**
+  String get loan_setup_income_proof_title;
+
+  /// Income basis income_proof — what it means
+  ///
+  /// In ar, this message translates to:
+  /// **'لديك كشف راتب أو تحويل راتب من جهة عملك.'**
+  String get loan_setup_income_proof_desc;
+
+  /// Income basis income_surrogate — customer-facing name. Never render the raw value
+  ///
+  /// In ar, this message translates to:
+  /// **'بدون كشف راتب'**
+  String get loan_setup_income_surrogate_title;
+
+  /// Income basis income_surrogate — what it means
+  ///
+  /// In ar, this message translates to:
+  /// **'يحتسب البنك دخلك من بيانات أخرى مثل درجتك الوظيفية أو سنوات الخبرة.'**
+  String get loan_setup_income_surrogate_desc;
+
+  /// Loan setup wizard step 2 — shown on an income basis with zero active programs; the card stays visible and disabled
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد بنك يقدم هذا النوع حاليًا.'**
+  String get loan_setup_income_unavailable;
+
+  /// Loan setup wizard step 3 — hero title
+  ///
+  /// In ar, this message translates to:
+  /// **'البرنامج'**
+  String get loan_setup_step_program_title;
+
+  /// Loan setup wizard step 3 — in-sheet heading above the program list
   ///
   /// In ar, this message translates to:
   /// **'اختر البرنامج'**
-  String get home_program_hint;
+  String get loan_setup_step_program_heading;
 
-  /// Home — search placeholder inside the program select sheet
+  /// Loan setup wizard step 3 — one-liner explaining the list is filtered by the two earlier answers
   ///
   /// In ar, this message translates to:
-  /// **'ابحث عن برنامج'**
-  String get home_program_search_hint;
+  /// **'هذه البرامج متاحة حسب اختياراتك السابقة.'**
+  String get loan_setup_step_program_helper;
+
+  /// Loan setup wizard step 3 — the basis has programs but none instantiates a catalog name; the customer continues without picking one
+  ///
+  /// In ar, this message translates to:
+  /// **'لا يوجد برنامج محدد هنا، ويمكنك المتابعة وسنعرض عليك كل العروض المتاحة.'**
+  String get loan_setup_no_programs;
+
+  /// Loan setup wizard — how many banks stand behind a choice
+  ///
+  /// In ar, this message translates to:
+  /// **'{count, plural, =0{لا يوجد بنك} =1{بنك واحد} =2{بنكان} few{{count} بنوك} other{{count} بنكًا}}'**
+  String loan_setup_bank_count(int count);
+
+  /// Loan setup wizard — CTA on every step but the last
+  ///
+  /// In ar, this message translates to:
+  /// **'التالي'**
+  String get loan_setup_next;
+
+  /// Loan setup wizard — CTA on the last step; leads into the questionnaire
+  ///
+  /// In ar, this message translates to:
+  /// **'متابعة'**
+  String get loan_setup_finish;
+
+  /// Loan setup wizard — error state title
+  ///
+  /// In ar, this message translates to:
+  /// **'تعذر تحميل البرامج'**
+  String get loan_setup_error_title;
+
+  /// Loan setup wizard — error state body
+  ///
+  /// In ar, this message translates to:
+  /// **'تحقق من اتصالك ثم حاول مرة أخرى.'**
+  String get loan_setup_error_message;
+
+  /// Loan setup wizard — error state retry CTA
+  ///
+  /// In ar, this message translates to:
+  /// **'إعادة المحاولة'**
+  String get loan_setup_retry;
+
+  /// Loan setup wizard — the category has no active bank program on either income basis
+  ///
+  /// In ar, this message translates to:
+  /// **'لا توجد برامج متاحة لهذا النوع حاليًا.'**
+  String get loan_setup_no_options;
 
   /// No description provided for @home_continue.
   ///

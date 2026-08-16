@@ -426,6 +426,15 @@ model Application {
   /// No FK, same posture as `bank_program.programNameKey`: the catalog's unique
   /// key is the composite (type, key), so validation lives in the service.
   programNameKey          String?             @db.VarChar(64)
+  /// The income basis the applicant said they can prove, which narrowed the
+  /// program set alongside the pair above. Persisted for the same reason:
+  /// without it a stored application cannot explain why a program the customer
+  /// can see in the catalog produced no offer. Nullable — every client built
+  /// before the income-type step sends none, and a null means "both bases",
+  /// not "unknown". Unlike `bank_program.programType` (NOT NULL) this is a
+  /// REQUEST field, so the nullability is about client versions, not about
+  /// programs being unclassified.
+  programType             BankProgramType?
   questionnaireVersionId  String?             @db.VarChar(30)
   age                     Int
   applicantProfile        Json
@@ -646,16 +655,16 @@ model Document {
 // -----------------------------------------------------------------------------
 
 model PlatformEnumeration {
-  id           String    @id @default(cuid()) @db.VarChar(30)
-  type         String    @db.VarChar(48)
-  key          String    @db.VarChar(64)
-  labelAr      String    @db.VarChar(160)
-  labelEn      String    @db.VarChar(160)
-  active       Boolean   @default(true)
-  deprecatedAt DateTime? @db.Timestamptz(6)
-  systemOnly   Boolean   @default(false)
-  parentKey    String?   @db.VarChar(64)
-  sortOrder    Int       @default(0)
+  id              String    @id @default(cuid()) @db.VarChar(30)
+  type            String    @db.VarChar(48)
+  key             String    @db.VarChar(64)
+  labelAr         String    @db.VarChar(160)
+  labelEn         String    @db.VarChar(160)
+  active          Boolean   @default(true)
+  deprecatedAt    DateTime? @db.Timestamptz(6)
+  systemOnly      Boolean   @default(false)
+  parentKey       String?   @db.VarChar(64)
+  sortOrder       Int       @default(0)
   /// `surrogate_fact` only — the question whose ANSWER is this fact.
   ///
   /// The fact registry used to be a code constant
@@ -678,11 +687,11 @@ model PlatformEnumeration {
   /// Only SINGLE_SELECT and NUMERIC questions may be bound (service-enforced): the
   /// first gives a key table, the second gives bands, and nothing else is a figure a
   /// bank can look an income up against.
-  boundQuestionId String? @db.VarChar(30)
-  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
-  createdBy    String?   @db.VarChar(30)
-  updatedBy    String?   @db.VarChar(30)
+  boundQuestionId String?   @db.VarChar(30)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+  createdBy       String?   @db.VarChar(30)
+  updatedBy       String?   @db.VarChar(30)
 
   loanCategories PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
   questions      PlatformEnumerationQuestion[]     @relation("PlatformEnumerationQuestions")
@@ -714,6 +723,13 @@ model PlatformEnumeration {
 /// Orthogonal to `parentKey`, which stays NULL for `program_name`
 /// (`20260807090000_clear_program_name_parent_key`): that column is the
 /// registry's generic single-parent SCOPE, this is a many-to-many ASSIGNMENT.
+/// No income-basis columns here (dropped in `20260816090000_drop_program_name_income_basis`).
+/// v16.1.0 stored `payslip` / `noPayslip` per pair and the API refused a program whose
+/// own basis was not ticked. That made the catalog a SECOND place to state one thing the
+/// bank already states on its program (`bank_program.programType`), and the two could
+/// disagree — with the catalog winning, so a bank's own choice was refused by a tick set
+/// on another screen. The program is now the only authority; the catalog SHOWS what banks
+/// picked, counted from `bank_program`, and enforces nothing.
 model PlatformEnumerationLoanCategory {
   enumerationId String       @db.VarChar(30)
   category      LoanCategory
@@ -726,12 +742,12 @@ model PlatformEnumerationLoanCategory {
   /// precisely because that pair is one product, not two. A single-valued column
   /// would force the second bank to duplicate the catalog entry.
   ///
-  /// Stored, not derived. It used to be inferred from the name's ticked surrogate
-  /// FACTS (`platform_enumeration_question`), which meant a name could not be
-  /// marked no-payslip until someone found the fact tick-list, and a brand-new
-  /// name was silently payslip-only with nothing on the create screen saying so.
-  /// The facts keep their own job — WHICH fact a bank's table reads, and whether
-  /// the questionnaire asks it — they just no longer stand in for this.
+  /// This is the operator's INTENT for the name — what the catalog says the name is
+  /// for. It does NOT refuse a bank program: `bank_program.programType` is the only
+  /// authority on how one bank actually sells it, and the catalog reports that split
+  /// separately (`countProgramNameUsage.byCategory`). The two answer different
+  /// questions and are allowed to disagree — a name marked payslip-only that a bank
+  /// then sells without one is a signal to look, not a save to block.
   ///
   /// Both false is meaningless (a pair offerable under no basis is unsellable) and
   /// is rejected in the service, the same posture this table already takes for
@@ -1154,10 +1170,10 @@ model Question {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
 
-  group          QuestionGroup          @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
-  options        QuestionOption[]       @relation("QuestionOptions")
-  answers        ApplicationAnswer[]    @relation("QuestionAnswers")
-  loanCategories QuestionLoanCategory[] @relation("QuestionLoanCategories")
+  group          QuestionGroup                 @relation("QuestionGroupQuestions", fields: [groupId], references: [id], onDelete: Cascade)
+  options        QuestionOption[]              @relation("QuestionOptions")
+  answers        ApplicationAnswer[]           @relation("QuestionAnswers")
+  loanCategories QuestionLoanCategory[]        @relation("QuestionLoanCategories")
   /// Catalog program names that suggest scoring on this question (template only).
   catalogNames   PlatformEnumerationQuestion[] @relation("QuestionPlatformEnumerations")
   /// Surrogate income FACTS answered by this question — registry rows, not a

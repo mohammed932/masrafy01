@@ -25,7 +25,6 @@ import {
   InvalidVariableRateConfigurationException,
   NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
-  ProgramNameKeyBasisMismatchException,
   ProgramNameKeyNotInCategoryException,
   ProgramHasEstimatedValuesException,
   ProgramNameKeyUnknownException,
@@ -34,9 +33,7 @@ import {
   QualitativeReviewCeilingBelowBaseException,
   UnknownEnumerationKeyException,
 } from '../common/errors/domain.exceptions';
-import { CreateBankProgramDto, type ProgramType } from './dto/create-bank-program.dto';
-import { asLoanCategory } from '@/common/loan-category.util';
-import { basisOfProgramType } from '@/common/income-basis.util';
+import { CreateBankProgramDto } from './dto/create-bank-program.dto';
 import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
 import {
   buildProgramCodeBase,
@@ -262,11 +259,8 @@ export class BankProgramsService {
     const programNameKey = dto.programNameKey ?? source.programNameKey ?? '';
     await this.assertProgramNameKey(programNameKey, source.productCategory, {
       // Same grandfather rule as `update()`: a straight copy that keeps the
-      // source's name and category is not moving anything. The copy also inherits
-      // `source.programType`, so an unchanged name is an unchanged basis too.
+      // source's name and category is not moving anything.
       skipProgramNameCategoryCheck: programNameKey === source.programNameKey,
-      skipProgramNameBasisCheck: programNameKey === source.programNameKey,
-      programType: source.programType as ProgramType,
     });
 
     const program = await this.prisma.$transaction(async (tx) => {
@@ -353,8 +347,6 @@ export class BankProgramsService {
     dto: CreateBankProgramDto | UpdateBankProgramDto,
     opts: {
       skipProgramNameCategoryCheck?: boolean;
-      /** The (name, income basis) pair is unchanged — see `assertProgramNameKey`. */
-      skipProgramNameBasisCheck?: boolean;
       /**
        * The income rule to validate. ALWAYS the shape that is about to be persisted
        * (`persistableIncomeAssumption`), never the raw DTO: the two differ — the raw
@@ -367,17 +359,12 @@ export class BankProgramsService {
       incomeAssumption?: IncomeAssumptionConfig;
     } = {},
   ): Promise<void> {
-    // A program names one predefined program from the catalog, never free text —
-    // and names one the catalog sells on this program's income basis.
-    await this.assertProgramNameKey(dto.programNameKey, dto.productCategory, {
-      ...opts,
-      programType: dto.programType,
-    });
-    // No category CONSTRAINS the program type (v16.0.0). Both bases are legal under
-    // every category the catalog offers, and which one this program uses is its own
-    // `programType` — the category no longer implies it. What DOES constrain it is
-    // the catalog NAME, checked above: a name is marked payslip / no-payslip /
-    // both, per loan type, by the operator who created it.
+    // A program names one predefined program from the catalog, never free text.
+    await this.assertProgramNameKey(dto.programNameKey, dto.productCategory, opts);
+    // Nothing constrains the income BASIS (v16.4.0). No category implies it (v16.0.0),
+    // and the catalog name no longer carries a payslip / no-payslip tick either: the
+    // bank picks it on this program (`programType`), which is the only place it is
+    // stated. The catalog counts what banks picked and enforces nothing.
 
     // FR-011a — variable-rate consistency.
     const { isVariableRate, baseRatePercent, currentEffectiveRatePercent } = dto.pricing;
@@ -522,17 +509,7 @@ export class BankProgramsService {
   private async assertProgramNameKey(
     programNameKey: string,
     productCategory: string,
-    opts: {
-      skipProgramNameCategoryCheck?: boolean;
-      /**
-       * The program's own income basis, from its `programType`. Omitted skips the
-       * basis half — the duplicate path passes it, the create/update paths always
-       * have it.
-       */
-      programType?: ProgramType;
-      /** The (name, basis) pair is unchanged — see the grandfather note below. */
-      skipProgramNameBasisCheck?: boolean;
-    } = {},
+    opts: { skipProgramNameCategoryCheck?: boolean } = {},
   ): Promise<void> {
     if (await this.enums.isActiveMember('program_name', programNameKey)) {
       // Grandfathered: the pair is unchanged, so this save is not MOVING the
@@ -549,30 +526,7 @@ export class BankProgramsService {
           assignedCategories: [...assigned],
         });
       }
-      // Then the INCOME BASIS half of the same pairing rule: a no-payslip program
-      // may only name a catalog entry sold that way under this loan type, and a
-      // payslip program only one sold against a payslip. Checked after the
-      // category, and only once that passed — "not offered under Mortgage" and
-      // "not sold without a payslip here" send the operator to two different
-      // switches, and the first is the one that has to be fixed first.
-      //
-      // Grandfathered on the same rule and for the same reason: an operator
-      // untickings a basis in the catalog must not freeze every program already
-      // saved against it.
-      const category = asLoanCategory(productCategory);
-      if (!opts.programType || opts.skipProgramNameBasisCheck || !category) return;
-      const basis = basisOfProgramType(opts.programType);
-      const allowed = await this.enums.memberIncomeBases('program_name', programNameKey, category);
-      // Empty means the pair carries no basis at all, which the writers make
-      // unreachable — but a row predating the column would read that way, and
-      // refusing every save on it would strand the program. Unknown is not "no".
-      if (allowed.length === 0 || allowed.includes(basis)) return;
-      throw new ProgramNameKeyBasisMismatchException({
-        programNameKey,
-        productCategory,
-        basis,
-        allowedBases: [...allowed],
-      });
+      return;
     }
     if (await this.enums.isDeprecatedMember('program_name', programNameKey)) {
       throw new DeprecatedEnumerationKeyException({
@@ -841,12 +795,6 @@ export class BankProgramsService {
       skipProgramNameCategoryCheck:
         dto.programNameKey === existing.programNameKey &&
         dto.productCategory === existing.productCategory,
-      // The basis half grandfathers on (name, basis), not (name, category): moving
-      // a program to another loan type does not change how it proves income, and
-      // an unchanged pair here is a save that is not adopting a new basis.
-      skipProgramNameBasisCheck:
-        dto.programNameKey === existing.programNameKey &&
-        dto.programType === existing.programType,
       incomeAssumption: persistedRule,
     });
 

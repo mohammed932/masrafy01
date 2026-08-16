@@ -165,10 +165,12 @@ export class AdminApplicationsController {
       eligibleProgramsCount: row.eligibleProgramsCount,
       summary: row.summary,
       noMatchSummary: row.noMatchSummary,
-      // What narrowed the program set for this submission. `programNameKey` null
-      // means "every program in the category", not "unknown".
+      // What narrowed the program set for this submission. A null on either
+      // optional axis means "not narrowed by it" — every program in the category,
+      // or both income bases — not "unknown".
       category: row.category,
       programNameKey: row.programNameKey,
+      programType: row.programType,
       applicant: this.projectApplicant(row.applicantCustomer),
       applicantProfile: maskApplicantProfile(row.applicantProfile as RawApplicantProfileJson),
       // The offer the applicant actually committed to (feature 008 proceed gate)

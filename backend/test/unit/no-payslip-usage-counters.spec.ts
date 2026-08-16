@@ -67,9 +67,27 @@ describe('program-name usage — no-payslip counters', () => {
     // an income. The old category gate counted none of them once the no-payslip category
     // was removed.
     const usage = await repoWith([
-      { programNameKey: 'armed_forces', bankId: 'b1', programType: BankProgramType.income_surrogate, productCategory: 'personal', incomeAssumption: GRADE_TABLE },
-      { programNameKey: 'armed_forces', bankId: 'b2', programType: BankProgramType.income_surrogate, productCategory: 'personal', incomeAssumption: GRADE_NO_TABLE },
-      { programNameKey: 'armed_forces', bankId: 'b3', programType: BankProgramType.income_proof, productCategory: 'personal', incomeAssumption: GRADE_NO_TABLE },
+      {
+        programNameKey: 'armed_forces',
+        bankId: 'b1',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'personal',
+        incomeAssumption: GRADE_TABLE,
+      },
+      {
+        programNameKey: 'armed_forces',
+        bankId: 'b2',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'personal',
+        incomeAssumption: GRADE_NO_TABLE,
+      },
+      {
+        programNameKey: 'armed_forces',
+        bankId: 'b3',
+        programType: BankProgramType.income_proof,
+        productCategory: 'personal',
+        incomeAssumption: GRADE_NO_TABLE,
+      },
     ]).countProgramNameUsage();
 
     expect(usage.get('armed_forces')).toEqual({
@@ -77,6 +95,7 @@ describe('program-name usage — no-payslip counters', () => {
       banks: 3,
       noPayslipPrograms: 2,
       noPayslipProgramsWithoutTable: 1,
+      byCategory: { personal: { payslip: 1, noPayslip: 2 } },
     });
   });
 
@@ -85,8 +104,20 @@ describe('program-name usage — no-payslip counters', () => {
     // warning instead. Counting it here would put a name on the board's warning list that
     // no operator can clear, because the program is correctly typed.
     const usage = await repoWith([
-      { programNameKey: 'doctor', bankId: 'b1', programType: BankProgramType.income_proof, productCategory: 'personal', incomeAssumption: GRADE_TABLE },
-      { programNameKey: 'doctor', bankId: 'b1', programType: BankProgramType.income_proof, productCategory: 'personal', incomeAssumption: GRADE_NO_TABLE },
+      {
+        programNameKey: 'doctor',
+        bankId: 'b1',
+        programType: BankProgramType.income_proof,
+        productCategory: 'personal',
+        incomeAssumption: GRADE_TABLE,
+      },
+      {
+        programNameKey: 'doctor',
+        bankId: 'b1',
+        programType: BankProgramType.income_proof,
+        productCategory: 'personal',
+        incomeAssumption: GRADE_NO_TABLE,
+      },
     ]).countProgramNameUsage();
 
     expect(usage.get('doctor')).toMatchObject({
@@ -102,7 +133,13 @@ describe('program-name usage — no-payslip counters', () => {
     // counter must not be keyed to the four frozen methods, or a fact an operator adds
     // stops being counted the day it is used.
     const usage = await repoWith([
-      { programNameKey: 'taxi', bankId: 'b1', programType: BankProgramType.income_surrogate, productCategory: 'personal', incomeAssumption: REGISTRY_NO_TABLE },
+      {
+        programNameKey: 'taxi',
+        bankId: 'b1',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'personal',
+        incomeAssumption: REGISTRY_NO_TABLE,
+      },
     ]).countProgramNameUsage();
 
     expect(usage.get('taxi')?.noPayslipProgramsWithoutTable).toBe(1);
@@ -132,8 +169,20 @@ describe('program-name usage — no-payslip counters', () => {
     // programs are `income_surrogate` + `declared` on purpose. Nothing reads a fact, so
     // there is no missing table and nothing for an operator to do.
     const usage = await repoWith([
-      { programNameKey: 'working_capital', bankId: 'b1', programType: BankProgramType.income_surrogate, productCategory: 'business', incomeAssumption: DECLARED },
-      { programNameKey: 'working_capital', bankId: 'b2', programType: BankProgramType.income_surrogate, productCategory: 'business', incomeAssumption: DECLARED },
+      {
+        programNameKey: 'working_capital',
+        bankId: 'b1',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'business',
+        incomeAssumption: DECLARED,
+      },
+      {
+        programNameKey: 'working_capital',
+        bankId: 'b2',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'business',
+        incomeAssumption: DECLARED,
+      },
     ]).countProgramNameUsage();
 
     expect(usage.get('working_capital')).toMatchObject({
@@ -148,7 +197,13 @@ describe('program-name usage — no-payslip counters', () => {
     // stays quiet rather than inventing a gap an operator cannot find.
     for (const blob of [null, 'nonsense', 42, {}, { strategy: 7 }]) {
       const usage = await repoWith([
-        { programNameKey: 'police', bankId: 'b1', programType: BankProgramType.income_surrogate, productCategory: 'personal', incomeAssumption: blob },
+        {
+          programNameKey: 'police',
+          bankId: 'b1',
+          programType: BankProgramType.income_surrogate,
+          productCategory: 'personal',
+          incomeAssumption: blob,
+        },
       ]).countProgramNameUsage();
       expect(usage.get('police')?.noPayslipProgramsWithoutTable, JSON.stringify(blob)).toBe(0);
     }
@@ -156,8 +211,89 @@ describe('program-name usage — no-payslip counters', () => {
 
   it('ignores a program with no catalog name — it cannot be counted against one', async () => {
     const usage = await repoWith([
-      { programNameKey: null, bankId: 'b1', programType: BankProgramType.income_surrogate, productCategory: 'personal', incomeAssumption: DECLARED },
+      {
+        programNameKey: null,
+        bankId: 'b1',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'personal',
+        incomeAssumption: DECLARED,
+      },
     ]).countProgramNameUsage();
     expect(usage.size).toBe(0);
+  });
+
+  // --- The per-category split the catalog name's tabs render (v16.4.0) ---------
+  //
+  // This IS the answer to "how is this name sold here" now: the stored per-pair tick the
+  // API used to enforce is gone, so if these numbers are wrong the screen has nothing
+  // else to fall back on — and a tab would report another tab's programs.
+
+  it('splits the counts by the loan category each program is sold under', async () => {
+    const usage = await repoWith([
+      {
+        programNameKey: 'doctor',
+        bankId: 'b1',
+        programType: BankProgramType.income_proof,
+        productCategory: 'personal',
+        incomeAssumption: DECLARED,
+      },
+      {
+        programNameKey: 'doctor',
+        bankId: 'b2',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'personal',
+        incomeAssumption: GRADE_TABLE,
+      },
+      {
+        programNameKey: 'doctor',
+        bankId: 'b2',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'business',
+        incomeAssumption: DECLARED,
+      },
+    ]).countProgramNameUsage();
+
+    expect(usage.get('doctor')?.byCategory).toEqual({
+      personal: { payslip: 1, noPayslip: 1 },
+      business: { payslip: 0, noPayslip: 1 },
+    });
+  });
+
+  it('omits a loan category no bank offers the name under', async () => {
+    // Absent, not zeroed: the tab says "no bank offers this yet", which is a different
+    // sentence from "0 of the programs here read a payslip" — and the second one is the
+    // claim the deleted per-name tick used to make without a program behind it.
+    const usage = await repoWith([
+      {
+        programNameKey: 'doctor',
+        bankId: 'b1',
+        programType: BankProgramType.income_proof,
+        productCategory: 'personal',
+        incomeAssumption: DECLARED,
+      },
+    ]).countProgramNameUsage();
+
+    expect(Object.keys(usage.get('doctor')?.byCategory ?? {})).toEqual(['personal']);
+  });
+
+  it('drops a program whose loan category is not one the platform sells', async () => {
+    // `productCategory` is a plain string column. An unknown value is counted in the
+    // totals (a program that exists) but keyed under no tab, rather than inventing a
+    // fifth category key the four-tab screen would never render (Principle II / A26).
+    const usage = await repoWith([
+      {
+        programNameKey: 'doctor',
+        bankId: 'b1',
+        programType: BankProgramType.income_surrogate,
+        productCategory: 'fast',
+        incomeAssumption: DECLARED,
+      },
+    ]).countProgramNameUsage();
+
+    expect(usage.get('doctor')).toMatchObject({
+      programs: 1,
+      noPayslipPrograms: 1,
+      byCategory: {},
+    });
   });
 });

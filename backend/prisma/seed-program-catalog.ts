@@ -1,11 +1,15 @@
 /**
- * Seed — the program-name catalog's two assignment axes (Constitution II / V):
+ * Seed — the program-name catalog's three axes (Constitution II / V):
  *
  *   1. `platform_enumeration_loan_category` — which loan categories each
  *      predefined program name may be OFFERED under.
  *   2. `platform_enumeration_question`      — which questions that name SUGGESTS
  *      scoring on, per loan category (advisory; pre-ticks step 1 of the
  *      per-bank-program scoring wizard and is read by nothing at runtime).
+ *   3. `platform_enumeration_loan_category.payslip` / `.noPayslip` — the income
+ *      BASIS of each offered pair. EXACTLY ONE of the two, always: the catalog
+ *      states what a name is for, and a name marked both ways has stated nothing.
+ *      A bank that disagrees says so on its own program, where it is enforced.
  *
  * The curated data lives in `data/program-catalog-matrix.ts`; this file only
  * applies it. Idempotent — both writes are "the listed set IS the set", so a
@@ -34,9 +38,11 @@ import { PrismaClient, type LoanCategory } from '@prisma/client';
 
 import {
   CATALOG_CATEGORY_ASSIGNMENTS,
-  CATALOG_NO_PAYSLIP,
+  CATALOG_INCOME_BASIS,
   CATALOG_QUESTION_TEMPLATE,
+  catalogIncomeBasis,
   type CatalogCategory,
+  type CatalogIncomeBasis,
 } from './data/program-catalog-matrix';
 
 const prisma = new PrismaClient();
@@ -47,9 +53,29 @@ const CATEGORY_ORDER: readonly CatalogCategory[] = ['personal', 'car', 'mortgage
 const sortCategories = (cats: readonly CatalogCategory[]): CatalogCategory[] =>
   [...new Set(cats)].sort((a, b) => CATEGORY_ORDER.indexOf(a) - CATEGORY_ORDER.indexOf(b));
 
+/** One basis → the two columns. Exactly one is true, which is the whole point. */
+const flagsOf = (basis: CatalogIncomeBasis): { payslip: boolean; noPayslip: boolean } => ({
+  payslip: basis === 'payslip',
+  noPayslip: basis === 'no_payslip',
+});
+
+/**
+ * What a pair reads as TODAY, for the change log. `both` and `neither` are the two
+ * states this seed exists to clear, so they are named rather than rendered as a
+ * pair of booleans the reader has to decode.
+ */
+const describeBasis = (flags: { payslip: boolean; noPayslip: boolean }): string => {
+  if (flags.payslip && flags.noPayslip) return 'both';
+  if (flags.payslip) return 'payslip';
+  if (flags.noPayslip) return 'no_payslip';
+  return 'neither';
+};
+
 export async function seedProgramCatalog(): Promise<void> {
   const dryRun = process.argv.includes('--dry');
   const notes: string[] = [];
+  /** Categories axis 1 decided each matrix name is offered under — read by axis 3. */
+  const planned = new Map<string, Set<CatalogCategory>>();
 
   // ---- What exists -------------------------------------------------------
 
@@ -115,6 +141,11 @@ export async function seedProgramCatalog(): Promise<void> {
     }
 
     const next = sortCategories([...desired]);
+    // Recorded for every matrix key, changed or not — axis 3 asks "is this pair
+    // offered?" and must get the answer this axis just decided, not the one the
+    // opening snapshot happened to hold.
+    planned.set(key, new Set(next));
+
     const before = sortCategories(name.loanCategories.map((c) => c.category as CatalogCategory));
     if (before.join(',') === next.join(',')) continue;
 
@@ -123,22 +154,21 @@ export async function seedProgramCatalog(): Promise<void> {
     if (dryRun) continue;
 
     // Delete-then-insert, so the written set is exactly the intended set — the
-    // same shape the repository uses, for the same reason. The income BASIS of a
-    // surviving pair is carried across, also as the repository does: re-running
-    // the seed must not silently un-sell a name someone marked no-payslip.
-    const keptBasis = new Map(
-      name.loanCategories.map((c) => [
-        c.category as CatalogCategory,
-        { payslip: c.payslip, noPayslip: c.noPayslip },
-      ]),
-    );
+    // same shape the repository uses, for the same reason.
+    //
+    // The surviving pair's basis is NOT carried across any more. It was, so that a
+    // re-run could not un-sell a name an operator had marked no-payslip — but the
+    // basis is now curated per pair (axis 3) and converged one loop below, so the
+    // carry-across only decided which value survived for the length of this
+    // transaction. Writing the curated basis here keeps a newly created pair
+    // correct from birth instead of correct one write later.
     await prisma.$transaction([
       prisma.platformEnumerationLoanCategory.deleteMany({ where: { enumerationId: name.id } }),
       prisma.platformEnumerationLoanCategory.createMany({
         data: next.map((category) => ({
           enumerationId: name.id,
           category: category as LoanCategory,
-          ...(keptBasis.get(category) ?? { payslip: true, noPayslip: false }),
+          ...flagsOf(catalogIncomeBasis(key, category)),
         })),
         skipDuplicates: true,
       }),
@@ -212,29 +242,74 @@ export async function seedProgramCatalog(): Promise<void> {
 
   // ---- Axis 3: income basis ------------------------------------------------
   //
-  // Only ever turns the no-payslip flag ON, and never touches `payslip`. The seed
-  // knows which names ARE sold without a payslip; it does not know which are sold
-  // ONLY that way, and guessing would make live payslip programs unsaveable on
-  // their next edit.
+  // "The listed basis IS the basis" — the same converging shape as axes 1 and 2,
+  // and a change from the additive pass this replaces. That one only ever turned
+  // `noPayslip` ON and never touched `payslip`, which left every fact-carrying
+  // name marked BOTH ways: a catalog that says a name is for two things is a
+  // catalog that has not said what it is for, and the admin screens now offer one
+  // choice, so both is a value their controls cannot express or clear.
+  //
+  // It therefore OVERWRITES an operator's manual pick. That is deliberate and the
+  // reason each change is logged with its direction: the seed is one operator's
+  // curated pass, and a re-run is a request to apply it. Nothing downstream refuses
+  // a save over this (v16.4.1) — the bank still states its own basis on its own
+  // program — so the blast radius is the catalog's stated intent and nothing else.
 
   let basisWritten = 0;
 
-  for (const [key, categories] of Object.entries(CATALOG_NO_PAYSLIP)) {
+  // Post-axis-1 state, re-read rather than reasoned off the opening snapshot: axis
+  // 1 may have just created the pair this axis is about to converge. On a dry run
+  // nothing was written, so the snapshot IS current and `planned` covers what axis
+  // 1 would have added — a pair it plans to create is skipped here, because it
+  // creates it with this basis already on it.
+  const matrixNames = Object.keys(CATALOG_INCOME_BASIS)
+    .map((key) => nameByKey.get(key))
+    .filter((n): n is NonNullable<typeof n> => n !== undefined);
+  const basisNow = new Map<string, { payslip: boolean; noPayslip: boolean }>();
+  const pairKey = (id: string, category: CatalogCategory): string => `${id}:${category}`;
+  if (dryRun) {
+    for (const name of matrixNames) {
+      for (const c of name.loanCategories) {
+        basisNow.set(pairKey(name.id, c.category as CatalogCategory), {
+          payslip: c.payslip,
+          noPayslip: c.noPayslip,
+        });
+      }
+    }
+  } else {
+    const rows = await prisma.platformEnumerationLoanCategory.findMany({
+      where: { enumerationId: { in: matrixNames.map((n) => n.id) } },
+      select: { enumerationId: true, category: true, payslip: true, noPayslip: true },
+    });
+    for (const r of rows) {
+      basisNow.set(pairKey(r.enumerationId, r.category as CatalogCategory), {
+        payslip: r.payslip,
+        noPayslip: r.noPayslip,
+      });
+    }
+  }
+
+  for (const [key, byCategory] of Object.entries(CATALOG_INCOME_BASIS)) {
     const name = nameByKey.get(key);
     if (!name) continue; // already reported by axis 1
 
-    for (const category of categories) {
-      const assigned = name.loanCategories.find((c) => c.category === category);
-      if (!assigned) {
-        notes.push(`'${key}/${category}': not offered under this loan type — no-payslip not set`);
+    for (const category of CATEGORY_ORDER) {
+      const basis = byCategory[category];
+      if (!basis) continue;
+      if (!planned.get(key)?.has(category)) {
+        notes.push(`'${key}/${category}': not offered under this loan type — basis not set`);
         continue;
       }
-      // Read from the pre-axis-1 snapshot, which axis 1 carries across verbatim,
-      // so this stays a no-op on a re-run.
-      if (assigned.noPayslip) continue;
+      const want = { payslip: basis === 'payslip', noPayslip: basis === 'no_payslip' };
+      const current = basisNow.get(pairKey(name.id, category));
+      // Absent on a dry run only: axis 1 plans to create it, already correct.
+      if (!current) continue;
+      if (current.payslip === want.payslip && current.noPayslip === want.noPayslip) continue;
 
       basisWritten += 1;
-      console.log(`  basis       ${key.padEnd(18)} ${category.padEnd(9)} + no payslip`);
+      console.log(
+        `  basis       ${key.padEnd(18)} ${category.padEnd(9)} ${describeBasis(current)} → ${basis}`,
+      );
       if (dryRun) continue;
 
       await prisma.platformEnumerationLoanCategory.update({
@@ -244,7 +319,7 @@ export async function seedProgramCatalog(): Promise<void> {
             category: category as LoanCategory,
           },
         },
-        data: { noPayslip: true },
+        data: want,
       });
     }
   }
@@ -255,7 +330,7 @@ export async function seedProgramCatalog(): Promise<void> {
     `[seed-program-catalog]${dryRun ? ' (dry run)' : ''} ` +
       `${categoriesChanged} category set(s) changed · ` +
       `${templatesWritten} template(s) written (${picksWritten} picks) · ` +
-      `${basisWritten} pair(s) marked no-payslip`,
+      `${basisWritten} income basis/bases corrected`,
   );
   const untouched = names.filter((n) => !(n.key in CATALOG_CATEGORY_ASSIGNMENTS));
   if (untouched.length > 0) {

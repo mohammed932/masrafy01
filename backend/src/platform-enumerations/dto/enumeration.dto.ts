@@ -68,11 +68,11 @@ export class CreateEnumerationDto {
   categories?: LoanCategory[];
 
   /**
-   * How the new name may be sold — against a payslip, without one, or both —
-   * applied to EVERY category above. Ignored for types that are not categorisable.
+   * How the new name is MEANT to be sold — against a payslip, without one, or both
+   * — applied to EVERY category above. Ignored for types that are not categorisable.
    *
    * `@ArrayMinSize(1)`, unlike the category array: an empty basis set is not a
-   * "parked" state with a meaning, it is a pair no bank program could ever name.
+   * "parked" state with a meaning, it is a name the catalog says nothing about.
    * Omitted defaults to `['payslip']`, which is what every name meant before the
    * basis was recorded.
    */
@@ -92,18 +92,19 @@ export class CreateEnumerationDto {
 }
 
 /**
- * Replace ONE (name, category) pair's income basis — the "Sold without a payslip"
- * switch on the catalog detail screen, one tab at a time.
+ * Replace ONE (name, category) pair's income basis — the "How do banks prove the
+ * income" rows on the catalog detail screen and in the Add / Edit dialog, one tab
+ * at a time.
  *
  * `category` is REQUIRED and scopes the whole write, exactly as in
- * `SetEnumerationQuestionsDto`: a name is legitimately sold without a payslip as a
- * personal loan and only against a payslip as a car loan, so a body without a
- * category would have to guess which of those the operator meant.
+ * `SetEnumerationQuestionsDto`: a name is legitimately meant for no-payslip lending
+ * as a personal loan and payslip-only as a car loan, so a body without a category
+ * would have to guess which of those the operator meant.
  *
  * `@ArrayMinSize(1)` here and NOT on the category / question DTOs, deliberately.
  * Empty means "parked" there — a real state with a real screen affordance. Here it
- * would mean a pair that is offered but unsellable, which no control can produce
- * and no picker could render.
+ * would mean a pair the catalog describes in no way at all, which no control can
+ * produce and no screen could render.
  */
 export class SetEnumerationIncomeBasisDto {
   @ApiProperty({ enum: LoanCategory })
@@ -266,6 +267,19 @@ export class EnumerationRowDto {
      * "programs with no table".
      */
     noPayslipProgramsWithoutTable: number;
+    /**
+     * The same payslip / no-payslip split, per loan category the name is sold under —
+     * `{ personal: { payslip: 2, noPayslip: 1 } }`.
+     *
+     * What the catalog name's per-loan-type tabs render, and the ONLY answer the
+     * platform has to "how is this name sold here" since v16.4.0: the catalog used to
+     * store the answer as a per-pair tick the API enforced, which let a stale tick
+     * refuse a save the bank was entitled to make. A count reports; it cannot refuse.
+     *
+     * A category with no program is ABSENT, not zeroed — "no bank offers this yet" and
+     * "0 of them read a payslip" are different sentences on that tab.
+     */
+    byCategory: Partial<Record<LoanCategory, { payslip: number; noPayslip: number }>>;
   };
   /**
    * Loan categories this entry may be offered under. Present on `program_name`
@@ -275,14 +289,17 @@ export class EnumerationRowDto {
    */
   @ApiPropertyOptional({ enum: LoanCategory, isArray: true }) categories?: LoanCategory[];
   /**
-   * How this name may be sold under each category it is assigned to —
+   * How this name is MEANT to be sold under each category it is assigned to —
    * `{ personal: ['payslip','no_payslip'], car: ['payslip'] }`. Present on
    * `program_name` rows only.
    *
    * Keyed by the ASSIGNMENT, so a category absent here is one the name is not
    * offered under at all; an assigned category always carries at least one basis.
-   * The bank-program picker filters on this in both directions and the API rejects
-   * a program whose basis is not in the set (`PROGRAM_NAME_KEY_BASIS_MISMATCH`).
+   *
+   * This is the catalog's INTENT. It constrains no bank program — `usage.byCategory`
+   * above reports what banks actually picked, and the two are allowed to disagree.
+   * Do not reintroduce a save-time rejection on it (v16.4.0): the bank states the
+   * basis on its own program, and a stale tick here refused saves it should not have.
    */
   @ApiPropertyOptional({
     type: 'object',

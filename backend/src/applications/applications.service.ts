@@ -386,15 +386,24 @@ export class ApplicationsService {
     const dynamicAnswers = resolvedQuestionnaire?.resolved;
 
     // Only the programs the applicant actually asked about: their loan category,
-    // narrowed further by the catalog name they picked. Same filter, same
-    // helper, as the preview that showed them this shortlist a screen earlier.
+    // narrowed further by the catalog name they picked and by the income basis
+    // they said they can prove. Same filter, same helper, as the preview that
+    // showed them this shortlist a screen earlier.
     //
     // The category half is not cosmetic — apply used to run the engine over
     // EVERY active program, so a personal-loan applicant was quoted mortgage and
     // car programs, and each of those offers was persisted immutably (Principle
-    // I / A6) with a score computed from personal-loan answers.
+    // I / A6) with a score computed from personal-loan answers. The income-basis
+    // half is the same defect one axis over: a customer who said they have no
+    // payslip was quoted payslip programs, and each of those offers was frozen
+    // with a figure their answers could never have supported.
     const activePrograms = (await this.programsRepo.findAllActive()).filter((p) =>
-      matchesRequestedScope(p, dto.category ?? null, dto.programNameKey ?? null),
+      matchesRequestedScope(
+        p,
+        dto.category ?? null,
+        dto.programNameKey ?? null,
+        dto.programType ?? null,
+      ),
     );
     const snapshots: BankProgramSnapshot[] = activePrograms.map(toBankProgramSnapshot);
 
@@ -504,9 +513,11 @@ export class ApplicationsService {
         age,
         applicantUserId: ctx.customerId,
         category: dto.category ?? null,
-        // The other half of the scope the offers below were matched under. Null
-        // means "the whole category", not "unknown".
+        // The other two thirds of the scope the offers below were matched under.
+        // Null means "not narrowed by this axis" — the whole category, or both
+        // income bases — never "unknown".
         programNameKey: dto.programNameKey ?? null,
+        programType: dto.programType ?? null,
         questionnaireVersionId: dto.questionnaireVersionId ?? null,
         applicantProfile: this.profileToJson(profile),
         summary: summaryJson,

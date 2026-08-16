@@ -726,6 +726,70 @@ textarea.ant-input {
   border-radius: var(--radius-md) !important;
 }
 
+// ----------------------------------------------------------------------------
+// `.select-grouped-dropdown` — panel for a select whose options are GROUPED
+// ----------------------------------------------------------------------------
+// The base panel renders a group heading as an 11px caps line in the same
+// gutter as the options, four pixels above the first of them. With three groups
+// that reads as three more (unclickable) options and the whole list runs
+// together — which is the opposite of what grouping is for. This modifier gives
+// the heading its own band, ends it with a rule that runs to the panel edge so
+// the horizontal space is doing something, and outdents it from the options.
+//
+// Rows are 40px here. The option list is virtual-scrolled and every row —
+// option AND heading — is translated by `index * nzOptionHeightPx`, so a caller
+// using this class MUST also set `[nzOptionHeightPx]="40"`, and the two height
+// rules below MUST stay equal to it and to each other.
+.select-grouped-dropdown .ant-select-item {
+  box-sizing: border-box !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  padding-inline: 10px !important;
+  font-size: 14px !important;
+}
+.select-grouped-dropdown .ant-select-item-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding-block: 0 !important;
+  color: var(--text-muted, var(--color-text-tertiary)) !important;
+}
+// A `border-block-start` on every heading but the first would be wrong under
+// virtual scroll: "first" is the first RENDERED row, so the line would appear
+// above whichever group happens to be scrolled to the top. A trailing rule
+// belongs to the heading itself and cannot drift.
+.select-grouped-dropdown .ant-select-item-group::after {
+  content: '';
+  flex: 1 1 auto;
+  block-size: 1px;
+  background: var(--border-default, var(--color-border-default));
+}
+// Options sit one marker-width in from their heading. The marker is empty until
+// the row is the selected one — reserved on every row, so picking a different
+// method does not shunt the labels sideways.
+.select-grouped-dropdown .ant-select-item-option {
+  gap: 10px !important;
+}
+.select-grouped-dropdown .ant-select-item-option::before {
+  content: '';
+  flex: 0 0 auto;
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: var(--primary, var(--color-brand-primary));
+  opacity: 0;
+}
+.select-grouped-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled)::before {
+  opacity: 1;
+}
+// 8.5 rows, against the base panel's flat 320px: half a row of the ninth is the
+// only thing on screen that says the list continues past the fold.
+.select-grouped-dropdown .cdk-virtual-scroll-viewport,
+.select-grouped-dropdown nz-option-container,
+.select-grouped-dropdown .ant-select-item-list {
+  max-height: 340px !important;
+}
+
 // ============================================================================
 // NG-ZORRO form layout — force vertical (label above control) globally
 // ============================================================================

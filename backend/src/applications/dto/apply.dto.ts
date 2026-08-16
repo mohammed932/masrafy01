@@ -37,7 +37,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { IsArray } from 'class-validator';
-import { LoanCategory } from '@prisma/client';
+import { BankProgramType, LoanCategory } from '@prisma/client';
 import { APPLICATION_PRIORITIES, type ApplicationPriority } from '../../matching/types';
 import { IsDecimalString } from '../../common/validators/is-decimal-string.validator';
 import { SubmittedAnswerDto } from '@/questionnaire/dto/questionnaire.dto';
@@ -220,6 +220,28 @@ export class ApplyRequestDto {
   @IsString()
   @Length(1, 64)
   programNameKey?: string;
+
+  /**
+   * The income basis the applicant said they can prove — the bank's own
+   * `bank_program.programType`. `income_proof` matches only programs that read a
+   * payslip; `income_surrogate` only programs that work the income out some other
+   * way.
+   *
+   * Optional, and absent means "both bases", which is exactly what every client
+   * built before the income-type step sent and was served. Unlike the other two
+   * scope axes there is no unclassified program to fall through the filter:
+   * `programType` is NOT NULL on the model, so the two values partition the whole
+   * active set.
+   *
+   * A value with no active program behind it is NOT a typed rejection — it falls
+   * into the existing no-match response. The client only ever offers a basis it
+   * saw as available on `GET /v1/program-options`, so the only way to get here is
+   * a stale client racing an operator, and "no offers" is the honest answer to
+   * that, not an error the customer can act on.
+   */
+  @IsOptional()
+  @IsEnum(BankProgramType)
+  programType?: BankProgramType;
 
   @IsOptional()
   @IsString()

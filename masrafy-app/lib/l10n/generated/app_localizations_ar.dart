@@ -645,13 +645,81 @@ class AppLocalizationsAr extends AppLocalizations {
   String get home_loan_types => 'أنواع القروض';
 
   @override
-  String get home_program_label => 'برنامج التمويل';
+  String get loan_setup_step_category_title => 'نوع التمويل';
 
   @override
-  String get home_program_hint => 'اختر البرنامج';
+  String get loan_setup_step_category_subtitle => 'الخطوة الأولى من ثلاث';
 
   @override
-  String get home_program_search_hint => 'ابحث عن برنامج';
+  String get loan_setup_step_category_heading => 'ما الذي تريد تمويله؟';
+
+  @override
+  String get loan_setup_step_income_title => 'إثبات الدخل';
+
+  @override
+  String get loan_setup_step_income_heading => 'كيف تثبت دخلك؟';
+
+  @override
+  String get loan_setup_step_income_helper => 'نعرض لك البرامج التي يقبلها البنك بهذه الطريقة فقط.';
+
+  @override
+  String get loan_setup_income_proof_title => 'بكشف راتب';
+
+  @override
+  String get loan_setup_income_proof_desc => 'لديك كشف راتب أو تحويل راتب من جهة عملك.';
+
+  @override
+  String get loan_setup_income_surrogate_title => 'بدون كشف راتب';
+
+  @override
+  String get loan_setup_income_surrogate_desc => 'يحتسب البنك دخلك من بيانات أخرى مثل درجتك الوظيفية أو سنوات الخبرة.';
+
+  @override
+  String get loan_setup_income_unavailable => 'لا يوجد بنك يقدم هذا النوع حاليًا.';
+
+  @override
+  String get loan_setup_step_program_title => 'البرنامج';
+
+  @override
+  String get loan_setup_step_program_heading => 'اختر البرنامج';
+
+  @override
+  String get loan_setup_step_program_helper => 'هذه البرامج متاحة حسب اختياراتك السابقة.';
+
+  @override
+  String get loan_setup_no_programs => 'لا يوجد برنامج محدد هنا، ويمكنك المتابعة وسنعرض عليك كل العروض المتاحة.';
+
+  @override
+  String loan_setup_bank_count(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count بنكًا',
+      few: '$count بنوك',
+      two: 'بنكان',
+      one: 'بنك واحد',
+      zero: 'لا يوجد بنك',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get loan_setup_next => 'التالي';
+
+  @override
+  String get loan_setup_finish => 'متابعة';
+
+  @override
+  String get loan_setup_error_title => 'تعذر تحميل البرامج';
+
+  @override
+  String get loan_setup_error_message => 'تحقق من اتصالك ثم حاول مرة أخرى.';
+
+  @override
+  String get loan_setup_retry => 'إعادة المحاولة';
+
+  @override
+  String get loan_setup_no_options => 'لا توجد برامج متاحة لهذا النوع حاليًا.';
 
   @override
   String get home_continue => 'متابعة';

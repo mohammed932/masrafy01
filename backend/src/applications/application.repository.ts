@@ -13,6 +13,7 @@ import {
   type ApplicationStatus as PrismaApplicationStatus,
   type LeadStatus as PrismaLeadStatus,
   type ApprovalTier,
+  type BankProgramType,
 } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../infra/prisma/prisma.service';
@@ -36,6 +37,8 @@ export interface CreateApplicationInput {
   category?: string | null;
   /** Catalog `program_name` the applicant narrowed to; null = whole category. */
   programNameKey?: string | null;
+  /** Income basis the applicant narrowed to; null = both bases. */
+  programType?: BankProgramType | null;
   questionnaireVersionId?: string | null;
   applicantProfile: JsonValueInput;
   summary: JsonValueInput;

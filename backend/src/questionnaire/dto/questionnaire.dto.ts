@@ -19,7 +19,7 @@ import {
 import { Type } from 'class-transformer';
 import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LoanCategory, QuestionType } from '@prisma/client';
+import { BankProgramType, LoanCategory, QuestionType } from '@prisma/client';
 import { IsDecimalString } from '@/common/validators/is-decimal-string.validator';
 
 export class EnabledWhenDto {
@@ -359,6 +359,17 @@ export class PreviewMatchesDto {
   @IsString()
   @Length(1, 64)
   programNameKey?: string;
+
+  /**
+   * Income basis to narrow to (see `ApplyRequestDto.programType`). Same field,
+   * same validation, same meaning-of-null on both endpoints — preview exists to
+   * show what apply would return, so a shortlist it produces has to survive the
+   * apply that follows (A25).
+   */
+  @ApiPropertyOptional({ enum: BankProgramType, description: 'Income basis to narrow the matched set to' })
+  @IsOptional()
+  @IsEnum(BankProgramType)
+  programType?: BankProgramType;
 
   @ApiPropertyOptional() @IsOptional() @IsString() questionnaireVersionId?: string;
   @ApiProperty({ type: [SubmittedAnswerDto] })

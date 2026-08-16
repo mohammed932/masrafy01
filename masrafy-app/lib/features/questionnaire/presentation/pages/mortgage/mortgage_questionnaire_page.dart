@@ -13,11 +13,22 @@ import 'package:app/features/questionnaire/presentation/pages/mortgage/mortgage_
 /// is unchanged, so existing navigation and `router.gr.dart` stay valid.
 @RoutePage()
 class MortgageQuestionnairePage extends StatelessWidget {
-  const MortgageQuestionnairePage({super.key, this.programNameKey});
+  const MortgageQuestionnairePage({
+    super.key,
+    this.programNameKey,
+    this.incomeType,
+  });
 
-  /// Catalog program name picked on Home alongside the loan category; narrows
-  /// the matched programs to that archetype. Null = whole category.
+  /// Catalog program name picked in the loan-setup wizard alongside the loan
+  /// category; narrows the matched programs to that archetype. Null = whole
+  /// category.
   final String? programNameKey;
+
+  /// The income basis picked in the loan-setup wizard (`income_proof` /
+  /// `income_surrogate`), carried straight through to the apply request where it
+  /// narrows the matched programs to banks that work the income out that way.
+  /// Null = both bases, which is what older builds sent.
+  final String? incomeType;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +38,7 @@ class MortgageQuestionnairePage extends StatelessWidget {
           mapMortgageAnswersToApplyRequest(
         state.visibleAnswers,
         programNameKey: programNameKey,
+        programType: incomeType,
       ),
     );
   }

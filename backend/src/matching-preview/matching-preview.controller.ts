@@ -44,6 +44,7 @@ export class MatchingPreviewController {
       answers: dto.answers,
       age,
       programNameKey: dto.programNameKey,
+      programType: dto.programType,
     });
     return ok(result);
   }

@@ -100,6 +100,22 @@ export interface PagedBankPrograms {
   totalCount: number;
 }
 
+/**
+ * The three columns that answer "which programs is this request scoped to" —
+ * exactly `ProgramScopeRow` plus nothing.
+ *
+ * A separate read from `findAllActive()` on purpose: that one returns whole rows
+ * including every sub-config JSONB blob because the engine prices off them, and
+ * the availability question ("does an active program exist for this category /
+ * income type / catalog name") has no business dragging tier maps across the wire
+ * to answer it.
+ */
+export interface ActiveProgramScopeRow {
+  programNameKey: string | null;
+  programType: BankProgramType;
+  productCategory: string;
+}
+
 @Injectable()
 export class BankProgramRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -172,6 +188,21 @@ export class BankProgramRepository {
       where: { active: true },
       orderBy: { updatedAt: 'desc' },
       include: { bank: { select: { isFeatured: true } } },
+    });
+  }
+
+  /**
+   * Active programs projected down to their scope columns only.
+   *
+   * `active: true` is the whole point and is not optional: the customer-facing
+   * availability read must never offer a combination backed only by a program an
+   * operator has switched off, because the engine would then match nothing and the
+   * customer would have picked their way into an empty result.
+   */
+  async listActiveScopeRows(): Promise<ActiveProgramScopeRow[]> {
+    return this.prisma.bankProgram.findMany({
+      where: { active: true },
+      select: { programNameKey: true, programType: true, productCategory: true },
     });
   }
 

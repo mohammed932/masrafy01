@@ -76,9 +76,7 @@ export type CatalogCategory = 'personal' | 'car' | 'mortgage' | 'business';
  * pass over the catalog, not a definition of it, and names an admin added
  * through the board must survive a re-run untouched.
  */
-export const CATALOG_CATEGORY_ASSIGNMENTS: Readonly<
-  Record<string, readonly CatalogCategory[]>
-> = {
+export const CATALOG_CATEGORY_ASSIGNMENTS: Readonly<Record<string, readonly CatalogCategory[]>> = {
   // ── Four: the borrower owns the practice they work in, so the business line is
   // a real product for them. Their fee income is not on a payslip either, which is
   // what the NO-PAYSLIP basis is for — but that is a per-program property, not a
@@ -393,8 +391,6 @@ export const CATALOG_QUESTION_TEMPLATE: Record<
   },
 };
 
-
-
 // ---------------------------------------------------------------------------
 // The NO-PAYSLIP fact, per archetype (constitution v16.0.0)
 //
@@ -403,11 +399,11 @@ export const CATALOG_QUESTION_TEMPLATE: Record<
 // no payslip is an income BASIS carried by `bank_program.programType`, not a product
 // the customer picks, so there is no separate set to build.
 //
-// What survives is the FACT, appended to the archetype's `personal` set. That single
-// code is what marks the name as sellable without a payslip: the admin catalog derives
-// "sold without a payslip" from the overlap of a name's ticked questions with the four
-// surrogate facts, and the bank-program wizard offers only fact-carrying names when the
-// admin picks the no-payslip basis. Three live ABK programs (`ABK-MILITARY`,
+// What survives is the FACT, appended to the archetype's `personal` set — the figure a
+// bank's table looks the assumed income up BY, which is a different statement from "this
+// name is sold without a payslip" (that one is stored, see axis 3 below, and this map is
+// one of its inputs). The fact has to be ASKED for any table keyed on it to resolve, and
+// what it does here is get it asked. Three live ABK programs (`ABK-MILITARY`,
 // `ABK-PROFESSORS`, `ABK-DOCTORS-PRACTICE`) are `personal` + `income_surrogate` and read
 // exactly these facts.
 //
@@ -448,21 +444,66 @@ for (const [key, facts] of Object.entries(NO_PAYSLIP_FACT)) {
   ];
 }
 
+// ---------------------------------------------------------------------------
+// Axis 3: the income basis — EXACTLY ONE per (name, category)
+// ---------------------------------------------------------------------------
+
+export type CatalogIncomeBasis = 'payslip' | 'no_payslip';
+
 /**
- * Which (name, category) pairs are SOLD without a payslip — the stored income
- * basis, seeded alongside the fact ticks above.
- *
- * The two are no longer the same statement. A ticked fact says WHICH figure a
- * bank's table reads; this says the name may be sold that way at all, and it is
- * what the bank-program picker filters on and the API enforces. Derived from the
- * same source so the seed cannot assert one without the other, but written to its
- * own columns — an operator who unticks the last fact has not thereby stopped
- * selling the product, and used to.
- *
- * `payslip` is NOT turned off anywhere here. Every one of these names is also sold
- * the ordinary way by other banks (that is the whole reason v16.0.0 refused to
- * make no-payslip a category), so the seed marks them BOTH and leaves the
- * narrowing to whoever actually knows a given name is one-basis-only.
+ * Archetypes whose income never appears on a payslip WHATEVER they borrow for:
+ * they own the practice they work in, so there is no employer to issue one. This
+ * is the same rule `seed-bank-programs.ts#skeletonFor` prices off — kept as one
+ * statement rather than two copies that can drift (A25).
  */
-export const CATALOG_NO_PAYSLIP: Readonly<Record<string, readonly CatalogCategory[]>> =
-  Object.fromEntries(Object.keys(NO_PAYSLIP_FACT).map((key) => [key, ['personal'] as const]));
+export const SELF_EMPLOYED_ARCHETYPES: ReadonlySet<string> = new Set([
+  'doctor',
+  'professional',
+  'pharmacy',
+]);
+
+/**
+ * The basis one (name, category) pair is sold on. ONE, never both.
+ *
+ * Until now the seed marked the six fact-carrying names as BOTH bases, on the
+ * argument that other banks also sell them the ordinary way. That argument is
+ * about BANKS, and a bank states its own basis on its own program — the catalog
+ * answers a different question ("what is this name FOR?"), which has one answer.
+ * Marking both made every catalog name read as undecided and gave the admin
+ * screens a value their controls could no longer express.
+ *
+ * Three rules, most specific first:
+ *
+ *   1. `business` is never a payslip product. A company's revenue is not a salary,
+ *      and every seeded business program is `income_surrogate` accordingly.
+ *   2. A self-employed archetype carries its basis across every category it
+ *      reaches — a doctor financing a car is still a doctor.
+ *   3. A name with a curated no-payslip FACT is sold that way under the categories
+ *      the fact map covers (`personal`), and the ordinary way elsewhere: a
+ *      uniformed borrower is priced off their grade on a personal loan, and off a
+ *      payroll certificate on the car loan the same payroll department issues.
+ *
+ * Rule 3 deliberately disagrees with `skeletonFor`, which books
+ * armed_forces / police / govt_employee as `income_proof`. That is intent vs
+ * fact, and v16.4.0 made them separate on purpose: this says what the name is
+ * for, the catalog board counts what banks actually did, and the two are allowed
+ * to differ. Nothing enforces either against the other (v16.4.1).
+ */
+export function catalogIncomeBasis(key: string, category: CatalogCategory): CatalogIncomeBasis {
+  if (category === 'business') return 'no_payslip';
+  if (SELF_EMPLOYED_ARCHETYPES.has(key)) return 'no_payslip';
+  return NO_PAYSLIP_FACT[key] && category === 'personal' ? 'no_payslip' : 'payslip';
+}
+
+/**
+ * The basis for every pair the category axis assigns — derived, not typed, so a
+ * pair can never appear here that axis 1 does not offer.
+ */
+export const CATALOG_INCOME_BASIS: Readonly<
+  Record<string, Partial<Record<CatalogCategory, CatalogIncomeBasis>>>
+> = Object.fromEntries(
+  Object.entries(CATALOG_CATEGORY_ASSIGNMENTS).map(([key, categories]) => [
+    key,
+    Object.fromEntries(categories.map((c) => [c, catalogIncomeBasis(key, c)])),
+  ]),
+);

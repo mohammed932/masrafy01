@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { LoanCategory } from '@prisma/client';
+import { BankProgramType, LoanCategory } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { DomainException } from '@/common/errors/domain.exceptions';
 import { ERROR_CODES } from '@/common/errors/error-codes';
@@ -143,12 +143,18 @@ export class MatchingPreviewService {
    * BEFORE any work: a stale key must come back as a typed rejection the app can
    * act on ("pick again"), not as an empty shortlist indistinguishable from
    * "no bank offers this".
+   *
+   * `programType` narrows it to one income basis. NOT validated up front, unlike
+   * the key: both values are always legal (the enum partitions every active
+   * program), so the only failure mode is "nothing offered on that basis right
+   * now", which is a shortlist outcome rather than a bad request.
    */
   async preview(args: {
     category: LoanCategory;
     answers: SubmittedAnswerDto[];
     age: number;
     programNameKey?: string;
+    programType?: BankProgramType;
   }) {
     if (args.programNameKey) {
       await this.programNames.assertOfferedUnder(args.programNameKey, args.category);
@@ -163,6 +169,7 @@ export class MatchingPreviewService {
       askedQuestionCodes,
       args.programNameKey ?? null,
       surrogateFacts,
+      args.programType ?? null,
     );
   }
 
@@ -335,8 +342,9 @@ export class MatchingPreviewService {
 
   /**
    * Score every active program in the requested scope and rank by approval
-   * probability. Scope is the (category, programNameKey) pair the applicant
-   * asked for — `programNameKey` null means the whole category, which is what a
+   * probability. Scope is the (category, programNameKey, programType) triple the
+   * applicant asked for — a null on either optional axis means "not narrowed by
+   * it", so `programNameKey` null means the whole category, which is what a
    * client that predates the catalog picker sends.
    */
   private async runAndAssemble(
@@ -347,9 +355,10 @@ export class MatchingPreviewService {
     askedQuestionCodes: readonly string[],
     programNameKey: string | null,
     surrogateFacts: SurrogateFacts,
+    programType: BankProgramType | null,
   ) {
     const rows = (await this.programs.findAllActive()).filter((p) =>
-      matchesRequestedScope(p, category, programNameKey),
+      matchesRequestedScope(p, category, programNameKey, programType),
     );
     const profile = money ? this.buildProfile(money, age, surrogateFacts) : null;
 

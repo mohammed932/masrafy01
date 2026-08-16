@@ -48,6 +48,15 @@ export interface EnumerationRow {
      * badges as "no table yet".
      */
     noPayslipProgramsWithoutTable: number;
+    /**
+     * The payslip / no-payslip split per loan category — `{ personal: { payslip: 2,
+     * noPayslip: 1 } }`. What a catalog name's per-loan-type tab reports, counted from
+     * the programs banks actually created; a category with no program is ABSENT, which
+     * the tab renders as "no bank offers this yet".
+     *
+     * Optional so the bundle still runs against a backend that predates the field.
+     */
+    byCategory?: Partial<Record<LoanCategory, { payslip: number; noPayslip: number }>>;
   };
   /**
    * `program_name` rows only — which loan categories may offer this name.
@@ -57,11 +66,13 @@ export interface EnumerationRow {
    */
   categories?: LoanCategory[];
   /**
-   * `program_name` rows only — how this name may be SOLD under each category it is
-   * offered under. Keyed by the assignment, so a category absent here is one the
-   * name is not offered under; an offered category always carries at least one
-   * basis. This is the rule the bank-program picker filters on and the API
-   * enforces, not a hint.
+   * `program_name` rows only — how this name is MEANT to be sold under each category
+   * it is offered under: against a payslip, without one, or both. Keyed by the
+   * assignment, so a category absent here is one the name is not offered under; an
+   * offered category always carries at least one basis.
+   *
+   * The catalog's INTENT, and only that. It filters nothing and refuses nothing —
+   * `usage.byCategory` above says what banks actually did, and the two may disagree.
    */
   incomeBasesByCategory?: Partial<Record<LoanCategory, IncomeBasis[]>>;
   /**
@@ -91,7 +102,7 @@ export interface CreateEnumerationRequest {
   labelEn: string;
   parentKey?: string;
   /**
-   * `program_name` only — how the new name is sold, applied to every loan
+   * `program_name` only — how the new name is meant to be sold, applied to every loan
    * category it starts under. Omitted means `['payslip']` server-side.
    */
   incomeBases?: IncomeBasis[];
@@ -184,12 +195,12 @@ export class LookupsApiService {
   }
 
   /**
-   * Replace ONE (name, loan category) pair's income basis — how the name is sold
-   * there. The array IS the new set and may never be empty: a pair offered under
-   * no basis is one no bank program could name.
+   * Replace ONE (name, loan category) pair's income basis — how the catalog says the
+   * name is meant to be sold there. The array IS the new set and may never be empty:
+   * a pair the catalog describes in no way at all is a pair no screen could render.
    *
-   * Scoped to the category, like `setQuestions`: a name is legitimately sold
-   * without a payslip as a personal loan and only against one as a car loan.
+   * Scoped to the category, like `setQuestions`: a name is legitimately meant for
+   * no-payslip lending as a personal loan and payslip-only as a car loan.
    */
   async setIncomeBasis(
     id: string,
