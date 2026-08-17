@@ -1,5 +1,5 @@
 /**
- * Seed — the program-name catalog's three axes (Constitution II / V):
+ * Seed — the program-name catalog's four axes (Constitution II / V):
  *
  *   1. `platform_enumeration_loan_category` — which loan categories each
  *      predefined program name may be OFFERED under.
@@ -10,6 +10,12 @@
  *      BASIS of each offered pair. EXACTLY ONE of the two, always: the catalog
  *      states what a name is for, and a name marked both ways has stated nothing.
  *      A bank that disagrees says so on its own program, where it is enforced.
+ *   4. `platform_enumeration.incomeRule` — HOW the income is worked out for the
+ *      name when there is no payslip. Stated ONCE per name, because the same rule
+ *      kept on each bank's own program let one name mean several things at one
+ *      bank: ABK filed a rank table, no table and a wealth tier all under
+ *      `professional`. Absent = "nobody decided"; an explicit `declared` =
+ *      "an operator decided the typed salary is the figure".
  *
  * The curated data lives in `data/program-catalog-matrix.ts`; this file only
  * applies it. Idempotent — both writes are "the listed set IS the set", so a
@@ -34,11 +40,12 @@
  * and a `PLATFORM_ENUMERATION_UPDATED` event attributed to a seed actor would
  * put a diff no operator made into the log an operator reaches for.
  */
-import { PrismaClient, type LoanCategory } from '@prisma/client';
+import { Prisma, PrismaClient, type LoanCategory } from '@prisma/client';
 
 import {
   CATALOG_CATEGORY_ASSIGNMENTS,
   CATALOG_INCOME_BASIS,
+  CATALOG_INCOME_RULE,
   CATALOG_QUESTION_TEMPLATE,
   catalogIncomeBasis,
   type CatalogCategory,
@@ -324,13 +331,91 @@ export async function seedProgramCatalog(): Promise<void> {
     }
   }
 
+  // ---- Axis 4: the income rule ---------------------------------------------
+  //
+  // "The listed rule IS the rule" — converging and authoritative, like axes 1 and
+  // 3, so a re-run applies this operator's curated pass rather than accumulating
+  // onto whatever is there. It OVERWRITES a manual pick for the same reason axis 3
+  // does.
+  //
+  // TWO GUARDS THE OTHER AXES DO NOT NEED, because this is the one axis that moves
+  // MONEY:
+  //
+  //   1. The change log prints the SHAPE of both sides, not just a direction —
+  //      `byProfessorRank(3 rows) → byYearsInPractice(2 bands)`. A basis flipping
+  //      is one bit; a rule changing is a different income for every applicant
+  //      under the name, and "changed" is not enough for a reviewer to catch a
+  //      table that arrived with the wrong number of rows.
+  //   2. A name in the matrix that is NOT in the catalog is reported and skipped,
+  //      never created (the file header's third guard). Axis 1 already reports it,
+  //      so this one stays silent to avoid saying it twice.
+  //
+  // TODO (PR 2): run `validateIncomeRule` over each rule before writing it. It
+  // lives in `src/` and `prisma/` must not import the Nest application, so it
+  // lands when the catalog write path does — until then a malformed rule seeded
+  // here would only be caught on its first admin save.
+
+  let rulesWritten = 0;
+
+  /** What a stored rule IS, for the change log — shape included, never just a name. */
+  const describeRule = (rule: unknown): string => {
+    if (rule === null || rule === undefined) return 'none';
+    if (typeof rule !== 'object') return 'unreadable';
+    const r = rule as { strategy?: unknown; keyTable?: unknown; bands?: unknown; scalar?: unknown };
+    const strategy = typeof r.strategy === 'string' ? r.strategy : 'unreadable';
+    if (Array.isArray(r.keyTable)) return `${strategy}(${r.keyTable.length} rows)`;
+    if (Array.isArray(r.bands)) return `${strategy}(${r.bands.length} bands)`;
+    if (r.scalar && typeof r.scalar === 'object') {
+      const s = r.scalar as { value?: unknown; unit?: unknown };
+      return `${strategy}(${String(s.value)} ${String(s.unit)})`;
+    }
+    return strategy;
+  };
+
+  // Re-read rather than reasoned off the opening snapshot, for axis 3's reason: an
+  // earlier axis may have touched the row. On a dry run nothing was written, so the
+  // opening snapshot IS current — but `names` did not select `incomeRule`, so the
+  // read happens either way and simply returns the pre-run state on a dry run.
+  const ruleKeys = Object.keys(CATALOG_INCOME_RULE);
+  const ruleRows = await prisma.platformEnumeration.findMany({
+    where: { type: PROGRAM_NAME_TYPE, key: { in: ruleKeys } },
+    select: { id: true, key: true, incomeRule: true },
+  });
+  const ruleNow = new Map(ruleRows.map((r) => [r.key, r]));
+
+  for (const key of ruleKeys) {
+    const row = ruleNow.get(key);
+    if (!row) continue; // already reported by axis 1 as "not in the catalog"
+
+    const want = CATALOG_INCOME_RULE[key];
+    if (!want) continue;
+    if (JSON.stringify(row.incomeRule) === JSON.stringify(want)) continue;
+
+    rulesWritten += 1;
+    console.log(
+      `  income rule ${key.padEnd(18)} ${describeRule(row.incomeRule)} → ${describeRule(want)}`,
+    );
+    if (dryRun) continue;
+
+    await prisma.platformEnumeration.update({
+      where: { id: row.id },
+      // Double cast, and it is the honest one: `CatalogIncomeRule` is a closed
+      // interface with no index signature, so it is not assignable to
+      // `InputJsonObject` however JSON-shaped its members are. Widening the
+      // interface with `[k: string]: unknown` to satisfy the cast would trade a
+      // cast here for a type that stops catching a typo'd field at the source.
+      data: { incomeRule: want as unknown as Prisma.InputJsonValue },
+    });
+  }
+
   // ---- Report -------------------------------------------------------------
 
   console.log(
     `[seed-program-catalog]${dryRun ? ' (dry run)' : ''} ` +
       `${categoriesChanged} category set(s) changed · ` +
       `${templatesWritten} template(s) written (${picksWritten} picks) · ` +
-      `${basisWritten} income basis/bases corrected`,
+      `${basisWritten} income basis/bases corrected · ` +
+      `${rulesWritten} income rule(s) written`,
   );
   const untouched = names.filter((n) => !(n.key in CATALOG_CATEGORY_ASSIGNMENTS));
   if (untouched.length > 0) {

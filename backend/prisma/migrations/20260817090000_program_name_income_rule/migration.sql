@@ -1,0 +1,40 @@
+-- The income rule moves from the bank program onto the PROGRAM CATALOG — step 1
+-- of 5, and this one is pure ADD COLUMN. Nothing reads either column yet.
+--
+-- Today the rule that turns "assistant professor" into 18 000 EGP lives on
+-- `bank_program.incomeAssumption`, once per program. Five ABK programs are three
+-- copies of "Professionals" and two of "Doctor Loans" — same catalog name, same
+-- bank, same category — so the same table is typed, reviewed and corrected once
+-- per program, and the copies have already drifted. The rule is a property of the
+-- ARCHETYPE ("this is what a university professor earns"), not of the leaflet the
+-- bank prints, so it belongs on the name.
+--
+-- On `platform_enumeration`, NOT on `platform_enumeration_loan_category`. Keying
+-- per (name, category) looks like the finer grain and fixes none of the conflicts
+-- that motivated the move: ABK's two `doctor` programs and its three
+-- `professional` programs are same-name/same-bank/SAME-CATEGORY, so a per-category
+-- row would still have to hold two answers. And six seeded programs carry
+-- `productCategory` values — `wealth`, `auto_cross_sell`, `credit_card_cross_sell`,
+-- `clubs` — that have no row in that table at all, so the join would return nothing
+-- and the quote would fall back to the declared salary without ever saying it did.
+-- A rule that silently evaporates on part of the catalog is worse than one stated
+-- once per name.
+--
+-- `incomeRule` is NULLABLE and the two empty-looking states are different: NULL is
+-- "nobody has decided", `{"strategy":"declared"}` is "an operator decided this name
+-- is quoted off the typed salary". They quote the same; only the catalog counters
+-- and the operator screens read the difference.
+--
+-- `valueSources` mirrors `bank_program.valueSources`
+-- (`20260813120000_bank_program_value_sources`): a SPARSE map of dot-path →
+-- 'team_estimated', where an ABSENT path means the bank stated it. NOT NULL with a
+-- `{}` default for the same reason it is there — an absent map and an empty one
+-- would be two spellings of one state, which is how a marker gets lost.
+--
+-- No index. The read is `WHERE type = 'program_name'` over ~17 rows and is already
+-- covered by `idx_platform_enumeration_type_active_sort`; an index on a JSONB
+-- column nothing filters on would only be a write cost.
+
+-- AlterTable
+ALTER TABLE "platform_enumeration" ADD COLUMN     "incomeRule" JSONB;
+ALTER TABLE "platform_enumeration" ADD COLUMN     "valueSources" JSONB NOT NULL DEFAULT '{}';

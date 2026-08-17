@@ -1,7 +1,18 @@
 /**
- * The catalog's two ASSIGNMENT axes, curated — which loan categories each
- * predefined program name may be offered under, and which questions that name
- * suggests scoring on under each of those categories.
+ * The catalog's FOUR curated axes — everything the platform states about a
+ * program NAME, as opposed to about one bank's leaflet:
+ *
+ *   1. which loan categories the name may be OFFERED under;
+ *   2. which questions it SUGGESTS scoring on, per category (advisory);
+ *   3. the income BASIS of each offered pair — payslip or not (intent);
+ *   4. the income RULE — HOW the income is worked out when there is no payslip.
+ *
+ * Axes 1 and 2 are the file's originals; 3 arrived in v16.5.0 and 4 with the move
+ * of the rule off `bank_program.incomeAssumption`. The last is the only one that
+ * moves money, and it is why five names were ADDED rather than the existing ones
+ * annotated: `professional` was carrying a rank table, no table, and a
+ * bank-statement percentage at once, which is a name that has stopped naming
+ * anything. See `CATALOG_INCOME_RULE` at the foot of this file.
  *
  * Both axes shipped WIDE OPEN and EMPTY respectively:
  *   - `20260807100000_program_name_loan_category_assignment` backfilled every
@@ -84,6 +95,11 @@ export const CATALOG_CATEGORY_ASSIGNMENTS: Readonly<Record<string, readonly Cata
   // not as a fifth entry here (v16.0.0).
   doctor: ['personal', 'car', 'mortgage', 'business'],
   professional: ['personal', 'car', 'mortgage', 'business'],
+  // The practice-OWNING doctor, split out from `doctor` because the two are one
+  // name carrying two income rules (axis 4): a salaried clinic doctor reads a
+  // payslip, an owner is priced off years in practice. Same reach as `doctor` —
+  // owning the practice never narrows what the owner may borrow for.
+  doctor_practice: ['personal', 'car', 'mortgage', 'business'],
 
   // ── Three: salaried segments. Everything a payroll reaches, nothing more —
   // uniformed and government staff are barred from trading, and a bank's own
@@ -104,10 +120,29 @@ export const CATALOG_CATEGORY_ASSIGNMENTS: Readonly<Record<string, readonly Cata
   // this platform does not sell.
   pharmacy: ['personal', 'car', 'business'],
 
+  // Three: university teaching staff, split out of `professional` because an
+  // academic RANK prices them and a lawyer's fee income does not. Salaried, so
+  // the payroll reach applies — the rank table is the personal-loan basis, and
+  // the same university issues a payroll certificate for the car and the flat.
+  professor: ['personal', 'car', 'mortgage'],
+
+  // Three: business owners underwritten on bank statements, split out of
+  // `professional` for the same reason — turnover is not a fee. Mortgage is out
+  // for the pharmacy's reason: an owner's premises are commercial real estate.
+  self_employed: ['personal', 'car', 'business'],
+
+  // Three: the affluent tier. Documented income, large tickets, qualitative
+  // review. No business line — this is a private-banking borrower, not a company.
+  wealth_tier: ['personal', 'car', 'mortgage'],
+
   // ── Two: structurally capped segments.
   // A mortgage has to amortise inside the borrower's remaining earning tenor;
   // a pension does not stretch that far, and a car does.
   pensioner: ['personal', 'car'],
+  // A playing career is the same cap seen from the other end: it ends around 35,
+  // so a 20-year mortgage outlives the income that services it. The club contract
+  // is a real payslip, which is why this is not a no-payslip name.
+  athlete: ['personal', 'car'],
   // Thin file, short tenure, no collateral story. Small-ticket personal and
   // entry car finance are exactly where a youth programme belongs.
   youth: ['personal', 'car'],
@@ -255,6 +290,57 @@ export const CATALOG_QUESTION_TEMPLATE: Record<
     car: [...CAR_SPINE, 'additional_income'],
     mortgage: [...MORTGAGE_SPINE, 'additional_income'],
     business: [...BUSINESS_SPINE],
+  },
+
+  // ── Doctors who own the practice: `doctor` minus the payroll half. There is no
+  // employer to route a salary or sign a consent letter, so the self-employed
+  // spine carries the personal side and `additional_income` stops being the
+  // second half of the income — it IS the income, and `monthly_income` in the
+  // spine already asks for it.
+  doctor_practice: {
+    personal: [...PERSONAL_SELF_EMPLOYED],
+    car: [...CAR_SPINE, 'additional_income'],
+    mortgage: [...MORTGAGE_SPINE, 'additional_income'],
+    business: [...BUSINESS_SPINE],
+  },
+
+  // ── Professors: `govt_employee`'s shape, because a public university IS the
+  // government payroll — `salary_bank_name` included for the same reason (an
+  // academic's salary moves between banks by decree). What differs is the rule,
+  // not the questions.
+  professor: {
+    personal: [...PERSONAL_SALARIED, 'salary_bank', 'salary_bank_name'],
+    car: [...CAR_SPINE, 'salary_transfer', 'job_tenure', 'employer_approved'],
+    mortgage: [...MORTGAGE_SPINE, 'salary_transfer', 'employer_approved'],
+  },
+
+  // ── Self-employed owners: `professional`'s sets. The two were one name until
+  // the income rule forced them apart, and the credit questions genuinely are the
+  // same — it is only the figure the bank works the income out FROM that differs
+  // (a bank statement rather than a fee history).
+  self_employed: {
+    personal: [...PERSONAL_SELF_EMPLOYED],
+    car: [...CAR_SPINE, 'additional_income'],
+    business: [...BUSINESS_SPINE],
+  },
+
+  // ── Athletes: salaried on a club contract, but with a career shorter than the
+  // loan. `job_tenure` therefore reads the opposite way to every other salaried
+  // segment — long tenure is a career closer to its end — so the spine's answer
+  // is kept and the weight is left to the bank, which is the division of labour
+  // this whole axis assumes.
+  athlete: {
+    personal: [...PERSONAL_SALARIED, 'additional_income'],
+    car: [...CAR_SPINE, 'salary_transfer', 'additional_income'],
+  },
+
+  // ── Wealth tier: the questions that still discriminate at a 5m ticket. Payroll
+  // routing does not — a private-banking customer transfers what they choose —
+  // so it is dropped in favour of the asset and liability picture.
+  wealth_tier: {
+    personal: [...PERSONAL_SALARIED, 'additional_income', 'prior_rejection'],
+    car: [...CAR_SPINE, 'additional_income'],
+    mortgage: [...MORTGAGE_SPINE, 'additional_income'],
   },
 
   // ── Pharmacy: a licensed retail business. On the personal side the owner is
@@ -426,6 +512,16 @@ export const NO_PAYSLIP_FACT: Readonly<Record<string, readonly string[]>> = {
   doctor: ['years_in_practice'],
   professional: ['years_in_practice'],
   pharmacy: ['years_in_practice'],
+  // The three names split out of `professional` / `doctor` so that one name could
+  // state one income rule (axis 4). Each names the fact its own rule reads, which
+  // is what makes the question ASKED — the rule can be configured either way, but
+  // an unasked fact resolves to `fact_not_answered` and quotes nothing.
+  professor: ['academic_rank'],
+  doctor_practice: ['years_in_practice'],
+  self_employed: ['years_in_practice'],
+  // `athlete` and `wealth_tier` are deliberately absent: a club contract and a
+  // wealth-tier salary are both documented, so both are payslip products and
+  // there is no fact to ask.
 };
 
 /**
@@ -460,6 +556,15 @@ export const SELF_EMPLOYED_ARCHETYPES: ReadonlySet<string> = new Set([
   'doctor',
   'professional',
   'pharmacy',
+  // Split out of the two above when the income rule moved onto the name (axis 4).
+  // Both are self-employed BY DEFINITION rather than by archetype — the first owns
+  // the practice, the second is underwritten on its turnover — so they belong here
+  // more squarely than the two names they came from.
+  'doctor_practice',
+  'self_employed',
+  // `professor` is NOT here: a university pays a salary. Its no-payslip basis on
+  // the personal product comes from the `academic_rank` FACT (rule 3), not from
+  // the archetype, which is exactly the distinction rules 2 and 3 draw.
 ]);
 
 /**
@@ -507,3 +612,117 @@ export const CATALOG_INCOME_BASIS: Readonly<
     Object.fromEntries(categories.map((c) => [c, catalogIncomeBasis(key, c)])),
   ]),
 );
+
+// ---------------------------------------------------------------------------
+// Axis 4: the income rule — HOW a name's income is worked out, stated ONCE
+// ---------------------------------------------------------------------------
+
+/**
+ * One catalog name's income rule, in the canonical shape
+ * `bank_program.incomeAssumption` already carries.
+ *
+ * Structural, and typed HERE rather than imported from
+ * `src/matching/types.ts`: `prisma/` seeds a database and must not depend on the
+ * Nest application (nothing else under `prisma/data/` does). The shapes are
+ * checked against the real type by the migration that writes the same literals
+ * and by the PR-2 validator, not by this file.
+ *
+ * Every figure is a Decimal STRING (Principle I / A3). A number here would round
+ * through a float on its way into JSONB and quietly move an income.
+ */
+export interface CatalogIncomeRule {
+  strategy: string;
+  /** Choice facts: the answer the customer picks → the income the bank assigns. */
+  keyTable?: ReadonlyArray<{ key: string; incomeEGP: string }>;
+  /** Numeric facts: half-open `[fromInclusive, toExclusive)`, `null` = open end. */
+  bands?: ReadonlyArray<{ fromInclusive: string; toExclusive: string | null; incomeEGP: string }>;
+  /** One number and the unit its arithmetic is expressed in. */
+  scalar?: { value: string; unit: 'percent' | 'multiplier' };
+}
+
+/**
+ * The rule each catalog name is quoted on.
+ *
+ * ── WHY THIS AXIS EXISTS ────────────────────────────────────────────────────
+ * The rule that turns "assistant professor" into 18 000 EGP used to live on each
+ * bank's own program. That made one name mean several things at one bank: ABK
+ * filed its professors (a rank table), its footballers (no table) and its wealth
+ * tier (no table) all under `professional`, and its salaried clinic doctors and
+ * its practice-owning doctors both under `doctor`. Whoever opened the catalog saw
+ * a name; whoever opened the program saw a rule; nothing reconciled them.
+ *
+ * So the rule is stated once, per name, here — and five names were ADDED
+ * (`professor`, `doctor_practice`, `self_employed`, `athlete`, `wealth_tier`)
+ * because a name that has to hold two rules is a name that is too coarse.
+ *
+ * ── WHAT A KEY'S ABSENCE MEANS ──────────────────────────────────────────────
+ * Absent = NULL = "nobody has decided". Present with `{strategy:'declared'}` =
+ * "an operator decided this name is quoted off the income the applicant typed".
+ * Both quote the same figure; only the catalog counters and the operator screens
+ * read the difference, which is why the second is written out rather than left
+ * absent.
+ *
+ * `doctor` and `professional` are deliberately ABSENT. After the split, every
+ * program still filed under them carries `declared` — there is nothing to state,
+ * and stating it would claim a decision nobody made.
+ *
+ * ── FIGURES ARE COPIES ──────────────────────────────────────────────────────
+ * Every value below is verbatim from the program that carries it today
+ * (`src/bank-programs/seeds/catalogs/*.ts`). Not one may move: an income that
+ * moves is a loan amount that moves, and an offer already written is immutable
+ * (Principle I, FR-015). The two edges of the `doctor_practice` band table are
+ * load-bearing for that reason — see the comment on ABK-DOCTORS-PRACTICE.
+ */
+export const CATALOG_INCOME_RULE: Readonly<Record<string, CatalogIncomeRule>> = {
+  // SOURCE: ABK-PROFESSORS. `rankIncomeMap` in registry display order.
+  professor: {
+    strategy: 'byProfessorRank',
+    keyTable: [
+      { key: 'lecturer', incomeEGP: '12000' },
+      { key: 'assistant_professor', incomeEGP: '18000' },
+      { key: 'professor', incomeEGP: '25000' },
+    ],
+  },
+
+  // SOURCE: ABK-DOCTORS-PRACTICE. The lower edge STAYS 6 and the top band STAYS
+  // CLOSED at 51: the legacy table overlapped on year 5 and the lookup is
+  // first-match, so year 5 has always resolved to 15 000, and opening the top band
+  // would start paying a 51-year practitioner 40 000 where today they get no
+  // figure at all. This is a copy, not an opportunity to tidy the table.
+  doctor_practice: {
+    strategy: 'byYearsInPractice',
+    bands: [
+      { fromInclusive: '0', toExclusive: '6', incomeEGP: '15000' },
+      { fromInclusive: '6', toExclusive: '51', incomeEGP: '40000' },
+    ],
+  },
+
+  // SOURCE: SF-SELF-EMP, whose stored shape is the legacy
+  // `{ bankStatementPercent: '30.0' }`. Written canonical here because
+  // `normalizeIncomeAssumption` produces the identical figure from either — the
+  // same conversion the other seeded rules already had applied to them.
+  self_employed: {
+    strategy: 'byBankStatementPercent',
+    scalar: { value: '30.0', unit: 'percent' },
+  },
+
+  // SOURCE: ABK-FOOTBALL. A club contract is a payslip.
+  athlete: { strategy: 'declared' },
+
+  // SOURCE: ABK-WEALTH + SF-HIGH-END. Two programs, one rule, and they already
+  // agree — which is what makes the name safe to state once.
+  wealth_tier: { strategy: 'declared' },
+
+  // SOURCE: ABK-MILITARY. An EXISTING name, not one of the five added: no program
+  // moves onto or off `armed_forces`, the rule simply moves up from the one
+  // program that already carries it. NBE's program under the same name is
+  // `income_proof` with a declared salary, so it never consults the rule.
+  armed_forces: {
+    strategy: 'byMilitaryGrade',
+    keyTable: [
+      { key: 'officer', incomeEGP: '15000' },
+      { key: 'senior_officer', incomeEGP: '25000' },
+      { key: 'general', incomeEGP: '40000' },
+    ],
+  },
+};

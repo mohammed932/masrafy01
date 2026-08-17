@@ -1298,7 +1298,6 @@
       <trans-unit id="bank_programs.step.caption" datatype="html"><source>Step <x id="INTERPOLATION" equiv-text="x"/> of <x id="INTERPOLATION_1" equiv-text="x"/> · <x id="INTERPOLATION_2" equiv-text="x"/></source><target>الخطوة <x id="INTERPOLATION" equiv-text="x"/> من <x id="INTERPOLATION_1" equiv-text="x"/> · <x id="INTERPOLATION_2" equiv-text="x"/></target></trans-unit>
       <trans-unit id="bank_programs.step.program" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
       <trans-unit id="bank_programs.form.for_bank" datatype="html"><source>For bank</source><target>لبنك</target></trans-unit>
-      <trans-unit id="bank_programs.form.change_bank" datatype="html"><source>Change</source><target>تغيير</target></trans-unit>
       <trans-unit id="bank_programs.form.core.title" datatype="html"><source>Program</source><target>البرنامج</target></trans-unit>
       <trans-unit id="bank_programs.form.core.sub" datatype="html"><source>The name customers see. The catalog fills in how the bank reads an income — change it if this bank differs.</source><target>الاسم الذي يراه العملاء. الكتالوج يملأ كيف يقرأ البنك الدخل — غيّره إذا كان هذا البنك مختلفًا.</target></trans-unit>
       <trans-unit id="bank_programs.field.bank" datatype="html"><source>Bank</source><target>البنك</target></trans-unit>

@@ -652,6 +652,11 @@ model Document {
 // Lifecycle: active=true is the only state shown in pickers; deprecatedAt
 // flags a key that historical rows may still reference but new writes
 // should reject. systemOnly=true blocks all CRUD except label edits.
+// One table, many types: the columns below `sortOrder` are TYPE-SPECIFIC
+// (`boundQuestionId` is `surrogate_fact` only; `incomeRule` + `valueSources` are
+// `program_name` only) and stay NULL / empty everywhere else. Which type may
+// carry which is enforced in the service layer, not by a CHECK — the same
+// posture `platform_enumeration_loan_category` already takes.
 // -----------------------------------------------------------------------------
 
 model PlatformEnumeration {
@@ -688,6 +693,51 @@ model PlatformEnumeration {
   /// first gives a key table, the second gives bands, and nothing else is a figure a
   /// bank can look an income up against.
   boundQuestionId String?   @db.VarChar(30)
+  /// `program_name` only — how a bank works a monthly income out for this name
+  /// when there is no payslip to read. Same canonical shape
+  /// `bank_program.incomeAssumption` carries: `{ strategy, keyTable?, bands?,
+  /// scalar?, … }`, every figure a Decimal STRING (Principle I).
+  ///
+  /// ON THE ENUMERATION, NOT ON `platform_enumeration_loan_category`. Per-category
+  /// keying looks like the finer grain and resolves none of the real conflicts:
+  /// ABK's two `doctor` programs and its three `professional` programs are
+  /// same-name, same-bank AND same-category, so a per-category rule would still
+  /// have to hold two answers. Worse, it would not even be readable everywhere —
+  /// six seeded programs carry `productCategory` values (`wealth`,
+  /// `auto_cross_sell`, `credit_card_cross_sell`, `clubs`) that have NO row in
+  /// that table at all, so the join returns nothing and the quote falls back to
+  /// the declared salary WITHOUT saying it did. A rule that silently evaporates
+  /// on a fifth of the catalog is worse than one stated once per name.
+  ///
+  /// NULLABLE, and the two empty-looking states are NOT the same:
+  ///   NULL                       — nobody has decided. The name has no rule yet.
+  ///   `{"strategy":"declared"}`  — an operator decided: this name is quoted off
+  ///                                the income the applicant typed.
+  /// Both quote identically; only the catalog counters and the operator screens
+  /// read the difference, which is the whole point of storing the second
+  /// explicitly instead of leaving it NULL.
+  ///
+  /// NAMED `incomeRule`, NOT `incomeAssumption`. The two live side by side for one
+  /// release (`bank_program.incomeAssumption` stays the sole authority until the
+  /// read moves), and a distinct name means a reference that did not get moved is
+  /// a COMPILE ERROR rather than an `undefined` that quietly quotes a salary.
+  ///
+  /// Read UNCACHED on the quote path, same contract as `surrogateFactRegistry()`:
+  /// a stale rule is a wrong income frozen onto a BankOffer that may never be
+  /// rewritten (Principle I).
+  incomeRule      Json?
+  /// `program_name` only — estimated-value markers for the figures in `incomeRule`,
+  /// the same sparse map `bank_program.valueSources` carries and with the same
+  /// meaning: config dot-path → `'team_estimated'`, an ABSENT path is bank-stated.
+  /// Paths are rooted at this column's own name
+  /// (`{"incomeRule.keyTable.professor.incomeEGP":"team_estimated"}`), re-rooted
+  /// from `incomeAssumption.` when a program's markers moved here.
+  ///
+  /// NOT NULL, defaulted `{}`: an absent map and an empty one would both mean
+  /// "nothing estimated", and two spellings of one state is how a marker gets lost.
+  /// Never read by the matching engine — it is provenance about the configuration,
+  /// not part of it. Read on activation, where a non-empty map refuses to go live.
+  valueSources    Json      @default("{}")
   createdAt       DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
   createdBy       String?   @db.VarChar(30)

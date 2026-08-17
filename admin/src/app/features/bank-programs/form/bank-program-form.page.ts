@@ -240,8 +240,12 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
           <!-- What was already decided BEFORE this form opened — the bank and
                the loan type. They belong to the whole program, not to a step,
                so they sit with the title rather than inside step 1's body.
-               Read-only: re-picking the loan type mid-form would silently
-               re-classify the program (and invalidate the program-name list). -->
+               Both read-only. The bank chip carried a "Change" action; it is gone,
+               because re-picking either of these mid-form silently re-classifies the
+               program — a different bank is a different program entirely, and a
+               different loan type invalidates the program-name list. The wizard is
+               entered from a bank, so the way to change it is to leave and re-enter
+               from the right one. -->
           <!-- Always rendered: the income basis is always decided, even when the bank and
                loan type arrived from the URL and have no chip of their own. -->
           <div class="context-row">
@@ -256,9 +260,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   >
                   <span class="bank-chip-name">{{ b.nameEnglish }}</span>
                 </span>
-                <button type="button" class="bank-chip-change" (click)="clearBank()">
-                  <span i18n="@@bank_programs.form.change_bank">Change</span>
-                </button>
               </div>
             }
             @if (lockedCategory(); as cat) {
@@ -376,7 +377,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                  and the line at the foot of each card is the dependency said out
                  loud instead of discovered two steps later. -->
             @if (stepIndex() === 0) {
-              <section class="card">
+              <!-- is-bare: this step's body IS two tiles, so the panel behind them
+                   was a card holding cards — three nested surfaces for one question.
+                   Dropping its fill and border leaves the rail and the two answers,
+                   which is all the step ever had. -->
+              <section class="card is-bare">
                 <header class="card-head">
                   <div>
                     <h2 class="card-title" i18n="@@bank_programs.form.income_step.title">Income</h2>
@@ -407,17 +412,22 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                         (change)="pickBasis(b)"
                       />
                       <span class="basis-card-top">
-                        <!-- The radio mark is drawn on BOTH cards from the start: an
+                        <!-- Identity leads, state trails. The glyph says WHICH answer
+                         this is — and is the mark the header chip carries for the
+                         remaining six steps — so it reads before the title; the dot on
+                         the trailing edge is the only thing that reports whether this
+                         is the one chosen. Drawn on BOTH cards from the start: an
                          empty circle waiting to be filled is the only thing here that
                          says an answer is still owed. -->
+                        <span class="basis-card-medallion" aria-hidden="true">
+                          <span
+                            class="basis-card-icon"
+                            nz-icon
+                            [nzType]="basisIconFor(b)"
+                            nzTheme="outline"
+                          ></span>
+                        </span>
                         <span class="basis-card-dot" aria-hidden="true"></span>
-                        <span
-                          class="basis-card-icon"
-                          nz-icon
-                          [nzType]="basisIconFor(b)"
-                          nzTheme="outline"
-                          aria-hidden="true"
-                        ></span>
                       </span>
                       <span class="basis-card-title">{{ basisLabel(b) }}</span>
                       <span class="basis-card-hint">{{ basisHint(b) }}</span>
@@ -458,7 +468,13 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                 </header>
 
                 <div class="grid">
-                  @if (!preselectedBank && !isEditMode()) {
+                  <!-- Shown whenever the bank did NOT arrive in the URL — including
+                   after one has been picked here, so the pick stays changeable. It
+                   used to disappear the moment a bank was chosen, and the chip's
+                   "Change" action was the only way back to it; with that action gone
+                   the field has to stay. A URL-borne bank has no picker at all: the
+                   wizard was entered FROM that bank. -->
+                  @if (!bankFromUrl() && !isEditMode()) {
                     <nz-form-item>
                       <nz-form-label [nzFor]="'bankId'" nzRequired i18n="@@bank_programs.field.bank"
                         >Bank</nz-form-label
@@ -500,7 +516,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                   <!-- Filtered by the answer given on the Income step, so the list is
                    already narrowed by the time it is opened. Full width whenever it is
                    not sharing the row with the bank picker. -->
-                  <nz-form-item [class.span-2]="!!preselectedBank || isEditMode()">
+                  <nz-form-item [class.span-2]="bankFromUrl() || isEditMode()">
                     <nz-form-label
                       [nzFor]="'programNameKey'"
                       nzRequired
@@ -1667,6 +1683,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       }
       .basis-card {
         --basis-accent: var(--color-brand-primary);
+        position: relative;
+        /* The bloom below paints at z-index -1: without a stacking context of its
+           own it would slide behind the card's own background and never be seen. */
+        isolation: isolate;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
@@ -1676,14 +1697,72 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         border-radius: var(--radius-lg);
         background: var(--color-surface-default);
         cursor: pointer;
+        animation: basis-enter var(--motion-duration-base) var(--motion-easing-standard) both;
         transition:
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
           background-color var(--motion-duration-fast) var(--motion-easing-standard),
-          box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
-          transform var(--motion-duration-fast) var(--motion-easing-standard);
+          box-shadow var(--motion-duration-base) var(--motion-easing-standard),
+          transform var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      /* The two answers settle after the panel, in reading order — the step's own
+         entry (step-enter, on the section) plays underneath. */
+      .basis-card:nth-child(1) {
+        animation-delay: var(--motion-stagger);
+      }
+      .basis-card:nth-child(2) {
+        animation-delay: calc(var(--motion-stagger) * 2);
+      }
+      @keyframes basis-enter {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
       }
       .basis-card[data-basis='no_payslip'] {
         --basis-accent: var(--color-income-surrogate);
+      }
+      /* The card lights from behind its own glyph when it is the answer — the accent
+         arriving as light rather than as another border. Off-card by a third so what
+         lands inside is the falloff, not the disc. */
+      .basis-card::before {
+        content: '';
+        position: absolute;
+        z-index: -1;
+        inset-block-start: -35%;
+        inset-inline-end: -15%;
+        inline-size: 15rem;
+        block-size: 15rem;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at center,
+          color-mix(in srgb, var(--basis-accent) 20%, transparent),
+          transparent 70%
+        );
+        opacity: 0;
+        transform: scale(0.7);
+        pointer-events: none;
+        transition:
+          opacity var(--motion-duration-base) var(--motion-easing-standard),
+          transform var(--motion-duration-slow) var(--motion-easing-emphasized);
+      }
+      /* The commit mark: a spine on the leading edge that grows from the centre out
+         when the answer is taken. Inline-start, so it flips with the writing mode. */
+      .basis-card::after {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        inline-size: 3px;
+        background: var(--basis-accent);
+        transform: scaleY(0);
+        transition: transform var(--motion-duration-base) var(--motion-easing-emphasized);
+      }
+      .basis-card.is-on::after {
+        transform: scaleY(1);
       }
       /* Hover previews the card's OWN accent rather than a neutral darkening, so the
          plum of the no-payslip answer is visible before it is committed to. */
@@ -1691,6 +1770,10 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         border-color: color-mix(in srgb, var(--basis-accent) 45%, var(--color-border-default));
         background: color-mix(in srgb, var(--basis-accent) 4%, var(--color-surface-default));
         transform: translateY(-1px);
+      }
+      .basis-card:hover:not(.is-on)::before {
+        opacity: 0.5;
+        transform: scale(0.88);
       }
       .basis-card:active:not(.is-on) {
         transform: none;
@@ -1715,9 +1798,14 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         border-color: color-mix(in srgb, var(--basis-accent) 28%, var(--color-border-default));
       }
       .basis-card.is-on {
-        border-color: var(--basis-accent);
-        background: color-mix(in srgb, var(--basis-accent) 7%, var(--color-surface-default));
-        box-shadow: 0 2px 10px color-mix(in srgb, var(--basis-accent) 22%, transparent);
+        border-color: color-mix(in srgb, var(--basis-accent) 60%, var(--color-border-default));
+        background: color-mix(in srgb, var(--basis-accent) 5%, var(--color-surface-default));
+        box-shadow: 0 6px 22px color-mix(in srgb, var(--basis-accent) 18%, transparent);
+        transform: translateY(-2px);
+      }
+      .basis-card.is-on::before {
+        opacity: 1;
+        transform: none;
       }
       .basis-card-top {
         display: flex;
@@ -1725,12 +1813,32 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         justify-content: space-between;
         gap: var(--space-3);
       }
+      /* The glyph gets a tile of its own instead of floating grey in a corner: at rest
+         it is the only colour on the card, which is what tells the two answers apart
+         before either label is read. */
+      .basis-card-medallion {
+        flex: none;
+        display: grid;
+        place-items: center;
+        inline-size: 2.5rem;
+        block-size: 2.5rem;
+        border-radius: var(--radius-md);
+        border: 1px solid color-mix(in srgb, var(--basis-accent) 18%, transparent);
+        background: color-mix(in srgb, var(--basis-accent) 9%, var(--color-surface-default));
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          background-color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .basis-card.is-on .basis-card-medallion {
+        border-color: color-mix(in srgb, var(--basis-accent) 40%, transparent);
+        background: color-mix(in srgb, var(--basis-accent) 16%, var(--color-surface-default));
+      }
       /* The concept's own glyph, the pair the header chip uses — so the mark chosen
          here is the mark carried in the chip for the remaining six steps. */
       .basis-card-icon {
-        font-size: 22px;
+        font-size: 20px;
         line-height: 1;
-        color: var(--color-text-tertiary, var(--color-text-secondary));
+        color: color-mix(in srgb, var(--basis-accent) 70%, var(--color-text-secondary));
         transition: color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .basis-card.is-on .basis-card-icon {
@@ -1750,16 +1858,34 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         color: var(--color-text-secondary);
       }
       /* The dependency, said before it is committed to rather than discovered two
-         steps later. Divided off so it reads as a consequence, not more description. */
+         steps later. A tinted band across the foot of the card, not an indented
+         paragraph: it is a different KIND of sentence from the description above it.
+         margin-block-start:auto pins it to the bottom edge, so the two cards' bands
+         line up however unequal the two descriptions are — the hairline used to sit
+         at a different height on each card and left the shorter one ending in a hole.
+         Negative inline margins bleed it to the card's edges; they are logical, so
+         the band still reaches both edges in Arabic. */
       .basis-card-effect {
-        margin-block-start: var(--space-1);
-        padding-block-start: var(--space-3);
+        margin-block-start: auto;
+        margin-inline: calc(var(--space-5) * -1);
+        margin-block-end: calc(var(--space-5) * -1);
+        padding: var(--space-3) var(--space-5);
         border-block-start: 1px solid
-          color-mix(in srgb, var(--basis-accent) 22%, var(--color-border-default));
+          color-mix(in srgb, var(--basis-accent) 18%, var(--color-border-default));
+        background: color-mix(in srgb, var(--basis-accent) 4%, transparent);
         font-size: var(--text-xs);
         line-height: var(--line-height-base);
         font-weight: var(--font-weight-medium);
         color: color-mix(in srgb, var(--basis-accent) 72%, var(--color-text-secondary));
+        transition:
+          background-color var(--motion-duration-fast) var(--motion-easing-standard),
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          color var(--motion-duration-fast) var(--motion-easing-standard);
+      }
+      .basis-card.is-on .basis-card-effect {
+        border-block-start-color: color-mix(in srgb, var(--basis-accent) 30%, transparent);
+        background: color-mix(in srgb, var(--basis-accent) 9%, transparent);
+        color: color-mix(in srgb, var(--basis-accent) 82%, var(--color-text-primary));
       }
 
       /* The radio mark. Drawn on both cards at rest, because an empty circle is the
@@ -1773,7 +1899,9 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         block-size: 18px;
         border: 2px solid var(--color-border-strong);
         border-radius: 50%;
-        transition: border-color var(--motion-duration-fast) var(--motion-easing-standard);
+        transition:
+          border-color var(--motion-duration-fast) var(--motion-easing-standard),
+          box-shadow var(--motion-duration-base) var(--motion-easing-standard);
       }
       /* Scale-in rather than a swapped background — the dot is the smallest mark on
          the step, and appearing instantly at 9px reads as a rendering glitch. */
@@ -1794,8 +1922,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       .basis-cards.is-unanswered .basis-card-dot {
         border-color: color-mix(in srgb, var(--basis-accent) 45%, var(--color-border-strong));
       }
+      /* A halo, not a bigger dot: the ring spreads outward on the commit and the
+         mark itself keeps its size, so nothing on the row shifts. */
       .basis-card.is-on .basis-card-dot {
         border-color: var(--basis-accent);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--basis-accent) 14%, transparent);
       }
       .basis-card.is-on .basis-card-dot::after {
         transform: scale(1);
@@ -1823,12 +1954,33 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       }
       @media (prefers-reduced-motion: reduce) {
         .basis-card,
+        .basis-card::before,
+        .basis-card::after,
+        .basis-card-medallion,
         .basis-card-icon,
+        .basis-card-effect,
         .basis-card-dot,
         .basis-card-dot::after {
           transition: none;
         }
-        .basis-card:hover:not(.is-on) {
+        .basis-card {
+          animation: none;
+        }
+        /* The two decorative marks still SAY something — which card is the answer —
+           so they are switched, not removed: the spine sits at full height and the
+           bloom at full strength the moment the state is true. */
+        .basis-card::after {
+          transform: scaleY(1);
+          opacity: 0;
+        }
+        .basis-card.is-on::after {
+          opacity: 1;
+        }
+        .basis-card::before {
+          transform: none;
+        }
+        .basis-card:hover:not(.is-on),
+        .basis-card.is-on {
           transform: none;
         }
       }
@@ -1972,30 +2124,6 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         line-height: 1.25;
         color: var(--text-primary, var(--color-text-primary));
       }
-      /* Hairline, not a gap: the action belongs to this chip, and floating it
-         loose inside the pill read as a third value. */
-      .bank-chip-change {
-        appearance: none;
-        background: transparent;
-        border: none;
-        border-inline-start: 1px solid var(--border-default, var(--color-border-default));
-        cursor: pointer;
-        margin-inline-start: var(--space-1);
-        padding: 2px 0 2px var(--space-2);
-        color: var(--primary, var(--color-brand-primary));
-        font-size: 12px;
-        font-weight: 600;
-        transition: color 150ms var(--motion-easing-standard, ease);
-      }
-      .bank-chip-change:hover {
-        color: var(--text-primary, var(--color-text-primary));
-      }
-      .bank-chip-change:focus-visible {
-        outline: 2px solid var(--primary, var(--color-brand-primary));
-        outline-offset: 3px;
-        border-radius: var(--radius-sm);
-      }
-
       /* ── Context row: decisions made BEFORE this form (bank + loan type) ──
          Same chip shell so they read as one band of givens. The loan-type chip
          carries no action: it is a fact, and the only affordance would be a
@@ -2051,6 +2179,17 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         display: flex;
         flex-direction: column;
         gap: var(--space-4);
+      }
+      /* A step whose whole body is already a set of surfaces does not need a surface
+         behind it — that is a card holding cards, and the middle one carries no
+         information. The rail and the grid geometry stay; only the fill, the border
+         and the inline padding go, so the tiles sit on the page and the step reads
+         as one question with two answers. */
+      .card.is-bare {
+        background: transparent;
+        border-color: transparent;
+        padding-inline: 0;
+        padding-block: var(--space-1);
       }
       .card-head {
         display: flex;
@@ -2900,10 +3039,6 @@ export class BankProgramFormPage implements OnInit {
     });
   }
 
-  clearBank(): void {
-    this.bankIdControl.setValue(null);
-    this.identityGroup.patchValue({ bankName: '' });
-  }
   initialsOf(name: string): string {
     const parts = name.trim().split(/\s+/);
     if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
@@ -4237,12 +4372,16 @@ export class BankProgramFormPage implements OnInit {
         }
       }
       this.onBankPicked(bank.id);
+      this.bankFromUrl.set(true);
       return;
     }
     const preName = params.get('bank');
     if (preName) {
       const match = active.find((b) => b.nameEnglish === preName);
-      if (match) this.onBankPicked(match.id);
+      if (match) {
+        this.onBankPicked(match.id);
+        this.bankFromUrl.set(true);
+      }
     }
   }
 
@@ -4251,6 +4390,14 @@ export class BankProgramFormPage implements OnInit {
     if (!id) return null;
     return this.activeBanks().find((b) => b.id === id) ?? null;
   }
+
+  /**
+   * The bank came from the URL, so this wizard was opened FROM a bank and the bank
+   * is a given, not a field. Distinct from `preselectedBank`, which only says one is
+   * selected — after the step-2 picker is used that is true too, and the picker must
+   * stay on screen to be re-openable.
+   */
+  protected readonly bankFromUrl = signal(false);
 
   onBankPicked(bankId: string | null): void {
     if (this.bankIdControl.value !== (bankId ?? null)) {
