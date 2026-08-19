@@ -2246,4 +2246,31 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get id_capture_capture_error => 'تعذّر حفظ هذه الصورة. من فضلك أعد التصوير.';
+
+  @override
+  String get gate_down_payment_below_min => 'المبلغ الذي دفعته أقل من الحد الأدنى الذي يطلبه هذا البنك لهذا البرنامج.';
+
+  @override
+  String get gate_unit_price_below_min => 'سعر الوحدة أقل من الحد الأدنى الذي يطلبه هذا البنك لسنة توقيع العقد.';
+
+  @override
+  String get gate_contract_too_new => 'هذا البنك يطلب أن تكون مالكًا للوحدة مدة أطول من مدتك الحالية.';
+
+  @override
+  String get gate_contract_too_old => 'عقد التمليك أقدم من المدة التي يقبلها هذا البنك لهذا البرنامج.';
+
+  @override
+  String get gate_ownership_not_confirmed => 'هذا البرنامج يطلب إثبات التمليك بالشكل الذي يحدده البنك.';
+
+  @override
+  String get gate_multi_unit_not_confirmed => 'ذكرت أنك تملك أكثر من وحدة. أكِّد الوحدة التي نحسب عليها وسنعرض أرقام هذا البرنامج.';
+
+  @override
+  String get gate_not_met => 'هذا البرنامج له شرط لا تحققه إجاباتك، لذا لا يمكن عرض أرقام.';
+
+  @override
+  String get collateral_skip_step => 'تخطَّ الآن';
+
+  @override
+  String get collateral_skip_hint => 'تخطَّ وسنظل نعرض البرنامج، لكن بدون أرقام حتى تجيب.';
 }

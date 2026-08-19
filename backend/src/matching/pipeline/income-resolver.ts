@@ -18,13 +18,21 @@
 import { Decimal } from '@prisma/client/runtime/library';
 import {
   factKeyOf,
+  isProductRuleStrategy,
   type ApplicantProfile,
+  type IncomeAssumptionStrategy,
   type EligibilityConfig,
   type IncomeAssumptionConfig,
   type IncomeResolution,
   type IncomeUnresolvedReason,
 } from '../types';
 import { normalizeIncomeAssumption } from './income-rule-normalize';
+import {
+  evaluateProductRule,
+  factsReadBy,
+  type ProductRule,
+  type ProductRuleContext,
+} from './product-rule';
 import { bandFor } from './income-rule-bands';
 import { resolveDbrCap } from './dbr';
 
@@ -44,6 +52,14 @@ export interface ResolveIncomeArgs {
   profile: ApplicantProfile;
   income: IncomeAssumptionConfig;
   eligibility: EligibilityConfig;
+  /**
+   * Lookup value → its registry `parentKey`, for a product rule's `factParentTable` step.
+   *
+   * Optional, and absent for every single-fact rule: only a rule that asks for a parent
+   * reads it. A rule that DOES ask and is handed nothing reports `no_matching_row` — a
+   * stated reason — rather than pricing off a parent it guessed.
+   */
+  parentKeyByValue?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -71,6 +87,23 @@ export function resolveAssumedIncome(args: ResolveIncomeArgs): IncomeResolution 
 
   const declared = profile.employment?.monthlyNetSalaryEGP ?? ZERO;
   const hasDeclared = declared.greaterThan(0);
+
+  // A PRODUCT RULE whose answer is a CEILING never meets the declared salary. It is not
+  // an opinion about what the applicant earns — it is what their collateral supports —
+  // so `greater_of` against a payslip would quote a ceiling the unit never carried, and
+  // falling back to the salary on a miss would price a collateral product for somebody
+  // whose collateral the bank has not priced. Returned here, before `decide()`, so no
+  // combination rule can reach it.
+  if (isProductRuleStrategy(strategy)) {
+    return resolveProductRule({
+      profile,
+      config,
+      eligibility,
+      strategy,
+      ...(args.parentKeyByValue !== undefined ? { parentKeyByValue: args.parentKeyByValue } : {}),
+    });
+  }
+
   const surrogate = resolveSurrogateIncome(profile, config);
 
   const decided = decide({ declared, hasDeclared, surrogate, combinationRule: config.combinationRule });
@@ -168,6 +201,121 @@ function decide(args: {
         origin: 'surrogate',
         ...(surrogate.matchedRow ? { matchedRow: surrogate.matchedRow } : {}),
       };
+  }
+}
+
+/**
+ * A step pipeline. Two shapes of answer, and they take different routes:
+ *
+ *   `monthlyIncome` — the figure IS an assumed income, so it lands exactly where a
+ *   single-fact rule's figure lands, `origin: 'surrogate'` and all. A product rule that
+ *   happens to compute an income is not a different kind of income.
+ *
+ *   `maxAmount` — the figure is a borrowing CEILING. `incomeEGP` stays 0 and the ceiling
+ *   travels in its own field, because the income it implies depends on the rate and the
+ *   FINAL tenor, and this function knows neither. `quoteProgram` does the conversion,
+ *   once, after the tenor clamps (see `product-rule-ceiling.ts`).
+ *
+ * A miss carries the same four reasons a single-fact rule reports, plus `gate_failed`,
+ * plus the fact keys still unanswered — which is what lets a surface say "answer these
+ * six questions" instead of "something is missing".
+ */
+function resolveProductRule(args: {
+  profile: ApplicantProfile;
+  config: IncomeAssumptionConfig;
+  eligibility: EligibilityConfig;
+  strategy: IncomeAssumptionStrategy;
+  parentKeyByValue?: Readonly<Record<string, string>>;
+}): IncomeResolution {
+  const { profile, config, eligibility, strategy } = args;
+  const ctx: ProductRuleContext = {
+    facts: profile.surrogateFacts ?? {},
+    ...(args.parentKeyByValue !== undefined ? { parentKeyByValue: args.parentKeyByValue } : {}),
+  };
+  const rule = config as ProductRule;
+  const outcome = evaluateProductRule(rule, ctx);
+
+  if (!outcome.ok) {
+    const answered = profile.surrogateFacts ?? {};
+    const missing = factsReadBy(rule).filter((key) => answered[key] === undefined);
+    const cap = resolveRuleDbrCap({
+      eligibility,
+      override: config.dbrCapPercentOverride,
+      // A miss is not surrogate-DERIVED, so the rule's own DBR override does not apply —
+      // the same rule `decide()` follows for every other unresolved outcome.
+      origin: 'none',
+      incomeEGP: ZERO,
+    });
+    return {
+      incomeEGP: ZERO,
+      origin: 'none',
+      strategy,
+      unresolvedReason: outcome.reason,
+      ...(outcome.gateId !== undefined ? { gateId: outcome.gateId } : {}),
+      ...(outcome.gateReasonCode !== undefined ? { gateReasonCode: outcome.gateReasonCode } : {}),
+      ...(missing.length > 0 ? { missingFactKeys: missing } : {}),
+      productRuleSteps: outcome.steps,
+      dbrCapPercent: cap.capPercent,
+      dbrCapSource: cap.source,
+      dbrBandIndex: cap.bandIndex,
+    };
+  }
+
+  if (outcome.kind === 'monthlyIncome') {
+    const cap = resolveRuleDbrCap({
+      eligibility,
+      override: config.dbrCapPercentOverride,
+      origin: 'surrogate',
+      incomeEGP: outcome.valueEGP,
+    });
+    return {
+      incomeEGP: outcome.valueEGP,
+      origin: 'surrogate',
+      strategy,
+      ...(outcome.matchedRow ? { matchedRow: outcome.matchedRow } : {}),
+      productRuleSteps: outcome.steps,
+      dbrCapPercent: cap.capPercent,
+      dbrCapSource: cap.source,
+      dbrBandIndex: cap.bandIndex,
+    };
+  }
+
+  // A ceiling. The cap is resolved against ZERO income rather than the ceiling: the cap
+  // BANDS are keyed by monthly income, and feeding an AMOUNT into them would pick a band
+  // by comparing a two-million-pound ceiling against a ten-thousand-pound income edge.
+  // `quoteProgram` re-resolves the cap once it has the implied income, which is the only
+  // figure the bands were ever meant to be searched with.
+  const cap = resolveRuleDbrCap({
+    eligibility,
+    override: config.dbrCapPercentOverride,
+    origin: 'surrogate',
+    incomeEGP: ZERO,
+  });
+  const baselineRaw = rule.output?.baselineDbrPercent;
+  const baseline = baselineRaw !== undefined ? toDecimalOrNull(baselineRaw) : null;
+  return {
+    incomeEGP: ZERO,
+    origin: 'ceiling',
+    strategy,
+    ceilingAmountEGP: outcome.valueEGP,
+    // A rule that states no baseline was calibrated against the bank's normal cap, which
+    // makes the haircut ratio exactly 1 and changes nothing.
+    ceilingBaselineDbrPercent: baseline ?? cap.capPercent,
+    ...(outcome.matchedRow ? { matchedRow: outcome.matchedRow } : {}),
+    productRuleSteps: outcome.steps,
+    dbrCapPercent: cap.capPercent,
+    dbrCapSource: cap.source,
+    dbrBandIndex: cap.bandIndex,
+  };
+}
+
+/** Tolerant parse — a malformed baseline reads as "not stated", never as zero. */
+function toDecimalOrNull(value: string): Decimal | null {
+  try {
+    const parsed = new Decimal(value);
+    return parsed.isFinite() ? parsed : null;
+  } catch {
+    return null;
   }
 }
 

@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzFormModule } from 'ng-zorro-antd/form';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -19,6 +19,8 @@ import {
   type BuiltinIncomeStrategy,
   type IncomeAssumptionConfig,
   type IncomeRuleCheckResult,
+  type RuleGate,
+  type RuleStep,
 } from '@features/bank-programs/bank-programs.types';
 
 /**
@@ -45,6 +47,7 @@ import {
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    FormsModule,
     NzButtonModule,
     NzFormModule,
     NzIconModule,
@@ -104,6 +107,41 @@ import {
               />
             </nz-form-control>
           </nz-form-item>
+        }
+
+        @if (shape() === 'steps') {
+          @for (fact of pipelineFacts(); track fact.key) {
+            <nz-form-item class="span-2">
+              <nz-form-label [nzFor]="'sampleFact-' + fact.key">{{ fact.label }}</nz-form-label>
+              <nz-form-control>
+                @if (fact.options.length > 0) {
+                  <nz-select
+                    [id]="'sampleFact-' + fact.key"
+                    [ngModel]="sampleFactFor(fact.key)"
+                    (ngModelChange)="setSampleFact(fact.key, $event)"
+                    [ngModelOptions]="{ standalone: true }"
+                    nzAllowClear
+                    [nzPlaceHolder]="anyKeyPlaceholder"
+                  >
+                    @for (option of fact.options; track option.code) {
+                      <nz-option
+                        [nzValue]="option.code"
+                        [nzLabel]="isAr() ? option.labelAr : option.labelEn"
+                      ></nz-option>
+                    }
+                  </nz-select>
+                } @else {
+                  <input
+                    nz-input
+                    [id]="'sampleFact-' + fact.key"
+                    inputmode="decimal"
+                    [value]="sampleFactFor(fact.key)"
+                    (input)="setSampleFact(fact.key, $any($event.target).value)"
+                  />
+                }
+              </nz-form-control>
+            </nz-form-item>
+          }
         }
 
         <nz-form-item class="numeric">
@@ -427,6 +465,17 @@ export class IncomeRuleCheckComponent {
   /** The ON-SCREEN rule (FR-028) — supplied by the host, never re-read from the server. */
   readonly draft = input.required<IncomeAssumptionConfig>();
 
+  /**
+   * A product rule's structure, when the draft is one.
+   *
+   * Needed because the draft a BANK program posts carries only `stepParams` — the steps belong
+   * to the catalog name and the server merges them in. Without them this panel could not know
+   * WHICH facts to ask a sample answer for, and a ten-fact rule would be testable only by
+   * guessing.
+   */
+  readonly ruleSteps = input<readonly RuleStep[]>([]);
+  readonly ruleGates = input<readonly RuleGate[]>([]);
+
   readonly pending = signal(false);
   readonly result = signal<IncomeRuleCheckResult | null>(null);
   readonly error = signal<string | null>(null);
@@ -445,6 +494,63 @@ export class IncomeRuleCheckComponent {
   });
 
   readonly shape = computed(() => incomeMethodShape(this.draft().strategy, this.facts()));
+
+  /**
+   * Every fact this pipeline reads, with the label and the options to test it by.
+   *
+   * Derived from the rule, exactly as the backend's `factsReadBy` is: the rule already names
+   * each fact, so a second list of "facts to ask about" could only drift out of step with it.
+   */
+  readonly pipelineFacts = computed(() => {
+    const keys = new Set<string>();
+    const addRefs = (of: RuleStep['of']): void => {
+      if (of === undefined) return;
+      for (const ref of Array.isArray(of) ? of : [of]) if ('fact' in ref) keys.add(ref.fact);
+    };
+    for (const step of this.ruleSteps()) {
+      if (step.fact) keys.add(step.fact);
+      addRefs(step.of);
+    }
+    for (const gate of this.ruleGates()) {
+      if (gate.kind === 'choice') keys.add(gate.fact);
+      else {
+        addRefs(gate.left);
+        if (gate.kind === 'numberByKey') keys.add(gate.keyedBy);
+      }
+    }
+    const byKey = new Map(this.facts().map((f) => [f.key, f]));
+    return [...keys].map((key) => {
+      const fact = byKey.get(key);
+      return {
+        key,
+        label: fact?.label ?? key,
+        numeric: fact?.question?.type === 'NUMERIC',
+        options: fact?.question?.options ?? [],
+      };
+    });
+  });
+
+  /**
+   * Arabic primary (Principle IV). Read from the document, like every other surface that has
+   * to pick between the two labels a registry row carries.
+   */
+  protected readonly isAr = computed(() => document.documentElement.lang.startsWith('ar'));
+
+  /** One sample answer per fact, by key. A plain record, not a form group: the set is data. */
+  readonly sampleFacts = signal<Record<string, string>>({});
+
+  protected sampleFactFor(key: string): string {
+    return this.sampleFacts()[key] ?? '';
+  }
+
+  protected setSampleFact(key: string, value: string): void {
+    // An empty answer is REMOVED rather than sent blank: an absent fact is what reproduces
+    // `SURROGATE_FACT_MISSING`, which the operator needs to be able to trigger deliberately.
+    const next = { ...this.sampleFacts() };
+    if (value === '') delete next[key];
+    else next[key] = value;
+    this.sampleFacts.set(next);
+  }
   readonly registry = computed(
     () => INCOME_KEY_REGISTRY[this.draft().strategy as BuiltinIncomeStrategy] ?? null,
   );
@@ -552,6 +658,10 @@ export class IncomeRuleCheckComponent {
         sample: {
           age: Number(v.age),
           ...this.factFields(v.factKey, v.factValue),
+          // A pipeline's answers, by fact key. Sent alongside the single-fact field rather
+          // than instead of it: an eleven-method rule reads exactly one fact and its form
+          // should not start asking for a key.
+          ...(Object.keys(this.sampleFacts()).length > 0 ? { facts: this.sampleFacts() } : {}),
           declaredMonthlySalaryEGP: v.declaredMonthlySalaryEGP ?? '0',
           existingMonthlyObligationsEGP: v.existingMonthlyObligationsEGP,
           requestedAmountEGP: v.requestedAmountEGP,

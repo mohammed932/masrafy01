@@ -59,6 +59,21 @@ export interface UnavailableProgramDto {
    */
   maxAffordableAmountEGP?: string;
   dbrCapPercent?: string;
+  /**
+   * When `reason` is `PRODUCT_RULE_GATE_FAILED`: WHICH condition refused, as one of the closed
+   * `GATE_REASON_CODES`. Localized client-side like every other code (Principle III).
+   *
+   * Carried because "a condition was not met" is not actionable and "the amount you have paid
+   * is below this bank's minimum" is. The gate's ID is deliberately not sent: it is
+   * operator-authored and has no translation.
+   */
+  gateReasonCode?: string;
+  /**
+   * When a product rule read an answer the applicant never gave: WHICH answers are missing, by
+   * fact key. What lets the surface say "answer these six questions about your unit" instead of
+   * a blank card the customer can do nothing with.
+   */
+  missingFactKeys?: string[];
 }
 
 export interface ApplyMatchedResponse {

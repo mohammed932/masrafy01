@@ -147,4 +147,21 @@ class QuestionnaireState with _$QuestionnaireState {
   /// Finish is allowed only when the step is complete AND every money binding
   /// resolved.
   bool get canFinish => canAdvance && missingMoneyFigures.isEmpty;
+
+  /// True when this step asks only OPTIONAL questions and none is answered yet.
+  ///
+  /// A collateral product's questions are a step of their own and every one is optional: a
+  /// customer who says they own a compound unit and then changes their mind must not be
+  /// blocked from finishing. Next is already enabled for them, but a CTA that says "Next"
+  /// over ten blank fields reads as "you have not finished", so the step says out loud that
+  /// skipping is allowed and what skipping costs — the program stays listed, without figures
+  /// (FR-020).
+  bool get isSkippableStep {
+    final group = currentGroup;
+    if (group == null) return false;
+    final visible = visibleQuestions(group);
+    if (visible.isEmpty) return false;
+    if (visible.any((q) => q.isRequired)) return false;
+    return visible.every((q) => (answers[q.code]?.isNotEmpty ?? false) == false);
+  }
 }

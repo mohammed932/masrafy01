@@ -135,7 +135,12 @@ export type BuiltinIncomeStrategy = (typeof INCOME_ASSUMPTION_STRATEGIES)[number
  */
 export const FACT_STRATEGY_PREFIX = 'fact:';
 
-export type IncomeAssumptionStrategy = BuiltinIncomeStrategy | `${typeof FACT_STRATEGY_PREFIX}${string}`;
+export type IncomeAssumptionStrategy =
+  | BuiltinIncomeStrategy
+  | `${typeof FACT_STRATEGY_PREFIX}${string}`
+  // A step pipeline. Not a twelfth METHOD — it is the shape a whole product is expressed in
+  // (see `PRODUCT_RULE_STRATEGY`), and it earns a token so no reader mistakes it for one.
+  | 'steps';
 
 /** The `fact:<key>` token for a registry fact key. */
 export function factStrategy(factKey: string): IncomeAssumptionStrategy {
@@ -338,7 +343,7 @@ const BUILTIN_FACT_KEYS = new Set([
 ]);
 
 /** Which editor a method needs. Drives the type-driven rendering in step 3. */
-export type IncomeMethodShape = 'none' | 'keyTable' | 'bands' | 'scalar';
+export type IncomeMethodShape = 'none' | 'keyTable' | 'bands' | 'scalar' | 'steps';
 
 /**
  * The shape each method is configured with, mirroring the backend's own grouping.
@@ -400,7 +405,223 @@ export function incomeMethodShape(
     if (!question) return 'none';
     return question.type === 'SINGLE_SELECT' ? 'keyTable' : 'bands';
   }
+  if (strategy === PRODUCT_RULE_STRATEGY) return 'steps';
   return INCOME_METHOD_SHAPE[strategy as BuiltinIncomeStrategy] ?? 'none';
+}
+
+// ---------------------------------------------------------------------------
+// Product rules — a step pipeline (`strategy: 'steps'`)
+// ---------------------------------------------------------------------------
+
+/**
+ * The token that says a rule is a step pipeline. Mirrors `PRODUCT_RULE_STRATEGY` in
+ * `backend/src/matching/types.ts`.
+ *
+ * A collateral product — the compound-ownership guarantee, the club-membership loan — reads
+ * several answers and derives a borrowing CEILING rather than an income, so it cannot be
+ * said as one of the eleven methods. Its structure is the catalog name's and its figures are
+ * the bank's, which is the same split the eleven already follow for `amounts`.
+ */
+export const PRODUCT_RULE_STRATEGY = 'steps';
+
+/** The ops a step may run. Mirrors `STEP_OPS` on the backend. */
+export const STEP_OPS = [
+  'constant',
+  'factNumber',
+  'factChoiceTable',
+  'factParentTable',
+  'bandTable',
+  'percentOf',
+  'upliftPercent',
+  'multiply',
+  'sum',
+  'subtract',
+  'minOf',
+  'maxOf',
+  'coalesce',
+] as const;
+
+export type StepOp = (typeof STEP_OPS)[number];
+
+export type ValueRef = { step: string } | { fact: string } | { const: string };
+
+export interface RuleStep {
+  id: string;
+  op: StepOp;
+  fact?: string;
+  of?: ValueRef | ValueRef[];
+}
+
+export interface ProductRuleOutput {
+  kind: 'monthlyIncome' | 'maxAmount';
+  from: string;
+  baselineDbrPercent?: string;
+}
+
+export const GATE_REASON_CODES = [
+  'DOWN_PAYMENT_BELOW_MIN',
+  'UNIT_PRICE_BELOW_MIN',
+  'CONTRACT_TOO_NEW',
+  'CONTRACT_TOO_OLD',
+  'OWNERSHIP_NOT_CONFIRMED',
+  'MULTI_UNIT_NOT_CONFIRMED',
+  'GATE_NOT_MET',
+] as const;
+
+export type GateReasonCode = (typeof GATE_REASON_CODES)[number];
+
+export type RuleGate =
+  | {
+      id: string;
+      kind: 'number';
+      op: 'gte' | 'lte' | 'gt' | 'lt' | 'between';
+      left: ValueRef;
+      right?: ValueRef;
+      reasonCode: GateReasonCode;
+    }
+  | {
+      id: string;
+      kind: 'numberByKey';
+      op: 'gte' | 'lte';
+      left: ValueRef;
+      keyedBy: string;
+      reasonCode: GateReasonCode;
+    }
+  | {
+      id: string;
+      kind: 'choice';
+      op: 'eq' | 'neq' | 'in';
+      fact: string;
+      expect: string[];
+      reasonCode: GateReasonCode;
+    };
+
+/** One step's or gate's figures — the only half a bank program stores. */
+export interface StepFigures {
+  valueEGP?: string;
+  keyTable?: IncomeKeyTableRow[];
+  bands?: IncomeBand[];
+  scalar?: { value: string; unit: 'percent' | 'multiplier' };
+
+  // --- a step pipeline (`strategy: 'steps'`) ---
+  //
+  // STRUCTURE belongs to the catalog name and is merged onto every program under it on every
+  // read; a bank program never stores it, and the API strips it if one is sent. FIGURES are
+  // the bank's, and are the only half a program save carries.
+
+  /** Catalog rules only. Present on a program response solely because the type is shared. */
+  steps?: RuleStep[];
+  gates?: RuleGate[];
+  output?: ProductRuleOutput;
+  /** The bank's figures, by step id and gate id. */
+  stepParams?: Record<string, StepFigures>;
+  minValue?: string;
+  maxValue?: string;
+  applies?: boolean;
+}
+
+/**
+ * Which editor a step's figures are typed into.
+ *
+ * The point of this map is that a new OP costs no new UI as long as it reuses a shape the
+ * three existing editors already draw — the same trade `INCOME_METHOD_SHAPE` makes for the
+ * eleven methods. `'none'` covers the arithmetic ops, which have nothing for a bank to state.
+ */
+export const STEP_OP_SHAPE: Readonly<Record<StepOp, IncomeMethodShape>> = {
+  constant: 'scalar',
+  factNumber: 'none',
+  factChoiceTable: 'keyTable',
+  factParentTable: 'keyTable',
+  bandTable: 'bands',
+  percentOf: 'scalar',
+  upliftPercent: 'scalar',
+  multiply: 'scalar',
+  sum: 'none',
+  subtract: 'none',
+  minOf: 'none',
+  maxOf: 'none',
+  coalesce: 'none',
+};
+
+/** The refs a step operates on, normalised. */
+export function stepRefs(step: RuleStep): ValueRef[] {
+  if (step.of === undefined) return [];
+  return Array.isArray(step.of) ? step.of : [step.of];
+}
+
+/**
+ * A step whose factor comes from a SECOND input states no figure of its own.
+ *
+ * One bank's required down payment is the customer's percentage of the customer's price —
+ * two answers and no bank number — so asking the operator for a percentage there would be
+ * asking for one the engine then ignores.
+ */
+export function stepTakesFigures(step: RuleStep): boolean {
+  const shape = STEP_OP_SHAPE[step.op];
+  if (shape === 'none') return false;
+  if (shape === 'scalar' && step.op !== 'constant' && stepRefs(step).length >= 2) return false;
+  return true;
+}
+
+/**
+ * The steps a `coalesce` chooses between, plus the steps a gate compares against — the
+ * OPTIONAL ones, which a bank leaves blank to decline a derivation the catalog offers.
+ *
+ * Derived from the rule, never stored, exactly as on the backend: a stored "optional" flag
+ * would be a second statement of the same fact, free to disagree with the list the coalesce
+ * actually names.
+ */
+export function optionalStepIds(
+  steps: readonly RuleStep[],
+  gates: readonly RuleGate[],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const step of steps) {
+    if (step.op !== 'coalesce') continue;
+    for (const ref of stepRefs(step)) if ('step' in ref) ids.add(ref.step);
+  }
+  for (const gate of gates) {
+    if (gate.kind === 'number' && gate.right !== undefined && 'step' in gate.right) {
+      ids.add(gate.right.step);
+    }
+  }
+  return ids;
+}
+
+/** Whether the bank has stated enough for this step to produce anything. */
+export function stepIsConfigured(step: RuleStep, figures: StepFigures | undefined): boolean {
+  if (!stepTakesFigures(step)) return true;
+  const f = figures ?? {};
+  switch (STEP_OP_SHAPE[step.op]) {
+    case 'keyTable':
+      return (f.keyTable?.length ?? 0) > 0;
+    case 'bands':
+      return (f.bands?.length ?? 0) > 0;
+    case 'scalar':
+      return step.op === 'constant'
+        ? f.valueEGP !== undefined && f.valueEGP !== ''
+        : f.scalar?.value !== undefined && f.scalar.value !== '';
+    default:
+      return true;
+  }
+}
+
+/** Whether the bank turned this gate on. A gate with no figures does not apply. */
+export function gateIsConfigured(
+  gate: RuleGate,
+  figures: StepFigures | undefined,
+  configuredStepIds: ReadonlySet<string>,
+): boolean {
+  const f = figures ?? {};
+  if (gate.kind === 'choice') return f.applies === true;
+  if (gate.kind === 'numberByKey') return (f.keyTable?.length ?? 0) > 0;
+  if (gate.right !== undefined) {
+    return 'step' in gate.right ? configuredStepIds.has(gate.right.step) : true;
+  }
+  return (
+    (f.minValue !== undefined && f.minValue !== '') ||
+    (f.maxValue !== undefined && f.maxValue !== '')
+  );
 }
 
 /**

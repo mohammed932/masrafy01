@@ -13,6 +13,13 @@ import type {
   LoanLimitCascadeLevel,
   TenorCascadeLevel,
 } from '../bank-programs/cascade/cascade.types';
+import type {
+  GateParams,
+  ProductRuleOutput,
+  RuleGate,
+  RuleStep,
+  StepParams,
+} from './pipeline/product-rule';
 
 // ---------------------------------------------------------------------------
 // Applicant Profile
@@ -248,9 +255,34 @@ export const FACT_STRATEGY_PREFIX = 'fact:';
 
 export type FactIncomeAssumptionStrategy = `${typeof FACT_STRATEGY_PREFIX}${string}`;
 
+/**
+ * The token that says "this rule is a STEP PIPELINE" — many facts, a few generic
+ * arithmetic ops, and an answer that may be a monthly income OR a borrowing ceiling.
+ *
+ * Not a member of `INCOME_ASSUMPTION_STRATEGIES`: that set is the closed list of
+ * built-in METHODS, each with its own hand-written arithmetic in the resolver, and its
+ * own comment says a new method that merely reads an answer must be a registry fact
+ * instead. A step pipeline is neither — it is the shape a whole PRODUCT is expressed
+ * in, and it earns a token of its own precisely so no reader can mistake it for a
+ * twelfth method with a table.
+ *
+ * Defined here rather than in `matching/pipeline/product-rule.ts` so that module can
+ * import it as a VALUE while this one imports only its types — this file imports
+ * nothing at runtime (Principle V), which is what keeps the pair acyclic.
+ */
+export const PRODUCT_RULE_STRATEGY = 'steps';
+
+export type ProductRuleStrategy = typeof PRODUCT_RULE_STRATEGY;
+
 export type IncomeAssumptionStrategy =
   | BuiltinIncomeAssumptionStrategy
-  | FactIncomeAssumptionStrategy;
+  | FactIncomeAssumptionStrategy
+  | ProductRuleStrategy;
+
+/** True when a rule is a step pipeline rather than a single-fact method. */
+export function isProductRuleStrategy(strategy: string): strategy is ProductRuleStrategy {
+  return strategy === PRODUCT_RULE_STRATEGY;
+}
 
 /** The `fact:<key>` token for a registry fact key. */
 export function factStrategy(factKey: string): FactIncomeAssumptionStrategy {
@@ -368,6 +400,25 @@ export interface IncomeAssumptionConfig {
    */
   amounts?: 'catalog' | 'own';
 
+  // --- the step pipeline (`strategy: 'steps'`) ---------------------------------
+  //
+  // STRUCTURE (`steps` / `gates` / `output`) belongs to the catalog program NAME and is
+  // merged onto every program under it by `effectiveIncomeRule` — always, not only when
+  // the program takes catalog amounts. A bank cannot restate the shape of the product it
+  // sells, so the two can never disagree about what it is.
+  //
+  // FIGURES live in `stepParams`, keyed by step id (and by gate id — a gate's floor is a
+  // bank figure too). That is the whole of "a fifth bank is one config row".
+
+  /** Catalog-owned. See `matching/pipeline/product-rule.ts`. */
+  steps?: RuleStep[];
+  /** Catalog-owned. A failed gate is a stated reason, never a filter. */
+  gates?: RuleGate[];
+  /** Catalog-owned. Says whether the last step is an income or a ceiling. */
+  output?: ProductRuleOutput;
+  /** Bank-owned figures by step id / gate id. Stripped when `amounts: 'catalog'`. */
+  stepParams?: Record<string, StepParams & GateParams>;
+
   // --- canonical shapes (one per method family) ---
 
   /** Key methods only. Order follows registry display order. */
@@ -430,6 +481,16 @@ export type IncomeOrigin =
   | 'surrogate'
   | 'declared_over_surrogate'
   | 'surrogate_over_declared'
+  /**
+   * The figure was derived from a collateral CEILING a product rule produced — the
+   * unit, the membership, the vehicle. Frozen on the offer like every other origin
+   * (Principle I): "2 000 000" alone does not say that the unit decided it, and a later
+   * reader must not have to guess.
+   *
+   * Never combined with a declared salary. A collateral product does not read one, and
+   * `greater_of` against a payslip would quote a ceiling the collateral never supported.
+   */
+  | 'ceiling'
   | 'none';
 
 /** Why no income could be resolved. Never a substituted default (FR-020). */
@@ -437,7 +498,14 @@ export type IncomeUnresolvedReason =
   | 'fact_not_answered'
   | 'no_matching_row'
   | 'no_matching_band'
-  | 'rule_unconfigured';
+  | 'rule_unconfigured'
+  /**
+   * A product-rule gate refused — the down payment is under the floor, the contract is
+   * too old, the applicant did not confirm which unit is theirs. Not priceable for this
+   * product, which is a different fact from a broken table, and the gate's own
+   * `reasonCode` says which gate (see `GATE_REASON_CODES`).
+   */
+  | 'gate_failed';
 
 export interface IncomeResolution {
   /**
@@ -468,6 +536,28 @@ export interface IncomeResolution {
    * declared or unresolved.
    */
   matchedRow?: { key: string } | { fromInclusive: string; toExclusive: string | null };
+  /**
+   * Set only when `origin === 'ceiling'`: the borrowing ceiling the product rule derived
+   * from the applicant's collateral.
+   *
+   * Carried BESIDE `incomeEGP` rather than in it, because they are different quantities —
+   * one is an amount, the other a monthly figure — and `quoteProgram` needs both: the
+   * ceiling clamps the program maximum, and the income it implies (computed there, where
+   * the rate and the final tenor are known) is what the DBR machinery spends.
+   *
+   * `incomeEGP` is 0 on a ceiling resolution for exactly the reason it is 0 on a miss:
+   * this resolver cannot know the tenor. Callers MUST read `origin`.
+   */
+  ceilingAmountEGP?: Decimal;
+  /** `output.baselineDbrPercent`, or the program's own cap when the rule states none. */
+  ceilingBaselineDbrPercent?: Decimal;
+  /** Set when `unresolvedReason === 'gate_failed'` — which gate, and its reason code. */
+  gateId?: string;
+  gateReasonCode?: string;
+  /** Set when a product rule could not read a fact: the keys still missing. */
+  missingFactKeys?: string[];
+  /** The step-by-step figures, for the admin check panel. Never persisted. */
+  productRuleSteps?: ReadonlyArray<{ id: string; op: string; valueEGP: string }>;
 }
 
 export interface FeesConfig {
@@ -606,6 +696,12 @@ export interface Offer {
    */
   incomeOrigin: IncomeOrigin | null;
   incomeSurrogateStrategy: IncomeAssumptionStrategy | null;
+  /**
+   * The collateral ceiling this offer was priced against, when a product rule derived one.
+   * `null` for every income-based program — absent, not zero, because a zero would say the
+   * collateral supports nothing.
+   */
+  collateralCeilingEGP: Decimal | null;
 }
 
 export interface MatchResult {
@@ -657,6 +753,12 @@ export const BINDING_CONSTRAINTS = [
   /** The asked-for term was below the program floor and was stretched up to it. */
   'tenor_min',
   'age_at_maturity',
+  /**
+   * The amount was capped by the ceiling a product rule derived from the applicant's
+   * collateral, below the program's own maximum. Ranked above `program_max`: that is the
+   * more specific statement — the program would lend more, this unit will not carry more.
+   */
+  'collateral_ceiling',
 ] as const;
 
 export type BindingConstraint = (typeof BINDING_CONSTRAINTS)[number];
@@ -682,6 +784,18 @@ export const FIGURES_UNAVAILABLE_REASONS = [
   'SURROGATE_FACT_MISSING',
   /** The fact was answered, but no key matched / the value fell in no band. */
   'SURROGATE_NO_MATCHING_ROW',
+  /**
+   * A product-rule GATE refused this applicant for this product — the down payment is
+   * below the bank's floor, the ownership contract is outside its window, the multi-unit
+   * declaration was not confirmed.
+   *
+   * A "no figures" outcome, NOT a filter: the program stays listed and stays ranked, and
+   * `QuoteUnavailable.gateReasonCode` names which of the closed platform reasons applied
+   * so the surface can say WHY in the customer's own language. Reintroducing this as an
+   * eligibility filter is forbidden (A33) — and would not fire anyway, since every
+   * production path runs with `skipEligibility`.
+   */
+  'PRODUCT_RULE_GATE_FAILED',
 ] as const;
 
 export type FiguresUnavailableReason = (typeof FIGURES_UNAVAILABLE_REASONS)[number];
@@ -727,6 +841,15 @@ export interface Quote {
    */
   maxAffordableAmountEGP: Decimal;
   bindingConstraint: BindingConstraint;
+  /**
+   * Set only for a product rule whose answer is a CEILING: the amount the applicant's
+   * collateral supports, before obligations.
+   *
+   * Reported so the apply path can FREEZE it on the immutable offer and every surface can
+   * say "your unit supports 2 000 000, your existing payments leave 1 662 677" — two
+   * numbers that explain each other, where the second alone reads as an unexplained cut.
+   */
+  collateralCeilingEGP?: Decimal;
   /** The income every figure above keys off (see `quoteProgram` step 3). */
   recognisedIncomeEGP: Decimal;
   /**
@@ -764,6 +887,19 @@ export interface QuoteUnavailable {
   dbrCapPercent?: Decimal;
   dbrBandIndex?: number | null;
   recognisedIncomeEGP?: Decimal;
+  /**
+   * Populated when `reason` is `PRODUCT_RULE_GATE_FAILED`: which gate, and the closed
+   * platform reason code it carries. The id is for the admin (it names the row to fix);
+   * the code is what every locale dictionary has a sentence for (Principle III).
+   */
+  gateId?: string;
+  gateReasonCode?: string;
+  /**
+   * Populated when a product rule read a fact the applicant never answered — the keys of
+   * the answers still missing. Lets the surface say "answer these" instead of "something
+   * is missing", which is the whole point of decision 3.
+   */
+  missingFactKeys?: string[];
 }
 
 export type QuoteOutcome =

@@ -1385,6 +1385,358 @@
       <trans-unit id="income_rule.scalar_hint_bank_statement" datatype="html"><source>This percent of the balance, already MONTHLY — not divided by 12. 10% of 200,000 EGP = 20,000 EGP a month.</source><target>هذه النسبة من الرصيد، شهرية بالفعل — لا تُقسم على ١٢. ١٠٪ من ٢٠٠٬٠٠٠ جنيه = ٢٠٬٠٠٠ جنيه شهريًا.</target></trans-unit>
       <trans-unit id="income_rule.scalar_hint_cd" datatype="html"><source>This percent of the certificate, per YEAR, divided into months. 3% of 400,000 EGP = 1,000 EGP a month.</source><target>هذه النسبة من الشهادة، سنويًا، مقسومة على الشهور. ٣٪ من ٤٠٠٬٠٠٠ جنيه = ١٬٠٠٠ جنيه شهريًا.</target></trans-unit>
       <trans-unit id="income_rule.scalar_hint_deposits" datatype="html"><source>This percent of total deposits, per YEAR, divided into months. 2% of 600,000 EGP = 1,000 EGP a month.</source><target>هذه النسبة من إجمالي الودائع، سنويًا، مقسومة على الشهور. ٢٪ من ٦٠٠٬٠٠٠ جنيه = ١٬٠٠٠ جنيه شهريًا.</target></trans-unit>
+      <trans-unit id="lookups.type.compound_category.label" datatype="html">
+        <source>Compound classes</source>
+        <target>فئات الكومباوندات</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
+          <context context-type="linenumber">54</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.type.compound_category.desc" datatype="html">
+        <source>The classes banks key their compound cap tables by.</source>
+        <target>الفئات التي تبني عليها البنوك جداول حدود التمويل للكومباوندات.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
+          <context context-type="linenumber">55</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.type.compound.label" datatype="html">
+        <source>Compounds</source>
+        <target>الكومباوندات</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
+          <context context-type="linenumber">60</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.type.compound.desc" datatype="html">
+        <source>The compounds a customer can pick, each filed under its class.</source>
+        <target>الكومباوندات التي يختار العميل منها، وكل واحد مُدرج تحت فئته.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
+          <context context-type="linenumber">61</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.type.club_class.label" datatype="html">
+        <source>Club membership classes</source>
+        <target>درجات عضوية النوادي</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
+          <context context-type="linenumber">66</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.type.club_class.desc" datatype="html">
+        <source>The membership classes the club loan is priced from.</source>
+        <target>درجات العضوية التي يُحسب عليها تمويل النادي.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
+          <context context-type="linenumber">67</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.income.steps_title" datatype="html">
+        <source> How this product works the figure out </source>
+        <target>كيف يحسب هذا المنتج الرقم</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/income-assumption-section.component.ts</context>
+          <context context-type="linenumber">230,232</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.output.max_amount" datatype="html">
+        <source>This product works out the most the customer&apos;s property or membership can support. Their salary is not read.</source>
+        <target>هذا المنتج يحسب أقصى ما تستطيع وحدة العميل أو عضويته أن تحمله. الراتب لا يُقرأ.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">100,103</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.output.monthly_income" datatype="html">
+        <source>This product works out an assumed monthly income from the answers below.</source>
+        <target>هذا المنتج يحسب دخلًا شهريًا مفترضًا من الإجابات أدناه.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">105,110</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.active_derivation" datatype="html">
+        <source>This bank works the ceiling out from: <x id="INTERPOLATION" equiv-text="{{ active }}"/></source>
+        <target>هذا البنك يحسب الحد الأقصى من: <x id="INTERPOLATION" equiv-text="{{ active }}"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">114,115</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.not_used" datatype="html">
+        <source>Not used by this bank</source>
+        <target>غير مستخدم في هذا البنك</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">126,129</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.needs_figures" datatype="html">
+        <source>Needs figures</source>
+        <target>يحتاج أرقامًا</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">131,134</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.at_least" datatype="html">
+        <source>At least</source>
+        <target>لا يقل عن</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">174,176</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.at_most" datatype="html">
+        <source>At most</source>
+        <target>لا يزيد عن</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">186,188</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.applies" datatype="html">
+        <source>This bank applies this condition</source>
+        <target>هذا البنك يطبّق هذا الشرط</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">207,209</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.catalog_note" datatype="html">
+        <source> These are the steps every bank selling this name runs. Each bank fills in its own figures on its own program — the amounts are never stated here. </source>
+        <target>هذه هي الخطوات التي يتبعها كل بنك يبيع هذا الاسم. كل بنك يدخل أرقامه على برنامجه الخاص — والمبالغ لا تُذكر هنا.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">218,221</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.constant" datatype="html">
+        <source>A figure this bank sets</source>
+        <target>رقم يحدده هذا البنك</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">557</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.fact_number" datatype="html">
+        <source>Reads the answer: <x id="factLabel" equiv-text="factLabel"/></source>
+        <target>يقرأ الإجابة: <x id="factLabel" equiv-text="factLabel"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">559</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.fact_table" datatype="html">
+        <source>A table keyed by the answer: <x id="factLabel" equiv-text="factLabel"/></source>
+        <target>جدول مفتاحه الإجابة: <x id="factLabel" equiv-text="factLabel"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">561</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.fact_parent_table" datatype="html">
+        <source>A table keyed by the class of: <x id="factLabel" equiv-text="factLabel"/></source>
+        <target>جدول مفتاحه فئة: <x id="factLabel" equiv-text="factLabel"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">563</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.band_table" datatype="html">
+        <source>A table of ranges</source>
+        <target>جدول شرائح</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">565</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.percent_of" datatype="html">
+        <source>A percentage of an earlier figure</source>
+        <target>نسبة من رقم سابق</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">567</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.uplift" datatype="html">
+        <source>An increase on an earlier figure</source>
+        <target>زيادة على رقم سابق</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">569</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.multiply" datatype="html">
+        <source>An earlier figure multiplied</source>
+        <target>رقم سابق مضروب في معامل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">571</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.sum" datatype="html">
+        <source>Earlier figures added together</source>
+        <target>مجموع أرقام سابقة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">573</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.subtract" datatype="html">
+        <source>One earlier figure less another</source>
+        <target>رقم سابق ناقص آخر</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">575</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.min_of" datatype="html">
+        <source>The smallest of the earlier figures</source>
+        <target>أصغر الأرقام السابقة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">577</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.max_of" datatype="html">
+        <source>The largest of the earlier figures</source>
+        <target>أكبر الأرقام السابقة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">579</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.coalesce" datatype="html">
+        <source>Whichever of the above this bank filled in</source>
+        <target>أيٌّ من الجداول أعلاه أدخله هذا البنك</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">581</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.coalesce_hint" datatype="html">
+        <source>Fill in exactly one of the tables above. The rest are other banks&apos; ways of working the same figure out.</source>
+        <target>أدخل جدولًا واحدًا فقط من الجداول أعلاه. الباقي هي طرق بنوك أخرى لحساب الرقم نفسه.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">589</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.factor_from_answer" datatype="html">
+        <source>The percentage comes from the customer&apos;s own answer, so there is nothing to type here.</source>
+        <target>النسبة تأتي من إجابة العميل نفسه، فلا يوجد ما تكتبه هنا.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">592</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.down_payment" datatype="html">
+        <source>Minimum the customer must have paid</source>
+        <target>الحد الأدنى الذي يجب أن يكون العميل قد دفعه</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">600</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.unit_price" datatype="html">
+        <source>Minimum unit price, by the year of the contract</source>
+        <target>الحد الأدنى لسعر الوحدة، حسب سنة العقد</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">602</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.owned_min" datatype="html">
+        <source>How long the unit must have been owned</source>
+        <target>المدة التي يجب أن تكون الوحدة مملوكة خلالها</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">604</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.owned_max" datatype="html">
+        <source>How old the contract may be</source>
+        <target>أقصى قِدَم مسموح به للعقد</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">606</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.ownership" datatype="html">
+        <source>How ownership must be stated</source>
+        <target>كيف يجب أن تكون الملكية مُثبتة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">608</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.multi_unit" datatype="html">
+        <source>Multi-unit owners must confirm their strongest unit</source>
+        <target>مالك أكثر من وحدة يجب أن يؤكد أقوى وحدة لديه</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">610</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.other" datatype="html">
+        <source>A condition on the answers</source>
+        <target>شرط على الإجابات</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">612</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.by_key_hint" datatype="html">
+        <source>One row per answer. Leave the table empty and this condition does not apply to this bank.</source>
+        <target>صف لكل إجابة. اترك الجدول فارغًا ولن يُطبَّق هذا الشرط على هذا البنك.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">618</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.derived_hint" datatype="html">
+        <source>The requirement is worked out from the table above, so there is no figure to type here.</source>
+        <target>الشرط محسوب من الجدول أعلاه، فلا يوجد رقم تكتبه هنا.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">621</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.blank_hint" datatype="html">
+        <source>Leave blank and this condition does not apply to this bank.</source>
+        <target>اتركه فارغًا ولن يُطبَّق هذا الشرط على هذا البنك.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">623</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.unit.egp" datatype="html">
+        <source>EGP</source>
+        <target>جنيه</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">652</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.unit.multiplier" datatype="html">
+        <source>× multiplier</source>
+        <target>× معامل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">654</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.unit.percent" datatype="html">
+        <source>%</source>
+        <target>%</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+          <context context-type="linenumber">657</context>
+        </context-group>
+      </trans-unit>
     </body>
   </file>
 </xliff>

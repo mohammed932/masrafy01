@@ -110,6 +110,10 @@ function serviceFor(storedRule: unknown): BankProgramsService {
     // every draft in these cases carries its own table, which is what makes the
     // resolved figure attributable to the draft rather than to a catalog row.
     programNameIncomeRules: async () => new Map(),
+    // Empty: none of these rules asks a value for its registry parent. A rule that DID
+    // would report `no_matching_row` here, which is the honest answer for a registry that
+    // files nothing under a parent — never a guessed parent.
+    enumerationParentKeys: async () => ({}),
   };
   const explode = () => {
     throw new Error('checkIncomeRule must persist NOTHING (FR-029)');

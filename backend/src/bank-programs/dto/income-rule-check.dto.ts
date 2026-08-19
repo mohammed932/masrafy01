@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Matches,
@@ -124,6 +125,27 @@ export class IncomeRuleCheckSampleDto {
   @IsString()
   @MaxLength(64)
   factValue?: string;
+
+  /**
+   * Sample answers for a STEP PIPELINE, by fact key — a compound rule reads ten of them,
+   * and the single `factValue` above cannot say which of the ten it is.
+   *
+   * Values are read exactly as the resolver reads an answer: a clean decimal string is a
+   * NUMBER, anything else is an option code (`sampleFactValue`). An absent key is what
+   * reproduces `SURROGATE_FACT_MISSING`, which the admin needs to be able to trigger
+   * deliberately.
+   *
+   * `factValue` is kept, not replaced: it is the whole form for a single-fact rule, and
+   * asking an operator to type a key for a rule that reads exactly one fact would be a
+   * step backwards for the eleven methods that shipped first.
+   */
+  @ApiPropertyOptional({
+    type: Object,
+    example: { compound_unit_type: 'apartment', compound_unit_price: '3000000' },
+  })
+  @IsOptional()
+  @IsObject()
+  facts?: Record<string, string>;
 
   // --- the economics the quote needs ---------------------------------------
 

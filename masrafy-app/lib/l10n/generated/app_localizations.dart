@@ -4414,6 +4414,60 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تعذّر حفظ هذه الصورة. من فضلك أعد التصوير.'**
   String get id_capture_capture_error;
+
+  /// Backend DOWN_PAYMENT_BELOW_MIN gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'المبلغ الذي دفعته أقل من الحد الأدنى الذي يطلبه هذا البنك لهذا البرنامج.'**
+  String get gate_down_payment_below_min;
+
+  /// Backend UNIT_PRICE_BELOW_MIN gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'سعر الوحدة أقل من الحد الأدنى الذي يطلبه هذا البنك لسنة توقيع العقد.'**
+  String get gate_unit_price_below_min;
+
+  /// Backend CONTRACT_TOO_NEW gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البنك يطلب أن تكون مالكًا للوحدة مدة أطول من مدتك الحالية.'**
+  String get gate_contract_too_new;
+
+  /// Backend CONTRACT_TOO_OLD gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'عقد التمليك أقدم من المدة التي يقبلها هذا البنك لهذا البرنامج.'**
+  String get gate_contract_too_old;
+
+  /// Backend OWNERSHIP_NOT_CONFIRMED gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البرنامج يطلب إثبات التمليك بالشكل الذي يحدده البنك.'**
+  String get gate_ownership_not_confirmed;
+
+  /// Backend MULTI_UNIT_NOT_CONFIRMED gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'ذكرت أنك تملك أكثر من وحدة. أكِّد الوحدة التي نحسب عليها وسنعرض أرقام هذا البرنامج.'**
+  String get gate_multi_unit_not_confirmed;
+
+  /// Backend GATE_NOT_MET / PRODUCT_RULE_GATE_FAILED fallback
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البرنامج له شرط لا تحققه إجاباتك، لذا لا يمكن عرض أرقام.'**
+  String get gate_not_met;
+
+  /// Skip button on an all-optional collateral questionnaire step
+  ///
+  /// In ar, this message translates to:
+  /// **'تخطَّ الآن'**
+  String get collateral_skip_step;
+
+  /// Hint under the skip button
+  ///
+  /// In ar, this message translates to:
+  /// **'تخطَّ وسنظل نعرض البرنامج، لكن بدون أرقام حتى تجيب.'**
+  String get collateral_skip_hint;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

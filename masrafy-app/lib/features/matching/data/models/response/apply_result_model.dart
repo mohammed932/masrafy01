@@ -88,6 +88,8 @@ class UnavailableProgramModel {
     required this.reason,
     this.maxAffordableAmountEGP,
     this.dbrCapPercent,
+    this.gateReasonCode,
+    this.missingFactKeys = const [],
   });
 
   final String programCode;
@@ -100,6 +102,18 @@ class UnavailableProgramModel {
   final double? maxAffordableAmountEGP;
   final double? dbrCapPercent;
 
+  /// When [reason] is `PRODUCT_RULE_GATE_FAILED`: WHICH condition refused, as one of
+  /// the backend's closed gate-reason codes. Localized here like every other code.
+  ///
+  /// "A condition was not met" is not something a customer can act on; "the amount you
+  /// have paid is below this bank's minimum" is.
+  final String? gateReasonCode;
+
+  /// When a collateral product read answers the customer has not given: which ones, by
+  /// fact key. What lets the card say how many questions are still to answer instead of
+  /// stating only that something is missing.
+  final List<String> missingFactKeys;
+
   factory UnavailableProgramModel.fromJson(Map<String, dynamic> json) =>
       UnavailableProgramModel(
         programCode: (json['programCode'] as String?) ?? '',
@@ -111,6 +125,11 @@ class UnavailableProgramModel {
             double.tryParse((json['maxAffordableAmountEGP'] as String?) ?? ''),
         dbrCapPercent:
             double.tryParse((json['dbrCapPercent'] as String?) ?? ''),
+        gateReasonCode: json['gateReasonCode'] as String?,
+        missingFactKeys:
+            (json['missingFactKeys'] as List<dynamic>? ?? const <dynamic>[])
+                .whereType<String>()
+                .toList(),
       );
 
   UnavailableProgramEntity toEntity() => UnavailableProgramEntity(
@@ -120,6 +139,8 @@ class UnavailableProgramModel {
         reason: reason,
         maxAffordableAmountEGP: maxAffordableAmountEGP,
         dbrCapPercent: dbrCapPercent,
+        gateReasonCode: gateReasonCode,
+        missingFactKeys: missingFactKeys,
       );
 }
 

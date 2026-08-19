@@ -27,6 +27,7 @@
  */
 
 import { Decimal } from '@prisma/client/runtime/library';
+import { isProductRuleStrategy } from '../types';
 import type { IncomeAssumptionConfig, IncomeBand, IncomeKeyTableRow } from '../types';
 
 /**
@@ -66,6 +67,10 @@ export function normalizeIncomeAssumption(
   // `income_proof` program is. Returning a partial object here would make every
   // downstream `strategy` read optional for no gain.
   if (!config || typeof config !== 'object') return { strategy: 'declared' };
+  // A step pipeline has no legacy ancestor — nothing has ever written one, so there is
+  // nothing to upgrade. Returned untouched so none of the legacy repairs below can reach
+  // into a step's own table and "fix" an edge the new editor makes unrepresentable.
+  if (isProductRuleStrategy(config.strategy)) return config;
   if (isCanonical(config)) return withRepairedBands(config);
 
   const carried = carryPolicyFields(config);

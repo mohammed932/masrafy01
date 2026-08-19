@@ -86,6 +86,8 @@ export interface CreateBankOfferInput {
    */
   incomeOrigin?: string | null;
   incomeSurrogateStrategy?: string | null;
+  /** The collateral ceiling a product rule derived, frozen with the rest. */
+  collateralCeilingEGP?: Decimal | null;
 }
 
 export interface PersistMatchInput {

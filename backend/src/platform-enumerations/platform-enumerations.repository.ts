@@ -31,7 +31,19 @@ export type EnumerationType =
    * reads. Was a code constant with four entries; a fifth needed a release, while the
    * table keyed by it was already data.
    */
-  | 'surrogate_fact';
+  | 'surrogate_fact'
+  /**
+   * The COLLATERAL products' lists (compound-ownership guarantee, club-membership loan).
+   *
+   * A `compound` row's `parentKey` names its class, and that is load-bearing rather than
+   * decorative: a bank keys its cap table by the five CLASSES while the customer picks one of
+   * hundreds of compounds by NAME, and `factParentTable` walks one to the other. It is also
+   * why `compound` is NOT in `UNSCOPED_ENUMERATION_TYPES` — force-nulling the parent there
+   * would silently disconnect every compound from the table that prices it.
+   */
+  | 'compound_category'
+  | 'compound'
+  | 'club_class';
 
 /**
  * Types whose members carry no scoping PARENT. `parentKey` is force-nulled on
@@ -329,6 +341,25 @@ export abstract class PlatformEnumerationsRepository {
    * stale picker.
    */
   abstract programNameIncomeRules(): Promise<ReadonlyMap<string, IncomeAssumptionConfig>>;
+
+  /**
+   * Every ACTIVE registry value that is filed under a parent, as `key → parentKey`.
+   *
+   * Feeds a product rule's `factParentTable` step: the customer picks a compound by NAME
+   * and the bank keys its cap table by the five compound CATEGORIES, so something has to
+   * carry the value to its parent. `parentKey` already is that column — the registry's
+   * generic single-parent scope — so this adds no schema and no second list to maintain.
+   *
+   * ONE flat map, not one per lookup type. A rule names the FACT, the fact's bound question
+   * supplies the option codes, and those codes ARE registry keys; a value is only ever
+   * looked up when a rule asked for its parent, so a same-key collision across two types
+   * cannot reach a rule that named neither.
+   *
+   * Uncached by contract, like `surrogateFactRegistry` and `programNameIncomeRules`: it
+   * feeds a quote, and a 60s window in which a recategorised compound still prices against
+   * its old category is a wrong loan amount frozen onto an offer, not a stale picker.
+   */
+  abstract enumerationParentKeys(): Promise<Readonly<Record<string, string>>>;
 
   /**
    * One catalog program name, with the two fields its income rule needs.

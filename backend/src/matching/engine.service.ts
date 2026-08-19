@@ -44,6 +44,14 @@ export interface EngineInput {
    * either one disables it. Defaults to false: DBR shapes the amount everywhere.
    */
   skipDbrCheck?: boolean;
+  /**
+   * Lookup value → registry `parentKey`, for a product rule's `factParentTable` step.
+   *
+   * Read ONCE per run and passed down, never per program: it is one map for the whole
+   * registry, and a per-program read inside the loop would be a query per program on the
+   * apply path — the same reasoning `programNameIncomeRules` already follows.
+   */
+  parentKeyByValue?: Readonly<Record<string, string>>;
 }
 
 export interface EngineOutput {
@@ -78,6 +86,9 @@ export class EngineService {
       const result = this.evaluateProgram(profile, program, scoringConfig, {
         skipEligibility,
         skipDbrCheck,
+        ...(input.parentKeyByValue !== undefined
+          ? { parentKeyByValue: input.parentKeyByValue }
+          : {}),
       });
       results.push(result);
       if (!result.eligible) {
@@ -121,7 +132,11 @@ export class EngineService {
     profile: ApplicantProfile,
     program: BankProgramSnapshot,
     scoringConfig: ScoringConfig,
-    flags: { skipEligibility: boolean; skipDbrCheck: boolean },
+    flags: {
+      skipEligibility: boolean;
+      skipDbrCheck: boolean;
+      parentKeyByValue?: Readonly<Record<string, string>>;
+    },
   ): MatchResult {
     const { skipEligibility, skipDbrCheck } = flags;
     // Resolved at most ONCE per program and handed to `quoteProgram` below, through
@@ -135,6 +150,9 @@ export class EngineService {
           profile,
           income: program.incomeAssumption,
           eligibility: program.eligibility,
+          ...(flags.parentKeyByValue !== undefined
+            ? { parentKeyByValue: flags.parentKeyByValue }
+            : {}),
         })
       : null;
 
@@ -256,6 +274,10 @@ export class EngineService {
       incomeSurrogateStrategy: quote.incomeResolution
         ? quote.incomeResolution.strategy
         : null,
+      // The ceiling, when the rule derived one. Same reasoning as the two above: it is the
+      // output of a pipeline over a table, an uplift and the applicant's own answers, every
+      // one of which can move after the offer is written.
+      collateralCeilingEGP: quote.collateralCeilingEGP ?? null,
     };
   }
 
@@ -327,6 +349,13 @@ function reasonToCheckCode(reason: FiguresUnavailableReason): string {
       return 'age';
     case 'PROGRAM_MISCONFIGURED':
       return 'program_misconfigured';
+    // A product-rule gate refused: the applicant does not meet a condition of the
+    // COLLATERAL this product is sold against (the down payment, the contract age, the
+    // multi-unit declaration). Its own check code, not `monthly_income`: nothing about
+    // this applicant's earnings was in question, and mapping it there would send the
+    // suggestion engine off proposing a guarantor for a unit-price floor.
+    case 'PRODUCT_RULE_GATE_FAILED':
+      return 'product_rule_gate';
   }
 }
 

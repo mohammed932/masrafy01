@@ -55,11 +55,25 @@ export function checkEligibility(
     isSelfEmployed && elig.selfEmployedMaxAge != null ? elig.selfEmployedMaxAge : elig.maxAge;
   push(profile.age >= minAge && profile.age <= maxAge, 'age');
 
-  const minIncomeRaw =
-    isSelfEmployed && elig.selfEmployedMinMonthlyIncomeEGP
-      ? elig.selfEmployedMinMonthlyIncomeEGP
-      : elig.minMonthlyIncomeEGP;
-  push(assumedIncomeEGP.greaterThanOrEqualTo(minIncomeRaw), 'monthly_income');
+  // A COLLATERAL product has no income to check here.
+  //
+  // Its figure is derived from a ceiling, and the ceiling only becomes a monthly figure
+  // inside `quoteProgram`, once the rate and the final tenor are known — so at this point
+  // `assumedIncomeEGP` is 0 for such a program by construction. Comparing that against a
+  // minimum would report `monthly_income` as unmet for every applicant of a product that
+  // never asked about their salary, which is a false statement in the transparency output
+  // even though `skipEligibility` means nothing is filtered on it.
+  //
+  // A minimum income on a collateral program is not silently dropped, either: it is not
+  // expressible there in the first place, and the ceiling itself IS the capacity test.
+  const readsCollateralCeiling = program.incomeAssumption?.output?.kind === 'maxAmount';
+  if (!readsCollateralCeiling) {
+    const minIncomeRaw =
+      isSelfEmployed && elig.selfEmployedMinMonthlyIncomeEGP
+        ? elig.selfEmployedMinMonthlyIncomeEGP
+        : elig.minMonthlyIncomeEGP;
+    push(assumedIncomeEGP.greaterThanOrEqualTo(minIncomeRaw), 'monthly_income');
+  }
 
   push(profile.employment.monthsInJob >= elig.minMonthsInJob, 'months_in_job');
   push(

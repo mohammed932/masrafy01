@@ -2241,4 +2241,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get id_capture_capture_error => 'Couldn\'t save that shot. Please take it again.';
+
+  @override
+  String get gate_down_payment_below_min => 'The amount you\'ve already paid is below this bank\'s minimum for this program.';
+
+  @override
+  String get gate_unit_price_below_min => 'The unit\'s price is below this bank\'s minimum for the year you signed the contract.';
+
+  @override
+  String get gate_contract_too_new => 'This bank needs you to have owned the unit for longer than you have.';
+
+  @override
+  String get gate_contract_too_old => 'The ownership contract is older than this bank accepts for this program.';
+
+  @override
+  String get gate_ownership_not_confirmed => 'This program needs ownership stated the way this bank requires.';
+
+  @override
+  String get gate_multi_unit_not_confirmed => 'You told us you own more than one unit. Confirm which one to use and we can quote this program.';
+
+  @override
+  String get gate_not_met => 'This program has a condition your answers don\'t meet, so no figures can be shown.';
+
+  @override
+  String get collateral_skip_step => 'Skip for now';
+
+  @override
+  String get collateral_skip_hint => 'Skip and we still show the program, just without figures until you answer.';
 }

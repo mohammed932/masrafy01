@@ -40,6 +40,7 @@ import { resolveAssumedIncome } from './income-resolver';
 import { calculateFees } from './fees';
 import { calculateEffectiveLoanAmount, calculateMonthlyInstallment } from './pmt';
 import { calculateDbr, calculateMaxLoanFromDbr, resolveDbrCap } from './dbr';
+import { ceilingToIncome } from './product-rule-ceiling';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -75,6 +76,12 @@ export interface QuoteInput {
    * with a declared salary ignores it, exactly as it ignores its own resolver call.
    */
   incomeResolution?: IncomeResolution | null;
+  /**
+   * Lookup value -> registry `parentKey`, forwarded to the resolver for a product rule's
+   * `factParentTable` step. Only read when this function resolves the rule ITSELF; a
+   * caller that passes `incomeResolution` has already applied it.
+   */
+  parentKeyByValue?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -84,7 +91,11 @@ export interface QuoteInput {
  * smaller surprise than a cut amount.
  */
 const BINDING_PRECEDENCE: Record<BindingConstraint, number> = {
-  dbr_affordability: 5,
+  dbr_affordability: 6,
+  // Above `program_max` and below the DBR shrink: a collateral ceiling is the more
+  // specific of the two amount ceilings ("the program would lend more, this unit will
+  // not carry more"), but if affordability then cut it further, that is the headline.
+  collateral_ceiling: 5,
   program_max: 4,
   age_at_maturity: 3,
   tenor_max: 2,
@@ -136,8 +147,8 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     );
   }
 
-  const programMax = toFiniteDecimal(cascade.loanLimit.maxAmount);
-  if (programMax === null || programMax.lessThanOrEqualTo(0)) {
+  const programMaxConfigured = toFiniteDecimal(cascade.loanLimit.maxAmount);
+  if (programMaxConfigured === null || programMaxConfigured.lessThanOrEqualTo(0)) {
     problems.push('loanLimits.maxAmountEGP');
   }
 
@@ -152,7 +163,7 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     problems.push('tenor.minMonths');
   }
 
-  if (problems.length > 0 || ratePercent === null || programMax === null) {
+  if (problems.length > 0 || ratePercent === null || programMaxConfigured === null) {
     return { ok: false, unavailable: { reason: 'PROGRAM_MISCONFIGURED', missing: problems } };
   }
 
@@ -186,6 +197,9 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
         profile,
         income: program.incomeAssumption,
         eligibility: program.eligibility,
+        ...(input.parentKeyByValue !== undefined
+          ? { parentKeyByValue: input.parentKeyByValue }
+          : {}),
       }))
     : null;
 
@@ -193,6 +207,11 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // a failed fallback keeps reporting `NO_RECOGNISED_INCOME`, exactly as today:
   // that program never promised to read a fact, so "we didn't ask you about your
   // military grade" would be a confusing thing to tell its applicant.
+  // A ceiling is not an income and cannot be judged as one yet: the figure it implies
+  // needs the rate and the FINAL tenor, and step 3 has not run. Deferred to step 3b.
+  const ceilingAmountEGP =
+    incomeResolution?.origin === 'ceiling' ? (incomeResolution.ceilingAmountEGP ?? null) : null;
+
   if (isSurrogateProgram && incomeResolution && incomeResolution.origin === 'none') {
     // These two WIN over the generic `NO_RECOGNISED_INCOME` below, which keeps its
     // meaning for every other cause. The distinction is the point: "we never asked
@@ -205,17 +224,39 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
         ? 'SURROGATE_NO_MATCHING_ROW'
         : incomeResolution.unresolvedReason === 'fact_not_answered'
           ? 'SURROGATE_FACT_MISSING'
-          : // `rule_unconfigured` with no declared salary is not a surrogate
-            // problem — the program simply has no income to work from, which is
-            // what `NO_RECOGNISED_INCOME` has always meant.
-            'NO_RECOGNISED_INCOME';
-    return { ok: false, unavailable: { reason } };
+          : // A product-rule GATE refused. Its own reason, because nothing about this
+            // applicant's income was in question: the down payment is short, the
+            // contract is outside the window, the unit was not confirmed. The gate's
+            // own code says which, and both locale dictionaries have a sentence for it.
+            incomeResolution.unresolvedReason === 'gate_failed'
+            ? 'PRODUCT_RULE_GATE_FAILED'
+            : // `rule_unconfigured` with no declared salary is not a surrogate
+              // problem — the program simply has no income to work from, which is
+              // what `NO_RECOGNISED_INCOME` has always meant.
+              'NO_RECOGNISED_INCOME';
+    return {
+      ok: false,
+      unavailable: {
+        reason,
+        ...(incomeResolution.gateId !== undefined ? { gateId: incomeResolution.gateId } : {}),
+        ...(incomeResolution.gateReasonCode !== undefined
+          ? { gateReasonCode: incomeResolution.gateReasonCode }
+          : {}),
+        // WHICH answers are missing, not merely that some are — what lets the customer be
+        // shown "answer these six questions about your unit" instead of a blank.
+        ...(incomeResolution.missingFactKeys !== undefined
+          ? { missingFactKeys: incomeResolution.missingFactKeys }
+          : {}),
+      },
+    };
   }
 
-  const recognisedIncomeEGP = incomeResolution
+  let recognisedIncomeEGP = incomeResolution
     ? incomeResolution.incomeEGP
     : (declaredIncomeEGP ?? new Decimal(0));
-  if (recognisedIncomeEGP.lessThanOrEqualTo(0)) {
+  // A ceiling resolution carries `incomeEGP: 0` by construction, so its guard moves to
+  // step 3b, after the conversion. Every other path is unchanged.
+  if (ceilingAmountEGP === null && recognisedIncomeEGP.lessThanOrEqualTo(0)) {
     return { ok: false, unavailable: { reason: 'NO_RECOGNISED_INCOME' } };
   }
 
@@ -262,6 +303,44 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     return { ok: false, unavailable: { reason: 'AGE_AT_MATURITY' } };
   }
 
+  // ── 3b. Collateral ceiling → the income it implies ──────────────────────
+  //
+  // Runs HERE and nowhere else, because here is the first point at which both halves of
+  // the conversion exist: the cascade rate (step 1) and the final tenor (step 3). The
+  // resolver cannot do it — it knows neither — and doing it in two places would be two
+  // chances to disagree about a figure an offer is about to freeze (Principle I).
+  //
+  // The rate used is the CASCADE rate, not the fee-penalty-adjusted one: the ceiling is a
+  // credit-policy figure the bank set before anyone elected to waive an admin fee.
+  let programMax = programMaxConfigured;
+  if (ceilingAmountEGP !== null) {
+    const converted = ceilingToIncome({
+      ceilingEGP: ceilingAmountEGP,
+      annualRatePercent: ratePercent,
+      tenorMonths,
+      // A rule that states no baseline was calibrated against the bank's own cap, which
+      // makes the haircut ratio exactly 1 and changes nothing.
+      baselineDbrPercent:
+        incomeResolution?.ceilingBaselineDbrPercent ??
+        toFiniteDecimal(program.eligibility?.dbrCapPercent) ??
+        new Decimal(0),
+    });
+    if (converted === null) {
+      // A ceiling of zero, or a baseline outside (0, 100]. Not priceable, and not a
+      // substituted figure: the program stays listed with a stated reason.
+      return { ok: false, unavailable: { reason: 'NO_RECOGNISED_INCOME' } };
+    }
+    recognisedIncomeEGP = converted.recognisedIncomeEGP;
+
+    // The collateral caps the AMOUNT as well as the instalment. Both are needed: without
+    // the clamp a bank whose program maximum exceeds the ceiling would quote past what
+    // the unit carries whenever the applicant's obligations left room.
+    if (ceilingAmountEGP.lessThan(programMax)) {
+      programMax = ceilingAmountEGP;
+      noteConstraint('collateral_ceiling');
+    }
+  }
+
   // ── 4. Amount: clamp down to the program ceiling ────────────────────────
   const minAmount = toFiniteDecimal(program.loanLimits?.minAmountEGP) ?? new Decimal(0);
   let cash = round2(input.overrideAmountEGP ?? profile.requestedAmountEGP);
@@ -300,17 +379,40 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
   // Re-deriving would need the origin in two places, which is how the two drift — and
   // the band branch was re-running `resolveDbrCap` over the very income the resolver
   // had just run it over, once per program per applicant.
-  const { capPercent: dbrCapPercent, bandIndex: dbrBandIndex } = incomeResolution
-    ? { capPercent: incomeResolution.dbrCapPercent, bandIndex: incomeResolution.dbrBandIndex }
-    : resolveDbrCap(
-        {
-          dbrCapPercent: program.eligibility.dbrCapPercent,
-          dbrBands: program.eligibility.dbrBands,
-        },
-        recognisedIncomeEGP,
-      );
+  //
+  // A CEILING is the one case that must re-resolve. The resolver ran the cap against zero
+  // income, deliberately: the cap BANDS are keyed by a monthly income, and searching them
+  // with a two-million-pound amount would pick a band by comparing a ceiling against an
+  // income edge. Now that the implied income exists, the bands are searched with the only
+  // figure they were ever meant to take. The rule's own override still applies — a ceiling
+  // IS rule-derived — which is why it is passed through.
+  const capResolution =
+    ceilingAmountEGP !== null
+      ? resolveDbrCap(
+          {
+            dbrCapPercent: program.eligibility.dbrCapPercent,
+            dbrBands: program.eligibility.dbrBands,
+          },
+          recognisedIncomeEGP,
+          program.incomeAssumption?.dbrCapPercentOverride,
+        )
+      : null;
+
+  const { capPercent: dbrCapPercent, bandIndex: dbrBandIndex } = capResolution
+    ? { capPercent: capResolution.capPercent, bandIndex: capResolution.bandIndex }
+    : incomeResolution
+      ? { capPercent: incomeResolution.dbrCapPercent, bandIndex: incomeResolution.dbrBandIndex }
+      : resolveDbrCap(
+          {
+            dbrCapPercent: program.eligibility.dbrCapPercent,
+            dbrBands: program.eligibility.dbrBands,
+          },
+          recognisedIncomeEGP,
+        );
   const dbrCapSource: 'program_default' | 'rule_override' =
-    incomeResolution?.dbrCapSource === 'rule_override' ? 'rule_override' : 'program_default';
+    (capResolution?.source ?? incomeResolution?.dbrCapSource) === 'rule_override'
+      ? 'rule_override'
+      : 'program_default';
 
   const obligations = profile.obligations.existingMonthlyObligationsEGP;
   const dbrAt = (installment: Decimal) =>
@@ -441,6 +543,10 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
       maxAffordableAmountEGP,
       bindingConstraint: binding,
       recognisedIncomeEGP,
+      // Frozen onto the offer (Principle I / A6). "2 000 000" says nothing about WHY, and
+      // the ceiling cannot be re-derived later: the rule, the tables and the applicant's
+      // answers can all move.
+      ...(ceilingAmountEGP !== null ? { collateralCeilingEGP: ceilingAmountEGP } : {}),
       // Feature 011 — WHERE that income came from. Carried out of the quote so the
       // apply path can FREEZE it on the immutable offer (Principle I / A6) and the
       // admin check panel can name the row it traced to, without either of them

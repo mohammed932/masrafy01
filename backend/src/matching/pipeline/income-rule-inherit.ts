@@ -25,6 +25,7 @@
  *               bank policy, which is why a bank on catalog amounts still has them
  */
 
+import { isProductRuleStrategy } from '../types';
 import type { IncomeAssumptionConfig } from '../types';
 
 /**
@@ -38,6 +39,9 @@ const AMOUNT_KEYS = [
   'keyTable',
   'bands',
   'scalar',
+  // A product rule's figures. Same rule, one level deeper: the bank's numbers live in
+  // one map keyed by step id, so inheriting them is inheriting this key.
+  'stepParams',
   'incomeTable',
   'rankIncomeMap',
   'gradeIncomeMap',
@@ -78,9 +82,19 @@ export function effectiveIncomeRule(
   program: IncomeAssumptionConfig,
   catalogRule: IncomeAssumptionConfig | undefined,
 ): IncomeAssumptionConfig {
-  if (!inheritsCatalogAmounts(program) || catalogRule === undefined) return program;
+  if (catalogRule === undefined) return program;
 
-  const merged: IncomeAssumptionConfig = { ...program };
+  // A PRODUCT RULE's structure is the catalog name's, always — `amounts` decides only
+  // who owns the FIGURES. Without this, a bank on its own amounts would carry no steps
+  // at all and the resolver would report `rule_unconfigured` for a perfectly configured
+  // program; with it in the other direction (the bank storing its own copy of the steps)
+  // the two could disagree about what the product IS, which is the whole reason the
+  // shape lives on the name.
+  const withStructure = mergeProductRuleStructure(program, catalogRule);
+
+  if (!inheritsCatalogAmounts(program)) return withStructure;
+
+  const merged: IncomeAssumptionConfig = { ...withStructure };
   for (const key of AMOUNT_KEYS) {
     // Deleted first so an inherited rule never keeps a figure the program left
     // behind: a program that switched from 'own' to 'catalog' before the strip in
@@ -108,5 +122,52 @@ export function stripInheritedAmounts(config: IncomeAssumptionConfig): IncomeAss
   if (!inheritsCatalogAmounts(config)) return config;
   const stripped: IncomeAssumptionConfig = { ...config };
   for (const key of AMOUNT_KEYS) delete stripped[key];
+  return stripped;
+}
+
+/**
+ * The catalog name's step structure, laid over the program's object.
+ *
+ * `steps` / `gates` / `output` are replaced wholesale, never merged element-wise: a
+ * half-catalog, half-bank pipeline is not a rule anybody authored, and a partial overlay
+ * is how you get a step list whose `output.from` names a step that is no longer in it.
+ *
+ * Returns the SAME object when there is nothing to overlay, so the common single-fact
+ * path allocates nothing and stays referentially stable for callers that memoise on
+ * identity.
+ */
+export function mergeProductRuleStructure(
+  program: IncomeAssumptionConfig,
+  catalogRule: IncomeAssumptionConfig,
+): IncomeAssumptionConfig {
+  if (!isProductRuleStrategy(catalogRule.strategy)) return program;
+  if (!isProductRuleStrategy(program.strategy)) return program;
+
+  return {
+    ...program,
+    ...(catalogRule.steps !== undefined ? { steps: catalogRule.steps } : {}),
+    ...(catalogRule.gates !== undefined ? { gates: catalogRule.gates } : {}),
+    ...(catalogRule.output !== undefined ? { output: catalogRule.output } : {}),
+  };
+}
+
+/**
+ * The rule to STORE on a bank program: its own object with the catalog's STRUCTURE
+ * removed.
+ *
+ * The wizard sends back the merged object it was rendering — right for the screen, wrong
+ * to keep. Storing the steps would make the link a one-time copy: the program would go
+ * on running yesterday's pipeline after the catalog changed the product, and the two
+ * would drift with nothing to reveal it. Figures are untouched — they ARE the bank's.
+ */
+export function stripCatalogStructure(config: IncomeAssumptionConfig): IncomeAssumptionConfig {
+  if (!isProductRuleStrategy(config.strategy)) return config;
+  if (config.steps === undefined && config.gates === undefined && config.output === undefined) {
+    return config;
+  }
+  const stripped: IncomeAssumptionConfig = { ...config };
+  delete stripped.steps;
+  delete stripped.gates;
+  delete stripped.output;
   return stripped;
 }

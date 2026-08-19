@@ -85,6 +85,14 @@ export interface PreviewMatch {
   figures: PreviewFigures | null;
   /** Why `figures` is null. `MONEY_FIGURE_MISSING` = the answers aren't in yet. */
   figuresUnavailableReason: string | null;
+  /**
+   * When the reason is `PRODUCT_RULE_GATE_FAILED`: which condition refused, as one of the closed
+   * `GATE_REASON_CODES`. Same field the apply response carries, so preview and apply explain the
+   * same refusal in the same words.
+   */
+  gateReasonCode: string | null;
+  /** When a product rule read answers the applicant has not given: which ones. */
+  missingFactKeys: string[] | null;
   approvalProbability: number;
   approvalTier: string;
   /**
@@ -365,6 +373,10 @@ export class MatchingPreviewService {
     // the same rule — a preview that priced off the program's stripped table while
     // apply priced off the catalog's would disagree on the amount it just advertised.
     const catalogRules = await this.enumerations.programNameIncomeRules();
+    // Same contract, same reason: one read for the whole book, and preview must resolve a
+    // product rule's parents from the same map apply does or the two would price a
+    // recategorised compound differently.
+    const parentKeyByValue = await this.enumerations.enumerationParentKeys();
 
     const matches: PreviewMatch[] = [];
     for (const p of rows) {
@@ -375,7 +387,11 @@ export class MatchingPreviewService {
         askedQuestionCodes,
       });
       const priced = profile
-        ? quoteProgram({ profile, program: toBankProgramSnapshot(p, catalogRules) })
+        ? quoteProgram({
+            profile,
+            program: toBankProgramSnapshot(p, catalogRules),
+            parentKeyByValue,
+          })
         : null;
       const quote = priced?.ok ? priced.quote : null;
       matches.push({
@@ -400,6 +416,9 @@ export class MatchingPreviewService {
           : priced && !priced.ok
             ? priced.unavailable.reason
             : 'MONEY_FIGURE_MISSING',
+        gateReasonCode: !quote && priced && !priced.ok ? (priced.unavailable.gateReasonCode ?? null) : null,
+        missingFactKeys:
+          !quote && priced && !priced.ok ? (priced.unavailable.missingFactKeys ?? null) : null,
         approvalProbability: probability,
         approvalTier: tier,
         approvalFactors: factors,

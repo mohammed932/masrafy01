@@ -5,10 +5,24 @@ import {
   KEY_TABLE_STRATEGIES,
   SCALAR_STRATEGIES,
   factKeyOf,
+  isProductRuleStrategy,
   type IncomeAssumptionConfig,
   type IncomeAssumptionStrategy,
 } from '@/matching/types';
 import type { SurrogateFactBinding } from '@/matching/pipeline/surrogate-fact-registry';
+import {
+  GATE_REASON_CODES,
+  optionalStepIds,
+  isGateConfigured,
+  isStepConfigured,
+  factsReadBy,
+  isStepOp,
+  paramKeysOf,
+  type ProductRule,
+  type RuleGate,
+  type RuleStep,
+  type ValueRef,
+} from '@/matching/pipeline/product-rule';
 import { legacyScalarKeysFor } from '@/matching/pipeline/income-rule-normalize';
 import type { IncomeRuleBandsInvalidReason } from '@/common/errors/domain.exceptions';
 
@@ -32,14 +46,61 @@ import type { IncomeRuleBandsInvalidReason } from '@/common/errors/domain.except
  */
 
 export type IncomeRuleViolation =
-  | { kind: 'empty'; strategy: IncomeAssumptionStrategy }
-  | { kind: 'incomeInvalid'; index?: number; key?: string; incomeEGP: string }
-  | { kind: 'duplicateKey'; key: string }
-  | { kind: 'unknownKey'; key: string; registry: string; activeKeys: string[] }
-  | { kind: 'bandsInvalid'; index: number | null; reason: IncomeRuleBandsInvalidReason }
+  | { kind: 'empty'; strategy: IncomeAssumptionStrategy; stepId?: string }
+  | { kind: 'incomeInvalid'; index?: number; key?: string; incomeEGP: string; stepId?: string }
+  | { kind: 'duplicateKey'; key: string; stepId?: string }
+  | { kind: 'unknownKey'; key: string; registry: string; activeKeys: string[]; stepId?: string }
+  | {
+      kind: 'bandsInvalid';
+      index: number | null;
+      reason: IncomeRuleBandsInvalidReason;
+      stepId?: string;
+    }
   | { kind: 'dbrOverrideInvalid'; value: string }
   /** The rule reads a registry fact the registry cannot serve (see the error code). */
-  | { kind: 'factUnavailable'; factKey: string; availableFacts: string[] };
+  | { kind: 'factUnavailable'; factKey: string; availableFacts: string[] }
+  /**
+   * A step pipeline that is not assemblable. ONE kind with a `reason`, not eleven kinds:
+   * every one of these is "the pipeline itself is wrong" and points the operator at the
+   * same editor, and eleven codes would need eleven sentences in every locale
+   * dictionary to say so (Principle III). The per-ROW problems inside a step — a
+   * duplicate key, a non-positive figure, unordered bands — keep reporting through the
+   * existing kinds above, with `stepId` added, because those messages are already right.
+   */
+  | {
+      kind: 'productRuleInvalid';
+      reason: ProductRuleInvalidReason;
+      stepId?: string;
+      gateId?: string;
+      detail?: string;
+    };
+
+export const PRODUCT_RULE_INVALID_REASONS = [
+  'no_steps',
+  'no_output',
+  'unknown_output_step',
+  'duplicate_step_id',
+  'unknown_op',
+  'forward_reference',
+  'unknown_step_reference',
+  'bad_constant',
+  'missing_fact',
+  'wrong_ref_count',
+  'unknown_param_key',
+  'bad_scalar',
+  'unconfigured_step',
+  'coalesce_empty',
+  'unknown_gate_reason',
+  'gate_bounds_missing',
+  'gate_expect_empty',
+  'bad_baseline_dbr',
+  'bad_output_kind',
+] as const;
+
+export type ProductRuleInvalidReason = (typeof PRODUCT_RULE_INVALID_REASONS)[number];
+
+/** The pipeline-shape half of the union, so a helper can add `gateId` without widening. */
+export type ProductRuleViolation = Extract<IncomeRuleViolation, { kind: 'productRuleInvalid' }>;
 
 /** Non-blocking findings. Reported in `data.warnings`, never a rejection. */
 export type IncomeRuleWarning =
@@ -50,6 +111,17 @@ export type IncomeRuleWarning =
       strategy: IncomeAssumptionStrategy;
     }
   | { kind: 'requiredDocumentsMissing'; missing: string[] };
+
+/**
+ * Who is being validated, which decides how complete the rule has to be.
+ *
+ * The DEFAULT is the strict one, so a caller that forgets to say is held to the bank's
+ * standard rather than the catalog's.
+ */
+export interface IncomeRuleValidationOptions {
+  /** `false` for a CATALOG name's rule: its figures are the banks' to fill in. */
+  figuresRequired?: boolean;
+}
 
 export interface IncomeRuleValidationContext {
   /** Whether `key` is an ACTIVE member of `enumerationType`. */
@@ -107,6 +179,7 @@ function toDecimalOrNull(value: string | null | undefined): Prisma.Decimal | nul
 export async function validateIncomeRule(
   config: IncomeAssumptionConfig | null | undefined,
   ctx: IncomeRuleValidationContext,
+  opts: IncomeRuleValidationOptions = {},
 ): Promise<IncomeRuleViolation | undefined> {
   if (!config) return undefined;
   const strategy = config.strategy;
@@ -122,6 +195,11 @@ export async function validateIncomeRule(
   // rather than a hardcoded per-method set.
   const factKey = factKeyOf(strategy);
   if (factKey !== null) return validateFactRule(config, factKey, ctx);
+
+  // A step pipeline, checked before the built-in sets for the same reason `fact:` is:
+  // the token names the SHAPE of the rule, and a pipeline carries no top-level table for
+  // the per-method checks below to look at.
+  if (isProductRuleStrategy(strategy)) return validateProductRule(config, ctx, opts);
 
   if (KEY_STRATEGY_SET.has(strategy)) {
     return validateKeyTable(config, strategy, ctx);
@@ -196,6 +274,383 @@ async function validateFactRule(
     }
   }
 
+  return undefined;
+}
+
+/**
+ * A STEP PIPELINE (`strategy: 'steps'`).
+ *
+ * Two halves, and they belong to different people:
+ *
+ *   STRUCTURE — `steps`, `gates`, `output` — is the catalog program NAME's. Checked here
+ *   because this is where both writes converge: `PUT program-names/:key/income-rule` and
+ *   every bank-program save run the same `validateIncomeRule`, so the catalog can never
+ *   accept a pipeline a program is then refused for.
+ *
+ *   FIGURES — `stepParams` — are the bank's. Checked per step against the op that step
+ *   runs, delegating to the SAME `validateBands` / row checks the single-fact methods
+ *   use, so a duplicate key or an unordered band reports the message it already has.
+ *
+ * Fails on the FIRST problem, like every other validator here. A pipeline with four
+ * broken steps is not four fixes, it is an unfinished pipeline, and reporting all four
+ * would bury the one the operator is mid-way through typing.
+ */
+async function validateProductRule(
+  config: IncomeAssumptionConfig,
+  ctx: IncomeRuleValidationContext,
+  opts: IncomeRuleValidationOptions,
+): Promise<IncomeRuleViolation | undefined> {
+  // A CATALOG rule is the structure and, at most, a set of starting figures. Requiring it to
+  // be complete would refuse the very thing it exists to be: the four banks under one
+  // compound frame disagree about every number in it, so the catalog states none of them and
+  // each bank fills its own. A BANK's rule is held to completeness, which is where an
+  // unfinished pipeline actually costs an applicant a quote.
+  const figuresRequired = opts.figuresRequired ?? true;
+  const rule = config as ProductRule;
+  const steps = rule.steps ?? [];
+
+  if (steps.length === 0) return { kind: 'productRuleInvalid', reason: 'no_steps' };
+  if (!rule.output?.from) return { kind: 'productRuleInvalid', reason: 'no_output' };
+  if (rule.output.kind !== 'monthlyIncome' && rule.output.kind !== 'maxAmount') {
+    return { kind: 'productRuleInvalid', reason: 'bad_output_kind', detail: String(rule.output.kind) };
+  }
+
+  const baseline = rule.output.baselineDbrPercent;
+  if (baseline !== undefined) {
+    const parsed = toDecimalOrNull(baseline);
+    if (parsed === null || parsed.lessThanOrEqualTo(ZERO) || parsed.greaterThan(HUNDRED)) {
+      return { kind: 'productRuleInvalid', reason: 'bad_baseline_dbr', detail: baseline };
+    }
+  }
+
+  // The registry is read ONCE. A per-step probe would ask the same question ten times
+  // and let the ten answers differ mid-save.
+  const registry = await ctx.surrogateFacts();
+  const factByKey = new Map(registry.map((f) => [f.key, f]));
+  const missingFact = factsReadBy(rule).find((key) => !factByKey.has(key));
+  if (missingFact !== undefined) {
+    return { kind: 'factUnavailable', factKey: missingFact, availableFacts: registry.map((f) => f.key) };
+  }
+
+  const params = rule.stepParams ?? {};
+
+  // Steps a `coalesce` chooses between, and steps a gate compares against, are OPTIONAL:
+  // leaving one blank is how a bank declines a derivation or a condition the catalog offers.
+  // Every other step must be configured, or the rule would quote nothing and say only that
+  // something, somewhere, was unset.
+  const optional = optionalStepIds(rule);
+
+  const seenIds = new Set<string>();
+  for (const step of steps) {
+    if (seenIds.has(step.id)) {
+      return { kind: 'productRuleInvalid', reason: 'duplicate_step_id', stepId: step.id };
+    }
+    if (!isStepOp(step.op)) {
+      return { kind: 'productRuleInvalid', reason: 'unknown_op', stepId: step.id, detail: String(step.op) };
+    }
+
+    const refProblem = validateRefs(refsOf(step.of), seenIds, step.id);
+    if (refProblem) return refProblem;
+
+    const arity = validateArity(step);
+    if (arity) return arity;
+
+    // Every step id is in scope for LATER steps only, so a self- or forward reference is
+    // caught above rather than resolving to nothing at quote time.
+    seenIds.add(step.id);
+
+    const figures = params[step.id] ?? {};
+    if (!isStepConfigured(step, figures)) {
+      if (figuresRequired && !optional.has(step.id)) {
+        return { kind: 'productRuleInvalid', reason: 'unconfigured_step', stepId: step.id };
+      }
+      // Declined, and legitimately blank. Nothing to check inside it.
+      continue;
+    }
+    const problem = await validateStepFigures(step, figures, factByKey, ctx);
+    if (problem) return problem;
+  }
+
+  // Every `coalesce` needs at least ONE configured candidate. Without this a bank could
+  // save a rule that declines all four derivations and reports `rule_unconfigured` to every
+  // applicant — the definition of a program that looks live and quotes nothing.
+  for (const step of steps) {
+    if (!figuresRequired) break;
+    if (step.op !== 'coalesce') continue;
+    const candidates = refsOf(step.of).flatMap((ref) => ('step' in ref ? [ref.step] : []));
+    const anyConfigured = candidates.some((id) => {
+      const candidate = steps.find((s2) => s2.id === id);
+      return candidate !== undefined && isStepConfigured(candidate, params[id] ?? {});
+    });
+    // A coalesce over facts or literals has nothing to leave blank, so it is always fine.
+    if (candidates.length > 0 && !anyConfigured) {
+      return { kind: 'productRuleInvalid', reason: 'coalesce_empty', stepId: step.id };
+    }
+  }
+
+  if (!seenIds.has(rule.output.from)) {
+    return { kind: 'productRuleInvalid', reason: 'unknown_output_step', stepId: rule.output.from };
+  }
+
+  for (const gate of rule.gates ?? []) {
+    const figures = params[gate.id] ?? {};
+    // A gate the bank did not turn on carries nothing to check. Its reason code is still
+    // checked below, because that belongs to the CATALOG and is wrong for every bank.
+    if (!isGateConfigured(gate, figures, seenIds)) {
+      const reasonProblem = validateGateReasonCode(gate);
+      if (reasonProblem) return reasonProblem;
+      continue;
+    }
+    const problem = validateGate(gate, figures, seenIds);
+    if (problem) return problem;
+  }
+
+  // LAST, deliberately. Figures for a step the pipeline does not have are almost always
+  // the trace of a step the catalog renamed or removed — a CONSEQUENCE of something wrong
+  // above, not the cause — so reporting it first would send the operator to fix the
+  // symptom. Refused rather than ignored, though: silently dropping the numbers would
+  // lose figures the bank still believes it states.
+  const declaredIds = new Set(paramKeysOf(rule));
+  const strayParam = Object.keys(params).find((key) => !declaredIds.has(key));
+  if (strayParam !== undefined) {
+    return { kind: 'productRuleInvalid', reason: 'unknown_param_key', stepId: strayParam };
+  }
+
+  return undefined;
+}
+
+function refsOf(of: RuleStep['of']): ValueRef[] {
+  if (of === undefined) return [];
+  return Array.isArray(of) ? of : [of];
+}
+
+/** A reference may name an EARLIER step, a registry fact, or a parseable literal. */
+function validateRefs(
+  refs: readonly ValueRef[],
+  earlierIds: ReadonlySet<string>,
+  stepId: string,
+): ProductRuleViolation | undefined {
+  for (const ref of refs) {
+    if ('step' in ref) {
+      if (ref.step === stepId) {
+        return { kind: 'productRuleInvalid', reason: 'forward_reference', stepId, detail: ref.step };
+      }
+      if (!earlierIds.has(ref.step)) {
+        // Either it does not exist or it comes later. Both are one mistake to the
+        // operator — "this step reads a value that is not available here" — and the
+        // reason names which of the two it is.
+        return {
+          kind: 'productRuleInvalid',
+          reason: 'unknown_step_reference',
+          stepId,
+          detail: ref.step,
+        };
+      }
+      continue;
+    }
+    if ('const' in ref && toDecimalOrNull(ref.const) === null) {
+      return { kind: 'productRuleInvalid', reason: 'bad_constant', stepId, detail: ref.const };
+    }
+  }
+  return undefined;
+}
+
+/** How many inputs each op needs. `subtract` is ordered, so exactly two. */
+function validateArity(step: RuleStep): ProductRuleViolation | undefined {
+  const count = refsOf(step.of).length;
+  const needsFact =
+    step.op === 'factNumber' || step.op === 'factChoiceTable' || step.op === 'factParentTable';
+
+  if (needsFact) {
+    return step.fact
+      ? undefined
+      : { kind: 'productRuleInvalid', reason: 'missing_fact', stepId: step.id };
+  }
+  if (step.op === 'constant') return undefined;
+  if (step.op === 'subtract' && count !== 2) {
+    return { kind: 'productRuleInvalid', reason: 'wrong_ref_count', stepId: step.id, detail: '2' };
+  }
+  if (step.op !== 'subtract' && count < 1) {
+    return { kind: 'productRuleInvalid', reason: 'wrong_ref_count', stepId: step.id, detail: '1+' };
+  }
+  return undefined;
+}
+
+/** The bank's figures for one step, checked against the op that will spend them. */
+async function validateStepFigures(
+  step: RuleStep,
+  figures: NonNullable<IncomeAssumptionConfig['stepParams']>[string],
+  factByKey: ReadonlyMap<string, SurrogateFactBinding>,
+  ctx: IncomeRuleValidationContext,
+): Promise<IncomeRuleViolation | undefined> {
+  switch (step.op) {
+    case 'constant': {
+      const value = toDecimalOrNull(figures.valueEGP);
+      // Zero IS legal here and negative is not: a `constant` of 0 is the idiom for
+      // clamping a subtraction with `maxOf`, which the ops test pins down.
+      if (value === null || value.lessThan(ZERO)) {
+        return { kind: 'incomeInvalid', stepId: step.id, incomeEGP: figures.valueEGP ?? '' };
+      }
+      return undefined;
+    }
+
+    case 'factChoiceTable':
+    case 'factParentTable': {
+      const table = figures.keyTable;
+      if (!table || table.length === 0) {
+        return { kind: 'empty', strategy: 'steps', stepId: step.id };
+      }
+      // A choice step's keys ARE the bound question's option codes, exactly as for a
+      // `fact:` rule — one list by construction, so a renamed option cannot leave a table
+      // pointing at a key nobody can answer.
+      //
+      // A PARENT step's keys are not checked: they are the `parentKey` of the registry
+      // rows behind those options, which is data this validator has no view of, and
+      // refusing on a stale one would refuse a save that a lookup fix elsewhere makes
+      // valid — the v16.4.1 lesson about a catalog tick blocking a legitimate program.
+      const questionCode = step.op === 'factChoiceTable' && step.fact
+        ? factByKey.get(step.fact)?.questionCode
+        : undefined;
+      const optionCodes = questionCode ? new Set(await ctx.questionOptionCodes(questionCode)) : null;
+
+      const seen = new Set<string>();
+      for (const row of table) {
+        if (seen.has(row.key)) return { kind: 'duplicateKey', key: row.key, stepId: step.id };
+        seen.add(row.key);
+        const value = toDecimalOrNull(row.incomeEGP);
+        if (value === null || value.lessThanOrEqualTo(ZERO)) {
+          return { kind: 'incomeInvalid', key: row.key, incomeEGP: row.incomeEGP, stepId: step.id };
+        }
+        if (optionCodes && !optionCodes.has(row.key)) {
+          return {
+            kind: 'unknownKey',
+            key: row.key,
+            registry: questionCode as string,
+            activeKeys: [...optionCodes],
+            stepId: step.id,
+          };
+        }
+      }
+      return undefined;
+    }
+
+    case 'bandTable': {
+      // The SAME band checks the single-fact methods run — ordering, gaps, overlaps, the
+      // open-ended-last rule, positive figures. Passed a synthetic config rather than
+      // refactored into a row-level helper: the function is already exactly right, and a
+      // second entry point is a second thing to keep in step.
+      const violation = validateBands({ strategy: 'steps', bands: figures.bands }, 'steps', {
+        bandsRequired: true,
+      });
+      if (!violation) return undefined;
+      switch (violation.kind) {
+        case 'empty':
+        case 'bandsInvalid':
+        case 'incomeInvalid':
+          return { ...violation, stepId: step.id };
+        default:
+          return violation;
+      }
+    }
+
+    case 'percentOf':
+    case 'upliftPercent':
+    case 'multiply': {
+      // A step that takes its factor from a SECOND input states no figure — the compound
+      // product's down payment is the customer's percentage of the customer's price, and
+      // there is no bank number in it. Requiring a scalar anyway would force the operator
+      // to type one the engine then ignores.
+      if (refsOf(step.of).length >= 2) return undefined;
+      const value = toDecimalOrNull(figures.scalar?.value);
+      if (value === null || value.lessThanOrEqualTo(ZERO)) {
+        return {
+          kind: 'productRuleInvalid',
+          reason: 'bad_scalar',
+          stepId: step.id,
+          detail: figures.scalar?.value ?? '',
+        };
+      }
+      return undefined;
+    }
+
+    default:
+      // `factNumber`, `sum`, `subtract`, `minOf`, `maxOf` — pure arithmetic over values
+      // the steps above produced. No figures to state, so nothing to check.
+      return undefined;
+  }
+}
+
+/**
+ * The gate's reason code, checked whether or not any bank turned the gate on.
+ *
+ * It is the CATALOG's field: a code with no sentence in the locale dictionaries would render
+ * as a raw id the day the first bank turns it on (Principle III / A2), and by then the
+ * catalog edit that introduced it is long saved.
+ */
+function validateGateReasonCode(gate: RuleGate): ProductRuleViolation | undefined {
+  if ((GATE_REASON_CODES as readonly string[]).includes(gate.reasonCode)) return undefined;
+  return {
+    kind: 'productRuleInvalid',
+    reason: 'unknown_gate_reason',
+    gateId: gate.id,
+    detail: String(gate.reasonCode),
+  };
+}
+
+function validateGate(
+  gate: RuleGate,
+  figures: NonNullable<IncomeAssumptionConfig['stepParams']>[string],
+  stepIds: ReadonlySet<string>,
+): IncomeRuleViolation | undefined {
+  const reasonProblem = validateGateReasonCode(gate);
+  if (reasonProblem) return reasonProblem;
+
+  if (gate.kind === 'choice') {
+    return gate.expect?.length
+      ? undefined
+      : { kind: 'productRuleInvalid', reason: 'gate_expect_empty', gateId: gate.id };
+  }
+
+  const refProblem = validateRefs([gate.left], stepIds, gate.id);
+  if (refProblem) return { ...refProblem, gateId: gate.id };
+
+  if (gate.kind === 'numberByKey') {
+    const table = figures.keyTable;
+    if (!table || table.length === 0) return { kind: 'empty', strategy: 'steps', stepId: gate.id };
+    const seen = new Set<string>();
+    for (const row of table) {
+      if (seen.has(row.key)) return { kind: 'duplicateKey', key: row.key, stepId: gate.id };
+      seen.add(row.key);
+      // A bound of 0 is legal — "no minimum for this key" is a real bank policy, and CAE
+      // states exactly that for its salaried segment.
+      const value = toDecimalOrNull(row.incomeEGP);
+      if (value === null || value.lessThan(ZERO)) {
+        return { kind: 'incomeInvalid', key: row.key, incomeEGP: row.incomeEGP, stepId: gate.id };
+      }
+    }
+    return undefined;
+  }
+
+  // A gate comparing against another STEP states no bound of its own — the requirement is
+  // derived (one bank's required down-payment percentage is a band over the unit price).
+  if (gate.right !== undefined) {
+    const rightProblem = validateRefs([gate.right], stepIds, gate.id);
+    return rightProblem ? { ...rightProblem, gateId: gate.id } : undefined;
+  }
+
+  const min = toDecimalOrNull(figures.minValue);
+  const max = toDecimalOrNull(figures.maxValue);
+  const needsMin = gate.op === 'gte' || gate.op === 'gt' || gate.op === 'between';
+  const needsMax = gate.op === 'lte' || gate.op === 'lt' || gate.op === 'between';
+  if ((needsMin && min === null) || (needsMax && max === null)) {
+    // Refused rather than treated as "no bound": a gate the bank has not filled in would
+    // otherwise report `rule_unconfigured` to every applicant at quote time, which reads
+    // as a broken product rather than an unfinished one.
+    return { kind: 'productRuleInvalid', reason: 'gate_bounds_missing', gateId: gate.id };
+  }
+  if (min !== null && max !== null && min.greaterThan(max)) {
+    return { kind: 'productRuleInvalid', reason: 'gate_bounds_missing', gateId: gate.id, detail: 'min>max' };
+  }
   return undefined;
 }
 
@@ -455,6 +910,22 @@ export function stripForeignMethodConfig(
       : {}),
     ...(config.combinationRule !== undefined ? { combinationRule: config.combinationRule } : {}),
   };
+
+  // A STEP PIPELINE keeps BOTH halves here, and the split is made one step later.
+  //
+  // This function has two callers with opposite needs: the CATALOG write, whose rule IS
+  // the structure plus the starting figures, and the bank-program save, which must keep
+  // only the figures. Dropping the structure here would serve the second and silently
+  // destroy the first — the catalog's own steps would be stripped by its own save. So
+  // both survive this pass, and `stripCatalogStructure` (called only on the program path,
+  // in `persistableIncomeAssumption`) is what removes the catalog's half from a bank row.
+  if (isProductRuleStrategy(strategy)) {
+    if (config.steps !== undefined) keep.steps = config.steps;
+    if (config.gates !== undefined) keep.gates = config.gates;
+    if (config.output !== undefined) keep.output = config.output;
+    if (config.stepParams !== undefined) keep.stepParams = config.stepParams;
+    return keep;
+  }
 
   if (factKeyOf(strategy) !== null) {
     // A REGISTRY fact keeps whichever canonical shape the save carries — this function

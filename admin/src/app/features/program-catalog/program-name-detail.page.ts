@@ -41,6 +41,9 @@ import {
   type IncomeKeyTableRow,
   type ProgramNameIncomeRule,
   type ValueSourceMap,
+  type ProductRuleOutput,
+  type RuleGate,
+  type RuleStep,
 } from '@features/bank-programs/bank-programs.types';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
@@ -239,6 +242,9 @@ interface QuestionRow {
                 (estimatedBandChange)="toggleRuleEstimatedBand($event)"
                 (keyStructureChange)="onRuleKeyStructureChange($event)"
                 (bandStructureChange)="onRuleBandStructureChange($event)"
+                [ruleSteps]="ruleSteps()"
+                [ruleGates]="ruleGates()"
+                [ruleOutput]="ruleOutput()"
               ></app-income-assumption-section>
 
               <!-- Who reads this. Quiet by design: it is a fact, not a warning — and it
@@ -1939,7 +1945,10 @@ export class ProgramNameDetailPage implements OnInit {
    * for a path the operator could no longer see.
    */
   protected onRuleKeyStructureChange(
-    event: { kind: 'rename'; from: string; to: string } | { kind: 'remove'; key: string } | { kind: 'reset' },
+    event:
+      | { kind: 'rename'; from: string; to: string }
+      | { kind: 'remove'; key: string }
+      | { kind: 'reset' },
   ): void {
     this.ruleValueSources.update((map) => {
       if (event.kind === 'reset') return {};
@@ -1963,7 +1972,9 @@ export class ProgramNameDetailPage implements OnInit {
    * one shifts every marker after it — left alone, a tick would silently jump to the
    * neighbouring figure, which is worse than losing it.
    */
-  protected onRuleBandStructureChange(event: { kind: 'remove'; index: number } | { kind: 'reset' }): void {
+  protected onRuleBandStructureChange(
+    event: { kind: 'remove'; index: number } | { kind: 'reset' },
+  ): void {
     this.ruleValueSources.update((map) => {
       if (event.kind === 'reset') return {};
       const next: ValueSourceMap = {};
@@ -2035,9 +2046,31 @@ export class ProgramNameDetailPage implements OnInit {
    * thing. Everything the server refuses that the client cannot know — the proof being
    * in use, a key the registry has retired — comes back as `ruleError`.
    */
+  /**
+   * A product rule's structure, as stored on this name.
+   *
+   * The catalog variant renders it read-only: the pipeline is what an operator needs to
+   * UNDERSTAND the product and to know which figures its banks must fill, and authoring one —
+   * adding a step, wiring a reference — is still an API or seed action. Stated in the section's
+   * own note rather than left for the operator to discover by finding no Add button.
+   */
+  protected readonly ruleSteps = computed<readonly RuleStep[]>(
+    () => (this.rule()?.incomeRule as { steps?: RuleStep[] } | null | undefined)?.steps ?? [],
+  );
+  protected readonly ruleGates = computed<readonly RuleGate[]>(
+    () => (this.rule()?.incomeRule as { gates?: RuleGate[] } | null | undefined)?.gates ?? [],
+  );
+  protected readonly ruleOutput = computed<ProductRuleOutput | null>(
+    () =>
+      (this.rule()?.incomeRule as { output?: ProductRuleOutput } | null | undefined)?.output ??
+      null,
+  );
+
   protected async saveRule(): Promise<void> {
     const strategy = this.ruleGroup.controls.strategy.value;
     const local = incomeRuleHasError({
+      // A pipeline's figures are its banks' — `incomeRuleHasError` returns `false` for it, and
+      // the server validates a catalog rule with `figuresRequired: false` for the same reason.
       shape: incomeMethodShape(strategy, this.factsForShape()),
       keyTable: this.ruleKeyTable(),
       bands: this.ruleBands(),
@@ -2095,9 +2128,7 @@ export class ProgramNameDetailPage implements OnInit {
   private localizedError(err: unknown): string {
     const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })?.error;
     return this.errors.toLocalizedMessage(
-      (envelope?.code ?? 'INTERNAL_ERROR') as Parameters<
-        ErrorCodeService['toLocalizedMessage']
-      >[0],
+      (envelope?.code ?? 'INTERNAL_ERROR') as Parameters<ErrorCodeService['toLocalizedMessage']>[0],
       envelope?.meta,
     );
   }

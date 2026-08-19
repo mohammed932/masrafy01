@@ -10,7 +10,14 @@ export type EnumerationType =
   | 'governorate'
   | 'program_name'
   /** The income FACTS a no-payslip rule can be keyed by — operator-managed since v16.2.0. */
-  | 'surrogate_fact';
+  | 'surrogate_fact'
+  /**
+   * The collateral products' lists. A `compound` row carries its CLASS in `parentKey`, which
+   * is how a bank keys a five-row cap table while the customer picks a compound by name.
+   */
+  | 'compound_category'
+  | 'compound'
+  | 'club_class';
 
 import type { LoanCategory } from '@core/loan-category';
 import type { IncomeBasis } from '@core/income-basis';

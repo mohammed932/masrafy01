@@ -16,17 +16,41 @@ export function calculateMonthlyInstallment(
   annualRatePercent: Decimal,
   tenorMonths: number,
 ): Decimal {
+  return monthlyInstallmentRaw(principalEGP, annualRatePercent, tenorMonths).toDecimalPlaces(
+    2,
+    ROUND_BANKERS,
+  );
+}
+
+/**
+ * The same annuity, UNROUNDED.
+ *
+ * Exists for one caller: `ceilingToIncome`, which turns a collateral ceiling into the
+ * income that ceiling implies and then hands it to `calculateMaxLoanFromDbr`, which
+ * inverts the very same annuity. Rounding the instalment to piastres mid-way makes the
+ * round trip lose up to a few piastres, and the customer is then shown a ceiling of
+ * 1 999 999.83 against a bank table that plainly says 2 000 000.
+ *
+ * Two precisions, ONE formula — a second annuity written out beside this one is how the
+ * two would eventually disagree about a number an offer freezes (Principle I).
+ *
+ * Never use this for a figure anyone is shown or anything is billed on: those are
+ * money, and money is rounded here, once, with banker's rounding.
+ */
+export function monthlyInstallmentRaw(
+  principalEGP: Decimal,
+  annualRatePercent: Decimal,
+  tenorMonths: number,
+): Decimal {
   const one = new Decimal(1);
   const monthlyRate = annualRatePercent.div(100).div(12);
 
-  if (monthlyRate.isZero()) {
-    return principalEGP.div(tenorMonths).toDecimalPlaces(2, ROUND_BANKERS);
-  }
+  if (monthlyRate.isZero()) return principalEGP.div(tenorMonths);
 
   const factor = one.plus(monthlyRate).pow(tenorMonths);
   const numerator = principalEGP.mul(monthlyRate).mul(factor);
   const denominator = factor.minus(one);
-  return numerator.div(denominator).toDecimalPlaces(2, ROUND_BANKERS);
+  return numerator.div(denominator);
 }
 
 export function calculateEffectiveLoanAmount(

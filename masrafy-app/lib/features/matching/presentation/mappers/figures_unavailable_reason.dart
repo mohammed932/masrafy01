@@ -35,6 +35,12 @@ class FiguresUnavailableReasons {
   /// Feature 011 — the fact was answered, but no row or band covers it.
   static const String surrogateNoMatchingRow = 'SURROGATE_NO_MATCHING_ROW';
 
+  /// A COLLATERAL product's own condition refused — the share paid is short, the
+  /// ownership contract is outside the bank's window, the strongest unit was not
+  /// confirmed. Which condition is in `gateReasonCode`, and that is the sentence worth
+  /// showing: "a condition was not met" is not something a customer can act on.
+  static const String productRuleGateFailed = 'PRODUCT_RULE_GATE_FAILED';
+
   /// Every code, so a test can assert none is left without a sentence.
   static const List<String> all = [
     noRecognisedIncome,
@@ -44,11 +50,51 @@ class FiguresUnavailableReasons {
     programMisconfigured,
     surrogateFactMissing,
     surrogateNoMatchingRow,
+    productRuleGateFailed,
+  ];
+}
+
+/// The conditions a collateral product can refuse on — the backend's closed
+/// `GATE_REASON_CODES`.
+///
+/// A closed list, and it has to be: a gate's own ID is authored by an operator on the
+/// program catalog and could never have a translation, so the engine reports one of these
+/// instead and every one has a sentence in both locales (Principle III / A2).
+class GateReasonCodes {
+  const GateReasonCodes._();
+
+  static const String downPaymentBelowMin = 'DOWN_PAYMENT_BELOW_MIN';
+  static const String unitPriceBelowMin = 'UNIT_PRICE_BELOW_MIN';
+  static const String contractTooNew = 'CONTRACT_TOO_NEW';
+  static const String contractTooOld = 'CONTRACT_TOO_OLD';
+  static const String ownershipNotConfirmed = 'OWNERSHIP_NOT_CONFIRMED';
+  static const String multiUnitNotConfirmed = 'MULTI_UNIT_NOT_CONFIRMED';
+  static const String notMet = 'GATE_NOT_MET';
+
+  static const List<String> all = [
+    downPaymentBelowMin,
+    unitPriceBelowMin,
+    contractTooNew,
+    contractTooOld,
+    ownershipNotConfirmed,
+    multiUnitNotConfirmed,
+    notMet,
   ];
 }
 
 /// The localized sentence for a backend reason code.
-String figuresUnavailableLabel(AppLocalizations l10n, String? reasonCode) {
+///
+/// `gateReasonCode` is consulted FIRST when the reason is a refused collateral condition:
+/// the generic line ("a condition your answers don't meet") is true and useless, and the
+/// specific one names something the customer can go and change.
+String figuresUnavailableLabel(
+  AppLocalizations l10n,
+  String? reasonCode, {
+  String? gateReasonCode,
+}) {
+  if (reasonCode == FiguresUnavailableReasons.productRuleGateFailed) {
+    return gateReasonLabel(l10n, gateReasonCode);
+  }
   switch (reasonCode) {
     case FiguresUnavailableReasons.noRecognisedIncome:
       return l10n.reason_no_recognised_income;
@@ -64,9 +110,37 @@ String figuresUnavailableLabel(AppLocalizations l10n, String? reasonCode) {
       return l10n.reason_surrogate_fact_missing;
     case FiguresUnavailableReasons.surrogateNoMatchingRow:
       return l10n.reason_surrogate_no_matching_row;
+    case FiguresUnavailableReasons.productRuleGateFailed:
+      // Reachable only when no gate code came with it — a build that predates one of the
+      // conditions, or an older application replayed.
+      return l10n.gate_not_met;
     default:
       // A code this build predates. The generic line is honest and says nothing
       // false; printing the token would leak an internal identifier onto the screen.
       return l10n.results_unavailable_generic;
+  }
+}
+
+/// The localized sentence for one refused condition.
+///
+/// An unrecognised code falls back to the generic line rather than printing the token: a
+/// build that predates a condition must not put `MULTI_UNIT_NOT_CONFIRMED` on a customer's
+/// screen.
+String gateReasonLabel(AppLocalizations l10n, String? gateReasonCode) {
+  switch (gateReasonCode) {
+    case GateReasonCodes.downPaymentBelowMin:
+      return l10n.gate_down_payment_below_min;
+    case GateReasonCodes.unitPriceBelowMin:
+      return l10n.gate_unit_price_below_min;
+    case GateReasonCodes.contractTooNew:
+      return l10n.gate_contract_too_new;
+    case GateReasonCodes.contractTooOld:
+      return l10n.gate_contract_too_old;
+    case GateReasonCodes.ownershipNotConfirmed:
+      return l10n.gate_ownership_not_confirmed;
+    case GateReasonCodes.multiUnitNotConfirmed:
+      return l10n.gate_multi_unit_not_confirmed;
+    default:
+      return l10n.gate_not_met;
   }
 }

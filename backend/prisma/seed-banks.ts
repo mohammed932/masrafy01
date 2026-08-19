@@ -47,6 +47,12 @@ const BANKS: readonly SeedBank[] = [
   { nameEnglish: 'ADIB Egypt', nameArabic: 'مصرف أبو ظبي الإسلامي – مصر', displayOrder: 8 },
   { nameEnglish: 'HSBC Egypt', nameArabic: 'إتش إس بي سي مصر', displayOrder: 9 },
   { nameEnglish: 'Housing & Development Bank', nameArabic: 'بنك التعمير والإسكان', displayOrder: 10 },
+  // The three partners on the compound-ownership guarantee besides ABK. Added with that
+  // product (`seed-collateral-products.ts`), which cannot write a program without a bank row
+  // — `bank_program.bankId` is a real FK.
+  { nameEnglish: 'EG Bank', nameArabic: 'البنك المصري الخليجي', displayOrder: 11 },
+  { nameEnglish: 'FABMISR', nameArabic: 'بنك أبوظبي الأول مصر', displayOrder: 12 },
+  { nameEnglish: 'Crédit Agricole Egypt', nameArabic: 'كريدي أجريكول مصر', displayOrder: 13 },
 ];
 
 const SEED_NOTE = 'Created by seed-banks.ts (dev data) — verify details before any shared use.';

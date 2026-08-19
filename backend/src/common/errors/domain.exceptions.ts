@@ -711,6 +711,19 @@ export class IncomeRuleFactUnavailableException extends DomainException {
 }
 
 /**
+ * A step pipeline that cannot be assembled.
+ *
+ * `reason` is the machine-readable half (one of `PRODUCT_RULE_INVALID_REASONS`) and the
+ * ids are the human half: the admin editor highlights the step or gate named here, so a
+ * pipeline of ten steps does not have to be re-read to find the one that is wrong.
+ */
+export class ProductRuleInvalidException extends DomainException {
+  constructor(meta: { reason: string; stepId?: string; gateId?: string; detail?: string }) {
+    super(ERROR_CODES.PRODUCT_RULE_INVALID, meta);
+  }
+}
+
+/**
  * One name, one income proof — the program disagrees with the name it is filed under.
  * `expected` is the catalog's answer, which is the one that stands.
  */

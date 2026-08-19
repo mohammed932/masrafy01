@@ -13,7 +13,18 @@
  * asserts the two agree on every reason token.
  */
 
-import type { IncomeBand, IncomeKeyTableRow } from '@features/bank-programs/bank-programs.types';
+import {
+  optionalStepIds,
+  stepIsConfigured,
+  stepRefs,
+} from '@features/bank-programs/bank-programs.types';
+import type {
+  IncomeBand,
+  IncomeKeyTableRow,
+  RuleGate,
+  RuleStep,
+  StepFigures,
+} from '@features/bank-programs/bank-programs.types';
 
 // ── Key tables ──────────────────────────────────────────────────────────────
 
@@ -116,12 +127,16 @@ export function incomeBandsErrorFor(rows: readonly IncomeBand[]): IncomeBandsErr
  * rule the resolver then answered with a hardcoded 3%.
  */
 export function incomeRuleHasError(args: {
-  shape: 'keyTable' | 'bands' | 'scalar' | 'none';
+  shape: 'keyTable' | 'bands' | 'scalar' | 'none' | 'steps';
   keyTable: readonly IncomeKeyTableRow[];
   bands: readonly IncomeBand[];
   scalarValue: string | null | undefined;
   isValueMethod: boolean;
 }): boolean {
+  // A step pipeline's validity is per STEP, and the host knows the steps; this function is
+  // handed only the single-method shapes. Deferred rather than half-answered — a `false` here
+  // is "not my question", and `productRuleHasError` below is where it is asked.
+  if (args.shape === 'steps') return false;
   switch (args.shape) {
     case 'keyTable':
       return incomeKeyTableErrorFor(args.keyTable) !== null;
@@ -143,4 +158,49 @@ function isPositiveNumeric(raw: string | null | undefined): boolean {
   if (raw === null || raw === undefined || raw.trim() === '') return false;
   const value = Number(raw);
   return Number.isFinite(value) && value > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Product rules
+// ---------------------------------------------------------------------------
+
+/**
+ * The save gate for a step pipeline — a client-side mirror of the backend's
+ * `unconfigured_step` and `coalesce_empty` refusals.
+ *
+ * Two rules, and they are the two the server enforces:
+ *
+ *   1. Every step that is not OPTIONAL must carry its figures. Optional means a `coalesce`
+ *      chooses between it and others, or a gate compares against it — leaving one blank is how
+ *      a bank declines a derivation or a condition the catalog offers.
+ *   2. Every `coalesce` needs at least one configured candidate. Without that the program
+ *      saves clean and reports "no figures" to every applicant.
+ *
+ * The server re-checks and is the authority; a disagreement between the two is the worst
+ * outcome, which is why the shape of both is one shared set of pure helpers in
+ * `bank-programs.types.ts` rather than a second reading of the same rules here.
+ */
+export function productRuleHasError(args: {
+  steps: readonly RuleStep[];
+  gates: readonly RuleGate[];
+  figures: Readonly<Record<string, StepFigures>>;
+}): boolean {
+  const { steps, gates, figures } = args;
+  if (steps.length === 0) return true;
+
+  const optional = optionalStepIds(steps, gates);
+  const configured = new Set<string>();
+  for (const step of steps) {
+    const ok = stepIsConfigured(step, figures[step.id]);
+    if (ok) configured.add(step.id);
+    if (!ok && !optional.has(step.id)) return true;
+  }
+
+  for (const step of steps) {
+    if (step.op !== 'coalesce') continue;
+    const candidates = stepRefs(step).flatMap((ref) => ('step' in ref ? [ref.step] : []));
+    if (candidates.length > 0 && !candidates.some((id) => configured.has(id))) return true;
+  }
+
+  return false;
 }

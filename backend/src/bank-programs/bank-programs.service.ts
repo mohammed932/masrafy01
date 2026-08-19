@@ -25,6 +25,7 @@ import {
   IncomeRuleBandsInvalidException,
   IncomeRuleDbrOverrideInvalidException,
   IncomeRuleFactUnavailableException,
+  ProductRuleInvalidException,
   IncomeRuleDuplicateKeyException,
   IncomeRuleEmptyException,
   IncomeRuleIncomeInvalidException,
@@ -88,6 +89,7 @@ import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import {
   effectiveIncomeRule,
+  stripCatalogStructure,
   stripInheritedAmounts,
 } from '@/matching/pipeline/income-rule-inherit';
 import { quoteProgram } from '@/matching/pipeline/quote';
@@ -664,7 +666,9 @@ export class BankProgramsService {
    *   2. `normalizeIncomeAssumption` — write the CANONICAL shape (FR-014), so the
    *      legacy shapes converge to one truth as programs are saved, without a
    *      migration and without the engine keeping two readers.
-   *   3. `stripInheritedAmounts` — a program on CATALOG amounts stores none of its
+   *   3. `stripCatalogStructure` — the catalog's own half of a product rule never
+   *      reaches the program row; see the note at the call.
+   *   4. `stripInheritedAmounts` — a program on CATALOG amounts stores none of its
    *      own. Without this the screen's pre-filled copy would be persisted, and the
    *      program would keep quoting those figures after the catalog moved: the
    *      inheritance would be a one-time copy wearing the label of a link.
@@ -675,7 +679,11 @@ export class BankProgramsService {
     const stripped = stripForeignMethodConfig(
       dto.incomeAssumption as unknown as IncomeAssumptionConfig,
     );
-    return stripInheritedAmounts(normalizeIncomeAssumption(stripped));
+    // 4. `stripCatalogStructure` — a product rule's steps / gates / output belong to the
+    //    catalog NAME. The wizard posts back the merged object it was rendering, which is
+    //    right for the screen and wrong to keep: stored, the link becomes a one-time copy
+    //    and the bank keeps running a pipeline the catalog has since changed.
+    return stripCatalogStructure(stripInheritedAmounts(normalizeIncomeAssumption(stripped)));
   }
 
   /** FR-001 edge case + FR-013 — reported, never a rejection. */
@@ -1166,7 +1174,12 @@ export class BankProgramsService {
     }
 
     if (rule !== null) {
-      const violation = await validateIncomeRule(rule, this.incomeRuleContext());
+      // A catalog name states the STRUCTURE and, at most, starting figures — the banks under
+      // it fill their own in. Held to a bank's completeness standard, the compound frame
+      // (four derivations, each one bank's) could never be saved at all.
+      const violation = await validateIncomeRule(rule, this.incomeRuleContext(), {
+        figuresRequired: false,
+      });
       if (violation) throw incomeRuleException(violation);
     }
 
@@ -1318,12 +1331,23 @@ export class BankProgramsService {
     // figures, and running the resolver twice over the same draft is both wasted work
     // (it re-normalizes the blob and re-resolves the DBR cap) and a second chance for
     // the two halves of one screen to disagree.
+    // A product rule may ask a lookup value for its registry parent (a compound's
+    // category). Read here so the panel reproduces exactly what a quote would do — the
+    // panel is the operator's only way to see a `factParentTable` step resolve, and a panel
+    // that skipped the map would report `no_matching_row` for a correctly configured rule.
+    const parentKeyByValue = await this.enums.enumerationParentKeys();
     const resolution = resolveAssumedIncome({
       profile,
       income: draft,
       eligibility: snapshot.eligibility,
+      parentKeyByValue,
     });
-    const outcome = quoteProgram({ profile, program: snapshot, incomeResolution: resolution });
+    const outcome = quoteProgram({
+      profile,
+      program: snapshot,
+      incomeResolution: resolution,
+      parentKeyByValue,
+    });
 
     if (!outcome.ok) {
       return {
@@ -1394,10 +1418,22 @@ export class BankProgramsService {
     // clean decimal is a number by every reading either side could make.
     const factKey = factKeyOf(strategy);
     const factValue = sample.factValue;
-    const surrogateFacts =
+    const singleFact =
       factKey !== null && factValue !== undefined && factValue !== ''
         ? { [factKey]: sampleFactValue(factValue) }
         : undefined;
+
+    // A STEP PIPELINE reads many facts, so the panel sends them by key. Merged with the
+    // single-fact field rather than replacing it: an eleven-method rule reads exactly one
+    // fact and its form should not start asking for a key. The keyed map wins on a clash —
+    // it is the more specific statement, and the only one that can name what it means.
+    const keyedFacts = Object.entries(sample.facts ?? {}).flatMap(([key, raw]) =>
+      raw === undefined || raw === '' ? [] : [[key, sampleFactValue(raw)] as const],
+    );
+    const surrogateFacts =
+      singleFact === undefined && keyedFacts.length === 0
+        ? undefined
+        : { ...(singleFact ?? {}), ...Object.fromEntries(keyedFacts) };
     return {
       age: sample.age,
       loanPurpose: 'personal',
@@ -1628,6 +1664,13 @@ function incomeRuleException(violation: IncomeRuleViolation): Error {
       return new IncomeRuleFactUnavailableException({
         factKey: violation.factKey,
         availableFacts: violation.availableFacts,
+      });
+    case 'productRuleInvalid':
+      return new ProductRuleInvalidException({
+        reason: violation.reason,
+        ...(violation.stepId !== undefined ? { stepId: violation.stepId } : {}),
+        ...(violation.gateId !== undefined ? { gateId: violation.gateId } : {}),
+        ...(violation.detail !== undefined ? { detail: violation.detail } : {}),
       });
   }
 }

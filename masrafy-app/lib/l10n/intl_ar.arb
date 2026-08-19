@@ -1370,5 +1370,41 @@
   "id_capture_torch_off": "إطفاء الإضاءة",
   "id_capture_error": "تعذّر تشغيل الكاميرا على هذا الجهاز.",
   "id_capture_permission_error": "إذن الكاميرا غير مفعّل. فعّل الكاميرا لتطبيق مصرفي من إعدادات جهازك ثم حاول مرة أخرى.",
-  "id_capture_capture_error": "تعذّر حفظ هذه الصورة. من فضلك أعد التصوير."
+  "id_capture_capture_error": "تعذّر حفظ هذه الصورة. من فضلك أعد التصوير.",
+  "gate_down_payment_below_min": "المبلغ الذي دفعته أقل من الحد الأدنى الذي يطلبه هذا البنك لهذا البرنامج.",
+  "@gate_down_payment_below_min": {
+    "description": "Backend DOWN_PAYMENT_BELOW_MIN gate reason"
+  },
+  "gate_unit_price_below_min": "سعر الوحدة أقل من الحد الأدنى الذي يطلبه هذا البنك لسنة توقيع العقد.",
+  "@gate_unit_price_below_min": {
+    "description": "Backend UNIT_PRICE_BELOW_MIN gate reason"
+  },
+  "gate_contract_too_new": "هذا البنك يطلب أن تكون مالكًا للوحدة مدة أطول من مدتك الحالية.",
+  "@gate_contract_too_new": {
+    "description": "Backend CONTRACT_TOO_NEW gate reason"
+  },
+  "gate_contract_too_old": "عقد التمليك أقدم من المدة التي يقبلها هذا البنك لهذا البرنامج.",
+  "@gate_contract_too_old": {
+    "description": "Backend CONTRACT_TOO_OLD gate reason"
+  },
+  "gate_ownership_not_confirmed": "هذا البرنامج يطلب إثبات التمليك بالشكل الذي يحدده البنك.",
+  "@gate_ownership_not_confirmed": {
+    "description": "Backend OWNERSHIP_NOT_CONFIRMED gate reason"
+  },
+  "gate_multi_unit_not_confirmed": "ذكرت أنك تملك أكثر من وحدة. أكِّد الوحدة التي نحسب عليها وسنعرض أرقام هذا البرنامج.",
+  "@gate_multi_unit_not_confirmed": {
+    "description": "Backend MULTI_UNIT_NOT_CONFIRMED gate reason"
+  },
+  "gate_not_met": "هذا البرنامج له شرط لا تحققه إجاباتك، لذا لا يمكن عرض أرقام.",
+  "@gate_not_met": {
+    "description": "Backend GATE_NOT_MET / PRODUCT_RULE_GATE_FAILED fallback"
+  },
+  "collateral_skip_step": "تخطَّ الآن",
+  "@collateral_skip_step": {
+    "description": "Skip button on an all-optional collateral questionnaire step"
+  },
+  "collateral_skip_hint": "تخطَّ وسنظل نعرض البرنامج، لكن بدون أرقام حتى تجيب.",
+  "@collateral_skip_hint": {
+    "description": "Hint under the skip button"
+  }
 }

@@ -535,6 +535,19 @@ model BankOffer {
   /// token (`byMilitaryGrade`, …). `null` on a declared-income offer and on every
   /// offer predating this column.
   incomeSurrogateStrategy    String?      @db.VarChar(32)
+  /// The COLLATERAL CEILING a product rule derived for this applicant — what the unit,
+  /// the membership or the vehicle supports, before their existing payments are taken off.
+  ///
+  /// Frozen for the same reason `incomeOrigin` is, and more sharply: the ceiling is the
+  /// output of a step pipeline over a table, an uplift and the applicant's own answers, and
+  /// every one of those can move. `maxLoanAvailableEGP` next to it is the figure AFTER
+  /// obligations, so the pair is what lets a surface say "your unit supports 2 000 000, your
+  /// existing payments leave 1 662 677" — where the second number alone reads as an
+  /// unexplained cut (Principle I / A6).
+  ///
+  /// `null` on every offer of an income-based program, and on every offer predating this
+  /// column. Absent is not zero: a zero ceiling would mean the collateral supports nothing.
+  collateralCeilingEGP       Decimal?     @db.Decimal(13, 2)
   createdAt                  DateTime     @default(now()) @db.Timestamptz(6)
   erasedAt                   DateTime?    @db.Timestamptz(6)
 

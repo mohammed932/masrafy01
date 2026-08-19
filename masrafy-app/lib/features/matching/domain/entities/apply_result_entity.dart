@@ -51,6 +51,8 @@ class UnavailableProgramEntity extends Equatable {
     required this.reason,
     this.maxAffordableAmountEGP,
     this.dbrCapPercent,
+    this.gateReasonCode,
+    this.missingFactKeys = const [],
   });
 
   final String programCode;
@@ -65,6 +67,13 @@ class UnavailableProgramEntity extends Equatable {
   final double? maxAffordableAmountEGP;
   final double? dbrCapPercent;
 
+  /// Which of a collateral product's CONDITIONS refused, when one did — a closed backend
+  /// code, localized at the render site (Principle III).
+  final String? gateReasonCode;
+
+  /// Which answers a collateral product is still missing, by fact key.
+  final List<String> missingFactKeys;
+
   @override
   List<Object?> get props => [
         programCode,
@@ -73,6 +82,8 @@ class UnavailableProgramEntity extends Equatable {
         reason,
         maxAffordableAmountEGP,
         dbrCapPercent,
+        gateReasonCode,
+        missingFactKeys,
       ];
 }
 

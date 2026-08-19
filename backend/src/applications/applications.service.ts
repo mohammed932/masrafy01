@@ -430,11 +430,16 @@ export class ApplicationsService {
     // DBR is NOT part of that: affordability shapes the amount offered, so it
     // stays on here. Leaving it off persisted immutable offers at installments
     // the applicant's declared income could never carry.
+    // ONE read for the whole book, outside the per-program loop, exactly like
+    // `programNameIncomeRules` above: it is one map for the entire registry, and reading
+    // it per program would be a query per program on the apply path.
+    const parentKeyByValue = await this.enumerations.enumerationParentKeys();
     const result = this.engine.run({
       profile,
       programs: snapshots,
       scoringConfig,
       skipEligibility: true,
+      parentKeyByValue,
     });
 
     // Per-bank weighted approval scoring (Constitution V v5.0.0): override each
@@ -476,6 +481,10 @@ export class ApplicationsService {
             ? { maxAffordableAmountEGP: u.maxAffordableAmountEGP.toFixed(2) }
             : {}),
           ...(u.dbrCapPercent ? { dbrCapPercent: u.dbrCapPercent.toFixed(2) } : {}),
+          // WHICH condition refused, and WHICH answers are missing. Both are what turn a card
+          // saying "no figures" into one the customer can act on.
+          ...(u.gateReasonCode ? { gateReasonCode: u.gateReasonCode } : {}),
+          ...(u.missingFactKeys?.length ? { missingFactKeys: u.missingFactKeys } : {}),
         },
       ];
     });
@@ -734,6 +743,9 @@ export class ApplicationsService {
       // decision on the record that the engine did not make.
       incomeOrigin: offer.incomeOrigin,
       incomeSurrogateStrategy: offer.incomeSurrogateStrategy,
+      collateralCeilingEGP: offer.collateralCeilingEGP
+        ? new Decimal(offer.collateralCeilingEGP.toString())
+        : null,
     };
   }
 

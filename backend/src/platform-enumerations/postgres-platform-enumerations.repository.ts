@@ -346,6 +346,21 @@ export class PostgresPlatformEnumerationsRepository
     );
   }
 
+  async enumerationParentKeys(): Promise<Readonly<Record<string, string>>> {
+    const rows = await this.prisma.platformEnumeration.findMany({
+      // ACTIVE only, and `parentKey` non-null: a deprecated value must not go on carrying
+      // an applicant to a cap row, and a value filed under nothing has no parent to give —
+      // the rule then reports `no_matching_row`, a stated reason, rather than a guess.
+      where: { active: true, deprecatedAt: null, parentKey: { not: null } },
+      select: { key: true, parentKey: true },
+    });
+    const map: Record<string, string> = {};
+    for (const row of rows) {
+      if (row.parentKey !== null) map[row.key] = row.parentKey;
+    }
+    return map;
+  }
+
   async findProgramName(key: string): Promise<ProgramNameIncomeRuleRow | null> {
     const row = await this.prisma.platformEnumeration.findUnique({
       where: { idx_platform_enumeration_type_key: { type: 'program_name', key } },

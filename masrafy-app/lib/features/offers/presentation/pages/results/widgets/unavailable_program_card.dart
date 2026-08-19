@@ -88,7 +88,14 @@ class UnavailableProgramCard extends StatelessWidget {
           // Where the priced cards show money. Localized from the backend's reason
           // CODE — no English ever crosses the API (Principle III).
           Text(
-            figuresUnavailableLabel(l, program.reason),
+            // The gate code is passed through so a refused CONDITION names itself. "A
+            // condition your answers don't meet" is true and useless; "the amount you have
+            // paid is below this bank's minimum" is something the customer can act on.
+            figuresUnavailableLabel(
+              l,
+              program.reason,
+              gateReasonCode: program.gateReasonCode,
+            ),
             style: text.body.copyWith(color: colors.textBase),
           ),
           if (ceiling != null && ceiling > 0) ...[

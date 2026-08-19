@@ -98,6 +98,15 @@ export class InMemoryPlatformEnumerationsRepository
   }
 
   /**
+   * Empty, not a throw: a rule that asks for a value's parent and is handed nothing
+   * reports `no_matching_row` — a stated reason — which is the honest answer for a stub
+   * registry that files nothing under a parent.
+   */
+  async enumerationParentKeys(): Promise<Readonly<Record<string, string>>> {
+    return {};
+  }
+
+  /**
    * This stub is READ-only and seeds no catalog names, so the income-rule endpoints
    * are unreachable against it. Throwing beats returning a plausible empty row: a
    * silent `null` would be read as "the name does not exist" and answered with an

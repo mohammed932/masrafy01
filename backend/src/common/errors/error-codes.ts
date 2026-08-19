@@ -330,6 +330,13 @@ export const ERROR_CODES = {
    * registry does serve, so the form can offer the fix rather than state the problem.
    */
   INCOME_RULE_FACT_UNAVAILABLE: 'INCOME_RULE_FACT_UNAVAILABLE',
+  /**
+   * A product rule's step pipeline is not assemblable — `meta.reason` says which of
+   * `PRODUCT_RULE_INVALID_REASONS` applied, and `meta.stepId` / `meta.gateId` name the
+   * row to fix. ONE code with a reason rather than seventeen codes: every one of them
+   * points the operator at the same editor.
+   */
+  PRODUCT_RULE_INVALID: 'PRODUCT_RULE_INVALID',
 
   // --- One name, one income proof ---
   // A catalog program name states exactly ONE thing a bank works the income out from.
@@ -397,6 +404,28 @@ export const ERROR_CODES = {
   SURROGATE_FACT_MISSING: 'SURROGATE_FACT_MISSING',
   /** The fact was answered, but no key matched / the value fell in no band. */
   SURROGATE_NO_MATCHING_ROW: 'SURROGATE_NO_MATCHING_ROW',
+  /**
+   * A COLLATERAL product's own condition refused this applicant — the share paid is short,
+   * the ownership contract is outside the bank's window, the strongest unit was not
+   * confirmed. The program stays LISTED and stays RANKED; only the figures are withheld.
+   *
+   * Never an eligibility filter (A33), and it could not be one anyway: every production
+   * path runs with `skipEligibility`, which is exactly why a product's own conditions are
+   * expressed as rule GATES on this path instead.
+   */
+  PRODUCT_RULE_GATE_FAILED: 'PRODUCT_RULE_GATE_FAILED',
+  // WHICH condition refused, from the closed `GATE_REASON_CODES` set. A gate's own id is
+  // authored by an operator on the program catalog and could never have a translation, so
+  // the engine reports one of these and every one has a sentence in both locales
+  // (Principle III / A2). `GATE_NOT_MET` is the honest fallback for a condition the
+  // platform has no word for yet.
+  GATE_DOWN_PAYMENT_BELOW_MIN: 'GATE_DOWN_PAYMENT_BELOW_MIN',
+  GATE_UNIT_PRICE_BELOW_MIN: 'GATE_UNIT_PRICE_BELOW_MIN',
+  GATE_CONTRACT_TOO_NEW: 'GATE_CONTRACT_TOO_NEW',
+  GATE_CONTRACT_TOO_OLD: 'GATE_CONTRACT_TOO_OLD',
+  GATE_OWNERSHIP_NOT_CONFIRMED: 'GATE_OWNERSHIP_NOT_CONFIRMED',
+  GATE_MULTI_UNIT_NOT_CONFIRMED: 'GATE_MULTI_UNIT_NOT_CONFIRMED',
+  GATE_NOT_MET: 'GATE_NOT_MET',
 
   // --- Generic ---
   RATE_LIMITED: 'RATE_LIMITED',
@@ -598,6 +627,7 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   INCOME_RULE_BANDS_INVALID: 422,
   INCOME_RULE_DBR_OVERRIDE_INVALID: 422,
   INCOME_RULE_FACT_UNAVAILABLE: 422,
+  PRODUCT_RULE_INVALID: 422,
   PROGRAM_NAME_INCOME_PROOF_MISMATCH: 422,
   PROGRAM_NAME_INCOME_PROOF_MISSING: 422,
   INCOME_PROOF_IN_USE: 422,
@@ -608,6 +638,14 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   // Reason codes: only ever returned inside a 200 payload.
   SURROGATE_FACT_MISSING: 200,
   SURROGATE_NO_MATCHING_ROW: 200,
+  PRODUCT_RULE_GATE_FAILED: 200,
+  GATE_DOWN_PAYMENT_BELOW_MIN: 200,
+  GATE_UNIT_PRICE_BELOW_MIN: 200,
+  GATE_CONTRACT_TOO_NEW: 200,
+  GATE_CONTRACT_TOO_OLD: 200,
+  GATE_OWNERSHIP_NOT_CONFIRMED: 200,
+  GATE_MULTI_UNIT_NOT_CONFIRMED: 200,
+  GATE_NOT_MET: 200,
 
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,

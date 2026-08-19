@@ -71,6 +71,17 @@ function makeService() {
     questionnaire as never,
     { scoreProgram } as never,
     programs as never,
+    // Feature 011 added a 4th and 5th dependency (the catalog name scope and the
+    // enumeration registry); this spec predates both. `assertOfferedUnder` is a no-op
+    // because these cases pass no `programNameKey`, and the registry reads return empty:
+    // no rule here reads a fact or a registry parent, so an empty registry is the honest
+    // answer rather than a convenient one.
+    { assertOfferedUnder: async () => undefined } as never,
+    {
+      programNameIncomeRules: async () => new Map(),
+      surrogateFactRegistry: async () => [],
+      enumerationParentKeys: async () => ({}),
+    } as never,
   );
   return { service, scoreProgram };
 }

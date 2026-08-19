@@ -46,6 +46,27 @@ export const LOOKUP_TYPES: readonly LookupType[] = [
     description: $localize`:@@lookups.type.governorate.desc:Egyptian governorates — the address picker in the mobile app and the mortgage wizard.`,
     icon: 'environment',
   },
+  // The collateral products' own lists. `compound` rows carry their CLASS in `parentKey` —
+  // the registry's generic single-parent scope — which is what lets a bank key its cap table
+  // by five classes while the customer picks one of hundreds of compounds by name.
+  {
+    type: 'compound_category',
+    label: $localize`:@@lookups.type.compound_category.label:Compound classes`,
+    description: $localize`:@@lookups.type.compound_category.desc:The classes banks key their compound cap tables by.`,
+    icon: 'apartment',
+  },
+  {
+    type: 'compound',
+    label: $localize`:@@lookups.type.compound.label:Compounds`,
+    description: $localize`:@@lookups.type.compound.desc:The compounds a customer can pick, each filed under its class.`,
+    icon: 'home',
+  },
+  {
+    type: 'club_class',
+    label: $localize`:@@lookups.type.club_class.label:Club membership classes`,
+    description: $localize`:@@lookups.type.club_class.desc:The membership classes the club loan is priced from.`,
+    icon: 'trophy',
+  },
 ];
 
 /** One realistic value of a type, shown as the label placeholders in the add/edit dialog. */

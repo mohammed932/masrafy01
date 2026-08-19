@@ -210,9 +210,25 @@ class _StepCta extends StatelessWidget {
               Gap(8.h),
             ],
             MasrafyGradientButton(
-              label: state.isLastStep ? l.q_dyn_finish : l.q_dyn_next,
+              label: state.isLastStep
+                  ? l.q_dyn_finish
+                  : state.isSkippableStep
+                      ? l.collateral_skip_step
+                      : l.q_dyn_next,
               onPressed: canProceed ? cubit.next : null,
             ),
+            // Only on an all-optional, all-blank step. Says what skipping costs, so the
+            // choice is informed rather than a guess about whether the CTA will refuse.
+            if (!state.isLastStep && state.isSkippableStep) ...[
+              Gap(8.h),
+              Text(
+                l.collateral_skip_hint,
+                textAlign: TextAlign.center,
+                style: MasrafyTextTheme.of(context).caption.regular().copyWith(
+                      color: MasrafyColorTheme.of(context).text.secondary,
+                    ),
+              ),
+            ],
           ],
         ),
       ),

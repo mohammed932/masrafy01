@@ -176,5 +176,14 @@
   "PROGRAM_HAS_ESTIMATED_VALUES": "This program still holds numbers the team estimated, so it cannot go live yet: {paths}",
   "SURROGATE_FACT_BINDING_MISSING": "A question this income method reads is missing, inactive, or the wrong type.",
   "SURROGATE_FACT_MISSING": "This program needs a detail we haven't asked you for yet, so no figures can be shown.",
-  "SURROGATE_NO_MATCHING_ROW": "This bank's table doesn't cover your answer, so no figures can be shown."
+  "SURROGATE_NO_MATCHING_ROW": "This bank's table doesn't cover your answer, so no figures can be shown.",
+  "PRODUCT_RULE_INVALID": "This product's calculation steps are not complete: {reason}",
+  "PRODUCT_RULE_GATE_FAILED": "This program has a condition your answers don't meet, so no figures can be shown.",
+  "GATE_DOWN_PAYMENT_BELOW_MIN": "The amount you've already paid is below this bank's minimum for this program.",
+  "GATE_UNIT_PRICE_BELOW_MIN": "The unit's price is below this bank's minimum for the year the contract was signed.",
+  "GATE_CONTRACT_TOO_NEW": "This bank needs the ownership contract to be older than yours is.",
+  "GATE_CONTRACT_TOO_OLD": "The ownership contract is older than this bank accepts for this program.",
+  "GATE_OWNERSHIP_NOT_CONFIRMED": "This program needs ownership stated the way this bank requires.",
+  "GATE_MULTI_UNIT_NOT_CONFIRMED": "You told us you own more than one unit. Confirm which one to use and we can quote this program.",
+  "GATE_NOT_MET": "One of this program's conditions isn't met by your answers."
 }

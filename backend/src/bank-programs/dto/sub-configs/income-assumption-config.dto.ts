@@ -186,6 +186,53 @@ export class IncomeAssumptionConfigDto {
   @Type(() => IncomeScalarDto)
   scalar?: IncomeScalarDto;
 
+  // --- the step pipeline (`strategy: 'steps'`) ---------------------------------
+  //
+  // Shape only, and loosely: a step's legal fields depend on its `op`, a gate's on its
+  // `kind`, and a reference may name a step, a fact or a literal. `class-validator`
+  // cannot express any of that without a decorator per combination, and every one of
+  // those rules IS expressed — once, in `validateProductRule`, which is also the
+  // authority the catalog write and the draft CHECK endpoint run through, so a pipeline
+  // can never be accepted by one door and refused by another.
+  //
+  // The caps are the real boundary work here: an unbounded `steps` array is a request
+  // that can pin a worker evaluating a rule nobody meant to author.
+
+  /**
+   * The catalog name's ordered steps. Never persisted on a bank program —
+   * `stripCatalogStructure` removes them, because the structure belongs to the name.
+   */
+  @ApiPropertyOptional({ type: [Object] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(40)
+  steps?: unknown[];
+
+  /** The catalog name's gates. A failed gate is a stated reason, never a filter. */
+  @ApiPropertyOptional({ type: [Object] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(40)
+  gates?: unknown[];
+
+  /** `{ kind: 'monthlyIncome' | 'maxAmount', from, baselineDbrPercent? }`. */
+  @ApiPropertyOptional({ type: Object })
+  @IsOptional()
+  @IsObject()
+  output?: Record<string, unknown>;
+
+  /**
+   * The BANK's figures, keyed by step id and gate id. The only half of a product rule a
+   * bank program stores, and the whole of "a fifth bank is one config row".
+   */
+  @ApiPropertyOptional({
+    type: Object,
+    example: { capBasis: { keyTable: [{ key: 'apartment', incomeEGP: '2000000' }] } },
+  })
+  @IsOptional()
+  @IsObject()
+  stepParams?: Record<string, unknown>;
+
   // --- policy on top of the method -------------------------------------------
 
   /** FR-012 — bounds checked in the service layer (`INCOME_RULE_DBR_OVERRIDE_INVALID`). */

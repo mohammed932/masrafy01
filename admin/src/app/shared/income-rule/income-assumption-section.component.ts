@@ -34,15 +34,14 @@ import {
   type IncomeBand,
   type IncomeKeyTableRow,
   type IncomeMethodShape,
+  type ProductRuleOutput,
+  type RuleGate,
+  type RuleStep,
+  type StepFigures,
 } from '@features/bank-programs/bank-programs.types';
-import {
-  IncomeBandsEditorComponent,
-  incomeBandsErrorFor,
-} from './income-bands-editor.component';
-import {
-  IncomeKeyTableComponent,
-  incomeKeyTableErrorFor,
-} from './income-key-table.component';
+import { IncomeBandsEditorComponent, incomeBandsErrorFor } from './income-bands-editor.component';
+import { IncomeKeyTableComponent, incomeKeyTableErrorFor } from './income-key-table.component';
+import { ProductRuleEditorComponent } from './product-rule-editor.component';
 import { incomeRuleHasError } from './income-rule.rules';
 
 /**
@@ -70,6 +69,7 @@ import { incomeRuleHasError } from './income-rule.rules';
     NzIconModule,
     IncomeKeyTableComponent,
     IncomeBandsEditorComponent,
+    ProductRuleEditorComponent,
   ],
   providers: [provideNzIconsPatch([CalculatorOutline, WarningOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -81,19 +81,19 @@ import { incomeRuleHasError } from './income-rule.rules';
            between read as a second question. -->
       @if (showProofPicker()) {
         <p class="proof-lede" i18n="@@income_rule.proof_lede">
-          Every bank selling this name works the income out from this one figure. A bank may
-          change the amounts below, never the figure.
+          Every bank selling this name works the income out from this one figure. A bank may change
+          the amounts below, never the figure.
         </p>
       }
 
       <div class="grid">
         @if (showProofPicker()) {
-        <nz-form-item class="span-2 method-field">
-          <nz-form-label [nzFor]="'strategy'" i18n="@@income_rule.field.proof"
-            >What the income is worked out from</nz-form-label
-          >
-          <nz-form-control>
-            <!-- Grouped by what the method READS, so the four whose fact can simply be
+          <nz-form-item class="span-2 method-field">
+            <nz-form-label [nzFor]="'strategy'" i18n="@@income_rule.field.proof"
+              >What the income is worked out from</nz-form-label
+            >
+            <nz-form-control>
+              <!-- Grouped by what the method READS, so the four whose fact can simply be
                  missing are visibly a different kind of choice from the six that read a
                  document, and from Declared, which is not a rule at all.
 
@@ -104,23 +104,23 @@ import { incomeRuleHasError } from './income-rule.rules';
                  nzOptionHeightPx MUST stay equal to it or every row slides out from
                  under its own slot. 8.5 rows of viewport, not 8: a half-visible row is
                  the only thing that says the list continues. -->
-            <nz-select
-              id="strategy"
-              formControlName="strategy"
-              nzDropdownClassName="select-grouped-dropdown"
-              [nzOptionHeightPx]="40"
-              [nzOptionOverflowSize]="8.5"
-            >
-              @for (g of methodGroups(); track g.label) {
-                <nz-option-group [nzLabel]="g.label">
-                  @for (o of g.options; track o.value) {
-                    <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
-                  }
-                </nz-option-group>
-              }
-            </nz-select>
-          </nz-form-control>
-        </nz-form-item>
+              <nz-select
+                id="strategy"
+                formControlName="strategy"
+                nzDropdownClassName="select-grouped-dropdown"
+                [nzOptionHeightPx]="40"
+                [nzOptionOverflowSize]="8.5"
+              >
+                @for (g of methodGroups(); track g.label) {
+                  <nz-option-group [nzLabel]="g.label">
+                    @for (o of g.options; track o.value) {
+                      <nz-option [nzValue]="o.value" [nzLabel]="o.label"></nz-option>
+                    }
+                  </nz-option-group>
+                }
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
         }
 
         <!-- ── The method's own configuration ───────────────────────────────── -->
@@ -216,6 +216,23 @@ import { incomeRuleHasError } from './income-rule.rules';
                   This figure must be greater than zero.
                 </p>
               }
+            </div>
+          }
+          @case ('steps') {
+            <div class="span-2 rule-block">
+              <h4 class="rule-title" i18n="@@bank_programs.income.steps_title">
+                How this product works the figure out
+              </h4>
+              <app-product-rule-editor
+                [steps]="ruleSteps()"
+                [gates]="ruleGates()"
+                [output]="ruleOutput()"
+                [figures]="stepFigures()"
+                (figuresChange)="stepFigures.set($event)"
+                (figuresTouched)="stepFiguresTouched.emit()"
+                [variant]="variant()"
+                [facts]="facts()"
+              ></app-product-rule-editor>
             </div>
           }
           @default {
@@ -450,6 +467,21 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   readonly bands = model<IncomeBand[]>([]);
 
   /**
+   * A product rule's two halves. The STRUCTURE is the catalog name's and arrives from the
+   * host (which already fetches the name's rule for the whose-amounts card); the FIGURES are
+   * the bank's and are edited here.
+   *
+   * Inputs rather than derived from the form group, for the same reason `keyTable` and `bands`
+   * are signals rather than controls: a pipeline is not a flat set of named fields, and
+   * modelling one as controls would mean a control per step of a shape only the catalog knows.
+   */
+  readonly ruleSteps = input<readonly RuleStep[]>([]);
+  readonly ruleGates = input<readonly RuleGate[]>([]);
+  readonly ruleOutput = input<ProductRuleOutput | null>(null);
+  readonly stepFigures = model<Record<string, StepFigures>>({});
+  readonly stepFiguresTouched = output<void>();
+
+  /**
    * Feature 011 — which incomes are team-estimated. Passed straight through to the
    * editors and straight back out: the section does not own the marker map, because
    * the same map covers pricing and fees on other steps and one owner is the only way
@@ -515,7 +547,9 @@ export class IncomeAssumptionSectionComponent implements OnInit {
    */
   readonly factKeyRows = computed(() => {
     const options = factKeyOptions(this.strategy(), this.facts());
-    return options.length > 0 ? options.map((o) => ({ key: o.code, labelAr: o.labelAr, labelEn: o.labelEn })) : null;
+    return options.length > 0
+      ? options.map((o) => ({ key: o.code, labelAr: o.labelAr, labelEn: o.labelEn }))
+      : null;
   });
 
   /**

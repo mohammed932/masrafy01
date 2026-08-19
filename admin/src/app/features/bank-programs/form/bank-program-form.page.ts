@@ -94,11 +94,15 @@ import {
   factKeyOptions,
   incomeMethodLabel,
   incomeMethodShape,
+  type ProductRuleOutput,
+  type RuleGate,
+  type RuleStep,
+  type StepFigures,
   registryFacts,
 } from '../bank-programs.types';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { IncomeRuleCheckComponent } from '@shared/income-rule/income-rule-check.component';
-import { incomeRuleHasError } from '@shared/income-rule/income-rule.rules';
+import { incomeRuleHasError, productRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
@@ -1159,8 +1163,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
                       <span i18n="@@bank_programs.income.no_proof"
                         >Nobody has said what {{ programNameLabel() }} reads its income from. Set it
-                        once on the program catalog and every bank starts from the same
-                        table.</span
+                        once on the program catalog and every bank starts from the same table.</span
                       >
                     </p>
                   } @else {
@@ -1220,7 +1223,10 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                                 }
                               </dl>
                             } @else {
-                              <span class="basis-card-effect" i18n="@@bank_programs.income.catalog_no_table">
+                              <span
+                                class="basis-card-effect"
+                                i18n="@@bank_programs.income.catalog_no_table"
+                              >
                                 This name needs no table — the applicant's own figure is used.
                               </span>
                             }
@@ -1287,12 +1293,20 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                         [estimatedBandIndexes]="estimatedBandIndexes()"
                         (estimatedBandChange)="onBandMarker($event)"
                         (bandStructureChange)="onBandStructureChange($event)"
+                        [ruleSteps]="ruleSteps()"
+                        [ruleGates]="ruleGates()"
+                        [ruleOutput]="ruleOutput()"
+                        [stepFigures]="stepFigures()"
+                        (stepFiguresChange)="stepFigures.set($event)"
+                        (stepFiguresTouched)="markIncomeRuleDirty()"
                       ></app-income-assumption-section>
                     }
 
                     <app-income-rule-check
                       [programCode]="editingProgramCode()"
                       [draft]="liveIncomeRuleDraft()"
+                      [ruleSteps]="ruleSteps()"
+                      [ruleGates]="ruleGates()"
                     ></app-income-rule-check>
                   }
                 </section>
@@ -3872,6 +3886,7 @@ export class BankProgramFormPage implements OnInit {
       nzOnOk: () => {
         this.incomeKeyTable.set([]);
         this.incomeBands.set([]);
+        this.stepFigures.set({});
         this.form.controls.incomeAssumption.controls.scalar.patchValue({ value: null });
         this.setAmountsSource('catalog');
       },
@@ -3929,6 +3944,7 @@ export class BankProgramFormPage implements OnInit {
 
     this.incomeKeyTable.set([]);
     this.incomeBands.set([]);
+    this.stepFigures.set({});
     const income = this.form.controls.incomeAssumption;
     income.controls.scalar.patchValue({ value: null });
     income.controls.strategy.setValue(proof);
@@ -3953,7 +3969,9 @@ export class BankProgramFormPage implements OnInit {
   private incomeKeyLabel(strategy: IncomeAssumptionStrategy, key: string): string {
     const registry = INCOME_KEY_REGISTRY[strategy as keyof typeof INCOME_KEY_REGISTRY];
     if (registry) {
-      const member = this.enums.membersFor(registry)().find((m) => m.key === key);
+      const member = this.enums
+        .membersFor(registry)()
+        .find((m) => m.key === key);
       if (member) return this.localeIsAr ? member.labelAr : member.labelEn;
     }
     // A `fact:` method's rows are the bound question's own options — through the shared
@@ -4285,6 +4303,18 @@ export class BankProgramFormPage implements OnInit {
    * A reset (seed / remove-all) drops them all: the rows those markers described are
    * gone, and a marker with no row is the stale path the save can no longer show.
    */
+  /**
+   * A step figure changed, so the form is dirty.
+   *
+   * The figures live in a signal rather than in controls (the catalog decides how many there
+   * are), and a signal cannot make the form dirty by itself — without this, an operator could
+   * type a whole cap table and the wizard would still believe nothing had changed and let
+   * them navigate away.
+   */
+  markIncomeRuleDirty(): void {
+    this.form.controls.incomeAssumption.markAsDirty();
+  }
+
   onBandStructureChange(event: { kind: 'remove'; index: number } | { kind: 'reset' }): void {
     const next = new Set<string>();
     for (const path of this.estimatedPaths()) {
@@ -4377,6 +4407,31 @@ export class BankProgramFormPage implements OnInit {
    * fees, tenor and limits — a rule checked against nothing in particular would
    * produce an installment no bank would ever offer, which is worse than no check.
    */
+  /**
+   * A product rule's STRUCTURE, read off the catalog name's own rule.
+   *
+   * The wizard already fetches that rule for the whose-amounts card, so this adds no request.
+   * It comes from there rather than from the program because the program does not store it:
+   * `stripCatalogStructure` removes it on save, precisely so a bank cannot end up running a
+   * pipeline the catalog has since changed.
+   */
+  readonly ruleSteps = computed<readonly RuleStep[]>(
+    () => (this.catalogRule()?.incomeRule as { steps?: RuleStep[] } | null)?.steps ?? [],
+  );
+  readonly ruleGates = computed<readonly RuleGate[]>(
+    () => (this.catalogRule()?.incomeRule as { gates?: RuleGate[] } | null)?.gates ?? [],
+  );
+  readonly ruleOutput = computed<ProductRuleOutput | null>(
+    () => (this.catalogRule()?.incomeRule as { output?: ProductRuleOutput } | null)?.output ?? null,
+  );
+
+  /**
+   * The BANK's figures, by step id and gate id. A signal for the same reason `incomeKeyTable`
+   * is one: a pipeline is not a fixed set of named fields, so there is no control shape to
+   * declare — the catalog decides how many there are.
+   */
+  readonly stepFigures = signal<Record<string, StepFigures>>({});
+
   readonly editingProgramCode = computed<string | null>(() => {
     // The LOADED program's code, not whatever is typed in the identity box. On the
     // create wizard that box is editable and empty, so reading it enabled the Check
@@ -4432,6 +4487,13 @@ export class BankProgramFormPage implements OnInit {
     // rather than at the server, next to the notice that says where to fix it.
     if (!this.catalogProof()) return true;
     const shape = incomeMethodShape(ia.strategy, this.incomeFacts());
+    if (shape === 'steps') {
+      return productRuleHasError({
+        steps: this.ruleSteps(),
+        gates: this.ruleGates(),
+        figures: this.stepFigures(),
+      });
+    }
     return incomeRuleHasError({
       shape,
       keyTable: this.incomeKeyTable(),
@@ -4467,7 +4529,9 @@ export class BankProgramFormPage implements OnInit {
   });
 
   /** Plain string, for the `routerLink` and the "is a name even picked" guard. */
-  protected readonly programNameKeyValue = computed<string>(() => this.programNameKeySignal() ?? '');
+  protected readonly programNameKeyValue = computed<string>(
+    () => this.programNameKeySignal() ?? '',
+  );
 
   /**
    * The catalog's figures, rendered as label → amount pairs on the left card.
@@ -4501,7 +4565,8 @@ export class BankProgramFormPage implements OnInit {
             rule.scalar.unit === 'percent'
               ? $localize`:@@bank_programs.income.scalar_percent:Percentage applied`
               : $localize`:@@bank_programs.income.scalar_multiplier:Multiplier applied`,
-          value: rule.scalar.unit === 'percent' ? `${rule.scalar.value}%` : `× ${rule.scalar.value}`,
+          value:
+            rule.scalar.unit === 'percent' ? `${rule.scalar.value}%` : `× ${rule.scalar.value}`,
         },
       ];
     }
@@ -4515,8 +4580,7 @@ export class BankProgramFormPage implements OnInit {
   protected readonly ownPeersLabel = computed(() => {
     const code = this.editingProgramCode();
     const peers = (this.catalogRule()?.programs ?? []).filter(
-      (p: { programCode: string; ownAmounts: boolean }) =>
-        p.ownAmounts && p.programCode !== code,
+      (p: { programCode: string; ownAmounts: boolean }) => p.ownAmounts && p.programCode !== code,
     ).length;
     return $localize`:@@bank_programs.income.own_peers:${peers}:count: other bank program(s) do this.`;
   });
@@ -4813,6 +4877,10 @@ export class BankProgramFormPage implements OnInit {
         );
         if (this.incomeKeyTable().length > 0) this.incomeKeyTable.set([]);
         if (this.incomeBands().length > 0) this.incomeBands.set([]);
+        // A pipeline's figures go with them: they are keyed by the steps of the rule that was
+        // just replaced, so keeping them would leave the save carrying numbers for steps the
+        // new rule does not have — which the server refuses as `unknown_param_key`.
+        if (Object.keys(this.stepFigures()).length > 0) this.stepFigures.set({});
         // …and the markers those tables carried, which the payload would otherwise
         // still name over a rule that no longer has either table (422
         // `VALUE_SOURCE_PATH_UNKNOWN`, with no control left on screen to clear it).
@@ -5260,6 +5328,10 @@ export class BankProgramFormPage implements OnInit {
       amounts: 'own',
       ...(shape === 'keyTable' ? { keyTable: this.incomeKeyTable() } : {}),
       ...(shape === 'bands' ? { bands: this.incomeBands() } : {}),
+      // A step pipeline sends ONLY its figures. The steps, gates and output belong to the
+      // catalog name and are merged in on every read — sending a copy would make the link a
+      // one-time copy, and the server strips them anyway.
+      ...(shape === 'steps' ? { stepParams: this.stepFigures() } : {}),
       // A value method keeps its legacy percent while no bands are authored, so the
       // scalar rides along for `bands` too — dropping it would silently change what
       // an untouched legacy program derives (FR-015).
@@ -5469,6 +5541,17 @@ export class BankProgramFormPage implements OnInit {
     });
     this.incomeKeyTable.set(initial.incomeAssumption.keyTable ?? []);
     this.incomeBands.set(initial.incomeAssumption.bands ?? []);
+    // A product rule's figures. Cloned per step rather than assigned: the editor patches one
+    // step at a time, and sharing the response's own objects would mutate the loaded snapshot
+    // the review step reads back.
+    this.stepFigures.set(
+      Object.fromEntries(
+        Object.entries(
+          (initial.incomeAssumption as { stepParams?: Record<string, StepFigures> }).stepParams ??
+            {},
+        ).map(([id, figures]) => [id, { ...figures }]),
+      ),
+    );
     // The name's rule, so the block can render the proof and the catalog's figures. NOT
     // adopted: this program's stored strategy is what it is quoting off today, and
     // overwriting it on load would silently rewrite a legacy program the moment an
