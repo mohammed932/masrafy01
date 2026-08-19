@@ -405,7 +405,12 @@ export class ApplicationsService {
         dto.programType ?? null,
       ),
     );
-    const snapshots: BankProgramSnapshot[] = activePrograms.map(toBankProgramSnapshot);
+    // One read for the whole book, not one per program: a program on catalog amounts
+    // is quoted off its program name's rule, and `toBankProgramSnapshot` may not do IO.
+    const catalogRules = await this.enumerations.programNameIncomeRules();
+    const snapshots: BankProgramSnapshot[] = activePrograms.map((p) =>
+      toBankProgramSnapshot(p, catalogRules),
+    );
 
     const scoringConfig: ScoringConfig = await loadActiveScoringConfig(this.scoringVersions);
     // Age is DERIVED from the customer's birthday, never sent by the client

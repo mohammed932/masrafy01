@@ -41,6 +41,11 @@
  * put a diff no operator made into the log an operator reaches for.
  */
 import { Prisma, PrismaClient, type LoanCategory } from '@prisma/client';
+import {
+  validateIncomeRule,
+  type IncomeRuleValidationContext,
+} from '../src/bank-programs/validation/income-rule.validator';
+import type { IncomeAssumptionConfig } from '../src/matching/types';
 
 import {
   CATALOG_CATEGORY_ASSIGNMENTS,
@@ -350,12 +355,96 @@ export async function seedProgramCatalog(): Promise<void> {
   //      never created (the file header's third guard). Axis 1 already reports it,
   //      so this one stays silent to avoid saying it twice.
   //
-  // TODO (PR 2): run `validateIncomeRule` over each rule before writing it. It
-  // lives in `src/` and `prisma/` must not import the Nest application, so it
-  // lands when the catalog write path does — until then a malformed rule seeded
-  // here would only be caught on its first admin save.
+  //   3. Every rule is VALIDATED before it is written, through the same
+  //      `validateIncomeRule` the admin save and the rule-check panel run. The
+  //      validator is a pure function taking an injected registry context, so
+  //      importing it here brings no Nest with it — the earlier objection was about
+  //      the application, not the function. A rule that fails is REPORTED AND
+  //      SKIPPED rather than aborting the seed: the other axes have already written,
+  //      and one bad table in the matrix must not leave a half-seeded catalog.
+  //
+  //      This matters more than it looks. A malformed rule seeded here would
+  //      otherwise surface on some bank's first save of an unrelated field, as a
+  //      refusal naming a table that operator never touched and cannot see.
 
   let rulesWritten = 0;
+  let rulesRejected = 0;
+
+  /**
+   * The registry lookups `validateIncomeRule` needs, straight off Prisma.
+   *
+   * Mirrors `BankProgramsService#incomeRuleContext()` deliberately — same four
+   * questions, same fail-closed answers — because a rule this accepts and that
+   * rejects (or the reverse) is a rule the seed can plant and no admin can save.
+   */
+  const ruleContext: IncomeRuleValidationContext = {
+    isActiveMember: async (type, key) =>
+      (await prisma.platformEnumeration.count({
+        where: { type, key, active: true, deprecatedAt: null },
+      })) > 0,
+    activeMembers: async (type) =>
+      (
+        await prisma.platformEnumeration.findMany({
+          where: { type, active: true, deprecatedAt: null },
+          orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+          select: { key: true },
+        })
+      ).map((m) => m.key),
+    surrogateFacts: async () => {
+      const rows = await prisma.platformEnumeration.findMany({
+        where: {
+          type: 'surrogate_fact',
+          active: true,
+          deprecatedAt: null,
+          boundQuestion: { isActive: true, type: { in: ['SINGLE_SELECT', 'NUMERIC'] } },
+        },
+        orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+        select: { key: true, boundQuestion: { select: { code: true, type: true } } },
+      });
+      return rows.flatMap((row) =>
+        row.boundQuestion === null
+          ? []
+          : [
+              {
+                key: row.key,
+                questionCode: row.boundQuestion.code,
+                type: row.boundQuestion.type as 'SINGLE_SELECT' | 'NUMERIC',
+              },
+            ],
+      );
+    },
+    questionOptionCodes: async (questionCode) =>
+      (
+        await prisma.questionOption.findMany({
+          where: { question: { code: questionCode }, isActive: true },
+          orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
+          select: { code: true },
+        })
+      ).map((o) => o.code),
+  };
+
+  /**
+   * Two rules compared by CONTENT, not by the order their keys happen to sit in.
+   *
+   * A plain `JSON.stringify` comparison reported every already-correct rule as changed
+   * and rewrote it on every run: the migration wrote `{"keyTable":…,"strategy":…}` and
+   * the matrix declares `{ strategy, keyTable }`, so the two strings differ while the
+   * rules are identical. The change log then printed
+   * `byProfessorRank(3 rows) → byProfessorRank(3 rows)`, which is worse than noise —
+   * it trains the reviewer to skim the one line that would show a real table change.
+   *
+   * Recursive, because `keyTable` rows and `bands` are objects too. Arrays keep their
+   * order: a band table's order is load-bearing (the lookup is first-match).
+   */
+  const sameRule = (a: unknown, b: unknown): boolean => stableJson(a) === stableJson(b);
+  const stableJson = (value: unknown): string => {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+    if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== undefined)
+      .sort(([x], [y]) => x.localeCompare(y));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableJson(v)}`).join(',')}}`;
+  };
 
   /** What a stored rule IS, for the change log — shape included, never just a name. */
   const describeRule = (rule: unknown): string => {
@@ -389,7 +478,23 @@ export async function seedProgramCatalog(): Promise<void> {
 
     const want = CATALOG_INCOME_RULE[key];
     if (!want) continue;
-    if (JSON.stringify(row.incomeRule) === JSON.stringify(want)) continue;
+    if (sameRule(row.incomeRule, want)) continue;
+
+    // Validated BEFORE the change log line, so the log never claims a write that did
+    // not happen. Checked even on a dry run — telling the operator what would be
+    // written is worth less than telling them it would be refused.
+    const violation = await validateIncomeRule(
+      want as unknown as IncomeAssumptionConfig,
+      ruleContext,
+    );
+    if (violation) {
+      rulesRejected += 1;
+      notes.push(
+        `income rule for '${key}' is invalid (${violation.kind}) and was NOT written — ` +
+          `fix CATALOG_INCOME_RULE in prisma/data/program-catalog-matrix.ts`,
+      );
+      continue;
+    }
 
     rulesWritten += 1;
     console.log(
@@ -415,7 +520,8 @@ export async function seedProgramCatalog(): Promise<void> {
       `${categoriesChanged} category set(s) changed · ` +
       `${templatesWritten} template(s) written (${picksWritten} picks) · ` +
       `${basisWritten} income basis/bases corrected · ` +
-      `${rulesWritten} income rule(s) written`,
+      `${rulesWritten} income rule(s) written` +
+      (rulesRejected > 0 ? ` · ${rulesRejected} REFUSED` : ''),
   );
   const untouched = names.filter((n) => !(n.key in CATALOG_CATEGORY_ASSIGNMENTS));
   if (untouched.length > 0) {

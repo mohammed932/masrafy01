@@ -126,6 +126,28 @@ export class IncomeAssumptionConfigDto {
   })
   strategy!: IncomeAssumptionStrategy;
 
+  /**
+   * Whose figures the tables below are. Program rules only — a catalog program name
+   * states its own, so its rule never sends this.
+   *
+   * OPTIONAL, and absent means `'own'`. Every stored row predates the field and
+   * carries its own numbers, so the absent case has to be the one that changes
+   * nothing; defaulting to `'catalog'` would re-point the whole book at tables it has
+   * never quoted from.
+   *
+   * On `'catalog'` the tables are STRIPPED before persistence and merged back from
+   * the program name at read (`income-rule-inherit.ts`). Sending them anyway is not
+   * an error — the wizard pre-fills the editor from the catalog so the operator can
+   * see what they are accepting, and that copy simply is not kept.
+   */
+  @ApiPropertyOptional({
+    enum: ['catalog', 'own'],
+    description: 'Whose figures these are. Absent = `own`. `catalog` inherits the program name\'s.',
+  })
+  @IsOptional()
+  @IsIn(['catalog', 'own'])
+  amounts?: 'catalog' | 'own';
+
   // --- canonical shapes ------------------------------------------------------
   //
   // All three are optional at the boundary and mutually exclusive in practice:

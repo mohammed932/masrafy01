@@ -1,9 +1,11 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { BankProgramType } from '@prisma/client';
-import type { LoanCategory, PlatformEnumeration, Prisma, QuestionType } from '@prisma/client';
+import { BankProgramType, Prisma } from '@prisma/client';
+import type { LoanCategory, PlatformEnumeration, QuestionType } from '@prisma/client';
+import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
+import { inheritsCatalogAmounts } from '@/matching/pipeline/income-rule-inherit';
 import { asLoanCategory, sortCategories } from '@/common/loan-category.util';
 import { basesOfFlags, flagsOfBases, type IncomeBasis } from '@/common/income-basis.util';
-import { factKeyOf, factStrategy } from '@/matching/types';
+import { factKeyOf, factStrategy, type IncomeAssumptionConfig } from '@/matching/types';
 import { SURROGATE_FACTS_BY_STRATEGY } from '@/matching/pipeline/surrogate-fact-bindings';
 import { PrismaService } from '@/infra/prisma/prisma.service';
 import {
@@ -16,6 +18,8 @@ import {
   type BoundQuestion,
   type EnumerationQuestionTemplate,
   type IncomeBasesByCategory,
+  type ProgramNameIncomeRuleRow,
+  type ProgramUnderName,
   type QuestionCodesByCategory,
   type SurrogateFactBinding,
 } from './platform-enumerations.repository';
@@ -312,6 +316,96 @@ export class PostgresPlatformEnumerationsRepository
       // `!` here would turn a future query edit into a runtime crash on the quote path.
       if (!q || !isBindableQuestionType(q.type)) return [];
       return [{ key: row.key, questionCode: q.code, type: q.type }];
+    });
+  }
+
+  /**
+   * Every catalog program name's income rule. Uncached by contract — see the abstract.
+   *
+   * DEPRECATED names are included on purpose. A program filed under a name that was
+   * later deprecated still quotes, and dropping the rule here would take its table away
+   * mid-flight — the deprecation is a signal to stop filing NEW programs under it, not
+   * an instruction to blank the income of the ones already there.
+   */
+  async programNameIncomeRules(): Promise<ReadonlyMap<string, IncomeAssumptionConfig>> {
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'program_name' },
+      select: { key: true, incomeRule: true },
+    });
+    // Filtered here rather than in the WHERE: the JSONB column can hold SQL NULL
+    // (`Prisma.DbNull`) or the JSON literal `null` (`Prisma.JsonNull`), and both mean
+    // "no rule". One predicate in TypeScript catches both; the Prisma filter needs the
+    // right one of the two sentinels, and picking the wrong one fails open — every name
+    // reads as ruled, and a `null` blob reaches the merge as a rule.
+    return new Map(
+      rows.flatMap((row) =>
+        row.incomeRule === null || typeof row.incomeRule !== 'object'
+          ? []
+          : [[row.key, row.incomeRule as unknown as IncomeAssumptionConfig] as const],
+      ),
+    );
+  }
+
+  async findProgramName(key: string): Promise<ProgramNameIncomeRuleRow | null> {
+    const row = await this.prisma.platformEnumeration.findUnique({
+      where: { idx_platform_enumeration_type_key: { type: 'program_name', key } },
+      select: {
+        id: true,
+        key: true,
+        labelAr: true,
+        labelEn: true,
+        incomeRule: true,
+        valueSources: true,
+      },
+    });
+    return row === null ? null : toProgramNameIncomeRuleRow(row);
+  }
+
+  async setProgramNameIncomeRule(
+    key: string,
+    rule: IncomeAssumptionConfig | null,
+    valueSources: Record<string, 'team_estimated'>,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    const row = await this.prisma.platformEnumeration.update({
+      where: { idx_platform_enumeration_type_key: { type: 'program_name', key } },
+      data: {
+        // `Prisma.DbNull` writes SQL NULL — "nobody has decided". `Prisma.JsonNull`
+        // would write the JSON literal `null`, which reads back as a present-but-null
+        // rule and would make `programNameIncomeRules` filter it out for a different
+        // reason each time the column is touched.
+        incomeRule: rule === null ? Prisma.DbNull : (rule as unknown as Prisma.InputJsonValue),
+        valueSources: valueSources as Prisma.InputJsonValue,
+        updatedBy,
+      },
+      select: {
+        id: true,
+        key: true,
+        labelAr: true,
+        labelEn: true,
+        incomeRule: true,
+        valueSources: true,
+      },
+    });
+    return toProgramNameIncomeRuleRow(row);
+  }
+
+  async programsUnderName(key: string): Promise<ProgramUnderName[]> {
+    const rows = await this.prisma.bankProgram.findMany({
+      where: { programNameKey: key, programType: BankProgramType.income_surrogate },
+      select: { programCode: true, incomeAssumption: true },
+      orderBy: { programCode: 'asc' },
+    });
+    return rows.map((row) => {
+      const config = row.incomeAssumption as unknown as IncomeAssumptionConfig;
+      return {
+        programCode: row.programCode,
+        // Normalized, because the stored blob may be legacy and the caller compares
+        // this against a canonical strategy. An un-normalized read would report a
+        // legacy program as reading something the catalog never states.
+        strategy: normalizeIncomeAssumption(config).strategy,
+        ownAmounts: !inheritsCatalogAmounts(config),
+      };
     });
   }
 
@@ -1121,6 +1215,33 @@ function readsAFactWithNoTable(rule: unknown): boolean {
 }
 
 // ---- Boundary mapper (Prisma row -> domain row) --------------------------
+
+/**
+ * The selected columns → the domain row. `incomeRule` collapses BOTH JSON nulls
+ * (SQL NULL and the literal `null`) to `null`, and a non-object blob with them: the
+ * column is only ever written by this repository, but a hand-run SQL fix is exactly
+ * the case where "no rule" must not read as a rule.
+ */
+function toProgramNameIncomeRuleRow(row: {
+  id: string;
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  incomeRule: unknown;
+  valueSources: unknown;
+}): ProgramNameIncomeRuleRow {
+  return {
+    id: row.id,
+    key: row.key,
+    labelAr: row.labelAr,
+    labelEn: row.labelEn,
+    incomeRule:
+      row.incomeRule === null || typeof row.incomeRule !== 'object'
+        ? null
+        : (row.incomeRule as IncomeAssumptionConfig),
+    valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
+  };
+}
 
 function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
   return {

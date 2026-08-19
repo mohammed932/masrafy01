@@ -37,6 +37,25 @@ interface Scenario {
   programCode: string;
   /** What the admin configured. `null` leaves the program's rule untouched. */
   incomeAssumption: Prisma.InputJsonValue | null;
+  /**
+   * The catalog name to file the program under, because the income PROOF is the name's
+   * property now: a surrogate program must read what its name states, and every bank
+   * under one name reads the same thing.
+   *
+   * Set on every scenario that supplies a rule. Without it this seeder manufactured the
+   * exact violation the platform refuses — it pointed two programs reading DIFFERENT
+   * proofs at `professional`, so re-seeding a dev box left two live programs that could
+   * no longer be saved.
+   */
+  programNameKey: string;
+  /**
+   * The name the program is filed under WITHOUT this seeder — where RESET puts it back.
+   *
+   * Needed because reset restores `{strategy:'declared'}`, and `declared` under a name
+   * that states `byProfessorRank` is refused. Resetting the rule without the name would
+   * leave exactly the unsavable program this seeder is being fixed for, one axis over.
+   */
+  resetProgramNameKey: string;
   /** Numbers the team guessed. A non-empty map is what blocks activation (FR-033). */
   valueSources: Record<string, 'team_estimated'>;
   note: string;
@@ -45,6 +64,11 @@ interface Scenario {
 const SCENARIOS: readonly Scenario[] = [
   {
     programCode: 'ABK-PER-DOCTOR',
+    // `doctor` states `byYearsInPractice` and these are its catalog figures, so this
+    // program is the one on the catalog's OWN table — the reference case for the
+    // inherited path.
+    programNameKey: 'doctor',
+    resetProgramNameKey: 'doctor',
     // Years in practice → an assumed income. The top band is CLOSED on purpose:
     // above 30 years the rule yields nothing and the customer is told so, which is a
     // real configuration and not a mistake.
@@ -63,8 +87,13 @@ const SCENARIOS: readonly Scenario[] = [
   },
   {
     programCode: 'CIB-PER-DOCTOR',
+    // Same name, same proof, DIFFERENT figures — two banks selling one product each
+    // with their own table, which is the whole point of `amounts: 'own'`.
+    programNameKey: 'doctor',
+    resetProgramNameKey: 'doctor',
     incomeAssumption: {
       strategy: 'byYearsInPractice',
+      amounts: 'own',
       bands: [
         { fromInclusive: '0', toExclusive: '5', incomeEGP: '20000' },
         { fromInclusive: '5', toExclusive: null, incomeEGP: '48000' },
@@ -80,10 +109,16 @@ const SCENARIOS: readonly Scenario[] = [
   },
   {
     programCode: 'CIB-PER-PROFESSIONAL',
+    // MOVED off `professional`. It reads academic rank, and `professor` is the name
+    // that states academic rank; `professional` states nothing, because the two
+    // programs filed there read two different proofs and one name cannot say both.
+    programNameKey: 'professor',
+    resetProgramNameKey: 'professional',
     // A key table, addressed by REGISTRY KEY rather than position — which is why its
     // marker survives a row being reordered.
     incomeAssumption: {
       strategy: 'byProfessorRank',
+      amounts: 'own',
       keyTable: [
         { key: 'lecturer', incomeEGP: '22000' },
         { key: 'assistant_professor', incomeEGP: '38000' },
@@ -96,14 +131,25 @@ const SCENARIOS: readonly Scenario[] = [
   },
   {
     programCode: 'HSBC-PER-PROFESSIONAL',
-    // The percentage form: no table, one figure. Certificate value × 4% ÷ 12.
+    // MOVED off `professional` too, and re-pointed at the proof its new name states.
+    //
+    // It used to read `byCDValue` (certificate value × 4% ÷ 12), which no catalog name
+    // states — and inventing a name for one demo program would put a row in every
+    // environment to serve a dev box. `self_employed` states
+    // `byBankStatementPercent`, the SAME scalar-percent editor shape, so the scenario
+    // still demonstrates "no table, one figure" while obeying the rule.
+    programNameKey: 'self_employed',
+    resetProgramNameKey: 'professional',
+    // `amounts: 'catalog'` — no figures of its own. This is now the INHERITED case:
+    // the 30% comes from the `self_employed` catalog rule, and editing the catalog
+    // moves this program's income on the next quote. Which is also why it is the
+    // control case that stays LIVE: nothing here is a team guess.
     incomeAssumption: {
-      strategy: 'byCDValue',
-      bands: [],
-      scalar: { value: '4', unit: 'percent' },
+      strategy: 'byBankStatementPercent',
+      amounts: 'catalog',
     },
     valueSources: {},
-    note: 'percentage form, fully bank-stated — stays LIVE, the control case',
+    note: 'inherits the catalog percentage — nothing typed here, stays LIVE, the control case',
   },
 ];
 
@@ -139,7 +185,13 @@ async function main(): Promise<void> {
           valueSources: {},
           active: true,
           ...(scenario.incomeAssumption !== null
-            ? { incomeAssumption: { strategy: 'declared' } }
+            ? {
+                incomeAssumption: { strategy: 'declared' },
+                // Back under its seeded name too. `declared` under a name that states
+                // `byProfessorRank` is refused, so restoring one without the other
+                // trades one unsavable program for another.
+                programNameKey: scenario.resetProgramNameKey,
+              }
             : {}),
         },
       });
@@ -155,7 +207,14 @@ async function main(): Promise<void> {
         // leaves it in the state the API would have left it in.
         active: paths.length === 0,
         ...(scenario.incomeAssumption !== null
-          ? { incomeAssumption: scenario.incomeAssumption }
+          ? {
+              incomeAssumption: scenario.incomeAssumption,
+              // Filed WITH the rule, in the same write. A rule that disagrees with its
+              // name's proof is refused by the API, so writing one without the other
+              // leaves a program the admin cannot save — the state this seeder used to
+              // produce.
+              programNameKey: scenario.programNameKey,
+            }
           : {}),
       },
     });

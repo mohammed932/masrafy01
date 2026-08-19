@@ -34,16 +34,16 @@ import {
   type IncomeBand,
   type IncomeKeyTableRow,
   type IncomeMethodShape,
-} from '../../bank-programs.types';
+} from '@features/bank-programs/bank-programs.types';
 import {
   IncomeBandsEditorComponent,
   incomeBandsErrorFor,
-} from './income-rule/income-bands-editor.component';
+} from './income-bands-editor.component';
 import {
   IncomeKeyTableComponent,
   incomeKeyTableErrorFor,
-} from './income-rule/income-key-table.component';
-import { incomeRuleHasError } from './income-rule/income-rule.rules';
+} from './income-key-table.component';
+import { incomeRuleHasError } from './income-rule.rules';
 
 /**
  * The income-assumption section — the bank's own rule for deriving an income when a
@@ -75,29 +75,22 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="section" [formGroup]="group()" id="income-assumption">
-      <header class="section-header">
-        <span
-          class="section-icon"
-          nz-icon
-          nzType="calculator"
-          nzTheme="outline"
-          aria-hidden="true"
-        ></span>
-        <div>
-          <h3 class="section-title" i18n="@@bank_programs.section.income_assumption">
-            Income assumption
-          </h3>
-          <p class="section-sub" i18n="@@bank_programs.section.income_assumption_sub">
-            How this bank works out a monthly income when a payslip is not the figure it lends
-            against. Switching method clears the previous table — you are asked first.
-          </p>
-        </div>
-      </header>
+      <!-- No header of its own. Both hosts already say what this block is, one line
+           above it, in words that fit where it sits: the catalog asks what the NAME
+           reads, the wizard says what the name already decided. A third heading in
+           between read as a second question. -->
+      @if (showProofPicker()) {
+        <p class="proof-lede" i18n="@@income_rule.proof_lede">
+          Every bank selling this name works the income out from this one figure. A bank may
+          change the amounts below, never the figure.
+        </p>
+      }
 
       <div class="grid">
+        @if (showProofPicker()) {
         <nz-form-item class="span-2 method-field">
-          <nz-form-label [nzFor]="'strategy'" i18n="@@bank_programs.field.strategy"
-            >Method</nz-form-label
+          <nz-form-label [nzFor]="'strategy'" i18n="@@income_rule.field.proof"
+            >What the income is worked out from</nz-form-label
           >
           <nz-form-control>
             <!-- Grouped by what the method READS, so the four whose fact can simply be
@@ -128,6 +121,7 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
             </nz-select>
           </nz-form-control>
         </nz-form-item>
+        }
 
         <!-- ── The method's own configuration ───────────────────────────────── -->
         @switch (shape()) {
@@ -175,8 +169,14 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
                       id="legacyScalarValue"
                       formControlName="value"
                       inputmode="decimal"
+                      [attr.aria-describedby]="'legacyScalarValueHint'"
                       (blur)="touchScalar()"
                     />
+                    <!-- Same arithmetic note as the canonical scalar editor. These two
+                         methods divide by 12; the one next door does not, and this field
+                         is the one most likely to be edited by someone who has only ever
+                         seen the other. -->
+                    <p class="rule-hint" id="legacyScalarValueHint">{{ scalarHint() }}</p>
                   </nz-form-control>
                 </nz-form-item>
               }
@@ -184,9 +184,7 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
           }
           @case ('scalar') {
             <div class="span-2 rule-block" formGroupName="scalar">
-              <h4 class="rule-title" i18n="@@bank_programs.income.scalar_title">
-                The bank's figure
-              </h4>
+              <h4 class="rule-title">{{ scalarTitle() }}</h4>
               <nz-form-item class="numeric">
                 <nz-form-label [nzFor]="'scalarValue'">{{ scalarLabel() }}</nz-form-label>
                 <nz-form-control>
@@ -195,9 +193,17 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
                     id="scalarValue"
                     formControlName="value"
                     inputmode="decimal"
-                    [attr.aria-describedby]="scalarError() ? 'scalarValueError' : null"
+                    [attr.aria-describedby]="scalarError() ? 'scalarValueError' : 'scalarValueHint'"
                     (blur)="touchScalar()"
                   />
+                  <!-- The ARITHMETIC, spelled out with a worked example.
+                       Load-bearing, not decoration: the six scalar methods do NOT agree
+                       on it. A percent of a car loan or a certificate is annual and gets
+                       divided by 12; a percent of a statement balance is already monthly
+                       and is not. So the same "10" typed into two of these fields means
+                       two different incomes, and the label alone ("Percent of …") cannot
+                       tell them apart. -->
+                  <p class="rule-hint" id="scalarValueHint">{{ scalarHint() }}</p>
                 </nz-form-control>
               </nz-form-item>
               @if (scalarError()) {
@@ -222,7 +228,7 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
         }
 
         <!-- ── Policy on top of the method ──────────────────────────────────── -->
-        @if (shape() !== 'none') {
+        @if (showPolicy() && shape() !== 'none') {
           <nz-form-item class="numeric">
             <nz-form-label
               [nzFor]="'dbrCapPercentOverride'"
@@ -313,9 +319,24 @@ import { incomeRuleHasError } from './income-rule/income-rule.rules';
       <ng-content></ng-content>
     </section>
   `,
-  styleUrls: ['./section.styles.scss'],
+  // The wizard's shared section rhythm. Still reached by relative path after this
+  // component moved to `shared/`, because the stylesheet is the FORM's grid and label
+  // vocabulary — copying it here would fork the two, and the catalog page renders this
+  // component inside its own card, where the same rhythm is what makes it look native.
+  styleUrls: ['../../features/bank-programs/form/sections/section.styles.scss'],
   styles: [
     `
+      /* The catalog's one-line statement of the rule, above the picker. Plain text on
+         the card surface — a callout box here would be the third bordered thing on a
+         screen whose whole job is one choice. */
+      .proof-lede {
+        margin: 0 0 var(--space-4);
+        color: var(--text-secondary);
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        max-inline-size: 62ch;
+      }
+
       /* One level of nesting inside the section rhythm — a bordered block, not a
          second card, so the rule reads as part of the method choice above it. */
       .rule-block {
@@ -396,6 +417,29 @@ export class IncomeAssumptionSectionComponent implements OnInit {
 
   /** The `incomeAssumption` form group: strategy, scalar, override, combination, docs. */
   readonly group = input.required<FormGroup>();
+
+  /**
+   * WHO is editing this rule, which decides two things at once.
+   *
+   *   'catalog'  the program NAME's own rule. The proof picker is shown — this is where
+   *              the one figure is chosen — and the bank-policy controls are hidden,
+   *              because a DBR cap and a document list belong to a bank, not to a name.
+   *   'program'  a bank's rule. The proof picker is HIDDEN: the name already decided,
+   *              and the server refuses a program that reads anything else. Policy is
+   *              shown, because that half really is the bank's.
+   *
+   * One input rather than three booleans (`showHeader` / `showPicker` / `showPolicy`):
+   * the three always move together, and separating them invites a future caller to
+   * assemble a combination that means nothing — a bank picking its own proof, or a
+   * catalog name carrying a debt-burden cap.
+   */
+  readonly variant = input<'program' | 'catalog'>('program');
+
+  /** The catalog chooses the proof; a bank program is told it. */
+  protected readonly showProofPicker = computed(() => this.variant() === 'catalog');
+
+  /** Bank policy on top of the method. Never a catalog name's business. */
+  protected readonly showPolicy = computed(() => this.variant() === 'program');
 
   /**
    * The two TABLE shapes are signals, not form controls — the same pattern
@@ -500,6 +544,48 @@ export class IncomeAssumptionSectionComponent implements OnInit {
       (this.strategy() === 'byCDValue' || this.strategy() === 'byTotalDeposits') &&
       this.bands().length === 0,
   );
+
+  /**
+   * WHOSE figure this is. On the catalog it is the name's, shared by every bank —
+   * calling it "the bank's figure" there says the opposite of what the screen is for.
+   */
+  readonly scalarTitle = computed(() =>
+    this.variant() === 'catalog'
+      ? $localize`:@@income_rule.scalar_title_catalog:The figure banks start from`
+      : $localize`:@@income_rule.scalar_title_program:This bank's figure`,
+  );
+
+  /**
+   * What the engine DOES with the number, as a sentence and a worked example.
+   *
+   * Written from `income-resolver.ts` case by case, because the six methods disagree in
+   * a way no label can convey: `byCarLoanAmount`, `byCDValue` and `byTotalDeposits`
+   * treat the percent as ANNUAL and divide by 12, `byBankStatementPercent` does not, and
+   * the two multiplier methods divide by nothing. An operator typing 10 into two of
+   * these fields is setting two different incomes, and until now the screen said only
+   * "Percent of …" for both.
+   *
+   * The examples use round numbers so the arithmetic can be checked at a glance — the
+   * point is to make a wrong entry obvious before it is saved, not to look tidy.
+   */
+  readonly scalarHint = computed(() => {
+    switch (this.strategy()) {
+      case 'byCarInstallment':
+        return $localize`:@@income_rule.scalar_hint_car_installment:Installment × this number. A 5,000 EGP installment × 4 = 20,000 EGP a month.`;
+      case 'byCreditCardLimit':
+        return $localize`:@@income_rule.scalar_hint_card_limit:Card limit × this number. A 100,000 EGP limit × 0.1 = 10,000 EGP a month.`;
+      case 'byCarLoanAmount':
+        return $localize`:@@income_rule.scalar_hint_car_loan:This percent of the loan, per YEAR, divided into months. 5% of 300,000 EGP = 1,250 EGP a month.`;
+      case 'byBankStatementPercent':
+        return $localize`:@@income_rule.scalar_hint_bank_statement:This percent of the balance, already MONTHLY — not divided by 12. 10% of 200,000 EGP = 20,000 EGP a month.`;
+      case 'byCDValue':
+        return $localize`:@@income_rule.scalar_hint_cd:This percent of the certificate, per YEAR, divided into months. 3% of 400,000 EGP = 1,000 EGP a month.`;
+      case 'byTotalDeposits':
+        return $localize`:@@income_rule.scalar_hint_deposits:This percent of total deposits, per YEAR, divided into months. 2% of 600,000 EGP = 1,000 EGP a month.`;
+      default:
+        return '';
+    }
+  });
 
   readonly scalarLabel = computed(() => {
     switch (this.strategy()) {

@@ -662,9 +662,15 @@ export interface CatalogIncomeRule {
  * read the difference, which is why the second is written out rather than left
  * absent.
  *
- * `doctor` and `professional` are deliberately ABSENT. After the split, every
- * program still filed under them carries `declared` — there is nothing to state,
- * and stating it would claim a decision nobody made.
+ * ABSENT is no longer a neutral state. Since the income proof became the NAME's
+ * property, absent means "nobody has decided", and a surrogate program filed under
+ * such a name is REFUSED (`PROGRAM_NAME_INCOME_PROOF_MISSING`). So every name that
+ * already carries a surrogate program has to appear below — including the four whose
+ * answer is `declared`, which is a decision, not a blank.
+ *
+ * Nothing is absent any more that a surrogate program is filed under. Run
+ * `scripts/income-proof-conflicts.ts` after changing this file — it reports every name
+ * a program reads that states nothing, and every name two programs disagree about.
  *
  * ── FIGURES ARE COPIES ──────────────────────────────────────────────────────
  * Every value below is verbatim from the program that carries it today
@@ -712,6 +718,47 @@ export const CATALOG_INCOME_RULE: Readonly<Record<string, CatalogIncomeRule>> = 
   // SOURCE: ABK-WEALTH + SF-HIGH-END. Two programs, one rule, and they already
   // agree — which is what makes the name safe to state once.
   wealth_tier: { strategy: 'declared' },
+
+  // ── STATED `declared`, because surrogate programs are already filed here ──────
+  //
+  // These four names carry `income_surrogate` programs whose rule is `declared`: the
+  // bank works with no payslip but names no substitute figure — it lends against the
+  // business, and the applicant's own stated income is the number. That is a real
+  // configuration (`quote.ts` reads the declared salary and the offer records
+  // `origin: 'declared'`), and seven seeded business programs rely on it.
+  //
+  // Written out rather than left absent because the two are now different answers to
+  // a question the API asks: absent means "nobody has decided", which REFUSES the next
+  // surrogate program filed under the name (`PROGRAM_NAME_INCOME_PROOF_MISSING`).
+  // Every one of these names already has such programs, so leaving them absent would
+  // make eleven live programs unsavable on their next unrelated edit.
+  //
+  // `doctor` is the one with a substitute figure: both its surrogate programs read
+  // years in practice and they AGREE on the proof, which is what makes the name safe
+  // to state. The FIGURES here are ABK-PER-DOCTOR's, the richer of the two tables;
+  // both programs keep their own (`amounts: 'own'`), so this table is what a NEW
+  // program under the name starts from and moves no existing quote.
+  doctor: {
+    strategy: 'byYearsInPractice',
+    bands: [
+      { fromInclusive: '0', toExclusive: '3', incomeEGP: '18000' },
+      { fromInclusive: '3', toExclusive: '8', incomeEGP: '35000' },
+      { fromInclusive: '8', toExclusive: '15', incomeEGP: '60000' },
+      { fromInclusive: '15', toExclusive: '31', incomeEGP: '90000' },
+    ],
+  },
+
+  // SOURCE: CIB-PER-PROFESSIONAL + HSBC-PER-PROFESSIONAL as SEEDED — `skeletonFor`
+  // types them `income_surrogate` (the archetype is self-employed) with no substitute
+  // figure. `seed-surrogate-demo.ts` rewrites both on a dev box; it now files them
+  // under `professor` and `self_employed`, whose stated proofs they actually read.
+  professional: { strategy: 'declared' },
+  // SOURCE: ADIB-BIZ-EQUIPMENT_FINANCE + BM-BIZ-EQUIPMENT_FINANCE, both `declared`.
+  equipment_finance: { strategy: 'declared' },
+  // SOURCE: BDC-PER-PHARMACY + CIB-BIZ-PHARMACY, both `declared`.
+  pharmacy: { strategy: 'declared' },
+  // SOURCE: four WORKING_CAPITAL programs (ABK / BDC / CIB / NXT), all `declared`.
+  working_capital: { strategy: 'declared' },
 
   // SOURCE: ABK-MILITARY. An EXISTING name, not one of the five added: no program
   // moves onto or off `armed_forces`, the rule simply moves up from the one

@@ -13,7 +13,7 @@
  * asserts the two agree on every reason token.
  */
 
-import type { IncomeBand, IncomeKeyTableRow } from '../../../bank-programs.types';
+import type { IncomeBand, IncomeKeyTableRow } from '@features/bank-programs/bank-programs.types';
 
 // ── Key tables ──────────────────────────────────────────────────────────────
 

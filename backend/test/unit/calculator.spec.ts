@@ -28,6 +28,11 @@ function makeService(ratePercent = '26.0000', findById: unknown = async () => nu
   return new CalculatorService(
     { findById } as unknown as BankProgramRepository,
     { getOrThrow: () => ratePercent } as unknown as ConfigService,
+    // The catalog's income rules, which a program on `amounts: 'catalog'` is quoted
+    // off. Empty here: every program in these cases carries its own figures, and an
+    // empty map is also the honest answer — a name that states nothing must resolve to
+    // a stated reason rather than a figure this harness invented.
+    { programNameIncomeRules: async () => new Map() } as never,
   );
 }
 

@@ -710,6 +710,30 @@ export class IncomeRuleFactUnavailableException extends DomainException {
   }
 }
 
+/**
+ * One name, one income proof — the program disagrees with the name it is filed under.
+ * `expected` is the catalog's answer, which is the one that stands.
+ */
+export class ProgramNameIncomeProofMismatchException extends DomainException {
+  constructor(meta: { programNameKey: string; expected: string; got: string }) {
+    super(ERROR_CODES.PROGRAM_NAME_INCOME_PROOF_MISMATCH, meta);
+  }
+}
+
+/** A surrogate program under a name that states no proof. The fix is on the catalog. */
+export class ProgramNameIncomeProofMissingException extends DomainException {
+  constructor(meta: { programNameKey: string }) {
+    super(ERROR_CODES.PROGRAM_NAME_INCOME_PROOF_MISSING, meta);
+  }
+}
+
+/** Changing a name's proof out from under the banks whose tables are keyed by it. */
+export class IncomeProofInUseException extends DomainException {
+  constructor(meta: { programNameKey: string; programCodes: string[] }) {
+    super(ERROR_CODES.INCOME_PROOF_IN_USE, meta);
+  }
+}
+
 /** Research R8 — a marker named a path outside the program's numeric allow-list. */
 export class ValueSourcePathUnknownException extends DomainException {
   constructor(meta: { path: string }) {

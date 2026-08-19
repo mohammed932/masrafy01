@@ -1,9 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import type { BankProgramType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PrismaService } from '../infra/prisma/prisma.service';
 import { AuditEventType } from '../common/audit/audit-event-types';
 import { AuditEventRepository } from '../audit/audit-event.repository';
-import { PlatformEnumerationsRepository } from '../platform-enumerations/platform-enumerations.repository';
+import {
+  PlatformEnumerationsRepository,
+  type ProgramNameIncomeRuleRow,
+  type ProgramUnderName,
+} from '../platform-enumerations/platform-enumerations.repository';
+import {
+  SetProgramNameIncomeRuleDto,
+  type ProgramNameIncomeRuleResponseDto,
+} from './dto/program-name-income-rule.dto';
 import {
   BankProgramHasOffersException,
   BankProgramNotFoundException,
@@ -26,6 +35,9 @@ import {
   NoneTransferUnsafeException,
   ProgramCodeAlreadyInUseException,
   ProgramNameKeyNotInCategoryException,
+  ProgramNameIncomeProofMismatchException,
+  ProgramNameIncomeProofMissingException,
+  IncomeProofInUseException,
   ProgramHasEstimatedValuesException,
   ProgramNameKeyUnknownException,
   ValueSourcePathUnknownException,
@@ -55,6 +67,7 @@ import {
 } from './validation/cross-config.validators';
 import { validateDbrBands } from './validation/dbr-bands.validator';
 import {
+  catalogIncomeRulePaths,
   estimatedPaths,
   newlyEstimatedPaths,
   pruneValueSources,
@@ -73,6 +86,10 @@ import {
 } from './validation/income-rule.validator';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
+import {
+  effectiveIncomeRule,
+  stripInheritedAmounts,
+} from '@/matching/pipeline/income-rule-inherit';
 import { quoteProgram } from '@/matching/pipeline/quote';
 import { resolveAssumedIncome } from '@/matching/pipeline/income-resolver';
 import { toBankProgramSnapshot } from './bank-program-snapshot.mapper';
@@ -357,10 +374,26 @@ export class BankProgramsService {
        * validates the normalized draft) disagreed about the same rule.
        */
       incomeAssumption?: IncomeAssumptionConfig;
+      /**
+       * The income proof this program already had under this same name. Present only
+       * on `update()`, and only to grandfather an UNCHANGED pair — see
+       * `assertIncomeProofMatchesName`.
+       */
+      storedIncomeProof?: string;
     } = {},
   ): Promise<void> {
     // A program names one predefined program from the catalog, never free text.
     await this.assertProgramNameKey(dto.programNameKey, dto.productCategory, opts);
+    const persistedRule =
+      opts.incomeAssumption ??
+      this.persistableIncomeAssumption(dto as CreateBankProgramDto | UpdateBankProgramDto);
+    // One name, one income proof.
+    await this.assertIncomeProofMatchesName({
+      programNameKey: dto.programNameKey,
+      programType: dto.programType,
+      strategy: persistedRule.strategy,
+      storedIncomeProof: opts.storedIncomeProof,
+    });
     // Nothing constrains the income BASIS (v16.4.0). No category implies it (v16.0.0),
     // and the catalog name no longer carries a payslip / no-payslip tick either: the
     // bank picks it on this program (`programType`), which is the only place it is
@@ -446,9 +479,14 @@ export class BankProgramsService {
     // ignored and reported rather than deleted (FR-001 edge case), and a table
     // saved with a duplicate key or a zero income would be just as broken the day
     // someone re-typed the program.
+    //
+    // Validated as the ENGINE will see it: a program on catalog amounts stores no
+    // table of its own, so validating the persisted blob would report `INCOME_RULE_EMPTY`
+    // for the case the screen defaults to. The merge is also what makes the check
+    // meaningful — a catalog table with a dead key must fail the bank's save too,
+    // because it is the bank's quote that breaks.
     const ruleViolation = await validateIncomeRule(
-      opts.incomeAssumption ??
-        this.persistableIncomeAssumption(dto as CreateBankProgramDto | UpdateBankProgramDto),
+      effectiveIncomeRule(persistedRule, await this.catalogIncomeRuleFor(dto.programNameKey)),
       this.incomeRuleContext(),
     );
     if (ruleViolation) throw incomeRuleException(ruleViolation);
@@ -541,6 +579,55 @@ export class BankProgramsService {
     });
   }
 
+  /**
+   * ONE catalog program name states ONE income proof, and every surrogate program
+   * filed under it reads that one. A bank wanting a different proof is selling a
+   * different product and needs a different name; what a bank may change is the
+   * FIGURES.
+   *
+   * Scoped to `income_surrogate` deliberately. A payslip program is quoted off the
+   * salary the applicant declared and reaches the rule only when there is none, so
+   * holding it to the name's proof would reject saves no quote depends on — and the
+   * catalog is full of names carrying both kinds (`doctor` has two surrogate programs
+   * and one payslip car program).
+   *
+   * Two ways to fail, and they send the operator to different screens: the name says
+   * nothing yet (fix the catalog) or it says something else (fix one of the two).
+   */
+  private async assertIncomeProofMatchesName(args: {
+    programNameKey: string;
+    programType: BankProgramType;
+    strategy: string;
+    storedIncomeProof?: string;
+  }): Promise<void> {
+    if (args.programType !== 'income_surrogate') return;
+    // Grandfathered: this save changes neither the name nor the proof, so it is not
+    // MOVING the program onto a proof it may not read — it is editing a rate or a fee
+    // on a program that already reads it. `update()` is a full-replacement PUT, so
+    // every save re-runs every check, and without this a program that predates the
+    // rule would be frozen out of every edit including the one that would fix it.
+    if (args.storedIncomeProof === args.strategy) return;
+
+    const catalogRule = await this.catalogIncomeRuleFor(args.programNameKey);
+    if (catalogRule === undefined) {
+      throw new ProgramNameIncomeProofMissingException({ programNameKey: args.programNameKey });
+    }
+    if (catalogRule.strategy !== args.strategy) {
+      throw new ProgramNameIncomeProofMismatchException({
+        programNameKey: args.programNameKey,
+        expected: catalogRule.strategy,
+        got: args.strategy,
+      });
+    }
+  }
+
+  /** One name's catalog rule, or `undefined` when the name states none. */
+  private async catalogIncomeRuleFor(
+    programNameKey: string,
+  ): Promise<IncomeAssumptionConfig | undefined> {
+    return (await this.enums.programNameIncomeRules()).get(programNameKey);
+  }
+
   // --- Feature 011 — income-rule plumbing ---------------------------------
 
   /**
@@ -577,6 +664,10 @@ export class BankProgramsService {
    *   2. `normalizeIncomeAssumption` — write the CANONICAL shape (FR-014), so the
    *      legacy shapes converge to one truth as programs are saved, without a
    *      migration and without the engine keeping two readers.
+   *   3. `stripInheritedAmounts` — a program on CATALOG amounts stores none of its
+   *      own. Without this the screen's pre-filled copy would be persisted, and the
+   *      program would keep quoting those figures after the catalog moved: the
+   *      inheritance would be a one-time copy wearing the label of a link.
    */
   private persistableIncomeAssumption(
     dto: CreateBankProgramDto | UpdateBankProgramDto,
@@ -584,7 +675,7 @@ export class BankProgramsService {
     const stripped = stripForeignMethodConfig(
       dto.incomeAssumption as unknown as IncomeAssumptionConfig,
     );
-    return normalizeIncomeAssumption(stripped);
+    return stripInheritedAmounts(normalizeIncomeAssumption(stripped));
   }
 
   /** FR-001 edge case + FR-013 — reported, never a rejection. */
@@ -796,6 +887,17 @@ export class BankProgramsService {
         dto.programNameKey === existing.programNameKey &&
         dto.productCategory === existing.productCategory,
       incomeAssumption: persistedRule,
+      // The proof this program already reads under this same name. Handed over only
+      // when the NAME is unchanged: moving a program to another name is exactly the
+      // case the proof check exists for, and a stored proof carried across that move
+      // would wave it through.
+      ...(dto.programNameKey === existing.programNameKey
+        ? {
+            storedIncomeProof: normalizeIncomeAssumption(
+              existing.incomeAssumption as unknown as IncomeAssumptionConfig,
+            ).strategy,
+          }
+        : {}),
     });
 
     const warnings = this.incomeRuleWarnings({ dto, persisted: persistedRule });
@@ -1002,6 +1104,154 @@ export class BankProgramsService {
     return this.toResponse(updated, deprecatedKeys, { warnings, deactivatedByEstimate });
   }
 
+  // --- CATALOG PROGRAM NAME: the ONE income proof --------------------------
+
+  /** Read a catalog name's rule, and who is reading it. */
+  async getProgramNameIncomeRule(
+    programNameKey: string,
+  ): Promise<ProgramNameIncomeRuleResponseDto> {
+    const name = await this.enums.findProgramName(programNameKey);
+    if (!name) {
+      const active = await this.enums.getActiveMembers('program_name');
+      throw new ProgramNameKeyUnknownException({
+        programNameKey,
+        activeKeys: active.map((m) => m.key),
+      });
+    }
+    return this.toProgramNameIncomeRuleResponse(name);
+  }
+
+  /**
+   * Set (or clear) what a catalog program name reads its income from, and the figures
+   * every bank filed under it starts from.
+   *
+   * Three refusals, in this order, because they send the operator to different places:
+   *
+   *   1. the rule itself does not validate — the SAME `validateIncomeRule` the bank's
+   *      own save runs, so a table the catalog accepts can never be one a program is
+   *      then refused for
+   *   2. the PROOF is changing while surrogate programs read the old one
+   *      (`INCOME_PROOF_IN_USE`) — their tables are keyed by it, so letting this
+   *      through would leave live programs quoting rows no applicant can match, with
+   *      nothing on screen to say it happened
+   *   3. the rule is being CLEARED while programs still take its figures — same
+   *      refusal, because inheriting from nothing is how a configured program starts
+   *      resolving `rule_unconfigured`
+   *
+   * Order 1 before 2 is deliberate: an operator fixing a typo in a table should get the
+   * typo back, not a lecture about who else reads the proof.
+   */
+  async setProgramNameIncomeRule(
+    programNameKey: string,
+    dto: SetProgramNameIncomeRuleDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<ProgramNameIncomeRuleResponseDto> {
+    const name = await this.enums.findProgramName(programNameKey);
+    if (!name) {
+      const active = await this.enums.getActiveMembers('program_name');
+      throw new ProgramNameKeyUnknownException({
+        programNameKey,
+        activeKeys: active.map((m) => m.key),
+      });
+    }
+
+    // `amounts` is dropped rather than rejected: it says whose figures a BANK PROGRAM
+    // uses, and a name's figures are its own by definition. A client that sends it is
+    // being redundant, not wrong.
+    const incoming = dto.incomeRule as unknown as IncomeAssumptionConfig | null;
+    let rule: IncomeAssumptionConfig | null = null;
+    if (incoming !== null) {
+      rule = normalizeIncomeAssumption(stripForeignMethodConfig(incoming));
+      delete rule.amounts;
+    }
+
+    if (rule !== null) {
+      const violation = await validateIncomeRule(rule, this.incomeRuleContext());
+      if (violation) throw incomeRuleException(violation);
+    }
+
+    const programs = await this.enums.programsUnderName(programNameKey);
+    const proofChanged = (name.incomeRule?.strategy ?? null) !== (rule?.strategy ?? null);
+    if (proofChanged) {
+      // Every surrogate program under the name is affected, not only the ones that
+      // typed their own table: a program on catalog amounts would silently start
+      // reading a different fact, which is the same break one step further away.
+      const blocked = programs.map((p) => p.programCode);
+      if (blocked.length > 0) {
+        throw new IncomeProofInUseException({ programNameKey, programCodes: blocked });
+      }
+    }
+
+    // Markers are validated against the INCOMING rule and then pruned to it, exactly as
+    // a program's are: the operator marks a figure in the same save that introduces it,
+    // and a marker whose row this save deletes is stale rather than unknown.
+    const submitted = dto.valueSources ?? {};
+    const allowed = catalogIncomeRulePaths(rule);
+    const previously = catalogIncomeRulePaths(name.incomeRule);
+    for (const [path, value] of Object.entries(submitted)) {
+      if (value !== 'team_estimated') {
+        throw new ValueSourceValueInvalidException({ path, value: String(value) });
+      }
+      if (!allowed.has(path) && !previously.has(path)) {
+        throw new ValueSourcePathUnknownException({ path });
+      }
+    }
+    const valueSources: Record<string, 'team_estimated'> = {};
+    for (const path of Object.keys(submitted)) {
+      if (allowed.has(path)) valueSources[path] = 'team_estimated';
+    }
+
+    const saved = await this.enums.setProgramNameIncomeRule(
+      programNameKey,
+      rule,
+      valueSources,
+      actor.id,
+    );
+    await this.audit.create({
+      actorId: actor.id,
+      targetId: name.id,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'program_name',
+        key: programNameKey,
+        id: name.id,
+        // Keyed `incomeRule` to match the column and the other assignment axes
+        // (`questions.<category>`, `incomeBasis.<category>`). The STRATEGY is written
+        // out separately because it is the part a reader of the log cares about — a
+        // whole-blob diff buries "this name stopped reading academic rank".
+        changes: {
+          incomeRule: {
+            before: name.incomeRule?.strategy ?? null,
+            after: rule?.strategy ?? null,
+            figuresChanged:
+              JSON.stringify(name.incomeRule ?? null) !== JSON.stringify(rule ?? null),
+          },
+        },
+      },
+    });
+
+    return this.toProgramNameIncomeRuleResponse(saved, programs);
+  }
+
+  private async toProgramNameIncomeRuleResponse(
+    name: ProgramNameIncomeRuleRow,
+    programs?: ProgramUnderName[],
+  ): Promise<ProgramNameIncomeRuleResponseDto> {
+    const under = programs ?? (await this.enums.programsUnderName(name.key));
+    return {
+      programNameKey: name.key,
+      labelAr: name.labelAr,
+      labelEn: name.labelEn,
+      // Normalized on the way OUT, like a program's rule, so the screen's marker paths
+      // address the same shape the engine reads.
+      incomeRule: name.incomeRule === null ? null : normalizeIncomeAssumption(name.incomeRule),
+      valueSources: name.valueSources,
+      programs: under.map((p) => ({ programCode: p.programCode, ownAmounts: p.ownAmounts })),
+    };
+  }
+
   // --- INCOME RULE CHECK (feature 011, US3) --------------------------------
 
   /**
@@ -1023,16 +1273,28 @@ export class BankProgramsService {
     const program = await this.repo.findByProgramCode(programCode);
     if (!program) throw new BankProgramNotFoundException({ programCode });
 
+    // The catalog's figures are merged into the DRAFT before anything reads it. A
+    // draft on `amounts: 'catalog'` carries no table of its own, so validating or
+    // quoting it as sent would report `rule_unconfigured` for a program that is in
+    // fact configured — the panel would fail on exactly the setup the screen defaults
+    // to. Merged here rather than in the mapper because the mapper's copy is discarded:
+    // the draft REPLACES `incomeAssumption` on the snapshot two statements down.
+    const catalogRules = await this.enums.programNameIncomeRules();
+    const draft = normalizeIncomeAssumption(
+      effectiveIncomeRule(
+        dto.incomeAssumption as unknown as IncomeAssumptionConfig,
+        program.programNameKey === null ? undefined : catalogRules.get(program.programNameKey),
+      ),
+    );
     // The SAME validator the save path runs. A rule that could not be saved must not
     // silently "work" here, or the panel would be reassuring the admin about a
     // configuration the server is about to reject (contracts § 2).
-    const draft = normalizeIncomeAssumption(
-      dto.incomeAssumption as unknown as IncomeAssumptionConfig,
-    );
     const violation = await validateIncomeRule(draft, this.incomeRuleContext());
     if (violation) throw incomeRuleException(violation);
 
     const snapshot: BankProgramSnapshot = {
+      // No catalog map: whatever income rule the mapper resolves is replaced by the
+      // draft below, so reading the catalog twice would be work with no reader.
       ...toBankProgramSnapshot(program),
       // The overlay, and the ONLY thing overlaid: pricing, fees, tenor, limits and
       // the DBR band table all stay as saved, so the figures the panel shows are this

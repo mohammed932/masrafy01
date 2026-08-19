@@ -9,11 +9,27 @@
 import type { BankProgram } from '@prisma/client';
 import type { BankProgramSnapshot, IncomeAssumptionConfig } from '@/matching/types';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
+import { effectiveIncomeRule } from '@/matching/pipeline/income-rule-inherit';
 
 /** The row plus the optional joined bank, as `findAllActive` returns it. */
 export type BankProgramRow = BankProgram & { bank?: { isFeatured: boolean } | null };
 
-export function toBankProgramSnapshot(p: BankProgramRow): BankProgramSnapshot {
+/**
+ * Every catalog program name's income rule, keyed by `programNameKey`. Read once
+ * per request by the caller and handed in, because this function is called in a
+ * `.map()` over the whole active book and must not do IO.
+ *
+ * OPTIONAL, and omitting it is not a silent fallback: a program on `amounts:'catalog'`
+ * mapped without the map keeps its (stripped) tables, which is no table, and the
+ * resolver reports `rule_unconfigured` rather than quoting a figure. The two callers
+ * that legitimately omit it are the ones whose programs cannot inherit — see each.
+ */
+export type CatalogIncomeRules = ReadonlyMap<string, IncomeAssumptionConfig>;
+
+export function toBankProgramSnapshot(
+  p: BankProgramRow,
+  catalogRules?: CatalogIncomeRules,
+): BankProgramSnapshot {
   return {
     id: p.id,
     programCode: p.programCode,
@@ -36,8 +52,15 @@ export function toBankProgramSnapshot(p: BankProgramRow): BankProgramSnapshot {
     // consumer of a snapshot sees one shape: the engine, the admin simulator, the
     // calculator, and the US3 rule-check overlay, which merges a canonical draft
     // onto this object and would otherwise be merging onto a legacy blob.
+    //
+    // The catalog merge runs BEFORE normalize, not after: a catalog rule may still
+    // carry a legacy figure shape, and normalizing the program first would leave
+    // those keys to be upgraded by nobody.
     incomeAssumption: normalizeIncomeAssumption(
-      p.incomeAssumption as unknown as IncomeAssumptionConfig,
+      effectiveIncomeRule(
+        p.incomeAssumption as unknown as IncomeAssumptionConfig,
+        p.programNameKey === null ? undefined : catalogRules?.get(p.programNameKey),
+      ),
     ) as unknown as BankProgramSnapshot['incomeAssumption'],
     fees: p.fees as unknown as BankProgramSnapshot['fees'],
     performanceCriteria: p.performanceCriteria as unknown as

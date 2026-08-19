@@ -12,6 +12,7 @@ import type {
   BindableQuestionType,
   SurrogateFactBinding,
 } from '@/matching/pipeline/surrogate-fact-registry';
+import type { IncomeAssumptionConfig } from '@/matching/types';
 
 export type EnumerationType =
   | 'transfer_type'
@@ -309,4 +310,78 @@ export abstract class PlatformEnumerationsRepository {
    * rejection rather than a silent pass.
    */
   abstract questionOptionCodes(questionCode: string): Promise<string[]>;
+
+  /**
+   * Every catalog program name's income rule, keyed by the name's `key`.
+   *
+   * The catalog name states the ONE income proof and the figures a bank starts from;
+   * a program on `amounts: 'catalog'` is quoted off exactly this. Returned as a map
+   * because the caller merges it across the whole active book in one pass
+   * (`toBankProgramSnapshot`), and a per-program lookup would be a query per program
+   * on the apply path.
+   *
+   * Names with no rule are ABSENT from the map rather than present-and-empty: "nobody
+   * has decided" and "an operator decided `declared`" are different answers, and the
+   * second one is a stored `{"strategy":"declared"}` that must come back as such.
+   *
+   * Uncached by contract, like `surrogateFactRegistry`: it feeds a quote. A 60s window
+   * in which an edited table still quotes the old figure is a wrong loan amount, not a
+   * stale picker.
+   */
+  abstract programNameIncomeRules(): Promise<ReadonlyMap<string, IncomeAssumptionConfig>>;
+
+  /**
+   * One catalog program name, with the two fields its income rule needs.
+   *
+   * By KEY, not by id: the key is what a bank program stores, what the URL carries and
+   * what an operator recognises. `null` when the name does not exist or is not a
+   * `program_name` — the caller turns that into `PROGRAM_NAME_KEY_UNKNOWN` rather than
+   * writing a rule onto a row of some other type.
+   */
+  abstract findProgramName(key: string): Promise<ProgramNameIncomeRuleRow | null>;
+
+  /**
+   * Write (or clear, with `null`) a program name's income rule and the estimate
+   * markers that address its figures.
+   *
+   * Both in one call because they describe the same numbers: a save that replaced the
+   * table but kept the old markers would leave `incomeRule.bands.3.incomeEGP` pointing
+   * at a band that no longer exists, and the marker map is what the activation gate
+   * reads.
+   */
+  abstract setProgramNameIncomeRule(
+    key: string,
+    rule: IncomeAssumptionConfig | null,
+    valueSources: Record<string, 'team_estimated'>,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * The surrogate programs filed under a name, with the proof each reads and whether
+   * its figures are its own.
+   *
+   * Backs two refusals on the catalog write, so it is UNCACHED: changing a name's proof
+   * while banks read it (`INCOME_PROOF_IN_USE`), and clearing a rule that programs still
+   * inherit. A stale answer here lets a live program lose its table.
+   */
+  abstract programsUnderName(key: string): Promise<ProgramUnderName[]>;
+}
+
+/** A catalog program name as the income-rule endpoints read it. */
+export interface ProgramNameIncomeRuleRow {
+  id: string;
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  incomeRule: IncomeAssumptionConfig | null;
+  valueSources: Record<string, 'team_estimated'>;
+}
+
+/** One surrogate bank program filed under a catalog name. */
+export interface ProgramUnderName {
+  programCode: string;
+  /** The proof it reads — `IncomeAssumptionConfig['strategy']`, normalized. */
+  strategy: string;
+  /** `false` when it takes the catalog's figures. */
+  ownAmounts: boolean;
 }

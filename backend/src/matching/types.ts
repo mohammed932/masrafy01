@@ -345,6 +345,29 @@ export interface IncomeBand {
 export interface IncomeAssumptionConfig {
   strategy: IncomeAssumptionStrategy;
 
+  /**
+   * WHERE the figures below come from. Program rules only — a catalog name's own
+   * rule is the source, so it never carries this.
+   *
+   *   'own'      the tables on this object are this bank's. The default, and what
+   *              every row written before this field existed means: they all carry
+   *              their own numbers, so ABSENT must read as `'own'` (see
+   *              `normalizeIncomeAssumption`).
+   *   'catalog'  the tables are the catalog program name's, merged in by
+   *              `toBankProgramSnapshot`. `keyTable`/`bands`/`scalar` are STRIPPED
+   *              before persist, so the program stores no copy and a catalog edit
+   *              reaches it on the next quote.
+   *
+   * An explicit marker rather than "the table is empty", because those are two
+   * different states: a program that inherits and a program whose operator has not
+   * filled the table in yet must not save, resolve or read the same.
+   *
+   * The `strategy` is NOT inherited — it is copied from the name and enforced equal
+   * to it (`PROGRAM_NAME_INCOME_PROOF_MISMATCH`), so every reader that switches on
+   * a strategy keeps working against the program object alone.
+   */
+  amounts?: 'catalog' | 'own';
+
   // --- canonical shapes (one per method family) ---
 
   /** Key methods only. Order follows registry display order. */

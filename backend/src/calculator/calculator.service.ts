@@ -29,6 +29,7 @@ import {
   obligationMonthlyAmountFor,
 } from '@/matching/pipeline/money-field-bindings';
 import { quoteProgram } from '@/matching/pipeline/quote';
+import { PlatformEnumerationsRepository } from '@/platform-enumerations/platform-enumerations.repository';
 import type { ApplicantProfile, BankProgramSnapshot, Quote } from '@/matching/types';
 import {
   CALCULATOR_DISCLAIMER_CODE,
@@ -51,6 +52,7 @@ export class CalculatorService {
   constructor(
     private readonly programs: BankProgramRepository,
     private readonly config: ConfigService,
+    private readonly enumerations: PlatformEnumerationsRepository,
   ) {}
 
   /** `age` is derived from the caller's `birthday` by the controller — never sent by the client. */
@@ -298,7 +300,10 @@ export class CalculatorService {
         programCode: row.programCode,
       });
     }
-    return { program: toBankProgramSnapshot(row), isRepresentativeRate: false };
+    // One program, so one read — the calculator quotes a single named program and a
+    // per-request map of the whole catalog is cheaper than teaching the mapper to do IO.
+    const catalogRules = await this.enumerations.programNameIncomeRules();
+    return { program: toBankProgramSnapshot(row, catalogRules), isRepresentativeRate: false };
   }
 
   private genericProgram(dto: CalculatorQuoteDto): BankProgramSnapshot {

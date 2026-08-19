@@ -448,8 +448,38 @@ export interface IncomeBand {
  * never sees a legacy blob — the legacy fields below are kept only so a
  * read-modify-write cycle on an un-migrated program cannot lose them.
  */
+/**
+ * A catalog program name's income rule, and who is reading it.
+ *
+ * `programs` is what lets the screen say "6 programs · 4 take these amounts · 2 set
+ * their own" — and it is the same list the `INCOME_PROOF_IN_USE` refusal names, so the
+ * operator sees who blocks a proof change before they attempt it rather than after.
+ */
+export interface ProgramNameIncomeRule {
+  programNameKey: string;
+  labelAr: string;
+  labelEn: string;
+  /** `null` = nobody has decided. A surrogate program cannot be filed under it yet. */
+  incomeRule: IncomeAssumptionConfig | null;
+  valueSources: ValueSourceMap;
+  programs: Array<{ programCode: string; ownAmounts: boolean }>;
+}
+
 export interface IncomeAssumptionConfig {
   strategy: IncomeAssumptionStrategy;
+
+  /**
+   * Whose figures the tables below are.
+   *
+   *   'own'      this bank typed them. The default, and what every saved program
+   *              written before this field existed means — so ABSENT reads as `'own'`.
+   *   'catalog'  they belong to the program NAME, and the server strips them before
+   *              storing. Editing the catalog then moves this program's income.
+   *
+   * Only a bank program carries this. A catalog name's figures are its own by
+   * definition, and the API drops the field from a catalog write.
+   */
+  amounts?: 'catalog' | 'own';
 
   keyTable?: IncomeKeyTableRow[];
   bands?: IncomeBand[];

@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -29,6 +29,21 @@ import {
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
 import { PageHeaderComponent, RailTabsComponent, type RailTabItem } from '@shared/ui';
+import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
+import { incomeRuleHasError } from '@shared/income-rule/income-rule.rules';
+import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
+import {
+  incomeMethodShape,
+  registryFacts,
+  type IncomeAssumptionConfig,
+  type IncomeAssumptionStrategy,
+  type IncomeBand,
+  type IncomeKeyTableRow,
+  type ProgramNameIncomeRule,
+  type ValueSourceMap,
+} from '@features/bank-programs/bank-programs.types';
+import { ErrorCodeService } from '@core/errors/error-code.service';
+import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
 import {
   LOAN_CATEGORIES,
   categoryLabel,
@@ -111,6 +126,7 @@ interface QuestionRow {
     NzToolTipModule,
     PageHeaderComponent,
     RailTabsComponent,
+    IncomeAssumptionSectionComponent,
   ],
   providers: [
     provideNzIconsPatch([
@@ -156,6 +172,89 @@ interface QuestionRow {
               <span class="autosave" i18n="@@pnd.autosave">Saves automatically</span>
             </div>
           </app-page-header>
+
+          <!-- ── The ONE income proof ──────────────────────────────────────────
+               Above the loan-type tabs, because it is NOT per loan type: one name
+               reads one figure, whichever product it is sold as. Putting it inside a
+               tab would say the opposite four times. -->
+          <section class="card is-bare rule-card">
+            <header class="rule-head">
+              <div>
+                <h2 class="rule-title" i18n="@@pnd.rule_title">How the income is worked out</h2>
+                <p class="rule-sub" i18n="@@pnd.rule_sub">
+                  Set this once. Every bank that sells this name without a payslip reads the same
+                  figure, and starts from the amounts you enter here.
+                </p>
+              </div>
+              @if (ruleDirty()) {
+                <button
+                  nz-button
+                  nzType="primary"
+                  type="button"
+                  [nzLoading]="ruleSaving()"
+                  (click)="saveRule()"
+                  i18n="@@pnd.rule_save"
+                >
+                  Save the income rule
+                </button>
+              }
+            </header>
+
+            @if (ruleError(); as err) {
+              <p class="rule-error" role="alert">
+                <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
+                <span>{{ err }}</span>
+              </p>
+            }
+
+            @if (ruleLoading()) {
+              <!-- Shape-matched: a picker's height then three figure rows, because that
+                   is what arrives. A spinner here would say "something", not "this". -->
+              <div class="rule-skeleton" aria-hidden="true">
+                <span class="sk sk-picker"></span>
+                <span class="sk sk-row"></span>
+                <span class="sk sk-row"></span>
+                <span class="sk sk-row"></span>
+              </div>
+            } @else {
+              @if (!ruleDecided() && !ruleTouched()) {
+                <!-- Names the consequence, and the picker below IS the action — so this is
+                     one line above the control rather than a card that replaces it. -->
+                <p class="rule-empty" i18n="@@pnd.rule_empty">
+                  Nobody has said what this name reads its income from, so no bank can sell it
+                  without a payslip yet. Pick the figure below.
+                </p>
+              }
+
+              <app-income-assumption-section
+                variant="catalog"
+                [group]="ruleGroup"
+                [keyTable]="ruleKeyTable()"
+                (keyTableChange)="ruleKeyTable.set($event)"
+                [bands]="ruleBands()"
+                (bandsChange)="ruleBands.set($event)"
+                [estimatedKeys]="ruleEstimatedKeys()"
+                (estimatedKeyChange)="toggleRuleEstimatedKey($event)"
+                [estimatedBandIndexes]="ruleEstimatedBands()"
+                (estimatedBandChange)="toggleRuleEstimatedBand($event)"
+                (keyStructureChange)="onRuleKeyStructureChange($event)"
+                (bandStructureChange)="onRuleBandStructureChange($event)"
+              ></app-income-assumption-section>
+
+              <!-- Who reads this. Quiet by design: it is a fact, not a warning — and it
+                   is the same list the server names when it refuses a proof change, so
+                   the operator sees the obstacle before they hit it. -->
+              <p class="rule-usage">
+                @if (ruleReaders().length === 0) {
+                  <span i18n="@@pnd.rule_readers_none"
+                    >No bank sells this name without a payslip yet.</span
+                  >
+                } @else {
+                  <span>{{ ruleReadersLabel() }}</span>
+                }
+              </p>
+            }
+          </section>
 
           <app-rail-tabs
             [items]="tabs()"
@@ -604,6 +703,133 @@ interface QuestionRow {
         flex-direction: column;
         gap: var(--space-4);
         min-inline-size: 0;
+      }
+
+      /* --- The ONE income proof -------------------------------------------- */
+      /* is-bare for the reason step 1 of the wizard uses it: the editor inside already
+         draws its own bordered blocks, and a filled card around them would be a card
+         holding cards. */
+      .rule-card {
+        display: flex;
+        flex-direction: column;
+        margin-block-end: var(--space-5);
+      }
+
+      .rule-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-4);
+        margin-block-end: var(--space-4);
+      }
+
+      .rule-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 650;
+        color: var(--text-primary);
+      }
+
+      .rule-sub {
+        margin: var(--space-1) 0 0;
+        max-inline-size: 68ch;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        color: var(--text-secondary);
+      }
+
+      /* The refusal renders WHERE the control is, not as a toast: the in-use refusal
+         names the programs that block the change, and a toast takes that list away
+         before it can be read. */
+      .rule-error {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-4);
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        border-inline-start: var(--rule-width-accent) solid var(--ant-error-color);
+        background: var(--surface-sunken);
+        color: var(--text-primary);
+        font-size: 0.8125rem;
+        line-height: 1.55;
+      }
+
+      .rule-error [nz-icon] {
+        color: var(--ant-error-color);
+        margin-block-start: 0.15em;
+      }
+
+      .rule-empty {
+        margin: 0 0 var(--space-4);
+        max-inline-size: 66ch;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        color: var(--text-secondary);
+      }
+
+      /* A fact, not a badge row: the operator reads it once. Tabular numerals so the
+         three counts line up when the block re-renders after a save. */
+      .rule-usage {
+        margin: var(--space-4) 0 0;
+        padding-block-start: var(--space-3);
+        border-block-start: 1px solid var(--border-subtle);
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Shape-matched: the picker's height, then three figure rows — which is what
+         arrives. A centred spinner would say "something is loading", not "this is". */
+      .rule-skeleton {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+
+      .rule-skeleton .sk {
+        display: block;
+        border-radius: var(--radius-md);
+        background: linear-gradient(
+          90deg,
+          var(--surface-sunken) 25%,
+          var(--surface-raised) 37%,
+          var(--surface-sunken) 63%
+        );
+        background-size: 400% 100%;
+        animation: rule-sk var(--motion-ambient) ease-in-out infinite;
+      }
+
+      .rule-skeleton .sk-picker {
+        block-size: 32px;
+        max-inline-size: 320px;
+      }
+
+      .rule-skeleton .sk-row {
+        block-size: 24px;
+        max-inline-size: 460px;
+      }
+
+      @keyframes rule-sk {
+        0% {
+          background-position: 100% 50%;
+        }
+        100% {
+          background-position: 0 50%;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .rule-skeleton .sk {
+          animation: none;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .rule-head {
+          flex-direction: column;
+          align-items: stretch;
+        }
       }
 
       /* --- The gate -------------------------------------------------------- */
@@ -1188,6 +1414,56 @@ export class ProgramNameDetailPage implements OnInit {
    */
   protected readonly tickFailed = signal<string | null>(null);
 
+  // --- The ONE income proof --------------------------------------------------
+  //
+  // Explicitly SAVED, not autosaved like the question ticks above it. Three reasons,
+  // and the first alone decides it: the write can be REFUSED (the proof is in use, the
+  // table has a duplicate key), and an autosave that fails leaves the operator looking
+  // at a screen that says "Saves automatically". The rule is also a multi-field form
+  // whose intermediate states are legitimately invalid — a half-typed band table would
+  // fire a rejection on every keystroke — and a proof change moves real money at every
+  // bank that inherits, which deserves a deliberate click.
+
+  private readonly programsApi = inject(BankProgramsApiService);
+  private readonly errors = inject(ErrorCodeService);
+  private readonly fb = inject(FormBuilder);
+  /** Only for a `fact:` method's editor shape — the picker itself reads its own copy. */
+  private readonly enums = inject(PlatformEnumerationsService);
+
+  protected readonly ruleLoading = signal(true);
+  protected readonly ruleSaving = signal(false);
+  protected readonly ruleError = signal<string | null>(null);
+  /** The server's answer, as last read or written. `null` = the name states nothing. */
+  protected readonly rule = signal<ProgramNameIncomeRule | null>(null);
+  /** Whether a proof is stored. Drives the empty state, not `rule() === null`. */
+  protected readonly ruleDecided = computed(() => this.rule()?.incomeRule != null);
+  /** True once the operator has picked anything, so the empty-state copy steps aside. */
+  protected readonly ruleTouched = signal(false);
+  protected readonly ruleDirty = signal(false);
+
+  /**
+   * Same shape the wizard builds, because the SAME editor renders it. `combinationRule`
+   * and the two policy controls are here even though the catalog hides them: the
+   * component reads the group by control name, and a missing control is a template
+   * error rather than a hidden field.
+   */
+  protected readonly ruleGroup = this.fb.nonNullable.group({
+    strategy: new FormControl<IncomeAssumptionStrategy>('declared', { nonNullable: true }),
+    scalar: this.fb.group({
+      value: new FormControl<string | null>(null),
+      unit: new FormControl<'percent' | 'multiplier'>('percent', { nonNullable: true }),
+    }),
+    dbrCapPercentOverride: new FormControl<string | null>(null),
+    requiredDocuments: new FormControl<string[]>([], { nonNullable: true }),
+    combinationRule: new FormControl<'lesser_of' | 'greater_of' | null>(null),
+  });
+
+  /** The two table shapes are signals, for the reason the wizard states: one owner. */
+  protected readonly ruleKeyTable = signal<IncomeKeyTableRow[]>([]);
+  protected readonly ruleBands = signal<IncomeBand[]>([]);
+  /** Estimate markers, rooted at `incomeRule.` — the paths the server validates. */
+  protected readonly ruleValueSources = signal<ValueSourceMap>({});
+
   protected readonly tabsAria = $localize`:@@pnd.tabs_aria:Loan types`;
   protected readonly searchAria = $localize`:@@pnd.search_aria:Search questions`;
   /** Names the segmented pair for a screen reader, which sees two loose buttons. */
@@ -1321,6 +1597,10 @@ export class ProgramNameDetailPage implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+    // A separate read, deliberately not awaited with the others: the income rule comes
+    // from the bank-programs API and the rest from the lookups API, so a slow or failing
+    // one must not hold up the other. Each surface reports its own state.
+    void this.loadRule();
   }
 
   // --- Display helpers -------------------------------------------------------
@@ -1593,6 +1873,243 @@ export class ProgramNameDetailPage implements OnInit {
       // Created and live, but not ticked. Says so where the operator is looking.
       this.tickFailed.set(result.label);
     }
+  }
+
+  // --- The ONE income proof --------------------------------------------------
+
+  /**
+   * Estimate markers, split the way the two editors want them. Rooted at `incomeRule.`
+   * because that is the path the SERVER validates — the same key-addressed shape a bank
+   * program's markers use, so a marker means the same figure on both screens.
+   */
+  protected readonly ruleEstimatedKeys = computed<ReadonlySet<string>>(() => {
+    const keys = new Set<string>();
+    for (const path of Object.keys(this.ruleValueSources())) {
+      const match = /^incomeRule\.keyTable\.(.+)\.incomeEGP$/.exec(path);
+      if (match?.[1]) keys.add(match[1]);
+    }
+    return keys;
+  });
+
+  protected readonly ruleEstimatedBands = computed<ReadonlySet<number>>(() => {
+    const indexes = new Set<number>();
+    for (const path of Object.keys(this.ruleValueSources())) {
+      const match = /^incomeRule\.bands\.(\d+)\.incomeEGP$/.exec(path);
+      if (match?.[1] !== undefined) indexes.add(Number(match[1]));
+    }
+    return indexes;
+  });
+
+  /** The surrogate programs reading this name, split by whose figures they use. */
+  protected readonly ruleReaders = computed(() => this.rule()?.programs ?? []);
+
+  protected readonly ruleReadersLabel = computed(() => {
+    const readers = this.ruleReaders();
+    const own = readers.filter((p) => p.ownAmounts).length;
+    const inherited = readers.length - own;
+    // One sentence with three counts rather than three tags: it is a fact the operator
+    // reads once, and badges would give it the weight of a warning.
+    return $localize`:@@pnd.rule_readers:${readers.length}:total: bank program(s) read this figure · ${inherited}:inherited: take these amounts · ${own}:own: set their own`;
+  });
+
+  protected toggleRuleEstimatedKey(event: { key: string; estimated: boolean }): void {
+    this.setRuleMarker(`incomeRule.keyTable.${event.key}.incomeEGP`, event.estimated);
+  }
+
+  protected toggleRuleEstimatedBand(event: { index: number; estimated: boolean }): void {
+    this.setRuleMarker(`incomeRule.bands.${event.index}.incomeEGP`, event.estimated);
+  }
+
+  private setRuleMarker(path: string, on: boolean): void {
+    this.ruleValueSources.update((map) => {
+      const next = { ...map };
+      if (on) next[path] = 'team_estimated';
+      else delete next[path];
+      return next;
+    });
+    this.markRuleDirty();
+  }
+
+  /**
+   * A key-table row was renamed, removed, or the whole table reset — so the markers
+   * addressed BY key have to move with it.
+   *
+   * Without this a rename left the marker on the old key: the tick disappeared from the
+   * screen while the map still carried it, and the server would then reject the save
+   * for a path the operator could no longer see.
+   */
+  protected onRuleKeyStructureChange(
+    event: { kind: 'rename'; from: string; to: string } | { kind: 'remove'; key: string } | { kind: 'reset' },
+  ): void {
+    this.ruleValueSources.update((map) => {
+      if (event.kind === 'reset') return {};
+      const next = { ...map };
+      const path = (key: string): string => `incomeRule.keyTable.${key}.incomeEGP`;
+      if (event.kind === 'remove') {
+        delete next[path(event.key)];
+        return next;
+      }
+      if (next[path(event.from)] !== undefined) {
+        delete next[path(event.from)];
+        next[path(event.to)] = 'team_estimated';
+      }
+      return next;
+    });
+    this.markRuleDirty();
+  }
+
+  /**
+   * A band was removed, or the table reset. Bands are addressed by INDEX, so removing
+   * one shifts every marker after it — left alone, a tick would silently jump to the
+   * neighbouring figure, which is worse than losing it.
+   */
+  protected onRuleBandStructureChange(event: { kind: 'remove'; index: number } | { kind: 'reset' }): void {
+    this.ruleValueSources.update((map) => {
+      if (event.kind === 'reset') return {};
+      const next: ValueSourceMap = {};
+      for (const [path, value] of Object.entries(map)) {
+        const match = /^incomeRule\.bands\.(\d+)\.incomeEGP$/.exec(path);
+        if (!match?.[1]) {
+          next[path] = value;
+          continue;
+        }
+        const index = Number(match[1]);
+        if (index === event.index) continue;
+        const shifted = index > event.index ? index - 1 : index;
+        next[`incomeRule.bands.${shifted}.incomeEGP`] = value;
+      }
+      return next;
+    });
+    this.markRuleDirty();
+  }
+
+  private markRuleDirty(): void {
+    this.ruleTouched.set(true);
+    this.ruleDirty.set(true);
+    // Cleared on the first edit: a refusal the operator has since acted on must not keep
+    // sitting above the form as though it were still true.
+    this.ruleError.set(null);
+  }
+
+  private async loadRule(): Promise<void> {
+    this.ruleLoading.set(true);
+    try {
+      const { data } = await this.programsApi.getProgramNameIncomeRule(this.routeKey());
+      this.absorbRule(data);
+    } catch (err) {
+      // A read failure is reported where the block is, not as a toast: the block is the
+      // only thing that is broken, and the rest of the page still works.
+      this.ruleError.set(this.localizedError(err));
+    } finally {
+      this.ruleLoading.set(false);
+    }
+  }
+
+  /** Server answer → the form, the two tables, and the marker map. */
+  private absorbRule(data: ProgramNameIncomeRule): void {
+    this.rule.set(data);
+    const rule = data.incomeRule;
+    this.ruleGroup.reset({
+      strategy: rule?.strategy ?? 'declared',
+      scalar: {
+        value: rule?.scalar?.value ?? null,
+        unit: rule?.scalar?.unit ?? 'percent',
+      },
+      dbrCapPercentOverride: null,
+      requiredDocuments: [],
+      combinationRule: null,
+    });
+    this.ruleKeyTable.set(rule?.keyTable ? [...rule.keyTable] : []);
+    this.ruleBands.set(rule?.bands ? [...rule.bands] : []);
+    this.ruleValueSources.set({ ...data.valueSources });
+    this.ruleTouched.set(false);
+    this.ruleDirty.set(false);
+  }
+
+  /**
+   * Save the rule, or refuse locally first.
+   *
+   * The client-side check is the SAME `incomeRuleHasError` the wizard's save gate uses.
+   * It is not a second opinion: it exists so a duplicate key or a gapped band table is
+   * answered instantly and in place, instead of costing a round trip to be told the same
+   * thing. Everything the server refuses that the client cannot know — the proof being
+   * in use, a key the registry has retired — comes back as `ruleError`.
+   */
+  protected async saveRule(): Promise<void> {
+    const strategy = this.ruleGroup.controls.strategy.value;
+    const local = incomeRuleHasError({
+      shape: incomeMethodShape(strategy, this.factsForShape()),
+      keyTable: this.ruleKeyTable(),
+      bands: this.ruleBands(),
+      scalarValue: this.ruleGroup.controls.scalar.controls.value.value,
+      isValueMethod: strategy === 'byCDValue' || strategy === 'byTotalDeposits',
+    });
+    if (local) {
+      this.ruleError.set($localize`:@@pnd.rule_invalid:Check the amounts below before saving.`);
+      return;
+    }
+
+    this.ruleSaving.set(true);
+    this.ruleError.set(null);
+    try {
+      const { data } = await this.programsApi.setProgramNameIncomeRule(this.routeKey(), {
+        incomeRule: this.ruleFromForm(strategy),
+        // Sent even when empty: `{}` is the statement "nothing here is a guess", and
+        // omitting it would leave a previously-flagged figure flagged for good.
+        valueSources: this.ruleValueSources(),
+      });
+      this.absorbRule(data);
+    } catch (err) {
+      this.ruleError.set(this.localizedError(err));
+    } finally {
+      this.ruleSaving.set(false);
+    }
+  }
+
+  /**
+   * The form → the wire shape, carrying ONLY the selected method's figures.
+   *
+   * Shape-gated rather than "send everything and let the server strip it": the operator
+   * may have typed a band table, switched to a key method and typed that too, and
+   * sending both would make the stored blob disagree with the screen.
+   */
+  private ruleFromForm(strategy: IncomeAssumptionStrategy): IncomeAssumptionConfig {
+    const shape = incomeMethodShape(strategy, this.factsForShape());
+    const scalar = this.ruleGroup.controls.scalar.getRawValue();
+    return {
+      strategy,
+      ...(shape === 'keyTable' ? { keyTable: this.ruleKeyTable() } : {}),
+      ...(shape === 'bands' ? { bands: this.ruleBands() } : {}),
+      ...(shape === 'scalar' && scalar.value
+        ? { scalar: { value: scalar.value, unit: scalar.unit } }
+        : {}),
+    };
+  }
+
+  /**
+   * A rejection → the shared error-code vocabulary. Never a per-component English
+   * string for a code the backend also reports (A22): the refusals here are the same
+   * ones a bank program's save raises, so the operator reads one message per problem
+   * whichever screen surfaced it.
+   */
+  private localizedError(err: unknown): string {
+    const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } })?.error;
+    return this.errors.toLocalizedMessage(
+      (envelope?.code ?? 'INTERNAL_ERROR') as Parameters<
+        ErrorCodeService['toLocalizedMessage']
+      >[0],
+      envelope?.meta,
+    );
+  }
+
+  /**
+   * The fact registry, for deriving a `fact:` method's editor shape.
+   *
+   * Read through the same service the editor uses, so the shape this page sends and the
+   * shape the editor rendered can never come from two different registries.
+   */
+  private factsForShape(): ReturnType<typeof registryFacts> {
+    return registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr);
   }
 
   // --- State plumbing --------------------------------------------------------

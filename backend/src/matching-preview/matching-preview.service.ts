@@ -361,6 +361,10 @@ export class MatchingPreviewService {
       matchesRequestedScope(p, category, programNameKey, programType),
     );
     const profile = money ? this.buildProfile(money, age, surrogateFacts) : null;
+    // Read once, outside the loop. Preview and apply must derive the same figure from
+    // the same rule — a preview that priced off the program's stripped table while
+    // apply priced off the catalog's would disagree on the amount it just advertised.
+    const catalogRules = await this.enumerations.programNameIncomeRules();
 
     const matches: PreviewMatch[] = [];
     for (const p of rows) {
@@ -370,7 +374,9 @@ export class MatchingPreviewService {
         answers,
         askedQuestionCodes,
       });
-      const priced = profile ? quoteProgram({ profile, program: toBankProgramSnapshot(p) }) : null;
+      const priced = profile
+        ? quoteProgram({ profile, program: toBankProgramSnapshot(p, catalogRules) })
+        : null;
       const quote = priced?.ok ? priced.quote : null;
       matches.push({
         bankProgramId: p.id,

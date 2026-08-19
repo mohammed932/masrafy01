@@ -330,6 +330,39 @@ export const ERROR_CODES = {
    * registry does serve, so the form can offer the fix rather than state the problem.
    */
   INCOME_RULE_FACT_UNAVAILABLE: 'INCOME_RULE_FACT_UNAVAILABLE',
+
+  // --- One name, one income proof ---
+  // A catalog program name states exactly ONE thing a bank works the income out from.
+  // Every surrogate program filed under that name reads the same one; a bank wanting a
+  // different one is selling a different product and needs a different name. Only the
+  // FIGURES are the bank's. All three fire on save only — never at read, so a program
+  // that predates the rule keeps quoting while it is corrected.
+  /**
+   * The program reads something other than what its program name states.
+   * `meta.expected` / `meta.got` / `meta.programNameKey`.
+   *
+   * Grandfathered on an UNCHANGED pair: an update that leaves both the name and the
+   * strategy alone is not re-rejected, or a legacy program would be frozen out of
+   * every unrelated edit — including the ones that would fix it.
+   */
+  PROGRAM_NAME_INCOME_PROOF_MISMATCH: 'PROGRAM_NAME_INCOME_PROOF_MISMATCH',
+  /**
+   * A surrogate program under a name that states no proof at all. The fix is on the
+   * catalog, not on the program, so `meta.programNameKey` names where to go.
+   *
+   * Refused rather than defaulted: guessing the proof from whatever the first bank
+   * happened to send is how one name ends up meaning two things.
+   */
+  PROGRAM_NAME_INCOME_PROOF_MISSING: 'PROGRAM_NAME_INCOME_PROOF_MISSING',
+  /**
+   * A catalog write that would change the name's proof while banks are still reading
+   * it. `meta.programCodes` lists them.
+   *
+   * The tables those banks typed are keyed by the OLD proof — rank names against a
+   * grade table — so letting the change through would leave live programs quoting
+   * rows no applicant can match, and the operator would have no way to see it happen.
+   */
+  INCOME_PROOF_IN_USE: 'INCOME_PROOF_IN_USE',
   /**
    * A `valueSources` marker names a dot-path that is not on the program's
    * numeric allow-list AND never was on the stored one. A path that WAS markable
@@ -565,6 +598,9 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   INCOME_RULE_BANDS_INVALID: 422,
   INCOME_RULE_DBR_OVERRIDE_INVALID: 422,
   INCOME_RULE_FACT_UNAVAILABLE: 422,
+  PROGRAM_NAME_INCOME_PROOF_MISMATCH: 422,
+  PROGRAM_NAME_INCOME_PROOF_MISSING: 422,
+  INCOME_PROOF_IN_USE: 422,
   VALUE_SOURCE_PATH_UNKNOWN: 422,
   VALUE_SOURCE_VALUE_INVALID: 422,
   PROGRAM_HAS_ESTIMATED_VALUES: 409,

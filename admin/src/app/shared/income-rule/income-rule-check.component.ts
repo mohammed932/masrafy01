@@ -9,7 +9,7 @@ import { ExperimentOutline } from '@ant-design/icons-angular/icons';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
-import { BankProgramsApiService } from '../../../bank-programs.api.service';
+import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
 import {
   INCOME_KEY_REGISTRY,
   factKeyOf,
@@ -19,7 +19,7 @@ import {
   type BuiltinIncomeStrategy,
   type IncomeAssumptionConfig,
   type IncomeRuleCheckResult,
-} from '../../../bank-programs.types';
+} from '@features/bank-programs/bank-programs.types';
 
 /**
  * "Check this rule before anyone else sees it" (FR-026 – FR-031).

@@ -67,7 +67,37 @@ function isNumericLeaf(value: unknown): boolean {
  */
 export function markablePaths(config: MarkableProgramConfig): Set<string> {
   const paths = new Set<string>();
+  for (const root of MARKABLE_CONFIG_ROOTS) {
+    walkMarkable(config[root], root, false, paths);
+  }
+  return paths;
+}
 
+/**
+ * The markable paths of a CATALOG program name's income rule, rooted at `incomeRule`.
+ *
+ * The same walk, a different root. Deliberately not a member of
+ * `MARKABLE_CONFIG_ROOTS`: that list is the set of blobs a BANK PROGRAM carries, and
+ * adding `incomeRule` to it would make every program's marker validation accept paths
+ * into a field programs do not have.
+ *
+ * Sharing the walk is the point — the catalog's table is the same key table with the
+ * same rows, so a marker on `incomeRule.keyTable.professor.incomeEGP` has to be
+ * addressed by registry KEY exactly as the program's is, or the two screens would
+ * disagree about which figure a marker describes.
+ */
+export function catalogIncomeRulePaths(rule: unknown): Set<string> {
+  const paths = new Set<string>();
+  walkMarkable(rule, 'incomeRule', false, paths);
+  return paths;
+}
+
+function walkMarkable(
+  rootValue: unknown,
+  rootPrefix: string,
+  rootInKeyTable: boolean,
+  paths: Set<string>,
+): void {
   const walk = (value: unknown, prefix: string, inKeyTable: boolean): void => {
     if (value === null || value === undefined) return;
 
@@ -98,11 +128,7 @@ export function markablePaths(config: MarkableProgramConfig): Set<string> {
     }
   };
 
-  for (const root of MARKABLE_CONFIG_ROOTS) {
-    walk(config[root], root, false);
-  }
-
-  return paths;
+  walk(rootValue, rootPrefix, rootInKeyTable);
 }
 
 export type ValueSourceViolation =

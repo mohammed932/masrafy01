@@ -21,9 +21,9 @@ import {
 } from '@ant-design/icons-angular/icons';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
-import { ValueSourceMarkerComponent } from '../../../value-source/value-source-marker.component';
+import { ValueSourceMarkerComponent } from '@features/bank-programs/value-source/value-source-marker.component';
 import type { EnumerationType } from '@core/platform-enumerations/platform-enumerations.types';
-import type { IncomeKeyTableRow } from '../../../bank-programs.types';
+import type { IncomeKeyTableRow } from '@features/bank-programs/bank-programs.types';
 import { incomeKeyTableErrorFor, type IncomeKeyTableError } from './income-rule.rules';
 
 // The verdict lives in `income-rule.rules.ts` (no Angular), so the host form and the

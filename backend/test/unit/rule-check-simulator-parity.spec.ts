@@ -105,6 +105,11 @@ function serviceFor(storedRule: unknown): BankProgramsService {
     isAvailable: async () => true,
     isActiveMember: async (type: string, key: string) => (REGISTRY[type] ?? []).includes(key),
     getActiveMembers: async (type: string) => (REGISTRY[type] ?? []).map((key) => ({ key })),
+    // The check panel merges the catalog's figures into the draft before validating it,
+    // so a draft on `amounts: 'catalog'` is checked as it will be quoted. Empty here:
+    // every draft in these cases carries its own table, which is what makes the
+    // resolved figure attributable to the draft rather than to a catalog row.
+    programNameIncomeRules: async () => new Map(),
   };
   const explode = () => {
     throw new Error('checkIncomeRule must persist NOTHING (FR-029)');

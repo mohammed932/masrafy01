@@ -5,8 +5,8 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { DeleteOutline, PlusOutline } from '@ant-design/icons-angular/icons';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
-import { ValueSourceMarkerComponent } from '../../../value-source/value-source-marker.component';
-import type { IncomeBand } from '../../../bank-programs.types';
+import { ValueSourceMarkerComponent } from '@features/bank-programs/value-source/value-source-marker.component';
+import type { IncomeBand } from '@features/bank-programs/bank-programs.types';
 import { incomeBandsErrorFor, type IncomeBandsError } from './income-rule.rules';
 
 // The verdict lives in `income-rule.rules.ts` (no Angular) — see that file for why

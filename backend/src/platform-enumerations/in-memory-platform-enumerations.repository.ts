@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
+import type { IncomeAssumptionConfig } from '@/matching/types';
 import {
   EnumerationMember,
   EnumerationType,
@@ -84,6 +85,34 @@ export class InMemoryPlatformEnumerationsRepository
 
   /** No questions in this stub, so no fact table can name a valid key. */
   async questionOptionCodes(): Promise<string[]> {
+    return [];
+  }
+
+  /**
+   * This stub seeds no catalog income rules. Empty means every program that inherits
+   * resolves to `rule_unconfigured` — a stated reason — rather than to a figure this
+   * stub invented.
+   */
+  async programNameIncomeRules(): Promise<ReadonlyMap<string, IncomeAssumptionConfig>> {
+    return new Map();
+  }
+
+  /**
+   * This stub is READ-only and seeds no catalog names, so the income-rule endpoints
+   * are unreachable against it. Throwing beats returning a plausible empty row: a
+   * silent `null` would be read as "the name does not exist" and answered with an
+   * `UNKNOWN` the operator cannot act on.
+   */
+  async findProgramName(): Promise<never> {
+    throw new Error('in-memory enumeration registry has no catalog program names');
+  }
+
+  async setProgramNameIncomeRule(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /** No bank programs in this stub, so no name is read by one. */
+  async programsUnderName(): Promise<[]> {
     return [];
   }
 

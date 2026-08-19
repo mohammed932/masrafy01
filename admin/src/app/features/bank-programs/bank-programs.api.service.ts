@@ -8,9 +8,12 @@ import type {
   BankProgramResponse,
   BankProgramUpdatePayload,
   DuplicateBankProgramPayload,
+  IncomeAssumptionConfig,
   IncomeRuleCheckPayload,
   IncomeRuleCheckResult,
   ListBankProgramsQuery,
+  ProgramNameIncomeRule,
+  ValueSourceMap,
 } from './bank-programs.types';
 
 interface SuccessEnvelope<T> {
@@ -118,6 +121,44 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.post<SuccessEnvelope<IncomeRuleCheckResult>>(
         `${this.base}/${encodeURIComponent(programCode)}/income-rule/check`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The catalog program name's income rule — what the name reads the income from, and
+   * the figures every bank filed under it starts from.
+   *
+   * On the bank-programs API rather than `admin/enumerations`, even though the row it
+   * writes is an enumeration: everything that decides whether a rule is acceptable
+   * already lives in that backend module. Addressed by catalog KEY, which is what the
+   * catalog URL carries.
+   */
+  async getProgramNameIncomeRule(
+    programNameKey: string,
+  ): Promise<SuccessEnvelope<ProgramNameIncomeRule>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<ProgramNameIncomeRule>>(
+        `${this.base}/program-names/${encodeURIComponent(programNameKey)}/income-rule`,
+      ),
+    );
+  }
+
+  /**
+   * Set — or clear, with `incomeRule: null` — what a catalog name reads its income from.
+   *
+   * `valueSources` travels in the SAME call, because the markers describe those figures:
+   * saving a new table and the old markers separately would leave a marker addressing a
+   * row that no longer exists.
+   */
+  async setProgramNameIncomeRule(
+    programNameKey: string,
+    payload: { incomeRule: IncomeAssumptionConfig | null; valueSources?: ValueSourceMap },
+  ): Promise<SuccessEnvelope<ProgramNameIncomeRule>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<ProgramNameIncomeRule>>(
+        `${this.base}/program-names/${encodeURIComponent(programNameKey)}/income-rule`,
         payload,
       ),
     );

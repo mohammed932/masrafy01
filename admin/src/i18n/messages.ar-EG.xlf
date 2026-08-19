@@ -1048,8 +1048,6 @@
 
       <!-- ═══ Feature 011 — income-surrogate rule builder ═══════════════════ -->
       <!-- The section shell + the ten methods. -->
-      <trans-unit id="bank_programs.section.income_assumption" datatype="html"><source>Income assumption</source><target>افتراض الدخل</target></trans-unit>
-      <trans-unit id="bank_programs.section.income_assumption_sub" datatype="html"><source>How this bank works out a monthly income when a payslip is not the figure it lends against. Switching method clears the previous table — you are asked first.</source><target>كيف يحسب هذا البنك دخلًا شهريًا عندما لا تكون مفردات الراتب هي الرقم الذي يقرض على أساسه. تغيير الطريقة يمسح الجدول السابق — ويُطلب تأكيدك أولًا.</target></trans-unit>
       <trans-unit id="bank_programs.field.strategy" datatype="html"><source>Method</source><target>الطريقة</target></trans-unit>
       <trans-unit id="bank_programs.strategy.declared" datatype="html"><source>Declared (applicant-provided)</source><target>المُعلن (من مقدّم الطلب)</target></trans-unit>
       <trans-unit id="bank_programs.strategy.years_job" datatype="html"><source>By years in job</source><target>حسب سنوات العمل</target></trans-unit>
@@ -1066,7 +1064,6 @@
       <!-- Block titles + the declared/legacy hints. -->
       <trans-unit id="bank_programs.income.key_table_title" datatype="html"><source>The bank's table</source><target>جدول البنك</target></trans-unit>
       <trans-unit id="bank_programs.income.bands_title" datatype="html"><source>The bank's bands</source><target>شرائح البنك</target></trans-unit>
-      <trans-unit id="bank_programs.income.scalar_title" datatype="html"><source>The bank's figure</source><target>رقم البنك</target></trans-unit>
       <trans-unit id="bank_programs.income.declared_hint" datatype="html"><source>The applicant's stated monthly income is used as-is. No table is needed.</source><target>يُستخدم الدخل الشهري الذي ذكره مقدّم الطلب كما هو. لا حاجة لجدول.</target></trans-unit>
       <trans-unit id="bank_programs.income.legacy_scalar_hint" datatype="html"><source>This program still derives income from the single percentage below. Adding bands replaces it; leaving the table empty keeps the current behaviour unchanged.</source><target>ما زال هذا البرنامج يحسب الدخل من النسبة الواحدة أدناه. إضافة شرائح تحل محلها؛ وترك الجدول فارغًا يُبقي السلوك الحالي كما هو.</target></trans-unit>
       <trans-unit id="bank_programs.income.legacy_scalar_label" datatype="html"><source>Current percentage of value</source><target>النسبة الحالية من القيمة</target></trans-unit>
@@ -1345,6 +1342,49 @@
       <trans-unit id="bank_programs.income.no_table" datatype="html"><source>Not entered — this program quotes nothing</source><target>لم يُدخل — هذا البرنامج لا يعطي أي عرض</target></trans-unit>
       <trans-unit id="bank_programs.income.dbr_override" datatype="html"><source>DBR cap for this rule</source><target>حد نسبة الالتزامات لهذه القاعدة</target></trans-unit>
       <trans-unit id="bank_programs.section.warnings" datatype="html"><source>Needs attention</source><target>يحتاج انتباهًا</target></trans-unit>
+      <trans-unit id="income_rule.field.proof" datatype="html"><source>What the income is worked out from</source><target>ما يُحتسب منه الدخل</target></trans-unit>
+      <trans-unit id="income_rule.proof_lede" datatype="html"><source>Every bank selling this name works the income out from this one figure. A bank may change the amounts below, never the figure.</source><target>كل بنك يبيع هذا الاسم يحتسب الدخل من هذه المعلومة وحدها. يستطيع البنك تغيير المبالغ بالأسفل، لا المعلومة.</target></trans-unit>
+      <trans-unit id="bank_programs.income.title" datatype="html"><source>Income assumption</source><target>احتساب الدخل</target></trans-unit>
+      <trans-unit id="bank_programs.income.reads" datatype="html"><source><x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/> works the income out from <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ proof }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong
+                          &gt;"/>.</source><target><x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/> يحتسب الدخل من <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION_1" equiv-text="{{ proof }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong
+                          &gt;"/>.</target></trans-unit>
+      <trans-unit id="bank_programs.income.set_on_catalog" datatype="html"><source>Set on the catalog</source><target>يُحدَّد في الكتالوج</target></trans-unit>
+      <trans-unit id="bank_programs.income.loading" datatype="html"><source>Reading what this program name says…</source><target>جارٍ قراءة ما يحدده اسم البرنامج…</target></trans-unit>
+      <trans-unit id="bank_programs.income.no_proof" datatype="html"><source>Nobody has said what <x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/> reads its income from. Set it once on the program catalog and every bank starts from the same table.</source><target>لم يحدد أحد ما يُحتسب منه دخل <x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/>. حدده مرة واحدة في كتالوج البرامج، فيبدأ كل بنك من الجدول نفسه.</target></trans-unit>
+      <trans-unit id="bank_programs.income.choice_legend" datatype="html"><source>Whose amounts this program uses</source><target>مبالغ مَن يستخدمها هذا البرنامج</target></trans-unit>
+      <trans-unit id="bank_programs.income.choice_catalog" datatype="html"><source>Catalog amounts</source><target>مبالغ الكتالوج</target></trans-unit>
+      <trans-unit id="bank_programs.income.choice_catalog_hint" datatype="html"><source>Shared by every bank selling this name. Updates when the catalog updates.</source><target>مشتركة بين كل بنك يبيع هذا الاسم. تتحدث مع تحديث الكتالوج.</target></trans-unit>
+      <trans-unit id="bank_programs.income.choice_own" datatype="html"><source>This bank&apos;s own amounts</source><target>مبالغ هذا البنك وحده</target></trans-unit>
+      <trans-unit id="bank_programs.income.choice_own_hint" datatype="html"><source>Starts from the catalog figures — edit from there.</source><target>تبدأ من أرقام الكتالوج — عدّلها من هناك.</target></trans-unit>
+      <trans-unit id="bank_programs.income.catalog_no_table" datatype="html"><source>This name needs no table — the applicant&apos;s own figure is used.</source><target>هذا الاسم لا يحتاج جدولاً — يُستخدم الرقم الذي ذكره المتقدم.</target></trans-unit>
+      <trans-unit id="bank_programs.income.own_peers" datatype="html"><source><x id="count" equiv-text="peers"/> other bank program(s) do this.</source><target><x id="count" equiv-text="peers"/> من برامج البنوك الأخرى تفعل ذلك.</target></trans-unit>
+      <trans-unit id="bank_programs.income.band_open" datatype="html"><source><x id="from" equiv-text="band.fromInclusive"/> and above</source><target><x id="from" equiv-text="band.fromInclusive"/> وأكثر</target></trans-unit>
+      <trans-unit id="bank_programs.income.band_range" datatype="html"><source><x id="from" equiv-text="band.fromInclusive"/> – <x id="to" equiv-text="band.toExclusive"/></source><target><x id="from" equiv-text="band.fromInclusive"/> – <x id="to" equiv-text="band.toExclusive"/></target></trans-unit>
+      <trans-unit id="bank_programs.income.scalar_percent" datatype="html"><source>Percentage applied</source><target>النسبة المطبقة</target></trans-unit>
+      <trans-unit id="bank_programs.income.scalar_multiplier" datatype="html"><source>Multiplier applied</source><target>المعامِل المطبق</target></trans-unit>
+      <trans-unit id="bank_programs.income.egp" datatype="html"><source><x id="amount" equiv-text="shown"/> EGP</source><target><x id="amount" equiv-text="shown"/> جنيه</target></trans-unit>
+      <trans-unit id="bank_programs.income.revert_title" datatype="html"><source>Go back to the catalog amounts?</source><target>العودة إلى مبالغ الكتالوج؟</target></trans-unit>
+      <trans-unit id="bank_programs.income.revert_body" datatype="html"><source>The figures you typed for this bank are dropped, and it starts quoting the catalog&apos;s.</source><target>تُحذف الأرقام التي أدخلتها لهذا البنك، ويبدأ في استخدام أرقام الكتالوج.</target></trans-unit>
+      <trans-unit id="bank_programs.income.revert_ok" datatype="html"><source>Use the catalog amounts</source><target>استخدم مبالغ الكتالوج</target></trans-unit>
+      <trans-unit id="bank_programs.income.revert_cancel" datatype="html"><source>Keep this bank&apos;s amounts</source><target>أبقِ مبالغ هذا البنك</target></trans-unit>
+      <trans-unit id="bank_programs.review.income_rule_catalog" datatype="html"><source>catalog amounts</source><target>مبالغ الكتالوج</target></trans-unit>
+      <trans-unit id="bank_programs.review.income_rule_own" datatype="html"><source>this bank&apos;s own amounts</source><target>مبالغ هذا البنك وحده</target></trans-unit>
+      <trans-unit id="pnd.rule_title" datatype="html"><source>How the income is worked out</source><target>كيف يُحتسب الدخل</target></trans-unit>
+      <trans-unit id="pnd.rule_sub" datatype="html"><source>Set this once. Every bank that sells this name without a payslip reads the same figure, and starts from the amounts you enter here.</source><target>حدد هذا مرة واحدة. كل بنك يبيع هذا الاسم بدون مفردات راتب يقرأ المعلومة نفسها، ويبدأ من المبالغ التي تدخلها هنا.</target></trans-unit>
+      <trans-unit id="pnd.rule_save" datatype="html"><source>Save the income rule</source><target>احفظ قاعدة الدخل</target></trans-unit>
+      <trans-unit id="pnd.rule_empty" datatype="html"><source>Nobody has said what this name reads its income from, so no bank can sell it without a payslip yet. Pick the figure below.</source><target>لم يحدد أحد ما يُحتسب منه دخل هذا الاسم، فلا يستطيع أي بنك بيعه بدون مفردات راتب بعد. اختر المعلومة بالأسفل.</target></trans-unit>
+      <trans-unit id="pnd.rule_readers" datatype="html"><source><x id="total" equiv-text="readers.length"/> bank program(s) read this figure · <x id="inherited" equiv-text="inherited"/> take these amounts · <x id="own" equiv-text="own"/> set their own</source><target><x id="total" equiv-text="readers.length"/> من برامج البنوك تقرأ هذه المعلومة · <x id="inherited" equiv-text="inherited"/> تأخذ هذه المبالغ · <x id="own" equiv-text="own"/> تحدد مبالغها</target></trans-unit>
+      <trans-unit id="pnd.rule_readers_none" datatype="html"><source>No bank sells this name without a payslip yet.</source><target>لا يبيع أي بنك هذا الاسم بدون مفردات راتب بعد.</target></trans-unit>
+      <trans-unit id="pnd.rule_invalid" datatype="html"><source>Check the amounts below before saving.</source><target>راجع المبالغ بالأسفل قبل الحفظ.</target></trans-unit>
+      <trans-unit id="bank_programs.income.no_name" datatype="html"><source>Pick a program name on the Program step first — the name decides what the income is worked out from.</source><target>اختر اسم البرنامج في خطوة «البرنامج» أولاً — الاسم هو ما يحدد ما يُحتسب منه الدخل.</target></trans-unit>
+      <trans-unit id="income_rule.scalar_title_catalog" datatype="html"><source>The figure banks start from</source><target>الرقم الذي تبدأ منه البنوك</target></trans-unit>
+      <trans-unit id="income_rule.scalar_title_program" datatype="html"><source>This bank&apos;s figure</source><target>رقم هذا البنك</target></trans-unit>
+      <trans-unit id="income_rule.scalar_hint_car_installment" datatype="html"><source>Installment × this number. A 5,000 EGP installment × 4 = 20,000 EGP a month.</source><target>القسط × هذا الرقم. قسط ٥٬٠٠٠ جنيه × ٤ = ٢٠٬٠٠٠ جنيه شهريًا.</target></trans-unit>
+      <trans-unit id="income_rule.scalar_hint_card_limit" datatype="html"><source>Card limit × this number. A 100,000 EGP limit × 0.1 = 10,000 EGP a month.</source><target>حد البطاقة × هذا الرقم. حد ١٠٠٬٠٠٠ جنيه × ٠٫١ = ١٠٬٠٠٠ جنيه شهريًا.</target></trans-unit>
+      <trans-unit id="income_rule.scalar_hint_car_loan" datatype="html"><source>This percent of the loan, per YEAR, divided into months. 5% of 300,000 EGP = 1,250 EGP a month.</source><target>هذه النسبة من القرض، سنويًا، مقسومة على الشهور. ٥٪ من ٣٠٠٬٠٠٠ جنيه = ١٬٢٥٠ جنيه شهريًا.</target></trans-unit>
+      <trans-unit id="income_rule.scalar_hint_bank_statement" datatype="html"><source>This percent of the balance, already MONTHLY — not divided by 12. 10% of 200,000 EGP = 20,000 EGP a month.</source><target>هذه النسبة من الرصيد، شهرية بالفعل — لا تُقسم على ١٢. ١٠٪ من ٢٠٠٬٠٠٠ جنيه = ٢٠٬٠٠٠ جنيه شهريًا.</target></trans-unit>
+      <trans-unit id="income_rule.scalar_hint_cd" datatype="html"><source>This percent of the certificate, per YEAR, divided into months. 3% of 400,000 EGP = 1,000 EGP a month.</source><target>هذه النسبة من الشهادة، سنويًا، مقسومة على الشهور. ٣٪ من ٤٠٠٬٠٠٠ جنيه = ١٬٠٠٠ جنيه شهريًا.</target></trans-unit>
+      <trans-unit id="income_rule.scalar_hint_deposits" datatype="html"><source>This percent of total deposits, per YEAR, divided into months. 2% of 600,000 EGP = 1,000 EGP a month.</source><target>هذه النسبة من إجمالي الودائع، سنويًا، مقسومة على الشهور. ٢٪ من ٦٠٠٬٠٠٠ جنيه = ١٬٠٠٠ جنيه شهريًا.</target></trans-unit>
     </body>
   </file>
 </xliff>

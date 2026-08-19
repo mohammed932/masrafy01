@@ -29,6 +29,7 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzInputNumberModule } from 'ng-zorro-antd/input-number';
 import { NzMessageService } from 'ng-zorro-antd/message';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
@@ -50,8 +51,11 @@ import {
   ShopOutline,
   AppstoreOutline,
   CalculatorOutline,
+  DatabaseOutline,
+  EditOutline,
   FileTextOutline,
   QuestionCircleOutline,
+  WarningOutline,
 } from '@ant-design/icons-angular/icons';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -79,19 +83,22 @@ import type {
   IncomeAssumptionConfig,
   IncomeBand,
   IncomeKeyTableRow,
+  ProgramNameIncomeRule,
   ProgramType,
   RateBandMap,
   ValueSourceMap,
 } from '../bank-programs.types';
 import {
+  INCOME_KEY_REGISTRY,
   factKeyOf,
+  factKeyOptions,
   incomeMethodLabel,
   incomeMethodShape,
   registryFacts,
 } from '../bank-programs.types';
-import { IncomeAssumptionSectionComponent } from './sections/income-assumption-section.component';
-import { IncomeRuleCheckComponent } from './sections/income-rule/income-rule-check.component';
-import { incomeRuleHasError } from './sections/income-rule/income-rule.rules';
+import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
+import { IncomeRuleCheckComponent } from '@shared/income-rule/income-rule-check.component';
+import { incomeRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { BanksApiService } from '../../banks/banks.api.service';
 import type { BankWithProgramCount } from '../../banks/banks.types';
 import {
@@ -217,8 +224,11 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
       ShopOutline,
       AppstoreOutline,
       CalculatorOutline,
+      DatabaseOutline,
+      EditOutline,
       FileTextOutline,
       QuestionCircleOutline,
+      WarningOutline,
     ]),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1102,57 +1112,190 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                defining property of such a program — it decides what income exists at all —
                and it used to sit last, below eligibility fields it silently reframes. -->
               @if (incomeSurrogateActive()) {
-                <app-income-assumption-section
-                  [group]="incomeAssumptionGroup"
-                  [keyTable]="incomeKeyTable()"
-                  (keyTableChange)="incomeKeyTable.set($event)"
-                  [bands]="incomeBands()"
-                  (bandsChange)="incomeBands.set($event)"
-                  [estimatedKeys]="estimatedKeyTableKeys()"
-                  (estimatedKeyChange)="onKeyTableMarker($event)"
-                  (keyStructureChange)="onKeyStructureChange($event)"
-                  [estimatedBandIndexes]="estimatedBandIndexes()"
-                  (estimatedBandChange)="onBandMarker($event)"
-                  (bandStructureChange)="onBandStructureChange($event)"
-                >
-                  <!-- The one thing the operator could not learn before saving: whether the
-                   fact this method reads is even asked of this loan type's applicants. It
-                   arrived as a toast after a failed save, or never — and an unasked fact
-                   means the rule produces no income for anyone, quietly. -->
-                  @if (factBinding(); as fb) {
-                    <p class="binding" [class.warn]="!fb.asked" role="status">
-                      @if (fb.asked) {
-                        <span
-                          nz-icon
-                          nzType="check-circle"
-                          nzTheme="outline"
-                          aria-hidden="true"
-                        ></span>
-                        <span i18n="@@bank_programs.income.binding_ok"
-                          >{{ fb.category }} applicants are asked {{ fb.label }}.</span
-                        >
-                      } @else {
-                        <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
-                        <span i18n="@@bank_programs.income.binding_missing"
-                          >{{ fb.category }} applicants are never asked {{ fb.label }}, so this rule
-                          will produce no income.</span
-                        >
-                        <a
-                          routerLink="/questionnaire/categories"
-                          i18n="@@bank_programs.income.binding_fix"
-                          >Ask it</a
-                        >
+                <!-- is-bare: the body of this block is two choice cards and an editor
+                     that draws its own borders. A filled card around them would be the
+                     third container for one decision. -->
+                <section class="card is-bare income-block">
+                  <header class="income-head">
+                    <div>
+                      <h3 class="income-title" i18n="@@bank_programs.income.title">
+                        Income assumption
+                      </h3>
+                      @if (catalogProof(); as proof) {
+                        <p class="income-lede" i18n="@@bank_programs.income.reads">
+                          {{ programNameLabel() }} works the income out from
+                          <strong>{{ proof }}</strong
+                          >.
+                        </p>
                       }
+                    </div>
+                    @if (programNameKeyValue()) {
+                      <a
+                        class="income-catalog-link"
+                        [routerLink]="['/program-catalog', programNameKeyValue()]"
+                        i18n="@@bank_programs.income.set_on_catalog"
+                        >Set on the catalog</a
+                      >
+                    }
+                  </header>
+
+                  @if (catalogRuleLoading()) {
+                    <p class="income-loading" i18n="@@bank_programs.income.loading">
+                      Reading what this program name says…
                     </p>
+                  } @else if (!programNameKeyValue()) {
+                    <!-- Reachable only by going back to step 2 and clearing the name, so
+                         it states the missing input rather than scolding about a proof
+                         nobody could have set. -->
+                    <p class="income-loading" i18n="@@bank_programs.income.no_name">
+                      Pick a program name on the Program step first — the name decides what the
+                      income is worked out from.
+                    </p>
+                  } @else if (!catalogProof()) {
+                    <!-- Fails on screen before it fails on save. The server would answer
+                         PROGRAM_NAME_INCOME_PROOF_MISSING; saying it here, next to the
+                         link that fixes it, costs the operator nothing. -->
+                    <p class="income-blocked" role="status">
+                      <span nz-icon nzType="warning" nzTheme="outline" aria-hidden="true"></span>
+                      <span i18n="@@bank_programs.income.no_proof"
+                        >Nobody has said what {{ programNameLabel() }} reads its income from. Set it
+                        once on the program catalog and every bank starts from the same
+                        table.</span
+                      >
+                    </p>
+                  } @else {
+                    <!-- ONE decision, two peer cards. The method dropdown is gone: the
+                         program name already stated the figure, and the server refuses a
+                         program that reads anything else. -->
+                    <fieldset class="basis-cards amount-choice">
+                      <legend class="visually-hidden" i18n="@@bank_programs.income.choice_legend">
+                        Whose amounts this program uses
+                      </legend>
+
+                      <!-- The SAME card vocabulary as step 1's income-basis pair:
+                           basis-card and its medallion, dot, bloom, commit spine,
+                           staggered entrance, focus halo and reduced-motion block. Reused
+                           rather than re-styled — this is the wizard's choice card, and a
+                           second look-alike built beside it is how two "identical" cards
+                           drift. amount-card adds only what differs, the figure list. -->
+                      @for (opt of amountChoices; track opt.value) {
+                        <label
+                          class="basis-card amount-card"
+                          [class.is-on]="amountsValue() === opt.value"
+                          [attr.data-basis]="opt.value"
+                        >
+                          <input
+                            type="radio"
+                            class="visually-hidden"
+                            name="amountsSource"
+                            [value]="opt.value"
+                            [checked]="amountsValue() === opt.value"
+                            [attr.aria-describedby]="'amountHint-' + opt.value"
+                            (change)="pickAmounts(opt.value)"
+                          />
+                          <span class="basis-card-top">
+                            <span class="basis-card-medallion" aria-hidden="true">
+                              <span
+                                class="basis-card-icon"
+                                nz-icon
+                                [nzType]="opt.icon"
+                                nzTheme="outline"
+                              ></span>
+                            </span>
+                            <span class="basis-card-dot" aria-hidden="true"></span>
+                          </span>
+                          <span class="basis-card-title">{{ opt.title }}</span>
+                          <span class="basis-card-hint" [id]="'amountHint-' + opt.value">{{
+                            opt.hint
+                          }}</span>
+
+                          @if (opt.value === 'catalog') {
+                            @if (catalogFigures().length > 0) {
+                              <dl class="amount-figures">
+                                @for (row of catalogFigures(); track row.label) {
+                                  <div class="amount-figure">
+                                    <dt>{{ row.label }}</dt>
+                                    <dd>{{ row.value }}</dd>
+                                  </div>
+                                }
+                              </dl>
+                            } @else {
+                              <span class="basis-card-effect" i18n="@@bank_programs.income.catalog_no_table">
+                                This name needs no table — the applicant's own figure is used.
+                              </span>
+                            }
+                          } @else if (catalogReaderCount() > 0) {
+                            <span class="basis-card-effect">{{ ownPeersLabel() }}</span>
+                          }
+                        </label>
+                      }
+                    </fieldset>
                   }
-                  <!-- Projected INTO the section so it sits directly below the table in
-                   the same tab order (FR-026), while reading the page's own live
-                   draft rather than a copy the section would have to mirror. -->
-                  <app-income-rule-check
-                    [programCode]="editingProgramCode()"
-                    [draft]="liveIncomeRuleDraft()"
-                  ></app-income-rule-check>
-                </app-income-assumption-section>
+
+                  <!-- Both of these used to be projected INSIDE the editor, which now
+                       renders only for a bank on its own amounts. They belong to the
+                       whole block: a program on CATALOG amounts is quoted off a table
+                       too, so an unasked fact silences it just as completely, and the
+                       check panel is the only way to see what either table pays. -->
+                  @if (catalogProof()) {
+                    <!-- The one thing the operator could not learn before saving: whether
+                         the figure this name reads is even asked of this loan type's
+                         applicants. It arrived as a toast after a failed save, or never —
+                         and an unasked figure means no income for anyone, quietly. -->
+                    @if (factBinding(); as fb) {
+                      <p class="binding" [class.warn]="!fb.asked" role="status">
+                        @if (fb.asked) {
+                          <span
+                            nz-icon
+                            nzType="check-circle"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
+                          <span i18n="@@bank_programs.income.binding_ok"
+                            >{{ fb.category }} applicants are asked {{ fb.label }}.</span
+                          >
+                        } @else {
+                          <span
+                            nz-icon
+                            nzType="warning"
+                            nzTheme="outline"
+                            aria-hidden="true"
+                          ></span>
+                          <span i18n="@@bank_programs.income.binding_missing"
+                            >{{ fb.category }} applicants are never asked {{ fb.label }}, so this
+                            rule will produce no income.</span
+                          >
+                          <a
+                            routerLink="/questionnaire/categories"
+                            i18n="@@bank_programs.income.binding_fix"
+                            >Ask it</a
+                          >
+                        }
+                      </p>
+                    }
+
+                    @if (amountsValue() === 'own') {
+                      <app-income-assumption-section
+                        [group]="incomeAssumptionGroup"
+                        [keyTable]="incomeKeyTable()"
+                        (keyTableChange)="incomeKeyTable.set($event)"
+                        [bands]="incomeBands()"
+                        (bandsChange)="incomeBands.set($event)"
+                        [estimatedKeys]="estimatedKeyTableKeys()"
+                        (estimatedKeyChange)="onKeyTableMarker($event)"
+                        (keyStructureChange)="onKeyStructureChange($event)"
+                        [estimatedBandIndexes]="estimatedBandIndexes()"
+                        (estimatedBandChange)="onBandMarker($event)"
+                        (bandStructureChange)="onBandStructureChange($event)"
+                      ></app-income-assumption-section>
+                    }
+
+                    <app-income-rule-check
+                      [programCode]="editingProgramCode()"
+                      [draft]="liveIncomeRuleDraft()"
+                    ></app-income-rule-check>
+                  }
+                </section>
               }
 
               <section class="card" formGroupName="eligibility">
@@ -1675,6 +1818,111 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         display: grid;
         gap: var(--space-4);
         grid-template-columns: 1fr;
+      }
+
+      /* --- Step 5: whose amounts ------------------------------------------- */
+      /* is-bare, because the body is two choice cards and an editor that draws its own
+         borders. A filled card around them was the third container for one decision. */
+      .income-block {
+        display: flex;
+        flex-direction: column;
+      }
+      .income-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-4);
+        margin-block-end: var(--space-4);
+        padding-block-end: var(--space-4);
+        border-block-end: 1px solid var(--color-border-subtle);
+      }
+      .income-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 650;
+        color: var(--color-text-primary);
+      }
+      .income-lede {
+        margin: var(--space-1) 0 0;
+        max-inline-size: 68ch;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        color: var(--color-text-secondary);
+      }
+      .income-lede strong {
+        font-weight: 650;
+        color: var(--color-text-primary);
+      }
+      .income-catalog-link {
+        flex: none;
+        font-size: 0.8125rem;
+        white-space: nowrap;
+      }
+      .income-loading,
+      .income-blocked {
+        margin: 0;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        color: var(--color-text-secondary);
+      }
+      /* The one state that stops the step. Warning ink and an accent spine, not an error
+         card: nothing is broken, a decision is simply missing one screen away. */
+      .income-blocked {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        border-inline-start: var(--rule-width-accent) solid var(--ant-warning-color);
+        background: var(--color-surface-sunken);
+        color: var(--color-text-primary);
+      }
+      .income-blocked [nz-icon] {
+        flex: none;
+        margin-block-start: 0.15em;
+        color: var(--ant-warning-color);
+      }
+      /* A fieldset carrying the grid, so the pair is one labelled group for a screen
+         reader without a wrapper div in between. */
+      .amount-choice {
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      /* The catalog's real figures, INSIDE the left card. The operator is accepting
+         these, and "3 rows" says nothing about what the bank will pay. A plain
+         definition list on the card surface — not a nested card. */
+      .amount-figures {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        margin: var(--space-3) 0 0;
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        background: var(--color-surface-sunken);
+        font-variant-numeric: tabular-nums;
+      }
+      .amount-figure {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-3);
+      }
+      .amount-figure dt {
+        font-size: 0.75rem;
+        color: var(--color-text-secondary);
+      }
+      .amount-figure dd {
+        margin: 0;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--color-text-primary);
+      }
+      @media (max-width: 40rem) {
+        .income-head {
+          flex-direction: column;
+          align-items: stretch;
+        }
       }
       @media (min-width: 48rem) {
         .basis-cards {
@@ -2732,6 +2980,8 @@ export class BankProgramFormPage implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(BankProgramsApiService);
   private readonly message = inject(NzMessageService);
+  /** Via NzModalService so the scrim covers the whole viewport, never the panel (A34). */
+  private readonly modal = inject(NzModalService);
   private readonly notification = inject(NzNotificationService);
   private readonly errorsService = inject(ErrorCodeService);
   readonly enums = inject(PlatformEnumerationsService);
@@ -3285,10 +3535,23 @@ export class BankProgramFormPage implements OnInit {
       minAssetsValueEGP: new FormControl<string | null>(null),
     }),
     incomeAssumption: this.fb.nonNullable.group({
+      /**
+       * NOT a picker any more. The catalog program name states the one figure the income
+       * is worked out from, and this control is SET from it — the server refuses a
+       * program whose strategy is anything else. Kept as a control rather than derived
+       * at payload time because the shared editor, the check panel and the review row
+       * all read the rule through this group.
+       */
       strategy: new FormControl<IncomeAssumptionStrategy>('declared', {
         nonNullable: true,
         validators: [Validators.required],
       }),
+      /**
+       * Whose figures the tables are. `'own'` is the default and what every program
+       * saved before this field existed means, so the default has to be the one that
+       * changes nothing about a legacy program on read-back.
+       */
+      amounts: new FormControl<'catalog' | 'own'>('own', { nonNullable: true }),
       /**
        * Feature 011 — the CANONICAL scalar shape replaces the four per-method
        * fields. `unit` travels with the value so the stored blob says what
@@ -3555,6 +3818,161 @@ export class BankProgramFormPage implements OnInit {
     this.form.controls.identity.controls.programType.markAsDirty();
   }
 
+  /**
+   * Switch between the catalog's amounts and this bank's own.
+   *
+   * Going to `'own'` SEEDS the editor from the catalog rather than opening it blank —
+   * nobody should retype a table they were just looking at, and a blank editor also
+   * reads as "the catalog had nothing", which is a different and false statement. The
+   * seed happens only when the bank has no table of its own yet, so a second visit does
+   * not overwrite figures the bank already typed.
+   *
+   * Going to `'catalog'` warns first when there IS a table to lose. The strategy is
+   * never touched by either direction: the name states it and the server enforces it.
+   */
+  protected pickAmounts(next: 'catalog' | 'own'): void {
+    if (next === this.amountsValue()) return;
+    // The TYPED group, not the `FormGroup` getter the shared editor takes: that one is
+    // deliberately loose so the editor can be reused, and reaching through it here would
+    // cost every control an `any`.
+    const group = this.form.controls.incomeAssumption;
+
+    if (next === 'own') {
+      const catalog = this.catalogRule()?.incomeRule;
+      if (catalog) {
+        if (this.incomeKeyTable().length === 0 && catalog.keyTable?.length) {
+          this.incomeKeyTable.set(catalog.keyTable.map((row: IncomeKeyTableRow) => ({ ...row })));
+        }
+        if (this.incomeBands().length === 0 && catalog.bands?.length) {
+          this.incomeBands.set(catalog.bands.map((band: IncomeBand) => ({ ...band })));
+        }
+        if (!group.controls.scalar.controls.value.value && catalog.scalar) {
+          group.controls.scalar.patchValue({
+            value: catalog.scalar.value,
+            unit: catalog.scalar.unit,
+          });
+        }
+      }
+      this.setAmountsSource('own');
+      return;
+    }
+
+    // Back to the catalog. The tables are only DISCARDED on confirm, and the prompt says
+    // what is lost rather than asking whether the operator is sure.
+    const hasOwnTable = this.incomeKeyTable().length > 0 || this.incomeBands().length > 0;
+    if (!hasOwnTable) {
+      this.setAmountsSource('catalog');
+      return;
+    }
+    this.modal.confirm({
+      nzTitle: $localize`:@@bank_programs.income.revert_title:Go back to the catalog amounts?`,
+      nzContent: $localize`:@@bank_programs.income.revert_body:The figures you typed for this bank are dropped, and it starts quoting the catalog's.`,
+      nzOkText: $localize`:@@bank_programs.income.revert_ok:Use the catalog amounts`,
+      nzCancelText: $localize`:@@bank_programs.income.revert_cancel:Keep this bank's amounts`,
+      nzOnOk: () => {
+        this.incomeKeyTable.set([]);
+        this.incomeBands.set([]);
+        this.form.controls.incomeAssumption.controls.scalar.patchValue({ value: null });
+        this.setAmountsSource('catalog');
+      },
+    });
+  }
+
+  private setAmountsSource(value: 'catalog' | 'own'): void {
+    const control = this.form.controls.incomeAssumption.controls.amounts;
+    control.setValue(value);
+    control.markAsDirty();
+  }
+
+  /**
+   * Read what the picked program name says. Runs on every name change, because the
+   * proof is the NAME's property — switching the name changes the whole block.
+   */
+  private async loadCatalogRule(): Promise<void> {
+    const key = this.programNameKeyValue();
+    if (!key) {
+      this.catalogRule.set(null);
+      return;
+    }
+    this.catalogRuleLoading.set(true);
+    try {
+      const { data } = await this.api.getProgramNameIncomeRule(key);
+      this.catalogRule.set(data);
+    } catch {
+      // Left as "states nothing", which renders the blocked notice and the catalog link.
+      // Silent because the notice IS the report, and a toast on a background read would
+      // fire while the operator is typing three steps away.
+      this.catalogRule.set(null);
+    } finally {
+      this.catalogRuleLoading.set(false);
+    }
+  }
+
+  /**
+   * Re-read the picked name's rule and take its proof as this program's.
+   *
+   * The strategy is COPIED onto the program rather than left to the server, because
+   * every reader on this page switches on it — the editor's shape, the check panel's
+   * sample field, the review row. Copying it keeps them all working against the form
+   * alone, which is the same reason the backend stores it on the program.
+   *
+   * A proof change clears the bank's own tables: they are keyed by the OLD figure (rank
+   * rows against a grade answer), so carrying them over would leave the operator looking
+   * at a table that cannot match anything. Nothing is lost silently — the tables belong
+   * to a name this program no longer uses.
+   */
+  private async adoptCatalogProof(): Promise<void> {
+    const before = this.form.controls.incomeAssumption.controls.strategy.value;
+    await this.loadCatalogRule();
+    const proof = this.catalogRule()?.incomeRule?.strategy;
+    if (proof === undefined || proof === before) return;
+
+    this.incomeKeyTable.set([]);
+    this.incomeBands.set([]);
+    const income = this.form.controls.incomeAssumption;
+    income.controls.scalar.patchValue({ value: null });
+    income.controls.strategy.setValue(proof);
+    income.controls.strategy.markAsDirty();
+    // Back to the catalog's figures, because that is now the only table this program
+    // has. Leaving it on 'own' would show an empty editor under a heading saying the
+    // bank pays its own amounts.
+    this.setAmountsSource('catalog');
+  }
+
+  /** A strategy token → the words the picker used, built-in or registry fact. */
+  private incomeMethodLabelFor(strategy: IncomeAssumptionStrategy): string {
+    return incomeMethodLabel(strategy, this.incomeFacts());
+  }
+
+  /**
+   * A key-table row key → its label. Through the registry the method draws from, so a
+   * rank reads "Assistant professor" rather than `assistant_professor`; a `fact:` method
+   * reads its bound question's own option labels. The raw key is the fallback, never an
+   * empty cell — an unlabelled row still has to be identifiable.
+   */
+  private incomeKeyLabel(strategy: IncomeAssumptionStrategy, key: string): string {
+    const registry = INCOME_KEY_REGISTRY[strategy as keyof typeof INCOME_KEY_REGISTRY];
+    if (registry) {
+      const member = this.enums.membersFor(registry)().find((m) => m.key === key);
+      if (member) return this.localeIsAr ? member.labelAr : member.labelEn;
+    }
+    // A `fact:` method's rows are the bound question's own options — through the shared
+    // helper, so the labels here and the picker's cannot come from two different reads.
+    const option = factKeyOptions(strategy, this.incomeFacts()).find(
+      (o: { code: string; labelAr: string; labelEn: string }) => o.code === key,
+    );
+    if (option) return this.localeIsAr ? option.labelAr : option.labelEn;
+    return key;
+  }
+
+  /** A Decimal string → a grouped EGP amount. Never parsed as a float (Principle I). */
+  private egp(value: string): string {
+    const [whole = '0', fraction] = value.split('.');
+    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const shown = fraction && Number(fraction) > 0 ? `${grouped}.${fraction}` : grouped;
+    return $localize`:@@bank_programs.income.egp:${shown}:amount: EGP`;
+  }
+
   protected basisLabel(basis: IncomeBasis): string {
     return incomeBasisLabel(basis);
   }
@@ -3743,8 +4161,16 @@ export class BankProgramFormPage implements OnInit {
     const draft = this.liveIncomeRuleDraft();
     const label = $localize`:@@bank_programs.review.income_rule:How the income is worked out`;
     const parts: string[] = [incomeMethodLabel(draft.strategy, this.incomeFacts())];
-    const rows = this.incomeKeyTable().length || this.incomeBands().length;
-    if (rows > 0) parts.push(this.countLabel(rows));
+    // WHOSE amounts, before how many rows. A reviewer glancing at this line needs to
+    // know whether the figures are this bank's at all — "4 bands" on a program that
+    // inherits describes the catalog's table, not a decision made on this screen.
+    if (this.amountsValue() === 'catalog') {
+      parts.push($localize`:@@bank_programs.review.income_rule_catalog:catalog amounts`);
+    } else {
+      parts.push($localize`:@@bank_programs.review.income_rule_own:this bank's own amounts`);
+      const rows = this.incomeKeyTable().length || this.incomeBands().length;
+      if (rows > 0) parts.push(this.countLabel(rows));
+    }
     const binding = this.factBinding();
     if (binding && !binding.asked) {
       parts.push(
@@ -3996,6 +4422,15 @@ export class BankProgramFormPage implements OnInit {
     if (!this.incomeSurrogateActive()) return false;
     this.formValue();
     const ia = this.form.getRawValue().incomeAssumption;
+    // A program on CATALOG amounts has no table of its own to be wrong about. Gating on
+    // the local editor here would block Continue on an empty table for every program
+    // that takes the catalog's — which is the default, so the wizard would refuse to
+    // advance out of the box. The catalog's own table is validated where it is authored,
+    // and again by the server on this save.
+    if (ia.amounts === 'catalog') return false;
+    // The name has not stated a proof, so there is nothing valid to save. Blocked here
+    // rather than at the server, next to the notice that says where to fix it.
+    if (!this.catalogProof()) return true;
     const shape = incomeMethodShape(ia.strategy, this.incomeFacts());
     return incomeRuleHasError({
       shape,
@@ -4005,6 +4440,112 @@ export class BankProgramFormPage implements OnInit {
       isValueMethod: ia.strategy === 'byCDValue' || ia.strategy === 'byTotalDeposits',
     });
   });
+
+  // --- The name's ONE income proof, and whose amounts this bank uses ---------
+  //
+  // The Method dropdown is GONE from this step. The catalog program name states the one
+  // figure the income is worked out from, every bank selling that name reads it, and the
+  // server refuses a program that reads anything else. What is left for the bank to
+  // decide is the AMOUNTS, which is one radio pair.
+
+  /** The catalog name's rule as the server holds it. `null` = the name states nothing. */
+  private readonly catalogRule = signal<ProgramNameIncomeRule | null>(null);
+  protected readonly catalogRuleLoading = signal(false);
+
+  /** The proof, in the operator's words. `null` means nothing is stated yet. */
+  protected readonly catalogProof = computed<string | null>(() => {
+    const strategy = this.catalogRule()?.incomeRule?.strategy;
+    return strategy === undefined ? null : this.incomeMethodLabelFor(strategy);
+  });
+
+  /** The picked name's label, for a sentence that names it rather than saying "this name". */
+  protected readonly programNameLabel = computed<string>(() => {
+    const key = this.programNameKeySignal();
+    if (!key) return '';
+    const member = this.programNameMembers().find((m) => m.key === key);
+    return member ? (this.localeIsAr ? member.labelAr : member.labelEn) : key;
+  });
+
+  /** Plain string, for the `routerLink` and the "is a name even picked" guard. */
+  protected readonly programNameKeyValue = computed<string>(() => this.programNameKeySignal() ?? '');
+
+  /**
+   * The catalog's figures, rendered as label → amount pairs on the left card.
+   *
+   * A `<dl>` of the ACTUAL numbers, not a count: the operator is accepting these, and
+   * "3 rows" tells them nothing about what the bank will pay. Key rows are labelled
+   * through the registry so a rank reads "Assistant professor", not `assistant_professor`.
+   */
+  protected readonly catalogFigures = computed<Array<{ label: string; value: string }>>(() => {
+    const rule = this.catalogRule()?.incomeRule;
+    if (!rule) return [];
+    if (rule.keyTable?.length) {
+      return rule.keyTable.map((row: IncomeKeyTableRow) => ({
+        label: this.incomeKeyLabel(rule.strategy, row.key),
+        value: this.egp(row.incomeEGP),
+      }));
+    }
+    if (rule.bands?.length) {
+      return rule.bands.map((band: IncomeBand) => ({
+        label:
+          band.toExclusive === null
+            ? $localize`:@@bank_programs.income.band_open:${band.fromInclusive}:from: and above`
+            : $localize`:@@bank_programs.income.band_range:${band.fromInclusive}:from: – ${band.toExclusive}:to:`,
+        value: this.egp(band.incomeEGP),
+      }));
+    }
+    if (rule.scalar) {
+      return [
+        {
+          label:
+            rule.scalar.unit === 'percent'
+              ? $localize`:@@bank_programs.income.scalar_percent:Percentage applied`
+              : $localize`:@@bank_programs.income.scalar_multiplier:Multiplier applied`,
+          value: rule.scalar.unit === 'percent' ? `${rule.scalar.value}%` : `× ${rule.scalar.value}`,
+        },
+      ];
+    }
+    // `declared` — no table, and the empty state on the card says so in words.
+    return [];
+  });
+
+  protected readonly catalogReaderCount = computed(() => this.catalogRule()?.programs.length ?? 0);
+
+  /** How many OTHER banks type their own figures — social proof for the right card. */
+  protected readonly ownPeersLabel = computed(() => {
+    const code = this.editingProgramCode();
+    const peers = (this.catalogRule()?.programs ?? []).filter(
+      (p: { programCode: string; ownAmounts: boolean }) =>
+        p.ownAmounts && p.programCode !== code,
+    ).length;
+    return $localize`:@@bank_programs.income.own_peers:${peers}:count: other bank program(s) do this.`;
+  });
+
+  /**
+   * Which card is on. ABSENT reads as `'own'`, matching the wire contract: every
+   * program saved before this field existed carries its own figures, so the absent case
+   * has to be the one that changes nothing.
+   */
+  protected readonly amountsValue = computed<'catalog' | 'own'>(() => {
+    this.formValue();
+    return this.form.getRawValue().incomeAssumption.amounts === 'catalog' ? 'catalog' : 'own';
+  });
+
+  /** The two cards. Static content — the labels do not depend on the picked name. */
+  protected readonly amountChoices = [
+    {
+      value: 'catalog' as const,
+      icon: 'database',
+      title: $localize`:@@bank_programs.income.choice_catalog:Catalog amounts`,
+      hint: $localize`:@@bank_programs.income.choice_catalog_hint:Shared by every bank selling this name. Updates when the catalog updates.`,
+    },
+    {
+      value: 'own' as const,
+      icon: 'edit',
+      title: $localize`:@@bank_programs.income.choice_own:This bank's own amounts`,
+      hint: $localize`:@@bank_programs.income.choice_own_hint:Starts from the catalog figures — edit from there.`,
+    },
+  ];
 
   /** Reactive view of the bound key so the option list keeps a legacy value visible. */
   readonly programNameKeySignal = toSignal(
@@ -4298,6 +4839,11 @@ export class BankProgramFormPage implements OnInit {
             emitEvent: false,
           });
         }
+        // The income proof is the NAME's property, so changing the name changes what
+        // this program reads. Re-read, then adopt — the alternative is a program still
+        // carrying the previous name's proof, which the server refuses on save with a
+        // message about a name the operator has already moved away from.
+        void this.adoptCatalogProof();
       });
     // No category-change RESET. Changing the product category can invalidate the
     // picked name, but clearing the key would not clear `friendlyName` /
@@ -4691,8 +5237,27 @@ export class BankProgramFormPage implements OnInit {
     const shape = incomeMethodShape(ia.strategy, this.incomeFacts());
     const scalarValue = ia.scalar.value;
 
+    // A program on CATALOG amounts sends the proof, the policy, and no figures. The
+    // server strips them anyway, but sending the pre-filled copy would make the request
+    // say the bank typed numbers it only looked at — and the check panel reads this same
+    // draft, so it would then check a table the program will not be quoted off.
+    if (ia.amounts === 'catalog') {
+      return {
+        strategy: ia.strategy,
+        amounts: 'catalog',
+        ...(shape !== 'none' && ia.dbrCapPercentOverride
+          ? { dbrCapPercentOverride: ia.dbrCapPercentOverride }
+          : {}),
+        ...(shape !== 'none' && ia.requiredDocuments.length > 0
+          ? { requiredDocuments: ia.requiredDocuments }
+          : {}),
+        ...(shape !== 'none' && ia.combinationRule ? { combinationRule: ia.combinationRule } : {}),
+      };
+    }
+
     return {
       strategy: ia.strategy,
+      amounts: 'own',
       ...(shape === 'keyTable' ? { keyTable: this.incomeKeyTable() } : {}),
       ...(shape === 'bands' ? { bands: this.incomeBands() } : {}),
       // A value method keeps its legacy percent while no bands are authored, so the
@@ -4890,6 +5455,10 @@ export class BankProgramFormPage implements OnInit {
     // shape even for a program whose rule has never been re-saved through this form.
     this.incomeAssumptionGroup.patchValue({
       strategy: initial.incomeAssumption.strategy,
+      // ABSENT means `'own'`. Every program saved before this field existed carries its
+      // own figures, so defaulting to `'catalog'` here would open the wizard claiming a
+      // link the program does not have — and the first save would make it true.
+      amounts: initial.incomeAssumption.amounts === 'catalog' ? 'catalog' : 'own',
       scalar: {
         value: trimZeros(initial.incomeAssumption.scalar?.value) ?? null,
         unit: initial.incomeAssumption.scalar?.unit ?? 'percent',
@@ -4900,6 +5469,11 @@ export class BankProgramFormPage implements OnInit {
     });
     this.incomeKeyTable.set(initial.incomeAssumption.keyTable ?? []);
     this.incomeBands.set(initial.incomeAssumption.bands ?? []);
+    // The name's rule, so the block can render the proof and the catalog's figures. NOT
+    // adopted: this program's stored strategy is what it is quoting off today, and
+    // overwriting it on load would silently rewrite a legacy program the moment an
+    // operator opened it to change a fee.
+    void this.loadCatalogRule();
     this.estimatedPaths.set(new Set(Object.keys(initial.valueSources ?? {})));
     this.feesGroup.patchValue({
       adminFeePercent: trimZeros(initial.fees.adminFeePercent),

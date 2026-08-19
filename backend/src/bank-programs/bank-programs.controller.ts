@@ -7,6 +7,7 @@ import {
   HttpCode,
   Param,
   Post,
+  Put,
   Query,
   Req,
   UseGuards,
@@ -24,6 +25,7 @@ import { ToggleBankProgramDto } from './dto/toggle-bank-program.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
 import { IncomeRuleCheckDto } from './dto/income-rule-check.dto';
+import { SetProgramNameIncomeRuleDto } from './dto/program-name-income-rule.dto';
 import { BankProgramsService } from './bank-programs.service';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
 
@@ -95,6 +97,60 @@ export class BankProgramsController {
       this.actor(user, req),
     );
     return ok(program);
+  }
+
+  /**
+   * The catalog program name's income rule.
+   *
+   * On THIS controller, not on `admin/enumerations`, even though the row it writes is
+   * an enumeration: every piece of machinery that decides whether a rule is acceptable
+   * — `IncomeAssumptionConfigDto`, `validateIncomeRule`, the registry context it needs,
+   * the typed 422s — lives in this module, and moving the check the other way would
+   * make bank-programs and platform-enumerations circular. The audit event is still
+   * `PLATFORM_ENUMERATION_UPDATED`, so the change reads where an operator looks for it.
+   *
+   * Addressed by the catalog KEY rather than the enumeration id: it is what a bank
+   * program stores, what the catalog URL carries, and what an operator recognises.
+   */
+  @Get('program-names/:programNameKey/income-rule')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({ summary: "A catalog program name's income proof, figures, and who reads them" })
+  @ApiResponse({ status: 404, description: 'PROGRAM_NAME_KEY_UNKNOWN' })
+  async getProgramNameIncomeRule(@Param('programNameKey') programNameKey: string) {
+    return ok(await this.service.getProgramNameIncomeRule(programNameKey));
+  }
+
+  @Put('program-names/:programNameKey/income-rule')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: 'Set what a catalog program name reads its income from, and the figures banks start from',
+    description:
+      'One name states ONE income proof; every surrogate program filed under it reads that one, ' +
+      'and a bank may change only the AMOUNTS. `incomeRule: null` says the name states nothing ' +
+      'again, which blocks the next surrogate program from being filed under it until someone ' +
+      'decides. Both the proof change and the clear are refused while surrogate programs are ' +
+      'still reading it — their tables are keyed by the old proof.',
+  })
+  @ApiResponse({ status: 404, description: 'PROGRAM_NAME_KEY_UNKNOWN' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'INCOME_PROOF_IN_USE | INCOME_RULE_EMPTY | INCOME_RULE_INCOME_INVALID | ' +
+      'INCOME_RULE_DUPLICATE_KEY | INCOME_RULE_UNKNOWN_KEY | INCOME_RULE_BANDS_INVALID | ' +
+      'INCOME_RULE_DBR_OVERRIDE_INVALID | INCOME_RULE_FACT_UNAVAILABLE | ' +
+      'VALUE_SOURCE_PATH_UNKNOWN | VALUE_SOURCE_VALUE_INVALID — the same rule codes a bank ' +
+      "program's own save raises, so the catalog can never accept a table a program is then " +
+      'refused for.',
+  })
+  async setProgramNameIncomeRule(
+    @Param('programNameKey') programNameKey: string,
+    @Body() body: SetProgramNameIncomeRuleDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(
+      await this.service.setProgramNameIncomeRule(programNameKey, body, this.actor(user, req)),
+    );
   }
 
   @Post(':programCode/income-rule/check')

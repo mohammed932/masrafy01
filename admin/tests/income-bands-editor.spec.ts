@@ -19,7 +19,7 @@ import {
   incomeBandsErrorFor,
   incomeKeyTableErrorFor,
   type IncomeBandsError,
-} from '../src/app/features/bank-programs/form/sections/income-rule/income-rule.rules';
+} from '../src/app/shared/income-rule/income-rule.rules';
 import type { IncomeBand } from '../src/app/features/bank-programs/bank-programs.types';
 
 function bands(rows: Array<[string, string | null, string]>): IncomeBand[] {
