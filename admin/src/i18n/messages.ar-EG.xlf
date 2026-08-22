@@ -1403,22 +1403,6 @@
           <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="lookups.type.club_class.label" datatype="html">
-        <source>Club membership classes</source>
-        <target>درجات عضوية النوادي</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
-          <context context-type="linenumber">66</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="lookups.type.club_class.desc" datatype="html">
-        <source>The membership classes the club loan is priced from.</source>
-        <target>درجات العضوية التي يُحسب عليها تمويل النادي.</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
-          <context context-type="linenumber">67</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="bank_programs.income.steps_title" datatype="html">
         <source> How this product works the figure out </source>
         <target>كيف يحسب هذا المنتج الرقم</target>
@@ -1725,6 +1709,111 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
           <context context-type="linenumber">657</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.pick_by_fact" datatype="html">
+        <source>Whichever column fits the customer: <x id="factLabel" equiv-text="factLabel"/></source>
+        <target>العمود المناسب للعميل: <x id="factLabel" equiv-text="factLabel"/></target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.step.pick_by_fact_hint" datatype="html">
+        <source>Fill in the first table for everyone. Fill in the second only if this bank lends more to customers it already has — left empty, everyone reads the first.</source>
+        <target>املأ الجدول الأول للجميع. واملأ الثاني فقط إذا كان هذا البنك يمنح عملاءه الحاليين مبلغًا أعلى — وإذا تُرك فارغًا يقرأ الجميع الجدول الأول.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.self_employed_docs" datatype="html">
+        <source>Self-employed customers need a valid trade or practice licence</source>
+        <target>أصحاب الأعمال الحرة يحتاجون رخصة تجارية أو رخصة مهنة سارية</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.gate.business_years" datatype="html">
+        <source>How long a self-employed customer's business must have been running</source>
+        <target>المدة المطلوبة لقيام النشاط التجاري لصاحب العمل الحر</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="product_rule.fact.bank_relationship" datatype="html">
+        <source>whether they already bank here</source>
+        <target>ما إذا كان عميلًا حاليًا في هذا البنك</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="income_rule_check.fact.bank_relationship" datatype="html">
+        <source>Already a customer of this bank</source>
+        <target>عميل حالي في هذا البنك</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/income-rule-check.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="income_rule_check.fact.bank_relationship_ntb" datatype="html">
+        <source>No — new to this bank</source>
+        <target>لا — عميل جديد على البنك</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/income-rule-check.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="income_rule_check.fact.bank_relationship_xsell" datatype="html">
+        <source>Yes — an existing customer</source>
+        <target>نعم — عميل حالي</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/shared/income-rule/income-rule-check.component.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.strategy.steps" datatype="html">
+        <source>Worked out step by step from what the customer owns</source>
+        <target>يُحسب خطوة بخطوة من الأصول التي يملكها العميل</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.income.gate_applies" datatype="html">
+        <source>applies</source>
+        <target>مُطبَّق</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/detail/bank-program-detail.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="bank_programs.review.income_rule_steps" datatype="html">
+        <source>worked out step by step</source>
+        <target>يُحسب خطوة بخطوة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/bank-programs/form/bank-program-form.page.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.field.parentKey" datatype="html">
+        <source>Filed under</source>
+        <target>مُصنَّف تحت</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/components/enumeration-edit.dialog.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.field.parentKey.hint" datatype="html">
+        <source>Banks price this list by the class it is filed under. A value with no class gets no figures from those banks.</source>
+        <target>البنوك تحسب هذه القائمة حسب الفئة المصنفة تحتها. والقيمة بدون فئة لا تحصل على أرقام من تلك البنوك.</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/components/enumeration-edit.dialog.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.field.parentKey.none" datatype="html">
+        <source>Not classified</source>
+        <target>غير مصنَّف</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/components/enumeration-edit.dialog.ts</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="lookups.value.unclassified" datatype="html">
+        <source>No class</source>
+        <target>بدون فئة</target>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/features/lookups/components/lookup-value-list.component.ts</context>
         </context-group>
       </trans-unit>
     </body>

@@ -2266,6 +2266,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get gate_multi_unit_not_confirmed => 'ذكرت أنك تملك أكثر من وحدة. أكِّد الوحدة التي نحسب عليها وسنعرض أرقام هذا البرنامج.';
 
   @override
+  String get gate_self_employed_docs_missing => 'هذا البنك يطلب رخصة تجارية أو رخصة مهنة سارية من العاملين لحسابهم.';
+
+  @override
+  String get gate_business_too_new => 'هذا البنك يطلب أن يكون نشاطك التجاري قائمًا لمدة أطول من مدته الحالية.';
+
+  @override
   String get gate_not_met => 'هذا البرنامج له شرط لا تحققه إجاباتك، لذا لا يمكن عرض أرقام.';
 
   @override
@@ -2273,4 +2279,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get collateral_skip_hint => 'تخطَّ وسنظل نعرض البرنامج، لكن بدون أرقام حتى تجيب.';
+
+  @override
+  String offer_collateral_ceiling(String amount) {
+    return 'وحدتك تدعم حتى $amount';
+  }
 }

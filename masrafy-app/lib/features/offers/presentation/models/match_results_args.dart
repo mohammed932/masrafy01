@@ -128,6 +128,7 @@ class MatchOffer {
     this.loanAmount,
     this.cashReceived,
     this.maxLoan,
+    this.collateralCeiling,
     this.dbrPct,
     this.dbrCapPct,
     this.isBestMatch = false,
@@ -189,6 +190,14 @@ class MatchOffer {
   /// Most this customer could borrow here (EGP): salary × DBR cap − existing
   /// obligations, present-valued over the term. Null on mock / legacy offers.
   final int? maxLoan;
+
+  /// What this customer's own COLLATERAL supports here (EGP) — what the unit or the
+  /// membership carries, before their existing payments are taken off.
+  ///
+  /// Worth its own line because it is the only figure on a no-payslip offer that explains
+  /// where the number came from: nothing else on the card mentions the unit at all. Null on
+  /// every program that reads an income instead.
+  final int? collateralCeiling;
 
   /// Debt-burden ratio this offer lands at, and the cap it was measured
   /// against — e.g. `48.9` against `60.0`.
@@ -253,6 +262,7 @@ class MatchOffer {
       loanAmount: e.effectiveLoanAmountEGP.round(),
       cashReceived: e.requestedLoanAmountEGP.round(),
       maxLoan: e.maxLoanAvailableEGP?.round(),
+      collateralCeiling: e.collateralCeilingEGP?.round(),
       dbrPct: e.dbrPercent,
       dbrCapPct: e.dbrCapPercent,
       isBestMatch: isBestMatch,

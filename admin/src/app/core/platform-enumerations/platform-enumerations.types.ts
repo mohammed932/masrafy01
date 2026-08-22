@@ -16,8 +16,7 @@ export type EnumerationType =
    * is how a bank keys a five-row cap table while the customer picks a compound by name.
    */
   | 'compound_category'
-  | 'compound'
-  | 'club_class';
+  | 'compound';
 
 import type { LoanCategory } from '@core/loan-category';
 import type { IncomeBasis } from '@core/income-basis';

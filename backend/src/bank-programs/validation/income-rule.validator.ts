@@ -9,7 +9,11 @@ import {
   type IncomeAssumptionConfig,
   type IncomeAssumptionStrategy,
 } from '@/matching/types';
-import type { SurrogateFactBinding } from '@/matching/pipeline/surrogate-fact-registry';
+import {
+  derivedFactOptionCodes,
+  isDerivedFactKey,
+  type SurrogateFactBinding,
+} from '@/matching/pipeline/surrogate-fact-registry';
 import {
   GATE_REASON_CODES,
   optionalStepIds,
@@ -95,6 +99,8 @@ export const PRODUCT_RULE_INVALID_REASONS = [
   'gate_expect_empty',
   'bad_baseline_dbr',
   'bad_output_kind',
+  'branches_empty',
+  'branches_mismatch',
 ] as const;
 
 export type ProductRuleInvalidReason = (typeof PRODUCT_RULE_INVALID_REASONS)[number];
@@ -327,7 +333,12 @@ async function validateProductRule(
   // and let the ten answers differ mid-save.
   const registry = await ctx.surrogateFacts();
   const factByKey = new Map(registry.map((f) => [f.key, f]));
-  const missingFact = factsReadBy(rule).find((key) => !factByKey.has(key));
+  // A DERIVED fact has no registry row to find: the platform computes it per quote (which
+  // bank the applicant already uses is a different answer for every program), so demanding
+  // one would refuse every rule that reads a segment.
+  const missingFact = factsReadBy(rule).find(
+    (key) => !factByKey.has(key) && !isDerivedFactKey(key),
+  );
   if (missingFact !== undefined) {
     return { kind: 'factUnavailable', factKey: missingFact, availableFacts: registry.map((f) => f.key) };
   }
@@ -472,6 +483,28 @@ function validateArity(step: RuleStep): ProductRuleViolation | undefined {
   const needsFact =
     step.op === 'factNumber' || step.op === 'factChoiceTable' || step.op === 'factParentTable';
 
+  // `pickByFact` reads a fact AND operates on inputs, and its `branches` are positional:
+  // a list of a different length than `of` would silently leave one column unreachable,
+  // which is exactly the tier fall-through this shape exists to make impossible.
+  if (step.op === 'pickByFact') {
+    if (!step.fact) {
+      return { kind: 'productRuleInvalid', reason: 'missing_fact', stepId: step.id };
+    }
+    const branches = step.branches ?? [];
+    if (branches.length === 0) {
+      return { kind: 'productRuleInvalid', reason: 'branches_empty', stepId: step.id };
+    }
+    if (branches.length !== count) {
+      return {
+        kind: 'productRuleInvalid',
+        reason: 'branches_mismatch',
+        stepId: step.id,
+        detail: `${branches.length}/${count}`,
+      };
+    }
+    return undefined;
+  }
+
   if (needsFact) {
     return step.fact
       ? undefined
@@ -580,6 +613,34 @@ async function validateStepFigures(
           stepId: step.id,
           detail: figures.scalar?.value ?? '',
         };
+      }
+      return undefined;
+    }
+
+    case 'pickByFact': {
+      // No figures of its own — the two columns are steps, and each states its own. What is
+      // checked here is that every BRANCH names an option the applicant can actually pick,
+      // for the same reason a choice table's keys are: a branch nobody can answer is a
+      // column nobody can reach, and it would look configured on the screen.
+      //
+      // A DERIVED fact has no bound question (the platform computes it, so there are no
+      // option rows to read); its branch codes are the engine's own, checked by its type.
+      const derived = step.fact ? derivedFactOptionCodes(step.fact) : null;
+      const questionCode = step.fact ? factByKey.get(step.fact)?.questionCode : undefined;
+      if (derived === null && !questionCode) return undefined;
+      const optionCodes = new Set(
+        derived ?? (await ctx.questionOptionCodes(questionCode as string)),
+      );
+      for (const branch of step.branches ?? []) {
+        if (!optionCodes.has(branch)) {
+          return {
+            kind: 'unknownKey',
+            key: branch,
+            registry: questionCode ?? (step.fact as string),
+            activeKeys: [...optionCodes],
+            stepId: step.id,
+          };
+        }
       }
       return undefined;
     }

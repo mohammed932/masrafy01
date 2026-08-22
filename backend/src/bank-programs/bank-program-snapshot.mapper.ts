@@ -81,6 +81,14 @@ export function normalizeEligibility(raw: unknown): BankProgramSnapshot['eligibi
     ...e,
     minAge: e['minAge'] ?? e['ageMin'],
     maxAge: e['maxAge'] ?? e['ageMax'],
+    // The self-employed band the DTO writes as `ageMinSelfEmployed` / `ageMaxSelfEmployed`.
+    // Unmapped until now, so `checkEligibility` read `undefined` and every program that had
+    // configured a wider band for the self-employed (21–60 salaried, 25–65 self) silently
+    // applied the salaried one — a stored figure with no reader.
+    selfEmployedMinAge: e['selfEmployedMinAge'] ?? e['ageMinSelfEmployed'],
+    selfEmployedMaxAge: e['selfEmployedMaxAge'] ?? e['ageMaxSelfEmployed'],
+    selfEmployedMinMonthlyIncomeEGP:
+      e['selfEmployedMinMonthlyIncomeEGP'] ?? e['minMonthlyIncomeSelfEmployedEGP'],
     acceptedSalaryTransferTypes: e['acceptedSalaryTransferTypes'] ?? e['acceptedTransferTypes'],
   } as unknown as BankProgramSnapshot['eligibility'];
 }

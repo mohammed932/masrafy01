@@ -22,7 +22,8 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import type { SurrogateFactValue } from '../types';
-import type { SurrogateFactBinding } from './surrogate-fact-registry';
+import { BANK_RELATIONSHIP_QUESTION_CODE } from './bank-relationship';
+import { isDerivedFactKey, type SurrogateFactBinding } from './surrogate-fact-registry';
 import {
   SURROGATE_FACT_KEYS,
   SURROGATE_FACT_SPECS,
@@ -55,6 +56,13 @@ export interface SurrogateFacts {
    * meaning cannot be rewritten by a refactor).
    */
   byKey: Record<string, SurrogateFactValue>;
+  /**
+   * The banks the applicant already uses, from the one MULTI_SELECT answer that asks.
+   *
+   * Outside `byKey` on purpose: it is not a fact any rule reads. The fact a rule reads is
+   * `bank_relationship`, which the engine derives from this list per program.
+   */
+  bankRelationshipSlugs?: readonly string[];
 }
 
 export interface SurrogateFactAnswers {
@@ -67,6 +75,14 @@ export interface SurrogateFactAnswers {
   readonly optionByCode: ReadonlyMap<string, string>;
   /** Every NUMERIC answer by question code, as the validated decimal string. */
   readonly numericByCode: ReadonlyMap<string, string>;
+  /**
+   * Every MULTI_SELECT answer by question code — all the codes picked.
+   *
+   * No surrogate fact is a multi-pick and none may become one (`BINDABLE_QUESTION_TYPES`),
+   * so this feeds exactly one thing: the bank-relationship list, whose answer is a SET by
+   * nature ("which of these banks do you use?") and is never looked up as a key.
+   */
+  readonly multiByCode?: ReadonlyMap<string, readonly string[]>;
 }
 
 /**
@@ -136,9 +152,16 @@ export function surrogateFactsFromAnswers(
   }
 
   for (const binding of registry) {
+    // A registry row must never shadow a DERIVED fact. The keys are the operator's to
+    // choose, so one could be created under a derived key, and a customer answer
+    // overwriting a value the engine computes per program would be silently wrong.
+    if (isDerivedFactKey(binding.key)) continue;
     const value = registryFactValue(binding, answers);
     if (value) facts.byKey[binding.key] = value;
   }
+
+  const banks = answers.multiByCode?.get(BANK_RELATIONSHIP_QUESTION_CODE);
+  if (banks && banks.length > 0) facts.bankRelationshipSlugs = [...banks];
 
   return facts;
 }

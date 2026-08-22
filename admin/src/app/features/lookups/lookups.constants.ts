@@ -61,13 +61,19 @@ export const LOOKUP_TYPES: readonly LookupType[] = [
     description: $localize`:@@lookups.type.compound.desc:The compounds a customer can pick, each filed under its class.`,
     icon: 'home',
   },
-  {
-    type: 'club_class',
-    label: $localize`:@@lookups.type.club_class.label:Club membership classes`,
-    description: $localize`:@@lookups.type.club_class.desc:The membership classes the club loan is priced from.`,
-    icon: 'trophy',
-  },
 ];
+
+/**
+ * Which list a type's values are FILED UNDER — the registry's generic single-parent scope.
+ *
+ * `compound` is the only entry today: a bank keys its cap table by the five compound CLASSES
+ * while the customer picks one of hundreds of compounds by name, and `factParentTable` is the
+ * step that crosses between them. A value with no parent is invisible to that derivation, so
+ * both the list and the edit dialog have to be able to show and set one.
+ */
+export const PARENT_TYPE_BY_TYPE: Readonly<Record<string, string | undefined>> = {
+  compound: 'compound_category',
+};
 
 /** One realistic value of a type, shown as the label placeholders in the add/edit dialog. */
 export interface LookupExample {

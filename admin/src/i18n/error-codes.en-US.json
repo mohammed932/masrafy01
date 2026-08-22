@@ -185,5 +185,7 @@
   "GATE_CONTRACT_TOO_OLD": "The ownership contract is older than this bank accepts for this program.",
   "GATE_OWNERSHIP_NOT_CONFIRMED": "This program needs ownership stated the way this bank requires.",
   "GATE_MULTI_UNIT_NOT_CONFIRMED": "You told us you own more than one unit. Confirm which one to use and we can quote this program.",
+  "GATE_SELF_EMPLOYED_DOCS_MISSING": "This bank needs a valid trade or practice licence for self-employed applicants.",
+  "GATE_BUSINESS_TOO_NEW": "This bank needs your business to have been running longer than it has.",
   "GATE_NOT_MET": "One of this program's conditions isn't met by your answers."
 }

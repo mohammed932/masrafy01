@@ -45,7 +45,12 @@ import {
   type EnumerationRow,
   type EnumerationTypeSummary,
 } from './lookups.api.service';
-import { LOOKUP_TYPES, isLookupType, lookupType } from './lookups.constants';
+import {
+  LOOKUP_TYPES,
+  PARENT_TYPE_BY_TYPE,
+  isLookupType,
+  lookupType,
+} from './lookups.constants';
 import {
   LookupTypeRailComponent,
   type LookupTypeCard,
@@ -141,6 +146,7 @@ import {
             } @else {
               <app-lookup-value-list
                 [rows]="rows()"
+                [parents]="parentRows()"
                 (edit)="openEdit($event)"
                 (toggleActive)="setActive($event)"
                 (remove)="remove($event)"
@@ -222,6 +228,14 @@ export class LookupsPage implements OnInit {
 
   private readonly summaries = signal<readonly EnumerationTypeSummary[]>([]);
   protected readonly rows = signal<readonly EnumerationRow[]>([]);
+  /**
+   * The list THIS type's values are filed under, when it has one.
+   *
+   * Loaded beside the rows rather than inside the list component: the class badge and the
+   * class picker in the edit dialog have to name the same set, and two fetches could disagree
+   * about which classes are live.
+   */
+  protected readonly parentRows = signal<readonly EnumerationRow[]>([]);
   protected readonly loadingTypes = signal(true);
   protected readonly loadingRows = signal(false);
   protected readonly selectedType = signal<string | null>(null);
@@ -360,6 +374,8 @@ export class LookupsPage implements OnInit {
     if (!opts.silent) this.loadingRows.set(true);
     try {
       this.rows.set(await this.api.list(type));
+      const parentType = PARENT_TYPE_BY_TYPE[type];
+      this.parentRows.set(parentType ? await this.api.list(parentType) : []);
     } finally {
       if (!opts.silent) this.loadingRows.set(false);
     }

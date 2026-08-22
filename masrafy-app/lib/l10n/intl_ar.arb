@@ -1395,6 +1395,14 @@
   "@gate_multi_unit_not_confirmed": {
     "description": "Backend MULTI_UNIT_NOT_CONFIRMED gate reason"
   },
+  "gate_self_employed_docs_missing": "هذا البنك يطلب رخصة تجارية أو رخصة مهنة سارية من العاملين لحسابهم.",
+  "@gate_self_employed_docs_missing": {
+    "description": "Backend SELF_EMPLOYED_DOCS_MISSING gate reason"
+  },
+  "gate_business_too_new": "هذا البنك يطلب أن يكون نشاطك التجاري قائمًا لمدة أطول من مدته الحالية.",
+  "@gate_business_too_new": {
+    "description": "Backend BUSINESS_TOO_NEW gate reason"
+  },
   "gate_not_met": "هذا البرنامج له شرط لا تحققه إجاباتك، لذا لا يمكن عرض أرقام.",
   "@gate_not_met": {
     "description": "Backend GATE_NOT_MET / PRODUCT_RULE_GATE_FAILED fallback"
@@ -1406,5 +1414,10 @@
   "collateral_skip_hint": "تخطَّ وسنظل نعرض البرنامج، لكن بدون أرقام حتى تجيب.",
   "@collateral_skip_hint": {
     "description": "Hint under the skip button"
+  },
+  "offer_collateral_ceiling": "وحدتك تدعم حتى {amount}",
+  "@offer_collateral_ceiling": {
+    "description": "On a priced offer card: the ceiling the customer's collateral supports",
+    "placeholders": { "amount": { "type": "String" } }
   }
 }

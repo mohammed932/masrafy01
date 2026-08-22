@@ -101,6 +101,15 @@ export interface ApplicantProfile {
    * derived from a number nobody gave us (FR-020).
    */
   surrogateFacts?: Readonly<Record<string, SurrogateFactValue>>;
+  /**
+   * The banks the applicant says they already use, as bank slugs (`bankSlug()`).
+   *
+   * Not a surrogate fact, because a fact is one value and this is the input to a value
+   * that differs per program: the engine derives `bank_relationship` from this list and
+   * the bank of the program it is quoting. Absent or empty reads as "new to every bank",
+   * which is the standard column — never a refusal (see `bank-relationship.ts`).
+   */
+  bankRelationshipSlugs?: readonly string[];
 }
 
 /**
@@ -185,6 +194,20 @@ export interface EligibilityConfig {
   /** Feature 010 — optional income-band table, resolved against the same income
    *  figure every other quote figure uses (see `quoteProgram` step 3). */
   dbrBands?: DbrBand[];
+  /**
+   * The debt-burden cap per COARSE employment bucket, when a bank varies it that way.
+   *
+   * A real product does: one bank allows 50% of a salary and 40% of a self-employed
+   * income, on the same program. `dbrBands` cannot say it — a band is keyed by income —
+   * and expressing it as a haircut on the income would misreport the cap itself, which
+   * every transparency surface shows.
+   *
+   * Keyed by the bucket `coarseEmploymentType()` produces (`salaried`, `self_employed`,
+   * `retired`), so it reads the same vocabulary a program's `acceptedEmploymentTypes`
+   * does. A bucket with no row falls through to the bands, then to the scalar — a
+   * partial map narrows nothing.
+   */
+  dbrCapPercentByEmploymentType?: Record<string, string>;
 }
 
 /**
@@ -206,6 +229,7 @@ export interface DbrBand {
 export interface DbrSetting {
   dbrCapPercent: string;
   dbrBands?: DbrBand[];
+  dbrCapPercentByEmploymentType?: Record<string, string>;
 }
 
 export interface PerformanceCriteriaConfig {

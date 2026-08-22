@@ -122,6 +122,8 @@ type PersistedOfferRow = {
   /** Feature 011 — frozen provenance. `null` on offers predating the columns. */
   incomeOrigin?: string | null;
   incomeSurrogateStrategy?: string | null;
+  /** What the applicant's collateral supported. `null` unless the program prices off it. */
+  collateralCeilingEGP?: Decimal | null;
 };
 
 /** An applied application's row + the offer the customer proceeded with. */
@@ -825,6 +827,9 @@ export class ApplicationsService {
       // record retroactively (contracts/matching-provenance.md § 3).
       incomeOrigin: o.incomeOrigin ?? null,
       incomeSurrogateStrategy: o.incomeSurrogateStrategy ?? null,
+      // What the unit or membership supported. Read off the frozen column, so an offer
+      // keeps saying what it said the day it was made (Principle I / A6).
+      collateralCeilingEGP: o.collateralCeilingEGP?.toFixed(2) ?? null,
     };
   }
 
@@ -928,6 +933,7 @@ export class ApplicationsService {
     if (!questionnaire) return { employment: {}, assets: {}, byKey: {} };
     const optionByCode = new Map<string, string>();
     const numericByCode = new Map<string, string>();
+    const multiByCode = new Map<string, readonly string[]>();
     for (const a of questionnaire.resolved) {
       // The SAME predicate preview applies. Testing `selectedOptionCode !== null`
       // here accepted picks preview would have dropped, so the two paths could bind a
@@ -935,13 +941,18 @@ export class ApplicationsService {
       const picked = surrogateOptionPick(a);
       if (picked !== undefined) optionByCode.set(a.questionCode, picked);
       if (a.numericValue !== null) numericByCode.set(a.questionCode, a.numericValue);
+      // Multi-picks, for the one question whose answer is a SET rather than a key (which
+      // banks the applicant already uses). `surrogateOptionPick` deliberately drops these.
+      if (a.type === 'MULTI_SELECT' && a.selectedOptionCodes.length > 0) {
+        multiByCode.set(a.questionCode, a.selectedOptionCodes);
+      }
     }
     // The registry is read per apply, uncached. A quote priced off a fact the operator
     // repointed an hour ago would be wrong in the one direction that matters — the
     // offer freezes it (Principle I) — and one indexed read per application is not a
     // budget worth defending against that.
     const registry = await this.enumerations.surrogateFactRegistry();
-    return surrogateFactsFromAnswers({ optionByCode, numericByCode }, registry);
+    return surrogateFactsFromAnswers({ optionByCode, numericByCode, multiByCode }, registry);
   }
 
   private buildProfile(
@@ -1022,6 +1033,10 @@ export class ApplicationsService {
       // there is no legacy caller whose figures could be stripped by leaving it out —
       // and adding one would let a client state a fact the questionnaire never asked.
       surrogateFacts: surrogateFacts.byKey,
+      // Not a fact: the input the engine derives `bank_relationship` from, per program.
+      ...(surrogateFacts.bankRelationshipSlugs !== undefined
+        ? { bankRelationshipSlugs: surrogateFacts.bankRelationshipSlugs }
+        : {}),
     };
   }
 }

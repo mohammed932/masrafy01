@@ -86,3 +86,19 @@ export function categoryAsksAnySurrogateFact(
 ): boolean {
   return surrogateFactsAskedIn(pool, category, factCodes).length > 0;
 }
+
+/**
+ * The DERIVED facts — computed by the engine per quote rather than registered by an operator.
+ *
+ * `bank_relationship` is the only one: whether the applicant already banks with the bank being
+ * quoted. It has no registry row and no bound question (the question behind it is bank-agnostic
+ * and multi-pick), so every screen that lists "the facts this rule reads" has to know the two
+ * things a registry row would otherwise have told it — its label, and the answers it can take.
+ */
+export const BANK_RELATIONSHIP_FACT_KEY = 'bank_relationship';
+
+export const BANK_RELATIONSHIP_OPTION_CODES: readonly string[] = ['ntb', 'xsell'];
+
+export function isDerivedFactKey(key: string): boolean {
+  return key === BANK_RELATIONSHIP_FACT_KEY;
+}

@@ -150,6 +150,7 @@ export class EngineService {
           profile,
           income: program.incomeAssumption,
           eligibility: program.eligibility,
+          programBankName: program.bankName,
           ...(flags.parentKeyByValue !== undefined
             ? { parentKeyByValue: flags.parentKeyByValue }
             : {}),

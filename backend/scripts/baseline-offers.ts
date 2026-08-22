@@ -318,6 +318,25 @@ async function build(): Promise<Baseline> {
   }
 }
 
+/**
+ * Intended changes to the REASON an already-unavailable program gives.
+ *
+ * Narrower than `EXPECTED_TO_MOVE` on purpose: that one waives every field of a program, which
+ * would hide a moved installment. A program that produced no figures before and produces none
+ * now has moved nobody's money — only the sentence it shows — and that is a change worth
+ * making visibly rather than waiving silently.
+ */
+const INTENDED_REASON_MOVES: readonly { from: string; to: string; why: string }[] = [
+  {
+    from: 'OBLIGATIONS_EXCEED_ALLOWANCE',
+    to: 'BELOW_PROGRAM_MIN_AMOUNT',
+    why:
+      "the request is below the program's own floor, which is now checked before affordability — " +
+      'the old reason blamed the applicant\'s debts for a loan the bank does not write at any ' +
+      'obligation level (the sample asks 150 000 of a mortgage whose minimum is 300 000)',
+  },
+];
+
 async function main(): Promise<void> {
   const write = process.argv.includes('--write');
   const current = await build();
@@ -347,6 +366,7 @@ async function main(): Promise<void> {
 
   const retyped: string[] = [];
   const intended: string[] = [];
+  const intendedReasons: string[] = [];
 
   for (const [program, before] of Object.entries(expected)) {
     const now = current[program];
@@ -367,7 +387,13 @@ async function main(): Promise<void> {
       for (const field of Object.keys(beforeRow) as Array<keyof BaselineRow>) {
         if (String(beforeRow[field]) === String(after[field])) continue;
         const line = `${program} / ${sampleName} / ${field}: ${String(beforeRow[field])} → ${String(after[field])}`;
+        const reasonMove =
+          field === 'unavailableReason' &&
+          INTENDED_REASON_MOVES.some(
+            (m) => m.from === String(beforeRow[field]) && m.to === String(after[field]),
+          );
         if (allowed) intended.push(line);
+        else if (reasonMove) intendedReasons.push(line);
         else drift.push(line);
       }
     }
@@ -376,6 +402,14 @@ async function main(): Promise<void> {
   if (retyped.length > 0) {
     console.log(`note: ${retyped.length} program(s) re-typed (expected, T072):`);
     for (const r of retyped) console.log(`  ${r}`);
+  }
+
+  if (intendedReasons.length > 0) {
+    console.log(
+      `note: ${intendedReasons.length} program(s) now explain an unavailable quote differently:`,
+    );
+    for (const m of INTENDED_REASON_MOVES) console.log(`  ${m.from} → ${m.to} — ${m.why}`);
+    for (const r of intendedReasons) console.log(`    ${r}`);
   }
 
   if (intended.length > 0) {

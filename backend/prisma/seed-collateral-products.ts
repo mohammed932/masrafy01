@@ -1,20 +1,21 @@
 /**
- * Seed — the COLLATERAL products: the compound-ownership guarantee, and the
- * club-membership loan.
+ * Seed — the COLLATERAL products: the compound-ownership guarantee, and the loan against a
+ * car the applicant already owns.
  *
- * These are the first products whose ceiling is derived from a thing the applicant OWNS
- * rather than from an income. Nothing in this file is code the engine branches on: it is
- * five bank programs, two catalog rules, eleven facts and three lookup lists — data, in the
- * shapes `matching/pipeline/product-rule.ts` evaluates (Principle II / A1).
+ * These are the products whose ceiling is derived from a thing the applicant OWNS rather than
+ * from an income. Nothing in this file is code the engine branches on: it is seven bank
+ * programs, two catalog rules, fifteen facts and two lookup lists — data, in the shapes
+ * `matching/pipeline/product-rule.ts` evaluates (Principle II / A1).
  *
  * Run:  npm run seed:collateral        (add --dry to print the plan and write nothing)
  *
  * ─── What it writes, in this order, because each step needs the one before ────
  *
- *   1. LOOKUPS — `compound_category`, `compound` (each row filed under its category with
- *      `parentKey`), `club_class`. First, because the questionnaire expands two of its
- *      option lists from them (`optionsFromEnum`), so a question published before these
- *      rows exist would carry no options at all.
+ *   1. LOOKUPS — `compound_category` and `compound` (each row filed under its category with
+ *      `parentKey`). First, because the questionnaire expands one of its option lists from
+ *      them (`optionsFromEnum`), so a question published before these rows exist would carry
+ *      no options at all. The car pack needs no lookup: its age buckets are a closed list
+ *      authored on the question itself.
  *   2. QUESTIONNAIRE — delegates to `seedQuestionnaire()`, which owns the ONE global pool
  *      and publishes a snapshot. The gate and the packs are authored there, not here: a
  *      second publisher is how two snapshots come to disagree about what was asked.
@@ -24,15 +25,17 @@
  *   4. CATALOG NAMES + RULES — the two products' step pipelines, stated ONCE. Validated
  *      through the same `validateIncomeRule` the admin save runs, so this seed cannot plant
  *      a rule no operator could have saved.
- *   5. BANK PROGRAMS — five rows whose ONLY product-rule content is `stepParams`: figures.
- *      Adding a sixth bank is another entry in `BANK_FIGURES` and nothing else.
+ *   5. BANK PROGRAMS — seven rows whose ONLY product-rule content is `stepParams`: figures.
+ *      Adding another bank is another entry in `BANK_FIGURES` and nothing else. Two of the
+ *      seven state no figures at all and quote off the catalog's defaults
+ *      (`amounts: 'catalog'`), which is what proves the inheritance actually merges.
  *
  * ─── One ordering wrinkle, and why it is not a bug ────────────────────────────
  *
  * `seedQuestionnaire()` also builds each program's scoring weight set, from the catalog's
  * question template — and on a FIRST run the two new names have no template yet, because a
  * template references question IDs that step 2 has only just created. So the first pass ends
- * with the five programs carrying no ACTIVE weight set, which means a 0% score.
+ * with the seven programs carrying no ACTIVE weight set, which means a 0% score.
  *
  * The seed says so and names the fix (`npm run seed:weights`), and a second run of this file
  * converges just as well. The alternative — writing the template before the questions exist —
@@ -47,18 +50,26 @@
  * bank fills exactly the one it uses and leaves the others blank. Their conditions differ
  * the same way, so every gate is offered by the catalog and turned on per bank.
  *
+ * Two of those derivations come in a PAIR — a standard column and a higher one for a customer
+ * the bank already has — chosen by a `pickByFact` step over the derived `bank_relationship`
+ * fact. A bank that does not sell the second column leaves it blank and the pick falls back
+ * to the first, so the pair is free for the banks that have no such offer.
+ *
  * ─── Accepted gaps, stated rather than faked ──────────────────────────────────
  *
- *   - **X-SELL.** The source design's FABMISR cross-sell column and its tenor exception key
- *     off a CRM flag this platform has no source for. Only the NTB figures are seeded; the
- *     column is not invented.
- *   - **DBR by employment.** CAE caps salaried applicants at 50% and self-employed at 40%.
- *     `eligibility.dbrBands` are keyed by INCOME, so a per-employment cap is not expressible
- *     today and CAE is seeded at its baseline 50. The mechanism that would spend it works —
- *     `ceiling-identity.spec.ts` proves the haircut is exactly `applicable ÷ baseline` — so
- *     this is one missing setting, not a missing behaviour.
+ *   - **The X-SELL TENOR exception.** FABMISR raises its 72-month cap to 84 for a
+ *     cross-sell customer. The tenor cap comes from the rate cascade, whose applicant
+ *     context carries no facts, so a segment cannot reach it — the cross-sell CAP column IS
+ *     seeded (`capByPaidBandXsell`), the tenor half is not.
+ *   - **Who is a cross-sell customer.** Answered by the applicant ("which of these banks do
+ *     you already use?") and derived per program, rather than read from a CRM the platform
+ *     has no access to. An applicant who skips the question is quoted as new to every bank —
+ *     the standard column — never refused.
  *   - **Fraud checks and document lists** are informational in the source design and are not
  *     modelled as rule steps; they belong to `requiredDocuments` and operator notes.
+ *   - **The car product carries no gates.** A minimum car value or a maximum age would each
+ *     need a new `GATE_REASON_CODES` value, which is a five-surface change (A25); the demo
+ *     states its policy in the advance table instead, where an older car simply borrows less.
  */
 import { Prisma, PrismaClient, type LoanCategory } from '@prisma/client';
 import {
@@ -115,10 +126,6 @@ const LOOKUPS: readonly SeedLookup[] = [
   { type: 'compound', key: 'al_rehab', labelEn: 'Al Rehab', labelAr: 'الرحاب', parentKey: 'cat_b', sortOrder: 7 },
   { type: 'compound', key: 'dreamland', labelEn: 'Dreamland', labelAr: 'دريم لاند', parentKey: 'cat_b', sortOrder: 8 },
   { type: 'compound', key: 'other', labelEn: 'Another compound', labelAr: 'كومباوند آخر', parentKey: 'cat_c', sortOrder: 9 },
-
-  { type: 'club_class', key: 'class_1', labelEn: 'Class 1', labelAr: 'الدرجة الأولى', sortOrder: 1 },
-  { type: 'club_class', key: 'class_2', labelEn: 'Class 2', labelAr: 'الدرجة الثانية', sortOrder: 2 },
-  { type: 'club_class', key: 'class_3', labelEn: 'Class 3', labelAr: 'الدرجة الثالثة', sortOrder: 3 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -147,7 +154,10 @@ const FACT_QUESTION_CODES: readonly string[] = [
   'compound_joint_unit',
   'compound_multi_unit',
   'compound_best_unit_confirmed',
-  'club_class',
+  'self_employed_licence',
+  'business_years',
+  'owned_car_value',
+  'owned_car_age',
   'employment_status',
 ];
 
@@ -162,7 +172,10 @@ const FACT_LABELS: Readonly<Record<string, { en: string; ar: string }>> = {
   compound_joint_unit: { en: 'Sole or shared ownership', ar: 'ملكية فردية أو مشتركة' },
   compound_multi_unit: { en: 'Owns another unit', ar: 'يملك وحدة أخرى' },
   compound_best_unit_confirmed: { en: 'Strongest unit confirmed', ar: 'تأكيد أفضل وحدة' },
-  club_class: { en: 'Club membership class', ar: 'درجة عضوية النادي' },
+  self_employed_licence: { en: 'Trade or practice licence', ar: 'رخصة تجارية أو مهنية' },
+  business_years: { en: 'Years in business', ar: 'مدة النشاط التجاري' },
+  owned_car_value: { en: 'Car value', ar: 'قيمة السيارة' },
+  owned_car_age: { en: 'Car age', ar: 'عمر السيارة' },
   employment_status: { en: 'Employment status', ar: 'حالة العمل' },
 };
 
@@ -190,17 +203,42 @@ const COMPOUND_RULE: IncomeAssumptionConfig = {
     { id: 'monthsOwned', op: 'factNumber', fact: 'compound_months_since_purchase' },
 
     // The four derivations. Each bank fills ONE.
+    //
+    // Two of them come in a PAIR: a standard column and a higher one for a customer the
+    // bank already has. The uplift is not one percentage — 2M → 3M on an apartment but
+    // 4M → 4.5M on a villa — so it is a second table, and `pickByFact` says which column
+    // this applicant reads. A bank that does not sell the second column leaves it blank and
+    // the pick falls back to the first, so the pair costs the other banks nothing.
     { id: 'capByUnitType', op: 'factChoiceTable', fact: 'compound_unit_type' },
+    { id: 'capByUnitTypeTopUp', op: 'factChoiceTable', fact: 'compound_unit_type' },
+    {
+      id: 'capByUnitTypeForSegment',
+      op: 'pickByFact',
+      fact: 'bank_relationship',
+      branches: ['ntb', 'xsell'],
+      of: [{ step: 'capByUnitType' }, { step: 'capByUnitTypeTopUp' }],
+    },
+
     { id: 'capByCompoundClass', op: 'factParentTable', fact: 'compound_name' },
+
     { id: 'capByPaidBand', op: 'bandTable', of: { step: 'dpAmount' } },
+    { id: 'capByPaidBandXsell', op: 'bandTable', of: { step: 'dpAmount' } },
+    {
+      id: 'capByPaidBandForSegment',
+      op: 'pickByFact',
+      fact: 'bank_relationship',
+      branches: ['ntb', 'xsell'],
+      of: [{ step: 'capByPaidBand' }, { step: 'capByPaidBandXsell' }],
+    },
+
     { id: 'capByPaidPercent', op: 'percentOf', of: { step: 'dpAmount' } },
     {
       id: 'capBasis',
       op: 'coalesce',
       of: [
-        { step: 'capByUnitType' },
+        { step: 'capByUnitTypeForSegment' },
         { step: 'capByCompoundClass' },
-        { step: 'capByPaidBand' },
+        { step: 'capByPaidBandForSegment' },
         { step: 'capByPaidPercent' },
       ],
     },
@@ -290,6 +328,26 @@ const COMPOUND_RULE: IncomeAssumptionConfig = {
       expect: ['yes'],
       reasonCode: 'MULTI_UNIT_NOT_CONFIRMED',
     },
+    // The two self-employed conditions. `expect` is an ALLOW-LIST, which is what lets one
+    // gate serve both the requirement and the applicant it does not apply to: "I'm not
+    // self-employed" passes, so a salaried applicant is never refused for a licence this
+    // bank would never have asked them for.
+    {
+      id: 'selfEmployedLicence',
+      kind: 'choice',
+      op: 'eq',
+      fact: 'self_employed_licence',
+      expect: ['yes', 'not_self_employed'],
+      reasonCode: 'SELF_EMPLOYED_DOCS_MISSING',
+    },
+    {
+      id: 'businessYears',
+      kind: 'choice',
+      op: 'eq',
+      fact: 'business_years',
+      expect: ['two_or_more', 'not_self_employed'],
+      reasonCode: 'BUSINESS_TOO_NEW',
+    },
   ],
   output: {
     kind: 'maxAmount',
@@ -301,28 +359,37 @@ const COMPOUND_RULE: IncomeAssumptionConfig = {
 
   // ─── The DEFAULTS a new bank starts from ─────────────────────────────────────
   //
-  // ONE derivation, and `capByUnitType` specifically. The frame offers four because the
-  // four banks selling this product each derive the ceiling from something different; the
-  // catalog has to pick the one a bank that has stated nothing yet can still quote off.
+  // A bank configuring this product does not start from a blank pipeline: the wizard seeds
+  // its editor from these figures, and its first keystroke detaches the program onto its own
+  // copy of the whole set (`seedFromCatalog` / `detachFromCatalog`). So a default is worth
+  // stating wherever the platform can state a STARTING amount without asserting a policy.
   //
-  //   · `capByUnitType` reads a closed three-option answer every applicant gives, and
-  //     `validateStepFigures` checks its keys against the bound question's own options —
-  //     so a stale key here is refused at save rather than discovered as a silent
-  //     no_matching_row on a customer.
-  //   · `capByCompoundClass` is a `factParentTable`, whose parent keys are deliberately
-  //     NOT validated. A default with a dead class would save clean and then quote nothing
-  //     for everyone — the worst of the four.
-  //   · `capByPaidBand` and `capByPaidPercent` would have the platform asserting an amount
-  //     tier, or a lending percentage, that no bank stated.
+  // Defaulted — every step whose input is a closed option list, so a wrong key is refused at
+  // save rather than discovered as a `no_matching_row` on a customer:
   //
-  // No GATE defaults, for the same reason inverted: a gate inherited by every new bank is
-  // the platform asserting credit policy on its behalf, and a failed gate is a stated
-  // refusal — an inherited example has to quote, not explain itself.
+  //   · `capByUnitType` + `capByUnitTypeTopUp`  the two columns of the commonest derivation
+  //   · `capByPaidPercent`                      a percentage of what has been paid
   //
-  // No `multiUnitFactor` / `jointFactor` defaults either: `{const: '100'}` already IS the
-  // "this bank has no such policy" answer in the structure above, so a `{no:100, yes:100}`
-  // table would be a second copy of it, and a bank taking its own figures would then have
-  // to DELETE rows to say it has no policy.
+  // NOT defaulted, and each for a reason that would cost a real applicant a quote:
+  //
+  //   · **Every GATE.** A gate default is LIVE for any bank on `amounts: 'catalog'`
+  //     (`isGateConfigured` reads the merged figures), so it would hand a bank a refusal
+  //     rule it never chose. A failed gate is a stated refusal; an inherited example has to
+  //     quote, not explain itself.
+  //   · **`capByCompoundClass`** is a `factParentTable`, whose parent keys are deliberately
+  //     NOT validated at save. A default with one dead class would save clean and then quote
+  //     nothing for whoever picked that compound.
+  //   · **The band tables** (`capByPaidBand`, `capByPaidBandXsell`, `requiredDpPct`). A
+  //     value outside every band is `no_matching_band`, which STOPS the rule — it does not
+  //     skip the step — so a defaulted band table plus one applicant below its floor kills a
+  //     quote another derivation could have priced. It would also have the platform
+  //     asserting an amount tier no bank stated.
+  //   · **`multiUnitFactor` / `jointFactor`.** A NEUTRAL table (every row 100) would change
+  //     no figure and still cost quotes: a CONFIGURED table reads its fact, and both facts
+  //     answer optional questions, so an applicant who skipped one would be refused
+  //     (`fact_not_answered`) by a table that was only ever going to multiply by 1. Left
+  //     blank, `{const: '100'}` in the structure above answers for them. A bank that HAS a
+  //     policy states it — which is a figure, not a default.
   stepParams: {
     capByUnitType: {
       keyTable: [
@@ -331,26 +398,47 @@ const COMPOUND_RULE: IncomeAssumptionConfig = {
         { key: 'villa', incomeEGP: '4000000.00' },
       ],
     },
+    capByUnitTypeTopUp: {
+      keyTable: [
+        { key: 'apartment', incomeEGP: '3000000.00' },
+        { key: 'twin_townhouse', incomeEGP: '3500000.00' },
+        { key: 'villa', incomeEGP: '4500000.00' },
+      ],
+    },
+    capByPaidPercent: { scalar: { value: '50', unit: 'percent' } },
   },
 };
 
 /**
- * The club frame. One derivation, so no `coalesce` — a product whose banks agree on how the
- * ceiling is derived needs no choice, and offering one would be surface with no purpose.
+ * The car frame — what the applicant's own car supports.
+ *
+ * One derivation, so no `coalesce`: the banks selling this agree that the ceiling is a share
+ * of what the car is worth, and disagree only about the share. That share is a TABLE rather
+ * than a scalar because it falls with the car's age, and a table keyed by a closed option list
+ * is a figure a bank can be wrong about at save time rather than on a customer.
+ *
+ * No gates. A minimum value or a maximum age would each need a new `GATE_REASON_CODES` value
+ * across five surfaces (A25); an older car borrowing a smaller share says the same thing with
+ * figures the bank already has to state.
  */
-const CLUB_RULE: IncomeAssumptionConfig = {
+const CAR_RULE: IncomeAssumptionConfig = {
   strategy: PRODUCT_RULE_STRATEGY,
-  steps: [{ id: 'ceiling', op: 'factChoiceTable', fact: 'club_class' }],
+  steps: [
+    { id: 'carValue', op: 'factNumber', fact: 'owned_car_value' },
+    { id: 'advancePct', op: 'factChoiceTable', fact: 'owned_car_age' },
+    { id: 'ceiling', op: 'percentOf', of: [{ step: 'carValue' }, { step: 'advancePct' }] },
+  ],
   gates: [],
   output: { kind: 'maxAmount', from: 'ceiling', baselineDbrPercent: '50' },
-  // One step, so the default IS the product: a bank inheriting these quotes the same
-  // ceilings ABK does, and typing over one row is what makes them its own.
+  // Defaulted, because the keys are a closed option list: a wrong key is refused at save
+  // rather than discovered as a `no_matching_row` on a customer. A bank inheriting these
+  // quotes exactly these shares, and typing over one row is what makes them its own.
   stepParams: {
-    ceiling: {
+    advancePct: {
       keyTable: [
-        { key: 'class_1', incomeEGP: '500000.00' },
-        { key: 'class_2', incomeEGP: '300000.00' },
-        { key: 'class_3', incomeEGP: '150000.00' },
+        { key: 'up_to_3', incomeEGP: '70.00' },
+        { key: '3_to_7', incomeEGP: '60.00' },
+        { key: 'over_7', incomeEGP: '50.00' },
       ],
     },
   },
@@ -399,17 +487,20 @@ const CATALOG_PRODUCTS: readonly CatalogProduct[] = [
     ],
   },
   {
-    key: 'club_member',
-    labelEn: 'Club Membership Loan',
-    labelAr: 'تمويل عضوية النادي',
-    categories: ['personal'],
-    rule: CLUB_RULE,
+    key: 'car_owner',
+    labelEn: 'Car Ownership Loan',
+    labelAr: 'تمويل بضمان السيارة',
+    // `car` only: the collateral IS a car, and the applicant who has one to borrow against is
+    // the one already in the auto funnel. Widening it is an assignment on the questionnaire
+    // screen plus a category here — never a new loan category (A26).
+    categories: ['car'],
+    rule: CAR_RULE,
     scoresOn: [
       'employment_status',
       'current_loans',
       'amount_requested',
       'repayment_period_months',
-      'club_class',
+      'owned_car_age',
     ],
   },
 ];
@@ -433,6 +524,8 @@ interface BankFigures {
   tenor: { minMonths: number; maxMonths: number };
   age: { min: number; max: number; selfEmployedMin?: number; selfEmployedMax?: number };
   dbrCapPercent: string;
+  /** The cap for a bucket that differs from the baseline above (e.g. self-employed 40%). */
+  dbrCapPercentByEmploymentType?: Record<string, string>;
   requiredDocuments?: string[];
   operatorNotes?: string;
   /**
@@ -448,7 +541,7 @@ interface BankFigures {
 }
 
 /**
- * The four compound banks and the one club bank, as figures.
+ * The four compound banks, the car bank, and the two that quote off the catalog's defaults.
  *
  * Every number here is from §7 of the source design. What is NOT here is any statement about
  * HOW the ceiling is derived — that is the catalog's frame; a bank only says which of its
@@ -469,13 +562,23 @@ const BANK_FIGURES: readonly BankFigures[] = [
     age: { min: 21, max: 60, selfEmployedMin: 25, selfEmployedMax: 65 },
     dbrCapPercent: '50.0000',
     operatorNotes:
-      'Ceiling derived from the unit type. Multi-unit owners get a 10% uplift. Minimum 18 months of ownership, 6 if the unit is paid off. External home visit required when the unit is settled.',
+      'Ceiling derived from the unit type, with a higher column for an existing ABK customer. Multi-unit owners get a 10% uplift. Minimum 18 months of ownership, 6 if the unit is paid off. External home visit required when the unit is settled.',
     stepParams: {
       capByUnitType: {
         keyTable: [
           { key: 'apartment', incomeEGP: '2000000.00' },
           { key: 'twin_townhouse', incomeEGP: '3000000.00' },
           { key: 'villa', incomeEGP: '4000000.00' },
+        ],
+      },
+      // The top-up column — what the bank lends against the same unit to a customer it
+      // already has. This is what makes `maxAmountEGP` 4 500 000 reachable: the standard
+      // column tops out at 4 000 000, and the multi-unit uplift alone reaches 4 400 000.
+      capByUnitTypeTopUp: {
+        keyTable: [
+          { key: 'apartment', incomeEGP: '3000000.00' },
+          { key: 'twin_townhouse', incomeEGP: '3500000.00' },
+          { key: 'villa', incomeEGP: '4500000.00' },
         ],
       },
       // Both answers stated, so "a single-unit owner gets no uplift" is a row.
@@ -553,7 +656,7 @@ const BANK_FIGURES: readonly BankFigures[] = [
     age: { min: 30, max: 90 },
     dbrCapPercent: '50.0000',
     operatorNotes:
-      'Ceiling derived from a band over the amount already paid (new-to-bank column only — the cross-sell column needs a CRM flag this platform has no source for). Half the ceiling on a jointly owned unit. Contract no older than 120 months. FCU verification on the ownership contract.',
+      'Ceiling derived from a band over the amount already paid, with a higher cross-sell column for an existing FABMISR customer. Half the ceiling on a jointly owned unit. Contract no older than 120 months. FCU verification on the ownership contract. The cross-sell TENOR exception (84 months instead of 72) is not modelled: the tenor cap comes from the rate cascade, which reads no facts.',
     stepParams: {
       capByPaidBand: {
         bands: [
@@ -561,6 +664,16 @@ const BANK_FIGURES: readonly BankFigures[] = [
           { fromInclusive: '500000', toExclusive: '1000000', incomeEGP: '1000000.00' },
           { fromInclusive: '1000000', toExclusive: '1500000', incomeEGP: '1250000.00' },
           { fromInclusive: '1500000', toExclusive: null, incomeEGP: '1500000.00' },
+        ],
+      },
+      // The cross-sell column. Same bands over the same paid amount, a tier higher — which
+      // is what makes this program's own `maxAmountEGP` of 2 000 000 reachable.
+      capByPaidBandXsell: {
+        bands: [
+          { fromInclusive: '250000', toExclusive: '500000', incomeEGP: '1250000.00' },
+          { fromInclusive: '500000', toExclusive: '1000000', incomeEGP: '1500000.00' },
+          { fromInclusive: '1000000', toExclusive: '1500000', incomeEGP: '1750000.00' },
+          { fromInclusive: '1500000', toExclusive: null, incomeEGP: '2000000.00' },
         ],
       },
       jointFactor: {
@@ -585,12 +698,15 @@ const BANK_FIGURES: readonly BankFigures[] = [
     maxAmountEGP: '3000000.00',
     tenor: { minMonths: 6, maxMonths: 84 },
     age: { min: 21, max: 60, selfEmployedMin: 25, selfEmployedMax: 65 },
-    // 50% is the BASELINE the ceiling was calibrated against. The source design also caps
-    // self-employed applicants at 40%, which `dbrBands` cannot express (they key off income,
-    // not employment) — recorded in this file's header rather than faked with a band.
+    // 50% is the BASELINE the ceiling was calibrated against, and the cap a salaried
+    // applicant is measured by. A self-employed one is capped at 40%, stated below: the
+    // ceiling→income conversion divides by the baseline and the affordability check
+    // multiplies by whichever cap applies, so 40 ÷ 50 cuts this applicant's ceiling to 80%
+    // with no third setting to keep in step.
     dbrCapPercent: '50.0000',
+    dbrCapPercentByEmploymentType: { self_employed: '40.0000' },
     operatorNotes:
-      'Ceiling is 50% of the amount already paid, capped by the program maximum. Finances one unit only — a multi-unit owner must confirm the strongest one. Self-employed applicants need 100,000 paid and two years of business activity. External home visit when the unit is settled.',
+      'Ceiling is 50% of the amount already paid, capped by the program maximum. Finances one unit only — a multi-unit owner must confirm the strongest one. Self-employed applicants are capped at 40% debt burden instead of 50%, and need 100,000 paid, a valid trade or practice licence and two years of business activity. External home visit when the unit is settled.',
     stepParams: {
       capByPaidPercent: { scalar: { value: '50', unit: 'percent' } },
       dpAmountByEmployment: {
@@ -603,28 +719,33 @@ const BANK_FIGURES: readonly BankFigures[] = [
         ],
       },
       strongestUnitConfirmed: { applies: true },
+      // The two self-employed document conditions. Both gates read an answer that includes
+      // "I'm not self-employed", so turning them on costs a salaried applicant nothing.
+      selfEmployedLicence: { applies: true },
+      businessYears: { applies: true },
     },
   },
   {
     bankNameEnglish: 'ABK Egypt',
-    programCode: 'ABK-CLUB-MEMBERSHIP',
-    friendlyName: 'Club Membership Loan',
-    friendlyNameAr: 'تمويل عضوية النادي',
-    catalogKey: 'club_member',
-    productCategory: 'personal',
-    ratePercent: '30.0000',
+    programCode: 'ABK-CAR-OWNER',
+    friendlyName: 'Car Ownership Loan',
+    friendlyNameAr: 'تمويل بضمان السيارة',
+    catalogKey: 'car_owner',
+    productCategory: 'car',
+    ratePercent: '25.5000',
     minAmountEGP: '15000.00',
-    maxAmountEGP: '500000.00',
-    tenor: { minMonths: 12, maxMonths: 48 },
+    maxAmountEGP: '1500000.00',
+    tenor: { minMonths: 12, maxMonths: 60 },
     age: { min: 21, max: 60 },
     dbrCapPercent: '50.0000',
-    operatorNotes: 'Ceiling derived from the membership class.',
+    operatorNotes:
+      'Ceiling is a share of what the car is worth, falling with the car\u2019s age. Advances more than the catalog on a nearly new car and less on an old one.',
     stepParams: {
-      ceiling: {
+      advancePct: {
         keyTable: [
-          { key: 'class_1', incomeEGP: '500000.00' },
-          { key: 'class_2', incomeEGP: '300000.00' },
-          { key: 'class_3', incomeEGP: '150000.00' },
+          { key: 'up_to_3', incomeEGP: '75.00' },
+          { key: '3_to_7', incomeEGP: '65.00' },
+          { key: 'over_7', incomeEGP: '50.00' },
         ],
       },
     },
@@ -655,18 +776,18 @@ const BANK_FIGURES: readonly BankFigures[] = [
   },
   {
     bankNameEnglish: 'CIB',
-    programCode: 'CIB-CLUB-MEMBERSHIP',
-    friendlyName: 'Club Membership Loan',
-    friendlyNameAr: 'تمويل عضوية النادي',
-    catalogKey: 'club_member',
-    productCategory: 'personal',
+    programCode: 'CIB-CAR-OWNER',
+    friendlyName: 'Car Ownership Loan',
+    friendlyNameAr: 'تمويل بضمان السيارة',
+    catalogKey: 'car_owner',
+    productCategory: 'car',
     ratePercent: '28.5000',
     minAmountEGP: '15000.00',
-    maxAmountEGP: '500000.00',
+    maxAmountEGP: '1000000.00',
     tenor: { minMonths: 12, maxMonths: 48 },
     age: { min: 21, max: 60 },
     dbrCapPercent: '50.0000',
-    operatorNotes: 'Takes the catalog ceilings by membership class.',
+    operatorNotes: 'Takes the catalog advance shares by car age. No bank-specific conditions.',
     amounts: 'catalog',
   },
 ];
@@ -700,6 +821,7 @@ async function main(): Promise<void> {
   const factsWritten = await upsertFacts(actorId);
   const rulesWritten = await upsertCatalog(actorId);
   const programs = await upsertPrograms(actorId);
+  await pruneRetiredDemoProducts();
 
   console.log(
     `[seed-collateral] ${LOOKUPS.length} lookup values, ${factsWritten} facts, ` +
@@ -710,6 +832,71 @@ async function main(): Promise<void> {
   if (!DRY && programs.written > 0) {
     console.log(
       '[seed-collateral] next: `npm run seed:weights` — a program with no ACTIVE weight set is offered at 0%.',
+    );
+  }
+}
+
+/**
+ * The club-membership demo product, deleted.
+ *
+ * Dropping it from the arrays above stops it being WRITTEN; it does not remove what earlier
+ * runs already wrote, and an upsert-only seed leaves a retired product live on every database
+ * it ever reached. So the retirement is stated here, by explicit key — never by pattern, which
+ * would be one typo away from deleting a product an operator authored.
+ *
+ * Order is the foreign keys': `application_answer.questionId` is `onDelete: Restrict`,
+ * so a demo application that answered a club question blocks the question's delete until its
+ * answers go first. Everything else cascades — a question takes its options, its category
+ * assignments and its catalog tick-list with it; a program takes its weight sets; the catalog
+ * name takes its loan-category rows.
+ *
+ * What deliberately STAYS: past `bank_offer` rows (they hold a snapshot and reference the
+ * program by code, not by FK — Principle I / A6), and archived questionnaire snapshots that
+ * still contain the questions as they were asked. Both are history, and history is readable.
+ */
+const RETIRED_QUESTION_CODES = ['has_club_membership', 'club_class'] as const;
+const RETIRED_GROUP_CODES = ['club_membership_details'] as const;
+const RETIRED_PROGRAM_CODES = ['ABK-CLUB-MEMBERSHIP', 'CIB-CLUB-MEMBERSHIP'] as const;
+const RETIRED_ENUMERATIONS: readonly { type: string; key: string }[] = [
+  { type: PROGRAM_NAME_TYPE, key: 'club_member' },
+  { type: FACT_TYPE, key: 'club_class' },
+  { type: 'club_class', key: 'class_1' },
+  { type: 'club_class', key: 'class_2' },
+  { type: 'club_class', key: 'class_3' },
+];
+
+async function pruneRetiredDemoProducts(): Promise<void> {
+  if (DRY) {
+    console.log(
+      `[seed-collateral] would delete ${RETIRED_PROGRAM_CODES.length} retired programs, ` +
+        `${RETIRED_QUESTION_CODES.length} questions and ${RETIRED_ENUMERATIONS.length} registry rows.`,
+    );
+    return;
+  }
+
+  const answers = await prisma.applicationAnswer.deleteMany({
+    where: { questionCode: { in: [...RETIRED_QUESTION_CODES] } },
+  });
+  const questions = await prisma.question.deleteMany({
+    where: { code: { in: [...RETIRED_QUESTION_CODES] } },
+  });
+  const groups = await prisma.questionGroup.deleteMany({
+    where: { code: { in: [...RETIRED_GROUP_CODES] } },
+  });
+  const programs = await prisma.bankProgram.deleteMany({
+    where: { programCode: { in: [...RETIRED_PROGRAM_CODES] } },
+  });
+  const enums = await prisma.platformEnumeration.deleteMany({
+    where: { OR: RETIRED_ENUMERATIONS.map((row) => ({ type: row.type, key: row.key })) },
+  });
+
+  const total =
+    answers.count + questions.count + groups.count + programs.count + enums.count;
+  if (total > 0) {
+    console.log(
+      `[seed-collateral] retired the club product: ${programs.count} programs, ` +
+        `${questions.count} questions (${answers.count} stored answers), ${groups.count} groups, ` +
+        `${enums.count} registry rows.`,
     );
   }
 }
@@ -995,6 +1182,9 @@ function composeProgram(
       minMonthlyIncomeEGP: '0.00',
       minMonthsInJob: 0,
       dbrCapPercent: figures.dbrCapPercent,
+      ...(figures.dbrCapPercentByEmploymentType !== undefined
+        ? { dbrCapPercentByEmploymentType: figures.dbrCapPercentByEmploymentType }
+        : {}),
       skipDbrCheck: false,
       acceptedTransferTypes: [],
       requiresCD: false,
@@ -1005,8 +1195,10 @@ function composeProgram(
       // (`skipEligibility` is set on every production path) — the ownership questions and the
       // rule's own gates are what actually decide — but it is the truthful value.
       requiresCompoundProperty: figures.catalogKey === 'compound_owner',
-      requiresCollateral: false,
-      requiresClubMembership: figures.catalogKey === 'club_member',
+      requiresCollateral: figures.catalogKey === 'car_owner',
+      // The club-membership demo product was deleted; the FLAG stays on the model because a
+      // real program may still require one. Nothing seeded here does.
+      requiresClubMembership: false,
       requiresExistingLoan: false,
       requiresFRMUVerification: false,
       requiresQualitativeReview: false,

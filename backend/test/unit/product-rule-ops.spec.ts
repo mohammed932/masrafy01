@@ -533,3 +533,111 @@ describe('product rule — coalesce (the bank picks its derivation)', () => {
     if (!out.ok) expect(out.reason).toBe('rule_unconfigured');
   });
 });
+
+describe('product rule — pickByFact (a second column)', () => {
+  const twoColumns = (params: ProductRule['stepParams']): ProductRule =>
+    income(
+      [
+        { id: 'standard', op: 'factChoiceTable', fact: 'unit_type' },
+        { id: 'topUp', op: 'factChoiceTable', fact: 'unit_type' },
+        {
+          id: 'cap',
+          op: 'pickByFact',
+          fact: 'bank_relationship',
+          branches: ['ntb', 'xsell'],
+          of: [{ step: 'standard' }, { step: 'topUp' }],
+        },
+      ],
+      params,
+      'cap',
+    );
+
+  const BOTH = {
+    standard: { keyTable: [{ key: 'apartment', incomeEGP: '2000000' }] },
+    topUp: { keyTable: [{ key: 'apartment', incomeEGP: '3000000' }] },
+  };
+
+  it('reads the column the answer names', () => {
+    const out = evaluateProductRule(
+      twoColumns(BOTH),
+      ctx({ unit_type: pick('apartment'), bank_relationship: pick('xsell') }),
+    );
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.valueEGP.toString()).toBe('3000000');
+  });
+
+  it('reads the first column for the other answer', () => {
+    const out = evaluateProductRule(
+      twoColumns(BOTH),
+      ctx({ unit_type: pick('apartment'), bank_relationship: pick('ntb') }),
+    );
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.valueEGP.toString()).toBe('2000000');
+  });
+
+  it('falls back to the first CONFIGURED column when this bank sells no second one', () => {
+    // The bank stated one column and an applicant arrives on the other branch. A refusal here
+    // would punish the customer for a product the bank simply does not offer.
+    const out = evaluateProductRule(
+      twoColumns({ standard: BOTH.standard }),
+      ctx({ unit_type: pick('apartment'), bank_relationship: pick('xsell') }),
+    );
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.valueEGP.toString()).toBe('2000000');
+  });
+
+  it('falls back to the first column when the fact was not answered', () => {
+    // The question behind a segment is optional. An unanswered one is NOT `fact_not_answered`
+    // here: it means "quote them as a new customer", which is the honest default.
+    const out = evaluateProductRule(twoColumns(BOTH), ctx({ unit_type: pick('apartment') }));
+    expect(out.ok).toBe(true);
+    if (out.ok) expect(out.valueEGP.toString()).toBe('2000000');
+  });
+
+  it('is unset — not a refusal — when the bank configured neither column', () => {
+    // Which is what lets an outer `coalesce` move on to this bank's real derivation.
+    const out = evaluateProductRule(twoColumns({}), ctx({ unit_type: pick('apartment') }));
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.reason).toBe('rule_unconfigured');
+  });
+
+  it('a CONFIGURED column that cannot resolve still stops the rule', () => {
+    // The bank's table has no row for this answer. Falling through to the other column would
+    // quote a figure the bank never stated for this unit.
+    const out = evaluateProductRule(
+      twoColumns(BOTH),
+      ctx({ unit_type: pick('duplex'), bank_relationship: pick('xsell') }),
+    );
+    expect(out.ok).toBe(false);
+    if (!out.ok) expect(out.reason).toBe('no_matching_row');
+  });
+
+  it('reports the fact it reads, so the missing-answers list can name it', () => {
+    expect(factsReadBy(twoColumns(BOTH))).toContain('bank_relationship');
+  });
+});
+
+describe('product rule — a gate compares two ANSWERS', () => {
+  it('walks the right-hand side when reporting the facts a rule reads', () => {
+    // A fact reachable only from a gate's right side used to be invisible to `factsReadBy`,
+    // which both hid it from `missingFactKeys` and let it pass the save-time availability
+    // check unseen.
+    const rule: ProductRule = {
+      strategy: 'steps',
+      steps: [{ id: 'paid', op: 'factNumber', fact: 'paid_amount' }],
+      gates: [
+        {
+          id: 'paidOverAsk',
+          kind: 'number',
+          op: 'gte',
+          left: { step: 'paid' },
+          right: { fact: 'requested_amount' },
+          reasonCode: 'GATE_NOT_MET',
+        },
+      ],
+      stepParams: {},
+      output: { kind: 'monthlyIncome', from: 'paid' },
+    };
+    expect(factsReadBy(rule)).toContain('requested_amount');
+  });
+});

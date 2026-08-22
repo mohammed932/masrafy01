@@ -197,6 +197,9 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
         profile,
         income: program.incomeAssumption,
         eligibility: program.eligibility,
+        // Which bank this is, for the derived `bank_relationship` fact: a rule may price an
+        // existing customer off a second column, and that is a per-program answer.
+        programBankName: program.bankName,
         ...(input.parentKeyByValue !== undefined
           ? { parentKeyByValue: input.parentKeyByValue }
           : {}),
@@ -349,6 +352,30 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
     noteConstraint('program_max');
   }
 
+  // The program's FLOOR, checked here as well as inside the affordability loop below.
+  //
+  // It used to be checked only there — a `BELOW_PROGRAM_MIN_AMOUNT` was reachable only when
+  // the debt-burden cap dragged the amount down into the floor. An amount that started below
+  // it, or a collateral ceiling that clamped it below it, was quoted anyway: the program
+  // reported an instalment for a loan the bank does not write.
+  //
+  // A 200-body reason, not an eligibility filter (A33): the program stays listed, stays
+  // ranked, and says which floor it is. `checkEligibility`'s own `loan_amount` check cannot
+  // do this job — every production path runs with `skipEligibility`.
+  if (cash.lessThan(minAmount)) {
+    return {
+      ok: false,
+      unavailable: {
+        reason: 'BELOW_PROGRAM_MIN_AMOUNT',
+        // The amount this program could have written, which here is the clamped request
+        // itself — the DBR figures do not exist yet and reporting a zero for them would
+        // state a cap nobody measured.
+        maxAffordableAmountEGP: cash,
+        recognisedIncomeEGP,
+      },
+    };
+  }
+
   const amountStepEGP = toPositiveDecimal(program.loanLimits.amountStepEGP);
 
   // Price at a given cash amount. Note `effectiveLoanAmountEGP: cash` — the
@@ -392,9 +419,13 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
           {
             dbrCapPercent: program.eligibility.dbrCapPercent,
             dbrBands: program.eligibility.dbrBands,
+            ...(program.eligibility.dbrCapPercentByEmploymentType !== undefined
+              ? { dbrCapPercentByEmploymentType: program.eligibility.dbrCapPercentByEmploymentType }
+              : {}),
           },
           recognisedIncomeEGP,
           program.incomeAssumption?.dbrCapPercentOverride,
+          profile.employment?.employmentType,
         )
       : null;
 
@@ -406,8 +437,13 @@ export function quoteProgram(input: QuoteInput): QuoteOutcome {
           {
             dbrCapPercent: program.eligibility.dbrCapPercent,
             dbrBands: program.eligibility.dbrBands,
+            ...(program.eligibility.dbrCapPercentByEmploymentType !== undefined
+              ? { dbrCapPercentByEmploymentType: program.eligibility.dbrCapPercentByEmploymentType }
+              : {}),
           },
           recognisedIncomeEGP,
+          undefined,
+          profile.employment?.employmentType,
         );
   const dbrCapSource: 'program_default' | 'rule_override' =
     (capResolution?.source ?? incomeResolution?.dbrCapSource) === 'rule_override'

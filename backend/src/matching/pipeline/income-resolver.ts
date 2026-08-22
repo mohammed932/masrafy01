@@ -25,7 +25,9 @@ import {
   type IncomeAssumptionConfig,
   type IncomeResolution,
   type IncomeUnresolvedReason,
+  type SurrogateFactValue,
 } from '../types';
+import { BANK_RELATIONSHIP_FACT_KEY, bankRelationshipFact } from './bank-relationship';
 import { normalizeIncomeAssumption } from './income-rule-normalize';
 import {
   evaluateProductRule,
@@ -60,6 +62,14 @@ export interface ResolveIncomeArgs {
    * stated reason — rather than pricing off a parent it guessed.
    */
   parentKeyByValue?: Readonly<Record<string, string>>;
+  /**
+   * The bank whose program is being quoted, for the DERIVED `bank_relationship` fact.
+   *
+   * Per call rather than on the profile, because the answer differs per program: the same
+   * applicant is new to one bank and an existing customer at another. Absent reads as "new
+   * to the bank" — the standard column, never a refusal.
+   */
+  programBankName?: string;
 }
 
 /**
@@ -101,6 +111,7 @@ export function resolveAssumedIncome(args: ResolveIncomeArgs): IncomeResolution 
       eligibility,
       strategy,
       ...(args.parentKeyByValue !== undefined ? { parentKeyByValue: args.parentKeyByValue } : {}),
+      ...(args.programBankName !== undefined ? { programBankName: args.programBankName } : {}),
     });
   }
 
@@ -114,6 +125,9 @@ export function resolveAssumedIncome(args: ResolveIncomeArgs): IncomeResolution 
   const cap = resolveRuleDbrCap({
     eligibility,
     override: config.dbrCapPercentOverride,
+    ...(profile.employment?.employmentType !== undefined
+      ? { employmentType: profile.employment.employmentType }
+      : {}),
     origin: decided.origin,
     incomeEGP: decided.incomeEGP,
   });
@@ -226,21 +240,37 @@ function resolveProductRule(args: {
   eligibility: EligibilityConfig;
   strategy: IncomeAssumptionStrategy;
   parentKeyByValue?: Readonly<Record<string, string>>;
+  programBankName?: string;
 }): IncomeResolution {
   const { profile, config, eligibility, strategy } = args;
+  const facts: Readonly<Record<string, SurrogateFactValue>> = {
+    // Derived FIRST so a stored answer wins a collision. For a real applicant there can be
+    // no collision — `surrogateFactsFromAnswers` refuses to emit a derived key — and the
+    // one caller that supplies facts directly is the admin's rule-check panel, where the
+    // operator is deliberately naming the case they want to see.
+    [BANK_RELATIONSHIP_FACT_KEY]: bankRelationshipFact(
+      args.programBankName,
+      profile.bankRelationshipSlugs,
+    ),
+    ...(profile.surrogateFacts ?? {}),
+  };
   const ctx: ProductRuleContext = {
-    facts: profile.surrogateFacts ?? {},
+    facts,
     ...(args.parentKeyByValue !== undefined ? { parentKeyByValue: args.parentKeyByValue } : {}),
   };
   const rule = config as ProductRule;
   const outcome = evaluateProductRule(rule, ctx);
 
   if (!outcome.ok) {
-    const answered = profile.surrogateFacts ?? {};
-    const missing = factsReadBy(rule).filter((key) => answered[key] === undefined);
+    // Against the SAME map the rule ran on, so a derived fact — always answered — never
+    // shows up as a question the applicant should go back and answer.
+    const missing = factsReadBy(rule).filter((key) => facts[key] === undefined);
     const cap = resolveRuleDbrCap({
       eligibility,
       override: config.dbrCapPercentOverride,
+      ...(profile.employment?.employmentType !== undefined
+        ? { employmentType: profile.employment.employmentType }
+        : {}),
       // A miss is not surrogate-DERIVED, so the rule's own DBR override does not apply —
       // the same rule `decide()` follows for every other unresolved outcome.
       origin: 'none',
@@ -265,6 +295,9 @@ function resolveProductRule(args: {
     const cap = resolveRuleDbrCap({
       eligibility,
       override: config.dbrCapPercentOverride,
+      ...(profile.employment?.employmentType !== undefined
+        ? { employmentType: profile.employment.employmentType }
+        : {}),
       origin: 'surrogate',
       incomeEGP: outcome.valueEGP,
     });
@@ -288,6 +321,9 @@ function resolveProductRule(args: {
   const cap = resolveRuleDbrCap({
     eligibility,
     override: config.dbrCapPercentOverride,
+    ...(profile.employment?.employmentType !== undefined
+      ? { employmentType: profile.employment.employmentType }
+      : {}),
     origin: 'surrogate',
     incomeEGP: ZERO,
   });
@@ -325,6 +361,8 @@ function resolveRuleDbrCap(args: {
   override: string | undefined;
   origin: IncomeResolution['origin'];
   incomeEGP: Decimal;
+  /** The applicant's employment answer, for a program that caps by bucket. */
+  employmentType?: string;
 }): {
   capPercent: Decimal;
   source: IncomeResolution['dbrCapSource'];
@@ -338,9 +376,13 @@ function resolveRuleDbrCap(args: {
       // inside already treats undefined as "no scalar cap" and yields 0.
       dbrCapPercent: args.eligibility?.dbrCapPercent ?? '0',
       dbrBands: args.eligibility?.dbrBands,
+      ...(args.eligibility?.dbrCapPercentByEmploymentType !== undefined
+        ? { dbrCapPercentByEmploymentType: args.eligibility.dbrCapPercentByEmploymentType }
+        : {}),
     },
     args.incomeEGP,
     surrogateDerived ? args.override : undefined,
+    args.employmentType,
   );
   return {
     capPercent: resolution.capPercent,

@@ -13,6 +13,7 @@
 
 import { Decimal } from '@prisma/client/runtime/library';
 import type { DbrBand, DbrSetting } from '../types';
+import { coarseEmploymentType } from './employment-type';
 
 const ROUND_BANKERS = Decimal.ROUND_HALF_EVEN;
 
@@ -74,6 +75,13 @@ export function resolveDbrCap(
    * specific statement of policy available: per program AND per income rule.
    */
   ruleOverridePercent?: string,
+  /**
+   * The applicant's DETAILED employment answer, for a program that caps by bucket.
+   *
+   * Passed raw and folded here, so the caller never has to know that
+   * `business_owner_company_owner` is a `self_employed` for underwriting purposes.
+   */
+  employmentType?: string,
 ): DbrCapResolution {
   const override = toDecimalOrNull(ruleOverridePercent);
   // Bounds are re-checked here rather than trusted: the save path validates the
@@ -82,6 +90,19 @@ export function resolveDbrCap(
   // zero affordability, and Principle V forbids failing the match on bad config.
   if (override !== null && override.greaterThan(0) && override.lessThanOrEqualTo(100)) {
     return { capPercent: override, bandIndex: null, source: 'rule_override' };
+  }
+
+  // Employment before income: a bank that states both means "40% for the self-employed,
+  // whatever they earn". Bounds re-checked for the same reason the override's are — a
+  // hand-edited 0 here would cap an applicant at no affordability at all.
+  const byEmployment =
+    employmentType === undefined
+      ? null
+      : toDecimalOrNull(
+          setting.dbrCapPercentByEmploymentType?.[coarseEmploymentType(employmentType)],
+        );
+  if (byEmployment !== null && byEmployment.greaterThan(0) && byEmployment.lessThanOrEqualTo(100)) {
+    return { capPercent: byEmployment, bandIndex: null, source: 'program_default' };
   }
 
   const scalar = toDecimalOrNull(setting.dbrCapPercent) ?? new Decimal(0);

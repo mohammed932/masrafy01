@@ -166,6 +166,7 @@ class OfferModel {
     required this.matchReasons,
     this.feesBreakdown,
     this.maxLoanAvailableEGP,
+    this.collateralCeilingEGP,
     this.dbrPercent,
     this.dbrCapPercent,
     this.isSaved = false,
@@ -196,6 +197,13 @@ class OfferModel {
   /// Borrowing ceiling at this program: income × DBR cap − obligations,
   /// present-valued over the term. Independent of what was requested.
   final double? maxLoanAvailableEGP;
+
+  /// What the customer's own COLLATERAL supports at this program, frozen at match time.
+  ///
+  /// Answers a different question from [maxLoanAvailableEGP]: this is what the unit or the
+  /// membership carries, that one is what their existing payments leave room for. Null on
+  /// every program that does not price off collateral.
+  final double? collateralCeilingEGP;
 
   /// Where this offer's installment lands on the debt-burden scale, and the cap
   /// it was measured against. Null on offers written before the fields existed.
@@ -231,6 +239,9 @@ class OfferModel {
       maxLoanAvailableEGP: json['maxLoanAvailableEGP'] == null
           ? null
           : _toDouble(json['maxLoanAvailableEGP']),
+      collateralCeilingEGP: json['collateralCeilingEGP'] == null
+          ? null
+          : _toDouble(json['collateralCeilingEGP']),
       dbrPercent:
           json['dbrPercent'] == null ? null : _toDouble(json['dbrPercent']),
       dbrCapPercent: json['dbrCapPercent'] == null
@@ -261,6 +272,7 @@ class OfferModel {
         matchReasons: matchReasons,
         feesBreakdown: feesBreakdown,
         maxLoanAvailableEGP: maxLoanAvailableEGP,
+        collateralCeilingEGP: collateralCeilingEGP,
         dbrPercent: dbrPercent,
         dbrCapPercent: dbrCapPercent,
         isSaved: isSaved,

@@ -16,6 +16,7 @@ import {
   type IncomeBasis,
 } from '@core/income-basis';
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
+import { NzSelectModule } from 'ng-zorro-antd/select';
 import { LookupsApiService, type EnumerationRow } from '../lookups.api.service';
 import { lookupExample } from '../lookups.constants';
 
@@ -63,6 +64,7 @@ export interface EnumerationEditDialogData {
     NzInputModule,
     NzFormModule,
     NzIconModule,
+    NzSelectModule,
   ],
   providers: [provideNzIconsPatch([CloseCircleOutline, InfoCircleOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -115,6 +117,38 @@ export interface EnumerationEditDialogData {
             </nz-form-control>
           </nz-form-item>
         </div>
+
+        @if (parentType !== null) {
+          <!-- The CLASS this row is filed under. A bank keys its cap table by the class, so a
+               compound with none is invisible to that derivation and the program quotes
+               nothing for whoever picks it — which is why this is on the form at all. Left
+               empty is still allowed: "not classified yet" is a real state, and refusing it
+               would block the operator from adding the name. -->
+          <nz-form-item>
+            <nz-form-label nzFor="lk-parent" i18n="@@lookups.field.parentKey"
+              >Filed under</nz-form-label
+            >
+            <nz-form-control>
+              <nz-select
+                id="lk-parent"
+                formControlName="parentKey"
+                nzAllowClear
+                [nzPlaceHolder]="parentPlaceholder"
+              >
+                @for (option of parentOptions(); track option.id) {
+                  <nz-option
+                    [nzValue]="option.key"
+                    [nzLabel]="isAr ? option.labelAr : option.labelEn"
+                  ></nz-option>
+                }
+              </nz-select>
+              <p class="hint" i18n="@@lookups.field.parentKey.hint">
+                Banks price this list by the class it is filed under. A value with no class
+                gets no figures from those banks.
+              </p>
+            </nz-form-control>
+          </nz-form-item>
+        }
 
         @if (asksBasis) {
           <!-- ONE choice, so: radios. Native inputs sharing a name, not two
@@ -426,6 +460,12 @@ export interface EnumerationEditDialogData {
         align-items: center;
         font-size: var(--text-sm);
       }
+      .hint {
+        margin-block: var(--space-1) 0;
+        font-size: var(--text-sm);
+        color: var(--text-muted);
+      }
+
       .dialog-actions {
         display: flex;
         justify-content: flex-end;
@@ -443,6 +483,22 @@ export class EnumerationEditDialogComponent {
   protected readonly data = inject<EnumerationEditDialogData>(NZ_MODAL_DATA);
 
   private readonly isProgramName = this.data.type === PROGRAM_NAME_TYPE;
+  /**
+   * Types whose rows are FILED UNDER another list — the registry's generic single-parent
+   * scope, read by a rule's `factParentTable` step.
+   *
+   * `compound` is the only one today: a customer picks one of hundreds of compounds by name,
+   * and the bank keys its cap table by the five CLASSES. Without a class a row is invisible
+   * to that derivation — the rule reports `no_matching_row` and the program quotes nothing
+   * for whoever picked it — and until now this dialog could not set one, so every compound
+   * an operator added was born classless.
+   */
+  protected readonly parentType: string | null =
+    this.data.type === 'compound' ? 'compound_category' : null;
+  protected readonly parentOptions = signal<readonly EnumerationRow[]>([]);
+  protected readonly parentPlaceholder = $localize`:@@lookups.field.parentKey.none:Not classified`;
+  /** Arabic primary (Principle IV) — the same document read every other registry surface does. */
+  protected readonly isAr = document.documentElement.lang.startsWith('ar');
   protected readonly isEdit = this.data.mode === 'edit';
   /**
    * The loan types this name is currently offered under — the axis the basis is
@@ -555,7 +611,25 @@ export class EnumerationEditDialogComponent {
      * call site.
      */
     incomeBases: new FormControl<IncomeBasis[]>(['payslip'], { nonNullable: true }),
+    /**
+     * The class this row is filed under. Optional: an unclassified row is a real state (a
+     * compound nobody has classified yet), and refusing to save one would leave the operator
+     * unable to add the name at all.
+     */
+    parentKey: new FormControl<string>(this.data.row?.parentKey ?? '', { nonNullable: true }),
   });
+
+  constructor() {
+    // The parent list, loaded once. Only the ACTIVE rows are offered: filing a compound under
+    // a retired class would be a save that quotes nothing, which is the failure this control
+    // exists to prevent.
+    if (this.parentType !== null) {
+      void this.api
+        .list(this.parentType)
+        .then((rows) => this.parentOptions.set(rows.filter((r) => r.active)))
+        .catch(() => this.parentOptions.set([]));
+    }
+  }
 
   protected basisLabel(basis: IncomeBasis): string {
     return incomeBasisLabel(basis);
@@ -663,6 +737,9 @@ export class EnumerationEditDialogComponent {
           // the server drops it, and sending it anyway would put a field in the
           // request that the type has no axis for.
           ...(this.asksFlatBasis ? { incomeBases: v.incomeBases } : {}),
+          // Sent only for a type that HAS a parent axis, and only when one was picked — an
+          // empty string is "unfiled", not a key.
+          ...(this.parentType !== null && v.parentKey !== '' ? { parentKey: v.parentKey } : {}),
           sortOrder: v.sortOrder,
         });
       } else if (this.data.row) {
@@ -675,6 +752,7 @@ export class EnumerationEditDialogComponent {
         await this.api.update(this.data.row.id, {
           labelEn: v.labelEn,
           labelAr: v.labelAr,
+          ...(this.parentType !== null && v.parentKey !== '' ? { parentKey: v.parentKey } : {}),
           sortOrder: v.sortOrder,
         });
       }

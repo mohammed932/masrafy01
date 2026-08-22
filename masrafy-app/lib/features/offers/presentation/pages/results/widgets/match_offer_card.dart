@@ -128,6 +128,21 @@ class MatchOfferCard extends StatelessWidget {
               emphasised: offer.hasUnusedHeadroom,
             ),
           ],
+          // A no-payslip offer's figures come from the unit, and nothing else on this card
+          // says so — the max-borrow band above reads as "what your salary supports" to a
+          // customer who never gave us one.
+          if (offer.collateralCeiling != null) ...[
+            Gap(6.h),
+            Text(
+              l.offer_collateral_ceiling(
+                NumberFormat.decimalPattern().format(offer.collateralCeiling),
+              ),
+              style: text.caption.copyWith(
+                color: colors.primary.border,
+                fontSize: 10.sp,
+              ),
+            ),
+          ],
           Gap(12.h),
           _ViewOfferButton(
             label: l.results_view_offer,

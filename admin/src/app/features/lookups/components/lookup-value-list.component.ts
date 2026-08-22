@@ -81,6 +81,18 @@ export interface LookupActiveToggle {
               <span class="labels">
                 <span class="label-en">{{ r.labelEn }}</span>
               </span>
+              <!-- The CLASS this value is filed under, where its type has one. Shown because
+                   a bank prices this list by the class: an unfiled value quotes nothing for
+                   whoever picks it, and that was invisible on this screen. -->
+              @if (showsParent()) {
+                @if (r.parentKey) {
+                  <span class="badge parent">{{ parentLabel(r.parentKey) }}</span>
+                } @else {
+                  <span class="badge parent-missing" i18n="@@lookups.value.unclassified"
+                    >No class</span
+                  >
+                }
+              }
               @if (r.systemOnly) {
                 <span
                   class="badge system"
@@ -260,6 +272,19 @@ export interface LookupActiveToggle {
         box-shadow: var(--shadow-sm);
       }
       .value.inactive .label-en,
+      /* The class inherits the plain badge look — it is context, not a status. */
+      .badge.parent {
+        background: var(--color-surface-muted);
+        color: var(--color-text-secondary);
+      }
+
+      /* Not an error state — a value nobody has classified yet is ordinary — but it is the
+         thing on this row that costs a quote, so it reads louder than the class itself. */
+      .badge.parent-missing {
+        background: var(--color-warning-bg);
+        color: var(--color-warning);
+      }
+
       .value.deprecated .label-en {
         color: var(--color-text-tertiary);
       }
@@ -421,11 +446,27 @@ export interface LookupActiveToggle {
 })
 export class LookupValueListComponent {
   readonly rows = input.required<readonly EnumerationRow[]>();
+  /**
+   * The rows of the list these values are FILED UNDER, when their type has one.
+   *
+   * Passed in rather than fetched: the page already holds every type's rows, and a second
+   * fetch here would let the two lists disagree about which classes are live.
+   */
+  readonly parents = input<readonly EnumerationRow[]>([]);
 
   readonly edit = output<EnumerationRow>();
   readonly toggleActive = output<LookupActiveToggle>();
   /** Hard delete — the row is gone, not parked. The server refuses one still in use. */
   readonly remove = output<EnumerationRow>();
+
+  /** Whether this type is filed under another list at all. */
+  protected readonly showsParent = computed(() => this.parents().length > 0);
+
+  protected parentLabel(key: string): string {
+    // The KEY when the class is not in the live list — a value filed under a retired class
+    // quotes nothing, and blanking the badge would hide exactly that.
+    return this.parents().find((p) => p.key === key)?.labelEn ?? key;
+  }
 
   protected readonly filter = new FormControl<string>('', { nonNullable: true });
   protected readonly query = toSignal(this.filter.valueChanges, { initialValue: '' });

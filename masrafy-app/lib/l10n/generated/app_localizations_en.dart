@@ -2261,6 +2261,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gate_multi_unit_not_confirmed => 'You told us you own more than one unit. Confirm which one to use and we can quote this program.';
 
   @override
+  String get gate_self_employed_docs_missing => 'This bank needs a valid trade or practice licence from self-employed customers.';
+
+  @override
+  String get gate_business_too_new => 'This bank needs your business to have been running longer than it has.';
+
+  @override
   String get gate_not_met => 'This program has a condition your answers don\'t meet, so no figures can be shown.';
 
   @override
@@ -2268,4 +2274,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get collateral_skip_hint => 'Skip and we still show the program, just without figures until you answer.';
+
+  @override
+  String offer_collateral_ceiling(String amount) {
+    return 'Your unit supports up to $amount';
+  }
 }

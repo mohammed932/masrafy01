@@ -22,6 +22,12 @@ const COARSE_BY_DETAILED: Readonly<Record<string, string>> = {
   private_employee: 'salaried',
   business_owner: 'self_employed',
   freelancer: 'self_employed',
+  // The codes the questionnaire actually emits (`EMPLOYMENT_OPTIONS` in
+  // `seed-questionnaire.ts`). Without these two rows every real applicant fell through
+  // the map to its own identity, so `isSelfEmployedBucket` was false for a business owner
+  // and every `selfEmployed*` setting on every program was unreachable.
+  private_sector_employee: 'salaried',
+  business_owner_company_owner: 'self_employed',
 };
 
 /**

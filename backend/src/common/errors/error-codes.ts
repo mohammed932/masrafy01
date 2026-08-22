@@ -333,7 +333,7 @@ export const ERROR_CODES = {
   /**
    * A product rule's step pipeline is not assemblable — `meta.reason` says which of
    * `PRODUCT_RULE_INVALID_REASONS` applied, and `meta.stepId` / `meta.gateId` name the
-   * row to fix. ONE code with a reason rather than seventeen codes: every one of them
+   * row to fix. ONE code with a reason rather than one code per reason: every one of them
    * points the operator at the same editor.
    */
   PRODUCT_RULE_INVALID: 'PRODUCT_RULE_INVALID',
@@ -425,6 +425,8 @@ export const ERROR_CODES = {
   GATE_CONTRACT_TOO_OLD: 'GATE_CONTRACT_TOO_OLD',
   GATE_OWNERSHIP_NOT_CONFIRMED: 'GATE_OWNERSHIP_NOT_CONFIRMED',
   GATE_MULTI_UNIT_NOT_CONFIRMED: 'GATE_MULTI_UNIT_NOT_CONFIRMED',
+  GATE_SELF_EMPLOYED_DOCS_MISSING: 'GATE_SELF_EMPLOYED_DOCS_MISSING',
+  GATE_BUSINESS_TOO_NEW: 'GATE_BUSINESS_TOO_NEW',
   GATE_NOT_MET: 'GATE_NOT_MET',
 
   // --- Generic ---
@@ -645,6 +647,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   GATE_CONTRACT_TOO_OLD: 200,
   GATE_OWNERSHIP_NOT_CONFIRMED: 200,
   GATE_MULTI_UNIT_NOT_CONFIRMED: 200,
+  GATE_SELF_EMPLOYED_DOCS_MISSING: 200,
+  GATE_BUSINESS_TOO_NEW: 200,
   GATE_NOT_MET: 200,
 
   RATE_LIMITED: 429,

@@ -4451,6 +4451,18 @@ abstract class AppLocalizations {
   /// **'ذكرت أنك تملك أكثر من وحدة. أكِّد الوحدة التي نحسب عليها وسنعرض أرقام هذا البرنامج.'**
   String get gate_multi_unit_not_confirmed;
 
+  /// Backend SELF_EMPLOYED_DOCS_MISSING gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البنك يطلب رخصة تجارية أو رخصة مهنة سارية من العاملين لحسابهم.'**
+  String get gate_self_employed_docs_missing;
+
+  /// Backend BUSINESS_TOO_NEW gate reason
+  ///
+  /// In ar, this message translates to:
+  /// **'هذا البنك يطلب أن يكون نشاطك التجاري قائمًا لمدة أطول من مدته الحالية.'**
+  String get gate_business_too_new;
+
   /// Backend GATE_NOT_MET / PRODUCT_RULE_GATE_FAILED fallback
   ///
   /// In ar, this message translates to:
@@ -4468,6 +4480,12 @@ abstract class AppLocalizations {
   /// In ar, this message translates to:
   /// **'تخطَّ وسنظل نعرض البرنامج، لكن بدون أرقام حتى تجيب.'**
   String get collateral_skip_hint;
+
+  /// On a priced offer card: the ceiling the customer's collateral supports
+  ///
+  /// In ar, this message translates to:
+  /// **'وحدتك تدعم حتى {amount}'**
+  String offer_collateral_ceiling(String amount);
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

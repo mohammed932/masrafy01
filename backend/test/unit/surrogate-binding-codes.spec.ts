@@ -175,8 +175,11 @@ describe('assignment and pool membership', () => {
     // MORTGAGE), not to forbid a deliberate one: widening the product is a seed edit plus
     // this number.
     const blockFor = (name: string, next: string): string => {
-      const start = seedSource.indexOf(`const ${name}`);
-      const end = seedSource.indexOf(`const ${next}`);
+      // `const NAME:` with the colon, not a bare prefix. `const BUSINESS` also matches
+      // `const BUSINESS_YEARS_Q`, a question declared earlier in the file — which made this
+      // slice run backwards and fail on a seed edit that had nothing to do with it.
+      const start = seedSource.indexOf(`const ${name}:`);
+      const end = seedSource.indexOf(`const ${next}:`);
       expect(start, `${name} config not found`).toBeGreaterThan(-1);
       expect(end, `${next} config not found`).toBeGreaterThan(start);
       return seedSource.slice(start, end);

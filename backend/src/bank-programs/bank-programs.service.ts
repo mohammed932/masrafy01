@@ -1464,6 +1464,7 @@ export class BankProgramsService {
       profile,
       income: draft,
       eligibility: snapshot.eligibility,
+      programBankName: snapshot.bankName,
       parentKeyByValue,
     });
     const outcome = quoteProgram({

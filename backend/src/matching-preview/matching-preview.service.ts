@@ -67,6 +67,16 @@ export interface PreviewFigures {
   dbrBandIndex: number | null;
   maxAffordableAmountEGP: string;
   bindingConstraint: string;
+  /**
+   * What this applicant's COLLATERAL supports at this program — the ceiling the product
+   * rule derived, before obligations.
+   *
+   * Beside `maxAffordableAmountEGP`, not instead of it: the two answer different questions
+   * ("what does the unit carry" vs "what do your existing payments leave"), and a card that
+   * shows only the second cannot explain a ceiling the applicant did not state.
+   * `null` for every program that does not price off collateral.
+   */
+  collateralCeilingEGP: string | null;
   fees: { adminFeeEGP: string; stampDutyEGP: string; lifeInsuranceEGP: string };
 }
 
@@ -242,6 +252,8 @@ export class MatchingPreviewService {
      * derivation of the same input (A33).
      */
     const optionByCode = new Map<string, string>();
+    /** Multi-picks by question code — the bank-relationship answer is a set, not a key. */
+    const multiByCode = new Map<string, readonly string[]>();
     /** The debt-type picks, once validated — the basis for the obligations sum. */
     let pickedDebtTypes: readonly string[] | undefined;
     for (const ans of answers) {
@@ -273,6 +285,9 @@ export class MatchingPreviewService {
         ? surrogateOptionPick({ type: q.type, selectedOptionCodes: normalised.selectedOptionCodes })
         : undefined;
       if (picked !== undefined) optionByCode.set(q.code, picked);
+      if (q.type === 'MULTI_SELECT' && normalised && normalised.selectedOptionCodes.length > 0) {
+        multiByCode.set(q.code, normalised.selectedOptionCodes);
+      }
       if (q.code === DEBT_TYPES_QUESTION_CODE && normalised) {
         pickedDebtTypes = normalised.selectedOptionCodes;
       }
@@ -310,7 +325,7 @@ export class MatchingPreviewService {
       // deriving the same engine input differently is a review block (A33), and this
       // is the input an income rule looks its table up by.
       surrogateFacts: surrogateFactsFromAnswers(
-        { optionByCode, numericByCode: numeric },
+        { optionByCode, numericByCode: numeric, multiByCode },
         // Read here, not at construction: a fact an operator adds or repoints must
         // move the next preview, and this service is a singleton that would otherwise
         // hold the registry it booted with until the process restarted.
@@ -482,6 +497,9 @@ export class MatchingPreviewService {
       // The operator-defined facts, keyed — the same map apply builds, from the same
       // mapper, so a `fact:` rule prices identically before and after apply (A33).
       surrogateFacts: surrogateFacts.byKey,
+      ...(surrogateFacts.bankRelationshipSlugs !== undefined
+        ? { bankRelationshipSlugs: surrogateFacts.bankRelationshipSlugs }
+        : {}),
     };
   }
 }
@@ -501,6 +519,7 @@ function toPreviewFigures(q: Quote): PreviewFigures {
     dbrBandIndex: q.dbrBandIndex,
     maxAffordableAmountEGP: q.maxAffordableAmountEGP.toFixed(2),
     bindingConstraint: q.bindingConstraint,
+    collateralCeilingEGP: q.collateralCeilingEGP?.toFixed(2) ?? null,
     fees: {
       adminFeeEGP: new Decimal(q.feesBreakdown.adminFeeEGP).toFixed(2),
       stampDutyEGP: new Decimal(q.feesBreakdown.stampDutyEGP).toFixed(2),

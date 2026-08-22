@@ -131,6 +131,7 @@ export const STEP_OPS = [
   'minOf',
   'maxOf',
   'coalesce',
+  'pickByFact',
 ] as const;
 
 export type StepOp = (typeof STEP_OPS)[number];
@@ -161,6 +162,14 @@ export interface RuleStep {
   fact?: string;
   /** Every other op: the value(s) operated on. A single ref is accepted for the n-ary ops. */
   of?: ValueRef | ValueRef[];
+  /**
+   * `pickByFact`: the option code each entry of `of` answers to, positionally.
+   *
+   * Structure, not figures — which column of a two-column table a given answer reads is the
+   * product's shape, the same as the step list itself, so it belongs to the catalog and not
+   * to any bank. A bank states only the two columns' numbers.
+   */
+  branches?: string[];
 }
 
 /** The figures half of one step — stated per bank (or inherited from the catalog). */
@@ -183,7 +192,7 @@ export interface StepParams {
  * Why a gate refused, from a CLOSED platform list.
  *
  * A gate id is operator-authored, so it can never have a translation. A reason code
- * can: these seven have entries in both locale dictionaries, and the engine returns
+ * can: every one of these has an entry in both locale dictionaries, and the engine returns
  * the code and no prose (Principle III / A2). `GATE_NOT_MET` is the honest fallback
  * for a gate whose meaning the platform has no word for yet.
  */
@@ -194,6 +203,8 @@ export const GATE_REASON_CODES = [
   'CONTRACT_TOO_OLD',
   'OWNERSHIP_NOT_CONFIRMED',
   'MULTI_UNIT_NOT_CONFIRMED',
+  'SELF_EMPLOYED_DOCS_MISSING',
+  'BUSINESS_TOO_NEW',
   'GATE_NOT_MET',
 ] as const;
 
@@ -618,6 +629,40 @@ const OPS: Readonly<Record<StepOp, (env: OpEnv) => OpResult>> = Object.freeze({
     // `coalesce_empty`), so this is only reachable for a hand-edited row.
     return { ok: false, reason: 'rule_unconfigured' };
   },
+
+  /**
+   * The input whose BRANCH matches an answer — a table with two columns instead of one.
+   *
+   * `coalesce` picks the derivation THIS BANK configured; this picks the column THIS
+   * APPLICANT falls in, and the two compose (a bank's cap basis is a `pickByFact` over its
+   * two columns, and the `coalesce` above chooses between banks' bases). One bank lends
+   * more to a customer it already has, and the uplift is not a single percentage — 2M→3M on
+   * an apartment but 4M→4.5M on a villa — so it cannot be a `percentOf` over one column.
+   *
+   * Falls back to the FIRST configured input, deliberately, in two cases:
+   *   · the applicant did not answer — the question behind a segment is optional, and a
+   *     missing answer must not refuse a program the standard column can price;
+   *   · this bank left the matching column blank — a bank that does not sell the second
+   *     column quotes its standard one rather than nothing.
+   * Neither is `fact_not_answered`: an unanswered segment is not a missing requirement.
+   */
+  pickByFact: (env) => {
+    const refs = refList(env.step);
+    if (refs.length === 0) return { ok: false, reason: 'rule_unconfigured' };
+    const usable = (ref: ValueRef): boolean => !('step' in ref) || !env.unset.has(ref.step);
+
+    const answered = env.step.fact === undefined ? undefined : env.ctx.facts[env.step.fact];
+    if (answered?.kind === 'choice') {
+      const index = (env.step.branches ?? []).indexOf(answered.optionCode);
+      const chosen = index === -1 ? undefined : refs[index];
+      if (chosen !== undefined && usable(chosen)) return refValue(chosen, env);
+    }
+
+    for (const ref of refs) {
+      if (usable(ref)) return refValue(ref, env);
+    }
+    return { ok: false, reason: 'rule_unconfigured' };
+  },
 });
 
 /** Whether a scaling step has a factor at all — a second input, or a stated scalar. */
@@ -912,6 +957,10 @@ export function factsReadBy(rule: ProductRule): string[] {
       continue;
     }
     addRef(gate.left);
+    // The right-hand side too: a bound is usually a step, but a gate comparing one ANSWER
+    // against another is legal, and a fact reachable only from here would otherwise be
+    // absent from `missingFactKeys` and pass the save-time availability check unseen.
+    if (gate.kind === 'number') addRef(gate.right);
     if (gate.kind === 'numberByKey') keys.add(gate.keyedBy);
   }
   return [...keys];
@@ -943,8 +992,8 @@ export function isStepConfigured(step: RuleStep, figures: StepParams): boolean {
       return stated !== undefined && stated !== '';
     }
     default:
-      // `factNumber`, `sum`, `subtract`, `minOf`, `maxOf`, `coalesce` — arithmetic over
-      // values other steps produced. There is nothing for a bank to state.
+      // `factNumber`, `sum`, `subtract`, `minOf`, `maxOf`, `coalesce`, `pickByFact` —
+      // arithmetic over values other steps produced. There is nothing for a bank to state.
       return true;
   }
 }
@@ -959,7 +1008,9 @@ export function isStepConfigured(step: RuleStep, figures: StepParams): boolean {
 export function optionalStepIds(rule: ProductRule): Set<string> {
   const ids = new Set<string>();
   for (const step of rule.steps ?? []) {
-    if (step.op !== 'coalesce') continue;
+    // `pickByFact` for the same reason: a bank that sells only the standard column leaves
+    // the other one blank, and the op falls back to the column it did configure.
+    if (step.op !== 'coalesce' && step.op !== 'pickByFact') continue;
     const refs = step.of === undefined ? [] : Array.isArray(step.of) ? step.of : [step.of];
     for (const ref of refs) if ('step' in ref) ids.add(ref.step);
   }

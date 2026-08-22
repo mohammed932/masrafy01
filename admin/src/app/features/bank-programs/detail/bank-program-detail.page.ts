@@ -28,7 +28,11 @@ import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
 import type { BankProgramResponse } from '../bank-programs.types';
-import { incomeMethodLabel } from '../bank-programs.types';
+import {
+  PRODUCT_RULE_STRATEGY,
+  incomeMethodLabel,
+  type StepFigures,
+} from '../bank-programs.types';
 import { basisOf, incomeBasisLabel } from '@core/income-basis';
 
 /**
@@ -709,6 +713,11 @@ export class BankProgramDetailPage {
   }
 
   protected methodLabel(p: BankProgramResponse): string {
+    // A step pipeline is not one of the eleven methods, and `incomeMethodLabel` has no case
+    // for it — so this row rendered BLANK on every collateral program until now.
+    if (p.incomeAssumption.strategy === PRODUCT_RULE_STRATEGY) {
+      return $localize`:@@bank_programs.strategy.steps:Worked out step by step from what the customer owns`;
+    }
     return incomeMethodLabel(p.incomeAssumption.strategy);
   }
 
@@ -726,6 +735,12 @@ export class BankProgramDetailPage {
   ): Array<{ label: string; income: string; estimated: boolean }> {
     const rule = p.incomeAssumption;
     const sources = p.valueSources ?? {};
+    // A PIPELINE keeps its figures per step, so `keyTable` / `bands` are both empty and this
+    // card used to say "Not entered — this program quotes nothing" about a fully configured
+    // collateral program. The step id is part of each label: the same shape appears more than
+    // once in one rule (two columns of the same table), and a bare key could not tell them
+    // apart.
+    if (rule.strategy === PRODUCT_RULE_STRATEGY) return this.pipelineRows(p);
     const keyRows = (rule.keyTable ?? []).map((r) => ({
       label: r.key,
       income: r.incomeEGP,
@@ -738,6 +753,80 @@ export class BankProgramDetailPage {
       estimated: sources[`incomeAssumption.bands.${i}.incomeEGP`] === 'team_estimated',
     }));
     return [...keyRows, ...bandRows];
+  }
+
+  /**
+   * A step pipeline's figures, flattened the same way — one list, in step order.
+   *
+   * Reads `stepParams` alone: the STRUCTURE belongs to the catalog name and is not on this
+   * response, so this card answers "what did this bank state?" and nothing more.
+   */
+  private pipelineRows(
+    p: BankProgramResponse,
+  ): Array<{ label: string; income: string; estimated: boolean }> {
+    const sources = p.valueSources ?? {};
+    const params = (p.incomeAssumption.stepParams ?? {}) as Record<string, StepFigures>;
+    const estimated = (path: string): boolean => sources[path] === 'team_estimated';
+    const rows: Array<{ label: string; income: string; estimated: boolean }> = [];
+
+    for (const [stepId, figures] of Object.entries(params)) {
+      const base = `incomeAssumption.stepParams.${stepId}`;
+      for (const row of figures.keyTable ?? []) {
+        rows.push({
+          label: `${stepId} · ${row.key}`,
+          income: row.incomeEGP,
+          estimated: estimated(`${base}.keyTable.${row.key}.incomeEGP`),
+        });
+      }
+      (figures.bands ?? []).forEach((band, i) => {
+        const range =
+          band.toExclusive === null ? `${band.fromInclusive}+` : `${band.fromInclusive}–${band.toExclusive}`;
+        rows.push({
+          label: `${stepId} · ${range}`,
+          income: band.incomeEGP,
+          estimated: estimated(`${base}.bands.${i}.incomeEGP`),
+        });
+      });
+      if (figures.scalar?.value) {
+        rows.push({
+          label: stepId,
+          income: figures.scalar.unit === 'percent' ? `${figures.scalar.value}%` : `×${figures.scalar.value}`,
+          estimated: estimated(`${base}.scalar.value`),
+        });
+      }
+      if (figures.valueEGP) {
+        rows.push({
+          label: stepId,
+          income: figures.valueEGP,
+          estimated: estimated(`${base}.valueEGP`),
+        });
+      }
+      // A gate's own figures — a floor, a ceiling, or "this bank applies it". They are
+      // conditions rather than amounts, so they are labelled as such rather than left out:
+      // a refusal rule the reader cannot see is the one that surprises them.
+      if (figures.minValue) {
+        rows.push({
+          label: `${stepId} · min`,
+          income: figures.minValue,
+          estimated: estimated(`${base}.minValue`),
+        });
+      }
+      if (figures.maxValue) {
+        rows.push({
+          label: `${stepId} · max`,
+          income: figures.maxValue,
+          estimated: estimated(`${base}.maxValue`),
+        });
+      }
+      if (figures.applies === true) {
+        rows.push({
+          label: stepId,
+          income: $localize`:@@bank_programs.income.gate_applies:applies`,
+          estimated: false,
+        });
+      }
+    }
+    return rows;
   }
 
   /**

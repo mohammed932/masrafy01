@@ -23,6 +23,7 @@ import {
   type RuleStep,
   type StepFigures,
 } from '@features/bank-programs/bank-programs.types';
+import { BANK_RELATIONSHIP_FACT_KEY } from '@core/surrogate-facts';
 import { IncomeBandsEditorComponent } from './income-bands-editor.component';
 import { IncomeKeyTableComponent } from './income-key-table.component';
 
@@ -57,10 +58,14 @@ interface EditorRow {
  * section this sits inside:
  *
  *   'catalog'  the program NAME's own rule. The pipeline is shown as a numbered, readable
- *              summary and the figures are hidden — the catalog states the SHAPE, and its
- *              banks disagree about every number in it.
+ *              summary, and the figures are the DEFAULTS every bank under the name starts
+ *              from — editable here, and copied into a new program's editor on open.
  *   'program'  a bank's rule. The pipeline is shown the same way, and each step it may state
  *              a figure for gets the editor its op calls for.
+ *
+ * Both variants edit figures; what differs is whose they are, and three cosmetic things (the
+ * active-derivation line, what a blank optional step is called, and the needs-figures warning
+ * — see `rows()`). Neither authors STRUCTURE; see the scope cut below.
  *
  * ─── Why the figure editors are the existing ones ─────────────────────────────
  *
@@ -412,12 +417,30 @@ export class ProductRuleEditorComponent {
       for (const ref of stepRefs(step)) {
         if ('step' in ref && configured.has(ref.step)) {
           const chosen = this.steps().find((s) => s.id === ref.step);
-          if (chosen) return this.titleFor(chosen);
+          if (chosen) return this.titleFor(this.namedColumn(chosen, configured));
         }
       }
     }
     return null;
   });
+
+  /**
+   * Look THROUGH a two-column pick to the column that carries the figures.
+   *
+   * "Whichever column fits the customer" is the honest name for the step, and a useless
+   * answer to "what does this bank work the ceiling out from?" — the operator wants the
+   * table's own words.
+   */
+  private namedColumn(step: RuleStep, configured: ReadonlySet<string>): RuleStep {
+    if (step.op !== 'pickByFact') return step;
+    for (const ref of stepRefs(step)) {
+      if ('step' in ref && configured.has(ref.step)) {
+        const column = this.steps().find((s) => s.id === ref.step);
+        if (column) return column;
+      }
+    }
+    return step;
+  }
 
   protected readonly rows = computed<EditorRow[]>(() => {
     const figures = this.figures();
@@ -580,6 +603,8 @@ export class ProductRuleEditorComponent {
         return $localize`:@@product_rule.step.max_of:The largest of the earlier figures`;
       case 'coalesce':
         return $localize`:@@product_rule.step.coalesce:Whichever of the above this bank filled in`;
+      case 'pickByFact':
+        return $localize`:@@product_rule.step.pick_by_fact:Whichever column fits the customer: ${factLabel}:factLabel:`;
       default:
         return step.id;
     }
@@ -588,6 +613,9 @@ export class ProductRuleEditorComponent {
   private hintFor(step: RuleStep): string {
     if (step.op === 'coalesce') {
       return $localize`:@@product_rule.step.coalesce_hint:Fill in exactly one of the tables above. The rest are other banks' ways of working the same figure out.`;
+    }
+    if (step.op === 'pickByFact') {
+      return $localize`:@@product_rule.step.pick_by_fact_hint:Fill in the first table for everyone. Fill in the second only if this bank lends more to customers it already has — left empty, everyone reads the first.`;
     }
     if (
       STEP_OP_SHAPE[step.op] === 'scalar' &&
@@ -613,6 +641,10 @@ export class ProductRuleEditorComponent {
         return $localize`:@@product_rule.gate.ownership:How ownership must be stated`;
       case 'MULTI_UNIT_NOT_CONFIRMED':
         return $localize`:@@product_rule.gate.multi_unit:Multi-unit owners must confirm their strongest unit`;
+      case 'SELF_EMPLOYED_DOCS_MISSING':
+        return $localize`:@@product_rule.gate.self_employed_docs:Self-employed customers need a valid trade or practice licence`;
+      case 'BUSINESS_TOO_NEW':
+        return $localize`:@@product_rule.gate.business_years:How long a self-employed customer's business must have been running`;
       default:
         return $localize`:@@product_rule.gate.other:A condition on the answers`;
     }
@@ -630,7 +662,13 @@ export class ProductRuleEditorComponent {
 
   private factLabel(key: string): string {
     const fact = this.factByKey().get(key);
-    return fact?.label ?? key;
+    if (fact?.label) return fact.label;
+    // A DERIVED fact has no registry row and so no operator-authored label — the platform
+    // computes it, so the platform names it.
+    if (key === BANK_RELATIONSHIP_FACT_KEY) {
+      return $localize`:@@product_rule.fact.bank_relationship:whether they already bank here`;
+    }
+    return key;
   }
 
   private keyOptionsFor(

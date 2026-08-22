@@ -38,11 +38,13 @@ export class EligibilityConfigDto {
   @IsString({ each: true })
   acceptedEmploymentTypes!: string[];
 
-  @IsInt() @Min(18) @Max(80) ageMin!: number;
-  @IsInt() @Min(18) @Max(80) ageMax!: number;
+  // 90, not 80: one seeded partner underwrites a collateral product from 30 to 90, and a
+  // bound the operator cannot reach is a row the seed can plant and no admin can ever fix.
+  @IsInt() @Min(18) @Max(90) ageMin!: number;
+  @IsInt() @Min(18) @Max(90) ageMax!: number;
 
-  @IsOptional() @IsInt() @Min(18) @Max(80) ageMinSelfEmployed?: number;
-  @IsOptional() @IsInt() @Min(18) @Max(80) ageMaxSelfEmployed?: number;
+  @IsOptional() @IsInt() @Min(18) @Max(90) ageMinSelfEmployed?: number;
+  @IsOptional() @IsInt() @Min(18) @Max(90) ageMaxSelfEmployed?: number;
 
   @DecimalRange({ min: '0', max: '99999999999.99', precision: 13, scale: 2 })
   minMonthlyIncomeEGP!: string;

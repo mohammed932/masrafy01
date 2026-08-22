@@ -69,6 +69,8 @@ class GateReasonCodes {
   static const String contractTooOld = 'CONTRACT_TOO_OLD';
   static const String ownershipNotConfirmed = 'OWNERSHIP_NOT_CONFIRMED';
   static const String multiUnitNotConfirmed = 'MULTI_UNIT_NOT_CONFIRMED';
+  static const String selfEmployedDocsMissing = 'SELF_EMPLOYED_DOCS_MISSING';
+  static const String businessTooNew = 'BUSINESS_TOO_NEW';
   static const String notMet = 'GATE_NOT_MET';
 
   static const List<String> all = [
@@ -78,6 +80,8 @@ class GateReasonCodes {
     contractTooOld,
     ownershipNotConfirmed,
     multiUnitNotConfirmed,
+    selfEmployedDocsMissing,
+    businessTooNew,
     notMet,
   ];
 }
@@ -140,6 +144,10 @@ String gateReasonLabel(AppLocalizations l10n, String? gateReasonCode) {
       return l10n.gate_ownership_not_confirmed;
     case GateReasonCodes.multiUnitNotConfirmed:
       return l10n.gate_multi_unit_not_confirmed;
+    case GateReasonCodes.selfEmployedDocsMissing:
+      return l10n.gate_self_employed_docs_missing;
+    case GateReasonCodes.businessTooNew:
+      return l10n.gate_business_too_new;
     default:
       return l10n.gate_not_met;
   }

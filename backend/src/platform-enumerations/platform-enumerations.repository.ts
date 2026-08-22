@@ -33,7 +33,7 @@ export type EnumerationType =
    */
   | 'surrogate_fact'
   /**
-   * The COLLATERAL products' lists (compound-ownership guarantee, club-membership loan).
+   * The COLLATERAL products' lists (the compound-ownership guarantee).
    *
    * A `compound` row's `parentKey` names its class, and that is load-bearing rather than
    * decorative: a bank keys its cap table by the five CLASSES while the customer picks one of
@@ -42,8 +42,7 @@ export type EnumerationType =
    * would silently disconnect every compound from the table that prices it.
    */
   | 'compound_category'
-  | 'compound'
-  | 'club_class';
+  | 'compound';
 
 /**
  * Types whose members carry no scoping PARENT. `parentKey` is force-nulled on

@@ -50,6 +50,14 @@ export interface ApplicationOfferDto {
    */
   incomeOrigin?: string | null;
   incomeSurrogateStrategy?: string | null;
+  /**
+   * What the applicant's COLLATERAL supported at this program, frozen at match time.
+   *
+   * Present only for a program that prices off collateral (`incomeOrigin: 'ceiling'`).
+   * `null` on every other offer, and on any offer written before the column existed —
+   * the same read-the-absence rule the two fields above carry.
+   */
+  collateralCeilingEGP?: string | null;
 }
 
 export interface ApplicationListItemDto {

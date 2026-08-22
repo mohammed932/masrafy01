@@ -439,6 +439,7 @@ export const STEP_OPS = [
   'minOf',
   'maxOf',
   'coalesce',
+  'pickByFact',
 ] as const;
 
 export type StepOp = (typeof STEP_OPS)[number];
@@ -450,6 +451,8 @@ export interface RuleStep {
   op: StepOp;
   fact?: string;
   of?: ValueRef | ValueRef[];
+  /** `pickByFact`: which answer each entry of `of` belongs to, positionally. */
+  branches?: string[];
 }
 
 export interface ProductRuleOutput {
@@ -465,6 +468,8 @@ export const GATE_REASON_CODES = [
   'CONTRACT_TOO_OLD',
   'OWNERSHIP_NOT_CONFIRMED',
   'MULTI_UNIT_NOT_CONFIRMED',
+  'SELF_EMPLOYED_DOCS_MISSING',
+  'BUSINESS_TOO_NEW',
   'GATE_NOT_MET',
 ] as const;
 
@@ -541,6 +546,8 @@ export const STEP_OP_SHAPE: Readonly<Record<StepOp, IncomeMethodShape>> = {
   minOf: 'none',
   maxOf: 'none',
   coalesce: 'none',
+  // Two columns, and each is a step of its own with its own figures. Nothing to type here.
+  pickByFact: 'none',
 };
 
 /** The refs a step operates on, normalised. */
@@ -577,7 +584,9 @@ export function optionalStepIds(
 ): Set<string> {
   const ids = new Set<string>();
   for (const step of steps) {
-    if (step.op !== 'coalesce') continue;
+    // `pickByFact` for the same reason as `coalesce`: a bank that sells only the standard
+    // column leaves the other blank, and the step falls back to the one it configured.
+    if (step.op !== 'coalesce' && step.op !== 'pickByFact') continue;
     for (const ref of stepRefs(step)) if ('step' in ref) ids.add(ref.step);
   }
   for (const gate of gates) {

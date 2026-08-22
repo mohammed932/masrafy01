@@ -12,6 +12,8 @@
  * every caller passes the answer in.
  */
 
+import { BANK_RELATIONSHIP_CODES, BANK_RELATIONSHIP_FACT_KEY } from './bank-relationship';
+
 /**
  * The question types a fact may be bound to, and what each one makes the bank's table.
  *
@@ -44,4 +46,40 @@ export interface SurrogateFactBinding {
   key: string;
   questionCode: string;
   type: BindableQuestionType;
+}
+
+// ---------------------------------------------------------------------------
+// Derived facts
+// ---------------------------------------------------------------------------
+
+/**
+ * Facts the PLATFORM computes rather than the operator registering.
+ *
+ * A registry fact is one stored answer, read the same way by every program. A derived fact
+ * is computed per QUOTE, because its value depends on the program being quoted and not only
+ * on the applicant — `bank_relationship` is a different answer at every bank.
+ *
+ * Kept as a closed code list on purpose: each one is arithmetic the engine performs, so
+ * adding one is a code change with a test, exactly like adding an op. What is data is which
+ * COLUMN a bank fills, not whether the platform can work out who its own customers are.
+ *
+ * Consequences a caller must respect:
+ *   · save-time validation accepts these keys without a registry row (there is none);
+ *   · `surrogateFactsFromAnswers` must never emit one, or an operator who registered a
+ *     fact under the same key would let a customer answer overwrite a computed value.
+ */
+export const DERIVED_FACT_KEYS = [BANK_RELATIONSHIP_FACT_KEY] as const;
+
+export type DerivedFactKey = (typeof DERIVED_FACT_KEYS)[number];
+
+export function isDerivedFactKey(key: string): key is DerivedFactKey {
+  return (DERIVED_FACT_KEYS as readonly string[]).includes(key);
+}
+
+/**
+ * The option codes a derived choice fact can produce — the legal `branches` of a
+ * `pickByFact` step that reads it. `null` for a derived fact that is not a choice.
+ */
+export function derivedFactOptionCodes(key: string): readonly string[] | null {
+  return key === BANK_RELATIONSHIP_FACT_KEY ? BANK_RELATIONSHIP_CODES : null;
 }

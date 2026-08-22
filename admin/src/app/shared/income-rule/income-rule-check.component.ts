@@ -23,6 +23,7 @@ import {
   type RuleGate,
   type RuleStep,
 } from '@features/bank-programs/bank-programs.types';
+import { BANK_RELATIONSHIP_FACT_KEY } from '@core/surrogate-facts';
 
 /**
  * "Check this rule before anyone else sees it" (FR-026 – FR-031).
@@ -528,12 +529,38 @@ export class IncomeRuleCheckComponent {
       if (gate.kind === 'choice') keys.add(gate.fact);
       else {
         addRefs(gate.left);
+        // The right-hand side too — a gate may compare one ANSWER against another, and a
+        // fact reachable only from there is still a fact the panel has to be able to set.
+        if (gate.kind === 'number') addRefs(gate.right);
         if (gate.kind === 'numberByKey') keys.add(gate.keyedBy);
       }
     }
     const byKey = new Map(this.facts().map((f) => [f.key, f]));
     return [...keys].map((key) => {
       const fact = byKey.get(key);
+      // A DERIVED fact has no registry row: the platform computes it per quote, so the
+      // platform also supplies the label and the two answers it can take. Without this the
+      // panel would draw a free-text box for a closed two-option answer and the operator
+      // would have to know the codes.
+      if (fact === undefined && key === BANK_RELATIONSHIP_FACT_KEY) {
+        return {
+          key,
+          label: $localize`:@@income_rule_check.fact.bank_relationship:Already a customer of this bank`,
+          numeric: false,
+          options: [
+            {
+              code: 'ntb',
+              labelEn: 'No — new to this bank',
+              labelAr: $localize`:@@income_rule_check.fact.bank_relationship_ntb:No — new to this bank`,
+            },
+            {
+              code: 'xsell',
+              labelEn: 'Yes — an existing customer',
+              labelAr: $localize`:@@income_rule_check.fact.bank_relationship_xsell:Yes — an existing customer`,
+            },
+          ],
+        };
+      }
       return {
         key,
         label: fact?.label ?? key,

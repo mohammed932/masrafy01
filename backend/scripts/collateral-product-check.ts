@@ -24,7 +24,10 @@ import type { ApplicantProfile, IncomeAssumptionConfig, SurrogateFactValue } fro
 
 const prisma = new PrismaClient();
 
-/** §10 baseline: a 3 000 000 apartment in a Class-C compound, 20% paid, 5 years, no debts. */
+/**
+ * §10 baseline: a 3 000 000 apartment in a Class-C compound, 20% paid, 5 years, no debts —
+ * who also owns an 800 000 car, 3 to 7 years old, for the car product.
+ */
 const BASELINE_FACTS: Record<string, SurrogateFactValue> = {
   compound_unit_price: { kind: 'numeric', value: new Decimal('3000000') },
   compound_dp_percent: { kind: 'numeric', value: new Decimal('20') },
@@ -36,8 +39,17 @@ const BASELINE_FACTS: Record<string, SurrogateFactValue> = {
   compound_joint_unit: { kind: 'choice', optionCode: 'mine_only' },
   compound_multi_unit: { kind: 'choice', optionCode: 'no' },
   compound_best_unit_confirmed: { kind: 'choice', optionCode: 'yes' },
-  club_class: { kind: 'choice', optionCode: 'class_1' },
+  // The car product's two facts. The same applicant answers both packs, which is what a
+  // customer with a unit AND a car would do — each program reads only the facts its own rule
+  // names, so neither pack disturbs the other.
+  owned_car_value: { kind: 'numeric', value: new Decimal('800000') },
+  owned_car_age: { kind: 'choice', optionCode: '3_to_7' },
   employment_status: { kind: 'choice', optionCode: 'private_sector_employee' },
+  // A salaried applicant's honest answer to the two self-employed conditions. The gates that
+  // read them accept it, so turning them on costs this applicant nothing — but the answer has
+  // to be GIVEN: a gate reads a fact, and an unanswered fact is a stated refusal, not a pass.
+  self_employed_licence: { kind: 'choice', optionCode: 'not_self_employed' },
+  business_years: { kind: 'choice', optionCode: 'not_self_employed' },
 };
 
 /**
@@ -54,24 +66,56 @@ const BASELINE_FACTS: Record<string, SurrogateFactValue> = {
  * beside a right verdict. Here the gate refuses first and says which gate, and the applicant
  * who does clear it (the 40% variant below) gets exactly the 2 000 000.
  */
-type Expectation = { ceilingEGP: string } | { refusedWith: string };
+type Expectation =
+  | { ceilingEGP: string; maxAffordableEGP?: string }
+  | { refusedWith: string };
+
+/** What varies between the runs below: who the applicant is, and who they already bank with. */
+interface Variant {
+  dpPercent?: string;
+  /** Bank slugs the applicant already uses — the input to the derived `bank_relationship`. */
+  banks?: readonly string[];
+  facts?: Record<string, SurrogateFactValue>;
+  /**
+   * The applicant's own employment, which is NOT the same input as the `employment_status`
+   * FACT: the fact keys a bank's down-payment table, while this is what the debt-burden cap
+   * and the age band read. A run that changes one and not the other proves nothing.
+   */
+  employmentType?: string;
+}
 
 const BASELINE_EXPECTATION: Readonly<Record<string, Expectation>> = {
   'ABK-COMPOUND-GUARANTEE': { ceilingEGP: '2000000' },
   'EGB-COMPOUND-GUARANTEE': { refusedWith: 'DOWN_PAYMENT_BELOW_MIN' },
   'FAB-COMPOUND-GUARANTEE': { ceilingEGP: '1000000' },
   'CAE-COMPOUND-GUARANTEE': { ceilingEGP: '300000' },
-  'ABK-CLUB-MEMBERSHIP': { ceilingEGP: '500000' },
+  // 800 000 × 65% — ABK's own advance share for a 3-to-7-year-old car.
+  'ABK-CAR-OWNER': { ceilingEGP: '520000' },
 
   // The two banks that state nothing and take the catalog's defaults. They are here for the
   // same reason as the five above: a rule can be valid and a program live while the string
   // join between the catalog's step ids and a bank's `stepParams` keys silently fails — and
   // for an INHERITING bank there are no `stepParams` at all, so what is being proved is that
-  // `effectiveIncomeRule` puts the catalog's there. An apartment is 2 000 000 by the catalog's
-  // own `capByUnitType` table, and a class-1 membership 500 000 by its `ceiling` table, so
-  // each of these must land on exactly the figure its own-figures peer lands on.
+  // `effectiveIncomeRule` puts the catalog's there. Each must land on the figure the CATALOG
+  // states: an apartment is 2 000 000 by `capByUnitType`, and a 3-to-7-year-old car is 60% of
+  // 800 000 by `advancePct` —
+  // which is DELIBERATELY not ABK's 65%, so a run that silently read the bank's figures
+  // instead of the catalog's would show up as the wrong number rather than as a match.
   'NBE-COMPOUND-GUARANTEE': { ceilingEGP: '2000000' },
-  'CIB-CLUB-MEMBERSHIP': { ceilingEGP: '500000' },
+  'CIB-CAR-OWNER': { ceilingEGP: '480000' },
+};
+
+/**
+ * The self-employed applicant at CAE.
+ *
+ * The CEILING is the same 300 000 a salaried applicant gets — it is what the unit supports,
+ * and employment says nothing about that. What moves is the amount the bank will write:
+ * 40% applicable against the 50% baseline the ceiling was calibrated on is exactly 80% of it,
+ * and that identity is the whole reason a per-employment cap needed no third setting.
+ */
+const SELF_EMPLOYED_EXPECTATION: Expectation = {
+  ceilingEGP: '300000',
+  maxAffordableEGP: '240000',
 };
 
 /** The same unit with 40% paid — the applicant EGBank's own tier accepts. */
@@ -79,7 +123,8 @@ const HIGH_DOWN_PAYMENT_EXPECTATION: Readonly<Record<string, Expectation>> = {
   'EGB-COMPOUND-GUARANTEE': { ceilingEGP: '2000000' },
 };
 
-function profile(obligationsEGP: string, dpPercent = '20'): ApplicantProfile {
+function profile(obligationsEGP: string, variant: Variant = {}): ApplicantProfile {
+  const dpPercent = variant.dpPercent ?? '20';
   return {
     age: 35,
     loanPurpose: 'personal',
@@ -88,7 +133,7 @@ function profile(obligationsEGP: string, dpPercent = '20'): ApplicantProfile {
     preferredTenorMonths: 60,
     priority: 'lowest_installment',
     employment: {
-      employmentType: 'salaried',
+      employmentType: variant.employmentType ?? 'salaried',
       // ZERO. These products read no payslip, and a salary here would hide a rule that
       // silently fell back to it.
       monthlyNetSalaryEGP: new Decimal('0'),
@@ -102,8 +147,13 @@ function profile(obligationsEGP: string, dpPercent = '20'): ApplicantProfile {
       hasCurrentLoan: obligationsEGP !== '0',
       hasPreviousRejection: false,
     },
-    assets: { ownsCompoundProperty: true, clubMembership: true },
-    surrogateFacts: { ...BASELINE_FACTS, compound_dp_percent: { kind: 'numeric', value: new Decimal(dpPercent) } },
+    assets: { ownsCompoundProperty: true },
+    surrogateFacts: {
+      ...BASELINE_FACTS,
+      compound_dp_percent: { kind: 'numeric', value: new Decimal(dpPercent) },
+      ...(variant.facts ?? {}),
+    },
+    ...(variant.banks !== undefined ? { bankRelationshipSlugs: variant.banks } : {}),
   };
 }
 
@@ -144,15 +194,15 @@ async function main(): Promise<void> {
   const check = (
     label: string,
     code: string,
-    dpPercent: string,
     obligations: string,
     expected: Expectation | undefined,
+    variant: Variant = {},
   ): void => {
     const row = programs.find((p) => p.programCode === code);
     if (!row) return;
     const snapshot = toBankProgramSnapshot(row, catalogRules);
     const outcome = quoteProgram({
-      profile: profile(obligations, dpPercent),
+      profile: profile(obligations, variant),
       program: snapshot,
       parentKeyByValue,
     });
@@ -179,7 +229,14 @@ async function main(): Promise<void> {
     const ceiling = quote.collateralCeilingEGP?.toString() ?? '—';
     const wantCeiling =
       expected !== undefined && 'ceilingEGP' in expected ? expected.ceilingEGP : null;
-    const ok = wantCeiling === null || ceiling === wantCeiling;
+    // The affordable amount is pinned only where a run exists to prove something about it —
+    // a debt-burden cap that differs by employment shows up HERE and not in the ceiling,
+    // which is the same number for both applicants.
+    const wantMax =
+      expected !== undefined && 'ceilingEGP' in expected ? (expected.maxAffordableEGP ?? null) : null;
+    const ok =
+      (wantCeiling === null || ceiling === wantCeiling) &&
+      (wantMax === null || quote.maxAffordableAmountEGP.toString() === wantMax);
     if (!ok) failures += 1;
     console.log(
       `${ok ? '✓' : '✗'} ${label} → ceiling ${ceiling}` +
@@ -192,22 +249,72 @@ async function main(): Promise<void> {
     );
   };
 
-  console.log('— 3 000 000 apartment, 20% paid, 5 years —');
+  console.log('— 3 000 000 apartment, 20% paid, 5 years · an 800 000 car, 3–7 years old —');
   for (const code of Object.keys(BASELINE_EXPECTATION)) {
     const expected = BASELINE_EXPECTATION[code];
-    check(`${code} obl=0`, code, '20', '0', expected);
+    check(`${code} obl=0`, code, '0', expected);
     // With obligations the expectation is only "still explainable": the exact figure is pinned
     // by `ceiling-identity.spec.ts`, and repeating it here would be a second place to update
     // when a rate moves. A program the bank's own CONDITION already refuses refuses either
     // way, though — obligations change nothing about a down payment that is short.
     const withDebt = expected !== undefined && 'refusedWith' in expected ? expected : undefined;
-    check(`${code} obl=10000`, code, '20', '10000', withDebt);
+    check(`${code} obl=10000`, code, '10000', withDebt);
   }
 
   console.log('\n— the same unit with 40% paid —');
   for (const [code, expected] of Object.entries(HIGH_DOWN_PAYMENT_EXPECTATION)) {
-    check(`${code} dp=40%`, code, '40', '0', expected);
+    check(`${code} dp=40%`, code, '0', expected, { dpPercent: '40' });
   }
+
+  // ── The second column: a customer the bank already has ────────────────────
+  //
+  // Same unit, same money, one extra answer. Each of these reads a table the applicant
+  // above could not reach, which is what proves the `pickByFact` branch is wired to the
+  // right column — and NBE proves it through the CATALOG's default pair, having stated
+  // nothing itself.
+  console.log('\n— the same applicant, already a customer of the bank —');
+  check('ABK-COMPOUND-GUARANTEE villa top-up', 'ABK-COMPOUND-GUARANTEE', '0', { ceilingEGP: '4500000' }, {
+    banks: ['abk_egypt'],
+    facts: { compound_unit_type: { kind: 'choice', optionCode: 'villa' } },
+  });
+  check('FAB-COMPOUND-GUARANTEE x-sell', 'FAB-COMPOUND-GUARANTEE', '0', { ceilingEGP: '1500000' }, {
+    banks: ['fabmisr'],
+  });
+  check('NBE-COMPOUND-GUARANTEE top-up (catalog default)', 'NBE-COMPOUND-GUARANTEE', '0', { ceilingEGP: '3000000' }, {
+    banks: ['national_bank_of_egypt'],
+  });
+  // Banking elsewhere is not banking HERE: the same answer must leave ABK on its standard
+  // column, or the membership test is matching everybody.
+  check('ABK-COMPOUND-GUARANTEE customer of another bank', 'ABK-COMPOUND-GUARANTEE', '0', { ceilingEGP: '2000000' }, {
+    banks: ['fabmisr'],
+  });
+
+  // ── The self-employed applicant CAE prices differently ────────────────────
+  const SELF_EMPLOYED: Record<string, SurrogateFactValue> = {
+    employment_status: { kind: 'choice', optionCode: 'business_owner_company_owner' },
+    self_employed_licence: { kind: 'choice', optionCode: 'yes' },
+    business_years: { kind: 'choice', optionCode: 'two_or_more' },
+  };
+  const SELF_EMPLOYED_VARIANT: Variant = {
+    facts: SELF_EMPLOYED,
+    employmentType: 'business_owner_company_owner',
+  };
+  console.log('\n— a self-employed applicant —');
+  // The CEILING is the same 300 000 — it is what the unit supports, and employment does not
+  // change that. The 40% cap against a 50% baseline shows up in what the bank will actually
+  // write, so that is what is pinned.
+  check('CAE-COMPOUND-GUARANTEE self-employed', 'CAE-COMPOUND-GUARANTEE', '0', SELF_EMPLOYED_EXPECTATION, SELF_EMPLOYED_VARIANT);
+  // ABK caps every applicant at 50%, so the SAME applicant must be unaffected there — or the
+  // per-employment cap is being read by programs that never stated one.
+  check('ABK-COMPOUND-GUARANTEE self-employed (no split)', 'ABK-COMPOUND-GUARANTEE', '0', { ceilingEGP: '2000000', maxAffordableEGP: '2000000' }, SELF_EMPLOYED_VARIANT);
+  check('CAE-COMPOUND-GUARANTEE no licence', 'CAE-COMPOUND-GUARANTEE', '0', { refusedWith: 'SELF_EMPLOYED_DOCS_MISSING' }, {
+    ...SELF_EMPLOYED_VARIANT,
+    facts: { ...SELF_EMPLOYED, self_employed_licence: { kind: 'choice', optionCode: 'no' } },
+  });
+  check('CAE-COMPOUND-GUARANTEE business under 2 years', 'CAE-COMPOUND-GUARANTEE', '0', { refusedWith: 'BUSINESS_TOO_NEW' }, {
+    ...SELF_EMPLOYED_VARIANT,
+    facts: { ...SELF_EMPLOYED, business_years: { kind: 'choice', optionCode: 'less_than_2' } },
+  });
 
   console.log(failures === 0 ? '\nall collateral programs quote as expected.' : `\n${failures} problem(s).`);
   process.exitCode = failures === 0 ? 0 : 1;

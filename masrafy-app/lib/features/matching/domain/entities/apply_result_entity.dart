@@ -111,6 +111,7 @@ class OfferEntity extends Equatable {
     required this.matchReasons,
     this.feesBreakdown,
     this.maxLoanAvailableEGP,
+    this.collateralCeilingEGP,
     this.dbrPercent,
     this.dbrCapPercent,
     this.isSaved = false,
@@ -145,6 +146,13 @@ class OfferEntity extends Equatable {
   /// the amount requested, so it answers "how much can I get" even when the
   /// customer asked for less.
   final double? maxLoanAvailableEGP;
+
+  /// What the customer's COLLATERAL supports at this program — the ceiling the bank derived
+  /// from the unit or the membership, before their existing payments are taken off.
+  ///
+  /// Distinct from [maxLoanAvailableEGP] on purpose: that one is what their obligations leave
+  /// room for. Null unless the program prices off collateral, which is most of them.
+  final double? collateralCeilingEGP;
 
   /// Where this offer's installment lands on the debt-burden scale, and the cap
   /// it was measured against.
@@ -191,6 +199,7 @@ class OfferEntity extends Equatable {
         matchReasons,
         feesBreakdown,
         maxLoanAvailableEGP,
+        collateralCeilingEGP,
         dbrPercent,
         dbrCapPercent,
         isSaved,

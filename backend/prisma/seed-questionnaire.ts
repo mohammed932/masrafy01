@@ -17,6 +17,7 @@
  *    differ; the banking expert tunes them later in the admin editor.
  */
 import { Prisma, PrismaClient, type QuestionType } from '@prisma/client';
+import { bankSlug } from '../src/matching/pipeline/bank-relationship';
 import {
   DEBT_TYPES_QUESTION_CODE,
   DEBT_TYPE_NONE_OPTION,
@@ -76,7 +77,11 @@ async function bankOptions(client: PrismaClient): Promise<SeedOption[]> {
     select: { nameEnglish: true, nameArabic: true },
   });
   const opts: SeedOption[] = rows.map((b) => ({
-    code: slug(b.nameEnglish),
+    // The ENGINE's slug, not this file's generic one. A bank-backed answer is compared
+    // against `BankProgramSnapshot.bankName` at quote time (`bank_relationship`), so the
+    // two sides have to be one function — they agree today, and this is what keeps them
+    // agreeing when a bank is renamed.
+    code: bankSlug(b.nameEnglish),
     labelEn: b.nameEnglish,
     labelAr: b.nameArabic,
   }));
@@ -335,7 +340,7 @@ const YEARS_IN_PRACTICE_Q: SeedQuestion = {
 
 // ── COLLATERAL PRODUCTS — the gate, then the pack ─────────────────────────
 //
-// A collateral product (the compound-ownership guarantee, the club-membership loan) asks
+// A collateral product (the compound-ownership guarantee, the car-ownership loan) asks
 // about a thing the applicant OWNS, not about their salary. Two rules shape how:
 //
 //   1. **One cheap GATE in the funnel, required.** "Do you own a unit in a compound?" is a
@@ -507,23 +512,108 @@ const COMPOUND_BEST_UNIT_Q: SeedQuestion = {
   ],
 };
 
-const HAS_CLUB_MEMBERSHIP_Q: SeedQuestion = {
-  code: 'has_club_membership',
-  questionEn: 'Do you hold a sporting club membership?',
-  questionAr: 'هل لديك عضوية في نادٍ رياضي؟',
-  helperTextEn: 'A few banks lend against the membership itself.',
-  helperTextAr: 'بعض البنوك تمنح تمويلًا بضمان العضوية نفسها.',
+// Which banks the applicant already uses. ONE bank-agnostic question feeding a per-program
+// answer: several banks lend more to a customer they already have (a "top-up" or cross-sell
+// column), and that is a different answer at every bank. The engine derives it per program
+// in `bank-relationship.ts` — this question cannot ask it directly without asking once per
+// bank.
+//
+// MULTI_SELECT, so it is deliberately NOT bindable as a surrogate fact
+// (`BINDABLE_QUESTION_TYPES`): a multi-pick has no single value to look up. It is read as a
+// SET, which is the one thing a membership test needs.
+const EXISTING_BANK_RELATIONSHIPS_Q: SeedQuestion = {
+  code: 'existing_bank_relationships',
+  type: 'MULTI_SELECT',
+  questionEn: 'Which of these banks do you already use?',
+  questionAr: 'أي من هذه البنوك تتعامل معه بالفعل؟',
+  helperTextEn: 'Some banks offer their existing customers a higher limit.',
+  helperTextAr: 'بعض البنوك تمنح عملاءها الحاليين حدًا أعلى.',
+  isRequired: false,
+  optionsFromBanks: true,
+  options: [],
+};
+
+// The car the applicant ALREADY owns — the collateral, not the car being financed. The
+// `vehicle_*` questions in CAR's own first group ask about the purchase; these three ask what
+// the applicant can borrow AGAINST, which is a different car and a different answer.
+const OWNS_CAR_Q: SeedQuestion = {
+  code: 'owns_car',
+  questionEn: 'Do you own a car outright?',
+  questionAr: 'هل تمتلك سيارة خالصة الثمن؟',
+  helperTextEn: 'Some banks lend against the car itself, with no payslip.',
+  helperTextAr: 'بعض البنوك تمنح تمويلًا بضمان السيارة نفسها بدون مفردات راتب.',
+  // REQUIRED, like the compound gate: one tap, and it is what decides whether the two
+  // questions below are ever shown.
   options: YESNO(),
 };
 
-const CLUB_CLASS_Q: SeedQuestion = {
-  code: 'club_class',
-  questionEn: 'Which class is the membership?',
-  questionAr: 'العضوية من أي درجة؟',
+const OWNED_CAR_GATED = {
+  questionCode: 'owns_car',
+  operator: 'equals' as const,
+  optionCode: 'yes',
+};
+
+const OWNED_CAR_VALUE_Q: SeedQuestion = {
+  code: 'owned_car_value',
+  type: 'NUMERIC',
+  questionEn: 'About how much is your car worth today?',
+  questionAr: 'سيارتك تساوي كام تقريبًا دلوقتي؟',
+  helperTextEn: 'What it would sell for now, not what you paid for it.',
+  helperTextAr: 'سعرها في السوق الآن، وليس السعر الذي اشتريتها به.',
   isRequired: false,
-  enabledWhen: { questionCode: 'has_club_membership', operator: 'equals', optionCode: 'yes' },
-  optionsFromEnum: 'club_class',
+  enabledWhen: OWNED_CAR_GATED,
+  numeric: { minValue: '0', maxValue: '20000000', step: '10000', unitEn: 'EGP', unitAr: 'جنيه' },
   options: [],
+};
+
+const OWNED_CAR_AGE_Q: SeedQuestion = {
+  code: 'owned_car_age',
+  questionEn: 'How old is the car?',
+  questionAr: 'عمر السيارة كام؟',
+  helperTextEn: 'Banks advance a smaller share of the value on an older car.',
+  helperTextAr: 'البنوك تمنح نسبة أقل من قيمة السيارة كلما زاد عمرها.',
+  isRequired: false,
+  enabledWhen: OWNED_CAR_GATED,
+  // Buckets, not a model year: a bank's advance table is keyed by age band, so an exact year
+  // would be a key no table has.
+  options: [
+    { code: 'up_to_3', labelEn: 'Up to 3 years', labelAr: 'حتى 3 سنوات' },
+    { code: '3_to_7', labelEn: '3 to 7 years', labelAr: 'من 3 إلى 7 سنوات' },
+    { code: 'over_7', labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
+  ],
+};
+
+// The two self-employed conditions one bank applies. Asked of EVERYONE who owns a unit,
+// with "I'm not self-employed" as a real answer, because `enabledWhen` carries exactly one
+// option code and "shown to a business owner OR a freelancer" is two. The gates that read
+// them accept that answer as passing, so a salaried applicant is never refused for a
+// document a bank would not have asked them for.
+const SELF_EMPLOYED_LICENCE_Q: SeedQuestion = {
+  code: 'self_employed_licence',
+  questionEn: 'If you are self-employed, do you hold a valid trade or practice licence?',
+  questionAr: 'إذا كنت تعمل لحسابك، هل لديك رخصة تجارية أو رخصة مهنة سارية؟',
+  helperTextEn: 'A commercial register, a tax card, or a syndicate licence.',
+  helperTextAr: 'سجل تجاري أو بطاقة ضريبية أو كارنيه نقابة.',
+  isRequired: false,
+  enabledWhen: COMPOUND_GATED,
+  options: [
+    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
+    { code: 'no', labelEn: 'No', labelAr: 'لا' },
+    { code: 'not_self_employed', labelEn: "I'm not self-employed", labelAr: 'لا أعمل لحسابي' },
+  ],
+};
+
+const BUSINESS_YEARS_Q: SeedQuestion = {
+  code: 'business_years',
+  questionEn: 'How long has your business been running?',
+  questionAr: 'نشاطك التجاري قائم من مدة كام؟',
+  isRequired: false,
+  enabledWhen: COMPOUND_GATED,
+  options: [
+    { code: 'less_than_2', labelEn: 'Less than 2 years', labelAr: 'أقل من سنتين' },
+    { code: 'two_or_more', labelEn: '2 years or more', labelAr: 'سنتان أو أكثر' },
+    { code: 'not_self_employed', labelEn: "I'm not self-employed", labelAr: 'لا أعمل لحسابي' },
+  ],
 };
 
 /** The gates — cheap, required, and the only part every applicant sees. */
@@ -531,7 +621,7 @@ const COLLATERAL_GATES_GROUP: SeedGroup = {
   code: 'collateral_gates',
   titleEn: 'What you already own',
   titleAr: 'ما تملكه بالفعل',
-  questions: [OWNS_COMPOUND_UNIT_Q, HAS_CLUB_MEMBERSHIP_Q],
+  questions: [OWNS_COMPOUND_UNIT_Q, EXISTING_BANK_RELATIONSHIPS_Q],
 };
 
 /** The compound pack — one step, shown only to a compound owner. */
@@ -550,15 +640,24 @@ const COMPOUND_UNIT_GROUP: SeedGroup = {
     COMPOUND_JOINT_UNIT_Q,
     COMPOUND_MULTI_UNIT_Q,
     COMPOUND_BEST_UNIT_Q,
+    SELF_EMPLOYED_LICENCE_Q,
+    BUSINESS_YEARS_Q,
   ],
 };
 
-/** The club pack — one question, shown only to a member. */
-const CLUB_MEMBERSHIP_GROUP: SeedGroup = {
-  code: 'club_membership_details',
-  titleEn: 'About your club membership',
-  titleAr: 'تفاصيل عضوية النادي',
-  questions: [CLUB_CLASS_Q],
+/**
+ * The owned-car pack — the gate AND its two questions in ONE group, deliberately.
+ *
+ * The compound pack splits them because its gate rides `COLLATERAL_GATES_GROUP`, which two
+ * categories already carry. CAR carries neither group, and referencing the gates group here
+ * would drag `owns_compound_unit` into a category that has no compound pack to show for it.
+ * One group means a non-owner sees a single question and no extra step.
+ */
+const OWNED_CAR_GROUP: SeedGroup = {
+  code: 'owned_car_details',
+  titleEn: 'About the car you own',
+  titleAr: 'تفاصيل السيارة التي تمتلكها',
+  questions: [OWNS_CAR_Q, OWNED_CAR_VALUE_Q, OWNED_CAR_AGE_Q],
 };
 
 const EMPLOYER_APPROVED_Q: SeedQuestion = {
@@ -941,7 +1040,6 @@ const PERSONAL: CategoryConfig = {
     // questionnaire screen, never a release.
     COLLATERAL_GATES_GROUP,
     COMPOUND_UNIT_GROUP,
-    CLUB_MEMBERSHIP_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
@@ -1028,7 +1126,6 @@ const MORTGAGE: CategoryConfig = {
     // questionnaire screen, never a release.
     COLLATERAL_GATES_GROUP,
     COMPOUND_UNIT_GROUP,
-    CLUB_MEMBERSHIP_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
@@ -1106,6 +1203,10 @@ const CAR: CategoryConfig = {
         YEARS_IN_PRACTICE_Q,
       ],
     },
+    // The car-ownership loan is sold under `car` only. The reference here IS the assignment
+    // (`question_loan_category`, A33), so widening it to `personal` is an admin action on the
+    // questionnaire screen, never a release.
+    OWNED_CAR_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],

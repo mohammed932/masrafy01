@@ -90,6 +90,7 @@ import type {
 } from '../bank-programs.types';
 import {
   factKeyOf,
+  PRODUCT_RULE_STRATEGY,
   incomeMethodLabel,
   incomeMethodShape,
   type ProductRuleOutput,
@@ -4265,7 +4266,13 @@ export class BankProgramFormPage implements OnInit {
   private incomeRuleReviewRow(): ReviewRow {
     const draft = this.liveIncomeRuleDraft();
     const label = $localize`:@@bank_programs.review.income_rule:How the income is worked out`;
-    const parts: string[] = [incomeMethodLabel(draft.strategy, this.incomeFacts())];
+    // A step pipeline is not one of the eleven methods, so `incomeMethodLabel` returns
+    // nothing for it and this row used to open with a stray separator.
+    const method =
+      draft.strategy === PRODUCT_RULE_STRATEGY
+        ? $localize`:@@bank_programs.review.income_rule_steps:worked out step by step`
+        : incomeMethodLabel(draft.strategy, this.incomeFacts());
+    const parts: string[] = method === '' ? [] : [method];
     // WHOSE amounts, before how many rows. A reviewer glancing at this line needs to
     // know whether the figures are this bank's at all — "4 bands" on a program that
     // inherits describes the catalog's table, not a decision made on this screen.
@@ -4273,7 +4280,12 @@ export class BankProgramFormPage implements OnInit {
       parts.push($localize`:@@bank_programs.review.income_rule_catalog:catalog amounts`);
     } else {
       parts.push($localize`:@@bank_programs.review.income_rule_own:this bank's own amounts`);
-      const rows = this.incomeKeyTable().length || this.incomeBands().length;
+      // A pipeline's figures live per STEP, so counting the two legacy shapes reported
+      // "no rows" for a fully filled compound program.
+      const rows =
+        draft.strategy === PRODUCT_RULE_STRATEGY
+          ? this.stepFigureRowCount()
+          : this.incomeKeyTable().length || this.incomeBands().length;
       if (rows > 0) parts.push(this.countLabel(rows));
     }
     const binding = this.factBinding();
@@ -4283,6 +4295,27 @@ export class BankProgramFormPage implements OnInit {
       );
     }
     return { label, value: parts.join(' · ') };
+  }
+
+  /**
+   * How many FIGURES this bank has typed into a pipeline — rows, bands, scalars and bounds.
+   *
+   * One number over the whole `stepParams` map rather than per step: the review row answers
+   * "has this bank filled its side in", and a per-step breakdown is what the editor above is
+   * for.
+   */
+  private stepFigureRowCount(): number {
+    let count = 0;
+    for (const figures of Object.values(this.stepFigures())) {
+      count += figures.keyTable?.length ?? 0;
+      count += figures.bands?.length ?? 0;
+      if (figures.scalar?.value) count += 1;
+      if (figures.valueEGP) count += 1;
+      if (figures.minValue) count += 1;
+      if (figures.maxValue) count += 1;
+      if (figures.applies === true) count += 1;
+    }
+    return count;
   }
 
   /** Enum keys → their registry labels, joined for a review row. */
