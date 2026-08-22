@@ -567,6 +567,45 @@ describe('coalesce — the catalog offers derivations, the bank picks one', () =
     expect(violation).toMatchObject({ reason: 'coalesce_empty', stepId: 'capBasis' });
   });
 
+  /**
+   * The mixed-ref case, which the guard used to refuse.
+   *
+   * `multiUnitPct` and `jointPct` in the real compound rule are
+   * `coalesce [{step: …}, {const: '100'}]` — the literal IS "this bank states no policy",
+   * so there is nothing for the bank to leave blank and nothing to refuse. Testing only
+   * "are there any step refs" reported these as producing nothing, and refused all four
+   * live compound programs on their own save path while they were quoting correctly.
+   */
+  function withFallback(stepParams: IncomeAssumptionConfig['stepParams']): IncomeAssumptionConfig {
+    const base = frame({ capByType: { keyTable: [{ key: 'apartment', incomeEGP: '2000000' }] } });
+    return {
+      ...base,
+      steps: [
+        ...(base.steps ?? []),
+        // Stands in for the real rule's `jointFactor`/`multiUnitFactor`: an optional
+        // choice table whose coalesce falls back to a literal 100 percent.
+        { id: 'policyFactor', op: 'factChoiceTable', fact: 'compound_contract_year' },
+        { id: 'policyPct', op: 'coalesce', of: [{ step: 'policyFactor' }, { const: '100' }] },
+        { id: 'ceiling', op: 'percentOf', of: [{ step: 'capBasis' }, { step: 'policyPct' }] },
+      ],
+      output: { kind: 'maxAmount', from: 'ceiling', baselineDbrPercent: '50' },
+      stepParams: { ...base.stepParams, ...stepParams },
+    };
+  }
+
+  it('accepts a coalesce whose fallback is a literal, with the step left blank', async () => {
+    expect(await validateIncomeRule(withFallback({}), ctx())).toBeUndefined();
+  });
+
+  it('still checks the step in a literal-fallback coalesce when the bank DID fill it', async () => {
+    const violation = await validateIncomeRule(
+      withFallback({ policyFactor: { keyTable: [{ key: 'not_an_option', incomeEGP: '50' }] } }),
+      ctx(),
+    );
+    // Skipping the emptiness guard must not skip the figures.
+    expect(violation).toMatchObject({ kind: 'unknownKey', stepId: 'policyFactor' });
+  });
+
   it('still checks the rows of the derivation that IS filled', async () => {
     const violation = await validateIncomeRule(
       frame({ capByType: { keyTable: [{ key: 'penthouse', incomeEGP: '2000000' }] } }),

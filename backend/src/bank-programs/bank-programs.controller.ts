@@ -24,7 +24,10 @@ import { UpdateBankProgramDto } from './dto/update-bank-program.dto';
 import { ToggleBankProgramDto } from './dto/toggle-bank-program.dto';
 import { ListBankProgramsQuery } from './dto/list-bank-programs.query';
 import { DuplicateBankProgramDto } from './dto/duplicate-bank-program.dto';
-import { IncomeRuleCheckDto } from './dto/income-rule-check.dto';
+import {
+  IncomeRuleCheckDto,
+  IncomeRuleDraftCheckDto,
+} from './dto/income-rule-check.dto';
 import { SetProgramNameIncomeRuleDto } from './dto/program-name-income-rule.dto';
 import { BankProgramsService } from './bank-programs.service';
 import { BankProgramNotFoundException } from '../common/errors/domain.exceptions';
@@ -151,6 +154,27 @@ export class BankProgramsController {
     return ok(
       await this.service.setProgramNameIncomeRule(programNameKey, body, this.actor(user, req)),
     );
+  }
+
+  @Post('income-rule/check')
+  @Roles('super_admin', 'sales_manager')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Run a sample applicant against an UNSAVED program\u2019s income rule',
+    description:
+      'The CREATE wizard\u2019s panel. Identical to the sibling route below in every respect ' +
+      'except where the program comes from: there is no saved row yet, so the draft carries the ' +
+      'tenor, limits, pricing, eligibility and fees a quote reads. Same snapshot mapper, same ' +
+      'validator, same quoteProgram — a draft check and a saved check cannot disagree, because ' +
+      'they are one code path after the snapshot. Persists nothing (FR-029).',
+  })
+  @ApiResponse({ status: 200, description: 'Check result — figures, or a stated reason.' })
+  @ApiResponse({
+    status: 422,
+    description: 'The same rule codes the save path raises, plus VALIDATION_FAILED.',
+  })
+  async checkIncomeRuleDraft(@Body() body: IncomeRuleDraftCheckDto) {
+    return ok(await this.service.checkIncomeRuleDraft(body));
   }
 
   @Post(':programCode/income-rule/check')

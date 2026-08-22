@@ -706,6 +706,28 @@ export interface IncomeAssumptionConfig {
   bands?: IncomeBand[];
   scalar?: { value: string; unit: 'percent' | 'multiplier' };
 
+  // --- a step pipeline (`strategy: 'steps'`) ---
+  //
+  // Declared rather than cast at the point of use. Every reader of a catalog rule needs
+  // these, `StepFigures` has always declared them, and the three computeds that reach for
+  // them were each casting through a one-off structural type — four places agreeing by
+  // hand about a shape the API has always sent.
+
+  /**
+   * STRUCTURE, and the catalog name's alone: which steps run, in what order, against
+   * which facts. Merged onto every program under the name on every read; a bank program
+   * never stores it, and the API strips it if one is sent.
+   */
+  steps?: RuleStep[];
+  gates?: RuleGate[];
+  /** Whether the last step yields an income or a borrowing ceiling. */
+  output?: ProductRuleOutput;
+  /**
+   * FIGURES, by step id and gate id. The bank's half — and on a CATALOG rule, the
+   * defaults every bank under the name starts from.
+   */
+  stepParams?: Record<string, StepFigures>;
+
   /** FR-012 — DBR cap used when the recognised income came FROM this rule. (0, 100]. */
   dbrCapPercentOverride?: string;
   /** FR-013 — `required_document` keys this method demands. Warning only. */
@@ -907,6 +929,31 @@ export interface IncomeRuleCheckSample {
 
 export interface IncomeRuleCheckPayload {
   /** The ON-SCREEN draft, including unsaved edits (FR-028). */
+  incomeAssumption: IncomeAssumptionConfig;
+  sample: IncomeRuleCheckSample;
+}
+
+/**
+ * The un-saved program a draft check runs against — the four blobs a quote reads.
+ *
+ * Not the whole create payload: a quote reads no program code, no bank name and no Arabic
+ * friendly name, and a check that refused to run for want of one would be the disabled
+ * button it replaces.
+ */
+export interface IncomeRuleDraftProgram {
+  programNameKey?: string;
+  productCategory: string;
+  isShariaCompliant?: boolean;
+  programType: ProgramType;
+  tenor: TenorConfig;
+  loanLimits: LoanLimitsConfig;
+  pricing: PricingConfig;
+  eligibility: EligibilityConfig;
+  fees: FeesConfig;
+}
+
+export interface IncomeRuleDraftCheckPayload {
+  program: IncomeRuleDraftProgram;
   incomeAssumption: IncomeAssumptionConfig;
   sample: IncomeRuleCheckSample;
 }

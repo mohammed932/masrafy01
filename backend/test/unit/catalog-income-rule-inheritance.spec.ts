@@ -24,8 +24,10 @@ import { describe, expect, it } from 'vitest';
 import {
   effectiveIncomeRule,
   inheritsCatalogAmounts,
+  stripCatalogStructure,
   stripInheritedAmounts,
 } from '@/matching/pipeline/income-rule-inherit';
+import { stripForeignMethodConfig } from '@/bank-programs/validation/income-rule.validator';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
 import type { IncomeAssumptionConfig } from '@/matching/types';
 
@@ -189,5 +191,110 @@ describe('what gets STORED', () => {
     };
 
     expect(stripInheritedAmounts(own)).toBe(own);
+  });
+});
+
+/**
+ * The WHOLE persistence chain, not one link of it.
+ *
+ * Every case above calls `stripInheritedAmounts` directly, and that is precisely how the
+ * link came to be dropped on every real save while this file stayed green:
+ * `stripForeignMethodConfig` runs FIRST, rebuilds the rule from a fixed field list, and did
+ * not copy `amounts`. So by the time `stripInheritedAmounts` saw the blob the flag was
+ * already gone, it read `undefined` as "own amounts", and a program the operator had put on
+ * the catalog's table persisted as a bare `{ strategy }` — no table, no link, and
+ * `rule_unconfigured` from the resolver.
+ *
+ * These cases run the chain `persistableIncomeAssumption` runs, in its order, so a future
+ * strip inserted anywhere in it has to keep the flag alive to stay green.
+ */
+describe('the persistence chain keeps the link alive', () => {
+  /** Exactly what `persistableIncomeAssumption` composes. */
+  const persist = (config: IncomeAssumptionConfig): IncomeAssumptionConfig =>
+    stripCatalogStructure(
+      stripInheritedAmounts(
+        normalizeIncomeAssumption(stripForeignMethodConfig(config) as IncomeAssumptionConfig),
+      ),
+    );
+
+  it('persists the catalog link when the operator typed no figures', () => {
+    const stored = persist({ strategy: 'byProfessorRank', amounts: 'catalog' });
+
+    expect(stored.amounts).toBe('catalog');
+    expect(inheritsCatalogAmounts(stored)).toBe(true);
+    // And the engine finds the catalog's table through it.
+    expect(effectiveIncomeRule(stored, CATALOG).keyTable).toEqual(CATALOG.keyTable);
+  });
+
+  it('drops a pre-filled copy while keeping the link', () => {
+    // The screen seeds the editor from the catalog so the operator sees what they accept.
+    // Storing that copy would make the link a one-time snapshot.
+    const stored = persist({
+      strategy: 'byProfessorRank',
+      amounts: 'catalog',
+      keyTable: CATALOG.keyTable,
+    });
+
+    expect(stored.keyTable).toBeUndefined();
+    expect(stored.amounts).toBe('catalog');
+  });
+
+  it('persists the figures, and the detachment, once the operator edits one', () => {
+    const stored = persist({
+      strategy: 'byProfessorRank',
+      amounts: 'own',
+      keyTable: [
+        { key: 'lecturer', incomeEGP: '12000' },
+        { key: 'assistant_professor', incomeEGP: '18000' },
+        // The edited row. The other two must travel with it, or the bank saves a
+        // one-row table and quotes nothing for the ranks it dropped.
+        { key: 'professor', incomeEGP: '70000' },
+      ],
+    });
+
+    expect(stored.amounts).toBe('own');
+    expect(stored.keyTable).toHaveLength(3);
+    // A later catalog edit cannot reach it.
+    expect(effectiveIncomeRule(stored, CATALOG).keyTable?.[2]?.incomeEGP).toBe('70000');
+  });
+
+  it('leaves a row written before the field existed on its own figures', () => {
+    const stored = persist({
+      strategy: 'byProfessorRank',
+      keyTable: [{ key: 'professor', incomeEGP: '65000' }],
+    });
+
+    expect(stored.amounts).toBeUndefined();
+    expect(inheritsCatalogAmounts(stored)).toBe(false);
+    expect(stored.keyTable).toHaveLength(1);
+  });
+
+  it('keeps the link on a step pipeline, and stores neither half of the structure', () => {
+    const stored = persist({
+      strategy: 'steps',
+      amounts: 'catalog',
+      // Both the catalog's structure and a pre-filled figure copy are on the wire.
+      steps: [{ id: 'ceiling', op: 'constant' }],
+      stepParams: { ceiling: { valueEGP: '500000' } },
+    } as unknown as IncomeAssumptionConfig);
+
+    expect(stored.amounts).toBe('catalog');
+    // Structure is the catalog's (`stripCatalogStructure`), figures are inherited
+    // (`stripInheritedAmounts`) — a bank row stores neither.
+    expect(stored.steps).toBeUndefined();
+    expect(stored.stepParams).toBeUndefined();
+  });
+
+  it('stores a pipeline bank its own figures without the catalog structure', () => {
+    const stored = persist({
+      strategy: 'steps',
+      amounts: 'own',
+      steps: [{ id: 'ceiling', op: 'constant' }],
+      stepParams: { ceiling: { valueEGP: '500000' } },
+    } as unknown as IncomeAssumptionConfig);
+
+    expect(stored.amounts).toBe('own');
+    expect(stored.steps).toBeUndefined();
+    expect(stored.stepParams).toEqual({ ceiling: { valueEGP: '500000' } });
   });
 });

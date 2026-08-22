@@ -10,6 +10,7 @@ import type {
   DuplicateBankProgramPayload,
   IncomeAssumptionConfig,
   IncomeRuleCheckPayload,
+  IncomeRuleDraftCheckPayload,
   IncomeRuleCheckResult,
   ListBankProgramsQuery,
   ProgramNameIncomeRule,
@@ -121,6 +122,25 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.post<SuccessEnvelope<IncomeRuleCheckResult>>(
         `${this.base}/${encodeURIComponent(programCode)}/income-rule/check`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The same check, for a program that does not exist yet.
+   *
+   * The saved-program route reads the rate, term, limits and fees off the stored row. During
+   * CREATE there is no row, so the draft carries them — which it can, because pricing is
+   * step 4 and this panel is on step 5. Same server-side snapshot mapper and same
+   * `quoteProgram` after that, so the two routes cannot report different figures.
+   */
+  async checkIncomeRuleDraft(
+    payload: IncomeRuleDraftCheckPayload,
+  ): Promise<SuccessEnvelope<IncomeRuleCheckResult>> {
+    return firstValueFrom(
+      this.http.post<SuccessEnvelope<IncomeRuleCheckResult>>(
+        `${this.base}/income-rule/check`,
         payload,
       ),
     );

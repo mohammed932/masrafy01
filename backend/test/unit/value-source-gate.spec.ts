@@ -205,8 +205,17 @@ describe('pruning — deleting a marked number is a legal edit', () => {
 });
 
 // --- 2. the refusal names EVERY path -----------------------------------------
+//
+// RETAINED, and no longer wired to anything. FR-033's activation block was removed with
+// the marker control it depended on: the control only ever existed on the income-rule
+// tables, so once it was gone a stored marker could not be cleared by anyone and the gate
+// would have frozen three programs off air for good.
+//
+// These cases stay because the helpers do — the column, the DTO field and the path
+// validator are all still there, so bringing the gate back is a UI change rather than a
+// migration, and this is the spec that would still hold it honest.
 
-describe('FR-033 — going live is refused, naming every estimated value', () => {
+describe('estimated-path helpers (gate retired, helpers retained)', () => {
   const map: ValueSourceMap = {
     'pricing.baseRatePercent': ESTIMATED,
     'incomeAssumption.keyTable.general.incomeEGP': ESTIMATED,
@@ -233,8 +242,10 @@ describe('FR-033 — going live is refused, naming every estimated value', () =>
 });
 
 // --- 3. forced deactivation, and only on a NEW marker ------------------------
+//
+// Also retired with the control. Kept for the same reason as the block above.
 
-describe('FR-035 — a NEW estimate on a live program is what deactivates it', () => {
+describe('newly-estimated diffing (deactivation retired, helper retained)', () => {
   it('reports the newly added path', () => {
     const added = newlyEstimatedPaths({
       before: { 'pricing.baseRatePercent': ESTIMATED },

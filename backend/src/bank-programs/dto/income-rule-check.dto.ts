@@ -12,6 +12,12 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IncomeAssumptionConfigDto } from './sub-configs/income-assumption-config.dto';
+import { TenorConfigDto } from './sub-configs/tenor-config.dto';
+import { LoanLimitsConfigDto } from './sub-configs/loan-limits-config.dto';
+import { PricingConfigDto } from './sub-configs/pricing-config.dto';
+import { EligibilityConfigDto } from './sub-configs/eligibility-config.dto';
+import { FeesConfigDto } from './sub-configs/fees-config.dto';
+import { IsBoolean, IsIn } from 'class-validator';
 
 /**
  * Feature 011 / FR-026 – FR-031 — the admin rule-check body.
@@ -184,6 +190,90 @@ export class IncomeRuleCheckDto {
    * runs, so a rule that could not be saved does not silently "work" here — the
    * panel's whole promise is that what it shows is what a customer would get.
    */
+  @ApiProperty({ type: () => IncomeAssumptionConfigDto })
+  @ValidateNested()
+  @Type(() => IncomeAssumptionConfigDto)
+  incomeAssumption!: IncomeAssumptionConfigDto;
+
+  @ApiProperty({ type: () => IncomeRuleCheckSampleDto })
+  @ValidateNested()
+  @Type(() => IncomeRuleCheckSampleDto)
+  sample!: IncomeRuleCheckSampleDto;
+}
+
+/**
+ * The un-saved program a draft check is run against.
+ *
+ * The saved-program check overlays the on-screen rule onto a STORED row, which is the right
+ * thing when there is one — the figures the panel shows are then this program's own. During
+ * CREATE there is no row, and the panel was simply disabled: the operator typed a whole
+ * table and could not find out what it paid until after saving it.
+ *
+ * So the draft carries the four blobs a quote actually reads. It is the wizard's own form
+ * value, and every field here is already filled by the time step 5 renders — pricing is
+ * step 4 — so nothing is being asked of the operator out of order.
+ *
+ * Deliberately NOT `CreateBankProgramDto`: that one demands a program code, a bank name and
+ * a friendly name in two languages, none of which a quote reads, and half of which the
+ * operator may not have settled on yet. A check that refused to run for want of an Arabic
+ * name would be the dead button again with extra steps.
+ *
+ * Co-located with the root DTO and the sample class, as the file's own note requires.
+ */
+export class IncomeRuleDraftProgramDto {
+  @ApiPropertyOptional({ example: 'professor', description: 'Catalog name, for the rule merge.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  programNameKey?: string;
+
+  @ApiProperty({ example: 'personal' })
+  @IsString()
+  @MaxLength(32)
+  productCategory!: string;
+
+  @ApiPropertyOptional({ example: false })
+  @IsOptional()
+  @IsBoolean()
+  isShariaCompliant?: boolean;
+
+  @ApiProperty({ enum: ['income_proof', 'income_surrogate'] })
+  @IsIn(['income_proof', 'income_surrogate'])
+  programType!: 'income_proof' | 'income_surrogate';
+
+  @ApiProperty({ type: () => TenorConfigDto })
+  @ValidateNested()
+  @Type(() => TenorConfigDto)
+  tenor!: TenorConfigDto;
+
+  @ApiProperty({ type: () => LoanLimitsConfigDto })
+  @ValidateNested()
+  @Type(() => LoanLimitsConfigDto)
+  loanLimits!: LoanLimitsConfigDto;
+
+  @ApiProperty({ type: () => PricingConfigDto })
+  @ValidateNested()
+  @Type(() => PricingConfigDto)
+  pricing!: PricingConfigDto;
+
+  @ApiProperty({ type: () => EligibilityConfigDto })
+  @ValidateNested()
+  @Type(() => EligibilityConfigDto)
+  eligibility!: EligibilityConfigDto;
+
+  @ApiProperty({ type: () => FeesConfigDto })
+  @ValidateNested()
+  @Type(() => FeesConfigDto)
+  fees!: FeesConfigDto;
+}
+
+/** A rule check with no saved program behind it — the CREATE wizard's panel. */
+export class IncomeRuleDraftCheckDto {
+  @ApiProperty({ type: () => IncomeRuleDraftProgramDto })
+  @ValidateNested()
+  @Type(() => IncomeRuleDraftProgramDto)
+  program!: IncomeRuleDraftProgramDto;
+
   @ApiProperty({ type: () => IncomeAssumptionConfigDto })
   @ValidateNested()
   @Type(() => IncomeAssumptionConfigDto)

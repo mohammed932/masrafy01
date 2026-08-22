@@ -5,7 +5,6 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { DeleteOutline, PlusOutline } from '@ant-design/icons-angular/icons';
 import { MoneyInputDirective } from '@core/directives/money-input.directive';
-import { ValueSourceMarkerComponent } from '@features/bank-programs/value-source/value-source-marker.component';
 import type { IncomeBand } from '@features/bank-programs/bank-programs.types';
 import { incomeBandsErrorFor, type IncomeBandsError } from './income-rule.rules';
 
@@ -40,7 +39,6 @@ export { incomeBandsErrorFor, type IncomeBandsError };
     NzIconModule,
     NzInputModule,
     MoneyInputDirective,
-    ValueSourceMarkerComponent,
   ],
   providers: [provideNzIconsPatch([PlusOutline, DeleteOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -126,15 +124,6 @@ export { incomeBandsErrorFor, type IncomeBandsError };
               (ngModelChange)="setIncome($index, $event)"
               [ngModelOptions]="{ standalone: true }"
             />
-
-            <!-- Marks the band's INCOME. The edges are the bank's own thresholds and
-                 are marked separately if ever needed; the income is the figure that
-                 gets guessed. -->
-            <app-value-source-marker
-              [compact]="true"
-              [estimated]="isEstimated($index)"
-              (estimatedChange)="markEstimated($index, $event)"
-            ></app-value-source-marker>
 
             @if (bands().length > 1) {
               <button
@@ -346,36 +335,6 @@ export class IncomeBandsEditorComponent {
   /** Display unit of the underlying value ("years", "EGP") — label only. */
   readonly unit = input<string | null>(null);
 
-  /**
-   * Which band INCOMES are team-estimated, by index.
-   *
-   * Indexed, unlike the key table: a band has no natural identity beyond its position,
-   * and the stored path is `incomeAssumption.bands.<index>.incomeEGP`. An index is
-   * only a stable name for as long as the rows above it stay put, which is why every
-   * structural edit is ANNOUNCED — see `structureChange`.
-   */
-  readonly estimatedIndexes = input<ReadonlySet<number>>(new Set());
-  readonly estimatedIndexesChange = output<{ index: number; estimated: boolean }>();
-
-  /**
-   * A structural edit, so the host can move its index-keyed markers with the rows.
-   *
-   * Without this the incomes moved and the markers did not: removing a band left the
-   * "we estimated this" flag pointing at whatever row inherited the index — a number
-   * the bank DID state — while the guessed one went unmarked and the program could go
-   * live on it. `addBand` needs no event: it splits the LAST row, so the new row is
-   * appended and no existing index shifts.
-   */
-  readonly structureChange = output<{ kind: 'remove'; index: number } | { kind: 'reset' }>();
-
-  isEstimated(index: number): boolean {
-    return this.estimatedIndexes().has(index);
-  }
-
-  markEstimated(index: number, estimated: boolean): void {
-    this.estimatedIndexesChange.emit({ index, estimated });
-  }
-
   readonly fromAriaLabel = $localize`:@@bank_programs.income.aria.band_from:Band starts at`;
   readonly toAriaLabel = $localize`:@@bank_programs.income.aria.band_to:Band ends at — also the next band's start`;
   readonly lastToAriaLabel = $localize`:@@bank_programs.income.aria.band_last_to:Top band ends at — leave empty for no maximum`;
@@ -397,12 +356,10 @@ export class IncomeBandsEditorComponent {
       { fromInclusive: '', toExclusive: '', incomeEGP: '' },
       { fromInclusive: '', toExclusive: null, incomeEGP: '' },
     ]);
-    this.structureChange.emit({ kind: 'reset' });
   }
 
   clear(): void {
     this.bands.set([]);
-    this.structureChange.emit({ kind: 'reset' });
   }
 
   /**
@@ -443,7 +400,6 @@ export class IncomeBandsEditorComponent {
       remaining[remaining.length - 1] = { ...newLast, toExclusive: removed?.toExclusive ?? null };
     }
     this.bands.set(relink(remaining));
-    this.structureChange.emit({ kind: 'remove', index });
   }
 
   setEdge(index: number, value: string): void {

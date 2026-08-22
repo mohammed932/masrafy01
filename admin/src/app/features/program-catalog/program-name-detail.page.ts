@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -39,8 +39,8 @@ import {
   type IncomeAssumptionStrategy,
   type IncomeBand,
   type IncomeKeyTableRow,
+  type StepFigures,
   type ProgramNameIncomeRule,
-  type ValueSourceMap,
   type ProductRuleOutput,
   type RuleGate,
   type RuleStep,
@@ -233,18 +233,15 @@ interface QuestionRow {
                 variant="catalog"
                 [group]="ruleGroup"
                 [keyTable]="ruleKeyTable()"
-                (keyTableChange)="ruleKeyTable.set($event)"
+                (keyTableChange)="onRuleKeyTable($event)"
                 [bands]="ruleBands()"
-                (bandsChange)="ruleBands.set($event)"
-                [estimatedKeys]="ruleEstimatedKeys()"
-                (estimatedKeyChange)="toggleRuleEstimatedKey($event)"
-                [estimatedBandIndexes]="ruleEstimatedBands()"
-                (estimatedBandChange)="toggleRuleEstimatedBand($event)"
-                (keyStructureChange)="onRuleKeyStructureChange($event)"
-                (bandStructureChange)="onRuleBandStructureChange($event)"
+                (bandsChange)="onRuleBands($event)"
                 [ruleSteps]="ruleSteps()"
                 [ruleGates]="ruleGates()"
                 [ruleOutput]="ruleOutput()"
+                [stepFigures]="ruleStepFigures()"
+                (stepFiguresChange)="onRuleStepFigures($event)"
+                (stepFiguresTouched)="markRuleDirty()"
               ></app-income-assumption-section>
 
               <!-- Who reads this. Quiet by design: it is a fact, not a warning — and it
@@ -1467,8 +1464,24 @@ export class ProgramNameDetailPage implements OnInit {
   /** The two table shapes are signals, for the reason the wizard states: one owner. */
   protected readonly ruleKeyTable = signal<IncomeKeyTableRow[]>([]);
   protected readonly ruleBands = signal<IncomeBand[]>([]);
+  /**
+   * A pipeline product's DEFAULT figures — the numbers every bank filed under this name
+   * starts from. The steps themselves stay the catalog's to state and nobody's to author
+   * here; these are the amounts, which is the half a bank can go on to override.
+   */
+  protected readonly ruleStepFigures = signal<Record<string, StepFigures>>({});
+
+  /**
+   * The method picker and the scalar field are FORM controls, not signals, so nothing was
+   * watching them: picking a different proof, or typing the percentage a bank starts from,
+   * left the block silently un-saveable. Subscribed rather than turned into a computed
+   * because the flag is a fact about what the operator DID, and only they can raise it —
+   * `absorbRule` resets the group with `emitEvent: false` so a page load never does.
+   */
+  private readonly ruleEdits = this.ruleGroup.valueChanges
+    .pipe(takeUntilDestroyed())
+    .subscribe(() => this.markRuleDirty());
   /** Estimate markers, rooted at `incomeRule.` — the paths the server validates. */
-  protected readonly ruleValueSources = signal<ValueSourceMap>({});
 
   protected readonly tabsAria = $localize`:@@pnd.tabs_aria:Loan types`;
   protected readonly searchAria = $localize`:@@pnd.search_aria:Search questions`;
@@ -1883,29 +1896,6 @@ export class ProgramNameDetailPage implements OnInit {
 
   // --- The ONE income proof --------------------------------------------------
 
-  /**
-   * Estimate markers, split the way the two editors want them. Rooted at `incomeRule.`
-   * because that is the path the SERVER validates — the same key-addressed shape a bank
-   * program's markers use, so a marker means the same figure on both screens.
-   */
-  protected readonly ruleEstimatedKeys = computed<ReadonlySet<string>>(() => {
-    const keys = new Set<string>();
-    for (const path of Object.keys(this.ruleValueSources())) {
-      const match = /^incomeRule\.keyTable\.(.+)\.incomeEGP$/.exec(path);
-      if (match?.[1]) keys.add(match[1]);
-    }
-    return keys;
-  });
-
-  protected readonly ruleEstimatedBands = computed<ReadonlySet<number>>(() => {
-    const indexes = new Set<number>();
-    for (const path of Object.keys(this.ruleValueSources())) {
-      const match = /^incomeRule\.bands\.(\d+)\.incomeEGP$/.exec(path);
-      if (match?.[1] !== undefined) indexes.add(Number(match[1]));
-    }
-    return indexes;
-  });
-
   /** The surrogate programs reading this name, split by whose figures they use. */
   protected readonly ruleReaders = computed(() => this.rule()?.programs ?? []);
 
@@ -1918,83 +1908,30 @@ export class ProgramNameDetailPage implements OnInit {
     return $localize`:@@pnd.rule_readers:${readers.length}:total: bank program(s) read this figure · ${inherited}:inherited: take these amounts · ${own}:own: set their own`;
   });
 
-  protected toggleRuleEstimatedKey(event: { key: string; estimated: boolean }): void {
-    this.setRuleMarker(`incomeRule.keyTable.${event.key}.incomeEGP`, event.estimated);
-  }
-
-  protected toggleRuleEstimatedBand(event: { index: number; estimated: boolean }): void {
-    this.setRuleMarker(`incomeRule.bands.${event.index}.incomeEGP`, event.estimated);
-  }
-
-  private setRuleMarker(path: string, on: boolean): void {
-    this.ruleValueSources.update((map) => {
-      const next = { ...map };
-      if (on) next[path] = 'team_estimated';
-      else delete next[path];
-      return next;
-    });
-    this.markRuleDirty();
-  }
-
   /**
-   * A key-table row was renamed, removed, or the whole table reset — so the markers
-   * addressed BY key have to move with it.
+   * Every typed edit routes through one of these three.
    *
-   * Without this a rename left the marker on the old key: the tick disappeared from the
-   * screen while the map still carried it, and the server would then reject the save
-   * for a path the operator could no longer see.
+   * They exist because the bindings used to be bare `.set()` calls, and `ruleDirty` was
+   * only ever raised by the marker and structure handlers — so typing an income amount,
+   * or changing the method, left the Save button unrendered and the operator with no way
+   * to keep what they had just written. The figures are the whole point of the block.
    */
-  protected onRuleKeyStructureChange(
-    event:
-      | { kind: 'rename'; from: string; to: string }
-      | { kind: 'remove'; key: string }
-      | { kind: 'reset' },
-  ): void {
-    this.ruleValueSources.update((map) => {
-      if (event.kind === 'reset') return {};
-      const next = { ...map };
-      const path = (key: string): string => `incomeRule.keyTable.${key}.incomeEGP`;
-      if (event.kind === 'remove') {
-        delete next[path(event.key)];
-        return next;
-      }
-      if (next[path(event.from)] !== undefined) {
-        delete next[path(event.from)];
-        next[path(event.to)] = 'team_estimated';
-      }
-      return next;
-    });
+  protected onRuleKeyTable(rows: IncomeKeyTableRow[]): void {
+    this.ruleKeyTable.set(rows);
     this.markRuleDirty();
   }
 
-  /**
-   * A band was removed, or the table reset. Bands are addressed by INDEX, so removing
-   * one shifts every marker after it — left alone, a tick would silently jump to the
-   * neighbouring figure, which is worse than losing it.
-   */
-  protected onRuleBandStructureChange(
-    event: { kind: 'remove'; index: number } | { kind: 'reset' },
-  ): void {
-    this.ruleValueSources.update((map) => {
-      if (event.kind === 'reset') return {};
-      const next: ValueSourceMap = {};
-      for (const [path, value] of Object.entries(map)) {
-        const match = /^incomeRule\.bands\.(\d+)\.incomeEGP$/.exec(path);
-        if (!match?.[1]) {
-          next[path] = value;
-          continue;
-        }
-        const index = Number(match[1]);
-        if (index === event.index) continue;
-        const shifted = index > event.index ? index - 1 : index;
-        next[`incomeRule.bands.${shifted}.incomeEGP`] = value;
-      }
-      return next;
-    });
+  protected onRuleBands(bands: IncomeBand[]): void {
+    this.ruleBands.set(bands);
     this.markRuleDirty();
   }
 
-  private markRuleDirty(): void {
+  protected onRuleStepFigures(figures: Record<string, StepFigures>): void {
+    this.ruleStepFigures.set(figures);
+    this.markRuleDirty();
+  }
+
+  protected markRuleDirty(): void {
     this.ruleTouched.set(true);
     this.ruleDirty.set(true);
     // Cleared on the first edit: a refusal the operator has since acted on must not keep
@@ -2029,10 +1966,28 @@ export class ProgramNameDetailPage implements OnInit {
       dbrCapPercentOverride: null,
       requiredDocuments: [],
       combinationRule: null,
-    });
+      // `emitEvent: false`, because the valueChanges subscription in the constructor is
+      // what makes the method picker and the scalar field raise the Save button. Loading a
+      // rule is not an edit, and without this every page load would offer to save what it
+      // had just read.
+    }, { emitEvent: false });
     this.ruleKeyTable.set(rule?.keyTable ? [...rule.keyTable] : []);
     this.ruleBands.set(rule?.bands ? [...rule.bands] : []);
-    this.ruleValueSources.set({ ...data.valueSources });
+    // Cloned a level deeper than the two tables: a step's figures are themselves a table
+    // or a pair of bounds, and handing the editor the response's own arrays would have it
+    // mutate the loaded snapshot in place.
+    this.ruleStepFigures.set(
+      Object.fromEntries(
+        Object.entries(rule?.stepParams ?? {}).map(([id, figures]) => [
+          id,
+          {
+            ...figures,
+            ...(figures.keyTable ? { keyTable: figures.keyTable.map((row) => ({ ...row })) } : {}),
+            ...(figures.bands ? { bands: figures.bands.map((band) => ({ ...band })) } : {}),
+          },
+        ]),
+      ),
+    );
     this.ruleTouched.set(false);
     this.ruleDirty.set(false);
   }
@@ -2089,7 +2044,10 @@ export class ProgramNameDetailPage implements OnInit {
         incomeRule: this.ruleFromForm(strategy),
         // Sent even when empty: `{}` is the statement "nothing here is a guess", and
         // omitting it would leave a previously-flagged figure flagged for good.
-        valueSources: this.ruleValueSources(),
+        // Always empty: this screen has no control that marks a figure any more. Sent
+        // rather than omitted so a rule still carrying a marker from before the control
+        // was removed is cleared rather than kept flagged for good.
+        valueSources: {},
       });
       this.absorbRule(data);
     } catch (err) {
@@ -2115,6 +2073,17 @@ export class ProgramNameDetailPage implements OnInit {
       ...(shape === 'bands' ? { bands: this.ruleBands() } : {}),
       ...(shape === 'scalar' && scalar.value
         ? { scalar: { value: scalar.value, unit: scalar.unit } }
+        : {}),
+      // A pipeline's DEFAULT figures. Sent under the same shape gate as the other three,
+      // so switching a name off a pipeline does not carry its step figures along.
+      //
+      // The STRUCTURE is deliberately not sent: `steps`/`gates`/`output` are what the
+      // catalog already stores and this screen cannot author, so re-posting the copy it
+      // rendered would make the save able to destroy the very thing it is editing.
+      // Omitted entirely when empty, because `{}` on the wire is a rule that offers no
+      // defaults, not a rule that leaves them untouched.
+      ...(shape === 'steps' && Object.keys(this.ruleStepFigures()).length > 0
+        ? { stepParams: this.ruleStepFigures() }
         : {}),
     };
   }

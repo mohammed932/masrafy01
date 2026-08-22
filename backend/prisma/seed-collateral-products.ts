@@ -298,6 +298,40 @@ const COMPOUND_RULE: IncomeAssumptionConfig = {
     // an applicant tighter gets `applicable ÷ 50` of the ceiling with no third setting.
     baselineDbrPercent: '50',
   },
+
+  // ─── The DEFAULTS a new bank starts from ─────────────────────────────────────
+  //
+  // ONE derivation, and `capByUnitType` specifically. The frame offers four because the
+  // four banks selling this product each derive the ceiling from something different; the
+  // catalog has to pick the one a bank that has stated nothing yet can still quote off.
+  //
+  //   · `capByUnitType` reads a closed three-option answer every applicant gives, and
+  //     `validateStepFigures` checks its keys against the bound question's own options —
+  //     so a stale key here is refused at save rather than discovered as a silent
+  //     no_matching_row on a customer.
+  //   · `capByCompoundClass` is a `factParentTable`, whose parent keys are deliberately
+  //     NOT validated. A default with a dead class would save clean and then quote nothing
+  //     for everyone — the worst of the four.
+  //   · `capByPaidBand` and `capByPaidPercent` would have the platform asserting an amount
+  //     tier, or a lending percentage, that no bank stated.
+  //
+  // No GATE defaults, for the same reason inverted: a gate inherited by every new bank is
+  // the platform asserting credit policy on its behalf, and a failed gate is a stated
+  // refusal — an inherited example has to quote, not explain itself.
+  //
+  // No `multiUnitFactor` / `jointFactor` defaults either: `{const: '100'}` already IS the
+  // "this bank has no such policy" answer in the structure above, so a `{no:100, yes:100}`
+  // table would be a second copy of it, and a bank taking its own figures would then have
+  // to DELETE rows to say it has no policy.
+  stepParams: {
+    capByUnitType: {
+      keyTable: [
+        { key: 'apartment', incomeEGP: '2000000.00' },
+        { key: 'twin_townhouse', incomeEGP: '3000000.00' },
+        { key: 'villa', incomeEGP: '4000000.00' },
+      ],
+    },
+  },
 };
 
 /**
@@ -309,6 +343,17 @@ const CLUB_RULE: IncomeAssumptionConfig = {
   steps: [{ id: 'ceiling', op: 'factChoiceTable', fact: 'club_class' }],
   gates: [],
   output: { kind: 'maxAmount', from: 'ceiling', baselineDbrPercent: '50' },
+  // One step, so the default IS the product: a bank inheriting these quotes the same
+  // ceilings ABK does, and typing over one row is what makes them its own.
+  stepParams: {
+    ceiling: {
+      keyTable: [
+        { key: 'class_1', incomeEGP: '500000.00' },
+        { key: 'class_2', incomeEGP: '300000.00' },
+        { key: 'class_3', incomeEGP: '150000.00' },
+      ],
+    },
+  },
 };
 
 interface CatalogProduct {
@@ -390,7 +435,16 @@ interface BankFigures {
   dbrCapPercent: string;
   requiredDocuments?: string[];
   operatorNotes?: string;
-  stepParams: StepParams;
+  /**
+   * Whose figures this bank quotes off.
+   *
+   * Absent means `'own'`, which is every bank that states its own derivation. `'catalog'` is
+   * a bank that has signed up to the product and stated nothing but a rate and a limit —
+   * it quotes off the name's default figures, and stays in step when they change.
+   */
+  amounts?: 'catalog' | 'own';
+  /** Omitted entirely by a bank on catalog amounts: the server would strip it anyway. */
+  stepParams?: StepParams;
 }
 
 /**
@@ -575,6 +629,46 @@ const BANK_FIGURES: readonly BankFigures[] = [
       },
     },
   },
+
+  // ─── Two banks that stated nothing but a rate and a limit ────────────────────
+  //
+  // The other five each derive the ceiling from something of their own, which is the hard
+  // case and the reason the frame exists. These two are the ORDINARY case: a bank signs up
+  // to a product the platform already sells, takes the catalog's figures, and is configured
+  // in a rate and a tenor. No `stepParams` at all — the link IS the configuration, and it
+  // keeps them in step when the catalog's defaults move.
+  {
+    bankNameEnglish: 'National Bank of Egypt',
+    programCode: 'NBE-COMPOUND-GUARANTEE',
+    friendlyName: 'Compound Unit Guarantee',
+    friendlyNameAr: 'ضمان وحدة بكمبوند',
+    catalogKey: 'compound_owner',
+    productCategory: 'personal',
+    ratePercent: '27.5000',
+    minAmountEGP: '100000.00',
+    maxAmountEGP: '3000000.00',
+    tenor: { minMonths: 12, maxMonths: 84 },
+    age: { min: 21, max: 60 },
+    dbrCapPercent: '50.0000',
+    operatorNotes: 'Takes the catalog ceilings by unit type. No bank-specific conditions.',
+    amounts: 'catalog',
+  },
+  {
+    bankNameEnglish: 'CIB',
+    programCode: 'CIB-CLUB-MEMBERSHIP',
+    friendlyName: 'Club Membership Loan',
+    friendlyNameAr: 'تمويل عضوية النادي',
+    catalogKey: 'club_member',
+    productCategory: 'personal',
+    ratePercent: '28.5000',
+    minAmountEGP: '15000.00',
+    maxAmountEGP: '500000.00',
+    tenor: { minMonths: 12, maxMonths: 48 },
+    age: { min: 21, max: 60 },
+    dbrCapPercent: '50.0000',
+    operatorNotes: 'Takes the catalog ceilings by membership class.',
+    amounts: 'catalog',
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -715,13 +809,28 @@ async function upsertCatalog(actorId: string): Promise<number> {
   let written = 0;
 
   for (const product of CATALOG_PRODUCTS) {
-    // `figuresRequired: false` — same as the catalog endpoint. These rules carry the shape
-    // and no figures, because the four banks under the compound frame disagree about all of
-    // them and each states its own in `BANK_FIGURES`.
+    // `figuresRequired: false` — same as the catalog endpoint. A catalog rule is allowed to
+    // leave a derivation unstated, because a bank may be the one to state it.
     const violation = await validateIncomeRule(product.rule, ctx, { figuresRequired: false });
     if (violation) {
       console.warn(
         `[seed-collateral] ! rule for '${product.key}' rejected: ${JSON.stringify(violation)} — skipped.`,
+      );
+      continue;
+    }
+
+    // And then AGAIN at a bank's standard, because that is the one that actually bites.
+    //
+    // A program on `amounts: 'catalog'` is validated by its own save with `figuresRequired`
+    // defaulting to TRUE, against the merged rule — so a catalog default set that is legal
+    // here but incomplete there produces a name whose inheriting banks cannot be saved at
+    // all, and nothing in the catalog write would have said so. Checking both standards is
+    // the difference between "this rule is well-formed" and "a bank can actually take it".
+    const asInherited = await validateIncomeRule(product.rule, ctx);
+    if (asInherited) {
+      console.warn(
+        `[seed-collateral] ! rule for '${product.key}' is valid as a catalog rule but a bank` +
+          ` inheriting it could not be saved: ${JSON.stringify(asInherited)} — skipped.`,
       );
       continue;
     }
@@ -905,10 +1014,12 @@ function composeProgram(
     } as unknown as Prisma.InputJsonValue,
     incomeAssumption: {
       strategy: PRODUCT_RULE_STRATEGY,
-      // Its OWN figures. `'catalog'` would mean "quote off the catalog's starting numbers",
-      // and these four banks disagree about every one of them.
-      amounts: 'own',
-      stepParams: figures.stepParams,
+      // Default `'own'`: the four compound banks disagree about every figure, so each
+      // states its own. A bank marked `'catalog'` carries no figures at all — the link is
+      // the configuration, and storing a copy of the defaults beside it would make the
+      // link a one-time snapshot wearing a link's label.
+      amounts: figures.amounts ?? 'own',
+      ...(figures.amounts === 'catalog' ? {} : { stepParams: figures.stepParams ?? {} }),
     } as unknown as Prisma.InputJsonValue,
     fees: {
       adminFeePercent: '1.0000',

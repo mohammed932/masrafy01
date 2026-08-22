@@ -71,12 +71,16 @@ interface EditorRow {
  *
  * ─── One deliberate scope cut, stated ─────────────────────────────────────────
  *
- * The catalog variant does not yet let an operator AUTHOR a pipeline — add a step, pick an
- * op, wire a reference. Adding a new PRODUCT is still an API or seed action
+ * Neither variant lets an operator AUTHOR a pipeline — add a step, pick an op, wire a
+ * reference. Adding a new PRODUCT is still an API or seed action
  * (`PUT admin/bank-programs/program-names/:key/income-rule`, `npm run seed:collateral`).
- * Configuring a bank on an existing product, which is the daily task and the one four banks
- * multiply, is fully here. A graph editor is its own feature and would be a worse one built
- * in a hurry beside this.
+ * A graph editor is its own feature and would be a worse one built in a hurry beside this.
+ *
+ * FIGURES are a different matter and both variants edit them, through the same three
+ * editors. On the catalog they are the DEFAULTS every bank under the name starts from; on a
+ * program they are that bank's own. The structure stays the catalog's either way — the
+ * catalog page does not post `steps`/`gates`/`output` back, and a bank program is stripped
+ * of them on save — so one screen editing amounts can never rewrite the product.
  */
 @Component({
   selector: 'app-product-rule-editor',
@@ -122,9 +126,18 @@ interface EditorRow {
             <div class="step-head">
               <span class="step-title">{{ row.title }}</span>
               @if (row.optional && !row.configured) {
-                <span class="step-tag" i18n="@@product_rule.step.not_used"
-                  >Not used by this bank</span
-                >
+                @if (variant() === 'catalog') {
+                  <!-- On the catalog there is no bank to speak for: an optional step with
+                       no default is one this name OFFERS and states no starting figure
+                       for, which is a legitimate thing to leave alone. -->
+                  <span class="step-tag" i18n="@@product_rule.step.no_default"
+                    >No default set</span
+                  >
+                } @else {
+                  <span class="step-tag" i18n="@@product_rule.step.not_used"
+                    >Not used by this bank</span
+                  >
+                }
               }
               @if (!row.optional && !row.configured && variant() === 'program') {
                 <span class="step-tag is-warn" i18n="@@product_rule.step.needs_figures"
@@ -136,14 +149,13 @@ interface EditorRow {
               <p class="step-hint">{{ row.hint }}</p>
             }
 
-            @if (variant() === 'program' && row.shape !== 'none') {
+            @if (row.shape !== 'none') {
               @switch (row.shape) {
                 @case ('keyTable') {
                   <app-income-key-table
                     [rows]="tableFor(row.id)"
                     (rowsChange)="setTable(row.id, $event)"
                     [keyOptions]="row.keyOptions"
-                    [estimatedKeys]="noEstimatedKeys"
                   ></app-income-key-table>
                 }
                 @case ('bands') {
@@ -151,7 +163,6 @@ interface EditorRow {
                     [bands]="bandsFor(row.id)"
                     (bandsChange)="setBands(row.id, $event)"
                     [unit]="row.unit"
-                    [estimatedIndexes]="noEstimatedIndexes"
                   ></app-income-bands-editor>
                 }
                 @case ('scalar') {
@@ -215,8 +226,8 @@ interface EditorRow {
 
       @if (variant() === 'catalog') {
         <p class="pipeline-note" i18n="@@product_rule.catalog_note">
-          These are the steps every bank selling this name runs. Each bank fills in its own figures
-          on its own program — the amounts are never stated here.
+          These are the steps every bank selling this name runs, and the amounts each one starts
+          from. A bank can keep these or type its own on its own program.
         </p>
       }
     </div>
@@ -373,17 +384,6 @@ export class ProductRuleEditorComponent {
   /** Raised whenever a figure changes, so the host can mark the form dirty. */
   readonly figuresTouched = output<void>();
 
-  /**
-   * No estimated-value markers on a step's figures — yet.
-   *
-   * The marker paths for a pipeline are `stepParams.<id>.keyTable.<key>.incomeEGP`, which the
-   * backend's walker already produces (it recurses `stepParams` by key with no change). Wiring
-   * the host's marker map through per step is the remaining half, and passing an empty set is
-   * the honest interim: no figure is CLAIMED to be team-estimated, rather than one being marked
-   * on the wrong row. Shared constants so the template does not allocate a new set per pass.
-   */
-  protected readonly noEstimatedKeys: ReadonlySet<string> = new Set<string>();
-  protected readonly noEstimatedIndexes: ReadonlySet<number> = new Set<number>();
 
   private readonly factByKey = computed(() => new Map(this.facts().map((f) => [f.key, f])));
 

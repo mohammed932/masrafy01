@@ -97,6 +97,7 @@ import { resolveAssumedIncome } from '@/matching/pipeline/income-resolver';
 import { toBankProgramSnapshot } from './bank-program-snapshot.mapper';
 import {
   IncomeRuleCheckDto,
+  IncomeRuleDraftCheckDto,
   type IncomeRuleCheckResponseDto,
 } from './dto/income-rule-check.dto';
 import {
@@ -123,6 +124,14 @@ import { ERROR_CODES } from '../common/errors/error-codes';
  *   FR-012 — programCode uniqueness
  *   FR-031 — audit event emit
  */
+/**
+ * Stands in for the identity fields a DRAFT program has not got.
+ *
+ * A quote reads none of them, but the snapshot type requires all four, and a blank string
+ * in a log line reads as data loss. This says what it is.
+ */
+const DRAFT_PROGRAM_SENTINEL = '(draft)';
+
 @Injectable()
 export class BankProgramsService {
   constructor(
@@ -173,7 +182,11 @@ export class BankProgramsService {
     // can be stale — every unknown path here really is a client error.
     throwOnValueSourceViolation(validateValueSources(dto.valueSources, markerConfig));
     const persistedSources = pruneValueSources(dto.valueSources, markerConfig);
-    const createdWithEstimates = estimatedPaths(persistedSources).length > 0;
+    // A marker no longer decides whether a new program is born live: the control that
+    // set one is gone from both screens, so this could only ever have been triggered by
+    // an API caller — and would have created an inactive program for a reason no operator
+    // could see or clear.
+    const createdWithEstimates = false;
 
     // Persist + emit audit in one transaction.
     const program = await this.prisma.$transaction(async (tx) => {
@@ -596,6 +609,54 @@ export class BankProgramsService {
    * Two ways to fail, and they send the operator to different screens: the name says
    * nothing yet (fix the catalog) or it says something else (fix one of the two).
    */
+  /**
+   * A no-payslip program cannot GO LIVE unless its catalog name states the proof it reads.
+   *
+   * The save-time check (`assertIncomeProofMatchesName`) deliberately grandfathers an
+   * unchanged (name, proof) pair, because `update()` is a full-replacement PUT and refusing
+   * it would make the fixing save the failing save — a program that predates the rule would
+   * be frozen out of every edit, including the one that would fix it. That mercy is right
+   * for an edit and wrong for a customer: whatever an operator is allowed to keep working
+   * on, a program quoting to the public must actually have a table behind it.
+   *
+   * So the same two refusals are checked again here, where nothing is grandfathered. Same
+   * codes, deliberately — the operator's problem and its fix are identical, and a second
+   * error code for one sentence is a second thing to translate and keep in step (A25).
+   *
+   * ON the way on only. Switching a program OFF is never refused, for the same reason
+   * FR-034 gives above: the off-switch is how an operator responds to a problem.
+   */
+  private async assertActivatable(existing: {
+    programType: string;
+    programNameKey: string | null;
+    incomeAssumption: unknown;
+  }): Promise<void> {
+    // A payslip program consults no proof, so its name states none and none is required.
+    if (existing.programType !== 'income_surrogate') return;
+
+    // No name at all is the same problem one step earlier, and the same sentence answers
+    // it: there is nothing stating what this program reads its income from.
+    const programNameKey = existing.programNameKey;
+    if (programNameKey === null) {
+      throw new ProgramNameIncomeProofMissingException({ programNameKey: '' });
+    }
+
+    const catalogRule = await this.catalogIncomeRuleFor(programNameKey);
+    if (catalogRule === undefined) {
+      throw new ProgramNameIncomeProofMissingException({ programNameKey });
+    }
+    const strategy = normalizeIncomeAssumption(
+      existing.incomeAssumption as IncomeAssumptionConfig,
+    )?.strategy;
+    if (strategy === undefined || catalogRule.strategy !== strategy) {
+      throw new ProgramNameIncomeProofMismatchException({
+        programNameKey,
+        expected: catalogRule.strategy,
+        got: strategy ?? 'none',
+      });
+    }
+  }
+
   private async assertIncomeProofMatchesName(args: {
     programNameKey: string;
     programType: BankProgramType;
@@ -958,7 +1019,11 @@ export class BankProgramsService {
       before: existing.valueSources,
       after: persistedSources,
     });
-    const deactivatedByEstimate = existing.active && addedEstimates.length > 0;
+    // FR-035's auto-deactivation is gone with the marker control. It took a LIVE program
+    // off air the moment a save introduced a guessed number — correct while an operator
+    // could mark and unmark one, and a program silently going dark for an invisible reason
+    // now that they cannot.
+    const deactivatedByEstimate = false;
 
     // FR-038 — every marker change is audited with the editor's identity. Computed
     // here so the event names exactly what moved rather than the whole map.
@@ -1221,8 +1286,13 @@ export class BankProgramsService {
       actor.id,
     );
     await this.audit.create({
+      // `targetId` is a FK to STAFF_ACCOUNT — it means "the staff member this event was
+      // done to", not "the row this event was about". An enumeration id here is a FK
+      // violation, which is how the whole save came back INTERNAL_ERROR after the rule
+      // had already been written. The name's id travels in the payload, exactly as
+      // every other `PLATFORM_ENUMERATION_UPDATED` writer sends it.
       actorId: actor.id,
-      targetId: name.id,
+      targetId: null,
       bankProgramId: null,
       eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
       sourceIp: actor.sourceIp,
@@ -1285,6 +1355,60 @@ export class BankProgramsService {
   ): Promise<IncomeRuleCheckResponseDto> {
     const program = await this.repo.findByProgramCode(programCode);
     if (!program) throw new BankProgramNotFoundException({ programCode });
+    return this.runIncomeRuleCheck(program, dto);
+  }
+
+  /**
+   * The same check with no saved program behind it — the CREATE wizard's panel.
+   *
+   * The wizard used to render the panel and disable its button, because the check needs a
+   * rate and a term and there was no row to read them from. So the operator typed an entire
+   * grade table and could not learn what it paid until after saving it — which is the one
+   * moment the rule stops being cheap to get wrong.
+   *
+   * The draft's four blobs stand in for the row, and go through `toBankProgramSnapshot` like
+   * any other program: a second snapshot builder is exactly the divergence the parity note
+   * on `runIncomeRuleCheck` is about, so the draft is shaped INTO a row rather than mapped
+   * around one. Nothing is persisted, here or anywhere on this path.
+   */
+  async checkIncomeRuleDraft(dto: IncomeRuleDraftCheckDto): Promise<IncomeRuleCheckResponseDto> {
+    const p = dto.program;
+    const draftRow = {
+      // Identity a quote never reads, but the snapshot type requires. Named rather than
+      // blanked so anything that does surface one of these in a log says "draft" out loud.
+      id: DRAFT_PROGRAM_SENTINEL,
+      programCode: DRAFT_PROGRAM_SENTINEL,
+      bankName: DRAFT_PROGRAM_SENTINEL,
+      friendlyName: DRAFT_PROGRAM_SENTINEL,
+      bank: null,
+      version: 0,
+      createdAt: new Date(0),
+      requiredDocuments: [],
+      performanceCriteria: null,
+      programNameKey: p.programNameKey ?? null,
+      programType: p.programType,
+      productCategory: p.productCategory,
+      isShariaCompliant: p.isShariaCompliant ?? false,
+      active: true,
+      tenor: p.tenor,
+      loanLimits: p.loanLimits,
+      pricing: p.pricing,
+      eligibility: p.eligibility,
+      fees: p.fees,
+      // Replaced by the draft rule inside `runIncomeRuleCheck` — supplied only so the
+      // mapper has the field it expects.
+      incomeAssumption: dto.incomeAssumption,
+    };
+    return this.runIncomeRuleCheck(
+      draftRow as unknown as Parameters<typeof toBankProgramSnapshot>[0],
+      dto,
+    );
+  }
+
+  private async runIncomeRuleCheck(
+    program: Parameters<typeof toBankProgramSnapshot>[0],
+    dto: { incomeAssumption: IncomeRuleCheckDto['incomeAssumption']; sample: IncomeRuleCheckDto['sample'] },
+  ): Promise<IncomeRuleCheckResponseDto> {
 
     // The catalog's figures are merged into the DRAFT before anything reads it. A
     // draft on `amounts: 'catalog'` carries no table of its own, so validating or
@@ -1481,18 +1605,19 @@ export class BankProgramsService {
       throw new BankProgramNotFoundException({ programCode });
     }
 
-    // FR-033 — a program holding team-estimated numbers cannot GO LIVE.
+    // FR-033's estimated-value block is GONE, by decision.
     //
-    // Only on the way ON: switching a program OFF is never blocked (FR-034), because
-    // the whole point of the marker is that the team can keep working on a program
-    // they have not confirmed with the bank. Blocking the off-switch would also trap
-    // an already-live program that a save had just flagged.
+    // It refused to put a program live while any of its numbers was marked "the team
+    // guessed this". The marker was only ever settable on the income-rule tables, and
+    // that control has been removed from both screens — so the gate could no longer be
+    // cleared by anyone, and the three programs still carrying a stored marker would
+    // have been frozen off air permanently.
     //
-    // Every path is named, not the first: the admin has ONE conversation with the
-    // bank, and revealing the numbers one at a time costs a round trip each.
+    // The column, the DTO field and the path validator all stay, so restoring this is a
+    // UI change rather than a migration. `PROGRAM_HAS_ESTIMATED_VALUES` keeps its entry
+    // in both locale dictionaries for the same reason.
     if (active) {
-      const paths = estimatedPaths(existing.valueSources);
-      if (paths.length > 0) throw new ProgramHasEstimatedValuesException({ paths });
+      await this.assertActivatable(existing);
     }
 
     const before = existing.active;

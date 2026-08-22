@@ -1105,7 +1105,6 @@
       <trans-unit id="bank_programs.income.err_duplicate_key" datatype="html"><source>Each key may appear once. Remove the repeated row.</source><target>يظهر كل مفتاح مرة واحدة. احذف الصف المتكرر.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_key_missing" datatype="html"><source>Every row needs a key from the registry.</source><target>كل صف يحتاج مفتاحًا من السجل.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_income_invalid" datatype="html"><source>Every assumed income must be greater than zero.</source><target>يجب أن يكون كل دخل مفترض أكبر من صفر.</target></trans-unit>
-      <trans-unit id="bank_programs.income.err_no_rows" datatype="html"><source>Add at least one row, or this method produces no figures at all.</source><target>أضف صفًا واحدًا على الأقل، وإلا فلن تُنتج هذه الطريقة أي أرقام.</target></trans-unit>
       <trans-unit id="bank_programs.income.aria.key" datatype="html"><source>Registry key for this row</source><target>مفتاح السجل لهذا الصف</target></trans-unit>
       <trans-unit id="bank_programs.income.aria.income" datatype="html"><source>Assumed monthly income in EGP</source><target>الدخل الشهري المفترض بالجنيه المصري</target></trans-unit>
       <trans-unit id="bank_programs.income.aria.move_up" datatype="html"><source>Move this row up</source><target>انقل هذا الصف للأعلى</target></trans-unit>
@@ -1124,7 +1123,6 @@
       <trans-unit id="bank_programs.income.err_edge_missing" datatype="html"><source>Every band needs a starting value.</source><target>كل شريحة تحتاج قيمة بداية.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_not_ascending" datatype="html"><source>Each band must start higher than the one before it, and the top band must end above where it starts — or be left open.</source><target>يجب أن تبدأ كل شريحة أعلى من التي قبلها، وأن تنتهي الشريحة العليا عند قيمة أعلى من بدايتها — أو تُترك مفتوحة.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_band_income_invalid" datatype="html"><source>Every assumed income must be greater than zero.</source><target>يجب أن يكون كل دخل مفترض أكبر من صفر.</target></trans-unit>
-      <trans-unit id="bank_programs.income.err_no_bands" datatype="html"><source>Add at least one band, or this method produces no figures at all.</source><target>أضف شريحة واحدة على الأقل، وإلا فلن تُنتج هذه الطريقة أي أرقام.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_scalar_invalid" datatype="html"><source>This figure must be greater than zero.</source><target>يجب أن يكون هذا الرقم أكبر من صفر.</target></trans-unit>
       <trans-unit id="bank_programs.income.aria.band_from" datatype="html"><source>Band starts at</source><target>تبدأ الشريحة عند</target></trans-unit>
       <trans-unit id="bank_programs.income.aria.band_to" datatype="html"><source>Band ends at — also the next band's start</source><target>تنتهي الشريحة عند — وهي أيضًا بداية الشريحة التالية</target></trans-unit>
@@ -1136,7 +1134,6 @@
       <trans-unit id="bank_programs.income.check_title" datatype="html"><source>Check this rule before anyone else sees it</source><target>راجع هذه القاعدة قبل أن يراها أحد</target></trans-unit>
       <trans-unit id="bank_programs.income.check_sub" datatype="html"><source>Runs a sample applicant against what is on screen right now, including edits you have not saved. Nothing is stored.</source><target>يشغّل مقدّم طلب تجريبي على ما هو معروض الآن، بما في ذلك تعديلات لم تحفظها. لا يتم حفظ أي شيء.</target></trans-unit>
       <trans-unit id="bank_programs.income.check_run" datatype="html"><source>Check</source><target>افحص</target></trans-unit>
-      <trans-unit id="bank_programs.income.check_needs_save" datatype="html"><source>Save the program once before checking — the check runs against this program's own rate, fees and limits.</source><target>احفظ البرنامج مرة قبل الفحص — يعتمد الفحص على سعر هذا البرنامج ورسومه وحدوده.</target></trans-unit>
       <trans-unit id="bank_programs.income.check_key_placeholder" datatype="html"><source>Pick a value to test</source><target>اختر قيمة للاختبار</target></trans-unit>
       <trans-unit id="bank_programs.income.check_grade" datatype="html"><source>Sample military grade</source><target>رتبة عسكرية تجريبية</target></trans-unit>
       <trans-unit id="bank_programs.income.check_rank" datatype="html"><source>Sample academic rank</source><target>درجة علمية تجريبية</target></trans-unit>
@@ -1171,15 +1168,10 @@
       <trans-unit id="bank_programs.income.check_no_figures" datatype="html"><source>No figures for this applicant</source><target>لا توجد أرقام لمقدّم الطلب هذا</target></trans-unit>
 
       <!-- Value-source marker + the waiting list (US4). -->
-      <trans-unit id="bank_programs.value_source.stated" datatype="html"><source>The bank stated this</source><target>البنك ذكر هذا</target></trans-unit>
-      <trans-unit id="bank_programs.value_source.estimated" datatype="html"><source>We estimated this</source><target>نحن قدّرنا هذا</target></trans-unit>
-      <trans-unit id="bank_programs.value_source.aria" datatype="html"><source>Where this number came from</source><target>مصدر هذا الرقم</target></trans-unit>
-      <trans-unit id="bank_programs.value_source.aria_for" datatype="html"><source>Source of <x id="field"/></source><target>مصدر <x id="field"/></target></trans-unit>
       <trans-unit id="bank_programs.form.deactivated_title" datatype="html"><source>Program switched off</source><target>تم إيقاف البرنامج</target></trans-unit>
       <trans-unit id="bank_programs.form.deactivated_body" datatype="html"><source>It now holds a number the team estimated. Switch it back on once the bank has confirmed the figure.</source><target>أصبح يحتوي رقمًا قدّره الفريق. أعد تشغيله بعد أن يؤكد البنك الرقم.</target></trans-unit>
       <trans-unit id="bank_programs.form.created_inactive_title" datatype="html"><source>Program created switched off</source><target>تم إنشاء البرنامج متوقفًا</target></trans-unit>
       <trans-unit id="bank_programs.form.created_inactive_body" datatype="html"><source>It holds a number the team estimated. Switch it on once the bank has confirmed the figure.</source><target>يحتوي رقمًا قدّره الفريق. شغّله بعد أن يؤكد البنك الرقم.</target></trans-unit>
-      <trans-unit id="bank_programs.value_source.stated_short" datatype="html"><source>Bank</source><target>البنك</target></trans-unit>
       <trans-unit id="bank_programs.value_source.estimated_short" datatype="html"><source>Estimate</source><target>تقدير</target></trans-unit>
       <trans-unit id="program_catalog.card.unmarked_no_payslip" datatype="html"><source>Banks sell this without a payslip, but the name is not marked for it</source><target>البنوك تبيع هذا الاسم بدون إثبات راتب، لكن الاسم غير محدَّد لذلك</target></trans-unit>
       <trans-unit id="program_catalog.stat.no_table" datatype="html"><source>Programs with no table</source><target>برامج بدون جدول</target></trans-unit>
@@ -1351,18 +1343,12 @@
       <trans-unit id="bank_programs.income.set_on_catalog" datatype="html"><source>Set on the catalog</source><target>يُحدَّد في الكتالوج</target></trans-unit>
       <trans-unit id="bank_programs.income.loading" datatype="html"><source>Reading what this program name says…</source><target>جارٍ قراءة ما يحدده اسم البرنامج…</target></trans-unit>
       <trans-unit id="bank_programs.income.no_proof" datatype="html"><source>Nobody has said what <x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/> reads its income from. Set it once on the program catalog and every bank starts from the same table.</source><target>لم يحدد أحد ما يُحتسب منه دخل <x id="INTERPOLATION" equiv-text="{{ programNameLabel() }}"/>. حدده مرة واحدة في كتالوج البرامج، فيبدأ كل بنك من الجدول نفسه.</target></trans-unit>
-      <trans-unit id="bank_programs.income.choice_legend" datatype="html"><source>Whose amounts this program uses</source><target>مبالغ مَن يستخدمها هذا البرنامج</target></trans-unit>
-      <trans-unit id="bank_programs.income.choice_catalog" datatype="html"><source>Catalog amounts</source><target>مبالغ الكتالوج</target></trans-unit>
-      <trans-unit id="bank_programs.income.choice_catalog_hint" datatype="html"><source>Shared by every bank selling this name. Updates when the catalog updates.</source><target>مشتركة بين كل بنك يبيع هذا الاسم. تتحدث مع تحديث الكتالوج.</target></trans-unit>
-      <trans-unit id="bank_programs.income.choice_own" datatype="html"><source>This bank&apos;s own amounts</source><target>مبالغ هذا البنك وحده</target></trans-unit>
-      <trans-unit id="bank_programs.income.choice_own_hint" datatype="html"><source>Starts from the catalog figures — edit from there.</source><target>تبدأ من أرقام الكتالوج — عدّلها من هناك.</target></trans-unit>
-      <trans-unit id="bank_programs.income.catalog_no_table" datatype="html"><source>This name needs no table — the applicant&apos;s own figure is used.</source><target>هذا الاسم لا يحتاج جدولاً — يُستخدم الرقم الذي ذكره المتقدم.</target></trans-unit>
-      <trans-unit id="bank_programs.income.own_peers" datatype="html"><source><x id="count" equiv-text="peers"/> other bank program(s) do this.</source><target><x id="count" equiv-text="peers"/> من برامج البنوك الأخرى تفعل ذلك.</target></trans-unit>
-      <trans-unit id="bank_programs.income.band_open" datatype="html"><source><x id="from" equiv-text="band.fromInclusive"/> and above</source><target><x id="from" equiv-text="band.fromInclusive"/> وأكثر</target></trans-unit>
-      <trans-unit id="bank_programs.income.band_range" datatype="html"><source><x id="from" equiv-text="band.fromInclusive"/> – <x id="to" equiv-text="band.toExclusive"/></source><target><x id="from" equiv-text="band.fromInclusive"/> – <x id="to" equiv-text="band.toExclusive"/></target></trans-unit>
-      <trans-unit id="bank_programs.income.scalar_percent" datatype="html"><source>Percentage applied</source><target>النسبة المطبقة</target></trans-unit>
-      <trans-unit id="bank_programs.income.scalar_multiplier" datatype="html"><source>Multiplier applied</source><target>المعامِل المطبق</target></trans-unit>
-      <trans-unit id="bank_programs.income.egp" datatype="html"><source><x id="amount" equiv-text="shown"/> EGP</source><target><x id="amount" equiv-text="shown"/> جنيه</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_fact" datatype="html"><source>Sample <x id="fact" equiv-text="fact.label"/></source><target>عيّنة <x id="fact" equiv-text="fact.label"/></target></trans-unit>
+      <trans-unit id="bank_programs.income.check_fact_key" datatype="html"><source>Sample answer for “<x id="fact" equiv-text="factKey"/>”</source><target>إجابة عيّنة لـ ”<x id="fact" equiv-text="factKey"/>“</target></trans-unit>
+      <trans-unit id="bank_programs.income.check_needs_pricing" datatype="html"><source> Fill the Terms and Pricing steps first — the check needs a rate and a term to work out an installment. </source><target>أكمل خطوتي الشروط والتسعير أولاً — يحتاج الفحص إلى نسبة ومدة لحساب القسط.</target></trans-unit>
+      <trans-unit id="bank_programs.income.src_catalog" datatype="html"><source>These are <x id="PH" equiv-text="programNameLabel()"/>&apos;s numbers from the catalog. Change any of them and this bank keeps its own copy.</source><target>هذه أرقام <x id="PH" equiv-text="programNameLabel()"/> من الكتالوج. عدّل أيًّا منها ويحتفظ هذا البنك بنسخته الخاصة.</target></trans-unit>
+      <trans-unit id="bank_programs.income.src_own" datatype="html"><source>This bank uses its own numbers. Changes on the catalog no longer reach it.</source><target>يستخدم هذا البنك أرقامه الخاصة. لم تعد تعديلات الكتالوج تصل إليه.</target></trans-unit>
+      <trans-unit id="bank_programs.income.src_reset" datatype="html"><source>Back to the catalog&apos;s</source><target>العودة إلى أرقام الكتالوج</target></trans-unit>
       <trans-unit id="bank_programs.income.revert_title" datatype="html"><source>Go back to the catalog amounts?</source><target>العودة إلى مبالغ الكتالوج؟</target></trans-unit>
       <trans-unit id="bank_programs.income.revert_body" datatype="html"><source>The figures you typed for this bank are dropped, and it starts quoting the catalog&apos;s.</source><target>تُحذف الأرقام التي أدخلتها لهذا البنك، ويبدأ في استخدام أرقام الكتالوج.</target></trans-unit>
       <trans-unit id="bank_programs.income.revert_ok" datatype="html"><source>Use the catalog amounts</source><target>استخدم مبالغ الكتالوج</target></trans-unit>
@@ -1465,6 +1451,10 @@
           <context context-type="linenumber">114,115</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="product_rule.step.no_default" datatype="html">
+        <source>No default set</source>
+        <target>لا يوجد مبلغ افتراضي</target>
+      </trans-unit>
       <trans-unit id="product_rule.step.not_used" datatype="html">
         <source>Not used by this bank</source>
         <target>غير مستخدم في هذا البنك</target>
@@ -1506,8 +1496,8 @@
         </context-group>
       </trans-unit>
       <trans-unit id="product_rule.catalog_note" datatype="html">
-        <source> These are the steps every bank selling this name runs. Each bank fills in its own figures on its own program — the amounts are never stated here. </source>
-        <target>هذه هي الخطوات التي يتبعها كل بنك يبيع هذا الاسم. كل بنك يدخل أرقامه على برنامجه الخاص — والمبالغ لا تُذكر هنا.</target>
+        <source> These are the steps every bank selling this name runs, and the amounts each one starts from. A bank can keep these or type its own on its own program. </source>
+        <target>هذه هي الخطوات التي يتبعها كل بنك يبيع هذا الاسم، والمبالغ التي يبدأ منها. يمكن للبنك الإبقاء عليها أو إدخال مبالغه الخاصة على برنامجه.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
           <context context-type="linenumber">218,221</context>

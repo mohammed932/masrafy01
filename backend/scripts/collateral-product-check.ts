@@ -62,6 +62,16 @@ const BASELINE_EXPECTATION: Readonly<Record<string, Expectation>> = {
   'FAB-COMPOUND-GUARANTEE': { ceilingEGP: '1000000' },
   'CAE-COMPOUND-GUARANTEE': { ceilingEGP: '300000' },
   'ABK-CLUB-MEMBERSHIP': { ceilingEGP: '500000' },
+
+  // The two banks that state nothing and take the catalog's defaults. They are here for the
+  // same reason as the five above: a rule can be valid and a program live while the string
+  // join between the catalog's step ids and a bank's `stepParams` keys silently fails — and
+  // for an INHERITING bank there are no `stepParams` at all, so what is being proved is that
+  // `effectiveIncomeRule` puts the catalog's there. An apartment is 2 000 000 by the catalog's
+  // own `capByUnitType` table, and a class-1 membership 500 000 by its `ceiling` table, so
+  // each of these must land on exactly the figure its own-figures peer lands on.
+  'NBE-COMPOUND-GUARANTEE': { ceilingEGP: '2000000' },
+  'CIB-CLUB-MEMBERSHIP': { ceilingEGP: '500000' },
 };
 
 /** The same unit with 40% paid — the applicant EGBank's own tier accepts. */

@@ -135,9 +135,6 @@ import { incomeRuleHasError } from './income-rule.rules';
                 (rowsChange)="keyTable.set($event)"
                 [enumerationType]="keyRegistry()"
                 [keyOptions]="factKeyRows()"
-                [estimatedKeys]="estimatedKeys()"
-                (estimatedKeysChange)="estimatedKeyChange.emit($event)"
-                (keyStructureChange)="keyStructureChange.emit($event)"
               ></app-income-key-table>
             </div>
           }
@@ -148,9 +145,6 @@ import { incomeRuleHasError } from './income-rule.rules';
                 [bands]="bands()"
                 (bandsChange)="bands.set($event)"
                 [unit]="bandUnit()"
-                [estimatedIndexes]="estimatedBandIndexes()"
-                (estimatedIndexesChange)="estimatedBandChange.emit($event)"
-                (structureChange)="bandStructureChange.emit($event)"
               ></app-income-bands-editor>
               @if (legacyScalarShown()) {
                 <p class="rule-hint" i18n="@@bank_programs.income.legacy_scalar_hint">
@@ -481,32 +475,6 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   readonly stepFigures = model<Record<string, StepFigures>>({});
   readonly stepFiguresTouched = output<void>();
 
-  /**
-   * Feature 011 — which incomes are team-estimated. Passed straight through to the
-   * editors and straight back out: the section does not own the marker map, because
-   * the same map covers pricing and fees on other steps and one owner is the only way
-   * the payload stays a single sparse object (FR-032).
-   */
-  readonly estimatedKeys = input<ReadonlySet<string>>(new Set());
-  readonly estimatedKeyChange = output<{ key: string; estimated: boolean }>();
-  readonly estimatedBandIndexes = input<ReadonlySet<number>>(new Set());
-  readonly estimatedBandChange = output<{ index: number; estimated: boolean }>();
-
-  /**
-   * Structural band edits, forwarded so the owner of the path map can move its
-   * index-keyed markers with the rows. Re-emitted rather than handled here for the
-   * same reason the markers themselves pass through: this section does not own the
-   * map, and a second owner is how the two disagree.
-   */
-  readonly bandStructureChange = output<{ kind: 'remove'; index: number } | { kind: 'reset' }>();
-
-  /** The key table's equivalent — its paths are keyed by the registry key, not a position. */
-  readonly keyStructureChange = output<
-    | { kind: 'rename'; from: string; to: string }
-    | { kind: 'remove'; key: string }
-    | { kind: 'reset' }
-  >();
-
   readonly documentsPlaceholder = $localize`:@@bank_programs.income.docs_placeholder:Pick the documents`;
 
   /**
@@ -772,20 +740,11 @@ export class IncomeAssumptionSectionComponent implements OnInit {
 
   /** Drop whatever the newly-selected method cannot use (FR-011). */
   private clearForeignShape(nextShape: IncomeMethodShape): void {
-    // BOTH tables clear their markers, not just the bands. Clearing the key table
-    // without them left `incomeAssumption.keyTable.<key>.incomeEGP` in the payload
-    // over a rule that no longer has a key table — 422 `VALUE_SOURCE_PATH_UNKNOWN` on
-    // create, with the key-table editor gone from the screen, so nothing the admin
-    // could click would clear it.
     if (nextShape !== 'keyTable' && this.keyTable().length > 0) {
       this.keyTable.set([]);
-      this.keyStructureChange.emit({ kind: 'reset' });
     }
     if (nextShape !== 'bands' && this.bands().length > 0) {
       this.bands.set([]);
-      // The rows those markers described are gone with the method, so the markers go
-      // too — an index-keyed marker over an empty table names nothing.
-      this.bandStructureChange.emit({ kind: 'reset' });
     }
     if (nextShape !== 'scalar' && nextShape !== 'bands') {
       this.group().get('scalar')?.reset({ value: null, unit: 'percent' }, { emitEvent: false });

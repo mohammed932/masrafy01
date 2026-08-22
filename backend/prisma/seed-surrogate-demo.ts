@@ -5,19 +5,15 @@
  *   npm run seed:surrogate:demo                              # apply
  *   SEED_SURROGATE_DEMO_RESET=1 npm run seed:surrogate:demo   # back to `declared` + {}
  *
- * Two things to look at once this has run:
+ * What to look at once this has run: the Eligibility step of each program below opens onto
+ * a POPULATED income-rule editor — bands, a key table, a percentage — instead of the "no
+ * table is needed" hint every seeded surrogate program shows out of the box.
  *
- *   1. The Eligibility step of each program below opens onto a POPULATED income-rule
- *      editor — bands, a key table, a percentage — instead of the "no table is needed"
- *      hint every seeded surrogate program shows out of the box.
- *   2. Three of them carry a team-estimated marker, so they are OFF AIR and refuse to
- *      go live: `POST /toggle {active:true}` answers 409 `PROGRAM_HAS_ESTIMATED_VALUES`
- *      naming the exact fields. Untick the marker in the editor, save, and the program
- *      becomes switchable. That refusal is the whole feature.
- *
- * The markers deliberately cover more than the income rule (a rate, a fee): the gate is
- * about ANY number an admin typed rather than read off a bank's document, and only one
- * of the seven markable config blobs is `incomeAssumption`.
+ * The team-estimated markers this seeder used to plant are GONE. It flagged three programs
+ * so they would refuse to go live, which was the point of the value-source gate; that gate
+ * and the control that set it have both been removed, so a marker here would now be a
+ * number nobody could unflag. `valueSources` is written EMPTY instead, which is also what
+ * clears a marker left on a program by an older run of this file.
  *
  * Idempotent. Every audit event it writes carries a `demoSurrogateSeed: true` payload
  * flag, which is both the re-run scope and the RESET scope — nothing it did not create
@@ -82,8 +78,8 @@ const SCENARIOS: readonly Scenario[] = [
       ],
       requiredDocuments: ['syndicate_card'],
     },
-    valueSources: { 'incomeAssumption.bands.3.incomeEGP': 'team_estimated' },
-    note: 'band table, top band closed — the 15+ year income is our guess, so it is OFF AIR',
+    valueSources: {},
+    note: 'band table, top band closed on purpose: above 30 years the rule yields nothing',
   },
   {
     programCode: 'CIB-PER-DOCTOR',
@@ -100,12 +96,8 @@ const SCENARIOS: readonly Scenario[] = [
       ],
       dbrCapPercentOverride: '45',
     },
-    // TWO paths, and one is not an income at all — the gate covers every number.
-    valueSources: {
-      'incomeAssumption.bands.1.incomeEGP': 'team_estimated',
-      'pricing.baseRatePercent': 'team_estimated',
-    },
-    note: 'band table + per-rule DBR cap; TWO guessed numbers, one of them the rate',
+    valueSources: {},
+    note: 'band table + per-rule DBR cap',
   },
   {
     programCode: 'CIB-PER-PROFESSIONAL',
@@ -126,8 +118,8 @@ const SCENARIOS: readonly Scenario[] = [
       ],
       combinationRule: 'greater_of',
     },
-    valueSources: { 'incomeAssumption.keyTable.professor.incomeEGP': 'team_estimated' },
-    note: 'academic-rank key table; the top rank was our guess, so it is OFF AIR',
+    valueSources: {},
+    note: 'academic-rank key table, three ranks',
   },
   {
     programCode: 'HSBC-PER-PROFESSIONAL',

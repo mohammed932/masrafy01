@@ -19,6 +19,7 @@ import {
   type BuiltinIncomeStrategy,
   type IncomeAssumptionConfig,
   type IncomeRuleCheckResult,
+  type IncomeRuleDraftProgram,
   type RuleGate,
   type RuleStep,
 } from '@features/bank-programs/bank-programs.types';
@@ -216,15 +217,18 @@ import {
           nzType="primary"
           type="button"
           [nzLoading]="pending()"
-          [disabled]="form.invalid || pending() || !programCode()"
+          [disabled]="form.invalid || pending() || !canRun()"
           (click)="run()"
         >
           <span i18n="@@bank_programs.income.check_run">Check</span>
         </button>
-        @if (!programCode()) {
-          <span class="chk__hint" i18n="@@bank_programs.income.check_needs_save">
-            Save the program once before checking — the check runs against this program's own rate,
-            fees and limits.
+        @if (!canRun()) {
+          <!-- Only reachable on a create whose earlier steps are not filled in yet. It used
+               to read "save the program first", which was the truth about the old
+               implementation rather than about what the operator has to do. -->
+          <span class="chk__hint" i18n="@@bank_programs.income.check_needs_pricing">
+            Fill the Terms and Pricing steps first — the check needs a rate and a term to work out
+            an installment.
           </span>
         }
       </div>
@@ -463,6 +467,15 @@ export class IncomeRuleCheckComponent {
   readonly programCode = input<string | null>(null);
 
   /** The ON-SCREEN rule (FR-028) — supplied by the host, never re-read from the server. */
+  /**
+   * The un-saved program to check against, when there is no saved one.
+   *
+   * Supplied by the CREATE wizard. `null` on an edit, where the server reads the stored
+   * row's own rate and limits — which is the better answer whenever a row exists, because
+   * the figures are then this program's rather than a form's current state.
+   */
+  readonly draftProgram = input<IncomeRuleDraftProgram | null>(null);
+
   readonly draft = input.required<IncomeAssumptionConfig>();
 
   /**
@@ -645,29 +658,49 @@ export class IncomeRuleCheckComponent {
       : `${row.fromInclusive} – ${row.toExclusive}`;
   }
 
+  /**
+   * Whether there is anything to check against: a saved program, or a draft carrying the
+   * rate and term a quote needs.
+   */
+  protected readonly canRun = computed(
+    () => this.programCode() !== null || this.draftProgram() !== null,
+  );
+
   async run(): Promise<void> {
-    const code = this.programCode();
-    if (!code) return;
+    const code = this.programCode() ?? null;
+    // One or the other has to be there. The button's own disabled state says the same
+    // thing; this is the guard behind it, not a second policy.
+    if (code === null && this.draftProgram() === null) return;
     this.pending.set(true);
     this.error.set(null);
     try {
       const v = this.form.getRawValue();
-      const response = await this.api.checkIncomeRule(code, {
-        // The draft as it stands on screen, not a re-fetch (FR-028).
-        incomeAssumption: this.draft(),
-        sample: {
-          age: Number(v.age),
-          ...this.factFields(v.factKey, v.factValue),
-          // A pipeline's answers, by fact key. Sent alongside the single-fact field rather
-          // than instead of it: an eleven-method rule reads exactly one fact and its form
-          // should not start asking for a key.
-          ...(Object.keys(this.sampleFacts()).length > 0 ? { facts: this.sampleFacts() } : {}),
-          declaredMonthlySalaryEGP: v.declaredMonthlySalaryEGP ?? '0',
-          existingMonthlyObligationsEGP: v.existingMonthlyObligationsEGP,
-          requestedAmountEGP: v.requestedAmountEGP,
-          tenorMonths: Number(v.tenorMonths),
-        },
-      });
+      const sample = {
+        age: Number(v.age),
+        ...this.factFields(v.factKey, v.factValue),
+        // A pipeline's answers, by fact key. Sent alongside the single-fact field rather
+        // than instead of it: an eleven-method rule reads exactly one fact and its form
+        // should not start asking for a key.
+        ...(Object.keys(this.sampleFacts()).length > 0 ? { facts: this.sampleFacts() } : {}),
+        declaredMonthlySalaryEGP: v.declaredMonthlySalaryEGP ?? '0',
+        existingMonthlyObligationsEGP: v.existingMonthlyObligationsEGP,
+        requestedAmountEGP: v.requestedAmountEGP,
+        tenorMonths: Number(v.tenorMonths),
+      };
+      // The draft as it stands on screen, not a re-fetch (FR-028) — on either route.
+      //
+      // A SAVED program is checked against its stored rate, fees and limits, because those
+      // are the program's own and a half-edited form is not. Only a program that has no
+      // stored anything sends the form's copy.
+      const program = this.draftProgram();
+      const response =
+        code === null
+          ? await this.api.checkIncomeRuleDraft({
+              program: program as IncomeRuleDraftProgram,
+              incomeAssumption: this.draft(),
+              sample,
+            })
+          : await this.api.checkIncomeRule(code, { incomeAssumption: this.draft(), sample });
       this.result.set(response.data);
     } catch (err: unknown) {
       // Mapped through the shared error-code vocabulary — never a per-component

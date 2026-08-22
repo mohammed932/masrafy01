@@ -1,3 +1,4 @@
+/**
  * The gate in front of `PROGRAM_NAME_INCOME_PROOF_MISMATCH`.
  *
  * A catalog program name states exactly ONE income proof, and every surrogate

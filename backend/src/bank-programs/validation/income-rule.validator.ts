@@ -377,12 +377,23 @@ async function validateProductRule(
   for (const step of steps) {
     if (!figuresRequired) break;
     if (step.op !== 'coalesce') continue;
-    const candidates = refsOf(step.of).flatMap((ref) => ('step' in ref ? [ref.step] : []));
+    const refs = refsOf(step.of);
+    const candidates = refs.flatMap((ref) => ('step' in ref ? [ref.step] : []));
+    // A coalesce over facts or literals has nothing to leave blank, so it is always fine.
+    //
+    // Which is true of a MIXED list too, and testing `candidates.length > 0` missed it:
+    // the compound rule's `multiUnitPct` and `jointPct` are `coalesce [{step:…}, {const:'100'}]`,
+    // where the literal IS the "this bank states no policy" answer. One unconfigured step ref
+    // beside a constant that always resolves was being reported as a rule that produces
+    // nothing — and it refused all four live compound programs on their own save path, on
+    // rules that were quoting correctly the whole time. `coalesce` in `product-rule.ts` has
+    // always agreed with the comment rather than the code: it skips unset STEP refs and takes
+    // a literal as given.
+    if (candidates.length !== refs.length) continue;
     const anyConfigured = candidates.some((id) => {
       const candidate = steps.find((s2) => s2.id === id);
       return candidate !== undefined && isStepConfigured(candidate, params[id] ?? {});
     });
-    // A coalesce over facts or literals has nothing to leave blank, so it is always fine.
     if (candidates.length > 0 && !anyConfigured) {
       return { kind: 'productRuleInvalid', reason: 'coalesce_empty', stepId: step.id };
     }
@@ -902,6 +913,15 @@ export function stripForeignMethodConfig(
 
   const keep: IncomeAssumptionConfig = {
     strategy,
+    // `amounts` is NOT method configuration — it says whose figures apply, and it must
+    // survive this pass or the whole catalog link dies here. Without it a program saved
+    // on `amounts: 'catalog'` reached persistence as a bare `{ strategy }`: no table,
+    // because the operator typed none, and no link either, because the flag naming the
+    // catalog's table had been dropped. `stripInheritedAmounts` two calls later then read
+    // `undefined` as "own amounts" and left the empty rule alone, so the resolver reported
+    // `rule_unconfigured` for a program that was in fact configured — on the catalog.
+    // The catalog write path is unaffected: it deletes `amounts` itself and says why.
+    ...(config.amounts !== undefined ? { amounts: config.amounts } : {}),
     ...(config.dbrCapPercentOverride !== undefined
       ? { dbrCapPercentOverride: config.dbrCapPercentOverride }
       : {}),

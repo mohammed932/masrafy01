@@ -45,6 +45,25 @@ function makeGuard(catalog: Record<string, IncomeAssumptionConfig>) {
     ).assertIncomeProofMatchesName(args);
 }
 
+/** The same catalog, driving the ACTIVATION guard instead of the save guard. */
+function makeActivationGuard(catalog: Record<string, IncomeAssumptionConfig>) {
+  const enums = {
+    isAvailable: async () => true,
+    programNameIncomeRules: async () => new Map(Object.entries(catalog)),
+  };
+  const service = new BankProgramsService({} as never, {} as never, {} as never, enums as never);
+  return (existing: {
+    programType: string;
+    programNameKey: string | null;
+    incomeAssumption: unknown;
+  }): Promise<void> =>
+    (
+      service as unknown as {
+        assertActivatable(e: typeof existing): Promise<void>;
+      }
+    ).assertActivatable(existing);
+}
+
 const CATALOG: Record<string, IncomeAssumptionConfig> = {
   professor: {
     strategy: 'byProfessorRank',
@@ -185,6 +204,94 @@ describe('scope and grandfathering', () => {
         programType: 'income_surrogate',
         strategy: 'byMilitaryGrade',
         storedIncomeProof: 'byMilitaryGrade',
+      }),
+    ).resolves.toBeUndefined();
+  });
+});
+
+
+/**
+ * Going LIVE is a stricter test than saving.
+ *
+ * The save guard grandfathers an unchanged (name, proof) pair so a legacy program is not
+ * frozen out of the edit that would fix it. That mercy is right for an edit and wrong for a
+ * customer — so activation re-checks the same two things with nothing forgiven, and these
+ * cases are what stop the grandfathering from leaking into the public surface.
+ */
+describe('activation — a live program must have a table behind it', () => {
+  const activatable = makeActivationGuard(CATALOG);
+
+  it('refuses a surrogate program whose name states nothing', async () => {
+    await expect(
+      activatable({
+        programType: 'income_surrogate',
+        programNameKey: 'armed_forces',
+        incomeAssumption: { strategy: 'byMilitaryGrade' },
+      }),
+    ).rejects.toMatchObject({ code: ERROR_CODES.PROGRAM_NAME_INCOME_PROOF_MISSING });
+  });
+
+  it('refuses a surrogate program with no catalog name at all', async () => {
+    await expect(
+      activatable({
+        programType: 'income_surrogate',
+        programNameKey: null,
+        incomeAssumption: { strategy: 'byMilitaryGrade' },
+      }),
+    ).rejects.toMatchObject({ code: ERROR_CODES.PROGRAM_NAME_INCOME_PROOF_MISSING });
+  });
+
+  it('refuses a program the SAVE would have grandfathered', async () => {
+    // This is the whole reason the guard exists: `assertIncomeProofMatchesName` lets an
+    // unchanged pair through, so a program reading a proof its name does not state can be
+    // edited indefinitely. It must still not reach a customer.
+    await expect(
+      activatable({
+        programType: 'income_surrogate',
+        programNameKey: 'professor',
+        incomeAssumption: { strategy: 'byMilitaryGrade' },
+      }),
+    ).rejects.toMatchObject({ code: ERROR_CODES.PROGRAM_NAME_INCOME_PROOF_MISMATCH });
+  });
+
+  it('allows a surrogate program that reads what its name states', async () => {
+    await expect(
+      activatable({
+        programType: 'income_surrogate',
+        programNameKey: 'professor',
+        incomeAssumption: { strategy: 'byProfessorRank' },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('allows an inheriting program, which carries no figures of its own', async () => {
+    // `amounts: 'catalog'` means the table is the name's. The strategy is still the
+    // program's and still has to agree.
+    await expect(
+      activatable({
+        programType: 'income_surrogate',
+        programNameKey: 'professor',
+        incomeAssumption: { strategy: 'byProfessorRank', amounts: 'catalog' },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('allows a stated `declared` proof', async () => {
+    await expect(
+      activatable({
+        programType: 'income_surrogate',
+        programNameKey: 'working_capital',
+        incomeAssumption: { strategy: 'declared' },
+      }),
+    ).resolves.toBeUndefined();
+  });
+
+  it('never asks a payslip program about a proof it does not consult', async () => {
+    await expect(
+      activatable({
+        programType: 'income_proof',
+        programNameKey: 'armed_forces',
+        incomeAssumption: { strategy: 'declared' },
       }),
     ).resolves.toBeUndefined();
   });

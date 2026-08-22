@@ -81,17 +81,15 @@ import type {
   DbrBand,
   IncomeAssumptionStrategy,
   IncomeAssumptionConfig,
+  IncomeRuleDraftProgram,
   IncomeBand,
   IncomeKeyTableRow,
   ProgramNameIncomeRule,
   ProgramType,
   RateBandMap,
-  ValueSourceMap,
 } from '../bank-programs.types';
 import {
-  INCOME_KEY_REGISTRY,
   factKeyOf,
-  factKeyOptions,
   incomeMethodLabel,
   incomeMethodShape,
   type ProductRuleOutput,
@@ -1167,75 +1165,53 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       >
                     </p>
                   } @else {
-                    <!-- ONE decision, two peer cards. The method dropdown is gone: the
-                         program name already stated the figure, and the server refuses a
-                         program that reads anything else. -->
-                    <fieldset class="basis-cards amount-choice">
-                      <legend class="visually-hidden" i18n="@@bank_programs.income.choice_legend">
-                        Whose amounts this program uses
-                      </legend>
+                    <!-- NOT a choice any more. The operator does not pick "whose amounts"
+                         up front and then go looking for an editor: the catalog's figures
+                         are already in the grid below, and touching one is what makes them
+                         this bank's. So this is a LABEL on that grid — where the numbers
+                         came from, and the way back — not a third container around it.
+                         A spine on the editor's own inset surface, the same idiom the
+                         blocked-notice above uses to state a condition.
 
-                      <!-- The SAME card vocabulary as step 1's income-basis pair:
-                           basis-card and its medallion, dot, bloom, commit spine,
-                           staggered entrance, focus halo and reduced-motion block. Reused
-                           rather than re-styled — this is the wizard's choice card, and a
-                           second look-alike built beside it is how two "identical" cards
-                           drift. amount-card adds only what differs, the figure list. -->
-                      @for (opt of amountChoices; track opt.value) {
-                        <label
-                          class="basis-card amount-card"
-                          [class.is-on]="amountsValue() === opt.value"
-                          [attr.data-basis]="opt.value"
+                         One slot, two states, so the strip never moves under the pointer
+                         while the operator is typing in the row beneath it. -->
+                    <p
+                      class="income-source"
+                      [class.is-own]="amountsValue() === 'own'"
+                      [class.just-detached]="justDetached()"
+                      role="status"
+                    >
+                      <span class="income-source-medallion" aria-hidden="true">
+                        <span
+                          nz-icon
+                          [nzType]="amountsValue() === 'own' ? 'edit' : 'database'"
+                          nzTheme="outline"
+                        ></span>
+                      </span>
+                      <span class="income-source-body">
+                        @if (amountsValue() === 'own') {
+                          <span class="income-source-line" i18n="@@bank_programs.income.src_own"
+                            >This bank uses its own numbers. Changes on the catalog no longer reach
+                            it.</span
+                          >
+                        } @else {
+                          <span class="income-source-line" i18n="@@bank_programs.income.src_catalog"
+                            >These are {{ programNameLabel() }}'s numbers from the catalog. Change
+                            any of them and this bank keeps its own copy.</span
+                          >
+                        }
+                      </span>
+                      @if (amountsValue() === 'own' && catalogHasFigures()) {
+                        <button
+                          type="button"
+                          class="income-source-reset"
+                          (click)="resetToCatalog()"
+                          i18n="@@bank_programs.income.src_reset"
                         >
-                          <input
-                            type="radio"
-                            class="visually-hidden"
-                            name="amountsSource"
-                            [value]="opt.value"
-                            [checked]="amountsValue() === opt.value"
-                            [attr.aria-describedby]="'amountHint-' + opt.value"
-                            (change)="pickAmounts(opt.value)"
-                          />
-                          <span class="basis-card-top">
-                            <span class="basis-card-medallion" aria-hidden="true">
-                              <span
-                                class="basis-card-icon"
-                                nz-icon
-                                [nzType]="opt.icon"
-                                nzTheme="outline"
-                              ></span>
-                            </span>
-                            <span class="basis-card-dot" aria-hidden="true"></span>
-                          </span>
-                          <span class="basis-card-title">{{ opt.title }}</span>
-                          <span class="basis-card-hint" [id]="'amountHint-' + opt.value">{{
-                            opt.hint
-                          }}</span>
-
-                          @if (opt.value === 'catalog') {
-                            @if (catalogFigures().length > 0) {
-                              <dl class="amount-figures">
-                                @for (row of catalogFigures(); track row.label) {
-                                  <div class="amount-figure">
-                                    <dt>{{ row.label }}</dt>
-                                    <dd>{{ row.value }}</dd>
-                                  </div>
-                                }
-                              </dl>
-                            } @else {
-                              <span
-                                class="basis-card-effect"
-                                i18n="@@bank_programs.income.catalog_no_table"
-                              >
-                                This name needs no table — the applicant's own figure is used.
-                              </span>
-                            }
-                          } @else if (catalogReaderCount() > 0) {
-                            <span class="basis-card-effect">{{ ownPeersLabel() }}</span>
-                          }
-                        </label>
+                          Back to the catalog's
+                        </button>
                       }
-                    </fieldset>
+                    </p>
                   }
 
                   <!-- Both of these used to be projected INSIDE the editor, which now
@@ -1280,30 +1256,32 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
                       </p>
                     }
 
-                    @if (amountsValue() === 'own') {
-                      <app-income-assumption-section
-                        [group]="incomeAssumptionGroup"
-                        [keyTable]="incomeKeyTable()"
-                        (keyTableChange)="incomeKeyTable.set($event)"
-                        [bands]="incomeBands()"
-                        (bandsChange)="incomeBands.set($event)"
-                        [estimatedKeys]="estimatedKeyTableKeys()"
-                        (estimatedKeyChange)="onKeyTableMarker($event)"
-                        (keyStructureChange)="onKeyStructureChange($event)"
-                        [estimatedBandIndexes]="estimatedBandIndexes()"
-                        (estimatedBandChange)="onBandMarker($event)"
-                        (bandStructureChange)="onBandStructureChange($event)"
-                        [ruleSteps]="ruleSteps()"
-                        [ruleGates]="ruleGates()"
-                        [ruleOutput]="ruleOutput()"
-                        [stepFigures]="stepFigures()"
-                        (stepFiguresChange)="stepFigures.set($event)"
-                        (stepFiguresTouched)="markIncomeRuleDirty()"
-                      ></app-income-assumption-section>
-                    }
+                    <!-- ALWAYS rendered, pre-filled from the catalog when this program is
+                         inheriting. It used to appear only once the operator had committed
+                         to "own amounts", which put the numbers a bank is about to sell
+                         behind a decision they could not yet see the consequence of.
+                         Editing any cell is what commits — the onKeyTableEdit /
+                         onBandsEdit / onStepFiguresEdit trio below is where that flip
+                         happens. So nothing here is read-only, and the pre-filled copy is
+                         never persisted: the payload omits figures while the program is
+                         still on the catalog's amounts. -->
+                    <app-income-assumption-section
+                      [group]="incomeAssumptionGroup"
+                      [keyTable]="incomeKeyTable()"
+                      (keyTableChange)="onKeyTableEdit($event)"
+                      [bands]="incomeBands()"
+                      (bandsChange)="onBandsEdit($event)"
+                      [ruleSteps]="ruleSteps()"
+                      [ruleGates]="ruleGates()"
+                      [ruleOutput]="ruleOutput()"
+                      [stepFigures]="stepFigures()"
+                      (stepFiguresChange)="onStepFiguresEdit($event)"
+                      (stepFiguresTouched)="markIncomeRuleDirty()"
+                    ></app-income-assumption-section>
 
                     <app-income-rule-check
                       [programCode]="editingProgramCode()"
+                      [draftProgram]="draftProgramForCheck()"
                       [draft]="liveIncomeRuleDraft()"
                       [ruleSteps]="ruleSteps()"
                       [ruleGates]="ruleGates()"
@@ -1888,7 +1866,7 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         padding: var(--space-3);
         border-radius: var(--radius-md);
         border-inline-start: var(--rule-width-accent) solid var(--ant-warning-color);
-        background: var(--color-surface-sunken);
+        background: var(--color-surface-elevated);
         color: var(--color-text-primary);
       }
       .income-blocked [nz-icon] {
@@ -1896,41 +1874,132 @@ function rateBandsOrder(control: AbstractControl): ValidationErrors | null {
         margin-block-start: 0.15em;
         color: var(--ant-warning-color);
       }
-      /* A fieldset carrying the grid, so the pair is one labelled group for a screen
-         reader without a wrapper div in between. */
-      .amount-choice {
-        margin: 0;
-        padding: 0;
-        border: 0;
-      }
-      /* The catalog's real figures, INSIDE the left card. The operator is accepting
-         these, and "3 rows" says nothing about what the bank will pay. A plain
-         definition list on the card surface — not a nested card. */
-      .amount-figures {
+      /* ── Where the numbers came from ─────────────────────────────────────
+         A LABEL on the grid below, not a container around it. The editor draws its own
+         borders and the header above draws a rule, so a third box here would be the
+         hierarchy failure the block comment at the top of this step warns about.
+
+         Same construction as the blocked notice above — inset surface, accent spine,
+         medallion — because it does the same job: state a condition about what follows.
+         The spine hue is the whole signal, so it is the only thing that moves between the
+         two states: azure while the figures are the catalog's, bronze once they are this
+         bank's. Bronze rather than a warning amber, because owning your own numbers is
+         not a problem — it is the second brand hue doing what it is for. */
+      .income-source {
+        --source-accent: var(--color-brand-primary);
+        position: relative;
         display: flex;
-        flex-direction: column;
-        gap: var(--space-1);
-        margin: var(--space-3) 0 0;
+        align-items: flex-start;
+        gap: var(--space-2-5);
+        margin: 0 0 var(--space-4);
         padding: var(--space-3);
+        overflow: hidden;
         border-radius: var(--radius-md);
-        background: var(--color-surface-sunken);
-        font-variant-numeric: tabular-nums;
+        border-inline-start: var(--rule-width-accent) solid var(--source-accent);
+        background: var(--color-surface-elevated);
+        transition: border-color var(--motion-duration-base) var(--motion-easing-standard);
       }
-      .amount-figure {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: var(--space-3);
+      .income-source.is-own {
+        --source-accent: var(--color-tonal-accent);
       }
-      .amount-figure dt {
-        font-size: 0.75rem;
+      /* Sized off the type, not a fixed pixel box, so it stays centred on the first line
+         at every text scale. */
+      .income-source-medallion {
+        flex: none;
+        display: grid;
+        place-items: center;
+        inline-size: 1.75em;
+        block-size: 1.75em;
+        border-radius: var(--radius-sm);
+        background: color-mix(in srgb, var(--source-accent) 12%, transparent);
+        color: var(--source-accent);
+        font-size: 0.8125rem;
+        transition:
+          background-color var(--motion-duration-base) var(--motion-easing-standard),
+          color var(--motion-duration-base) var(--motion-easing-standard);
+      }
+      .income-source-body {
+        flex: 1 1 auto;
+        min-inline-size: 0;
+      }
+      .income-source-line {
+        display: block;
+        max-inline-size: 68ch;
+        font-size: 0.8125rem;
+        line-height: 1.55;
         color: var(--color-text-secondary);
       }
-      .amount-figure dd {
-        margin: 0;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: var(--color-text-primary);
+      /* Quiet by construction: it undoes work, so it must not compete with the grid it
+         sits above. Underline on hover rather than a filled button — the same treatment
+         the name-picker's escape hatch uses two steps back. */
+      .income-source-reset {
+        flex: none;
+        align-self: center;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        font: inherit;
+        font-size: 0.75rem;
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-tonal-accent);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .income-source-reset:hover {
+        text-decoration: underline;
+      }
+      .income-source-reset:focus-visible {
+        outline: var(--focus-ring-width) solid var(--source-accent);
+        outline-offset: var(--focus-ring-offset);
+        border-radius: var(--radius-sm);
+      }
+      /* The detach beat. One sweep along the spine, once, the moment a program stops
+         following the catalog — because that is a consequential and quiet change, and a
+         toast for something the operator is mid-typing would be worse than nothing.
+         Transform and opacity only; the element itself never moves. */
+      .income-source.just-detached::after {
+        content: '';
+        position: absolute;
+        inset-block: 0;
+        inset-inline-start: 0;
+        inline-size: 40%;
+        pointer-events: none;
+        background: linear-gradient(
+          to inline-end,
+          transparent,
+          color-mix(in srgb, var(--source-accent) 14%, transparent),
+          transparent
+        );
+        animation: source-sweep 620ms var(--motion-easing-standard) 1;
+      }
+      /* The sweep is the one piece of motion here that MOVES. Killed outright rather
+         than shortened: its whole job is to draw the eye across, and a 0.01ms version is
+         a flash, which is worse for exactly the users this query is for. The colour
+         transitions stay — they carry the state, not the movement. */
+      @media (prefers-reduced-motion: reduce) {
+        .income-source {
+          transition: none;
+        }
+        .income-source-medallion {
+          transition: none;
+        }
+        .income-source.just-detached::after {
+          animation: none;
+          content: none;
+        }
+      }
+      @keyframes source-sweep {
+        from {
+          transform: translateX(-100%);
+          opacity: 0;
+        }
+        40% {
+          opacity: 1;
+        }
+        to {
+          transform: translateX(350%);
+          opacity: 0;
+        }
       }
       @media (max-width: 40rem) {
         .income-head {
@@ -3833,49 +3902,98 @@ export class BankProgramFormPage implements OnInit {
   }
 
   /**
-   * Switch between the catalog's amounts and this bank's own.
+   * Put the catalog's figures into the editor, so the operator sees the numbers this bank
+   * will quote instead of an empty grid beside a promise that a table exists somewhere.
    *
-   * Going to `'own'` SEEDS the editor from the catalog rather than opening it blank —
-   * nobody should retype a table they were just looking at, and a blank editor also
-   * reads as "the catalog had nothing", which is a different and false statement. The
-   * seed happens only when the bank has no table of its own yet, so a second visit does
-   * not overwrite figures the bank already typed.
-   *
-   * Going to `'catalog'` warns first when there IS a table to lose. The strategy is
-   * never touched by either direction: the name states it and the server enforces it.
+   * Called on every arrival of a catalog rule, and again by `resetToCatalog`. It
+   * OVERWRITES while the program is inheriting — that is the point, the grid is a view of
+   * the catalog until someone edits it — and does nothing once the program is on its own
+   * figures, or a name change would silently replace numbers a bank had typed.
    */
-  protected pickAmounts(next: 'catalog' | 'own'): void {
-    if (next === this.amountsValue()) return;
-    // The TYPED group, not the `FormGroup` getter the shared editor takes: that one is
-    // deliberately loose so the editor can be reused, and reaching through it here would
-    // cost every control an `any`.
-    const group = this.form.controls.incomeAssumption;
-
-    if (next === 'own') {
-      const catalog = this.catalogRule()?.incomeRule;
-      if (catalog) {
-        if (this.incomeKeyTable().length === 0 && catalog.keyTable?.length) {
-          this.incomeKeyTable.set(catalog.keyTable.map((row: IncomeKeyTableRow) => ({ ...row })));
-        }
-        if (this.incomeBands().length === 0 && catalog.bands?.length) {
-          this.incomeBands.set(catalog.bands.map((band: IncomeBand) => ({ ...band })));
-        }
-        if (!group.controls.scalar.controls.value.value && catalog.scalar) {
-          group.controls.scalar.patchValue({
-            value: catalog.scalar.value,
-            unit: catalog.scalar.unit,
-          });
-        }
-      }
-      this.setAmountsSource('own');
+  private seedFromCatalog(): void {
+    if (this.amountsValue() !== 'catalog') return;
+    const catalog = this.catalogRule()?.incomeRule;
+    if (!catalog) {
+      this.incomeKeyTable.set([]);
+      this.incomeBands.set([]);
+      this.stepFigures.set({});
       return;
     }
+    this.incomeKeyTable.set((catalog.keyTable ?? []).map((row: IncomeKeyTableRow) => ({ ...row })));
+    this.incomeBands.set((catalog.bands ?? []).map((band: IncomeBand) => ({ ...band })));
+    // Cloned one level deeper than the tables: a step's figure is itself a table or a
+    // pair of bounds, and a shallow copy would hand the editor the catalog's own arrays
+    // to mutate in place — the operator's first keystroke would then edit the catalog
+    // copy this program is supposed to be detaching FROM.
+    this.stepFigures.set(cloneStepFigures(catalog.stepParams));
+    this.form.controls.incomeAssumption.controls.scalar.patchValue({
+      value: catalog.scalar?.value ?? null,
+      ...(catalog.scalar ? { unit: catalog.scalar.unit } : {}),
+    });
+  }
 
-    // Back to the catalog. The tables are only DISCARDED on confirm, and the prompt says
-    // what is lost rather than asking whether the operator is sure.
-    const hasOwnTable = this.incomeKeyTable().length > 0 || this.incomeBands().length > 0;
-    if (!hasOwnTable) {
+  /**
+   * The detachment. One edit anywhere in the grid and this program stops following the
+   * catalog — for good, until someone asks for the catalog's figures back.
+   *
+   * The whole figure set is already in the signals (`seedFromCatalog` put it there), so
+   * flipping the flag is all this does. That ordering is load-bearing: if the grid held
+   * only the row being edited, saving would store a one-row table and the program would
+   * quote nothing for every key the operator never touched.
+   */
+  private detachFromCatalog(): void {
+    if (this.amountsValue() !== 'catalog') return;
+    this.setAmountsSource('own');
+    // Marks the strip for its one-shot sweep. A state this consequential should be
+    // felt, and a toast for something the operator is mid-typing would be worse.
+    //
+    // Cleared once it has played. The class has to stop describing a transition that is
+    // over, or leaving and re-entering step 5 would destroy and rebuild the strip and the
+    // sweep would fire again on a program that detached ten minutes ago.
+    this.justDetached.set(true);
+    setTimeout(() => this.justDetached.set(false), SOURCE_SWEEP_MS);
+  }
+
+  /** Every figure edit routes through one of these three, and each detaches first. */
+  protected onKeyTableEdit(rows: IncomeKeyTableRow[]): void {
+    this.detachFromCatalog();
+    this.incomeKeyTable.set(rows);
+  }
+
+  protected onBandsEdit(bands: IncomeBand[]): void {
+    this.detachFromCatalog();
+    this.incomeBands.set(bands);
+  }
+
+  protected onStepFiguresEdit(figures: Record<string, StepFigures>): void {
+    this.detachFromCatalog();
+    this.stepFigures.set(figures);
+  }
+
+  /**
+   * Back to the catalog's figures. Warns first, because the numbers this bank typed are
+   * dropped — and names them as lost rather than asking whether the operator is sure.
+   *
+   * The guard covers every shape a bank can have typed, not just the two tables: a
+   * program whose only own figure was a percentage or a step figure used to revert with
+   * no prompt at all, and the branch that would have cleared it never ran.
+   */
+  protected resetToCatalog(): void {
+    if (this.amountsValue() === 'catalog') return;
+    const hasOwn =
+      this.incomeKeyTable().length > 0 ||
+      this.incomeBands().length > 0 ||
+      Object.keys(this.stepFigures()).length > 0 ||
+      Boolean(this.form.controls.incomeAssumption.controls.scalar.controls.value.value);
+
+    const commit = (): void => {
       this.setAmountsSource('catalog');
+      this.justDetached.set(false);
+      this.seedFromCatalog();
+    };
+
+    if (!hasOwn) {
+      commit();
       return;
     }
     this.modal.confirm({
@@ -3883,13 +4001,7 @@ export class BankProgramFormPage implements OnInit {
       nzContent: $localize`:@@bank_programs.income.revert_body:The figures you typed for this bank are dropped, and it starts quoting the catalog's.`,
       nzOkText: $localize`:@@bank_programs.income.revert_ok:Use the catalog amounts`,
       nzCancelText: $localize`:@@bank_programs.income.revert_cancel:Keep this bank's amounts`,
-      nzOnOk: () => {
-        this.incomeKeyTable.set([]);
-        this.incomeBands.set([]);
-        this.stepFigures.set({});
-        this.form.controls.incomeAssumption.controls.scalar.patchValue({ value: null });
-        this.setAmountsSource('catalog');
-      },
+      nzOnOk: commit,
     });
   }
 
@@ -3921,6 +4033,11 @@ export class BankProgramFormPage implements OnInit {
     } finally {
       this.catalogRuleLoading.set(false);
     }
+    // The grid is a VIEW of the catalog until someone edits it, so the figures have to
+    // arrive with the rule. Seeding here rather than in the template keeps one owner for
+    // the signals the editor writes to — a computed view would be read-only, and the
+    // operator has to be able to type straight into it.
+    this.seedFromCatalog();
   }
 
   /**
@@ -3942,53 +4059,23 @@ export class BankProgramFormPage implements OnInit {
     const proof = this.catalogRule()?.incomeRule?.strategy;
     if (proof === undefined || proof === before) return;
 
-    this.incomeKeyTable.set([]);
-    this.incomeBands.set([]);
-    this.stepFigures.set({});
     const income = this.form.controls.incomeAssumption;
-    income.controls.scalar.patchValue({ value: null });
     income.controls.strategy.setValue(proof);
     income.controls.strategy.markAsDirty();
-    // Back to the catalog's figures, because that is now the only table this program
-    // has. Leaving it on 'own' would show an empty editor under a heading saying the
-    // bank pays its own amounts.
+    // Back to the catalog's figures, because that is now the only table this program has.
     this.setAmountsSource('catalog');
+    this.justDetached.set(false);
+    // RE-SEEDED, not cleared. This used to blank all three shapes and leave the operator
+    // on an empty editor under a line saying the catalog states a table — true, and
+    // invisible. The old tables still have to go: they are keyed by the OLD figure (rank
+    // rows against a grade answer) and could match nothing, and `seedFromCatalog` replaces
+    // rather than merges, so the new name's rows are the only ones left standing.
+    this.seedFromCatalog();
   }
 
   /** A strategy token → the words the picker used, built-in or registry fact. */
   private incomeMethodLabelFor(strategy: IncomeAssumptionStrategy): string {
     return incomeMethodLabel(strategy, this.incomeFacts());
-  }
-
-  /**
-   * A key-table row key → its label. Through the registry the method draws from, so a
-   * rank reads "Assistant professor" rather than `assistant_professor`; a `fact:` method
-   * reads its bound question's own option labels. The raw key is the fallback, never an
-   * empty cell — an unlabelled row still has to be identifiable.
-   */
-  private incomeKeyLabel(strategy: IncomeAssumptionStrategy, key: string): string {
-    const registry = INCOME_KEY_REGISTRY[strategy as keyof typeof INCOME_KEY_REGISTRY];
-    if (registry) {
-      const member = this.enums
-        .membersFor(registry)()
-        .find((m) => m.key === key);
-      if (member) return this.localeIsAr ? member.labelAr : member.labelEn;
-    }
-    // A `fact:` method's rows are the bound question's own options — through the shared
-    // helper, so the labels here and the picker's cannot come from two different reads.
-    const option = factKeyOptions(strategy, this.incomeFacts()).find(
-      (o: { code: string; labelAr: string; labelEn: string }) => o.code === key,
-    );
-    if (option) return this.localeIsAr ? option.labelAr : option.labelEn;
-    return key;
-  }
-
-  /** A Decimal string → a grouped EGP amount. Never parsed as a float (Principle I). */
-  private egp(value: string): string {
-    const [whole = '0', fraction] = value.split('.');
-    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    const shown = fraction && Number(fraction) > 0 ? `${grouped}.${fraction}` : grouped;
-    return $localize`:@@bank_programs.income.egp:${shown}:amount: EGP`;
   }
 
   protected basisLabel(basis: IncomeBasis): string {
@@ -4235,76 +4322,7 @@ export class BankProgramFormPage implements OnInit {
   readonly incomeBands = signal<IncomeBand[]>([]);
 
   /**
-   * Feature 011 — the sparse value-source map (FR-032).
-   *
-   * Only the NON-default state is held: a path in this set is team-estimated, and an
-   * absent path is bank-stated. Storing both would make "a field nobody has looked at
-   * yet" indistinguishable from "confirmed with the bank", and would need a backfill
-   * over every numeric path of every program to mean anything.
-   */
-  readonly estimatedPaths = signal<ReadonlySet<string>>(new Set());
-
-  /** Whether this number is currently marked as a team estimate. */
-  isEstimated(path: string): boolean {
-    return this.estimatedPaths().has(path);
-  }
-
-  /** Flip one marker. Saving is never blocked by it (FR-034) — only going live is. */
-  setEstimated(path: string, estimated: boolean): void {
-    const next = new Set(this.estimatedPaths());
-    if (estimated) next.add(path);
-    else next.delete(path);
-    this.estimatedPaths.set(next);
-  }
-
-  /**
-   * The rule markers, projected back out of the flat path map for the editors.
-   *
-   * The stored path is the source of truth in ONE place — a second per-editor map
-   * would have to be kept in step with it, and the two would disagree the first time
-   * a row was renamed.
-   */
-  readonly estimatedKeyTableKeys = computed<ReadonlySet<string>>(() => {
-    const keys = new Set<string>();
-    for (const path of this.estimatedPaths()) {
-      const match = /^incomeAssumption\.keyTable\.(.+)\.incomeEGP$/.exec(path);
-      if (match?.[1]) keys.add(match[1]);
-    }
-    return keys;
-  });
-
-  readonly estimatedBandIndexes = computed<ReadonlySet<number>>(() => {
-    const indexes = new Set<number>();
-    for (const path of this.estimatedPaths()) {
-      const match = /^incomeAssumption\.bands\.(\d+)\.incomeEGP$/.exec(path);
-      if (match?.[1] !== undefined) indexes.add(Number(match[1]));
-    }
-    return indexes;
-  });
-
-  onKeyTableMarker(event: { key: string; estimated: boolean }): void {
-    this.setEstimated(`incomeAssumption.keyTable.${event.key}.incomeEGP`, event.estimated);
-  }
-
-  onBandMarker(event: { index: number; estimated: boolean }): void {
-    this.setEstimated(`incomeAssumption.bands.${event.index}.incomeEGP`, event.estimated);
-  }
-
-  /**
-   * Move the band markers with their rows (FR-032).
-   *
-   * A band's marker path is its INDEX, and an index only names the same row for as
-   * long as the rows above it stay put. Without this the incomes moved on a removal
-   * and the markers did not: the flag ended up on whatever row inherited the index —
-   * a figure the bank DID state — while the guessed one went unmarked and the program
-   * could go live on it. The key table needs no equivalent because it is addressed by
-   * registry key, which is a name rather than a position.
-   *
-   * A reset (seed / remove-all) drops them all: the rows those markers described are
-   * gone, and a marker with no row is the stale path the save can no longer show.
-   */
-  /**
-   * A step figure changed, so the form is dirty.
+   * Mark the rule dirty from a signal-backed edit.
    *
    * The figures live in a signal rather than in controls (the catalog decides how many there
    * are), and a signal cannot make the form dirty by itself — without this, an operator could
@@ -4315,71 +4333,6 @@ export class BankProgramFormPage implements OnInit {
     this.form.controls.incomeAssumption.markAsDirty();
   }
 
-  onBandStructureChange(event: { kind: 'remove'; index: number } | { kind: 'reset' }): void {
-    const next = new Set<string>();
-    for (const path of this.estimatedPaths()) {
-      const match = /^incomeAssumption\.bands\.(\d+)\.incomeEGP$/.exec(path);
-      if (!match?.[1]) {
-        next.add(path);
-        continue;
-      }
-      if (event.kind === 'reset') continue;
-      const index = Number(match[1]);
-      if (index === event.index) continue;
-      next.add(index > event.index ? `incomeAssumption.bands.${index - 1}.incomeEGP` : path);
-    }
-    this.estimatedPaths.set(next);
-  }
-
-  /**
-   * The key table's equivalent, keyed by the registry KEY rather than a position.
-   *
-   * A rename carries the marker to the new key: the number is the same guess under a
-   * different label, and leaving it behind un-marked the guess and let the program
-   * pass the activation gate on it.
-   */
-  onKeyStructureChange(
-    event:
-      | { kind: 'rename'; from: string; to: string }
-      | { kind: 'remove'; key: string }
-      | { kind: 'reset' },
-  ): void {
-    const pathFor = (key: string): string => `incomeAssumption.keyTable.${key}.incomeEGP`;
-    const next = new Set<string>();
-    for (const path of this.estimatedPaths()) {
-      const match = /^incomeAssumption\.keyTable\.(.+)\.incomeEGP$/.exec(path);
-      if (!match?.[1]) {
-        next.add(path);
-        continue;
-      }
-      if (event.kind === 'reset') continue;
-      const key = match[1];
-      if (event.kind === 'remove') {
-        if (key !== event.key) next.add(path);
-        continue;
-      }
-      next.add(key === event.from ? pathFor(event.to) : path);
-    }
-    this.estimatedPaths.set(next);
-  }
-
-  /** Every income-rule marker, dropped — both tables are gone (FR-032). */
-  private dropIncomeRuleMarkers(): void {
-    const next = new Set<string>();
-    for (const path of this.estimatedPaths()) {
-      if (/^incomeAssumption\.(bands|keyTable)\./.test(path)) continue;
-      next.add(path);
-    }
-    if (next.size !== this.estimatedPaths().size) this.estimatedPaths.set(next);
-  }
-
-  /** The map as the API takes it: sparse, one value, sorted for a stable payload. */
-  private valueSourcesPayload(): ValueSourceMap {
-    const out: ValueSourceMap = {};
-    for (const path of [...this.estimatedPaths()].sort()) out[path] = 'team_estimated';
-    return out;
-  }
-
   /**
    * The rule EXACTLY as it stands on screen, including unsaved edits (FR-028).
    *
@@ -4387,6 +4340,44 @@ export class BankProgramFormPage implements OnInit {
    * can never check something different from what Save would send — which is the one
    * way an in-place checker becomes worse than useless.
    */
+  /**
+   * The un-saved program the check runs against, on a CREATE only.
+   *
+   * `null` once the program exists, because the server then reads the STORED rate, fees and
+   * limits — this program's own figures rather than a form's current state, which is the
+   * better answer whenever there is a row to read.
+   *
+   * Built by `payloadFromForm`, the same function the Save button uses, so a draft check and
+   * the program that save would create cannot describe different things. Only the five blobs
+   * a quote actually reads are forwarded; the program code, bank name and Arabic friendly
+   * name are none of the check's business, and demanding them is how this panel came to be
+   * disabled for the whole of a create in the first place.
+   *
+   * Returns `null` while no rate is set. Pricing is step 4 and this is step 5, so in practice
+   * it is filled — but an operator who went back and cleared it should get the panel's
+   * "fill the Terms and Pricing steps first" line rather than a quote with no rate behind it.
+   */
+  protected readonly draftProgramForCheck = computed<IncomeRuleDraftProgram | null>(() => {
+    if (this.editingProgramCode() !== null) return null;
+    this.formValue();
+    this.dbrBands();
+    const payload = this.payloadFromForm(this.form.getRawValue());
+    if (!payload.pricing.baseRatePercent && !payload.pricing.currentEffectiveRatePercent) {
+      return null;
+    }
+    return {
+      ...(payload.programNameKey ? { programNameKey: payload.programNameKey } : {}),
+      productCategory: payload.productCategory,
+      isShariaCompliant: payload.isShariaCompliant,
+      programType: payload.programType,
+      tenor: payload.tenor,
+      loanLimits: payload.loanLimits,
+      pricing: payload.pricing,
+      eligibility: payload.eligibility,
+      fees: payload.fees,
+    };
+  });
+
   readonly liveIncomeRuleDraft = computed<IncomeAssumptionConfig>(() => {
     // Touching the two table signals registers them as dependencies, so editing a row
     // re-derives the draft the panel holds.
@@ -4416,13 +4407,13 @@ export class BankProgramFormPage implements OnInit {
    * pipeline the catalog has since changed.
    */
   readonly ruleSteps = computed<readonly RuleStep[]>(
-    () => (this.catalogRule()?.incomeRule as { steps?: RuleStep[] } | null)?.steps ?? [],
+    () => this.catalogRule()?.incomeRule?.steps ?? [],
   );
   readonly ruleGates = computed<readonly RuleGate[]>(
-    () => (this.catalogRule()?.incomeRule as { gates?: RuleGate[] } | null)?.gates ?? [],
+    () => this.catalogRule()?.incomeRule?.gates ?? [],
   );
   readonly ruleOutput = computed<ProductRuleOutput | null>(
-    () => (this.catalogRule()?.incomeRule as { output?: ProductRuleOutput } | null)?.output ?? null,
+    () => this.catalogRule()?.incomeRule?.output ?? null,
   );
 
   /**
@@ -4534,56 +4525,27 @@ export class BankProgramFormPage implements OnInit {
   );
 
   /**
-   * The catalog's figures, rendered as label → amount pairs on the left card.
-   *
-   * A `<dl>` of the ACTUAL numbers, not a count: the operator is accepting these, and
-   * "3 rows" tells them nothing about what the bank will pay. Key rows are labelled
-   * through the registry so a rank reads "Assistant professor", not `assistant_professor`.
+   * Whether the catalog states any figure at all — i.e. whether "back to the catalog's"
+   * would land on something. A `declared` name has no table by design, so on one of those
+   * there is nothing to offer and nothing to go back to.
    */
-  protected readonly catalogFigures = computed<Array<{ label: string; value: string }>>(() => {
+  protected readonly catalogHasFigures = computed<boolean>(() => {
     const rule = this.catalogRule()?.incomeRule;
-    if (!rule) return [];
-    if (rule.keyTable?.length) {
-      return rule.keyTable.map((row: IncomeKeyTableRow) => ({
-        label: this.incomeKeyLabel(rule.strategy, row.key),
-        value: this.egp(row.incomeEGP),
-      }));
-    }
-    if (rule.bands?.length) {
-      return rule.bands.map((band: IncomeBand) => ({
-        label:
-          band.toExclusive === null
-            ? $localize`:@@bank_programs.income.band_open:${band.fromInclusive}:from: and above`
-            : $localize`:@@bank_programs.income.band_range:${band.fromInclusive}:from: – ${band.toExclusive}:to:`,
-        value: this.egp(band.incomeEGP),
-      }));
-    }
-    if (rule.scalar) {
-      return [
-        {
-          label:
-            rule.scalar.unit === 'percent'
-              ? $localize`:@@bank_programs.income.scalar_percent:Percentage applied`
-              : $localize`:@@bank_programs.income.scalar_multiplier:Multiplier applied`,
-          value:
-            rule.scalar.unit === 'percent' ? `${rule.scalar.value}%` : `× ${rule.scalar.value}`,
-        },
-      ];
-    }
-    // `declared` — no table, and the empty state on the card says so in words.
-    return [];
+    if (!rule) return false;
+    return Boolean(
+      rule.keyTable?.length ||
+        rule.bands?.length ||
+        rule.scalar ||
+        (rule.stepParams && Object.keys(rule.stepParams).length > 0),
+    );
   });
 
-  protected readonly catalogReaderCount = computed(() => this.catalogRule()?.programs.length ?? 0);
-
-  /** How many OTHER banks type their own figures — social proof for the right card. */
-  protected readonly ownPeersLabel = computed(() => {
-    const code = this.editingProgramCode();
-    const peers = (this.catalogRule()?.programs ?? []).filter(
-      (p: { programCode: string; ownAmounts: boolean }) => p.ownAmounts && p.programCode !== code,
-    ).length;
-    return $localize`:@@bank_programs.income.own_peers:${peers}:count: other bank program(s) do this.`;
-  });
+  /**
+   * Set for the strip's one-shot sweep the moment a program stops following the catalog,
+   * cleared when it starts again. Not persisted and not read by the payload — it marks
+   * the transition, not the state, which `amountsValue()` already carries.
+   */
+  protected readonly justDetached = signal(false);
 
   /**
    * Which card is on. ABSENT reads as `'own'`, matching the wire contract: every
@@ -4594,22 +4556,6 @@ export class BankProgramFormPage implements OnInit {
     this.formValue();
     return this.form.getRawValue().incomeAssumption.amounts === 'catalog' ? 'catalog' : 'own';
   });
-
-  /** The two cards. Static content — the labels do not depend on the picked name. */
-  protected readonly amountChoices = [
-    {
-      value: 'catalog' as const,
-      icon: 'database',
-      title: $localize`:@@bank_programs.income.choice_catalog:Catalog amounts`,
-      hint: $localize`:@@bank_programs.income.choice_catalog_hint:Shared by every bank selling this name. Updates when the catalog updates.`,
-    },
-    {
-      value: 'own' as const,
-      icon: 'edit',
-      title: $localize`:@@bank_programs.income.choice_own:This bank's own amounts`,
-      hint: $localize`:@@bank_programs.income.choice_own_hint:Starts from the catalog figures — edit from there.`,
-    },
-  ];
 
   /** Reactive view of the bound key so the option list keeps a legacy value visible. */
   readonly programNameKeySignal = toSignal(
@@ -4884,7 +4830,6 @@ export class BankProgramFormPage implements OnInit {
         // …and the markers those tables carried, which the payload would otherwise
         // still name over a rule that no longer has either table (422
         // `VALUE_SOURCE_PATH_UNKNOWN`, with no control left on screen to clear it).
-        this.dropIncomeRuleMarkers();
       }
     });
     effect(() => {
@@ -5420,10 +5365,11 @@ export class BankProgramFormPage implements OnInit {
       // the server strips foreign configuration anyway (FR-011), but sending it would
       // make the request disagree with what the admin is looking at.
       incomeAssumption: this.incomeAssumptionPayload(ia),
-      // The sparse marker map (FR-032). Sent on every save, including when empty —
-      // an empty map is the statement "nothing here is a guess", and omitting it
-      // would leave a previously-flagged program flagged forever.
-      valueSources: this.valueSourcesPayload(),
+      // Always empty now that the screen has no way to mark a figure. Sent rather than
+      // omitted, and sent EMPTY rather than left alone, because a program that still
+      // carries a marker from before this control was removed would otherwise keep it
+      // for good — with nothing on any screen able to clear it.
+      valueSources: {},
       fees: {
         adminFeePercent: fe.adminFeePercent,
         stampDutyPercent: fe.stampDutyPercent,
@@ -5544,20 +5490,12 @@ export class BankProgramFormPage implements OnInit {
     // A product rule's figures. Cloned per step rather than assigned: the editor patches one
     // step at a time, and sharing the response's own objects would mutate the loaded snapshot
     // the review step reads back.
-    this.stepFigures.set(
-      Object.fromEntries(
-        Object.entries(
-          (initial.incomeAssumption as { stepParams?: Record<string, StepFigures> }).stepParams ??
-            {},
-        ).map(([id, figures]) => [id, { ...figures }]),
-      ),
-    );
+    this.stepFigures.set(cloneStepFigures(initial.incomeAssumption.stepParams));
     // The name's rule, so the block can render the proof and the catalog's figures. NOT
     // adopted: this program's stored strategy is what it is quoting off today, and
     // overwriting it on load would silently rewrite a legacy program the moment an
     // operator opened it to change a fee.
     void this.loadCatalogRule();
-    this.estimatedPaths.set(new Set(Object.keys(initial.valueSources ?? {})));
     this.feesGroup.patchValue({
       adminFeePercent: trimZeros(initial.fees.adminFeePercent),
       stampDutyPercent: trimZeros(initial.fees.stampDutyPercent),
@@ -5696,6 +5634,33 @@ function countInvalidFields(control: AbstractControl): number {
  * String-only, never parsed to a float, so every digit the bank typed survives
  * (Principle I).
  */
+/**
+ * Clone a product rule's per-step figures one level deep.
+ *
+ * Deep enough matters: a step's figures are themselves a table, a band list or a pair of
+ * bounds, and a shallow assignment hands the editor the SOURCE's own arrays to mutate in
+ * place — which on the catalog path would mean the operator's first keystroke edits the very
+ * catalog copy this program is detaching from, and on the edit path would mutate the loaded
+ * snapshot the review step reads back.
+ */
+/** Sweep length, kept in step with the `source-sweep` keyframes in this component's CSS. */
+const SOURCE_SWEEP_MS = 620;
+
+function cloneStepFigures(
+  source: Record<string, StepFigures> | undefined,
+): Record<string, StepFigures> {
+  return Object.fromEntries(
+    Object.entries(source ?? {}).map(([id, figures]) => [
+      id,
+      {
+        ...figures,
+        ...(figures.keyTable ? { keyTable: figures.keyTable.map((row) => ({ ...row })) } : {}),
+        ...(figures.bands ? { bands: figures.bands.map((band) => ({ ...band })) } : {}),
+      },
+    ]),
+  );
+}
+
 function trimZeros<T extends string | null | undefined>(raw: T): T {
   if (raw == null || raw === '') return raw;
   if (!raw.includes('.')) return `${raw}.0` as T;
