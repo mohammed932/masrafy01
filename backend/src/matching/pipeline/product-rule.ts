@@ -844,7 +844,13 @@ export function evaluateProductRule(
   const unset = new Set<string>();
   const rows = new Map<string, StepTrace['matchedRow']>();
 
+  // Only the steps this bank's own configuration reaches — see `neededStepIds`. A step no
+  // gate of theirs compares and the answer never reads is not evaluated at all, so it
+  // cannot demand a fact on their behalf.
+  const needed = neededStepIds(rule);
+
   for (const step of steps) {
+    if (!needed.has(step.id)) continue;
     const op = OPS[step.op];
     if (!op) {
       return { ok: false, reason: 'rule_unconfigured', stepId: step.id, steps: trace, gates: gateTrace };
@@ -999,7 +1005,81 @@ export function isStepConfigured(step: RuleStep, figures: StepParams): boolean {
 }
 
 /**
- * The step ids that some `coalesce` chooses between — the OPTIONAL steps.
+ * The steps this rule actually NEEDS: the answer, plus whatever the gates this bank turned
+ * on compare — and nothing else.
+ *
+ * Without this the evaluator ran every step in the list, so a step read only by a gate no
+ * bank turned on still demanded its fact. On the compound frame that meant one skipped
+ * OPTIONAL question ("how many months ago did you sign?") answered `fact_not_answered` for
+ * all five programs, including the two that turn on neither ownership-duration gate and
+ * never read the value — and the same for the unit price at a bank whose ceiling comes from
+ * the unit TYPE. A bank that DOES read a figure still demands it: the narrowing is by what
+ * the bank configured, never by what the applicant happened to answer.
+ *
+ * Statically derived, so it cannot depend on the very values it decides to compute. A gate
+ * whose bound is another step counts as on when that step could produce a figure at all —
+ * the same question `isStepConfigured` answers, asked through the refs.
+ */
+export function neededStepIds(rule: ProductRule): Set<string> {
+  const steps = rule.steps ?? [];
+  const params = rule.stepParams ?? {};
+  const byId = new Map(steps.map((s) => [s.id, s]));
+  const needed = new Set<string>();
+
+  const visit = (id: string, depth = 0): void => {
+    if (needed.has(id) || depth > 32) return;
+    const step = byId.get(id);
+    if (step === undefined) return;
+    needed.add(id);
+    for (const ref of stepRefsOf(step)) if ('step' in ref) visit(ref.step, depth + 1);
+  };
+
+  const couldProduce = (id: string, depth = 0): boolean => {
+    if (depth > 32) return true;
+    const step = byId.get(id);
+    if (step === undefined) return false;
+    if (step.op === 'coalesce' || step.op === 'pickByFact') {
+      const refs = stepRefsOf(step);
+      if (refs.some((ref) => !('step' in ref))) return true;
+      return refs.some((ref) => 'step' in ref && couldProduce(ref.step, depth + 1));
+    }
+    return isStepConfigured(step, params[id] ?? {});
+  };
+
+  if (rule.output?.from) visit(rule.output.from);
+
+  for (const gate of rule.gates ?? []) {
+    const figures = params[gate.id] ?? {};
+    if (gate.kind === 'choice') continue;
+    if (gate.kind === 'numberByKey') {
+      if ((figures.keyTable?.length ?? 0) === 0) continue;
+      if ('step' in gate.left) visit(gate.left.step);
+      continue;
+    }
+    if (gate.right !== undefined) {
+      // A gate whose bound is a step is on only when that step can produce one.
+      if ('step' in gate.right && !couldProduce(gate.right.step)) continue;
+      if ('step' in gate.right) visit(gate.right.step);
+      if ('step' in gate.left) visit(gate.left.step);
+      continue;
+    }
+    const stated =
+      (figures.minValue !== undefined && figures.minValue !== '') ||
+      (figures.maxValue !== undefined && figures.maxValue !== '');
+    if (!stated) continue;
+    if ('step' in gate.left) visit(gate.left.step);
+  }
+
+  return needed;
+}
+
+/** A step's value refs, as a list whether it declares one, many, or none. */
+function stepRefsOf(step: RuleStep): ReadonlyArray<ValueRef> {
+  if (step.of === undefined) return [];
+  return Array.isArray(step.of) ? step.of : [step.of];
+}
+
+/** The step ids that some `coalesce` chooses between — the OPTIONAL steps.
  *
  * Derived from the rule, never stored: a stored "optional" flag beside a coalesce would be
  * a second statement of the same fact, free to disagree with the list the coalesce actually

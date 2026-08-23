@@ -283,7 +283,10 @@ export class PostgresPlatformEnumerationsRepository
       },
     });
     const members: EnumerationMember[] = rows.map(toEnumerationMember);
-    await this.attachParentOptions(members);
+    // Facts are the only type whose members bind a question, so only they can have a
+    // parent list to derive. Gated here rather than inside, so no other type's read — the
+    // questionnaire's and the mobile app's included — pays for the walk at all.
+    if (type === FACT_TYPE) await this.attachParentOptions(members);
     this.cache.set(type, { members, expiresAt: Date.now() + CACHE_TTL_MS });
     return members;
   }
@@ -291,78 +294,54 @@ export class PostgresPlatformEnumerationsRepository
   /**
    * Fill each bound question's `parentOptions` — the list its options are FILED UNDER.
    *
-   * Two queries, both skipped entirely when no member on this type binds an option list, so
-   * every type but `surrogate_fact` pays nothing. Runs before the cache write, so the walk
-   * is amortised over the cache TTL like the rest of the member read.
+   * Resolved through `enumerationParentKeys()`, the SAME map a `factParentTable` step is
+   * evaluated against, rather than through a second walk with its own idea of which list a
+   * `parentKey` points into. That matters more than it looks: an inference here that
+   * disagreed with the engine would offer the operator a class to state figures against and
+   * then answer `no_matching_row` for every applicant who picked a value filed under it.
    *
-   * The parent LIST is derived rather than declared because `parentKey`'s scope is a bare
-   * key: nothing in the row says which type it points into. So the type is inferred as the
-   * one whose rows actually cover the keys in hand, and ties break on the type name so two
-   * identical databases answer identically.
+   * Called only for the fact type, and only when a member actually binds an option list, so
+   * the customer-facing enumeration reads pay nothing for it.
    */
   private async attachParentOptions(members: EnumerationMember[]): Promise<void> {
-    const codes = new Set<string>();
-    for (const m of members) for (const o of m.boundQuestion?.options ?? []) codes.add(o.code);
-    if (codes.size === 0) return;
+    const withOptions = members.filter((m) => (m.boundQuestion?.options?.length ?? 0) > 0);
+    if (withOptions.length === 0) return;
 
-    const children = await this.prisma.platformEnumeration.findMany({
-      where: {
-        key: { in: [...codes] },
-        parentKey: { not: null },
-        active: true,
-        deprecatedAt: null,
-      },
-      select: { type: true, key: true, parentKey: true },
-    });
-    if (children.length === 0) return;
-
-    // key → parent, per candidate list. Per LIST and not flattened: the same key can exist
-    // in two types, and merging them would file a compound under a governorate.
-    const parentByKeyPerType = new Map<string, Map<string, string>>();
-    for (const c of children) {
-      if (c.parentKey === null) continue;
-      const forType = parentByKeyPerType.get(c.type) ?? new Map<string, string>();
-      forType.set(c.key, c.parentKey);
-      parentByKeyPerType.set(c.type, forType);
-    }
-
-    const parentKeys = new Set(children.map((c) => c.parentKey).filter((k): k is string => !!k));
-    const parentRows = await this.prisma.platformEnumeration.findMany({
-      where: { key: { in: [...parentKeys] }, active: true, deprecatedAt: null },
-      orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
-      select: { type: true, key: true, labelAr: true, labelEn: true },
-    });
-    if (parentRows.length === 0) return;
-
-    const parentRowsPerType = new Map<
-      string,
-      Array<{ key: string; labelAr: string; labelEn: string }>
-    >();
-    for (const r of parentRows) {
-      const list = parentRowsPerType.get(r.type) ?? [];
-      list.push({ key: r.key, labelAr: r.labelAr, labelEn: r.labelEn });
-      parentRowsPerType.set(r.type, list);
-    }
-
-    for (const m of members) {
-      const options = m.boundQuestion?.options ?? [];
-      if (options.length === 0) continue;
-
-      const childList = bestCovering(parentByKeyPerType, options.map((o) => o.code));
-      if (!childList) continue;
-      const wanted = new Set<string>();
-      for (const o of options) {
-        const parent = childList.get(o.code);
+    const parentOf = await this.enumerationParentKeys();
+    const wanted = new Set<string>();
+    for (const m of withOptions) {
+      for (const o of m.boundQuestion?.options ?? []) {
+        const parent = parentOf[o.code];
         if (parent !== undefined) wanted.add(parent);
       }
-      if (wanted.size === 0) continue;
+    }
+    if (wanted.size === 0) return;
 
-      const parentList = bestCoveringRows(parentRowsPerType, wanted);
-      if (!parentList) continue;
+    // Ordered once, then filtered per fact, so every fact's list reads in registry order.
+    // `key` is unique per TYPE, so a key held by two lists yields two rows; the first under
+    // this deterministic order labels it — a label, never a membership decision, because the
+    // membership was already decided by the flat map above.
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: { key: { in: [...wanted] }, active: true, deprecatedAt: null },
+      orderBy: [{ sortOrder: 'asc' }, { type: 'asc' }, { key: 'asc' }],
+      select: { key: true, labelAr: true, labelEn: true },
+    });
+    if (rows.length === 0) return;
+
+    const seen = new Set<string>();
+    const ordered = rows.filter((r) => (seen.has(r.key) ? false : (seen.add(r.key), true)));
+
+    for (const m of withOptions) {
+      const mine = new Set<string>();
+      for (const o of m.boundQuestion?.options ?? []) {
+        const parent = parentOf[o.code];
+        if (parent !== undefined) mine.add(parent);
+      }
+      if (mine.size === 0) continue;
       const bound = m.boundQuestion;
       if (!bound) continue;
-      bound.parentOptions = parentList
-        .filter((r) => wanted.has(r.key))
+      bound.parentOptions = ordered
+        .filter((r) => mine.has(r.key))
         .map((r) => ({ code: r.key, labelAr: r.labelAr, labelEn: r.labelEn }));
     }
   }
@@ -1408,38 +1387,6 @@ function boundQuestionOf(row: PlatformEnumerationWithCategories): BoundQuestion 
     options: q.options,
     askedIn: sortCategories((q.loanCategories ?? []).map((c) => c.category)),
   };
-}
-
-/**
- * Which candidate list covers the most of these keys — the one the keys most plausibly ARE.
- *
- * `null` when nothing matches. Ties break on the type name, so the answer does not depend on
- * row order in a `findMany`.
- */
-function bestCovering(
-  perType: Map<string, Map<string, string>>,
-  keys: readonly string[],
-): Map<string, string> | null {
-  let best: { type: string; hits: number; map: Map<string, string> } | null = null;
-  for (const [type, map] of [...perType.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const hits = keys.reduce((n, k) => (map.has(k) ? n + 1 : n), 0);
-    if (hits > 0 && (!best || hits > best.hits)) best = { type, hits, map };
-  }
-  return best?.map ?? null;
-}
-
-/** Same rule, over the parent rows: the list that holds most of the parents in hand. */
-function bestCoveringRows(
-  perType: Map<string, Array<{ key: string; labelAr: string; labelEn: string }>>,
-  wanted: ReadonlySet<string>,
-): Array<{ key: string; labelAr: string; labelEn: string }> | null {
-  let best: { hits: number; rows: Array<{ key: string; labelAr: string; labelEn: string }> } | null =
-    null;
-  for (const [, rows] of [...perType.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const hits = rows.reduce((n, r) => (wanted.has(r.key) ? n + 1 : n), 0);
-    if (hits > 0 && (!best || hits > best.hits)) best = { hits, rows };
-  }
-  return best?.rows ?? null;
 }
 
 /**

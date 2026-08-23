@@ -350,6 +350,37 @@ describe('withStoredStructure — a figures-only catalog write', () => {
     ).toBeUndefined();
   });
 
+  it('leaves a write that states GATES but no steps alone — the revision is the point', () => {
+    const revised = {
+      strategy: 'steps',
+      gates: [{ id: 'floor', kind: 'number', op: 'gte', left: { step: 'ceiling' }, reasonCode: 'X' }],
+    } as unknown as IncomeAssumptionConfig;
+
+    const written = withStoredStructure(revised, stored);
+
+    // The caller's gates survive; the stored ones do NOT come back. Guarding on `steps`
+    // alone answered 200 and discarded exactly this write.
+    expect(written.gates).toEqual(revised.gates);
+    expect(written.steps).toBeUndefined();
+  });
+
+  it('leaves a write that states OUTPUT but no steps alone', () => {
+    const revised = {
+      strategy: 'steps',
+      output: { kind: 'maxAmount', from: 'other', baselineDbrPercent: '40' },
+    } as unknown as IncomeAssumptionConfig;
+
+    expect(withStoredStructure(revised, stored).output).toEqual(revised.output);
+  });
+
+  it('treats an explicit empty step list as a statement, not as silence', () => {
+    const cleared = { strategy: 'steps', steps: [] } as unknown as IncomeAssumptionConfig;
+
+    // A deliberate clear must reach validation and be refused there, not be quietly
+    // re-populated with the structure the caller just removed.
+    expect(withStoredStructure(cleared, stored).steps).toEqual([]);
+  });
+
   it('leaves a single-fact rule untouched', () => {
     const rule = {
       strategy: 'byMilitaryGrade',

@@ -38,7 +38,11 @@ const BASELINE_FACTS: Record<string, SurrogateFactValue> = {
   compound_fully_settled: { kind: 'choice', optionCode: 'no' },
   compound_joint_unit: { kind: 'choice', optionCode: 'mine_only' },
   compound_multi_unit: { kind: 'choice', optionCode: 'no' },
-  compound_best_unit_confirmed: { kind: 'choice', optionCode: 'yes' },
+  // `single_unit`, not `yes`: this applicant owns ONE unit, and `yes` beside
+  // `compound_multi_unit: 'no'` was a combination the questionnaire's own branching could
+  // never produce — the baseline was passing CAE's strongest-unit gate on an answer no real
+  // applicant could have given.
+  compound_best_unit_confirmed: { kind: 'choice', optionCode: 'single_unit' },
   // The car product's two facts. The same applicant answers both packs, which is what a
   // customer with a unit AND a car would do — each program reads only the facts its own rule
   // names, so neither pack disturbs the other.

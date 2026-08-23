@@ -110,6 +110,7 @@ import {
   type IncomeAssumptionConfig,
 } from '@/matching/types';
 import { ERROR_CODES } from '../common/errors/error-codes';
+import { stableJson } from '../common/stable-json.util';
 
 /**
  * Bank-program orchestration service.
@@ -1265,14 +1266,25 @@ export class BankProgramsService {
     // Markers are validated against the INCOMING rule and then pruned to it, exactly as
     // a program's are: the operator marks a figure in the same save that introduces it,
     // and a marker whose row this save deletes is stale rather than unknown.
-    const submitted = dto.valueSources ?? {};
+    //
+    // ABSENT is not the same as EMPTY, and conflating them deleted data. The catalog page
+    // has no control that marks a figure, so it states nothing about markers — and a
+    // wholesale replace against `{}` wiped every `team_estimated` marker on the name the
+    // first time anyone saved a figure, with nothing on the screen able to restore them.
+    // Absent now means "not touching markers": the stored set carries forward, pruned to
+    // the paths this rule still has. An explicit map still replaces.
+    const stating = dto.valueSources !== undefined;
+    const submitted = dto.valueSources ?? name.valueSources ?? {};
     const allowed = catalogIncomeRulePaths(rule);
     const previously = catalogIncomeRulePaths(name.incomeRule);
     for (const [path, value] of Object.entries(submitted)) {
       if (value !== 'team_estimated') {
+        // Only a SUBMITTED value can be refused. A stored marker carried forward is
+        // already-written data; rejecting it would make the row unsavable by anyone.
+        if (!stating) continue;
         throw new ValueSourceValueInvalidException({ path, value: String(value) });
       }
-      if (!allowed.has(path) && !previously.has(path)) {
+      if (stating && !allowed.has(path) && !previously.has(path)) {
         throw new ValueSourcePathUnknownException({ path });
       }
     }
@@ -1310,8 +1322,7 @@ export class BankProgramsService {
           incomeRule: {
             before: name.incomeRule?.strategy ?? null,
             after: rule?.strategy ?? null,
-            figuresChanged:
-              JSON.stringify(name.incomeRule ?? null) !== JSON.stringify(rule ?? null),
+            figuresChanged: stableJson(name.incomeRule ?? null) !== stableJson(rule ?? null),
           },
         },
       },

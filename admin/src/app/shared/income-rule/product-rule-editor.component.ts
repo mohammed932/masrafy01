@@ -37,7 +37,7 @@ interface FigureSlot {
   id: string;
   /** Which column this is, when a row has more than one. `null` for a single slot. */
   label: string | null;
-  shape: 'keyTable' | 'bands' | 'scalar' | 'minmax' | 'applies';
+  shape: 'keyTable' | 'bands' | 'scalar' | 'minmax' | 'applies' | 'none';
   /** For a key-table slot: the option codes the keys must come from, when known. */
   keyOptions: readonly { key: string; labelEn: string; labelAr: string }[] | null;
   /** The trailing affix on a typed figure. `null` when the kind cannot be proved. */
@@ -241,7 +241,15 @@ interface FlowLine {
       }
 
       @for (group of shownGroups(); track group.key) {
-        <section class="grp">
+        <!-- The panel the rail's tabs name. Without the id and the role, every tab pointed
+             its aria-controls at an element that did not exist, and the group content sat
+             outside the tab semantics entirely. -->
+        <section
+          class="grp"
+          [id]="groupTabs().length > 1 ? 'rule-grp-panel-' + group.key : null"
+          [attr.role]="groupTabs().length > 1 ? 'tabpanel' : null"
+          [attr.aria-labelledby]="groupTabs().length > 1 ? 'rule-grp-tab-' + group.key : null"
+        >
           @if (groupTabs().length <= 1) {
             <header class="grp-head">
               <h5 class="grp-title">{{ group.title }}</h5>
@@ -366,6 +374,16 @@ interface FlowLine {
                                 />
                               }
                             </div>
+                          }
+                          @case ('none') {
+                            <!-- Arithmetic over earlier steps: the figure is worked out, so
+                                 there is nothing here for a bank to state. Said in words
+                                 rather than rendered as an empty field, which used to be a
+                                 money box writing a scalar the engine never reads. -->
+                            <p class="slot-none" i18n="@@product_rule.slot.derived">
+                              This figure is worked out from the steps above, so there is nothing to
+                              type here.
+                            </p>
                           }
                           @case ('applies') {
                             <button
@@ -724,6 +742,12 @@ interface FlowLine {
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+      }
+
+      .slot-none {
+        margin: 0;
+        color: var(--color-text-tertiary);
+        font-size: var(--text-sm);
       }
 
       .slot-label {
@@ -1252,8 +1276,14 @@ export class ProductRuleEditorComponent {
    */
   protected readonly activeDerivation = computed<string | null>(() => {
     const configured = this.configuredStepIds();
+    const { alternatives } = this.coalesceMembers();
     for (const step of this.steps()) {
       if (step.op !== 'coalesce') continue;
+      // ALTERNATIVES only. An ADJUSTMENT is a coalesce too (a table beside a `{const}`
+      // fallback), and scanning those made the screen answer "this bank works the ceiling
+      // out from: do you own more than one unit?" — a policy multiplier named as the
+      // derivation, on a program that derives nothing at all.
+      if (!stepRefs(step).some((ref) => 'step' in ref && alternatives.has(ref.step))) continue;
       for (const ref of stepRefs(step)) {
         if ('step' in ref && this.reachesFigures(ref.step, configured)) {
           const chosen = this.stepById().get(ref.step);
@@ -1403,9 +1433,11 @@ export class ProductRuleEditorComponent {
     return {
       id: step.id,
       label: null,
-      // 'steps' cannot occur (a pipeline is not an op) and 'none' rows never reach a slot;
-      // narrowed here so the template's switch stays total.
-      shape: shape === 'steps' || shape === 'none' ? 'scalar' : shape,
+      // 'steps' cannot occur (a pipeline is not an op). 'none' CAN reach here — through a
+      // pick's columns and through a gate's right-hand step, neither of which passes the
+      // group filter — and it means "this step states no figure at all", so it renders as
+      // read-only rather than as a money box whose value nothing would ever read.
+      shape: shape === 'steps' ? 'scalar' : shape,
       keyOptions: this.keyOptionsFor(step),
       unit: this.unitFor(step),
       // Only `constant` states a plain amount; every other scalar op's own figure is a
@@ -1438,32 +1470,46 @@ export class ProductRuleEditorComponent {
    * two editors, because there is no single row a pair of ranges shares.
    */
   private columnSlots(step: RuleStep): FigureSlot[] {
-    const columns = stepRefs(step)
-      .map((ref) => ('step' in ref ? this.stepById().get(ref.step) : undefined))
-      .filter((c): c is RuleStep => c !== undefined);
+    // The RAW index is carried through, because `branches` is positional against `of` and a
+    // literal member is a legal entry. Labelling by the filtered index put the cross-sell
+    // heading over the everyone-else column the moment a pick carried a `{const}` — and
+    // `flow()` and the engine both index the unfiltered list, so the screen contradicted
+    // itself about the same rule.
+    const columns = stepRefs(step).flatMap((ref, index) => {
+      if (!('step' in ref)) return [];
+      const column = this.stepById().get(ref.step);
+      return column === undefined ? [] : [{ column, index }];
+    });
 
     const [first, second] = columns;
     if (
       columns.length === 2 &&
       first !== undefined &&
       second !== undefined &&
-      STEP_OP_SHAPE[first.op] === 'keyTable' &&
-      STEP_OP_SHAPE[second.op] === 'keyTable'
+      STEP_OP_SHAPE[first.column.op] === 'keyTable' &&
+      STEP_OP_SHAPE[second.column.op] === 'keyTable' &&
+      // Merged into ONE table only when the two columns really are the same table read for
+      // two kinds of customer. Two `keyTable` steps keyed by DIFFERENT facts (or one a
+      // parent table and one a choice table) share no row, and merging them would write one
+      // column's keys into the other's step.
+      first.column.op === second.column.op &&
+      first.column.fact === second.column.fact
     ) {
-      const base = this.stepSlot(first);
+      const base = this.stepSlot(first.column);
       return [
         {
           ...base,
           label: null,
-          valueLabel: this.branchLabel(step, 0),
-          secondId: second.id,
-          secondLabel: this.branchLabel(step, 1),
-          configured: base.configured || stepIsConfigured(second, this.figures()[second.id]),
+          valueLabel: this.branchLabel(step, first.index),
+          secondId: second.column.id,
+          secondLabel: this.branchLabel(step, second.index),
+          configured:
+            base.configured || stepIsConfigured(second.column, this.figures()[second.column.id]),
         },
       ];
     }
 
-    return columns.map((column, index) => ({
+    return columns.map(({ column, index }) => ({
       ...this.stepSlot(column),
       label: this.branchLabel(step, index),
     }));
@@ -1497,6 +1543,7 @@ export class ProductRuleEditorComponent {
    */
   private gateSlot(gate: RuleGate): FigureSlot {
     const requirement = $localize`:@@product_rule.col.requirement:The requirement`;
+    const gateUnit = this.gateUnitFor(gate);
     if (gate.kind === 'choice') {
       return {
         id: gate.id,
@@ -1535,8 +1582,8 @@ export class ProductRuleEditorComponent {
       label: null,
       shape: 'minmax',
       keyOptions: null,
-      unit: this.gateUnitFor(gate),
-      money: this.gateUnitFor(gate) === null,
+      unit: gateUnit,
+      money: gateUnit === null,
       valueLabel: requirement,
       secondId: null,
       secondLabel: null,
@@ -1843,6 +1890,9 @@ export class ProductRuleEditorComponent {
     return $localize`:@@product_rule.gate.blank_hint:Leave blank and this condition does not apply to this bank.`;
   }
 
+  /** The document's locale, the same way the section above this one reads it. */
+  private readonly isAr = document.documentElement.lang.startsWith('ar');
+
   private factLabel(key: string): string {
     const fact = this.factByKey().get(key);
     if (fact?.label) return fact.label;
@@ -1865,7 +1915,10 @@ export class ProductRuleEditorComponent {
     const code = step.branches?.[index];
     if (code === undefined) return '';
     const option = this.factOptionsFor(step.fact ?? '')?.find((o) => o.key === code);
-    if (option) return option.labelEn;
+    // This string is a visible COLUMN HEADING, so it follows the document's locale. Reading
+    // `labelEn` unconditionally put English headings over the pipeline's only two-column
+    // table in the Arabic build (Principle IV / A20), with the Arabic label already in hand.
+    if (option) return this.isAr ? option.labelAr : option.labelEn;
     if (step.fact === BANK_RELATIONSHIP_FACT_KEY) {
       return code === 'xsell'
         ? $localize`:@@product_rule.branch.xsell:Already banks here`

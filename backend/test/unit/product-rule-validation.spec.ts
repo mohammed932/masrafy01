@@ -568,6 +568,55 @@ describe('coalesce — the catalog offers derivations, the bank picks one', () =
   });
 
   /**
+   * The real compound frame's first candidate is a `pickByFact` over two columns, and a
+   * pick needs no figures of its OWN — `isStepConfigured` answers `true` for it
+   * unconditionally, which made this whole guard unreachable for the ONE product it was
+   * written for. A bank could save the compound rule with nothing but a down-payment floor
+   * and then answer `rule_unconfigured` to every applicant, live and silent.
+   */
+  function pickFrame(stepParams: IncomeAssumptionConfig['stepParams']): IncomeAssumptionConfig {
+    return {
+      strategy: PRODUCT_RULE_STRATEGY,
+      steps: [
+        { id: 'capByType', op: 'factChoiceTable', fact: 'compound_unit_type' },
+        { id: 'capByTypeTopUp', op: 'factChoiceTable', fact: 'compound_unit_type' },
+        {
+          id: 'capForSegment',
+          op: 'pickByFact',
+          fact: 'bank_relationship',
+          branches: ['ntb', 'xsell'],
+          of: [{ step: 'capByType' }, { step: 'capByTypeTopUp' }],
+        },
+        { id: 'capBasis', op: 'coalesce', of: [{ step: 'capForSegment' }] },
+      ],
+      gates: [],
+      output: { kind: 'maxAmount', from: 'capBasis', baselineDbrPercent: '50' },
+      stepParams,
+    } as IncomeAssumptionConfig;
+  }
+
+  it('refuses a bank whose only candidate is a pick with both columns blank', async () => {
+    const violation = await validateIncomeRule(pickFrame({}), ctx());
+    expect(violation).toMatchObject({ reason: 'coalesce_empty', stepId: 'capBasis' });
+  });
+
+  it('accepts the same rule when EITHER column of the pick is filled', async () => {
+    const first = await validateIncomeRule(
+      pickFrame({ capByType: { keyTable: [{ key: 'apartment', incomeEGP: '2000000' }] } }),
+      ctx(),
+    );
+    expect(first).toBeUndefined();
+
+    // The second column alone is a real configuration: the pick falls back to whichever
+    // column the bank stated, so a bank selling only its existing customers still quotes.
+    const second = await validateIncomeRule(
+      pickFrame({ capByTypeTopUp: { keyTable: [{ key: 'apartment', incomeEGP: '3000000' }] } }),
+      ctx(),
+    );
+    expect(second).toBeUndefined();
+  });
+
+  /**
    * The mixed-ref case, which the guard used to refuse.
    *
    * `multiUnitPct` and `jointPct` in the real compound rule are

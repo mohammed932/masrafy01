@@ -272,9 +272,51 @@ describe('product rule — gates', () => {
     if (!low.ok) {
       expect(low.reason).toBe('gate_failed');
       expect(low.gateReasonCode).toBe('DOWN_PAYMENT_BELOW_MIN');
-      // The step trace survives a refusal, so the check panel can show the figures.
-      expect(low.steps.map((s) => s.id)).toEqual(['price', 'dpPct', 'dpAmount']);
+      // The step trace survives a refusal, so the check panel can show the figures — and
+      // carries only the steps this configuration READS. `dpPct` is in the list but nothing
+      // reads it here (`dpAmount` scales `price` by the bank's own scalar), so it is not
+      // evaluated and cannot demand its fact on a bank's behalf.
+      expect(low.steps.map((s) => s.id)).toEqual(['price', 'dpAmount']);
     }
+  });
+
+  it('does not demand a fact for a step only an UNCONFIGURED gate would read', () => {
+    // The compound frame's real failure: `monthsOwned` is read only by the two
+    // ownership-duration gates, and a bank that turns on neither still made every applicant
+    // answer the optional question the step reads — so one skipped answer refused all five
+    // programs, including the ones that never look at it.
+    const rule: ProductRule = {
+      strategy: 'steps',
+      steps: [
+        { id: 'cap', op: 'constant' },
+        { id: 'monthsOwned', op: 'factNumber', fact: 'months_owned' },
+      ],
+      stepParams: { cap: { valueEGP: '500000' } },
+      gates: [
+        {
+          id: 'ownedFor',
+          kind: 'number',
+          op: 'gte',
+          left: { step: 'monthsOwned' },
+          reasonCode: 'CONTRACT_TOO_NEW',
+        },
+      ],
+      output: { kind: 'maxAmount', from: 'cap' },
+    };
+
+    // The gate carries no figure, so the step it reads is never evaluated and the missing
+    // answer costs nothing.
+    const off = evaluateProductRule(rule, ctx({}));
+    expect(off.ok).toBe(true);
+    if (off.ok) expect(off.steps.map((s) => s.id)).toEqual(['cap']);
+
+    // A bank that DOES state the requirement still demands the answer.
+    const on = evaluateProductRule(
+      { ...rule, stepParams: { ...rule.stepParams, ownedFor: { minValue: '18' } } },
+      ctx({}),
+    );
+    expect(on.ok).toBe(false);
+    if (!on.ok) expect(on.reason).toBe('fact_not_answered');
   });
 
   it('numberByKey compares against the bank row for another answer', () => {

@@ -293,6 +293,44 @@ describe('catalog income rule — estimate markers', () => {
     expect(setProgramNameIncomeRule.mock.calls[0]?.[2]).toEqual({});
   });
 
+  it('carries stored markers when the write states none — absent is not empty', async () => {
+    // The catalog page has no control that marks a figure, so it omits the field. Read as
+    // "the full set is empty", the first successful figure save deleted every marker on the
+    // name and nothing on that screen could put them back.
+    const { write, setProgramNameIncomeRule } = makeService({
+      incomeRule: RANK_RULE,
+      valueSources: { 'incomeRule.keyTable.professor.incomeEGP': 'team_estimated' },
+    });
+
+    await write({ incomeRule: RANK_RULE });
+
+    expect(setProgramNameIncomeRule.mock.calls[0]?.[2]).toEqual({
+      'incomeRule.keyTable.professor.incomeEGP': 'team_estimated',
+    });
+  });
+
+  it('still clears them on an EXPLICIT empty map', async () => {
+    const { write, setProgramNameIncomeRule } = makeService({
+      incomeRule: RANK_RULE,
+      valueSources: { 'incomeRule.keyTable.professor.incomeEGP': 'team_estimated' },
+    });
+
+    await write({ incomeRule: RANK_RULE, valueSources: {} });
+
+    expect(setProgramNameIncomeRule.mock.calls[0]?.[2]).toEqual({});
+  });
+
+  it('prunes a carried marker whose row the new rule no longer has', async () => {
+    const { write, setProgramNameIncomeRule } = makeService({
+      incomeRule: RANK_RULE,
+      valueSources: { 'incomeRule.keyTable.ghost.incomeEGP': 'team_estimated' },
+    });
+
+    await write({ incomeRule: RANK_RULE });
+
+    expect(setProgramNameIncomeRule.mock.calls[0]?.[2]).toEqual({});
+  });
+
   it('refuses a marker on a path the name has never had', async () => {
     const { write } = makeService({ incomeRule: null });
 

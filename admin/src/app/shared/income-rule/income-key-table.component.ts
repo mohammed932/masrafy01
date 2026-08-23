@@ -70,16 +70,20 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
           The key registry is unavailable, so rows cannot be added yet. Retry shortly.
         </span>
       </div>
-    } @else if (members().length === 0) {
-      <!-- No key list to offer. Stated, because the seed button over an empty list sets the
-           same empty array back and reads to the operator as a broken control. -->
+    } @else if (members().length === 0 && displayRows().length === 0) {
+      <!-- No key list to offer AND nothing stored. Both halves are load-bearing: the seed
+           button over an empty list sets the same empty array back and reads as a broken
+           control, but a table that already holds figures must render them even when the
+           key list cannot be listed — the registry read is still in flight, the fact was
+           deactivated, the parent walk found nothing — because those rows are what the
+           engine is quoting from, and hiding them makes a live table look unconfigured. -->
       <div class="ikt__empty">
         <p class="ikt__emptyText" i18n="@@bank_programs.income.key_table_no_keys">
-          The keys for this table cannot be listed here yet, so no row can be added. Check that
-          the values this table is keyed by exist on Manage values.
+          The keys for this table cannot be listed here yet, so no row can be added. Check that the
+          values this table is keyed by exist on Manage values.
         </p>
       </div>
-    } @else if (rows().length === 0) {
+    } @else if (displayRows().length === 0) {
       <div class="ikt__empty">
         <p class="ikt__emptyText" i18n="@@bank_programs.income.key_table_empty">
           This method reads the applicant's answer and looks it up here. Add a row for every value
@@ -100,7 +104,7 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
       </div>
 
       <ol class="ikt__list">
-        @for (row of rows(); track $index) {
+        @for (row of displayRows(); track $index) {
           <li class="ikt__row" [class.has-second]="secondRows() !== null">
             <nz-select
               class="ikt__key"
@@ -160,7 +164,7 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
                 nzType="text"
                 type="button"
                 class="ikt__action"
-                [disabled]="$index === rows().length - 1"
+                [disabled]="$index >= displayRows().length - 1"
                 [attr.aria-label]="moveDownAriaLabel"
                 (click)="move($index, 1)"
               >
@@ -433,7 +437,43 @@ export class IncomeKeyTableComponent {
     },
   );
 
-  readonly error = computed<IncomeKeyTableError>(() => incomeKeyTableErrorFor(this.rows()));
+  /**
+   * Every row the operator must be able to SEE — the primary column, then any key the
+   * SECOND column carries that the primary does not.
+   *
+   * The orphan half is not hypothetical: a bank may state only the top-up column (the
+   * pick falls back to whichever column is configured), and a seed or API write may key
+   * the two columns differently. Projected through the primary's keys alone, those
+   * figures are invisible, un-editable and un-removable while the engine quotes off
+   * them. They render last because they have no position in the stored primary order.
+   */
+  readonly displayRows = computed<readonly IncomeKeyTableRow[]>(() => {
+    const primary = this.rows();
+    const second = this.secondRows();
+    if (second === null || second.length === 0) return primary;
+    const known = new Set(primary.map((r) => r.key));
+    const orphans = second
+      .filter((r) => !known.has(r.key))
+      .map((r) => ({ key: r.key, incomeEGP: '' }));
+    return orphans.length === 0 ? primary : [...primary, ...orphans];
+  });
+
+  /**
+   * The primary column's error, or — when the primary is legitimately empty because the
+   * bank filled only the second column — the second column's.
+   *
+   * The second column was previously unvalidated, so a zero, a blank or a duplicate key
+   * in it passed the whole local gate and came back as a 422 naming a step id this merged
+   * editor no longer renders as a row of its own.
+   */
+  readonly error = computed<IncomeKeyTableError>(() => {
+    const second = this.secondRows();
+    const hasSecond = second !== null && second.length > 0;
+    const primary = incomeKeyTableErrorFor(this.rows());
+    if (primary === 'NO_ROWS' && hasSecond) return incomeKeyTableErrorFor(second);
+    if (primary) return primary;
+    return hasSecond ? incomeKeyTableErrorFor(second) : null;
+  });
 
   /** Keys with no row yet — what "Add a row" can offer without creating a duplicate. */
   readonly unusedKeys = computed(() => {
@@ -460,7 +500,13 @@ export class IncomeKeyTableComponent {
   }
 
   removeAt(index: number): void {
-    const gone = this.rows()[index]?.key;
+    const gone = this.displayRows()[index]?.key;
+    // An orphan has no primary row to drop; removing it means dropping its second-column
+    // figure, which is the only thing that made it appear.
+    if (index >= this.rows().length) {
+      if (gone !== undefined) this.dropSecond(gone);
+      return;
+    }
     this.rows.set(this.rows().filter((_, i) => i !== index));
     // The second column is keyed, so a removed key must leave with its row — otherwise
     // it survives as a figure for a key the table no longer states.
@@ -469,6 +515,8 @@ export class IncomeKeyTableComponent {
 
   /** Swap with the neighbour. Order is stored, so this is real data, not a view state. */
   move(index: number, delta: -1 | 1): void {
+    // Orphans sit past the stored order and have nothing to swap with until they are typed.
+    if (index >= this.rows().length) return;
     const rows = [...this.rows()];
     const target = index + delta;
     const a = rows[index];
@@ -482,20 +530,34 @@ export class IncomeKeyTableComponent {
   }
 
   setKey(index: number, key: string): void {
-    const previous = this.rows()[index]?.key;
+    const previous = this.displayRows()[index]?.key;
+    if (index >= this.rows().length) {
+      // Re-keying an orphan moves the second-column figure; there is still no primary row.
+      if (previous !== undefined && previous !== key) this.renameSecond(previous, key);
+      return;
+    }
     this.rows.set(this.rows().map((row, i) => (i === index ? { ...row, key } : row)));
     // Re-keying a row re-keys BOTH columns: the row still means one answer, and leaving
     // the second column behind would file its figure under the answer just vacated.
-    if (previous !== undefined && previous !== key) {
-      const second = this.secondRows();
-      if (second !== null) {
-        this.secondRows.set(second.map((r) => (r.key === previous ? { ...r, key } : r)));
-      }
-    }
+    if (previous !== undefined && previous !== key) this.renameSecond(previous, key);
   }
 
   setIncome(index: number, incomeEGP: string): void {
+    const orphan = this.displayRows()[index];
+    // Typing into an orphan's primary cell is what promotes it to a real row of the
+    // primary column — up to that moment the key existed only in the second one.
+    if (index >= this.rows().length) {
+      if (orphan) this.rows.set([...this.rows(), { key: orphan.key, incomeEGP }]);
+      return;
+    }
     this.rows.set(this.rows().map((row, i) => (i === index ? { ...row, incomeEGP } : row)));
+  }
+
+  /** Carry a re-key across to the second column, so one answer keeps one row. */
+  private renameSecond(previous: string, key: string): void {
+    const second = this.secondRows();
+    if (second === null) return;
+    this.secondRows.set(second.map((r) => (r.key === previous ? { ...r, key } : r)));
   }
 
   // --- the optional second column -------------------------------------------
@@ -531,6 +593,9 @@ export class IncomeKeyTableComponent {
 
   private inPrimaryOrder(rows: readonly IncomeKeyTableRow[]): IncomeKeyTableRow[] {
     const order = new Map(this.rows().map((r, i) => [r.key, i]));
-    return [...rows].sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
+    // A key the primary column does not carry sorts LAST, not first: `?? 0` used to hoist
+    // every orphan above the real first row and reorder the stored blob to match.
+    const at = (key: string): number => order.get(key) ?? Number.MAX_SAFE_INTEGER;
+    return [...rows].sort((a, b) => at(a.key) - at(b.key));
   }
 }

@@ -401,10 +401,24 @@ async function validateProductRule(
     // always agreed with the comment rather than the code: it skips unset STEP refs and takes
     // a literal as given.
     if (candidates.length !== refs.length) continue;
-    const anyConfigured = candidates.some((id) => {
+    // Recursive, because a candidate can be a step that needs no figures of its OWN and
+    // still be empty: `pickByFact` is arithmetic over two columns, so `isStepConfigured`
+    // answers `true` for it unconditionally — and the compound rule's FIRST candidate is a
+    // pick, which made this whole guard unreachable. A pick counts as configured only when
+    // one of its columns is.
+    const reaches = (id: string, depth = 0): boolean => {
+      if (depth > 8) return true;
       const candidate = steps.find((s2) => s2.id === id);
-      return candidate !== undefined && isStepConfigured(candidate, params[id] ?? {});
-    });
+      if (candidate === undefined) return false;
+      if (candidate.op === 'pickByFact' || candidate.op === 'coalesce') {
+        const inner = refsOf(candidate.of);
+        // A literal member always resolves, so such a list is never empty.
+        if (inner.some((ref) => !('step' in ref))) return true;
+        return inner.some((ref) => 'step' in ref && reaches(ref.step, depth + 1));
+      }
+      return isStepConfigured(candidate, params[id] ?? {});
+    };
+    const anyConfigured = candidates.some((id) => reaches(id));
     if (candidates.length > 0 && !anyConfigured) {
       return { kind: 'productRuleInvalid', reason: 'coalesce_empty', stepId: step.id };
     }

@@ -56,6 +56,7 @@ import {
   type CatalogCategory,
   type CatalogIncomeBasis,
 } from './data/program-catalog-matrix';
+import { stableJson } from '../src/common/stable-json.util';
 
 const prisma = new PrismaClient();
 
@@ -437,14 +438,6 @@ export async function seedProgramCatalog(): Promise<void> {
    * order: a band table's order is load-bearing (the lookup is first-match).
    */
   const sameRule = (a: unknown, b: unknown): boolean => stableJson(a) === stableJson(b);
-  const stableJson = (value: unknown): string => {
-    if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-    if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([x], [y]) => x.localeCompare(y));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableJson(v)}`).join(',')}}`;
-  };
 
   /** What a stored rule IS, for the change log — shape included, never just a name. */
   const describeRule = (rule: unknown): string => {

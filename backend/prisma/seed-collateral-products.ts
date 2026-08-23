@@ -320,12 +320,16 @@ const COMPOUND_RULE: IncomeAssumptionConfig = {
       reasonCode: 'CONTRACT_TOO_OLD',
     },
     // One bank finances a single unit and prices the strongest one owned.
+    // `expect` as an ALLOW-LIST, the same way the two self-employed gates use it: a customer
+    // who owns ONE unit has nothing to confirm, and refusing them for an unanswered
+    // comparison against units they do not have is a refusal about the questionnaire rather
+    // than about the applicant.
     {
       id: 'strongestUnitConfirmed',
       kind: 'choice',
       op: 'eq',
       fact: 'compound_best_unit_confirmed',
-      expect: ['yes'],
+      expect: ['yes', 'single_unit'],
       reasonCode: 'MULTI_UNIT_NOT_CONFIRMED',
     },
     // The two self-employed conditions. `expect` is an ALLOW-LIST, which is what lets one
@@ -658,9 +662,15 @@ const BANK_FIGURES: readonly BankFigures[] = [
     operatorNotes:
       'Ceiling derived from a band over the amount already paid, with a higher cross-sell column for an existing FABMISR customer. Half the ceiling on a jointly owned unit. Contract no older than 120 months. FCU verification on the ownership contract. The cross-sell TENOR exception (84 months instead of 72) is not modelled: the tenor cap comes from the rate cascade, which reads no facts.',
     stepParams: {
+      // The lowest band opens at ZERO, not at the 250 000 floor this bank also states as a
+      // gate. Steps run before gates, so a band starting at 250 000 meant anyone below it
+      // died at the STEP with `no_matching_band` — an opaque stop — and the gate that exists
+      // to say "your down payment is short" never ran at all. Opened at zero, the tier is
+      // unreachable in practice (the gate refuses first) and the refusal is the one the
+      // customer can act on.
       capByPaidBand: {
         bands: [
-          { fromInclusive: '250000', toExclusive: '500000', incomeEGP: '750000.00' },
+          { fromInclusive: '0', toExclusive: '500000', incomeEGP: '750000.00' },
           { fromInclusive: '500000', toExclusive: '1000000', incomeEGP: '1000000.00' },
           { fromInclusive: '1000000', toExclusive: '1500000', incomeEGP: '1250000.00' },
           { fromInclusive: '1500000', toExclusive: null, incomeEGP: '1500000.00' },
@@ -670,7 +680,7 @@ const BANK_FIGURES: readonly BankFigures[] = [
       // is what makes this program's own `maxAmountEGP` of 2 000 000 reachable.
       capByPaidBandXsell: {
         bands: [
-          { fromInclusive: '250000', toExclusive: '500000', incomeEGP: '1250000.00' },
+          { fromInclusive: '0', toExclusive: '500000', incomeEGP: '1250000.00' },
           { fromInclusive: '500000', toExclusive: '1000000', incomeEGP: '1500000.00' },
           { fromInclusive: '1000000', toExclusive: '1500000', incomeEGP: '1750000.00' },
           { fromInclusive: '1500000', toExclusive: null, incomeEGP: '2000000.00' },

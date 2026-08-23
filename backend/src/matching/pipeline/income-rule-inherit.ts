@@ -54,6 +54,13 @@ const AMOUNT_KEYS = [
   'creditCardLimitMultiplier',
 ] as const satisfies ReadonlyArray<keyof IncomeAssumptionConfig>;
 
+/** The rule's non-figure policy fields — the ones no pipeline screen edits. */
+const POLICY_KEYS = [
+  'dbrCapPercentOverride',
+  'requiredDocuments',
+  'combinationRule',
+] as const satisfies ReadonlyArray<keyof IncomeAssumptionConfig>;
+
 /**
  * Does this program rule take its figures from the catalog?
  *
@@ -172,9 +179,48 @@ export function withStoredStructure(
   stored: IncomeAssumptionConfig | null | undefined,
 ): IncomeAssumptionConfig {
   if (!isProductRuleStrategy(incoming.strategy)) return incoming;
-  if ((incoming.steps?.length ?? 0) > 0) return incoming;
+  // "States no structure" means ALL THREE keys are absent, not just `steps`. The overlay
+  // replaces steps, gates AND output together, so guarding on `steps` alone silently threw
+  // away a write that revised the gates or the output while leaving the step list to the
+  // stored copy — a 200 with the caller's change discarded. `steps: []` is a statement too
+  // (an explicit clear), and must not be read as silence either.
+  if (incoming.steps !== undefined || incoming.gates !== undefined || incoming.output !== undefined) {
+    return incoming;
+  }
   if (!stored) return incoming;
-  return mergeProductRuleStructure(incoming, stored);
+  return carryStoredPolicy(mergeProductRuleStructure(incoming, stored), stored);
+}
+
+/**
+ * The name's own POLICY fields, carried onto a figures-only write for the same reason its
+ * structure is.
+ *
+ * `dbrCapPercentOverride`, `requiredDocuments` and `combinationRule` are part of the rule
+ * blob and no screen edits them on a pipeline — the catalog page posts `strategy` plus
+ * `stepParams` and nothing else. Dropped, they are gone for good and nothing says so; the
+ * only reason that has not bitten yet is that the save used to fail before it could.
+ *
+ * Same guard as the structure: carried ONLY when the incoming write states none of them, so
+ * a client that means to change or clear one still can.
+ */
+function carryStoredPolicy(
+  incoming: IncomeAssumptionConfig,
+  stored: IncomeAssumptionConfig,
+): IncomeAssumptionConfig {
+  const states =
+    incoming.dbrCapPercentOverride !== undefined ||
+    incoming.requiredDocuments !== undefined ||
+    incoming.combinationRule !== undefined;
+  if (states) return incoming;
+  const carried: IncomeAssumptionConfig = { ...incoming };
+  let touched = false;
+  for (const key of POLICY_KEYS) {
+    const value = stored[key];
+    if (value === undefined) continue;
+    Object.assign(carried, { [key]: value });
+    touched = true;
+  }
+  return touched ? carried : incoming;
 }
 
 /**

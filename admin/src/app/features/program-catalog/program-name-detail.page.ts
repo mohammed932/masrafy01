@@ -2368,12 +2368,11 @@ export class ProgramNameDetailPage implements OnInit {
     try {
       const { data } = await this.programsApi.setProgramNameIncomeRule(this.routeKey(), {
         incomeRule: this.ruleFromForm(strategy),
-        // Sent even when empty: `{}` is the statement "nothing here is a guess", and
-        // omitting it would leave a previously-flagged figure flagged for good.
-        // Always empty: this screen has no control that marks a figure any more. Sent
-        // rather than omitted so a rule still carrying a marker from before the control
-        // was removed is cleared rather than kept flagged for good.
-        valueSources: {},
+        // `valueSources` is OMITTED, deliberately. This screen has no control that marks a
+        // figure, so it has nothing to say about markers — and saying `{}` said something
+        // false: the server read it as "the full set is empty" and deleted every
+        // team-estimated marker on the name, on a save about an unrelated figure, with no
+        // control on this page able to put them back. Absent means "not touching them".
       });
       this.absorbRule(data);
     } catch (err) {

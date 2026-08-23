@@ -40,7 +40,7 @@ other three blank, and a blank one is skipped (`rule_unconfigured`) — not a re
 |---|---|---|---|
 | 1 | `capByUnitType` + `capByUnitTypeTopUp` → `capByUnitTypeForSegment` | table keyed by unit type; `pickByFact` on the derived `bank_relationship` fact picks the column (`ntb` → standard, `xsell` → top-up) | **ABK**: 2M / 3M / 4M · existing customer 3M / 3.5M / 4.5M |
 | 2 | `capByCompoundClass` | `factParentTable`: compound **name** → its `parentKey` **class** → table of five rows | **EG Bank**: AA 6M · AB 5M · A 4M · B 3M · C 2M |
-| 3 | `capByPaidBand` + `capByPaidBandXsell` → `capByPaidBandForSegment` | band table over `dpAmount`, same segment pick | **FABMISR**: paid 250k–500k → 750k · 500k–1M → 1M · 1M–1.5M → 1.25M · 1.5M+ → 1.5M (cross-sell one tier up) |
+| 3 | `capByPaidBand` + `capByPaidBandXsell` → `capByPaidBandForSegment` | band table over `dpAmount`, same segment pick | **FABMISR**: below 500k → 750k · 500k–1M → 1M · 1M–1.5M → 1.25M · 1.5M+ → 1.5M (cross-sell +500k on every band) |
 | 4 | `capByPaidPercent` | percentage of `dpAmount` | **CAE**: 50% |
 
 A bank that sells no second column leaves the top-up blank and `pickByFact` falls back to the
@@ -71,7 +71,7 @@ the optional question can be skipped without a `fact_not_answered` refusal.
 | `unitPriceFloorByYear` | `price` ≥ floor for that `compound_contract_year` | `UNIT_PRICE_BELOW_MIN` |
 | `ownedForMonths` | `monthsOwned` ≥ min, keyed by "unit fully paid off" | `CONTRACT_TOO_NEW` |
 | `ownedForMonthsMax` | `monthsOwned` ≤ max | `CONTRACT_TOO_OLD` |
-| `strongestUnitConfirmed` | `compound_best_unit_confirmed` = yes | `MULTI_UNIT_NOT_CONFIRMED` |
+| `strongestUnitConfirmed` | `compound_best_unit_confirmed` ∈ {yes, single_unit} | `MULTI_UNIT_NOT_CONFIRMED` |
 | `selfEmployedLicence` | `self_employed_licence` ∈ {yes, not_self_employed} | `SELF_EMPLOYED_DOCS_MISSING` |
 | `businessYears` | `business_years` ∈ {two_or_more, not_self_employed} | `BUSINESS_TOO_NEW` |
 
@@ -100,8 +100,12 @@ instalment the ceiling implies IS the debt-burden ceiling**.
   ceiling, with no third setting to keep in step.
 - Rate used is the **cascade** rate, not the fee-penalty-adjusted one: the ceiling is a
   credit-policy figure, decided before anyone waived an admin fee.
-- `programMax` is then clamped to the ceiling with `binding: 'collateral_ceiling'`, and the figure
-  is frozen onto the offer as `bank_offer.collateralCeilingEGP`.
+- `programMax` is clamped to the ceiling — and only DOWNWARD: when the ceiling is lower than the
+  bank's own `maxAmountEGP` the binding becomes `collateral_ceiling`; when the unit supports more
+  than the program writes, the program's own maximum binds as `program_max`. Either way the
+  ceiling is frozen onto the offer as `bank_offer.collateralCeilingEGP`.
+- The conversion reads the UNCLAMPED ceiling: the clamp is about what this program will write, the
+  conversion about what the collateral supports.
 - `IncomeOrigin` becomes `'ceiling'`, which never meets a declared salary — a payslip must not
   rescue a product whose collateral the bank has not priced.
 
@@ -120,10 +124,13 @@ capByUnitTypeTopUp villa      4 500 000
 pickByFact  xsell          →  4 500 000
 × multiUnit  110%          →  4 950 000
 × joint (none → 100%)      →  4 950 000   = ceiling
-clamp maxAmountEGP         →  4 500 000
-PMT(4.5M, 25.5%, 84m)      ≈    115 300 / month
-recognisedIncome ×100/50   ≈    230 700
+PMT(4.95M, 25.5%, 84m)     ≈    126 879 / month
+recognisedIncome ×100/50   ≈    253 759
 ```
+
+With no obligations the affordability ceiling comes back as exactly 4 950 000 — the round trip is
+lossless — so what binds is ABK's own `maxAmountEGP` of 4 500 000, reported as `program_max`. The
+ceiling only becomes the binding constraint when it lands BELOW the program maximum.
 
 Same customer at **CAE**: alternative 4 fires instead — 50% × 3 000 000 = **1 500 000**, and a
 self-employed applicant takes the 40/50 haircut on top.

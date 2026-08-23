@@ -1987,6 +1987,7 @@
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="product_rule.slot.derived" datatype="html"><source>This figure is worked out from the steps above, so there is nothing to type here.</source><target>هذا الرقم يُحسب من الخطوات السابقة، فلا يوجد ما يُكتب هنا.</target></trans-unit>
       <trans-unit id="product_rule.col.requirement" datatype="html">
         <source>The requirement</source>
         <target>الحد المطلوب</target>

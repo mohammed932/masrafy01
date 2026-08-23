@@ -496,17 +496,21 @@ const COMPOUND_MULTI_UNIT_Q: SeedQuestion = {
 
 const COMPOUND_BEST_UNIT_Q: SeedQuestion = {
   code: 'compound_best_unit_confirmed',
-  questionEn: 'Are the answers above about your strongest unit?',
-  questionAr: 'الإجابات اللي فوق بتاعة أفضل وحدة عندك؟',
+  questionEn: 'Is the unit above the strongest one you own?',
+  questionAr: 'هل الوحدة اللي فوق هي أقوى وحدة تملكها؟',
   helperTextEn: 'Some banks finance one unit only, and price the best one you own.',
   helperTextAr: 'بعض البنوك تمنح تمويلًا لوحدة واحدة فقط، وتحسبها على أفضل وحدة تملكها.',
   isRequired: false,
-  // A two-level chain: this is asked only of a multi-unit owner, who is asked only of a
-  // compound owner. Each `enabledWhen` names ONE parent, which is all the shape allows and
-  // all this needs — the parent's own visibility is evaluated in the same pass.
-  enabledWhen: { questionCode: 'compound_multi_unit', operator: 'equals', optionCode: 'yes' },
+  // Asked of every compound owner, NOT only of a multi-unit one — and that is the whole
+  // point. A bank that finances one unit gates on this answer, and gating the QUESTION on
+  // `compound_multi_unit = yes` meant a single-unit owner was never shown it, had no answer,
+  // and was refused `fact_not_answered` by a condition that was never about them. Same shape
+  // as the two self-employed gates: the answer set carries the "does not apply to me" case,
+  // because `enabledWhen` can name one parent option and cannot express "or".
+  enabledWhen: COMPOUND_GATED,
   options: [
-    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
+    { code: 'single_unit', labelEn: 'I only own this one unit', labelAr: 'أملك هذه الوحدة فقط' },
+    { code: 'yes', labelEn: 'Yes, this is my strongest', labelAr: 'نعم، هي الأقوى' },
     { code: 'no', labelEn: 'No, another one is stronger', labelAr: 'لا، عندي وحدة أقوى' },
     { code: 'unconfirmed', labelEn: "I'm not sure", labelAr: 'مش متأكد' },
   ],
