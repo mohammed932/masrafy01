@@ -1,12 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  model,
-  output,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -78,26 +70,38 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
           The key registry is unavailable, so rows cannot be added yet. Retry shortly.
         </span>
       </div>
+    } @else if (members().length === 0) {
+      <!-- No key list to offer. Stated, because the seed button over an empty list sets the
+           same empty array back and reads to the operator as a broken control. -->
+      <div class="ikt__empty">
+        <p class="ikt__emptyText" i18n="@@bank_programs.income.key_table_no_keys">
+          The keys for this table cannot be listed here yet, so no row can be added. Check that
+          the values this table is keyed by exist on Manage values.
+        </p>
+      </div>
     } @else if (rows().length === 0) {
       <div class="ikt__empty">
         <p class="ikt__emptyText" i18n="@@bank_programs.income.key_table_empty">
           This method reads the applicant's answer and looks it up here. Add a row for every value
           the bank recognises — anything not listed produces no figures, not a zero.
         </p>
-        <button nz-button nzType="primary" type="button" (click)="seedAll()">
+        <button nz-button nzType="default" type="button" (click)="seedAll()">
           <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.income.key_table_seed">Add a row for every key</span>
         </button>
       </div>
     } @else {
-      <div class="ikt__head" aria-hidden="true">
+      <div class="ikt__head" [class.has-second]="secondRows() !== null" aria-hidden="true">
         <span i18n="@@bank_programs.income.col_key">Key</span>
-        <span i18n="@@bank_programs.income.col_income">Assumed monthly income (EGP)</span>
+        <span>{{ valueLabel() ?? defaultValueLabel }}</span>
+        @if (secondRows() !== null) {
+          <span>{{ secondLabel() }}</span>
+        }
       </div>
 
       <ol class="ikt__list">
         @for (row of rows(); track $index) {
-          <li class="ikt__row">
+          <li class="ikt__row" [class.has-second]="secondRows() !== null">
             <nz-select
               class="ikt__key"
               [ngModel]="row.key"
@@ -120,6 +124,24 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
               (ngModelChange)="setIncome($index, $event)"
               [ngModelOptions]="{ standalone: true }"
             />
+
+            @if (secondRows() !== null) {
+              <!-- Matched by KEY, not by index: the two columns are the same table read
+                   for two kinds of customer, and a bank that fills only some of the
+                   second column must not have its rows silently paired with the wrong
+                   keys. Clearing a cell REMOVES that key's row, so emptying the column
+                   leaves it genuinely unconfigured — which is how a bank declines it. -->
+              <input
+                nz-input
+                appMoneyInput
+                type="text"
+                class="ikt__income"
+                [attr.aria-label]="secondLabel()"
+                [ngModel]="secondValue(row.key)"
+                (ngModelChange)="setSecond(row.key, $event)"
+                [ngModelOptions]="{ standalone: true }"
+              />
+            }
 
             <span class="ikt__actions">
               <button
@@ -230,6 +252,10 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
         align-items: center;
         justify-content: space-between;
         gap: var(--space-4);
+        /* Capped: space-between on a full-width block threw the seed button half a
+           screen from the sentence that explains it, which is worst where these stack —
+           a product rule renders one per unfilled table. */
+        max-inline-size: 46rem;
         padding: var(--space-4);
         border: 1px dashed var(--color-border-default);
         border-radius: var(--radius-md);
@@ -258,6 +284,13 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
         grid-template-columns: minmax(0, 16rem) minmax(0, 12rem) auto auto;
         align-items: center;
         gap: var(--space-3);
+      }
+      /* Two value columns side by side rather than two stacked tables. Same keys, two
+         readings of them — and the comparison (2,000,000 → 3,000,000) is the whole
+         point of the pair, which two tables 300px apart cannot show. */
+      .ikt__row.has-second,
+      .ikt__head.has-second {
+        grid-template-columns: minmax(0, 14rem) minmax(0, 11rem) minmax(0, 11rem) auto;
       }
 
       .ikt__head {
@@ -353,6 +386,30 @@ export class IncomeKeyTableComponent {
   }> | null>(null);
 
   /**
+   * What the value column holds, when it is not an assumed monthly income.
+   *
+   * A product rule's table holds a borrowing ceiling, a required percentage, a number of
+   * months — never a salary — so the eleven single-fact methods' own column heading is a
+   * false statement there. `null` keeps it, so nothing but a pipeline moves.
+   */
+  readonly valueLabel = input<string | null>(null);
+
+  /**
+   * An optional SECOND value column, keyed by the same answers as the first.
+   *
+   * `null` — every caller but one — is today's single-column table, unchanged. The
+   * exception is a `pickByFact` pair, whose two steps are the SAME table read for two
+   * kinds of customer; rendering those as two stacked tables cost 550px of screen for
+   * six numbers and put the two figures being compared out of sight of each other.
+   */
+  readonly secondRows = model<IncomeKeyTableRow[] | null>(null);
+
+  /** What the second column holds. Also its inputs' accessible name. */
+  readonly secondLabel = input<string | null>(null);
+
+  readonly defaultValueLabel = $localize`:@@bank_programs.income.col_income:Assumed monthly income (EGP)`;
+
+  /**
    * Feature 011 — which row incomes are team-estimated, by registry KEY.
    *
    * Keyed rather than indexed because the stored path is
@@ -403,7 +460,11 @@ export class IncomeKeyTableComponent {
   }
 
   removeAt(index: number): void {
+    const gone = this.rows()[index]?.key;
     this.rows.set(this.rows().filter((_, i) => i !== index));
+    // The second column is keyed, so a removed key must leave with its row — otherwise
+    // it survives as a figure for a key the table no longer states.
+    if (gone !== undefined) this.dropSecond(gone);
   }
 
   /** Swap with the neighbour. Order is stored, so this is real data, not a view state. */
@@ -416,13 +477,60 @@ export class IncomeKeyTableComponent {
     rows[index] = b;
     rows[target] = a;
     this.rows.set(rows);
+    const second = this.secondRows();
+    if (second !== null) this.secondRows.set(this.inPrimaryOrder(second));
   }
 
   setKey(index: number, key: string): void {
+    const previous = this.rows()[index]?.key;
     this.rows.set(this.rows().map((row, i) => (i === index ? { ...row, key } : row)));
+    // Re-keying a row re-keys BOTH columns: the row still means one answer, and leaving
+    // the second column behind would file its figure under the answer just vacated.
+    if (previous !== undefined && previous !== key) {
+      const second = this.secondRows();
+      if (second !== null) {
+        this.secondRows.set(second.map((r) => (r.key === previous ? { ...r, key } : r)));
+      }
+    }
   }
 
   setIncome(index: number, incomeEGP: string): void {
     this.rows.set(this.rows().map((row, i) => (i === index ? { ...row, incomeEGP } : row)));
+  }
+
+  // --- the optional second column -------------------------------------------
+
+  protected secondValue(key: string): string {
+    return this.secondRows()?.find((r) => r.key === key)?.incomeEGP ?? '';
+  }
+
+  /**
+   * Upsert by key — and DELETE on empty, which is the load-bearing half: a bank that
+   * does not sell the second column leaves it blank, and `stepIsConfigured` reads that
+   * column as "stated nothing" only while it holds no rows. An empty string kept as a
+   * row would make a blank cell look like a declared figure of zero.
+   */
+  protected setSecond(key: string, incomeEGP: string): void {
+    if (incomeEGP === '') {
+      this.dropSecond(key);
+      return;
+    }
+    const second = this.secondRows() ?? [];
+    const next = second.some((r) => r.key === key)
+      ? second.map((r) => (r.key === key ? { ...r, incomeEGP } : r))
+      : [...second, { key, incomeEGP }];
+    // Mirror the primary's order, so the stored blob reads in the order on screen.
+    this.secondRows.set(this.inPrimaryOrder(next));
+  }
+
+  private dropSecond(key: string): void {
+    const second = this.secondRows();
+    if (second === null) return;
+    this.secondRows.set(second.filter((r) => r.key !== key));
+  }
+
+  private inPrimaryOrder(rows: readonly IncomeKeyTableRow[]): IncomeKeyTableRow[] {
+    const order = new Map(this.rows().map((r, i) => [r.key, i]));
+    return [...rows].sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
   }
 }

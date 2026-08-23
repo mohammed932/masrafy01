@@ -28,6 +28,7 @@ import {
   factKeyOptions,
   incomeMethodGroups,
   incomeMethodShape,
+  PRODUCT_RULE_STRATEGY,
   registryFacts,
   type BuiltinIncomeStrategy,
   type IncomeAssumptionStrategy,
@@ -83,6 +84,14 @@ import { incomeRuleHasError } from './income-rule.rules';
         <p class="proof-lede" i18n="@@income_rule.proof_lede">
           Every bank selling this name works the income out from this one figure. A bank may change
           the amounts below, never the figure.
+        </p>
+      } @else if (showPipelineLede()) {
+        <!-- A pipeline reads several answers, so "this one figure" would be false. It also
+             cannot be re-pointed from here: the steps ARE the product, and the picker below
+             is hidden rather than offered blank. -->
+        <p class="proof-lede" i18n="@@income_rule.pipeline_lede">
+          This name is a product of its own: the steps below are what it works the figure out from,
+          and they are set up when the product is added. A bank changes only the amounts.
         </p>
       }
 
@@ -213,10 +222,11 @@ import { incomeRuleHasError } from './income-rule.rules';
             </div>
           }
           @case ('steps') {
-            <div class="span-2 rule-block">
-              <h4 class="rule-title" i18n="@@bank_programs.income.steps_title">
-                How this product works the figure out
-              </h4>
+            <!-- No bordered block and no heading of its own: the editor below draws its own
+                 groups, and both hosts already titled this section one line above it. A
+                 third frame around a rule that is mostly hairlines read as a box in a box
+                 in a box. -->
+            <div class="span-2">
               <app-product-rule-editor
                 [steps]="ruleSteps()"
                 [gates]="ruleGates()"
@@ -447,7 +457,30 @@ export class IncomeAssumptionSectionComponent implements OnInit {
   readonly variant = input<'program' | 'catalog'>('program');
 
   /** The catalog chooses the proof; a bank program is told it. */
-  protected readonly showProofPicker = computed(() => this.variant() === 'catalog');
+  protected readonly showProofPicker = computed(
+    () => this.variant() === 'catalog' && !this.pipelineLocked(),
+  );
+
+  /**
+   * A product rule cannot be re-pointed from this control, so the control is not offered.
+   *
+   * `steps` is deliberately absent from `incomeMethodGroups()` — a pipeline is not a twelfth
+   * method — which left the select rendering a BLANK trigger over a live product, and every
+   * option in it a one-click way to replace the product's structure with a single-figure
+   * table (`ruleFromForm` sends whatever the control holds). Naming the state and hiding the
+   * control says the same thing without the trapdoor.
+   */
+  protected readonly pipelineLocked = computed(
+    () => this.strategy() === PRODUCT_RULE_STRATEGY && this.ruleSteps().length > 0,
+  );
+
+  /**
+   * The catalog's own line about a pipeline. Not shown on a bank program: the wizard already
+   * says whose amounts these are, twice, immediately above this section.
+   */
+  protected readonly showPipelineLede = computed(
+    () => this.variant() === 'catalog' && this.pipelineLocked(),
+  );
 
   /** Bank policy on top of the method. Never a catalog name's business. */
   protected readonly showPolicy = computed(() => this.variant() === 'program');

@@ -152,6 +152,32 @@ export function mergeProductRuleStructure(
 }
 
 /**
+ * A FIGURES-ONLY write to a catalog name's own rule keeps the structure already stored.
+ *
+ * The catalog screen renders a pipeline read-only — it cannot author a step, and it
+ * deliberately does not post `steps`/`gates`/`output` back, because re-posting a copy it
+ * merely rendered would let a stale screen replace the product. Validation, though, holds a
+ * `steps` rule to having steps, so that screen's Save answered
+ * `PRODUCT_RULE_INVALID / no_steps` every time and the catalog's default figures could not
+ * be edited at all.
+ *
+ * `mergeProductRuleStructure` is the overlay; the rule THIS function adds is *when* to
+ * apply it — only when the incoming rule states no steps of its own. That guard is
+ * load-bearing in the other direction: the seed and the API DO send structure through the
+ * same endpoint, and overlaying the stored copy unconditionally would make a product's
+ * shape unchangeable.
+ */
+export function withStoredStructure(
+  incoming: IncomeAssumptionConfig,
+  stored: IncomeAssumptionConfig | null | undefined,
+): IncomeAssumptionConfig {
+  if (!isProductRuleStrategy(incoming.strategy)) return incoming;
+  if ((incoming.steps?.length ?? 0) > 0) return incoming;
+  if (!stored) return incoming;
+  return mergeProductRuleStructure(incoming, stored);
+}
+
+/**
  * The rule to STORE on a bank program: its own object with the catalog's STRUCTURE
  * removed.
  *

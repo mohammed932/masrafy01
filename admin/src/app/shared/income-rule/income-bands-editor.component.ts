@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, model, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, model } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
@@ -33,13 +33,7 @@ export { incomeBandsErrorFor, type IncomeBandsError };
 @Component({
   selector: 'app-income-bands-editor',
   standalone: true,
-  imports: [
-    FormsModule,
-    NzButtonModule,
-    NzIconModule,
-    NzInputModule,
-    MoneyInputDirective,
-  ],
+  imports: [FormsModule, NzButtonModule, NzIconModule, NzInputModule, MoneyInputDirective],
   providers: [provideNzIconsPatch([PlusOutline, DeleteOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -49,7 +43,7 @@ export { incomeBandsErrorFor, type IncomeBandsError };
           This method reads a number and looks up the band it falls in. Enter the edges — a band's
           end is the next band's start, so no gap or overlap is possible.
         </p>
-        <button nz-button nzType="primary" type="button" (click)="seed()">
+        <button nz-button nzType="default" type="button" (click)="seed()">
           <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
           <span i18n="@@bank_programs.income.bands_seed">Start with three bands</span>
         </button>
@@ -61,7 +55,7 @@ export { incomeBandsErrorFor, type IncomeBandsError };
           <span class="ib__arrow">→</span>
           <span i18n="@@bank_programs.income.col_to">To</span>
         </span>
-        <span i18n="@@bank_programs.income.col_income">Assumed monthly income (EGP)</span>
+        <span>{{ valueLabel() ?? defaultValueLabel }}</span>
       </div>
 
       <ol class="ib__list">
@@ -205,6 +199,10 @@ export { incomeBandsErrorFor, type IncomeBandsError };
         align-items: center;
         justify-content: space-between;
         gap: var(--space-4);
+        /* Capped: space-between on a full-width block threw the seed button half a
+           screen from the sentence that explains it, which is worst where these stack —
+           a product rule renders one per unfilled table. */
+        max-inline-size: 46rem;
         padding: var(--space-4);
         border: 1px dashed var(--color-border-default);
         border-radius: var(--radius-md);
@@ -334,6 +332,17 @@ export class IncomeBandsEditorComponent {
 
   /** Display unit of the underlying value ("years", "EGP") — label only. */
   readonly unit = input<string | null>(null);
+
+  /**
+   * What the value column holds, when it is not an assumed monthly income.
+   *
+   * A product rule's bands hold a borrowing ceiling, a required percentage, a number of
+   * months — never a salary — so the eleven single-fact methods' own column heading is a
+   * false statement there. `null` keeps it, so nothing but a pipeline moves.
+   */
+  readonly valueLabel = input<string | null>(null);
+
+  readonly defaultValueLabel = $localize`:@@bank_programs.income.col_income:Assumed monthly income (EGP)`;
 
   readonly fromAriaLabel = $localize`:@@bank_programs.income.aria.band_from:Band starts at`;
   readonly toAriaLabel = $localize`:@@bank_programs.income.aria.band_to:Band ends at — also the next band's start`;

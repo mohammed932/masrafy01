@@ -28,11 +28,7 @@ import { HumanizePipe } from '../../../shared/humanize.pipe';
 import { BankProgramsApiService } from '../bank-programs.api.service';
 import { DeleteProgramDialog, type DeleteProgramDialogData } from '../delete/delete-program.dialog';
 import type { BankProgramResponse } from '../bank-programs.types';
-import {
-  PRODUCT_RULE_STRATEGY,
-  incomeMethodLabel,
-  type StepFigures,
-} from '../bank-programs.types';
+import { PRODUCT_RULE_STRATEGY, incomeMethodLabel, type StepFigures } from '../bank-programs.types';
 import { basisOf, incomeBasisLabel } from '@core/income-basis';
 
 /**
@@ -624,22 +620,36 @@ import { basisOf, incomeBasisLabel } from '@core/income-basis';
       }
       .row dd {
         margin: 0;
+        /* A flex item's floor is its content, so one long value — a product rule's step
+           chips run to forty characters — pushed the whole row past the card's edge and
+           put horizontal scroll on the page. */
+        min-inline-size: 0;
         text-align: end;
         color: var(--color-text-primary);
         font-size: var(--text-sm);
         font-weight: var(--font-weight-medium);
       }
       /* Categorical enum values render as scannable brand pills, not a comma run-on. */
+      /* The one row that stacks: its value is a list, not a figure, and a list reads
+         across the card rather than down a third of it. */
+      .row:has(dd.chips) {
+        flex-direction: column;
+        align-items: stretch;
+      }
       .row dd.chips {
         display: flex;
         flex-wrap: wrap;
-        justify-content: flex-end;
+        justify-content: flex-start;
         gap: var(--space-2);
+        min-inline-size: 0;
+        text-align: start;
       }
       .enum-chip {
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);
+        max-inline-size: 100%;
+        overflow-wrap: anywhere;
         padding: 4px 12px;
         border-radius: var(--radius-pill);
         background: var(--color-tonal-accent-bg);
@@ -647,7 +657,9 @@ import { basisOf, incomeBasisLabel } from '@core/income-basis';
         font-size: var(--text-xs);
         font-weight: var(--font-weight-semibold);
         line-height: 1.4;
-        white-space: nowrap;
+        /* Wraps. A single enum value never needed to, and a product rule's step chip
+           (step id · answer → figure) always does. */
+        white-space: normal;
       }
       /* A team-estimated figure is not an equal of a bank-stated one: it blocks
          activation, so it reads as a warning wherever it appears. */
@@ -713,11 +725,8 @@ export class BankProgramDetailPage {
   }
 
   protected methodLabel(p: BankProgramResponse): string {
-    // A step pipeline is not one of the eleven methods, and `incomeMethodLabel` has no case
-    // for it — so this row rendered BLANK on every collateral program until now.
-    if (p.incomeAssumption.strategy === PRODUCT_RULE_STRATEGY) {
-      return $localize`:@@bank_programs.strategy.steps:Worked out step by step from what the customer owns`;
-    }
+    // The pipeline's own words live in `incomeMethodLabel` now — this page used to carry the
+    // only copy, which is why three other callers each answered the same question again.
     return incomeMethodLabel(p.incomeAssumption.strategy);
   }
 
@@ -780,7 +789,9 @@ export class BankProgramDetailPage {
       }
       (figures.bands ?? []).forEach((band, i) => {
         const range =
-          band.toExclusive === null ? `${band.fromInclusive}+` : `${band.fromInclusive}–${band.toExclusive}`;
+          band.toExclusive === null
+            ? `${band.fromInclusive}+`
+            : `${band.fromInclusive}–${band.toExclusive}`;
         rows.push({
           label: `${stepId} · ${range}`,
           income: band.incomeEGP,
@@ -790,7 +801,10 @@ export class BankProgramDetailPage {
       if (figures.scalar?.value) {
         rows.push({
           label: stepId,
-          income: figures.scalar.unit === 'percent' ? `${figures.scalar.value}%` : `×${figures.scalar.value}`,
+          income:
+            figures.scalar.unit === 'percent'
+              ? `${figures.scalar.value}%`
+              : `×${figures.scalar.value}`,
           estimated: estimated(`${base}.scalar.value`),
         });
       }

@@ -137,7 +137,7 @@ section.dashboard {
   box-sizing: border-box !important;
   background: var(--bg-subtle, var(--color-surface-row-hover)) !important;
   border: 1px solid var(--border-default, var(--color-border-default)) !important;
-  border-radius: 10px !important;
+  border-radius: var(--radius-field) !important;
   color: var(--text-primary, var(--color-text-primary)) !important;
   padding: 0 14px !important;
   height: 44px !important;
@@ -208,7 +208,7 @@ select:-webkit-autofill {
   -webkit-box-shadow: 0 0 0 1000px var(--bg-subtle, var(--color-surface-row-hover)) inset !important;
   box-shadow: 0 0 0 1000px var(--bg-subtle, var(--color-surface-row-hover)) inset !important;
   caret-color: var(--text-primary, var(--color-text-primary)) !important;
-  border-radius: 10px !important;
+  border-radius: var(--radius-field) !important;
   transition: background-color 600000s ease-in-out 0s, color 600000s ease-in-out 0s !important;
 }
 
@@ -216,7 +216,7 @@ select:-webkit-autofill {
   box-sizing: border-box !important;
   background: var(--bg-subtle, var(--color-surface-row-hover)) !important;
   border: 1px solid var(--border-default, var(--color-border-default)) !important;
-  border-radius: 10px !important;
+  border-radius: var(--radius-field) !important;
   padding: 0 14px !important;
   height: 44px !important;
   min-height: 44px !important;
@@ -391,8 +391,8 @@ textarea.ant-input {
 .ant-input-group .ant-input-group-addon:first-child,
 .ant-input-number-group .ant-input-number-group-addon:first-child {
   border-inline-end: 0 !important;
-  border-top-left-radius: 10px !important;
-  border-bottom-left-radius: 10px !important;
+  border-top-left-radius: var(--radius-field) !important;
+  border-bottom-left-radius: var(--radius-field) !important;
 }
 
 // input + addonAfter
@@ -412,8 +412,8 @@ textarea.ant-input {
 }
 .ant-input-group .ant-input-group-addon:last-child,
 .ant-input-number-group .ant-input-number-group-addon:last-child {
-  border-top-right-radius: 10px !important;
-  border-bottom-right-radius: 10px !important;
+  border-top-right-radius: var(--radius-field) !important;
+  border-bottom-right-radius: var(--radius-field) !important;
 }
 
 // Unified hover state: when the input-group is hovered, color the sibling
@@ -461,7 +461,7 @@ textarea.ant-input {
   box-sizing: border-box !important;
   background: var(--bg-subtle, var(--color-surface-row-hover)) !important;
   border: 1px solid var(--border-default, var(--color-border-default)) !important;
-  border-radius: 10px !important;
+  border-radius: var(--radius-field) !important;
   min-height: 44px !important;
   padding: 0 14px !important;
   transition: border-color 200ms ease, box-shadow 200ms ease !important;

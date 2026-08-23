@@ -54,6 +54,7 @@ export interface RailTabItem {
     <div
       class="rail"
       [class.vertical]="orientation() === 'vertical'"
+      [class.segmented]="appearance() === 'segmented'"
       role="tablist"
       [attr.aria-orientation]="orientation()"
       [attr.aria-label]="ariaLabel()"
@@ -137,6 +138,7 @@ export interface RailTabItem {
         transition:
           border-color var(--motion-duration-fast) var(--motion-easing-standard),
           background var(--motion-duration-fast) var(--motion-easing-standard),
+          box-shadow var(--motion-duration-fast) var(--motion-easing-standard),
           color var(--motion-duration-fast) var(--motion-easing-standard);
       }
       .rail.vertical .tab {
@@ -166,6 +168,48 @@ export interface RailTabItem {
           var(--rail-surface)
         );
       }
+      /* SEGMENTED — one inset track, one raised segment.
+         For a rail of a few PEER groups inside a card: as free-standing pills they read as
+         three unrelated buttons with a stray number each, rather than as one control with
+         one thing on stage. The track is --color-surface-page and the live segment
+         --color-surface-default because that pair is directional in BOTH themes (light
+         #F8F6F4 → #FDFCFB, dark #0A0710 → #15101C) — --bg-subtle / --bg-muted invert
+         in dark and would sink the segment that is supposed to be lifted. The accent-mixed
+         hairline is load-bearing for the same reason: --shadow-sm is a black rgba, i.e.
+         invisible on a near-black surface, so the lift has to be DRAWN as well as cast. */
+      .rail.segmented {
+        display: inline-flex;
+        max-inline-size: 100%;
+        gap: var(--space-1);
+        padding: var(--space-1);
+        border: 1px solid var(--rail-line);
+        border-radius: var(--radius-lg);
+        background: var(--color-surface-page);
+      }
+      .rail.segmented .tab {
+        padding-inline: var(--space-3);
+        padding-block: var(--space-2);
+        border-color: transparent;
+        border-radius: calc(var(--radius-lg) - var(--space-1));
+        background: transparent;
+      }
+      .rail.segmented .tab:hover {
+        border-color: transparent;
+        background: color-mix(in srgb, var(--rail-item-accent, var(--rail-accent)) 8%, transparent);
+      }
+      .rail.segmented .tab.on {
+        background: var(--rail-surface);
+        border-color: color-mix(
+          in srgb,
+          var(--rail-item-accent, var(--rail-accent)) 32%,
+          var(--rail-line-strong)
+        );
+        box-shadow: var(--shadow-sm);
+      }
+      .rail.segmented .tab.on .tab-note {
+        color: var(--color-text-secondary);
+      }
+
       .tab-main {
         display: flex;
         flex-direction: column;
@@ -235,6 +279,13 @@ export class RailTabsComponent {
   /** DOM id prefix, so a page with two rails keeps `aria-controls` unique. */
   readonly idPrefix = input.required<string>();
   readonly orientation = input<'horizontal' | 'vertical'>('horizontal');
+  /**
+   * `pill` (default) — free-standing chips. Right for a rail whose items carry their own
+   * accents: four category colours want air around them, and a wash reads as an identity.
+   * `segmented` — one inset track with a raised live segment, for a handful of peer groups
+   * inside a card, where the rail IS the control rather than a board's navigation.
+   */
+  readonly appearance = input<'pill' | 'segmented'>('pill');
 
   readonly select = output<string>();
 

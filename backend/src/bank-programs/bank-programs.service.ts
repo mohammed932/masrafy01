@@ -91,6 +91,7 @@ import {
   effectiveIncomeRule,
   stripCatalogStructure,
   stripInheritedAmounts,
+  withStoredStructure,
 } from '@/matching/pipeline/income-rule-inherit';
 import { quoteProgram } from '@/matching/pipeline/quote';
 import { resolveAssumedIncome } from '@/matching/pipeline/income-resolver';
@@ -1158,7 +1159,7 @@ export class BankProgramsService {
             bankProgramId: next.id,
             eventType: AuditEventType.BANK_PROGRAM_RATE_UPDATED,
             sourceIp: actor.sourceIp,
-  
+
             payload: {
               programCode: next.programCode,
               beforeEffectiveRate: beforeRate ?? null,
@@ -1236,6 +1237,7 @@ export class BankProgramsService {
     if (incoming !== null) {
       rule = normalizeIncomeAssumption(stripForeignMethodConfig(incoming));
       delete rule.amounts;
+      rule = withStoredStructure(rule, name.incomeRule);
     }
 
     if (rule !== null) {
@@ -1407,9 +1409,11 @@ export class BankProgramsService {
 
   private async runIncomeRuleCheck(
     program: Parameters<typeof toBankProgramSnapshot>[0],
-    dto: { incomeAssumption: IncomeRuleCheckDto['incomeAssumption']; sample: IncomeRuleCheckDto['sample'] },
+    dto: {
+      incomeAssumption: IncomeRuleCheckDto['incomeAssumption'];
+      sample: IncomeRuleCheckDto['sample'];
+    },
   ): Promise<IncomeRuleCheckResponseDto> {
-
     // The catalog's figures are merged into the DRAFT before anything reads it. A
     // draft on `amounts: 'catalog'` carries no table of its own, so validating or
     // quoting it as sent would report `rule_unconfigured` for a program that is in
@@ -1532,10 +1536,7 @@ export class BankProgramsService {
    * coincidence. Absent facts stay `undefined`, which is what lets an admin
    * deliberately reproduce the `SURROGATE_FACT_MISSING` outcome.
    */
-  private sampleProfile(
-    sample: IncomeRuleCheckDto['sample'],
-    strategy: string,
-  ): ApplicantProfile {
+  private sampleProfile(sample: IncomeRuleCheckDto['sample'], strategy: string): ApplicantProfile {
     const dec = (v?: string): Decimal | undefined => (v !== undefined ? new Decimal(v) : undefined);
     // A registry fact's sample answer lands under the key the RULE reads, and only
     // there. The shape is decided by what parses, not by a second lookup of the fact's

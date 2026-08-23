@@ -20,6 +20,7 @@ import { NzSpinModule } from 'ng-zorro-antd/spin';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import {
   ArrowLeftOutline,
+  ArrowRightOutline,
   CheckOutline,
   CheckSquareOutline,
   CloseCircleOutline,
@@ -28,7 +29,13 @@ import {
   PlusOutline,
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
-import { PageHeaderComponent, RailTabsComponent, type RailTabItem } from '@shared/ui';
+import {
+  PageHeaderComponent,
+  RailTabsComponent,
+  WizardStepsComponent,
+  type RailTabItem,
+  type WizardStepItem,
+} from '@shared/ui';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { incomeRuleHasError } from '@shared/income-rule/income-rule.rules';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
@@ -129,11 +136,13 @@ interface QuestionRow {
     NzToolTipModule,
     PageHeaderComponent,
     RailTabsComponent,
+    WizardStepsComponent,
     IncomeAssumptionSectionComponent,
   ],
   providers: [
     provideNzIconsPatch([
       ArrowLeftOutline,
+      ArrowRightOutline,
       CheckOutline,
       CheckSquareOutline,
       CloseCircleOutline,
@@ -161,7 +170,7 @@ interface QuestionRow {
             eyebrow="Program catalog"
             i18n-eyebrow="@@pnd.eyebrow"
             [title]="nameOf(n)"
-            subtitle="Pick the loan types this name is offered under, then the questions each type scores on. Every bank that offers it starts from your list and sets its own weights."
+            subtitle="Three steps: how the income is worked out, which loan types banks may sell it under, and what each type's applicants are scored on. Nothing here is submitted — every step saves on its own."
             i18n-subtitle="@@pnd.sub"
           >
             <div class="header-aside">
@@ -176,427 +185,547 @@ interface QuestionRow {
             </div>
           </app-page-header>
 
-          <!-- ── The ONE income proof ──────────────────────────────────────────
-               Above the loan-type tabs, because it is NOT per loan type: one name
-               reads one figure, whichever product it is sold as. Putting it inside a
-               tab would say the opposite four times. -->
-          <section class="card is-bare rule-card">
-            <header class="rule-head">
-              <div>
-                <h2 class="rule-title" i18n="@@pnd.rule_title">How the income is worked out</h2>
-                <p class="rule-sub" i18n="@@pnd.rule_sub">
-                  Set this once. Every bank that sells this name without a payslip reads the same
-                  figure, and starts from the amounts you enter here.
-                </p>
-              </div>
-              @if (ruleDirty()) {
-                <button
-                  nz-button
-                  nzType="primary"
-                  type="button"
-                  [nzLoading]="ruleSaving()"
-                  (click)="saveRule()"
-                  i18n="@@pnd.rule_save"
-                >
-                  Save the income rule
-                </button>
-              }
-            </header>
+          <!-- ── Three steps, in the order the decisions depend on each other ──
+               The screen used to stack all three on one scroll: a rule card, a tab
+               rail, and behind each tab a switch plus a forty-question board. Two of
+               those are per LOAN TYPE and one is not, so the page asked the operator
+               to hold "which of these is per tab?" in their head the whole way down —
+               and the assignment they came to set was four tab-clicks apart.
 
-            @if (ruleError(); as err) {
-              <p class="rule-error" role="alert">
-                <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
-                <span>{{ err }}</span>
-              </p>
-            }
-
-            @if (ruleLoading()) {
-              <!-- Shape-matched: a picker's height then three figure rows, because that
-                   is what arrives. A spinner here would say "something", not "this". -->
-              <div class="rule-skeleton" aria-hidden="true">
-                <span class="sk sk-picker"></span>
-                <span class="sk sk-row"></span>
-                <span class="sk sk-row"></span>
-                <span class="sk sk-row"></span>
-              </div>
-            } @else {
-              @if (!ruleDecided() && !ruleTouched()) {
-                <!-- Names the consequence, and the picker below IS the action — so this is
-                     one line above the control rather than a card that replaces it. -->
-                <p class="rule-empty" i18n="@@pnd.rule_empty">
-                  Nobody has said what this name reads its income from, so no bank can sell it
-                  without a payslip yet. Pick the figure below.
-                </p>
-              }
-
-              <app-income-assumption-section
-                variant="catalog"
-                [group]="ruleGroup"
-                [keyTable]="ruleKeyTable()"
-                (keyTableChange)="onRuleKeyTable($event)"
-                [bands]="ruleBands()"
-                (bandsChange)="onRuleBands($event)"
-                [ruleSteps]="ruleSteps()"
-                [ruleGates]="ruleGates()"
-                [ruleOutput]="ruleOutput()"
-                [stepFigures]="ruleStepFigures()"
-                (stepFiguresChange)="onRuleStepFigures($event)"
-                (stepFiguresTouched)="markRuleDirty()"
-              ></app-income-assumption-section>
-
-              <!-- Who reads this. Quiet by design: it is a fact, not a warning — and it
-                   is the same list the server names when it refuses a proof change, so
-                   the operator sees the obstacle before they hit it. -->
-              <p class="rule-usage">
-                @if (ruleReaders().length === 0) {
-                  <span i18n="@@pnd.rule_readers_none"
-                    >No bank sells this name without a payslip yet.</span
-                  >
-                } @else {
-                  <span>{{ ruleReadersLabel() }}</span>
-                }
-              </p>
-            }
-          </section>
-
-          <app-rail-tabs
-            [items]="tabs()"
-            [activeId]="activeCategory()"
-            [ariaLabel]="tabsAria"
-            idPrefix="pnd"
-            (select)="selectCategory($event)"
+               Non-linear on purpose. This is a settings screen, not a creation flow:
+               every step is reachable at any time, every step saves on its own terms
+               (ticks autosave, the rule has an explicit Save), and nothing is
+               submitted at the end. The rail is the shared wizard rail, so a step
+               here reads exactly like a step in the bank-program wizard. -->
+          <app-wizard-steps
+            [steps]="wizardSteps()"
+            [activeIndex]="stepIndex()"
+            [ariaLabel]="stepsAria"
+            [caption]="stepCaption()"
+            (stepSelect)="goToStep($event)"
           />
 
-          <div
-            class="panel"
-            role="tabpanel"
-            [id]="'pnd-panel-' + activeCategory()"
-            [attr.aria-labelledby]="'pnd-tab-' + activeCategory()"
-          >
-            <!-- Gate first, list second: the switch decides whether the list below
-               means anything, so it reads top-down as one sentence. -->
-            <div class="gate" [class.on]="offered()">
-              <button
-                type="button"
-                role="switch"
-                class="switch"
-                [attr.aria-checked]="offered()"
-                [attr.aria-label]="offerLabel(n)"
-                [attr.aria-busy]="savingOffer()"
-                (click)="toggleOffered()"
-              >
-                <span class="track" aria-hidden="true"><span class="thumb"></span></span>
-                <span class="switch-text">
-                  <span class="switch-title">{{ offerLabel(n) }}</span>
-                  <span class="switch-hint">
-                    @if (offered()) {
-                      <!-- Says WHO sees the effect and WHERE. "Banks can sell it"
-                         described a business fact the admin cannot see; the name
-                         appearing in a picker is the thing they can go and check. -->
-                      <span i18n="@@pnd.gate_on_hint"
-                        >A bank adding a {{ categoryName() }} program can pick this name.</span
-                      >
-                    } @else if (pickedCount() > 0) {
-                      <!-- The one state that needs explaining: picks exist but are
-                         inert. Saying they survive is what stops an admin from
-                         "fixing" it by re-entering them somewhere else. -->
-                      <span i18n="@@pnd.gate_off_kept_hint"
-                        >A bank adding a {{ categoryName() }} program can’t pick this name. Your
-                        {{ pickedCount() }} chosen questions stay saved and come back when you turn
-                        this on.</span
+          @switch (stepIndex()) {
+            @case (0) {
+              <!-- ── STEP 1 · The ONE income proof ─────────────────────────────────
+               Its own step, because it is NOT per loan type: one name reads one
+               figure, whichever product it is sold as. Under a tab it would say the
+               opposite four times. -->
+              <section class="card is-bare rule-card">
+                <header class="rule-head">
+                  <div>
+                    <!-- No sub-line: the rail's caption one line above says the same thing
+                         in fewer words, and the pipeline's own closing note says the "starts
+                         from these amounts" half again at the foot of the step. -->
+                    <h2 class="rule-title" i18n="@@pnd.rule_title">How the income is worked out</h2>
+                  </div>
+                  @if (ruleDirty()) {
+                    <button
+                      nz-button
+                      nzType="primary"
+                      type="button"
+                      [nzLoading]="ruleSaving()"
+                      (click)="saveRule()"
+                      i18n="@@pnd.rule_save"
+                    >
+                      Save the income rule
+                    </button>
+                  }
+                </header>
+
+                @if (ruleError(); as err) {
+                  <p class="rule-error" role="alert">
+                    <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
+                    <span>{{ err }}</span>
+                  </p>
+                }
+
+                @if (ruleLoading()) {
+                  <!-- Shape-matched: a picker's height then three figure rows, because that
+                   is what arrives. A spinner here would say "something", not "this". -->
+                  <div class="rule-skeleton" aria-hidden="true">
+                    <span class="sk sk-picker"></span>
+                    <span class="sk sk-row"></span>
+                    <span class="sk sk-row"></span>
+                    <span class="sk sk-row"></span>
+                  </div>
+                } @else {
+                  @if (!ruleDecided() && !ruleTouched()) {
+                    <!-- Names the consequence, and the picker below IS the action — so this is
+                     one line above the control rather than a card that replaces it. -->
+                    <p class="rule-empty" i18n="@@pnd.rule_empty">
+                      Nobody has said what this name reads its income from, so no bank can sell it
+                      without a payslip yet. Pick the figure below.
+                    </p>
+                  }
+
+                  <app-income-assumption-section
+                    variant="catalog"
+                    [group]="ruleGroup"
+                    [keyTable]="ruleKeyTable()"
+                    (keyTableChange)="onRuleKeyTable($event)"
+                    [bands]="ruleBands()"
+                    (bandsChange)="onRuleBands($event)"
+                    [ruleSteps]="ruleSteps()"
+                    [ruleGates]="ruleGates()"
+                    [ruleOutput]="ruleOutput()"
+                    [stepFigures]="ruleStepFigures()"
+                    (stepFiguresChange)="onRuleStepFigures($event)"
+                    (stepFiguresTouched)="markRuleDirty()"
+                  ></app-income-assumption-section>
+
+                  <!-- Who reads this. Quiet by design: it is a fact, not a warning — and it
+                   is the same list the server names when it refuses a proof change, so
+                   the operator sees the obstacle before they hit it. -->
+                  <p class="rule-usage">
+                    @if (ruleReaders().length === 0) {
+                      <span i18n="@@pnd.rule_readers_none"
+                        >No bank sells this name without a payslip yet.</span
                       >
                     } @else {
-                      <span i18n="@@pnd.gate_off_hint"
-                        >A bank adding a {{ categoryName() }} program can’t pick this name. Turn
-                        this on to allow it, then choose what those applicants are scored on.</span
-                      >
+                      <span>{{ ruleReadersLabel() }}</span>
                     }
-                  </span>
-                </span>
-              </button>
-            </div>
+                  </p>
+                }
+              </section>
+            }
+            @case (1) {
+              <!-- ── STEP 2 · Where it is offered ──────────────────────────────
+                   All four loan types at once, which is the whole reason this is a
+                   step rather than the first thing behind a tab: the assignment is
+                   ONE decision with four parts, and reading it used to cost four tab
+                   clicks and a memory of what the other three said. -->
+              <section class="card is-bare stage-card">
+                <header class="stage-head">
+                  <h2 class="stage-title" i18n="@@pnd.offered_title">
+                    Which loan types is this name offered under?
+                  </h2>
+                  <p class="stage-sub" i18n="@@pnd.offered_sub">
+                    A bank building a program can only pick this name under a loan type that is on
+                    here. Turning one off keeps everything you chose for it.
+                  </p>
+                </header>
 
-            @if (scope().length === 0) {
-              <!-- The pool having nothing for this loan type is the one dead end on
+                <ul class="gates" role="list">
+                  @for (c of categories; track c) {
+                    <li>
+                      <div class="gate" [class.on]="isOffered(c)">
+                        <button
+                          type="button"
+                          role="switch"
+                          class="switch"
+                          [attr.aria-checked]="isOffered(c)"
+                          [attr.aria-label]="offerLabel(n, c)"
+                          [attr.aria-busy]="savingOffer()"
+                          (click)="toggleOffered(c)"
+                        >
+                          <span class="track" aria-hidden="true"><span class="thumb"></span></span>
+                          <span class="switch-text">
+                            <!-- The LOAN TYPE, not the sentence. Four rows each opening
+                                 with the program name repeated it four times under an H1
+                                 that already says it, and pushed every title to two
+                                 lines. The full sentence stays on the aria-label, where a
+                                 screen reader has no H1 in view to lean on. -->
+                            <span class="switch-title">{{ categoryNameOf(c) }}</span>
+                            <span class="switch-hint">
+                              @if (isOffered(c)) {
+                                <!-- Says WHO sees the effect and WHERE. "Banks can sell it"
+                                   described a business fact the admin cannot see; the name
+                                   appearing in a picker is the thing they can go and check.
+                                   "of this type" rather than the type's name: the row IS the
+                                   type, and interpolating it forced "a Auto Loan". -->
+                                <span i18n="@@pnd.gate_on_hint"
+                                  >A bank adding a program of this type can pick this name.</span
+                                >
+                              } @else if (pickedCountFor(c) > 0) {
+                                <!-- The one state that needs explaining: picks exist but are
+                                   inert. Saying they survive is what stops an admin from
+                                   "fixing" it by re-entering them somewhere else. -->
+                                <span i18n="@@pnd.gate_off_kept_hint"
+                                  >No bank program can pick this name here. Your
+                                  {{ pickedCountFor(c) }} chosen questions stay saved and come back
+                                  when you turn this on.</span
+                                >
+                              } @else {
+                                <span i18n="@@pnd.gate_off_hint"
+                                  >No bank program can pick this name here. Turn this on, then
+                                  choose what those applicants are scored on.</span
+                                >
+                              }
+                            </span>
+                          </span>
+                        </button>
+                      </div>
+                    </li>
+                  }
+                </ul>
+
+                @if (offeredCount() === 0) {
+                  <!-- Not a validation error — the row is saved and legal. It is a
+                       statement that the name is currently unsellable, which is the
+                       one thing this step exists to make visible. -->
+                  <p class="stage-warn" role="status">
+                    <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
+                    <span i18n="@@pnd.offered_none"
+                      >No bank can offer this name yet. Turn on at least one loan type.</span
+                    >
+                  </p>
+                }
+              </section>
+            }
+            @case (2) {
+              <app-rail-tabs
+                [items]="tabs()"
+                [activeId]="activeCategory()"
+                [ariaLabel]="tabsAria"
+                idPrefix="pnd"
+                (select)="selectCategory($event)"
+              />
+
+              <div
+                class="panel"
+                role="tabpanel"
+                [id]="'pnd-panel-' + activeCategory()"
+                [attr.aria-labelledby]="'pnd-tab-' + activeCategory()"
+              >
+                @if (scope().length === 0) {
+                  <!-- The pool having nothing for this loan type is the one dead end on
                    this screen where the existing exit (assign something) can be the
                    WRONG advice — there may be nothing to assign. So the primary way
                    out is to write the question, and the assign link stays as the
                    secondary. -->
-              <div class="notice">
-                <span i18n="@@pnd.no_questions"
-                  >{{ categoryName() }} applicants aren’t asked any questions yet.</span
-                >
-                <button
-                  nz-button
-                  nzType="primary"
-                  nzSize="small"
-                  type="button"
-                  (click)="openNewQuestion()"
-                >
-                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                  <span i18n="@@pnd.write_first">Write the first question</span>
-                </button>
-                <a routerLink="/questionnaire/categories" i18n="@@pnd.no_questions_link"
-                  >Assign questions to this loan type</a
-                >
-              </div>
-            } @else if (!offered()) {
-              <!-- Locked: rendered as text, not disabled buttons. A disabled control
+                  <div class="notice">
+                    <span i18n="@@pnd.no_questions"
+                      >{{ categoryName() }} applicants aren’t asked any questions yet.</span
+                    >
+                    <button
+                      nz-button
+                      nzType="primary"
+                      nzSize="small"
+                      type="button"
+                      (click)="openNewQuestion()"
+                    >
+                      <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                      <span i18n="@@pnd.write_first">Write the first question</span>
+                    </button>
+                    <a routerLink="/questionnaire/categories" i18n="@@pnd.no_questions_link"
+                      >Assign questions to this loan type</a
+                    >
+                  </div>
+                } @else if (!offered()) {
+                  <!-- Locked: rendered as text, not disabled buttons. A disabled control
                  still takes a tab stop in some browsers and reads as "broken"
                  rather than "not yet"; plain rows read as a preview. -->
-              <div class="locked" aria-live="polite">
-                <p class="locked-line">
-                  <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
-                  <!-- Points at the switch by POSITION, not by quoting its label: the
-                     label now carries the name, and nesting that inside quotes read
-                     as two sentences fighting for the same pair of quote marks. -->
-                  <span i18n="@@pnd.locked"
-                    >{{ scope().length }} questions are asked here. Turn on the switch above to pick
-                    which ones this name scores on.</span
-                  >
-                </p>
-                <ul class="grid grid-locked" role="list">
-                  @for (q of lockedPreview(); track q.code) {
-                    <li class="card is-locked" [class.on]="isPicked(q.code)">
-                      <span class="card-head">
-                        <span class="tick" aria-hidden="true">
-                          @if (isPicked(q.code)) {
-                            <span nz-icon nzType="check" nzTheme="outline"></span>
-                          }
-                        </span>
-                        <span class="q-label">{{ q.label }}</span>
+                  <div class="locked" aria-live="polite">
+                    <p class="locked-line">
+                      <span nz-icon nzType="lock" nzTheme="outline" aria-hidden="true"></span>
+                      <!-- Names the STEP that owns the switch, and offers the trip. Saying
+                     "above" was already only true while the switch sat on this panel;
+                     with the assignment on its own step it would be simply wrong. -->
+                      <span i18n="@@pnd.locked_step"
+                        >{{ scope().length }} questions are asked here, but this name is not offered
+                        under this loan type yet.</span
+                      >
+                      <button
+                        type="button"
+                        class="linkish"
+                        (click)="goToStep(1)"
+                        i18n="@@pnd.locked_go"
+                      >
+                        Turn it on
+                      </button>
+                    </p>
+                    <ul class="grid grid-locked" role="list">
+                      @for (q of lockedPreview(); track q.code) {
+                        <li class="card is-locked" [class.on]="isPicked(q.code)">
+                          <span class="card-head">
+                            <span class="tick" aria-hidden="true">
+                              @if (isPicked(q.code)) {
+                                <span nz-icon nzType="check" nzTheme="outline"></span>
+                              }
+                            </span>
+                            <span class="q-label">{{ q.label }}</span>
+                          </span>
+                          <span class="card-meta">
+                            <span class="qtype">{{ typeLabel(q.type) }}</span>
+                          </span>
+                        </li>
+                      }
+                    </ul>
+                    @if (scope().length > lockedPreview().length) {
+                      <p class="locked-more" i18n="@@pnd.locked_more">
+                        and {{ scope().length - lockedPreview().length }} more
+                      </p>
+                    }
+                  </div>
+                } @else {
+                  <div class="controls">
+                    <div class="coverage">
+                      <span class="cov-count">
+                        {{ pickedInScope().length }}
+                        <span class="cov-of" i18n="@@pnd.count"
+                          >of {{ scope().length }} questions asked here</span
+                        >
                       </span>
-                      <span class="card-meta">
-                        <span class="qtype">{{ typeLabel(q.type) }}</span>
+                      <span class="meter" aria-hidden="true">
+                        <span class="meter-fill" [style.inline-size.%]="pct()"></span>
                       </span>
-                    </li>
-                  }
-                </ul>
-                @if (scope().length > lockedPreview().length) {
-                  <p class="locked-more" i18n="@@pnd.locked_more">
-                    and {{ scope().length - lockedPreview().length }} more
-                  </p>
-                }
-              </div>
-            } @else {
-              <div class="controls">
-                <div class="coverage">
-                  <span class="cov-count">
-                    {{ pickedInScope().length }}
-                    <span class="cov-of" i18n="@@pnd.count"
-                      >of {{ scope().length }} questions asked here</span
-                    >
-                  </span>
-                  <span class="meter" aria-hidden="true">
-                    <span class="meter-fill" [style.inline-size.%]="pct()"></span>
-                  </span>
-                  <!-- The meter counts IN-SCOPE picks only, so without this line the
+                      <!-- The meter counts IN-SCOPE picks only, so without this line the
                        section below ("Scored on 11") disagrees with it by exactly the
                        drifted rows and reads as a bug in the page. -->
-                  @if (driftedCount() > 0) {
-                    <span class="cov-drift" i18n="@@pnd.count_drift"
-                      >+{{ driftedCount() }} kept from a change made elsewhere</span
-                    >
-                  }
-                </div>
+                      @if (driftedCount() > 0) {
+                        <span class="cov-drift" i18n="@@pnd.count_drift"
+                          >+{{ driftedCount() }} kept from a change made elsewhere</span
+                        >
+                      }
+                    </div>
 
-                <span class="controls-spacer"></span>
+                    <span class="controls-spacer"></span>
 
-                <!-- One segmented pair, not two loose buttons: they are the two
+                    <!-- One segmented pair, not two loose buttons: they are the two
                      directions of a single set operation over the same list, and
                      rendering them as separate pills made three peer actions on a
                      row where only one of them authors anything. The two icons are
                      the checkbox states the operation LEAVES BEHIND, which is what
                      lets the labels drop the long "everything listed" phrasing and
                      give the row back the width the search needed. -->
-                <span class="bulk" role="group" [attr.aria-label]="bulkAria">
-                  <button
-                    nz-button
-                    type="button"
-                    class="bulk-tick"
-                    [disabled]="busy()"
-                    nz-tooltip
-                    nzTooltipTitle="Score this name on every question listed"
-                    i18n-nzTooltipTitle="@@pnd.pick_all_tip"
-                    (click)="setAllVisible(true)"
-                  >
-                    <span nz-icon nzType="check-square" nzTheme="outline" aria-hidden="true"></span>
-                    <span i18n="@@pnd.pick_all">Tick all listed</span>
-                  </button>
-                  <button
-                    nz-button
-                    type="button"
-                    class="bulk-untick"
-                    [disabled]="busy()"
-                    nz-popconfirm
-                    [nzCondition]="!wouldClearAll()"
-                    nzPopconfirmTitle="This clears the list for this loan type — bank programs created from it will start from nothing."
-                    i18n-nzPopconfirmTitle="@@pnd.clear_all_confirm"
-                    nzPopconfirmPlacement="bottomRight"
-                    (nzOnConfirm)="setAllVisible(false)"
-                    nz-tooltip
-                    nzTooltipTitle="Stop scoring on every question listed"
-                    i18n-nzTooltipTitle="@@pnd.clear_all_tip"
-                  >
-                    <span nz-icon nzType="minus-square" nzTheme="outline" aria-hidden="true"></span>
-                    <span i18n="@@pnd.clear_all">Untick all listed</span>
-                  </button>
-                </span>
+                    <span class="bulk" role="group" [attr.aria-label]="bulkAria">
+                      <button
+                        nz-button
+                        type="button"
+                        class="bulk-tick"
+                        [disabled]="busy()"
+                        nz-tooltip
+                        nzTooltipTitle="Score this name on every question listed"
+                        i18n-nzTooltipTitle="@@pnd.pick_all_tip"
+                        (click)="setAllVisible(true)"
+                      >
+                        <span
+                          nz-icon
+                          nzType="check-square"
+                          nzTheme="outline"
+                          aria-hidden="true"
+                        ></span>
+                        <span i18n="@@pnd.pick_all">Tick all listed</span>
+                      </button>
+                      <button
+                        nz-button
+                        type="button"
+                        class="bulk-untick"
+                        [disabled]="busy()"
+                        nz-popconfirm
+                        [nzCondition]="!wouldClearAll()"
+                        nzPopconfirmTitle="This clears the list for this loan type — bank programs created from it will start from nothing."
+                        i18n-nzPopconfirmTitle="@@pnd.clear_all_confirm"
+                        nzPopconfirmPlacement="bottomRight"
+                        (nzOnConfirm)="setAllVisible(false)"
+                        nz-tooltip
+                        nzTooltipTitle="Stop scoring on every question listed"
+                        i18n-nzTooltipTitle="@@pnd.clear_all_tip"
+                      >
+                        <span
+                          nz-icon
+                          nzType="minus-square"
+                          nzTheme="outline"
+                          aria-hidden="true"
+                        ></span>
+                        <span i18n="@@pnd.clear_all">Untick all listed</span>
+                      </button>
+                    </span>
 
-                <nz-input-group [nzPrefix]="searchIcon" class="search">
-                  <input
-                    nz-input
-                    [formControl]="searchCtrl"
-                    placeholder="Search questions"
-                    i18n-placeholder="@@pnd.search_ph"
-                    [attr.aria-label]="searchAria"
-                  />
-                </nz-input-group>
-                <ng-template #searchIcon>
-                  <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
-                </ng-template>
+                    <nz-input-group [nzPrefix]="searchIcon" class="search">
+                      <input
+                        nz-input
+                        [formControl]="searchCtrl"
+                        placeholder="Search questions"
+                        i18n-placeholder="@@pnd.search_ph"
+                        [attr.aria-label]="searchAria"
+                      />
+                    </nz-input-group>
+                    <ng-template #searchIcon>
+                      <span nz-icon nzType="search" nzTheme="outline" aria-hidden="true"></span>
+                    </ng-template>
 
-                <!-- Its own zone behind a hairline, not a third peer of the two
+                    <!-- Its own zone behind a hairline, not a third peer of the two
                      bulk buttons: those are set operations over content that
                      already exists, this authors new content for the whole
                      platform. Rendering them alike would say they are the same
                      kind of act. -->
-                <span class="controls-sep" aria-hidden="true"></span>
-                <button
-                  nz-button
-                  nzType="primary"
-                  type="button"
-                  class="new-q"
-                  [disabled]="busy()"
-                  nz-tooltip
-                  nzTooltipTitle="Write a question and tick it into this name in one go"
-                  i18n-nzTooltipTitle="@@pnd.new_question_tip"
-                  (click)="openNewQuestion()"
-                >
-                  <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                  <span i18n="@@pnd.new_question">New question</span>
-                </button>
-              </div>
+                    <span class="controls-sep" aria-hidden="true"></span>
+                    <button
+                      nz-button
+                      nzType="primary"
+                      type="button"
+                      class="new-q"
+                      [disabled]="busy()"
+                      nz-tooltip
+                      nzTooltipTitle="Write a question and tick it into this name in one go"
+                      i18n-nzTooltipTitle="@@pnd.new_question_tip"
+                      (click)="openNewQuestion()"
+                    >
+                      <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                      <span i18n="@@pnd.new_question">New question</span>
+                    </button>
+                  </div>
 
-              <!-- The one outcome the autosave chip would otherwise lie about: the
+                  <!-- The one outcome the autosave chip would otherwise lie about: the
                    question IS created and live, only the tick did not land. Stated
                    inline and persistently, because a toast for a state the operator
                    has to act on is a toast they will miss. -->
-              @if (tickFailed(); as failed) {
-                <p class="tick-failed" role="alert">
-                  <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
-                  <span i18n="@@pnd.tick_failed"
-                    >“{{ failed }}” was created, but ticking it here didn’t save. Tap it below to
-                    score this name on it.</span
-                  >
-                  <button
-                    type="button"
-                    class="linkish"
-                    (click)="dismissTickFailed()"
-                    i18n="@@pnd.dismiss"
-                  >
-                    Dismiss
-                  </button>
-                </p>
-              }
+                  @if (tickFailed(); as failed) {
+                    <p class="tick-failed" role="alert">
+                      <span
+                        nz-icon
+                        nzType="close-circle"
+                        nzTheme="outline"
+                        aria-hidden="true"
+                      ></span>
+                      <span i18n="@@pnd.tick_failed"
+                        >“{{ failed }}” was created, but ticking it here didn’t save. Tap it below
+                        to score this name on it.</span
+                      >
+                      <button
+                        type="button"
+                        class="linkish"
+                        (click)="dismissTickFailed()"
+                        i18n="@@pnd.dismiss"
+                      >
+                        Dismiss
+                      </button>
+                    </p>
+                  }
 
-              @if (filtering()) {
-                <p class="filter-note">
-                  <span i18n="@@pnd.showing"
-                    >{{ visibleScope().length }} of {{ scope().length }} questions</span
-                  >
-                  <button type="button" class="linkish" (click)="clearFilter()" i18n="@@pnd.clear">
-                    Clear
-                  </button>
-                </p>
-              }
+                  @if (filtering()) {
+                    <p class="filter-note">
+                      <span i18n="@@pnd.showing"
+                        >{{ visibleScope().length }} of {{ scope().length }} questions</span
+                      >
+                      <button
+                        type="button"
+                        class="linkish"
+                        (click)="clearFilter()"
+                        i18n="@@pnd.clear"
+                      >
+                        Clear
+                      </button>
+                    </p>
+                  }
 
-              <p class="sr-only" role="status" aria-live="polite">{{ status() }}</p>
+                  <p class="sr-only" role="status" aria-live="polite">{{ status() }}</p>
 
-              @for (s of sections(); track s.key) {
-                @if (s.rows.length > 0 || s.key === 'scored') {
-                  <section class="sec">
-                    <h2 class="sec-title">
-                      @if (s.key === 'scored') {
-                        <span i18n="@@pnd.sec_scored">Scored on</span>
-                      } @else {
-                        <span i18n="@@pnd.sec_rest">Not scored on</span>
-                      }
-                      <span class="sec-count">{{ s.rows.length }}</span>
-                    </h2>
+                  @for (s of sections(); track s.key) {
+                    @if (s.rows.length > 0 || s.key === 'scored') {
+                      <section class="sec">
+                        <h2 class="sec-title">
+                          @if (s.key === 'scored') {
+                            <span i18n="@@pnd.sec_scored">Scored on</span>
+                          } @else {
+                            <span i18n="@@pnd.sec_rest">Not scored on</span>
+                          }
+                          <span class="sec-count">{{ s.rows.length }}</span>
+                        </h2>
 
-                    @if (s.rows.length === 0) {
-                      <p class="sec-empty" i18n="@@pnd.none_scored">
-                        Nothing yet — tap a question below, or use “Tick all listed”.
-                      </p>
-                    } @else {
-                      <ul class="grid" role="list">
-                        @for (q of s.rows; track q.code) {
-                          <li>
-                            <button
-                              type="button"
-                              class="card"
-                              role="checkbox"
-                              [class.on]="s.key === 'scored'"
-                              [class.landed]="justMoved() === q.code"
-                              [attr.aria-checked]="s.key === 'scored'"
-                              [attr.aria-label]="cellLabel(q)"
-                              [attr.aria-busy]="saving().has(q.code) || busy()"
-                              (click)="toggleQuestion(q)"
-                            >
-                              <span class="card-head">
-                                <span class="tick" aria-hidden="true">
-                                  @if (s.key === 'scored') {
-                                    <span nz-icon nzType="check" nzTheme="outline"></span>
-                                  }
-                                </span>
-                                <span class="q-label">{{ q.label }}</span>
-                              </span>
-                              <span class="card-meta">
-                                <span class="qtype">{{ typeLabel(q.type) }}</span>
-                                @if (q.removed) {
-                                  <span class="tag warn" i18n="@@pnd.removed_tag"
-                                    >removed from the pool</span
-                                  >
-                                } @else if (!q.inScope) {
-                                  <span class="tag warn" i18n="@@pnd.drift_tag"
-                                    >not asked here</span
-                                  >
-                                }
-                              </span>
-                            </button>
-                          </li>
+                        @if (s.rows.length === 0) {
+                          <p class="sec-empty" i18n="@@pnd.none_scored">
+                            Nothing yet — tap a question below, or use “Tick all listed”.
+                          </p>
+                        } @else {
+                          <ul class="grid" role="list">
+                            @for (q of s.rows; track q.code) {
+                              <li>
+                                <button
+                                  type="button"
+                                  class="card"
+                                  role="checkbox"
+                                  [class.on]="s.key === 'scored'"
+                                  [class.landed]="justMoved() === q.code"
+                                  [attr.aria-checked]="s.key === 'scored'"
+                                  [attr.aria-label]="cellLabel(q)"
+                                  [attr.aria-busy]="saving().has(q.code) || busy()"
+                                  (click)="toggleQuestion(q)"
+                                >
+                                  <span class="card-head">
+                                    <span class="tick" aria-hidden="true">
+                                      @if (s.key === 'scored') {
+                                        <span nz-icon nzType="check" nzTheme="outline"></span>
+                                      }
+                                    </span>
+                                    <span class="q-label">{{ q.label }}</span>
+                                  </span>
+                                  <span class="card-meta">
+                                    <span class="qtype">{{ typeLabel(q.type) }}</span>
+                                    @if (q.removed) {
+                                      <span class="tag warn" i18n="@@pnd.removed_tag"
+                                        >removed from the pool</span
+                                      >
+                                    } @else if (!q.inScope) {
+                                      <span class="tag warn" i18n="@@pnd.drift_tag"
+                                        >not asked here</span
+                                      >
+                                    }
+                                  </span>
+                                </button>
+                              </li>
+                            }
+                          </ul>
                         }
-                      </ul>
+                      </section>
                     }
-                  </section>
-                }
-              }
+                  }
 
-              @if (filtering() && visibleScope().length === 0 && pickedRows().length === 0) {
-                <div class="no-match">
-                  <p i18n="@@pnd.no_matches_title">No questions match that search</p>
-                  <!-- They just typed the exact wording they were hunting for.
+                  @if (filtering() && visibleScope().length === 0 && pickedRows().length === 0) {
+                    <div class="no-match">
+                      <p i18n="@@pnd.no_matches_title">No questions match that search</p>
+                      <!-- They just typed the exact wording they were hunting for.
                        Offering to create it costs one seeded field. -->
-                  <button
-                    nz-button
-                    nzType="primary"
-                    nzSize="small"
-                    type="button"
-                    (click)="openNewQuestion(query())"
-                  >
-                    <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-                    <span i18n="@@pnd.create_searched"
-                      >Create “{{ query() }}” as a new question</span
-                    >
-                  </button>
-                  <button type="button" class="linkish" (click)="clearFilter()" i18n="@@pnd.clear">
-                    Clear
-                  </button>
-                </div>
-              }
+                      <button
+                        nz-button
+                        nzType="primary"
+                        nzSize="small"
+                        type="button"
+                        (click)="openNewQuestion(query())"
+                      >
+                        <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+                        <span i18n="@@pnd.create_searched"
+                          >Create “{{ query() }}” as a new question</span
+                        >
+                      </button>
+                      <button
+                        type="button"
+                        class="linkish"
+                        (click)="clearFilter()"
+                        i18n="@@pnd.clear"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  }
+                }
+              </div>
             }
-          </div>
+          }
+
+          <!-- Back / Next as well as the rail, because a rail is a map and these are
+               the two moves. No "Finish": nothing is submitted here — the ticks saved
+               as they were made and the rule has its own Save inside step 1. -->
+          <nav class="stepnav" [attr.aria-label]="stepsAria">
+            <button
+              nz-button
+              type="button"
+              [disabled]="stepIndex() === 0"
+              (click)="goToStep(stepIndex() - 1)"
+            >
+              <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@pnd.step_back">Back</span>
+            </button>
+            <span class="stepnav-spacer"></span>
+            @if (stepIndex() < 2) {
+              <button nz-button nzType="primary" type="button" (click)="goToStep(stepIndex() + 1)">
+                <span>{{ nextStepLabel() }}</span>
+                <span nz-icon nzType="arrow-right" nzTheme="outline" aria-hidden="true"></span>
+              </button>
+            }
+          </nav>
         } @else {
           <!-- Reachable by typing a URL, and by opening a name a colleague
                deprecated in the meantime. Says which key failed, because "not
@@ -752,7 +881,7 @@ interface QuestionRow {
         padding: var(--space-3);
         border-radius: var(--radius-md);
         border-inline-start: var(--rule-width-accent) solid var(--ant-error-color);
-        background: var(--surface-sunken);
+        background: var(--color-error-bg);
         color: var(--text-primary);
         font-size: 0.8125rem;
         line-height: 1.55;
@@ -795,9 +924,9 @@ interface QuestionRow {
         border-radius: var(--radius-md);
         background: linear-gradient(
           90deg,
-          var(--surface-sunken) 25%,
-          var(--surface-raised) 37%,
-          var(--surface-sunken) 63%
+          var(--color-surface-elevated) 25%,
+          var(--color-surface-muted) 37%,
+          var(--color-surface-elevated) 63%
         );
         background-size: 400% 100%;
         animation: rule-sk var(--motion-ambient) ease-in-out infinite;
@@ -833,6 +962,92 @@ interface QuestionRow {
           flex-direction: column;
           align-items: stretch;
         }
+      }
+
+      /* --- A step's stage --------------------------------------------------- */
+      /* is-bare for the reason step 1 uses it: the rows inside draw their own
+         borders, and a filled card around them would be a card holding cards. */
+      .stage-card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-4);
+      }
+      .stage-head {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+      }
+      .stage-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 650;
+        color: var(--text-primary);
+      }
+      .stage-sub {
+        margin: 0;
+        max-inline-size: 68ch;
+        font-size: 0.8125rem;
+        line-height: 1.55;
+        color: var(--text-secondary);
+      }
+      /* Four rows, one decision. A grid at two columns from 720px, because the four
+         together are the thing being read and a single column makes the last one
+         scroll out of the same glance as the first. */
+      .gates {
+        display: grid;
+        gap: var(--space-3);
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      @media (min-width: 720px) {
+        .gates {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      .gates > li {
+        min-inline-size: 0;
+      }
+      /* Equal heights: one row's hint runs to two lines and its neighbour's to one,
+         and a ragged pair of switches reads as two different kinds of control. */
+      .gates > li > .gate {
+        block-size: 100%;
+      }
+      /* A statement, not a form error: the row saved fine, the name is just
+         unsellable while it stands. */
+      .stage-warn {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        border-inline-start: var(--rule-width-accent) solid var(--ant-warning-color);
+        background: var(--color-warning-bg);
+        color: var(--text-primary);
+        font-size: 0.8125rem;
+        line-height: 1.55;
+      }
+      .stage-warn [nz-icon] {
+        color: var(--ant-warning-color);
+        margin-block-start: 0.15em;
+      }
+
+      /* --- Step navigation --------------------------------------------------- */
+      .stepnav {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding-block-start: var(--space-4);
+        border-block-start: 1px solid var(--pnd-line);
+      }
+      .stepnav-spacer {
+        flex: 1 1 auto;
+      }
+      /* Both arrows point along the reading direction, which no logical property can
+         do to a glyph. */
+      :host-context([dir='rtl']) .stepnav [nz-icon] {
+        transform: scaleX(-1);
       }
 
       /* --- The gate -------------------------------------------------------- */
@@ -1483,6 +1698,85 @@ export class ProgramNameDetailPage implements OnInit {
     .subscribe(() => this.markRuleDirty());
   /** Estimate markers, rooted at `incomeRule.` — the paths the server validates. */
 
+  // --- The three steps -------------------------------------------------------
+  //
+  // Which step is on stage lives in the URL beside the loan type, for the reason the
+  // tab already does: a colleague pasting a link, and a reload after a save, both land
+  // where the operator was rather than back at step one.
+
+  protected readonly stepIndex = signal<number>(this.initialStep());
+
+  /** The four loan types, for the assignment step's `@for`. Order is the platform's. */
+  protected readonly categories = LOAN_CATEGORIES;
+
+  protected readonly stepsAria = $localize`:@@pnd.steps_aria:Setting up this program name`;
+
+  private readonly stepLabels: readonly string[] = [
+    $localize`:@@pnd.step_income:How the income is worked out`,
+    $localize`:@@pnd.step_offered:Where it is offered`,
+    $localize`:@@pnd.step_questions:What it scores on`,
+  ];
+
+  /**
+   * The rail's status per step, and the one place the three answers are compared.
+   *
+   * Step 2 is the only one that can be WRONG: a name offered under no loan type is a
+   * name no bank can pick, which is unsellable rather than merely unfinished. Step 1 is
+   * legitimately blank (a payslip product states no rule) and step 3 is advisory by
+   * design (`saveWeights` never reads it), so neither ever asks for attention.
+   */
+  protected readonly wizardSteps = computed<WizardStepItem[]>(() => [
+    {
+      id: 'income',
+      label: this.stepLabels[0] ?? '',
+      status: this.ruleDirty() ? 'invalid' : this.ruleDecided() ? 'done' : 'todo',
+    },
+    {
+      id: 'offered',
+      label: this.stepLabels[1] ?? '',
+      status: this.offeredCount() > 0 ? 'done' : 'invalid',
+    },
+    {
+      id: 'questions',
+      label: this.stepLabels[2] ?? '',
+      status: this.totalPicked() > 0 ? 'done' : 'todo',
+    },
+  ]);
+
+  /** One sentence under the rail: what this step decides, and what it does not. */
+  protected readonly stepCaption = computed<string>(() => {
+    switch (this.stepIndex()) {
+      case 0:
+        return $localize`:@@pnd.step_income_cap:Set once for the name. Every bank selling it without a payslip reads this one figure.`;
+      case 1:
+        return $localize`:@@pnd.step_offered_cap:${this.offeredCount()}:OFFERED: of ${this.categories.length}:TOTAL: loan types are on. This is what a bank's program picker filters on.`;
+      default:
+        return $localize`:@@pnd.step_questions_cap:A starting list per loan type. It pre-ticks each bank's scoring wizard and constrains nothing.`;
+    }
+  });
+
+  protected nextStepLabel(): string {
+    return this.stepLabels[this.stepIndex() + 1] ?? '';
+  }
+
+  protected goToStep(index: number): void {
+    const next = Math.min(Math.max(index, 0), this.stepLabels.length - 1);
+    if (next === this.stepIndex()) return;
+    this.stepIndex.set(next);
+    this.justMoved.set(null);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { step: next + 1 },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  private initialStep(): number {
+    const raw = Number(this.route.snapshot.queryParamMap.get('step'));
+    return Number.isInteger(raw) && raw >= 1 && raw <= 3 ? raw - 1 : 0;
+  }
+
   protected readonly tabsAria = $localize`:@@pnd.tabs_aria:Loan types`;
   protected readonly searchAria = $localize`:@@pnd.search_aria:Search questions`;
   /** Names the segmented pair for a screen reader, which sees two loose buttons. */
@@ -1493,6 +1787,29 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly offered = computed(
     () => this.name()?.categories.includes(this.activeCategory()) ?? false,
   );
+
+  /** The same question asked about any category — what the assignment step renders. */
+  protected isOffered(category: LoanCategory): boolean {
+    return this.name()?.categories.includes(category) ?? false;
+  }
+
+  /** How many of the four are on. Drives the rail's status and its caption. */
+  protected readonly offeredCount = computed(() => this.name()?.categories.length ?? 0);
+
+  /** Questions held for one category, offered or not — the "they stay saved" number. */
+  protected pickedCountFor(category: LoanCategory): number {
+    return this.name()?.questions[category]?.length ?? 0;
+  }
+
+  /**
+   * Every pick across every loan type. The rail cannot show a per-tab number — there
+   * are four tabs behind one step — and "some list exists" is what the step is for.
+   */
+  protected readonly totalPicked = computed(() => {
+    const questions = this.name()?.questions;
+    if (!questions) return 0;
+    return LOAN_CATEGORIES.reduce((sum, c) => sum + (questions[c]?.length ?? 0), 0);
+  });
 
   /** Questions the OPEN category asks — this tab's whole universe. */
   protected readonly scope = computed<CatalogQuestion[]>(() => {
@@ -1636,13 +1953,20 @@ export class ProgramNameDetailPage implements OnInit {
     return categoryLabel(this.activeCategory());
   }
 
+  protected categoryNameOf(category: LoanCategory): string {
+    return categoryLabel(category);
+  }
+
   /**
    * Quotes the name when the caller has the row. "Offered as a Personal Loan" read
    * as a property of nothing in particular on a page that already shows the name in
    * the H1 — spelling out who does the offering is what makes the switch a sentence.
    */
-  protected offerLabel(row: ProgramNameRow): string {
-    return $localize`:@@pnd.gate_label:Banks can offer “${this.nameOf(row)}:name:” as a ${this.categoryName()}:category:`;
+  protected offerLabel(row: ProgramNameRow, category: LoanCategory): string {
+    // "as a ${category}" cannot be made grammatical for every label in every locale
+    // ("a Auto Loan"), and this string is now read aloud rather than shown — the row's
+    // visible title is the loan type on its own.
+    return $localize`:@@pnd.gate_label:Offer “${this.nameOf(row)}:name:” under ${categoryLabel(category)}:category:`;
   }
 
   protected isPicked(code: string): boolean {
@@ -1708,11 +2032,10 @@ export class ProgramNameDetailPage implements OnInit {
    * Withdrawing does NOT clear that category's question picks — see the class
    * docblock. They stay, greyed, and come back if the name is offered again.
    */
-  protected async toggleOffered(): Promise<void> {
+  protected async toggleOffered(category: LoanCategory): Promise<void> {
     const n = this.name();
     if (!n || this.savingOffer()) return;
 
-    const category = this.activeCategory();
     const before = n.categories;
     const next = before.includes(category)
       ? before.filter((c) => c !== category)
@@ -1957,20 +2280,23 @@ export class ProgramNameDetailPage implements OnInit {
   private absorbRule(data: ProgramNameIncomeRule): void {
     this.rule.set(data);
     const rule = data.incomeRule;
-    this.ruleGroup.reset({
-      strategy: rule?.strategy ?? 'declared',
-      scalar: {
-        value: rule?.scalar?.value ?? null,
-        unit: rule?.scalar?.unit ?? 'percent',
+    this.ruleGroup.reset(
+      {
+        strategy: rule?.strategy ?? 'declared',
+        scalar: {
+          value: rule?.scalar?.value ?? null,
+          unit: rule?.scalar?.unit ?? 'percent',
+        },
+        dbrCapPercentOverride: null,
+        requiredDocuments: [],
+        combinationRule: null,
+        // `emitEvent: false`, because the valueChanges subscription in the constructor is
+        // what makes the method picker and the scalar field raise the Save button. Loading a
+        // rule is not an edit, and without this every page load would offer to save what it
+        // had just read.
       },
-      dbrCapPercentOverride: null,
-      requiredDocuments: [],
-      combinationRule: null,
-      // `emitEvent: false`, because the valueChanges subscription in the constructor is
-      // what makes the method picker and the scalar field raise the Save button. Loading a
-      // rule is not an edit, and without this every page load would offer to save what it
-      // had just read.
-    }, { emitEvent: false });
+      { emitEvent: false },
+    );
     this.ruleKeyTable.set(rule?.keyTable ? [...rule.keyTable] : []);
     this.ruleBands.set(rule?.bands ? [...rule.bands] : []);
     // Cloned a level deeper than the two tables: a step's figures are themselves a table

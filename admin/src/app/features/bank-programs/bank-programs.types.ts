@@ -172,6 +172,11 @@ export interface RegistryFact {
     type: 'SINGLE_SELECT' | 'NUMERIC';
     active: boolean;
     options: Array<{ code: string; labelAr: string; labelEn: string }>;
+    /**
+     * The list those options are filed under — what a `factParentTable` step is keyed by.
+     * Empty when they are filed under nothing, which is a parent table with no key list.
+     */
+    parentOptions: Array<{ code: string; labelAr: string; labelEn: string }>;
     /** Loan categories the questionnaire actually asks this question of. */
     askedIn: readonly LoanCategory[];
   } | null;
@@ -204,6 +209,7 @@ export function registryFacts(
           type: q.type,
           active: q.active,
           options: q.options,
+          parentOptions: q.parentOptions ?? [],
           askedIn: q.askedIn ?? [],
         },
       },
@@ -262,6 +268,15 @@ export function incomeMethodLabel(
   strategy: IncomeAssumptionStrategy,
   facts: readonly RegistryFact[] = [],
 ): string {
+  // A step pipeline is not one of the eleven methods, and `methodLabel`'s switch has no case
+  // for it — so this function returned `undefined` for every collateral program. Three call
+  // sites patched around that individually and a fourth did not: `catalogProof()` on the
+  // wizard treated the empty label as "this name states no income proof", which put the
+  // whole income step behind a "nobody has said what this name reads" notice and left the
+  // product-rule editor unreachable for all seven collateral programs. Answered once, here.
+  if (strategy === PRODUCT_RULE_STRATEGY) {
+    return $localize`:@@bank_programs.strategy.steps:Worked out step by step from what the customer owns`;
+  }
   const factKey = factKeyOf(strategy);
   if (factKey !== null) {
     const fact = facts.find((f) => f.key === factKey);

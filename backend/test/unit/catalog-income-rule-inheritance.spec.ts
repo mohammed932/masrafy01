@@ -22,6 +22,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  withStoredStructure,
   effectiveIncomeRule,
   inheritsCatalogAmounts,
   stripCatalogStructure,
@@ -296,5 +297,65 @@ describe('the persistence chain keeps the link alive', () => {
     expect(stored.amounts).toBe('own');
     expect(stored.steps).toBeUndefined();
     expect(stored.stepParams).toEqual({ ceiling: { valueEGP: '500000' } });
+  });
+});
+
+/**
+ * The CATALOG's own write, which is the mirror image of the strip above: a bank program
+ * must not STORE the structure, and the name's own screen must not have to SEND it.
+ *
+ * Every one of these fails silently, or fails loudly in the one way nobody sees until an
+ * operator tries to save: the compound name's Save answered
+ * `PRODUCT_RULE_INVALID / no_steps` on every attempt, because the screen posts figures
+ * only and validation holds a `steps` rule to having steps.
+ */
+describe('withStoredStructure — a figures-only catalog write', () => {
+  const stored = {
+    strategy: 'steps',
+    steps: [{ id: 'ceiling', op: 'constant' }],
+    gates: [],
+    output: { kind: 'maxAmount', from: 'ceiling' },
+  } as unknown as IncomeAssumptionConfig;
+
+  it('carries the stored structure onto a write that states none', () => {
+    const written = withStoredStructure(
+      {
+        strategy: 'steps',
+        stepParams: { ceiling: { valueEGP: '500000' } },
+      } as unknown as IncomeAssumptionConfig,
+      stored,
+    );
+
+    expect(written.steps).toEqual(stored.steps);
+    expect(written.output).toEqual(stored.output);
+    // The figures are the ones sent, not the ones stored.
+    expect(written.stepParams).toEqual({ ceiling: { valueEGP: '500000' } });
+  });
+
+  it('leaves a write that DOES state steps alone, so the seed can change the product', () => {
+    const authored = {
+      strategy: 'steps',
+      steps: [{ id: 'other', op: 'constant' }],
+    } as unknown as IncomeAssumptionConfig;
+
+    expect(withStoredStructure(authored, stored).steps).toEqual(authored.steps);
+  });
+
+  it('carries nothing when there is nothing stored — a pipeline cannot be created blind', () => {
+    const incoming = { strategy: 'steps' } as unknown as IncomeAssumptionConfig;
+
+    expect(withStoredStructure(incoming, null).steps).toBeUndefined();
+    expect(
+      withStoredStructure(incoming, { strategy: 'declared' } as IncomeAssumptionConfig).steps,
+    ).toBeUndefined();
+  });
+
+  it('leaves a single-fact rule untouched', () => {
+    const rule = {
+      strategy: 'byMilitaryGrade',
+      keyTable: [{ key: 'colonel', incomeEGP: '30000' }],
+    } as unknown as IncomeAssumptionConfig;
+
+    expect(withStoredStructure(rule, stored)).toBe(rule);
   });
 });

@@ -74,6 +74,15 @@ export interface EnumerationMember {
     /** Active options in display order; empty for a NUMERIC fact. */
     options: Array<{ code: string; labelAr: string; labelEn: string }>;
     /**
+     * The list those options are FILED UNDER — the keys a `factParentTable` step is
+     * keyed by, derived server-side by walking `parentKey`.
+     *
+     * `undefined` is "no parent list": the options are not enumeration rows, or they are
+     * filed under nothing. A parent table then has no key list to offer, which the editor
+     * has to SAY rather than hide behind a seed button that can only produce zero rows.
+     */
+    parentOptions?: Array<{ code: string; labelAr: string; labelEn: string }>;
+    /**
      * Loan categories whose applicants are ASKED this question — the questionnaire's
      * own assignment, not a per-name tick. A program in a category outside this list
      * reads an answer that never arrives, so its table quotes nothing.

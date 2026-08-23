@@ -157,6 +157,22 @@ export interface BoundQuestion {
    */
   options: Array<{ code: string; labelAr: string; labelEn: string }>;
   /**
+   * The list the question's options are FILED UNDER, when they are enumeration rows that
+   * carry a `parentKey` — the keys a `factParentTable` step is keyed by.
+   *
+   * Derived on read, never stored. A parent table crosses from the value the customer
+   * picks (one of hundreds of compounds) to the short list the bank states figures against
+   * (five classes), and the crossing is `platform_enumeration.parentKey` — a bare key with
+   * no type beside it. So the only honest way to name the parent LIST is to walk it: take
+   * the option codes, find the rows they are, read the parents those rows point at, and
+   * label them from whichever list actually holds those keys.
+   *
+   * `undefined` when the walk finds nothing — options that are not enumeration rows, or
+   * rows filed under nothing. The editor then says the keys cannot be listed, rather than
+   * offering to seed a row per key over an empty list, which is a button that does nothing.
+   */
+  parentOptions?: Array<{ code: string; labelAr: string; labelEn: string }>;
+  /**
    * The loan categories whose applicants are ASKED this question — the questionnaire's
    * own answer, read straight off `question_loan_category`.
    *
