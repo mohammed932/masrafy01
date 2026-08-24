@@ -437,7 +437,7 @@ async function validateProductRule(
       if (reasonProblem) return reasonProblem;
       continue;
     }
-    const problem = validateGate(gate, figures, seenIds);
+    const problem = await validateGate(gate, figures, seenIds, factByKey, ctx);
     if (problem) return problem;
   }
 
@@ -683,11 +683,13 @@ function validateGateReasonCode(gate: RuleGate): ProductRuleViolation | undefine
   };
 }
 
-function validateGate(
+async function validateGate(
   gate: RuleGate,
   figures: NonNullable<IncomeAssumptionConfig['stepParams']>[string],
   stepIds: ReadonlySet<string>,
-): IncomeRuleViolation | undefined {
+  factByKey: ReadonlyMap<string, { questionCode?: string }>,
+  ctx: IncomeRuleValidationContext,
+): Promise<IncomeRuleViolation | undefined> {
   const reasonProblem = validateGateReasonCode(gate);
   if (reasonProblem) return reasonProblem;
 
@@ -703,6 +705,13 @@ function validateGate(
   if (gate.kind === 'numberByKey') {
     const table = figures.keyTable;
     if (!table || table.length === 0) return { kind: 'empty', strategy: 'steps', stepId: gate.id };
+    // The keys are the answers to the fact this gate is keyed BY, so they are checked against
+    // that question's option codes — the same check a `factChoiceTable` step's table gets,
+    // and for the same reason. Left out, a typo saved 200 and then answered `no_matching_row`
+    // at the gate for every applicant who picked that option: the one place in this product
+    // where a wrong key was discovered on a customer rather than at save.
+    const questionCode = factByKey.get(gate.keyedBy)?.questionCode;
+    const optionCodes = questionCode ? new Set(await ctx.questionOptionCodes(questionCode)) : null;
     const seen = new Set<string>();
     for (const row of table) {
       if (seen.has(row.key)) return { kind: 'duplicateKey', key: row.key, stepId: gate.id };
@@ -712,6 +721,15 @@ function validateGate(
       const value = toDecimalOrNull(row.incomeEGP);
       if (value === null || value.lessThan(ZERO)) {
         return { kind: 'incomeInvalid', key: row.key, incomeEGP: row.incomeEGP, stepId: gate.id };
+      }
+      if (optionCodes && !optionCodes.has(row.key)) {
+        return {
+          kind: 'unknownKey',
+          key: row.key,
+          registry: questionCode as string,
+          activeKeys: [...optionCodes],
+          stepId: gate.id,
+        };
       }
     }
     return undefined;

@@ -53,12 +53,18 @@ const DP_PERCENT: SurrogateFactBinding = {
 const FACTS = [UNIT_TYPE, UNIT_PRICE, CONTRACT_YEAR, DP_PERCENT];
 const UNIT_TYPE_OPTIONS = ['apartment', 'twin_townhouse', 'villa'];
 
+const CONTRACT_YEAR_OPTIONS = ['2024', '2023', '2022', '2021', 'before2021'];
+
 function ctx(facts: readonly SurrogateFactBinding[] = FACTS, options = UNIT_TYPE_OPTIONS) {
   return {
     isActiveMember: async () => true,
     activeMembers: async () => [],
     surrogateFacts: async () => facts,
-    questionOptionCodes: async () => options,
+    // Per question, not one list for every question: a gate keyed by the contract year is
+    // now checked against the YEAR's options, and a fixture that answered unit types for
+    // everything would have made that check meaningless.
+    questionOptionCodes: async (code: string) =>
+      code === 'compound_contract_year' ? CONTRACT_YEAR_OPTIONS : options,
   };
 }
 
@@ -415,6 +421,24 @@ describe('validateProductRule — gates', () => {
     ).toBeUndefined();
     // No table = the bank did not turn this gate on, which is not a violation.
     expect(await withGate(gate, { priceFloor: {} })).toBeUndefined();
+  });
+
+  it('refuses a numberByKey key the fact\'s question cannot answer', async () => {
+    // A typo used to save 200 and then answer `no_matching_row` at the gate for every
+    // applicant who picked that option — the one place in this product where a wrong key
+    // was discovered on a customer instead of at save.
+    const violation = await withGate(
+      {
+        id: 'priceFloor',
+        kind: 'numberByKey',
+        op: 'gte',
+        left: { step: 'price' },
+        keyedBy: 'compound_contract_year',
+        reasonCode: 'UNIT_PRICE_BELOW_MIN',
+      },
+      { priceFloor: { keyTable: [{ key: '2019', incomeEGP: '3000000' }] } },
+    );
+    expect(violation).toMatchObject({ kind: 'unknownKey', key: '2019', stepId: 'priceFloor' });
   });
 
   it('accepts a bound of ZERO — "no minimum for this segment" is a real policy', async () => {

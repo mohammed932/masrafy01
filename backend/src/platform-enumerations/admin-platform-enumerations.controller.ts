@@ -28,6 +28,7 @@ import {
   EnumerationRowDto,
   SetEnumerationBoundQuestionDto,
   SetEnumerationCategoriesBulkDto,
+  SetEnumerationParentKeysBulkDto,
   SetEnumerationCategoriesDto,
   SetEnumerationIncomeBasisDto,
   SetEnumerationQuestionsDto,
@@ -148,6 +149,28 @@ export class AdminPlatformEnumerationsController {
     });
     const projectCatalog = await this.catalogProjector();
     return { success: true, data: rows.map(projectCatalog) };
+  }
+
+  // Second static segment, declared before the `:id` routes for the same reason as
+  // `categories` above.
+  @Post('parent-keys')
+  @ApiOperation({
+    summary: 'Re-file many entries onto a parent list entry in one transaction',
+    description:
+      'Named for the generic axis rather than for compounds: the class board is one client of ' +
+      'a registry-wide column. Every id is resolved and every target validated before anything ' +
+      'is written, and one audit event is written per entry that actually moved.',
+  })
+  async setParentKeysBulk(
+    @Body() body: SetEnumerationParentKeysBulkDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ): Promise<{ success: true; data: { moved: number } }> {
+    const data = await this.service.setParentKeysBulk(body, {
+      staffId: user.sub,
+      sourceIp: ip ?? null,
+    });
+    return { success: true, data };
   }
 
   @Put(':id/categories')

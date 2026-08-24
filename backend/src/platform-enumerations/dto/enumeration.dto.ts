@@ -11,6 +11,7 @@ import {
   IsEnum,
   IsIn,
   IsInt,
+  ArrayUnique,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -18,6 +19,7 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
@@ -49,10 +51,25 @@ export class CreateEnumerationDto {
   @Length(1, 160)
   labelEn!: string;
 
-  @ApiPropertyOptional({ maxLength: 64 })
-  @IsOptional()
+  /**
+   * `@Length(1, …)` and `KEY_PATTERN`, not `@Length(0, …)`: an empty string used to be
+   * accepted and STORED, and it then passed the `parentKey IS NOT NULL` filter the engine's
+   * parent walk uses — so the value looked filed, resolved to `no_matching_row`, and quoted
+   * nothing. Omitting the field is the only way to say "no parent", and for a type that is
+   * filed under a list even that is refused — a new value of a filed-under type is born filed.
+   *
+   * `@ValidateIf(!== undefined)` rather than `@IsOptional()`, which skips validation for `null`
+   * as well: an explicit `parentKey: null` then reached the service as a value equal to neither
+   * `undefined` nor `''`, fell through to `findByTypeAndKey(parentType, null)` and came back as
+   * an untyped 500. `null` is a REQUEST to unfile, and it is accepted on exactly one endpoint
+   * (`POST parent-keys`) — everywhere else it is refused in words.
+   */
+  @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source })
+  @ValidateIf((o: CreateEnumerationDto) => o.parentKey !== undefined)
   @IsString()
-  @Length(0, 64)
+  @IsNotEmpty()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
   parentKey?: string;
 
   /**
@@ -198,6 +215,52 @@ export class SetEnumerationCategoriesBulkDto {
   assignments!: EnumerationCategoryAssignmentDto[];
 }
 
+/** One value and the list entry it should be filed under. */
+export class EnumerationParentAssignmentDto {
+  @ApiProperty({ maxLength: 30 })
+  @IsString()
+  @Length(1, 30)
+  id!: string;
+
+  /**
+   * The parent's key, or `null` to file the value under NOTHING.
+   *
+   * Three values, and the difference between them is the whole contract of this endpoint:
+   *
+   *   · a key   → file it there (must be a live member of the parent list);
+   *   · `null`  → UNFILE it, explicitly. This is the board's uncheck. The operator is
+   *               choosing to leave the value unpriceable: it stays a pickable answer for the
+   *               customer, and `factParentTable` then answers `no_matching_row`, which stops
+   *               the rule for every bank that keys its table by this axis;
+   *   · absent or `''` → refused. `''` is the reading v18.2.0 closed — it passes the engine's
+   *               `parentKey IS NOT NULL` filter, so the value LOOKS filed and quotes nothing,
+   *               which is the same outcome as `null` with none of the intent. Saying "no
+   *               parent" has exactly one spelling.
+   *
+   * `@ValidateIf(!== null)` keeps the string rules for every other value while letting `null`
+   * through; an ABSENT field still fails `@IsString()`, so a client cannot unfile by omission.
+   */
+  @ApiProperty({ maxLength: 64, nullable: true, pattern: KEY_PATTERN.source })
+  @ValidateIf((o: EnumerationParentAssignmentDto) => o.parentKey !== null)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
+  parentKey!: string | null;
+}
+
+/** Re-file many entries onto a parent in ONE transaction — what the class board saves. */
+export class SetEnumerationParentKeysBulkDto {
+  @ApiProperty({ type: [EnumerationParentAssignmentDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ArrayUnique((a: EnumerationParentAssignmentDto) => a.id)
+  @ValidateNested({ each: true })
+  @Type(() => EnumerationParentAssignmentDto)
+  assignments!: EnumerationParentAssignmentDto[];
+}
+
 /**
  * NOTE: `categories` is deliberately absent here. Assignment has its own
  * endpoint so that "empty array = parked" cannot collide with PATCH's
@@ -216,10 +279,24 @@ export class UpdateEnumerationDto {
   @Length(1, 160)
   labelEn?: string;
 
-  @ApiPropertyOptional({ maxLength: 64 })
-  @IsOptional()
+  /**
+   * `@Length(1, …)` and `KEY_PATTERN`, not `@Length(0, …)`: an empty string used to be
+   * accepted and STORED, and it then passed the `parentKey IS NOT NULL` filter the engine's
+   * parent walk uses — so the value looked filed, resolved to `no_matching_row`, and quoted
+   * nothing. Omitting the field is how a patch says "do not touch the parent", and for a type
+   * that is filed under a list there is no spelling of "unfile it" here at all — that is
+   * `POST parent-keys` with `null`, so a label-only edit can never re-file anything.
+   *
+   * `@ValidateIf(!== undefined)` rather than `@IsOptional()`, for the reason
+   * `CreateEnumerationDto` states: `@IsOptional()` skips `null` too, and `null` then reached
+   * Prisma as an invalid argument (a 500 rather than a stated refusal).
+   */
+  @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source })
+  @ValidateIf((o: UpdateEnumerationDto) => o.parentKey !== undefined)
   @IsString()
-  @Length(0, 64)
+  @IsNotEmpty()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
   parentKey?: string;
 
   @ApiPropertyOptional()

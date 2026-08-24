@@ -123,7 +123,7 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
               appMoneyInput
               type="text"
               class="ikt__income"
-              [attr.aria-label]="incomeAriaLabel"
+              [attr.aria-label]="valueLabel() ?? incomeAriaLabel"
               [ngModel]="row.incomeEGP"
               (ngModelChange)="setIncome($index, $event)"
               [ngModelOptions]="{ standalone: true }"
@@ -186,24 +186,21 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
         }
       </ol>
 
-      <div class="ikt__footer">
-        <button
-          nz-button
-          nzType="dashed"
-          nzSize="small"
-          type="button"
-          [disabled]="unusedKeys().length === 0"
-          (click)="addRow()"
-        >
-          <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@bank_programs.income.key_table_add">Add a row</span>
-        </button>
-        @if (unusedKeys().length === 0) {
-          <span class="ikt__hint" i18n="@@bank_programs.income.key_table_all_used">
-            Every key in the registry already has a row.
-          </span>
-        }
-      </div>
+      <!-- Hidden, not disabled, when every key already has a row. The button does NOT
+           create a key — it re-adds a row for a key the table is missing, which is the
+           return path from the trash icon beside each row. Where the key list is short
+           and seeded exhaustively (three compound classes) that steady state is
+           permanent, so a dead control plus a line of prose explaining why it is dead
+           read as an unfinished screen and invited "this lets me add a class". Nothing
+           to add, nothing on screen; delete a row and it comes back. -->
+      @if (unusedKeys().length > 0) {
+        <div class="ikt__footer">
+          <button nz-button nzType="dashed" nzSize="small" type="button" (click)="addRow()">
+            <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@bank_programs.income.key_table_add">Add a row</span>
+          </button>
+        </div>
+      }
 
       <!-- NO_ROWS is deliberately absent from this switch: it can only be true when
            the table is empty, and an empty table renders the empty STATE above instead
@@ -223,9 +220,18 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
               </span>
             }
             @case ('INCOME_INVALID') {
-              <span i18n="@@bank_programs.income.err_income_invalid">
-                Every assumed income must be greater than zero.
-              </span>
+              <!-- A pipeline's table holds a borrowing ceiling, a percentage, a count of
+                   months — the same reason the value label is an input — so naming it an
+                   income contradicts the column heading two rows above it. -->
+              @if (valueLabel()) {
+                <span i18n="@@bank_programs.income.err_value_invalid">
+                  Every figure in this table must be greater than zero.
+                </span>
+              } @else {
+                <span i18n="@@bank_programs.income.err_income_invalid">
+                  Every assumed income must be greater than zero.
+                </span>
+              }
             }
           }
         </p>
@@ -334,11 +340,6 @@ export { incomeKeyTableErrorFor, type IncomeKeyTableError };
         align-items: center;
         gap: var(--space-2);
         margin-block-start: var(--space-3);
-      }
-
-      .ikt__hint {
-        font-size: var(--text-xs);
-        color: var(--color-text-tertiary);
       }
 
       .ikt__error {
@@ -562,8 +563,18 @@ export class IncomeKeyTableComponent {
 
   // --- the optional second column -------------------------------------------
 
+  /**
+   * The second column, indexed. Called once per row from the template, so a linear `find`
+   * made the column O(rows²) per change-detection pass — fine for three unit types, not for
+   * a table keyed by a list the seed says will hold hundreds.
+   */
+  private readonly secondByKey = computed(() => {
+    const rows = this.secondRows();
+    return new Map((rows ?? []).map((r) => [r.key, r.incomeEGP] as const));
+  });
+
   protected secondValue(key: string): string {
-    return this.secondRows()?.find((r) => r.key === key)?.incomeEGP ?? '';
+    return this.secondByKey().get(key) ?? '';
   }
 
   /**

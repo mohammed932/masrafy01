@@ -18,6 +18,7 @@ import {
   type BoundQuestion,
   type EnumerationQuestionTemplate,
   type IncomeBasesByCategory,
+  type ParentKeyMove,
   type ProgramNameIncomeRuleRow,
   type ProgramUnderName,
   type QuestionCodesByCategory,
@@ -127,7 +128,33 @@ export interface EnumerationTypeStats {
   total: number;
   active: number;
   deprecated: number;
+  /**
+   * Whether a row of this type can be hard-deleted at all.
+   *
+   * A delete is only offered where `countReferences` can enumerate every reader — no
+   * enumeration key carries a foreign key, so a type whose readers are not enumerated would
+   * be deleted into a dangle. Served so the admin can withhold the button instead of
+   * rendering one that always answers 422.
+   */
+  deletable: boolean;
 }
+
+/**
+ * The types `countReferences` can vouch for — the only ones a hard delete is offered on.
+ *
+ * Everything else (compounds, compound classes, and the ranks and grades a stored income rule
+ * is keyed by) is retired by deactivating it, which is reversible and leaves the key readable
+ * wherever it is still stored.
+ */
+export const DELETABLE_TYPES: readonly EnumerationType[] = [
+  'program_name',
+  'product_category',
+  'required_document',
+  'governorate',
+  'employment_type',
+  'transfer_type',
+  'surrogate_fact',
+];
 
 /**
  * Domain row returned to services / controllers — keeps Prisma's
@@ -717,7 +744,13 @@ export class PostgresPlatformEnumerationsRepository
           where: { type: r.type, deprecatedAt: { not: null } },
         }),
       ]);
-      out.push({ type: r.type, total: r._count._all, active, deprecated });
+      out.push({
+        type: r.type,
+        total: r._count._all,
+        active,
+        deprecated,
+        deletable: DELETABLE_TYPES.includes(r.type as EnumerationType),
+      });
     }
     return out;
   }
@@ -1102,6 +1135,62 @@ export class PostgresPlatformEnumerationsRepository
     });
   }
 
+  setParentKeysBulk(
+    assignments: readonly { id: string; parentKey: string | null }[],
+  ): Promise<ParentKeyMove[]> {
+    return this.prisma.$transaction(async (tx) => {
+      // Same deterministic lock order as `setCategoriesBulk` above, for the same reason: two
+      // board saves that touch the same rows in different orders would otherwise deadlock,
+      // and an `updateMany` with `id IN (…)` gives no lock-order guarantee at all.
+      const ids = [...new Set(assignments.map((a) => a.id))].sort();
+      for (const id of ids) {
+        await tx.$executeRaw`SELECT 1 FROM platform_enumeration WHERE id = ${id} FOR UPDATE`;
+      }
+
+      const before = await tx.platformEnumeration.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, type: true, key: true, parentKey: true },
+      });
+      const byId = new Map(before.map((row) => [row.id, row]));
+
+      const moves: ParentKeyMove[] = [];
+      // Grouped by target, so the common case — "these nine compounds, into Class B" — is one
+      // statement rather than nine. A no-op row is not written at all: the audit granularity
+      // is one event per real change, and a row that did not move has no change to report.
+      // Keyed `string | null` because `null` is a real target — the value is priced nowhere.
+      // A Map handles it as a distinct key, so an unfile batch is still ONE `updateMany`.
+      const byTarget = new Map<string | null, string[]>();
+      for (const assignment of assignments) {
+        const row = byId.get(assignment.id);
+        if (row === undefined || row.parentKey === assignment.parentKey) continue;
+        moves.push({
+          id: row.id,
+          type: row.type,
+          key: row.key,
+          from: row.parentKey,
+          to: assignment.parentKey,
+        });
+        const bucket = byTarget.get(assignment.parentKey) ?? [];
+        bucket.push(assignment.id);
+        byTarget.set(assignment.parentKey, bucket);
+      }
+
+      for (const [parentKey, movedIds] of byTarget) {
+        await tx.platformEnumeration.updateMany({
+          where: { id: { in: movedIds } },
+          data: { parentKey },
+        });
+      }
+      return moves;
+    });
+  }
+
+  async countChildren(childType: EnumerationType, parentKey: string): Promise<number> {
+    return this.prisma.platformEnumeration.count({
+      where: { type: childType, parentKey, deprecatedAt: null },
+    });
+  }
+
   async updateById(id: string, patch: EnumerationUpdatePatch): Promise<EnumerationRow> {
     const data: Prisma.PlatformEnumerationUpdateInput = { updatedBy: patch.updatedBy };
     if (patch.labelAr !== undefined) data.labelAr = patch.labelAr;
@@ -1164,6 +1253,12 @@ export class PostgresPlatformEnumerationsRepository
     type: EnumerationType,
     key: string,
   ): Promise<EnumerationReference[] | null> {
+    // The gate, stated once. `countReferences` returning `null` is what refuses a delete, and
+    // the switch below used to BE that list implicitly — so the admin rendered a Delete button
+    // on every type and learned the answer from a 422. Now the const is the gate (an early
+    // return, so it cannot drift from the cases) and it is also served on the type summary,
+    // which is what lets the board hide a button it knows will be refused.
+    if (!DELETABLE_TYPES.includes(type)) return null;
     switch (type) {
       case 'program_name': {
         const refs = await this.countProgramNameReferences(key);

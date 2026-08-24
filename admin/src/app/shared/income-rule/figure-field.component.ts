@@ -12,7 +12,7 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
  *
  * Local styles rather than `nz-input`, because the global `.ant-input` rules are
  * `!important` throughout and an affix cannot be joined to one. Every value here is the
- * design system's field token (44px, `--radius-field`, `--bg-subtle`, `--border-default`,
+ * design system's field token (`--size-field`, `--radius-field`, `--bg-subtle`, `--border-default`,
  * `--focus-halo`), so this reads as the same field as the table cell in the row below.
  */
 @Component({
@@ -28,31 +28,24 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
       <!-- Money groups its thousands (A27); a percentage or a multiplier does not, and a
            kind this screen cannot prove groups anyway — it changes nothing on a two-digit
            month count and saves a misread on a seven-digit floor. -->
-      @if (money()) {
-        <input
-          class="ff__input"
-          appMoneyInput
-          type="text"
-          [id]="fieldId()"
-          [attr.placeholder]="hint()"
-          [attr.aria-label]="label() ? null : ariaLabel()"
-          [attr.aria-describedby]="unit() ? fieldId() + '-unit' : null"
-          [ngModel]="value()"
-          (ngModelChange)="valueChange.emit($event)"
-          [ngModelOptions]="{ standalone: true }"
-        />
-      } @else {
-        <input
-          class="ff__input"
-          inputmode="decimal"
-          [id]="fieldId()"
-          [attr.placeholder]="hint()"
-          [attr.aria-label]="label() ? null : ariaLabel()"
-          [attr.aria-describedby]="unit() ? fieldId() + '-unit' : null"
-          [value]="value()"
-          (input)="valueChange.emit($any($event.target).value)"
-        />
-      }
+      <!-- ONE input, not one per kind. The two branches differed only by the directive and
+           repeated nine bindings, so an a11y or id fix landed on one of them; and the
+           non-money branch read its value through an $any cast (A15/XXI) where the other one
+           bound ngModel properly. Grouping is now the directive's own flag. -->
+      <input
+        class="ff__input"
+        appMoneyInput
+        [appMoneyInput]="money()"
+        type="text"
+        [attr.inputmode]="money() ? null : 'decimal'"
+        [id]="fieldId()"
+        [attr.placeholder]="hint()"
+        [attr.aria-label]="label() ? null : ariaLabel()"
+        [attr.aria-describedby]="unit() ? fieldId() + '-unit' : null"
+        [ngModel]="value()"
+        (ngModelChange)="valueChange.emit($event)"
+        [ngModelOptions]="{ standalone: true }"
+      />
       @if (unit()) {
         <span class="ff__unit" [id]="fieldId() + '-unit'">{{ unit() }}</span>
       }
@@ -82,7 +75,7 @@ import { MoneyInputDirective } from '@core/directives/money-input.directive';
         gap: var(--space-2);
         inline-size: 13rem;
         max-inline-size: 100%;
-        min-block-size: 44px;
+        min-block-size: var(--size-field);
         padding-inline: var(--space-4);
         border: 1px solid var(--color-border-default);
         border-radius: var(--radius-field);
@@ -176,10 +169,8 @@ export class FigureFieldComponent {
   /** Accessible name, used only when there is no visible label. */
   readonly ariaLabel = input<string | null>(null);
 
-  /** Format hint shown while the field is empty. Defaults to the shape the kind implies. */
-  readonly placeholder = input<string | null>(null);
-
   readonly valueChange = output<string>();
 
-  protected readonly hint = computed(() => this.placeholder() ?? (this.money() ? '0.00' : '0'));
+  /** The placeholder. No caller ever passed one, so the kind decides it. */
+  protected readonly hint = computed(() => (this.money() ? '0.00' : '0'));
 }

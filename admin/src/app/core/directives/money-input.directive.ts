@@ -1,39 +1,9 @@
-import { Directive, ElementRef, HostListener, forwardRef, inject } from '@angular/core';
+import { Directive, ElementRef, HostListener, Input, forwardRef, inject } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { displayValue, formatGroupedNumber, toRaw } from './money-format';
 
-/** Strip to a canonical numeric string: digits with at most one decimal point, no separators. */
-function toRaw(value: string): string {
-  const cleaned = value.replace(/[^\d.]/g, '');
-  const dot = cleaned.indexOf('.');
-  if (dot === -1) return cleaned;
-  return cleaned.slice(0, dot) + '.' + cleaned.slice(dot + 1).replace(/\./g, '');
-}
-
-/** "1000000" → "1,000,000"; keeps any decimal part intact. */
-function group(value: string): string {
-  const raw = toRaw(value);
-  if (raw === '') return '';
-  const dot = raw.indexOf('.');
-  const intPart = dot === -1 ? raw : raw.slice(0, dot);
-  const fracPart = dot === -1 ? null : raw.slice(dot + 1);
-  const intGrouped = intPart === '' ? '0' : Number(intPart).toLocaleString('en-US');
-  return fracPart === null ? intGrouped : `${intGrouped}.${fracPart}`;
-}
-
-/**
- * Read-only counterpart of what the directive renders, for summary lines and
- * static labels that sit beside a money field ("20000000.00" → "20,000,000").
- * `en-US` digits deliberately: the editable field shows the same, and one screen
- * must not mix two digit systems. Trailing fraction zeros are dropped — money
- * bounds are authored in whole units and ".00" is noise outside an input.
- */
-export function formatGroupedNumber(value: string | null | undefined): string {
-  if (value === null || value === undefined || value.trim() === '') return '';
-  const parsed = Number(value);
-  return Number.isFinite(parsed)
-    ? parsed.toLocaleString('en-US', { maximumFractionDigits: 4 })
-    : value;
-}
+// Re-exported so every existing importer keeps working after the pure half moved out.
+export { displayValue, formatGroupedNumber };
 
 /** Caret position just after the Nth digit of a grouped string. */
 function caretAfterDigit(formatted: string, digitCount: number): number {
@@ -59,6 +29,21 @@ function caretAfterDigit(formatted: string, digitCount: number): number {
   ],
 })
 export class MoneyInputDirective implements ControlValueAccessor {
+  /**
+   * Whether to GROUP. `true` (the bare attribute) is money; `false` keeps the same value
+   * accessor and reports the same canonical raw string, without separators.
+   *
+   * A percentage and a multiplier are not money and must not be grouped, and before this
+   * they were a whole second `<input>` branch in every caller — one that bypassed `ngModel`
+   * and read its value through `$any($event.target)` (A15/XXI). One flag replaces the fork.
+   */
+  @Input() set appMoneyInput(value: boolean | '' | undefined) {
+    this.grouping = value !== false;
+    // Re-render whatever is on screen under the new setting.
+    this.el.value = displayValue(this.el.value, this.grouping);
+  }
+
+  private grouping = true;
   private readonly elRef = inject<ElementRef<HTMLInputElement>>(ElementRef);
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
@@ -68,7 +53,7 @@ export class MoneyInputDirective implements ControlValueAccessor {
   }
 
   writeValue(value: string | null): void {
-    this.el.value = group(value ?? '');
+    this.el.value = displayValue(value ?? '', this.grouping);
   }
 
   registerOnChange(fn: (value: string) => void): void {
@@ -88,7 +73,7 @@ export class MoneyInputDirective implements ControlValueAccessor {
     const previous = this.el.value;
     const caret = this.el.selectionStart ?? previous.length;
     const digitsBeforeCaret = previous.slice(0, caret).replace(/\D/g, '').length;
-    const formatted = group(previous);
+    const formatted = displayValue(previous, this.grouping);
     this.el.value = formatted;
     const next = caretAfterDigit(formatted, digitsBeforeCaret);
     this.el.setSelectionRange(next, next);

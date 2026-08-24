@@ -24,6 +24,7 @@ import {
   CheckOutline,
   CheckSquareOutline,
   CloseCircleOutline,
+  ExclamationCircleOutline,
   LockOutline,
   MinusSquareOutline,
   PlusOutline,
@@ -144,6 +145,7 @@ interface QuestionRow {
       ArrowLeftOutline,
       ArrowRightOutline,
       CheckOutline,
+      ExclamationCircleOutline,
       CheckSquareOutline,
       CloseCircleOutline,
       LockOutline,
@@ -708,6 +710,39 @@ interface QuestionRow {
           <!-- Back / Next as well as the rail, because a rail is a map and these are
                the two moves. No "Finish": nothing is submitted here — the ticks saved
                as they were made and the rule has its own Save inside step 1. -->
+          <!-- The rule's Save and its refusal text live inside step 1, so leaving that step
+               with edits pending used to remove the only way to keep them from the DOM — no
+               prompt, no marker (the rail suppresses a status on the step you are standing
+               on), and the edits gone the moment the page was left. Carried here instead, so
+               the pending state and its Save travel with the operator. -->
+          @if (ruleDirty() && stepIndex() !== 0) {
+            <p class="stepnav-unsaved" role="status">
+              <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
+              <span i18n="@@pnd.rule_unsaved">
+                How the income is worked out has changes you have not saved.
+              </span>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                type="button"
+                [nzLoading]="ruleSaving()"
+                (click)="saveRule()"
+                i18n="@@pnd.rule_save_short"
+              >
+                Save it
+              </button>
+            </p>
+          }
+          @if (ruleError(); as err) {
+            @if (stepIndex() !== 0) {
+              <p class="rule-error" role="alert">
+                <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
+                <span>{{ err }}</span>
+              </p>
+            }
+          }
+
           <nav class="stepnav" [attr.aria-label]="stepsAria">
             <button
               nz-button
@@ -1034,6 +1069,23 @@ interface QuestionRow {
       }
 
       /* --- Step navigation --------------------------------------------------- */
+      .stepnav-unsaved {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin: 0 0 var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid color-mix(in srgb, var(--color-warning) 35%, transparent);
+        border-radius: var(--radius-md);
+        background: color-mix(in srgb, var(--color-warning) 10%, var(--color-surface-default));
+        color: var(--color-text-secondary);
+        font-size: var(--text-sm);
+      }
+
+      .stepnav-unsaved button {
+        margin-inline-start: auto;
+      }
+
       .stepnav {
         display: flex;
         align-items: center;

@@ -169,7 +169,7 @@ nz-input-number.num-field {
   padding-inline: 14px 36px;
   padding-block: 0;
   border: 1px solid var(--border-default, var(--color-border-default));
-  border-radius: 10px;
+  border-radius: var(--radius-field);
   background-color: var(--bg-subtle, var(--color-surface-row-hover));
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%230869C3' stroke-width='1.5' stroke-linecap='round'/></svg>");
   background-repeat: no-repeat;

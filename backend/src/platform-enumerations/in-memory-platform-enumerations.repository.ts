@@ -125,6 +125,16 @@ export class InMemoryPlatformEnumerationsRepository
     return [];
   }
 
+  /** Read-only stub, exactly as `setProgramNameIncomeRule` above. */
+  async setParentKeysBulk(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /** Nothing in this stub carries a parent, so nothing is filed under one. */
+  async countChildren(): Promise<number> {
+    return 0;
+  }
+
   private add(type: EnumerationType, key: string, labelAr: string, labelEn: string): void {
     let bucket = this.members.get(type);
     if (!bucket) {

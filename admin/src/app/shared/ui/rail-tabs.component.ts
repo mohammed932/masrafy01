@@ -173,7 +173,7 @@ export interface RailTabItem {
          three unrelated buttons with a stray number each, rather than as one control with
          one thing on stage. The track is --color-surface-page and the live segment
          --color-surface-default because that pair is directional in BOTH themes (light
-         #F8F6F4 → #FDFCFB, dark #0A0710 → #15101C) — --bg-subtle / --bg-muted invert
+         page → default in both themes) — --bg-subtle / --bg-muted invert
          in dark and would sink the segment that is supposed to be lifted. The accent-mixed
          hairline is load-bearing for the same reason: --shadow-sm is a black rgba, i.e.
          invisible on a near-black surface, so the lift has to be DRAWN as well as cast. */

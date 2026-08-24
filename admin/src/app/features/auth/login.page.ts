@@ -372,7 +372,7 @@ interface LoginControls {
         display: flex; align-items: center; justify-content: center;
         background: var(--gradient-bronze);
         color: var(--azure-950);
-        border-radius: 10px;
+        border-radius: var(--radius-field);
         font-size: 18px;
       }
       .stat-text { display: flex; flex-direction: column; line-height: 1.2; }

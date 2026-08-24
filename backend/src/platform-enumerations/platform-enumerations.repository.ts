@@ -62,6 +62,40 @@ export function isUnscopedEnumerationType(type: string): boolean {
 }
 
 /**
+ * Which LIST a type's values are filed under — the registry's single-parent scope.
+ *
+ * One entry today, and it is load-bearing: a bank keys its compound cap table by three
+ * CLASSES while the customer picks one of hundreds of compounds by NAME, and
+ * `factParentTable` walks one to the other through `parentKey`.
+ *
+ * Declared here, beside the four other axis constants, rather than in `common/` — Principle
+ * IX keeps `common/` free of feature knowledge, and this is registry taxonomy owned by the
+ * module that owns the registry. The admin holds a second copy today
+ * (`admin/src/app/features/lookups/lookups.constants.ts`); the type-stats read is the seam
+ * that should eventually serve this one instead.
+ *
+ * Two things follow from a type appearing here, both enforced in the admin service:
+ *   · a new member of it MUST name a parent (an unfiled value is invisible to the derivation
+ *     that reads it, so it quotes nothing for whoever picks it), and
+ *   · a PARENT may not be retired while a member still points at it.
+ */
+export const PARENT_TYPE_BY_TYPE: Readonly<Partial<Record<EnumerationType, EnumerationType>>> = {
+  compound: 'compound_category',
+};
+
+/** The list `type`'s values are filed under, or `null` when the type has no parent axis. */
+export function parentTypeOf(type: string): EnumerationType | null {
+  return PARENT_TYPE_BY_TYPE[type as EnumerationType] ?? null;
+}
+
+/** The types filed under `parentType` — the inverse of the map above. */
+export function childTypesOf(parentType: string): EnumerationType[] {
+  return (Object.keys(PARENT_TYPE_BY_TYPE) as EnumerationType[]).filter(
+    (child) => PARENT_TYPE_BY_TYPE[child] === parentType,
+  );
+}
+
+/**
  * Types whose members are ASSIGNED to loan categories, via the join table
  * `platform_enumeration_loan_category`. For every other type the assignment is
  * always the empty set and nothing reads it.
@@ -411,6 +445,28 @@ export abstract class PlatformEnumerationsRepository {
    * inherit. A stale answer here lets a live program lose its table.
    */
   abstract programsUnderName(key: string): Promise<ProgramUnderName[]>;
+
+  /**
+   * Re-file many members onto a parent in ONE transaction.
+   *
+   * One call rather than N patches because a bulk mistake is N rows: half-applied, the
+   * registry has some values reading one bank figure and some another, and the only record of
+   * how far it got is the audit trail. Returns the rows whose parent actually MOVED, so the
+   * caller audits a change per change rather than per request.
+   */
+  abstract setParentKeysBulk(
+    assignments: readonly { id: string; parentKey: string | null }[],
+  ): Promise<ParentKeyMove[]>;
+
+  /**
+   * How many members of `childType` are filed under `parentKey`.
+   *
+   * Backs the refusal to retire a parent that still has children. Counts NON-DEPRECATED
+   * children only: a deprecated value can never be offered again, so it cannot carry an
+   * applicant to a cap row that no longer exists, while a merely deactivated one can be
+   * switched back on.
+   */
+  abstract countChildren(childType: EnumerationType, parentKey: string): Promise<number>;
 }
 
 /** A catalog program name as the income-rule endpoints read it. */
@@ -421,6 +477,16 @@ export interface ProgramNameIncomeRuleRow {
   labelEn: string;
   incomeRule: IncomeAssumptionConfig | null;
   valueSources: Record<string, 'team_estimated'>;
+}
+
+/** One member whose parent actually changed — what a bulk re-file audits. */
+export interface ParentKeyMove {
+  id: string;
+  type: string;
+  key: string;
+  from: string | null;
+  /** `null` when the value was UNFILED — an operator saying it is priced nowhere. */
+  to: string | null;
 }
 
 /** One surrogate bank program filed under a catalog name. */

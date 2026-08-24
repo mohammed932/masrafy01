@@ -320,6 +320,89 @@ async function main(): Promise<void> {
     facts: { ...SELF_EMPLOYED, business_years: { kind: 'choice', optionCode: 'less_than_2' } },
   });
 
+  // ── The three compound classes, priced ────────────────────────────────────
+  //
+  // At 40% down, because EGBank's own down-payment gate refuses a 20% applicant BEFORE the
+  // class table is ever read — so a 20% assertion proves nothing about the tiers.
+  //
+  // These three runs are the whole reason this block exists: the class list went from five
+  // tiers to three, and the one applicant the rest of this script uses (`other`, the lowest
+  // class) is worth 2 000 000 under BOTH the old scheme and the new one. Without a run per
+  // class, a migration that re-filed every compound onto the wrong tier would ship green.
+  console.log('\n— one run per compound class, at 40% down —');
+  const CLASS_TIERS: ReadonlyArray<{ compound: string; label: string; ceilingEGP: string }> = [
+    { compound: 'mivida', label: 'Class A', ceilingEGP: '6000000' },
+    { compound: 'madinaty', label: 'Class B', ceilingEGP: '4000000' },
+    { compound: 'other', label: 'Class C', ceilingEGP: '2000000' },
+  ];
+  for (const tier of CLASS_TIERS) {
+    check(
+      `EGB-COMPOUND-GUARANTEE ${tier.label} (${tier.compound})`,
+      'EGB-COMPOUND-GUARANTEE',
+      '0',
+      { ceilingEGP: tier.ceilingEGP },
+      {
+        dpPercent: '40',
+        facts: { compound_name: { kind: 'choice', optionCode: tier.compound } },
+      },
+    );
+  }
+
+  // ── Two invariants nothing else in the codebase asserts ───────────────────
+  //
+  // A quote can only prove the compounds it names. These two prove the SHAPE of the registry,
+  // which is what a botched re-filing breaks: a table keyed by a class that no longer exists
+  // saves clean (parent-table keys are deliberately not validated at save) and then answers
+  // `no_matching_row` for whoever picked the compound behind it.
+  console.log('\n— registry invariants —');
+  const liveClasses = new Set(
+    (
+      await prisma.platformEnumeration.findMany({
+        where: { type: 'compound_category', active: true, deprecatedAt: null },
+        select: { key: true },
+      })
+    ).map((row) => row.key),
+  );
+  const compoundRows = await prisma.platformEnumeration.findMany({
+    where: { type: 'compound' },
+    select: { key: true, parentKey: true },
+  });
+  const unfiled = compoundRows.filter(
+    (row) => row.parentKey === null || !liveClasses.has(row.parentKey),
+  );
+  if (unfiled.length > 0) {
+    console.error(
+      `✗ ${unfiled.length} compound(s) are not filed under a live class: ` +
+        unfiled.map((row) => `${row.key}→${row.parentKey ?? 'none'}`).join(', '),
+    );
+    failures += 1;
+  } else {
+    console.log(`✓ every compound (${compoundRows.length}) is filed under one of ${liveClasses.size} live classes`);
+  }
+
+  const withTables = await prisma.bankProgram.findMany({
+    select: { programCode: true, incomeAssumption: true },
+  });
+  const staleKeyed: string[] = [];
+  for (const row of withTables) {
+    const rule = row.incomeAssumption as { stepParams?: Record<string, { keyTable?: { key: string }[] }> } | null;
+    for (const [stepId, params] of Object.entries(rule?.stepParams ?? {})) {
+      for (const cell of params?.keyTable ?? []) {
+        // A cap table keyed by a class the registry no longer has. Reported per program and
+        // step, because the fix is a figure an operator types on that program's own screen.
+        if (stepId === 'capByCompoundClass' && !liveClasses.has(cell.key)) {
+          staleKeyed.push(`${row.programCode}.${stepId}.${cell.key}`);
+        }
+      }
+    }
+  }
+  if (staleKeyed.length > 0) {
+    console.error(`✗ cap table row(s) keyed by a class that no longer exists: ${staleKeyed.join(', ')}`);
+    failures += 1;
+  } else {
+    console.log('✓ no cap table names a retired class');
+  }
+
   console.log(failures === 0 ? '\nall collateral programs quote as expected.' : `\n${failures} problem(s).`);
   process.exitCode = failures === 0 ? 0 : 1;
 }

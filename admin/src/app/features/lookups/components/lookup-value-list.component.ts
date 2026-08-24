@@ -138,21 +138,23 @@ export interface LookupActiveToggle {
                      did what deactivate does and could never be undone from here, so
                      the board no longer offers it — existing deprecated rows still
                      render below, they just cannot be created any more. -->
-                <button
-                  class="icon-action danger"
-                  type="button"
-                  [disabled]="r.systemOnly"
-                  nz-popconfirm
-                  nzPopconfirmTitle="Delete this value for good? Only possible while nothing uses it."
-                  i18n-nzPopconfirmTitle="@@lookups.delete.confirm"
-                  nzPopconfirmPlacement="topRight"
-                  (nzOnConfirm)="remove.emit(r)"
-                  nz-tooltip
-                  [nzTooltipTitle]="deleteLabel"
-                  [attr.aria-label]="deleteLabel"
-                >
-                  <span nz-icon nzType="delete" nzTheme="outline"></span>
-                </button>
+                @if (deletable()) {
+                  <button
+                    class="icon-action danger"
+                    type="button"
+                    [disabled]="r.systemOnly"
+                    nz-popconfirm
+                    nzPopconfirmTitle="Delete this value for good? Only possible while nothing uses it."
+                    i18n-nzPopconfirmTitle="@@lookups.delete.confirm"
+                    nzPopconfirmPlacement="topRight"
+                    (nzOnConfirm)="remove.emit(r)"
+                    nz-tooltip
+                    [nzTooltipTitle]="deleteLabel"
+                    [attr.aria-label]="deleteLabel"
+                  >
+                    <span nz-icon nzType="delete" nzTheme="outline"></span>
+                  </button>
+                }
               </div>
             </div>
           </li>
@@ -185,21 +187,23 @@ export interface LookupActiveToggle {
                   </button>
                   <!-- The tombstone case: deprecating was the safe move at the time,
                        and once the last reference is gone the row is pure noise. -->
-                  <button
-                    class="icon-action danger"
-                    type="button"
-                    [disabled]="r.systemOnly"
-                    nz-popconfirm
-                    nzPopconfirmTitle="Delete this value for good? Only possible while nothing uses it."
-                    i18n-nzPopconfirmTitle="@@lookups.delete.confirm"
-                    nzPopconfirmPlacement="topRight"
-                    (nzOnConfirm)="remove.emit(r)"
-                    nz-tooltip
-                    [nzTooltipTitle]="deleteLabel"
-                    [attr.aria-label]="deleteLabel"
-                  >
-                    <span nz-icon nzType="delete" nzTheme="outline"></span>
-                  </button>
+                  @if (deletable()) {
+                    <button
+                      class="icon-action danger"
+                      type="button"
+                      [disabled]="r.systemOnly"
+                      nz-popconfirm
+                      nzPopconfirmTitle="Delete this value for good? Only possible while nothing uses it."
+                      i18n-nzPopconfirmTitle="@@lookups.delete.confirm"
+                      nzPopconfirmPlacement="topRight"
+                      (nzOnConfirm)="remove.emit(r)"
+                      nz-tooltip
+                      [nzTooltipTitle]="deleteLabel"
+                      [attr.aria-label]="deleteLabel"
+                    >
+                      <span nz-icon nzType="delete" nzTheme="outline"></span>
+                    </button>
+                  }
                 </div>
               </div>
             </li>
@@ -452,6 +456,15 @@ export class LookupValueListComponent {
    * Passed in rather than fetched: the page already holds every type's rows, and a second
    * fetch here would let the two lists disagree about which classes are live.
    */
+  /**
+   * Whether the server will entertain a hard delete of this type at all.
+   *
+   * A delete is only possible where every reader can be counted, and no enumeration key
+   * carries a foreign key — so for a compound or a compound class the answer is always 422.
+   * The button used to render anyway, which taught the operator that Delete is broken rather
+   * than that this type is retired by deactivating it.
+   */
+  readonly deletable = input<boolean>(true);
   readonly parents = input<readonly EnumerationRow[]>([]);
 
   readonly edit = output<EnumerationRow>();

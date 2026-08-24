@@ -381,6 +381,38 @@ describe('withStoredStructure — a figures-only catalog write', () => {
     expect(withStoredStructure(cleared, stored).steps).toEqual([]);
   });
 
+  it('carries the name\'s own policy fields onto a figures-only write', () => {
+    // No pipeline screen edits these, and the catalog page posts strategy + stepParams only,
+    // so dropping them loses them for good with nothing saying so.
+    const withPolicy = {
+      ...stored,
+      dbrCapPercentOverride: '45',
+      requiredDocuments: ['bank_statement'],
+    } as unknown as IncomeAssumptionConfig;
+
+    const written = withStoredStructure(
+      { strategy: 'steps', stepParams: { ceiling: { valueEGP: '1' } } } as unknown as IncomeAssumptionConfig,
+      withPolicy,
+    );
+
+    expect(written.dbrCapPercentOverride).toBe('45');
+    expect(written.requiredDocuments).toEqual(['bank_statement']);
+  });
+
+  it('lets a write that states a policy field change it', () => {
+    const withPolicy = {
+      ...stored,
+      dbrCapPercentOverride: '45',
+    } as unknown as IncomeAssumptionConfig;
+
+    const written = withStoredStructure(
+      { strategy: 'steps', dbrCapPercentOverride: '50' } as unknown as IncomeAssumptionConfig,
+      withPolicy,
+    );
+
+    expect(written.dbrCapPercentOverride).toBe('50');
+  });
+
   it('leaves a single-fact rule untouched', () => {
     const rule = {
       strategy: 'byMilitaryGrade',

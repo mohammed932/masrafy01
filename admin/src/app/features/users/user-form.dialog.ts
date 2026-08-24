@@ -398,7 +398,7 @@ interface EditFormControls {
         justify-content: center;
         width: 36px;
         height: 36px;
-        border-radius: 10px;
+        border-radius: var(--radius-field);
         background: var(--color-tonal-accent-bg);
         color: var(--color-brand-primary);
         flex-shrink: 0;

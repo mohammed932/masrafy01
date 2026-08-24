@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzModalService } from 'ng-zorro-antd/modal';
@@ -19,6 +19,8 @@ import {
   FileTextOutline,
   EnvironmentOutline,
   UnorderedListOutline,
+  ApartmentOutline,
+  HomeOutline,
   HistoryOutline,
   LockOutline,
   EditOutline,
@@ -45,12 +47,7 @@ import {
   type EnumerationRow,
   type EnumerationTypeSummary,
 } from './lookups.api.service';
-import {
-  LOOKUP_TYPES,
-  PARENT_TYPE_BY_TYPE,
-  isLookupType,
-  lookupType,
-} from './lookups.constants';
+import { LOOKUP_TYPES, PARENT_TYPE_BY_TYPE, isLookupType, lookupType } from './lookups.constants';
 import {
   LookupTypeRailComponent,
   type LookupTypeCard,
@@ -77,6 +74,7 @@ import {
   imports: [
     NzIconModule,
     NzButtonModule,
+    RouterLink,
     PageHeaderComponent,
     StatStripComponent,
     SkeletonRowsComponent,
@@ -94,6 +92,8 @@ import {
       FileTextOutline,
       EnvironmentOutline,
       UnorderedListOutline,
+      ApartmentOutline,
+      HomeOutline,
       HistoryOutline,
       LockOutline,
       EditOutline,
@@ -135,10 +135,18 @@ import {
                 <h2>{{ lookupType(type).label }}</h2>
                 <p class="detail-desc">{{ lookupType(type).description }}</p>
               </div>
-              <button nz-button nzType="primary" (click)="openCreate(type)">
-                <span nz-icon nzType="plus" nzTheme="outline"></span>
-                <span i18n="@@lookups.addValue">Add value</span>
-              </button>
+              <div class="detail-actions">
+                @if (hasClassBoard(type)) {
+                  <a nz-button routerLink="/lookups/compound-classes">
+                    <span nz-icon nzType="swap" nzTheme="outline"></span>
+                    <span i18n="@@lookups.openClassBoard">Where each compound is priced</span>
+                  </a>
+                }
+                <button nz-button nzType="primary" (click)="openCreate(type)">
+                  <span nz-icon nzType="plus" nzTheme="outline"></span>
+                  <span i18n="@@lookups.addValue">Add value</span>
+                </button>
+              </div>
             </header>
 
             @if (loadingRows()) {
@@ -147,6 +155,7 @@ import {
               <app-lookup-value-list
                 [rows]="rows()"
                 [parents]="parentRows()"
+                [deletable]="deletableType(type)"
                 (edit)="openEdit($event)"
                 (toggleActive)="setActive($event)"
                 (remove)="remove($event)"
@@ -200,6 +209,13 @@ import {
       .detail-intro {
         flex: 1 1 auto;
         min-inline-size: 0;
+      }
+      .detail-actions {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: var(--space-2);
+        flex-wrap: wrap;
       }
       .detail-head h2 {
         margin: 0 0 var(--space-1);
@@ -359,6 +375,26 @@ export class LookupsPage implements OnInit {
     ref.afterClose.subscribe((saved: boolean | undefined) => {
       if (saved) void this.reloadAfterMutation();
     });
+  }
+
+  /**
+   * Whether the server will entertain a delete for this type. Absent on the summary means
+   * NOT LOADED, so the button stays as it was rather than vanishing on an old backend.
+   */
+  protected deletableType(type: string): boolean {
+    return this.summaries().find((row) => row.type === type)?.deletable ?? true;
+  }
+
+  /**
+   * Which types the class board is about — the child and its parent list.
+   *
+   * Read from `PARENT_TYPE_BY_TYPE` rather than naming compounds here, so a second
+   * filed-under type inherits the link instead of needing this condition widened.
+   */
+  protected hasClassBoard(type: string): boolean {
+    return (
+      PARENT_TYPE_BY_TYPE[type] !== undefined || Object.values(PARENT_TYPE_BY_TYPE).includes(type)
+    );
   }
 
   private async reloadTypes(opts: { silent?: boolean } = {}): Promise<void> {

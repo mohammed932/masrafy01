@@ -388,6 +388,57 @@ export class EnumerationDeleteNotSupportedException extends DomainException {
 }
 
 /**
+ * A value of a filed-under type was created without naming its list.
+ *
+ * Refused rather than defaulted: the platform picking a class on the operator's behalf is
+ * the platform stating a price tier, and a wrong guess quotes a real number to a real
+ * applicant. `meta.parentType` names the list so the screen can offer it.
+ */
+export class EnumerationParentRequiredException extends DomainException {
+  constructor(meta: { type: string; parentType: string }) {
+    super(ERROR_CODES.ENUMERATION_PARENT_REQUIRED, meta);
+  }
+}
+
+/**
+ * The named parent is not a live member of the list this type is filed under.
+ *
+ * `meta.reason` discriminates missing / inactive / deprecated, and `activeKeys` says what
+ * would have worked — one code with a reason beats three codes whose fix screen is identical.
+ */
+export class EnumerationParentUnknownException extends DomainException {
+  constructor(meta: {
+    type: string;
+    parentType: string;
+    parentKey: string;
+    reason: 'missing' | 'inactive' | 'deprecated';
+    activeKeys: string[];
+  }) {
+    super(ERROR_CODES.ENUMERATION_PARENT_UNKNOWN, meta);
+  }
+}
+
+/** A parent was named for a type that is filed under nothing. */
+export class EnumerationParentNotApplicableException extends DomainException {
+  constructor(meta: { type: string }) {
+    super(ERROR_CODES.ENUMERATION_PARENT_NOT_APPLICABLE, meta);
+  }
+}
+
+/**
+ * Retiring a list value while members are still filed under it.
+ *
+ * The engine's parent walk filters the CHILD's active flag and never the parent's, so a
+ * retired class with children keeps pricing off a row the operator can no longer see or
+ * re-select. A refusal they read beats a quote that silently goes on.
+ */
+export class EnumerationHasChildrenException extends DomainException {
+  constructor(meta: { type: string; key: string; childType: string; children: number }) {
+    super(ERROR_CODES.ENUMERATION_HAS_CHILDREN, meta);
+  }
+}
+
+/**
  * The template named question codes that match no question at all — not even a
  * soft-deleted one. Reports every offender so the board can say which rather
  * than just refusing the save.

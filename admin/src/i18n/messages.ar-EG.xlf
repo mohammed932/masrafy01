@@ -1113,13 +1113,13 @@
       <trans-unit id="bank_programs.income.key_table_empty" datatype="html"><source>This method reads the applicant's answer and looks it up here. Add a row for every value the bank recognises — anything not listed produces no figures, not a zero.</source><target>تقرأ هذه الطريقة إجابة مقدّم الطلب وتبحث عنها هنا. أضف صفًا لكل قيمة يعتمدها البنك — أي قيمة غير مدرجة لا تُنتج أرقامًا، ولا تُعرض كصفر.</target></trans-unit>
       <trans-unit id="bank_programs.income.key_table_seed" datatype="html"><source>Add a row for every key</source><target>أضف صفًا لكل مفتاح</target></trans-unit>
       <trans-unit id="bank_programs.income.key_table_add" datatype="html"><source>Add a row</source><target>أضف صفًا</target></trans-unit>
-      <trans-unit id="bank_programs.income.key_table_all_used" datatype="html"><source>Every key in the registry already has a row.</source><target>كل مفتاح في السجل له صف بالفعل.</target></trans-unit>
       <trans-unit id="bank_programs.income.col_key" datatype="html"><source>Key</source><target>المفتاح</target></trans-unit>
       <trans-unit id="bank_programs.income.col_income" datatype="html"><source>Assumed monthly income (EGP)</source><target>الدخل الشهري المفترض (ج.م)</target></trans-unit>
       <trans-unit id="bank_programs.income.key_placeholder" datatype="html"><source>Pick a key</source><target>اختر مفتاحًا</target></trans-unit>
       <trans-unit id="bank_programs.income.err_duplicate_key" datatype="html"><source>Each key may appear once. Remove the repeated row.</source><target>يظهر كل مفتاح مرة واحدة. احذف الصف المتكرر.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_key_missing" datatype="html"><source>Every row needs a key from the registry.</source><target>كل صف يحتاج مفتاحًا من السجل.</target></trans-unit>
       <trans-unit id="bank_programs.income.err_income_invalid" datatype="html"><source>Every assumed income must be greater than zero.</source><target>يجب أن يكون كل دخل مفترض أكبر من صفر.</target></trans-unit>
+      <trans-unit id="bank_programs.income.err_value_invalid" datatype="html"><source>Every figure in this table must be greater than zero.</source><target>يجب أن يكون كل رقم في هذا الجدول أكبر من صفر.</target></trans-unit>
       <trans-unit id="bank_programs.income.aria.key" datatype="html"><source>Registry key for this row</source><target>مفتاح السجل لهذا الصف</target></trans-unit>
       <trans-unit id="bank_programs.income.aria.income" datatype="html"><source>Assumed monthly income in EGP</source><target>الدخل الشهري المفترض بالجنيه المصري</target></trans-unit>
       <trans-unit id="bank_programs.income.aria.move_up" datatype="html"><source>Move this row up</source><target>انقل هذا الصف للأعلى</target></trans-unit>
@@ -1385,6 +1385,47 @@
       <trans-unit id="income_rule.scalar_hint_bank_statement" datatype="html"><source>This percent of the balance, already MONTHLY — not divided by 12. 10% of 200,000 EGP = 20,000 EGP a month.</source><target>هذه النسبة من الرصيد، شهرية بالفعل — لا تُقسم على ١٢. ١٠٪ من ٢٠٠٬٠٠٠ جنيه = ٢٠٬٠٠٠ جنيه شهريًا.</target></trans-unit>
       <trans-unit id="income_rule.scalar_hint_cd" datatype="html"><source>This percent of the certificate, per YEAR, divided into months. 3% of 400,000 EGP = 1,000 EGP a month.</source><target>هذه النسبة من الشهادة، سنويًا، مقسومة على الشهور. ٣٪ من ٤٠٠٬٠٠٠ جنيه = ١٬٠٠٠ جنيه شهريًا.</target></trans-unit>
       <trans-unit id="income_rule.scalar_hint_deposits" datatype="html"><source>This percent of total deposits, per YEAR, divided into months. 2% of 600,000 EGP = 1,000 EGP a month.</source><target>هذه النسبة من إجمالي الودائع، سنويًا، مقسومة على الشهور. ٢٪ من ٦٠٠٬٠٠٠ جنيه = ١٬٠٠٠ جنيه شهريًا.</target></trans-unit>
+
+      <!-- Compound class board — where each compound is priced -->
+      <trans-unit id="ccb.back" datatype="html"><source>All values</source><target>كل القيم</target></trans-unit>
+      <trans-unit id="ccb.eyebrow" datatype="html"><source>Manage values</source><target>إدارة القيم</target></trans-unit>
+      <trans-unit id="ccb.title" datatype="html"><source>Where each compound is priced</source><target>في أي فئة يُسعَّر كل كومباوند</target></trans-unit>
+      <trans-unit id="ccb.lede" datatype="html"><source>A bank states one amount per class. A customer picks a compound by name. This is where the two meet — so a compound in the wrong class is priced at the wrong ceiling.</source><target>البنك يحدد مبلغًا واحدًا لكل فئة، والعميل يختار الكومباوند بالاسم. هنا يلتقي الطرفان — لذا الكومباوند في الفئة الخطأ يُسعَّر بحد خطأ.</target></trans-unit>
+      <trans-unit id="ccb.count_compounds" datatype="html"><source>compounds</source><target>كومباوند</target></trans-unit>
+      <trans-unit id="ccb.count_classes" datatype="html"><source>classes</source><target>فئات</target></trans-unit>
+      <trans-unit id="ccb.load_failed" datatype="html"><source>The compound lists could not be loaded, so nothing can be moved yet. Retry shortly.</source><target>تعذّر تحميل قوائم الكومباوندات، لذا لا يمكن نقل أي شيء بعد. أعد المحاولة قريبًا.</target></trans-unit>
+      <trans-unit id="ccb.no_classes" datatype="html"><source>There are no classes to price compounds in yet. Add one under Compound classes first.</source><target>لا توجد فئات لتسعير الكومباوندات فيها بعد. أضف فئة من «فئات الكومباوندات» أولًا.</target></trans-unit>
+      <trans-unit id="ccb.show_unfiled" datatype="html"><source>Show them</source><target>اعرضها</target></trans-unit>
+      <trans-unit id="ccb.rail_aria" datatype="html"><source>Compound classes</source><target>فئات الكومباوندات</target></trans-unit>
+      <trans-unit id="ccb.search_aria" datatype="html"><source>Search compounds by name</source><target>ابحث عن الكومباوندات بالاسم</target></trans-unit>
+      <trans-unit id="ccb.search" datatype="html"><source>Search compounds</source><target>ابحث عن كومباوند</target></trans-unit>
+      <trans-unit id="ccb.group_filed" datatype="html"><source>Priced in this class</source><target>يُسعَّر في هذه الفئة</target></trans-unit>
+      <trans-unit id="ccb.group_elsewhere" datatype="html"><source>Priced somewhere else</source><target>يُسعَّر في فئة أخرى</target></trans-unit>
+      <trans-unit id="ccb.filed_empty" datatype="html"><source>Nothing is priced here yet. Move a compound in from the list below — a class no compound reaches is an amount the bank states and nobody can quote.</source><target>لا شيء يُسعَّر هنا بعد. انقل كومباوندًا من القائمة أدناه — الفئة التي لا يصلها أي كومباوند مبلغٌ يحدده البنك ولا يستطيع أحد الحصول عليه.</target></trans-unit>
+      <trans-unit id="ccb.candidates_empty" datatype="html"><source>Every compound is priced in this class. Nothing left to move.</source><target>كل الكومباوندات تُسعَّر في هذه الفئة. لا شيء متبقٍّ للنقل.</target></trans-unit>
+      <trans-unit id="ccb.candidates_empty_search" datatype="html"><source>Every compound matching your search is already priced in this class.</source><target>كل الكومباوندات المطابقة لبحثك تُسعَّر بالفعل في هذه الفئة.</target></trans-unit>
+      <trans-unit id="ccb.foot" datatype="html"><source>A compound is priced in at most one class, so ticking it here takes it out of the one it was in. Unticking leaves it in no class at all — it is still offered to the customer, and any bank pricing off the class can then quote it nothing.</source><target>يُسعَّر الكومبوند في فئة واحدة على الأكثر، لذا فإن اختياره هنا يُخرجه من الفئة التي كان فيها. وإلغاء الاختيار يتركه بلا فئة على الإطلاق — وسيظل معروضًا على العميل، وقد لا يمنحه أي بنك يُسعِّر حسب الفئة أي مبلغ.</target></trans-unit>
+      <trans-unit id="ccb.tag_off" datatype="html"><source>Off</source><target>موقوف</target></trans-unit>
+      <trans-unit id="ccb.tier_top" datatype="html"><source>Highest tier</source><target>أعلى فئة</target></trans-unit>
+      <trans-unit id="ccb.tier_mid" datatype="html"><source>Middle tier</source><target>فئة متوسطة</target></trans-unit>
+      <trans-unit id="ccb.tier_low" datatype="html"><source>Lowest tier</source><target>أدنى فئة</target></trans-unit>
+      <trans-unit id="ccb.tier_only" datatype="html"><source>The only class</source><target>الفئة الوحيدة</target></trans-unit>
+      <trans-unit id="ccb.note_one" datatype="html"><source>1 compound</source><target>كومباوند واحد</target></trans-unit>
+      <trans-unit id="ccb.where_none" datatype="html"><source>No class</source><target>بدون فئة</target></trans-unit>
+      <trans-unit id="lookups.openClassBoard" datatype="html"><source>Where each compound is priced</source><target>في أي فئة يُسعَّر كل كومباوند</target></trans-unit>
+      <trans-unit id="lookups.field.parentKey.pick" datatype="html"><source>Pick a class</source><target>اختر فئة</target></trans-unit>
+      <trans-unit id="lookups.field.parentKey.required" datatype="html"><source>Pick the class this value is priced in.</source><target>اختر الفئة التي تُسعَّر فيها هذه القيمة.</target></trans-unit>
+      <trans-unit id="ccb.note_many" datatype="html"><source><x id="COUNT" equiv-text="count"/> compounds</source><target><x id="COUNT" equiv-text="count"/> كومباوند</target></trans-unit>
+      <trans-unit id="ccb.filed_summary" datatype="html"><source><x id="COUNT" equiv-text="count"/> of <x id="TOTAL" equiv-text="total"/> compounds are priced in this class.</source><target><x id="COUNT" equiv-text="count"/> من <x id="TOTAL" equiv-text="total"/> كومباوند تُسعَّر في هذه الفئة.</target></trans-unit>
+      <trans-unit id="ccb.matches" datatype="html"><source><x id="SHOWN" equiv-text="shown"/> of <x id="TOTAL" equiv-text="total"/></source><target><x id="SHOWN" equiv-text="shown"/> من <x id="TOTAL" equiv-text="total"/></target></trans-unit>
+      <trans-unit id="ccb.move_all" datatype="html"><source>Move all <x id="COUNT" equiv-text="count"/> here</source><target>انقل الـ <x id="COUNT" equiv-text="count"/> كلها هنا</target></trans-unit>
+      <trans-unit id="ccb.unfiled_one" datatype="html"><source>1 compound has no class, so no bank can price it.</source><target>كومباوند واحد بدون فئة، لذا لا يستطيع أي بنك تسعيره.</target></trans-unit>
+      <trans-unit id="ccb.unfiled_many" datatype="html"><source><x id="COUNT" equiv-text="count"/> compounds have no class, so no bank can price them.</source><target><x id="COUNT" equiv-text="count"/> كومباوند بدون فئة، لذا لا يستطيع أي بنك تسعيرها.</target></trans-unit>
+      <trans-unit id="ccb.moved_one" datatype="html"><source><x id="NAME" equiv-text="compound.label"/> is now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="NAME" equiv-text="compound.label"/> يُسعَّر الآن في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
+      <trans-unit id="ccb.removed_one" datatype="html"><source><x id="NAME" equiv-text="compound.label"/> is now in no class, so no bank can price it.</source><target><x id="NAME" equiv-text="compound.label"/> أصبح بلا فئة، لذا لا يمكن لأي بنك تسعيره.</target></trans-unit>
+      <trans-unit id="ccb.moved_many" datatype="html"><source><x id="COUNT" equiv-text="moved"/> compounds are now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="COUNT" equiv-text="moved"/> كومباوند تُسعَّر الآن في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
+      <trans-unit id="ccb.aria_filed" datatype="html"><source>Take <x id="NAME" equiv-text="compound.label"/> out of <x id="CLASS" equiv-text="this.activeClassLabel()"/>. It will then be in no class, and any bank pricing off the class can quote it nothing.</source><target>أخرِج <x id="NAME" equiv-text="compound.label"/> من <x id="CLASS" equiv-text="this.activeClassLabel()"/>. سيصبح بلا فئة، وقد لا يمنحه أي بنك يُسعِّر حسب الفئة أي مبلغ.</target></trans-unit>
+      <trans-unit id="ccb.aria_move" datatype="html"><source>Move <x id="NAME" equiv-text="compound.label"/> from <x id="FROM" equiv-text="this.whereLabel(compound)"/> to <x id="TO" equiv-text="this.activeClassLabel()"/></source><target>انقل <x id="NAME" equiv-text="compound.label"/> من <x id="FROM" equiv-text="this.whereLabel(compound)"/> إلى <x id="TO" equiv-text="this.activeClassLabel()"/></target></trans-unit>
       <trans-unit id="lookups.type.compound_category.label" datatype="html">
         <source>Compound classes</source>
         <target>فئات الكومباوندات</target>
@@ -2037,6 +2078,8 @@
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="pnd.rule_unsaved" datatype="html"><source>How the income is worked out has changes you have not saved.</source><target>خطوة «كيف يُحسب الدخل» بها تغييرات لم تُحفظ.</target></trans-unit>
+      <trans-unit id="pnd.rule_save_short" datatype="html"><source>Save it</source><target>احفظها</target></trans-unit>
       <trans-unit id="pnd.step_back" datatype="html">
         <source>Back</source>
         <target>رجوع</target>

@@ -63,12 +63,12 @@ describe('product rule — ops', () => {
   it('factParentTable maps the picked value to its registry parent', () => {
     const rule = income(
       [{ id: 'cap', op: 'factParentTable', fact: 'compound_name' }],
-      { cap: { keyTable: [{ key: 'cat_aa', incomeEGP: '6000000' }, { key: 'cat_c', incomeEGP: '2000000' }] } },
+      { cap: { keyTable: [{ key: 'compound_class_a', incomeEGP: '6000000' }, { key: 'compound_class_c', incomeEGP: '2000000' }] } },
       'cap',
     );
     const out = evaluateProductRule(
       rule,
-      ctx({ compound_name: pick('mivida') }, { mivida: 'cat_aa' }),
+      ctx({ compound_name: pick('mivida') }, { mivida: 'compound_class_a' }),
     );
     expect(out.ok).toBe(true);
     if (out.ok) expect(out.valueEGP.toString()).toBe('6000000');
@@ -77,10 +77,10 @@ describe('product rule — ops', () => {
   it('factParentTable reports no_matching_row for a value filed under no parent', () => {
     const rule = income(
       [{ id: 'cap', op: 'factParentTable', fact: 'compound_name' }],
-      { cap: { keyTable: [{ key: 'cat_c', incomeEGP: '2000000' }] } },
+      { cap: { keyTable: [{ key: 'compound_class_c', incomeEGP: '2000000' }] } },
       'cap',
     );
-    const out = evaluateProductRule(rule, ctx({ compound_name: pick('unfiled') }, { mivida: 'cat_aa' }));
+    const out = evaluateProductRule(rule, ctx({ compound_name: pick('unfiled') }, { mivida: 'compound_class_a' }));
     expect(out.ok).toBe(false);
     if (!out.ok) expect(out.reason).toBe('no_matching_row');
   });

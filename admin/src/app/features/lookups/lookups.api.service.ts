@@ -93,6 +93,13 @@ export interface EnumerationTypeSummary {
   total: number;
   active: number;
   deprecated: number;
+  /**
+   * Whether a row of this type can be hard-deleted at all — the server's own answer.
+   *
+   * `undefined` means NOT LOADED, never "no": a backend that predates the field must leave
+   * the button as it was rather than hide an action that still works.
+   */
+  deletable?: boolean;
 }
 
 export interface CreateEnumerationRequest {
@@ -188,6 +195,29 @@ export class LookupsApiService {
   async setCategoriesBulk(assignments: EnumerationCategoryAssignment[]): Promise<EnumerationRow[]> {
     const res = await firstValueFrom(
       this.http.post<SuccessEnvelope<EnumerationRow[]>>(`${this.base}/categories`, {
+        assignments,
+      }),
+    );
+    return res.data;
+  }
+
+  /**
+   * Re-file many values onto one parent list entry — or onto NOTHING — in ONE transaction.
+   *
+   * One request rather than a patch per row, and not for speed: a bulk mistake is N rows, and
+   * half-applied it leaves some values reading one bank figure and some another. The server
+   * resolves every id and validates the target BEFORE it writes anything, and audits one
+   * event per value that actually moved. Returns how many moved, so a no-op tick can say so.
+   *
+   * `parentKey: null` UNFILES the value — the board's uncheck. It is a real target, not a
+   * missing one: `''` and an absent field are both refused, because a stored empty string looks
+   * filed to the engine's `parentKey IS NOT NULL` filter and then prices nothing anyway.
+   */
+  async setParentKeysBulk(
+    assignments: readonly { id: string; parentKey: string | null }[],
+  ): Promise<{ moved: number }> {
+    const res = await firstValueFrom(
+      this.http.post<SuccessEnvelope<{ moved: number }>>(`${this.base}/parent-keys`, {
         assignments,
       }),
     );

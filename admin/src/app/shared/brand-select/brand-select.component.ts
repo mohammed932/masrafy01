@@ -173,7 +173,7 @@ export interface BrandSelectOption {
         padding-inline: 14px 36px;
         background: var(--bg-subtle, var(--color-surface-row-hover));
         border: 1px solid var(--border-default, var(--color-border-default));
-        border-radius: 10px;
+        border-radius: var(--radius-field);
         font-family: var(--font-family-base);
         font-size: 14px;
         color: var(--color-text-primary);
@@ -239,7 +239,7 @@ export interface BrandSelectOption {
         background: var(--color-surface-default);
         border: 1px solid
           color-mix(in srgb, var(--color-tonal-accent) 20%, var(--color-border-default));
-        border-radius: 10px;
+        border-radius: var(--radius-field);
         box-shadow:
           0 1px 0 rgba(6, 21, 45, 0.02),
           0 12px 28px -8px rgba(6, 21, 45, 0.18),

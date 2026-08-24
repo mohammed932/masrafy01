@@ -6,8 +6,12 @@ import {
   EnumerationCategoriesNotApplicableException,
   EnumerationCategoryNotAssignedException,
   EnumerationDeleteNotSupportedException,
+  EnumerationHasChildrenException,
   EnumerationInUseException,
   EnumerationKeyDuplicateException,
+  EnumerationParentNotApplicableException,
+  EnumerationParentRequiredException,
+  EnumerationParentUnknownException,
   EnumerationQuestionBindingNotApplicableException,
   EnumerationQuestionUnknownException,
   EnumerationQuestionsNotApplicableException,
@@ -24,6 +28,8 @@ import {
   isQuestionBoundEnumerationType,
   isQuestionTemplateEnumerationType,
   isUnscopedEnumerationType,
+  childTypesOf,
+  parentTypeOf,
   type BoundQuestion,
   type EnumerationType,
   type IncomeBasesByCategory,
@@ -37,6 +43,7 @@ import {
   type EnumerationUpdatePatch,
   type ProgramNameUsage,
 } from './postgres-platform-enumerations.repository';
+import type { SetEnumerationParentKeysBulkDto } from './dto/enumeration.dto';
 import type { CreateEnumerationDto, UpdateEnumerationDto } from './dto/enumeration.dto';
 
 /** The only categorised type today; see `CATEGORISED_ENUMERATION_TYPES`. */
@@ -107,9 +114,12 @@ export class PlatformEnumerationsAdminService {
       key: input.key,
       labelAr: input.labelAr,
       labelEn: input.labelEn,
-      // An unscoped type is a pure name — it belongs to no parent, and a caller
-      // sending one is a bug, not an intent to scope it.
-      parentKey: isUnscopedEnumerationType(input.type) ? null : (input.parentKey ?? null),
+      // The parent is decided by an ALLOW-LIST now, not by "whatever the caller sent".
+      // A type with no parent axis is force-nulled (a caller sending one is a bug, not an
+      // intent to scope it), and a type WITH one must name a live member of it: a value
+      // filed under nothing is offered to the customer and prices nothing, because
+      // `factParentTable` answers `no_matching_row` for whoever picks it.
+      parentKey: await this.resolveParentKey(input.type, input.parentKey),
       // Default a new categorised entry to ALL categories, never none: an entry
       // assigned to nothing is offerable nowhere, so a create that named no
       // categories would silently add an invisible catalog row. Operators add
@@ -139,6 +149,124 @@ export class PlatformEnumerationsAdminService {
     return created;
   }
 
+  /**
+   * What to STORE as a value's parent — the one place the parent axis is enforced.
+   *
+   * Four answers, and each is a decision rather than a fallback:
+   *   · the type is filed under nothing → `null`, whatever the caller sent;
+   *   · the type is filed under a list and the caller named nothing → refused. Not
+   *     defaulted: the platform choosing a class on the operator's behalf is the platform
+   *     stating a price tier, and a wrong guess quotes a real figure to a real applicant;
+   *   · the type is filed under a list and the caller passed an explicit `null` while
+   *     `allowUnfiled` is set → `null`. That is an operator UNFILING the value on purpose,
+   *     and it is a different statement from "you forgot to say": the value stays a pickable
+   *     answer, `factParentTable` then answers `no_matching_row`, and every bank keying its
+   *     table by this axis quotes that applicant nothing. So only the endpoint built for
+   *     moves may ask for it — never create, and never a patch that came to change a label;
+   *   · the type is filed under a list and the caller named something → it must be a LIVE
+   *     member of that list. This validation existed nowhere before: `parentKey` is a bare
+   *     string with no foreign key, so a typo saved 200 and surfaced as `no_matching_row` on
+   *     a customer, which the income-rule validator explicitly declines to catch.
+   *
+   * `''` is refused in every case including `allowUnfiled`. It is the reading v18.2.0 closed:
+   * it passes the engine's `parentKey IS NOT NULL` filter, so the value looks filed and quotes
+   * nothing — the same damage as `null` with none of the intent. "No parent" has one spelling.
+   */
+  private async resolveParentKey(
+    type: string,
+    parentKey: string | null | undefined,
+    opts: { allowUnfiled?: boolean } = {},
+  ): Promise<string | null> {
+    const parentType = parentTypeOf(type);
+    if (parentType === null) {
+      // `null` is NOT excused here, deliberately: unfiling a type that has no parent axis is
+      // the same category error as filing one, and both deserve to be reported. Only
+      // `undefined` and `''` stay silent — `program_name` keeps the historical silent-drop,
+      // because it USED to carry a parent and old clients still send one.
+      if (parentKey !== undefined && parentKey !== '' && !isUnscopedEnumerationType(type)) {
+        throw new EnumerationParentNotApplicableException({ type });
+      }
+      return null;
+    }
+    if (parentKey === null && opts.allowUnfiled === true) return null;
+    if (parentKey === undefined || parentKey === null || parentKey === '') {
+      throw new EnumerationParentRequiredException({ type, parentType });
+    }
+    const parent = await this.repo.findByTypeAndKey(parentType, parentKey);
+    if (!parent || !parent.active || parent.deprecatedAt !== null) {
+      const activeKeys = (await this.repo.getActiveMembers(parentType)).map((m) => m.key);
+      throw new EnumerationParentUnknownException({
+        type,
+        parentType,
+        parentKey,
+        reason: !parent ? 'missing' : parent.deprecatedAt !== null ? 'deprecated' : 'inactive',
+        activeKeys,
+      });
+    }
+    return parentKey;
+  }
+
+  /**
+   * Re-file many values onto a parent in one transaction — what the class board saves.
+   *
+   * One request rather than N patches, and the reason is not speed: a bulk mistake is N rows,
+   * and half-applied it leaves some values reading one bank figure and some another with the
+   * audit trail as the only record of how far it got. Every id is resolved and every target
+   * validated BEFORE anything is written, exactly as `setCategoriesBulk` does.
+   */
+  async setParentKeysBulk(
+    dto: SetEnumerationParentKeysBulkDto,
+    actor: AdminActor,
+  ): Promise<{ moved: number }> {
+    const ids = [...new Set(dto.assignments.map((a) => a.id))];
+    const rows = await Promise.all(ids.map((id) => this.repo.findById(id)));
+    const byId = new Map<string, { id: string; type: string; key: string }>();
+    for (const [index, row] of rows.entries()) {
+      if (!row) throw new NotFoundException();
+      byId.set(ids[index] as string, row);
+    }
+
+    // Validate every (type, target) pair once, not once per row: a board save is N rows with
+    // one target, and N identical refusals would be N identical registry reads.
+    const seen = new Set<string>();
+    for (const assignment of dto.assignments) {
+      const row = byId.get(assignment.id);
+      if (!row) continue;
+      const pair = `${row.type}\u0000${assignment.parentKey}`;
+      if (seen.has(pair)) continue;
+      seen.add(pair);
+      if (parentTypeOf(row.type) === null) {
+        throw new EnumerationParentNotApplicableException({ type: row.type });
+      }
+      // `allowUnfiled` ONLY here: this is the endpoint an operator uses to say where a value is
+      // priced, and "nowhere" is one of the answers it may give. Create and patch keep their
+      // refusal — a value of a filed-under type is born filed, and a label edit cannot unfile it.
+      await this.resolveParentKey(row.type, assignment.parentKey, { allowUnfiled: true });
+    }
+
+    const moves = await this.repo.setParentKeysBulk(dto.assignments);
+    // Every type, for the reason `update()` states: a parentKey move is felt by the row's own
+    // cached list AND by `surrogate_fact`'s derived `parentOptions`.
+    this.repo.invalidateCache();
+    for (const move of moves) {
+      await this.audit.write({
+        actorId: actor.staffId,
+        targetId: null,
+        eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+        sourceIp: actor.sourceIp,
+        payload: {
+          type: move.type,
+          key: move.key,
+          id: move.id,
+          // The SAME scalar shape `diffChanges` writes for a single-row patch, so the log
+          // reads identically whichever surface the operator used.
+          changes: { parentKey: { from: move.from, to: move.to } },
+        },
+      });
+    }
+    return { moved: moves.length };
+  }
+
   async update(
     id: string,
     patch: UpdateEnumerationDto,
@@ -160,12 +288,35 @@ export class PlatformEnumerationsAdminService {
 
     if (patch.labelAr !== undefined) repoPatch.labelAr = patch.labelAr;
     if (patch.labelEn !== undefined) repoPatch.labelEn = patch.labelEn;
-    // Same rule as create: an unscoped type can never acquire a parent, so the
-    // field is dropped rather than written (and stays out of the audit diff).
+    // Same rule as create: a type with no parent axis can never acquire one, so the field
+    // is dropped rather than written (and stays out of the audit diff). When it IS named it
+    // is validated — but ONLY then. A label-only patch on a row that is already unfiled must
+    // still save: demanding a parent there would make the row unfixable by the very edit
+    // that would fix it, and the class board is the surface that files it.
     if (patch.parentKey !== undefined && !isUnscopedEnumerationType(existing.type)) {
-      repoPatch.parentKey = patch.parentKey;
+      repoPatch.parentKey = await this.resolveParentKey(existing.type, patch.parentKey);
     }
     if (patch.sortOrder !== undefined) repoPatch.sortOrder = patch.sortOrder;
+
+    // Retiring a LIST value while values are still filed under it. Refused, because the
+    // engine's parent walk (`enumerationParentKeys`) filters the CHILD row's active flag and
+    // never the parent's: a retired class with children goes on pricing off a row the
+    // operator can no longer see or re-select, and the admin's own key-table editor drops it
+    // from the list at the same moment. A 409 they read beats a quote that carries on.
+    const retiring = patch.deprecate === true || patch.active === false;
+    if (retiring) {
+      for (const childType of childTypesOf(existing.type)) {
+        const children = await this.repo.countChildren(childType, existing.key);
+        if (children > 0) {
+          throw new EnumerationHasChildrenException({
+            type: existing.type,
+            key: existing.key,
+            childType,
+            children,
+          });
+        }
+      }
+    }
 
     if (patch.deprecate === true && existing.deprecatedAt === null) {
       repoPatch.deprecate = true;
@@ -176,7 +327,12 @@ export class PlatformEnumerationsAdminService {
     }
 
     const updated = await this.repo.updateById(id, repoPatch);
-    this.repo.invalidateCache(existing.type as never);
+    // A parentKey move is felt by TWO cached types: the row's own, and `surrogate_fact`,
+    // whose members carry the derived `parentOptions` list the bank's key-table editor is
+    // filled from. Invalidating only `existing.type` left that editor offering the old class
+    // list for up to the cache TTL — which, mid-re-filing, reads as "it did not work".
+    if (repoPatch.parentKey !== undefined) this.repo.invalidateCache();
+    else this.repo.invalidateCache(existing.type as never);
     await this.audit.write({
       actorId: actor.staffId,
       targetId: null,

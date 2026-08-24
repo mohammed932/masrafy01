@@ -39,7 +39,7 @@ other three blank, and a blank one is skipped (`rule_unconfigured`) — not a re
 | # | step(s) | how it derives | seeded bank |
 |---|---|---|---|
 | 1 | `capByUnitType` + `capByUnitTypeTopUp` → `capByUnitTypeForSegment` | table keyed by unit type; `pickByFact` on the derived `bank_relationship` fact picks the column (`ntb` → standard, `xsell` → top-up) | **ABK**: 2M / 3M / 4M · existing customer 3M / 3.5M / 4.5M |
-| 2 | `capByCompoundClass` | `factParentTable`: compound **name** → its `parentKey` **class** → table of five rows | **EG Bank**: AA 6M · AB 5M · A 4M · B 3M · C 2M |
+| 2 | `capByCompoundClass` | `factParentTable`: compound **name** → its `parentKey` **class** → table of three rows | **EG Bank**: Class A 6M · Class B 4M · Class C 2M |
 | 3 | `capByPaidBand` + `capByPaidBandXsell` → `capByPaidBandForSegment` | band table over `dpAmount`, same segment pick | **FABMISR**: below 500k → 750k · 500k–1M → 1M · 1M–1.5M → 1.25M · 1.5M+ → 1.5M (cross-sell +500k on every band) |
 | 4 | `capByPaidPercent` | percentage of `dpAmount` | **CAE**: 50% |
 
@@ -83,6 +83,40 @@ does not apply to — "I'm not self-employed" passes.
 `dpPercentByPrice` gate.
 
 ---
+
+## The three compound classes
+
+The classes are registry values (`platform_enumeration`, type `compound_category`), and each
+compound carries its class in `parentKey`:
+
+| class | rank | compounds |
+|---|---|---|
+| `compound_class_a` — Class A | highest | Mivida · New Giza · SODIC East |
+| `compound_class_b` — Class B | middle | Mountain View iCity · Palm Hills · Madinaty |
+| `compound_class_c` — Class C | lowest | Al Rehab · Dreamland · Another compound |
+
+Three things follow, and they are the whole reason the axis exists:
+
+- **Masrafy owns the tiering, the bank owns the money.** A bank states one amount per class
+  (three figures) and never learns that a compound exists; adding a compound prices immediately
+  at every bank. The tiering is a pricing input with an owner, not reference data.
+- **A compound must have a class.** Filed under nothing, it is offered to the customer and
+  priced by nobody — `factParentTable` answers `no_matching_row`, which stops the rule. The
+  create form refuses it, the API refuses it, and `Another compound` exists so a customer whose
+  compound is not listed still lands in the lowest tier rather than in nothing.
+- **A class cannot be retired while compounds are in it.** The engine's parent walk filters the
+  child's active flag and never the parent's, so a retired class with children would go on
+  pricing while the operator believed it was gone. The API refuses it (`ENUMERATION_HAS_CHILDREN`)
+  and points at the compounds to move first.
+
+Both are managed on **Manage values → Where each compound is priced**: pick a class, and move
+compounds into it one at a time or all at once.
+
+There were five tiers (`cat_aa` · `cat_ab` · `cat_a` · `cat_b` · `cat_c`) until 2026-08-23. The
+keys were NOT reused when the list shrank to three: "Class A" is now the top tier while `cat_a`
+was the middle one, so a recycled key would have left every half-applied state individually
+plausible and jointly wrong. Fresh keys make a half-state `no_matching_row`, which stops and
+reports itself.
 
 ## Ceiling → money
 

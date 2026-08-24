@@ -8,11 +8,14 @@ import {
   signal,
 } from '@angular/core';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { FormsModule } from '@angular/forms';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { RailTabsComponent, type RailTabItem } from '@shared/ui';
 import { CheckCircleOutline, CheckOutline, DownOutline } from '@ant-design/icons-angular/icons';
 import {
   STEP_OP_SHAPE,
   gateIsConfigured,
+  factKeysReadBy,
   optionalStepIds,
   stepIsConfigured,
   stepRefs,
@@ -32,6 +35,22 @@ import { IncomeBandsEditorComponent } from './income-bands-editor.component';
 import { IncomeKeyTableComponent } from './income-key-table.component';
 
 /** One editable figure inside a row. Two of them when a step reads a column per answer. */
+/**
+ * One frozen empty per shape. An unconfigured table is the DESIGNED normal state here (a
+ * bank fills one derivation of four), so `?? []` handed ~8 children a fresh array on every
+ * change-detection tick — each one failing `Object.is`, marking an OnPush child dirty and
+ * re-running its computeds to render the same empty state.
+ */
+// Typed mutable so every existing signature keeps working, FROZEN so the shared instance
+// cannot be mutated by accident — the children always publish a fresh array.
+const NO_ROWS = Object.freeze([]) as unknown as IncomeKeyTableRow[];
+const NO_BANDS = Object.freeze([]) as unknown as IncomeBand[];
+
+/** The key a fact's PARENT list is memoised under, kept out of the fact's own namespace. */
+function parentKeyOf(factKey: string): string {
+  return `${factKey}\u0000parent`;
+}
+
 interface FigureSlot {
   /** The step or gate id these figures are stored under. */
   id: string;
@@ -176,6 +195,8 @@ interface FlowLine {
     FigureFieldComponent,
     IncomeBandsEditorComponent,
     IncomeKeyTableComponent,
+    NzSwitchModule,
+    FormsModule,
   ],
   providers: [provideNzIconsPatch([CheckCircleOutline, CheckOutline, DownOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -386,19 +407,19 @@ interface FlowLine {
                             </p>
                           }
                           @case ('applies') {
-                            <button
-                              type="button"
-                              class="applies"
-                              role="switch"
-                              [attr.aria-checked]="appliesFor(slot.id)"
-                              [class.is-on]="appliesFor(slot.id)"
-                              (click)="toggleApplies(slot.id)"
-                            >
-                              <span class="applies-track" aria-hidden="true">
-                                <span class="applies-thumb"></span>
-                              </span>
-                              <span>{{ appliesLabel() }}</span>
-                            </button>
+                            <!-- nz-switch, the repo's ONE UI library, rather than a third
+                                 hand-rolled track-and-thumb with its own geometry and its own
+                                 RTL translate hack (CLAUDE.md: ng-zorro is the single library
+                                 repo-wide). -->
+                            <span class="applies">
+                              <span [id]="slot.id + '-applies'">{{ appliesLabel() }}</span>
+                              <nz-switch
+                                [ngModel]="appliesFor(slot.id)"
+                                (ngModelChange)="toggleApplies(slot.id)"
+                                [ngModelOptions]="{ standalone: true }"
+                                [attr.aria-labelledby]="slot.id + '-applies'"
+                              ></nz-switch>
+                            </span>
                           }
                         }
                       </div>
@@ -517,7 +538,7 @@ interface FlowLine {
       }
 
       .chip {
-        padding: 2px var(--space-2);
+        padding: var(--space-0-5) var(--space-2);
         border-radius: var(--radius-pill);
         background: var(--color-surface-elevated);
         color: var(--color-text-secondary);
@@ -726,7 +747,11 @@ interface FlowLine {
         display: flex;
         flex-direction: column;
         gap: var(--space-3);
-        padding: 0 0 var(--space-4) calc(1.25rem + var(--space-3));
+        /* Logical, not a 4-value shorthand: the start-side indent lines the body up under
+           the row's own title, and the physical form indented from the WRONG edge in RTL
+           (A19). */
+        padding-block: 0 var(--space-4);
+        padding-inline: calc(1.25rem + var(--space-3)) 0;
         animation: rule-row-in var(--motion-duration-base) var(--motion-easing-standard) both;
       }
 
@@ -772,50 +797,9 @@ interface FlowLine {
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);
-        padding: var(--space-1) 0;
-        border: 0;
-        background: none;
         color: var(--color-text-secondary);
-        font: inherit;
         font-size: var(--text-sm);
         cursor: pointer;
-      }
-
-      .applies-track {
-        position: relative;
-        display: block;
-        inline-size: 2.25rem;
-        block-size: 1.25rem;
-        border-radius: var(--radius-pill);
-        background: var(--color-border-strong);
-        transition: background-color var(--motion-duration-base) var(--motion-easing-standard);
-      }
-
-      .applies-thumb {
-        position: absolute;
-        inset-block-start: 0.1875rem;
-        inset-inline-start: 0.1875rem;
-        inline-size: 0.875rem;
-        block-size: 0.875rem;
-        border-radius: 50%;
-        background: var(--bg-pure);
-        transition: transform var(--motion-duration-base) var(--motion-easing-standard);
-      }
-
-      .applies.is-on {
-        color: var(--color-text-primary);
-      }
-
-      .applies.is-on .applies-track {
-        background: var(--color-brand-primary);
-      }
-
-      .applies.is-on .applies-thumb {
-        transform: translateX(1rem);
-      }
-
-      [dir='rtl'] .applies.is-on .applies-thumb {
-        transform: translateX(-1rem);
       }
 
       .applies:focus-visible {
@@ -981,7 +965,7 @@ interface FlowLine {
       @keyframes rule-row-in {
         from {
           opacity: 0;
-          transform: translateY(-2px);
+          transform: translateY(calc(var(--space-0-5) * -1));
         }
         to {
           opacity: 1;
@@ -1001,8 +985,6 @@ interface FlowLine {
           animation: none;
         }
         .caret,
-        .applies-track,
-        .applies-thumb,
         .flow > summary,
         .flow > summary [nz-icon] {
           transition: none;
@@ -1147,26 +1129,9 @@ export class ProductRuleEditorComponent {
    * Derived from the rule exactly as the backend's `factsReadBy` is — a second list of "the
    * questions this product needs" could only drift out of step with the rule that reads them.
    */
-  protected readonly readsFacts = computed<string[]>(() => {
-    const keys = new Set<string>();
-    const addRefs = (of: RuleStep['of'] | ValueRef | undefined): void => {
-      if (of === undefined) return;
-      for (const ref of Array.isArray(of) ? of : [of]) if ('fact' in ref) keys.add(ref.fact);
-    };
-    for (const step of this.steps()) {
-      if (step.fact) keys.add(step.fact);
-      addRefs(step.of);
-    }
-    for (const gate of this.gates()) {
-      if (gate.kind === 'choice') keys.add(gate.fact);
-      else {
-        addRefs(gate.left);
-        if (gate.kind === 'number') addRefs(gate.right);
-        if (gate.kind === 'numberByKey') keys.add(gate.keyedBy);
-      }
-    }
-    return [...keys].map((key) => this.factLabel(key));
-  });
+  protected readonly readsFacts = computed<string[]>(() =>
+    factKeysReadBy(this.steps(), this.gates()).map((key) => this.factLabel(key)),
+  );
 
   /**
    * The two kinds of `coalesce` membership, which look identical in the blob and mean
@@ -1481,6 +1446,11 @@ export class ProductRuleEditorComponent {
       return column === undefined ? [] : [{ column, index }];
     });
 
+    // TWO columns merge into one table; three or more render as stacked editors, each
+    // labelled by its own branch. Not generalised to N: `pickByFact` permits any arity, but
+    // no product uses more than two and an N-column table would fork the key-matching,
+    // re-key, reorder and delete paths per column — speculative surface on the one control
+    // that edits live figures. The stacked fallback is correct, just less compact.
     const [first, second] = columns;
     if (
       columns.length === 2 &&
@@ -1606,11 +1576,11 @@ export class ProductRuleEditorComponent {
       : $localize`:@@product_rule.step.not_used:Not used by this bank`;
   }
 
-  protected appliesLabel(): string {
+  protected readonly appliesLabel = computed<string>(() => {
     return this.variant() === 'catalog'
       ? $localize`:@@product_rule.gate.applies_catalog:On by default for every bank`
       : $localize`:@@product_rule.gate.applies:This bank applies this condition`;
-  }
+  });
 
   /**
    * The whole calculation, in the order the engine runs it.
@@ -1669,11 +1639,11 @@ export class ProductRuleEditorComponent {
   // --- figure accessors ------------------------------------------------------
 
   protected tableFor(id: string): IncomeKeyTableRow[] {
-    return this.figures()[id]?.keyTable ?? [];
+    return this.figures()[id]?.keyTable ?? NO_ROWS;
   }
 
   protected bandsFor(id: string): IncomeBand[] {
-    return this.figures()[id]?.bands ?? [];
+    return this.figures()[id]?.bands ?? NO_BANDS;
   }
 
   protected scalarFor(id: string): string {
@@ -1943,17 +1913,46 @@ export class ProductRuleEditorComponent {
   private parentOptionsFor(
     factKey: string,
   ): readonly { key: string; labelEn: string; labelAr: string }[] | null {
-    const parents = this.factByKey().get(factKey)?.question?.parentOptions;
-    if (!parents?.length) return null;
-    return parents.map((o) => ({ key: o.code, labelEn: o.labelEn, labelAr: o.labelAr }));
+    return this.optionsByFact().get(parentKeyOf(factKey)) ?? null;
   }
+
+  /**
+   * The option lists, mapped ONCE per registry read.
+   *
+   * These reach a child as `[keyOptions]`, and `groups()` is rebuilt on every keystroke, so
+   * mapping them per call handed every key table a brand-new array per character typed —
+   * which invalidates the child's own computeds and re-renders its whole `nz-option` list.
+   * Keyed by fact, so the reference is stable for as long as the registry is.
+   */
+  private readonly optionsByFact = computed(() => {
+    const out = new Map<string, readonly { key: string; labelEn: string; labelAr: string }[]>();
+    for (const fact of this.facts()) {
+      const question = fact.question;
+      if (!question) continue;
+      if (question.options.length > 0) {
+        out.set(
+          fact.key,
+          question.options.map((o) => ({ key: o.code, labelEn: o.labelEn, labelAr: o.labelAr })),
+        );
+      }
+      if (question.parentOptions.length > 0) {
+        out.set(
+          parentKeyOf(fact.key),
+          question.parentOptions.map((o) => ({
+            key: o.code,
+            labelEn: o.labelEn,
+            labelAr: o.labelAr,
+          })),
+        );
+      }
+    }
+    return out;
+  });
 
   private factOptionsFor(
     factKey: string,
   ): readonly { key: string; labelEn: string; labelAr: string }[] | null {
-    const question = this.factByKey().get(factKey)?.question;
-    if (!question?.options?.length) return null;
-    return question.options.map((o) => ({ key: o.code, labelEn: o.labelEn, labelAr: o.labelAr }));
+    return this.optionsByFact().get(factKey) ?? null;
   }
 
   /**

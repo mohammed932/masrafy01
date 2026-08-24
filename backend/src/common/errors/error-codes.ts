@@ -116,6 +116,33 @@ export const ERROR_CODES = {
    * instead.
    */
   ENUMERATION_DELETE_NOT_SUPPORTED: 'ENUMERATION_DELETE_NOT_SUPPORTED',
+  /**
+   * A value of a type that is FILED UNDER a list was created without naming which
+   * one. A compound with no class is invisible to the derivation that reads it —
+   * `factParentTable` answers `no_matching_row` for whoever picks it, which stops
+   * the rule — so the value exists, is offered to the customer, and quotes nothing.
+   * `meta.parentType` names the list to pick from.
+   */
+  ENUMERATION_PARENT_REQUIRED: 'ENUMERATION_PARENT_REQUIRED',
+  /**
+   * The parent named is not a live member of the list this type is filed under —
+   * missing, deactivated or deprecated (`meta.reason` says which). One code rather
+   * than three, because the fix screen is the same list in every case, and
+   * `meta.activeKeys` says what would have worked.
+   */
+  ENUMERATION_PARENT_UNKNOWN: 'ENUMERATION_PARENT_UNKNOWN',
+  /** A parent was named for a type that is filed under nothing. */
+  ENUMERATION_PARENT_NOT_APPLICABLE: 'ENUMERATION_PARENT_NOT_APPLICABLE',
+  /**
+   * Retiring a list value was refused because members are still filed under it.
+   *
+   * 409, like `ENUMERATION_IN_USE`: the request is well-formed and the row exists —
+   * the current state of the world refuses it, and it stops refusing once the last
+   * child is re-filed. Load-bearing: the engine's parent walk filters the CHILD's
+   * active flag and never the parent's, so a retired class with children goes on
+   * pricing while the operator believes it is gone.
+   */
+  ENUMERATION_HAS_CHILDREN: 'ENUMERATION_HAS_CHILDREN',
 
   // --- User proceed (feature 008) ---
   BANK_OFFER_NOT_FOUND: 'BANK_OFFER_NOT_FOUND',
@@ -508,6 +535,11 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   // once the last program is repointed.
   ENUMERATION_IN_USE: 409,
   ENUMERATION_DELETE_NOT_SUPPORTED: 422,
+  ENUMERATION_PARENT_REQUIRED: 422,
+  ENUMERATION_PARENT_UNKNOWN: 422,
+  ENUMERATION_PARENT_NOT_APPLICABLE: 422,
+  // 409 for the same reason `ENUMERATION_IN_USE` is: state, not shape.
+  ENUMERATION_HAS_CHILDREN: 409,
 
   BANK_NOT_FOUND: 404,
   BANK_NAME_DUPLICATE: 409,

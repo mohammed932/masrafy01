@@ -57,6 +57,9 @@
   // repeated as a literal: every text-like control shares it, and a component that reached
   // for --radius-lg instead sat 2px rounder than the input in the next table cell.
   --radius-field: 10px;
+  /* The height that pairs with it. Documented together in DESIGN_SYSTEM.md, so a
+     component reaching for one and hardcoding the other drifts from the field beside it. */
+  --size-field: 44px;
 
   // ===== Motion ==============================================================
   --motion-duration-fast: 120ms;

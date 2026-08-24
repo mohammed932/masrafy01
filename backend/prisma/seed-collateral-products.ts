@@ -97,35 +97,62 @@ interface SeedLookup {
 }
 
 /**
- * The five compound classes, and the compounds filed under them.
+ * The three compound classes, and the compounds filed under them.
  *
- * `parentKey` is the load-bearing part: a bank keys its cap table by CLASS (five rows) while
+ * `parentKey` is the load-bearing part: a bank keys its cap table by CLASS (three rows) while
  * the customer picks a NAME, and `factParentTable` walks one to the other. It replaces the
  * source prototype's client-side substring match against a hardcoded list of "high-end"
  * compound names — mixed-script, case-sensitive, and wrong for any name not on the list.
+ *
+ * ─── Why three, and why these keys ────────────────────────────────────────────
+ *
+ * There were five (`cat_aa` · `cat_ab` · `cat_a` · `cat_b` · `cat_c`), which read as an
+ * ordering nobody could infer — AA above AB above A is not a scale anyone recognises — and
+ * the two middle tiers were never a decision an operator could defend on a screen.
+ *
+ * The keys are NEW (`compound_class_*`), not the old `cat_a|b|c` reused, and that is the
+ * load-bearing half of the change. Under the new scheme "A" is the TOP tier; `cat_a` was the
+ * MIDDLE one. Reusing the key would leave every half-applied state individually plausible and
+ * jointly wrong — a re-filed compound reading a bank figure that means something else, with
+ * nothing to raise. Fresh keys make every half-state `no_matching_row`, which stops the rule
+ * and reports itself. A key is also unrenameable by construction (there is no `key` on
+ * `UpdateEnumerationDto`), so either way this is a create-new-and-retire-old operation; reuse
+ * buys no fewer writes, only ambiguity.
  *
  * The list is deliberately short and obviously incomplete: adding a compound is an operator
  * action on Manage values, and seeding two hundred would present curated demo data as a
  * market register. `other` exists so a customer whose compound is not listed can still
  * answer, and is filed under the lowest class rather than under nothing — a value with no
  * parent resolves to `no_matching_row`, which would read to them as a broken program.
+ *
+ * These three rows are ALSO inserted by migration `20260823130000_compound_classes_three`,
+ * which has to create them before it can re-file the compounds onto them. Two copies of one
+ * list, deliberately: `migrate deploy` runs on every container start, long before anyone runs
+ * this seed.
  */
-const LOOKUPS: readonly SeedLookup[] = [
-  { type: 'compound_category', key: 'cat_aa', labelEn: 'Class AA', labelAr: 'الفئة AA', sortOrder: 1 },
-  { type: 'compound_category', key: 'cat_ab', labelEn: 'Class AB', labelAr: 'الفئة AB', sortOrder: 2 },
-  { type: 'compound_category', key: 'cat_a', labelEn: 'Class A', labelAr: 'الفئة A', sortOrder: 3 },
-  { type: 'compound_category', key: 'cat_b', labelEn: 'Class B', labelAr: 'الفئة B', sortOrder: 4 },
-  { type: 'compound_category', key: 'cat_c', labelEn: 'Class C', labelAr: 'الفئة C', sortOrder: 5 },
+export const COMPOUND_CLASS_KEYS = [
+  'compound_class_a',
+  'compound_class_b',
+  'compound_class_c',
+] as const;
 
-  { type: 'compound', key: 'mivida', labelEn: 'Mivida', labelAr: 'ميفيدا', parentKey: 'cat_aa', sortOrder: 1 },
-  { type: 'compound', key: 'new_giza', labelEn: 'New Giza', labelAr: 'نيو جيزة', parentKey: 'cat_aa', sortOrder: 2 },
-  { type: 'compound', key: 'sodic_east', labelEn: 'SODIC East', labelAr: 'سوديك إيست', parentKey: 'cat_aa', sortOrder: 3 },
-  { type: 'compound', key: 'mountain_view_icity', labelEn: 'Mountain View iCity', labelAr: 'ماونتن فيو آي سيتي', parentKey: 'cat_ab', sortOrder: 4 },
-  { type: 'compound', key: 'palm_hills', labelEn: 'Palm Hills', labelAr: 'بالم هيلز', parentKey: 'cat_ab', sortOrder: 5 },
-  { type: 'compound', key: 'madinaty', labelEn: 'Madinaty', labelAr: 'مدينتي', parentKey: 'cat_a', sortOrder: 6 },
-  { type: 'compound', key: 'al_rehab', labelEn: 'Al Rehab', labelAr: 'الرحاب', parentKey: 'cat_b', sortOrder: 7 },
-  { type: 'compound', key: 'dreamland', labelEn: 'Dreamland', labelAr: 'دريم لاند', parentKey: 'cat_b', sortOrder: 8 },
-  { type: 'compound', key: 'other', labelEn: 'Another compound', labelAr: 'كومباوند آخر', parentKey: 'cat_c', sortOrder: 9 },
+/** The five keys this change retires. Kept named so the prune and the tests can state them. */
+export const RETIRED_COMPOUND_CLASS_KEYS = ['cat_aa', 'cat_ab', 'cat_a', 'cat_b', 'cat_c'] as const;
+
+export const LOOKUPS: readonly SeedLookup[] = [
+  { type: 'compound_category', key: 'compound_class_a', labelEn: 'Class A', labelAr: 'الفئة A', sortOrder: 1 },
+  { type: 'compound_category', key: 'compound_class_b', labelEn: 'Class B', labelAr: 'الفئة B', sortOrder: 2 },
+  { type: 'compound_category', key: 'compound_class_c', labelEn: 'Class C', labelAr: 'الفئة C', sortOrder: 3 },
+
+  { type: 'compound', key: 'mivida', labelEn: 'Mivida', labelAr: 'ميفيدا', parentKey: 'compound_class_a', sortOrder: 1 },
+  { type: 'compound', key: 'new_giza', labelEn: 'New Giza', labelAr: 'نيو جيزة', parentKey: 'compound_class_a', sortOrder: 2 },
+  { type: 'compound', key: 'sodic_east', labelEn: 'SODIC East', labelAr: 'سوديك إيست', parentKey: 'compound_class_a', sortOrder: 3 },
+  { type: 'compound', key: 'mountain_view_icity', labelEn: 'Mountain View iCity', labelAr: 'ماونتن فيو آي سيتي', parentKey: 'compound_class_b', sortOrder: 4 },
+  { type: 'compound', key: 'palm_hills', labelEn: 'Palm Hills', labelAr: 'بالم هيلز', parentKey: 'compound_class_b', sortOrder: 5 },
+  { type: 'compound', key: 'madinaty', labelEn: 'Madinaty', labelAr: 'مدينتي', parentKey: 'compound_class_b', sortOrder: 6 },
+  { type: 'compound', key: 'al_rehab', labelEn: 'Al Rehab', labelAr: 'الرحاب', parentKey: 'compound_class_c', sortOrder: 7 },
+  { type: 'compound', key: 'dreamland', labelEn: 'Dreamland', labelAr: 'دريم لاند', parentKey: 'compound_class_c', sortOrder: 8 },
+  { type: 'compound', key: 'other', labelEn: 'Another compound', labelAr: 'كومباوند آخر', parentKey: 'compound_class_c', sortOrder: 9 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -551,7 +578,7 @@ interface BankFigures {
  * HOW the ceiling is derived — that is the catalog's frame; a bank only says which of its
  * derivations it fills in, by filling one in.
  */
-const BANK_FIGURES: readonly BankFigures[] = [
+export const BANK_FIGURES: readonly BankFigures[] = [
   {
     bankNameEnglish: 'ABK Egypt',
     programCode: 'ABK-COMPOUND-GUARANTEE',
@@ -618,13 +645,13 @@ const BANK_FIGURES: readonly BankFigures[] = [
     operatorNotes:
       'Ceiling derived from the compound class. Required down payment is a band over the unit price. Minimum unit price varies by contract year. Bank statement mandatory; home visit and a utility bill when the unit is settled.',
     stepParams: {
+      // Three tiers, stated by the bank against the three classes. The two middle steps it
+      // used to carry (5M, 3M) are gone with the classes they were keyed by.
       capByCompoundClass: {
         keyTable: [
-          { key: 'cat_aa', incomeEGP: '6000000.00' },
-          { key: 'cat_ab', incomeEGP: '5000000.00' },
-          { key: 'cat_a', incomeEGP: '4000000.00' },
-          { key: 'cat_b', incomeEGP: '3000000.00' },
-          { key: 'cat_c', incomeEGP: '2000000.00' },
+          { key: 'compound_class_a', incomeEGP: '6000000.00' },
+          { key: 'compound_class_b', incomeEGP: '4000000.00' },
+          { key: 'compound_class_c', incomeEGP: '2000000.00' },
         ],
       },
       // 20% above 15 million, 30% from 10, 40% below. Edges only, so the tiers cannot gap.
@@ -873,6 +900,12 @@ const RETIRED_ENUMERATIONS: readonly { type: string; key: string }[] = [
   { type: 'club_class', key: 'class_1' },
   { type: 'club_class', key: 'class_2' },
   { type: 'club_class', key: 'class_3' },
+  // The five-tier compound classes. Stated here rather than merely dropped from `LOOKUPS`,
+  // because `upsertLookups` is upsert-only: a key removed from that array stops being
+  // WRITTEN and goes on living in every database an earlier run reached. They also cannot be
+  // deleted through the API — `countReferences` has no case for this type, so a delete is
+  // refused — which would leave five tombstones on the class board forever.
+  ...RETIRED_COMPOUND_CLASS_KEYS.map((key) => ({ type: 'compound_category', key })),
 ];
 
 async function pruneRetiredDemoProducts(): Promise<void> {
@@ -904,7 +937,7 @@ async function pruneRetiredDemoProducts(): Promise<void> {
     answers.count + questions.count + groups.count + programs.count + enums.count;
   if (total > 0) {
     console.log(
-      `[seed-collateral] retired the club product: ${programs.count} programs, ` +
+      `[seed-collateral] pruned retired demo data: ${programs.count} programs, ` +
         `${questions.count} questions (${answers.count} stored answers), ${groups.count} groups, ` +
         `${enums.count} registry rows.`,
     );

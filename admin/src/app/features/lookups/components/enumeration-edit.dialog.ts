@@ -18,7 +18,7 @@ import {
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { LookupsApiService, type EnumerationRow } from '../lookups.api.service';
-import { lookupExample } from '../lookups.constants';
+import { PARENT_TYPE_BY_TYPE, lookupExample } from '../lookups.constants';
 
 /**
  * EVERY lookup type is edited by business name only: the machine key is derived
@@ -119,20 +119,19 @@ export interface EnumerationEditDialogData {
         </div>
 
         @if (parentType !== null) {
-          <!-- The CLASS this row is filed under. A bank keys its cap table by the class, so a
-               compound with none is invisible to that derivation and the program quotes
-               nothing for whoever picks it — which is why this is on the form at all. Left
-               empty is still allowed: "not classified yet" is a real state, and refusing it
-               would block the operator from adding the name. -->
+          <!-- The CLASS this row is priced in. REQUIRED, and that is a change: an unclassified
+               compound is not a smaller offer, it is a compound the customer can pick and no
+               bank can price: the derivation that reads it finds no matching row, which stops
+               the rule. The server refuses it too, so leaving it optional here only moved the
+               refusal from a field to a toast. -->
           <nz-form-item>
-            <nz-form-label nzFor="lk-parent" i18n="@@lookups.field.parentKey"
+            <nz-form-label nzFor="lk-parent" nzRequired i18n="@@lookups.field.parentKey"
               >Filed under</nz-form-label
             >
-            <nz-form-control>
+            <nz-form-control [nzErrorTip]="parentRequiredTip">
               <nz-select
                 id="lk-parent"
                 formControlName="parentKey"
-                nzAllowClear
                 [nzPlaceHolder]="parentPlaceholder"
               >
                 @for (option of parentOptions(); track option.id) {
@@ -143,8 +142,8 @@ export interface EnumerationEditDialogData {
                 }
               </nz-select>
               <p class="hint" i18n="@@lookups.field.parentKey.hint">
-                Banks price this list by the class it is filed under. A value with no class
-                gets no figures from those banks.
+                Banks price this list by the class it is filed under. A value with no class gets no
+                figures from those banks.
               </p>
             </nz-form-control>
           </nz-form-item>
@@ -493,10 +492,10 @@ export class EnumerationEditDialogComponent {
    * for whoever picked it — and until now this dialog could not set one, so every compound
    * an operator added was born classless.
    */
-  protected readonly parentType: string | null =
-    this.data.type === 'compound' ? 'compound_category' : null;
+  protected readonly parentType: string | null = PARENT_TYPE_BY_TYPE[this.data.type] ?? null;
   protected readonly parentOptions = signal<readonly EnumerationRow[]>([]);
-  protected readonly parentPlaceholder = $localize`:@@lookups.field.parentKey.none:Not classified`;
+  protected readonly parentPlaceholder = $localize`:@@lookups.field.parentKey.pick:Pick a class`;
+  protected readonly parentRequiredTip = $localize`:@@lookups.field.parentKey.required:Pick the class this value is priced in.`;
   /** Arabic primary (Principle IV) — the same document read every other registry surface does. */
   protected readonly isAr = document.documentElement.lang.startsWith('ar');
   protected readonly isEdit = this.data.mode === 'edit';
@@ -612,11 +611,15 @@ export class EnumerationEditDialogComponent {
      */
     incomeBases: new FormControl<IncomeBasis[]>(['payslip'], { nonNullable: true }),
     /**
-     * The class this row is filed under. Optional: an unclassified row is a real state (a
-     * compound nobody has classified yet), and refusing to save one would leave the operator
-     * unable to add the name at all.
+     * The class this row is priced in. REQUIRED for a type that has the axis, and validated
+     * conditionally rather than always: this same dialog creates catalog program names, which
+     * are filed under nothing at all, and a blanket `Validators.required` would make every
+     * one of those unsavable.
      */
-    parentKey: new FormControl<string>(this.data.row?.parentKey ?? '', { nonNullable: true }),
+    parentKey: new FormControl<string>(this.data.row?.parentKey ?? '', {
+      nonNullable: true,
+      validators: PARENT_TYPE_BY_TYPE[this.data.type] ? [Validators.required] : [],
+    }),
   });
 
   constructor() {

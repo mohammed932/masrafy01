@@ -13,6 +13,7 @@ import { BankProgramsApiService } from '@features/bank-programs/bank-programs.ap
 import {
   INCOME_KEY_REGISTRY,
   factKeyOf,
+  factKeysReadBy,
   factKeyOptions,
   incomeMethodShape,
   registryFacts,
@@ -516,27 +517,9 @@ export class IncomeRuleCheckComponent {
    * each fact, so a second list of "facts to ask about" could only drift out of step with it.
    */
   readonly pipelineFacts = computed(() => {
-    const keys = new Set<string>();
-    const addRefs = (of: RuleStep['of']): void => {
-      if (of === undefined) return;
-      for (const ref of Array.isArray(of) ? of : [of]) if ('fact' in ref) keys.add(ref.fact);
-    };
-    for (const step of this.ruleSteps()) {
-      if (step.fact) keys.add(step.fact);
-      addRefs(step.of);
-    }
-    for (const gate of this.ruleGates()) {
-      if (gate.kind === 'choice') keys.add(gate.fact);
-      else {
-        addRefs(gate.left);
-        // The right-hand side too — a gate may compare one ANSWER against another, and a
-        // fact reachable only from there is still a fact the panel has to be able to set.
-        if (gate.kind === 'number') addRefs(gate.right);
-        if (gate.kind === 'numberByKey') keys.add(gate.keyedBy);
-      }
-    }
+    const keys = factKeysReadBy(this.ruleSteps(), this.ruleGates());
     const byKey = new Map(this.facts().map((f) => [f.key, f]));
-    return [...keys].map((key) => {
+    return keys.map((key) => {
       const fact = byKey.get(key);
       // A DERIVED fact has no registry row: the platform computes it per quote, so the
       // platform also supplies the label and the two answers it can take. Without this the

@@ -586,6 +586,39 @@ export function stepTakesFigures(step: RuleStep): boolean {
 }
 
 /**
+ * Every fact key a rule reads — one walk, shared.
+ *
+ * The same derivation as the backend's `factsReadBy`, and it existed twice on this side (the
+ * rule editor's chip row and the check panel's sample inputs) with the identical closure and
+ * the identical comment saying it must not drift. A gate kind gaining a fact-bearing field
+ * then had to be found in three places; missing one meant the editor listing a fact the quote
+ * would refuse on, or a check panel offering a sample the rule never reads.
+ */
+export function factKeysReadBy(steps: readonly RuleStep[], gates: readonly RuleGate[]): string[] {
+  const keys = new Set<string>();
+  const addRefs = (of: RuleStep['of'] | undefined): void => {
+    if (of === undefined) return;
+    for (const ref of Array.isArray(of) ? of : [of]) if ('fact' in ref) keys.add(ref.fact);
+  };
+  for (const step of steps) {
+    if (step.fact) keys.add(step.fact);
+    addRefs(step.of);
+  }
+  for (const gate of gates) {
+    if (gate.kind === 'choice') {
+      keys.add(gate.fact);
+      continue;
+    }
+    addRefs(gate.left);
+    // The right-hand side too: a gate may compare one ANSWER against another, and a fact
+    // reachable only from there is still a fact the rule reads.
+    if (gate.kind === 'number') addRefs(gate.right);
+    if (gate.kind === 'numberByKey') keys.add(gate.keyedBy);
+  }
+  return [...keys];
+}
+
+/**
  * The steps a `coalesce` chooses between, plus the steps a gate compares against — the
  * OPTIONAL ones, which a bank leaves blank to decline a derivation the catalog offers.
  *

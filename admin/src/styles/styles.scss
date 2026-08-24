@@ -380,19 +380,21 @@ textarea.ant-input {
   border-color: var(--border-default, var(--color-border-default)) !important;
 }
 
-// addonBefore + input
+// addonBefore + input. LOGICAL corners, not `-left`/`-right`: in RTL the `:first-child`
+// addon renders on the trailing edge, so the physical pair rounded the wrong end of every
+// input group in the Arabic build and there was no `[dir='rtl']` override anywhere (A19).
 .ant-input-group .ant-input-group-addon + .ant-input,
 .ant-input-group .ant-input-group-addon + .ant-input-affix-wrapper,
 .ant-input-number-group .ant-input-number-group-addon + .ant-input-number {
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
   border-inline-start: 0 !important;
 }
 .ant-input-group .ant-input-group-addon:first-child,
 .ant-input-number-group .ant-input-number-group-addon:first-child {
   border-inline-end: 0 !important;
-  border-top-left-radius: var(--radius-field) !important;
-  border-bottom-left-radius: var(--radius-field) !important;
+  border-start-start-radius: var(--radius-field) !important;
+  border-end-start-radius: var(--radius-field) !important;
 }
 
 // input + addonAfter
@@ -400,20 +402,20 @@ textarea.ant-input {
 .ant-input-group .ant-input-affix-wrapper + .ant-input-group-addon,
 .ant-input-number-group .ant-input-number + .ant-input-number-group-addon {
   border-inline-start: 0 !important;
-  border-top-left-radius: 0 !important;
-  border-bottom-left-radius: 0 !important;
+  border-start-start-radius: 0 !important;
+  border-end-start-radius: 0 !important;
 }
 .ant-input-group .ant-input:has(+ .ant-input-group-addon),
 .ant-input-group .ant-input-affix-wrapper:has(+ .ant-input-group-addon),
 .ant-input-number-group .ant-input-number:has(+ .ant-input-number-group-addon) {
-  border-top-right-radius: 0 !important;
-  border-bottom-right-radius: 0 !important;
+  border-start-end-radius: 0 !important;
+  border-end-end-radius: 0 !important;
   border-inline-end: 0 !important;
 }
 .ant-input-group .ant-input-group-addon:last-child,
 .ant-input-number-group .ant-input-number-group-addon:last-child {
-  border-top-right-radius: var(--radius-field) !important;
-  border-bottom-right-radius: var(--radius-field) !important;
+  border-start-end-radius: var(--radius-field) !important;
+  border-end-end-radius: var(--radius-field) !important;
 }
 
 // Unified hover state: when the input-group is hovered, color the sibling
