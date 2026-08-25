@@ -64,11 +64,7 @@ interface Controls {
               (click)="reveal.set(!reveal())"
               [attr.aria-pressed]="reveal()"
             >
-              <span
-                nz-icon
-                [nzType]="reveal() ? 'eye-invisible' : 'eye'"
-                nzTheme="outline"
-              ></span>
+              <span nz-icon [nzType]="reveal() ? 'eye-invisible' : 'eye'" nzTheme="outline"></span>
             </button>
           </ng-template>
           <ng-template #pwErrTpl let-control>

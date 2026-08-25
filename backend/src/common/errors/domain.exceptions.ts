@@ -232,8 +232,27 @@ export class ProgramNameRuleLinkedException extends DomainException {
 }
 
 export class SurrogateProductInUseException extends DomainException {
+  /**
+   * `names` says WHICH to move; `count` is what the message interpolates.
+   *
+   * Both, deliberately. `String(['a','b'])` renders "a,b" where the sentence reads as a
+   * number — in Arabic that lands between an existential and a singular counted noun and
+   * is simply broken. The list still travels for the screen and the log.
+   */
   constructor(meta: { key: string; names: readonly string[] }) {
-    super(ERROR_CODES.SURROGATE_PRODUCT_IN_USE, meta);
+    super(ERROR_CODES.SURROGATE_PRODUCT_IN_USE, { ...meta, count: meta.names.length });
+  }
+}
+
+export class ProgramNameHasOwnRuleException extends DomainException {
+  constructor(meta: { type: string; key: string; strategy: string | null }) {
+    super(ERROR_CODES.PROGRAM_NAME_HAS_OWN_RULE, meta);
+  }
+}
+
+export class SurrogateProductNotFoundException extends DomainException {
+  constructor(meta: { key: string; activeKeys: readonly string[] }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_NOT_FOUND, meta);
   }
 }
 

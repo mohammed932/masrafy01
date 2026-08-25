@@ -990,7 +990,11 @@ interface PortfolioHealth {
         margin: 0 var(--space-5) var(--space-5);
         padding: var(--space-4) var(--space-5);
         border: 1px dashed
-          color-mix(in srgb, var(--cat, var(--color-brand-primary)) 28%, var(--color-border-default));
+          color-mix(
+            in srgb,
+            var(--cat, var(--color-brand-primary)) 28%,
+            var(--color-border-default)
+          );
         border-radius: var(--radius-md);
         background: color-mix(in srgb, var(--cat, var(--color-brand-primary)) 4%, transparent);
       }

@@ -169,7 +169,10 @@ function isVisible(
   if (!rule?.questionCode || !rule.optionCode) return true;
   if (!byCode.has(rule.questionCode)) return true; // dangling rule: never hide
   const source = answers[rule.questionCode];
-  const picked = [...(source?.optionCodes ?? []), ...(source?.optionCode ? [source.optionCode] : [])];
+  const picked = [
+    ...(source?.optionCodes ?? []),
+    ...(source?.optionCode ? [source.optionCode] : []),
+  ];
   const matches = picked.includes(rule.optionCode);
   return rule.operator === 'not_equals' ? !matches : matches;
 }
@@ -199,14 +202,19 @@ function isVisible(
       <header class="head">
         <h1 i18n="@@sim.title">Matching simulator</h1>
         <p class="muted" i18n="@@sim.subtitle">
-          Walk a sample applicant through the questionnaire and see what every active program
-          would decide — eligibility, installment, approval probability. Nothing is saved.
+          Walk a sample applicant through the questionnaire and see what every active program would
+          decide — eligibility, installment, approval probability. Nothing is saved.
         </p>
       </header>
 
       <div class="cat-row" role="tablist" aria-label="Loan category">
         @for (c of categories; track c) {
-          <button type="button" class="cat-pill" [class.on]="category() === c" (click)="pickCategory(c)">
+          <button
+            type="button"
+            class="cat-pill"
+            [class.on]="category() === c"
+            (click)="pickCategory(c)"
+          >
             {{ c }}
           </button>
         }
@@ -222,7 +230,10 @@ function isVisible(
             <button nz-button (click)="editAnswers()" i18n="@@sim.edit">← Edit answers</button>
           </div>
           @if (result()!.matches.length === 0) {
-            <nz-empty nzNotFoundContent="No programs evaluated" i18n-nzNotFoundContent="@@sim.empty" />
+            <nz-empty
+              nzNotFoundContent="No programs evaluated"
+              i18n-nzNotFoundContent="@@sim.empty"
+            />
           } @else {
             <ul class="matches">
               @for (m of result()!.matches; track m.programCode) {
@@ -243,7 +254,10 @@ function isVisible(
                       <span class="m-bank">{{ m.bankName }}</span>
                       <span class="m-prog">{{ m.programFriendlyName }}</span>
                     </div>
-                    <div class="prob" [attr.data-tier]="m.usedDefaultWeights ? 'unrated' : m.approvalTier">
+                    <div
+                      class="prob"
+                      [attr.data-tier]="m.usedDefaultWeights ? 'unrated' : m.approvalTier"
+                    >
                       <span class="prob-num">{{ pct(m.approvalProbability) }}%</span>
                       <span class="prob-tier">{{ tierLabel(m) }}</span>
                     </div>
@@ -252,7 +266,9 @@ function isVisible(
                        for MVP, so every program carries eligible=true and a tag
                        saying so would be decoration, not information (A33). -->
                   <div class="m-tags">
-                    @if (m.bankIsFeatured) { <span class="tag feat" i18n="@@sim.featured">Featured</span> }
+                    @if (m.bankIsFeatured) {
+                      <span class="tag feat" i18n="@@sim.featured">Featured</span>
+                    }
                     @if (m.isShariaCompliant) {
                       <span class="tag ok" i18n="@@sim.sharia">Sharia-compliant</span>
                     }
@@ -308,7 +324,9 @@ function isVisible(
               @if (onReview()) {
                 <span i18n="@@sim.review">Review</span>
               } @else if (pageStart() === pageEnd()) {
-                <ng-container i18n="@@sim.step">Question {{ pageStart() }} of {{ total() }}</ng-container>
+                <ng-container i18n="@@sim.step"
+                  >Question {{ pageStart() }} of {{ total() }}</ng-container
+                >
               } @else {
                 <ng-container i18n="@@sim.step_range"
                   >Questions {{ pageStart() }}–{{ pageEnd() }} of {{ total() }}</ng-container
@@ -325,160 +343,181 @@ function isVisible(
                    answered — the page is a slice of the VISIBLE list, so a newly
                    revealed question lands in place instead of after the walk. -->
               <div class="q-page">
-              @for (q of page; track q.code) {
-                <div class="q-block" [class.wide]="isWide(q)">
-                  <h2 class="q-text">
-                    {{ questionText(q) }}
-                    @if (!q.isRequired) { <span class="opt-tag" i18n="@@sim.optional">optional</span> }
-                  </h2>
-                  <!-- The admin-authored sub-label the app shows under the prompt.
+                @for (q of page; track q.code) {
+                  <div class="q-block" [class.wide]="isWide(q)">
+                    <h2 class="q-text">
+                      {{ questionText(q) }}
+                      @if (!q.isRequired) {
+                        <span class="opt-tag" i18n="@@sim.optional">optional</span>
+                      }
+                    </h2>
+                    <!-- The admin-authored sub-label the app shows under the prompt.
                        Rendered here too or the simulator misrepresents the question:
                        the credit-card figure means a total LIMIT across every card,
                        which only this line says. -->
-                  @if (questionHelper(q); as helper) { <p class="hint q-helper">{{ helper }}</p> }
+                    @if (questionHelper(q); as helper) {
+                      <p class="hint q-helper">{{ helper }}</p>
+                    }
 
-                  @switch (q.type) {
-                    @case ('MULTI_SELECT') {
-                      <div class="opts">
-                        @for (o of q.options; track o.code) {
-                          <button
-                            type="button"
-                            class="opt multi"
-                            [class.sel]="isPicked(q, o.code)"
-                            [attr.aria-pressed]="isPicked(q, o.code)"
-                            (click)="toggle(q, o.code)"
-                          >
-                            <span class="opt-mark box" aria-hidden="true"></span>
-                            <span class="opt-label">{{ optionText(o) }}</span>
-                          </button>
-                        }
-                      </div>
-                    }
-                    @case ('NUMERIC') {
-                      @if (isDerivedTotal(q)) {
-                        <!-- Computed, not typed: the applicant states each debt and the
-                             server re-sums the parts, so a total typed here would be
-                             ignored (or rejected on apply). Shown with its breakdown so
-                             the number explains itself rather than merely being locked. -->
-                        <output class="ctl-affix derived" aria-live="polite">
-                          <span class="ctl">{{ groupedText(answers()[q.code]?.numericValue ?? '0') }}</span>
-                          @if (unitText(q); as u) { <span class="unit" aria-hidden="true">{{ u }}</span> }
-                        </output>
-                        <p class="hint derived-note" i18n="@@sim.derived_total">
-                          Added up from the payments above — not typed.
-                        </p>
-                        @if (derivedTotalParts(); as parts) {
-                          @if (parts.length > 0) {
-                            <ul class="derived-parts">
-                              @for (part of parts; track part.label) {
-                                <li><span>{{ part.label }}</span><b>{{ part.value }}</b></li>
-                              }
-                            </ul>
-                          }
-                        }
-                      } @else {
-                        <!-- <label>, not <div>: it makes the whole affix box — unit
-                             included — a click target that focuses the input, natively.
-                             The accessible name still comes from aria-label, which
-                             carries the unit so it is spoken as well as shown. -->
-                        <label class="ctl-affix" [class.invalid]="numericErrorFor(q) !== null">
-                          @if (isMoney(q)) {
-                            <input
-                              class="ctl"
-                              type="text"
-                              inputmode="numeric"
-                              appMoneyInput
-                              [formControl]="numericCtrl(q)"
-                              [attr.aria-label]="numericAriaLabel(q)"
-                              [attr.aria-invalid]="numericErrorFor(q) !== null"
-                              [attr.aria-describedby]="numericDescribedBy(q)"
-                            />
-                          } @else {
-                            <!-- Text input, not type="number": NumberValueAccessor would
-                                 push a number into a string control. Bounds are checked
-                                 by numericErrorFor, the same rules the API applies. -->
-                            <input
-                              class="ctl"
-                              type="text"
-                              inputmode="decimal"
-                              [formControl]="numericCtrl(q)"
-                              [attr.aria-label]="numericAriaLabel(q)"
-                              [attr.aria-invalid]="numericErrorFor(q) !== null"
-                              [attr.aria-describedby]="numericDescribedBy(q)"
-                            />
-                          }
-                          @if (unitText(q); as u) { <span class="unit" aria-hidden="true">{{ u }}</span> }
-                        </label>
-                        <!-- Hint + error share ONE slot so every paired question has
-                             the same three parts (heading / control / footnote) and
-                             the subgrid can line the fields up across the row. -->
-                        <div class="q-foot">
-                          @if (numericHint(q); as h) { <p class="hint" [id]="'hint-' + q.code">{{ h }}</p> }
-                          @if (numericErrorFor(q); as e) {
-                            <p class="err" [id]="'err-' + q.code" role="alert">{{ e }}</p>
-                          }
-                        </div>
-                      }
-                    }
-                    @case ('TEXT') {
-                      <div class="field">
-                        <input
-                          class="ctl"
-                          type="text"
-                          [formControl]="textCtrl(q)"
-                          [attr.maxlength]="q.textMaxLength"
-                          [attr.aria-label]="questionText(q)"
-                        />
-                      </div>
-                    }
-                    @default {
-                      @if (isLongList(q)) {
-                        <!-- Registry-backed lists (banks, governorates) are too long to
-                             read as a radio column — one searchable dropdown instead. -->
-                        <div class="field">
-                          <nz-select
-                            class="sel-ctl select-comfy"
-                            nzDropdownClassName="select-comfy-dropdown"
-                            [nzOptionHeightPx]="42"
-                            [formControl]="choiceCtrl(q)"
-                            nzShowSearch
-                            nzAllowClear
-                            [nzPlaceHolder]="pickPlaceholder"
-                            [attr.aria-label]="questionText(q)"
-                          >
-                            @for (o of q.options; track o.code) {
-                              <nz-option [nzValue]="o.code" [nzLabel]="optionText(o)"></nz-option>
-                            }
-                          </nz-select>
-                        </div>
-                        <div class="q-foot">
-                          <p class="hint" i18n="@@sim.search_hint">
-                            {{ q.options.length }} options — type to search
-                          </p>
-                        </div>
-                      } @else {
+                    @switch (q.type) {
+                      @case ('MULTI_SELECT') {
                         <div class="opts">
                           @for (o of q.options; track o.code) {
                             <button
                               type="button"
-                              class="opt"
-                              [class.sel]="answers()[q.code]?.optionCode === o.code"
-                              (click)="choose(q.code, o.code)"
+                              class="opt multi"
+                              [class.sel]="isPicked(q, o.code)"
+                              [attr.aria-pressed]="isPicked(q, o.code)"
+                              (click)="toggle(q, o.code)"
                             >
-                              <span class="opt-mark" aria-hidden="true"></span>
+                              <span class="opt-mark box" aria-hidden="true"></span>
                               <span class="opt-label">{{ optionText(o) }}</span>
                             </button>
                           }
                         </div>
                       }
+                      @case ('NUMERIC') {
+                        @if (isDerivedTotal(q)) {
+                          <!-- Computed, not typed: the applicant states each debt and the
+                             server re-sums the parts, so a total typed here would be
+                             ignored (or rejected on apply). Shown with its breakdown so
+                             the number explains itself rather than merely being locked. -->
+                          <output class="ctl-affix derived" aria-live="polite">
+                            <span class="ctl">{{
+                              groupedText(answers()[q.code]?.numericValue ?? '0')
+                            }}</span>
+                            @if (unitText(q); as u) {
+                              <span class="unit" aria-hidden="true">{{ u }}</span>
+                            }
+                          </output>
+                          <p class="hint derived-note" i18n="@@sim.derived_total">
+                            Added up from the payments above — not typed.
+                          </p>
+                          @if (derivedTotalParts(); as parts) {
+                            @if (parts.length > 0) {
+                              <ul class="derived-parts">
+                                @for (part of parts; track part.label) {
+                                  <li>
+                                    <span>{{ part.label }}</span
+                                    ><b>{{ part.value }}</b>
+                                  </li>
+                                }
+                              </ul>
+                            }
+                          }
+                        } @else {
+                          <!-- <label>, not <div>: it makes the whole affix box — unit
+                             included — a click target that focuses the input, natively.
+                             The accessible name still comes from aria-label, which
+                             carries the unit so it is spoken as well as shown. -->
+                          <label class="ctl-affix" [class.invalid]="numericErrorFor(q) !== null">
+                            @if (isMoney(q)) {
+                              <input
+                                class="ctl"
+                                type="text"
+                                inputmode="numeric"
+                                appMoneyInput
+                                [formControl]="numericCtrl(q)"
+                                [attr.aria-label]="numericAriaLabel(q)"
+                                [attr.aria-invalid]="numericErrorFor(q) !== null"
+                                [attr.aria-describedby]="numericDescribedBy(q)"
+                              />
+                            } @else {
+                              <!-- Text input, not type="number": NumberValueAccessor would
+                                 push a number into a string control. Bounds are checked
+                                 by numericErrorFor, the same rules the API applies. -->
+                              <input
+                                class="ctl"
+                                type="text"
+                                inputmode="decimal"
+                                [formControl]="numericCtrl(q)"
+                                [attr.aria-label]="numericAriaLabel(q)"
+                                [attr.aria-invalid]="numericErrorFor(q) !== null"
+                                [attr.aria-describedby]="numericDescribedBy(q)"
+                              />
+                            }
+                            @if (unitText(q); as u) {
+                              <span class="unit" aria-hidden="true">{{ u }}</span>
+                            }
+                          </label>
+                          <!-- Hint + error share ONE slot so every paired question has
+                             the same three parts (heading / control / footnote) and
+                             the subgrid can line the fields up across the row. -->
+                          <div class="q-foot">
+                            @if (numericHint(q); as h) {
+                              <p class="hint" [id]="'hint-' + q.code">{{ h }}</p>
+                            }
+                            @if (numericErrorFor(q); as e) {
+                              <p class="err" [id]="'err-' + q.code" role="alert">{{ e }}</p>
+                            }
+                          </div>
+                        }
+                      }
+                      @case ('TEXT') {
+                        <div class="field">
+                          <input
+                            class="ctl"
+                            type="text"
+                            [formControl]="textCtrl(q)"
+                            [attr.maxlength]="q.textMaxLength"
+                            [attr.aria-label]="questionText(q)"
+                          />
+                        </div>
+                      }
+                      @default {
+                        @if (isLongList(q)) {
+                          <!-- Registry-backed lists (banks, governorates) are too long to
+                             read as a radio column — one searchable dropdown instead. -->
+                          <div class="field">
+                            <nz-select
+                              class="sel-ctl select-comfy"
+                              nzDropdownClassName="select-comfy-dropdown"
+                              [nzOptionHeightPx]="42"
+                              [formControl]="choiceCtrl(q)"
+                              nzShowSearch
+                              nzAllowClear
+                              [nzPlaceHolder]="pickPlaceholder"
+                              [attr.aria-label]="questionText(q)"
+                            >
+                              @for (o of q.options; track o.code) {
+                                <nz-option [nzValue]="o.code" [nzLabel]="optionText(o)"></nz-option>
+                              }
+                            </nz-select>
+                          </div>
+                          <div class="q-foot">
+                            <p class="hint" i18n="@@sim.search_hint">
+                              {{ q.options.length }} options — type to search
+                            </p>
+                          </div>
+                        } @else {
+                          <div class="opts">
+                            @for (o of q.options; track o.code) {
+                              <button
+                                type="button"
+                                class="opt"
+                                [class.sel]="answers()[q.code]?.optionCode === o.code"
+                                (click)="choose(q.code, o.code)"
+                              >
+                                <span class="opt-mark" aria-hidden="true"></span>
+                                <span class="opt-label">{{ optionText(o) }}</span>
+                              </button>
+                            }
+                          </div>
+                        }
+                      }
                     }
-                  }
-                </div>
-              }
+                  </div>
+                }
               </div>
 
               <div class="wiz-foot">
-                <button nz-button nzSize="large" (click)="back()" [disabled]="step() === 0" i18n="@@sim.back">
+                <button
+                  nz-button
+                  nzSize="large"
+                  (click)="back()"
+                  [disabled]="step() === 0"
+                  i18n="@@sim.back"
+                >
                   Back
                 </button>
                 <button
@@ -530,45 +569,113 @@ function isVisible(
       /* Wide enough for two question columns and a two-up option list. The old
          760px cap was sized for a single-question step and left most of the
          dashboard's width unused once a step started carrying three. */
-      .page { padding: var(--space-6, 24px); max-inline-size: 1080px; margin-inline: auto; }
-      .head { margin-block-end: var(--space-5, 20px); }
-      .head h1 { margin: 0; font-size: var(--text-2xl, 24px); font-weight: var(--font-weight-bold, 700); }
-      .muted { color: var(--color-text-secondary, #6b7280); }
-      .section-h { margin: 0; font-size: var(--text-lg, 18px); font-weight: 700; }
-
-      .cat-row { display: flex; flex-wrap: wrap; gap: var(--space-2, 8px); margin-block-end: var(--space-5, 20px); }
-      .cat-pill {
-        text-transform: capitalize; cursor: pointer; min-block-size: 40px;
-        padding: 7px 18px; border-radius: var(--radius-pill, 999px);
-        border: 1px solid var(--color-border-default, #e5e7eb);
-        background: var(--bg-surface, #fff); color: var(--color-text-primary, #1a2433);
-        font-size: 14px; font-weight: 600;
-        transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+      .page {
+        padding: var(--space-6, 24px);
+        max-inline-size: 1080px;
+        margin-inline: auto;
       }
-      .cat-pill:hover { border-color: var(--ant-primary-color, #0869c3); }
-      .cat-pill.on { background: var(--ant-primary-color, #0869c3); color: #fff; border-color: var(--ant-primary-color, #0869c3); }
+      .head {
+        margin-block-end: var(--space-5, 20px);
+      }
+      .head h1 {
+        margin: 0;
+        font-size: var(--text-2xl, 24px);
+        font-weight: var(--font-weight-bold, 700);
+      }
+      .muted {
+        color: var(--color-text-secondary, #6b7280);
+      }
+      .section-h {
+        margin: 0;
+        font-size: var(--text-lg, 18px);
+        font-weight: 700;
+      }
+
+      .cat-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2, 8px);
+        margin-block-end: var(--space-5, 20px);
+      }
+      .cat-pill {
+        text-transform: capitalize;
+        cursor: pointer;
+        min-block-size: 40px;
+        padding: 7px 18px;
+        border-radius: var(--radius-pill, 999px);
+        border: 1px solid var(--color-border-default, #e5e7eb);
+        background: var(--bg-surface, #fff);
+        color: var(--color-text-primary, #1a2433);
+        font-size: 14px;
+        font-weight: 600;
+        transition:
+          background 120ms ease,
+          border-color 120ms ease,
+          color 120ms ease;
+      }
+      .cat-pill:hover {
+        border-color: var(--ant-primary-color, #0869c3);
+      }
+      .cat-pill.on {
+        background: var(--ant-primary-color, #0869c3);
+        color: #fff;
+        border-color: var(--ant-primary-color, #0869c3);
+      }
 
       /* ── Wizard ── */
-      .progress { display: flex; align-items: center; gap: var(--space-3, 12px); margin-block-end: var(--space-4, 16px); }
-      .progress-bar { flex: 1; block-size: 6px; border-radius: 999px; background: var(--color-border-default, #eceff3); overflow: hidden; }
+      .progress {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3, 12px);
+        margin-block-end: var(--space-4, 16px);
+      }
+      .progress-bar {
+        flex: 1;
+        block-size: 6px;
+        border-radius: 999px;
+        background: var(--color-border-default, #eceff3);
+        overflow: hidden;
+      }
       .progress-bar span {
-        display: block; block-size: 100%; border-radius: 999px;
+        display: block;
+        block-size: 100%;
+        border-radius: 999px;
         background: var(--ant-primary-color, #0869c3);
         transition: inline-size 280ms cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .progress-text { font-size: 12px; font-weight: 600; color: var(--color-text-secondary, #6b7280); white-space: nowrap; }
+      .progress-text {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-secondary, #6b7280);
+        white-space: nowrap;
+      }
 
       .step-card {
-        background: var(--bg-surface, #fff); border: 1px solid var(--color-border-default, #eceff3);
-        border-radius: var(--radius-lg, 14px); padding: var(--space-6, 24px);
+        background: var(--bg-surface, #fff);
+        border: 1px solid var(--color-border-default, #eceff3);
+        border-radius: var(--radius-lg, 14px);
+        padding: var(--space-6, 24px);
         box-shadow: var(--shadow-sm, 0 1px 2px rgba(43, 35, 32, 0.06));
         animation: step-in 240ms cubic-bezier(0.4, 0, 0.2, 1);
       }
       @keyframes step-in {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
-      @media (prefers-reduced-motion: reduce) { .step-card { animation: none; } .progress-bar span { transition: none; } }
+      @media (prefers-reduced-motion: reduce) {
+        .step-card {
+          animation: none;
+        }
+        .progress-bar span {
+          transition: none;
+        }
+      }
 
       /* Several questions per step, paired across two columns. A number field is
          ~250px of content in a 700px card — stacking them full-width pushed the
@@ -578,12 +685,19 @@ function isVisible(
          12px binds a question to its field, 32px breaks one question from the
          next — no rules needed once the rhythm carries the grouping. */
       .q-page {
-        display: grid; align-items: start;
+        display: grid;
+        align-items: start;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--space-6, 32px) var(--space-5, 24px);
       }
-      .q-block.wide { grid-column: 1 / -1; }
-      @media (max-width: 640px) { .q-page { grid-template-columns: 1fr; } }
+      .q-block.wide {
+        grid-column: 1 / -1;
+      }
+      @media (max-width: 640px) {
+        .q-page {
+          grid-template-columns: 1fr;
+        }
+      }
 
       /* Two questions side by side only line up if their headings, fields and
          footnotes sit on SHARED rows — a one-line question next to a two-line one
@@ -601,15 +715,26 @@ function isVisible(
              span its tracks instead, or the shared rows collapse under it. */
           align-self: stretch;
         }
-        .q-page > .q-block:not(.wide) .q-text { margin-block-end: 0; }
+        .q-page > .q-block:not(.wide) .q-text {
+          margin-block-end: 0;
+        }
       }
       /* Footnote slot: present even when empty, so the row exists for every pair. */
-      .q-foot > .hint:first-child, .q-foot > .err:first-child { margin-block-start: 0; }
+      .q-foot > .hint:first-child,
+      .q-foot > .err:first-child {
+        margin-block-start: 0;
+      }
 
       .q-text {
-        margin: 0 0 var(--space-3, 12px); font-size: var(--text-lg, 18px);
-        font-weight: 700; line-height: 1.3; letter-spacing: -0.012em;
-        display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+        margin: 0 0 var(--space-3, 12px);
+        font-size: var(--text-lg, 18px);
+        font-weight: 700;
+        line-height: 1.3;
+        letter-spacing: -0.012em;
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        flex-wrap: wrap;
       }
       /* Sits between the prompt and the control, so it owns the gap on BOTH sides:
          the paired-column rule above zeroes the title's bottom margin, which would
@@ -617,15 +742,20 @@ function isVisible(
          hint weight — it explains the figure, it does not compete with the ask. */
       .q-helper {
         margin: calc(-1 * var(--space-1, 4px)) 0 var(--space-3, 12px);
-        line-height: 1.45; max-inline-size: 60ch;
+        line-height: 1.45;
+        max-inline-size: 60ch;
       }
       /* Reads as a footnote to the question, not a second badge competing with
          it — the required case is the one that carries weight, and it is silent. */
       .opt-tag {
-        font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
         color: var(--color-text-tertiary, #9aa1ab);
         border: 1px solid var(--color-border-default, #e5e7eb);
-        padding: 1px 7px; border-radius: 999px;
+        padding: 1px 7px;
+        border-radius: 999px;
       }
 
       /* Option rows wrap into columns instead of running one 1000px-wide row per
@@ -633,50 +763,98 @@ function isVisible(
          start of a long empty strip, and seven of them is a scroll. auto-fill
          with a 300px floor means narrow cards keep the single column. */
       .opts {
-        display: grid; gap: var(--space-2, 8px);
+        display: grid;
+        gap: var(--space-2, 8px);
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       }
       .opt {
-        display: flex; align-items: center; gap: 12px; inline-size: 100%;
-        min-block-size: 52px; padding: 12px 16px; cursor: pointer; text-align: start;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        inline-size: 100%;
+        min-block-size: 52px;
+        padding: 12px 16px;
+        cursor: pointer;
+        text-align: start;
         border: 1.5px solid var(--color-border-default, #e5e7eb);
-        border-radius: var(--radius-md, 10px); background: var(--bg-surface, #fff);
-        font-size: 15px; color: var(--color-text-primary, #1a2433);
-        transition: border-color 120ms ease, background 120ms ease;
+        border-radius: var(--radius-md, 10px);
+        background: var(--bg-surface, #fff);
+        font-size: 15px;
+        color: var(--color-text-primary, #1a2433);
+        transition:
+          border-color 120ms ease,
+          background 120ms ease;
       }
-      .opt:hover { border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 50%, transparent); }
-      .opt:focus-visible { outline: 2px solid var(--ant-primary-color, #0869c3); outline-offset: 2px; }
+      .opt:hover {
+        border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 50%, transparent);
+      }
+      .opt:focus-visible {
+        outline: 2px solid var(--ant-primary-color, #0869c3);
+        outline-offset: 2px;
+      }
       .opt-mark {
-        flex: none; inline-size: 20px; block-size: 20px; border-radius: 50%;
-        border: 2px solid var(--color-border-strong, #c7ccd4); position: relative;
+        flex: none;
+        inline-size: 20px;
+        block-size: 20px;
+        border-radius: 50%;
+        border: 2px solid var(--color-border-strong, #c7ccd4);
+        position: relative;
         transition: border-color 120ms ease;
       }
-      .opt-mark.box { border-radius: var(--radius-sm, 6px); }
+      .opt-mark.box {
+        border-radius: var(--radius-sm, 6px);
+      }
       .opt.sel {
         border-color: var(--ant-primary-color, #0869c3);
-        background: color-mix(in srgb, var(--ant-primary-color, #0869c3) 7%, var(--bg-surface, #fff));
+        background: color-mix(
+          in srgb,
+          var(--ant-primary-color, #0869c3) 7%,
+          var(--bg-surface, #fff)
+        );
       }
-      .opt.sel .opt-mark { border-color: var(--ant-primary-color, #0869c3); }
+      .opt.sel .opt-mark {
+        border-color: var(--ant-primary-color, #0869c3);
+      }
       .opt.sel .opt-mark::after {
-        content: ''; position: absolute; inset: 3px; border-radius: 50%;
+        content: '';
+        position: absolute;
+        inset: 3px;
+        border-radius: 50%;
         background: var(--ant-primary-color, #0869c3);
       }
-      .opt.sel .opt-mark.box::after { border-radius: 2px; inset: 3px; }
+      .opt.sel .opt-mark.box::after {
+        border-radius: 2px;
+        inset: 3px;
+      }
 
       /* ── Typed inputs ── */
-      .field { display: flex; align-items: center; gap: var(--space-3, 12px); }
-      .ctl {
-        flex: 1; min-block-size: 52px; padding: 12px 16px; font-size: 15px;
-        border: 1.5px solid var(--color-border-default, #e5e7eb);
-        border-radius: var(--radius-md, 10px); background: var(--bg-surface, #fff);
-        color: var(--color-text-primary, #1a2433); font-variant-numeric: tabular-nums lining-nums;
-        transition: border-color 120ms ease, box-shadow 120ms ease;
+      .field {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3, 12px);
       }
-      .ctl:hover { border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 50%, transparent); }
+      .ctl {
+        flex: 1;
+        min-block-size: 52px;
+        padding: 12px 16px;
+        font-size: 15px;
+        border: 1.5px solid var(--color-border-default, #e5e7eb);
+        border-radius: var(--radius-md, 10px);
+        background: var(--bg-surface, #fff);
+        color: var(--color-text-primary, #1a2433);
+        font-variant-numeric: tabular-nums lining-nums;
+        transition:
+          border-color 120ms ease,
+          box-shadow 120ms ease;
+      }
+      .ctl:hover {
+        border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 50%, transparent);
+      }
       /* The native outline is dropped, so the ring has to come back as a halo —
          a border-colour change alone is not a focus indicator. */
       .ctl:focus {
-        outline: none; border-color: var(--ant-primary-color, #0869c3);
+        outline: none;
+        border-color: var(--ant-primary-color, #0869c3);
         box-shadow: var(--focus-halo, 0 0 0 3px rgba(8, 105, 195, 0.15));
       }
 
@@ -684,143 +862,338 @@ function isVisible(
          state; the input inside is stripped bare so the unit sits within the
          control rather than floating beside it. */
       .ctl-affix {
-        display: flex; align-items: stretch; gap: 10px; cursor: text;
-        min-block-size: 52px; padding-inline: 16px;
+        display: flex;
+        align-items: stretch;
+        gap: 10px;
+        cursor: text;
+        min-block-size: 52px;
+        padding-inline: 16px;
         border: 1.5px solid var(--color-border-default, #e5e7eb);
-        border-radius: var(--radius-md, 10px); background: var(--bg-surface, #fff);
-        transition: border-color 120ms ease, box-shadow 120ms ease;
+        border-radius: var(--radius-md, 10px);
+        background: var(--bg-surface, #fff);
+        transition:
+          border-color 120ms ease,
+          box-shadow 120ms ease;
       }
-      .ctl-affix:hover { border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 50%, transparent); }
+      .ctl-affix:hover {
+        border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 50%, transparent);
+      }
       .ctl-affix:focus-within {
         border-color: var(--ant-primary-color, #0869c3);
         box-shadow: var(--focus-halo, 0 0 0 3px rgba(8, 105, 195, 0.15));
       }
-      .ctl-affix.invalid { border-color: var(--ant-error-color, #c1666b); }
+      .ctl-affix.invalid {
+        border-color: var(--ant-error-color, #c1666b);
+      }
       .ctl-affix.invalid:focus-within {
         box-shadow: 0 0 0 3px color-mix(in srgb, var(--ant-error-color, #c1666b) 22%, transparent);
       }
       /* Border/padding/halo now belong to the box — the input must add none of
          its own, or it draws a second control inside the first. */
       .ctl-affix .ctl {
-        min-block-size: 0; padding-inline: 0; border: none; background: none;
+        min-block-size: 0;
+        padding-inline: 0;
+        border: none;
+        background: none;
       }
-      .ctl-affix .ctl:hover, .ctl-affix .ctl:focus { border: none; box-shadow: none; }
+      .ctl-affix .ctl:hover,
+      .ctl-affix .ctl:focus {
+        border: none;
+        box-shadow: none;
+      }
 
       /* The derived total reads as an OUTPUT, not a disabled input: filled ground,
          dashed edge, no caret, no hover affordance — nothing that invites a click
          that will not take. Full text contrast is kept, because the value itself is
          not muted information; only its editability is gone. */
       .ctl-affix.derived {
-        cursor: default; align-items: center;
+        cursor: default;
+        align-items: center;
         border-style: dashed;
         background: var(--bg-subtle, #f6f8fa);
       }
-      .ctl-affix.derived:hover { border-color: var(--color-border-default, #e5e7eb); }
+      .ctl-affix.derived:hover {
+        border-color: var(--color-border-default, #e5e7eb);
+      }
       .ctl-affix.derived .ctl {
-        align-self: center; font-size: 16px; font-weight: 650;
+        align-self: center;
+        font-size: 16px;
+        font-weight: 650;
         font-variant-numeric: tabular-nums;
       }
-      .derived-note { font-style: italic; }
+      .derived-note {
+        font-style: italic;
+      }
       .derived-parts {
-        display: grid; gap: 4px;
-        margin-block: 8px 0; padding-inline-start: 0; list-style: none;
-        font-size: 13px; color: var(--color-text-secondary, #6b7280);
+        display: grid;
+        gap: 4px;
+        margin-block: 8px 0;
+        padding-inline-start: 0;
+        list-style: none;
+        font-size: 13px;
+        color: var(--color-text-secondary, #6b7280);
       }
       .derived-parts li {
-        display: flex; justify-content: space-between; gap: 12px; padding-block: 3px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding-block: 3px;
         border-block-end: 1px dashed var(--color-border-subtle, #eef1f4);
       }
-      .derived-parts li:last-child { border-block-end: none; }
-      .derived-parts b { font-weight: 650; font-variant-numeric: tabular-nums; }
+      .derived-parts li:last-child {
+        border-block-end: none;
+      }
+      .derived-parts b {
+        font-weight: 650;
+        font-variant-numeric: tabular-nums;
+      }
 
       .unit {
-        flex: none; align-self: center; user-select: none;
-        font-size: 14px; font-weight: 600; letter-spacing: 0.01em;
+        flex: none;
+        align-self: center;
+        user-select: none;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.01em;
         color: var(--color-text-tertiary, #9aa1ab);
       }
-      .ctl-affix:focus-within .unit { color: var(--color-text-secondary, #6b7280); }
+      .ctl-affix:focus-within .unit {
+        color: var(--color-text-secondary, #6b7280);
+      }
       /* Full-bleed like every sibling control: a 420px cap left the field
          orphaned against the card's inline edge. Height/skin: .select-comfy. */
-      .sel-ctl { flex: 1; min-inline-size: 0; }
-      .hint { margin: var(--space-2, 8px) 0 0; font-size: 12px; color: var(--color-text-secondary, #6b7280); }
-      .err { margin: var(--space-2, 8px) 0 0; font-size: 12px; font-weight: 600; color: var(--ant-error-color, #c1666b); }
+      .sel-ctl {
+        flex: 1;
+        min-inline-size: 0;
+      }
+      .hint {
+        margin: var(--space-2, 8px) 0 0;
+        font-size: 12px;
+        color: var(--color-text-secondary, #6b7280);
+      }
+      .err {
+        margin: var(--space-2, 8px) 0 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ant-error-color, #c1666b);
+      }
 
       .wiz-foot {
-        display: flex; justify-content: space-between; gap: var(--space-3, 12px);
-        margin-block-start: var(--space-6, 24px); padding-block-start: var(--space-4, 16px);
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-3, 12px);
+        margin-block-start: var(--space-6, 24px);
+        padding-block-start: var(--space-4, 16px);
         border-block-start: 1px solid var(--color-border-default, #eceff3);
       }
       .count {
-        margin-inline-start: 8px; background: rgba(255, 255, 255, 0.25);
-        padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700;
+        margin-inline-start: 8px;
+        background: rgba(255, 255, 255, 0.25);
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
       }
 
-      .review { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-      .review-row {
-        display: flex; justify-content: space-between; gap: var(--space-4, 16px); cursor: pointer;
-        padding: var(--space-3, 12px) 0; border-block-end: 1px solid var(--color-border-default, #f0f0f0);
+      .review {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
       }
-      .review-row:hover .r-q { color: var(--ant-primary-color, #0869c3); }
-      .r-q { font-size: 14px; }
-      .r-a { font-weight: 600; text-align: end; }
-      .r-a.empty { color: var(--color-text-secondary, #9aa1ab); font-weight: 400; }
+      .review-row {
+        display: flex;
+        justify-content: space-between;
+        gap: var(--space-4, 16px);
+        cursor: pointer;
+        padding: var(--space-3, 12px) 0;
+        border-block-end: 1px solid var(--color-border-default, #f0f0f0);
+      }
+      .review-row:hover .r-q {
+        color: var(--ant-primary-color, #0869c3);
+      }
+      .r-q {
+        font-size: 14px;
+      }
+      .r-a {
+        font-weight: 600;
+        text-align: end;
+      }
+      .r-a.empty {
+        color: var(--color-text-secondary, #9aa1ab);
+        font-weight: 400;
+      }
 
       /* ── Results ── */
-      .results-head { display: flex; align-items: center; justify-content: space-between; margin-block-end: var(--space-4, 16px); }
-      .matches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3, 12px); }
+      .results-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-block-end: var(--space-4, 16px);
+      }
+      .matches {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3, 12px);
+      }
       /* The card IS the control: it needs the four states a button needs, and a
          focus ring the pointer affordance alone would not give a keyboard user. */
       .match {
-        position: relative; cursor: pointer;
+        position: relative;
+        cursor: pointer;
         border: 1px solid var(--color-border-default, #eceff3);
-        border-radius: var(--radius-md, 10px); padding: var(--space-4, 16px);
+        border-radius: var(--radius-md, 10px);
+        padding: var(--space-4, 16px);
         background: var(--bg-surface, #fff);
-        transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+        transition:
+          border-color 120ms ease,
+          box-shadow 120ms ease,
+          transform 120ms ease;
       }
       .match:hover {
         border-color: color-mix(in srgb, var(--ant-primary-color, #0869c3) 45%, transparent);
         box-shadow: var(--shadow-sm, 0 1px 2px rgba(43, 35, 32, 0.06));
       }
-      .match:active { transform: translateY(1px); }
-      .match:focus-visible { outline: 2px solid var(--ant-primary-color, #0869c3); outline-offset: 2px; }
-      @media (prefers-reduced-motion: reduce) { .match { transition: none; } .match:active { transform: none; } }
-      .m-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3, 12px); }
-      .m-id { display: flex; flex-direction: column; min-inline-size: 0; }
-      .m-bank { font-weight: 700; }
-      .m-prog { font-size: 13px; color: var(--color-text-secondary, #6b7280); }
-      .prob { display: flex; flex-direction: column; align-items: flex-end; text-align: end; }
-      .prob-num { font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-      .prob-tier { font-size: 11px; font-weight: 600; text-transform: capitalize; color: var(--color-text-secondary, #6b7280); }
-      .prob[data-tier='excellent'] .prob-num, .prob[data-tier='good'] .prob-num { color: var(--ant-success-color, #2e7d4f); }
-      .prob[data-tier='moderate'] .prob-num { color: var(--ant-warning-color, #b8860b); }
-      .prob[data-tier='low'] .prob-num, .prob[data-tier='very_low'] .prob-num { color: var(--ant-error-color, #c1666b); }
+      .match:active {
+        transform: translateY(1px);
+      }
+      .match:focus-visible {
+        outline: 2px solid var(--ant-primary-color, #0869c3);
+        outline-offset: 2px;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .match {
+          transition: none;
+        }
+        .match:active {
+          transform: none;
+        }
+      }
+      .m-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--space-3, 12px);
+      }
+      .m-id {
+        display: flex;
+        flex-direction: column;
+        min-inline-size: 0;
+      }
+      .m-bank {
+        font-weight: 700;
+      }
+      .m-prog {
+        font-size: 13px;
+        color: var(--color-text-secondary, #6b7280);
+      }
+      .prob {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        text-align: end;
+      }
+      .prob-num {
+        font-size: 22px;
+        font-weight: 800;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+      .prob-tier {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: capitalize;
+        color: var(--color-text-secondary, #6b7280);
+      }
+      .prob[data-tier='excellent'] .prob-num,
+      .prob[data-tier='good'] .prob-num {
+        color: var(--ant-success-color, #2e7d4f);
+      }
+      .prob[data-tier='moderate'] .prob-num {
+        color: var(--ant-warning-color, #b8860b);
+      }
+      .prob[data-tier='low'] .prob-num,
+      .prob[data-tier='very_low'] .prob-num {
+        color: var(--ant-error-color, #c1666b);
+      }
       /* An unconfigured program is grey, not red: "not rated" and "rated badly"
          must never look the same (v13.0.0). */
-      .prob[data-tier='unrated'] .prob-num { color: var(--color-text-tertiary, #9aa1ab); }
-      .m-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-block-start: var(--space-3, 12px); }
-      .tag { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: var(--radius-pill, 999px); }
-      .tag.ok { background: color-mix(in srgb, var(--ant-success-color, #2e7d4f) 14%, #fff); color: var(--ant-success-color, #2e7d4f); }
-      .tag.feat { background: color-mix(in srgb, var(--ant-primary-color, #0869c3) 14%, #fff); color: var(--ant-primary-color, #0869c3); }
-      .tag.warn { background: color-mix(in srgb, var(--ant-warning-color, #b8860b) 16%, #fff); color: var(--ant-warning-color, #b8860b); }
-      .m-figs { display: flex; flex-wrap: wrap; gap: var(--space-5, 20px); margin: var(--space-3, 12px) 0 0; }
-      .m-figs div { display: flex; flex-direction: column; min-inline-size: 0; }
-      .m-figs dt { font-size: 11px; color: var(--color-text-secondary, #6b7280); }
-      .m-figs dd { margin: 0; font-weight: 600; }
-      .numeric { font-variant-numeric: tabular-nums lining-nums; }
+      .prob[data-tier='unrated'] .prob-num {
+        color: var(--color-text-tertiary, #9aa1ab);
+      }
+      .m-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-block-start: var(--space-3, 12px);
+      }
+      .tag {
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 9px;
+        border-radius: var(--radius-pill, 999px);
+      }
+      .tag.ok {
+        background: color-mix(in srgb, var(--ant-success-color, #2e7d4f) 14%, #fff);
+        color: var(--ant-success-color, #2e7d4f);
+      }
+      .tag.feat {
+        background: color-mix(in srgb, var(--ant-primary-color, #0869c3) 14%, #fff);
+        color: var(--ant-primary-color, #0869c3);
+      }
+      .tag.warn {
+        background: color-mix(in srgb, var(--ant-warning-color, #b8860b) 16%, #fff);
+        color: var(--ant-warning-color, #b8860b);
+      }
+      .m-figs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-5, 20px);
+        margin: var(--space-3, 12px) 0 0;
+      }
+      .m-figs div {
+        display: flex;
+        flex-direction: column;
+        min-inline-size: 0;
+      }
+      .m-figs dt {
+        font-size: 11px;
+        color: var(--color-text-secondary, #6b7280);
+      }
+      .m-figs dd {
+        margin: 0;
+        font-weight: 600;
+      }
+      .numeric {
+        font-variant-numeric: tabular-nums lining-nums;
+      }
       /* Not a red pill: an unquotable program is a configuration/answer state, not
          a rejection, and the sentence has to be readable to say which. */
       .m-reason {
-        margin: var(--space-3, 12px) 0 0; font-size: 12px; line-height: 1.5;
+        margin: var(--space-3, 12px) 0 0;
+        font-size: 12px;
+        line-height: 1.5;
         color: var(--color-text-secondary, #6b7280);
         border-inline-start: 3px solid var(--ant-warning-color, #b8860b);
         padding-inline-start: 10px;
       }
       .m-more {
-        display: block; margin-block-start: var(--space-3, 12px);
-        font-size: 12px; font-weight: 600; color: var(--ant-primary-color, #0869c3);
-        opacity: 0.75; transition: opacity 120ms ease;
+        display: block;
+        margin-block-start: var(--space-3, 12px);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ant-primary-color, #0869c3);
+        opacity: 0.75;
+        transition: opacity 120ms ease;
       }
-      .match:hover .m-more, .match:focus-visible .m-more { opacity: 1; }
+      .match:hover .m-more,
+      .match:focus-visible .m-more {
+        opacity: 1;
+      }
     `,
   ],
 })
@@ -902,7 +1275,9 @@ export class MatchingSimulatorPage {
     const done = Math.min(this.step() * QUESTIONS_PER_STEP, total);
     return Math.round((done / total) * 100);
   });
-  readonly answeredCount = computed(() => this.questions().filter((q) => this.isAnswered(q)).length);
+  readonly answeredCount = computed(
+    () => this.questions().filter((q) => this.isAnswered(q)).length,
+  );
 
   /** Client-side mirror of the backend's `ANSWER_OUT_OF_RANGE` rules. */
   numericErrorFor(q: QuestionRow): string | null {
@@ -1064,7 +1439,10 @@ export class MatchingSimulatorPage {
   }
 
   isMoney(q: QuestionRow): boolean {
-    return MONEY_UNITS.has((q.numericUnitEn ?? '').trim()) || MONEY_UNITS.has((q.numericUnitAr ?? '').trim());
+    return (
+      MONEY_UNITS.has((q.numericUnitEn ?? '').trim()) ||
+      MONEY_UNITS.has((q.numericUnitAr ?? '').trim())
+    );
   }
   /** Thousands grouping for the read-only derived total, matching the money inputs. */
   groupedText(value: string): string {
@@ -1150,9 +1528,9 @@ export class MatchingSimulatorPage {
     if (!value) return false;
     return Boolean(
       value.optionCode ||
-        (value.optionCodes && value.optionCodes.length > 0) ||
-        value.textValue ||
-        value.numericValue,
+      (value.optionCodes && value.optionCodes.length > 0) ||
+      value.textValue ||
+      value.numericValue,
     );
   }
 

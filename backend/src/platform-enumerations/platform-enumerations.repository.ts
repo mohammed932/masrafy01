@@ -569,9 +569,7 @@ export abstract class PlatformEnumerationsRepository {
    * Inactive ones are FLAGGED, not filtered: a name linked to a retired product must
    * still render as linked to something. Callers offering a CHOICE filter to active.
    */
-  abstract listSurrogateProducts(): Promise<
-    Array<{ key: string; labelAr: string; labelEn: string; active: boolean; sortOrder: number }>
-  >;
+  abstract listSurrogateProducts(): Promise<SurrogateProductListRow[]>;
 }
 
 /**
@@ -606,6 +604,23 @@ export interface ParentKeyMove {
   from: string | null;
   /** `null` when the value was UNFILED — an operator saying it is priced nowhere. */
   to: string | null;
+}
+
+/**
+ * One surrogate product as the library list reads it.
+ *
+ * Carries the rule and the linked names so the list needs no follow-up query per row — the
+ * page shows both for every product, and asking per row was 2N+1 round trips.
+ */
+export interface SurrogateProductListRow {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  active: boolean;
+  sortOrder: number;
+  incomeRule: IncomeAssumptionConfig | null;
+  /** Catalog names taking their calculation from it. Empty = nothing sells it yet. */
+  usedBy: string[];
 }
 
 /** One surrogate bank program filed under a catalog name. */

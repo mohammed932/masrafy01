@@ -45,6 +45,10 @@ import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.co
 import { enumerationTypeLabel } from '@shared/lookups/lookup-constants';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
+import {
+  LookupsApiService,
+  type EnumerationTypeSummary,
+} from '@features/lookups/lookups.api.service';
 import { ErrorCodeService } from '@core/errors/error-code.service';
 import type { ErrorCode } from '@core/auth/auth.types';
 import { BankProgramsApiService } from '@features/bank-programs/bank-programs.api.service';
@@ -91,7 +95,7 @@ interface ReadList {
   providers: [provideNzIconsPatch([ArrowLeftOutline, ExclamationCircleOutline, InfoCircleOutline])],
   template: `
     <section class="page">
-      <a class="back" routerLink="/program-catalog/products">
+      <a class="back" routerLink="/surrogate-products">
         <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
         <span i18n="@@spd.back">All surrogate products</span>
       </a>
@@ -189,6 +193,7 @@ interface ReadList {
                       [type]="list.type"
                       [title]="list.title"
                       [description]="list.description"
+                      [deletable]="deletableType(list.type)"
                       (changed)="onListChanged()"
                     />
                   }
@@ -197,6 +202,7 @@ interface ReadList {
                     <app-parent-class-board
                       [childType]="board.type"
                       [parentType]="board.parentType"
+                      (changed)="onListChanged()"
                     />
                   }
                 }
@@ -466,6 +472,7 @@ interface ReadList {
 export class SurrogateProductDetailPage {
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
+  private readonly lookups = inject(LookupsApiService);
   private readonly errors = inject(ErrorCodeService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -476,6 +483,13 @@ export class SurrogateProductDetailPage {
 
   protected readonly loading = signal(true);
   protected readonly product = signal<SurrogateProductDetail | null>(null);
+  /**
+   * Per-type delete permission, fetched ONCE for however many panels this step renders.
+   *
+   * `GET /enumerations/types` counts active, deprecated and referenced rows for every
+   * registry type — one aggregate, not one per panel.
+   */
+  private readonly typeSummaries = signal<readonly EnumerationTypeSummary[]>([]);
   protected readonly saving = signal(false);
   protected readonly saveError = signal<string | null>(null);
   protected readonly dirty = signal(false);
@@ -654,7 +668,21 @@ export class SurrogateProductDetailPage {
     // type. Without this the fact registry is empty, `readLists()` finds nothing, and every
     // product — including the compound one, which reads two lists — reports reading none.
     void this.enums.load('surrogate_fact');
+    void this.lookups
+      .listTypes()
+      .then((s) => this.typeSummaries.set(s))
+      // Absent means NOT LOADED, and `deletableType` then answers `true` — the button stays
+      // as it was rather than vanishing because a summary call failed.
+      .catch(() => this.typeSummaries.set([]));
     void this.load();
+  }
+
+  /**
+   * Whether the server will entertain a delete for a type. Absent = not loaded, so the
+   * button stays as it was rather than disappearing on an old backend.
+   */
+  protected deletableType(type: string): boolean {
+    return this.typeSummaries().find((s) => s.type === type)?.deletable ?? true;
   }
 
   protected label(p: SurrogateProductDetail): string {

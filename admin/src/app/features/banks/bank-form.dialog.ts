@@ -48,7 +48,9 @@ export interface BankFormDialogResult {
           <nz-form-label nzRequired i18n="@@banks.field.name_en">Name (English)</nz-form-label>
           <nz-form-control [nzErrorTip]="nameEnErr">
             <input nz-input formControlName="nameEnglish" />
-            <ng-template #nameEnErr i18n="@@banks.help.name_en">A bank with this English name already exists.</ng-template>
+            <ng-template #nameEnErr i18n="@@banks.help.name_en"
+              >A bank with this English name already exists.</ng-template
+            >
           </nz-form-control>
         </nz-form-item>
         <nz-form-item>
@@ -77,7 +79,12 @@ export interface BankFormDialogResult {
         <nz-form-item>
           <nz-form-label i18n="@@banks.field.display_order">Display order</nz-form-label>
           <nz-form-control>
-            <nz-input-number formControlName="displayOrder" [nzMin]="0" [nzStep]="1" class="num-field"></nz-input-number>
+            <nz-input-number
+              formControlName="displayOrder"
+              [nzMin]="0"
+              [nzStep]="1"
+              class="num-field"
+            ></nz-input-number>
           </nz-form-control>
         </nz-form-item>
         <nz-form-item>
@@ -92,7 +99,9 @@ export interface BankFormDialogResult {
             i18n-nzExtra="@@banks.field.featured.help"
             nzExtra="Boost this bank's offers in mobile ranking when ties exist"
           >
-            <label nz-checkbox formControlName="isFeatured" i18n="@@banks.field.featured">Featured partner</label>
+            <label nz-checkbox formControlName="isFeatured" i18n="@@banks.field.featured"
+              >Featured partner</label
+            >
           </nz-form-control>
         </nz-form-item>
       </div>
@@ -100,7 +109,13 @@ export interface BankFormDialogResult {
       @if (data.mode === 'edit') {
         <div class="logo-row">
           <label class="logo-label" i18n="@@banks.field.logo">Logo</label>
-          <input type="file" #fileInput accept="image/png,image/jpeg,image/webp,image/svg+xml" (change)="onPick(fileInput)" hidden />
+          <input
+            type="file"
+            #fileInput
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            (change)="onPick(fileInput)"
+            hidden
+          />
           <button nz-button type="button" (click)="fileInput.click()" [nzLoading]="uploading()">
             <span nz-icon nzType="upload" nzTheme="outline" aria-hidden="true"></span>
             <span>Upload logo</span>
@@ -115,7 +130,13 @@ export interface BankFormDialogResult {
         <button nz-button type="button" (click)="cancel()" [disabled]="saving()">
           <span i18n="@@banks.form.cancel">Cancel</span>
         </button>
-        <button nz-button nzType="primary" type="submit" [disabled]="form.invalid || saving()" [nzLoading]="saving()">
+        <button
+          nz-button
+          nzType="primary"
+          type="submit"
+          [disabled]="form.invalid || saving()"
+          [nzLoading]="saving()"
+        >
           <span i18n="@@banks.form.save">{{ data.mode === 'create' ? 'Create' : 'Save' }}</span>
         </button>
       </footer>
@@ -123,21 +144,59 @@ export interface BankFormDialogResult {
   `,
   styles: [
     `
-      :host { display: block; }
-      .form { display: flex; flex-direction: column; gap: var(--space-3); }
-      .title { font-size: var(--text-lg); font-weight: 700; margin: 0 0 var(--space-2); color: var(--text-primary); }
-      .row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
-      .num-field { inline-size: 100%; }
-      .logo-row { display: flex; align-items: center; gap: var(--space-3); padding-block: var(--space-2); }
-      .logo-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-      .preview { inline-size: 48px; block-size: 48px; object-fit: contain; border: 1px solid var(--border-default); border-radius: var(--radius-sm); }
-      .footer { display: flex; justify-content: flex-end; gap: var(--space-2); margin-block-start: var(--space-3); }
+      :host {
+        display: block;
+      }
+      .form {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+      .title {
+        font-size: var(--text-lg);
+        font-weight: 700;
+        margin: 0 0 var(--space-2);
+        color: var(--text-primary);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-3);
+      }
+      .num-field {
+        inline-size: 100%;
+      }
+      .logo-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding-block: var(--space-2);
+      }
+      .logo-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      .preview {
+        inline-size: 48px;
+        block-size: 48px;
+        object-fit: contain;
+        border: 1px solid var(--border-default);
+        border-radius: var(--radius-sm);
+      }
+      .footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-2);
+        margin-block-start: var(--space-3);
+      }
     `,
   ],
 })
 export class BankFormDialog {
   protected readonly data = inject<BankFormDialogData>(NZ_MODAL_DATA);
-  private readonly ref = inject<NzModalRef<BankFormDialog, BankFormDialogResult | undefined>>(NzModalRef);
+  private readonly ref =
+    inject<NzModalRef<BankFormDialog, BankFormDialogResult | undefined>>(NzModalRef);
   private readonly api = inject(BanksApiService);
   private readonly message = inject(NzMessageService);
   private readonly errors = inject(ErrorCodeService);
@@ -148,16 +207,35 @@ export class BankFormDialog {
   readonly logoPreview = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
-    nameEnglish: new FormControl<string>(this.data.bank?.nameEnglish ?? '', { nonNullable: true, validators: [Validators.required, Validators.maxLength(120)] }),
-    nameArabic: new FormControl<string>(this.data.bank?.nameArabic ?? '', { nonNullable: true, validators: [Validators.required, Validators.maxLength(120)] }),
-    websiteUrl: new FormControl<string>(this.data.bank?.websiteUrl ?? '', { nonNullable: true, validators: [Validators.maxLength(500)] }),
-    notes: new FormControl<string>(this.data.bank?.notes ?? '', { nonNullable: true, validators: [Validators.maxLength(2000)] }),
-    displayOrder: new FormControl<number>(this.data.bank?.displayOrder ?? 0, { nonNullable: true, validators: [Validators.min(0)] }),
+    nameEnglish: new FormControl<string>(this.data.bank?.nameEnglish ?? '', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(120)],
+    }),
+    nameArabic: new FormControl<string>(this.data.bank?.nameArabic ?? '', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.maxLength(120)],
+    }),
+    websiteUrl: new FormControl<string>(this.data.bank?.websiteUrl ?? '', {
+      nonNullable: true,
+      validators: [Validators.maxLength(500)],
+    }),
+    notes: new FormControl<string>(this.data.bank?.notes ?? '', {
+      nonNullable: true,
+      validators: [Validators.maxLength(2000)],
+    }),
+    displayOrder: new FormControl<number>(this.data.bank?.displayOrder ?? 0, {
+      nonNullable: true,
+      validators: [Validators.min(0)],
+    }),
     isActive: new FormControl<boolean>(this.data.bank?.isActive ?? true, { nonNullable: true }),
-    isFeatured: new FormControl<boolean>(this.data.bank?.isFeatured ?? false, { nonNullable: true }),
+    isFeatured: new FormControl<boolean>(this.data.bank?.isFeatured ?? false, {
+      nonNullable: true,
+    }),
   });
 
-  cancel(): void { this.ref.close({ saved: false }); }
+  cancel(): void {
+    this.ref.close({ saved: false });
+  }
 
   async submit(): Promise<void> {
     if (this.form.invalid || this.saving()) {
@@ -229,6 +307,7 @@ export class BankFormDialog {
     const envelope = (err as { error?: { code?: string; meta?: Record<string, unknown> } }).error;
     const code = envelope?.code ?? 'INTERNAL_ERROR';
     this.message.error(this.errors.toLocalizedMessage(code as never, envelope?.meta));
-    if (code === 'BANK_NAME_DUPLICATE') this.form.controls.nameEnglish.setErrors({ duplicate: true });
+    if (code === 'BANK_NAME_DUPLICATE')
+      this.form.controls.nameEnglish.setErrors({ duplicate: true });
   }
 }

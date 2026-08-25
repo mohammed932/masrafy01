@@ -6,10 +6,8 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
-import { NzButtonModule } from 'ng-zorro-antd/button';
-import { NzModalService } from 'ng-zorro-antd/modal';
 import {
   IdcardOutline,
   SwapOutline,
@@ -19,22 +17,9 @@ import {
   FileTextOutline,
   EnvironmentOutline,
   UnorderedListOutline,
-  ApartmentOutline,
-  HomeOutline,
-  HistoryOutline,
-  LockOutline,
-  EditOutline,
-  DeleteOutline,
-  PoweroffOutline,
-  PlusOutline,
-  CloseCircleOutline,
-  SearchOutline,
   TagsOutline,
   CheckCircleOutline,
   InboxOutline,
-  CalculatorOutline,
-  LinkOutline,
-  CheckOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -42,11 +27,7 @@ import {
   StatStripComponent,
   type StatStripItem,
 } from '@shared/ui';
-import {
-  LookupsApiService,
-  type EnumerationRow,
-  type EnumerationTypeSummary,
-} from './lookups.api.service';
+import { LookupsApiService, type EnumerationTypeSummary } from './lookups.api.service';
 import { LOOKUP_TYPES, isLookupType, lookupType } from './lookups.constants';
 import {
   LookupTypeRailComponent,
@@ -66,8 +47,6 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
   standalone: true,
   imports: [
     NzIconModule,
-    NzButtonModule,
-    RouterLink,
     PageHeaderComponent,
     StatStripComponent,
     SkeletonRowsComponent,
@@ -85,22 +64,9 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
       FileTextOutline,
       EnvironmentOutline,
       UnorderedListOutline,
-      ApartmentOutline,
-      HomeOutline,
-      HistoryOutline,
-      LockOutline,
-      EditOutline,
-      DeleteOutline,
-      PoweroffOutline,
-      PlusOutline,
-      CloseCircleOutline,
-      SearchOutline,
       TagsOutline,
       CheckCircleOutline,
       InboxOutline,
-      CalculatorOutline,
-      LinkOutline,
-      CheckOutline,
     ]),
   ],
   template: `
@@ -127,6 +93,7 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
               [type]="type"
               [title]="lookupType(type).label"
               [description]="lookupType(type).description"
+              [deletable]="deletableType(type)"
               (changed)="reloadTypes({ silent: true })"
             />
           </section>
@@ -172,24 +139,18 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
 })
 export class LookupsPage implements OnInit {
   private readonly api = inject(LookupsApiService);
-  private readonly modal = inject(NzModalService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
   protected readonly lookupType = lookupType;
 
-  private readonly summaries = signal<readonly EnumerationTypeSummary[]>([]);
-  protected readonly rows = signal<readonly EnumerationRow[]>([]);
   /**
-   * The list THIS type's values are filed under, when it has one.
-   *
-   * Loaded beside the rows rather than inside the list component: the class badge and the
-   * class picker in the edit dialog have to name the same set, and two fetches could disagree
-   * about which classes are live.
+   * Type counts for the rail and the stat strip. The VALUES of a type are owned by
+   * `app-lookup-values-panel`, which loads and mutates them itself — this page keeps only
+   * what the rail needs, plus the per-type delete permission the panel takes as an input.
    */
-  protected readonly parentRows = signal<readonly EnumerationRow[]>([]);
+  private readonly summaries = signal<readonly EnumerationTypeSummary[]>([]);
   protected readonly loadingTypes = signal(true);
-  protected readonly loadingRows = signal(false);
   protected readonly selectedType = signal<string | null>(null);
 
   /** One tile per supported type, in declaration order, with its API counts. */
@@ -230,7 +191,14 @@ export class LookupsPage implements OnInit {
   protected readonly subtitleText = $localize`:@@lookups.subtitle:Every operator-curated dropdown the platform exposes. Add, rename or retire a value — the admin and the mobile wizard pick it up instantly, no deploy needed.`;
   protected readonly statAriaLabel = $localize`:@@lookups.stat.aria:Registry totals`;
   protected readonly loadingTypesLabel = $localize`:@@lookups.loading.types:Loading categories`;
-  protected readonly loadingRowsLabel = $localize`:@@lookups.loading.values:Loading values`;
+
+  /**
+   * Whether the server will entertain a delete for a type. Absent on the summary means NOT
+   * LOADED, so the button stays as it was rather than vanishing on an old backend.
+   */
+  protected deletableType(type: string): boolean {
+    return this.summaries().find((row) => row.type === type)?.deletable ?? true;
+  }
 
   async ngOnInit(): Promise<void> {
     await this.reloadTypes();

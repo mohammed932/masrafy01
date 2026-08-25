@@ -17,7 +17,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   input,
   output,
@@ -29,11 +28,7 @@ import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { PlusOutline } from '@ant-design/icons-angular/icons';
 import { SkeletonRowsComponent } from '@shared/ui';
-import {
-  LookupsApiService,
-  type EnumerationRow,
-  type EnumerationTypeSummary,
-} from '@features/lookups/lookups.api.service';
+import { LookupsApiService, type EnumerationRow } from '@features/lookups/lookups.api.service';
 import { LookupValueListComponent, type LookupActiveToggle } from './lookup-value-list.component';
 import {
   EnumerationEditDialogComponent,
@@ -125,6 +120,16 @@ export class LookupValuesPanelComponent {
   readonly type = input.required<string>();
   readonly title = input.required<string>();
   readonly description = input<string | null>(null);
+  /**
+   * Whether the server will entertain a DELETE for this type.
+   *
+   * An INPUT, not something this panel reads for itself. It is a static per-type fact that
+   * only `GET /enumerations/types` knows — an endpoint that counts active, deprecated and
+   * referenced rows for EVERY registry type. Fetching it here meant one such aggregate per
+   * mounted panel (two on a product page) plus two more on every write. The host already
+   * knows, or can ask once for all its panels.
+   */
+  readonly deletable = input<boolean>(true);
 
   /**
    * Raised after any write that changed the rows.
@@ -144,15 +149,6 @@ export class LookupValuesPanelComponent {
    */
   protected readonly parentRows = signal<readonly EnumerationRow[]>([]);
   protected readonly loading = signal(true);
-  private readonly summaries = signal<readonly EnumerationTypeSummary[]>([]);
-
-  /**
-   * Whether the server will entertain a delete for this type. Absent on the summary means
-   * NOT LOADED, so the button stays as it was rather than vanishing on an old backend.
-   */
-  protected readonly deletable = computed(
-    () => this.summaries().find((s) => s.type === this.type())?.deletable ?? true,
-  );
 
   protected readonly addLabel = $localize`:@@lookups.addValue:Add value`;
   protected readonly loadingLabel = $localize`:@@lookups.loading.values:Loading values`;
@@ -177,9 +173,7 @@ export class LookupValuesPanelComponent {
   async reload(type = this.type(), opts: { silent?: boolean } = {}): Promise<void> {
     if (!opts.silent) this.loading.set(true);
     try {
-      const [rows, summaries] = await Promise.all([this.api.list(type), this.api.listTypes()]);
-      this.rows.set(rows);
-      this.summaries.set(summaries);
+      this.rows.set(await this.api.list(type));
       const parentType = PARENT_TYPE_BY_TYPE[type];
       this.parentRows.set(parentType ? await this.api.list(parentType) : []);
     } finally {

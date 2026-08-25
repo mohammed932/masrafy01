@@ -102,9 +102,7 @@ export function dbrBandsErrorFor(rows: readonly DbrBand[]): DbrBandsError {
 
       @if (bands().length === 0) {
         <div class="bands__empty">
-          <p i18n="@@dbrBands.empty">
-            This program uses one flat cap for every income level.
-          </p>
+          <p i18n="@@dbrBands.empty">This program uses one flat cap for every income level.</p>
           <button nz-button nzType="default" type="button" (click)="startBands()">
             <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
             <span i18n="@@dbrBands.startBanding">Band it by income</span>
@@ -186,9 +184,7 @@ export function dbrBandsErrorFor(rows: readonly DbrBand[]): DbrBandsError {
                 >
               }
               @case ('DUPLICATE_BOUND') {
-                <span i18n="@@dbrBands.error.duplicate"
-                  >Two bands end at the same income.</span
-                >
+                <span i18n="@@dbrBands.error.duplicate">Two bands end at the same income.</span>
               }
               @case ('BOUND_MISSING') {
                 <span i18n="@@dbrBands.error.boundMissing"

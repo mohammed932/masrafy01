@@ -10,6 +10,7 @@ import {
   EnumerationInUseException,
   EnumerationKeyDuplicateException,
   EnumerationParentNotApplicableException,
+  ProgramNameHasOwnRuleException,
   SurrogateProductInUseException,
   SurrogateProductRequiredException,
   EnumerationParentRequiredException,
@@ -413,18 +414,36 @@ export class PlatformEnumerationsAdminService {
         existing.type,
         patch.surrogateProductKey,
       );
-      // Unlinking a name that is still sold without a payslip, and states no rule of its
-      // own, would leave it quoting nothing. Refused here rather than left to the basis
-      // screen: the operator is looking at the link when they break it.
+      const ownRule = await this.repo.findProgramName(existing.key);
       if (repoPatch.surrogateProductKey === null) {
+        // Unlinking a name that is still sold without a payslip, and states no rule of its
+        // own, would leave it quoting nothing. Refused here rather than left to the basis
+        // screen: the operator is looking at the link when they break it.
         const bases = Object.values(await this.repo.incomeBasesOf(id)).flat();
-        const rule = await this.repo.findProgramName(existing.key);
         await this.assertSurrogateProductForBases(
           existing,
           bases,
           null,
-          rule?.incomeRule != null,
+          ownRule?.incomeRule != null,
         );
+      } else if (ownRule?.incomeRule != null) {
+        // LINKING a name that still holds its own rule. A row holding BOTH is a fork:
+        // `programNameIncomeRules()` quotes the product's copy while the name's own page
+        // and `scripts/income-proof-conflicts.ts` still read the stale one, with nothing
+        // to reveal the disagreement. The schema doc, `effectiveProgramNameRule` and the
+        // migration's RAISE all assert that state is unreachable; it was reachable through
+        // this very patch until now.
+        //
+        // REFUSED, not absorbed. Clearing the rule here was tried first and is worse: it
+        // destroys data on the platform's initiative, and it leaves the name UNFIXABLE —
+        // with the rule gone, unlinking hits `SURROGATE_PRODUCT_REQUIRED` and there is no
+        // way back. The operator clears it explicitly first, through an endpoint that
+        // refuses while bank programs still read it.
+        throw new ProgramNameHasOwnRuleException({
+          type: existing.type,
+          key: existing.key,
+          strategy: ownRule.incomeRule.strategy ?? null,
+        });
       }
     }
 

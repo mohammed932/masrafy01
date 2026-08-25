@@ -193,6 +193,8 @@
   "GATE_BUSINESS_TOO_NEW": "This bank needs your business to have been running longer than it has.",
   "GATE_NOT_MET": "One of this program's conditions isn't met by your answers.",
   "SURROGATE_PRODUCT_REQUIRED": "Pick the surrogate product this name works its income out from. A program sold without a payslip has to say what the bank reads instead.",
-  "SURROGATE_PRODUCT_IN_USE": "{names} program name(s) still take their calculation from this surrogate product. Move them to another one first, then retire it.",
-  "PROGRAM_NAME_RULE_LINKED": "This name takes its calculation from a surrogate product, so it cannot be edited here. Edit the product instead — the change reaches every name linked to it."
+  "SURROGATE_PRODUCT_IN_USE": "{count} program name(s) still take their calculation from this surrogate product. Move them to another one first, then retire it.",
+  "PROGRAM_NAME_RULE_LINKED": "This name takes its calculation from a surrogate product, so it cannot be edited here. Edit the product instead — the change reaches every name linked to it.",
+  "SURROGATE_PRODUCT_NOT_FOUND": "No surrogate product has that key. It may have been removed. Pick one from the surrogate products list.",
+  "PROGRAM_NAME_HAS_OWN_RULE": "This name states its own income rule, so it cannot be linked to a surrogate product until that rule is cleared. Clear it first, then link — so nothing is discarded without someone deciding to."
 }

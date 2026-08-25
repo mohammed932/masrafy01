@@ -49,13 +49,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: false }),
     provideRouter(APP_ROUTES, withComponentInputBinding()),
-    provideHttpClient(
-      withInterceptors([
-        authInterceptor,
-        errorInterceptor,
-        toastInterceptor,
-      ]),
-    ),
+    provideHttpClient(withInterceptors([authInterceptor, errorInterceptor, toastInterceptor])),
     provideAnimationsAsync(),
     // NG-ZORRO locale — resolved at runtime from the build-time --localize bundle
     // (en-US default, ar-EG for the Arabic build).

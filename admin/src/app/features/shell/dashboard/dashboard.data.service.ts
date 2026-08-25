@@ -7,10 +7,7 @@ import {
 } from '@features/applications/api/applications.api.service';
 import { BanksApiService } from '@features/banks/banks.api.service';
 import { CustomersApiService } from '@features/customers/customers.api.service';
-import {
-  SupportApiService,
-  type SupportRequestRow,
-} from '@features/support/support.api.service';
+import { SupportApiService, type SupportRequestRow } from '@features/support/support.api.service';
 
 /** Banks + program coverage, or `null` when the call failed. */
 export interface CoverageSnapshot {

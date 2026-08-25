@@ -23,7 +23,7 @@ export const LOOKUPS_ROUTES: Routes = [
     canMatch: [
       () => {
         const router = inject(Router);
-        return router.createUrlTree(['/program-catalog/products', 'compound_owner'], {
+        return router.createUrlTree(['/surrogate-products', 'compound_owner'], {
           queryParams: { step: 2 },
         });
       },

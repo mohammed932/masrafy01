@@ -2211,7 +2211,6 @@ export class QuestionnaireEditorPage implements OnInit {
   readonly rangeStart = computed(() => (this.visible().length === 0 ? 0 : this.pageOffset() + 1));
   readonly rangeEnd = computed(() => this.pageOffset() + this.paged().length);
 
-
   /** Choice questions the server would refuse to ask: fewer than two options. */
   readonly incomplete = computed(() => this.rows().filter((q) => this.needsOptions(q)));
   readonly issueCount = computed(() => this.incomplete().length + this.bindingWarnings().length);

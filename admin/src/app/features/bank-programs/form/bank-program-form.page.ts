@@ -4567,9 +4567,9 @@ export class BankProgramFormPage implements OnInit {
     if (!rule) return false;
     return Boolean(
       rule.keyTable?.length ||
-        rule.bands?.length ||
-        rule.scalar ||
-        (rule.stepParams && Object.keys(rule.stepParams).length > 0),
+      rule.bands?.length ||
+      rule.scalar ||
+      (rule.stepParams && Object.keys(rule.stepParams).length > 0),
     );
   });
 

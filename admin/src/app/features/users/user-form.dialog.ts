@@ -1,11 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-  FormControl,
-  FormGroup,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzModalRef, NZ_MODAL_DATA } from 'ng-zorro-antd/modal';
@@ -192,10 +187,7 @@ interface EditFormControls {
             <nz-form-label [nzFor]="'role'" i18n="@@userForm.role">Role</nz-form-label>
             <nz-form-control>
               <nz-select id="role" formControlName="role">
-                <nz-option
-                  nzValue="sales_manager"
-                  [nzLabel]="managerLabel"
-                ></nz-option>
+                <nz-option nzValue="sales_manager" [nzLabel]="managerLabel"></nz-option>
                 <nz-option nzValue="sales_agent" [nzLabel]="agentLabel"></nz-option>
                 <nz-option nzValue="analyst" [nzLabel]="analystLabel"></nz-option>
               </nz-select>
@@ -312,7 +304,13 @@ interface EditFormControls {
 
       @if (formError(); as msg) {
         <div role="alert" aria-live="polite" class="alert">
-          <span nz-icon nzType="close-circle" nzTheme="outline" class="alert-icon" aria-hidden="true"></span>
+          <span
+            nz-icon
+            nzType="close-circle"
+            nzTheme="outline"
+            class="alert-icon"
+            aria-hidden="true"
+          ></span>
           <span>{{ msg }}</span>
         </div>
       }

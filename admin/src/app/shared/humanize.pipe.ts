@@ -15,7 +15,10 @@ export class HumanizePipe implements PipeTransform {
   transform(value: string | readonly string[] | null | undefined): string {
     if (value == null) return '';
     const items = Array.isArray(value) ? value : [value as string];
-    return items.map(humanizeOne).filter((s) => s.length > 0).join(', ');
+    return items
+      .map(humanizeOne)
+      .filter((s) => s.length > 0)
+      .join(', ');
   }
 }
 

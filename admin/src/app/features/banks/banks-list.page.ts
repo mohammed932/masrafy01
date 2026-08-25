@@ -17,12 +17,22 @@ import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-import { BankOutline, PlusOutline, SearchOutline, EditOutline, DeleteOutline } from '@ant-design/icons-angular/icons';
+import {
+  BankOutline,
+  PlusOutline,
+  SearchOutline,
+  EditOutline,
+  DeleteOutline,
+} from '@ant-design/icons-angular/icons';
 import { CanDirective } from '../../shared/can.directive';
 import { PageHeaderComponent } from '@shared/ui';
 import { ErrorCodeService } from '../../core/errors/error-code.service';
 import { BanksApiService } from './banks.api.service';
-import { BankFormDialog, type BankFormDialogData, type BankFormDialogResult } from './bank-form.dialog';
+import {
+  BankFormDialog,
+  type BankFormDialogData,
+  type BankFormDialogResult,
+} from './bank-form.dialog';
 import type { BankWithProgramCount } from './banks.types';
 
 @Component({
@@ -106,18 +116,18 @@ import type { BankWithProgramCount } from './banks.types';
                         nz-tooltip
                         i18n-nzTooltipTitle="@@banks.featured.tooltip"
                         nzTooltipTitle="Featured partner — boosted in mobile ranking ties"
-                      >★ Featured</span>
+                        >★ Featured</span
+                      >
                     }
                   </a>
                   <p class="muted">{{ b.nameArabic }}</p>
                 </td>
                 <td class="numeric">{{ b.programCount }}</td>
                 <td>
-                  <nz-switch
-                    *can="['super_admin']"
-                    [formControl]="rowActiveControl(b)"
-                  ></nz-switch>
-                  <span *can="['sales_manager', 'sales_agent', 'analyst']">{{ b.isActive ? 'Yes' : 'No' }}</span>
+                  <nz-switch *can="['super_admin']" [formControl]="rowActiveControl(b)"></nz-switch>
+                  <span *can="['sales_manager', 'sales_agent', 'analyst']">{{
+                    b.isActive ? 'Yes' : 'No'
+                  }}</span>
                 </td>
                 <td class="actions">
                   <button
@@ -158,9 +168,20 @@ import type { BankWithProgramCount } from './banks.types';
   `,
   styles: [
     `
-      :host { display: block; padding: var(--space-6); max-width: 1200px; margin-inline: auto; }
-      .toolbar { margin-block: var(--space-4); display: flex; gap: var(--space-3); }
-      .toolbar input { max-inline-size: 360px; }
+      :host {
+        display: block;
+        padding: var(--space-6);
+        max-width: 1200px;
+        margin-inline: auto;
+      }
+      .toolbar {
+        margin-block: var(--space-4);
+        display: flex;
+        gap: var(--space-3);
+      }
+      .toolbar input {
+        max-inline-size: 360px;
+      }
       .table-wrap {
         background: var(--bg-surface, var(--color-surface-default));
         border: 1px solid var(--border-default, var(--color-border-default));
@@ -168,22 +189,50 @@ import type { BankWithProgramCount } from './banks.types';
         overflow: hidden;
       }
       .logo {
-        display: inline-flex; align-items: center; justify-content: center;
-        inline-size: 40px; block-size: 40px; border-radius: var(--radius-md);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        inline-size: 40px;
+        block-size: 40px;
+        border-radius: var(--radius-md);
         background: var(--bg-subtle, var(--color-surface-row-hover));
         overflow: hidden;
       }
-      .logo-img { inline-size: 100%; block-size: 100%; object-fit: contain; }
+      .logo-img {
+        inline-size: 100%;
+        block-size: 100%;
+        object-fit: contain;
+      }
       .logo-fallback {
-        font-weight: 700; font-size: 13px;
+        font-weight: 700;
+        font-size: 13px;
         color: var(--primary, var(--color-brand-primary));
       }
-      .row-link { color: var(--text-primary); font-weight: 600; text-decoration: none; }
-      .row-link:hover { color: var(--primary, var(--color-brand-primary)); }
-      .muted { margin: 0; font-size: var(--text-xs); color: var(--text-tertiary); }
-      .numeric { font-variant-numeric: tabular-nums lining-nums; }
-      .actions { white-space: nowrap; }
-      .empty { padding: var(--space-6); text-align: center; color: var(--text-tertiary); margin: 0; }
+      .row-link {
+        color: var(--text-primary);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .row-link:hover {
+        color: var(--primary, var(--color-brand-primary));
+      }
+      .muted {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-tertiary);
+      }
+      .numeric {
+        font-variant-numeric: tabular-nums lining-nums;
+      }
+      .actions {
+        white-space: nowrap;
+      }
+      .empty {
+        padding: var(--space-6);
+        text-align: center;
+        color: var(--text-tertiary);
+        margin: 0;
+      }
       .featured-chip {
         display: inline-block;
         margin-inline-start: 8px;
@@ -240,7 +289,10 @@ export class BanksListPage implements OnInit {
   async reload(): Promise<void> {
     this.loading.set(true);
     try {
-      const res = await this.api.list({ pageSize: 100, search: this.searchControl.value || undefined });
+      const res = await this.api.list({
+        pageSize: 100,
+        search: this.searchControl.value || undefined,
+      });
       this.rows.set(res.data);
     } catch (err) {
       this.handleError(err);
@@ -250,25 +302,37 @@ export class BanksListPage implements OnInit {
   }
 
   openCreate(): void {
-    const ref = this.modal.create<BankFormDialog, BankFormDialogData, BankFormDialogResult | undefined>({
+    const ref = this.modal.create<
+      BankFormDialog,
+      BankFormDialogData,
+      BankFormDialogResult | undefined
+    >({
       nzContent: BankFormDialog,
       nzData: { mode: 'create' },
       nzWidth: 560,
       nzFooter: null,
       nzAutofocus: null,
     });
-    ref.afterClose.subscribe((res) => { if (res?.saved) void this.reload(); });
+    ref.afterClose.subscribe((res) => {
+      if (res?.saved) void this.reload();
+    });
   }
 
   openEdit(b: BankWithProgramCount): void {
-    const ref = this.modal.create<BankFormDialog, BankFormDialogData, BankFormDialogResult | undefined>({
+    const ref = this.modal.create<
+      BankFormDialog,
+      BankFormDialogData,
+      BankFormDialogResult | undefined
+    >({
       nzContent: BankFormDialog,
       nzData: { mode: 'edit', bank: b },
       nzWidth: 560,
       nzFooter: null,
       nzAutofocus: null,
     });
-    ref.afterClose.subscribe((res) => { if (res?.saved) void this.reload(); });
+    ref.afterClose.subscribe((res) => {
+      if (res?.saved) void this.reload();
+    });
   }
 
   async onToggle(b: BankWithProgramCount, isActive: boolean): Promise<void> {
@@ -285,7 +349,9 @@ export class BanksListPage implements OnInit {
   async onDelete(b: BankWithProgramCount): Promise<void> {
     if (b.programCount > 0) {
       this.message.warning(
-        this.errors.toLocalizedMessage('BANK_HAS_PROGRAMS' as never, { programCount: b.programCount }),
+        this.errors.toLocalizedMessage('BANK_HAS_PROGRAMS' as never, {
+          programCount: b.programCount,
+        }),
       );
       return;
     }
@@ -322,4 +388,3 @@ export class BanksListPage implements OnInit {
     this.message.error(this.errors.toLocalizedMessage(code as never, envelope?.meta));
   }
 }
-

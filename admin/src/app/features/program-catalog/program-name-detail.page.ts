@@ -272,7 +272,7 @@ interface QuestionRow {
                         >
                         <a
                           class="rule-linked-go"
-                          [routerLink]="['/program-catalog/products', product]"
+                          [routerLink]="['/surrogate-products', product]"
                           i18n="@@pnd.rule_open_product"
                           >Open the surrogate product</a
                         >

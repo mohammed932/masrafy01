@@ -4,7 +4,9 @@ import {
   LOCALE_ID,
   computed,
   inject,
+  effect,
   input,
+  output,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -668,6 +670,17 @@ export class ParentClassBoardComponent {
   readonly childType = input('compound');
   readonly parentType = input('compound_category');
 
+  /**
+   * Raised after any move that changed a row.
+   *
+   * The board cannot know what else on the host depends on these values — a product page
+   * renders the child list in a sibling panel that holds its own fetched copy — so it
+   * reports rather than guesses. Without it, re-filing a compound left the list above it
+   * showing the old class badge until a manual reload: the exact "it did not work" reading
+   * the server-side cache invalidation was widened to avoid.
+   */
+  readonly changed = output<void>();
+
   protected readonly loading = signal(true);
   protected readonly loadError = signal(false);
   protected readonly classRows = signal<readonly EnumerationRow[]>([]);
@@ -691,7 +704,22 @@ export class ParentClassBoardComponent {
   );
 
   constructor() {
-    void this.load();
+    // An EFFECT, not a bare call: signal inputs are not set at construction time, so
+    // reading `childType()`/`parentType()` in the constructor returns their DEFAULTS and
+    // silently ignores whatever the host bound. It happened to match for compounds; the
+    // first product reading a different parented list would have rendered a board full of
+    // compounds and filed them into compound classes.
+    //
+    // `allowSignalWrites` because `load` sets `loading` synchronously before its first
+    // await — reacting to an input change by writing state is what this effect is for.
+    effect(
+      () => {
+        const pair = `${this.childType()}\u0000${this.parentType()}`;
+        void pair;
+        void this.load();
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   // ── data ───────────────────────────────────────────────────────────────────
@@ -920,6 +948,7 @@ export class ParentClassBoardComponent {
     try {
       await this.api.setParentKeysBulk([{ id: compound.id, parentKey: target }]);
       this.flashMoved(compound.id);
+      this.changed.emit();
       this.announcement.set(
         $localize`:@@ccb.moved_one:${compound.label}:NAME: is now priced in ${this.activeClassLabel()}:CLASS:.`,
       );
@@ -951,6 +980,7 @@ export class ParentClassBoardComponent {
     try {
       await this.api.setParentKeysBulk([{ id: compound.id, parentKey: null }]);
       this.flashMoved(compound.id);
+      this.changed.emit();
       this.announcement.set(
         $localize`:@@ccb.removed_one:${compound.label}:NAME: is now in no class, so no bank can price it.`,
       );
@@ -981,6 +1011,7 @@ export class ParentClassBoardComponent {
         moving.map((c) => ({ id: c.id, parentKey: target })),
       );
       for (const c of moving) this.flashMoved(c.id);
+      this.changed.emit();
       this.announcement.set(
         $localize`:@@ccb.moved_many:${moved}:COUNT: compounds are now priced in ${this.activeClassLabel()}:CLASS:.`,
       );

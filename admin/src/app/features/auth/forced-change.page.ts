@@ -48,7 +48,9 @@ interface ForcedChangeControls {
 
         <form nz-form [formGroup]="form" (ngSubmit)="submit()" novalidate>
           <nz-form-item class="field">
-            <nz-form-label [nzFor]="'newPassword'" nzRequired i18n="@@forcedChange.newPassword">New password</nz-form-label>
+            <nz-form-label [nzFor]="'newPassword'" nzRequired i18n="@@forcedChange.newPassword"
+              >New password</nz-form-label
+            >
             <nz-form-control>
               <nz-input-group [nzSuffix]="suffixTpl">
                 <input

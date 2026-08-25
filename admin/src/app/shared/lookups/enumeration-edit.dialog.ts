@@ -885,29 +885,33 @@ export class EnumerationEditDialogComponent {
           sortOrder: v.sortOrder,
         });
       } else if (this.data.row) {
-        // LINK first, then basis, then the labels — and the order is load-bearing in
-        // both directions.
+        // The link and the basis are ONE decision written as two calls, and which goes
+        // first depends on the DIRECTION — a single fixed order deadlocks one of them.
         //
-        // Before the basis: moving a name TO the no-payslip basis is refused while
-        // nothing says how its income is worked out, so writing the basis first would
-        // refuse an edit that was about to become valid.
+        //   linking   (→ no-payslip): LINK first. The basis write is refused while nothing
+        //                             says how the income is worked out.
+        //   unlinking (→ payslip):    BASIS first. The unlink is refused while the STORED
+        //                             basis is still no-payslip — and the server reads the
+        //                             stored value, not the one in flight, so link-first
+        //                             made switching a linked name back to payslip
+        //                             impossible on every retry.
         //
-        // Still before the labels: the basis is the write the server can refuse (an
-        // unoffered pair, an empty set), so failing there must leave the row as it was
-        // rather than half-saved with a new label.
+        // Both stay before the labels: the middle write is the one the server can refuse,
+        // and failing there must leave the row as it was rather than half-saved with a new
+        // label.
         //
         // Sent only when it MOVED, so editing a label never touches the link.
+        const nextLink = v.surrogateProductKey === '' ? null : v.surrogateProductKey;
         const linkMoved =
-          this.asksBasis && v.surrogateProductKey !== (this.data.row.surrogateProductKey ?? '');
-        if (linkMoved) {
-          await this.api.update(this.data.row.id, {
-            // `''` means "no product" here and must reach the server as an explicit
-            // `null` — the unlink spelling. `''` itself is refused by the DTO, which is
-            // the point: "not linked" has one spelling.
-            surrogateProductKey: v.surrogateProductKey === '' ? null : v.surrogateProductKey,
-          });
-        }
+          this.asksBasis && nextLink !== (this.data.row.surrogateProductKey ?? null);
+        // `''` reaches the server as an explicit `null` — the unlink spelling. `''` itself
+        // is refused by the DTO, which is the point: "not linked" has one spelling.
+        const writeLink = (): Promise<unknown> =>
+          this.api.update(this.data.row!.id, { surrogateProductKey: nextLink });
+
+        if (linkMoved && nextLink !== null) await writeLink();
         await this.saveBasisChanges(this.data.row.id);
+        if (linkMoved && nextLink === null) await writeLink();
         await this.api.update(this.data.row.id, {
           labelEn: v.labelEn,
           labelAr: v.labelAr,

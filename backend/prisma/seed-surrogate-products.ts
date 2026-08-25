@@ -21,6 +21,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { validateIncomeRule } from '../src/bank-programs/validation/income-rule.validator';
 import type { IncomeAssumptionConfig } from '../src/matching/types';
+import { stableJson } from '../src/common/stable-json.util';
 import { incomeRuleValidationContext } from './data/income-rule-validation-context';
 import {
   PIPELINE_PRODUCT_KEYS,
@@ -32,16 +33,6 @@ const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
 const DRY = process.argv.includes('--dry');
 
 const prisma = new PrismaClient();
-
-/** Key-order-stable compare, so a re-serialised identical rule is not read as a change. */
-function stableJson(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, v]) => v !== undefined)
-    .sort(([a], [b]) => a.localeCompare(b));
-  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableJson(v)}`).join(',')}}`;
-}
 
 async function resolveSeedActor(): Promise<string | null> {
   const staff = await prisma.staffAccount.findFirst({

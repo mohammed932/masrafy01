@@ -1387,8 +1387,6 @@
       <trans-unit id="income_rule.scalar_hint_deposits" datatype="html"><source>This percent of total deposits, per YEAR, divided into months. 2% of 600,000 EGP = 1,000 EGP a month.</source><target>هذه النسبة من إجمالي الودائع، سنويًا، مقسومة على الشهور. ٢٪ من ٦٠٠٬٠٠٠ جنيه = ١٬٠٠٠ جنيه شهريًا.</target></trans-unit>
 
       <!-- Compound class board — where each compound is priced -->
-      <trans-unit id="ccb.back" datatype="html"><source>All values</source><target>كل القيم</target></trans-unit>
-      <trans-unit id="ccb.eyebrow" datatype="html"><source>Manage values</source><target>إدارة القيم</target></trans-unit>
       <trans-unit id="ccb.title" datatype="html"><source>Where each compound is priced</source><target>في أي فئة يُسعَّر كل كومباوند</target></trans-unit>
       <trans-unit id="ccb.lede" datatype="html"><source>A bank states one amount per class. A customer picks a compound by name. This is where the two meet — so a compound in the wrong class is priced at the wrong ceiling.</source><target>البنك يحدد مبلغًا واحدًا لكل فئة، والعميل يختار الكومباوند بالاسم. هنا يلتقي الطرفان — لذا الكومباوند في الفئة الخطأ يُسعَّر بحد خطأ.</target></trans-unit>
       <trans-unit id="ccb.count_compounds" datatype="html"><source>compounds</source><target>كومباوند</target></trans-unit>
@@ -1412,7 +1410,6 @@
       <trans-unit id="ccb.tier_only" datatype="html"><source>The only class</source><target>الفئة الوحيدة</target></trans-unit>
       <trans-unit id="ccb.note_one" datatype="html"><source>1 compound</source><target>كومباوند واحد</target></trans-unit>
       <trans-unit id="ccb.where_none" datatype="html"><source>No class</source><target>بدون فئة</target></trans-unit>
-      <trans-unit id="lookups.openClassBoard" datatype="html"><source>Where each compound is priced</source><target>في أي فئة يُسعَّر كل كومباوند</target></trans-unit>
       <trans-unit id="lookups.field.parentKey.pick" datatype="html"><source>Pick a class</source><target>اختر فئة</target></trans-unit>
       <trans-unit id="lookups.field.parentKey.required" datatype="html"><source>Pick the class this value is priced in.</source><target>اختر الفئة التي تُسعَّر فيها هذه القيمة.</target></trans-unit>
       <trans-unit id="ccb.note_many" datatype="html"><source><x id="COUNT" equiv-text="count"/> compounds</source><target><x id="COUNT" equiv-text="count"/> كومباوند</target></trans-unit>
@@ -1434,28 +1431,12 @@
           <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="lookups.type.compound_category.desc" datatype="html">
-        <source>The classes banks key their compound cap tables by.</source>
-        <target>الفئات التي تبني عليها البنوك جداول حدود التمويل للكومباوندات.</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
-          <context context-type="linenumber">55</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="lookups.type.compound.label" datatype="html">
         <source>Compounds</source>
         <target>الكومباوندات</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
           <context context-type="linenumber">60</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="lookups.type.compound.desc" datatype="html">
-        <source>The compounds a customer can pick, each filed under its class.</source>
-        <target>الكومباوندات التي يختار العميل منها، وكل واحد مُدرج تحت فئته.</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
-          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="product_rule.output.max_amount" datatype="html">

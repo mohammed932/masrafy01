@@ -78,6 +78,17 @@ export const APP_ROUTES: Routes = [
       ),
   },
   {
+    // Surrogate products — the pre-defined no-payslip calculations a catalog name links to.
+    // A PEER of the catalog, not a child: see the routes file for why the nesting was undone.
+    path: 'surrogate-products',
+    canActivate: [authGuardFn],
+    canMatch: [mcpGuardFn, roleGuardFn(['super_admin'])],
+    loadChildren: () =>
+      import('./features/program-catalog/surrogate-products.routes').then(
+        (m) => m.SURROGATE_PRODUCTS_ROUTES,
+      ),
+  },
+  {
     // Dynamic questionnaire — tab shell: `questions` (pool builder) +
     // `categories` (which loan categories ask each question, v12.0.0).
     path: 'questionnaire',

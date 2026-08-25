@@ -44,6 +44,7 @@ import {
   ProgramHasEstimatedValuesException,
   ProgramNameKeyUnknownException,
   ProgramNameRuleLinkedException,
+  SurrogateProductNotFoundException,
   ValueSourcePathUnknownException,
   ValueSourceValueInvalidException,
   QualitativeReviewCeilingBelowBaseException,
@@ -1357,20 +1358,17 @@ export class BankProgramsService {
    * them out at the point of CHOICE rather than here.
    */
   async listSurrogateProducts(): Promise<SurrogateProductSummaryDto[]> {
+    // ONE repository call. It already carries the rule and the linked names, so there is
+    // no per-row follow-up — this used to be 2N+1 round trips, serially.
     const products = await this.enums.listSurrogateProducts();
-    const out: SurrogateProductSummaryDto[] = [];
-    for (const p of products) {
-      const row = await this.enums.findSurrogateProduct(p.key);
-      out.push({
-        key: p.key,
-        labelAr: p.labelAr,
-        labelEn: p.labelEn,
-        active: p.active,
-        strategy: row?.incomeRule?.strategy ?? null,
-        usedBy: await this.enums.programNamesLinkedTo(p.key),
-      });
-    }
-    return out;
+    return products.map((p) => ({
+      key: p.key,
+      labelAr: p.labelAr,
+      labelEn: p.labelEn,
+      active: p.active,
+      strategy: p.incomeRule?.strategy ?? null,
+      usedBy: p.usedBy,
+    }));
   }
 
   /**
@@ -1381,29 +1379,31 @@ export class BankProgramsService {
    * names → programs) that no single existing read covers.
    */
   async getSurrogateProduct(key: string): Promise<SurrogateProductDetailDto> {
+    // One list read serves BOTH the row and its `active` flag — the flag lives on the
+    // registry value, not on the rule row. Previously this re-scanned the whole table for
+    // that one boolean, after already having read the row.
+    const all = await this.enums.listSurrogateProducts();
+    const summary = all.find((p) => p.key === key);
     const row = await this.enums.findSurrogateProduct(key);
-    if (!row) {
-      const active = await this.enums.listSurrogateProducts();
-      throw new ProgramNameKeyUnknownException({
-        programNameKey: key,
-        activeKeys: active.filter((p) => p.active).map((p) => p.key),
-      });
-    }
-    const meta = await this.surrogateProductMeta(key);
-    const nameKeys = await this.enums.programNamesLinkedTo(key);
-    const names = [];
-    for (const nameKey of nameKeys) {
-      const programs = await this.enums.programsUnderName(nameKey);
-      names.push({
-        key: nameKey,
-        programs: programs.map((p) => ({ programCode: p.programCode, ownAmounts: p.ownAmounts })),
-      });
-    }
+    if (!row || !summary) throw await this.surrogateProductNotFound(key);
+
+    const nameKeys = summary.usedBy;
+    // Concurrent, not serial: the names are independent and a product with several of them
+    // paid for that latency on every page load.
+    const perName = await Promise.all(nameKeys.map((n) => this.enums.programsUnderName(n)));
+    const names = nameKeys.map((nameKey, i) => ({
+      key: nameKey,
+      programs: (perName[i] ?? []).map((p) => ({
+        programCode: p.programCode,
+        ownAmounts: p.ownAmounts,
+      })),
+    }));
+
     return {
       key: row.key,
       labelAr: row.labelAr,
       labelEn: row.labelEn,
-      active: meta?.active ?? true,
+      active: summary.active,
       strategy: row.incomeRule?.strategy ?? null,
       usedBy: nameKeys,
       incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
@@ -1421,13 +1421,16 @@ export class BankProgramsService {
    *   · `figuresRequired: false`, same as a catalog write. A product's figures are its
    *     BANKS' to fill; held to a bank's completeness the compound frame — four
    *     derivations, each one bank's — could never be saved at all.
-   *   · NO proof-change refusal. `INCOME_PROOF_IN_USE` exists because a bank's stored
-   *     table is keyed by the name's proof, and changing it out from under them leaves
-   *     live programs quoting rows no applicant can match. That reasoning applies here
-   *     too and is NOT skipped — it is enforced one level down, by
-   *     `assertIncomeProofMatchesName`, which reads the RESOLVED map and so already sees
-   *     the product's strategy. Duplicating it here would refuse the same save twice with
-   *     two different messages.
+   *   · the PROOF-CHANGE refusal reaches FURTHER than a catalog name's. `INCOME_PROOF_IN_USE`
+   *     exists because a bank's stored table is keyed by the proof it was written against,
+   *     and moving that out from under it leaves live programs quoting rows no applicant can
+   *     match. A product is read by every name linked to it, so the blocked set is the union
+   *     of the programs under all of them — two hops, not one.
+   *
+   *     An earlier version of this comment claimed the check was "enforced one level down by
+   *     `assertIncomeProofMatchesName`". That was wrong: that function runs only when a BANK
+   *     PROGRAM is saved, so nothing ran as a consequence of THIS write and an operator could
+   *     repoint five live programs with a 200 and no warning.
    */
   async setSurrogateProductIncomeRule(
     key: string,
@@ -1435,13 +1438,7 @@ export class BankProgramsService {
     actor: { id: string; sourceIp: string | null },
   ): Promise<SurrogateProductDetailDto> {
     const row = await this.enums.findSurrogateProduct(key);
-    if (!row) {
-      const active = await this.enums.listSurrogateProducts();
-      throw new ProgramNameKeyUnknownException({
-        programNameKey: key,
-        activeKeys: active.filter((p) => p.active).map((p) => p.key),
-      });
-    }
+    if (!row) throw await this.surrogateProductNotFound(key);
 
     const incoming = dto.incomeRule as unknown as IncomeAssumptionConfig | null;
     let rule: IncomeAssumptionConfig | null = null;
@@ -1461,6 +1458,23 @@ export class BankProgramsService {
         figuresRequired: false,
       });
       if (violation) throw incomeRuleException(violation);
+    }
+
+    // The proof-change refusal, reaching through every name linked to this product.
+    //
+    // A bank's stored table is keyed by the proof it was written against, so changing or
+    // clearing the product's strategy while programs read it leaves them quoting rows no
+    // applicant can match — or resolving `rule_unconfigured` — with nothing on screen
+    // saying so. Two hops, because a product is read by names and names are read by
+    // programs: the blocked set is the union.
+    //
+    // Every program under a linked name counts, not only the ones on their own amounts:
+    // a program on `amounts: 'catalog'` would silently start reading a different fact,
+    // which is the same break one step further away.
+    const affected = await this.programsReadingProduct(key);
+    const proofChanged = (row.incomeRule?.strategy ?? null) !== (rule?.strategy ?? null);
+    if (proofChanged && affected.length > 0) {
+      throw new IncomeProofInUseException({ programNameKey: key, programCodes: affected });
     }
 
     // Markers: absent means "not touching them", an explicit map replaces. Same contract
@@ -1512,6 +1526,25 @@ export class BankProgramsService {
     return this.getSurrogateProduct(key);
   }
 
+  /**
+   * Every bank program reachable through a surrogate product: product → linked names →
+   * programs. The set a proof change would break.
+   */
+  private async programsReadingProduct(key: string): Promise<string[]> {
+    const names = await this.enums.programNamesLinkedTo(key);
+    const perName = await Promise.all(names.map((n) => this.enums.programsUnderName(n)));
+    return perName.flat().map((p) => p.programCode);
+  }
+
+  /** The 404 for a product key nobody has, naming what would have worked. */
+  private async surrogateProductNotFound(key: string): Promise<SurrogateProductNotFoundException> {
+    const all = await this.enums.listSurrogateProducts();
+    return new SurrogateProductNotFoundException({
+      key,
+      activeKeys: all.filter((p) => p.active).map((p) => p.key),
+    });
+  }
+
   private async toProgramNameIncomeRuleResponse(
     name: ProgramNameIncomeRuleRow,
     programs?: ProgramUnderName[],
@@ -1523,8 +1556,10 @@ export class BankProgramsService {
     // A dangling link resolves to `null` here and the screen says the calculation is
     // missing — which is true, and better than rendering an empty rule as a real one.
     const linked = name.surrogateProductKey || null;
-    const product = linked === null ? null : await this.enums.findSurrogateProduct(linked);
-    const productRow = await this.surrogateProductMeta(linked);
+    const [product, productRow] = await Promise.all([
+      linked === null ? Promise.resolve(null) : this.enums.findSurrogateProduct(linked),
+      this.surrogateProductMeta(linked),
+    ]);
 
     return {
       programNameKey: name.key,

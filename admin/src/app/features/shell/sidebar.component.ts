@@ -86,7 +86,6 @@ import { CanDirective } from '../../shared/can.directive';
           <span class="item-label" i18n="@@sidebar.banks">Banks</span>
         </a>
 
-
         <a routerLink="/applications" routerLinkActive="active" class="item">
           <span
             nz-icon
@@ -138,12 +137,7 @@ import { CanDirective } from '../../shared/can.directive';
             ></span>
             <span class="item-label" i18n="@@sidebar.lookups">Manage values</span>
           </a>
-          <a
-            routerLink="/program-catalog"
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{ exact: true }"
-            class="item"
-          >
+          <a routerLink="/program-catalog" routerLinkActive="active" class="item">
             <span
               nz-icon
               nzType="appstore"
@@ -153,7 +147,7 @@ import { CanDirective } from '../../shared/can.directive';
             ></span>
             <span class="item-label" i18n="@@sidebar.program_catalog">Program catalog</span>
           </a>
-          <a routerLink="/program-catalog/products" routerLinkActive="active" class="item">
+          <a routerLink="/surrogate-products" routerLinkActive="active" class="item">
             <span
               nz-icon
               nzType="function"

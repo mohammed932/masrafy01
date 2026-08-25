@@ -45,22 +45,22 @@ import { ThemeService } from '@core/theme/theme.service';
               aria-hidden="true"
             ></span>
           </button>
-        <button
-          type="button"
-          nz-dropdown
-          [nzDropdownMenu]="userMenu"
-          class="user-trigger"
-          [attr.aria-label]="userAriaLabel(user.name, user.role)"
-        >
-          <span class="avatar" aria-hidden="true">
-            <span class="avatar-text">{{ initials(user.name) }}</span>
-            <span class="online-dot" aria-hidden="true"></span>
-          </span>
-          <span class="user-name" [attr.title]="user.name">{{ firstName(user.name) }}</span>
-          <span class="user-divider" aria-hidden="true"></span>
-          <span class="role-chip" [attr.data-role]="user.role">{{ roleLabel(user.role) }}</span>
-          <span nz-icon nzType="down" nzTheme="outline" class="chevron" aria-hidden="true"></span>
-        </button>
+          <button
+            type="button"
+            nz-dropdown
+            [nzDropdownMenu]="userMenu"
+            class="user-trigger"
+            [attr.aria-label]="userAriaLabel(user.name, user.role)"
+          >
+            <span class="avatar" aria-hidden="true">
+              <span class="avatar-text">{{ initials(user.name) }}</span>
+              <span class="online-dot" aria-hidden="true"></span>
+            </span>
+            <span class="user-name" [attr.title]="user.name">{{ firstName(user.name) }}</span>
+            <span class="user-divider" aria-hidden="true"></span>
+            <span class="role-chip" [attr.data-role]="user.role">{{ roleLabel(user.role) }}</span>
+            <span nz-icon nzType="down" nzTheme="outline" class="chevron" aria-hidden="true"></span>
+          </button>
         </div>
         <nz-dropdown-menu #userMenu="nzDropdownMenu">
           <ul nz-menu>
@@ -69,9 +69,7 @@ import { ThemeService } from '@core/theme/theme.service';
                 Change password
               </a>
             </li>
-            <li nz-menu-item (click)="logout()" i18n="@@topBar.signOut">
-              Sign out
-            </li>
+            <li nz-menu-item (click)="logout()" i18n="@@topBar.signOut">Sign out</li>
           </ul>
         </nz-dropdown-menu>
       }

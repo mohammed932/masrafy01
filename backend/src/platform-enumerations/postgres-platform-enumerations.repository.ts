@@ -24,6 +24,7 @@ import {
   type ParentKeyMove,
   type ProgramNameIncomeRuleRow,
   type ProgramUnderName,
+  type SurrogateProductListRow,
   type QuestionCodesByCategory,
   type SurrogateFactBinding,
 } from './platform-enumerations.repository';
@@ -652,15 +653,47 @@ export class PostgresPlatformEnumerationsRepository
    * retired product must still render as linked to something, or its screen says the
    * calculation came from nowhere. Callers that are offering a CHOICE filter to active.
    */
-  async listSurrogateProducts(): Promise<
-    Array<{ key: string; labelAr: string; labelEn: string; active: boolean; sortOrder: number }>
-  > {
-    const rows = await this.prisma.platformEnumeration.findMany({
-      where: { type: 'surrogate_product' },
-      orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
-      select: { key: true, labelAr: true, labelEn: true, active: true, sortOrder: true },
-    });
-    return rows;
+  async listSurrogateProducts(): Promise<SurrogateProductListRow[]> {
+    // `incomeRule` rides along, and `usedBy` comes from ONE grouped read of the link column
+    // rather than a query per product: the list page renders every product with the proof it
+    // reads and the names that sell it, and asking per row made that 2N+1 round trips.
+    const [rows, links] = await Promise.all([
+      this.prisma.platformEnumeration.findMany({
+        where: { type: 'surrogate_product' },
+        orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+        select: {
+          key: true,
+          labelAr: true,
+          labelEn: true,
+          active: true,
+          sortOrder: true,
+          incomeRule: true,
+        },
+      }),
+      this.prisma.platformEnumeration.findMany({
+        where: { type: 'program_name', surrogateProductKey: { not: null } },
+        orderBy: { key: 'asc' },
+        select: { key: true, surrogateProductKey: true },
+      }),
+    ]);
+
+    const usedBy = new Map<string, string[]>();
+    for (const l of links) {
+      if (l.surrogateProductKey === null) continue;
+      const list = usedBy.get(l.surrogateProductKey);
+      if (list) list.push(l.key);
+      else usedBy.set(l.surrogateProductKey, [l.key]);
+    }
+
+    return rows.map((r) => ({
+      key: r.key,
+      labelAr: r.labelAr,
+      labelEn: r.labelEn,
+      active: r.active,
+      sortOrder: r.sortOrder,
+      incomeRule: asIncomeRule(r.incomeRule) ?? null,
+      usedBy: usedBy.get(r.key) ?? [],
+    }));
   }
 
   async programsUnderName(key: string): Promise<ProgramUnderName[]> {

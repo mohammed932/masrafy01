@@ -1093,6 +1093,14 @@ async function upsertCatalog(actorId: string): Promise<number> {
         labelEn: product.labelEn,
         labelAr: product.labelAr,
         incomeRule: product.rule as unknown as Prisma.InputJsonValue,
+        // RE-ACTIVATED on purpose. The same run re-points the catalog name at this product
+        // below, and a name linked to an INACTIVE product is a state the admin cannot
+        // reach or repair: `resolveSurrogateProductKey` would refuse the very link the
+        // seed just wrote, while `programNameIncomeRules()` ignores the flag and goes on
+        // quoting. Leaving `active` out meant a re-seed after a deactivate produced
+        // exactly that, and reported success.
+        active: true,
+        deprecatedAt: null,
         updatedBy: actorId,
       },
       create: {

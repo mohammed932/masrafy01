@@ -298,6 +298,43 @@ describe('retiring a surrogate product', () => {
   });
 });
 
+describe('linking a name that already states its own rule', () => {
+  it('refuses rather than silently discarding the rule', async () => {
+    // A row holding BOTH is a fork: the engine quotes the product's copy while the name's
+    // own page still reads the stale one, with nothing to reveal the disagreement.
+    const { service } = makeService(makeRepo(fixture(), { n2: { personal: ['payslip'] } as never }));
+    await expect(
+      service.update('n2', { surrogateProductKey: 'declared_income' } as never, ACTOR),
+    ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.PROGRAM_NAME_HAS_OWN_RULE);
+  });
+
+  it('writes nothing when it refuses', async () => {
+    // Absorbing the rule was tried first and left the name UNFIXABLE — with the rule gone,
+    // unlinking hits SURROGATE_PRODUCT_REQUIRED and there is no way back.
+    const repo = makeRepo(fixture(), { n2: { personal: ['payslip'] } as never });
+    const { service } = makeService(repo);
+    await service
+      .update('n2', { surrogateProductKey: 'declared_income' } as never, ACTOR)
+      .catch(() => undefined);
+    expect(repo.updateById).not.toHaveBeenCalled();
+  });
+
+  it('names the strategy that is in the way, so the operator knows what they are clearing', async () => {
+    const { service } = makeService(makeRepo(fixture(), { n2: { personal: ['payslip'] } as never }));
+    const error = await service
+      .update('n2', { surrogateProductKey: 'declared_income' } as never, ACTOR)
+      .catch((e: unknown) => e);
+    expect((error as DomainException).meta).toMatchObject({ key: 'professor', strategy: 'declared' });
+  });
+
+  it('allows linking a name that states no rule of its own', async () => {
+    const { service } = makeService(makeRepo(fixture(), { n4: { personal: ['payslip'] } as never }));
+    await expect(
+      service.update('n4', { surrogateProductKey: 'declared_income' } as never, ACTOR),
+    ).resolves.toBeDefined();
+  });
+});
+
 describe('unlinking', () => {
   it('refuses to unlink a no-payslip name that would then quote nothing', async () => {
     const { service } = makeService(makeRepo(fixture(), { n1: { personal: ['no_payslip'] } as never }));

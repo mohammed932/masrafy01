@@ -1,7 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import {
+  CloseCircleOutline,
+  DeleteOutline,
+  EditOutline,
+  HistoryOutline,
+  LockOutline,
+  PoweroffOutline,
+  SearchOutline,
+} from '@ant-design/icons-angular/icons';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
@@ -21,6 +30,21 @@ export interface LookupActiveToggle {
   selector: 'app-lookup-value-list',
   standalone: true,
   imports: [ReactiveFormsModule, NzIconModule, NzInputModule, NzToolTipModule, NzPopconfirmModule],
+  // Registers the icons IT renders. This component previously registered none and relied on
+  // whichever host happened to have patched them — fine while Manage values was the only
+  // host, order-dependent the moment a second one (a surrogate product's workspace) mounted
+  // it. A presentational component that renders an icon owns that icon.
+  providers: [
+    provideNzIconsPatch([
+      CloseCircleOutline,
+      DeleteOutline,
+      EditOutline,
+      HistoryOutline,
+      LockOutline,
+      PoweroffOutline,
+      SearchOutline,
+    ]),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="toolbar">

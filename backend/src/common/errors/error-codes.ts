@@ -184,6 +184,30 @@ export const ERROR_CODES = {
    * `meta.surrogateProductKey` is where the edit actually belongs.
    */
   PROGRAM_NAME_RULE_LINKED: 'PROGRAM_NAME_RULE_LINKED',
+  /**
+   * No surrogate product has this key.
+   *
+   * A code of its own rather than `PROGRAM_NAME_KEY_UNKNOWN`, which was reused here first:
+   * that message names a program NAME and sends the operator to "add it under Program
+   * catalog" — the wrong object, and not where products live. The operator is on the
+   * product's own URL when this fires.
+   */
+  SURROGATE_PRODUCT_NOT_FOUND: 'SURROGATE_PRODUCT_NOT_FOUND',
+  /**
+   * A catalog name that states its OWN income rule was linked to a surrogate product.
+   *
+   * Refused rather than absorbed, and the first attempt did absorb — clearing the name's
+   * rule in the same statement so the fork could not exist. That traded a silent wrong
+   * answer for an UNFIXABLE state: the rule was gone, so unlinking then hit
+   * `SURROGATE_PRODUCT_REQUIRED` and the name could not be moved back at all.
+   *
+   * Refusing keeps both doors open. The operator clears the rule first
+   * (`PUT program-names/:key/income-rule` with `incomeRule: null`, which is allowed
+   * precisely because the name is not linked yet, and is itself refused while bank
+   * programs still read it), then links. Nothing is destroyed on the platform's initiative
+   * and every step says what it did.
+   */
+  PROGRAM_NAME_HAS_OWN_RULE: 'PROGRAM_NAME_HAS_OWN_RULE',
 
   // --- User proceed (feature 008) ---
   BANK_OFFER_NOT_FOUND: 'BANK_OFFER_NOT_FOUND',
@@ -585,6 +609,8 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   // 409, like the two above: state, not shape.
   SURROGATE_PRODUCT_IN_USE: 409,
   PROGRAM_NAME_RULE_LINKED: 422,
+  SURROGATE_PRODUCT_NOT_FOUND: 404,
+  PROGRAM_NAME_HAS_OWN_RULE: 422,
 
   BANK_NOT_FOUND: 404,
   BANK_NAME_DUPLICATE: 409,
