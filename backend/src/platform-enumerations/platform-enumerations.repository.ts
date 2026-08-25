@@ -42,7 +42,24 @@ export type EnumerationType =
    * would silently disconnect every compound from the table that prices it.
    */
   | 'compound_category'
-  | 'compound';
+  | 'compound'
+  /**
+   * A no-payslip PRODUCT: a named, reusable income calculation, carried in this row's
+   * own `incomeRule`.
+   *
+   * The archetype a catalog `program_name` links to via `surrogateProductKey`. It exists
+   * because the calculation is the reusable half and the name is not: several catalog
+   * names are sold against one way of working an income out, and before this each of them
+   * held its own copy of the rule with nothing keeping the copies in step.
+   *
+   * NOT in `UNSCOPED_ENUMERATION_TYPES`, deliberately: a product has no parent axis at
+   * all, so leaving it out means `resolveParentKey` REFUSES a stray `parentKey` with
+   * `ENUMERATION_PARENT_NOT_APPLICABLE` instead of force-nulling it and saying nothing.
+   *
+   * NOT in `CATEGORISED_ENUMERATION_TYPES` either: which loan types a product may be
+   * offered under is a property of the NAME that sells it, not of the calculation.
+   */
+  | 'surrogate_product';
 
 /**
  * Types whose members carry no scoping PARENT. `parentKey` is force-nulled on
@@ -55,6 +72,36 @@ export type EnumerationType =
  * under. Scope is one parent; assignment is many categories.
  */
 export const UNSCOPED_ENUMERATION_TYPES: readonly EnumerationType[] = ['program_name'];
+
+/**
+ * The ONLY types a customer may read over `GET /v1/platform-enumerations/:type`.
+ *
+ * That endpoint takes the type as a path parameter and, until this list existed,
+ * validated nothing: any authenticated customer could name any type and get every
+ * active row back, with `Cache-Control: public, max-age=300` on the response. That was
+ * survivable while every type held labels a customer sees anyway. It stopped being
+ * survivable with `surrogate_product`, whose rows carry `incomeRule` — a bank's cap
+ * tables, its band edges, its DBR overrides. One request away from a competitor.
+ *
+ * AN ALLOW-LIST, not a deny-list, and the direction is the point: the next type someone
+ * adds is private until a person decides otherwise, rather than public until someone
+ * remembers. A type the app genuinely needs is one line and a review.
+ *
+ * These three are what the Flutter client actually reads (`EnumerationTypes` in
+ * `platform_enumerations_usecase.dart`). Everything else it renders — employment types,
+ * compounds, transfer types — reaches it inside the QUESTIONNAIRE SNAPSHOT as
+ * materialised question options, not through this endpoint.
+ */
+export const CUSTOMER_READABLE_ENUMERATION_TYPES: readonly EnumerationType[] = [
+  'governorate',
+  'required_document',
+  'program_name',
+];
+
+/** True when a customer may read `type` over the mobile endpoint (see above). */
+export function isCustomerReadableEnumerationType(type: string): boolean {
+  return (CUSTOMER_READABLE_ENUMERATION_TYPES as readonly string[]).includes(type);
+}
 
 /** True when members of `type` carry no scoping parent (see above). */
 export function isUnscopedEnumerationType(type: string): boolean {
@@ -206,6 +253,34 @@ export interface BoundQuestion {
    * offering to seed a row per key over an empty list, which is a button that does nothing.
    */
   parentOptions?: Array<{ code: string; labelAr: string; labelEn: string }>;
+  /**
+   * The operator-managed LIST this question's options come from — `compound` for
+   * `compound_name`, `military_grade` for the grade question, and so on.
+   *
+   * DERIVED ON READ, never stored, and that is the design rather than a shortcut. The
+   * source type is already stated twice — once as `optionsFromEnum` in the questionnaire
+   * seed, once as the materialised `question_option` rows — and a third, stored copy
+   * would be the one that drifts: an operator adding an option by hand through the
+   * questionnaire screen would leave the column still claiming the list. It would also be
+   * on the wrong row, since the QUESTION owns its options and a question bound by two
+   * facts would carry the claim twice.
+   *
+   * Derived by coverage: the type whose active rows cover EVERY one of the question's
+   * option codes. Coverage-of-all is the honest bar — a hand-authored question covers
+   * nothing and correctly gets `undefined`, which the admin renders as "this fact reads
+   * no operator-managed list" rather than as an empty list it could offer to edit.
+   */
+  optionsEnumerationType?: string;
+  /**
+   * The list `parentOptions` are members of — `compound_category` where the options are
+   * compounds. Derived in the same pass, from the same walk.
+   *
+   * Separate from `optionsEnumerationType` because they answer different questions and a
+   * caller needs both: a `factParentTable` step is keyed by the PARENT list while the
+   * customer picks from the CHILD one, and a screen showing "the lists this product
+   * reads" has to show both or the operator cannot file a new value.
+   */
+  parentEnumerationType?: string;
   /**
    * The loan categories whose applicants are ASKED this question — the questionnaire's
    * own answer, read straight off `question_loan_category`.
@@ -467,9 +542,44 @@ export abstract class PlatformEnumerationsRepository {
    * switched back on.
    */
   abstract countChildren(childType: EnumerationType, parentKey: string): Promise<number>;
+
+  /**
+   * The catalog program names taking their calculation from `productKey`.
+   *
+   * Named rather than counted: the refusal it backs (`SURROGATE_PRODUCT_IN_USE`) has to
+   * tell the operator which names to move, and they are on a different screen from the
+   * product being retired.
+   */
+  abstract programNamesLinkedTo(productKey: string): Promise<string[]>;
+
+  /** One surrogate product's own row, carrying the calculation every linked name quotes off. */
+  abstract findSurrogateProduct(key: string): Promise<ProgramNameIncomeRuleRow | null>;
+
+  /** Write a surrogate product's calculation. Same contract as the catalog name's. */
+  abstract setSurrogateProductIncomeRule(
+    key: string,
+    rule: IncomeAssumptionConfig | null,
+    valueSources: Record<string, 'team_estimated'>,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow>;
+
+  /**
+   * Every surrogate product, active or not.
+   *
+   * Inactive ones are FLAGGED, not filtered: a name linked to a retired product must
+   * still render as linked to something. Callers offering a CHOICE filter to active.
+   */
+  abstract listSurrogateProducts(): Promise<
+    Array<{ key: string; labelAr: string; labelEn: string; active: boolean; sortOrder: number }>
+  >;
 }
 
-/** A catalog program name as the income-rule endpoints read it. */
+/**
+ * A row that CARRIES an income rule, as the rule endpoints read it — a catalog program
+ * name or a surrogate product. One shape for both, because they hold the same columns:
+ * the archetype and the name that links to it store the calculation identically, which is
+ * what lets the migration move it between them by copying.
+ */
 export interface ProgramNameIncomeRuleRow {
   id: string;
   key: string;
@@ -477,6 +587,15 @@ export interface ProgramNameIncomeRuleRow {
   labelEn: string;
   incomeRule: IncomeAssumptionConfig | null;
   valueSources: Record<string, 'team_estimated'>;
+  /**
+   * `program_name` only — the product this name takes its calculation from.
+   *
+   * `null` on a surrogate product's own row by construction: a product IS the source, so
+   * it cannot link to one. Load-bearing on a name: `incomeRule` is NULL both when nobody
+   * has decided and when the name is LINKED, and this column is the only thing that tells
+   * those apart.
+   */
+  surrogateProductKey: string | null;
 }
 
 /** One member whose parent actually changed — what a bulk re-file audits. */

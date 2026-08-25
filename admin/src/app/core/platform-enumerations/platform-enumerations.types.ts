@@ -16,7 +16,13 @@ export type EnumerationType =
    * is how a bank keys a five-row cap table while the customer picks a compound by name.
    */
   | 'compound_category'
-  | 'compound';
+  | 'compound'
+  /**
+   * A no-payslip PRODUCT — a named, reusable income calculation that catalog program
+   * names link to. The archetype owns the calculation; the name owns what it is called
+   * and who sells it; the bank program owns the figures.
+   */
+  | 'surrogate_product';
 
 import type { LoanCategory } from '@core/loan-category';
 import type { IncomeBasis } from '@core/income-basis';
@@ -82,6 +88,18 @@ export interface EnumerationMember {
      * has to SAY rather than hide behind a seed button that can only produce zero rows.
      */
     parentOptions?: Array<{ code: string; labelAr: string; labelEn: string }>;
+    /**
+     * The operator-managed LIST these options come from (`compound` for `compound_name`),
+     * and the list those are filed under (`compound_category`). Derived server-side on
+     * read, never stored.
+     *
+     * This is what lets a surrogate product's screen show the lists its calculation reads
+     * without knowing anything about compounds. ABSENT means the question is not backed by
+     * a list at all — a yes/no or a numeric — which renders as a stated line, never as an
+     * empty list offered for editing.
+     */
+    optionsEnumerationType?: string;
+    parentEnumerationType?: string;
     /**
      * Loan categories whose applicants are ASKED this question — the questionnaire's
      * own assignment, not a per-name tick. A program in a category outside this list

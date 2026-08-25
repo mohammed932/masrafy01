@@ -41,7 +41,7 @@ import { LookupsApiService, type EnumerationRow } from '../lookups/lookups.api.s
 import {
   EnumerationEditDialogComponent,
   type EnumerationEditDialogData,
-} from '../lookups/components/enumeration-edit.dialog';
+} from '@shared/lookups/enumeration-edit.dialog';
 
 const ENUM_TYPE = 'program_name';
 

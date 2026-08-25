@@ -14,6 +14,8 @@ import type {
   IncomeRuleCheckResult,
   ListBankProgramsQuery,
   ProgramNameIncomeRule,
+  SurrogateProductDetail,
+  SurrogateProductSummary,
   ValueSourceMap,
 } from './bank-programs.types';
 
@@ -141,6 +143,49 @@ export class BankProgramsApiService {
     return firstValueFrom(
       this.http.post<SuccessEnvelope<IncomeRuleCheckResult>>(
         `${this.base}/income-rule/check`,
+        payload,
+      ),
+    );
+  }
+
+  /**
+   * The surrogate-product library — the pre-defined no-payslip calculations a catalog name
+   * can be linked to.
+   *
+   * Inactive products are included and flagged, not filtered: a name already linked to a
+   * retired one must still render as linked to something. Callers offering a CHOICE filter
+   * to `active` at the point of choice.
+   */
+  async listSurrogateProducts(): Promise<SuccessEnvelope<SurrogateProductSummary[]>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<SurrogateProductSummary[]>>(`${this.base}/surrogate-products`),
+    );
+  }
+
+  /** One product: its calculation, and every bank program reachable through it. */
+  async getSurrogateProduct(key: string): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.get<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}`,
+      ),
+    );
+  }
+
+  /**
+   * Set a product's calculation. Reaches every catalog name linked to it, and every bank
+   * program under those names that takes catalog amounts.
+   *
+   * `valueSources` travels in the SAME call, for the reason the name's setter states: the
+   * markers describe those figures, and saving them separately leaves a marker addressing a
+   * row that no longer exists.
+   */
+  async setSurrogateProductIncomeRule(
+    key: string,
+    payload: { incomeRule: IncomeAssumptionConfig | null; valueSources?: ValueSourceMap },
+  ): Promise<SuccessEnvelope<SurrogateProductDetail>> {
+    return firstValueFrom(
+      this.http.put<SuccessEnvelope<SurrogateProductDetail>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}/income-rule`,
         payload,
       ),
     );

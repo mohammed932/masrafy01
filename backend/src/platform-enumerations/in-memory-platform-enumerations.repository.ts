@@ -89,12 +89,25 @@ export class InMemoryPlatformEnumerationsRepository
   }
 
   /**
-   * This stub seeds no catalog income rules. Empty means every program that inherits
-   * resolves to `rule_unconfigured` — a stated reason — rather than to a figure this
-   * stub invented.
+   * This stub seeds no catalog income rules and no surrogate products. Empty means
+   * every program that inherits resolves to `rule_unconfigured` — a stated reason —
+   * rather than to a figure this stub invented.
+   *
+   * Nothing to resolve, so no product link is walked here. If this stub ever seeds a
+   * catalog name, it must resolve `surrogateProductKey` the way the Postgres repository
+   * does, or a linked name will silently read as ruleless.
    */
   async programNameIncomeRules(): Promise<ReadonlyMap<string, IncomeAssumptionConfig>> {
     return new Map();
+  }
+
+  /**
+   * This stub seeds no catalog names, so nothing can be linked to a product and the
+   * retire refusal it backs never fires. Empty, not a throw: an empty list is the true
+   * answer here, whereas a throw would make the stub refuse a retire it has no opinion on.
+   */
+  async programNamesLinkedTo(): Promise<string[]> {
+    return [];
   }
 
   /**
@@ -118,6 +131,24 @@ export class InMemoryPlatformEnumerationsRepository
 
   async setProgramNameIncomeRule(): Promise<never> {
     throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /** No archetypes in this stub, exactly as there are no catalog names. */
+  async findSurrogateProduct(): Promise<never> {
+    throw new Error('in-memory enumeration registry has no surrogate products');
+  }
+
+  async setSurrogateProductIncomeRule(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /**
+   * Empty, not a throw — unlike the two above. A LIST of products is a question with a
+   * true answer here ("none"), whereas reading or writing a specific one is a request
+   * this stub cannot honour and must not appear to.
+   */
+  async listSurrogateProducts(): Promise<[]> {
+    return [];
   }
 
   /** No bank programs in this stub, so no name is read by one. */

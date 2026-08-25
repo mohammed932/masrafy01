@@ -221,7 +221,7 @@ interface QuestionRow {
                          from these amounts" half again at the foot of the step. -->
                     <h2 class="rule-title" i18n="@@pnd.rule_title">How the income is worked out</h2>
                   </div>
-                  @if (ruleDirty()) {
+                  @if (ruleDirty() && !linked()) {
                     <button
                       nz-button
                       nzType="primary"
@@ -252,7 +252,33 @@ interface QuestionRow {
                     <span class="sk sk-row"></span>
                   </div>
                 } @else {
-                  @if (!ruleDecided() && !ruleTouched()) {
+                  @if (linked(); as product) {
+                    <!-- LINKED. The calculation belongs to the surrogate product, so this page
+                     names it and sends the operator there rather than offering an editor that
+                     would fork it. The pipeline itself still renders below, read-only: an
+                     operator on this page needs to UNDERSTAND what the name sells. -->
+                    <p class="rule-linked">
+                      <span
+                        nz-icon
+                        nzType="info-circle"
+                        nzTheme="outline"
+                        aria-hidden="true"
+                      ></span>
+                      <span>
+                        <span i18n="@@pnd.rule_linked"
+                          >This name works its income out from the
+                          <strong>{{ productLabel() }}</strong> surrogate product, so the
+                          calculation is edited there and every name using it stays in step.</span
+                        >
+                        <a
+                          class="rule-linked-go"
+                          [routerLink]="['/program-catalog/products', product]"
+                          i18n="@@pnd.rule_open_product"
+                          >Open the surrogate product</a
+                        >
+                      </span>
+                    </p>
+                  } @else if (!ruleDecided() && !ruleTouched()) {
                     <!-- Names the consequence, and the picker below IS the action — so this is
                      one line above the control rather than a card that replaces it. -->
                     <p class="rule-empty" i18n="@@pnd.rule_empty">
@@ -261,20 +287,22 @@ interface QuestionRow {
                     </p>
                   }
 
-                  <app-income-assumption-section
-                    variant="catalog"
-                    [group]="ruleGroup"
-                    [keyTable]="ruleKeyTable()"
-                    (keyTableChange)="onRuleKeyTable($event)"
-                    [bands]="ruleBands()"
-                    (bandsChange)="onRuleBands($event)"
-                    [ruleSteps]="ruleSteps()"
-                    [ruleGates]="ruleGates()"
-                    [ruleOutput]="ruleOutput()"
-                    [stepFigures]="ruleStepFigures()"
-                    (stepFiguresChange)="onRuleStepFigures($event)"
-                    (stepFiguresTouched)="markRuleDirty()"
-                  ></app-income-assumption-section>
+                  @if (!linked()) {
+                    <app-income-assumption-section
+                      variant="catalog"
+                      [group]="ruleGroup"
+                      [keyTable]="ruleKeyTable()"
+                      (keyTableChange)="onRuleKeyTable($event)"
+                      [bands]="ruleBands()"
+                      (bandsChange)="onRuleBands($event)"
+                      [ruleSteps]="ruleSteps()"
+                      [ruleGates]="ruleGates()"
+                      [ruleOutput]="ruleOutput()"
+                      [stepFigures]="ruleStepFigures()"
+                      (stepFiguresChange)="onRuleStepFigures($event)"
+                      (stepFiguresTouched)="markRuleDirty()"
+                    ></app-income-assumption-section>
+                  }
 
                   <!-- Who reads this. Quiet by design: it is a fact, not a warning — and it
                    is the same list the server names when it refuses a proof change, so
@@ -715,7 +743,7 @@ interface QuestionRow {
                prompt, no marker (the rail suppresses a status on the step you are standing
                on), and the edits gone the moment the page was left. Carried here instead, so
                the pending state and its Save travel with the operator. -->
-          @if (ruleDirty() && stepIndex() !== 0) {
+          @if (ruleDirty() && !linked() && stepIndex() !== 0) {
             <p class="stepnav-unsaved" role="status">
               <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
               <span i18n="@@pnd.rule_unsaved">
@@ -925,6 +953,43 @@ interface QuestionRow {
       .rule-error [nz-icon] {
         color: var(--ant-error-color);
         margin-block-start: 0.15em;
+      }
+
+      .rule-linked {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: 0;
+        padding: var(--space-4);
+        border-radius: var(--radius-md);
+        background: var(--bg-subtle);
+        font-size: var(--text-sm);
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+
+      .rule-linked strong {
+        color: var(--text-primary);
+        font-weight: var(--font-semibold);
+      }
+
+      .rule-linked-go {
+        display: inline-block;
+        margin-inline-start: var(--space-2);
+        color: var(--primary-visible);
+        text-decoration: none;
+        cursor: pointer;
+        font-weight: var(--font-medium);
+      }
+
+      .rule-linked-go:hover {
+        text-decoration: underline;
+      }
+
+      .rule-linked-go:focus-visible {
+        outline: none;
+        box-shadow: var(--focus-halo);
+        border-radius: var(--radius-sm);
       }
 
       .rule-empty {
@@ -1781,7 +1846,15 @@ export class ProgramNameDetailPage implements OnInit {
     {
       id: 'income',
       label: this.stepLabels[0] ?? '',
-      status: this.ruleDirty() ? 'invalid' : this.ruleDecided() ? 'done' : 'todo',
+      // A LINKED name is decided by construction — the product states the calculation —
+      // so it can never read as todo or invalid on this page, where it cannot be edited.
+      status: this.linked()
+        ? 'done'
+        : this.ruleDirty()
+          ? 'invalid'
+          : this.ruleDecided()
+            ? 'done'
+            : 'todo',
     },
     {
       id: 'offered',
@@ -1799,7 +1872,9 @@ export class ProgramNameDetailPage implements OnInit {
   protected readonly stepCaption = computed<string>(() => {
     switch (this.stepIndex()) {
       case 0:
-        return $localize`:@@pnd.step_income_cap:Set once for the name. Every bank selling it without a payslip reads this one figure.`;
+        return this.linked()
+          ? $localize`:@@pnd.step_income_cap_linked:Taken from a surrogate product, so every name using that product stays in step. Edited there, not here.`
+          : $localize`:@@pnd.step_income_cap:Set once for the name. Every bank selling it without a payslip reads this one figure.`;
       case 1:
         return $localize`:@@pnd.step_offered_cap:${this.offeredCount()}:OFFERED: of ${this.categories.length}:TOTAL: loan types are on. This is what a bank's program picker filters on.`;
       default:
@@ -2387,16 +2462,38 @@ export class ProgramNameDetailPage implements OnInit {
    * adding a step, wiring a reference — is still an API or seed action. Stated in the section's
    * own note rather than left for the operator to discover by finding no Add button.
    */
+  /**
+   * The rule this page RENDERS — the product's when the name links to one, else the name's.
+   *
+   * A linked name carries NULL in its own `incomeRule` (that is what makes the link a link
+   * rather than a fork), so reading only `incomeRule` here would render every collateral
+   * name as a product with no calculation at all.
+   */
+  private readonly effectiveRule = computed<IncomeAssumptionConfig | null>(() => {
+    const data = this.rule();
+    return data?.surrogateProduct?.incomeRule ?? data?.incomeRule ?? null;
+  });
+
+  /** The product key this name links to, or `null` when it states its own rule. */
+  protected readonly linked = computed<string | null>(
+    () => this.rule()?.surrogateProduct?.key ?? null,
+  );
+
+  /** The product's name in the operator's language, for the linked notice. */
+  protected readonly productLabel = computed(() => {
+    const p = this.rule()?.surrogateProduct;
+    if (!p) return '';
+    return this.isAr ? p.labelAr : p.labelEn;
+  });
+
   protected readonly ruleSteps = computed<readonly RuleStep[]>(
-    () => (this.rule()?.incomeRule as { steps?: RuleStep[] } | null | undefined)?.steps ?? [],
+    () => (this.effectiveRule() as { steps?: RuleStep[] } | null)?.steps ?? [],
   );
   protected readonly ruleGates = computed<readonly RuleGate[]>(
-    () => (this.rule()?.incomeRule as { gates?: RuleGate[] } | null | undefined)?.gates ?? [],
+    () => (this.effectiveRule() as { gates?: RuleGate[] } | null)?.gates ?? [],
   );
   protected readonly ruleOutput = computed<ProductRuleOutput | null>(
-    () =>
-      (this.rule()?.incomeRule as { output?: ProductRuleOutput } | null | undefined)?.output ??
-      null,
+    () => (this.effectiveRule() as { output?: ProductRuleOutput } | null)?.output ?? null,
   );
 
   protected async saveRule(): Promise<void> {

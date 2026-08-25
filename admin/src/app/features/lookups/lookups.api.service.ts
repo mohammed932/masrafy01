@@ -35,6 +35,14 @@ export interface EnumerationRow {
   deprecatedAt: string | null;
   systemOnly: boolean;
   parentKey: string | null;
+  /**
+   * `program_name` only — the surrogate product this catalog name takes its calculation
+   * from, or `null` when it states its own rule.
+   *
+   * Always present, never conditional: the admin has to tell "linked" from "states its own"
+   * on every row, and an absent field would read as the second when it might be the first.
+   */
+  surrogateProductKey: string | null;
   /** `program_name` rows only — how many bank programs instantiate this archetype. */
   usage?: {
     programs: number;
@@ -114,6 +122,11 @@ export interface CreateEnumerationRequest {
    */
   incomeBases?: IncomeBasis[];
   sortOrder?: number;
+  /**
+   * `program_name` only — the surrogate product the new name works its income out from.
+   * REQUIRED by the server when `incomeBases` includes `no_payslip`.
+   */
+  surrogateProductKey?: string;
 }
 
 export interface UpdateEnumerationRequest {
@@ -123,6 +136,11 @@ export interface UpdateEnumerationRequest {
   active?: boolean;
   deprecate?: boolean;
   sortOrder?: number;
+  /**
+   * Three values, all meaningful: absent leaves the link alone, `null` UNLINKS, a key
+   * re-points. `''` is refused by the server — "not linked" has one spelling.
+   */
+  surrogateProductKey?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

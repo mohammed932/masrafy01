@@ -10,6 +10,8 @@ import {
   EnumerationInUseException,
   EnumerationKeyDuplicateException,
   EnumerationParentNotApplicableException,
+  SurrogateProductInUseException,
+  SurrogateProductRequiredException,
   EnumerationParentRequiredException,
   EnumerationParentUnknownException,
   EnumerationQuestionBindingNotApplicableException,
@@ -48,6 +50,7 @@ import type { CreateEnumerationDto, UpdateEnumerationDto } from './dto/enumerati
 
 /** The only categorised type today; see `CATEGORISED_ENUMERATION_TYPES`. */
 const PROGRAM_NAME_TYPE = 'program_name';
+const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
 
 /**
  * Lexical, so the audit no-op check compares SETS. Ordering everywhere else is
@@ -109,6 +112,25 @@ export class PlatformEnumerationsAdminService {
     if (existing) {
       throw new EnumerationKeyDuplicateException({ type: input.type, key: input.key });
     }
+
+    // Both checks run BEFORE the insert, and together, because `incomeBases` is applied
+    // inside the same atomic create: a name written as no-payslip with no link would
+    // exist, be offerable, and quote nothing until somebody noticed. A brand-new row
+    // states no rule of its own, so `statesOwnRule` is false by construction — there is
+    // nothing to grandfather at birth.
+    const resolvedProduct = await this.resolveSurrogateProductKey(
+      input.type,
+      input.surrogateProductKey,
+    );
+    if (isCategorisedEnumerationType(input.type)) {
+      await this.assertSurrogateProductForBases(
+        { type: input.type, key: input.key },
+        dedupeBases(input.incomeBases ?? ['payslip']),
+        resolvedProduct,
+        false,
+      );
+    }
+
     const created = await this.repo.insert({
       type: input.type,
       key: input.key,
@@ -120,6 +142,10 @@ export class PlatformEnumerationsAdminService {
       // filed under nothing is offered to the customer and prices nothing, because
       // `factParentTable` answers `no_matching_row` for whoever picks it.
       parentKey: await this.resolveParentKey(input.type, input.parentKey),
+      // Resolved BEFORE the insert, like `parentKey`: a link that names a product that
+      // does not exist must never reach storage, where it reads as "no rule" at the
+      // engine seam and quotes `rule_unconfigured` for every program under the name.
+      surrogateProductKey: resolvedProduct,
       // Default a new categorised entry to ALL categories, never none: an entry
       // assigned to nothing is offerable nowhere, so a create that named no
       // categories would silently add an invisible catalog row. Operators add
@@ -204,6 +230,88 @@ export class PlatformEnumerationsAdminService {
       });
     }
     return parentKey;
+  }
+
+  /**
+   * What to STORE as a catalog name's surrogate product — the one place the link is
+   * enforced, and the mirror of `resolveParentKey` above.
+   *
+   * Four answers, same posture:
+   *   · the type is not `program_name` → refused. A product link on a governorate is a
+   *     category error, and force-nulling it silently is how a caller keeps sending it;
+   *   · the caller named nothing (`undefined`) → `null`, meaning "states its own rule".
+   *     Whether that is ALLOWED is a separate question, asked by
+   *     `assertSurrogateProductForBases` — the two are kept apart because the basis and
+   *     the link arrive on different requests, and this function must not have to know
+   *     which one is being written;
+   *   · the caller passed an explicit `null` → `null`. UNLINK, a real operator action;
+   *   · the caller named a key → it must be a LIVE `surrogate_product`. There is no
+   *     foreign key (the reachable unique is the composite `(type, key)`), so without
+   *     this a typo would save 200 and surface as `rule_unconfigured` on a customer.
+   *
+   * `''` is refused by the DTO before it reaches here, for the reason `parentKey` states:
+   * stored, it is a link that resolves to nothing while looking set.
+   */
+  private async resolveSurrogateProductKey(
+    type: string,
+    productKey: string | null | undefined,
+  ): Promise<string | null> {
+    if (type !== PROGRAM_NAME_TYPE) {
+      if (productKey !== undefined && productKey !== null) {
+        throw new EnumerationParentNotApplicableException({ type });
+      }
+      return null;
+    }
+    if (productKey === undefined || productKey === null) return null;
+
+    const product = await this.repo.findByTypeAndKey(SURROGATE_PRODUCT_TYPE, productKey);
+    if (!product || !product.active || product.deprecatedAt !== null) {
+      const activeProducts = (await this.repo.getActiveMembers(SURROGATE_PRODUCT_TYPE)).map(
+        (m) => m.key,
+      );
+      throw new EnumerationParentUnknownException({
+        type,
+        parentType: SURROGATE_PRODUCT_TYPE,
+        parentKey: productKey,
+        reason: !product ? 'missing' : product.deprecatedAt !== null ? 'deprecated' : 'inactive',
+        activeKeys: activeProducts,
+      });
+    }
+    return productKey;
+  }
+
+  /**
+   * A no-payslip name must say where its calculation comes from.
+   *
+   * GRANDFATHERED on a name that already states its own `incomeRule`: those predate the
+   * archetypes and keep working. Enforcing on them would make every legacy no-payslip
+   * name unsavable from admin — and unsavable means unfixable, because the edit that
+   * would link it is the edit being refused.
+   *
+   * Takes the resolved link and the stored rule rather than reading them itself, so the
+   * create path (where neither is written yet) and the basis path (where both are) ask
+   * the identical question.
+   */
+  private async assertSurrogateProductForBases(
+    row: { type: string; key: string },
+    bases: readonly IncomeBasis[],
+    linkedTo: string | null,
+    statesOwnRule: boolean,
+    category?: LoanCategory,
+  ): Promise<void> {
+    if (row.type !== PROGRAM_NAME_TYPE) return;
+    if (!bases.includes('no_payslip')) return;
+    if (linkedTo !== null || statesOwnRule) return;
+
+    const activeProducts = (await this.repo.getActiveMembers(SURROGATE_PRODUCT_TYPE)).map(
+      (m) => m.key,
+    );
+    throw new SurrogateProductRequiredException({
+      type: row.type,
+      key: row.key,
+      ...(category !== undefined ? { category } : {}),
+      activeProducts,
+    });
   }
 
   /**
@@ -296,6 +404,30 @@ export class PlatformEnumerationsAdminService {
     if (patch.parentKey !== undefined && !isUnscopedEnumerationType(existing.type)) {
       repoPatch.parentKey = await this.resolveParentKey(existing.type, patch.parentKey);
     }
+    // Three values, all reachable (see the DTO): absent leaves the link alone, `null`
+    // unlinks, a key re-points. Unlike `parentKey` there is no bulk endpoint to hide the
+    // unlink behind, so it is spelled here — and paired with the basis check below, so
+    // the order the two writes arrive in cannot decide whether the row ends up valid.
+    if (patch.surrogateProductKey !== undefined) {
+      repoPatch.surrogateProductKey = await this.resolveSurrogateProductKey(
+        existing.type,
+        patch.surrogateProductKey,
+      );
+      // Unlinking a name that is still sold without a payslip, and states no rule of its
+      // own, would leave it quoting nothing. Refused here rather than left to the basis
+      // screen: the operator is looking at the link when they break it.
+      if (repoPatch.surrogateProductKey === null) {
+        const bases = Object.values(await this.repo.incomeBasesOf(id)).flat();
+        const rule = await this.repo.findProgramName(existing.key);
+        await this.assertSurrogateProductForBases(
+          existing,
+          bases,
+          null,
+          rule?.incomeRule != null,
+        );
+      }
+    }
+
     if (patch.sortOrder !== undefined) repoPatch.sortOrder = patch.sortOrder;
 
     // Retiring a LIST value while values are still filed under it. Refused, because the
@@ -316,6 +448,20 @@ export class PlatformEnumerationsAdminService {
           });
         }
       }
+
+      // Retiring a PRODUCT while catalog names still take their calculation from it. Same
+      // shape of refusal, different axis — and load-bearing for the same reason:
+      // `programNameIncomeRules()` resolves a link without checking the product's active
+      // flag, deliberately, so that retiring one cannot blank the income of names already
+      // on it mid-flight. That is only safe because this stops the retire happening while
+      // anyone is still linked. A separate code from HAS_CHILDREN: its meta and its Arabic
+      // both describe a filing relation, and this is a product/consumer one.
+      if (existing.type === SURROGATE_PRODUCT_TYPE) {
+        const names = await this.repo.programNamesLinkedTo(existing.key);
+        if (names.length > 0) {
+          throw new SurrogateProductInUseException({ key: existing.key, names });
+        }
+      }
     }
 
     if (patch.deprecate === true && existing.deprecatedAt === null) {
@@ -331,8 +477,14 @@ export class PlatformEnumerationsAdminService {
     // whose members carry the derived `parentOptions` list the bank's key-table editor is
     // filled from. Invalidating only `existing.type` left that editor offering the old class
     // list for up to the cache TTL — which, mid-re-filing, reads as "it did not work".
-    if (repoPatch.parentKey !== undefined) this.repo.invalidateCache();
-    else this.repo.invalidateCache(existing.type as never);
+    // A parentKey or product-link move is felt by more than the row's own type, so both
+    // clear everything: `surrogate_fact` members carry the derived `parentOptions` the
+    // bank's key-table editor is filled from, and a name's link changes what the catalog
+    // board reports about the product. Invalidating only `existing.type` left one of those
+    // stale for up to the cache TTL — which, mid-edit, reads as "it did not work".
+    if (repoPatch.parentKey !== undefined || repoPatch.surrogateProductKey !== undefined) {
+      this.repo.invalidateCache();
+    } else this.repo.invalidateCache(existing.type as never);
     await this.audit.write({
       actorId: actor.staffId,
       targetId: null,
@@ -527,6 +679,22 @@ export class PlatformEnumerationsAdminService {
 
     const before = (await this.repo.incomeBasesOf(id))[category] ?? [];
     const next = dedupeBases(bases);
+
+    // Moving a name TO the no-payslip basis when nothing says how its income is worked
+    // out. Checked BEFORE the write, so a refusal leaves the row exactly as it was —
+    // the same posture the dialog relies on when it writes the basis first.
+    //
+    // Grandfathered on a name that states its own rule: those predate the archetypes and
+    // must stay editable, or the edit that would link them is the edit being refused.
+    const ownRule = await this.repo.findProgramName(existing.key);
+    await this.assertSurrogateProductForBases(
+      existing,
+      next,
+      existing.surrogateProductKey,
+      ownRule?.incomeRule != null,
+      category,
+    );
+
     const written = await this.repo.setIncomeBases(id, category, next);
     if (written === 0) {
       throw new EnumerationCategoryNotAssignedException({
@@ -780,6 +948,15 @@ export class PlatformEnumerationsAdminService {
       !isUnscopedEnumerationType(existing.type)
     ) {
       changes.parentKey = { from: existing.parentKey, to: patch.parentKey };
+    }
+    if (
+      patch.surrogateProductKey !== undefined &&
+      (patch.surrogateProductKey ?? null) !== existing.surrogateProductKey
+    ) {
+      changes.surrogateProductKey = {
+        from: existing.surrogateProductKey,
+        to: patch.surrogateProductKey ?? null,
+      };
     }
     if (patch.sortOrder !== undefined && patch.sortOrder !== existing.sortOrder) {
       changes.sortOrder = { from: existing.sortOrder, to: patch.sortOrder };

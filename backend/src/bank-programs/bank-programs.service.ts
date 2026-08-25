@@ -12,6 +12,8 @@ import {
 import {
   SetProgramNameIncomeRuleDto,
   type ProgramNameIncomeRuleResponseDto,
+  type SurrogateProductDetailDto,
+  type SurrogateProductSummaryDto,
 } from './dto/program-name-income-rule.dto';
 import {
   BankProgramHasOffersException,
@@ -41,6 +43,7 @@ import {
   IncomeProofInUseException,
   ProgramHasEstimatedValuesException,
   ProgramNameKeyUnknownException,
+  ProgramNameRuleLinkedException,
   ValueSourcePathUnknownException,
   ValueSourceValueInvalidException,
   QualitativeReviewCeilingBelowBaseException,
@@ -1230,6 +1233,19 @@ export class BankProgramsService {
       });
     }
 
+    // A LINKED name's calculation is the product's. Refused before anything else, because
+    // every later check would be asking questions about a rule this row is not allowed to
+    // hold — and the natural failure downstream (`withStoredStructure` finds no stored
+    // structure to overlay, so validation answers `no_steps`) names a missing step list
+    // that was never missing.
+    // Truthiness, not `!== null`: "linked" means a key is PRESENT. `undefined` reaches
+    // here from any caller that builds the row without the column, and reading that as
+    // linked would refuse a write on a name that is not.
+    const linkedTo = name.surrogateProductKey;
+    if (linkedTo) {
+      throw new ProgramNameRuleLinkedException({ programNameKey, surrogateProductKey: linkedTo });
+    }
+
     // `amounts` is dropped rather than rejected: it says whose figures a BANK PROGRAM
     // uses, and a name's figures are its own by definition. A client that sends it is
     // being redundant, not wrong.
@@ -1331,11 +1347,185 @@ export class BankProgramsService {
     return this.toProgramNameIncomeRuleResponse(saved, programs);
   }
 
+  // --- SURROGATE PRODUCTS ---------------------------------------------------
+
+  /**
+   * Every surrogate product, with the proof it reads and the names that sell it.
+   *
+   * INACTIVE ones included and flagged: an operator looking at the library needs to see
+   * the retired ones to understand why a name still points at one, and the picker filters
+   * them out at the point of CHOICE rather than here.
+   */
+  async listSurrogateProducts(): Promise<SurrogateProductSummaryDto[]> {
+    const products = await this.enums.listSurrogateProducts();
+    const out: SurrogateProductSummaryDto[] = [];
+    for (const p of products) {
+      const row = await this.enums.findSurrogateProduct(p.key);
+      out.push({
+        key: p.key,
+        labelAr: p.labelAr,
+        labelEn: p.labelEn,
+        active: p.active,
+        strategy: row?.incomeRule?.strategy ?? null,
+        usedBy: await this.enums.programNamesLinkedTo(p.key),
+      });
+    }
+    return out;
+  }
+
+  /**
+   * One surrogate product: its calculation, and every bank program reachable through it.
+   *
+   * The reachability walk is the point of the page — "what breaks if I change this" has to
+   * be answerable BEFORE the operator changes it, and the answer spans two hops (product →
+   * names → programs) that no single existing read covers.
+   */
+  async getSurrogateProduct(key: string): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) {
+      const active = await this.enums.listSurrogateProducts();
+      throw new ProgramNameKeyUnknownException({
+        programNameKey: key,
+        activeKeys: active.filter((p) => p.active).map((p) => p.key),
+      });
+    }
+    const meta = await this.surrogateProductMeta(key);
+    const nameKeys = await this.enums.programNamesLinkedTo(key);
+    const names = [];
+    for (const nameKey of nameKeys) {
+      const programs = await this.enums.programsUnderName(nameKey);
+      names.push({
+        key: nameKey,
+        programs: programs.map((p) => ({ programCode: p.programCode, ownAmounts: p.ownAmounts })),
+      });
+    }
+    return {
+      key: row.key,
+      labelAr: row.labelAr,
+      labelEn: row.labelEn,
+      active: meta?.active ?? true,
+      strategy: row.incomeRule?.strategy ?? null,
+      usedBy: nameKeys,
+      incomeRule: row.incomeRule === null ? null : normalizeIncomeAssumption(row.incomeRule),
+      valueSources: row.valueSources,
+      names,
+    };
+  }
+
+  /**
+   * Set a surrogate product's calculation — the archetype every linked name quotes off.
+   *
+   * The same validated write the catalog name's rule goes through, with one difference
+   * that matters and one that does not:
+   *
+   *   · `figuresRequired: false`, same as a catalog write. A product's figures are its
+   *     BANKS' to fill; held to a bank's completeness the compound frame — four
+   *     derivations, each one bank's — could never be saved at all.
+   *   · NO proof-change refusal. `INCOME_PROOF_IN_USE` exists because a bank's stored
+   *     table is keyed by the name's proof, and changing it out from under them leaves
+   *     live programs quoting rows no applicant can match. That reasoning applies here
+   *     too and is NOT skipped — it is enforced one level down, by
+   *     `assertIncomeProofMatchesName`, which reads the RESOLVED map and so already sees
+   *     the product's strategy. Duplicating it here would refuse the same save twice with
+   *     two different messages.
+   */
+  async setSurrogateProductIncomeRule(
+    key: string,
+    dto: SetProgramNameIncomeRuleDto,
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<SurrogateProductDetailDto> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) {
+      const active = await this.enums.listSurrogateProducts();
+      throw new ProgramNameKeyUnknownException({
+        programNameKey: key,
+        activeKeys: active.filter((p) => p.active).map((p) => p.key),
+      });
+    }
+
+    const incoming = dto.incomeRule as unknown as IncomeAssumptionConfig | null;
+    let rule: IncomeAssumptionConfig | null = null;
+    if (incoming !== null) {
+      rule = normalizeIncomeAssumption(stripForeignMethodConfig(incoming));
+      // `amounts` says whose figures a BANK PROGRAM uses. A product's figures are its own
+      // by definition, so the field is dropped rather than refused — same as a catalog name.
+      delete rule.amounts;
+      // A figures-only write keeps the structure already stored. This is what lets the
+      // product screen save an edited table without re-posting a step list it merely
+      // rendered — re-posting would let a stale screen replace the product itself.
+      rule = withStoredStructure(rule, row.incomeRule);
+    }
+
+    if (rule !== null) {
+      const violation = await validateIncomeRule(rule, this.incomeRuleContext(), {
+        figuresRequired: false,
+      });
+      if (violation) throw incomeRuleException(violation);
+    }
+
+    // Markers: absent means "not touching them", an explicit map replaces. Same contract
+    // as the catalog name's, and the same reason — this screen has no control that marks a
+    // figure, so a wholesale replace against `{}` would silently wipe every marker the
+    // first time anyone saved a table.
+    const stating = dto.valueSources !== undefined;
+    const submitted = dto.valueSources ?? row.valueSources ?? {};
+    const allowed = catalogIncomeRulePaths(rule);
+    const previously = catalogIncomeRulePaths(row.incomeRule);
+    for (const [path, value] of Object.entries(submitted)) {
+      if (value !== 'team_estimated') {
+        if (!stating) continue;
+        throw new ValueSourceValueInvalidException({ path, value: String(value) });
+      }
+      if (stating && !allowed.has(path) && !previously.has(path)) {
+        throw new ValueSourcePathUnknownException({ path });
+      }
+    }
+    const valueSources: Record<string, 'team_estimated'> = {};
+    for (const path of Object.keys(submitted)) {
+      if (allowed.has(path)) valueSources[path] = 'team_estimated';
+    }
+
+    await this.enums.setSurrogateProductIncomeRule(key, rule, valueSources, actor.id);
+    await this.audit.create({
+      actorId: actor.id,
+      // A FK to STAFF_ACCOUNT — "the staff member this was done to", never the row it was
+      // about. The product's id travels in the payload, as every other
+      // PLATFORM_ENUMERATION_UPDATED writer sends it.
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: {
+        type: 'surrogate_product',
+        key,
+        id: row.id,
+        changes: {
+          incomeRule: {
+            before: row.incomeRule?.strategy ?? null,
+            after: rule?.strategy ?? null,
+            figuresChanged: stableJson(row.incomeRule ?? null) !== stableJson(rule ?? null),
+          },
+        },
+      },
+    });
+
+    return this.getSurrogateProduct(key);
+  }
+
   private async toProgramNameIncomeRuleResponse(
     name: ProgramNameIncomeRuleRow,
     programs?: ProgramUnderName[],
   ): Promise<ProgramNameIncomeRuleResponseDto> {
     const under = programs ?? (await this.enums.programsUnderName(name.key));
+
+    // Read whole, not just by key: `incomeRule` on a LINKED name is NULL, so a screen
+    // handed only the key would have nothing to render for the product it is selling.
+    // A dangling link resolves to `null` here and the screen says the calculation is
+    // missing — which is true, and better than rendering an empty rule as a real one.
+    const linked = name.surrogateProductKey || null;
+    const product = linked === null ? null : await this.enums.findSurrogateProduct(linked);
+    const productRow = await this.surrogateProductMeta(linked);
+
     return {
       programNameKey: name.key,
       labelAr: name.labelAr,
@@ -1345,7 +1535,33 @@ export class BankProgramsService {
       incomeRule: name.incomeRule === null ? null : normalizeIncomeAssumption(name.incomeRule),
       valueSources: name.valueSources,
       programs: under.map((p) => ({ programCode: p.programCode, ownAmounts: p.ownAmounts })),
+      surrogateProduct:
+        product === null || productRow === null
+          ? null
+          : {
+              key: product.key,
+              labelAr: product.labelAr,
+              labelEn: product.labelEn,
+              active: productRow.active,
+              incomeRule:
+                product.incomeRule === null ? null : normalizeIncomeAssumption(product.incomeRule),
+            },
     };
+  }
+
+  /**
+   * A product's list-level metadata (its `active` flag), which the rule row does not carry.
+   *
+   * Separate read rather than widening `ProgramNameIncomeRuleRow`: `active` is a property
+   * of the registry VALUE, not of the calculation it holds, and the rule row is shared with
+   * `program_name` where the flag means something different.
+   */
+  private async surrogateProductMeta(
+    key: string | null,
+  ): Promise<{ active: boolean } | null> {
+    if (key === null) return null;
+    const all = await this.enums.listSurrogateProducts();
+    return all.find((p) => p.key === key) ?? null;
   }
 
   // --- INCOME RULE CHECK (feature 011, US3) --------------------------------

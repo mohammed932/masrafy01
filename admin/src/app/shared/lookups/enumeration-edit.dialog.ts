@@ -17,8 +17,8 @@ import {
 } from '@core/income-basis';
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { LookupsApiService, type EnumerationRow } from '../lookups.api.service';
-import { PARENT_TYPE_BY_TYPE, lookupExample } from '../lookups.constants';
+import { LookupsApiService, type EnumerationRow } from '@features/lookups/lookups.api.service';
+import { PARENT_TYPE_BY_TYPE, lookupExample } from './lookup-constants';
 
 /**
  * EVERY lookup type is edited by business name only: the machine key is derived
@@ -47,6 +47,8 @@ import { PARENT_TYPE_BY_TYPE, lookupExample } from '../lookups.constants';
  * it happens, on each bank's own program, and counted back on the catalog board.
  */
 const PROGRAM_NAME_TYPE = 'program_name';
+/** The archetype list a no-payslip catalog name links to. */
+const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
 
 export interface EnumerationEditDialogData {
   mode: 'create' | 'edit';
@@ -186,6 +188,43 @@ export interface EnumerationEditDialogData {
                 </label>
               }
             </div>
+            <!-- A no-payslip name has to say WHERE the income is worked out. Shown only
+                 when that basis is picked, because on the payslip basis there is nothing
+                 to choose: the bank reads the payslip. Required, so a name cannot be
+                 created live, offerable, and quoting nothing — which is exactly what
+                 happened before the products existed. -->
+            @if (needsProduct()) {
+              <div class="product">
+                <label class="product-label" for="lk-surrogate-product">
+                  <span i18n="@@lookups.field.product">Which surrogate product?</span>
+                  <span class="req" aria-hidden="true">*</span>
+                </label>
+                <nz-select
+                  id="lk-surrogate-product"
+                  formControlName="surrogateProductKey"
+                  nzShowSearch
+                  [nzPlaceHolder]="productPlaceholder"
+                >
+                  @for (p of productOptions(); track p.key) {
+                    <nz-option [nzValue]="p.key" [nzLabel]="productLabel(p)"></nz-option>
+                  }
+                </nz-select>
+                <p class="product-hint">
+                  @if (productOptions().length === 0) {
+                    <span i18n="@@lookups.field.product.none"
+                      >No surrogate product exists yet, so this name cannot be sold without a
+                      payslip. Add one under Surrogate products first.</span
+                    >
+                  } @else {
+                    <span i18n="@@lookups.field.product.hint"
+                      >The calculation every bank filing a program under this name will quote from.
+                      It can be changed later.</span
+                    >
+                  }
+                </p>
+              </div>
+            }
+
             @if (isEdit) {
               <p class="basis-note">
                 <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
@@ -427,6 +466,33 @@ export interface EnumerationEditDialogData {
            characters a line, and read as a paragraph instead of a caption. */
         max-inline-size: 58ch;
       }
+      .product {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        margin-block-start: var(--space-4);
+        padding-block-start: var(--space-4);
+        border-block-start: 1px solid var(--border-default);
+      }
+
+      .product-label {
+        font-size: var(--text-sm);
+        font-weight: var(--font-medium);
+        color: var(--text-primary);
+      }
+
+      .product-label .req {
+        color: var(--error);
+        margin-inline-start: var(--space-1);
+      }
+
+      .product-hint {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-secondary);
+        line-height: 1.5;
+      }
+
       .basis-note {
         display: flex;
         align-items: flex-start;
@@ -494,6 +560,13 @@ export class EnumerationEditDialogComponent {
    */
   protected readonly parentType: string | null = PARENT_TYPE_BY_TYPE[this.data.type] ?? null;
   protected readonly parentOptions = signal<readonly EnumerationRow[]>([]);
+
+  /**
+   * The surrogate products a no-payslip name may link to. ACTIVE only — this is a point of
+   * CHOICE, and offering a retired product would be offering a save the server refuses.
+   */
+  protected readonly productOptions = signal<readonly EnumerationRow[]>([]);
+  protected readonly productPlaceholder = $localize`:@@lookups.field.product.placeholder:Pick how the income is worked out`;
   protected readonly parentPlaceholder = $localize`:@@lookups.field.parentKey.pick:Pick a class`;
   protected readonly parentRequiredTip = $localize`:@@lookups.field.parentKey.required:Pick the class this value is priced in.`;
   /** Arabic primary (Principle IV) — the same document read every other registry surface does. */
@@ -611,6 +684,16 @@ export class EnumerationEditDialogComponent {
      */
     incomeBases: new FormControl<IncomeBasis[]>(['payslip'], { nonNullable: true }),
     /**
+     * Which surrogate product a no-payslip name works its income out from.
+     *
+     * `''` = nothing picked, and the required-ness is applied dynamically in `pickBasis`
+     * rather than declared here: it is only required while the no-payslip basis is
+     * chosen, and a static validator would block every payslip name from saving.
+     */
+    surrogateProductKey: new FormControl<string>(this.data.row?.surrogateProductKey ?? '', {
+      nonNullable: true,
+    }),
+    /**
      * The class this row is priced in. REQUIRED for a type that has the axis, and validated
      * conditionally rather than always: this same dialog creates catalog program names, which
      * are filed under nothing at all, and a blanket `Validators.required` would make every
@@ -626,6 +709,15 @@ export class EnumerationEditDialogComponent {
     // The parent list, loaded once. Only the ACTIVE rows are offered: filing a compound under
     // a retired class would be a save that quotes nothing, which is the failure this control
     // exists to prevent.
+    // Active only: this is a point of CHOICE, and offering a retired product would be
+    // offering a save the server refuses.
+    if (this.isProgramName) {
+      this.api
+        .list(SURROGATE_PRODUCT_TYPE)
+        .then((rows) => this.productOptions.set(rows.filter((r) => r.active)))
+        .catch(() => this.productOptions.set([]));
+    }
+
     if (this.parentType !== null) {
       void this.api
         .list(this.parentType)
@@ -685,6 +777,7 @@ export class EnumerationEditDialogComponent {
     if (!this.isEdit) {
       this.form.controls.incomeBases.setValue([basis]);
       this.form.controls.incomeBases.markAsTouched();
+      this.syncProductValidator();
       return;
     }
     this.basisMap.update((map) => {
@@ -692,6 +785,48 @@ export class EnumerationEditDialogComponent {
       for (const category of this.assignedCategories) next[category] = [basis];
       return next;
     });
+    this.syncProductValidator();
+  }
+
+  /**
+   * Whether the operator must say where the income comes from.
+   *
+   * Read off the SAME source `basisPicked` uses, so the picker cannot appear while the
+   * no-payslip row reads as unchecked. Gated on `asksBasis` too: the ten types that carry
+   * no basis at all must not grow a product picker.
+   */
+  protected needsProduct(): boolean {
+    return this.asksBasis && this.basisPicked('no_payslip');
+  }
+
+  /**
+   * A localized product name for the picker.
+   *
+   * The Arabic label when the admin is Arabic, exactly as every other registry list renders
+   * — a picker that fell back to English keys would be the one place the operator has to
+   * read a slug.
+   */
+  protected productLabel(row: EnumerationRow): string {
+    return this.isAr ? row.labelAr : row.labelEn;
+  }
+
+  /**
+   * Keep the product control's required-ness in step with the basis.
+   *
+   * Applied dynamically rather than declared on the control: it is required only while the
+   * no-payslip basis is chosen, and a static validator would block every payslip name from
+   * saving. Cleared on the way back so switching to payslip does not leave a name unsavable
+   * for a field it no longer shows.
+   */
+  private syncProductValidator(): void {
+    const control = this.form.controls.surrogateProductKey;
+    if (this.needsProduct()) {
+      control.addValidators(Validators.required);
+    } else {
+      control.removeValidators(Validators.required);
+      control.setValue('');
+    }
+    control.updateValueAndValidity();
   }
 
   /** Arabic separates a list with its own comma; a hardcoded ", " reads as Latin. */
@@ -740,17 +875,38 @@ export class EnumerationEditDialogComponent {
           // the server drops it, and sending it anyway would put a field in the
           // request that the type has no axis for.
           ...(this.asksFlatBasis ? { incomeBases: v.incomeBases } : {}),
+          // In the SAME create as the basis, deliberately: the server applies both inside
+          // one atomic insert, so a no-payslip name can never exist — even for one
+          // round-trip — with nothing saying how its income is worked out.
+          ...(v.surrogateProductKey !== '' ? { surrogateProductKey: v.surrogateProductKey } : {}),
           // Sent only for a type that HAS a parent axis, and only when one was picked — an
           // empty string is "unfiled", not a key.
           ...(this.parentType !== null && v.parentKey !== '' ? { parentKey: v.parentKey } : {}),
           sortOrder: v.sortOrder,
         });
       } else if (this.data.row) {
-        // Basis FIRST, and only for the loan types whose set actually moved. It is
-        // the write the server can refuse (an unoffered pair, an empty set), so
-        // failing here leaves the row exactly as it was rather than half-saved with
-        // a new label. A loan type already carrying the resolved answer sends
-        // nothing, so editing a label writes nothing about the basis.
+        // LINK first, then basis, then the labels — and the order is load-bearing in
+        // both directions.
+        //
+        // Before the basis: moving a name TO the no-payslip basis is refused while
+        // nothing says how its income is worked out, so writing the basis first would
+        // refuse an edit that was about to become valid.
+        //
+        // Still before the labels: the basis is the write the server can refuse (an
+        // unoffered pair, an empty set), so failing there must leave the row as it was
+        // rather than half-saved with a new label.
+        //
+        // Sent only when it MOVED, so editing a label never touches the link.
+        const linkMoved =
+          this.asksBasis && v.surrogateProductKey !== (this.data.row.surrogateProductKey ?? '');
+        if (linkMoved) {
+          await this.api.update(this.data.row.id, {
+            // `''` means "no product" here and must reach the server as an explicit
+            // `null` — the unlink spelling. `''` itself is refused by the DTO, which is
+            // the point: "not linked" has one spelling.
+            surrogateProductKey: v.surrogateProductKey === '' ? null : v.surrogateProductKey,
+          });
+        }
         await this.saveBasisChanges(this.data.row.id);
         await this.api.update(this.data.row.id, {
           labelEn: v.labelEn,

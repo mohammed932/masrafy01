@@ -73,6 +73,26 @@ export class CreateEnumerationDto {
   parentKey?: string;
 
   /**
+   * `program_name` only — the surrogate product this name works its income out from.
+   *
+   * REQUIRED when `incomeBases` includes `no_payslip`, refused for any other type. Asked
+   * here rather than left to a follow-up write because `incomeBases` is applied inside
+   * this same atomic insert: a name created as no-payslip with no link would exist, be
+   * offerable, and quote nothing, for as long as it took someone to notice.
+   *
+   * `@ValidateIf(!== undefined)` for the reason `parentKey` states two fields up —
+   * `@IsOptional()` skips `null` as well, and `null` is a real request here (unlink),
+   * which must reach the service as a stated refusal rather than a Prisma 500.
+   */
+  @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source })
+  @ValidateIf((o: CreateEnumerationDto) => o.surrogateProductKey !== undefined)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
+  surrogateProductKey?: string;
+
+  /**
    * Loan categories the new entry may be offered under. Ignored for types that
    * are not categorisable. Omitted on a categorisable type defaults to EVERY
    * category — an entry created with none would be invisible in every picker.
@@ -299,6 +319,36 @@ export class UpdateEnumerationDto {
   @Matches(KEY_PATTERN)
   parentKey?: string;
 
+  /**
+   * `program_name` only — re-point, or unlink, the surrogate product.
+   *
+   * THREE values, and unlike `parentKey` all three are reachable here:
+   *   absent — do not touch the link (what a label-only edit sends)
+   *   `null` — UNLINK. A real operator action: moving a name back to the payslip basis,
+   *            or off an archetype that turned out to be the wrong one. There is no bulk
+   *            endpoint for it to live on instead, which is why `parentKey` can refuse
+   *            `null` here and this cannot.
+   *   a key  — link to that product; it must be a live `surrogate_product`.
+   *
+   * `''` is refused, same as `parentKey` and for the same reason: "not linked" has one
+   * spelling. A stored empty string would be a link that resolves to nothing while
+   * looking set.
+   *
+   * Unlinking a name that is still on the no-payslip basis is refused with
+   * `SURROGATE_PRODUCT_REQUIRED` — the basis and the link are one decision, and the
+   * order the two are written in must not decide whether the row ends up valid.
+   */
+  @ApiPropertyOptional({ maxLength: 64, pattern: KEY_PATTERN.source, nullable: true })
+  @ValidateIf(
+    (o: UpdateEnumerationDto) =>
+      o.surrogateProductKey !== undefined && o.surrogateProductKey !== null,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 64)
+  @Matches(KEY_PATTERN)
+  surrogateProductKey?: string | null;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -326,6 +376,13 @@ export class EnumerationRowDto {
   @ApiProperty({ nullable: true }) deprecatedAt!: string | null;
   @ApiProperty() systemOnly!: boolean;
   @ApiProperty({ nullable: true }) parentKey!: string | null;
+  /**
+   * `program_name` only — the surrogate product this name takes its calculation from,
+   * or `null` when it states its own rule. Always projected, never conditional: the
+   * admin has to be able to tell "linked" from "states its own" on every row, and an
+   * absent field would read as the second when it might be the first.
+   */
+  @ApiProperty({ nullable: true }) surrogateProductKey!: string | null;
   /**
    * How many bank programs instantiate this archetype, across how many banks.
    * Present on `program_name` rows only — other enumeration types are not

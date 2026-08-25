@@ -15,6 +15,19 @@ export interface LookupType {
   readonly icon: string;
 }
 
+/**
+ * `compound` and `compound_category` are deliberately NOT here.
+ *
+ * They are the lists ONE product's calculation reads, and they were three clicks from the
+ * product that gives them meaning: an operator filing a compound under a class had no way
+ * to see which product they had just changed the price of. They now live on that product's
+ * own workspace (`/program-catalog/products/compound_owner`), rendered by the same
+ * components this screen uses.
+ *
+ * The consequence is accepted and stated: those values are reachable only through the
+ * product. They are not deletable (`DELETABLE_TYPES` server-side), so nothing is lost if
+ * the product is retired — but the direct URL becomes the only door.
+ */
 export const LOOKUP_TYPES: readonly LookupType[] = [
   {
     type: 'transfer_type',
@@ -49,82 +62,7 @@ export const LOOKUP_TYPES: readonly LookupType[] = [
   // The collateral products' own lists. `compound` rows carry their CLASS in `parentKey` —
   // the registry's generic single-parent scope — which is what lets a bank key its cap table
   // by five classes while the customer picks one of hundreds of compounds by name.
-  {
-    type: 'compound_category',
-    label: $localize`:@@lookups.type.compound_category.label:Compound classes`,
-    description: $localize`:@@lookups.type.compound_category.desc:The classes banks key their compound cap tables by.`,
-    icon: 'apartment',
-  },
-  {
-    type: 'compound',
-    label: $localize`:@@lookups.type.compound.label:Compounds`,
-    description: $localize`:@@lookups.type.compound.desc:The compounds a customer can pick, each filed under its class.`,
-    icon: 'home',
-  },
 ];
-
-/**
- * Which list a type's values are FILED UNDER — the registry's generic single-parent scope.
- *
- * `compound` is the only entry today: a bank keys its cap table by the five compound CLASSES
- * while the customer picks one of hundreds of compounds by name, and `factParentTable` is the
- * step that crosses between them. A value with no parent is invisible to that derivation, so
- * both the list and the edit dialog have to be able to show and set one.
- */
-export const PARENT_TYPE_BY_TYPE: Readonly<Record<string, string | undefined>> = {
-  compound: 'compound_category',
-};
-
-/** One realistic value of a type, shown as the label placeholders in the add/edit dialog. */
-export interface LookupExample {
-  readonly en: string;
-  readonly ar: string;
-}
-
-/**
- * Examples are PER TYPE, not one generic sample: the add dialog is the same form
- * for every enumeration, so "English label" alone never said whether the box wants
- * a governorate, a document type or a catalog product name. A shared example is
- * worse than none — under "Governorates" it reads as an instruction to type a job
- * title. `program_name` is here too although it has no rail entry: the same dialog
- * creates catalog names from the program-catalog screen.
- */
-const EXAMPLES: Readonly<Record<string, LookupExample>> = {
-  transfer_type: {
-    en: $localize`:@@lookups.example.transferType.en:e.g. Salary transferred to the bank`,
-    ar: $localize`:@@lookups.example.transferType.ar:مثال: تحويل الراتب على البنك`,
-  },
-  employment_type: {
-    en: $localize`:@@lookups.example.employmentType.en:e.g. Private sector employee`,
-    ar: $localize`:@@lookups.example.employmentType.ar:مثال: موظف قطاع خاص`,
-  },
-  product_category: {
-    en: $localize`:@@lookups.example.productCategory.en:e.g. Personal loans`,
-    ar: $localize`:@@lookups.example.productCategory.ar:مثال: قروض شخصية`,
-  },
-  required_document: {
-    en: $localize`:@@lookups.example.requiredDocument.en:e.g. Bank statement — last 6 months`,
-    ar: $localize`:@@lookups.example.requiredDocument.ar:مثال: كشف حساب بنكي — آخر ٦ شهور`,
-  },
-  governorate: {
-    en: $localize`:@@lookups.example.governorate.en:e.g. Giza`,
-    ar: $localize`:@@lookups.example.governorate.ar:مثال: الجيزة`,
-  },
-  program_name: {
-    en: $localize`:@@lookups.example.programName.en:e.g. Personal Loan Plus`,
-    ar: $localize`:@@lookups.example.programName.ar:مثال: قرض شخصي بلس`,
-  },
-};
-
-const FALLBACK_EXAMPLE: LookupExample = {
-  en: $localize`:@@lookups.example.fallback.en:e.g. Salaried employee`,
-  ar: $localize`:@@lookups.example.fallback.ar:مثال: موظف براتب`,
-};
-
-/** Example value for a type — falls back to a neutral one for an unmapped type. */
-export function lookupExample(type: string): LookupExample {
-  return EXAMPLES[type] ?? FALLBACK_EXAMPLE;
-}
 
 const BY_TYPE = new Map(LOOKUP_TYPES.map((t) => [t.type, t]));
 

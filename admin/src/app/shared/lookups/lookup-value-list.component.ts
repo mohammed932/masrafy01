@@ -5,7 +5,7 @@ import { NzIconModule } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
-import type { EnumerationRow } from '../lookups.api.service';
+import type { EnumerationRow } from '@features/lookups/lookups.api.service';
 
 /** Emitted when the operator flips a value's active flag. */
 export interface LookupActiveToggle {

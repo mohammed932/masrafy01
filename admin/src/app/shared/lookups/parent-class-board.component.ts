@@ -4,10 +4,11 @@ import {
   LOCALE_ID,
   computed,
   inject,
+  input,
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
@@ -15,14 +16,13 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import { NzInputModule } from 'ng-zorro-antd/input';
 import {
-  ArrowLeftOutline,
   CheckOutline,
   ExclamationCircleOutline,
   SearchOutline,
 } from '@ant-design/icons-angular/icons';
 import { RailTabsComponent, type RailTabItem } from '@shared/ui';
-import { LookupsApiService } from './lookups.api.service';
-import type { EnumerationRow } from './lookups.api.service';
+import { LookupsApiService } from '@features/lookups/lookups.api.service';
+import type { EnumerationRow } from '@features/lookups/lookups.api.service';
 
 /** A compound as this board renders it: the row, plus where it sits right now. */
 interface BoardCompound {
@@ -75,30 +75,15 @@ interface BoardCompound {
  * says its position in words. A scale you can see beats a number that is only sometimes true.
  */
 @Component({
-  selector: 'app-compound-class-board',
+  selector: 'app-parent-class-board',
   standalone: true,
-  imports: [
-    FormsModule,
-    RouterLink,
-    NzButtonModule,
-    NzIconModule,
-    NzInputModule,
-    RailTabsComponent,
-  ],
-  providers: [
-    provideNzIconsPatch([ArrowLeftOutline, CheckOutline, ExclamationCircleOutline, SearchOutline]),
-  ],
+  imports: [FormsModule, NzButtonModule, NzIconModule, NzInputModule, RailTabsComponent],
+  providers: [provideNzIconsPatch([CheckOutline, ExclamationCircleOutline, SearchOutline])],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="page">
-      <a class="back" routerLink="/lookups" [queryParams]="{ type: 'compound' }">
-        <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
-        <span i18n="@@ccb.back">All values</span>
-      </a>
-
       <header class="head">
-        <p class="eyebrow" i18n="@@ccb.eyebrow">Manage values</p>
-        <h1 class="title" i18n="@@ccb.title">Where each compound is priced</h1>
+        <h2 class="title" i18n="@@ccb.title">Where each compound is priced</h2>
         <p class="lede" i18n="@@ccb.lede">
           A bank states one amount per class. A customer picks a compound by name. This is where the
           two meet — so a compound in the wrong class is priced at the wrong ceiling.
@@ -658,15 +643,30 @@ interface BoardCompound {
     `,
   ],
 })
-export class CompoundClassBoardPage {
+export class ParentClassBoardComponent {
   private readonly api = inject(LookupsApiService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
-  /** The type filed under a class, and the class list itself. Both registry types. */
-  private static readonly CHILD_TYPE = 'compound';
-  private static readonly PARENT_TYPE = 'compound_category';
+  /**
+   * The type filed under a class, and the class list itself. Both registry types.
+   *
+   * INPUTS, so the board is not welded to compounds — `PARENT_TYPE_BY_TYPE` is the general
+   * axis and this is its board. Defaulted to the one pair that exists, so the only host
+   * today passes nothing.
+   *
+   * THE COPY IS NOT PARAMETERISED, deliberately. The 36 `@@ccb.*` strings name compounds and
+   * classes in Arabic where the plural, the verb agreement and the pronoun suffix all agree
+   * with that specific noun — `@@ccb.unfiled_many` reads "٤ كومباوندات ليس لها فئة، فلا يستطيع
+   * أي بنك تسعيرها". Substituting a noun produces text that is grammatically wrong for most
+   * Arabic nouns, and untestable while there is exactly one. A `Copy` interface of 36 fields
+   * with one implementer would not help either: the second axis re-authors 36 strings under
+   * either design. When one arrives, it gets its own thin host and its own strings, in the
+   * language it is being added for.
+   */
+  readonly childType = input('compound');
+  readonly parentType = input('compound_category');
 
   protected readonly loading = signal(true);
   protected readonly loadError = signal(false);
@@ -701,8 +701,8 @@ export class CompoundClassBoardPage {
     this.loadError.set(false);
     try {
       const [classes, compounds] = await Promise.all([
-        this.api.list(CompoundClassBoardPage.PARENT_TYPE),
-        this.api.list(CompoundClassBoardPage.CHILD_TYPE),
+        this.api.list(this.parentType()),
+        this.api.list(this.childType()),
       ]);
       this.classRows.set(classes);
       this.compoundRows.set(compounds);

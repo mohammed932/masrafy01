@@ -214,6 +214,29 @@ export class DeprecatedEnumerationKeyException extends DomainException {
   }
 }
 
+export class SurrogateProductRequiredException extends DomainException {
+  constructor(meta: {
+    type: string;
+    key: string;
+    category?: string;
+    activeProducts: readonly string[];
+  }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_REQUIRED, meta);
+  }
+}
+
+export class ProgramNameRuleLinkedException extends DomainException {
+  constructor(meta: { programNameKey: string; surrogateProductKey: string }) {
+    super(ERROR_CODES.PROGRAM_NAME_RULE_LINKED, meta);
+  }
+}
+
+export class SurrogateProductInUseException extends DomainException {
+  constructor(meta: { key: string; names: readonly string[] }) {
+    super(ERROR_CODES.SURROGATE_PRODUCT_IN_USE, meta);
+  }
+}
+
 export class EnumerationRegistryUnavailableException extends DomainException {
   constructor() {
     super(ERROR_CODES.ENUMERATION_REGISTRY_UNAVAILABLE);

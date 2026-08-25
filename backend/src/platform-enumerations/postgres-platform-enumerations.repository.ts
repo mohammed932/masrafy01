@@ -2,7 +2,10 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { BankProgramType, Prisma } from '@prisma/client';
 import type { LoanCategory, PlatformEnumeration, QuestionType } from '@prisma/client';
 import { normalizeIncomeAssumption } from '@/matching/pipeline/income-rule-normalize';
-import { inheritsCatalogAmounts } from '@/matching/pipeline/income-rule-inherit';
+import {
+  effectiveProgramNameRule,
+  inheritsCatalogAmounts,
+} from '@/matching/pipeline/income-rule-inherit';
 import { asLoanCategory, sortCategories } from '@/common/loan-category.util';
 import { basesOfFlags, flagsOfBases, type IncomeBasis } from '@/common/income-basis.util';
 import { factKeyOf, factStrategy, type IncomeAssumptionConfig } from '@/matching/types';
@@ -40,6 +43,11 @@ export interface CreateEnumerationInput {
    * `['payslip']`, which is what a name meant before the column existed.
    */
   incomeBases?: readonly IncomeBasis[];
+  /**
+   * `program_name` only — the surrogate product the new name links to. Resolved by the
+   * service against live products before it gets here; `null`/omitted = states its own rule.
+   */
+  surrogateProductKey?: string | null;
   createdBy: string;
 }
 
@@ -171,6 +179,7 @@ export interface EnumerationRow {
   systemOnly: boolean;
   deprecatedAt: Date | null;
   parentKey: string | null;
+  surrogateProductKey: string | null;
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
@@ -181,6 +190,11 @@ export interface EnumerationUpdatePatch {
   labelAr?: string;
   labelEn?: string;
   parentKey?: string | null;
+  /**
+   * Absent = leave the link alone, `null` = unlink, a key = link. All three reach here;
+   * the service has already validated the key against live products.
+   */
+  surrogateProductKey?: string | null;
   sortOrder?: number;
   active?: boolean;
   /** When `true` AND `deprecatedAt` is currently null, the repository stamps `deprecatedAt = now`
@@ -188,20 +202,6 @@ export interface EnumerationUpdatePatch {
   deprecate?: true;
   updatedBy: string;
 }
-
-const ALL_TYPES: readonly EnumerationType[] = [
-  'transfer_type',
-  'employment_type',
-  'property_type',
-  'professor_rank',
-  'military_grade',
-  'product_category',
-  'company_type',
-  'required_document',
-  'governorate',
-  'program_name',
-  'surrogate_fact',
-];
 
 /**
  * What a bound question is read as, everywhere it is read.
@@ -237,6 +237,23 @@ interface CacheEntry {
 }
 
 const CACHE_TTL_MS = 60_000; // 1 minute
+
+/**
+ * One JSONB blob → a rule, or `undefined`.
+ *
+ * Filtered in TypeScript rather than in the WHERE: the column can hold SQL NULL
+ * (`Prisma.DbNull`) or the JSON literal `null` (`Prisma.JsonNull`), and both mean "no
+ * rule". One predicate catches both; the Prisma filter needs the right one of the two
+ * sentinels, and picking the wrong one fails OPEN — every row reads as ruled and a
+ * `null` blob reaches the merge as a rule.
+ *
+ * Shared by the name read and the product read so the two cannot come to disagree
+ * about what an empty rule looks like.
+ */
+function asIncomeRule(value: unknown): IncomeAssumptionConfig | undefined {
+  if (value === null || typeof value !== 'object') return undefined;
+  return value as IncomeAssumptionConfig;
+}
 
 @Injectable()
 export class PostgresPlatformEnumerationsRepository
@@ -313,13 +330,17 @@ export class PostgresPlatformEnumerationsRepository
     // Facts are the only type whose members bind a question, so only they can have a
     // parent list to derive. Gated here rather than inside, so no other type's read — the
     // questionnaire's and the mobile app's included — pays for the walk at all.
-    if (type === FACT_TYPE) await this.attachParentOptions(members);
+    if (type === FACT_TYPE) await this.attachOptionProvenance(members);
     this.cache.set(type, { members, expiresAt: Date.now() + CACHE_TTL_MS });
     return members;
   }
 
   /**
-   * Fill each bound question's `parentOptions` — the list its options are FILED UNDER.
+   * Fill each bound question's option PROVENANCE: which operator-managed list its options
+   * come from, which list those are filed under, and the members of that parent list.
+   *
+   * All three derived on read and none of them stored — see `BoundQuestion` for why a
+   * stored column would be a third statement of a twice-stated fact, on the wrong row.
    *
    * Resolved through `enumerationParentKeys()`, the SAME map a `factParentTable` step is
    * evaluated against, rather than through a second walk with its own idea of which list a
@@ -330,9 +351,11 @@ export class PostgresPlatformEnumerationsRepository
    * Called only for the fact type, and only when a member actually binds an option list, so
    * the customer-facing enumeration reads pay nothing for it.
    */
-  private async attachParentOptions(members: EnumerationMember[]): Promise<void> {
+  private async attachOptionProvenance(members: EnumerationMember[]): Promise<void> {
     const withOptions = members.filter((m) => (m.boundQuestion?.options?.length ?? 0) > 0);
     if (withOptions.length === 0) return;
+
+    await this.attachOptionsEnumerationType(withOptions);
 
     const parentOf = await this.enumerationParentKeys();
     const wanted = new Set<string>();
@@ -351,7 +374,10 @@ export class PostgresPlatformEnumerationsRepository
     const rows = await this.prisma.platformEnumeration.findMany({
       where: { key: { in: [...wanted] }, active: true, deprecatedAt: null },
       orderBy: [{ sortOrder: 'asc' }, { type: 'asc' }, { key: 'asc' }],
-      select: { key: true, labelAr: true, labelEn: true },
+      // `type` was already being SORTED by here and thrown away. Selecting it is what
+      // lets a screen say WHICH list to add a missing class to, rather than only that a
+      // class is missing.
+      select: { key: true, labelAr: true, labelEn: true, type: true },
     });
     if (rows.length === 0) return;
 
@@ -367,9 +393,78 @@ export class PostgresPlatformEnumerationsRepository
       if (mine.size === 0) continue;
       const bound = m.boundQuestion;
       if (!bound) continue;
-      bound.parentOptions = ordered
-        .filter((r) => mine.has(r.key))
-        .map((r) => ({ code: r.key, labelAr: r.labelAr, labelEn: r.labelEn }));
+      const mineRows = ordered.filter((r) => mine.has(r.key));
+      bound.parentOptions = mineRows.map((r) => ({
+        code: r.key,
+        labelAr: r.labelAr,
+        labelEn: r.labelEn,
+      }));
+      // Same rule as the child type: one type or none. Parents drawn from two lists is
+      // not a list an operator can be sent to.
+      const parentTypes = new Set(mineRows.map((r) => r.type));
+      if (parentTypes.size === 1) bound.parentEnumerationType = [...parentTypes][0];
+    }
+  }
+
+  /**
+   * Which list each bound question's options came from, by COVERAGE.
+   *
+   * One query over every option code across every fact, then per fact: the type whose
+   * active rows cover ALL of that fact's option codes. Coverage-of-all rather than
+   * best-match, because a partial match is exactly the case where an answer to the
+   * question has no row in the list — offering the operator that list to edit would
+   * suggest the missing values are editable there when they are not.
+   *
+   * A code held by two types leaves the answer AMBIGUOUS, and ambiguous resolves to
+   * nothing: naming one of them would be a coin-flip rendered as a fact.
+   */
+  private async attachOptionsEnumerationType(members: EnumerationMember[]): Promise<void> {
+    const codes = new Set<string>();
+    for (const m of members) for (const o of m.boundQuestion?.options ?? []) codes.add(o.code);
+    if (codes.size === 0) return;
+
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: { key: { in: [...codes] }, active: true, deprecatedAt: null },
+      select: { key: true, type: true },
+    });
+    if (rows.length === 0) return;
+
+    const typesByCode = new Map<string, Set<string>>();
+    for (const r of rows) {
+      const set = typesByCode.get(r.key);
+      if (set) set.add(r.type);
+      else typesByCode.set(r.key, new Set([r.type]));
+    }
+
+    for (const m of members) {
+      const options = m.boundQuestion?.options ?? [];
+      if (options.length === 0) continue;
+
+      // Start from the candidates for the first option and intersect down. A type that
+      // survives every option is one that covers the whole question.
+      let candidates = new Set<string>();
+      let first = true;
+      let covered = true;
+      for (const o of options) {
+        const forCode = typesByCode.get(o.code);
+        if (forCode === undefined) {
+          covered = false;
+          break;
+        }
+        const next: Set<string> = first
+          ? new Set<string>(forCode)
+          : new Set<string>([...candidates].filter((t) => forCode.has(t)));
+        candidates = next;
+        first = false;
+        if (candidates.size === 0) break;
+      }
+
+      // Exactly one, or nothing. Two surviving types means two lists both fully describe
+      // this question, and there is no honest way to pick.
+      if (covered && candidates.size === 1) {
+        const bound = m.boundQuestion;
+        if (bound) bound.optionsEnumerationType = [...candidates][0];
+      }
     }
   }
 
@@ -406,30 +501,51 @@ export class PostgresPlatformEnumerationsRepository
   }
 
   /**
-   * Every catalog program name's income rule. Uncached by contract — see the abstract.
+   * Every catalog program name's income rule, resolved through the surrogate product
+   * it links to. Uncached by contract — see the abstract.
+   *
+   * THE SINGLE SEAM for the product link. All five callers take this finished map and
+   * either hand it to `toBankProgramSnapshot` or `.get()` from it, so resolving here
+   * leaves the engine, the snapshot mapper and every caller untouched.
    *
    * DEPRECATED names are included on purpose. A program filed under a name that was
    * later deprecated still quotes, and dropping the rule here would take its table away
    * mid-flight — the deprecation is a signal to stop filing NEW programs under it, not
    * an instruction to blank the income of the ones already there.
+   *
+   * DEPRECATED PRODUCTS are included for exactly the same reason, and it is the more
+   * important half: retiring an archetype must stop it being LINKED to, not stop the
+   * names already linked from quoting. The refusal that guards this is
+   * `SURROGATE_PRODUCT_IN_USE` at save time, not a filter at read time.
    */
   async programNameIncomeRules(): Promise<ReadonlyMap<string, IncomeAssumptionConfig>> {
     const rows = await this.prisma.platformEnumeration.findMany({
-      where: { type: 'program_name' },
-      select: { key: true, incomeRule: true },
+      where: { type: { in: ['program_name', 'surrogate_product'] } },
+      select: { type: true, key: true, incomeRule: true, surrogateProductKey: true },
     });
-    // Filtered here rather than in the WHERE: the JSONB column can hold SQL NULL
-    // (`Prisma.DbNull`) or the JSON literal `null` (`Prisma.JsonNull`), and both mean
-    // "no rule". One predicate in TypeScript catches both; the Prisma filter needs the
-    // right one of the two sentinels, and picking the wrong one fails open — every name
-    // reads as ruled, and a `null` blob reaches the merge as a rule.
-    return new Map(
-      rows.flatMap((row) =>
-        row.incomeRule === null || typeof row.incomeRule !== 'object'
-          ? []
-          : [[row.key, row.incomeRule as unknown as IncomeAssumptionConfig] as const],
-      ),
-    );
+
+    // TWO MAPS, keyed separately, and it has to be two. A name and the product it links
+    // to deliberately share a key (`compound_owner` is both), because `(type, key)` is
+    // the unique and reusing it makes every half-applied state impossible rather than
+    // merely unlikely. One map keyed by `row.key` would let whichever row the driver
+    // returned last silently win.
+    const products = new Map<string, IncomeAssumptionConfig>();
+    for (const row of rows) {
+      if (row.type !== 'surrogate_product') continue;
+      const rule = asIncomeRule(row.incomeRule);
+      if (rule !== undefined) products.set(row.key, rule);
+    }
+
+    const resolved = new Map<string, IncomeAssumptionConfig>();
+    for (const row of rows) {
+      if (row.type !== 'program_name') continue;
+      const rule = effectiveProgramNameRule(
+        asIncomeRule(row.incomeRule),
+        row.surrogateProductKey === null ? undefined : products.get(row.surrogateProductKey),
+      );
+      if (rule !== undefined) resolved.set(row.key, rule);
+    }
+    return resolved;
   }
 
   async enumerationParentKeys(): Promise<Readonly<Record<string, string>>> {
@@ -447,17 +563,42 @@ export class PostgresPlatformEnumerationsRepository
     return map;
   }
 
+  /**
+   * The columns an income-rule row is read through, for both types that carry one.
+   *
+   * One constant rather than two literals: the two reads must project the same shape or
+   * the shared response mapper starts seeing a field on one and not the other.
+   */
+  private static readonly RULE_ROW_SELECT = {
+    id: true,
+    key: true,
+    labelAr: true,
+    labelEn: true,
+    incomeRule: true,
+    valueSources: true,
+    surrogateProductKey: true,
+  } as const;
+
   async findProgramName(key: string): Promise<ProgramNameIncomeRuleRow | null> {
+    return this.findRuleRow('program_name', key);
+  }
+
+  /**
+   * A surrogate product's own row. Same shape as a catalog name's, because it is the same
+   * columns — which is the point: the archetype and the name that links to it hold the
+   * calculation in one place and the migration moves it between them by copying.
+   */
+  async findSurrogateProduct(key: string): Promise<ProgramNameIncomeRuleRow | null> {
+    return this.findRuleRow('surrogate_product', key);
+  }
+
+  private async findRuleRow(
+    type: 'program_name' | 'surrogate_product',
+    key: string,
+  ): Promise<ProgramNameIncomeRuleRow | null> {
     const row = await this.prisma.platformEnumeration.findUnique({
-      where: { idx_platform_enumeration_type_key: { type: 'program_name', key } },
-      select: {
-        id: true,
-        key: true,
-        labelAr: true,
-        labelEn: true,
-        incomeRule: true,
-        valueSources: true,
-      },
+      where: { idx_platform_enumeration_type_key: { type, key } },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
     });
     return row === null ? null : toProgramNameIncomeRuleRow(row);
   }
@@ -468,8 +609,28 @@ export class PostgresPlatformEnumerationsRepository
     valueSources: Record<string, 'team_estimated'>,
     updatedBy: string,
   ): Promise<ProgramNameIncomeRuleRow> {
+    return this.setRuleRow('program_name', key, rule, valueSources, updatedBy);
+  }
+
+  /** A surrogate product's calculation — the archetype every linked name quotes off. */
+  async setSurrogateProductIncomeRule(
+    key: string,
+    rule: IncomeAssumptionConfig | null,
+    valueSources: Record<string, 'team_estimated'>,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
+    return this.setRuleRow('surrogate_product', key, rule, valueSources, updatedBy);
+  }
+
+  private async setRuleRow(
+    type: 'program_name' | 'surrogate_product',
+    key: string,
+    rule: IncomeAssumptionConfig | null,
+    valueSources: Record<string, 'team_estimated'>,
+    updatedBy: string,
+  ): Promise<ProgramNameIncomeRuleRow> {
     const row = await this.prisma.platformEnumeration.update({
-      where: { idx_platform_enumeration_type_key: { type: 'program_name', key } },
+      where: { idx_platform_enumeration_type_key: { type, key } },
       data: {
         // `Prisma.DbNull` writes SQL NULL — "nobody has decided". `Prisma.JsonNull`
         // would write the JSON literal `null`, which reads back as a present-but-null
@@ -479,16 +640,27 @@ export class PostgresPlatformEnumerationsRepository
         valueSources: valueSources as Prisma.InputJsonValue,
         updatedBy,
       },
-      select: {
-        id: true,
-        key: true,
-        labelAr: true,
-        labelEn: true,
-        incomeRule: true,
-        valueSources: true,
-      },
+      select: PostgresPlatformEnumerationsRepository.RULE_ROW_SELECT,
     });
     return toProgramNameIncomeRuleRow(row);
+  }
+
+  /**
+   * Every surrogate product, for the picker and the product list.
+   *
+   * INACTIVE ones included, flagged rather than filtered: a name already linked to a
+   * retired product must still render as linked to something, or its screen says the
+   * calculation came from nowhere. Callers that are offering a CHOICE filter to active.
+   */
+  async listSurrogateProducts(): Promise<
+    Array<{ key: string; labelAr: string; labelEn: string; active: boolean; sortOrder: number }>
+  > {
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'surrogate_product' },
+      orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+      select: { key: true, labelAr: true, labelEn: true, active: true, sortOrder: true },
+    });
+    return rows;
   }
 
   async programsUnderName(key: string): Promise<ProgramUnderName[]> {
@@ -775,6 +947,7 @@ export class PostgresPlatformEnumerationsRepository
         labelAr: input.labelAr,
         labelEn: input.labelEn,
         parentKey: input.parentKey ?? null,
+        surrogateProductKey: input.surrogateProductKey ?? null,
         sortOrder: input.sortOrder ?? 0,
         active: true,
         systemOnly: false,
@@ -1191,11 +1364,36 @@ export class PostgresPlatformEnumerationsRepository
     });
   }
 
+  /**
+   * The catalog names taking their calculation from a surrogate product — what the
+   * retire refusal names back to the operator.
+   *
+   * Keys rather than a count, unlike `countChildren`: a class board can say "4 values"
+   * because the operator is looking at them, but the name linked to a product is on a
+   * different screen entirely, so the refusal has to say WHICH to be actionable.
+   *
+   * DEPRECATED names are included on purpose, and it is the same reasoning
+   * `programNameIncomeRules()` uses: a deprecated name still quotes for the programs
+   * already filed under it, so retiring the product beneath it would blank their income
+   * while every screen said the name was already gone.
+   */
+  async programNamesLinkedTo(productKey: string): Promise<string[]> {
+    const rows = await this.prisma.platformEnumeration.findMany({
+      where: { type: 'program_name', surrogateProductKey: productKey },
+      orderBy: { key: 'asc' },
+      select: { key: true },
+    });
+    return rows.map((r) => r.key);
+  }
+
   async updateById(id: string, patch: EnumerationUpdatePatch): Promise<EnumerationRow> {
     const data: Prisma.PlatformEnumerationUpdateInput = { updatedBy: patch.updatedBy };
     if (patch.labelAr !== undefined) data.labelAr = patch.labelAr;
     if (patch.labelEn !== undefined) data.labelEn = patch.labelEn;
     if (patch.parentKey !== undefined) data.parentKey = patch.parentKey;
+    if (patch.surrogateProductKey !== undefined) {
+      data.surrogateProductKey = patch.surrogateProductKey;
+    }
     if (patch.sortOrder !== undefined) data.sortOrder = patch.sortOrder;
 
     if (patch.deprecate === true) {
@@ -1356,7 +1554,6 @@ export class PostgresPlatformEnumerationsRepository
     await this.prisma.platformEnumeration.delete({ where: { id } });
   }
 
-  static readonly KNOWN_TYPES = ALL_TYPES;
 }
 
 /**
@@ -1398,6 +1595,7 @@ function toProgramNameIncomeRuleRow(row: {
   labelEn: string;
   incomeRule: unknown;
   valueSources: unknown;
+  surrogateProductKey?: string | null;
 }): ProgramNameIncomeRuleRow {
   return {
     id: row.id,
@@ -1409,6 +1607,7 @@ function toProgramNameIncomeRuleRow(row: {
         ? null
         : (row.incomeRule as IncomeAssumptionConfig),
     valueSources: (row.valueSources ?? {}) as Record<string, 'team_estimated'>,
+    surrogateProductKey: row.surrogateProductKey ?? null,
   };
 }
 
@@ -1423,6 +1622,7 @@ function toEnumerationRow(row: PlatformEnumeration): EnumerationRow {
     systemOnly: row.systemOnly,
     deprecatedAt: row.deprecatedAt,
     parentKey: row.parentKey,
+    surrogateProductKey: row.surrogateProductKey,
     sortOrder: row.sortOrder,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

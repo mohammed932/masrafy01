@@ -55,13 +55,40 @@ interface ProgramRow {
 async function main(): Promise<void> {
   const prisma = new PrismaClient();
   try {
-    const names = await prisma.platformEnumeration.findMany({
-      where: { type: 'program_name' },
-      select: { key: true, labelEn: true, incomeRule: true, active: true },
+    const rows = await prisma.platformEnumeration.findMany({
+      where: { type: { in: ['program_name', 'surrogate_product'] } },
+      select: {
+        type: true,
+        key: true,
+        labelEn: true,
+        incomeRule: true,
+        active: true,
+        surrogateProductKey: true,
+      },
       orderBy: { key: 'asc' },
     });
+
+    // A name that links to a surrogate product carries NULL in its own `incomeRule`
+    // and states the PRODUCT's proof. Reading only `program_name` would report every
+    // linked name as MISSING and hand the operator a FIX line telling them to write a
+    // rule back onto the name — which is precisely the fork the link exists to end.
+    const productRules = new Map(
+      rows.flatMap((r) =>
+        r.type === 'surrogate_product' && r.incomeRule !== null
+          ? [[r.key, r.incomeRule] as const]
+          : [],
+      ),
+    );
+    const names = rows.filter((r) => r.type === 'program_name');
+    const linkedTo = new Map(
+      names.flatMap((n) => (n.surrogateProductKey === null ? [] : [[n.key, n.surrogateProductKey] as const])),
+    );
     const catalogProof = new Map<string, string | null>(
-      names.map((n) => [n.key, n.incomeRule === null ? null : proofOf(n.incomeRule)]),
+      names.map((n) => {
+        const linked = n.surrogateProductKey === null ? undefined : productRules.get(n.surrogateProductKey);
+        const rule = linked ?? n.incomeRule;
+        return [n.key, rule === null || rule === undefined ? null : proofOf(rule)];
+      }),
     );
     const catalogLabel = new Map(names.map((n) => [n.key, n.labelEn]));
 
@@ -116,11 +143,19 @@ async function main(): Promise<void> {
 
       const programProof = distinct[0] as string;
       if (stated === undefined || stated === null) {
+        const product = linkedTo.get(key);
         missing.push(
-          `  ${key} — "${label}"\n` +
-            `    ${rows.length} program(s) agree on ${describeProof(programProof)}, the name states nothing.\n` +
-            `${list(rows)}\n` +
-            `    FIX: write incomeRule onto the catalog name. No program moves.`,
+          product === undefined
+            ? `  ${key} — "${label}"\n` +
+              `    ${rows.length} program(s) agree on ${describeProof(programProof)}, the name states nothing.\n` +
+              `${list(rows)}\n` +
+              `    FIX: write incomeRule onto the catalog name, or link it to a surrogate\n` +
+              `         product that states ${describeProof(programProof)}. No program moves.`
+            : `  ${key} — "${label}"\n` +
+              `    links to surrogate product '${product}', which has no rule or does not exist.\n` +
+              `${list(rows)}\n` +
+              `    FIX: fix the product, not the name. Writing a rule back onto the name\n` +
+              `         would fork the calculation with nothing to reveal it.`,
         );
         continue;
       }

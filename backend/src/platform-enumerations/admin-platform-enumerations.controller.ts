@@ -352,6 +352,7 @@ export class AdminPlatformEnumerationsController {
       deprecatedAt: Date | null;
       systemOnly: boolean;
       parentKey: string | null;
+      surrogateProductKey: string | null;
       sortOrder: number;
       createdAt: Date;
       updatedAt: Date;
@@ -378,6 +379,7 @@ export class AdminPlatformEnumerationsController {
       deprecatedAt: row.deprecatedAt?.toISOString() ?? null,
       systemOnly: row.systemOnly,
       parentKey: row.parentKey,
+      surrogateProductKey: row.surrogateProductKey,
       ...(usage ? { usage } : {}),
       // Spread conditionally, like `usage`: absent means "this type has no such
       // axis", while a present `[]` means parked. Collapsing the two would make

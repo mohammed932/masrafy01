@@ -66,4 +66,47 @@ export interface ProgramNameIncomeRuleResponseDto {
    * changing the proof — the refusal names the same programs.
    */
   programs: Array<{ programCode: string; ownAmounts: boolean }>;
+  /**
+   * The surrogate product this name takes its calculation from, with the calculation
+   * itself, or `null` when the name states its own rule.
+   *
+   * The RULE is carried, not just the key, and that is what the screen needs: `incomeRule`
+   * above is NULL for a linked name, so without this the catalog page could render nothing
+   * at all for the product it is selling. The screen shows this one read-only and links to
+   * the product to edit it.
+   */
+  surrogateProduct: {
+    key: string;
+    labelAr: string;
+    labelEn: string;
+    active: boolean;
+    incomeRule: IncomeAssumptionConfig | null;
+  } | null;
+}
+
+/** One surrogate product in the picker / the product list. */
+export interface SurrogateProductSummaryDto {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  active: boolean;
+  /** The proof it reads — `IncomeAssumptionConfig['strategy']`, or null when it states none. */
+  strategy: string | null;
+  /** Catalog names taking their calculation from it. Empty means nothing sells it yet. */
+  usedBy: string[];
+}
+
+/** A surrogate product's own page: the calculation, and who uses it. */
+export interface SurrogateProductDetailDto extends SurrogateProductSummaryDto {
+  incomeRule: IncomeAssumptionConfig | null;
+  valueSources: Record<string, 'team_estimated'>;
+  /**
+   * Every bank program reachable through this product — the names that link to it, and
+   * the programs filed under each. What makes "who is affected if I change this" a
+   * question the screen can answer before the operator changes it.
+   */
+  names: Array<{
+    key: string;
+    programs: Array<{ programCode: string; ownAmounts: boolean }>;
+  }>;
 }

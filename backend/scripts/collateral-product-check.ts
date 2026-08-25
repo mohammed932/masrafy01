@@ -20,6 +20,7 @@ import { PrismaClient } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { toBankProgramSnapshot } from '../src/bank-programs/bank-program-snapshot.mapper';
 import { quoteProgram } from '../src/matching/pipeline/quote';
+import { effectiveProgramNameRule } from '../src/matching/pipeline/income-rule-inherit';
 import type { ApplicantProfile, IncomeAssumptionConfig, SurrogateFactValue } from '../src/matching/types';
 
 const prisma = new PrismaClient();
@@ -167,17 +168,33 @@ async function main(): Promise<void> {
     include: { bank: { select: { isFeatured: true } } },
   });
 
+  // The same two-map resolve `programNameIncomeRules()` does, and it has to be here
+  // too: this script deliberately reads Postgres directly rather than booting Nest, so
+  // it does not get the repository's version for free. A name that links to a surrogate
+  // product carries NULL in its own `incomeRule`, so reading only `program_name` drops
+  // the compound and car products entirely and every program below quotes nothing.
   const catalogRows = await prisma.platformEnumeration.findMany({
-    where: { type: 'program_name' },
-    select: { key: true, incomeRule: true },
+    where: { type: { in: ['program_name', 'surrogate_product'] } },
+    select: { type: true, key: true, incomeRule: true, surrogateProductKey: true },
   });
-  const catalogRules = new Map(
-    catalogRows.flatMap((row) =>
-      row.incomeRule === null || typeof row.incomeRule !== 'object'
-        ? []
-        : [[row.key, row.incomeRule as unknown as IncomeAssumptionConfig] as const],
-    ),
-  );
+  const asRule = (value: unknown): IncomeAssumptionConfig | undefined =>
+    value === null || typeof value !== 'object' ? undefined : (value as IncomeAssumptionConfig);
+
+  const productRules = new Map<string, IncomeAssumptionConfig>();
+  for (const row of catalogRows) {
+    if (row.type !== 'surrogate_product') continue;
+    const rule = asRule(row.incomeRule);
+    if (rule !== undefined) productRules.set(row.key, rule);
+  }
+  const catalogRules = new Map<string, IncomeAssumptionConfig>();
+  for (const row of catalogRows) {
+    if (row.type !== 'program_name') continue;
+    const rule = effectiveProgramNameRule(
+      asRule(row.incomeRule),
+      row.surrogateProductKey === null ? undefined : productRules.get(row.surrogateProductKey),
+    );
+    if (rule !== undefined) catalogRules.set(row.key, rule);
+  }
 
   const parentRows = await prisma.platformEnumeration.findMany({
     where: { active: true, deprecatedAt: null, parentKey: { not: null } },

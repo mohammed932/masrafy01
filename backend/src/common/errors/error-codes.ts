@@ -143,6 +143,47 @@ export const ERROR_CODES = {
    * pricing while the operator believes it is gone.
    */
   ENUMERATION_HAS_CHILDREN: 'ENUMERATION_HAS_CHILDREN',
+  /**
+   * A catalog program name was set to the no-payslip basis without naming the surrogate
+   * product it takes its calculation from.
+   *
+   * The name says what the product is CALLED and who sells it; the product says how the
+   * income is worked out. A no-payslip name with neither a link nor a rule of its own is
+   * a name every bank under it quotes `rule_unconfigured` for — live, and silent until a
+   * customer hits it. `meta.activeProducts` names what would have worked.
+   *
+   * NOT raised for a name that already states its own rule: those predate the archetypes
+   * and keep working. Grandfather what exists, enforce on the next write.
+   */
+  SURROGATE_PRODUCT_REQUIRED: 'SURROGATE_PRODUCT_REQUIRED',
+  /**
+   * Retiring a surrogate product was refused because catalog names still link to it.
+   *
+   * 409 for the same reason `ENUMERATION_HAS_CHILDREN` is: shape is fine, state refuses,
+   * and it stops refusing once the last name is moved off. A separate code rather than
+   * reusing that one — its `meta` and its Arabic both describe a parent/child filing
+   * relation, and this is a product/consumer one. `meta.names` says which to move.
+   *
+   * Load-bearing in the same way: `programNameIncomeRules()` resolves a link without
+   * checking the product's active flag, deliberately, so that retiring one does not blank
+   * the income of every name already on it mid-flight. That is only safe because THIS
+   * refusal stops the retire happening while anyone is still linked.
+   */
+  SURROGATE_PRODUCT_IN_USE: 'SURROGATE_PRODUCT_IN_USE',
+  /**
+   * A rule was written onto a catalog program name that takes its calculation from a
+   * surrogate product.
+   *
+   * Refused rather than merged: storing a rule here would fork the calculation, and the
+   * fork is invisible — both rows look configured and only one is read.
+   *
+   * A code of its own rather than letting it fail downstream. Without it the write dies
+   * as `PRODUCT_RULE_INVALID / no_steps` — because `withStoredStructure` finds nothing to
+   * overlay on a linked name — which is the right refusal wearing a reason that sends the
+   * operator to look for a missing step list that was never missing.
+   * `meta.surrogateProductKey` is where the edit actually belongs.
+   */
+  PROGRAM_NAME_RULE_LINKED: 'PROGRAM_NAME_RULE_LINKED',
 
   // --- User proceed (feature 008) ---
   BANK_OFFER_NOT_FOUND: 'BANK_OFFER_NOT_FOUND',
@@ -540,6 +581,10 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_PARENT_NOT_APPLICABLE: 422,
   // 409 for the same reason `ENUMERATION_IN_USE` is: state, not shape.
   ENUMERATION_HAS_CHILDREN: 409,
+  SURROGATE_PRODUCT_REQUIRED: 422,
+  // 409, like the two above: state, not shape.
+  SURROGATE_PRODUCT_IN_USE: 409,
+  PROGRAM_NAME_RULE_LINKED: 422,
 
   BANK_NOT_FOUND: 404,
   BANK_NAME_DUPLICATE: 409,

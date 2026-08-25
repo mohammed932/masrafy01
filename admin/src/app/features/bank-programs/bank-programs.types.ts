@@ -177,6 +177,16 @@ export interface RegistryFact {
      * Empty when they are filed under nothing, which is a parent table with no key list.
      */
     parentOptions: Array<{ code: string; labelAr: string; labelEn: string }>;
+    /**
+     * The operator-managed LIST these options came from, and the list those are filed
+     * under. Derived server-side by coverage, never stored.
+     *
+     * `undefined` means the question is not backed by a registry list — a yes/no, a
+     * numeric, or a hand-authored option set. That is a real answer, not a gap: a screen
+     * offering lists to curate must show nothing rather than an empty one.
+     */
+    optionsEnumerationType?: string;
+    parentEnumerationType?: string;
     /** Loan categories the questionnaire actually asks this question of. */
     askedIn: readonly LoanCategory[];
   } | null;
@@ -210,6 +220,14 @@ export function registryFacts(
           active: q.active,
           options: q.options,
           parentOptions: q.parentOptions ?? [],
+          // Spread conditionally: `undefined` and "absent" mean the same thing here, and
+          // writing the key with an undefined value makes `in` checks lie.
+          ...(q.optionsEnumerationType !== undefined
+            ? { optionsEnumerationType: q.optionsEnumerationType }
+            : {}),
+          ...(q.parentEnumerationType !== undefined
+            ? { parentEnumerationType: q.parentEnumerationType }
+            : {}),
           askedIn: q.askedIn ?? [],
         },
       },
@@ -741,6 +759,43 @@ export interface ProgramNameIncomeRule {
   incomeRule: IncomeAssumptionConfig | null;
   valueSources: ValueSourceMap;
   programs: Array<{ programCode: string; ownAmounts: boolean }>;
+  /**
+   * The surrogate product this name takes its calculation from, or `null` when it states
+   * its own rule.
+   *
+   * Carries the RULE, not just the key, and that is what the screen needs: `incomeRule`
+   * above is NULL for a linked name, so without this the catalog page would have nothing
+   * to render for the product it is selling. Shown read-only, with a link to the product.
+   */
+  surrogateProduct: {
+    key: string;
+    labelAr: string;
+    labelEn: string;
+    active: boolean;
+    incomeRule: IncomeAssumptionConfig | null;
+  } | null;
+}
+
+/** One surrogate product in the library list. */
+export interface SurrogateProductSummary {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  active: boolean;
+  /** The proof it reads. `null` = it states no calculation yet. */
+  strategy: string | null;
+  /** Catalog names taking their calculation from it. Empty = nothing sells it yet. */
+  usedBy: string[];
+}
+
+/** A surrogate product's own workspace: the calculation, and everything reachable from it. */
+export interface SurrogateProductDetail extends SurrogateProductSummary {
+  incomeRule: IncomeAssumptionConfig | null;
+  valueSources: ValueSourceMap;
+  names: Array<{
+    key: string;
+    programs: Array<{ programCode: string; ownAmounts: boolean }>;
+  }>;
 }
 
 export interface IncomeAssumptionConfig {

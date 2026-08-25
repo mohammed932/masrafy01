@@ -78,6 +78,7 @@ import {
 } from '../src/bank-programs/validation/income-rule.validator';
 import { PRODUCT_RULE_STRATEGY, type IncomeAssumptionConfig } from '../src/matching/types';
 import { seedQuestionnaire } from './seed-questionnaire';
+import { incomeRuleValidationContext } from './data/income-rule-validation-context';
 
 const prisma = new PrismaClient();
 const DRY = process.argv.includes('--dry');
@@ -835,6 +836,7 @@ export const BANK_FIGURES: readonly BankFigures[] = [
 
 const FACT_TYPE = 'surrogate_fact';
 const PROGRAM_NAME_TYPE = 'program_name';
+const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
 
 /** Every write is "the listed set IS the set", so a re-run converges. */
 async function main(): Promise<void> {
@@ -1070,8 +1072,23 @@ async function upsertCatalog(actorId: string): Promise<number> {
       continue;
     }
 
-    const row = await prisma.platformEnumeration.upsert({
-      where: { idx_platform_enumeration_type_key: { type: PROGRAM_NAME_TYPE, key: product.key } },
+    // TWO ROWS, and which one carries the calculation is the whole point.
+    //
+    // The RULE goes on the `surrogate_product` archetype. The catalog NAME gets a
+    // pointer and holds NULL of its own — a name that also kept a copy is not linked,
+    // it is forked, and `programNameIncomeRules()` would then have two answers with
+    // nothing to say which the engine read. `valueSources` is cleared on the name for
+    // the same reason: a marker map addressing a rule the row no longer has is an
+    // orphan that `setProgramNameIncomeRule`'s carry-forward would resurrect.
+    //
+    // Written here AND by migration `20260825090000_surrogate_product_link`, the same
+    // deliberate duplication `20260823130000` accepted: the migration is what makes a
+    // database that never runs this seed correct, and this seed is what makes a
+    // database rebuilt from scratch correct.
+    await prisma.platformEnumeration.upsert({
+      where: {
+        idx_platform_enumeration_type_key: { type: SURROGATE_PRODUCT_TYPE, key: product.key },
+      },
       update: {
         labelEn: product.labelEn,
         labelAr: product.labelAr,
@@ -1079,11 +1096,33 @@ async function upsertCatalog(actorId: string): Promise<number> {
         updatedBy: actorId,
       },
       create: {
-        type: PROGRAM_NAME_TYPE,
+        type: SURROGATE_PRODUCT_TYPE,
         key: product.key,
         labelEn: product.labelEn,
         labelAr: product.labelAr,
         incomeRule: product.rule as unknown as Prisma.InputJsonValue,
+        createdBy: actorId,
+        updatedBy: actorId,
+      },
+      select: { id: true },
+    });
+
+    const row = await prisma.platformEnumeration.upsert({
+      where: { idx_platform_enumeration_type_key: { type: PROGRAM_NAME_TYPE, key: product.key } },
+      update: {
+        labelEn: product.labelEn,
+        labelAr: product.labelAr,
+        surrogateProductKey: product.key,
+        incomeRule: Prisma.DbNull,
+        valueSources: {},
+        updatedBy: actorId,
+      },
+      create: {
+        type: PROGRAM_NAME_TYPE,
+        key: product.key,
+        labelEn: product.labelEn,
+        labelAr: product.labelAr,
+        surrogateProductKey: product.key,
         createdBy: actorId,
         updatedBy: actorId,
       },
@@ -1279,51 +1318,7 @@ function composeProgram(
  * can plant and no admin can save.
  */
 function ruleContext(): IncomeRuleValidationContext {
-  return {
-    isActiveMember: async (type, key) =>
-      (await prisma.platformEnumeration.count({
-        where: { type, key, active: true, deprecatedAt: null },
-      })) > 0,
-    activeMembers: async (type) =>
-      (
-        await prisma.platformEnumeration.findMany({
-          where: { type, active: true, deprecatedAt: null },
-          orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
-          select: { key: true },
-        })
-      ).map((m) => m.key),
-    surrogateFacts: async () => {
-      const rows = await prisma.platformEnumeration.findMany({
-        where: {
-          type: FACT_TYPE,
-          active: true,
-          deprecatedAt: null,
-          boundQuestion: { isActive: true, type: { in: ['SINGLE_SELECT', 'NUMERIC'] } },
-        },
-        orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
-        select: { key: true, boundQuestion: { select: { code: true, type: true } } },
-      });
-      return rows.flatMap((row) =>
-        row.boundQuestion === null
-          ? []
-          : [
-              {
-                key: row.key,
-                questionCode: row.boundQuestion.code,
-                type: row.boundQuestion.type as 'SINGLE_SELECT' | 'NUMERIC',
-              },
-            ],
-      );
-    },
-    questionOptionCodes: async (questionCode) =>
-      (
-        await prisma.questionOption.findMany({
-          where: { question: { code: questionCode }, isActive: true },
-          orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
-          select: { code: true },
-        })
-      ).map((o) => o.code),
-  };
+  return incomeRuleValidationContext(prisma);
 }
 
 async function resolveSeedActor(): Promise<string | null> {

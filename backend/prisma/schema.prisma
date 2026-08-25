@@ -666,23 +666,50 @@ model Document {
 // flags a key that historical rows may still reference but new writes
 // should reject. systemOnly=true blocks all CRUD except label edits.
 // One table, many types: the columns below `sortOrder` are TYPE-SPECIFIC
-// (`boundQuestionId` is `surrogate_fact` only; `incomeRule` + `valueSources` are
-// `program_name` only) and stay NULL / empty everywhere else. Which type may
+// (`boundQuestionId` is `surrogate_fact` only; `surrogateProductKey` is
+// `program_name` only; `incomeRule` + `valueSources` are `surrogate_product`
+// and `program_name`) and stay NULL / empty everywhere else. Which type may
 // carry which is enforced in the service layer, not by a CHECK — the same
 // posture `platform_enumeration_loan_category` already takes.
 // -----------------------------------------------------------------------------
 
 model PlatformEnumeration {
-  id              String    @id @default(cuid()) @db.VarChar(30)
-  type            String    @db.VarChar(48)
-  key             String    @db.VarChar(64)
-  labelAr         String    @db.VarChar(160)
-  labelEn         String    @db.VarChar(160)
-  active          Boolean   @default(true)
-  deprecatedAt    DateTime? @db.Timestamptz(6)
-  systemOnly      Boolean   @default(false)
-  parentKey       String?   @db.VarChar(64)
-  sortOrder       Int       @default(0)
+  id                  String    @id @default(cuid()) @db.VarChar(30)
+  type                String    @db.VarChar(48)
+  key                 String    @db.VarChar(64)
+  labelAr             String    @db.VarChar(160)
+  labelEn             String    @db.VarChar(160)
+  active              Boolean   @default(true)
+  deprecatedAt        DateTime? @db.Timestamptz(6)
+  systemOnly          Boolean   @default(false)
+  parentKey           String?   @db.VarChar(64)
+  sortOrder           Int       @default(0)
+  /// `program_name` only — the `surrogate_product` row this catalog name takes its
+  /// income calculation from. NULL = the name states its own rule in `incomeRule`
+  /// (every payslip name, and every no-payslip name that predates the archetypes).
+  ///
+  /// NOT `parentKey`, and the three reasons are all load-bearing:
+  ///   1. A type with a parent axis is REQUIRED to name one on create
+  ///      (`ENUMERATION_PARENT_REQUIRED`), so `PARENT_TYPE_BY_TYPE.program_name`
+  ///      would make every payslip catalog name uncreatable.
+  ///   2. `enumerationParentKeys()` returns ONE flat, type-less `key → parentKey`
+  ///      map, read by `factParentTable` in the engine AND by the fact registry's
+  ///      parent-option walk. A `program_name` key colliding with a `compound` key
+  ///      would silently hand that compound a class.
+  ///   3. The admin mirrors `PARENT_TYPE_BY_TYPE` client-side to decide whether to
+  ///      render a required "Filed under" select — the catalog's own Add-name
+  ///      dialog would grow one asking for a compound class.
+  ///
+  /// NO FOREIGN KEY, deliberately: the PK is `id` and the reachable unique is
+  /// `(type, key)`, which a self-FK cannot express without a constant type column.
+  /// Validated in the service layer against live `surrogate_product` keys, the same
+  /// posture `parentKey` and `bank_program.programNameKey` already take.
+  ///
+  /// When set, the name's own `incomeRule` is NULL and `valueSources` is `{}` — a
+  /// link that also kept a copy is not a link, it is a fork with nothing to reveal
+  /// it. `programNameIncomeRules()` resolves the pointer; the save path refuses to
+  /// create the both-present state and the migration RAISEs on it.
+  surrogateProductKey String?   @db.VarChar(64)
   /// `surrogate_fact` only — the question whose ANSWER is this fact.
   ///
   /// The fact registry used to be a code constant
@@ -705,9 +732,9 @@ model PlatformEnumeration {
   /// Only SINGLE_SELECT and NUMERIC questions may be bound (service-enforced): the
   /// first gives a key table, the second gives bands, and nothing else is a figure a
   /// bank can look an income up against.
-  boundQuestionId String?   @db.VarChar(30)
-  /// `program_name` only — how a bank works a monthly income out for this name
-  /// when there is no payslip to read. Same canonical shape
+  boundQuestionId     String?   @db.VarChar(30)
+  /// `surrogate_product` and `program_name` — how a bank works a monthly income out
+  /// for this product when there is no payslip to read. Same canonical shape
   /// `bank_program.incomeAssumption` carries: `{ strategy, keyTable?, bands?,
   /// scalar?, … }`, every figure a Decimal STRING (Principle I).
   ///
@@ -722,8 +749,18 @@ model PlatformEnumeration {
   /// the declared salary WITHOUT saying it did. A rule that silently evaporates
   /// on a fifth of the catalog is worse than one stated once per name.
   ///
+  /// ON A `surrogate_product` it is the archetype's own calculation, and the thing
+  /// every linked catalog name quotes off. On a `program_name` it is the name's own
+  /// rule, which is now the LEGACY half: a name that links to a product carries NULL
+  /// here and reads the product's. Both columns are the same shape on purpose — the
+  /// migration moves a rule between them by copying it, and `catalogIncomeRulePaths`
+  /// keeps its `incomeRule.` root, so no value-source marker is re-rooted.
+  ///
   /// NULLABLE, and the two empty-looking states are NOT the same:
   ///   NULL                       — nobody has decided. The name has no rule yet.
+  ///                                (Or, on a `program_name`, it is LINKED — see
+  ///                                `surrogateProductKey`; the two are told apart by
+  ///                                that column, never by this one being empty.)
   ///   `{"strategy":"declared"}`  — an operator decided: this name is quoted off
   ///                                the income the applicant typed.
   /// Both quote identically; only the catalog counters and the operator screens
@@ -738,8 +775,9 @@ model PlatformEnumeration {
   /// Read UNCACHED on the quote path, same contract as `surrogateFactRegistry()`:
   /// a stale rule is a wrong income frozen onto a BankOffer that may never be
   /// rewritten (Principle I).
-  incomeRule      Json?
-  /// `program_name` only — estimated-value markers for the figures in `incomeRule`,
+  incomeRule          Json?
+  /// `surrogate_product` and `program_name` — estimated-value markers for the
+  /// figures in `incomeRule`,
   /// the same sparse map `bank_program.valueSources` carries and with the same
   /// meaning: config dot-path → `'team_estimated'`, an ABSENT path is bank-stated.
   /// Paths are rooted at this column's own name
@@ -749,12 +787,18 @@ model PlatformEnumeration {
   /// NOT NULL, defaulted `{}`: an absent map and an empty one would both mean
   /// "nothing estimated", and two spellings of one state is how a marker gets lost.
   /// Never read by the matching engine — it is provenance about the configuration,
-  /// not part of it. Read on activation, where a non-empty map refuses to go live.
-  valueSources    Json      @default("{}")
-  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
-  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
-  createdBy       String?   @db.VarChar(30)
-  updatedBy       String?   @db.VarChar(30)
+  /// not part of it.
+  ///
+  /// Read by the admin rule screens only. NOT read on activation: that gate is
+  /// `bank_program.valueSources`, and the claim that this column shares it was
+  /// wrong when written — there has never been a reader of it on any activation
+  /// path. Stated here because the wrong version of this comment is exactly the
+  /// kind of thing the next person builds an enforcement on.
+  valueSources        Json      @default("{}")
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+  createdBy           String?   @db.VarChar(30)
+  updatedBy           String?   @db.VarChar(30)
 
   loanCategories PlatformEnumerationLoanCategory[] @relation("PlatformEnumerationLoanCategories")
   questions      PlatformEnumerationQuestion[]     @relation("PlatformEnumerationQuestions")
@@ -763,6 +807,7 @@ model PlatformEnumeration {
   @@unique([type, key], name: "idx_platform_enumeration_type_key")
   @@index([type, active, sortOrder], name: "idx_platform_enumeration_type_active_sort")
   @@index([type, parentKey], name: "idx_platform_enumeration_type_parent")
+  @@index([surrogateProductKey], name: "idx_platform_enumeration_surrogate_product")
   @@index([boundQuestionId], name: "idx_platform_enumeration_bound_question")
   @@map("platform_enumeration")
 }

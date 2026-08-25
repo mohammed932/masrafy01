@@ -1,6 +1,19 @@
 /**
- * Catalog program name → bank program: the amounts merge. Pure function, no Nest,
- * no Prisma, no clock (Constitution Principle V).
+ * Who owns which half of an income rule. Pure functions, no Nest, no Prisma, no
+ * clock (Constitution Principle V).
+ *
+ * TWO links, and they are not the same shape:
+ *
+ *   surrogate product → catalog program name   `effectiveProgramNameRule`
+ *       STRICT REPLACE. A linked name states no rule of its own, so there is no
+ *       second place a figure can live and nothing to drift.
+ *
+ *   catalog program name → bank program        `effectiveIncomeRule`
+ *       MERGE. The structure is always the name's; the FIGURES are the name's only
+ *       when the bank says `amounts: 'catalog'`.
+ *
+ * The rest of this file is the second link, which came first and is documented
+ * below on its own terms.
  *
  * A catalog program name states exactly ONE income proof and one set of starting
  * figures. A bank program filed under that name either takes those figures
@@ -71,6 +84,42 @@ const POLICY_KEYS = [
  */
 export function inheritsCatalogAmounts(config: IncomeAssumptionConfig): boolean {
   return config.amounts === 'catalog';
+}
+
+/**
+ * The catalog program name's rule, resolved through the surrogate product it links to.
+ *
+ * Runs one level ABOVE `effectiveIncomeRule`: it produces the catalog rule that the
+ * bank-level merge then reads. Both run inside the repository, so the engine still
+ * receives one finished rule and cannot tell a linked product from an authored name.
+ *
+ * STRICT REPLACE when a product is present, not a merge — and this is the load-bearing
+ * choice, not a shortcut. Merging would give structure-from-product plus
+ * figures-from-name, a THIRD level of inheritance on a system whose two-level story is
+ * the whole of this file; the default figures ARE part of what an archetype offers, so
+ * two names needing different ones are two products. The state never arises anyway: the
+ * migration NULLs a linked name's rule and the save path refuses to create it. If it
+ * somehow does, the product wins, because the product is the thing the operator was
+ * looking at when they edited it.
+ *
+ *   both absent    → undefined   the map omits the key, and
+ *                                `PROGRAM_NAME_INCOME_PROOF_MISSING` still fires
+ *   product absent → own         every payslip name, and every no-payslip name that
+ *                                predates the archetypes. Unchanged behaviour.
+ *   own null       → product     the linked case
+ *   both present   → product     see above; should be unreachable
+ *
+ * `undefined` and not `null` on the empty case: the caller is building a Map that the
+ * bank-level merge reads with `.get()`, and `effectiveIncomeRule` already spells "no
+ * catalog rule" as `undefined`. Two spellings of one absence is how a rule gets quoted
+ * that nobody wrote.
+ */
+export function effectiveProgramNameRule(
+  own: IncomeAssumptionConfig | null | undefined,
+  product: IncomeAssumptionConfig | undefined,
+): IncomeAssumptionConfig | undefined {
+  if (product !== undefined) return product;
+  return own ?? undefined;
 }
 
 /**

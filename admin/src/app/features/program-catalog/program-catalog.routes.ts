@@ -19,6 +19,23 @@ export const PROGRAM_CATALOG_ROUTES: Routes = [
     path: '',
     loadComponent: () => import('./program-catalog.page').then((m) => m.ProgramCatalogPage),
   },
+  /**
+   * The surrogate-product library.
+   *
+   * DECLARED BEFORE `:key`, and it has to be: Angular matches routes in order and `:key` is
+   * a single segment, so below it `/program-catalog/products` resolves as a catalog name
+   * called "products" and renders a detail page for a name that does not exist.
+   */
+  {
+    path: 'products',
+    loadComponent: () =>
+      import('./surrogate-products.page').then((m) => m.SurrogateProductsPage),
+  },
+  {
+    path: 'products/:key',
+    loadComponent: () =>
+      import('./surrogate-product-detail.page').then((m) => m.SurrogateProductDetailPage),
+  },
   {
     // The catalog KEY, not the id: it is stable, human-readable, and already the
     // value every other surface (`bank_program.programNameKey`) stores.

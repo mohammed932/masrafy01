@@ -56,6 +56,7 @@ import {
   type CatalogCategory,
   type CatalogIncomeBasis,
 } from './data/program-catalog-matrix';
+import { incomeRuleValidationContext } from './data/income-rule-validation-context';
 import { stableJson } from '../src/common/stable-json.util';
 
 const prisma = new PrismaClient();
@@ -370,6 +371,7 @@ export async function seedProgramCatalog(): Promise<void> {
 
   let rulesWritten = 0;
   let rulesRejected = 0;
+  let rulesSkipped = 0;
 
   /**
    * The registry lookups `validateIncomeRule` needs, straight off Prisma.
@@ -378,51 +380,7 @@ export async function seedProgramCatalog(): Promise<void> {
    * questions, same fail-closed answers — because a rule this accepts and that
    * rejects (or the reverse) is a rule the seed can plant and no admin can save.
    */
-  const ruleContext: IncomeRuleValidationContext = {
-    isActiveMember: async (type, key) =>
-      (await prisma.platformEnumeration.count({
-        where: { type, key, active: true, deprecatedAt: null },
-      })) > 0,
-    activeMembers: async (type) =>
-      (
-        await prisma.platformEnumeration.findMany({
-          where: { type, active: true, deprecatedAt: null },
-          orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
-          select: { key: true },
-        })
-      ).map((m) => m.key),
-    surrogateFacts: async () => {
-      const rows = await prisma.platformEnumeration.findMany({
-        where: {
-          type: 'surrogate_fact',
-          active: true,
-          deprecatedAt: null,
-          boundQuestion: { isActive: true, type: { in: ['SINGLE_SELECT', 'NUMERIC'] } },
-        },
-        orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
-        select: { key: true, boundQuestion: { select: { code: true, type: true } } },
-      });
-      return rows.flatMap((row) =>
-        row.boundQuestion === null
-          ? []
-          : [
-              {
-                key: row.key,
-                questionCode: row.boundQuestion.code,
-                type: row.boundQuestion.type as 'SINGLE_SELECT' | 'NUMERIC',
-              },
-            ],
-      );
-    },
-    questionOptionCodes: async (questionCode) =>
-      (
-        await prisma.questionOption.findMany({
-          where: { question: { code: questionCode }, isActive: true },
-          orderBy: [{ displayOrder: 'asc' }, { code: 'asc' }],
-          select: { code: true },
-        })
-      ).map((o) => o.code),
-  };
+  const ruleContext: IncomeRuleValidationContext = incomeRuleValidationContext(prisma);
 
   /**
    * Two rules compared by CONTENT, not by the order their keys happen to sit in.
@@ -461,7 +419,7 @@ export async function seedProgramCatalog(): Promise<void> {
   const ruleKeys = Object.keys(CATALOG_INCOME_RULE);
   const ruleRows = await prisma.platformEnumeration.findMany({
     where: { type: PROGRAM_NAME_TYPE, key: { in: ruleKeys } },
-    select: { id: true, key: true, incomeRule: true },
+    select: { id: true, key: true, incomeRule: true, surrogateProductKey: true },
   });
   const ruleNow = new Map(ruleRows.map((r) => [r.key, r]));
 
@@ -471,6 +429,24 @@ export async function seedProgramCatalog(): Promise<void> {
 
     const want = CATALOG_INCOME_RULE[key];
     if (!want) continue;
+
+    // A LINKED name takes its calculation from a surrogate product and holds NULL of
+    // its own. Writing `CATALOG_INCOME_RULE` back here would put a second, diverging
+    // copy on the row — the exact fork the link exists to end, and one that reappears
+    // on every run of this seed with nothing to reveal it. The archetype is the place
+    // to change a linked name's rule; say so rather than silently skipping, because a
+    // matrix entry that no longer does anything is worth knowing about.
+    if (row.surrogateProductKey !== null) {
+      rulesSkipped += 1;
+      notes.push(
+        `income rule for '${key}' NOT written — the name links to surrogate product ` +
+          `'${row.surrogateProductKey}' and takes its calculation from there. Edit the ` +
+          `product (npm run seed:surrogate-products), or drop '${key}' from ` +
+          `CATALOG_INCOME_RULE in prisma/data/program-catalog-matrix.ts.`,
+      );
+      continue;
+    }
+
     if (sameRule(row.incomeRule, want)) continue;
 
     // Validated BEFORE the change log line, so the log never claims a write that did
@@ -514,7 +490,8 @@ export async function seedProgramCatalog(): Promise<void> {
       `${templatesWritten} template(s) written (${picksWritten} picks) · ` +
       `${basisWritten} income basis/bases corrected · ` +
       `${rulesWritten} income rule(s) written` +
-      (rulesRejected > 0 ? ` · ${rulesRejected} REFUSED` : ''),
+      (rulesRejected > 0 ? ` · ${rulesRejected} REFUSED` : '') +
+      (rulesSkipped > 0 ? ` · ${rulesSkipped} linked to a surrogate product` : ''),
   );
   const untouched = names.filter((n) => !(n.key in CATALOG_CATEGORY_ASSIGNMENTS));
   if (untouched.length > 0) {

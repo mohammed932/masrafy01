@@ -1,4 +1,5 @@
-import type { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, type Routes } from '@angular/router';
 
 export const LOOKUPS_ROUTES: Routes = [
   {
@@ -7,11 +8,26 @@ export const LOOKUPS_ROUTES: Routes = [
     loadComponent: () => import('./lookups.page').then((m) => m.LookupsPage),
   },
   {
-    // A sibling route, not a tab on the values page: the board answers a different question
-    // ("where is each compound priced?") about two types at once, and the values page is a
-    // list of ONE type. `?class=` inside it selects the class, matching the `?type=` idiom.
+    /**
+     * The class board moved onto the surrogate product whose calculation reads it.
+     *
+     * KEPT AS A REDIRECT rather than deleted: this is a live, bookmarkable URL that is in
+     * browser histories and runbooks right now, and a 404 would read as "the feature was
+     * removed" rather than "it is over there".
+     *
+     * A `canMatch` guard rather than a declarative `redirectTo`, because the destination
+     * needs a query param (`?step=2`, the step that hosts the board) and `redirectTo`
+     * cannot carry one.
+     */
     path: 'compound-classes',
-    loadComponent: () =>
-      import('./compound-class-board.page').then((m) => m.CompoundClassBoardPage),
+    canMatch: [
+      () => {
+        const router = inject(Router);
+        return router.createUrlTree(['/program-catalog/products', 'compound_owner'], {
+          queryParams: { step: 2 },
+        });
+      },
+    ],
+    children: [],
   },
 ];

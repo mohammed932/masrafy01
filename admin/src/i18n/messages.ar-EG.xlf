@@ -2157,6 +2157,52 @@
           <context context-type="sourcefile">src/app/shared/income-rule/product-rule-editor.component.ts</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="lookups.field.product" datatype="html"><source>Which surrogate product?</source><target>ما المنتج البديل الذي يُحتسب منه الدخل؟</target></trans-unit>
+      <trans-unit id="lookups.field.product.hint" datatype="html"><source>The calculation every bank filing a program under this name will quote from. It can be changed later.</source><target>الحساب الذي سيقتبس منه كل بنك يسجل برنامجًا تحت هذا الاسم. يمكن تغييره لاحقًا.</target></trans-unit>
+      <trans-unit id="lookups.field.product.none" datatype="html"><source>No surrogate product exists yet, so this name cannot be sold without a payslip. Add one under Surrogate products first.</source><target>لا يوجد منتج بديل بعد، فلا يمكن بيع هذا الاسم بدون كشف مرتب. أضف منتجًا من «المنتجات البديلة» أولًا.</target></trans-unit>
+      <trans-unit id="lookups.field.product.placeholder" datatype="html"><source>Pick how the income is worked out</source><target>اختر كيف يُحتسب الدخل</target></trans-unit>
+      <trans-unit id="pnd.rule_linked" datatype="html"><source>This name works its income out from the <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ productLabel() }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/> surrogate product, so the calculation is edited there and every name using it stays in step.</source><target>هذا الاسم يحتسب دخله من المنتج البديل <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/><x id="INTERPOLATION" equiv-text="{{ productLabel() }}"/><x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/>، فيُعدَّل الحساب هناك ويبقى كل اسم يستخدمه متسقًا.</target></trans-unit>
+      <trans-unit id="pnd.rule_open_product" datatype="html"><source>Open the surrogate product</source><target>افتح المنتج البديل</target></trans-unit>
+      <trans-unit id="pnd.step_income_cap_linked" datatype="html"><source>Taken from a surrogate product, so every name using that product stays in step. Edited there, not here.</source><target>مأخوذ من منتج بديل، فيبقى كل اسم يستخدمه متسقًا. يُعدَّل هناك لا هنا.</target></trans-unit>
+      <trans-unit id="sidebar.surrogate_products" datatype="html"><source>Surrogate products</source><target>المنتجات البديلة</target></trans-unit>
+      <trans-unit id="sp.empty" datatype="html"><source> No surrogate products yet. Run <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code&gt;"/>npm run seed:surrogate-products<x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/> to write the starter library, or add one through the API. </source><target>لا توجد منتجات بديلة بعد. شغّل <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code&gt;"/>npm run seed:surrogate-products<x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/> لكتابة المكتبة الأولية، أو أضف واحدًا عبر الـ API.</target></trans-unit>
+      <trans-unit id="sp.eyebrow" datatype="html"><source>Program catalog</source><target>كتالوج البرامج</target></trans-unit>
+      <trans-unit id="sp.loading" datatype="html"><source>Loading surrogate products</source><target>جارٍ تحميل المنتجات البديلة</target></trans-unit>
+      <trans-unit id="sp.reads_none" datatype="html"><source>No calculation stated yet</source><target>لم يُحدَّد حساب بعد</target></trans-unit>
+      <trans-unit id="sp.retired" datatype="html"><source>Retired</source><target>موقوف</target></trans-unit>
+      <trans-unit id="sp.stat.sold" datatype="html"><source>Sold under a name</source><target>مباعة تحت اسم</target></trans-unit>
+      <trans-unit id="sp.stat.total" datatype="html"><source>Products</source><target>المنتجات</target></trans-unit>
+      <trans-unit id="sp.stat.unused" datatype="html"><source>Not sold yet</source><target>غير مباعة بعد</target></trans-unit>
+      <trans-unit id="sp.stats_aria" datatype="html"><source>Surrogate product totals</source><target>إجماليات المنتجات البديلة</target></trans-unit>
+      <trans-unit id="sp.subtitle" datatype="html"><source>The pre-defined ways of working an income out when there is no payslip. A catalog program name sold without a payslip picks one of these, and every bank under that name quotes from it.</source><target>الطرق المعرَّفة مسبقًا لاحتساب الدخل حين لا يوجد كشف مرتب. اسم البرنامج الذي يُباع بدون كشف مرتب يختار واحدًا منها، وكل بنك تحت هذا الاسم يقتبس منه.</target></trans-unit>
+      <trans-unit id="sp.title" datatype="html"><source>Surrogate products</source><target>المنتجات البديلة</target></trans-unit>
+      <trans-unit id="sp.unused" datatype="html"><source>No catalog name sells this yet</source><target>لا يبيعه أي اسم في الكتالوج بعد</target></trans-unit>
+      <trans-unit id="spd.back" datatype="html"><source>All surrogate products</source><target>كل المنتجات البديلة</target></trans-unit>
+      <trans-unit id="spd.back_step" datatype="html"><source>Back</source><target>السابق</target></trans-unit>
+      <trans-unit id="spd.cap_lists" datatype="html"><source>The values an applicant picks from, and the classes a bank keys its table by. Curated here because this is the calculation that reads them.</source><target>القيم التي يختار منها المتقدم، والفئات التي يبني عليها البنك جدوله. تُدار هنا لأن هذا هو الحساب الذي يقرأها.</target></trans-unit>
+      <trans-unit id="spd.cap_rule" datatype="html"><source>What the bank reads instead of a payslip, and the figures every bank filing under this product starts from.</source><target>ما الذي يقرأه البنك بدلًا من كشف المرتب، والمبالغ التي يبدأ منها كل بنك يسجل تحت هذا المنتج.</target></trans-unit>
+      <trans-unit id="spd.cap_uses" datatype="html"><source>Every catalog name selling this product, and the bank programs underneath.</source><target>كل اسم في الكتالوج يبيع هذا المنتج، وبرامج البنوك تحته.</target></trans-unit>
+      <trans-unit id="spd.eyebrow" datatype="html"><source>Surrogate product</source><target>منتج بديل</target></trans-unit>
+      <trans-unit id="spd.lede_none" datatype="html"><source>This product states no calculation yet, so nothing filed under it can quote.</source><target>هذا المنتج لم يُحدَّد له حساب بعد، فلا يستطيع أي شيء مسجَّل تحته أن يقتبس.</target></trans-unit>
+      <trans-unit id="spd.list_desc" datatype="html"><source>The values an applicant can pick when answering “<x id="question" equiv-text="question?.label ?? key"/>”.</source><target>القيم التي يمكن للمتقدم اختيارها عند الإجابة على «<x id="question" equiv-text="question?.label ?? key"/>».</target></trans-unit>
+      <trans-unit id="spd.lists_none" datatype="html"><source>This calculation reads no operator-managed list. Every figure it uses comes from what the applicant answers, so there is nothing to curate here.</source><target>هذا الحساب لا يقرأ أي قائمة يديرها المشغّل. كل معلومة يستخدمها تأتي مما يجيب به المتقدم، فلا يوجد ما يُدار هنا.</target></trans-unit>
+      <trans-unit id="spd.loading" datatype="html"><source>Loading the surrogate product</source><target>جارٍ تحميل المنتج البديل</target></trans-unit>
+      <trans-unit id="spd.no_programs" datatype="html"><source>No bank offers this name yet</source><target>لا يعرض أي بنك هذا الاسم بعد</target></trans-unit>
+      <trans-unit id="spd.not_found" datatype="html"><source>This surrogate product could not be loaded. It may have been removed.</source><target>تعذّر تحميل هذا المنتج البديل. ربما تمت إزالته.</target></trans-unit>
+      <trans-unit id="spd.parent_desc" datatype="html"><source>The classes a bank keys its table by. Each value above is filed under one of these.</source><target>الفئات التي يبني عليها البنك جدوله. كل قيمة بالأعلى مصنَّفة تحت واحدة منها.</target></trans-unit>
+      <trans-unit id="spd.reach" datatype="html"><source>A change here reaches <x id="INTERPOLATION" equiv-text="{{ p.usedBy.length }}"/> catalog name(s) and every bank program under them that takes catalog amounts.</source><target>التغيير هنا يصل إلى <x id="INTERPOLATION" equiv-text="{{ p.usedBy.length }}"/> اسم في الكتالوج وكل برنامج بنكي تحتها يأخذ مبالغ الكتالوج.</target></trans-unit>
+      <trans-unit id="spd.reach_none" datatype="html"><source>Nothing sells this yet, so a change here reaches no bank.</source><target>لا شيء يبيع هذا بعد، فالتغيير هنا لا يصل إلى أي بنك.</target></trans-unit>
+      <trans-unit id="spd.save" datatype="html"><source>Save the calculation</source><target>احفظ الحساب</target></trans-unit>
+      <trans-unit id="spd.step_lists" datatype="html"><source>The lists it reads</source><target>القوائم التي يقرأها</target></trans-unit>
+      <trans-unit id="spd.step_rule" datatype="html"><source>How the income is worked out</source><target>كيف يُحتسب الدخل</target></trans-unit>
+      <trans-unit id="spd.step_uses" datatype="html"><source>Who uses it</source><target>مَن يستخدمه</target></trans-unit>
+      <trans-unit id="spd.steps_aria" datatype="html"><source>Surrogate product setup</source><target>إعداد المنتج البديل</target></trans-unit>
+      <trans-unit id="spd.takes_catalog" datatype="html"><source>takes these amounts</source><target>يأخذ هذه المبالغ</target></trans-unit>
+      <trans-unit id="spd.uses_none" datatype="html"><source>No catalog program name takes its calculation from this product yet. Link one from the program catalog, and every bank filing a program under that name quotes from here.</source><target>لا يوجد اسم برنامج في الكتالوج يحتسب دخله من هذا المنتج بعد. اربط واحدًا من كتالوج البرامج، وعندها يقتبس كل بنك يسجل برنامجًا تحت ذلك الاسم من هنا.</target></trans-unit>
+      <trans-unit id="lookups.type.military_grade.label" datatype="html"><source>Military grades</source><target>الرتب العسكرية</target></trans-unit>
+      <trans-unit id="lookups.type.professor_rank.label" datatype="html"><source>Academic ranks</source><target>الدرجات الأكاديمية</target></trans-unit>
+      <trans-unit id="lookups.type.property_type.label" datatype="html"><source>Property types</source><target>أنواع العقارات</target></trans-unit>
+      <trans-unit id="lookups.type.company_type.label" datatype="html"><source>Company types</source><target>أنواع الشركات</target></trans-unit>
     </body>
   </file>
 </xliff>

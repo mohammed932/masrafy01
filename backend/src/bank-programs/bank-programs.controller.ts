@@ -56,6 +56,72 @@ export class BankProgramsController {
     );
   }
 
+  /**
+   * The surrogate-product library — the pre-defined no-payslip products a catalog name
+   * links to.
+   *
+   * On THIS controller, beside the program-name pair above and for the identical reason:
+   * everything that decides whether a calculation is acceptable lives in this module, and
+   * moving the check into `platform-enumerations` would make the two circular. The rows
+   * are enumerations; the RULES on them are bank-program machinery.
+   *
+   * DECLARED BEFORE `@Get(':programCode')`, and it has to be. Nest matches in
+   * declaration order and `:programCode` is a single segment, so below it every request
+   * for `surrogate-products` resolves as a bank program with that code and comes back
+   * `BANK_PROGRAM_NOT_FOUND` — which is what it did. The `program-names/...` routes
+   * escape this only by being three segments deep.
+   */
+  @Get('surrogate-products')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({
+    summary: 'Every surrogate product, with the proof it reads and the names that sell it',
+  })
+  async listSurrogateProducts() {
+    return ok(await this.service.listSurrogateProducts());
+  }
+
+  @Get('surrogate-products/:key')
+  @Roles('super_admin', 'sales_manager')
+  @ApiOperation({
+    summary: "One surrogate product's calculation, and every bank program reachable through it",
+    description:
+      'The reachability walk (product → catalog names → bank programs) is what makes ' +
+      '"who is affected if I change this" answerable BEFORE the operator changes it.',
+  })
+  @ApiResponse({ status: 404, description: 'PROGRAM_NAME_KEY_UNKNOWN' })
+  async getSurrogateProduct(@Param('key') key: string) {
+    return ok(await this.service.getSurrogateProduct(key));
+  }
+
+  @Put('surrogate-products/:key/income-rule')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: "Set a surrogate product's calculation",
+    description:
+      'Reaches every catalog name linked to this product, and every bank program under ' +
+      'those names that takes catalog amounts. A figures-only write keeps the stored ' +
+      'structure, so the screen can save an edited table without re-posting a step list ' +
+      'it merely rendered.',
+  })
+  @ApiResponse({ status: 404, description: 'PROGRAM_NAME_KEY_UNKNOWN' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'PRODUCT_RULE_INVALID | INCOME_RULE_EMPTY | INCOME_RULE_INCOME_INVALID | ' +
+      'INCOME_RULE_DUPLICATE_KEY | INCOME_RULE_UNKNOWN_KEY | INCOME_RULE_BANDS_INVALID | ' +
+      'INCOME_RULE_DBR_OVERRIDE_INVALID | INCOME_RULE_FACT_UNAVAILABLE | ' +
+      'VALUE_SOURCE_PATH_UNKNOWN | VALUE_SOURCE_VALUE_INVALID — the same rule codes a ' +
+      "bank program's own save raises.",
+  })
+  async setSurrogateProductIncomeRule(
+    @Param('key') key: string,
+    @Body() body: SetProgramNameIncomeRuleDto,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(await this.service.setSurrogateProductIncomeRule(key, body, this.actor(user, req)));
+  }
+
   @Get(':programCode')
   @ApiOperation({ summary: "Fetch a single bank program's full configuration" })
   @ApiResponse({ status: 200, description: 'Bank program detail.' })
@@ -138,6 +204,8 @@ export class BankProgramsController {
   @ApiResponse({
     status: 422,
     description:
+      'PROGRAM_NAME_RULE_LINKED (the name takes its calculation from a surrogate product ' +
+      '— edit the product instead) | ' +
       'INCOME_PROOF_IN_USE | INCOME_RULE_EMPTY | INCOME_RULE_INCOME_INVALID | ' +
       'INCOME_RULE_DUPLICATE_KEY | INCOME_RULE_UNKNOWN_KEY | INCOME_RULE_BANDS_INVALID | ' +
       'INCOME_RULE_DBR_OVERRIDE_INVALID | INCOME_RULE_FACT_UNAVAILABLE | ' +
