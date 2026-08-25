@@ -65,20 +65,19 @@ const COUNT_UP_DURATION_MS = 600;
         gap: var(--space-4);
         margin: 0;
       }
-      /* Single row of content-sized cards — for narrow slots (e.g. a page-header
-         aside) where auto-fit would collapse the cards into a stack. */
+      /* One line of content-sized cards WHEN THEY FIT — for narrow slots (e.g. a
+         page-header aside) where auto-fit would collapse the cards into a stack.
+         Flex, not 'grid-auto-flow: column', because a column flow cannot wrap: it
+         reported the sum of all three cards as the strip's max-content width, and
+         a page-header aside sized to that starved the title beside it. */
       .strip[data-layout='row'] {
-        grid-auto-flow: column;
-        grid-auto-columns: minmax(140px, max-content);
+        display: flex;
+        flex-wrap: wrap;
         grid-template-columns: none;
       }
-      @media (max-width: 540px) {
-        .strip,
-        .strip[data-layout='row'] {
-          grid-auto-flow: row;
-          grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-          gap: var(--space-3);
-        }
+      .strip[data-layout='row'] .card {
+        flex: 1 1 auto;
+        min-inline-size: 8.5rem;
       }
       .card {
         display: flex;
@@ -167,6 +166,51 @@ const COUNT_UP_DURATION_MS = 600;
         font-size: var(--text-xs);
         color: var(--color-text-tertiary);
         line-height: 1.3;
+      }
+      /* Phone: counters read better as one aligned column than as a ragged 2 + 1
+         grid where each card is a different height and no two numbers share a
+         baseline. 'display: contents' lets the chip, the label and the hint place
+         themselves on the card's own grid without a second wrapper. */
+      @media (max-width: 540px) {
+        .strip,
+        .strip[data-layout='row'] {
+          display: flex;
+          flex-direction: column;
+          grid-auto-flow: row;
+          grid-template-columns: none;
+          gap: var(--space-2);
+        }
+        .card,
+        .strip[data-layout='row'] .card {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          align-items: center;
+          column-gap: var(--space-3);
+          row-gap: var(--space-1);
+          padding: var(--space-3) var(--space-4);
+        }
+        .head {
+          display: contents;
+        }
+        .chip {
+          grid-column: 1;
+          grid-row: 1 / -1;
+        }
+        dt {
+          grid-column: 2;
+          grid-row: 1;
+        }
+        .hint {
+          grid-column: 2;
+          grid-row: 2;
+          margin-block-start: 0;
+        }
+        dd {
+          grid-column: 3;
+          grid-row: 1 / -1;
+          font-size: var(--text-2xl);
+          justify-self: end;
+        }
       }
       @media (prefers-reduced-motion: reduce) {
         .card {

@@ -14,6 +14,13 @@ export interface RailTabItem {
   readonly label: string;
   /** Rendered on the trailing edge; omit for none. */
   readonly count?: number;
+  /**
+   * What the count COUNTS, for screen readers. Optional, but pass it: on its own
+   * the number is announced as part of the tab's name with no unit — "Personal
+   * Loan 8" — which is the same ambiguity the segmented rail solved by deleting
+   * its count outright.
+   */
+  readonly countLabel?: string;
   /** Short muted note under the label (e.g. "Not set up"). */
   readonly note?: string;
   /** Draws the warn marker — something on this item needs attention. */
@@ -55,6 +62,8 @@ export interface RailTabItem {
       class="rail"
       [class.vertical]="orientation() === 'vertical'"
       [class.segmented]="appearance() === 'segmented'"
+      [class.uniform]="uniform()"
+      [class.has-notes]="hasNotes()"
       role="tablist"
       [attr.aria-orientation]="orientation()"
       [attr.aria-label]="ariaLabel()"
@@ -78,10 +87,20 @@ export interface RailTabItem {
             <span class="tab-label">{{ item.label }}</span>
             @if (item.note) {
               <span class="tab-note">{{ item.note }}</span>
+            } @else if (hasNotes()) {
+              <!-- Reserves the second line for every item in a rail where ANY item
+                   has one. Without it the items that carry a note push their label
+                   up while the rest stay centred, so a rail of four equals renders
+                   its four labels on two baselines — which is what makes a closed
+                   axis read as four unrelated chips rather than one control. -->
+              <span class="tab-note" aria-hidden="true">&nbsp;</span>
             }
           </span>
           @if (item.count !== undefined) {
-            <span class="tab-count">{{ item.count }}</span>
+            <span class="tab-count" aria-hidden="true">{{ item.count }}</span>
+            @if (item.countLabel) {
+              <span class="sr-only">{{ item.countLabel }}</span>
+            }
           }
           <!-- AFTER the count, and shaped rather than round. A 6px amber circle sat
                immediately before a number read as a bullet separator ("Personal Loan
@@ -120,6 +139,25 @@ export interface RailTabItem {
         max-block-size: 60vh;
         overflow-y: auto;
         padding-inline-end: var(--space-1);
+      }
+      /* UNIFORM — a CLOSED axis of a few peers (the four loan types), laid out as
+         equal cells instead of content-sized pills. Content sizing gives four
+         labels of four different lengths four different widths, which lands each
+         item's trailing count at its own x: the figures read as four stray
+         numbers rather than as one column you can compare down. Equal cells put
+         them in a column and give every chip the same silhouette.
+
+         Capped rather than 1fr: four chips stretched across a 1800px page is a
+         control pretending to be a layout. auto-fit wraps below ~46rem instead
+         of overflowing, which is the responsive behaviour flex-wrap gave.
+         Horizontal pills only — a vertical rail is already full-width, and a
+         segmented track sizes to its own content by design. */
+      .rail.uniform:not(.vertical):not(.segmented) {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(10rem, 14rem));
+      }
+      .rail.uniform:not(.vertical):not(.segmented) .tab {
+        inline-size: 100%;
       }
       .tab {
         display: inline-flex;
@@ -225,20 +263,26 @@ export interface RailTabItem {
       .rail.vertical .tab-label {
         white-space: normal;
       }
+      /* Secondary, not tertiary. Both of these run at --text-xxs (11px), and
+         tertiary on the light surface (#8C7E75 on #FDFCFB) is 3.83:1 — under AA
+         for text this size. Secondary is 6.1:1 and still plainly subordinate:
+         the label above is primary ink at semibold, these are regular at 11px. */
       .tab-note {
         font-size: var(--text-xxs);
         font-weight: var(--font-weight-regular);
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
       }
       .tab-count {
         flex: none;
         font-family: var(--font-family-numeric);
         font-feature-settings: var(--font-feature-tabular);
         font-size: var(--text-xxs);
-        color: var(--color-text-tertiary);
-      }
-      .tab.on .tab-count {
         color: var(--color-text-secondary);
+      }
+      /* The live item takes the label's own ink, so the count follows the label
+         rather than staying a step behind it on the one chip that is on stage. */
+      .tab.on .tab-count {
+        color: var(--color-text-primary);
       }
       .warn-mark {
         flex: none;
@@ -286,11 +330,24 @@ export class RailTabsComponent {
    * inside a card, where the rail IS the control rather than a board's navigation.
    */
   readonly appearance = input<'pill' | 'segmented'>('pill');
+  /**
+   * Equal-width cells instead of content-sized pills. For a CLOSED axis whose
+   * items all always render (the four loan categories) — not for a rail whose
+   * length is data (compounds, question groups), where equal cells would leave
+   * a ragged last row and cap a long label for no gain.
+   */
+  readonly uniform = input(false);
 
   readonly select = output<string>();
 
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
   private readonly ids = computed(() => this.items().map((i) => i.id));
+  /**
+   * True when ANY item carries a note — which is what makes the note line a
+   * property of the rail rather than of the item, and lets every item reserve
+   * it. See the placeholder in the template for why.
+   */
+  protected readonly hasNotes = computed(() => this.items().some((i) => i.note !== undefined));
 
   /**
    * Arrow / Home / End over the rail. See the class docblock for why the RTL

@@ -279,11 +279,14 @@ interface BoardCompound {
   `,
   styles: [
     `
+      /* EMBEDDED, NOT ROUTED. This began as the /lookups/compound-classes page and
+         kept that page's own measure and gutters after the extraction; its only
+         consumer now renders it inside a panel on a page that already owns both.
+         Nested, the paddings stacked — at 360px main(32) + product panel(32) +
+         this(24) + class panel(24) left 132px of a 360px screen for the cards,
+         and the 72rem cap fought the host's. The host owns the frame. */
       .page {
         display: block;
-        max-inline-size: 72rem;
-        margin-inline: auto;
-        padding: var(--space-6) var(--space-5) var(--space-8);
       }
 
       .back {
@@ -379,11 +382,15 @@ interface BoardCompound {
       .panel-name {
         display: flex;
         align-items: center;
+        flex-wrap: wrap;
         gap: var(--space-3);
       }
       .rank {
         display: grid;
         place-items: center;
+        /* A flex item with an inline-size still shrinks; the rank read as a
+           squashed oval next to a wrapping title on a phone. */
+        flex: none;
         inline-size: 1.75rem;
         block-size: 1.75rem;
         border-radius: 999px;
@@ -450,9 +457,12 @@ interface BoardCompound {
         line-height: 1.6;
       }
 
+      /* min() on the track floor: a bare 17rem is a HARD minimum, so inside the
+         product page's panel on a 360px phone the cards were 272px wide in a 230px
+         column and their trailing edge — the tick, the class tag — was cut off. */
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
         gap: var(--space-2);
         margin: 0;
         padding: 0;
@@ -465,6 +475,11 @@ interface BoardCompound {
       .card {
         display: flex;
         align-items: center;
+        /* On a phone the tick, the name and the class tag cannot share a line
+           without squeezing the name to ~80px, narrow enough to split 'compound'
+           across two lines. The tag drops under the name instead — it still reads
+           as that card's class, and the name gets the full width back. */
+        flex-wrap: wrap;
         gap: var(--space-3);
         inline-size: 100%;
         block-size: 100%;
@@ -526,15 +541,25 @@ interface BoardCompound {
 
       /* The name is the whole identity of the card — a compound the operator
          cannot read is a compound they cannot file, so it WRAPS rather than
-         ellipsing. The anywhere value only ever splits a single unbroken token. */
+         ellipsing.
+         break-word, NOT anywhere: 'anywhere' also drops the min-content size to a
+         single character, so once the card was narrow (a phone, beside a class
+         tag) flex handed the name almost nothing and it split mid-word even where
+         a space was available — 'Another / compoun / d'. break-word splits an
+         unbroken token only when one genuinely will not fit, which is what the
+         rule above was always describing. */
       .name {
-        flex: 1 1 auto;
+        /* The basis is what makes the card's wrap fire: below it there is no
+           longer room for the name and the tag on one line. */
+        flex: 1 1 7rem;
         min-inline-size: 0;
-        overflow-wrap: anywhere;
+        overflow-wrap: break-word;
         line-height: 1.35;
       }
       .tag {
         flex: none;
+        /* Holds the end edge on its own wrapped line too. */
+        margin-inline-start: auto;
         padding: var(--space-0-5) var(--space-2);
         border-radius: 999px;
         background: var(--color-surface-page);
@@ -606,7 +631,7 @@ interface BoardCompound {
       }
       .sk-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
         gap: var(--space-2);
       }
       .sk-card {

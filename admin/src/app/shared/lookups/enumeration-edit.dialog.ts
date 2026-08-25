@@ -26,9 +26,9 @@ import { PARENT_TYPE_BY_TYPE, lookupExample } from './lookup-constants';
  * staff, who had no way to judge what a key should read, and a key typed by hand
  * is immutable the moment it is saved — a typo there outlived the value itself.
  *
- * Program names carry two extras. A new one starts offerable under all four loan
- * categories (the server's default) — narrowing that is a separate job on the
- * catalog's "Loan categories" tab. And the INCOME BASIS is asked here, in BOTH
+ * Program names carry two extras. A new one starts offerable under NO loan category —
+ * turning them on is step 2 of the name's own page, which is where that decision is
+ * visible and where an unset one reads as unset. And the INCOME BASIS is asked here, in BOTH
  * modes: what the catalog says the name is FOR, so a fresh name is not silently
  * described as payslip-only, and so an operator who got it wrong can fix it from
  * the screen labelled "Edit".
@@ -235,10 +235,16 @@ export interface EnumerationEditDialogData {
                 >
               </p>
             } @else {
+              <!-- "starts under" was true while a create assigned all four loan types.
+                   It assigns NONE now — which loan types a name reaches is the operator's
+                   decision, taken on the name's own page — so the note says both halves:
+                   this answer is kept and applied to whatever they turn on there, and
+                   nothing is offered until they do. -->
               <p class="basis-note">
                 <span nz-icon nzType="info-circle" nzTheme="outline" aria-hidden="true"></span>
                 <span i18n="@@lookups.field.incomeBasis.note"
-                  >Applies to every loan type this name starts under. Change it here any time.</span
+                  >This name starts offered under no loan type — pick them on its own page, and this
+                  answer applies to each one you turn on.</span
                 >
               </p>
             }

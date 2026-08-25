@@ -393,21 +393,32 @@ interface QuestionRow {
                 @if (offeredCount() === 0) {
                   <!-- Not a validation error — the row is saved and legal. It is a
                        statement that the name is currently unsellable, which is the
-                       one thing this step exists to make visible. -->
+                       one thing this step exists to make visible.
+
+                       It carries the second half too, because this is the only place on
+                       screen that can explain why the next step and its rail entry are
+                       both off: the scoring template is stored per loan type, so with
+                       none on there is nowhere to put a pick. -->
                   <p class="stage-warn" role="status">
                     <span nz-icon nzType="close-circle" nzTheme="outline" aria-hidden="true"></span>
                     <span i18n="@@pnd.offered_none"
-                      >No bank can offer this name yet. Turn on at least one loan type.</span
+                      >No bank can offer this name yet, and there is nothing to score it on until
+                      you turn on at least one loan type.</span
                     >
                   </p>
                 }
               </section>
             }
             @case (2) {
+              <!-- uniform: the four loan types are a closed set that always renders in
+                   full, so equal cells are readable here in a way they would not be on
+                   a rail whose length is data. It is what puts the four counts in one
+                   column instead of at four different x. -->
               <app-rail-tabs
                 [items]="tabs()"
                 [activeId]="activeCategory()"
                 [ariaLabel]="tabsAria"
+                [uniform]="true"
                 idPrefix="pnd"
                 (select)="selectCategory($event)"
               />
@@ -783,7 +794,16 @@ interface QuestionRow {
             </button>
             <span class="stepnav-spacer"></span>
             @if (stepIndex() < 2) {
-              <button nz-button nzType="primary" type="button" (click)="goToStep(stepIndex() + 1)">
+              <!-- Disabled rather than hidden: the step exists and the operator is one
+                   switch away from it. The warn line inside step 2 says why, so this is
+                   never a dead control with no explanation on screen. -->
+              <button
+                nz-button
+                nzType="primary"
+                type="button"
+                [disabled]="stepIndex() === 1 && questionsLocked()"
+                (click)="goToStep(stepIndex() + 1)"
+              >
                 <span>{{ nextStepLabel() }}</span>
                 <span nz-icon nzType="arrow-right" nzTheme="outline" aria-hidden="true"></span>
               </button>
@@ -1841,6 +1861,13 @@ export class ProgramNameDetailPage implements OnInit {
    * name no bank can pick, which is unsellable rather than merely unfinished. Step 1 is
    * legitimately blank (a payslip product states no rule) and step 3 is advisory by
    * design (`saveWeights` never reads it), so neither ever asks for attention.
+   *
+   * Step 3 is also the one step that can be UNREACHABLE, and it is the only ordering
+   * this otherwise non-linear screen enforces. Not a house rule: the scoring template is
+   * stored per (name, LOAN TYPE), so with none on there is no key to write under — the
+   * step would open on four tabs, every one of them locked, over a board that could
+   * save nothing. The gate is `disabled` on the rail rather than a click that no-ops,
+   * so the cursor and the focus order say so too.
    */
   protected readonly wizardSteps = computed<WizardStepItem[]>(() => [
     {
@@ -1865,6 +1892,7 @@ export class ProgramNameDetailPage implements OnInit {
       id: 'questions',
       label: this.stepLabels[2] ?? '',
       status: this.totalPicked() > 0 ? 'done' : 'todo',
+      disabled: this.offeredCount() === 0,
     },
   ]);
 
@@ -1886,8 +1914,19 @@ export class ProgramNameDetailPage implements OnInit {
     return this.stepLabels[this.stepIndex() + 1] ?? '';
   }
 
+  /** True while step 3 has nothing to key its picks by — see `wizardSteps`. */
+  protected readonly questionsLocked = computed(() => this.offeredCount() === 0);
+
   protected goToStep(index: number): void {
     const next = Math.min(Math.max(index, 0), this.stepLabels.length - 1);
+    // The rail already disables it and the Next button is already off, so this catches
+    // only the two doors neither control owns: a pasted `?step=3`, and a set emptied
+    // while standing on step 3. Landing on step 2 rather than refusing silently — the
+    // operator asked for the scoring step, and turning a loan type on is how they get it.
+    if (next === 2 && this.questionsLocked()) {
+      if (this.stepIndex() !== 1) this.goToStep(1);
+      return;
+    }
     if (next === this.stepIndex()) return;
     this.stepIndex.set(next);
     this.justMoved.set(null);
@@ -1909,6 +1948,12 @@ export class ProgramNameDetailPage implements OnInit {
   /** Names the segmented pair for a screen reader, which sees two loose buttons. */
   protected readonly bulkAria = $localize`:@@pnd.bulk_aria:Tick or untick every question listed`;
   private readonly notOfferedNote = $localize`:@@pnd.tab_not_offered:Not offered`;
+  /** The rail's figures, said in words — the number alone has no unit. */
+  private tabCountAria(count: number): string {
+    return $localize`:@@pnd.tab_count_aria:${count}:COUNT: questions ticked`;
+  }
+  /** The warn marker is otherwise a colour, which says nothing to a screen reader. */
+  private readonly driftAria = $localize`:@@pnd.tab_warn_aria:Holds picks this loan type no longer asks`;
 
   /** True when the name may be OFFERED under the open tab's category. */
   protected readonly offered = computed(
@@ -2043,16 +2088,24 @@ export class ProgramNameDetailPage implements OnInit {
       const codes = n?.questions[category] ?? [];
       const inScope = codes.filter((c) => byCode.get(c)?.categories.includes(category) ?? false);
       const offered = n?.categories.includes(category) ?? false;
+      // Warns on DRIFT only — a pick this category does not ask, or one whose
+      // question left the pool. "Not offered" is a state, not a problem: a name
+      // nobody sells as a mortgage is the normal case, and warning on it would
+      // put a dot on three tabs of every specialised name.
+      const drift = codes.length > inScope.length;
       return {
         id: category,
         label: categoryLabel(category),
-        count: inScope.length,
+        // A 0 beneath "Not offered" states the same thing twice, and it was the
+        // pair that made half the rail's figures say nothing. A zero on a type
+        // the name IS offered under is a real answer ("nothing ticked yet") and
+        // stays; a count kept alive by picks under a type nobody sells is the
+        // one thing that step 2 promises survives, so it stays too.
+        count: offered || inScope.length > 0 ? inScope.length : undefined,
+        countLabel: this.tabCountAria(inScope.length),
         note: offered ? undefined : this.notOfferedNote,
-        // Warns on DRIFT only — a pick this category does not ask, or one whose
-        // question left the pool. "Not offered" is a state, not a problem: a name
-        // nobody sells as a mortgage is the normal case, and warning on it would
-        // put a dot on three tabs of every specialised name.
-        warn: codes.length > inScope.length,
+        warn: drift,
+        warnLabel: drift ? this.driftAria : undefined,
         accent: `var(--color-cat-${category})`,
       };
     });
@@ -2605,6 +2658,11 @@ export class ProgramNameDetailPage implements OnInit {
       const { rows: names } = absorbProgramNames(rows);
       this.name.set(names.find((n) => n.key === this.routeKey()) ?? null);
       this.pool.set(pool);
+      // `?step=3` is read before the row is, so the gate on step 3 cannot be applied at
+      // construction — the set reads as empty while it is merely unknown, and bouncing
+      // then would break every legitimate deep link into the scoring step. Applied here
+      // instead, once, against a row that has actually arrived.
+      if (this.stepIndex() === 2 && this.questionsLocked()) this.goToStep(1);
     } finally {
       if (!opts.quiet) this.loading.set(false);
     }

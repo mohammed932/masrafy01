@@ -543,7 +543,7 @@
       <trans-unit id="lookups.field.sortOrder" datatype="html"><source>Sort order</source><target>الترتيب</target></trans-unit>
       <trans-unit id="lookups.field.sortOrderHint" datatype="html"><source>controls the order in dropdowns</source><target>يتحكم في ترتيب العناصر في القوائم المنسدلة</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis" datatype="html"><source>How do banks prove the income?</source><target>كيف تثبت البنوك الدخل؟</target></trans-unit>
-      <trans-unit id="lookups.field.incomeBasis.note" datatype="html"><source>Applies to every loan type this name starts under. Change it here any time.</source><target>ينطبق على كل أنواع التمويل التي يبدأ بها هذا الاسم. يمكنك تغييره من هنا في أي وقت.</target></trans-unit>
+      <trans-unit id="lookups.field.incomeBasis.note" datatype="html"><source>This name starts offered under no loan type — pick them on its own page, and this answer applies to each one you turn on.</source><target>يبدأ هذا الاسم غير معروض تحت أي نوع تمويل — اخترها من صفحته الخاصة، وينطبق هذا الاختيار على كل نوع تُفعِّله.</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis.noteEdit" datatype="html"><source>Applies to every loan type this name is offered under (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>).</source><target>ينطبق على كل أنواع التمويل المعروض تحتها هذا الاسم (<x id="INTERPOLATION" equiv-text="{{ assignedCategoryNames }}"/>).</target></trans-unit>
       <trans-unit id="lookups.field.incomeBasis.parked" datatype="html"><source>This name isn’t offered under any loan type yet, so there’s nothing to sell it against. Pick its loan types on the name’s own page first.</source><target>هذا الاسم غير معروض تحت أي نوع تمويل بعد، فلا يوجد ما يُباع عليه. اختر أنواع التمويل من صفحة الاسم أولًا.</target></trans-unit>
       <trans-unit id="lookups.list.separator" datatype="html"><source>, </source><target>، </target></trans-unit>
@@ -885,6 +885,11 @@
       <trans-unit id="pnd.missing_cta" datatype="html"><source>Back to the catalog</source><target>العودة إلى الكتالوج</target></trans-unit>
       <trans-unit id="pnd.tabs_aria" datatype="html"><source>Loan types</source><target>أنواع التمويل</target></trans-unit>
       <trans-unit id="pnd.tab_not_offered" datatype="html"><source>Not offered</source><target>غير مطروح</target></trans-unit>
+      <trans-unit id="pnd.tab_count_aria" datatype="html">
+        <source><x id="COUNT" equiv-text="count"/> questions ticked</source>
+        <target><x id="COUNT" equiv-text="count"/> سؤال مختار</target>
+      </trans-unit>
+      <trans-unit id="pnd.tab_warn_aria" datatype="html"><source>Holds picks this loan type no longer asks</source><target>يحتفظ باختيارات لم يعد هذا النوع من التمويل يسألها</target></trans-unit>
       <trans-unit id="pnd.gate_label" datatype="html">
         <source>Offer “<x id="name" equiv-text="this.nameOf(row)"/>” under <x id="category" equiv-text="categoryLabel(category)"/></source>
         <target>اعرض «<x id="name" equiv-text="this.nameOf(row)"/>» تحت <x id="category" equiv-text="categoryLabel(category)"/></target>
@@ -2039,8 +2044,8 @@
         </context-group>
       </trans-unit>
       <trans-unit id="pnd.offered_none" datatype="html">
-        <source>No bank can offer this name yet. Turn on at least one loan type.</source>
-        <target>لا يمكن لأي بنك عرض هذا الاسم بعد. فعّل نوع تمويل واحدًا على الأقل.</target>
+        <source>No bank can offer this name yet, and there is nothing to score it on until you turn on at least one loan type.</source>
+        <target>لا يمكن لأي بنك عرض هذا الاسم بعد، ولا يوجد ما يُقيَّم عليه حتى تُفعِّل نوع تمويل واحدًا على الأقل.</target>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/features/program-catalog/program-name-detail.page.ts</context>
         </context-group>

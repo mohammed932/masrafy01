@@ -256,6 +256,40 @@ function asIncomeRule(value: unknown): IncomeAssumptionConfig | undefined {
   return value as IncomeAssumptionConfig;
 }
 
+/** The `payslip` / `noPayslip` pair as one assignment row stores it. */
+type BasisFlags = { payslip: boolean; noPayslip: boolean };
+
+/**
+ * The basis a pair is BORN with, when the write is offering the name somewhere it
+ * was not offered before.
+ *
+ * Three answers, in order, and the third is the one that changed. A create no longer
+ * assigns any loan category (see `PlatformEnumerationsAdminService.create`), so the
+ * FIRST pair a name ever gets is written by this function rather than by the create —
+ * and a flat `['payslip']` there would have told the catalog that a name the operator
+ * just linked to a surrogate product is sold against a payslip. The link is the row's
+ * own column and is decided at create time, so it is the honest source for a pair that
+ * has nothing else to inherit from.
+ *
+ *   1. the pair already existed → keep exactly what it held (a delete-then-insert must
+ *      not re-set the basis of a pair the operator kept);
+ *   2. some OTHER pair on the same name exists → inherit it. The dialog writes the basis
+ *      flat across every loan type, so "what this name is sold as" is one answer, and a
+ *      newly offered loan type joining at a different one would be a second answer nobody
+ *      gave;
+ *   3. nothing to inherit → derived from the surrogate-product link.
+ */
+function bornBasisFlags(
+  before: ReadonlyMap<LoanCategory, BasisFlags>,
+  category: LoanCategory,
+  linkedToProduct: boolean,
+): BasisFlags {
+  const kept = before.get(category);
+  if (kept) return kept;
+  for (const sibling of before.values()) return sibling;
+  return flagsOfBases(linkedToProduct ? ['no_payslip'] : ['payslip']);
+}
+
 @Injectable()
 export class PostgresPlatformEnumerationsRepository
   extends PlatformEnumerationsRepository
@@ -1112,7 +1146,9 @@ export class PostgresPlatformEnumerationsRepository
       // Delete-then-insert would reset the income basis of every SURVIVING pair to
       // the column default, so a name offered under Personal + Car that loses Car
       // would quietly stop being sold without a payslip under Personal too. The
-      // basis is carried across; only genuinely new pairs take the default.
+      // basis is carried across; only genuinely new pairs take a default, and that
+      // default is `bornBasisFlags` rather than a literal — a create assigns no
+      // category, so the first pair a name ever gets is written here.
       const before = await tx.platformEnumerationLoanCategory.findMany({
         where: { enumerationId },
         select: { category: true, payslip: true, noPayslip: true },
@@ -1122,11 +1158,16 @@ export class PostgresPlatformEnumerationsRepository
       );
       await tx.platformEnumerationLoanCategory.deleteMany({ where: { enumerationId } });
       if (categories.length === 0) return;
+      const row = await tx.platformEnumeration.findUnique({
+        where: { id: enumerationId },
+        select: { surrogateProductKey: true },
+      });
+      const linked = row?.surrogateProductKey != null;
       await tx.platformEnumerationLoanCategory.createMany({
         data: categories.map((category) => ({
           enumerationId,
           category,
-          ...(kept.get(category) ?? flagsOfBases(['payslip'])),
+          ...bornBasisFlags(kept, category, linked),
         })),
       });
     });
@@ -1316,6 +1357,16 @@ export class PostgresPlatformEnumerationsRepository
       for (const id of ids) {
         await tx.$executeRaw`SELECT 1 FROM platform_enumeration WHERE id = ${id} FOR UPDATE`;
       }
+      // One read for every row the batch touches, before the loop: the born-basis
+      // fallback needs the surrogate-product link, and asking per row would be N more
+      // round trips inside a transaction that already holds every lock.
+      const linkRows = await tx.platformEnumeration.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, surrogateProductKey: true },
+      });
+      const linked = new Set(
+        linkRows.filter((r) => r.surrogateProductKey != null).map((r) => r.id),
+      );
       for (const a of assignments) {
         // Carried across exactly as in `setCategories` — a column action on the
         // board must not silently re-set the basis of pairs it keeps.
@@ -1334,7 +1385,7 @@ export class PostgresPlatformEnumerationsRepository
           data: a.categories.map((category) => ({
             enumerationId: a.enumerationId,
             category,
-            ...(kept.get(category) ?? flagsOfBases(['payslip'])),
+            ...bornBasisFlags(kept, category, linked.has(a.enumerationId)),
           })),
         });
       }
@@ -1586,7 +1637,6 @@ export class PostgresPlatformEnumerationsRepository
   async deleteById(id: string): Promise<void> {
     await this.prisma.platformEnumeration.delete({ where: { id } });
   }
-
 }
 
 /**

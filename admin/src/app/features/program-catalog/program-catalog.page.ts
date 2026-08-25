@@ -979,12 +979,20 @@ export class ProgramCatalogPage implements OnInit {
   /** Every basis this name carries, across the loan types it is offered under. */
   private basesOf(row: EnumerationRow): IncomeBasis[] {
     const byCategory = row.incomeBasesByCategory;
-    // Not deployed / not a catalog row: say "payslip" rather than nothing, so the
-    // grid keeps every name reachable under a filter instead of hiding rows the
-    // board is simultaneously counting.
-    if (!byCategory) return ['payslip'];
-    const bases = this.categoriesOf(row).flatMap((c) => byCategory[c] ?? []);
-    return bases.length > 0 ? [...new Set(bases)] : ['payslip'];
+    const bases = byCategory ? this.categoriesOf(row).flatMap((c) => byCategory[c] ?? []) : [];
+    if (bases.length > 0) return [...new Set(bases)];
+
+    // Nothing STORED: the basis rides on the (name, loan type) assignment row, and a
+    // name offered under no loan type has none — which is every name on the day it is
+    // created, since a create now assigns no category. So the answer the operator gave
+    // on the create form is not readable here; falling back to `payslip` reported a
+    // no-payslip name under "Reads a payslip", i.e. the opposite of what they picked.
+    //
+    // The product LINK is where that answer survives, and it is the same thing the
+    // server infers from when the first assignment row is born (`bornBasisFlags`) — so
+    // the board now says what the name will BE, rather than contradicting it. Read from
+    // the link, not re-derived: one rule, two readers.
+    return [row.surrogateProductKey ? 'no_payslip' : 'payslip'];
   }
 
   protected readonly noPayslipCount = computed(

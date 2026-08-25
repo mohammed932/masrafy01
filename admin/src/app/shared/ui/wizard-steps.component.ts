@@ -121,6 +121,16 @@ export interface WizardStepItem {
         align-items: center;
         gap: var(--space-2);
         flex: 1 1 auto;
+        /* Floored at its own min-content, so an item can never shrink under the
+           44px chip it holds — an item narrower than its step is what put step 2
+           on top of step 1 at 390px, with the rail's own scroller none the wiser
+           because the overflow was inside the item, not past the row. */
+        min-inline-size: auto;
+      }
+      /* The step being read is the one that gives way: on a narrow rail it is the
+         only one still carrying a label, and a label truncates where a chip
+         cannot. Losing :has() costs nothing but a sideways scroll. */
+      .steps-item:has(.step.active) {
         min-inline-size: 0;
       }
       /* The last item owns no connector, so it must not claim connector width. */
@@ -133,9 +143,18 @@ export interface WizardStepItem {
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);
-        flex: 0 0 auto;
-        /* 44px: the rail is the primary navigation on a touch screen. */
+        /* Shrinkable. The item above carries 'min-inline-size: 0' so the rail can
+           give the separators up, but with a rigid 'flex: 0 0 auto' step and a
+           nowrap label nothing could actually yield: the item's box shrank under
+           its own content, the next item started early, and the chips drew ON TOP
+           of the active label — at 390px step 2 overlapped step 1 by 60px, with
+           scrollWidth still equal to clientWidth so the scroller never appeared. */
+        flex: 0 1 auto;
+        /* 44px both ways: the rail is the primary navigation on a touch screen,
+           and the floor is also what stops the shrink above from eating the
+           numeral chip's own box once the label has run out of room to give. */
         min-block-size: 44px;
+        min-inline-size: 44px;
         padding-block: var(--space-1);
         padding-inline: var(--space-2-5);
         background: transparent;
@@ -192,6 +211,11 @@ export interface WizardStepItem {
         font-weight: var(--font-weight-semibold);
         color: var(--text-secondary);
         white-space: nowrap;
+        /* Truncation is what the step gives up when it shrinks. The caption under
+           the rail states the current step in full, and the button's accessible
+           name is the untruncated text either way. */
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .step.active .step-label {
         color: var(--text-primary);
@@ -217,6 +241,15 @@ export interface WizardStepItem {
         min-inline-size: var(--space-4);
         block-size: 1px;
         background: var(--border-default);
+      }
+      /* The connector is the last thing worth paying for. Once the chips are at
+         their 44px floor the row has nothing else to give, and 16px of hairline
+         apiece was the 4px that made step 2 and step 3 touch at 320px. The floor
+         goes, not the rule: there is still slack it can grow into. */
+      @media (max-width: 400px) {
+        .step-sep {
+          min-inline-size: 0;
+        }
       }
       .step-caption {
         margin: 0;

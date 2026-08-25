@@ -22,7 +22,7 @@ import {
   EnumerationSystemOnlyException,
   NotFoundException,
 } from '@/common/errors/domain.exceptions';
-import { ALL_LOAN_CATEGORIES, dedupeCategories } from '@/common/loan-category.util';
+import { dedupeCategories } from '@/common/loan-category.util';
 import { dedupeBases, type IncomeBasis } from '@/common/income-basis.util';
 import {
   BINDABLE_QUESTION_TYPES,
@@ -147,13 +147,19 @@ export class PlatformEnumerationsAdminService {
       // does not exist must never reach storage, where it reads as "no rule" at the
       // engine seam and quotes `rule_unconfigured` for every program under the name.
       surrogateProductKey: resolvedProduct,
-      // Default a new categorised entry to ALL categories, never none: an entry
-      // assigned to nothing is offerable nowhere, so a create that named no
-      // categories would silently add an invisible catalog row. Operators add
-      // names on one tab and narrow them on the other, never the reverse.
+      // Default a new categorised entry to NO categories. It used to default to all
+      // four, on the argument that a name assigned to nothing is an invisible catalog
+      // row — true then, because the assignment lived four tab-clicks deep and nothing
+      // said it was unset. Since the name's own page became a three-step screen it says
+      // exactly that, in three places at once: step 2 is the ONLY step that can read
+      // `invalid`, it opens with "0 of 4 loan types are on", and the catalog board lists
+      // the name under "Offered under no loan type". So the old default was no longer
+      // buying visibility — it was the platform deciding, on the operator's behalf and
+      // in silence, that a brand-new name is sold as all four products. Which loan types
+      // a name reaches is a decision, and an undecided decision must read as undecided.
       // Dropped silently for other types, mirroring `parentKey` above.
       categories: isCategorisedEnumerationType(input.type)
-        ? dedupeCategories(input.categories ?? [...ALL_LOAN_CATEGORIES])
+        ? dedupeCategories(input.categories ?? [])
         : [],
       // Asked once on the create screen and applied to every category above; the
       // detail screen's tabs are where it gets split per loan type. Defaulted

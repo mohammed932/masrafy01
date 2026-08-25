@@ -256,7 +256,7 @@ describe('program-name loan-category assignment', () => {
   });
 
   describe('create', () => {
-    it('defaults a new catalog name to EVERY category', async () => {
+    it('defaults a new catalog name to NO category', async () => {
       const repo = makeRepo([]);
       const { service } = makeService(repo);
 
@@ -265,7 +265,27 @@ describe('program-name loan-category assignment', () => {
         ACTOR,
       );
 
-      // A name created with none would be invisible in every picker.
+      // Which loan types a name reaches is a decision. Defaulting to all four made
+      // the platform take it, silently, on every create — the name's own step 2 is
+      // where it is taken now, and it reports the unset state as `invalid`.
+      expect(repo.insert.mock.calls[0]?.[0]).toMatchObject({ categories: [] });
+    });
+
+    it('still honours an explicit category list', async () => {
+      const repo = makeRepo([]);
+      const { service } = makeService(repo);
+
+      await service.create(
+        {
+          type: 'program_name',
+          key: 'pharmacy',
+          labelAr: 'ص',
+          labelEn: 'Pharmacy',
+          categories: [...ALL],
+        },
+        ACTOR,
+      );
+
       expect(repo.insert.mock.calls[0]?.[0]).toMatchObject({ categories: ALL });
     });
 

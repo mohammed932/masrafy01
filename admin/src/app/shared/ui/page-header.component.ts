@@ -27,25 +27,44 @@ import { CommonModule } from '@angular/common';
       :host {
         display: block;
       }
+      /* WRAPPING FLEX, NOT GRID. The aside used to be an 'auto' track, which grid
+         sizes to max-content and satisfies BEFORE the minmax(0, 1fr) hero gets a
+         pixel. A three-card stat strip is ~630px of max-content, so everywhere
+         between the 720px stacking query and ~1300px the title column was starved
+         instead: 315px at 1280, 135px at 1100, and 51px at 768 — a one-word-per-line
+         lede 31 lines tall, with the strip pushed a full screen down.
+         Flex-wrap makes the aside DROP to its own line at the width where the two
+         no longer fit, which is the behaviour the grid was reaching for and could
+         not express with a single hand-picked breakpoint. */
       .header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: var(--space-5);
+        display: flex;
+        flex-wrap: wrap;
         align-items: end;
+        justify-content: space-between;
+        gap: var(--space-5);
         padding-block-end: var(--space-4);
         border-block-end: 1px solid var(--color-border-default);
       }
-      @media (max-width: 720px) {
-        .header {
-          grid-template-columns: 1fr;
-          align-items: start;
-        }
-      }
       .hero {
+        /* The basis is the width the lede wants to be read at; below it the aside
+           wraps away rather than taking the difference out of the title.
+           The lopsided grow factor is what lets ONE rule serve both lines: sharing
+           a line the hero takes essentially all the slack, and once the aside has
+           wrapped it is the only item on its line and takes all of it — so the
+           strip fills the width instead of sitting content-sized against a ragged
+           right edge, with no second breakpoint to keep in step. */
+        flex: 999 1 30rem;
         display: flex;
         flex-direction: column;
         gap: var(--space-1);
         min-inline-size: 0;
+      }
+      /* Shrinkable, so a strip wider than the whole page compresses rather than
+         overflowing once it is alone on its line. */
+      .aside {
+        flex: 1 1 auto;
+        min-inline-size: 0;
+        max-inline-size: 100%;
       }
       .eyebrow {
         margin: 0;

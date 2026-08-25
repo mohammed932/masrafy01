@@ -361,6 +361,18 @@ interface ReadList {
         background: var(--bg-surface);
       }
 
+      /* Step 1 renders the shared income section, which draws its own bordered
+         surface — so on a phone the operator paid for two frames at once: 32px of
+         panel and 16px of section on each side left 228px of a 390px screen for the
+         figures being edited. The panel keeps the border (it is what separates the
+         stage from the rail) and gives up the inset. */
+      @media (max-width: 640px) {
+        .panel {
+          gap: var(--space-5);
+          padding: var(--space-4);
+        }
+      }
+
       .notice {
         display: flex;
         align-items: flex-start;
