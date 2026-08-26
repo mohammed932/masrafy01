@@ -3,6 +3,7 @@ import { AuthModule } from '@/auth/auth.module';
 import { AuditModule } from '@/audit/audit.module';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
 import { InfraModule } from '@/infra/infra.module';
+import { QuestionnaireModule } from '@/questionnaire/questionnaire.module';
 import { PostgresPlatformEnumerationsRepository } from './postgres-platform-enumerations.repository';
 import { PlatformEnumerationsController } from './platform-enumerations.controller';
 import { AdminPlatformEnumerationsController } from './admin-platform-enumerations.controller';
@@ -22,9 +23,20 @@ import { ProgramNameScopeService } from './program-name-scope.service';
  * v3.0.0 / Principle XIII — JWT-only).
  */
 @Module({
-  // Cycle by design: this module needs `CustomerJwtGuard` from customer-auth,
-  // and customer-auth needs this registry to validate a profile's governorate.
-  imports: [AuthModule, AuditModule, forwardRef(() => CustomerAuthModule), InfraModule],
+  // Two cycles by design, both feature→feature (Principle IX), neither a reach into
+  // `common/`:
+  //   customer-auth — this module needs `CustomerJwtGuard`, and customer-auth needs this
+  //     registry to validate a profile's governorate.
+  //   questionnaire — a mirrored list's values ARE a question's options, so a write here has
+  //     to re-sync and republish; questionnaire in turn needs the live member list to warn
+  //     when a fact's option codes drift from the registry they are supposed to BE.
+  imports: [
+    AuthModule,
+    AuditModule,
+    forwardRef(() => CustomerAuthModule),
+    forwardRef(() => QuestionnaireModule),
+    InfraModule,
+  ],
   controllers: [
     PlatformEnumerationsController,
     AdminPlatformEnumerationsController,

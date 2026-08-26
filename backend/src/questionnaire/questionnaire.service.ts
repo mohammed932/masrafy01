@@ -289,6 +289,15 @@ export class QuestionnaireService {
    * the rule check. Here the count IS known, so a one-answer choice question and
    * a NUMERIC arriving with answers are both refused before a row is written,
    * instead of being published and flagged afterwards.
+   *
+   * `optionsFromEnumerationType` is the third: it makes the question's answers BE a registry
+   * list, `question_option.code` === `platform_enumeration.key`. That equality is what the
+   * engine's `factChoiceTable` and `factParentTable` look a bank's table up by, and what
+   * `attachOptionsEnumerationType` recognises a question's list from — and it is unreachable
+   * through the ordinary path, which mints a code by slugifying a label. Only the seed could
+   * guarantee it before; now a product screen can. The link is remembered
+   * (`EnumerationTypeDef.mirrorQuestionId`) so a value added later re-syncs rather than
+   * becoming an answer nobody can pick.
    */
   async createQuestionWithOptions(dto: CreateQuestionWithOptionsDto, actor: string) {
     const groupId = dto.groupId ?? (await this.resolveDefaultGroupId());
@@ -301,6 +310,17 @@ export class QuestionnaireService {
       await this.assertEnabledWhenValid(displayOrder, dto.enabledWhen);
     }
     const type = dto.type ?? 'SINGLE_SELECT';
+    const mirroredType = dto.optionsFromEnumerationType ?? null;
+    if (mirroredType !== null && (dto.options?.length ?? 0) > 0) {
+      // Two authorities for one list is how they come to disagree. Refused rather than
+      // merged: a merge would mint slugged codes beside registry keys in the same question,
+      // and half a mirrored list is worse than none.
+      throw new DomainException(ERROR_CODES.VALIDATION_FAILED, {
+        field: 'optionsFromEnumerationType',
+        reason: 'options_also_given',
+      });
+    }
+    const mirrored = mirroredType === null ? null : await this.mirroredOptionRows(mirroredType);
     const options = dto.options ?? [];
     // The real count, unlike `createQuestion`. Both directions bite: a choice
     // type below MIN_CHOICE_OPTIONS, and a value type carrying answers at all.
@@ -308,7 +328,7 @@ export class QuestionnaireService {
       type,
       numeric: dto.numeric ?? null,
       text: dto.text ?? null,
-      activeOptionCount: options.length,
+      activeOptionCount: mirrored ? mirrored.length : options.length,
     });
 
     const existing = new Set((await this.repo.questionCodes()).map((q) => q.code));
@@ -317,11 +337,13 @@ export class QuestionnaireService {
     // they collide only with their own siblings — accumulated as we go, because
     // the question does not exist yet and has nothing to read them from.
     const optionCodes = new Set<string>();
-    const optionRows = options.map((o) => {
-      const optionCode = uniqueSlug(o.labelEn, optionCodes);
-      optionCodes.add(optionCode);
-      return { code: optionCode, labelAr: o.labelAr, labelEn: o.labelEn };
-    });
+    const optionRows =
+      mirrored ??
+      options.map((o) => {
+        const optionCode = uniqueSlug(o.labelEn, optionCodes);
+        optionCodes.add(optionCode);
+        return { code: optionCode, labelAr: o.labelAr, labelEn: o.labelEn };
+      });
 
     // Same default as `createQuestion`: a question assigned to nothing is asked
     // by nobody, so an omitted set means all four rather than none.
@@ -347,12 +369,69 @@ export class QuestionnaireService {
       optionRows,
       categories,
     );
+    if (mirroredType !== null) {
+      // AFTER the question exists, because the link needs its id. A failure here leaves a
+      // live question whose options are already right and a list that will not re-sync —
+      // recoverable by pointing the list at the question again, which is what the product
+      // screen offers.
+      await this.enums.updateTypeDefinition(mirroredType, { mirrorQuestionId: created.id });
+    }
     await this.publish(actor);
     return {
       ...created,
       categories,
       options: optionRows.map((o, i) => ({ ...o, displayOrder: i })),
     };
+  }
+
+  // ---- Mirrored option lists ----------------------------------------------
+  /**
+   * Re-sync every question that mirrors `typeKey`, then publish once if anything moved.
+   *
+   * Called by `PlatformEnumerationsAdminService` after ANY write to a value of a mirrored
+   * kind — create, relabel, reorder, deactivate, delete. Without it a compound added a week
+   * after the product was built would be a registry row the customer can never pick and the
+   * engine can never key a table by: the option list is what the questionnaire serves, and
+   * nothing else re-derives it.
+   *
+   * Silent no-op when the kind mirrors nothing, which is every builtin and every list made on
+   * the Manage-values rail. The caller checks that too — cheaply, off the cached definitions
+   * — so this is the second line of defence rather than the first.
+   *
+   * NOT transactional across the two tables, and it does not need to be: the registry write
+   * has already committed, and the worst interleaving leaves the options one write behind
+   * with the next write to that list putting them right. Holding a questionnaire publish
+   * inside a registry transaction would be the more expensive kind of wrong.
+   */
+  async syncMirroredOptions(typeKey: string, actor: string): Promise<boolean> {
+    const defs = await this.enums.typeDefinitions();
+    const questionId = defs.get(typeKey)?.mirrorQuestionId ?? null;
+    if (questionId === null) return false;
+
+    const rows = await this.mirroredOptionRows(typeKey);
+    const changed = await this.repo.syncMirroredOptions(questionId, rows);
+    // A publish that changes nothing is still a new ACTIVE version, and version history is
+    // how an operator reads what they did. Skipped when nothing moved.
+    if (changed) await this.publish(actor);
+    return changed;
+  }
+
+  /**
+   * A registry type's live values, as question options.
+   *
+   * `code` IS the enumeration key — never slugged, never minted. `getActiveMembers` returns
+   * them already ordered by `sortOrder`, so the array index is the display order and the two
+   * screens cannot disagree about which value comes first.
+   */
+  private async mirroredOptionRows(
+    typeKey: string,
+  ): Promise<{ code: string; labelAr: string; labelEn: string }[]> {
+    const members = await this.enums.getActiveMembers(typeKey);
+    return members.map((member) => ({
+      code: member.key,
+      labelAr: member.labelAr,
+      labelEn: member.labelEn,
+    }));
   }
 
   // ---- Loan-category assignment -------------------------------------------

@@ -33,6 +33,7 @@ import {
 } from '@/platform-enumerations/dto/enumeration.dto';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { DomainException } from '@/common/errors/domain.exceptions';
+import { fakeTypeDefinitions } from '../helpers/enumeration-type-defs';
 
 interface FakeRow {
   id: string;
@@ -103,6 +104,7 @@ function makeRepo(rows: FakeRow[], bases: Record<string, string[]> = {}) {
         .filter((r) => r.type === type && r.active && r.deprecatedAt === null)
         .map((r) => ({ key: r.key })),
     ),
+    typeDefinitions: vi.fn(async () => fakeTypeDefinitions()),
     countChildren: vi.fn(async () => 0),
     programNamesLinkedTo: vi.fn(async (productKey: string) =>
       rows.filter((r) => r.type === 'program_name' && r.surrogateProductKey === productKey).map((r) => r.key),

@@ -12,12 +12,6 @@ export type EnumerationType =
   /** The income FACTS a no-payslip rule can be keyed by — operator-managed since v16.2.0. */
   | 'surrogate_fact'
   /**
-   * The collateral products' lists. A `compound` row carries its CLASS in `parentKey`, which
-   * is how a bank keys a five-row cap table while the customer picks a compound by name.
-   */
-  | 'compound_category'
-  | 'compound'
-  /**
    * A no-payslip PRODUCT — a named, reusable income calculation that catalog program
    * names link to. The archetype owns the calculation; the name owns what it is called
    * and who sells it; the bank program owns the figures.
@@ -63,6 +57,15 @@ export interface EnumerationMember {
    * must leave the wizard asking rather than assert an answer.
    */
   incomeBases?: Partial<Record<LoanCategory, IncomeBasis[]>>;
+  /**
+   * On a `program_name` — the surrogate product its calculation comes from.
+   * On a `surrogate_fact` — the product that AUTHORED the fact, which is how a product's own
+   * screen lists what it asks before there is a rule to derive that from.
+   *
+   * `null` on both is a real state (a name that states its own rule; a fact the platform
+   * shipped or an operator made on the values rail). `undefined` means NOT LOADED.
+   */
+  surrogateProductKey?: string | null;
   /**
    * `surrogate_fact` only — the question whose ANSWER is this fact, with the option
    * codes a bank's table for it may be keyed by.

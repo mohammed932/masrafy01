@@ -56,6 +56,15 @@ export class MobilePlatformEnumerationsController {
       throw new EnumerationRegistryUnavailableException();
     }
     const members = await this.repo.getActiveMembers(type);
-    return { success: true, data: members };
+    // `surrogateProductKey` is stripped, not merely unused. `program_name` IS on the
+    // allow-list above, and a catalog name carries the archetype its calculation comes
+    // from — internal pricing topology a customer has no use for and no business seeing.
+    // It is the same reasoning that put the allow-list here in the first place: this
+    // endpoint returns the repository's admin-shaped member, so anything added to that
+    // shape reaches customers unless it is taken out here.
+    return {
+      success: true,
+      data: members.map(({ surrogateProductKey: _omitted, ...member }) => member),
+    };
   }
 }

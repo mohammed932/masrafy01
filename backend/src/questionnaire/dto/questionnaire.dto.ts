@@ -246,6 +246,28 @@ export class CreateQuestionWithOptionsDto extends CreateQuestionDto {
   @ValidateNested({ each: true })
   @Type(() => CreateOptionDto)
   options?: CreateOptionDto[];
+
+  /**
+   * Take the answers from a registry list instead of stating them.
+   *
+   * Names an `enumeration_type_def.key`. Every active value of that kind becomes an option
+   * whose `code` IS the enumeration key — the one thing the ordinary path cannot do, because
+   * it mints a code by slugifying a label. That equality is what the engine keys a bank's
+   * table by (`factChoiceTable`, `factParentTable`) and what `attachOptionsEnumerationType`
+   * recognises the question's list from, so a question that draws on a list must be created
+   * this way or the two are joined by luck.
+   *
+   * The link is REMEMBERED (`EnumerationTypeDef.mirrorQuestionId`), so a value added later
+   * re-syncs into this question's options and republishes.
+   *
+   * Mutually exclusive with `options` — two authorities for one list is how they come to
+   * disagree, and a half-mirrored question would carry slugged codes beside registry keys.
+   */
+  @ApiPropertyOptional({ description: 'Mirror this registry list as the answers.' })
+  @IsOptional()
+  @IsString()
+  @Length(1, 48)
+  optionsFromEnumerationType?: string;
 }
 
 /**

@@ -5,17 +5,30 @@
  * at any time, each saves on its own terms, nothing is submitted at the end and there is no
  * Finish. Same posture, and the same shared rail, as the catalog name's own page.
  *
- *   ① How the income is worked out — the calculation, and the figures every bank starts from
- *   ② The lists it reads          — the operator-managed values the calculation looks up
+ *   ① What it asks                — the questions, the lists behind them, and the facts
+ *   ② How the income is worked out — the calculation, and the figures every bank starts from
  *   ③ Who uses it                 — catalog names, and the bank programs under them
  *
- * STEP ② IS THE POINT OF THE SCREEN. Compounds and compound classes used to live under
- * Manage values, three clicks from the only product whose calculation reads them: an operator
- * filing a compound under a class had no way to see which product they had just changed the
- * price of. The lists are DERIVED — `factKeysReadBy` gives the facts this rule reads, and each
- * fact's bound question reports which registry list its options came from — so nothing here
- * knows what a compound is. A product reading military grades would surface that list instead,
- * with no code change.
+ * STEP ① IS THE POINT OF THE SCREEN, and it is why a no-payslip product is no longer a
+ * release. What one reads is three rows in three tables that are only correct together — a
+ * LIST, a QUESTION whose option codes ARE that list's keys, and a FACT binding the two — and
+ * before `20260827090000` nothing but a seed script could produce the combination. The
+ * questions this product authored are here, with their values, and adding another is a dialog
+ * rather than a deploy.
+ *
+ * IT SHOWS TWO KINDS OF LIST, and the difference is provenance, not permission:
+ *
+ *   OWNED   — authored here, `enumeration_type_def.surrogateProductKey` says so, and kept off
+ *             the global Manage-values rail because it exists to answer one question.
+ *   BORROWED — read by the calculation but authored elsewhere (`employment_type`, say).
+ *             Derived, exactly as before: `factKeysReadBy` gives the facts the steps and gates
+ *             consult, and each fact's bound question reports which registry list its options
+ *             came from. Shown, and editable, because an operator changing a figure needs to
+ *             see the keys it is written against — with a line saying it is shared.
+ *
+ * The two answer different questions and both are needed: the derived one is unanswerable
+ * while the product is being BUILT (there is no rule yet to derive from), and the stored one
+ * says nothing about what the finished calculation actually reads.
  *
  * Step index lives in the URL as `?step=`, so a pasted link and a reload land where the
  * operator was. 1-based on the wire, 0-based in the signal, matching the catalog page.
@@ -33,18 +46,28 @@ import { FormBuilder, FormControl, ReactiveFormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import {
   ArrowLeftOutline,
+  DeleteOutline,
   ExclamationCircleOutline,
   InfoCircleOutline,
+  PlusOutline,
 } from '@ant-design/icons-angular/icons';
 import { SkeletonRowsComponent, WizardStepsComponent } from '@shared/ui';
 import type { WizardStepItem } from '@shared/ui';
 import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.component';
 import { ParentClassBoardComponent } from '@shared/lookups/parent-class-board.component';
-import { enumerationTypeLabel } from '@shared/lookups/lookup-constants';
+import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
+import {
+  ProductFactDialogComponent,
+  type ProductFactDialogData,
+  type ProductFactResult,
+} from '@shared/lookups/product-fact.dialog';
 import { IncomeAssumptionSectionComponent } from '@shared/income-rule/income-assumption-section.component';
+import { ProductRuleBuilderComponent } from '@shared/income-rule/product-rule-builder.component';
 import { PlatformEnumerationsService } from '@core/platform-enumerations/platform-enumerations.service';
+import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import {
   LookupsApiService,
   type EnumerationTypeSummary,
@@ -68,13 +91,35 @@ import {
   type SurrogateProductDetail,
 } from '@features/bank-programs/bank-programs.types';
 
-/** One operator-managed list this product's calculation reads. */
+/** One operator-managed list surfaced on step ①. */
 interface ReadList {
   readonly type: string;
   readonly title: string;
   readonly description: string;
   /** True when values of this type are filed under a parent list — it gets the board. */
   readonly hasBoard: boolean;
+  /**
+   * False when the list was authored elsewhere and this product merely reads it.
+   *
+   * Rendered as a line, not as a lock: editing a shared list from here is legitimate — the
+   * operator is looking at the calculation whose figures are keyed by it — but they should
+   * know the change reaches every other product reading the same list.
+   */
+  readonly owned: boolean;
+}
+
+/** One thing this product asks the applicant: a question, its fact, and the list behind it. */
+interface AskedThing {
+  readonly factKey: string;
+  readonly questionLabel: string;
+  readonly questionCode: string;
+  /** `true` for a figure the applicant types, `false` for a pick from a list. */
+  readonly numeric: boolean;
+  /** Empty when the question is asked of nobody — the product can never quote. */
+  readonly askedIn: readonly LoanCategory[];
+  readonly listType: string | null;
+  /** The question is bound but inactive: it exists and is asked of no one. */
+  readonly inactive: boolean;
 }
 
 @Component({
@@ -82,6 +127,7 @@ interface ReadList {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ProductRuleBuilderComponent,
     RouterLink,
     ReactiveFormsModule,
     NzButtonModule,
@@ -92,13 +138,66 @@ interface ReadList {
     ParentClassBoardComponent,
     IncomeAssumptionSectionComponent,
   ],
-  providers: [provideNzIconsPatch([ArrowLeftOutline, ExclamationCircleOutline, InfoCircleOutline])],
+  providers: [
+    provideNzIconsPatch([
+      ArrowLeftOutline,
+      DeleteOutline,
+      ExclamationCircleOutline,
+      InfoCircleOutline,
+      PlusOutline,
+    ]),
+  ],
   template: `
     <section class="page">
-      <a class="back" routerLink="/surrogate-products">
-        <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
-        <span i18n="@@spd.back">All surrogate products</span>
-      </a>
+      <div class="chrome">
+        <a class="back" routerLink="/surrogate-products">
+          <span nz-icon nzType="arrow-left" nzTheme="outline" aria-hidden="true"></span>
+          <span i18n="@@spd.back">All surrogate products</span>
+        </a>
+        @if (product()) {
+          <button type="button" class="danger-action" (click)="confirmDelete()">
+            <span nz-icon nzType="delete" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@spd.delete">Delete this product</span>
+          </button>
+        }
+      </div>
+
+      @if (deleteBlocked(); as blocked) {
+        <div class="notice is-bad" role="alert">
+          <p class="notice-title" i18n="@@spd.delete.blocked.title">
+            This product is being sold. Deleting it destroys more than the calculation.
+          </p>
+          <p i18n="@@spd.delete.blocked.body">
+            {{ blocked.names.length }} catalog name(s) would be unlinked and
+            {{ blocked.programCodes.length }} bank program(s) would be deleted outright. Customer
+            offers already issued keep their own figures and are not touched.
+          </p>
+          <ul class="blocked-list">
+            @for (code of blocked.programCodes; track code) {
+              <li class="mono">{{ code }}</li>
+            }
+          </ul>
+          <div class="notice-actions">
+            <button
+              type="button"
+              class="ghost-action"
+              (click)="cancelDelete()"
+              i18n="@@common.cancel"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="danger-action solid"
+              [disabled]="deleting()"
+              (click)="doDelete(true)"
+              i18n="@@spd.delete.confirm"
+            >
+              Delete it and everything listed
+            </button>
+          </div>
+        </div>
+      }
 
       @if (loading()) {
         <app-skeleton-rows [rows]="5" [cols]="[3, 1, 1]" [ariaLabel]="loadingLabel" />
@@ -121,6 +220,113 @@ interface ReadList {
           @switch (stepIndex()) {
             @case (0) {
               <section class="panel" [attr.aria-label]="steps()[0]?.label ?? ''">
+                @if (askedThings().length === 0) {
+                  <!-- Stated, never an empty section. This is also the one empty state on
+                     the screen that is a real problem: a no-payslip product that asks
+                     nothing has no answer to work an income out from. -->
+                  <p class="notice is-warn" role="status">
+                    <span nz-icon nzType="info-circle" nzTheme="outline"></span>
+                    <span i18n="@@spd.asks_none"
+                      >This product asks the applicant nothing yet, so there is no answer for it to
+                      work an income out from. Add the first thing it reads.</span
+                    >
+                  </p>
+                } @else {
+                  <ul class="asks" role="list">
+                    @for (thing of askedThings(); track thing.factKey) {
+                      <li class="ask">
+                        <p class="ask-q">{{ thing.questionLabel }}</p>
+                        <p class="ask-meta">
+                          @if (thing.numeric) {
+                            <span class="tag" i18n="@@spd.ask.number">A number they type</span>
+                          } @else {
+                            <span class="tag" i18n="@@spd.ask.choice">One of a list</span>
+                          }
+                          @if (thing.askedIn.length === 0) {
+                            <span class="tag is-warn" i18n="@@spd.ask.unasked"
+                              >Asked of nobody</span
+                            >
+                          } @else {
+                            <span class="muted">{{ askedInLabel(thing.askedIn) }}</span>
+                          }
+                          @if (thing.inactive) {
+                            <span class="tag is-warn" i18n="@@spd.ask.inactive"
+                              >The question is switched off</span
+                            >
+                          }
+                        </p>
+                        <p class="ask-key mono">{{ thing.factKey }}</p>
+                      </li>
+                    }
+                  </ul>
+                }
+
+                <div class="actions">
+                  <button nz-button nzType="default" type="button" (click)="addAsk()">
+                    <span nz-icon nzType="plus" nzTheme="outline"></span>
+                    <span i18n="@@spd.ask.add">Add something it asks</span>
+                  </button>
+                </div>
+
+                @if (readLists().length > 0) {
+                  <h2 class="sub" i18n="@@spd.lists_title">The answers they pick from</h2>
+                  @if (borrowedCount() > 0) {
+                    <p class="hint" i18n="@@spd.lists_shared">
+                      {{ borrowedCount() }} of these list(s) are shared with other products —
+                      editing one reaches every calculation that reads it.
+                    </p>
+                  }
+                  @for (list of readLists(); track list.type) {
+                    <app-lookup-values-panel
+                      [type]="list.type"
+                      [title]="list.title"
+                      [description]="list.description"
+                      [deletable]="deletableType(list.type)"
+                      (changed)="onListChanged()"
+                    />
+                  }
+
+                  @if (boardList(); as board) {
+                    <app-parent-class-board
+                      [childType]="board.type"
+                      [parentType]="board.parentType"
+                      (changed)="onListChanged()"
+                    />
+                  }
+                }
+              </section>
+            }
+            @case (1) {
+              <section class="panel" [attr.aria-label]="steps()[1]?.label ?? ''">
+                @if (isPipeline()) {
+                  <details class="structure" [open]="structureOpen()">
+                    <summary (click)="toggleStructure($event)">
+                      <span i18n="@@spd.structure.title">The steps this product runs</span>
+                      <span class="structure-count">{{ ruleSteps().length }}</span>
+                    </summary>
+                    <app-product-rule-builder
+                      [steps]="builderSteps()"
+                      (stepsChange)="onBuilderSteps($event)"
+                      [gates]="builderGates()"
+                      (gatesChange)="onBuilderGates($event)"
+                      [output]="builderOutput()"
+                      (outputChange)="onBuilderOutput($event)"
+                      [facts]="facts()"
+                      (touched)="markStructureDirty()"
+                    />
+                  </details>
+                } @else {
+                  <p class="notice" role="status">
+                    <span i18n="@@spd.structure.offer">
+                      This product works its income out from a single figure. If the bank needs
+                      several steps — a table, then a percentage, then a cap — build them here.
+                    </span>
+                    <button type="button" class="linkish" (click)="startPipeline()">
+                      <span i18n="@@spd.structure.start">Work it out step by step</span>
+                    </button>
+                  </p>
+                }
+
                 <form [formGroup]="ruleGroup">
                   <app-income-assumption-section
                     variant="catalog"
@@ -170,42 +376,6 @@ interface ReadList {
                     <span i18n="@@spd.save">Save the calculation</span>
                   </button>
                 </div>
-              </section>
-            }
-
-            @case (1) {
-              <section class="panel" [attr.aria-label]="steps()[1]?.label ?? ''">
-                @if (readLists().length === 0) {
-                  <!-- Stated, never an empty section. A calculation that reads no
-                     operator-managed list is a real and common answer — every figure
-                     comes from a number the applicant types — and an empty panel would
-                     read as a screen that failed to load. -->
-                  <p class="notice">
-                    <span nz-icon nzType="info-circle" nzTheme="outline"></span>
-                    <span i18n="@@spd.lists_none"
-                      >This calculation reads no operator-managed list. Every figure it uses comes
-                      from what the applicant answers, so there is nothing to curate here.</span
-                    >
-                  </p>
-                } @else {
-                  @for (list of readLists(); track list.type) {
-                    <app-lookup-values-panel
-                      [type]="list.type"
-                      [title]="list.title"
-                      [description]="list.description"
-                      [deletable]="deletableType(list.type)"
-                      (changed)="onListChanged()"
-                    />
-                  }
-
-                  @if (boardList(); as board) {
-                    <app-parent-class-board
-                      [childType]="board.type"
-                      [parentType]="board.parentType"
-                      (changed)="onListChanged()"
-                    />
-                  }
-                }
               </section>
             }
 
@@ -373,6 +543,119 @@ interface ReadList {
         }
       }
 
+      /* The structure builder, folded away by default: on the compound product it is
+         twenty steps, and an operator arriving to change one figure should not have to
+         scroll past the whole calculation to reach it. */
+      .structure {
+        border-inline-start: 2px solid var(--border-subtle);
+        padding-inline-start: var(--space-4);
+        margin-block-end: var(--space-5);
+      }
+      .structure > summary {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-field);
+        color: var(--text-secondary);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        cursor: pointer;
+        list-style: none;
+      }
+      .structure > summary::-webkit-details-marker {
+        display: none;
+      }
+      .structure > summary:hover {
+        background: var(--bg-subtle);
+        color: var(--text-primary);
+      }
+      .structure > summary:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .structure-count {
+        min-inline-size: 1.5rem;
+        padding-inline: var(--space-2);
+        border-radius: 999px;
+        background: var(--bg-subtle);
+        color: var(--text-tertiary);
+        font-variant-numeric: tabular-nums;
+        text-align: center;
+        font-weight: 500;
+      }
+      .structure[open] > summary {
+        margin-block-end: var(--space-4);
+      }
+      .linkish {
+        border: 0;
+        background: none;
+        padding: 0;
+        margin-inline-start: var(--space-2);
+        color: var(--accent);
+        font: inherit;
+        font-weight: 600;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .linkish:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .chrome {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+      .danger-action,
+      .ghost-action {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-block-size: var(--size-field);
+        padding-inline: var(--space-3);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-field);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        font: inherit;
+        font-size: var(--text-sm);
+        cursor: pointer;
+      }
+      .danger-action:hover:not(:disabled) {
+        border-color: var(--error);
+        color: var(--error);
+      }
+      .danger-action.solid {
+        background: var(--error);
+        border-color: var(--error);
+        color: var(--text-on-accent, #fff);
+      }
+      .danger-action:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .danger-action:focus-visible,
+      .ghost-action:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .notice-title {
+        margin: 0;
+        font-weight: 600;
+      }
+      .blocked-list {
+        margin: 0;
+        padding-inline-start: var(--space-5);
+        font-size: var(--text-sm);
+      }
+      .notice-actions {
+        display: flex;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+      }
       .notice {
         display: flex;
         align-items: flex-start;
@@ -473,6 +756,78 @@ interface ReadList {
         color: var(--text-tertiary);
       }
 
+      /* --- step ①: what it asks --------------------------------------- */
+
+      .notice.is-warn {
+        background: color-mix(in srgb, var(--warning) 10%, var(--bg-surface));
+        color: var(--text-primary);
+      }
+
+      .asks {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+      }
+
+      .ask {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-4);
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-lg);
+        background: var(--bg-surface);
+      }
+
+      .ask-q {
+        margin: 0;
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+
+      .ask-meta {
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+      }
+
+      .ask-key {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--text-tertiary);
+      }
+
+      .mono {
+        font-family: var(--font-mono);
+      }
+
+      /* A chip darkens the ground under its own text, so the warn variant takes primary
+         ink rather than the tertiary the row runs at. */
+      .tag.is-warn {
+        color: var(--text-primary);
+        background: color-mix(in srgb, var(--warning) 16%, var(--bg-surface));
+        padding: var(--space-0-5) var(--space-2);
+        border-radius: var(--radius-pill);
+      }
+
+      .sub {
+        margin: var(--space-4) 0 0;
+        font-size: var(--text-base);
+        font-weight: var(--font-semibold);
+        color: var(--text-primary);
+      }
+
+      .hint {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--text-tertiary);
+      }
+
       .stepnav {
         display: flex;
         justify-content: space-between;
@@ -484,6 +839,8 @@ interface ReadList {
 export class SurrogateProductDetailPage {
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
+  private readonly enumTypes = inject(EnumerationTypesService);
+  private readonly modals = inject(NzModalService);
   private readonly lookups = inject(LookupsApiService);
   private readonly errors = inject(ErrorCodeService);
   private readonly route = inject(ActivatedRoute);
@@ -492,6 +849,9 @@ export class SurrogateProductDetailPage {
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
 
   private readonly key = this.route.snapshot.paramMap.get('key') ?? '';
+
+  /** The route key, as a signal so the owned-list computeds can read it. */
+  protected readonly productKey = signal(this.key);
 
   protected readonly loading = signal(true);
   protected readonly product = signal<SurrogateProductDetail | null>(null);
@@ -507,6 +867,7 @@ export class SurrogateProductDetailPage {
   protected readonly dirty = signal(false);
 
   protected readonly stepsAria = $localize`:@@spd.steps_aria:Surrogate product setup`;
+  protected readonly addAskTitle = $localize`:@@spd.ask.add_title:Add something this product asks`;
   protected readonly loadingLabel = $localize`:@@spd.loading:Loading the surrogate product`;
 
   // --- the calculation form (same shape the catalog name's page uses) --------
@@ -547,9 +908,128 @@ export class SurrogateProductDetailPage {
       null,
   );
 
+  // --- authoring the structure -----------------------------------------------
+  //
+  // A DRAFT held apart from `ruleSteps()` / `ruleGates()` / `ruleOutput()`, which are read
+  // straight off the last server response. Editing those computeds is not possible and
+  // should not be: the rendered structure is what the server last agreed to, and the draft
+  // is what the operator is proposing. `absorb()` re-seeds the draft from the response, so a
+  // reload discards an unsaved edit exactly as it discards an unsaved figure.
+
+  protected readonly builderSteps = signal<RuleStep[]>([]);
+  protected readonly builderGates = signal<RuleGate[]>([]);
+  protected readonly builderOutput = signal<ProductRuleOutput | null>(null);
+
+  /**
+   * Whether the structure was EDITED, not whether it exists.
+   *
+   * This is the flag that decides whether the save carries `steps`/`gates`/`output` at all.
+   * Untouched, the write stays figures-only and the server keeps the stored structure — the
+   * property that stops a stale tab replacing a product it merely rendered.
+   */
+  protected readonly structureDirty = signal(false);
+  protected readonly structureOpen = signal(false);
+
+  protected readonly isPipeline = computed(
+    () => this.builderSteps().length > 0 || this.ruleSteps().length > 0,
+  );
+
+  protected onBuilderSteps(steps: RuleStep[]): void {
+    this.builderSteps.set(steps);
+  }
+
+  protected onBuilderGates(gates: RuleGate[]): void {
+    this.builderGates.set(gates);
+  }
+
+  protected onBuilderOutput(output: ProductRuleOutput | null): void {
+    this.builderOutput.set(output);
+  }
+
+  // --- deleting the product ---------------------------------------------------
+
+  protected readonly deleting = signal(false);
+  /**
+   * What the refusal said would be destroyed, or `null` when nothing is pending.
+   *
+   * Held as the SERVER'S answer rather than derived from `product()!.names`, which the page
+   * already has: the two can disagree if someone linked a name in another tab, and the list
+   * an operator confirms against must be the one the delete will actually act on.
+   */
+  protected readonly deleteBlocked = signal<{
+    names: readonly string[];
+    programCodes: readonly string[];
+  } | null>(null);
+
+  /**
+   * First call without cascade. A product nothing points at dies here; one that is being
+   * sold comes back refused, and the refusal is what the confirmation renders.
+   *
+   * No `nzModal.confirm` for the first step: the refusal already IS the confirmation, and a
+   * dialog asking "are you sure?" before the server has said what is at stake would be
+   * asking the operator to confirm something neither of them has seen yet.
+   */
+  protected confirmDelete(): void {
+    void this.doDelete(false);
+  }
+
+  protected cancelDelete(): void {
+    this.deleteBlocked.set(null);
+  }
+
+  protected async doDelete(cascade: boolean): Promise<void> {
+    if (this.deleting()) return;
+    this.deleting.set(true);
+    try {
+      await this.api.deleteSurrogateProduct(this.key, { cascade });
+      void this.router.navigate(['/surrogate-products']);
+    } catch (err) {
+      const body = (err as { error?: { code?: string; meta?: Record<string, unknown> } }).error;
+      if (body?.code === 'SURROGATE_PRODUCT_IN_USE') {
+        this.deleteBlocked.set({
+          names: (body.meta?.['names'] as string[] | undefined) ?? [],
+          programCodes: (body.meta?.['programCodes'] as string[] | undefined) ?? [],
+        });
+        return;
+      }
+      // Anything else is already a toast from the global interceptor; re-stating it inline
+      // would say the same thing twice.
+    } finally {
+      this.deleting.set(false);
+    }
+  }
+
+  protected markStructureDirty(): void {
+    this.structureDirty.set(true);
+    this.markDirty();
+  }
+
+  protected toggleStructure(event: Event): void {
+    event.preventDefault();
+    this.structureOpen.update((open) => !open);
+  }
+
+  /**
+   * Turn a single-figure product into a pipeline.
+   *
+   * Needed as its own control because `'steps'` is deliberately absent from the method
+   * picker — a pipeline is not a twelfth income method — so without this a freshly created
+   * product could never become one from the browser at all. Opens with one step and the
+   * answer pointing at it, which is the smallest rule that validates.
+   */
+  protected startPipeline(): void {
+    this.builderSteps.set([{ id: 'step_1', op: 'constant' }]);
+    this.builderGates.set([]);
+    this.builderOutput.set({ kind: 'monthlyIncome', from: 'step_1' });
+    this.ruleGroup.controls.strategy.setValue('steps');
+    this.structureOpen.set(true);
+    this.markStructureDirty();
+  }
+
   // --- the lists this calculation reads --------------------------------------
 
-  private readonly facts = computed(() =>
+  // `protected`, not private: the builder's input picker renders this list.
+  protected readonly facts = computed(() =>
     registryFacts(this.enums.membersFor('surrogate_fact')(), this.isAr),
   );
 
@@ -566,41 +1046,114 @@ export class SurrogateProductDetailPage {
    * nothing, correctly: there is no list to curate.
    */
   protected readonly readLists = computed<ReadList[]>(() => {
-    const keys = new Set(factKeysReadBy(this.ruleSteps(), this.ruleGates()));
+    // TWO SOURCES, unioned, because they answer different questions and each is silent
+    // exactly when the other is not. The stored one knows what this product AUTHORED, which
+    // is the only answer available before there is a rule; the derived one knows what the
+    // finished calculation READS, including lists somebody else owns.
+    const owned = new Set(this.enumTypes.listsOwnedBy(this.productKey()).map((d) => d.key));
+    const read = new Set(factKeysReadBy(this.ruleSteps(), this.ruleGates()));
     const byKey = new Map(this.facts().map((f) => [f.key, f]));
     const seen = new Set<string>();
     const out: ReadList[] = [];
 
-    for (const key of keys) {
-      const question = byKey.get(key)?.question;
-      const type = question?.optionsEnumerationType;
-      if (!type || seen.has(type)) continue;
+    const push = (type: string, description: string, hasBoard: boolean): void => {
+      if (seen.has(type)) return;
       seen.add(type);
       out.push({
         type,
-        title: enumerationTypeLabel(type),
-        description: $localize`:@@spd.list_desc:The values an applicant can pick when answering “${question?.label ?? key}:question:”.`,
-        hasBoard: Boolean(question?.parentEnumerationType),
+        title: this.enumTypes.label(type, this.isAr),
+        description,
+        hasBoard,
+        owned: owned.has(type),
       });
+    };
+
+    // Owned, and ANSWER LISTS BEFORE THE CLASSES THEY ARE FILED UNDER, whatever order they
+    // were created in. The operator reads down the page from the question, and a class list
+    // is only meaningful once you have seen what is filed under it.
+    //
+    // Which of the two a list IS comes from the axis, not from its name: a list with children
+    // is a class list, and one with a parent is an answer list filed under those classes. The
+    // first cut keyed off `parentTypeKey` alone and so called the class list "the answers to
+    // one of the questions above", which is the one thing it is not.
+    const ownedDefs = [...this.enumTypes.listsOwnedBy(this.productKey())].sort(
+      (a, b) =>
+        Number(this.enumTypes.childTypesOf(a.key).length > 0) -
+        Number(this.enumTypes.childTypesOf(b.key).length > 0),
+    );
+    for (const def of ownedDefs) {
+      const isClassList = this.enumTypes.childTypesOf(def.key).length > 0;
+      push(
+        def.key,
+        isClassList
+          ? $localize`:@@spd.list_owned_classes:The classes a bank keys its table by. Each answer above is filed under one of these.`
+          : def.parentTypeKey === null
+            ? $localize`:@@spd.list_owned:The answers to one of the questions above.`
+            : $localize`:@@spd.list_owned_filed:The answers to one of the questions above, each filed under a class.`,
+        def.parentTypeKey !== null,
+      );
+    }
+
+    for (const key of read) {
+      const question = byKey.get(key)?.question;
+      const type = question?.optionsEnumerationType;
+      if (!type) continue;
+      push(
+        type,
+        $localize`:@@spd.list_desc:The values an applicant can pick when answering “${question?.label ?? key}:question:”.`,
+        Boolean(question?.parentEnumerationType),
+      );
 
       // The PARENT list too — a bank keys its table by the class while the customer picks
       // a value by name, so an operator who cannot see the classes cannot file anything.
       const parentType = question?.parentEnumerationType;
-      if (parentType && !seen.has(parentType)) {
-        seen.add(parentType);
-        out.push({
-          type: parentType,
-          title: enumerationTypeLabel(parentType),
-          description: $localize`:@@spd.parent_desc:The classes a bank keys its table by. Each value above is filed under one of these.`,
-          hasBoard: false,
-        });
+      if (parentType) {
+        push(
+          parentType,
+          $localize`:@@spd.parent_desc:The classes a bank keys its table by. Each value above is filed under one of these.`,
+          false,
+        );
       }
     }
     return out;
   });
 
+  /**
+   * What this product asks the applicant — its OWN facts, whatever the rule does with them.
+   *
+   * Owned, not derived: a fact this product authored belongs on its page from the moment it
+   * exists, and a rule that does not read it yet is the normal state five minutes after the
+   * dialog closes. What the rule reads is step ②'s question, and the builder's picker offers
+   * every fact regardless of who made it.
+   */
+  protected readonly askedThings = computed<AskedThing[]>(() => {
+    const key = this.productKey();
+    return this.facts()
+      .filter((f) => f.ownedBy === key)
+      .map((f) => ({
+        factKey: f.key,
+        questionLabel: f.question?.label ?? f.label,
+        questionCode: f.question?.code ?? '',
+        numeric: f.question?.type === 'NUMERIC',
+        askedIn: f.question?.askedIn ?? [],
+        listType: f.question?.optionsEnumerationType ?? null,
+        inactive: f.question?.active === false,
+      }));
+  });
+
+  /** The lists the calculation reads that this product did NOT author. */
+  protected readonly borrowedCount = computed(
+    () => this.readLists().filter((l) => !l.owned).length,
+  );
+
   /** The child/parent pair the assignment board is about, when there is one. */
   protected readonly boardList = computed<{ type: string; parentType: string } | null>(() => {
+    // OWNED first, and without consulting the rule: the board is how an operator re-files a
+    // value, and they need it the moment the list exists — not once a step reads it. The
+    // registry states the axis directly (`parentTypeKey`), so this needs no fact at all.
+    for (const def of this.enumTypes.listsOwnedBy(this.productKey())) {
+      if (def.parentTypeKey !== null) return { type: def.key, parentType: def.parentTypeKey };
+    }
     const keys = new Set(factKeysReadBy(this.ruleSteps(), this.ruleGates()));
     for (const fact of this.facts()) {
       if (!keys.has(fact.key)) continue;
@@ -617,29 +1170,31 @@ export class SurrogateProductDetailPage {
   protected readonly stepIndex = signal<number>(this.initialStep());
 
   private readonly stepLabels = [
+    $localize`:@@spd.step_asks:What it asks`,
     $localize`:@@spd.step_rule:How the income is worked out`,
-    $localize`:@@spd.step_lists:The lists it reads`,
     $localize`:@@spd.step_uses:Who uses it`,
   ];
 
   /**
-   * Status is derived and only step ① can ask for attention — an unsaved edit.
+   * Status is derived, and two of the three steps can ask for attention.
    *
-   * Step ② is never wrong: a curated list is the operator's judgement, not a validation.
-   * Step ③ is a report, and a product nothing sells yet is a legitimate state, not an error.
+   * Step ① is WRONG when the product asks nothing — a no-payslip product that reads no answer
+   * has nothing to work an income out from, and every quote under it stops at
+   * `fact_not_answered`. Step ② is wrong on an unsaved edit. Step ③ is a report, and a product
+   * nothing sells yet is a legitimate state rather than an error.
    */
   protected readonly steps = computed<WizardStepItem[]>(() => {
     const p = this.product();
     return [
       {
-        id: 'rule',
+        id: 'asks',
         label: this.stepLabels[0] ?? '',
-        status: this.dirty() ? 'invalid' : p?.strategy ? 'done' : 'todo',
+        status: this.askedThings().length > 0 ? 'done' : 'todo',
       },
       {
-        id: 'lists',
+        id: 'rule',
         label: this.stepLabels[1] ?? '',
-        status: this.readLists().length > 0 ? 'done' : 'todo',
+        status: this.dirty() ? 'invalid' : p?.strategy ? 'done' : 'todo',
       },
       {
         id: 'uses',
@@ -652,9 +1207,9 @@ export class SurrogateProductDetailPage {
   protected readonly stepCaption = computed(() => {
     switch (this.stepIndex()) {
       case 0:
-        return $localize`:@@spd.cap_rule:What the bank reads instead of a payslip, and the figures every bank filing under this product starts from.`;
+        return $localize`:@@spd.cap_asks:The questions this product puts to the applicant, the answers they pick from, and the classes a bank keys its table by.`;
       case 1:
-        return $localize`:@@spd.cap_lists:The values an applicant picks from, and the classes a bank keys its table by. Curated here because this is the calculation that reads them.`;
+        return $localize`:@@spd.cap_rule:What the bank reads instead of a payslip, and the figures every bank filing under this product starts from.`;
       default:
         return $localize`:@@spd.cap_uses:Every catalog name selling this product, and the bank programs underneath.`;
     }
@@ -695,6 +1250,41 @@ export class SurrogateProductDetailPage {
    */
   protected deletableType(type: string): boolean {
     return this.typeSummaries().find((s) => s.type === type)?.deletable ?? true;
+  }
+
+  protected askedInLabel(cats: readonly LoanCategory[]): string {
+    return cats.map((c) => categoryLabel(c)).join(' · ');
+  }
+
+  /**
+   * Author one more thing this product asks — list, question and fact in one pass.
+   *
+   * `NzModalService`, not a hand-rolled panel: a `position: fixed` scrim inside `section.page`
+   * (which carries `app-page-rise`, a transform, and is therefore a containing block) dims the
+   * content and not the viewport — A34, the exact trap this repo has already fallen into once.
+   */
+  protected addAsk(): void {
+    const p = this.product();
+    if (!p) return;
+    const data: ProductFactDialogData = { productKey: this.key, productLabel: this.label(p) };
+    const ref = this.modals.create<
+      ProductFactDialogComponent,
+      ProductFactDialogData,
+      ProductFactResult | undefined
+    >({
+      nzTitle: this.addAskTitle,
+      nzContent: ProductFactDialogComponent,
+      nzData: data,
+      nzFooter: null,
+      nzWidth: 720,
+    });
+    void ref.afterClose.subscribe((result) => {
+      if (!result) return;
+      // The registry cache was refreshed by the dialog; the FACT list is a separate cache and
+      // the product itself may now resolve differently, so both are re-read.
+      void this.enums.refresh('surrogate_fact');
+      void this.load();
+    });
   }
 
   protected label(p: SurrogateProductDetail): string {
@@ -765,10 +1355,14 @@ export class SurrogateProductDetailPage {
   /**
    * The rule to POST.
    *
-   * `steps`/`gates`/`output` are deliberately NOT sent: they are the product's structure,
-   * which this screen renders but cannot author, so re-posting the copy it rendered would
-   * let a stale screen replace the product itself. The server overlays the stored structure
-   * onto a figures-only write.
+   * `steps`/`gates`/`output` are sent ONLY when the builder was touched. Untouched, this
+   * stays a figures-only write and the server overlays the stored structure
+   * (`withStoredStructure`) — which is the behaviour that has to survive, because re-posting
+   * a structure the screen merely RENDERED would let a stale tab replace the product itself.
+   *
+   * All three travel together or none of them do: `withStoredStructure` returns the incoming
+   * rule verbatim as soon as any one of the three keys is present, so sending `steps` alone
+   * would drop the stored gates and output rather than keeping them.
    */
   private ruleFromForm(): IncomeAssumptionConfig {
     const strategy = this.ruleGroup.controls.strategy.getRawValue();
@@ -783,6 +1377,13 @@ export class SurrogateProductDetailPage {
         : {}),
       ...(shape === 'steps' && Object.keys(this.stepFigures()).length > 0
         ? { stepParams: this.stepFigures() }
+        : {}),
+      ...(this.structureDirty()
+        ? {
+            steps: this.builderSteps(),
+            gates: this.builderGates(),
+            output: this.builderOutput() ?? undefined,
+          }
         : {}),
     };
   }
@@ -804,6 +1405,18 @@ export class SurrogateProductDetailPage {
   private absorb(data: SurrogateProductDetail): void {
     this.product.set(data);
     const rule = data.incomeRule;
+    // Re-seed the draft from what the server agreed to, and clear the dirty flag with it:
+    // a reload discards an unsaved structural edit exactly as it discards an unsaved figure.
+    // Cloned one level so the builder's own `update` calls cannot mutate the response object
+    // the read-only panels below are still rendering from.
+    const structural = rule as
+      | { steps?: RuleStep[]; gates?: RuleGate[]; output?: ProductRuleOutput }
+      | null
+      | undefined;
+    this.builderSteps.set((structural?.steps ?? []).map((step) => ({ ...step })));
+    this.builderGates.set((structural?.gates ?? []).map((gate) => ({ ...gate })));
+    this.builderOutput.set(structural?.output ? { ...structural.output } : null);
+    this.structureDirty.set(false);
     this.ruleGroup.reset(
       {
         strategy: rule?.strategy ?? 'declared',

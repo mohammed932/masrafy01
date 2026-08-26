@@ -44,6 +44,7 @@ import {
   ProgramHasEstimatedValuesException,
   ProgramNameKeyUnknownException,
   ProgramNameRuleLinkedException,
+  SurrogateProductInUseException,
   SurrogateProductNotFoundException,
   ValueSourcePathUnknownException,
   ValueSourceValueInvalidException,
@@ -1530,6 +1531,56 @@ export class BankProgramsService {
    * Every bank program reachable through a surrogate product: product → linked names →
    * programs. The set a proof change would break.
    */
+  /**
+   * Delete a surrogate product and everything that only exists because of it.
+   *
+   * DESTRUCTIVE AND CONFIRMED, not destructive and silent: without `cascade` this refuses
+   * with `SURROGATE_PRODUCT_IN_USE` carrying the exact names and program codes that would
+   * be destroyed, so the operator confirms against a list rather than against a count they
+   * have to take on trust.
+   *
+   * WHAT IS DELETED, in FK order: every bank program filed under every name that links to
+   * the product, then the LINKS (the names survive, unlinked), then the product row. The
+   * names are kept deliberately — a catalog name is what banks SELL, and the operator's
+   * next move after retiring a calculation is usually to point those names at another one.
+   *
+   * WHAT SURVIVES, and why this is safe: `bank_offer` carries `programCode` as a plain
+   * column with NO foreign key, and holds its own frozen copy of every figure it quoted
+   * (Principle I / A6). A customer's issued offer therefore keeps reading exactly what it
+   * read the day it was made. What is lost is traceability — the calculation behind those
+   * numbers is gone — and that is the accepted cost of a hard delete.
+   */
+  async deleteSurrogateProduct(
+    key: string,
+    opts: { cascade: boolean },
+    actor: { id: string; sourceIp: string | null },
+  ): Promise<{ key: string; deletedNames: string[]; deletedPrograms: string[] }> {
+    const row = await this.enums.findSurrogateProduct(key);
+    if (!row) throw await this.surrogateProductNotFound(key);
+
+    const names = await this.enums.programNamesLinkedTo(key);
+    const perName = await Promise.all(names.map((n) => this.enums.programsUnderName(n)));
+    const programCodes = perName.flat().map((p) => p.programCode);
+
+    if (!opts.cascade && (names.length > 0 || programCodes.length > 0)) {
+      throw new SurrogateProductInUseException({ key, names, programCodes });
+    }
+
+    await this.enums.deleteSurrogateProductCascade(key, names, programCodes);
+
+    await this.audit.create({
+      actorId: actor.id,
+      // A FK to STAFF_ACCOUNT, never the row this was about — the same note
+      // `setSurrogateProductIncomeRule` carries. The product's key travels in the payload.
+      targetId: null,
+      bankProgramId: null,
+      eventType: AuditEventType.PLATFORM_ENUMERATION_DELETED,
+      sourceIp: actor.sourceIp,
+      payload: { type: 'surrogate_product', key, id: row.id, names, programCodes },
+    });
+    return { key, deletedNames: names, deletedPrograms: programCodes };
+  }
+
   private async programsReadingProduct(key: string): Promise<string[]> {
     const names = await this.enums.programNamesLinkedTo(key);
     const perName = await Promise.all(names.map((n) => this.enums.programsUnderName(n)));

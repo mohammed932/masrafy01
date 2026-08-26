@@ -144,6 +144,49 @@ export const ERROR_CODES = {
    */
   ENUMERATION_HAS_CHILDREN: 'ENUMERATION_HAS_CHILDREN',
   /**
+   * A KIND of list was created with a key another kind already uses.
+   *
+   * Separate from `ENUMERATION_KEY_DUPLICATE`, which is about a VALUE inside one kind: the
+   * two live in different tables with different uniques (`enumeration_type_def.key` alone
+   * versus `platform_enumeration (type, key)`), and the operator's next move differs —
+   * pick another name for the list, versus pick another name for the value.
+   */
+  ENUMERATION_TYPE_DUPLICATE: 'ENUMERATION_TYPE_DUPLICATE',
+  /** A KIND was patched or deleted by a key no definition row carries. */
+  ENUMERATION_TYPE_NOT_FOUND: 'ENUMERATION_TYPE_NOT_FOUND',
+  /**
+   * Deleting a KIND was refused because values still carry its type.
+   *
+   * 409, like the two refusals above: shape is fine, state refuses, and it stops refusing
+   * once the last value is gone. `meta.values` is the count, so the operator knows whether
+   * they are clearing three rows or three hundred.
+   *
+   * Load-bearing because `platform_enumeration.type` carries NO foreign key — nothing in the
+   * database would stop the delete, and the rows left behind would belong to a kind with no
+   * label, no parent axis and no delete gate, which is exactly the orphan state the registry
+   * exists to remove.
+   */
+  ENUMERATION_TYPE_IN_USE: 'ENUMERATION_TYPE_IN_USE',
+  /**
+   * A KIND the code names by string was renamed or deleted.
+   *
+   * `systemOnly` on a kind means a code path reads that exact type string —
+   * `countReferences`'s switch, the customer allow-list, the categorised and question-bound
+   * axes, the document pipeline. Renaming one strands every value carrying the old string
+   * AND leaves the code asking for a key nothing answers to, so both halves break and
+   * neither says so. Relabelling is a different thing and stays allowed: the label is what
+   * an operator reads, the key is what the code reads.
+   */
+  ENUMERATION_TYPE_SYSTEM_ONLY: 'ENUMERATION_TYPE_SYSTEM_ONLY',
+  /**
+   * A KIND was filed under a parent kind that does not exist, or under itself.
+   *
+   * Both refused here because both produce the same unusable state: `resolveParentKey`
+   * would demand a parent from a list nothing can populate, making every value of the new
+   * kind uncreatable. `meta.reason` separates `missing` from `self`.
+   */
+  ENUMERATION_TYPE_PARENT_INVALID: 'ENUMERATION_TYPE_PARENT_INVALID',
+  /**
    * A catalog program name was set to the no-payslip basis without naming the surrogate
    * product it takes its calculation from.
    *
@@ -605,6 +648,11 @@ export const ERROR_HTTP_STATUS: Record<ErrorCode, number> = {
   ENUMERATION_PARENT_NOT_APPLICABLE: 422,
   // 409 for the same reason `ENUMERATION_IN_USE` is: state, not shape.
   ENUMERATION_HAS_CHILDREN: 409,
+  ENUMERATION_TYPE_DUPLICATE: 409,
+  ENUMERATION_TYPE_NOT_FOUND: 404,
+  ENUMERATION_TYPE_IN_USE: 409,
+  ENUMERATION_TYPE_SYSTEM_ONLY: 422,
+  ENUMERATION_TYPE_PARENT_INVALID: 422,
   SURROGATE_PRODUCT_REQUIRED: 422,
   // 409, like the two above: state, not shape.
   SURROGATE_PRODUCT_IN_USE: 409,

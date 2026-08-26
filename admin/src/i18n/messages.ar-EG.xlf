@@ -526,18 +526,6 @@
       <trans-unit id="lookups.dialog.save" datatype="html"><source>Save</source><target>حفظ</target></trans-unit>
       <trans-unit id="lookups.field.labelEn" datatype="html"><source>Label (English)</source><target>التسمية (الإنجليزية)</target></trans-unit>
       <trans-unit id="lookups.field.labelAr" datatype="html"><source>Label (Arabic)</source><target>التسمية (العربية)</target></trans-unit>
-      <trans-unit id="lookups.example.transferType.en" datatype="html"><source>e.g. Salary transferred to the bank</source><target>مثال: تحويل الراتب على البنك</target></trans-unit>
-      <trans-unit id="lookups.example.transferType.ar" datatype="html"><source>مثال: تحويل الراتب على البنك</source><target>مثال: تحويل الراتب على البنك</target></trans-unit>
-      <trans-unit id="lookups.example.employmentType.en" datatype="html"><source>e.g. Private sector employee</source><target>مثال: موظف قطاع خاص</target></trans-unit>
-      <trans-unit id="lookups.example.employmentType.ar" datatype="html"><source>مثال: موظف قطاع خاص</source><target>مثال: موظف قطاع خاص</target></trans-unit>
-      <trans-unit id="lookups.example.productCategory.en" datatype="html"><source>e.g. Personal loans</source><target>مثال: قروض شخصية</target></trans-unit>
-      <trans-unit id="lookups.example.productCategory.ar" datatype="html"><source>مثال: قروض شخصية</source><target>مثال: قروض شخصية</target></trans-unit>
-      <trans-unit id="lookups.example.requiredDocument.en" datatype="html"><source>e.g. Bank statement — last 6 months</source><target>مثال: كشف حساب بنكي — آخر ٦ شهور</target></trans-unit>
-      <trans-unit id="lookups.example.requiredDocument.ar" datatype="html"><source>مثال: كشف حساب بنكي — آخر ٦ شهور</source><target>مثال: كشف حساب بنكي — آخر ٦ شهور</target></trans-unit>
-      <trans-unit id="lookups.example.governorate.en" datatype="html"><source>e.g. Giza</source><target>مثال: الجيزة</target></trans-unit>
-      <trans-unit id="lookups.example.governorate.ar" datatype="html"><source>مثال: الجيزة</source><target>مثال: الجيزة</target></trans-unit>
-      <trans-unit id="lookups.example.programName.en" datatype="html"><source>e.g. Personal Loan Plus</source><target>مثال: قرض شخصي بلس</target></trans-unit>
-      <trans-unit id="lookups.example.programName.ar" datatype="html"><source>مثال: قرض شخصي بلس</source><target>مثال: قرض شخصي بلس</target></trans-unit>
       <trans-unit id="lookups.example.fallback.en" datatype="html"><source>e.g. Salaried employee</source><target>مثال: موظف براتب</target></trans-unit>
       <trans-unit id="lookups.example.fallback.ar" datatype="html"><source>مثال: موظف براتب</source><target>مثال: موظف براتب</target></trans-unit>
       <trans-unit id="lookups.field.sortOrder" datatype="html"><source>Sort order</source><target>الترتيب</target></trans-unit>
@@ -1392,58 +1380,8 @@
       <trans-unit id="income_rule.scalar_hint_deposits" datatype="html"><source>This percent of total deposits, per YEAR, divided into months. 2% of 600,000 EGP = 1,000 EGP a month.</source><target>هذه النسبة من إجمالي الودائع، سنويًا، مقسومة على الشهور. ٢٪ من ٦٠٠٬٠٠٠ جنيه = ١٬٠٠٠ جنيه شهريًا.</target></trans-unit>
 
       <!-- Compound class board — where each compound is priced -->
-      <trans-unit id="ccb.title" datatype="html"><source>Where each compound is priced</source><target>في أي فئة يُسعَّر كل كومباوند</target></trans-unit>
-      <trans-unit id="ccb.lede" datatype="html"><source>A bank states one amount per class. A customer picks a compound by name. This is where the two meet — so a compound in the wrong class is priced at the wrong ceiling.</source><target>البنك يحدد مبلغًا واحدًا لكل فئة، والعميل يختار الكومباوند بالاسم. هنا يلتقي الطرفان — لذا الكومباوند في الفئة الخطأ يُسعَّر بحد خطأ.</target></trans-unit>
-      <trans-unit id="ccb.count_compounds" datatype="html"><source>compounds</source><target>كومباوند</target></trans-unit>
-      <trans-unit id="ccb.count_classes" datatype="html"><source>classes</source><target>فئات</target></trans-unit>
-      <trans-unit id="ccb.load_failed" datatype="html"><source>The compound lists could not be loaded, so nothing can be moved yet. Retry shortly.</source><target>تعذّر تحميل قوائم الكومباوندات، لذا لا يمكن نقل أي شيء بعد. أعد المحاولة قريبًا.</target></trans-unit>
-      <trans-unit id="ccb.no_classes" datatype="html"><source>There are no classes to price compounds in yet. Add one under Compound classes first.</source><target>لا توجد فئات لتسعير الكومباوندات فيها بعد. أضف فئة من «فئات الكومباوندات» أولًا.</target></trans-unit>
-      <trans-unit id="ccb.show_unfiled" datatype="html"><source>Show them</source><target>اعرضها</target></trans-unit>
-      <trans-unit id="ccb.rail_aria" datatype="html"><source>Compound classes</source><target>فئات الكومباوندات</target></trans-unit>
-      <trans-unit id="ccb.search_aria" datatype="html"><source>Search compounds by name</source><target>ابحث عن الكومباوندات بالاسم</target></trans-unit>
-      <trans-unit id="ccb.search" datatype="html"><source>Search compounds</source><target>ابحث عن كومباوند</target></trans-unit>
-      <trans-unit id="ccb.group_filed" datatype="html"><source>Priced in this class</source><target>يُسعَّر في هذه الفئة</target></trans-unit>
-      <trans-unit id="ccb.group_elsewhere" datatype="html"><source>Priced somewhere else</source><target>يُسعَّر في فئة أخرى</target></trans-unit>
-      <trans-unit id="ccb.filed_empty" datatype="html"><source>Nothing is priced here yet. Move a compound in from the list below — a class no compound reaches is an amount the bank states and nobody can quote.</source><target>لا شيء يُسعَّر هنا بعد. انقل كومباوندًا من القائمة أدناه — الفئة التي لا يصلها أي كومباوند مبلغٌ يحدده البنك ولا يستطيع أحد الحصول عليه.</target></trans-unit>
-      <trans-unit id="ccb.candidates_empty" datatype="html"><source>Every compound is priced in this class. Nothing left to move.</source><target>كل الكومباوندات تُسعَّر في هذه الفئة. لا شيء متبقٍّ للنقل.</target></trans-unit>
-      <trans-unit id="ccb.candidates_empty_search" datatype="html"><source>Every compound matching your search is already priced in this class.</source><target>كل الكومباوندات المطابقة لبحثك تُسعَّر بالفعل في هذه الفئة.</target></trans-unit>
-      <trans-unit id="ccb.foot" datatype="html"><source>A compound is priced in at most one class, so ticking it here takes it out of the one it was in. Unticking leaves it in no class at all — it is still offered to the customer, and any bank pricing off the class can then quote it nothing.</source><target>يُسعَّر الكومبوند في فئة واحدة على الأكثر، لذا فإن اختياره هنا يُخرجه من الفئة التي كان فيها. وإلغاء الاختيار يتركه بلا فئة على الإطلاق — وسيظل معروضًا على العميل، وقد لا يمنحه أي بنك يُسعِّر حسب الفئة أي مبلغ.</target></trans-unit>
-      <trans-unit id="ccb.tag_off" datatype="html"><source>Off</source><target>موقوف</target></trans-unit>
-      <trans-unit id="ccb.tier_top" datatype="html"><source>Highest tier</source><target>أعلى فئة</target></trans-unit>
-      <trans-unit id="ccb.tier_mid" datatype="html"><source>Middle tier</source><target>فئة متوسطة</target></trans-unit>
-      <trans-unit id="ccb.tier_low" datatype="html"><source>Lowest tier</source><target>أدنى فئة</target></trans-unit>
-      <trans-unit id="ccb.tier_only" datatype="html"><source>The only class</source><target>الفئة الوحيدة</target></trans-unit>
-      <trans-unit id="ccb.note_one" datatype="html"><source>1 compound</source><target>كومباوند واحد</target></trans-unit>
-      <trans-unit id="ccb.where_none" datatype="html"><source>No class</source><target>بدون فئة</target></trans-unit>
       <trans-unit id="lookups.field.parentKey.pick" datatype="html"><source>Pick a class</source><target>اختر فئة</target></trans-unit>
       <trans-unit id="lookups.field.parentKey.required" datatype="html"><source>Pick the class this value is priced in.</source><target>اختر الفئة التي تُسعَّر فيها هذه القيمة.</target></trans-unit>
-      <trans-unit id="ccb.note_many" datatype="html"><source><x id="COUNT" equiv-text="count"/> compounds</source><target><x id="COUNT" equiv-text="count"/> كومباوند</target></trans-unit>
-      <trans-unit id="ccb.filed_summary" datatype="html"><source><x id="COUNT" equiv-text="count"/> of <x id="TOTAL" equiv-text="total"/> compounds are priced in this class.</source><target><x id="COUNT" equiv-text="count"/> من <x id="TOTAL" equiv-text="total"/> كومباوند تُسعَّر في هذه الفئة.</target></trans-unit>
-      <trans-unit id="ccb.matches" datatype="html"><source><x id="SHOWN" equiv-text="shown"/> of <x id="TOTAL" equiv-text="total"/></source><target><x id="SHOWN" equiv-text="shown"/> من <x id="TOTAL" equiv-text="total"/></target></trans-unit>
-      <trans-unit id="ccb.move_all" datatype="html"><source>Move all <x id="COUNT" equiv-text="count"/> here</source><target>انقل الـ <x id="COUNT" equiv-text="count"/> كلها هنا</target></trans-unit>
-      <trans-unit id="ccb.unfiled_one" datatype="html"><source>1 compound has no class, so no bank can price it.</source><target>كومباوند واحد بدون فئة، لذا لا يستطيع أي بنك تسعيره.</target></trans-unit>
-      <trans-unit id="ccb.unfiled_many" datatype="html"><source><x id="COUNT" equiv-text="count"/> compounds have no class, so no bank can price them.</source><target><x id="COUNT" equiv-text="count"/> كومباوند بدون فئة، لذا لا يستطيع أي بنك تسعيرها.</target></trans-unit>
-      <trans-unit id="ccb.moved_one" datatype="html"><source><x id="NAME" equiv-text="compound.label"/> is now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="NAME" equiv-text="compound.label"/> يُسعَّر الآن في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
-      <trans-unit id="ccb.removed_one" datatype="html"><source><x id="NAME" equiv-text="compound.label"/> is now in no class, so no bank can price it.</source><target><x id="NAME" equiv-text="compound.label"/> أصبح بلا فئة، لذا لا يمكن لأي بنك تسعيره.</target></trans-unit>
-      <trans-unit id="ccb.moved_many" datatype="html"><source><x id="COUNT" equiv-text="moved"/> compounds are now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="COUNT" equiv-text="moved"/> كومباوند تُسعَّر الآن في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
-      <trans-unit id="ccb.aria_filed" datatype="html"><source>Take <x id="NAME" equiv-text="compound.label"/> out of <x id="CLASS" equiv-text="this.activeClassLabel()"/>. It will then be in no class, and any bank pricing off the class can quote it nothing.</source><target>أخرِج <x id="NAME" equiv-text="compound.label"/> من <x id="CLASS" equiv-text="this.activeClassLabel()"/>. سيصبح بلا فئة، وقد لا يمنحه أي بنك يُسعِّر حسب الفئة أي مبلغ.</target></trans-unit>
-      <trans-unit id="ccb.aria_move" datatype="html"><source>Move <x id="NAME" equiv-text="compound.label"/> from <x id="FROM" equiv-text="this.whereLabel(compound)"/> to <x id="TO" equiv-text="this.activeClassLabel()"/></source><target>انقل <x id="NAME" equiv-text="compound.label"/> من <x id="FROM" equiv-text="this.whereLabel(compound)"/> إلى <x id="TO" equiv-text="this.activeClassLabel()"/></target></trans-unit>
-      <trans-unit id="lookups.type.compound_category.label" datatype="html">
-        <source>Compound classes</source>
-        <target>فئات الكومباوندات</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
-          <context context-type="linenumber">54</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="lookups.type.compound.label" datatype="html">
-        <source>Compounds</source>
-        <target>الكومباوندات</target>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/features/lookups/lookups.constants.ts</context>
-          <context context-type="linenumber">60</context>
-        </context-group>
-      </trans-unit>
       <trans-unit id="product_rule.output.max_amount" datatype="html">
         <source>This product works out the most the customer&apos;s property or membership can support. Their salary is not read.</source>
         <target>هذا المنتج يحسب أقصى ما تستطيع وحدة العميل أو عضويته أن تحمله. الراتب لا يُقرأ.</target>
@@ -2165,13 +2103,11 @@
       <trans-unit id="sp.unused" datatype="html"><source>No catalog name sells this yet</source><target>لا يبيعه أي اسم في الكتالوج بعد</target></trans-unit>
       <trans-unit id="spd.back" datatype="html"><source>All surrogate products</source><target>كل المنتجات البديلة</target></trans-unit>
       <trans-unit id="spd.back_step" datatype="html"><source>Back</source><target>السابق</target></trans-unit>
-      <trans-unit id="spd.cap_lists" datatype="html"><source>The values an applicant picks from, and the classes a bank keys its table by. Curated here because this is the calculation that reads them.</source><target>القيم التي يختار منها المتقدم، والفئات التي يبني عليها البنك جدوله. تُدار هنا لأن هذا هو الحساب الذي يقرأها.</target></trans-unit>
       <trans-unit id="spd.cap_rule" datatype="html"><source>What the bank reads instead of a payslip, and the figures every bank filing under this product starts from.</source><target>ما الذي يقرأه البنك بدلًا من كشف المرتب، والمبالغ التي يبدأ منها كل بنك يسجل تحت هذا المنتج.</target></trans-unit>
       <trans-unit id="spd.cap_uses" datatype="html"><source>Every catalog name selling this product, and the bank programs underneath.</source><target>كل اسم في الكتالوج يبيع هذا المنتج، وبرامج البنوك تحته.</target></trans-unit>
       <trans-unit id="spd.eyebrow" datatype="html"><source>Surrogate product</source><target>منتج بديل</target></trans-unit>
       <trans-unit id="spd.lede_none" datatype="html"><source>This product states no calculation yet, so nothing filed under it can quote.</source><target>هذا المنتج لم يُحدَّد له حساب بعد، فلا يستطيع أي شيء مسجَّل تحته أن يقتبس.</target></trans-unit>
       <trans-unit id="spd.list_desc" datatype="html"><source>The values an applicant can pick when answering “<x id="question" equiv-text="question?.label ?? key"/>”.</source><target>القيم التي يمكن للمتقدم اختيارها عند الإجابة على «<x id="question" equiv-text="question?.label ?? key"/>».</target></trans-unit>
-      <trans-unit id="spd.lists_none" datatype="html"><source>This calculation reads no operator-managed list. Every figure it uses comes from what the applicant answers, so there is nothing to curate here.</source><target>هذا الحساب لا يقرأ أي قائمة يديرها المشغّل. كل معلومة يستخدمها تأتي مما يجيب به المتقدم، فلا يوجد ما يُدار هنا.</target></trans-unit>
       <trans-unit id="spd.loading" datatype="html"><source>Loading the surrogate product</source><target>جارٍ تحميل المنتج البديل</target></trans-unit>
       <trans-unit id="spd.no_programs" datatype="html"><source>No bank offers this name yet</source><target>لا يعرض أي بنك هذا الاسم بعد</target></trans-unit>
       <trans-unit id="spd.not_found" datatype="html"><source>This surrogate product could not be loaded. It may have been removed.</source><target>تعذّر تحميل هذا المنتج البديل. ربما تمت إزالته.</target></trans-unit>
@@ -2179,16 +2115,568 @@
       <trans-unit id="spd.reach" datatype="html"><source>A change here reaches <x id="INTERPOLATION" equiv-text="{{ p.usedBy.length }}"/> catalog name(s) and every bank program under them that takes catalog amounts.</source><target>التغيير هنا يصل إلى <x id="INTERPOLATION" equiv-text="{{ p.usedBy.length }}"/> اسم في الكتالوج وكل برنامج بنكي تحتها يأخذ مبالغ الكتالوج.</target></trans-unit>
       <trans-unit id="spd.reach_none" datatype="html"><source>Nothing sells this yet, so a change here reaches no bank.</source><target>لا شيء يبيع هذا بعد، فالتغيير هنا لا يصل إلى أي بنك.</target></trans-unit>
       <trans-unit id="spd.save" datatype="html"><source>Save the calculation</source><target>احفظ الحساب</target></trans-unit>
-      <trans-unit id="spd.step_lists" datatype="html"><source>The lists it reads</source><target>القوائم التي يقرأها</target></trans-unit>
       <trans-unit id="spd.step_rule" datatype="html"><source>How the income is worked out</source><target>كيف يُحتسب الدخل</target></trans-unit>
       <trans-unit id="spd.step_uses" datatype="html"><source>Who uses it</source><target>مَن يستخدمه</target></trans-unit>
       <trans-unit id="spd.steps_aria" datatype="html"><source>Surrogate product setup</source><target>إعداد المنتج البديل</target></trans-unit>
       <trans-unit id="spd.takes_catalog" datatype="html"><source>takes these amounts</source><target>يأخذ هذه المبالغ</target></trans-unit>
       <trans-unit id="spd.uses_none" datatype="html"><source>No catalog program name takes its calculation from this product yet. Link one from the program catalog, and every bank filing a program under that name quotes from here.</source><target>لا يوجد اسم برنامج في الكتالوج يحتسب دخله من هذا المنتج بعد. اربط واحدًا من كتالوج البرامج، وعندها يقتبس كل بنك يسجل برنامجًا تحت ذلك الاسم من هنا.</target></trans-unit>
-      <trans-unit id="lookups.type.military_grade.label" datatype="html"><source>Military grades</source><target>الرتب العسكرية</target></trans-unit>
-      <trans-unit id="lookups.type.professor_rank.label" datatype="html"><source>Academic ranks</source><target>الدرجات الأكاديمية</target></trans-unit>
-      <trans-unit id="lookups.type.property_type.label" datatype="html"><source>Property types</source><target>أنواع العقارات</target></trans-unit>
-      <trans-unit id="lookups.type.company_type.label" datatype="html"><source>Company types</source><target>أنواع الشركات</target></trans-unit>
+      <trans-unit id="lookups.type.new" datatype="html">
+        <source>New list</source>
+        <target>قائمة جديدة</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.edit" datatype="html">
+        <source>Edit this list</source>
+        <target>تعديل هذه القائمة</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.dialog.createTitle" datatype="html">
+        <source>New list</source>
+        <target>قائمة جديدة</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.dialog.editTitle" datatype="html">
+        <source>Edit list</source>
+        <target>تعديل القائمة</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.dialog.lede" datatype="html">
+        <source> A list is a set of values an operator curates — compounds, employment types, a bank&apos;s own tiers. Create one here, then add its values. </source>
+        <target>القائمة مجموعة قيم يديرها المشغّل — الكومباوندات، أنواع التوظيف، أو فئات يحددها البنك. أنشئ القائمة هنا ثم أضف قيمها.</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.key" datatype="html">
+        <source>Key</source>
+        <target>المفتاح</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.key.hint" datatype="html">
+        <source> Letters, numbers, underscore or hyphen. This is how the platform stores the list, and it cannot be changed later. </source>
+        <target>حروف أو أرقام أو شرطة سفلية أو شرطة. هكذا تخزّن المنصة القائمة، ولا يمكن تغييره لاحقًا.</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.key.locked" datatype="html">
+        <source> The key cannot be changed — every value in this list carries it. </source>
+        <target>لا يمكن تغيير المفتاح — كل قيمة في هذه القائمة تحمله.</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.key.invalid" datatype="html">
+        <source> Use letters, numbers, underscore or hyphen, starting with a letter or number. </source>
+        <target>استخدم حروفًا أو أرقامًا أو شرطة سفلية أو شرطة، على أن يبدأ بحرف أو رقم.</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.labelEn" datatype="html">
+        <source>English name</source>
+        <target>الاسم بالإنجليزية</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.labelAr" datatype="html">
+        <source>Arabic name</source>
+        <target>الاسم بالعربية</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.descriptionEn" datatype="html">
+        <source> English description </source>
+        <target>الوصف بالإنجليزية</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.descriptionAr" datatype="html">
+        <source> Arabic description </source>
+        <target>الوصف بالعربية</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.parent" datatype="html">
+        <source>Filed under</source>
+        <target>مُدرجة تحت</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.parent.none" datatype="html">
+        <source> Nothing — these values stand on their own </source>
+        <target>لا شيء — هذه القيم قائمة بذاتها</target>
+      </trans-unit>
+      <trans-unit id="lookups.type.field.parent.hint" datatype="html">
+        <source> Pick a class list when a bank prices these values by group rather than one by one — the way compounds are priced by their class. Every value will then have to name one. </source>
+        <target>اختر قائمة فئات عندما يسعّر البنك هذه القيم على مستوى المجموعة لا واحدة واحدة، كما تُسعّر الكومباوندات حسب فئتها. عندئذ يلزم كل قيمة أن تذكر فئتها.</target>
+      </trans-unit>
+      <trans-unit id="sp.new" datatype="html">
+        <source>New surrogate product</source>
+        <target>منتج دخل بديل جديد</target>
+      </trans-unit>
+      <trans-unit id="spd.delete" datatype="html">
+        <source>Delete this product</source>
+        <target>حذف هذا المنتج</target>
+      </trans-unit>
+      <trans-unit id="spd.delete.blocked.title" datatype="html">
+        <source> This product is being sold. Deleting it destroys more than the calculation. </source>
+        <target>هذا المنتج مُستخدَم في البيع. حذفه يُتلف أكثر من طريقة الحساب.</target>
+      </trans-unit>
+      <trans-unit id="spd.delete.confirm" datatype="html">
+        <source> Delete it and everything listed </source>
+        <target>احذفه مع كل ما هو مذكور</target>
+      </trans-unit>
+      <trans-unit id="spd.structure.title" datatype="html">
+        <source>The steps this product runs</source>
+        <target>الخطوات التي ينفّذها هذا المنتج</target>
+      </trans-unit>
+      <trans-unit id="spd.structure.offer" datatype="html">
+        <source> This product works its income out from a single figure. If the bank needs several steps — a table, then a percentage, then a cap — build them here. </source>
+        <target>يحسب هذا المنتج الدخل من رقم واحد. إذا كان البنك يحتاج عدة خطوات — جدول، ثم نسبة، ثم حد أقصى — فابنِها هنا.</target>
+      </trans-unit>
+      <trans-unit id="spd.structure.start" datatype="html">
+        <source>Work it out step by step</source>
+        <target>احسبه خطوة بخطوة</target>
+      </trans-unit>
+      <trans-unit id="prb.steps.title" datatype="html">
+        <source>The steps</source>
+        <target>الخطوات</target>
+      </trans-unit>
+      <trans-unit id="prb.steps.note" datatype="html">
+        <source> Worked out in order. A step may read an answer, a fixed number, or the result of a step above it. </source>
+        <target>تُنفَّذ بالترتيب. يمكن للخطوة أن تقرأ إجابة، أو رقمًا ثابتًا، أو ناتج خطوة سابقة لها.</target>
+      </trans-unit>
+      <trans-unit id="prb.steps.empty" datatype="html">
+        <source> No steps yet. Add the first one — usually the figure the customer states, or a table keyed by one of their answers. </source>
+        <target>لا توجد خطوات بعد. أضف الأولى — وغالبًا تكون الرقم الذي يذكره العميل، أو جدولًا مبنيًا على إحدى إجاباته.</target>
+      </trans-unit>
+      <trans-unit id="prb.step.name" datatype="html">
+        <source>Name</source>
+        <target>الاسم</target>
+      </trans-unit>
+      <trans-unit id="prb.step.op" datatype="html">
+        <source>What it does</source>
+        <target>ماذا تفعل</target>
+      </trans-unit>
+      <trans-unit id="prb.step.fact" datatype="html">
+        <source>Reads the answer to</source>
+        <target>تقرأ الإجابة على</target>
+      </trans-unit>
+      <trans-unit id="prb.step.fact.none" datatype="html">
+        <source>Pick an input…</source>
+        <target>اختر مُدخلًا…</target>
+      </trans-unit>
+      <trans-unit id="prb.step.inputs" datatype="html">
+        <source>Inputs</source>
+        <target>المُدخلات</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.step" datatype="html">
+        <source>An earlier step</source>
+        <target>خطوة سابقة</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.fact" datatype="html">
+        <source>An answer</source>
+        <target>إجابة</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.const" datatype="html">
+        <source>A fixed number</source>
+        <target>رقم ثابت</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.pick" datatype="html">
+        <source>Pick…</source>
+        <target>اختر…</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.add" datatype="html">
+        <source>Add an input</source>
+        <target>أضف مُدخلًا</target>
+      </trans-unit>
+      <trans-unit id="prb.step.add" datatype="html">
+        <source>Add a step</source>
+        <target>أضف خطوة</target>
+      </trans-unit>
+      <trans-unit id="prb.output.title" datatype="html">
+        <source>The answer</source>
+        <target>الناتج</target>
+      </trans-unit>
+      <trans-unit id="prb.output.note" datatype="html">
+        <source> Which step is the result, and what that number means. </source>
+        <target>أي خطوة هي النتيجة، وماذا يعني هذا الرقم.</target>
+      </trans-unit>
+      <trans-unit id="prb.output.from" datatype="html">
+        <source>The answer is</source>
+        <target>الناتج هو</target>
+      </trans-unit>
+      <trans-unit id="prb.output.kind" datatype="html">
+        <source>and it is</source>
+        <target>وهو</target>
+      </trans-unit>
+      <trans-unit id="prb.output.kind.income" datatype="html">
+        <source> A monthly income </source>
+        <target>دخل شهري</target>
+      </trans-unit>
+      <trans-unit id="prb.output.kind.ceiling" datatype="html">
+        <source> The most the customer can borrow </source>
+        <target>أقصى مبلغ يمكن للعميل اقتراضه</target>
+      </trans-unit>
+      <trans-unit id="prb.output.baseline" datatype="html">
+        <source> Share of income that ceiling assumes (%) </source>
+        <target>نسبة الدخل التي بُني عليها هذا الحد (%)</target>
+      </trans-unit>
+      <trans-unit id="prb.output.baseline.hint" datatype="html">
+        <source> The engine turns a borrowing ceiling back into the income it implies, and needs to know what share of income the ceiling was worked out against. </source>
+        <target>يحوّل المحرّك الحد الأقصى للاقتراض إلى الدخل الذي يقابله، ويحتاج أن يعرف نسبة الدخل التي حُسب الحد على أساسها.</target>
+      </trans-unit>
+      <trans-unit id="prb.gates.title" datatype="html">
+        <source>Conditions</source>
+        <target>الشروط</target>
+      </trans-unit>
+      <trans-unit id="prb.gates.note" datatype="html">
+        <source> A condition stops the calculation and gives a reason. Each bank decides whether to turn one on by filling in its figures — a condition with none is off. </source>
+        <target>الشرط يوقف الحساب ويعطي سببًا. كل بنك يقرر تفعيله بملء أرقامه — والشرط بلا أرقام يكون غير مُفعَّل.</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.name" datatype="html">
+        <source>Name</source>
+        <target>الاسم</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.kind" datatype="html">
+        <source>Compares</source>
+        <target>يقارن</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.kind.number" datatype="html">
+        <source> A number against a limit </source>
+        <target>رقمًا بحد معيّن</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.kind.byKey" datatype="html">
+        <source> A number against a limit per answer </source>
+        <target>رقمًا بحد مختلف لكل إجابة</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.kind.choice" datatype="html">
+        <source> An answer against a list </source>
+        <target>إجابة بقائمة</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.fact" datatype="html">
+        <source>On the answer to</source>
+        <target>على الإجابة على</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.op" datatype="html">
+        <source>Must be</source>
+        <target>يجب أن يكون</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.expect" datatype="html">
+        <source> One of these answers </source>
+        <target>إحدى هذه الإجابات</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.left" datatype="html">
+        <source>Measures</source>
+        <target>يقيس</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.keyedBy" datatype="html">
+        <source> with a limit per </source>
+        <target>بحد لكل</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.reason" datatype="html">
+        <source> What the customer is told </source>
+        <target>ما يُقال للعميل</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.reason.hint" datatype="html">
+        <source> A fixed platform list — each reason is already translated for the customer. “The conditions were not met” is the honest fallback; a new reason needs a developer. </source>
+        <target>قائمة ثابتة من المنصة — كل سبب مترجَم للعميل بالفعل. «لم تتحقق الشروط» هو البديل الصادق، وإضافة سبب جديد تحتاج مطوّرًا.</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.add" datatype="html">
+        <source>Add a condition</source>
+        <target>أضف شرطًا</target>
+      </trans-unit>
+      <trans-unit id="prb.steps.aria" datatype="html">
+        <source>The steps of the calculation</source>
+        <target>خطوات الحساب</target>
+      </trans-unit>
+      <trans-unit id="prb.gates.aria" datatype="html">
+        <source>Conditions</source>
+        <target>الشروط</target>
+      </trans-unit>
+      <trans-unit id="prb.output.aria" datatype="html">
+        <source>The answer</source>
+        <target>الناتج</target>
+      </trans-unit>
+      <trans-unit id="prb.step.name.aria" datatype="html">
+        <source>Step name</source>
+        <target>اسم الخطوة</target>
+      </trans-unit>
+      <trans-unit id="prb.step.op.aria" datatype="html">
+        <source>What this step does</source>
+        <target>ماذا تفعل هذه الخطوة</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.kind.aria" datatype="html">
+        <source>Where this input comes from</source>
+        <target>من أين يأتي هذا المُدخل</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.value.aria" datatype="html">
+        <source>Which one</source>
+        <target>أيّها</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.branch.aria" datatype="html">
+        <source>The answer this column is for</source>
+        <target>الإجابة التي يخص هذا العمود</target>
+      </trans-unit>
+      <trans-unit id="prb.move.up" datatype="html">
+        <source>Move up</source>
+        <target>نقل لأعلى</target>
+      </trans-unit>
+      <trans-unit id="prb.move.down" datatype="html">
+        <source>Move down</source>
+        <target>نقل لأسفل</target>
+      </trans-unit>
+      <trans-unit id="prb.remove" datatype="html">
+        <source>Remove</source>
+        <target>إزالة</target>
+      </trans-unit>
+      <trans-unit id="prb.ref.branch.placeholder" datatype="html">
+        <source>answer code</source>
+        <target>كود الإجابة</target>
+      </trans-unit>
+      <trans-unit id="prb.gate.expect.placeholder" datatype="html">
+        <source>code, code</source>
+        <target>كود، كود</target>
+      </trans-unit>
+      <trans-unit id="prb.problem.fact" datatype="html">
+        <source>Pick which answer this step reads.</source>
+        <target>اختر الإجابة التي تقرأها هذه الخطوة.</target>
+      </trans-unit>
+      <trans-unit id="prb.problem.badRef" datatype="html">
+        <source>An input names a step that does not come before this one.</source>
+        <target>أحد المُدخلات يشير إلى خطوة لا تسبق هذه الخطوة.</target>
+      </trans-unit>
+      <trans-unit id="prb.problem.badConst" datatype="html">
+        <source>A fixed number is not a number.</source>
+        <target>أحد الأرقام الثابتة ليس رقمًا.</target>
+      </trans-unit>
+      <trans-unit id="prb.problem.emptyRef" datatype="html">
+        <source>An input has not been filled in.</source>
+        <target>أحد المُدخلات لم يُملأ.</target>
+      </trans-unit>
+      <trans-unit id="prb.problem.branches" datatype="html">
+        <source>Each input needs the answer code it belongs to.</source>
+        <target>كل مُدخل يحتاج كود الإجابة الذي يخصه.</target>
+      </trans-unit>
+      <trans-unit id="prb.op.constant" datatype="html">
+        <source>A fixed number</source>
+        <target>رقم ثابت</target>
+      </trans-unit>
+      <trans-unit id="prb.op.factNumber" datatype="html">
+        <source>A number the customer states</source>
+        <target>رقم يذكره العميل</target>
+      </trans-unit>
+      <trans-unit id="prb.op.factChoiceTable" datatype="html">
+        <source>A table keyed by an answer</source>
+        <target>جدول مبني على إجابة</target>
+      </trans-unit>
+      <trans-unit id="prb.op.factParentTable" datatype="html">
+        <source>A table keyed by the answer&apos;s class</source>
+        <target>جدول مبني على فئة الإجابة</target>
+      </trans-unit>
+      <trans-unit id="prb.op.bandTable" datatype="html">
+        <source>A table of ranges</source>
+        <target>جدول شرائح</target>
+      </trans-unit>
+      <trans-unit id="prb.op.percentOf" datatype="html">
+        <source>A percentage of an earlier figure</source>
+        <target>نسبة من رقم سابق</target>
+      </trans-unit>
+      <trans-unit id="prb.op.upliftPercent" datatype="html">
+        <source>An earlier figure increased by a percentage</source>
+        <target>رقم سابق مزادًا عليه نسبة</target>
+      </trans-unit>
+      <trans-unit id="prb.op.multiply" datatype="html">
+        <source>An earlier figure multiplied</source>
+        <target>رقم سابق مضروبًا</target>
+      </trans-unit>
+      <trans-unit id="prb.op.sum" datatype="html">
+        <source>Several figures added up</source>
+        <target>مجموع عدة أرقام</target>
+      </trans-unit>
+      <trans-unit id="prb.op.subtract" datatype="html">
+        <source>One figure minus another</source>
+        <target>رقم ناقص رقم آخر</target>
+      </trans-unit>
+      <trans-unit id="prb.op.minOf" datatype="html">
+        <source>The smallest of several figures</source>
+        <target>أصغر عدة أرقام</target>
+      </trans-unit>
+      <trans-unit id="prb.op.maxOf" datatype="html">
+        <source>The largest of several figures</source>
+        <target>أكبر عدة أرقام</target>
+      </trans-unit>
+      <trans-unit id="prb.op.coalesce" datatype="html">
+        <source>Whichever way the bank filled in</source>
+        <target>الطريقة التي ملأها البنك</target>
+      </trans-unit>
+      <trans-unit id="prb.op.pickByFact" datatype="html">
+        <source>A different column per answer</source>
+        <target>عمود مختلف لكل إجابة</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.dp" datatype="html">
+        <source>The down payment is too small</source>
+        <target>الدفعة المقدمة أقل من اللازم</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.price" datatype="html">
+        <source>The unit price is too low</source>
+        <target>سعر الوحدة أقل من اللازم</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.new" datatype="html">
+        <source>The contract is too recent</source>
+        <target>العقد حديث أكثر من اللازم</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.old" datatype="html">
+        <source>The contract is too old</source>
+        <target>العقد قديم أكثر من اللازم</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.owner" datatype="html">
+        <source>Ownership is not confirmed</source>
+        <target>الملكية غير مؤكدة</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.multi" datatype="html">
+        <source>Owning more than one unit is not confirmed</source>
+        <target>امتلاك أكثر من وحدة غير مؤكد</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.docs" datatype="html">
+        <source>Self-employment papers are missing</source>
+        <target>مستندات العمل الحر ناقصة</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.business" datatype="html">
+        <source>The business is too new</source>
+        <target>النشاط التجاري حديث أكثر من اللازم</target>
+      </trans-unit>
+      <trans-unit id="prb.reason.generic" datatype="html">
+        <source>The conditions were not met</source>
+        <target>لم تتحقق الشروط</target>
+      </trans-unit>
+      <trans-unit id="prb.numop.gte" datatype="html">
+        <source>At least</source>
+        <target>لا يقل عن</target>
+      </trans-unit>
+      <trans-unit id="prb.numop.lte" datatype="html">
+        <source>At most</source>
+        <target>لا يزيد عن</target>
+      </trans-unit>
+      <trans-unit id="prb.numop.gt" datatype="html">
+        <source>More than</source>
+        <target>أكبر من</target>
+      </trans-unit>
+      <trans-unit id="prb.numop.lt" datatype="html">
+        <source>Less than</source>
+        <target>أصغر من</target>
+      </trans-unit>
+      <trans-unit id="prb.numop.between" datatype="html">
+        <source>Between</source>
+        <target>بين</target>
+      </trans-unit>
+      <trans-unit id="prb.chop.eq" datatype="html">
+        <source>Exactly</source>
+        <target>بالضبط</target>
+      </trans-unit>
+      <trans-unit id="prb.chop.neq" datatype="html">
+        <source>Anything except</source>
+        <target>أي شيء عدا</target>
+      </trans-unit>
+      <trans-unit id="prb.chop.in" datatype="html">
+        <source>One of</source>
+        <target>إحدى</target>
+      </trans-unit>
+      <trans-unit id="spd.delete.blocked.body" datatype="html">
+        <source> <x id="INTERPOLATION" equiv-text="{{ blocked.names.length }}"/> catalog name(s) would be unlinked and <x id="INTERPOLATION_1" equiv-text="{{ blocked.programCodes.length }}"/> bank program(s) would be deleted outright. Customer offers already issued keep their own figures and are not touched. </source>
+        <target><x id="INTERPOLATION" equiv-text="{{ blocked.names.length }}"/> اسم برنامج سيُلغى ارتباطها و<x id="INTERPOLATION_1" equiv-text="{{ blocked.programCodes.length }}"/> برنامج بنكي سيُحذف نهائيًا. العروض التي صدرت للعملاء تحتفظ بأرقامها ولا تتأثر.</target>
+      </trans-unit>
+      <trans-unit id="prb.problem.tooFewInputs" datatype="html">
+        <source>This step needs at least <x id="min" equiv-text="min"/> input(s).</source>
+        <target>تحتاج هذه الخطوة <x id="min" equiv-text="min"/> مُدخل على الأقل.</target>
+      </trans-unit>
+      <trans-unit id="prb.problem.tooManyInputs" datatype="html">
+        <source>This step takes at most <x id="max" equiv-text="max"/> input(s).</source>
+        <target>تقبل هذه الخطوة <x id="max" equiv-text="max"/> مُدخل بحد أقصى.</target>
+      </trans-unit>
+      <trans-unit id="prb.step.row.aria" datatype="html">
+        <source>Step <x id="pos" equiv-text="index + 1"/> — <x id="id" equiv-text="id"/></source>
+        <target>خطوة <x id="pos" equiv-text="index + 1"/> — <x id="id" equiv-text="id"/></target>
+      </trans-unit>
+      <trans-unit id="prb.gate.row.aria" datatype="html">
+        <source>Condition <x id="pos" equiv-text="index + 1"/> — <x id="id" equiv-text="id"/></source>
+        <target>شرط <x id="pos" equiv-text="index + 1"/> — <x id="id" equiv-text="id"/></target>
+      </trans-unit>
+      <trans-unit id="spd.step_asks" datatype="html"><source>What it asks</source><target>ما الذي يسأل عنه</target></trans-unit>
+      <trans-unit id="spd.cap_asks" datatype="html"><source>The questions this product puts to the applicant, the answers they pick from, and the classes a bank keys its table by.</source><target>الأسئلة التي يطرحها هذا المنتج على العميل، والإجابات التي يختار منها، والفئات التي يبني عليها البنك جدوله.</target></trans-unit>
+      <trans-unit id="spd.asks_none" datatype="html"><source>This product asks the applicant nothing yet, so there is no answer for it to work an income out from. Add the first thing it reads.</source><target>هذا المنتج لا يسأل العميل عن شيء بعد، فليست هناك إجابة يحسب منها الدخل. أضف أول شيء يقرأه.</target></trans-unit>
+      <trans-unit id="spd.ask.number" datatype="html"><source>A number they type</source><target>رقم يكتبه العميل</target></trans-unit>
+      <trans-unit id="spd.ask.choice" datatype="html"><source>One of a list</source><target>اختيار من قائمة</target></trans-unit>
+      <trans-unit id="spd.ask.unasked" datatype="html"><source>Asked of nobody</source><target>لا يُسأل لأحد</target></trans-unit>
+      <trans-unit id="spd.ask.inactive" datatype="html"><source>The question is switched off</source><target>السؤال موقوف</target></trans-unit>
+      <trans-unit id="spd.ask.add" datatype="html"><source>Add something it asks</source><target>أضف شيئًا يسأل عنه</target></trans-unit>
+      <trans-unit id="spd.ask.add_title" datatype="html"><source>Add something this product asks</source><target>أضف شيئًا يسأل عنه هذا المنتج</target></trans-unit>
+      <trans-unit id="spd.lists_title" datatype="html"><source>The answers they pick from</source><target>الإجابات التي يختار منها</target></trans-unit>
+      <trans-unit id="spd.list_owned" datatype="html"><source>The answers to one of the questions above.</source><target>إجابات أحد الأسئلة أعلاه.</target></trans-unit>
+      <trans-unit id="spd.list_owned_filed" datatype="html"><source>The answers to one of the questions above, each filed under a class.</source><target>إجابات أحد الأسئلة أعلاه، كل إجابة مُدرجة تحت فئة.</target></trans-unit>
+      <trans-unit id="clsb.title" datatype="html"><source>Where each value is priced</source><target>في أي فئة يُسعَّر كل عنصر</target></trans-unit>
+      <trans-unit id="clsb.lede" datatype="html"><source>A bank states one amount per class. A customer picks a value by name. This is where the two meet — so a value in the wrong class is priced at the wrong ceiling.</source><target>البنك يحدد مبلغًا واحدًا لكل فئة، والعميل يختار العنصر بالاسم. هنا يلتقي الاثنان — فالعنصر في الفئة الخطأ يُسعَّر بسقف خطأ.</target></trans-unit>
+      <trans-unit id="clsb.count_values" datatype="html"><source>values</source><target>عنصر</target></trans-unit>
+      <trans-unit id="clsb.count_classes" datatype="html"><source>classes</source><target>فئة</target></trans-unit>
+      <trans-unit id="clsb.load_failed" datatype="html"><source>The lists could not be loaded, so nothing can be moved yet. Retry shortly.</source><target>تعذر تحميل القوائم، فلا يمكن نقل أي شيء الآن. أعد المحاولة بعد قليل.</target></trans-unit>
+      <trans-unit id="clsb.no_classes" datatype="html"><source>There are no classes to price these values in yet. Add one to the class list first.</source><target>لا توجد فئات بعد لتسعير هذه العناصر. أضف فئة إلى قائمة الفئات أولًا.</target></trans-unit>
+      <trans-unit id="clsb.show_unfiled" datatype="html"><source>Show them</source><target>اعرضها</target></trans-unit>
+      <trans-unit id="clsb.group_filed" datatype="html"><source>Priced in this class</source><target>مُسعَّر في هذه الفئة</target></trans-unit>
+      <trans-unit id="clsb.filed_empty" datatype="html"><source>Nothing is priced here yet. Move one in from the list below — a class no value reaches is an amount the bank states and nobody can quote.</source><target>لا شيء مُسعَّر هنا بعد. انقل عنصرًا من القائمة أدناه — الفئة التي لا يصلها أي عنصر مبلغ يحدده البنك ولا يستطيع أحد الحصول عليه.</target></trans-unit>
+      <trans-unit id="clsb.tag_off" datatype="html"><source>Off</source><target>موقوف</target></trans-unit>
+      <trans-unit id="clsb.group_elsewhere" datatype="html"><source>Priced somewhere else</source><target>مُسعَّر في مكان آخر</target></trans-unit>
+      <trans-unit id="clsb.foot" datatype="html"><source>A value is priced in at most one class, so ticking it here takes it out of the one it was in. Unticking leaves it in no class at all — it is still offered to the customer, and any bank pricing off the class can then quote it nothing.</source><target>العنصر يُسعَّر في فئة واحدة على الأكثر، فتحديده هنا يخرجه من الفئة التي كان فيها. وإلغاء التحديد يتركه بلا فئة إطلاقًا — يظل معروضًا على العميل، وأي بنك يُسعِّر بالفئة لن يستطيع تسعيره.</target></trans-unit>
+      <trans-unit id="clsb.rail_aria" datatype="html"><source>Classes</source><target>الفئات</target></trans-unit>
+      <trans-unit id="clsb.search_aria" datatype="html"><source>Search values by name</source><target>ابحث في العناصر بالاسم</target></trans-unit>
+      <trans-unit id="clsb.search" datatype="html"><source>Search values</source><target>ابحث في العناصر</target></trans-unit>
+      <trans-unit id="clsb.note_one" datatype="html"><source>1 value</source><target>عنصر واحد</target></trans-unit>
+      <trans-unit id="clsb.note_many" datatype="html"><source><x id="COUNT" equiv-text="count"/> values</source><target><x id="COUNT" equiv-text="count"/> عنصر</target></trans-unit>
+      <trans-unit id="clsb.tier_only" datatype="html"><source>The only class</source><target>الفئة الوحيدة</target></trans-unit>
+      <trans-unit id="clsb.tier_top" datatype="html"><source>Highest tier</source><target>أعلى مستوى</target></trans-unit>
+      <trans-unit id="clsb.tier_low" datatype="html"><source>Lowest tier</source><target>أدنى مستوى</target></trans-unit>
+      <trans-unit id="clsb.tier_mid" datatype="html"><source>Middle tier</source><target>مستوى متوسط</target></trans-unit>
+      <trans-unit id="clsb.filed_summary" datatype="html"><source><x id="COUNT" equiv-text="count"/> of <x id="TOTAL" equiv-text="total"/> values are priced in this class.</source><target><x id="COUNT" equiv-text="count"/> من <x id="TOTAL" equiv-text="total"/> عنصر مُسعَّرة في هذه الفئة.</target></trans-unit>
+      <trans-unit id="clsb.matches" datatype="html"><source><x id="SHOWN" equiv-text="shown"/> of <x id="TOTAL" equiv-text="total"/></source><target><x id="SHOWN" equiv-text="shown"/> من <x id="TOTAL" equiv-text="total"/></target></trans-unit>
+      <trans-unit id="clsb.move_all" datatype="html"><source>Move all <x id="COUNT" equiv-text="count"/> here</source><target>انقل الـ<x id="COUNT" equiv-text="count"/> كلها هنا</target></trans-unit>
+      <trans-unit id="clsb.unfiled_one" datatype="html"><source>1 value has no class, so no bank can price it.</source><target>عنصر واحد بلا فئة، فلا يستطيع أي بنك تسعيره.</target></trans-unit>
+      <trans-unit id="clsb.unfiled_many" datatype="html"><source><x id="COUNT" equiv-text="count"/> values have no class, so no bank can price them.</source><target><x id="COUNT" equiv-text="count"/> عنصر بلا فئة، فلا يستطيع أي بنك تسعيرها.</target></trans-unit>
+      <trans-unit id="clsb.candidates_empty_search" datatype="html"><source>Every value matching your search is already priced in this class.</source><target>كل عنصر يطابق بحثك مُسعَّر بالفعل في هذه الفئة.</target></trans-unit>
+      <trans-unit id="clsb.candidates_empty" datatype="html"><source>Every value is priced in this class. Nothing left to move.</source><target>كل العناصر مُسعَّرة في هذه الفئة. لم يتبق شيء لنقله.</target></trans-unit>
+      <trans-unit id="clsb.where_none" datatype="html"><source>No class</source><target>بلا فئة</target></trans-unit>
+      <trans-unit id="clsb.aria_filed" datatype="html"><source>Take <x id="NAME" equiv-text="value.label"/> out of <x id="CLASS" equiv-text="this.activeClassLabel()"/>. It will then be in no class, and any bank pricing off the class can quote it nothing.</source><target>أخرج <x id="NAME" equiv-text="value.label"/> من <x id="CLASS" equiv-text="this.activeClassLabel()"/>. سيصبح بلا فئة، ولن يستطيع أي بنك يُسعِّر بالفئة تسعيره.</target></trans-unit>
+      <trans-unit id="clsb.aria_move" datatype="html"><source>Move <x id="NAME" equiv-text="value.label"/> from <x id="FROM" equiv-text="this.whereLabel(value)"/> to <x id="TO" equiv-text="this.activeClassLabel()"/></source><target>انقل <x id="NAME" equiv-text="value.label"/> من <x id="FROM" equiv-text="this.whereLabel(value)"/> إلى <x id="TO" equiv-text="this.activeClassLabel()"/></target></trans-unit>
+      <trans-unit id="clsb.moved_one" datatype="html"><source><x id="NAME" equiv-text="value.label"/> is now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="NAME" equiv-text="value.label"/> صار مُسعَّرًا في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
+      <trans-unit id="clsb.removed_one" datatype="html"><source><x id="NAME" equiv-text="value.label"/> is now in no class, so no bank can price it.</source><target><x id="NAME" equiv-text="value.label"/> صار بلا فئة، فلا يستطيع أي بنك تسعيره.</target></trans-unit>
+      <trans-unit id="clsb.moved_many" datatype="html"><source><x id="COUNT" equiv-text="moved"/> values are now priced in <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</source><target><x id="COUNT" equiv-text="moved"/> عنصر صارت مُسعَّرة في <x id="CLASS" equiv-text="this.activeClassLabel()"/>.</target></trans-unit>
+      <trans-unit id="pfd.kind.legend" datatype="html"><source>What kind of answer is it?</source><target>ما نوع الإجابة؟</target></trans-unit>
+      <trans-unit id="pfd.kind.aria" datatype="html"><source>What kind of answer</source><target>نوع الإجابة</target></trans-unit>
+      <trans-unit id="pfd.kind.choice" datatype="html"><source>One of a list</source><target>اختيار من قائمة</target></trans-unit>
+      <trans-unit id="pfd.kind.choice_note" datatype="html"><source>The applicant picks a name. A bank prices one row per name — or per class, if you group them.</source><target>يختار العميل اسمًا. ويُسعِّر البنك صفًا لكل اسم — أو لكل فئة إذا جمعتها في فئات.</target></trans-unit>
+      <trans-unit id="pfd.kind.number" datatype="html"><source>A number</source><target>رقم</target></trans-unit>
+      <trans-unit id="pfd.kind.number_note" datatype="html"><source>The applicant types a figure. A bank prices it in bands.</source><target>يكتب العميل رقمًا. ويُسعِّره البنك على شرائح.</target></trans-unit>
+      <trans-unit id="pfd.q.legend" datatype="html"><source>What the applicant is asked</source><target>ما يُسأل عنه العميل</target></trans-unit>
+      <trans-unit id="pfd.q.en" datatype="html"><source>Question (English)</source><target>السؤال (بالإنجليزية)</target></trans-unit>
+      <trans-unit id="pfd.q.ar" datatype="html"><source>Question (Arabic)</source><target>السؤال (بالعربية)</target></trans-unit>
+      <trans-unit id="pfd.q.help_en" datatype="html"><source>Hint under the question (English, optional)</source><target>تلميح تحت السؤال (بالإنجليزية، اختياري)</target></trans-unit>
+      <trans-unit id="pfd.q.help_ar" datatype="html"><source>Hint under the question (Arabic, optional)</source><target>تلميح تحت السؤال (بالعربية، اختياري)</target></trans-unit>
+      <trans-unit id="pfd.q.categories" datatype="html"><source>Asked of applicants for</source><target>يُسأل لطالبي</target></trans-unit>
+      <trans-unit id="pfd.q.categories_ph" datatype="html"><source>Pick at least one</source><target>اختر واحدًا على الأقل</target></trans-unit>
+      <trans-unit id="pfd.q.categories_hint" datatype="html"><source>A question assigned to nothing is asked by nobody, so the product can never quote.</source><target>السؤال غير المخصص لأي نوع لا يُسأل لأحد، فلا يستطيع المنتج التسعير أبدًا.</target></trans-unit>
+      <trans-unit id="pfd.q.required" datatype="html"><source>Everyone must answer it</source><target>يجب على الجميع الإجابة عليه</target></trans-unit>
+      <trans-unit id="pfd.q.required_hint" datatype="html"><source>Left off, an applicant who skips it sees this product listed with a stated reason and no figures — which is usually kinder than blocking the whole application.</source><target>إن تركته مغلقًا، فالعميل الذي يتخطاه يرى هذا المنتج معروضًا مع سبب واضح وبلا أرقام — وهذا عادةً أرفق من إيقاف الطلب كله.</target></trans-unit>
+      <trans-unit id="pfd.q.ph_en" datatype="html"><source>e.g. Which compound is the unit in?</source><target>مثال: الوحدة في أي كومباوند؟</target></trans-unit>
+      <trans-unit id="pfd.q.ph_ar" datatype="html"><source>مثال: الوحدة في أي كومباوند؟</source><target>مثال: الوحدة في أي كومباوند؟</target></trans-unit>
+      <trans-unit id="pfd.q.ph_num_en" datatype="html"><source>e.g. What is the car worth?</source><target>مثال: كم قيمة السيارة؟</target></trans-unit>
+      <trans-unit id="pfd.q.ph_num_ar" datatype="html"><source>مثال: كم قيمة السيارة؟</source><target>مثال: كم قيمة السيارة؟</target></trans-unit>
+      <trans-unit id="pfd.list.legend" datatype="html"><source>The list of answers</source><target>قائمة الإجابات</target></trans-unit>
+      <trans-unit id="pfd.list.en" datatype="html"><source>List name (English)</source><target>اسم القائمة (بالإنجليزية)</target></trans-unit>
+      <trans-unit id="pfd.list.ar" datatype="html"><source>List name (Arabic)</source><target>اسم القائمة (بالعربية)</target></trans-unit>
+      <trans-unit id="pfd.list.ph_en" datatype="html"><source>e.g. Compounds</source><target>مثال: الكومباوندات</target></trans-unit>
+      <trans-unit id="pfd.list.hint" datatype="html"><source>This list belongs to <x id="INTERPOLATION" equiv-text="{{ data.productLabel }}"/> and is edited on its page, not under Manage values.</source><target>هذه القائمة تخص <x id="INTERPOLATION" equiv-text="{{ data.productLabel }}"/> وتُحرَّر من صفحته، لا من إدارة القيم.</target></trans-unit>
+      <trans-unit id="pfd.list.grouped" datatype="html"><source>Group these into classes a bank prices by</source><target>اجمعها في فئات يُسعِّر بها البنك</target></trans-unit>
+      <trans-unit id="pfd.list.grouped_hint" datatype="html"><source>Use this when there are more answers than any bank would price one by one. The bank fills one figure per class; the applicant still picks a name.</source><target>استخدم هذا حين تكون الإجابات أكثر مما يُسعِّره أي بنك واحدة واحدة. يملأ البنك رقمًا لكل فئة، ويظل العميل يختار الاسم.</target></trans-unit>
+      <trans-unit id="pfd.class.title" datatype="html"><source>The classes</source><target>الفئات</target></trans-unit>
+      <trans-unit id="pfd.class.add" datatype="html"><source>Add a class</source><target>أضف فئة</target></trans-unit>
+      <trans-unit id="pfd.class.remove" datatype="html"><source>Remove this class</source><target>احذف هذه الفئة</target></trans-unit>
+      <trans-unit id="pfd.class.ph_en" datatype="html"><source>e.g. Class A</source><target>مثال: الفئة A</target></trans-unit>
+      <trans-unit id="pfd.class.pick" datatype="html"><source>Class</source><target>الفئة</target></trans-unit>
+      <trans-unit id="pfd.class.unnamed" datatype="html"><source>Class <x id="index" equiv-text="n"/></source><target>الفئة <x id="index" equiv-text="n"/></target></trans-unit>
+      <trans-unit id="pfd.class.list_name" datatype="html"><source><x id="list" equiv-text="v.listEn"/> classes</source><target>فئات <x id="list" equiv-text="v.listEn"/></target></trans-unit>
+      <trans-unit id="pfd.value.title" datatype="html"><source>The answers</source><target>الإجابات</target></trans-unit>
+      <trans-unit id="pfd.value.add" datatype="html"><source>Add an answer</source><target>أضف إجابة</target></trans-unit>
+      <trans-unit id="pfd.value.remove" datatype="html"><source>Remove this answer</source><target>احذف هذه الإجابة</target></trans-unit>
+      <trans-unit id="pfd.value.ph_en" datatype="html"><source>e.g. Mivida</source><target>مثال: ميفيدا</target></trans-unit>
+      <trans-unit id="pfd.value.hint" datatype="html"><source>At least two. You can add more later on the product&apos;s page — they reach the questionnaire straight away.</source><target>اثنتان على الأقل. يمكنك إضافة المزيد لاحقًا من صفحة المنتج — وتصل إلى الاستبيان فورًا.</target></trans-unit>
+      <trans-unit id="pfd.ph_ar" datatype="html"><source>بالعربية</source><target>بالعربية</target></trans-unit>
+      <trans-unit id="pfd.num.legend" datatype="html"><source>What the figure may be</source><target>ما يمكن أن يكون عليه الرقم</target></trans-unit>
+      <trans-unit id="pfd.num.min" datatype="html"><source>Lowest</source><target>الأدنى</target></trans-unit>
+      <trans-unit id="pfd.num.max" datatype="html"><source>Highest</source><target>الأعلى</target></trans-unit>
+      <trans-unit id="pfd.num.step" datatype="html"><source>Steps of</source><target>بخطوات</target></trans-unit>
+      <trans-unit id="pfd.num.unit_en" datatype="html"><source>Unit (English)</source><target>الوحدة (بالإنجليزية)</target></trans-unit>
+      <trans-unit id="pfd.num.unit_ar" datatype="html"><source>Unit (Arabic)</source><target>الوحدة (بالعربية)</target></trans-unit>
+      <trans-unit id="pfd.num.unit_ph" datatype="html"><source>e.g. EGP</source><target>مثال: جنيه</target></trans-unit>
+      <trans-unit id="pfd.step.classes" datatype="html"><source>Creating the classes…</source><target>جارٍ إنشاء الفئات…</target></trans-unit>
+      <trans-unit id="pfd.step.list" datatype="html"><source>Creating the list…</source><target>جارٍ إنشاء القائمة…</target></trans-unit>
+      <trans-unit id="pfd.step.values" datatype="html"><source>Adding the answers…</source><target>جارٍ إضافة الإجابات…</target></trans-unit>
+      <trans-unit id="pfd.step.question" datatype="html"><source>Writing the question…</source><target>جارٍ كتابة السؤال…</target></trans-unit>
+      <trans-unit id="pfd.step.fact" datatype="html"><source>Connecting it to the calculation…</source><target>جارٍ ربطه بالحساب…</target></trans-unit>
+      <trans-unit id="pfd.save" datatype="html"><source>Add it</source><target>أضِفه</target></trans-unit>
+      <trans-unit id="spd.lists_shared" datatype="html"><source> <x id="INTERPOLATION" equiv-text="{{ borrowedCount() }}"/> of these list(s) are shared with other products — editing one reaches every calculation that reads it. </source><target> <x id="INTERPOLATION" equiv-text="{{ borrowedCount() }}"/> من هذه القوائم مشتركة مع منتجات أخرى — وتعديل واحدة يصل إلى كل حساب يقرأها. </target></trans-unit>
+      <trans-unit id="spd.list_owned_classes" datatype="html"><source>The classes a bank keys its table by. Each answer above is filed under one of these.</source><target>الفئات التي يبني عليها البنك جدوله. كل إجابة أعلاه مُدرجة تحت واحدة منها.</target></trans-unit>
     </body>
   </file>
 </xliff>

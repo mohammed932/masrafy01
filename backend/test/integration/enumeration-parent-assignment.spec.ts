@@ -1,9 +1,9 @@
 /**
  * The parent axis: which LIST a registry value is filed under.
  *
- * One entry uses it today — a compound is filed under a compound CLASS — and the whole
+ * One entry uses it today — a district is filed under a district CLASS — and the whole
  * collateral product hangs off it: the bank keys its cap table by three classes while the
- * customer picks one of hundreds of compounds by name, and `factParentTable` walks one to the
+ * customer picks one of hundreds of districts by name, and `factParentTable` walks one to the
  * other. Three properties are correctness rather than cosmetics, and they are what this pins:
  *
  *  - a value of a filed-under type MUST name a live parent on CREATE, and a patch can never
@@ -29,6 +29,7 @@ import {
 } from '@/platform-enumerations/dto/enumeration.dto';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { DomainException } from '@/common/errors/domain.exceptions';
+import { fakeTypeDefinitions, operatorAxisDefinitions } from '../helpers/enumeration-type-defs';
 
 interface FakeRow {
   id: string;
@@ -60,14 +61,14 @@ function row(over: Partial<FakeRow> & Pick<FakeRow, 'id' | 'type' | 'key'>): Fak
   };
 }
 
-/** The three classes and three compounds the cases below re-file. */
+/** The three classes and three districts the cases below re-file. */
 function fixture(): FakeRow[] {
   return [
-    row({ id: 'cls_a', type: 'compound_category', key: 'compound_class_a' }),
-    row({ id: 'cls_b', type: 'compound_category', key: 'compound_class_b' }),
-    row({ id: 'cls_c', type: 'compound_category', key: 'compound_class_c', active: false }),
-    row({ id: 'c1', type: 'compound', key: 'mivida', parentKey: 'compound_class_a' }),
-    row({ id: 'c2', type: 'compound', key: 'madinaty', parentKey: 'compound_class_a' }),
+    row({ id: 'cls_a', type: 'district_class', key: 'district_class_a' }),
+    row({ id: 'cls_b', type: 'district_class', key: 'district_class_b' }),
+    row({ id: 'cls_c', type: 'district_class', key: 'district_class_c', active: false }),
+    row({ id: 'c1', type: 'district', key: 'maadi', parentKey: 'district_class_a' }),
+    row({ id: 'c2', type: 'district', key: 'nasr_city', parentKey: 'district_class_a' }),
     row({ id: 'g1', type: 'governorate', key: 'cairo' }),
   ];
 }
@@ -83,6 +84,7 @@ function makeRepo(rows: FakeRow[]) {
     getActiveMembers: vi.fn(async (type: string) =>
       rows.filter((r) => r.type === type && r.active && r.deprecatedAt === null).map((r) => ({ key: r.key })),
     ),
+    typeDefinitions: vi.fn(async () => fakeTypeDefinitions(operatorAxisDefinitions())),
     countChildren: vi.fn(async (childType: string, parentKey: string) =>
       rows.filter((r) => r.type === childType && r.parentKey === parentKey && r.deprecatedAt === null).length,
     ),
@@ -127,10 +129,10 @@ function codeOf(error: unknown): string {
 }
 
 describe('a value of a filed-under type must name a live parent', () => {
-  it('refuses a compound created with no class', async () => {
+  it('refuses a district created with no class', async () => {
     const { service } = makeService(makeRepo(fixture()));
     await expect(
-      service.create({ type: 'compound', key: 'zed', labelAr: 'زد', labelEn: 'Zed' } as never, ACTOR),
+      service.create({ type: 'district', key: 'zed', labelAr: 'زد', labelEn: 'Zed' } as never, ACTOR),
     ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_PARENT_REQUIRED);
   });
 
@@ -140,14 +142,14 @@ describe('a value of a filed-under type must name a live parent', () => {
     // operator believes the class is retired.
     await expect(
       service.create(
-        { type: 'compound', key: 'zed', labelAr: 'زد', labelEn: 'Zed', parentKey: 'compound_class_c' } as never,
+        { type: 'district', key: 'zed', labelAr: 'زد', labelEn: 'Zed', parentKey: 'district_class_c' } as never,
         ACTOR,
       ),
     ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_PARENT_UNKNOWN);
 
     await expect(
       service.create(
-        { type: 'compound', key: 'zed', labelAr: 'زد', labelEn: 'Zed', parentKey: 'ghost' } as never,
+        { type: 'district', key: 'zed', labelAr: 'زد', labelEn: 'Zed', parentKey: 'ghost' } as never,
         ACTOR,
       ),
     ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_PARENT_UNKNOWN);
@@ -157,10 +159,10 @@ describe('a value of a filed-under type must name a live parent', () => {
     const repo = makeRepo(fixture());
     const { service } = makeService(repo);
     await service.create(
-      { type: 'compound', key: 'zed', labelAr: 'زد', labelEn: 'Zed', parentKey: 'compound_class_b' } as never,
+      { type: 'district', key: 'zed', labelAr: 'زد', labelEn: 'Zed', parentKey: 'district_class_b' } as never,
       ACTOR,
     );
-    expect(repo.insert.mock.calls[0]?.[0]).toMatchObject({ parentKey: 'compound_class_b' });
+    expect(repo.insert.mock.calls[0]?.[0]).toMatchObject({ parentKey: 'district_class_b' });
   });
 
   it('force-nulls the parent for a type that is filed under nothing', async () => {
@@ -178,7 +180,7 @@ describe('a value of a filed-under type must name a live parent', () => {
     // The anti-trap case: demanding a parent on every patch would make an unfiled row
     // unfixable by the very edit that would fix it.
     const rows = fixture();
-    rows.push(row({ id: 'orphan', type: 'compound', key: 'orphan', parentKey: null }));
+    rows.push(row({ id: 'orphan', type: 'district', key: 'orphan', parentKey: null }));
     const repo = makeRepo(rows);
     const { service } = makeService(repo);
     await expect(service.update('orphan', { labelEn: 'Renamed' } as never, ACTOR)).resolves.toBeDefined();
@@ -192,7 +194,7 @@ describe('an explicit null outside the bulk endpoint', () => {
   it('is a typed refusal on create, not a crash', async () => {
     const { service } = makeService(makeRepo(fixture()));
     await expect(
-      service.create({ type: 'compound', key: 'zed', labelAr: 'z', labelEn: 'z', parentKey: null } as never, ACTOR),
+      service.create({ type: 'district', key: 'zed', labelAr: 'z', labelEn: 'z', parentKey: null } as never, ACTOR),
     ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_PARENT_REQUIRED);
   });
 
@@ -202,7 +204,7 @@ describe('an explicit null outside the bulk endpoint', () => {
     await expect(
       service.update('c1', { parentKey: null } as never, ACTOR),
     ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_PARENT_REQUIRED);
-    expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBe('compound_class_a');
+    expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBe('district_class_a');
   });
 });
 
@@ -212,7 +214,7 @@ describe('the wire contract for "no parent"', () => {
 
   it('accepts null ONLY on the bulk assignment — the endpoint built for moves', () => {
     expect(errors(EnumerationParentAssignmentDto, { id: 'c1', parentKey: null })).toEqual([]);
-    expect(errors(EnumerationParentAssignmentDto, { id: 'c1', parentKey: 'compound_class_b' })).toEqual([]);
+    expect(errors(EnumerationParentAssignmentDto, { id: 'c1', parentKey: 'district_class_b' })).toEqual([]);
   });
 
   it('refuses an empty string and an absent field on the bulk assignment', () => {
@@ -221,7 +223,7 @@ describe('the wire contract for "no parent"', () => {
   });
 
   it('refuses null on create and on patch, while an absent field still means "not stated"', () => {
-    expect(errors(CreateEnumerationDto, { type: 'compound', key: 'z', labelAr: 'z', labelEn: 'z', parentKey: null }))
+    expect(errors(CreateEnumerationDto, { type: 'district', key: 'z', labelAr: 'z', labelEn: 'z', parentKey: null }))
       .toContain('parentKey');
     expect(errors(UpdateEnumerationDto, { parentKey: null })).toContain('parentKey');
     expect(errors(UpdateEnumerationDto, { labelEn: 'Zed' })).toEqual([]);
@@ -234,19 +236,19 @@ describe('bulk re-file', () => {
     const { service } = makeService(repo);
     await expect(
       service.setParentKeysBulk(
-        { assignments: [{ id: 'c1', parentKey: 'compound_class_b' }, { id: 'ghost', parentKey: 'compound_class_b' }] },
+        { assignments: [{ id: 'c1', parentKey: 'district_class_b' }, { id: 'ghost', parentKey: 'district_class_b' }] },
         ACTOR,
       ),
     ).rejects.toBeDefined();
     expect(repo.setParentKeysBulk).not.toHaveBeenCalled();
-    expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBe('compound_class_a');
+    expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBe('district_class_a');
   });
 
   it('refuses a target that is not a live class, before writing anything', async () => {
     const repo = makeRepo(fixture());
     const { service } = makeService(repo);
     await expect(
-      service.setParentKeysBulk({ assignments: [{ id: 'c1', parentKey: 'compound_class_c' }] }, ACTOR),
+      service.setParentKeysBulk({ assignments: [{ id: 'c1', parentKey: 'district_class_c' }] }, ACTOR),
     ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_PARENT_UNKNOWN);
     expect(repo.setParentKeysBulk).not.toHaveBeenCalled();
   });
@@ -255,7 +257,7 @@ describe('bulk re-file', () => {
     const repo = makeRepo(fixture());
     const { service } = makeService(repo);
     await expect(
-      service.setParentKeysBulk({ assignments: [{ id: 'g1', parentKey: 'compound_class_a' }] }, ACTOR),
+      service.setParentKeysBulk({ assignments: [{ id: 'g1', parentKey: 'district_class_a' }] }, ACTOR),
     ).rejects.toSatisfy((e: unknown) => codeOf(e) === ERROR_CODES.ENUMERATION_PARENT_NOT_APPLICABLE);
   });
 
@@ -265,8 +267,8 @@ describe('bulk re-file', () => {
     const result = await service.setParentKeysBulk(
       {
         assignments: [
-          { id: 'c1', parentKey: 'compound_class_a' }, // no-op: already there
-          { id: 'c2', parentKey: 'compound_class_b' },
+          { id: 'c1', parentKey: 'district_class_a' }, // no-op: already there
+          { id: 'c2', parentKey: 'district_class_b' },
         ],
       },
       ACTOR,
@@ -274,7 +276,7 @@ describe('bulk re-file', () => {
     expect(result).toEqual({ moved: 1 });
     expect(audit.write).toHaveBeenCalledTimes(1);
     expect(audit.write.mock.calls[0]?.[0]).toMatchObject({
-      payload: { key: 'madinaty', changes: { parentKey: { from: 'compound_class_a', to: 'compound_class_b' } } },
+      payload: { key: 'nasr_city', changes: { parentKey: { from: 'district_class_a', to: 'district_class_b' } } },
     });
   });
 
@@ -285,7 +287,7 @@ describe('bulk re-file', () => {
     expect(result).toEqual({ moved: 1 });
     expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBeNull();
     expect(audit.write.mock.calls[0]?.[0]).toMatchObject({
-      payload: { key: 'mivida', changes: { parentKey: { from: 'compound_class_a', to: null } } },
+      payload: { key: 'maadi', changes: { parentKey: { from: 'district_class_a', to: null } } },
     });
   });
 
@@ -295,10 +297,10 @@ describe('bulk re-file', () => {
     if (target) target.parentKey = null;
     const repo = makeRepo(rows);
     const { service, audit } = makeService(repo);
-    await service.setParentKeysBulk({ assignments: [{ id: 'c1', parentKey: 'compound_class_b' }] }, ACTOR);
-    expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBe('compound_class_b');
+    await service.setParentKeysBulk({ assignments: [{ id: 'c1', parentKey: 'district_class_b' }] }, ACTOR);
+    expect(repo.rows.find((r) => r.id === 'c1')?.parentKey).toBe('district_class_b');
     expect(audit.write.mock.calls[0]?.[0]).toMatchObject({
-      payload: { changes: { parentKey: { from: null, to: 'compound_class_b' } } },
+      payload: { changes: { parentKey: { from: null, to: 'district_class_b' } } },
     });
   });
 
@@ -338,7 +340,7 @@ describe('bulk re-file', () => {
     // carry the derived parent list the bank's key-table editor is filled from.
     const repo = makeRepo(fixture());
     const { service } = makeService(repo);
-    await service.setParentKeysBulk({ assignments: [{ id: 'c2', parentKey: 'compound_class_b' }] }, ACTOR);
+    await service.setParentKeysBulk({ assignments: [{ id: 'c2', parentKey: 'district_class_b' }] }, ACTOR);
     expect(repo.invalidateCache).toHaveBeenCalledWith();
   });
 });

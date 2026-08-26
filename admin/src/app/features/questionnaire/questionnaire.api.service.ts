@@ -380,6 +380,17 @@ export interface CreateOptionBody {
 export interface CreateQuestionWithOptionsBody extends CreateQuestionBody {
   /** Required (≥2) for the choice types, forbidden for NUMERIC / TEXT. */
   options?: CreateOptionBody[];
+  /**
+   * Take the answers from a registry list instead of stating them.
+   *
+   * Names an `enumeration_type_def.key`. Each active value becomes an option whose CODE is
+   * the enumeration key — the one thing the ordinary path cannot do, since it slugs a label.
+   * The engine keys a bank's table by that code, so a question that draws on a list must be
+   * created this way or the two are joined by luck.
+   *
+   * Mutually exclusive with `options`; the server refuses a request carrying both.
+   */
+  optionsFromEnumerationType?: string;
 }
 
 /** What the composite create returns — the row plus the answers it just wrote. */

@@ -17,6 +17,8 @@ import {
   PlatformEnumerationsRepository,
   BINDABLE_QUESTION_TYPES,
   isBindableQuestionType,
+  childTypesOf,
+  isDeletableType,
   type BindableQuestionType,
   type BoundQuestion,
   type EnumerationQuestionTemplate,
@@ -27,7 +29,32 @@ import {
   type SurrogateProductListRow,
   type QuestionCodesByCategory,
   type SurrogateFactBinding,
+  type EnumerationTypeDefinition,
+  type EnumerationTypeDefinitions,
 } from './platform-enumerations.repository';
+import type { EnumerationTypeDef } from '@prisma/client';
+
+/** Prisma row → the domain shape, keeping Prisma's type out of the service layer (A8). */
+function toTypeDefinition(row: EnumerationTypeDef): EnumerationTypeDefinition {
+  return {
+    key: row.key,
+    labelAr: row.labelAr,
+    labelEn: row.labelEn,
+    descriptionAr: row.descriptionAr,
+    descriptionEn: row.descriptionEn,
+    icon: row.icon,
+    exampleAr: row.exampleAr,
+    exampleEn: row.exampleEn,
+    parentTypeKey: row.parentTypeKey,
+    deletable: row.deletable,
+    onValuesRail: row.onValuesRail,
+    systemOnly: row.systemOnly,
+    active: row.active,
+    sortOrder: row.sortOrder,
+    surrogateProductKey: row.surrogateProductKey,
+    mirrorQuestionId: row.mirrorQuestionId,
+  };
+}
 
 export interface CreateEnumerationInput {
   type: string;
@@ -146,16 +173,35 @@ export interface EnumerationTypeStats {
    * rendering one that always answers 422.
    */
   deletable: boolean;
+  /**
+   * The KIND's definition, or `null` for a type that has rows but no definition row.
+   *
+   * `null` is reachable only on a database where something wrote a type outside the admin
+   * API after the registry migration ran. Served rather than hidden: the operator can see
+   * the orphan and name it, which is the only way to fix it — dropping it from the list
+   * would make rows exist that no screen admits to.
+   */
+  definition: EnumerationTypeDefinition | null;
 }
 
 /**
- * The types `countReferences` can vouch for — the only ones a hard delete is offered on.
+ * The BUILTIN types `countReferences` has a bespoke counting branch for.
+ *
+ * No longer the delete gate — that moved to `enumeration_type_def.deletable`, seeded from
+ * exactly this list by `20260826090000_enumeration_type_registry`, so day-one behaviour is
+ * unchanged. What is left here is narrower and still code's business: which types the
+ * `switch` below can count references for by NAME, because each needs a query against a
+ * different table.
+ *
+ * A kind created by an operator has no branch and cannot: nothing in the platform reads it
+ * by name, so its only references are its own children, which `countGenericReferences`
+ * counts generically.
  *
  * Everything else (compounds, compound classes, and the ranks and grades a stored income rule
  * is keyed by) is retired by deactivating it, which is reversible and leaves the key readable
  * wherever it is still stored.
  */
-export const DELETABLE_TYPES: readonly EnumerationType[] = [
+export const BUILTIN_REFERENCE_COUNTED_TYPES: readonly EnumerationType[] = [
   'program_name',
   'product_category',
   'required_document',
@@ -164,6 +210,9 @@ export const DELETABLE_TYPES: readonly EnumerationType[] = [
   'transfer_type',
   'surrogate_fact',
 ];
+
+/** How long a kind's definition is cached. Same window as the member cache. */
+const TYPE_DEF_TTL_MS = 60_000;
 
 /**
  * Domain row returned to services / controllers — keeps Prisma's
@@ -296,7 +345,9 @@ export class PostgresPlatformEnumerationsRepository
   implements OnModuleInit
 {
   private readonly logger = new Logger(PostgresPlatformEnumerationsRepository.name);
-  private readonly cache: Map<EnumerationType, CacheEntry> = new Map();
+  private readonly cache: Map<string, CacheEntry> = new Map();
+  /** One entry for the whole KIND registry — it is read as a set, never per key. */
+  private typeDefCache: { defs: EnumerationTypeDefinitions; expiresAt: number } | null = null;
 
   constructor(private readonly prisma: PrismaService) {
     super();
@@ -321,7 +372,7 @@ export class PostgresPlatformEnumerationsRepository
     }
   }
 
-  async isActiveMember(type: EnumerationType, key: string): Promise<boolean> {
+  async isActiveMember(type: string, key: string): Promise<boolean> {
     const row = await this.prisma.platformEnumeration.findUnique({
       where: { idx_platform_enumeration_type_key: { type, key } },
       select: { active: true, deprecatedAt: true },
@@ -329,7 +380,7 @@ export class PostgresPlatformEnumerationsRepository
     return Boolean(row && row.active && row.deprecatedAt === null);
   }
 
-  async isDeprecatedMember(type: EnumerationType, key: string): Promise<boolean> {
+  async isDeprecatedMember(type: string, key: string): Promise<boolean> {
     const row = await this.prisma.platformEnumeration.findUnique({
       where: { idx_platform_enumeration_type_key: { type, key } },
       select: { deprecatedAt: true },
@@ -337,7 +388,7 @@ export class PostgresPlatformEnumerationsRepository
     return Boolean(row && row.deprecatedAt !== null);
   }
 
-  async getActiveMembers(type: EnumerationType): Promise<EnumerationMember[]> {
+  async getActiveMembers(type: string): Promise<EnumerationMember[]> {
     const cached = this.cache.get(type);
     if (cached && cached.expiresAt > Date.now()) return cached.members;
 
@@ -853,7 +904,7 @@ export class PostgresPlatformEnumerationsRepository
    * write-time rejection, and one indexed point read per program save is not a
    * budget worth defending against a 60s window of wrong answers.
    */
-  async memberCategories(type: EnumerationType, key: string): Promise<LoanCategory[]> {
+  async memberCategories(type: string, key: string): Promise<LoanCategory[]> {
     const rows = await this.prisma.platformEnumerationLoanCategory.findMany({
       where: { enumeration: { type, key } },
       select: { category: true },
@@ -861,9 +912,148 @@ export class PostgresPlatformEnumerationsRepository
     return sortCategories(rows.map((r) => r.category));
   }
 
-  invalidateCache(type?: EnumerationType): void {
+  invalidateCache(type?: string): void {
     if (type) this.cache.delete(type);
     else this.cache.clear();
+  }
+
+  // ---- The KIND registry -------------------------------------------------
+
+  async typeDefinitions(): Promise<EnumerationTypeDefinitions> {
+    const now = Date.now();
+    const cached = this.typeDefCache;
+    if (cached && cached.expiresAt > now) return cached.defs;
+
+    const rows = await this.prisma.enumerationTypeDef.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+    });
+    const defs = new Map<string, EnumerationTypeDefinition>();
+    for (const row of rows) defs.set(row.key, toTypeDefinition(row));
+    this.typeDefCache = { defs, expiresAt: now + TYPE_DEF_TTL_MS };
+    return defs;
+  }
+
+  /**
+   * Dropped on EVERY kind write, never per key: `parentTypeKey` is a relation between two
+   * kinds, so a single edit changes what `childTypesOf` answers for the OTHER one too.
+   */
+  private invalidateTypeDefinitions(): void {
+    this.typeDefCache = null;
+  }
+
+  async insertTypeDefinition(
+    input: Omit<EnumerationTypeDefinition, 'active'> & { active?: boolean },
+  ): Promise<EnumerationTypeDefinition> {
+    const row = await this.prisma.enumerationTypeDef.create({
+      data: {
+        key: input.key,
+        labelAr: input.labelAr,
+        labelEn: input.labelEn,
+        descriptionAr: input.descriptionAr,
+        descriptionEn: input.descriptionEn,
+        icon: input.icon,
+        exampleAr: input.exampleAr,
+        exampleEn: input.exampleEn,
+        parentTypeKey: input.parentTypeKey,
+        deletable: input.deletable,
+        onValuesRail: input.onValuesRail,
+        // Never settable from a request: it means "a code path reads this type by name",
+        // which is a fact about the codebase, not a property an operator may claim.
+        systemOnly: false,
+        active: input.active ?? true,
+        sortOrder: input.sortOrder,
+        surrogateProductKey: input.surrogateProductKey,
+        mirrorQuestionId: input.mirrorQuestionId,
+      },
+    });
+    this.invalidateTypeDefinitions();
+    return toTypeDefinition(row);
+  }
+
+  async updateTypeDefinition(
+    key: string,
+    patch: Partial<Omit<EnumerationTypeDefinition, 'key'>>,
+  ): Promise<EnumerationTypeDefinition | null> {
+    const existing = await this.prisma.enumerationTypeDef.findUnique({ where: { key } });
+    if (!existing) return null;
+
+    const row = await this.prisma.enumerationTypeDef.update({
+      where: { key },
+      data: {
+        ...(patch.labelAr !== undefined ? { labelAr: patch.labelAr } : {}),
+        ...(patch.labelEn !== undefined ? { labelEn: patch.labelEn } : {}),
+        ...(patch.descriptionAr !== undefined ? { descriptionAr: patch.descriptionAr } : {}),
+        ...(patch.descriptionEn !== undefined ? { descriptionEn: patch.descriptionEn } : {}),
+        ...(patch.icon !== undefined ? { icon: patch.icon } : {}),
+        ...(patch.exampleAr !== undefined ? { exampleAr: patch.exampleAr } : {}),
+        ...(patch.exampleEn !== undefined ? { exampleEn: patch.exampleEn } : {}),
+        ...(patch.parentTypeKey !== undefined ? { parentTypeKey: patch.parentTypeKey } : {}),
+        ...(patch.deletable !== undefined ? { deletable: patch.deletable } : {}),
+        ...(patch.onValuesRail !== undefined ? { onValuesRail: patch.onValuesRail } : {}),
+        ...(patch.active !== undefined ? { active: patch.active } : {}),
+        ...(patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder } : {}),
+        ...(patch.surrogateProductKey !== undefined
+          ? { surrogateProductKey: patch.surrogateProductKey }
+          : {}),
+        ...(patch.mirrorQuestionId !== undefined
+          ? { mirrorQuestionId: patch.mirrorQuestionId }
+          : {}),
+      },
+    });
+    this.invalidateTypeDefinitions();
+    return toTypeDefinition(row);
+  }
+
+  async deleteTypeDefinition(key: string): Promise<void> {
+    await this.prisma.enumerationTypeDef.delete({ where: { key } });
+    this.invalidateTypeDefinitions();
+  }
+
+  async countRowsOfType(type: string): Promise<number> {
+    return this.prisma.platformEnumeration.count({ where: { type } });
+  }
+
+  /**
+   * Hard-delete a surrogate product with everything that only exists because of it.
+   *
+   * ONE transaction, in FK order, and the order is the whole of the correctness here:
+   *
+   *   1. the bank programs — `scoring_weight_set` cascades off them, `audit_event` is
+   *      `SET NULL`, and `bank_offer` references them by CODE with no foreign key, so an
+   *      issued offer survives with its frozen figures intact (Principle I / A6);
+   *   2. the LINKS, not the names. A catalog name is what banks sell; the calculation it
+   *      pointed at is a different object, and an operator retiring one usually re-points
+   *      the names rather than losing them. Unlinked, each name reads as stating no rule;
+   *   3. the product row itself.
+   *
+   * Reversed, step 3 would strand the links, and `programNameIncomeRules()` would resolve
+   * each one to nothing — the exact dangling state migration `20260825090000` RAISEs on.
+   *
+   * The caller has already decided this is wanted: the endpoint refuses without an explicit
+   * `cascade`, naming every row in this list first.
+   */
+  async deleteSurrogateProductCascade(
+    key: string,
+    nameKeys: readonly string[],
+    programCodes: readonly string[],
+  ): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      if (programCodes.length > 0) {
+        await tx.bankProgram.deleteMany({ where: { programCode: { in: [...programCodes] } } });
+      }
+      if (nameKeys.length > 0) {
+        await tx.platformEnumeration.updateMany({
+          where: { type: 'program_name', key: { in: [...nameKeys] } },
+          data: { surrogateProductKey: null, updatedAt: new Date() },
+        });
+      }
+      await tx.platformEnumeration.deleteMany({ where: { type: 'surrogate_product', key } });
+    });
+    // Every type, not just the two touched: a name losing its link changes what
+    // `programNameIncomeRules` answers, and `surrogate_fact`'s derived option provenance is
+    // computed from rows this delete may have removed.
+    this.invalidateCache();
+    this.invalidateTypeDefinitions();
   }
 
   // ---- Admin CRUD --------------------------------------------------------
@@ -967,28 +1157,62 @@ export class PostgresPlatformEnumerationsRepository
     );
   }
 
+  /**
+   * Every KIND, with how many values it holds.
+   *
+   * DEFINITION-DRIVEN, not `GROUP BY`-driven, and that is the load-bearing change: a kind an
+   * operator has just created holds no values yet, and a list built from the values would not
+   * contain it — so the rail would have no tile to add the first value under, and the new kind
+   * would look like it had failed to save. A type with rows but no definition is still listed,
+   * with `definition: null`, so an orphan is visible rather than hidden.
+   *
+   * Three grouped reads instead of the previous 2N+1 serial ones.
+   */
   async listTypeStats(): Promise<EnumerationTypeStats[]> {
-    const rows = await this.prisma.platformEnumeration.groupBy({
-      by: ['type'],
-      _count: { _all: true },
-      orderBy: { type: 'asc' },
-    });
+    const [defs, totals, actives, deprecateds] = await Promise.all([
+      this.typeDefinitions(),
+      this.prisma.platformEnumeration.groupBy({ by: ['type'], _count: { _all: true } }),
+      this.prisma.platformEnumeration.groupBy({
+        by: ['type'],
+        _count: { _all: true },
+        where: { active: true, deprecatedAt: null },
+      }),
+      this.prisma.platformEnumeration.groupBy({
+        by: ['type'],
+        _count: { _all: true },
+        where: { deprecatedAt: { not: null } },
+      }),
+    ]);
+
+    const countOf = (rows: Array<{ type: string; _count: { _all: number } }>): Map<string, number> =>
+      new Map(rows.map((r) => [r.type, r._count._all]));
+    const totalBy = countOf(totals);
+    const activeBy = countOf(actives);
+    const deprecatedBy = countOf(deprecateds);
+
+    // Definitions first, in their own order; then any type carrying rows that has none.
+    const seen = new Set<string>();
     const out: EnumerationTypeStats[] = [];
-    for (const r of rows) {
-      const [active, deprecated] = await Promise.all([
-        this.prisma.platformEnumeration.count({
-          where: { type: r.type, active: true, deprecatedAt: null },
-        }),
-        this.prisma.platformEnumeration.count({
-          where: { type: r.type, deprecatedAt: { not: null } },
-        }),
-      ]);
+    for (const def of defs.values()) {
+      seen.add(def.key);
       out.push({
-        type: r.type,
-        total: r._count._all,
-        active,
-        deprecated,
-        deletable: DELETABLE_TYPES.includes(r.type as EnumerationType),
+        type: def.key,
+        total: totalBy.get(def.key) ?? 0,
+        active: activeBy.get(def.key) ?? 0,
+        deprecated: deprecatedBy.get(def.key) ?? 0,
+        deletable: def.deletable,
+        definition: def,
+      });
+    }
+    for (const type of [...totalBy.keys()].sort()) {
+      if (seen.has(type)) continue;
+      out.push({
+        type,
+        total: totalBy.get(type) ?? 0,
+        active: activeBy.get(type) ?? 0,
+        deprecated: deprecatedBy.get(type) ?? 0,
+        deletable: false,
+        definition: null,
       });
     }
     return out;
@@ -1442,10 +1666,40 @@ export class PostgresPlatformEnumerationsRepository
     });
   }
 
-  async countChildren(childType: EnumerationType, parentKey: string): Promise<number> {
+  async countChildren(childType: string, parentKey: string): Promise<number> {
     return this.prisma.platformEnumeration.count({
       where: { type: childType, parentKey, deprecatedAt: null },
     });
+  }
+
+  /**
+   * What points at one value of an operator-created kind.
+   *
+   * Exactly one thing can: another value filed under it. A kind the operator invented is
+   * named by no code path, keyed by no column, and reachable by an income rule only through
+   * `factParentTable`, which reads the CHILD's answer and walks to this row — so deleting a
+   * parent that still has children is the one destructive case, and it is the one counted.
+   *
+   * DEPRECATED children are excluded, matching `countChildren`: a deprecated value is already
+   * out of every picker, and blocking a parent's delete on one would leave the operator no
+   * move at all, since a deprecated row cannot be re-filed either.
+   */
+  private async countGenericReferences(
+    defs: EnumerationTypeDefinitions,
+    type: string,
+    key: string,
+  ): Promise<EnumerationReference[]> {
+    const children = childTypesOf(defs, type);
+    if (children.length === 0) return [];
+    const counts = await Promise.all(
+      children.map(async (childType) => ({
+        source: childType,
+        count: await this.prisma.platformEnumeration.count({
+          where: { type: childType, parentKey: key, deprecatedAt: null },
+        }),
+      })),
+    );
+    return counts.filter((c) => c.count > 0);
   }
 
   /**
@@ -1532,15 +1786,28 @@ export class PostgresPlatformEnumerationsRepository
    * module, so importing back would close a cycle.
    */
   async countReferences(
-    type: EnumerationType,
+    type: string,
     key: string,
   ): Promise<EnumerationReference[] | null> {
     // The gate, stated once. `countReferences` returning `null` is what refuses a delete, and
     // the switch below used to BE that list implicitly — so the admin rendered a Delete button
-    // on every type and learned the answer from a 422. Now the const is the gate (an early
-    // return, so it cannot drift from the cases) and it is also served on the type summary,
-    // which is what lets the board hide a button it knows will be refused.
-    if (!DELETABLE_TYPES.includes(type)) return null;
+    // on every type and learned the answer from a 422. The gate is now the KIND's own
+    // `deletable` flag (an early return, so it cannot drift from the cases), and it is served
+    // on the type summary, which is what lets the board hide a button it knows will be refused.
+    //
+    // The flag was seeded from the old `DELETABLE_TYPES` verbatim, so no builtin changed hands.
+    const defs = await this.typeDefinitions();
+    if (!isDeletableType(defs, type)) return null;
+
+    // A kind an operator created has no bespoke branch and needs none: nothing in the platform
+    // reads it by name, so the only thing that can point at one of its values is a child value
+    // filed under it. Counting that generically is what makes a new kind deletable at all —
+    // falling through to `null` would have made every operator-made kind undeletable forever,
+    // i.e. exactly the trap this feature exists to remove.
+    if (!(BUILTIN_REFERENCE_COUNTED_TYPES as readonly string[]).includes(type)) {
+      return this.countGenericReferences(defs, type, key);
+    }
+
     switch (type) {
       case 'program_name': {
         const refs = await this.countProgramNameReferences(key);
@@ -1738,6 +2005,11 @@ function toEnumerationMember(row: PlatformEnumerationWithCategories): Enumeratio
     deprecated: row.deprecatedAt !== null,
     categories: sortCategories((row.loanCategories ?? []).map((c) => c.category)),
     incomeBases: incomeBasesOfRows(row.loanCategories),
+    // Carried unconditionally, and null on every type that does not use it. On a
+    // `surrogate_fact` this is what lets a product's own page list what IT asks before a
+    // rule exists to derive that from; on a `program_name` it is where the calculation
+    // comes from. Both readers are admin screens, and the customer projection strips it.
+    surrogateProductKey: row.surrogateProductKey,
     boundQuestion: boundQuestionOf(row),
   };
 }

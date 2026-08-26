@@ -16,6 +16,7 @@ import { ALL_LOAN_CATEGORIES } from '@/common/loan-category.util';
 import { PlatformEnumerationsAdminService } from '@/platform-enumerations/platform-enumerations-admin.service';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { DomainException } from '@/common/errors/domain.exceptions';
+import { fakeTypeDefinitions } from '../helpers/enumeration-type-defs';
 
 interface FakeRow {
   id: string;
@@ -65,6 +66,7 @@ function makeRepo(rows: FakeRow[], seed: Record<string, LoanCategory[]> = {}) {
     assignments,
     invalidated: [] as (string | undefined)[],
     inserted: [] as Array<{ type: string; categories?: readonly LoanCategory[] }>,
+    typeDefinitions: vi.fn(async () => fakeTypeDefinitions()),
     findById: vi.fn(async (id: string) => rows.find((r) => r.id === id) ?? null),
     findByTypeAndKey: vi.fn(async (type: string, key: string) =>
       rows.find((r) => r.type === type && r.key === key) ?? null,

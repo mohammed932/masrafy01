@@ -19,15 +19,15 @@
  * catalog default cannot come to disagree (A25). Only `declared_income`, which has no
  * catalog entry because it has no figures at all, states its own.
  *
- * THE TWO PIPELINE PRODUCTS ARE NOT HERE. `compound_owner` and `car_owner` are seeded by
- * `seed-collateral-products.ts`, which also seeds the questions, facts, lookup values and
- * bank programs they cannot function without — splitting the rule away from those would
- * make either half individually meaningless. This seed reports them as present rather
- * than writing them.
+ * THE PIPELINE PRODUCT IS NOT HERE. `car_owner` is seeded by `seed-collateral-products.ts`,
+ * which also seeds the questions, facts and bank programs it cannot function without —
+ * splitting the rule away from those would make either half individually meaningless. This
+ * seed reports it as present rather than writing it.
  *
  * ADDING ONE: add an entry here, run `npm run seed:surrogate-products`. It becomes
- * pickable in the admin immediately. That is the point — a new no-payslip product used
- * to be a release.
+ * pickable in the admin immediately. Better still, build it on `/surrogate-products` —
+ * since `20260827090000_surrogate_product_authoring` a product authors its own lists,
+ * questions and facts, so a new no-payslip product needs neither this file nor a release.
  */
 import { CATALOG_INCOME_RULE, type CatalogIncomeRule } from './program-catalog-matrix';
 
@@ -47,7 +47,7 @@ export interface SurrogateProductSeed {
 }
 
 /** Seeded by `seed-collateral-products.ts`, reported here, never written here. */
-export const PIPELINE_PRODUCT_KEYS = ['compound_owner', 'car_owner'] as const;
+export const PIPELINE_PRODUCT_KEYS = ['car_owner'] as const;
 
 export const SURROGATE_PRODUCTS: readonly SurrogateProductSeed[] = [
   {

@@ -6,6 +6,8 @@ import {
   EnumerationType,
   PlatformEnumerationsRepository,
   type EnumerationQuestionTemplate,
+  type EnumerationTypeDefinition,
+  type EnumerationTypeDefinitions,
   type SurrogateFactBinding,
 } from './platform-enumerations.repository';
 
@@ -23,7 +25,7 @@ export class InMemoryPlatformEnumerationsRepository
   implements OnModuleInit
 {
   private readonly logger = new Logger(InMemoryPlatformEnumerationsRepository.name);
-  private readonly members: Map<EnumerationType, Map<string, EnumerationMember>> = new Map();
+  private readonly members: Map<string, Map<string, EnumerationMember>> = new Map();
 
   onModuleInit(): void {
     this.seed();
@@ -37,16 +39,16 @@ export class InMemoryPlatformEnumerationsRepository
     return this.members.size > 0;
   }
 
-  async isActiveMember(type: EnumerationType, key: string): Promise<boolean> {
+  async isActiveMember(type: string, key: string): Promise<boolean> {
     const member = this.members.get(type)?.get(key);
     return Boolean(member?.active && !member.deprecated);
   }
 
-  async isDeprecatedMember(type: EnumerationType, key: string): Promise<boolean> {
+  async isDeprecatedMember(type: string, key: string): Promise<boolean> {
     return this.members.get(type)?.get(key)?.deprecated === true;
   }
 
-  async getActiveMembers(type: EnumerationType): Promise<EnumerationMember[]> {
+  async getActiveMembers(type: string): Promise<EnumerationMember[]> {
     const all = this.members.get(type);
     if (!all) {
       return [];
@@ -164,6 +166,62 @@ export class InMemoryPlatformEnumerationsRepository
   /** Nothing in this stub carries a parent, so nothing is filed under one. */
   async countChildren(): Promise<number> {
     return 0;
+  }
+
+  /**
+   * The KINDS this stub holds, derived from the members it seeded rather than restated.
+   *
+   * Deriving rather than listing keeps the two in step by construction: a type added to
+   * `seed()` gets a definition for free, and one removed cannot leave a definition behind.
+   * Every kind reads as no parent axis and not deletable, which is what the stub already
+   * behaves like — `setParentKeysBulk` throws and there is no delete path at all.
+   */
+  async typeDefinitions(): Promise<EnumerationTypeDefinitions> {
+    const defs = new Map<string, EnumerationTypeDefinition>();
+    let sortOrder = 0;
+    for (const type of this.members.keys()) {
+      sortOrder += 10;
+      defs.set(type, {
+        key: type,
+        labelAr: type,
+        labelEn: type,
+        descriptionAr: null,
+        descriptionEn: null,
+        icon: null,
+        exampleAr: null,
+        exampleEn: null,
+        parentTypeKey: null,
+        deletable: false,
+        onValuesRail: true,
+        surrogateProductKey: null,
+        mirrorQuestionId: null,
+        systemOnly: true,
+        active: true,
+        sortOrder,
+      });
+    }
+    return defs;
+  }
+
+  async insertTypeDefinition(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  async updateTypeDefinition(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  async deleteTypeDefinition(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  /** Read-only stub — there are no products to delete, and no bank programs to cascade to. */
+  async deleteSurrogateProductCascade(): Promise<never> {
+    throw new Error('in-memory enumeration registry is read-only');
+  }
+
+  async countRowsOfType(type: string): Promise<number> {
+    return this.members.get(type)?.size ?? 0;
   }
 
   private add(type: EnumerationType, key: string, labelAr: string, labelEn: string): void {

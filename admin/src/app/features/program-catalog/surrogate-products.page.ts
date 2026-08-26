@@ -24,14 +24,20 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
+import { NzModalService } from 'ng-zorro-antd/modal';
+import {
+  EnumerationEditDialogComponent,
+  type EnumerationEditDialogData,
+} from '@shared/lookups/enumeration-edit.dialog';
 import {
   ArrowRightOutline,
   CheckCircleOutline,
   ExclamationCircleOutline,
   FunctionOutline,
   InboxOutline,
+  PlusOutline,
 } from '@ant-design/icons-angular/icons';
 import { PageHeaderComponent, SkeletonRowsComponent, StatStripComponent } from '@shared/ui';
 import type { StatStripItem } from '@shared/ui';
@@ -64,6 +70,7 @@ import type { SurrogateProductSummary } from '@features/bank-programs/bank-progr
       ExclamationCircleOutline,
       FunctionOutline,
       InboxOutline,
+      PlusOutline,
     ]),
   ],
   template: `
@@ -74,12 +81,19 @@ import type { SurrogateProductSummary } from '@features/bank-programs/bank-progr
         }
       </app-page-header>
 
+      <div class="head-actions">
+        <button type="button" class="new-product" (click)="createProduct()">
+          <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+          <span i18n="@@sp.new">New surrogate product</span>
+        </button>
+      </div>
+
       @if (loading()) {
         <app-skeleton-rows [rows]="4" [cols]="[3, 1, 1]" [ariaLabel]="loadingLabel" />
       } @else if (products().length === 0) {
         <p class="empty" i18n="@@sp.empty">
-          No surrogate products yet. Run <code>npm run seed:surrogate-products</code> to write the
-          starter library, or add one through the API.
+          No surrogate products yet. Add one above, or run
+          <code>npm run seed:surrogate-products</code> to write the starter library.
         </p>
       } @else {
         <ul class="grid" role="list">
@@ -245,6 +259,35 @@ import type { SurrogateProductSummary } from '@features/bank-programs/bank-progr
         transform: scaleX(-1);
       }
 
+      .head-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+      .new-product {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-block-size: var(--size-field);
+        padding-inline: var(--space-4);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-field);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        font: inherit;
+        font-size: 0.8125rem;
+        cursor: pointer;
+        transition:
+          border-color 120ms ease,
+          color 120ms ease;
+      }
+      .new-product:hover {
+        border-color: var(--accent);
+        color: var(--text-primary);
+      }
+      .new-product:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
       .empty {
         margin: 0;
         max-inline-size: 46rem;
@@ -275,7 +318,39 @@ import type { SurrogateProductSummary } from '@features/bank-programs/bank-progr
 export class SurrogateProductsPage {
   private readonly api = inject(BankProgramsApiService);
   private readonly enums = inject(PlatformEnumerationsService);
+  private readonly modal = inject(NzModalService);
+  private readonly router = inject(Router);
   private readonly isAr = inject(LOCALE_ID).startsWith('ar');
+
+  /**
+   * Create a product, then go straight to it.
+   *
+   * Reuses the generic value dialog with `type: 'surrogate_product'` — the row IS an
+   * enumeration value, and `POST admin/enumerations` has always accepted this type; what was
+   * missing was any screen that passed it. The row is born with no calculation, so the next
+   * thing the operator needs is step ① of the new product, not this list again.
+   */
+  protected createProduct(): void {
+    const ref = this.modal.create<
+      EnumerationEditDialogComponent,
+      EnumerationEditDialogData,
+      boolean
+    >({
+      nzContent: EnumerationEditDialogComponent,
+      nzData: { mode: 'create', type: 'surrogate_product' },
+      nzFooter: null,
+      nzWidth: 520,
+      nzCentered: true,
+      nzMaskClosable: false,
+    });
+    ref.afterClose.subscribe(async (saved: boolean | undefined) => {
+      if (!saved) return;
+      const before = new Set(this.products().map((p) => p.key));
+      await this.load();
+      const created = this.products().find((p) => !before.has(p.key));
+      if (created) void this.router.navigate(['/surrogate-products', created.key]);
+    });
+  }
 
   protected readonly loading = signal(true);
   protected readonly products = signal<readonly SurrogateProductSummary[]>([]);

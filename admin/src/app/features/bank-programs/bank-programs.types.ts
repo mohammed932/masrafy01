@@ -165,6 +165,12 @@ export function factKeyOf(strategy: string): string | null {
 export interface RegistryFact {
   key: string;
   label: string;
+  /**
+   * The surrogate product that authored this fact, or `null` for one the platform shipped or
+   * an operator made on the values rail. Provenance, never a constraint — any product's rule
+   * may read any fact, and the picker offers all of them.
+   */
+  ownedBy: string | null;
   /** Absent when the fact points at no question — it cannot be offered as a method. */
   question: {
     code: string;
@@ -213,6 +219,7 @@ export function registryFacts(
       {
         key: m.key,
         label: isAr ? m.labelAr : m.labelEn,
+        ownedBy: m.surrogateProductKey ?? null,
         question: {
           code: q.code,
           label: isAr ? q.labelAr : q.labelEn,

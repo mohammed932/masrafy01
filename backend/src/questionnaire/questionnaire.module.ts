@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { InfraModule } from '@/infra/infra.module';
 import { AuthModule } from '@/auth/auth.module';
 import { CustomerAuthModule } from '@/customer-auth/customer-auth.module';
@@ -17,7 +17,21 @@ import { QuestionnaireRepository } from './questionnaire.repository';
   // fact's option codes drift from the registry they are supposed to BE (FR-017),
   // which needs the live member list. Exported by that module, so this is a
   // feature→feature import, not a reach into `common/` (Principle IX).
-  imports: [InfraModule, AuthModule, CustomerAuthModule, PlatformEnumerationsModule],
+  // `forwardRef` since that module now imports this one back: a write to a value of a
+  // MIRRORED list has to re-sync the question whose options it is, and this service is the
+  // only writer of `question_option`.
+  //
+  // `CustomerAuthModule` is forwardRef'd as well, and it has to be: the cycle is now
+  // three hops (`platform-enumerations → questionnaire → customer-auth → platform-enumerations`)
+  // and a plain reference at ANY point in a cycle resolves to `undefined` for whichever module
+  // the loader reaches first. Nest reports that as "the module at index [2] is undefined",
+  // which reads as a typo rather than as the cycle it is.
+  imports: [
+    InfraModule,
+    AuthModule,
+    forwardRef(() => CustomerAuthModule),
+    forwardRef(() => PlatformEnumerationsModule),
+  ],
   controllers: [QuestionnaireController, AdminQuestionnaireController],
   providers: [QuestionnaireService, QuestionnaireRepository],
   exports: [QuestionnaireService, QuestionnaireRepository],

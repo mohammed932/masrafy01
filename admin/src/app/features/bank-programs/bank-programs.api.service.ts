@@ -179,6 +179,23 @@ export class BankProgramsApiService {
    * markers describe those figures, and saving them separately leaves a marker addressing a
    * row that no longer exists.
    */
+  /**
+   * Delete a surrogate product.
+   *
+   * `cascade` is a deliberate SECOND call. Without it the server refuses with
+   * `SURROGATE_PRODUCT_IN_USE` carrying the exact `names` and `programCodes` that would be
+   * destroyed, so the screen confirms against a list rather than against a count. A product
+   * nothing points at deletes on the first call.
+   */
+  async deleteSurrogateProduct(key: string, opts: { cascade?: boolean } = {}): Promise<void> {
+    const suffix = opts.cascade ? '?cascade=true' : '';
+    await firstValueFrom(
+      this.http.delete<SuccessEnvelope<unknown>>(
+        `${this.base}/surrogate-products/${encodeURIComponent(key)}${suffix}`,
+      ),
+    );
+  }
+
   async setSurrogateProductIncomeRule(
     key: string,
     payload: { incomeRule: IncomeAssumptionConfig | null; valueSources?: ValueSourceMap },

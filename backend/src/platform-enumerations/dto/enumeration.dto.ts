@@ -503,3 +503,198 @@ export class SetEnumerationBoundQuestionDto {
   @MaxLength(64)
   questionCode!: string | null;
 }
+
+/**
+ * Create a KIND of list — the registry's own taxonomy row.
+ *
+ * `key` carries the same pattern and budget as a VALUE's key because it lands in the same
+ * column shape (`platform_enumeration.type`, VARCHAR(48)) and is compared against it by
+ * string. It is immutable after create: every value carries the string, so a rename would
+ * strand all of them.
+ *
+ * `systemOnly` is deliberately absent. It means "a code path reads this type by name",
+ * which is a fact about the codebase — not a property an operator may claim, and claiming
+ * it would only buy them a delete refusal.
+ */
+export class CreateEnumerationTypeDto {
+  @ApiProperty({ minLength: 1, maxLength: 48, pattern: KEY_PATTERN.source })
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 48)
+  @Matches(KEY_PATTERN, { message: 'key must be alphanumeric / underscore / hyphen' })
+  key!: string;
+
+  @ApiProperty({ minLength: 1, maxLength: 160 })
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 160)
+  labelAr!: string;
+
+  @ApiProperty({ minLength: 1, maxLength: 160 })
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 160)
+  labelEn!: string;
+
+  @ApiPropertyOptional({ maxLength: 400 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  descriptionAr?: string;
+
+  @ApiPropertyOptional({ maxLength: 400 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  descriptionEn?: string;
+
+  @ApiPropertyOptional({ maxLength: 48, description: 'ng-zorro icon name.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(48)
+  icon?: string;
+
+  @ApiPropertyOptional({ maxLength: 160 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  exampleAr?: string;
+
+  @ApiPropertyOptional({ maxLength: 160 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  exampleEn?: string;
+
+  /**
+   * The kind whose values these are filed under.
+   *
+   * `@ValidateIf(!== undefined)` rather than `@IsOptional()`, which skips validation for
+   * `null` as well — the same trap `parentKey` documents two DTOs up. Here `null` and
+   * `undefined` legitimately mean the same thing ("no parent axis"), but an explicit `null`
+   * must still be shape-checked rather than reaching Prisma unvalidated.
+   */
+  @ApiPropertyOptional({ maxLength: 48, pattern: KEY_PATTERN.source })
+  @ValidateIf((o: CreateEnumerationTypeDto) => o.parentTypeKey !== undefined && o.parentTypeKey !== null)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 48)
+  @Matches(KEY_PATTERN)
+  parentTypeKey?: string | null;
+
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  deletable?: boolean;
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  onValuesRail?: boolean;
+
+  /**
+   * The `surrogate_product` that is authoring this list.
+   *
+   * Sent by the product screen and by nothing else. Provenance, not a constraint: it records
+   * which lists a product made so its own screen can show them before there is a rule to
+   * derive that from, and it gates nothing — any rule may read any list.
+   *
+   * NOT validated against a live product here, deliberately. Every other key-shaped field on
+   * this surface is, but those decide whether a WRITE is legal; this one decides only what a
+   * screen groups a row under, and refusing a list because its product row was retired an
+   * hour ago would block the operator from making the list that replaces it.
+   */
+  @ApiPropertyOptional({ maxLength: 48, pattern: KEY_PATTERN.source })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 48)
+  @Matches(KEY_PATTERN)
+  surrogateProductKey?: string;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+}
+
+/**
+ * Patch a KIND. `key` is absent on purpose — see `CreateEnumerationTypeDto`.
+ *
+ * Every field optional and every absence meaning "leave it", so a screen that edits one
+ * label cannot flatten a parent axis it never rendered.
+ */
+export class UpdateEnumerationTypeDto {
+  @ApiPropertyOptional({ maxLength: 160 })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 160)
+  labelAr?: string;
+
+  @ApiPropertyOptional({ maxLength: 160 })
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 160)
+  labelEn?: string;
+
+  @ApiPropertyOptional({ maxLength: 400, nullable: true })
+  @ValidateIf((o: UpdateEnumerationTypeDto) => o.descriptionAr !== undefined && o.descriptionAr !== null)
+  @IsString()
+  @MaxLength(400)
+  descriptionAr?: string | null;
+
+  @ApiPropertyOptional({ maxLength: 400, nullable: true })
+  @ValidateIf((o: UpdateEnumerationTypeDto) => o.descriptionEn !== undefined && o.descriptionEn !== null)
+  @IsString()
+  @MaxLength(400)
+  descriptionEn?: string | null;
+
+  @ApiPropertyOptional({ maxLength: 48, nullable: true })
+  @ValidateIf((o: UpdateEnumerationTypeDto) => o.icon !== undefined && o.icon !== null)
+  @IsString()
+  @MaxLength(48)
+  icon?: string | null;
+
+  @ApiPropertyOptional({ maxLength: 160, nullable: true })
+  @ValidateIf((o: UpdateEnumerationTypeDto) => o.exampleAr !== undefined && o.exampleAr !== null)
+  @IsString()
+  @MaxLength(160)
+  exampleAr?: string | null;
+
+  @ApiPropertyOptional({ maxLength: 160, nullable: true })
+  @ValidateIf((o: UpdateEnumerationTypeDto) => o.exampleEn !== undefined && o.exampleEn !== null)
+  @IsString()
+  @MaxLength(160)
+  exampleEn?: string | null;
+
+  /** `null` REMOVES the parent axis; absent leaves it. */
+  @ApiPropertyOptional({ maxLength: 48, pattern: KEY_PATTERN.source, nullable: true })
+  @ValidateIf((o: UpdateEnumerationTypeDto) => o.parentTypeKey !== undefined && o.parentTypeKey !== null)
+  @IsString()
+  @IsNotEmpty()
+  @Length(1, 48)
+  @Matches(KEY_PATTERN)
+  parentTypeKey?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  deletable?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  onValuesRail?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+}

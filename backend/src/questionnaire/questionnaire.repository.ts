@@ -1,4 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import {
+  mirroredOptionPlan,
+  planIsEmpty,
+  type MirroredValue,
+} from './mirrored-options';
 import { Prisma } from '@prisma/client';
 import type {
   LoanCategory,
@@ -321,6 +326,45 @@ export class QuestionnaireRepository {
 
   updateOption(id: string, data: Prisma.QuestionOptionUpdateInput): Promise<QuestionOption> {
     return this.prisma.questionOption.update({ where: { id }, data });
+  }
+
+  /**
+   * Make a question's options BE the given list, one transaction.
+   *
+   * The diff itself is `mirroredOptionPlan`, pure and unit-tested; this is only the write.
+   * Returns whether anything moved, so the caller can skip a republish that would mint a
+   * version identical to the live one.
+   */
+  async syncMirroredOptions(questionId: string, values: readonly MirroredValue[]): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.questionOption.findMany({ where: { questionId } });
+      const plan = mirroredOptionPlan(existing, values);
+      if (planIsEmpty(plan)) return false;
+
+      if (plan.deactivate.length > 0) {
+        await tx.questionOption.updateMany({
+          where: { id: { in: plan.deactivate } },
+          data: { isActive: false },
+        });
+      }
+      for (const row of plan.update) {
+        await tx.questionOption.update({
+          where: { id: row.id },
+          data: {
+            isActive: true,
+            labelAr: row.labelAr,
+            labelEn: row.labelEn,
+            displayOrder: row.displayOrder,
+          },
+        });
+      }
+      if (plan.create.length > 0) {
+        await tx.questionOption.createMany({
+          data: plan.create.map((row) => ({ ...row, questionId })),
+        });
+      }
+      return true;
+    });
   }
 
   // ---- Versions (one global questionnaire) --------------------------------

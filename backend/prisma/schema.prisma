@@ -86,6 +86,12 @@ enum AuditEventType {
   /// record that the key ever existed — so the payload carries the labels, not
   /// just the id.
   PLATFORM_ENUMERATION_DELETED
+  // The KIND of list, not a value in one (`enumeration_type_def`). Separate values
+  // rather than a payload flag: a reader filtering PLATFORM_ENUMERATION_CREATED and
+  // reading `payload.type` would get a kind's key where it expected a value's type.
+  ENUMERATION_TYPE_CREATED
+  ENUMERATION_TYPE_UPDATED
+  ENUMERATION_TYPE_DELETED
   CUSTOMER_SIGNED_UP
   CUSTOMER_LOGGED_IN
   CUSTOMER_LOGGED_OUT
@@ -667,8 +673,9 @@ model Document {
 // should reject. systemOnly=true blocks all CRUD except label edits.
 // One table, many types: the columns below `sortOrder` are TYPE-SPECIFIC
 // (`boundQuestionId` is `surrogate_fact` only; `surrogateProductKey` is
-// `program_name` only; `incomeRule` + `valueSources` are `surrogate_product`
-// and `program_name`) and stay NULL / empty everywhere else. Which type may
+// `program_name` + `surrogate_fact`; `incomeRule` + `valueSources` are
+// `surrogate_product` and `program_name`) and stay NULL / empty everywhere
+// else. Which type may
 // carry which is enforced in the service layer, not by a CHECK — the same
 // posture `platform_enumeration_loan_category` already takes.
 // -----------------------------------------------------------------------------
@@ -684,9 +691,21 @@ model PlatformEnumeration {
   systemOnly          Boolean   @default(false)
   parentKey           String?   @db.VarChar(64)
   sortOrder           Int       @default(0)
-  /// `program_name` only — the `surrogate_product` row this catalog name takes its
+  /// TWO types read this column, and they mean two different things by it.
+  ///
+  /// On a `program_name` — the `surrogate_product` row this catalog name takes its
   /// income calculation from. NULL = the name states its own rule in `incomeRule`
   /// (every payslip name, and every no-payslip name that predates the archetypes).
+  ///
+  /// On a `surrogate_fact` — the product that AUTHORED this fact. A fact is created
+  /// inside a product's own screen along with the list and the question behind it,
+  /// and this is what lets that screen ask "what did I make?" before there is a rule
+  /// to derive the answer from. It is provenance, never a constraint: any product's
+  /// rule may read any fact, exactly as before, and a fact with NULL here (the four
+  /// builtins, and everything seeded) is readable by everyone.
+  ///
+  /// The two never collide — a row has one type — and both point at the same kind of
+  /// row, so one column and one index serve both.
   ///
   /// NOT `parentKey`, and the three reasons are all load-bearing:
   ///   1. A type with a parent axis is REQUIRED to name one on create
@@ -694,8 +713,8 @@ model PlatformEnumeration {
   ///      would make every payslip catalog name uncreatable.
   ///   2. `enumerationParentKeys()` returns ONE flat, type-less `key → parentKey`
   ///      map, read by `factParentTable` in the engine AND by the fact registry's
-  ///      parent-option walk. A `program_name` key colliding with a `compound` key
-  ///      would silently hand that compound a class.
+  ///      parent-option walk. A `program_name` key colliding with a filed-under
+  ///      value's key would silently hand that value a class.
   ///   3. The admin mirrors `PARENT_TYPE_BY_TYPE` client-side to decide whether to
   ///      render a required "Filed under" select — the catalog's own Add-name
   ///      dialog would grow one asking for a compound class.
@@ -810,6 +829,114 @@ model PlatformEnumeration {
   @@index([surrogateProductKey], name: "idx_platform_enumeration_surrogate_product")
   @@index([boundQuestionId], name: "idx_platform_enumeration_bound_question")
   @@map("platform_enumeration")
+}
+
+/// A KIND of list — the registry's own taxonomy, one row per `platform_enumeration.type`.
+///
+/// WHY THIS EXISTS. `platform_enumeration.type` was already de-facto data on the read path:
+/// nothing validates the string on write (`CreateEnumerationDto.type` is a bare
+/// `@Length(1,48)`), and `listTypeStats()` is a `GROUP BY type` over rows. What was welded
+/// was every statement ABOUT a type — its parent axis, whether it may be deleted, and its
+/// human label — each a separate hardcoded map, so inventing a list an operator could
+/// actually use meant a release. A bank keying its cap table by a new set of classes is a
+/// pricing decision, not a schema decision.
+///
+/// NOT A COLUMN ON `platform_enumeration`, and not a self-referential `type` row inside it:
+/// a statement about the KIND would then have to be repeated on, and kept in step across,
+/// every VALUE of that kind, with nothing to say which row was authoritative. `(type, key)`
+/// is the value's unique; the kind's unique is `key` alone, which is a different table.
+///
+/// NO FOREIGN KEY from `platform_enumeration.type` to this table, deliberately — the same
+/// posture `parentKey`, `surrogateProductKey` and `bank_program.programNameKey` all take.
+/// A type is validated in the service layer, and the 14 builtin kinds predate this table:
+/// an FK would make the migration that introduces it able to fail on real data.
+///
+/// `parentTypeKey` is the parent AXIS — "values of this kind are filed under a value of
+/// that kind" — and is the data behind `parentTypeOf` / `childTypesOf`. It names a `key`
+/// in this same table and carries no FK for the reason above.
+///
+/// `systemOnly` marks the 14 kinds the code still names in a constant or switches on
+/// (`countReferences`, the customer allow-list, the categorised / question-bound / unscoped
+/// axes). They may be relabelled and nothing else: renaming or deleting one would strand
+/// every row that carries the string, and a code path would go on asking for it by name.
+model EnumerationTypeDef {
+  id                  String   @id @default(cuid()) @db.VarChar(30)
+  /// Matches `platform_enumeration.type`. Same 48-char budget, same key pattern.
+  key                 String   @unique @db.VarChar(48)
+  labelAr             String   @db.VarChar(160)
+  labelEn             String   @db.VarChar(160)
+  /// One line telling the operator what these values actually drive. Rail metadata, stored
+  /// rather than hardcoded for the same reason the label is: a new kind has to say something.
+  descriptionAr       String?  @db.VarChar(400)
+  descriptionEn       String?  @db.VarChar(400)
+  /// ng-zorro `nzType`. Not validated against the icon set — an unknown name renders the
+  /// fallback, which is a blank tile rather than a broken screen.
+  icon                String?  @db.VarChar(48)
+  /// One realistic value, shown as the add-dialog's placeholder. A shared example is worse
+  /// than none — under "Governorates", "e.g. Salaried employee" reads as an instruction.
+  exampleAr           String?  @db.VarChar(160)
+  exampleEn           String?  @db.VarChar(160)
+  /// The kind whose values these are filed under, by `key`. NULL = no parent axis, and a
+  /// stray `parentKey` on a value of this kind is refused rather than force-nulled.
+  parentTypeKey       String?  @db.VarChar(48)
+  /// Whether a value of this kind may be hard-deleted. Replaces `DELETABLE_TYPES`.
+  deletable           Boolean  @default(false)
+  /// Whether this kind appears on the operator's Manage-values rail. Replaces `LOOKUP_TYPES`.
+  /// Off for kinds that have a screen of their own (`program_name`, `surrogate_product`).
+  onValuesRail        Boolean  @default(true)
+  /// A builtin the code names by string. Relabelling is allowed; rename and delete are not.
+  systemOnly          Boolean  @default(false)
+  active              Boolean  @default(true)
+  sortOrder           Int      @default(0)
+  /// The `surrogate_product` that authored this kind of list, by `key`. NULL = a shared
+  /// list nobody owns (all 14 builtins, and anything made on the Manage-values rail).
+  ///
+  /// Set by the product screen, which is the only place a list can be created ALONGSIDE
+  /// the question that asks it. It answers "which lists did this product make?" — a
+  /// question the coverage derivation (`attachOptionsEnumerationType`) cannot answer for
+  /// a product that has no rule yet, because there is nothing to derive from. Once the
+  /// rule exists both answers are available and they say the same thing; the derivation
+  /// stays the authority for what the rule READS, this stays the authority for what the
+  /// product MADE. Ownership grants nothing and forbids nothing: any rule may read any
+  /// list, and `onValuesRail` — not this column — is what keeps an owned list off the
+  /// global rail.
+  ///
+  /// No FK, for the reason the whole table states above: the reachable unique on the
+  /// product is `(type, key)` and a self-FK cannot express a constant type column.
+  surrogateProductKey String?  @db.VarChar(48)
+  /// The question whose OPTIONS are this list, one-for-one, `question_option.code` ===
+  /// `platform_enumeration.key`.
+  ///
+  /// That equality is not a convention, it is what makes the whole chain work: the
+  /// engine's `factChoiceTable` / `factParentTable` look a bank's table up by the option
+  /// code the customer picked, and `attachOptionsEnumerationType` recognises which list a
+  /// question draws on by covering its option codes with a type's keys. The seed has
+  /// always guaranteed it (`seed-questionnaire.ts#enumOptions`); nothing else could,
+  /// because the admin option API mints codes by slugifying a label.
+  ///
+  /// So the link is STORED rather than derived, and it is stored on the LIST rather than
+  /// on the question: the sync runs when a VALUE is written, and a value write knows its
+  /// type and nothing else. Derived coverage cannot serve here either — the moment an
+  /// operator adds the tenth value, coverage is broken and there is nothing left to read
+  /// the link off. NULL = a list no question mirrors (every builtin; a list read only by
+  /// a bank's own key table).
+  ///
+  /// `ON DELETE SET NULL`: a question removed from the pool leaves the list standing with
+  /// its values intact — the same posture `boundQuestionId` takes, and for the same
+  /// reason (bank tables are written against those keys).
+  mirrorQuestionId    String?  @db.VarChar(30)
+  createdAt           DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+  createdBy           String?  @db.VarChar(30)
+  updatedBy           String?  @db.VarChar(30)
+
+  mirrorQuestion Question? @relation("QuestionMirroredEnumerationTypes", fields: [mirrorQuestionId], references: [id], onDelete: SetNull)
+
+  @@index([active, sortOrder], name: "idx_enumeration_type_def_active_sort")
+  @@index([parentTypeKey], name: "idx_enumeration_type_def_parent")
+  @@index([surrogateProductKey], name: "idx_enumeration_type_def_surrogate_product")
+  @@index([mirrorQuestionId], name: "idx_enumeration_type_def_mirror_question")
+  @@map("enumeration_type_def")
 }
 
 /// Which loan categories a catalog entry may be OFFERED under.
@@ -1287,6 +1414,10 @@ model Question {
   /// Surrogate income FACTS answered by this question — registry rows, not a
   /// property of the question (see `PlatformEnumeration.boundQuestionId`).
   surrogateFacts PlatformEnumeration[]         @relation("QuestionSurrogateFactBindings")
+  /// Lists whose values ARE this question's options, one-for-one by code. Again a
+  /// statement the REGISTRY makes about itself, not a field on the question
+  /// (see `EnumerationTypeDef.mirrorQuestionId`).
+  mirroredLists  EnumerationTypeDef[]          @relation("QuestionMirroredEnumerationTypes")
 
   @@index([groupId, displayOrder], name: "idx_question_group_question_order")
   @@map("question")

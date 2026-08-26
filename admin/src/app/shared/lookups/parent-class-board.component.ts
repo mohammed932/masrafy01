@@ -26,8 +26,8 @@ import { RailTabsComponent, type RailTabItem } from '@shared/ui';
 import { LookupsApiService } from '@features/lookups/lookups.api.service';
 import type { EnumerationRow } from '@features/lookups/lookups.api.service';
 
-/** A compound as this board renders it: the row, plus where it sits right now. */
-interface BoardCompound {
+/** One value as this board renders it: the row, plus where it sits right now. */
+interface BoardValue {
   readonly id: string;
   readonly key: string;
   readonly label: string;
@@ -36,28 +36,28 @@ interface BoardCompound {
 }
 
 /**
- * Where each compound is priced — the class board.
+ * Where each value is priced — the class board.
  *
  * ─── The problem it exists to solve ───────────────────────────────────────────
  *
- * A bank keys its compound cap table by CLASS (three rows) while the customer picks a
- * compound by NAME (hundreds), and `factParentTable` walks one to the other through the
- * compound's `parentKey`. So the single most consequential thing an operator does to this
- * product is decide which tier a compound is priced in — and until this screen, the only way
- * to do it was to open one compound at a time in the shared value dialog and pick from a
- * dropdown labelled "Filed under". Re-tiering nine compounds was nine dialogs, and there was
- * nowhere to see the tiers as a set at all.
+ * A bank keys its cap table by CLASS (a handful of rows) while the customer picks a value by
+ * NAME (as many as the operator typed), and `factParentTable` walks one to the other through
+ * the value's `parentKey`. So the single most consequential thing an operator does to such a
+ * product is decide which tier a value is priced in — and without this screen, the only way to
+ * do it is to open one value at a time in the shared value dialog and pick from a dropdown
+ * labelled "Filed under". Re-tiering nine values is nine dialogs, and there is nowhere to see
+ * the tiers as a set at all.
  *
- * This board inverts it: pick a class, see every compound at once, split into the ones priced
+ * This board inverts it: pick a class, see every value at once, split into the ones priced
  * here and the ones priced elsewhere, and move as many as you like in one action.
  *
  * ─── What a tick means, and what unticking costs ──────────────────────────────
  *
- * A compound's class is a SINGLE parent, so the count is at most one: ticking a candidate MOVES
+ * A value's class is a SINGLE parent, so the count is at most one: ticking a candidate MOVES
  * it here from wherever it was — never adds a second class — and unticking takes it out of this
  * one without putting it in another. A candidate card therefore names the class it would LEAVE.
  *
- * Unticking is a real and costly answer, not an undo. An unfiled compound is still offered to
+ * Unticking is a real and costly answer, not an undo. An unfiled value is still offered to
  * the customer, and `factParentTable` then answers `no_matching_row` — which is NOT a skippable
  * reason, so the rule stops and every bank keying its cap table by the class quotes that
  * applicant nothing. That is why it can only be said through this screen and through the one
@@ -65,8 +65,7 @@ interface BoardCompound {
  *
  * The board already had the vocabulary for the state before it could produce it — a `No class`
  * warn tag, unfiled-first ordering, and a notice counting them at the top of the panel. Those
- * are the feedback for this action, along with `npm run check:collateral`, whose registry
- * invariant fails while any compound is not under a live class.
+ * are the feedback for this action.
  *
  * ─── The rank tint ────────────────────────────────────────────────────────────
  *
@@ -85,18 +84,16 @@ interface BoardCompound {
   template: `
     <section class="page">
       <header class="head">
-        <h2 class="title" i18n="@@ccb.title">Where each compound is priced</h2>
-        <p class="lede" i18n="@@ccb.lede">
-          A bank states one amount per class. A customer picks a compound by name. This is where the
-          two meet — so a compound in the wrong class is priced at the wrong ceiling.
+        <h2 class="title" i18n="@@clsb.title">Where each value is priced</h2>
+        <p class="lede" i18n="@@clsb.lede">
+          A bank states one amount per class. A customer picks a value by name. This is where the
+          two meet — so a value in the wrong class is priced at the wrong ceiling.
         </p>
         @if (!loading()) {
           <p class="counts">
-            <span
-              >{{ compounds().length }} <span i18n="@@ccb.count_compounds">compounds</span></span
-            >
+            <span>{{ boardValues().length }} <span i18n="@@clsb.count_values">values</span></span>
             <span class="dot" aria-hidden="true">·</span>
-            <span>{{ classes().length }} <span i18n="@@ccb.count_classes">classes</span></span>
+            <span>{{ classes().length }} <span i18n="@@clsb.count_classes">classes</span></span>
           </p>
         }
       </header>
@@ -104,8 +101,8 @@ interface BoardCompound {
       @if (loadError()) {
         <p class="notice is-bad" role="alert">
           <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@ccb.load_failed">
-            The compound lists could not be loaded, so nothing can be moved yet. Retry shortly.
+          <span i18n="@@clsb.load_failed">
+            The lists could not be loaded, so nothing can be moved yet. Retry shortly.
           </span>
         </p>
       } @else if (loading()) {
@@ -123,14 +120,14 @@ interface BoardCompound {
       } @else if (classes().length === 0) {
         <p class="notice is-bad" role="alert">
           <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
-          <span i18n="@@ccb.no_classes">
-            There are no classes to price compounds in yet. Add one under Compound classes first.
+          <span i18n="@@clsb.no_classes">
+            There are no classes to price these values in yet. Add one to the class list first.
           </span>
         </p>
       } @else {
         @if (unfiled().length > 0) {
-          <!-- Loud on purpose, and only when it is true. A compound with no live class is not
-               a smaller offer — it is a compound the customer can pick and no bank can price. -->
+          <!-- Loud on purpose, and only when it is true. A value with no live class is not
+               a smaller offer — it is one the customer can pick and no bank can price. -->
           <p class="notice is-warn" role="status">
             <span nz-icon nzType="exclamation-circle" nzTheme="outline" aria-hidden="true"></span>
             <span>{{ unfiledLabel() }}</span>
@@ -141,7 +138,7 @@ interface BoardCompound {
               type="button"
               (click)="showOnlyUnfiled()"
             >
-              <span i18n="@@ccb.show_unfiled">Show them</span>
+              <span i18n="@@clsb.show_unfiled">Show them</span>
             </button>
           </p>
         }
@@ -204,11 +201,11 @@ interface BoardCompound {
           </div>
 
           <!-- FILED HERE -->
-          <h3 class="group" i18n="@@ccb.group_filed">Priced in this class</h3>
+          <h3 class="group" i18n="@@clsb.group_filed">Priced in this class</h3>
           @if (filed().length === 0) {
-            <p class="empty" i18n="@@ccb.filed_empty">
-              Nothing is priced here yet. Move a compound in from the list below — a class no
-              compound reaches is an amount the bank states and nobody can quote.
+            <p class="empty" i18n="@@clsb.filed_empty">
+              Nothing is priced here yet. Move one in from the list below — a class no value reaches
+              is an amount the bank states and nobody can quote.
             </p>
           } @else {
             <ul class="grid" [class.is-stagger]="stagger()">
@@ -229,7 +226,7 @@ interface BoardCompound {
                     </span>
                     <span class="name">{{ c.label }}</span>
                     @if (!c.active) {
-                      <span class="tag" i18n="@@ccb.tag_off">Off</span>
+                      <span class="tag" i18n="@@clsb.tag_off">Off</span>
                     }
                   </button>
                 </li>
@@ -238,7 +235,7 @@ interface BoardCompound {
           }
 
           <!-- EVERYWHERE ELSE -->
-          <h3 class="group" i18n="@@ccb.group_elsewhere">Priced somewhere else</h3>
+          <h3 class="group" i18n="@@clsb.group_elsewhere">Priced somewhere else</h3>
           @if (candidates().length === 0) {
             <p class="empty">{{ candidatesEmpty() }}</p>
           } @else {
@@ -264,8 +261,8 @@ interface BoardCompound {
             </ul>
           }
 
-          <p class="foot" i18n="@@ccb.foot">
-            A compound is priced in at most one class, so ticking it here takes it out of the one it
+          <p class="foot" i18n="@@clsb.foot">
+            A value is priced in at most one class, so ticking it here takes it out of the one it
             was in. Unticking leaves it in no class at all — it is still offered to the customer,
             and any bank pricing off the class can then quote it nothing.
           </p>
@@ -279,7 +276,7 @@ interface BoardCompound {
   `,
   styles: [
     `
-      /* EMBEDDED, NOT ROUTED. This began as the /lookups/compound-classes page and
+      /* EMBEDDED, NOT ROUTED. This began as a routed page of its own and
          kept that page's own measure and gutters after the extraction; its only
          consumer now renders it inside a panel on a page that already owns both.
          Nested, the paddings stacked — at 360px main(32) + product panel(32) +
@@ -476,7 +473,7 @@ interface BoardCompound {
         display: flex;
         align-items: center;
         /* On a phone the tick, the name and the class tag cannot share a line
-           without squeezing the name to ~80px, narrow enough to split 'compound'
+           without squeezing the name to ~80px, narrow enough to split a long value name
            across two lines. The tag drops under the name instead — it still reads
            as that card's class, and the name gets the full width back. */
         flex-wrap: wrap;
@@ -539,8 +536,8 @@ interface BoardCompound {
         background: transparent;
       }
 
-      /* The name is the whole identity of the card — a compound the operator
-         cannot read is a compound they cannot file, so it WRAPS rather than
+      /* The name is the whole identity of the card — a value the operator
+         cannot read is one they cannot file, so it WRAPS rather than
          ellipsing.
          break-word, NOT anywhere: 'anywhere' also drops the min-content size to a
          single character, so once the card was narrow (a phone, beside a class
@@ -679,28 +676,28 @@ export class ParentClassBoardComponent {
   /**
    * The type filed under a class, and the class list itself. Both registry types.
    *
-   * INPUTS, so the board is not welded to compounds — `PARENT_TYPE_BY_TYPE` is the general
-   * axis and this is its board. Defaulted to the one pair that exists, so the only host
-   * today passes nothing.
+   * REQUIRED, with no defaults. They used to default to the value pair, which was the only
+   * axis that existed — and that default outlived it: the value demo is retired, every axis
+   * is now one a PRODUCT authored, and a board silently fetching `value` would render an
+   * empty screen with no clue why.
    *
-   * THE COPY IS NOT PARAMETERISED, deliberately. The 36 `@@ccb.*` strings name compounds and
-   * classes in Arabic where the plural, the verb agreement and the pronoun suffix all agree
-   * with that specific noun — `@@ccb.unfiled_many` reads "٤ كومباوندات ليس لها فئة، فلا يستطيع
-   * أي بنك تسعيرها". Substituting a noun produces text that is grammatically wrong for most
-   * Arabic nouns, and untestable while there is exactly one. A `Copy` interface of 36 fields
-   * with one implementer would not help either: the second axis re-authors 36 strings under
-   * either design. When one arrives, it gets its own thin host and its own strings, in the
-   * language it is being added for.
+   * THE COPY IS GENERIC, and that is a change of position from the previous draft. It used to
+   * named compounds throughout, on the argument that Arabic plural, verb agreement and pronoun
+   * suffix all agree with a specific noun and substituting one produces text that is wrong for
+   * most nouns — which is true, and is exactly why the strings do not substitute a noun at all.
+   * They say "value" / "عنصر", which agrees with itself in both languages whatever list is on
+   * screen. What identifies the list is the panel it sits under and the class names on its own
+   * rail, both of which carry the operator's own words.
    */
-  readonly childType = input('compound');
-  readonly parentType = input('compound_category');
+  readonly childType = input.required<string>();
+  readonly parentType = input.required<string>();
 
   /**
    * Raised after any move that changed a row.
    *
    * The board cannot know what else on the host depends on these values — a product page
    * renders the child list in a sibling panel that holds its own fetched copy — so it
-   * reports rather than guesses. Without it, re-filing a compound left the list above it
+   * reports rather than guesses. Without it, re-filing a value left the list above it
    * showing the old class badge until a manual reload: the exact "it did not work" reading
    * the server-side cache invalidation was widened to avoid.
    */
@@ -709,7 +706,7 @@ export class ParentClassBoardComponent {
   protected readonly loading = signal(true);
   protected readonly loadError = signal(false);
   protected readonly classRows = signal<readonly EnumerationRow[]>([]);
-  protected readonly compoundRows = signal<readonly EnumerationRow[]>([]);
+  protected readonly valueRows = signal<readonly EnumerationRow[]>([]);
   protected readonly query = signal('');
   protected readonly saving = signal<ReadonlySet<string>>(new Set());
   protected readonly bulkSaving = signal(false);
@@ -718,9 +715,9 @@ export class ParentClassBoardComponent {
   /** Off for the first paint after a move, so the moved card settles instead of re-entering. */
   protected readonly stagger = signal(true);
 
-  protected readonly railAria = $localize`:@@ccb.rail_aria:Compound classes`;
-  protected readonly searchAria = $localize`:@@ccb.search_aria:Search compounds by name`;
-  protected readonly searchPlaceholder = $localize`:@@ccb.search:Search compounds`;
+  protected readonly railAria = $localize`:@@clsb.rail_aria:Classes`;
+  protected readonly searchAria = $localize`:@@clsb.search_aria:Search values by name`;
+  protected readonly searchPlaceholder = $localize`:@@clsb.search:Search values`;
 
   /** `?class=` — so a pasted link and a reload both land on the class being worked on. */
   private readonly classParam = toSignal(
@@ -731,9 +728,9 @@ export class ParentClassBoardComponent {
   constructor() {
     // An EFFECT, not a bare call: signal inputs are not set at construction time, so
     // reading `childType()`/`parentType()` in the constructor returns their DEFAULTS and
-    // silently ignores whatever the host bound. It happened to match for compounds; the
-    // first product reading a different parented list would have rendered a board full of
-    // compounds and filed them into compound classes.
+    // silently ignores whatever the host bound — which, while the inputs still had compound
+    // defaults, meant a product reading any other parented list rendered somebody else's
+    // values and filed them into somebody else's classes.
     //
     // `allowSignalWrites` because `load` sets `loading` synchronously before its first
     // await — reacting to an input change by writing state is what this effect is for.
@@ -753,15 +750,15 @@ export class ParentClassBoardComponent {
     this.loading.set(true);
     this.loadError.set(false);
     try {
-      const [classes, compounds] = await Promise.all([
+      const [classes, values] = await Promise.all([
         this.api.list(this.parentType()),
         this.api.list(this.childType()),
       ]);
       this.classRows.set(classes);
-      this.compoundRows.set(compounds);
+      this.valueRows.set(values);
     } catch {
-      // Rendered as a stated failure rather than as an empty board: "no compounds" and
-      // "we could not read the compounds" are different facts with the same shape.
+      // Rendered as a stated failure rather than as an empty board: "no values" and
+      // "we could not read the values" are different facts with the same shape.
       this.loadError.set(true);
     } finally {
       this.loading.set(false);
@@ -769,11 +766,11 @@ export class ParentClassBoardComponent {
   }
 
   /**
-   * The classes a compound may be filed under: ACTIVE only.
+   * The classes a value may be filed under: ACTIVE only.
    *
    * A retired class is not a target — the server refuses it — and offering it would be
    * offering a save that quotes nothing. It also cannot hold children any more: retiring a
-   * class with compounds in it is refused server-side for exactly that reason.
+   * class with values in it is refused server-side for exactly that reason.
    */
   protected readonly classes = computed<readonly EnumerationRow[]>(() =>
     this.classRows()
@@ -783,9 +780,9 @@ export class ParentClassBoardComponent {
 
   private readonly liveClassKeys = computed(() => new Set(this.classes().map((c) => c.key)));
 
-  /** Every compound, including deactivated ones — a compound that is off still needs a class. */
-  protected readonly compounds = computed<readonly BoardCompound[]>(() =>
-    this.compoundRows()
+  /** Every value, including deactivated ones — a value that is off still needs a class. */
+  protected readonly boardValues = computed<readonly BoardValue[]>(() =>
+    this.valueRows()
       .map((row) => ({
         id: row.id,
         key: row.key,
@@ -819,16 +816,16 @@ export class ParentClassBoardComponent {
     this.classes().map((row) => ({
       id: row.key,
       label: this.isAr ? row.labelAr : row.labelEn,
-      note: this.countNote(this.compounds().filter((c) => c.parentKey === row.key).length),
+      note: this.countNote(this.boardValues().filter((c) => c.parentKey === row.key).length),
     })),
   );
 
   // ── the two lists ──────────────────────────────────────────────────────────
 
-  private readonly matching = computed<readonly BoardCompound[]>(() => {
+  private readonly matching = computed<readonly BoardValue[]>(() => {
     const needle = this.query().trim().toLowerCase();
-    if (needle === '') return this.compounds();
-    return this.compounds().filter(
+    if (needle === '') return this.boardValues();
+    return this.boardValues().filter(
       (c) => c.label.toLowerCase().includes(needle) || c.key.toLowerCase().includes(needle),
     );
   });
@@ -838,10 +835,10 @@ export class ParentClassBoardComponent {
   );
 
   /**
-   * The compounds NOT priced here — with the unfiled ones first.
+   * The values NOT priced here — with the unfiled ones first.
    *
    * Unfiled first because they are the only rows on this screen that are actually broken:
-   * every other compound is priced correctly somewhere, and these are priced nowhere.
+   * every other value is priced correctly somewhere, and these are priced nowhere.
    */
   protected readonly candidates = computed(() => {
     const active = this.activeClassKey();
@@ -853,74 +850,74 @@ export class ParentClassBoardComponent {
     });
   });
 
-  protected readonly unfiled = computed(() => this.compounds().filter((c) => this.isUnfiled(c)));
+  protected readonly unfiled = computed(() => this.boardValues().filter((c) => this.isUnfiled(c)));
 
-  protected isUnfiled(compound: BoardCompound): boolean {
-    return compound.parentKey === null || !this.liveClassKeys().has(compound.parentKey);
+  protected isUnfiled(value: BoardValue): boolean {
+    return value.parentKey === null || !this.liveClassKeys().has(value.parentKey);
   }
 
   // ── labels ─────────────────────────────────────────────────────────────────
 
   private countNote(count: number): string {
     return count === 1
-      ? $localize`:@@ccb.note_one:1 compound`
-      : $localize`:@@ccb.note_many:${count}:COUNT: compounds`;
+      ? $localize`:@@clsb.note_one:1 value`
+      : $localize`:@@clsb.note_many:${count}:COUNT: values`;
   }
 
   protected readonly tierLabel = computed(() => {
     const total = this.classes().length;
     const index = this.activeIndex();
-    if (total < 2) return $localize`:@@ccb.tier_only:The only class`;
-    if (index === 0) return $localize`:@@ccb.tier_top:Highest tier`;
-    if (index === total - 1) return $localize`:@@ccb.tier_low:Lowest tier`;
-    return $localize`:@@ccb.tier_mid:Middle tier`;
+    if (total < 2) return $localize`:@@clsb.tier_only:The only class`;
+    if (index === 0) return $localize`:@@clsb.tier_top:Highest tier`;
+    if (index === total - 1) return $localize`:@@clsb.tier_low:Lowest tier`;
+    return $localize`:@@clsb.tier_mid:Middle tier`;
   });
 
   protected readonly filedSummary = computed(() => {
-    const count = this.compounds().filter((c) => c.parentKey === this.activeClassKey()).length;
-    const total = this.compounds().length;
-    return $localize`:@@ccb.filed_summary:${count}:COUNT: of ${total}:TOTAL: compounds are priced in this class.`;
+    const count = this.boardValues().filter((c) => c.parentKey === this.activeClassKey()).length;
+    const total = this.boardValues().length;
+    return $localize`:@@clsb.filed_summary:${count}:COUNT: of ${total}:TOTAL: values are priced in this class.`;
   });
 
   protected readonly matchesLabel = computed(() => {
     const shown = this.matching().length;
-    const total = this.compounds().length;
-    return $localize`:@@ccb.matches:${shown}:SHOWN: of ${total}:TOTAL:`;
+    const total = this.boardValues().length;
+    return $localize`:@@clsb.matches:${shown}:SHOWN: of ${total}:TOTAL:`;
   });
 
   protected readonly moveAllLabel = computed(() => {
     const count = this.candidates().length;
-    return $localize`:@@ccb.move_all:Move all ${count}:COUNT: here`;
+    return $localize`:@@clsb.move_all:Move all ${count}:COUNT: here`;
   });
 
   protected readonly unfiledLabel = computed(() => {
     const count = this.unfiled().length;
     return count === 1
-      ? $localize`:@@ccb.unfiled_one:1 compound has no class, so no bank can price it.`
-      : $localize`:@@ccb.unfiled_many:${count}:COUNT: compounds have no class, so no bank can price them.`;
+      ? $localize`:@@clsb.unfiled_one:1 value has no class, so no bank can price it.`
+      : $localize`:@@clsb.unfiled_many:${count}:COUNT: values have no class, so no bank can price them.`;
   });
 
   protected readonly candidatesEmpty = computed(() =>
     this.query()
-      ? $localize`:@@ccb.candidates_empty_search:Every compound matching your search is already priced in this class.`
-      : $localize`:@@ccb.candidates_empty:Every compound is priced in this class. Nothing left to move.`,
+      ? $localize`:@@clsb.candidates_empty_search:Every value matching your search is already priced in this class.`
+      : $localize`:@@clsb.candidates_empty:Every value is priced in this class. Nothing left to move.`,
   );
 
   /** Which class a candidate would LEAVE — the half a plain checkbox cannot say. */
-  protected whereLabel(compound: BoardCompound): string {
-    if (this.isUnfiled(compound)) return $localize`:@@ccb.where_none:No class`;
-    const row = this.classes().find((c) => c.key === compound.parentKey);
-    return row ? (this.isAr ? row.labelAr : row.labelEn) : (compound.parentKey ?? '');
+  protected whereLabel(value: BoardValue): string {
+    if (this.isUnfiled(value)) return $localize`:@@clsb.where_none:No class`;
+    const row = this.classes().find((c) => c.key === value.parentKey);
+    return row ? (this.isAr ? row.labelAr : row.labelEn) : (value.parentKey ?? '');
   }
 
-  protected filedAria(compound: BoardCompound): string {
+  protected filedAria(value: BoardValue): string {
     // Names the consequence, not just the action: with no H1 in view a screen-reader user has
     // only this string to tell "untick" from "delete", and the two are a class apart.
-    return $localize`:@@ccb.aria_filed:Take ${compound.label}:NAME: out of ${this.activeClassLabel()}:CLASS:. It will then be in no class, and any bank pricing off the class can quote it nothing.`;
+    return $localize`:@@clsb.aria_filed:Take ${value.label}:NAME: out of ${this.activeClassLabel()}:CLASS:. It will then be in no class, and any bank pricing off the class can quote it nothing.`;
   }
 
-  protected candidateAria(compound: BoardCompound): string {
-    return $localize`:@@ccb.aria_move:Move ${compound.label}:NAME: from ${this.whereLabel(compound)}:FROM: to ${this.activeClassLabel()}:TO:`;
+  protected candidateAria(value: BoardValue): string {
+    return $localize`:@@clsb.aria_move:Move ${value.label}:NAME: from ${this.whereLabel(value)}:FROM: to ${this.activeClassLabel()}:TO:`;
   }
 
   /**
@@ -956,36 +953,36 @@ export class ParentClassBoardComponent {
   }
 
   /**
-   * Move one compound into the active class — optimistically, then confirmed.
+   * Move one value into the active class — optimistically, then confirmed.
    *
    * Optimistic because the operator's next action is usually the next card, and a spinner
    * between every tick makes a nine-card re-tiering feel like nine round trips. Rolled back on
    * failure, with the interceptor's toast carrying the reason.
    */
-  protected async move(compound: BoardCompound): Promise<void> {
+  protected async move(value: BoardValue): Promise<void> {
     const target = this.activeClassKey();
-    if (target === '' || compound.parentKey === target) return;
-    const previous = compound.parentKey;
+    if (target === '' || value.parentKey === target) return;
+    const previous = value.parentKey;
 
     this.stagger.set(false);
-    this.setSaving(compound.id, true);
-    this.applyLocal(compound.id, target);
+    this.setSaving(value.id, true);
+    this.applyLocal(value.id, target);
     try {
-      await this.api.setParentKeysBulk([{ id: compound.id, parentKey: target }]);
-      this.flashMoved(compound.id);
+      await this.api.setParentKeysBulk([{ id: value.id, parentKey: target }]);
+      this.flashMoved(value.id);
       this.changed.emit();
       this.announcement.set(
-        $localize`:@@ccb.moved_one:${compound.label}:NAME: is now priced in ${this.activeClassLabel()}:CLASS:.`,
+        $localize`:@@clsb.moved_one:${value.label}:NAME: is now priced in ${this.activeClassLabel()}:CLASS:.`,
       );
     } catch {
-      this.applyLocal(compound.id, previous);
+      this.applyLocal(value.id, previous);
     } finally {
-      this.setSaving(compound.id, false);
+      this.setSaving(value.id, false);
     }
   }
 
   /**
-   * Take one compound OUT of the active class, leaving it in none.
+   * Take one value OUT of the active class, leaving it in none.
    *
    * The mirror of `move`, deliberately down to the rollback: same optimistic write, same
    * per-card `saving` flag, same live-region announcement. What differs is only the target —
@@ -995,24 +992,24 @@ export class ParentClassBoardComponent {
    * warn notice fires the moment the count goes above zero, naming what it costs — which is a
    * louder and more useful signal than a modal the operator dismisses on the way through.
    */
-  protected async unfile(compound: BoardCompound): Promise<void> {
-    const previous = compound.parentKey;
+  protected async unfile(value: BoardValue): Promise<void> {
+    const previous = value.parentKey;
     if (previous === null) return;
 
     this.stagger.set(false);
-    this.setSaving(compound.id, true);
-    this.applyLocal(compound.id, null);
+    this.setSaving(value.id, true);
+    this.applyLocal(value.id, null);
     try {
-      await this.api.setParentKeysBulk([{ id: compound.id, parentKey: null }]);
-      this.flashMoved(compound.id);
+      await this.api.setParentKeysBulk([{ id: value.id, parentKey: null }]);
+      this.flashMoved(value.id);
       this.changed.emit();
       this.announcement.set(
-        $localize`:@@ccb.removed_one:${compound.label}:NAME: is now in no class, so no bank can price it.`,
+        $localize`:@@clsb.removed_one:${value.label}:NAME: is now in no class, so no bank can price it.`,
       );
     } catch {
-      this.applyLocal(compound.id, previous);
+      this.applyLocal(value.id, previous);
     } finally {
-      this.setSaving(compound.id, false);
+      this.setSaving(value.id, false);
     }
   }
 
@@ -1038,7 +1035,7 @@ export class ParentClassBoardComponent {
       for (const c of moving) this.flashMoved(c.id);
       this.changed.emit();
       this.announcement.set(
-        $localize`:@@ccb.moved_many:${moved}:COUNT: compounds are now priced in ${this.activeClassLabel()}:CLASS:.`,
+        $localize`:@@clsb.moved_many:${moved}:COUNT: values are now priced in ${this.activeClassLabel()}:CLASS:.`,
       );
     } catch {
       for (const [id, parentKey] of before) this.applyLocal(id, parentKey ?? null);
@@ -1048,8 +1045,8 @@ export class ParentClassBoardComponent {
   }
 
   private applyLocal(id: string, parentKey: string | null): void {
-    this.compoundRows.set(
-      this.compoundRows().map((row) => (row.id === id ? { ...row, parentKey } : row)),
+    this.valueRows.set(
+      this.valueRows().map((row) => (row.id === id ? { ...row, parentKey } : row)),
     );
   }
 

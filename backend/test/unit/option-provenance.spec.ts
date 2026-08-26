@@ -2,8 +2,8 @@
  * Which operator-managed LIST a bound question's options came from — derived on read,
  * never stored.
  *
- * This is what lets a screen say "this product reads the compound list, and those are
- * filed under compound classes" without any product knowledge in the client. Getting it
+ * This is what lets a screen say "this product reads the district list, and those are
+ * filed under district classes" without any product knowledge in the client. Getting it
  * wrong is not cosmetic: the answer decides which list an operator is sent to when a
  * value is missing, and sending them to the wrong one means the fix they make does
  * nothing.
@@ -82,11 +82,11 @@ function repoOver(facts: Array<{ key: string; options: string[] }>, registry: Ro
   return new PostgresPlatformEnumerationsRepository(prisma as never);
 }
 
-const COMPOUNDS: Row[] = [
-  { key: 'compound_class_a', type: 'compound_category' },
-  { key: 'compound_class_b', type: 'compound_category' },
-  { key: 'mivida', type: 'compound', parentKey: 'compound_class_a' },
-  { key: 'madinaty', type: 'compound', parentKey: 'compound_class_b' },
+const DISTRICTS: Row[] = [
+  { key: 'district_class_a', type: 'district_class' },
+  { key: 'district_class_b', type: 'district_class' },
+  { key: 'maadi', type: 'district', parentKey: 'district_class_a' },
+  { key: 'nasr_city', type: 'district', parentKey: 'district_class_b' },
 ];
 
 async function provenanceOf(
@@ -101,16 +101,16 @@ async function provenanceOf(
 describe('option provenance', () => {
   it('names the list the options came from, and the list those are filed under', async () => {
     const bound = await provenanceOf(
-      [{ key: 'compound_name', options: ['mivida', 'madinaty'] }],
-      COMPOUNDS,
-      'compound_name',
+      [{ key: 'district_name', options: ['maadi', 'nasr_city'] }],
+      DISTRICTS,
+      'district_name',
     );
-    expect(bound?.optionsEnumerationType).toBe('compound');
-    expect(bound?.parentEnumerationType).toBe('compound_category');
+    expect(bound?.optionsEnumerationType).toBe('district');
+    expect(bound?.parentEnumerationType).toBe('district_class');
   });
 
   it('names a flat list with no parent axis, and leaves the parent unset', async () => {
-    // Generic, not compound-specific — this falls out for free and is why the product
+    // Generic, not district-specific — this falls out for free and is why the product
     // screen needs no product knowledge.
     const bound = await provenanceOf(
       [{ key: 'military_grade', options: ['officer', 'nco'] }],
@@ -128,9 +128,9 @@ describe('option provenance', () => {
     // A yes/no question is not backed by a list. `undefined` is what the admin renders as
     // "this fact reads no operator-managed list", rather than an empty list to edit.
     const bound = await provenanceOf(
-      [{ key: 'compound_multi_unit', options: ['yes', 'no'] }],
-      COMPOUNDS,
-      'compound_multi_unit',
+      [{ key: 'district_multi_unit', options: ['yes', 'no'] }],
+      DISTRICTS,
+      'district_multi_unit',
     );
     expect(bound?.optionsEnumerationType).toBeUndefined();
   });
@@ -139,9 +139,9 @@ describe('option provenance', () => {
     // Partial coverage is the case where an answer has no row in the list. Naming the
     // list would tell the operator the missing value is editable there; it is not.
     const bound = await provenanceOf(
-      [{ key: 'compound_name', options: ['mivida', 'not_a_row'] }],
-      COMPOUNDS,
-      'compound_name',
+      [{ key: 'district_name', options: ['maadi', 'not_a_row'] }],
+      DISTRICTS,
+      'district_name',
     );
     expect(bound?.optionsEnumerationType).toBeUndefined();
   });
@@ -152,7 +152,7 @@ describe('option provenance', () => {
     const bound = await provenanceOf(
       [{ key: 'ambiguous', options: ['shared_code'] }],
       [
-        { key: 'shared_code', type: 'compound' },
+        { key: 'shared_code', type: 'district' },
         { key: 'shared_code', type: 'property_type' },
       ],
       'ambiguous',
@@ -163,13 +163,13 @@ describe('option provenance', () => {
   it('resolves each fact independently in one pass', async () => {
     const members = await repoOver(
       [
-        { key: 'compound_name', options: ['mivida', 'madinaty'] },
-        { key: 'compound_multi_unit', options: ['yes', 'no'] },
+        { key: 'district_name', options: ['maadi', 'nasr_city'] },
+        { key: 'district_multi_unit', options: ['yes', 'no'] },
       ],
-      COMPOUNDS,
+      DISTRICTS,
     ).getActiveMembers('surrogate_fact' as never);
     const byKey = new Map(members.map((m) => [m.key, m.boundQuestion]));
-    expect(byKey.get('compound_name')?.optionsEnumerationType).toBe('compound');
-    expect(byKey.get('compound_multi_unit')?.optionsEnumerationType).toBeUndefined();
+    expect(byKey.get('district_name')?.optionsEnumerationType).toBe('district');
+    expect(byKey.get('district_multi_unit')?.optionsEnumerationType).toBeUndefined();
   });
 });

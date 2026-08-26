@@ -11,7 +11,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import type { LoanCategory } from '@prisma/client';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/guards/roles.guard';
@@ -25,6 +25,7 @@ import type { IncomeBasis } from '@/common/income-basis.util';
 import {
   CatalogQuestionDto,
   CreateEnumerationDto,
+  CreateEnumerationTypeDto,
   EnumerationRowDto,
   SetEnumerationBoundQuestionDto,
   SetEnumerationCategoriesBulkDto,
@@ -33,6 +34,7 @@ import {
   SetEnumerationIncomeBasisDto,
   SetEnumerationQuestionsDto,
   UpdateEnumerationDto,
+  UpdateEnumerationTypeDto,
 } from './dto/enumeration.dto';
 
 const PROGRAM_NAME_TYPE = 'program_name';
@@ -70,6 +72,58 @@ export class AdminPlatformEnumerationsController {
   async listTypes() {
     const data = await this.service.listTypes();
     return { success: true, data };
+  }
+
+  /**
+   * Create a KIND of list.
+   *
+   * All four KIND routes are declared HERE, with the other statics, and before `PATCH :id` /
+   * `DELETE :id` further down — `types` is a single segment, so under those routes a request
+   * for it resolves as an enumeration whose id is the string "types". The same trap
+   * `GET surrogate-products` documents on the bank-programs controller.
+   */
+  @Post('types')
+  @ApiOperation({ summary: 'Create an enumeration type (a KIND of list)' })
+  @ApiResponse({ status: 409, description: 'ENUMERATION_TYPE_DUPLICATE' })
+  @ApiResponse({ status: 422, description: 'ENUMERATION_TYPE_PARENT_INVALID' })
+  async createType(
+    @Body() body: CreateEnumerationTypeDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ) {
+    const data = await this.service.createType(body, { staffId: user.sub, sourceIp: ip ?? null });
+    return { success: true, data };
+  }
+
+  @Patch('types/:key')
+  @ApiOperation({ summary: 'Update an enumeration type. The key itself is immutable.' })
+  @ApiResponse({ status: 404, description: 'ENUMERATION_TYPE_NOT_FOUND' })
+  @ApiResponse({ status: 422, description: 'ENUMERATION_TYPE_SYSTEM_ONLY' })
+  async updateType(
+    @Param('key') key: string,
+    @Body() body: UpdateEnumerationTypeDto,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ) {
+    const data = await this.service.updateType(key, body, {
+      staffId: user.sub,
+      sourceIp: ip ?? null,
+    });
+    return { success: true, data };
+  }
+
+  @Delete('types/:key')
+  @ApiOperation({ summary: 'Delete an enumeration type that holds no values' })
+  @ApiResponse({ status: 404, description: 'ENUMERATION_TYPE_NOT_FOUND' })
+  @ApiResponse({ status: 409, description: 'ENUMERATION_TYPE_IN_USE' })
+  @ApiResponse({ status: 422, description: 'ENUMERATION_TYPE_SYSTEM_ONLY' })
+  async deleteType(
+    @Param('key') key: string,
+    @CurrentUser() user: JwtPayload,
+    @Ip() ip: string,
+  ) {
+    await this.service.deleteType(key, { staffId: user.sub, sourceIp: ip ?? null });
+    return { success: true, data: { key } };
   }
 
   /**

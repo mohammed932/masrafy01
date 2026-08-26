@@ -18,7 +18,8 @@ import {
 import { categoryLabel, type LoanCategory } from '@core/loan-category';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { LookupsApiService, type EnumerationRow } from '@features/lookups/lookups.api.service';
-import { PARENT_TYPE_BY_TYPE, lookupExample } from './lookup-constants';
+import { EnumerationTypesService } from './enumeration-types.service';
+import { slugify, uniqueSlug } from './slug';
 
 /**
  * EVERY lookup type is edited by business name only: the machine key is derived
@@ -549,6 +550,9 @@ export interface EnumerationEditDialogData {
 })
 export class EnumerationEditDialogComponent {
   private readonly api = inject(LookupsApiService);
+  // Declared BEFORE `parentType` and the form below: both read it in a field initialiser,
+  // and field initialisers run in source order.
+  private readonly enumTypes = inject(EnumerationTypesService);
   private readonly errorCodes = inject(ErrorCodeService);
   private readonly dialogRef = inject(NzModalRef<EnumerationEditDialogComponent, boolean>);
   protected readonly data = inject<EnumerationEditDialogData>(NZ_MODAL_DATA);
@@ -564,7 +568,7 @@ export class EnumerationEditDialogComponent {
    * for whoever picked it — and until now this dialog could not set one, so every compound
    * an operator added was born classless.
    */
-  protected readonly parentType: string | null = PARENT_TYPE_BY_TYPE[this.data.type] ?? null;
+  protected readonly parentType: string | null = this.enumTypes.parentTypeOf(this.data.type);
   protected readonly parentOptions = signal<readonly EnumerationRow[]>([]);
 
   /**
@@ -657,9 +661,15 @@ export class EnumerationEditDialogComponent {
    * governorate, a document type or a catalog product name. The examples live with
    * the type list, next to each type's own description.
    */
-  private readonly example = lookupExample(this.data.type);
-  protected readonly labelEnPlaceholder = this.example.en;
-  protected readonly labelArPlaceholder = this.example.ar;
+  // Stored on the KIND now, not in a per-type map here: a kind an operator invents can
+  // carry its own example, and one that carries none falls back to a generic line rather
+  // than to another type's example.
+  protected readonly labelEnPlaceholder =
+    this.enumTypes.example(this.data.type, false) ??
+    $localize`:@@lookups.example.fallback.en:e.g. Salaried employee`;
+  protected readonly labelArPlaceholder =
+    this.enumTypes.example(this.data.type, true) ??
+    $localize`:@@lookups.example.fallback.ar:مثال: موظف بمرتب`;
 
   protected readonly submitting = signal(false);
   /** Localized failure text — mapping goes through ErrorCodeService (Principle III, A22). */
@@ -707,7 +717,7 @@ export class EnumerationEditDialogComponent {
      */
     parentKey: new FormControl<string>(this.data.row?.parentKey ?? '', {
       nonNullable: true,
-      validators: PARENT_TYPE_BY_TYPE[this.data.type] ? [Validators.required] : [],
+      validators: this.enumTypes.parentTypeOf(this.data.type) ? [Validators.required] : [],
     }),
   });
 
@@ -866,12 +876,11 @@ export class EnumerationEditDialogComponent {
     try {
       const v = this.form.getRawValue();
       if (this.data.mode === 'create') {
-        const base = this.slugify(v.labelEn);
-        if (!base) {
+        if (!slugify(v.labelEn)) {
           this.fail('VALIDATION_FAILED');
           return;
         }
-        const key = await this.uniqueKey(base);
+        const key = await this.uniqueKey(v.labelEn);
         await this.api.create({
           type: this.data.type,
           key,
@@ -947,29 +956,15 @@ export class EnumerationEditDialogComponent {
    * and cannot edit. The server still enforces uniqueness; this only keeps the
    * ordinary case from surfacing as an unactionable error.
    */
-  private async uniqueKey(base: string): Promise<string> {
-    let taken: ReadonlySet<string>;
+  private async uniqueKey(label: string): Promise<string> {
     try {
-      taken = new Set((await this.api.list(this.data.type)).map((r) => r.key));
+      const taken = new Set((await this.api.list(this.data.type)).map((r) => r.key));
+      return uniqueSlug(label, taken);
     } catch {
-      return base;
+      // The list read is a courtesy — the server enforces the unique either way, and refusing
+      // to save because a GET failed would be the worse answer.
+      return slugify(label);
     }
-    if (!taken.has(base)) return base;
-    for (let n = 2; n < 100; n++) {
-      const suffix = `_${n}`;
-      const candidate = `${base.slice(0, 64 - suffix.length)}${suffix}`;
-      if (!taken.has(candidate)) return candidate;
-    }
-    return base;
   }
 
-  /** Machine key derived from an English label — lowercase, non-alnum → `_`, trimmed, ≤64. */
-  private slugify(s: string): string {
-    return s
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 64);
-  }
 }

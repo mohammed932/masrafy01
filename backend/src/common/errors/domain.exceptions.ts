@@ -239,7 +239,7 @@ export class SurrogateProductInUseException extends DomainException {
    * number — in Arabic that lands between an existential and a singular counted noun and
    * is simply broken. The list still travels for the screen and the log.
    */
-  constructor(meta: { key: string; names: readonly string[] }) {
+  constructor(meta: { key: string; names: readonly string[]; programCodes?: readonly string[] }) {
     super(ERROR_CODES.SURROGATE_PRODUCT_IN_USE, { ...meta, count: meta.names.length });
   }
 }
@@ -477,6 +477,51 @@ export class EnumerationParentNotApplicableException extends DomainException {
 export class EnumerationHasChildrenException extends DomainException {
   constructor(meta: { type: string; key: string; childType: string; children: number }) {
     super(ERROR_CODES.ENUMERATION_HAS_CHILDREN, meta);
+  }
+}
+
+/** A KIND of list was created with a key another kind already holds. */
+export class EnumerationTypeDuplicateException extends DomainException {
+  constructor(meta: { key: string }) {
+    super(ERROR_CODES.ENUMERATION_TYPE_DUPLICATE, meta);
+  }
+}
+
+/** A KIND was patched or deleted by a key no definition row carries. */
+export class EnumerationTypeNotFoundException extends DomainException {
+  constructor(meta: { key: string }) {
+    super(ERROR_CODES.ENUMERATION_TYPE_NOT_FOUND, meta);
+  }
+}
+
+/**
+ * Deleting a KIND was refused because values still carry its type.
+ *
+ * `values` rather than a list of keys: the operator is on the screen that shows them, and a
+ * three-hundred-key `meta` would be unreadable in a toast where the count is the decision.
+ */
+export class EnumerationTypeInUseException extends DomainException {
+  constructor(meta: { key: string; values: number }) {
+    super(ERROR_CODES.ENUMERATION_TYPE_IN_USE, meta);
+  }
+}
+
+/**
+ * A KIND the code names by string was renamed or deleted.
+ *
+ * `attempted` says which of the two, because the operator's next move differs: a rename has
+ * an alternative (relabel it, which IS allowed), a delete does not.
+ */
+export class EnumerationTypeSystemOnlyException extends DomainException {
+  constructor(meta: { key: string; attempted: 'rename' | 'delete' }) {
+    super(ERROR_CODES.ENUMERATION_TYPE_SYSTEM_ONLY, meta);
+  }
+}
+
+/** A KIND was filed under a parent kind that does not exist, or under itself. */
+export class EnumerationTypeParentInvalidException extends DomainException {
+  constructor(meta: { key: string; parentTypeKey: string; reason: 'missing' | 'self' }) {
+    super(ERROR_CODES.ENUMERATION_TYPE_PARENT_INVALID, meta);
   }
 }
 

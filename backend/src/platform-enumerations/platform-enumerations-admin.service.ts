@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, forwardRef } from '@nestjs/common';
 import type { LoanCategory } from '@prisma/client';
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { AuditEventWriter } from '@/audit/audit-event.writer';
@@ -10,6 +10,11 @@ import {
   EnumerationInUseException,
   EnumerationKeyDuplicateException,
   EnumerationParentNotApplicableException,
+  EnumerationTypeDuplicateException,
+  EnumerationTypeInUseException,
+  EnumerationTypeNotFoundException,
+  EnumerationTypeParentInvalidException,
+  EnumerationTypeSystemOnlyException,
   ProgramNameHasOwnRuleException,
   SurrogateProductInUseException,
   SurrogateProductRequiredException,
@@ -22,6 +27,7 @@ import {
   EnumerationSystemOnlyException,
   NotFoundException,
 } from '@/common/errors/domain.exceptions';
+import { QuestionnaireService } from '@/questionnaire/questionnaire.service';
 import { dedupeCategories } from '@/common/loan-category.util';
 import { dedupeBases, type IncomeBasis } from '@/common/income-basis.util';
 import {
@@ -35,6 +41,8 @@ import {
   parentTypeOf,
   type BoundQuestion,
   type EnumerationType,
+  type EnumerationTypeDefinition,
+  type EnumerationTypeDefinitions,
   type IncomeBasesByCategory,
   type QuestionCodesByCategory,
 } from './platform-enumerations.repository';
@@ -43,15 +51,22 @@ import {
   type CatalogQuestionRow,
   type EnumerationCategoryAssignment,
   type EnumerationRow,
+  type EnumerationTypeStats,
   type EnumerationUpdatePatch,
   type ProgramNameUsage,
 } from './postgres-platform-enumerations.repository';
 import type { SetEnumerationParentKeysBulkDto } from './dto/enumeration.dto';
-import type { CreateEnumerationDto, UpdateEnumerationDto } from './dto/enumeration.dto';
+import type {
+  CreateEnumerationDto,
+  CreateEnumerationTypeDto,
+  UpdateEnumerationDto,
+  UpdateEnumerationTypeDto,
+} from './dto/enumeration.dto';
 
 /** The only categorised type today; see `CATEGORISED_ENUMERATION_TYPES`. */
 const PROGRAM_NAME_TYPE = 'program_name';
 const SURROGATE_PRODUCT_TYPE = 'surrogate_product';
+const FACT_TYPE = 'surrogate_fact';
 
 /**
  * Lexical, so the audit no-op check compares SETS. Ordering everywhere else is
@@ -82,7 +97,38 @@ export class PlatformEnumerationsAdminService {
   constructor(
     private readonly audit: AuditEventWriter,
     private readonly repo: PostgresPlatformEnumerationsRepository,
+    /**
+     * A mirrored list's values ARE a question's options, so a value write here is an
+     * unpublished questionnaire until this runs (`EnumerationTypeDef.mirrorQuestionId`).
+     *
+     * `forwardRef` because `QuestionnaireModule` already imports this one — it needs the live
+     * member list to warn when a fact's option codes drift from the registry they are supposed
+     * to BE. The cycle is real and deliberate, the same posture this module already takes with
+     * `CustomerAuthModule`; the alternative is a second writer of `question_option`, which is
+     * exactly the drift both halves exist to prevent.
+     */
+    @Inject(forwardRef(() => QuestionnaireService))
+    private readonly questionnaire: QuestionnaireService,
   ) {}
+
+  /**
+   * Re-sync the question whose options are this list, if any.
+   *
+   * Called after every write to a VALUE — create, patch, retire, delete. Guarded on the
+   * cached definitions so the overwhelming majority of writes (every builtin, every list made
+   * on the Manage-values rail) cost one map read and stop here.
+   *
+   * Deliberately NOT awaited inside the registry transaction and deliberately not rolled back
+   * on failure: the registry write is the operator's edit and it has committed. A failed sync
+   * leaves the options one write behind, which the next write to that list puts right and
+   * which the product screen can force; unwinding a saved value because a republish failed
+   * would be the more surprising of the two.
+   */
+  private async syncMirroredList(type: string, actor: string): Promise<void> {
+    const defs = await this.repo.typeDefinitions();
+    if (defs.get(type)?.mirrorQuestionId == null) return;
+    await this.questionnaire.syncMirroredOptions(type, actor);
+  }
 
   async listAll(filter?: { type?: string }): Promise<EnumerationRow[]> {
     return this.repo.findAllOrdered(filter);
@@ -97,15 +143,174 @@ export class PlatformEnumerationsAdminService {
     return this.repo.countProgramNameUsage();
   }
 
-  async listTypes(): Promise<
-    Array<{ type: string; total: number; active: number; deprecated: number }>
-  > {
+  /**
+   * Every KIND, with its definition and how many values it holds.
+   *
+   * Typed as `EnumerationTypeStats[]` rather than the old inline four-field shape: the
+   * narrower type still COMPILED once `deletable` and `definition` were added — a wider
+   * object is assignable to it — while erasing both from what the controller believes it is
+   * serving, so the admin would have had to cast to read fields the server was already
+   * sending.
+   */
+  async listTypes(): Promise<EnumerationTypeStats[]> {
     return this.repo.listTypeStats();
   }
 
   /** Loan-category assignments for a type, keyed by enumeration id. */
   async categoryAssignments(filter?: { type?: string }): Promise<Map<string, LoanCategory[]>> {
     return this.repo.categoryAssignments(filter);
+  }
+
+  // ---- The KIND registry -------------------------------------------------
+  //
+  // A KIND is a row now (`enumeration_type_def`), so inventing the list a bank keys its
+  // table by is an operator action rather than a release. What is NOT settable here is
+  // every axis a code path reads by name — `systemOnly`, the customer allow-list, the
+  // categorised / question-bound / unscoped sets — because claiming one would let an
+  // operator assert a capability nothing implements.
+
+  /**
+   * Create a KIND.
+   *
+   * The parent axis is resolved BEFORE the insert for the reason `create()` states about
+   * `parentKey` and `surrogateProductKey`: a kind filed under a kind that does not exist
+   * makes every one of its future values uncreatable, because `resolveParentKey` would
+   * demand a parent from a list nothing can populate.
+   */
+  async createType(
+    input: CreateEnumerationTypeDto,
+    actor: AdminActor,
+  ): Promise<EnumerationTypeDefinition> {
+    const defs = await this.repo.typeDefinitions();
+    if (defs.has(input.key)) {
+      throw new EnumerationTypeDuplicateException({ key: input.key });
+    }
+    this.assertParentTypeUsable(defs, input.key, input.parentTypeKey ?? null);
+
+    const created = await this.repo.insertTypeDefinition({
+      key: input.key,
+      labelAr: input.labelAr,
+      labelEn: input.labelEn,
+      descriptionAr: input.descriptionAr ?? null,
+      descriptionEn: input.descriptionEn ?? null,
+      icon: input.icon ?? null,
+      exampleAr: input.exampleAr ?? null,
+      exampleEn: input.exampleEn ?? null,
+      parentTypeKey: input.parentTypeKey ?? null,
+      // A kind an operator invented IS deletable by default: nothing reads it by name, so
+      // the only thing that can point at one of its values is a child value, which
+      // `countGenericReferences` counts. Defaulting to false would recreate the trap this
+      // feature exists to remove — a list you can make and never unmake.
+      deletable: input.deletable ?? true,
+      onValuesRail: input.onValuesRail ?? true,
+      systemOnly: false,
+      // A list a product authored is owned by it and kept off the global rail: it exists to
+      // answer one question, and mixing it in with "Governorates" would offer an operator a
+      // list they have no way to place. Absent = a shared list, which is what the rail and
+      // the seeded builtins are.
+      surrogateProductKey: input.surrogateProductKey ?? null,
+      // Never settable on create: the question does not exist yet on the only path that
+      // matters. `createQuestionWithOptions` stamps it once the question has an id.
+      mirrorQuestionId: null,
+      sortOrder: input.sortOrder ?? 0,
+    });
+
+    await this.audit.write({
+      actorId: actor.staffId,
+      targetId: null,
+      eventType: AuditEventType.ENUMERATION_TYPE_CREATED,
+      sourceIp: actor.sourceIp,
+      payload: { key: created.key, parentTypeKey: created.parentTypeKey },
+    });
+    return created;
+  }
+
+  /**
+   * Patch a KIND. `key` cannot be patched — the DTO has no field for it.
+   *
+   * A `systemOnly` kind may be RELABELLED and reordered but not re-parented and not
+   * retired: the label is what an operator reads, while the axis and the active flag change
+   * what the platform does with values a code path is already reading by name.
+   */
+  async updateType(
+    key: string,
+    patch: UpdateEnumerationTypeDto,
+    actor: AdminActor,
+  ): Promise<EnumerationTypeDefinition> {
+    const defs = await this.repo.typeDefinitions();
+    const existing = defs.get(key);
+    if (!existing) throw new EnumerationTypeNotFoundException({ key });
+
+    if (patch.parentTypeKey !== undefined) {
+      if (existing.systemOnly) {
+        throw new EnumerationTypeSystemOnlyException({ key, attempted: 'rename' });
+      }
+      this.assertParentTypeUsable(defs, key, patch.parentTypeKey);
+    }
+
+    const updated = await this.repo.updateTypeDefinition(key, patch);
+    if (!updated) throw new EnumerationTypeNotFoundException({ key });
+
+    await this.audit.write({
+      actorId: actor.staffId,
+      targetId: null,
+      eventType: AuditEventType.ENUMERATION_TYPE_UPDATED,
+      sourceIp: actor.sourceIp,
+      payload: { key, changes: patch },
+    });
+    return updated;
+  }
+
+  /**
+   * Delete a KIND.
+   *
+   * Refused while any value carries the type, and the check is a COUNT over
+   * `platform_enumeration` rather than a foreign key, because that column has none. Without
+   * the refusal the rows would survive as values of a kind with no label, no parent axis and
+   * no delete gate — the orphan state the registry exists to remove.
+   */
+  async deleteType(key: string, actor: AdminActor): Promise<void> {
+    const defs = await this.repo.typeDefinitions();
+    const existing = defs.get(key);
+    if (!existing) throw new EnumerationTypeNotFoundException({ key });
+    if (existing.systemOnly) {
+      throw new EnumerationTypeSystemOnlyException({ key, attempted: 'delete' });
+    }
+
+    const values = await this.repo.countRowsOfType(key);
+    if (values > 0) throw new EnumerationTypeInUseException({ key, values });
+
+    // A kind nothing files under is safe to drop; one that IS a parent axis is not. Leaving
+    // the axis dangling would make every value of the CHILD kind uncreatable, which is the
+    // same damage as a missing parent on create — refused there, so refused here too.
+    const children = childTypesOf(defs, key);
+    if (children.length > 0) {
+      throw new EnumerationTypeInUseException({ key, values: children.length });
+    }
+
+    await this.repo.deleteTypeDefinition(key);
+    await this.audit.write({
+      actorId: actor.staffId,
+      targetId: null,
+      eventType: AuditEventType.ENUMERATION_TYPE_DELETED,
+      sourceIp: actor.sourceIp,
+      payload: { key },
+    });
+  }
+
+  /** A parent axis must name a kind that exists and must not be the kind itself. */
+  private assertParentTypeUsable(
+    defs: EnumerationTypeDefinitions,
+    key: string,
+    parentTypeKey: string | null,
+  ): void {
+    if (parentTypeKey === null) return;
+    if (parentTypeKey === key) {
+      throw new EnumerationTypeParentInvalidException({ key, parentTypeKey, reason: 'self' });
+    }
+    if (!defs.has(parentTypeKey)) {
+      throw new EnumerationTypeParentInvalidException({ key, parentTypeKey, reason: 'missing' });
+    }
   }
 
   async create(input: CreateEnumerationDto, actor: AdminActor): Promise<EnumerationRow> {
@@ -171,7 +376,7 @@ export class PlatformEnumerationsAdminService {
       sortOrder: input.sortOrder ?? 0,
       createdBy: actor.staffId,
     });
-    this.repo.invalidateCache(input.type as never);
+    this.repo.invalidateCache(input.type);
     await this.audit.write({
       actorId: actor.staffId,
       targetId: null,
@@ -179,6 +384,7 @@ export class PlatformEnumerationsAdminService {
       sourceIp: actor.sourceIp,
       payload: { type: created.type, key: created.key, id: created.id },
     });
+    await this.syncMirroredList(created.type, actor.staffId);
     return created;
   }
 
@@ -210,7 +416,7 @@ export class PlatformEnumerationsAdminService {
     parentKey: string | null | undefined,
     opts: { allowUnfiled?: boolean } = {},
   ): Promise<string | null> {
-    const parentType = parentTypeOf(type);
+    const parentType = parentTypeOf(await this.repo.typeDefinitions(), type);
     if (parentType === null) {
       // `null` is NOT excused here, deliberately: unfiling a type that has no parent axis is
       // the same category error as filing one, and both deserve to be reported. Only
@@ -240,12 +446,18 @@ export class PlatformEnumerationsAdminService {
   }
 
   /**
-   * What to STORE as a catalog name's surrogate product — the one place the link is
-   * enforced, and the mirror of `resolveParentKey` above.
+   * What to STORE as a row's surrogate product — the one place the link is enforced, and the
+   * mirror of `resolveParentKey` above.
+   *
+   * TWO types may carry it, and they mean different things by it (see the column's own doc):
+   * on a `program_name` it is where the calculation comes from, and on a `surrogate_fact` it
+   * is which product AUTHORED the fact. One function resolves both because the question it
+   * answers — "is this a live product?" — is the same, and a second copy is how the two come
+   * to disagree about what a live product is.
    *
    * Four answers, same posture:
-   *   · the type is not `program_name` → refused. A product link on a governorate is a
-   *     category error, and force-nulling it silently is how a caller keeps sending it;
+   *   · the type is neither → refused. A product link on a governorate is a category error,
+   *     and force-nulling it silently is how a caller keeps sending it;
    *   · the caller named nothing (`undefined`) → `null`, meaning "states its own rule".
    *     Whether that is ALLOWED is a separate question, asked by
    *     `assertSurrogateProductForBases` — the two are kept apart because the basis and
@@ -263,7 +475,7 @@ export class PlatformEnumerationsAdminService {
     type: string,
     productKey: string | null | undefined,
   ): Promise<string | null> {
-    if (type !== PROGRAM_NAME_TYPE) {
+    if (type !== PROGRAM_NAME_TYPE && type !== FACT_TYPE) {
       if (productKey !== undefined && productKey !== null) {
         throw new EnumerationParentNotApplicableException({ type });
       }
@@ -343,6 +555,7 @@ export class PlatformEnumerationsAdminService {
 
     // Validate every (type, target) pair once, not once per row: a board save is N rows with
     // one target, and N identical refusals would be N identical registry reads.
+    const typeDefs = await this.repo.typeDefinitions();
     const seen = new Set<string>();
     for (const assignment of dto.assignments) {
       const row = byId.get(assignment.id);
@@ -350,7 +563,7 @@ export class PlatformEnumerationsAdminService {
       const pair = `${row.type}\u0000${assignment.parentKey}`;
       if (seen.has(pair)) continue;
       seen.add(pair);
-      if (parentTypeOf(row.type) === null) {
+      if (parentTypeOf(typeDefs, row.type) === null) {
         throw new EnumerationParentNotApplicableException({ type: row.type });
       }
       // `allowUnfiled` ONLY here: this is the endpoint an operator uses to say where a value is
@@ -360,6 +573,9 @@ export class PlatformEnumerationsAdminService {
     }
 
     const moves = await this.repo.setParentKeysBulk(dto.assignments);
+    // A move changes no LABEL, so the question's options are unaffected — but the ORDER a
+    // list is served in is `sortOrder`, not `parentKey`, so there is genuinely nothing to
+    // re-sync here. Stated rather than left as a gap somebody has to re-derive.
     // Every type, for the reason `update()` states: a parentKey move is felt by the row's own
     // cached list AND by `surrogate_fact`'s derived `parentOptions`.
     this.repo.invalidateCache();
@@ -462,7 +678,7 @@ export class PlatformEnumerationsAdminService {
     // from the list at the same moment. A 409 they read beats a quote that carries on.
     const retiring = patch.deprecate === true || patch.active === false;
     if (retiring) {
-      for (const childType of childTypesOf(existing.type)) {
+      for (const childType of childTypesOf(await this.repo.typeDefinitions(), existing.type)) {
         const children = await this.repo.countChildren(childType, existing.key);
         if (children > 0) {
           throw new EnumerationHasChildrenException({
@@ -509,7 +725,8 @@ export class PlatformEnumerationsAdminService {
     // stale for up to the cache TTL — which, mid-edit, reads as "it did not work".
     if (repoPatch.parentKey !== undefined || repoPatch.surrogateProductKey !== undefined) {
       this.repo.invalidateCache();
-    } else this.repo.invalidateCache(existing.type as never);
+    } else this.repo.invalidateCache(existing.type);
+    await this.syncMirroredList(existing.type, actor.staffId);
     await this.audit.write({
       actorId: actor.staffId,
       targetId: null,
@@ -556,7 +773,7 @@ export class PlatformEnumerationsAdminService {
       throw new EnumerationSystemOnlyException({ type: existing.type, key: existing.key });
     }
 
-    const usedBy = await this.repo.countReferences(existing.type as EnumerationType, existing.key);
+    const usedBy = await this.repo.countReferences(existing.type, existing.key);
     if (usedBy === null) {
       throw new EnumerationDeleteNotSupportedException({ type: existing.type });
     }
@@ -573,7 +790,8 @@ export class PlatformEnumerationsAdminService {
     }
 
     await this.repo.deleteById(id);
-    this.repo.invalidateCache(existing.type as never);
+    this.repo.invalidateCache(existing.type);
+    await this.syncMirroredList(existing.type, actor.staffId);
     await this.audit.write({
       actorId: actor.staffId,
       targetId: null,
@@ -891,7 +1109,7 @@ export class PlatformEnumerationsAdminService {
     // Invalidated: the binding rides on the cached member payload (the catalog board
     // derives its fact tick-list from it), so a 60s window would show the operator a
     // screen that does not yet know about the fact they just bound.
-    this.repo.invalidateCache('surrogate_fact');
+    this.repo.invalidateCache(FACT_TYPE);
 
     if (before !== questionCode) {
       await this.writeAssignmentAudit(

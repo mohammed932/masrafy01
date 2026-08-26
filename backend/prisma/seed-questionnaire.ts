@@ -340,17 +340,17 @@ const YEARS_IN_PRACTICE_Q: SeedQuestion = {
 
 // ── COLLATERAL PRODUCTS — the gate, then the pack ─────────────────────────
 //
-// A collateral product (the compound-ownership guarantee, the car-ownership loan) asks
-// about a thing the applicant OWNS, not about their salary. Two rules shape how:
+// A collateral product (here: the loan against a car the applicant already owns) asks about a
+// thing the applicant OWNS, not about their salary. Two rules shape how:
 //
-//   1. **One cheap GATE in the funnel, required.** "Do you own a unit in a compound?" is a
-//      single tap and it is what decides whether the heavy questions are ever shown — and
-//      later, whether the product's card is worth putting in front of this customer at all.
+//   1. **One cheap GATE in the funnel, required.** "Do you own a car?" is a single tap and it
+//      is what decides whether the heavy questions are ever shown — and later, whether the
+//      product's card is worth putting in front of this customer at all.
 //
-//   2. **The pack is its own GROUP, every question OPTIONAL and gated on the gate.** A
-//      group is one step in the mobile wizard, and a group whose every question is hidden
-//      is dropped from the snapshot entirely — so a non-owner never sees the step, and ten
-//      such products do not make the funnel ten steps longer.
+//   2. **The pack's questions are OPTIONAL and gated on the gate.** A group is one step in
+//      the mobile wizard, and a group whose every question is hidden is dropped from the
+//      snapshot entirely — so a non-owner never sees the step, and ten such products do not
+//      make the funnel ten steps longer.
 //
 // None of the pack is REQUIRED, deliberately. A required question would block apply for a
 // customer who started answering and changed their mind; skipping it instead leaves the
@@ -360,161 +360,10 @@ const YEARS_IN_PRACTICE_Q: SeedQuestion = {
 // Every pack question is bound to a `surrogate_fact` row by `seed-collateral-products.ts`,
 // so its answer reaches the engine in `ApplicantProfile.surrogateFacts` with no mapping
 // code on either client. The binding lives on the FACT, never on the question (A33).
-
-const OWNS_COMPOUND_UNIT_Q: SeedQuestion = {
-  code: 'owns_compound_unit',
-  questionEn: 'Do you own a unit in a compound?',
-  questionAr: 'هل تمتلك وحدة في كومباوند؟',
-  helperTextEn: 'Some banks lend against the unit itself, with no payslip.',
-  helperTextAr: 'بعض البنوك تمنح تمويلًا بضمان الوحدة نفسها بدون مفردات راتب.',
-  // REQUIRED: it costs one tap, and it is the only thing that decides whether this
-  // customer is ever shown a compound offer.
-  options: YESNO(),
-};
-
-const COMPOUND_GATED = {
-  questionCode: 'owns_compound_unit',
-  operator: 'equals' as const,
-  optionCode: 'yes',
-};
-
-const COMPOUND_NAME_Q: SeedQuestion = {
-  code: 'compound_name',
-  questionEn: 'Which compound is the unit in?',
-  questionAr: 'الوحدة في أي كومباوند؟',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  // Option codes ARE the active `compound` registry keys, and each of those rows carries a
-  // `parentKey` naming its class. That is what lets a bank key its table by the five
-  // CLASSES while the customer picks a NAME — and it replaces the client-side substring
-  // match against a hardcoded list of "high-end" compounds that the source prototype used
-  // and got wrong.
-  optionsFromEnum: 'compound',
-  options: [],
-};
-
-const COMPOUND_UNIT_PRICE_Q: SeedQuestion = {
-  code: 'compound_unit_price',
-  type: 'NUMERIC',
-  questionEn: 'What was the unit priced at when you signed?',
-  questionAr: 'كان سعر الوحدة وقت التعاقد كام؟',
-  helperTextEn: 'The contract price, not what it might sell for today.',
-  helperTextAr: 'السعر في العقد، وليس سعره الحالي في السوق.',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  numeric: { minValue: '0', maxValue: '200000000', step: '1000', unitEn: 'EGP', unitAr: 'جنيه' },
-  options: [],
-};
-
-const COMPOUND_DP_PERCENT_Q: SeedQuestion = {
-  code: 'compound_dp_percent',
-  type: 'NUMERIC',
-  questionEn: 'How much of the price have you paid so far, as a percentage?',
-  questionAr: 'دفعت كام في المية من سعر الوحدة لحد الآن؟',
-  helperTextEn: 'Everything paid to the developer so far, including the down payment.',
-  helperTextAr: 'كل المدفوع للمطور حتى الآن، بما في ذلك المقدم.',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  numeric: { minValue: '0', maxValue: '100', step: '1', unitEn: '%', unitAr: '%' },
-  options: [],
-};
-
-const COMPOUND_UNIT_TYPE_Q: SeedQuestion = {
-  code: 'compound_unit_type',
-  questionEn: 'What kind of unit is it?',
-  questionAr: 'الوحدة نوعها إيه؟',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  options: [
-    { code: 'apartment', labelEn: 'Apartment', labelAr: 'شقة' },
-    { code: 'twin_townhouse', labelEn: 'Twin house or townhouse', labelAr: 'توين هاوس أو تاون هاوس' },
-    { code: 'villa', labelEn: 'Villa', labelAr: 'فيلا' },
-  ],
-};
-
-const COMPOUND_CONTRACT_YEAR_Q: SeedQuestion = {
-  code: 'compound_contract_year',
-  questionEn: 'Which year did you sign the unit contract?',
-  questionAr: 'وقّعت عقد الوحدة في أي سنة؟',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  // Buckets, not a year field: a bank's minimum unit price is stated per contract year and
-  // the oldest contracts are one bucket, so an exact year would be a key no table has.
-  options: [
-    { code: '2024', labelEn: '2024 or later', labelAr: '2024 أو بعدها' },
-    { code: '2023', labelEn: '2023', labelAr: '2023' },
-    { code: '2022', labelEn: '2022', labelAr: '2022' },
-    { code: '2021', labelEn: '2021', labelAr: '2021' },
-    { code: 'before2021', labelEn: 'Before 2021', labelAr: 'قبل 2021' },
-  ],
-};
-
-const COMPOUND_MONTHS_SINCE_PURCHASE_Q: SeedQuestion = {
-  code: 'compound_months_since_purchase',
-  type: 'NUMERIC',
-  questionEn: 'How many months ago did you sign?',
-  questionAr: 'وقّعت العقد منذ كام شهر؟',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  numeric: { minValue: '0', maxValue: '600', step: '1', unitEn: 'months', unitAr: 'شهر' },
-  options: [],
-};
-
-const COMPOUND_FULLY_SETTLED_Q: SeedQuestion = {
-  code: 'compound_fully_settled',
-  questionEn: 'Have you paid the unit off in full?',
-  questionAr: 'خلّصت سداد كل قيمة الوحدة؟',
-  helperTextEn: 'Some banks ask for a shorter ownership history when the unit is paid off.',
-  helperTextAr: 'بعض البنوك تطلب مدة تمليك أقل إذا كانت الوحدة مسددة بالكامل.',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  options: YESNO(),
-};
-
-const COMPOUND_JOINT_UNIT_Q: SeedQuestion = {
-  code: 'compound_joint_unit',
-  questionEn: 'Is the unit in your name only?',
-  questionAr: 'الوحدة باسمك لوحدك؟',
-  helperTextEn: 'Say no if it is shared ownership.',
-  helperTextAr: 'اختر لا إذا كانت ملكية مشتركة.',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  options: [
-    { code: 'mine_only', labelEn: 'Mine only', labelAr: 'باسمي لوحدي' },
-    { code: 'shared', labelEn: 'Shared with someone else', labelAr: 'ملكية مشتركة' },
-  ],
-};
-
-const COMPOUND_MULTI_UNIT_Q: SeedQuestion = {
-  code: 'compound_multi_unit',
-  questionEn: 'Do you own another unit in a different compound?',
-  questionAr: 'عندك وحدة تانية في كومباوند مختلف؟',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  options: YESNO(),
-};
-
-const COMPOUND_BEST_UNIT_Q: SeedQuestion = {
-  code: 'compound_best_unit_confirmed',
-  questionEn: 'Is the unit above the strongest one you own?',
-  questionAr: 'هل الوحدة اللي فوق هي أقوى وحدة تملكها؟',
-  helperTextEn: 'Some banks finance one unit only, and price the best one you own.',
-  helperTextAr: 'بعض البنوك تمنح تمويلًا لوحدة واحدة فقط، وتحسبها على أفضل وحدة تملكها.',
-  isRequired: false,
-  // Asked of every compound owner, NOT only of a multi-unit one — and that is the whole
-  // point. A bank that finances one unit gates on this answer, and gating the QUESTION on
-  // `compound_multi_unit = yes` meant a single-unit owner was never shown it, had no answer,
-  // and was refused `fact_not_answered` by a condition that was never about them. Same shape
-  // as the two self-employed gates: the answer set carries the "does not apply to me" case,
-  // because `enabledWhen` can name one parent option and cannot express "or".
-  enabledWhen: COMPOUND_GATED,
-  options: [
-    { code: 'single_unit', labelEn: 'I only own this one unit', labelAr: 'أملك هذه الوحدة فقط' },
-    { code: 'yes', labelEn: 'Yes, this is my strongest', labelAr: 'نعم، هي الأقوى' },
-    { code: 'no', labelEn: 'No, another one is stronger', labelAr: 'لا، عندي وحدة أقوى' },
-    { code: 'unconfirmed', labelEn: "I'm not sure", labelAr: 'مش متأكد' },
-  ],
-};
+//
+// A product an OPERATOR builds gets all three pieces — the list, the question and the fact —
+// from its own screen (`/surrogate-products/:key`), with no edit here. This file seeds only
+// what ships in the box.
 
 // Which banks the applicant already uses. ONE bank-agnostic question feeding a per-program
 // answer: several banks lend more to a customer they already have (a "top-up" or cross-sell
@@ -546,7 +395,7 @@ const OWNS_CAR_Q: SeedQuestion = {
   questionAr: 'هل تمتلك سيارة خالصة الثمن؟',
   helperTextEn: 'Some banks lend against the car itself, with no payslip.',
   helperTextAr: 'بعض البنوك تمنح تمويلًا بضمان السيارة نفسها بدون مفردات راتب.',
-  // REQUIRED, like the compound gate: one tap, and it is what decides whether the two
+  // REQUIRED: one tap, and it is what decides whether the two
   // questions below are ever shown.
   options: YESNO(),
 };
@@ -586,76 +435,21 @@ const OWNED_CAR_AGE_Q: SeedQuestion = {
     { code: 'over_7', labelEn: 'More than 7 years', labelAr: 'أكثر من 7 سنوات' },
   ],
 };
-
-// The two self-employed conditions one bank applies. Asked of EVERYONE who owns a unit,
-// with "I'm not self-employed" as a real answer, because `enabledWhen` carries exactly one
-// option code and "shown to a business owner OR a freelancer" is two. The gates that read
-// them accept that answer as passing, so a salaried applicant is never refused for a
-// document a bank would not have asked them for.
-const SELF_EMPLOYED_LICENCE_Q: SeedQuestion = {
-  code: 'self_employed_licence',
-  questionEn: 'If you are self-employed, do you hold a valid trade or practice licence?',
-  questionAr: 'إذا كنت تعمل لحسابك، هل لديك رخصة تجارية أو رخصة مهنة سارية؟',
-  helperTextEn: 'A commercial register, a tax card, or a syndicate licence.',
-  helperTextAr: 'سجل تجاري أو بطاقة ضريبية أو كارنيه نقابة.',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  options: [
-    { code: 'yes', labelEn: 'Yes', labelAr: 'نعم' },
-    { code: 'no', labelEn: 'No', labelAr: 'لا' },
-    { code: 'not_self_employed', labelEn: "I'm not self-employed", labelAr: 'لا أعمل لحسابي' },
-  ],
-};
-
-const BUSINESS_YEARS_Q: SeedQuestion = {
-  code: 'business_years',
-  questionEn: 'How long has your business been running?',
-  questionAr: 'نشاطك التجاري قائم من مدة كام؟',
-  isRequired: false,
-  enabledWhen: COMPOUND_GATED,
-  options: [
-    { code: 'less_than_2', labelEn: 'Less than 2 years', labelAr: 'أقل من سنتين' },
-    { code: 'two_or_more', labelEn: '2 years or more', labelAr: 'سنتان أو أكثر' },
-    { code: 'not_self_employed', labelEn: "I'm not self-employed", labelAr: 'لا أعمل لحسابي' },
-  ],
-};
-
 /** The gates — cheap, required, and the only part every applicant sees. */
 const COLLATERAL_GATES_GROUP: SeedGroup = {
   code: 'collateral_gates',
   titleEn: 'What you already own',
   titleAr: 'ما تملكه بالفعل',
-  questions: [OWNS_COMPOUND_UNIT_Q, EXISTING_BANK_RELATIONSHIPS_Q],
-};
-
-/** The compound pack — one step, shown only to a compound owner. */
-const COMPOUND_UNIT_GROUP: SeedGroup = {
-  code: 'compound_unit_details',
-  titleEn: 'About your compound unit',
-  titleAr: 'تفاصيل وحدتك في الكومباوند',
-  questions: [
-    COMPOUND_NAME_Q,
-    COMPOUND_UNIT_TYPE_Q,
-    COMPOUND_UNIT_PRICE_Q,
-    COMPOUND_DP_PERCENT_Q,
-    COMPOUND_CONTRACT_YEAR_Q,
-    COMPOUND_MONTHS_SINCE_PURCHASE_Q,
-    COMPOUND_FULLY_SETTLED_Q,
-    COMPOUND_JOINT_UNIT_Q,
-    COMPOUND_MULTI_UNIT_Q,
-    COMPOUND_BEST_UNIT_Q,
-    SELF_EMPLOYED_LICENCE_Q,
-    BUSINESS_YEARS_Q,
-  ],
+  questions: [EXISTING_BANK_RELATIONSHIPS_Q],
 };
 
 /**
  * The owned-car pack — the gate AND its two questions in ONE group, deliberately.
  *
- * The compound pack splits them because its gate rides `COLLATERAL_GATES_GROUP`, which two
- * categories already carry. CAR carries neither group, and referencing the gates group here
- * would drag `owns_compound_unit` into a category that has no compound pack to show for it.
- * One group means a non-owner sees a single question and no extra step.
+ * A product whose gate rides `COLLATERAL_GATES_GROUP` has to split them, because that group is
+ * carried by two categories and its gate would be dragged into a category with no pack to show
+ * for it. CAR carries that group in no category, so one group is enough — and it means a
+ * non-owner sees a single question and no extra step.
  */
 const OWNED_CAR_GROUP: SeedGroup = {
   code: 'owned_car_details',
@@ -1043,7 +837,6 @@ const PERSONAL: CategoryConfig = {
     // list of which categories may sell one, so widening it is an admin action on the
     // questionnaire screen, never a release.
     COLLATERAL_GATES_GROUP,
-    COMPOUND_UNIT_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],
@@ -1129,7 +922,6 @@ const MORTGAGE: CategoryConfig = {
     // list of which categories may sell one, so widening it is an admin action on the
     // questionnaire screen, never a release.
     COLLATERAL_GATES_GROUP,
-    COMPOUND_UNIT_GROUP,
     {
       code: 'commitments', titleEn: 'What you already pay each month', titleAr: 'الالتزامات الشهرية الحالية',
       questions: [CURRENT_LOANS_Q],

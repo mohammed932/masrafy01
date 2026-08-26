@@ -43,7 +43,7 @@ describe('customer-readable enumeration types', () => {
 
   it('refuses an unknown type rather than treating it as absent', () => {
     expect(isCustomerReadableEnumerationType('')).toBe(false);
-    expect(isCustomerReadableEnumerationType('compound')).toBe(false);
+    expect(isCustomerReadableEnumerationType('surrogate_product')).toBe(false);
     expect(isCustomerReadableEnumerationType('../../etc/passwd')).toBe(false);
   });
 });

@@ -34,7 +34,7 @@ import {
   EnumerationEditDialogComponent,
   type EnumerationEditDialogData,
 } from './enumeration-edit.dialog';
-import { PARENT_TYPE_BY_TYPE } from './lookup-constants';
+import { EnumerationTypesService } from './enumeration-types.service';
 
 @Component({
   selector: 'app-lookup-values-panel',
@@ -114,6 +114,7 @@ import { PARENT_TYPE_BY_TYPE } from './lookup-constants';
 })
 export class LookupValuesPanelComponent {
   private readonly api = inject(LookupsApiService);
+  private readonly enumTypes = inject(EnumerationTypesService);
   private readonly modal = inject(NzModalService);
 
   /** The enumeration type this panel renders. Changing it reloads. */
@@ -174,7 +175,7 @@ export class LookupValuesPanelComponent {
     if (!opts.silent) this.loading.set(true);
     try {
       this.rows.set(await this.api.list(type));
-      const parentType = PARENT_TYPE_BY_TYPE[type];
+      const parentType = this.enumTypes.parentTypeOf(type);
       this.parentRows.set(parentType ? await this.api.list(parentType) : []);
     } finally {
       if (!opts.silent) this.loading.set(false);

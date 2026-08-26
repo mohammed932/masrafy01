@@ -108,7 +108,74 @@ export interface EnumerationTypeSummary {
    * the button as it was rather than hide an action that still works.
    */
   deletable?: boolean;
+  /**
+   * What the KIND itself is — label, parent axis, rail placement — served from
+   * `enumeration_type_def` rather than restated in a hardcoded map on this side.
+   *
+   * `null` is a real state: a type that has values but no definition row. Reachable only if
+   * something wrote a type outside the admin API, and surfaced rather than hidden so the
+   * operator can name it — dropping it from the list would make rows exist that no screen
+   * admits to. `undefined` still means NOT LOADED.
+   */
+  definition?: EnumerationTypeDefinition | null;
 }
+
+/**
+ * A KIND of list.
+ *
+ * Mirrors the server's `EnumerationTypeDefinition`. This replaces three hardcoded maps that
+ * each stated part of the same thing — `LOOKUP_TYPES` (rail label, description, icon),
+ * `ENUMERATION_TYPE_LABELS` (label again, for types off the rail) and `EXAMPLES` (the add
+ * dialog's placeholder) — none of which a new kind could extend without a release.
+ */
+export interface EnumerationTypeDefinition {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  descriptionAr: string | null;
+  descriptionEn: string | null;
+  icon: string | null;
+  exampleAr: string | null;
+  exampleEn: string | null;
+  /** The kind whose values these are filed under. `null` = no parent axis. */
+  parentTypeKey: string | null;
+  deletable: boolean;
+  /** Shown on the Manage-values rail. Off for kinds with a screen of their own. */
+  onValuesRail: boolean;
+  /** A builtin the platform reads by name: relabel yes, rename or delete no. */
+  systemOnly: boolean;
+  active: boolean;
+  sortOrder: number;
+  /** The surrogate product that authored this list. `null` = a shared list nobody owns. */
+  surrogateProductKey: string | null;
+  /**
+   * The question whose OPTIONS are this list, one-for-one by code. `null` = nothing mirrors
+   * it. Set by the server when a question is created from the list; never sent by a client.
+   */
+  mirrorQuestionId: string | null;
+}
+
+export interface CreateEnumerationTypeRequest {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  descriptionAr?: string;
+  descriptionEn?: string;
+  icon?: string;
+  exampleAr?: string;
+  exampleEn?: string;
+  parentTypeKey?: string | null;
+  deletable?: boolean;
+  onValuesRail?: boolean;
+  /** Sent by the product screen only — the product authoring this list. */
+  surrogateProductKey?: string;
+  sortOrder?: number;
+}
+
+/** `key` is absent on purpose — every value carries the string, so a rename strands them. */
+export type UpdateEnumerationTypeRequest = Partial<
+  Omit<CreateEnumerationTypeRequest, 'key'> & { active: boolean }
+>;
 
 export interface CreateEnumerationRequest {
   type: string;
@@ -153,6 +220,41 @@ export class LookupsApiService {
       this.http.get<SuccessEnvelope<EnumerationTypeSummary[]>>(`${this.base}/types`),
     );
     return res.data;
+  }
+
+  /**
+   * Create a KIND of list.
+   *
+   * `POST /types`, a sibling of the value CRUD below rather than a resource of its own,
+   * because it is the same registry seen one level up — and the server declares all four
+   * KIND routes before its `:id` routes so `types` cannot resolve as an enumeration id.
+   */
+  async createType(body: CreateEnumerationTypeRequest): Promise<EnumerationTypeDefinition> {
+    const res = await firstValueFrom(
+      this.http.post<SuccessEnvelope<EnumerationTypeDefinition>>(`${this.base}/types`, body),
+    );
+    return res.data;
+  }
+
+  async updateType(
+    key: string,
+    body: UpdateEnumerationTypeRequest,
+  ): Promise<EnumerationTypeDefinition> {
+    const res = await firstValueFrom(
+      this.http.patch<SuccessEnvelope<EnumerationTypeDefinition>>(
+        `${this.base}/types/${encodeURIComponent(key)}`,
+        body,
+      ),
+    );
+    return res.data;
+  }
+
+  async removeType(key: string): Promise<void> {
+    await firstValueFrom(
+      this.http.delete<SuccessEnvelope<{ key: string }>>(
+        `${this.base}/types/${encodeURIComponent(key)}`,
+      ),
+    );
   }
 
   async list(type?: string): Promise<EnumerationRow[]> {
@@ -250,6 +352,26 @@ export class LookupsApiService {
    * Scoped to the category, like `setQuestions`: a name is legitimately meant for
    * no-payslip lending as a personal loan and payslip-only as a car loan.
    */
+  /**
+   * Point one income FACT at the question that answers it, or unbind it.
+   *
+   * `questionCode: null` UNBINDS, which is why the parameter is nullable rather than
+   * optional: a full replacement of the binding must distinguish "clear it" from "leave it".
+   *
+   * The endpoint has existed since v16.2.0; what was missing was any client for it. v16.3.0
+   * deleted the fact rail and its picker from the admin and recorded the consequence —
+   * "adding a NEW income fact or re-pointing a broken one is no longer an admin action" —
+   * which a step builder that cannot name a new input cannot live with.
+   */
+  async setBoundQuestion(id: string, questionCode: string | null): Promise<EnumerationRow> {
+    const res = await firstValueFrom(
+      this.http.put<SuccessEnvelope<EnumerationRow>>(`${this.base}/${id}/bound-question`, {
+        questionCode,
+      }),
+    );
+    return res.data;
+  }
+
   async setIncomeBasis(
     id: string,
     category: LoanCategory,

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  LOCALE_ID,
   OnInit,
   computed,
   inject,
@@ -9,17 +10,19 @@ import {
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzIconModule, provideNzIconsPatch } from 'ng-zorro-antd/icon';
 import {
-  IdcardOutline,
-  SwapOutline,
-  SolutionOutline,
-  FlagOutline,
   AppstoreOutline,
-  FileTextOutline,
-  EnvironmentOutline,
-  UnorderedListOutline,
-  TagsOutline,
   CheckCircleOutline,
+  EditOutline,
+  EnvironmentOutline,
+  FileTextOutline,
+  FlagOutline,
+  IdcardOutline,
   InboxOutline,
+  PlusOutline,
+  SolutionOutline,
+  SwapOutline,
+  TagsOutline,
+  UnorderedListOutline,
 } from '@ant-design/icons-angular/icons';
 import {
   PageHeaderComponent,
@@ -27,8 +30,13 @@ import {
   StatStripComponent,
   type StatStripItem,
 } from '@shared/ui';
-import { LookupsApiService, type EnumerationTypeSummary } from './lookups.api.service';
-import { LOOKUP_TYPES, isLookupType, lookupType } from './lookups.constants';
+import type { EnumerationTypeSummary } from './lookups.api.service';
+import { NzModalService } from 'ng-zorro-antd/modal';
+import { EnumerationTypesService } from '@shared/lookups/enumeration-types.service';
+import {
+  EnumerationTypeEditDialogComponent,
+  type EnumerationTypeDialogData,
+} from '@shared/lookups/enumeration-type-edit.dialog';
 import {
   LookupTypeRailComponent,
   type LookupTypeCard,
@@ -67,6 +75,11 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
       TagsOutline,
       CheckCircleOutline,
       InboxOutline,
+      // The rail head's New list and the panel's Edit this list. Registered HERE because
+      // this component renders them; a host that patched them by accident would make the
+      // icons order-dependent the moment a second host existed.
+      PlusOutline,
+      EditOutline,
     ]),
   ],
   template: `
@@ -80,7 +93,13 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
       @if (loadingTypes()) {
         <app-skeleton-rows [rows]="3" [cols]="[1, 1, 1]" [ariaLabel]="loadingTypesLabel" />
       } @else {
-        <p class="section-label" i18n="@@lookups.categoriesLabel">Categories</p>
+        <div class="rail-head">
+          <p class="section-label" i18n="@@lookups.categoriesLabel">Categories</p>
+          <button type="button" class="new-type" (click)="openCreateType()">
+            <span nz-icon nzType="plus" nzTheme="outline" aria-hidden="true"></span>
+            <span i18n="@@lookups.type.new">New list</span>
+          </button>
+        </div>
         <app-lookup-type-rail
           [cards]="typeCards()"
           [selected]="selectedType()"
@@ -88,11 +107,19 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
         />
 
         @if (selectedType(); as type) {
-          <section class="detail" [attr.aria-label]="lookupType(type).label">
+          <section class="detail" [attr.aria-label]="label(type)">
+            @if (!systemOnlyType(type)) {
+              <div class="type-actions">
+                <button type="button" class="type-edit" (click)="openEditType(type)">
+                  <span nz-icon nzType="edit" nzTheme="outline" aria-hidden="true"></span>
+                  <span i18n="@@lookups.type.edit">Edit this list</span>
+                </button>
+              </div>
+            }
             <app-lookup-values-panel
               [type]="type"
-              [title]="lookupType(type).label"
-              [description]="lookupType(type).description"
+              [title]="label(type)"
+              [description]="description(type)"
               [deletable]="deletableType(type)"
               (changed)="reloadTypes({ silent: true })"
             />
@@ -113,6 +140,48 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
         inline-size: 100%;
         padding: var(--space-6);
       }
+      .rail-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-3);
+        flex-wrap: wrap;
+      }
+      .rail-head .section-label {
+        margin: 0;
+      }
+      .new-type,
+      .type-edit {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        min-block-size: var(--size-field);
+        padding-inline: var(--space-3);
+        border: 1px solid var(--color-border-default);
+        border-radius: var(--radius-field);
+        background: var(--bg-surface);
+        color: var(--text-secondary);
+        font: inherit;
+        font-size: 0.8125rem;
+        cursor: pointer;
+        transition:
+          border-color 120ms ease,
+          color 120ms ease;
+      }
+      .new-type:hover,
+      .type-edit:hover {
+        border-color: var(--accent);
+        color: var(--text-primary);
+      }
+      .new-type:focus-visible,
+      .type-edit:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .type-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
       @media (max-width: 768px) {
         .page {
           padding: var(--space-4);
@@ -125,7 +194,7 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
         font-weight: var(--font-weight-semibold);
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--color-text-secondary);
+        color: var(--text-secondary);
       }
       .detail {
         display: flex;
@@ -138,28 +207,50 @@ import { LookupValuesPanelComponent } from '@shared/lookups/lookup-values-panel.
   ],
 })
 export class LookupsPage implements OnInit {
-  private readonly api = inject(LookupsApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly modal = inject(NzModalService);
+  private readonly enumTypes = inject(EnumerationTypesService);
+  private readonly locale = inject(LOCALE_ID);
+  private readonly isAr = String(this.locale).startsWith('ar');
 
-  protected readonly lookupType = lookupType;
+  protected label(type: string): string {
+    return this.enumTypes.label(type, this.isAr);
+  }
+
+  protected description(type: string): string {
+    return this.enumTypes.description(type, this.isAr);
+  }
 
   /**
    * Type counts for the rail and the stat strip. The VALUES of a type are owned by
    * `app-lookup-values-panel`, which loads and mutates them itself — this page keeps only
    * what the rail needs, plus the per-type delete permission the panel takes as an input.
    */
-  private readonly summaries = signal<readonly EnumerationTypeSummary[]>([]);
+  private readonly summaries = computed<readonly EnumerationTypeSummary[]>(() =>
+    this.enumTypes.all(),
+  );
   protected readonly loadingTypes = signal(true);
   protected readonly selectedType = signal<string | null>(null);
 
-  /** One tile per supported type, in declaration order, with its API counts. */
+  /**
+   * One tile per rail KIND, in the server's `sortOrder`, with its counts.
+   *
+   * Derived from `enumeration_type_def` rather than from a hardcoded `LOOKUP_TYPES`, which
+   * is what lets a list an operator invents appear here without a release. A kind whose
+   * values live on a screen of its own (`program_name`, `surrogate_product`, and the two
+   * the compound product owns) carries `onValuesRail: false` and stays off — the same five
+   * tiles as before, now for a stated reason rather than by omission from an array.
+   */
   protected readonly typeCards = computed<LookupTypeCard[]>(() => {
     const byType = new Map(this.summaries().map((s) => [s.type, s]));
-    return LOOKUP_TYPES.map((t) => ({
-      ...t,
-      active: byType.get(t.type)?.active ?? 0,
-      deprecated: byType.get(t.type)?.deprecated ?? 0,
+    return this.enumTypes.railTypes().map((def) => ({
+      type: def.key,
+      label: this.isAr ? def.labelAr : def.labelEn,
+      description: (this.isAr ? def.descriptionAr : def.descriptionEn) ?? '',
+      icon: def.icon ?? 'unordered-list',
+      active: byType.get(def.key)?.active ?? 0,
+      deprecated: byType.get(def.key)?.deprecated ?? 0,
     }));
   });
 
@@ -197,13 +288,60 @@ export class LookupsPage implements OnInit {
    * LOADED, so the button stays as it was rather than vanishing on an old backend.
    */
   protected deletableType(type: string): boolean {
-    return this.summaries().find((row) => row.type === type)?.deletable ?? true;
+    return this.enumTypes.deletable(type);
+  }
+
+  /** A builtin cannot be renamed or deleted, so the screen offers neither. */
+  protected systemOnlyType(type: string): boolean {
+    return this.enumTypes.definition(type)?.systemOnly ?? false;
+  }
+
+  protected openCreateType(): void {
+    this.openTypeDialog({ mode: 'create' });
+  }
+
+  protected openEditType(type: string): void {
+    const definition = this.enumTypes.definition(type);
+    if (definition) this.openTypeDialog({ mode: 'edit', definition });
+  }
+
+  /**
+   * `NzModalService`, not a locally rendered scrim: a `position: fixed` backdrop inside
+   * `section.page` is trapped by that element's own `app-page-rise` animation, which dims
+   * the panel and not the viewport (A34).
+   */
+  private openTypeDialog(data: EnumerationTypeDialogData): void {
+    const ref = this.modal.create<
+      EnumerationTypeEditDialogComponent,
+      EnumerationTypeDialogData,
+      boolean
+    >({
+      nzContent: EnumerationTypeEditDialogComponent,
+      nzData: data,
+      nzFooter: null,
+      nzWidth: 520,
+      nzCentered: true,
+      nzMaskClosable: false,
+    });
+    ref.afterClose.subscribe(async (saved: boolean | undefined) => {
+      if (!saved) return;
+      await this.reloadTypes({ silent: true });
+      // A newly created kind is where the operator wants to be: they made it to put values
+      // in it, and leaving them on the previous tile makes the create look like it failed.
+      const created = data.mode === 'create' ? this.enumTypes.railTypes().at(-1) : null;
+      if (created) this.selectType(created.key);
+    });
   }
 
   async ngOnInit(): Promise<void> {
     await this.reloadTypes();
     const requested = this.route.snapshot.queryParamMap.get('type');
-    const target = requested && isLookupType(requested) ? requested : LOOKUP_TYPES[0]?.type;
+    const rail = this.enumTypes.railTypes();
+    // A `?type=` naming a kind that is not on the rail falls back to the first tile rather
+    // than rendering an empty panel — the same behaviour `isLookupType` used to give, now
+    // measured against the rail as it actually is rather than against a frozen array.
+    const known = rail.some((d) => d.key === requested);
+    const target = known && requested ? requested : rail[0]?.key;
     if (target) this.selectType(target);
   }
 
@@ -220,7 +358,7 @@ export class LookupsPage implements OnInit {
   protected async reloadTypes(opts: { silent?: boolean } = {}): Promise<void> {
     if (!opts.silent) this.loadingTypes.set(true);
     try {
-      this.summaries.set(await this.api.listTypes());
+      await this.enumTypes.refresh();
     } finally {
       if (!opts.silent) this.loadingTypes.set(false);
     }

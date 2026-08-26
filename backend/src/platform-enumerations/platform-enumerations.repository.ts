@@ -33,17 +33,6 @@ export type EnumerationType =
    */
   | 'surrogate_fact'
   /**
-   * The COLLATERAL products' lists (the compound-ownership guarantee).
-   *
-   * A `compound` row's `parentKey` names its class, and that is load-bearing rather than
-   * decorative: a bank keys its cap table by the five CLASSES while the customer picks one of
-   * hundreds of compounds by NAME, and `factParentTable` walks one to the other. It is also
-   * why `compound` is NOT in `UNSCOPED_ENUMERATION_TYPES` — force-nulling the parent there
-   * would silently disconnect every compound from the table that prices it.
-   */
-  | 'compound_category'
-  | 'compound'
-  /**
    * A no-payslip PRODUCT: a named, reusable income calculation, carried in this row's
    * own `incomeRule`.
    *
@@ -109,37 +98,100 @@ export function isUnscopedEnumerationType(type: string): boolean {
 }
 
 /**
- * Which LIST a type's values are filed under — the registry's single-parent scope.
+ * What is true of a KIND of list — the registry's own taxonomy, one row per `type`.
  *
- * One entry today, and it is load-bearing: a bank keys its compound cap table by three
- * CLASSES while the customer picks one of hundreds of compounds by NAME, and
- * `factParentTable` walks one to the other through `parentKey`.
+ * WAS four hardcoded maps (`PARENT_TYPE_BY_TYPE` here, `ENUMERATION_TYPE_LABELS`,
+ * `LOOKUP_TYPES` and `EXAMPLES` in the admin) plus `DELETABLE_TYPES` in the Postgres
+ * repository. The type STRING was already data — nothing validates it on write and
+ * `listTypeStats` is a `GROUP BY type` — so every one of those maps was a statement about
+ * data, held in code, that a new kind could not extend. A bank keying its cap table by a
+ * new set of classes is a pricing decision; it should not be a release.
  *
- * Declared here, beside the four other axis constants, rather than in `common/` — Principle
- * IX keeps `common/` free of feature knowledge, and this is registry taxonomy owned by the
- * module that owns the registry. The admin holds a second copy today
- * (`admin/src/app/features/lookups/lookups.constants.ts`); the type-stats read is the seam
- * that should eventually serve this one instead.
+ * Still hardcoded, and deliberately: `UNSCOPED_ENUMERATION_TYPES`,
+ * `CATEGORISED_ENUMERATION_TYPES`, `QUESTION_TEMPLATE_ENUMERATION_TYPES`,
+ * `QUESTION_BOUND_ENUMERATION_TYPES` and `CUSTOMER_READABLE_ENUMERATION_TYPES`. Each names
+ * a behaviour that only a builtin has — a code path reads that type by name — so making one
+ * of them settable would let an operator claim a capability nothing implements. The customer
+ * allow-list is the sharpest case: it must not be widenable from a browser, and its
+ * exact-equality test is the guard.
  *
- * Two things follow from a type appearing here, both enforced in the admin service:
+ * Two things still follow from a kind naming a `parentTypeKey`, both enforced in the admin
+ * service and now read from here rather than from a constant:
  *   · a new member of it MUST name a parent (an unfiled value is invisible to the derivation
  *     that reads it, so it quotes nothing for whoever picks it), and
  *   · a PARENT may not be retired while a member still points at it.
  */
-export const PARENT_TYPE_BY_TYPE: Readonly<Partial<Record<EnumerationType, EnumerationType>>> = {
-  compound: 'compound_category',
-};
-
-/** The list `type`'s values are filed under, or `null` when the type has no parent axis. */
-export function parentTypeOf(type: string): EnumerationType | null {
-  return PARENT_TYPE_BY_TYPE[type as EnumerationType] ?? null;
+export interface EnumerationTypeDefinition {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  descriptionAr: string | null;
+  descriptionEn: string | null;
+  icon: string | null;
+  exampleAr: string | null;
+  exampleEn: string | null;
+  /** The kind whose values these are filed under, by key. `null` = no parent axis. */
+  parentTypeKey: string | null;
+  deletable: boolean;
+  /** Shown on the operator's Manage-values rail. Off for kinds with a screen of their own. */
+  onValuesRail: boolean;
+  /** A builtin the code names by string: relabel yes, rename or delete no. */
+  systemOnly: boolean;
+  active: boolean;
+  sortOrder: number;
+  /**
+   * The `surrogate_product` that authored this kind, or `null` for a shared list.
+   *
+   * Provenance only — it answers "which lists did this product make?" on a product that has
+   * no rule yet, which is the one moment the coverage derivation cannot. Nothing gates on it.
+   */
+  surrogateProductKey: string | null;
+  /**
+   * The question whose OPTIONS are this list, one-for-one, `question_option.code` === `key`.
+   *
+   * When set, a write to any value of this kind re-syncs that question's options and
+   * republishes the questionnaire. `null` = a list no question mirrors.
+   */
+  mirrorQuestionId: string | null;
 }
 
-/** The types filed under `parentType` — the inverse of the map above. */
-export function childTypesOf(parentType: string): EnumerationType[] {
-  return (Object.keys(PARENT_TYPE_BY_TYPE) as EnumerationType[]).filter(
-    (child) => PARENT_TYPE_BY_TYPE[child] === parentType,
-  );
+/** Definitions by key, as every reader below expects them. */
+export type EnumerationTypeDefinitions = ReadonlyMap<string, EnumerationTypeDefinition>;
+
+/**
+ * The list `type`'s values are filed under, or `null` when the type has no parent axis.
+ *
+ * PURE, and takes the definitions rather than reading them: the three call sites are all
+ * inside one already-async service method that has other reasons to hold the map, and a
+ * function that fetched its own would turn a single decision into three round trips.
+ *
+ * Reads a definition WHATEVER its `active` state, deliberately. `active` governs whether a
+ * kind is OFFERED to an operator; retiring one must not silently strip the parent axis from
+ * values that already carry a `parentKey`, because `factParentTable` goes on walking it and
+ * the only visible symptom would be a quote of nothing.
+ */
+export function parentTypeOf(defs: EnumerationTypeDefinitions, type: string): string | null {
+  return defs.get(type)?.parentTypeKey ?? null;
+}
+
+/** The types filed under `parentType` — the inverse of the relation above. */
+export function childTypesOf(defs: EnumerationTypeDefinitions, parentType: string): string[] {
+  const out: string[] = [];
+  for (const def of defs.values()) {
+    if (def.parentTypeKey === parentType) out.push(def.key);
+  }
+  return out;
+}
+
+/**
+ * Whether a value of `type` may be hard-deleted. Replaces the `DELETABLE_TYPES` constant.
+ *
+ * An UNDEFINED type answers `false`, which is the safe direction: `countReferences` returns
+ * `null` for it and the delete is refused in words rather than performed against a type
+ * nothing can count the references of.
+ */
+export function isDeletableType(defs: EnumerationTypeDefinitions, type: string): boolean {
+  return defs.get(type)?.deletable ?? false;
 }
 
 /**
@@ -356,6 +408,14 @@ export interface EnumerationMember {
    */
   incomeBases?: IncomeBasesByCategory;
   /**
+   * On a `program_name` — the `surrogate_product` its calculation comes from.
+   * On a `surrogate_fact` — the product that AUTHORED it.
+   *
+   * `null` on both is a real state and means neither. See the column's own doc in
+   * `schema.prisma`; nothing gates on it, it is provenance an admin screen groups by.
+   */
+  surrogateProductKey?: string | null;
+  /**
    * `surrogate_fact` only — the question whose answer IS this fact.
    *
    * `null` is a real, representable state, not a loading artefact: a fact can be
@@ -371,14 +431,61 @@ export abstract class PlatformEnumerationsRepository {
   /** Fail-closed health check. Returns false when the underlying store is unreachable. */
   abstract isAvailable(): Promise<boolean>;
 
+  /**
+   * Every KIND of list the registry knows, by key — including inactive ones.
+   *
+   * INACTIVE KINDS ARE INCLUDED, and that is the whole reason this returns a map rather than
+   * a filtered list. `active` says whether a kind is OFFERED to an operator; it must not
+   * decide whether an existing value still has a parent axis or is still undeletable, or
+   * retiring a kind would quietly change how the rows already under it behave. Callers that
+   * are building a picker filter on `active` themselves.
+   *
+   * CACHED, unlike `memberCategories` and `surrogateFactRegistry`. Those are uncached
+   * because they back a rejection or a quote. This one backs neither: no figure is read from
+   * it and no customer-facing answer depends on it, and it is consulted on nearly every
+   * registry write. The write paths invalidate it, so an operator never sees their own edit
+   * lag.
+   */
+  abstract typeDefinitions(): Promise<EnumerationTypeDefinitions>;
+
+  /** Create a KIND. `key` is immutable thereafter — values carry the string. */
+  abstract insertTypeDefinition(
+    input: Omit<EnumerationTypeDefinition, 'active'> & { active?: boolean },
+  ): Promise<EnumerationTypeDefinition>;
+
+  /** Patch a KIND. `key` is deliberately absent: renaming would strand every value. */
+  abstract updateTypeDefinition(
+    key: string,
+    patch: Partial<Omit<EnumerationTypeDefinition, 'key'>>,
+  ): Promise<EnumerationTypeDefinition | null>;
+
+  /** Remove a KIND. The caller has already proved nothing carries the string. */
+  abstract deleteTypeDefinition(key: string): Promise<void>;
+
+  /** How many `platform_enumeration` rows carry this type — the delete gate for a KIND. */
+  abstract countRowsOfType(type: string): Promise<number>;
+
+  /**
+   * Hard-delete a surrogate product with the bank programs and links that only exist
+   * because of it. One transaction, FK order; see the Postgres implementation.
+   *
+   * The caller has already confirmed: the endpoint refuses without an explicit `cascade`
+   * and names every row that would go.
+   */
+  abstract deleteSurrogateProductCascade(
+    key: string,
+    nameKeys: readonly string[],
+    programCodes: readonly string[],
+  ): Promise<void>;
+
   /** True when key is BOTH present AND active for the given enumeration type. */
-  abstract isActiveMember(type: EnumerationType, key: string): Promise<boolean>;
+  abstract isActiveMember(type: string, key: string): Promise<boolean>;
 
   /** True when key is present BUT deprecated (FR-010c — show warning, do NOT auto-mutate programs). */
-  abstract isDeprecatedMember(type: EnumerationType, key: string): Promise<boolean>;
+  abstract isDeprecatedMember(type: string, key: string): Promise<boolean>;
 
   /** Active members of a given type — used to populate tier-key pickers in the admin form. */
-  abstract getActiveMembers(type: EnumerationType): Promise<EnumerationMember[]>;
+  abstract getActiveMembers(type: string): Promise<EnumerationMember[]>;
 
   /**
    * Loan categories a member may be offered under, by key. Empty = parked.
@@ -391,7 +498,7 @@ export abstract class PlatformEnumerationsRepository {
    * in which an unassigned pair still saves is a correctness bug, not a stale
    * picker.
    */
-  abstract memberCategories(type: EnumerationType, key: string): Promise<LoanCategory[]>;
+  abstract memberCategories(type: string, key: string): Promise<LoanCategory[]>;
 
   /**
    * A catalog name's SUGGESTED question set for ONE loan category, by key.
@@ -541,7 +648,7 @@ export abstract class PlatformEnumerationsRepository {
    * applicant to a cap row that no longer exists, while a merely deactivated one can be
    * switched back on.
    */
-  abstract countChildren(childType: EnumerationType, parentKey: string): Promise<number>;
+  abstract countChildren(childType: string, parentKey: string): Promise<number>;
 
   /**
    * The catalog program names taking their calculation from `productKey`.

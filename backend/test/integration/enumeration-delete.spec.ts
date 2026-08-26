@@ -19,6 +19,7 @@ import { PlatformEnumerationsAdminService } from '@/platform-enumerations/platfo
 import { AuditEventType } from '@/common/audit/audit-event-types';
 import { ERROR_CODES } from '@/common/errors/error-codes';
 import { DomainException } from '@/common/errors/domain.exceptions';
+import { fakeTypeDefinitions } from '../helpers/enumeration-type-defs';
 
 interface FakeRow {
   id: string;
@@ -86,13 +87,22 @@ function makeRepo(
     invalidateCache: vi.fn(function (this: void, type?: string) {
       return type;
     }),
+    // Read after every value write, to decide whether a question mirrors this list. None of
+    // these builtins does, so the sync stops there — which is what these specs assert about
+    // by NOT expecting a publish.
+    typeDefinitions: vi.fn(async () => fakeTypeDefinitions()),
   };
 }
 
 function makeService(repo: ReturnType<typeof makeRepo>) {
   const audit = { write: vi.fn(async () => undefined) };
-  const service = new PlatformEnumerationsAdminService(audit as never, repo as never);
-  return { service, audit };
+  const questionnaire = { syncMirroredOptions: vi.fn(async () => false) };
+  const service = new PlatformEnumerationsAdminService(
+    audit as never,
+    repo as never,
+    questionnaire as never,
+  );
+  return { service, audit, questionnaire };
 }
 
 const ACTOR = { staffId: 'stf_1', sourceIp: '127.0.0.1' };

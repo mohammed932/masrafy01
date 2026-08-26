@@ -122,6 +122,48 @@ export class BankProgramsController {
     return ok(await this.service.setSurrogateProductIncomeRule(key, body, this.actor(user, req)));
   }
 
+  /**
+   * Delete a surrogate product, and on `?cascade=true` everything under it.
+   *
+   * TWO CALLS BY DESIGN. Without `cascade` this refuses with `SURROGATE_PRODUCT_IN_USE`
+   * carrying the exact `names` and `programCodes` that would be destroyed, so the screen
+   * confirms against a list rather than against a count the operator has to trust. A
+   * product nothing points at deletes on the first call.
+   *
+   * Declared with the other `surrogate-products` routes, BEFORE `@Get(':programCode')` —
+   * the trap this controller already documents at the top.
+   *
+   * A separate door from `DELETE admin/enumerations/:id`, which still refuses for this type
+   * (`surrogate_product` stays out of the deletable kinds): one destructive path, not two,
+   * and only this one knows what a product drags with it.
+   */
+  @Delete('surrogate-products/:key')
+  @Roles('super_admin')
+  @ApiOperation({
+    summary: 'Delete a surrogate product',
+    description:
+      'Refuses while catalog names link to it unless `cascade=true`, and names exactly ' +
+      'what would go. With cascade: deletes the bank programs under every linked name, ' +
+      'unlinks the names (which survive), then deletes the product. Issued bank offers ' +
+      'are untouched — they carry their own frozen figures and reference programs by code.',
+  })
+  @ApiResponse({ status: 404, description: 'SURROGATE_PRODUCT_NOT_FOUND' })
+  @ApiResponse({ status: 409, description: 'SURROGATE_PRODUCT_IN_USE — retry with cascade=true' })
+  async deleteSurrogateProduct(
+    @Param('key') key: string,
+    @Query('cascade') cascade: string | undefined,
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+  ) {
+    return ok(
+      await this.service.deleteSurrogateProduct(
+        key,
+        { cascade: cascade === 'true' },
+        this.actor(user, req),
+      ),
+    );
+  }
+
   @Get(':programCode')
   @ApiOperation({ summary: "Fetch a single bank program's full configuration" })
   @ApiResponse({ status: 200, description: 'Bank program detail.' })

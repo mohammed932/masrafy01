@@ -65,9 +65,8 @@ async function main(): Promise<void> {
     // less than telling them it would be refused.
     const violation = await validateIncomeRule(rule as unknown as IncomeAssumptionConfig, ctx, {
       // A product's figures are its banks' to fill, the same posture a CATALOG write
-      // takes. Holding an archetype to a bank's completeness would make the compound
-      // frame — whose whole design is "each bank fills exactly one derivation" —
-      // unsavable.
+      // takes. Holding an archetype to a bank's completeness would make any frame whose
+      // design is "each bank fills exactly one derivation" unsavable.
       figuresRequired: false,
     });
     if (violation) {
@@ -128,9 +127,9 @@ async function main(): Promise<void> {
     });
   }
 
-  // The pipeline products belong to `seed-collateral-products.ts`. Reported, not written —
+  // The pipeline product belongs to `seed-collateral-products.ts`. Reported, not written —
   // an operator running only this seed should be told the library is incomplete rather
-  // than left to notice that the compound product is not in the picker.
+  // than left to notice a product is missing from the picker.
   const pipelines = await prisma.platformEnumeration.findMany({
     where: { type: SURROGATE_PRODUCT_TYPE, key: { in: [...PIPELINE_PRODUCT_KEYS] } },
     select: { key: true },
